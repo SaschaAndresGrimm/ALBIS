@@ -42,6 +42,7 @@ VIEWER_ALLOW_ABS=0 python backend/app.py
   - Optional filename pattern (glob) filter for watch mode.
   - Browse… opens a native folder picker (macOS) to select absolute paths.
   - SIMPLON monitor: pulls the latest monitor image (TIFF) from the detector API with a live badge.
+  - SIMPLON monitor fetches the detector pixel mask at start and applies it to monitor frames.
 - **Dataset + frame navigation**
   - Dataset selection, frame slider, frame step, play/pause with FPS.
   - Toolbar buttons for previous/next/play.
@@ -92,6 +93,7 @@ VIEWER_ALLOW_ABS=0 python backend/app.py
 - `GET /api/autoload/latest?folder=...&pattern=...&exts=...`
 - `GET /api/image?file=...`
 - `GET /api/simplon/monitor?url=...`
+- `GET /api/simplon/mask?url=...`
 - `POST /api/simplon/mode?url=...&mode=enabled|disabled`
 - `GET /api/choose-folder`
 - `POST /api/upload`

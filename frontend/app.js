@@ -1498,6 +1498,7 @@ async function startAutoload() {
   setAutoloadStatus(`Running (${state.autoload.mode === "watch" ? "Watch folder" : "SIMPLON monitor"})`);
   persistAutoloadSettings();
   if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
+    await fetchSimplonMask();
     await setSimplonMode(true);
   }
   updateLiveBadge();
@@ -1616,7 +1617,7 @@ async function autoloadSimplonTick() {
       label = `SIMPLON monitor (${baseUrl})`;
     }
   }
-  applyExternalFrame(data, shape, dtype, label, false);
+  applyExternalFrame(data, shape, dtype, label, false, true);
   setAutoloadLatest("monitor");
   setAutoloadStatus("SIMPLON: updated", true);
   updateLiveBadge();
@@ -1662,7 +1663,7 @@ async function loadImageFile(file) {
   setLoading(false);
 }
 
-function applyExternalFrame(data, shape, dtype, label, fitView) {
+function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false) {
   if (!Array.isArray(shape) || shape.length < 2) return;
   stopPlayback();
   if (fitView) {
@@ -1679,7 +1680,9 @@ function applyExternalFrame(data, shape, dtype, label, fitView) {
   datasetSelect.appendChild(option("Single image", ""));
   datasetSelect.value = "";
   setDataControlsForImage();
-  clearMaskState();
+  if (!preserveMask) {
+    clearMaskState();
+  }
 
   const height = shape[0];
   const width = shape[1];
@@ -1687,6 +1690,42 @@ function applyExternalFrame(data, shape, dtype, label, fitView) {
   metaDtype.textContent = dtype;
   applyFrame(data, width, height, dtype);
   updateToolbar();
+}
+
+async function fetchSimplonMask() {
+  if (!simplonUrl) return;
+  const baseUrl = simplonUrl.value.trim();
+  if (!baseUrl) return;
+  const version = simplonVersion?.value?.trim() || "1.8.0";
+  try {
+    const res = await fetch(
+      `${API}/simplon/mask?url=${encodeURIComponent(baseUrl)}&version=${encodeURIComponent(version)}`
+    );
+    if (res.status === 204) {
+      return;
+    }
+    if (!res.ok) {
+      setAutoloadStatus("SIMPLON: mask unavailable");
+      return;
+    }
+    const buffer = await res.arrayBuffer();
+    const dtype = parseDtype(res.headers.get("X-Dtype"));
+    const shape = parseShape(res.headers.get("X-Shape"));
+    const data = typedArrayFrom(buffer, dtype);
+    state.maskRaw = normalizeMaskData(data);
+    state.maskShape = shape;
+    state.maskAuto = true;
+    state.maskFile = "__simplon__";
+    syncMaskAvailability(true);
+    if (state.hasFrame) {
+      updateGlobalStats();
+      redraw();
+      scheduleRoiUpdate();
+    }
+  } catch (err) {
+    console.error(err);
+    setAutoloadStatus("SIMPLON: mask failed");
+  }
 }
 
 function exportFrame(filenameOverride) {
