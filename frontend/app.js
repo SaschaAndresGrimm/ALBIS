@@ -55,8 +55,14 @@ const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const dataSection = document.getElementById("data-section");
+const roiHelp = document.getElementById("roi-help");
 const roiModeSelect = document.getElementById("roi-mode");
 const roiLogToggle = document.getElementById("roi-log");
+const roiRadiusField = document.getElementById("roi-radius-field");
+const roiRadiusInput = document.getElementById("roi-radius");
+const roiRingFields = document.getElementById("roi-ring-fields");
+const roiInnerInput = document.getElementById("roi-inner-radius");
+const roiOuterInput = document.getElementById("roi-outer-radius");
 const roiStartEl = document.getElementById("roi-start");
 const roiEndEl = document.getElementById("roi-end");
 const roiSizeLabel = document.getElementById("roi-size-label");
@@ -121,6 +127,8 @@ const roiState = {
   lineProfile: null,
   xProjection: null,
   yProjection: null,
+  innerRadius: 0,
+  outerRadius: 0,
 };
 
 const state = {
@@ -493,6 +501,16 @@ function drawRoiOverlay() {
     const w = Math.abs(x1 - x0);
     const h = Math.abs(y1 - y0);
     roiCtx.strokeRect(left, top, w, h);
+  } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
+    const radius = Math.hypot(x1 - x0, y1 - y0);
+    roiCtx.beginPath();
+    roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
+    roiCtx.stroke();
+    if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
+      roiCtx.beginPath();
+      roiCtx.arc(x0, y0, roiState.innerRadius * zoom, 0, Math.PI * 2);
+      roiCtx.stroke();
+    }
   }
   roiCtx.restore();
 }
@@ -2172,7 +2190,12 @@ function setRoiText(el, value) {
 function updateRoiModeUI() {
   const mode = roiState.mode;
   if (roiLinePlot) {
-    roiLinePlot.classList.toggle("is-hidden", mode !== "line");
+    const showLine = mode === "line" || mode === "circle" || mode === "annulus";
+    roiLinePlot.classList.toggle("is-hidden", !showLine);
+    const title = roiLinePlot.querySelector(".roi-plot-title");
+    if (title) {
+      title.textContent = mode === "line" ? "Line Profile" : "Radial Profile";
+    }
   }
   if (roiBoxPlotX) {
     roiBoxPlotX.classList.toggle("is-hidden", mode !== "box");
@@ -2180,17 +2203,36 @@ function updateRoiModeUI() {
   if (roiBoxPlotY) {
     roiBoxPlotY.classList.toggle("is-hidden", mode !== "box");
   }
+  if (roiRadiusField) {
+    roiRadiusField.classList.toggle("is-hidden", mode !== "circle");
+  }
+  if (roiRingFields) {
+    roiRingFields.classList.toggle("is-hidden", mode !== "annulus");
+  }
   if (roiSizeLabel) {
     if (mode === "line") {
       roiSizeLabel.textContent = "Length (px)";
     } else if (mode === "box") {
       roiSizeLabel.textContent = "Size (WxH)";
+    } else if (mode === "circle") {
+      roiSizeLabel.textContent = "Radius (px)";
+    } else if (mode === "annulus") {
+      roiSizeLabel.textContent = "Rin → Rout";
     } else {
       roiSizeLabel.textContent = "Image";
     }
   }
   if (roiCountLabel) {
     roiCountLabel.textContent = mode === "line" ? "Samples" : "Pixels";
+  }
+  if (roiHelp) {
+    if (mode === "annulus") {
+      roiHelp.textContent = "Right‑drag to set outer radius. Adjust inner radius below.";
+    } else if (mode === "circle") {
+      roiHelp.textContent = "Right‑drag from center to set radius.";
+    } else {
+      roiHelp.textContent = "Right‑drag on the image to define the ROI.";
+    }
   }
 }
 
@@ -2202,6 +2244,11 @@ function clearRoi() {
   roiState.lineProfile = null;
   roiState.xProjection = null;
   roiState.yProjection = null;
+  roiState.innerRadius = 0;
+  roiState.outerRadius = 0;
+  if (roiRadiusInput) roiRadiusInput.value = "";
+  if (roiInnerInput) roiInnerInput.value = "";
+  if (roiOuterInput) roiOuterInput.value = "";
   setRoiText(roiStartEl, "-");
   setRoiText(roiEndEl, "-");
   setRoiText(roiSizeEl, "-");
@@ -2293,6 +2340,59 @@ function updateGlobalStats() {
   state.globalStats = computeGlobalStats();
 }
 
+function showRoiTooltip(canvasEl, text, clientX, clientY) {
+  if (!canvasEl) return;
+  const container = canvasEl.parentElement;
+  if (!container) return;
+  const tooltip = container.querySelector(".roi-tooltip");
+  if (!tooltip) return;
+  tooltip.textContent = text;
+  tooltip.classList.add("is-visible");
+  tooltip.setAttribute("aria-hidden", "false");
+  const rect = container.getBoundingClientRect();
+  let left = clientX - rect.left + 8;
+  let top = clientY - rect.top + 8;
+  const maxLeft = rect.width - tooltip.offsetWidth - 6;
+  const maxTop = rect.height - tooltip.offsetHeight - 6;
+  left = Math.min(maxLeft, Math.max(6, left));
+  top = Math.min(maxTop, Math.max(6, top));
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function hideRoiTooltip(canvasEl) {
+  if (!canvasEl) return;
+  const container = canvasEl.parentElement;
+  const tooltip = container?.querySelector(".roi-tooltip");
+  if (!tooltip) return;
+  tooltip.classList.remove("is-visible");
+  tooltip.setAttribute("aria-hidden", "true");
+}
+
+function updateRoiTooltip(event, canvasEl) {
+  const plot = canvasEl?._roiPlot;
+  if (!plot || !plot.data || plot.data.length === 0) {
+    hideRoiTooltip(canvasEl);
+    return;
+  }
+  const rect = canvasEl.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const plotX = x - plot.padL;
+  const plotW = plot.width - plot.padL - plot.padR;
+  const plotH = plot.height - plot.padT - plot.padB;
+  if (plotX < 0 || plotX > plotW || y < plot.padT || y > plot.padT + plotH) {
+    hideRoiTooltip(canvasEl);
+    return;
+  }
+  const t = plotW ? plotX / plotW : 0;
+  const idx = Math.max(0, Math.min(plot.data.length - 1, Math.round(t * (plot.data.length - 1))));
+  const xValue = plot.xStart + idx * plot.xStep;
+  const value = plot.data[idx];
+  const label = `${plot.xLabel} ${xValue}  Value ${formatStat(value)}`;
+  showRoiTooltip(canvasEl, label, event.clientX, event.clientY);
+}
+
 function updateRoiStats() {
   if (!state.hasFrame) {
     if (roiState.active) {
@@ -2318,6 +2418,15 @@ function updateRoiStats() {
     setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
     setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
     setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+    if (roiLineCanvas) {
+      roiLineCanvas._roiPlotMeta = null;
+    }
+    if (roiXCanvas) {
+      roiXCanvas._roiPlotMeta = null;
+    }
+    if (roiYCanvas) {
+      roiYCanvas._roiPlotMeta = null;
+    }
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
@@ -2391,6 +2500,14 @@ function updateRoiStats() {
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    if (roiLineCanvas) {
+      roiLineCanvas._roiPlotMeta = {
+        xLabel: "Sample",
+        yLabel: "Intensity",
+        xStart: 0,
+        xStep: 1,
+      };
+    }
     drawRoiPlot(roiLineCanvas, roiLineCtx, values, roiState.log);
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
@@ -2436,8 +2553,105 @@ function updateRoiStats() {
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
+    if (roiXCanvas) {
+      roiXCanvas._roiPlotMeta = {
+        xLabel: "X Pixel",
+        yLabel: "Sum",
+        xStart: left,
+        xStep: 1,
+      };
+    }
+    if (roiYCanvas) {
+      roiYCanvas._roiPlotMeta = {
+        xLabel: "Y Pixel",
+        yLabel: "Sum",
+        xStart: top,
+        xStep: 1,
+      };
+    }
     drawRoiPlot(roiXCanvas, roiXCtx, roiState.xProjection, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, roiState.yProjection, roiState.log);
+  } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const outerRadius = Math.max(1, Math.round(Math.hypot(dx, dy)));
+    if (roiState.mode === "circle") {
+      roiState.innerRadius = 0;
+      roiState.outerRadius = outerRadius;
+      if (roiRadiusInput) roiRadiusInput.value = String(outerRadius);
+    } else {
+      roiState.outerRadius = outerRadius;
+      let inner = Math.max(0, Math.round(roiState.innerRadius || 0));
+      if (!inner || inner >= outerRadius) {
+        inner = Math.max(0, Math.round(outerRadius * 0.5));
+      }
+      roiState.innerRadius = inner;
+      if (roiInnerInput) roiInnerInput.value = String(inner);
+      if (roiOuterInput) roiOuterInput.value = String(outerRadius);
+    }
+
+    const left = Math.max(0, Math.floor(x0 - outerRadius));
+    const right = Math.min(state.width - 1, Math.ceil(x0 + outerRadius));
+    const top = Math.max(0, Math.floor(y0 - outerRadius));
+    const bottom = Math.min(state.height - 1, Math.ceil(y0 + outerRadius));
+    const innerR2 = roiState.innerRadius * roiState.innerRadius;
+    const outerR2 = outerRadius * outerRadius;
+    const radialSum = new Float64Array(outerRadius + 1);
+    const radialCount = new Uint32Array(outerRadius + 1);
+
+    for (let y = top; y <= bottom; y += 1) {
+      const dyPix = y - y0;
+      for (let x = left; x <= right; x += 1) {
+        const dxPix = x - x0;
+        const r2 = dxPix * dxPix + dyPix * dyPix;
+        if (r2 > outerR2 || r2 < innerR2) continue;
+        const sampled = sampleValue(x, y);
+        if (!sampled) continue;
+        const v = sampled.value;
+        if (!sampled.skip && Number.isFinite(v)) {
+          count += 1;
+          sum += v;
+          min = Math.min(min, v);
+          max = Math.max(max, v);
+          const delta = v - mean;
+          mean += delta / count;
+          m2 += delta * (v - mean);
+          const r = Math.min(outerRadius, Math.floor(Math.sqrt(r2)));
+          radialSum[r] += v;
+          radialCount[r] += 1;
+        }
+      }
+    }
+
+    const profile = Array.from(radialSum, (v, i) =>
+      radialCount[i] ? v / radialCount[i] : 0
+    );
+    roiState.lineProfile = profile;
+    roiState.xProjection = null;
+    roiState.yProjection = null;
+    if (roiState.mode === "circle") {
+      setRoiText(roiSizeEl, `${outerRadius}`);
+    } else {
+      setRoiText(roiSizeEl, `${roiState.innerRadius} → ${outerRadius}`);
+    }
+    setRoiText(roiCountEl, count ? `${count}` : "0");
+    const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
+    setRoiText(roiMinEl, count ? formatStat(min) : "-");
+    setRoiText(roiMaxEl, count ? formatStat(max) : "-");
+    setRoiText(roiSumEl, count ? formatStat(sum) : "-");
+    setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    if (roiLineCanvas) {
+      roiLineCanvas._roiPlotMeta = {
+        xLabel: "Radius (px)",
+        yLabel: "Intensity",
+        xStart: 0,
+        xStep: 1,
+      };
+    }
+    drawRoiPlot(roiLineCanvas, roiLineCtx, profile, roiState.log);
+    drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
+    drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
   }
   drawRoiOverlay();
 }
@@ -2453,21 +2667,33 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.fillStyle = "#2b2b2b";
   ctx.fillRect(0, 0, width, height);
   if (!data || data.length === 0) {
+    canvasEl._roiPlot = null;
     ctx.strokeStyle = "rgba(0,0,0,0.5)";
     ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
     return;
   }
   const values = logScale ? data.map((v) => Math.log10(1 + Math.max(0, v))) : data;
   const maxValue = Math.max(...values);
-  const pad = 6;
-  const drawableHeight = Math.max(4, height - pad * 2);
-  const drawableWidth = Math.max(4, width - pad * 2);
+  const padL = 34;
+  const padR = 8;
+  const padT = 8;
+  const padB = 22;
+  const drawableHeight = Math.max(4, height - padT - padB);
+  const drawableWidth = Math.max(4, width - padL - padR);
+  ctx.strokeStyle = "rgba(90, 90, 90, 0.9)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, padT + drawableHeight);
+  ctx.lineTo(padL + drawableWidth, padT + drawableHeight);
+  ctx.stroke();
+
   ctx.strokeStyle = "#e5e5e5";
   ctx.lineWidth = 1;
   ctx.beginPath();
   values.forEach((v, i) => {
-    const x = pad + (i / Math.max(1, values.length - 1)) * drawableWidth;
-    const y = pad + drawableHeight - (maxValue ? (v / maxValue) * drawableHeight : 0);
+    const x = padL + (i / Math.max(1, values.length - 1)) * drawableWidth;
+    const y = padT + drawableHeight - (maxValue ? (v / maxValue) * drawableHeight : 0);
     if (i === 0) {
       ctx.moveTo(x, y);
     } else {
@@ -2475,6 +2701,34 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     }
   });
   ctx.stroke();
+
+  const plotMeta = canvasEl._roiPlotMeta || {};
+  const xLabel = plotMeta.xLabel || "Index";
+  const yLabel = plotMeta.yLabel || "Value";
+  ctx.fillStyle = "#cfcfcf";
+  ctx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(xLabel, padL + drawableWidth / 2, height - 6);
+  ctx.save();
+  ctx.translate(10, padT + drawableHeight / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+
+  canvasEl._roiPlot = {
+    data,
+    log: logScale,
+    xLabel,
+    yLabel,
+    padL,
+    padR,
+    padT,
+    padB,
+    width,
+    height,
+    xStart: plotMeta.xStart ?? 0,
+    xStep: plotMeta.xStep ?? 1,
+  };
   ctx.strokeStyle = "rgba(0,0,0,0.5)";
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
@@ -2827,6 +3081,9 @@ roiModeSelect?.addEventListener("change", () => {
   if (roiState.mode === "none") {
     clearRoi();
   } else {
+    if (roiState.mode === "circle") {
+      roiState.innerRadius = 0;
+    }
     roiState.active = Boolean(roiState.start && roiState.end);
     scheduleRoiOverlay();
     scheduleRoiUpdate();
@@ -2835,6 +3092,32 @@ roiModeSelect?.addEventListener("change", () => {
 
 roiLogToggle?.addEventListener("change", () => {
   roiState.log = roiLogToggle.checked;
+  scheduleRoiUpdate();
+});
+
+roiRadiusInput?.addEventListener("change", () => {
+  if (!roiState.start || roiState.mode !== "circle") return;
+  const radius = Math.max(0, Math.round(Number(roiRadiusInput.value || 0)));
+  roiState.outerRadius = radius;
+  roiState.end = { x: Math.min(state.width - 1, roiState.start.x + radius), y: roiState.start.y };
+  scheduleRoiOverlay();
+  scheduleRoiUpdate();
+});
+
+roiInnerInput?.addEventListener("change", () => {
+  if (!roiState.start || roiState.mode !== "annulus") return;
+  const inner = Math.max(0, Math.round(Number(roiInnerInput.value || 0)));
+  roiState.innerRadius = inner;
+  scheduleRoiOverlay();
+  scheduleRoiUpdate();
+});
+
+roiOuterInput?.addEventListener("change", () => {
+  if (!roiState.start || roiState.mode !== "annulus") return;
+  const outer = Math.max(0, Math.round(Number(roiOuterInput.value || 0)));
+  roiState.outerRadius = outer;
+  roiState.end = { x: Math.min(state.width - 1, roiState.start.x + outer), y: roiState.start.y };
+  scheduleRoiOverlay();
   scheduleRoiUpdate();
 });
 
@@ -3028,6 +3311,19 @@ canvasWrap.addEventListener("pointerdown", (event) => {
     roiState.active = true;
     roiState.start = point;
     roiState.end = point;
+    if (roiState.mode === "circle" || roiState.mode === "annulus") {
+      roiState.outerRadius = 0;
+      if (roiState.mode === "circle") {
+        roiState.innerRadius = 0;
+        if (roiRadiusInput) roiRadiusInput.value = "0";
+      } else {
+        if (!roiState.innerRadius) {
+          roiState.innerRadius = 0;
+        }
+        if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius || 0);
+        if (roiOuterInput) roiOuterInput.value = "0";
+      }
+    }
     canvasWrap.classList.add("is-roi");
     canvasWrap.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -3055,6 +3351,21 @@ canvasWrap.addEventListener("pointermove", (event) => {
     const point = getImagePointFromEvent(event);
     if (!point) return;
     roiState.end = point;
+    if (roiState.mode === "circle" || roiState.mode === "annulus") {
+      const dx = roiState.end.x - roiState.start.x;
+      const dy = roiState.end.y - roiState.start.y;
+      const outer = Math.max(0, Math.round(Math.hypot(dx, dy)));
+      roiState.outerRadius = outer;
+      if (roiState.mode === "circle") {
+        if (roiRadiusInput) roiRadiusInput.value = String(outer);
+      } else {
+        if (roiOuterInput) roiOuterInput.value = String(outer);
+        if (!roiState.innerRadius || roiState.innerRadius >= outer) {
+          roiState.innerRadius = Math.max(0, Math.round(outer * 0.5));
+          if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
+        }
+      }
+    }
     scheduleRoiOverlay();
     scheduleRoiUpdate();
     return;
@@ -3108,6 +3419,12 @@ canvasWrap.addEventListener("dblclick", (event) => {
   event.preventDefault();
   const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, state.zoom * 2));
   zoomAt(event.clientX, event.clientY, next);
+});
+
+[roiLineCanvas, roiXCanvas, roiYCanvas].forEach((canvasEl) => {
+  if (!canvasEl) return;
+  canvasEl.addEventListener("mousemove", (event) => updateRoiTooltip(event, canvasEl));
+  canvasEl.addEventListener("mouseleave", () => hideRoiTooltip(canvasEl));
 });
 
 overviewCanvas?.addEventListener("pointerdown", (event) => {

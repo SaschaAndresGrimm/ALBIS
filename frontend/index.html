@@ -231,9 +231,27 @@
                 <option value="none" selected>None</option>
                 <option value="line">Line ROI</option>
                 <option value="box">Box ROI</option>
+                <option value="circle">Circle ROI</option>
+                <option value="annulus">Annulus ROI</option>
               </select>
             </label>
-            <div class="roi-help">Right‑drag on the image to define the ROI.</div>
+            <div class="roi-help" id="roi-help">Right‑drag on the image to define the ROI.</div>
+            <div class="roi-params">
+              <label class="field roi-radius-field is-hidden" id="roi-radius-field">
+                <span>Radius (px)</span>
+                <input id="roi-radius" type="number" min="0" step="1" />
+              </label>
+              <div class="roi-ring-fields is-hidden" id="roi-ring-fields">
+                <label class="field">
+                  <span>Inner (px)</span>
+                  <input id="roi-inner-radius" type="number" min="0" step="1" />
+                </label>
+                <label class="field">
+                  <span>Outer (px)</span>
+                  <input id="roi-outer-radius" type="number" min="0" step="1" />
+                </label>
+              </div>
+            </div>
             <div class="roi-stats">
               <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
               <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
@@ -253,14 +271,17 @@
               <div class="roi-plot" id="roi-line-plot">
                 <div class="roi-plot-title">Line Profile</div>
                 <canvas id="roi-line-canvas"></canvas>
+                <div class="roi-tooltip" aria-hidden="true"></div>
               </div>
               <div class="roi-plot" id="roi-box-plot-x">
                 <div class="roi-plot-title">X Projection</div>
                 <canvas id="roi-x-canvas"></canvas>
+                <div class="roi-tooltip" aria-hidden="true"></div>
               </div>
               <div class="roi-plot" id="roi-box-plot-y">
                 <div class="roi-plot-title">Y Projection</div>
                 <canvas id="roi-y-canvas"></canvas>
+                <div class="roi-tooltip" aria-hidden="true"></div>
               </div>
             </div>
           </section>
