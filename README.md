@@ -1,6 +1,6 @@
 # ALBIS (ALBIS WEB VIEW)
 
-ALBIS (ALBIS WEB VIEW) is a local, ALBULA-style web viewer for large HDF5 stacks.
+ALBIS (ALBIS WEB VIEW) is a local, ALBIS-style web viewer for large HDF5 stacks.
 
 ## Run (backend + frontend)
 
