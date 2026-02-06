@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import hdf5plugin  # noqa: F401
 import h5py
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
@@ -19,18 +20,27 @@ if not DATA_DIR:
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW")
 
 
-def _safe_name(name: str) -> str:
-    if not name or "/" in name or "\\" in name or name.startswith(".") or ".." in name:
+def _safe_rel_path(name: str) -> Path:
+    if not name:
         raise HTTPException(status_code=400, detail="Invalid file name")
-    return name
+    if name.startswith(("/", "\\")):
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    raw = Path(name)
+    if raw.is_absolute():
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    if any(part == ".." or part.startswith(".") for part in raw.parts):
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    return raw
 
 
 def _resolve_file(name: str) -> Path:
-    safe = _safe_name(name)
-    path = DATA_DIR / safe
+    safe = _safe_rel_path(name)
+    path = (DATA_DIR / safe).resolve()
+    if not _is_within(path, DATA_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid file name")
     if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
         raise HTTPException(status_code=404, detail="File not found")
-    return path.resolve()
+    return path
 
 
 def _is_within(path: Path, root: Path) -> bool:
@@ -215,16 +225,27 @@ def health() -> dict[str, str]:
 
 @app.get("/api/files")
 def files() -> dict[str, list[str]]:
-    items = sorted([p.name for p in DATA_DIR.glob("*.h5")])
-    items += sorted([p.name for p in DATA_DIR.glob("*.hdf5")])
-    return {"files": items}
+    items: list[str] = []
+    for pattern in ("*.h5", "*.hdf5"):
+        for path in DATA_DIR.rglob(pattern):
+            if not path.is_file():
+                continue
+            try:
+                rel = path.relative_to(DATA_DIR).as_posix()
+            except ValueError:
+                continue
+            if any(part.startswith(".") for part in Path(rel).parts):
+                continue
+            items.append(rel)
+    return {"files": sorted(set(items))}
 
 
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)) -> dict[str, str]:
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing filename")
-    safe = _safe_name(Path(file.filename).name)
+    safe_path = _safe_rel_path(Path(file.filename).name)
+    safe = safe_path.as_posix()
     if not safe.lower().endswith((".h5", ".hdf5")):
         raise HTTPException(status_code=400, detail="Only .h5/.hdf5 files are supported")
     dest = (DATA_DIR / safe).resolve()

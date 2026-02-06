@@ -1183,6 +1183,22 @@ async function fetchJSON(url) {
   return res.json();
 }
 
+async function findExistingFile(filename) {
+  if (!filename) return null;
+  try {
+    const data = await fetchJSON(`${API}/files`);
+    const matches = data.files.filter((file) => file === filename || file.endsWith(`/${filename}`));
+    if (matches.length === 0) return null;
+    const exact = matches.find((file) => file === filename);
+    if (exact) return exact;
+    matches.sort((a, b) => a.length - b.length);
+    return matches[0];
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
 function option(label, value) {
   const opt = document.createElement("option");
   opt.value = value;
@@ -2232,10 +2248,21 @@ if (fileInput) {
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
-    setStatus("Uploading file…");
     setLoading(true);
-    showUploadProgress();
+    setStatus("Checking for existing file…");
     try {
+      const existing = await findExistingFile(file.name);
+      if (existing) {
+        setStatus(`Using existing file: ${existing}`);
+        await loadFiles();
+        state.file = existing;
+        fileSelect.value = existing;
+        await loadDatasets();
+        setLoading(false);
+        return;
+      }
+      setStatus("Uploading file…");
+      showUploadProgress();
       const payload = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", `${API}/upload`, true);
