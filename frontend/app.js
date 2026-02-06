@@ -55,7 +55,6 @@ const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const dataSection = document.getElementById("data-section");
-const autoloadSection = document.getElementById("autoload-section");
 const autoloadMode = document.getElementById("autoload-mode");
 const autoloadDir = document.getElementById("autoload-dir");
 const autoloadInterval = document.getElementById("autoload-interval");
@@ -191,7 +190,7 @@ const state = {
   height: 0,
   globalStats: null,
   autoload: {
-    mode: "off",
+    mode: "file",
     dir: "",
     interval: 1000,
     types: {
@@ -1296,13 +1295,6 @@ function flashDataSection() {
   window.setTimeout(() => dataSection.classList.remove("flash"), 800);
 }
 
-function flashAutoloadSection() {
-  if (!autoloadSection) return;
-  autoloadSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  autoloadSection.classList.add("flash");
-  window.setTimeout(() => autoloadSection.classList.remove("flash"), 800);
-}
-
 function setDataControlsForHdf5() {
   if (datasetSelect) datasetSelect.disabled = false;
   if (frameRange) frameRange.disabled = false;
@@ -1381,9 +1373,16 @@ function updateAutoloadUI() {
   if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "watch");
   if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
   if (autoloadToggle) {
-    autoloadToggle.classList.toggle("is-hidden", state.autoload.mode === "off");
-    autoloadToggle.disabled = state.autoload.mode === "off";
+    autoloadToggle.classList.toggle("is-hidden", state.autoload.mode === "file");
+    autoloadToggle.disabled = state.autoload.mode === "file";
     autoloadToggle.textContent = state.autoload.running ? "Stop" : "Start";
+  }
+  if (frameRange) frameRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (frameStep) frameStep.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (fpsRange) fpsRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (autoloadStatus) {
+    const meta = autoloadStatus.closest(".autoload-meta");
+    if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file");
   }
   updateLiveBadge();
 }
@@ -1411,7 +1410,8 @@ function loadAutoloadSettings() {
     if (raw) {
       const stored = JSON.parse(raw);
       if (stored && typeof stored === "object") {
-        state.autoload.mode = stored.mode || state.autoload.mode;
+        const storedMode = stored.mode || state.autoload.mode;
+        state.autoload.mode = storedMode === "off" ? "file" : storedMode;
         state.autoload.dir = stored.dir || "";
         state.autoload.interval = Number(stored.interval || state.autoload.interval);
         if (stored.types && typeof stored.types === "object") {
@@ -1447,7 +1447,7 @@ function loadAutoloadSettings() {
   updateAutoloadUI();
   setAutoloadStatus("Idle");
   setAutoloadLatest("-");
-  if (state.autoload.autoStart && state.autoload.mode !== "off") {
+  if (state.autoload.autoStart && state.autoload.mode !== "file") {
     startAutoload();
   }
 }
@@ -1484,7 +1484,7 @@ async function startAutoload() {
   state.autoload.simplonVersion = simplonVersion?.value?.trim() || "1.8.0";
   state.autoload.simplonTimeout = Math.max(100, Number(simplonTimeout?.value || 500));
   state.autoload.simplonEnable = simplonEnable?.checked ?? true;
-  if (state.autoload.mode === "off") {
+  if (state.autoload.mode === "file") {
     await stopAutoload({ keepMode: false });
     return;
   }
@@ -1518,10 +1518,10 @@ async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
   state.autoload.busy = false;
   state.autoload.autoStart = keepMode ? state.autoload.autoStart : false;
   if (!keepMode) {
-    state.autoload.mode = "off";
+    state.autoload.mode = "file";
   }
   updateAutoloadUI();
-  setAutoloadStatus(state.autoload.mode === "off" ? "Idle" : "Stopped");
+  setAutoloadStatus(state.autoload.mode === "file" ? "Idle" : "Stopped");
   updateLiveBadge();
   persistAutoloadSettings();
 }
@@ -3623,7 +3623,7 @@ autoloadMode?.addEventListener("change", () => {
   state.autoload.mode = nextMode;
   updateAutoloadUI();
   persistAutoloadSettings();
-  if (state.autoload.mode !== "off") {
+  if (state.autoload.mode !== "file") {
     startAutoload();
   }
 });

@@ -181,6 +181,14 @@
               <span class="section-chevron">▾</span>
             </button>
             <label class="field">
+              <span>Mode</span>
+              <select id="autoload-mode">
+                <option value="file">File</option>
+                <option value="watch">Watch Folder</option>
+                <option value="simplon">SIMPLON Monitor</option>
+              </select>
+            </label>
+            <label class="field">
               <span>HDF5 file</span>
               <select id="file-select"></select>
             </label>
@@ -210,21 +218,6 @@
                 <div id="fps-value" class="pill">5 fps</div>
               </div>
             </div>
-          </section>
-
-          <section class="panel-section" data-section="autoload" id="autoload-section">
-            <button class="section-title" type="button" data-section-toggle>
-              Auto Load
-              <span class="section-chevron">▾</span>
-            </button>
-            <label class="field">
-              <span>Mode</span>
-              <select id="autoload-mode">
-                <option value="off" selected>Off</option>
-                <option value="watch">Watch Folder</option>
-                <option value="simplon">SIMPLON Monitor</option>
-              </select>
-            </label>
             <div class="autoload-group" id="autoload-watch">
               <label class="field">
                 <span>Folder (relative)</span>

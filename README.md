@@ -36,7 +36,8 @@ VIEWER_ALLOW_ABS=0 python backend/app.py
   - If the selected file already exists under the data directory, it is opened **in place** (no copy).
   - File → Close: clears current dataset.
   - Export PNG: saves the current frame.
-- **Auto Load**
+- **Data + Auto Load (merged)**
+  - Mode: `File` (default), `Watch Folder`, or `SIMPLON Monitor`.
   - Watch folder: continuously loads the newest `.h5/.hdf5`, `.tif/.tiff`, or `.cbf` file.
   - File‑type filters for watch mode (HDF5 / TIFF / CBF).
   - Optional filename pattern (glob) filter for watch mode.
