@@ -82,6 +82,7 @@
               <div class="loading" id="loading">Loading frame…</div>
             </div>
             <canvas id="pixel-overlay"></canvas>
+            <canvas id="roi-overlay"></canvas>
             <div class="splash" id="splash">
               <canvas id="splash-canvas"></canvas>
               <div class="splash-label">
@@ -215,6 +216,51 @@
               <div class="inline">
                 <input id="fps-range" type="range" min="1" max="30" step="1" value="5" />
                 <div id="fps-value" class="pill">5 fps</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-section" data-section="roi" id="roi-section">
+            <button class="section-title" type="button" data-section-toggle>
+              ROI
+              <span class="section-chevron">▾</span>
+            </button>
+            <label class="field">
+              <span>Mode</span>
+              <select id="roi-mode">
+                <option value="none" selected>None</option>
+                <option value="line">Line ROI</option>
+                <option value="box">Box ROI</option>
+              </select>
+            </label>
+            <div class="roi-help">Right‑drag on the image to define the ROI.</div>
+            <div class="roi-stats">
+              <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
+              <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
+              <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
+              <div class="meta-row"><span id="roi-count-label">Samples</span><strong id="roi-count">-</strong></div>
+              <div class="meta-row"><span>Mean</span><strong id="roi-mean">-</strong></div>
+              <div class="meta-row"><span>Min</span><strong id="roi-min">-</strong></div>
+              <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
+              <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
+              <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
+            </div>
+            <label class="checkbox">
+              <input id="roi-log" type="checkbox" />
+              Log plot
+            </label>
+            <div class="roi-plots">
+              <div class="roi-plot" id="roi-line-plot">
+                <div class="roi-plot-title">Line Profile</div>
+                <canvas id="roi-line-canvas"></canvas>
+              </div>
+              <div class="roi-plot" id="roi-box-plot-x">
+                <div class="roi-plot-title">X Projection</div>
+                <canvas id="roi-x-canvas"></canvas>
+              </div>
+              <div class="roi-plot" id="roi-box-plot-y">
+                <div class="roi-plot-title">Y Projection</div>
+                <canvas id="roi-y-canvas"></canvas>
               </div>
             </div>
           </section>

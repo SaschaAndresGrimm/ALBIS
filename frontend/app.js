@@ -36,6 +36,8 @@ const canvasWrap = document.getElementById("canvas-wrap");
 const canvas = document.getElementById("image-canvas");
 const pixelOverlay = document.getElementById("pixel-overlay");
 const pixelCtx = pixelOverlay?.getContext("2d");
+const roiOverlay = document.getElementById("roi-overlay");
+const roiCtx = roiOverlay?.getContext("2d");
 const histCanvas = document.getElementById("hist-canvas");
 const histCtx = histCanvas.getContext("2d");
 const histTooltip = document.getElementById("hist-tooltip");
@@ -53,6 +55,28 @@ const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const dataSection = document.getElementById("data-section");
+const roiModeSelect = document.getElementById("roi-mode");
+const roiLogToggle = document.getElementById("roi-log");
+const roiStartEl = document.getElementById("roi-start");
+const roiEndEl = document.getElementById("roi-end");
+const roiSizeLabel = document.getElementById("roi-size-label");
+const roiSizeEl = document.getElementById("roi-size");
+const roiCountLabel = document.getElementById("roi-count-label");
+const roiCountEl = document.getElementById("roi-count");
+const roiMeanEl = document.getElementById("roi-mean");
+const roiMinEl = document.getElementById("roi-min");
+const roiMaxEl = document.getElementById("roi-max");
+const roiSumEl = document.getElementById("roi-sum");
+const roiStdEl = document.getElementById("roi-std");
+const roiLinePlot = document.getElementById("roi-line-plot");
+const roiBoxPlotX = document.getElementById("roi-box-plot-x");
+const roiBoxPlotY = document.getElementById("roi-box-plot-y");
+const roiLineCanvas = document.getElementById("roi-line-canvas");
+const roiLineCtx = roiLineCanvas?.getContext("2d");
+const roiXCanvas = document.getElementById("roi-x-canvas");
+const roiXCtx = roiXCanvas?.getContext("2d");
+const roiYCanvas = document.getElementById("roi-y-canvas");
+const roiYCtx = roiYCanvas?.getContext("2d");
 const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
 const dropdown = document.getElementById("menu-dropdown");
 const dropdownPanels = document.querySelectorAll(".dropdown-panel");
@@ -82,6 +106,22 @@ let panning = false;
 let panStart = { x: 0, y: 0, scrollLeft: 0, scrollTop: 0 };
 let pixelOverlayScheduled = false;
 let sectionStateStore = {};
+let roiOverlayScheduled = false;
+let roiUpdateScheduled = false;
+let roiDragging = false;
+let roiDragPointer = null;
+
+const roiState = {
+  mode: "none",
+  start: null,
+  end: null,
+  active: false,
+  log: false,
+  stats: null,
+  lineProfile: null,
+  xProjection: null,
+  yProjection: null,
+};
 
 const state = {
   file: "",
@@ -121,6 +161,7 @@ const state = {
   hasFrame: false,
   width: 0,
   height: 0,
+  globalStats: null,
 };
 
 const API = "/api";
@@ -140,6 +181,47 @@ function formatValue(value) {
     return value.toFixed(3);
   }
   return Math.round(value).toString();
+}
+
+function formatStat(value) {
+  if (!Number.isFinite(value)) return "-";
+  const abs = Math.abs(value);
+  if (abs >= 1e6 || (abs > 0 && abs < 1e-3)) {
+    return value.toExponential(3);
+  }
+  if (Number.isInteger(value)) {
+    return value.toString();
+  }
+  return value.toFixed(3);
+}
+
+function syncOverlayCanvas(overlay, ctx) {
+  if (!overlay || !ctx || !canvasWrap) return null;
+  const width = canvasWrap.clientWidth || 1;
+  const height = canvasWrap.clientHeight || 1;
+  overlay.style.left = `${canvasWrap.offsetLeft}px`;
+  overlay.style.top = `${canvasWrap.offsetTop}px`;
+  overlay.style.width = `${width}px`;
+  overlay.style.height = `${height}px`;
+  const dpr = window.devicePixelRatio || 1;
+  overlay.width = Math.max(1, Math.floor(width * dpr));
+  overlay.height = Math.max(1, Math.floor(height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { width, height, dpr };
+}
+
+function getImagePointFromEvent(event) {
+  if (!state.hasFrame || !canvasWrap) return null;
+  const rect = canvasWrap.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+  const zoom = state.zoom || 1;
+  const imgX = (canvasWrap.scrollLeft + x) / zoom;
+  const imgY = (canvasWrap.scrollTop + y) / zoom;
+  const ix = Math.max(0, Math.min(state.width - 1, Math.round(imgX)));
+  const iy = Math.max(0, Math.min(state.height - 1, Math.round(imgY)));
+  return { x: ix, y: iy };
 }
 
 function normalizeMaskData(data) {
@@ -220,7 +302,9 @@ async function loadMask(forceEnable = false) {
     state.maskPath = res.headers.get("X-Mask-Path") || "";
     syncMaskAvailability(forceEnable);
     if (state.hasFrame) {
+      updateGlobalStats();
       redraw();
+      scheduleRoiUpdate();
     }
   } catch (err) {
     console.error(err);
@@ -368,6 +452,58 @@ function drawPixelOverlay() {
     }
   }
   pixelCtx.shadowBlur = 0;
+}
+
+function scheduleRoiOverlay() {
+  if (roiOverlayScheduled) return;
+  roiOverlayScheduled = true;
+  window.requestAnimationFrame(() => {
+    roiOverlayScheduled = false;
+    drawRoiOverlay();
+  });
+}
+
+function drawRoiOverlay() {
+  if (!roiOverlay || !roiCtx || !canvasWrap) return;
+  const metrics = syncOverlayCanvas(roiOverlay, roiCtx);
+  if (!metrics) return;
+  const { width, height } = metrics;
+  roiCtx.clearRect(0, 0, width, height);
+  if (!roiState.active || roiState.mode === "none" || !roiState.start || !roiState.end) return;
+  const zoom = state.zoom || 1;
+  const viewX = canvasWrap.scrollLeft / zoom;
+  const viewY = canvasWrap.scrollTop / zoom;
+  const x0 = (roiState.start.x - viewX) * zoom;
+  const y0 = (roiState.start.y - viewY) * zoom;
+  const x1 = (roiState.end.x - viewX) * zoom;
+  const y1 = (roiState.end.y - viewY) * zoom;
+
+  roiCtx.save();
+  roiCtx.lineWidth = 2;
+  roiCtx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+  roiCtx.setLineDash([6, 4]);
+  if (roiState.mode === "line") {
+    roiCtx.beginPath();
+    roiCtx.moveTo(x0, y0);
+    roiCtx.lineTo(x1, y1);
+    roiCtx.stroke();
+  } else if (roiState.mode === "box") {
+    const left = Math.min(x0, x1);
+    const top = Math.min(y0, y1);
+    const w = Math.abs(x1 - x0);
+    const h = Math.abs(y1 - y0);
+    roiCtx.strokeRect(left, top, w, h);
+  }
+  roiCtx.restore();
+}
+
+function scheduleRoiUpdate() {
+  if (roiUpdateScheduled) return;
+  roiUpdateScheduled = true;
+  window.requestAnimationFrame(() => {
+    roiUpdateScheduled = false;
+    updateRoiStats();
+  });
 }
 
 function setLoading(show) {
@@ -721,6 +857,7 @@ function setZoom(value) {
     zoomValue.textContent = `${clamped.toFixed(1)}x`;
   }
   schedulePixelOverlay();
+  scheduleRoiOverlay();
 }
 
 function zoomAt(clientX, clientY, nextZoom) {
@@ -2027,6 +2164,321 @@ function clearHistogram() {
   histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 
+function setRoiText(el, value) {
+  if (!el) return;
+  el.textContent = value;
+}
+
+function updateRoiModeUI() {
+  const mode = roiState.mode;
+  if (roiLinePlot) {
+    roiLinePlot.classList.toggle("is-hidden", mode !== "line");
+  }
+  if (roiBoxPlotX) {
+    roiBoxPlotX.classList.toggle("is-hidden", mode !== "box");
+  }
+  if (roiBoxPlotY) {
+    roiBoxPlotY.classList.toggle("is-hidden", mode !== "box");
+  }
+  if (roiSizeLabel) {
+    if (mode === "line") {
+      roiSizeLabel.textContent = "Length (px)";
+    } else if (mode === "box") {
+      roiSizeLabel.textContent = "Size (WxH)";
+    } else {
+      roiSizeLabel.textContent = "Image";
+    }
+  }
+  if (roiCountLabel) {
+    roiCountLabel.textContent = mode === "line" ? "Samples" : "Pixels";
+  }
+}
+
+function clearRoi() {
+  roiState.start = null;
+  roiState.end = null;
+  roiState.active = false;
+  roiState.stats = null;
+  roiState.lineProfile = null;
+  roiState.xProjection = null;
+  roiState.yProjection = null;
+  setRoiText(roiStartEl, "-");
+  setRoiText(roiEndEl, "-");
+  setRoiText(roiSizeEl, "-");
+  setRoiText(roiCountEl, "-");
+  setRoiText(roiMeanEl, "-");
+  setRoiText(roiMinEl, "-");
+  setRoiText(roiMaxEl, "-");
+  setRoiText(roiSumEl, "-");
+  setRoiText(roiStdEl, "-");
+  drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
+  drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
+  drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+  drawRoiOverlay();
+}
+
+function applyMaskToValue(value, maskValue) {
+  if (!Number.isFinite(maskValue)) return { value, skip: false };
+  if (maskValue & 1) {
+    return { value: 0, skip: false };
+  }
+  if (maskValue & 0x1e) {
+    return { value: 0, skip: true };
+  }
+  return { value, skip: false };
+}
+
+function sampleValue(ix, iy) {
+  if (!state.dataRaw) return null;
+  const dataY = renderer?.type === "webgl" ? state.height - 1 - iy : iy;
+  const idx = dataY * state.width + ix;
+  const raw = state.dataRaw[idx];
+  if (
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === state.height &&
+    state.maskShape[1] === state.width
+  ) {
+    const maskValue = state.maskRaw[idx];
+    const masked = applyMaskToValue(raw, maskValue);
+    return { value: masked.value, skip: masked.skip };
+  }
+  return { value: raw, skip: false };
+}
+
+function computeGlobalStats() {
+  if (!state.dataRaw) return null;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let sum = 0;
+  let count = 0;
+  let mean = 0;
+  let m2 = 0;
+  const useMask =
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === state.height &&
+    state.maskShape[1] === state.width;
+
+  for (let i = 0; i < state.dataRaw.length; i += 1) {
+    let v = state.dataRaw[i];
+    if (!Number.isFinite(v)) continue;
+    if (useMask) {
+      const maskValue = state.maskRaw[i];
+      const masked = applyMaskToValue(v, maskValue);
+      if (masked.skip) continue;
+      v = masked.value;
+    }
+    count += 1;
+    sum += v;
+    min = Math.min(min, v);
+    max = Math.max(max, v);
+    const delta = v - mean;
+    mean += delta / count;
+    m2 += delta * (v - mean);
+  }
+
+  if (count === 0) {
+    return { count: 0, sum: 0, mean: 0, min: 0, max: 0, std: 0 };
+  }
+  const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
+  return { count, sum, mean, min, max, std };
+}
+
+function updateGlobalStats() {
+  state.globalStats = computeGlobalStats();
+}
+
+function updateRoiStats() {
+  if (!state.hasFrame) {
+    if (roiState.active) {
+      clearRoi();
+    }
+    return;
+  }
+  if (roiState.mode === "none") {
+    roiState.active = false;
+    const stats = state.globalStats;
+    setRoiText(roiStartEl, "-");
+    setRoiText(roiEndEl, "-");
+    if (roiSizeLabel) {
+      roiSizeLabel.textContent = "Image";
+    }
+    if (roiCountLabel) {
+      roiCountLabel.textContent = "Pixels";
+    }
+    setRoiText(roiSizeEl, state.width && state.height ? `${state.width} × ${state.height}` : "-");
+    setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
+    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
+    setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
+    setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
+    setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
+    setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+    drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
+    drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
+    drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+    drawRoiOverlay();
+    return;
+  }
+  if (!roiState.start || !roiState.end) {
+    const stats = state.globalStats;
+    setRoiText(roiStartEl, "-");
+    setRoiText(roiEndEl, "-");
+    setRoiText(roiSizeEl, "-");
+    setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
+    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
+    setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
+    setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
+    setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
+    setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+    drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
+    drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
+    drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+    drawRoiOverlay();
+    return;
+  }
+  const x0 = Math.max(0, Math.min(state.width - 1, roiState.start.x));
+  const y0 = Math.max(0, Math.min(state.height - 1, roiState.start.y));
+  const x1 = Math.max(0, Math.min(state.width - 1, roiState.end.x));
+  const y1 = Math.max(0, Math.min(state.height - 1, roiState.end.y));
+  setRoiText(roiStartEl, `${x0}, ${y0}`);
+  setRoiText(roiEndEl, `${x1}, ${y1}`);
+
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let sum = 0;
+  let count = 0;
+  let mean = 0;
+  let m2 = 0;
+
+  if (roiState.mode === "line") {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy));
+    const values = [];
+    for (let i = 0; i <= steps; i += 1) {
+      const t = steps === 0 ? 0 : i / steps;
+      const ix = Math.max(0, Math.min(state.width - 1, Math.round(x0 + dx * t)));
+      const iy = Math.max(0, Math.min(state.height - 1, Math.round(y0 + dy * t)));
+      const sampled = sampleValue(ix, iy);
+      if (!sampled) continue;
+      const v = sampled.value;
+      values.push(Number.isFinite(v) ? v : 0);
+      if (sampled.skip || !Number.isFinite(v)) {
+        continue;
+      }
+      count += 1;
+      sum += v;
+      min = Math.min(min, v);
+      max = Math.max(max, v);
+      const delta = v - mean;
+      mean += delta / count;
+      m2 += delta * (v - mean);
+    }
+    const length = Math.hypot(dx, dy);
+    roiState.lineProfile = values;
+    roiState.xProjection = null;
+    roiState.yProjection = null;
+    setRoiText(roiSizeEl, formatStat(length));
+    setRoiText(roiCountEl, count ? `${count}` : "0");
+    const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
+    setRoiText(roiMinEl, count ? formatStat(min) : "-");
+    setRoiText(roiMaxEl, count ? formatStat(max) : "-");
+    setRoiText(roiSumEl, count ? formatStat(sum) : "-");
+    setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    drawRoiPlot(roiLineCanvas, roiLineCtx, values, roiState.log);
+    drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
+    drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+  } else if (roiState.mode === "box") {
+    const left = Math.min(x0, x1);
+    const right = Math.max(x0, x1);
+    const top = Math.min(y0, y1);
+    const bottom = Math.max(y0, y1);
+    const width = right - left + 1;
+    const height = bottom - top + 1;
+    const xProj = new Float64Array(width);
+    const yProj = new Float64Array(height);
+
+    for (let y = top; y <= bottom; y += 1) {
+      const rowIndex = y - top;
+      for (let x = left; x <= right; x += 1) {
+        const colIndex = x - left;
+        const sampled = sampleValue(x, y);
+        if (!sampled) continue;
+        const v = sampled.value;
+        if (!sampled.skip && Number.isFinite(v)) {
+          count += 1;
+          sum += v;
+          min = Math.min(min, v);
+          max = Math.max(max, v);
+          const delta = v - mean;
+          mean += delta / count;
+          m2 += delta * (v - mean);
+          xProj[colIndex] += v;
+          yProj[rowIndex] += v;
+        }
+      }
+    }
+    roiState.xProjection = Array.from(xProj);
+    roiState.yProjection = Array.from(yProj);
+    roiState.lineProfile = null;
+    setRoiText(roiSizeEl, `${width} × ${height}`);
+    setRoiText(roiCountEl, count ? `${count}` : "0");
+    const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
+    setRoiText(roiMinEl, count ? formatStat(min) : "-");
+    setRoiText(roiMaxEl, count ? formatStat(max) : "-");
+    setRoiText(roiSumEl, count ? formatStat(sum) : "-");
+    setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
+    drawRoiPlot(roiXCanvas, roiXCtx, roiState.xProjection, roiState.log);
+    drawRoiPlot(roiYCanvas, roiYCtx, roiState.yProjection, roiState.log);
+  }
+  drawRoiOverlay();
+}
+
+function drawRoiPlot(canvasEl, ctx, data, logScale) {
+  if (!canvasEl || !ctx) return;
+  const width = canvasEl.clientWidth || 1;
+  const height = canvasEl.clientHeight || 1;
+  canvasEl.width = Math.max(1, Math.floor(width * window.devicePixelRatio));
+  canvasEl.height = Math.max(1, Math.floor(height * window.devicePixelRatio));
+  ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#2b2b2b";
+  ctx.fillRect(0, 0, width, height);
+  if (!data || data.length === 0) {
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
+    return;
+  }
+  const values = logScale ? data.map((v) => Math.log10(1 + Math.max(0, v))) : data;
+  const maxValue = Math.max(...values);
+  const pad = 6;
+  const drawableHeight = Math.max(4, height - pad * 2);
+  const drawableWidth = Math.max(4, width - pad * 2);
+  ctx.strokeStyle = "#e5e5e5";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const x = pad + (i / Math.max(1, values.length - 1)) * drawableWidth;
+    const y = pad + drawableHeight - (maxValue ? (v / maxValue) * drawableHeight : 0);
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(0,0,0,0.5)";
+  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
+}
+
 function closeCurrentFile() {
   stopPlayback();
   state.file = "";
@@ -2040,6 +2492,7 @@ function closeCurrentFile() {
   state.histogram = null;
   state.stats = null;
   state.hasFrame = false;
+  state.globalStats = null;
   clearMaskState();
   updateToolbar();
   setStatus("No file loaded");
@@ -2066,6 +2519,7 @@ function closeCurrentFile() {
     ctx.clearRect(0, 0, 1, 1);
   }
   clearHistogram();
+  clearRoi();
   updatePlayButtons();
 }
 
@@ -2077,6 +2531,7 @@ function applyFrame(data, width, height, dtype) {
   state.dtype = dtype;
   state.stats = computeStats(data);
   state.histogram = state.stats.hist;
+  updateGlobalStats();
 
   if (state.autoScale) {
     const levels = computeAutoLevels(data, state.stats.satMax ?? null);
@@ -2096,6 +2551,7 @@ function applyFrame(data, width, height, dtype) {
   hideSplash();
   updatePlayButtons();
   scheduleOverview();
+  scheduleRoiUpdate();
   schedulePixelOverlay();
 }
 
@@ -2365,10 +2821,29 @@ autoScaleToggle.addEventListener("change", () => {
   redraw();
 });
 
+roiModeSelect?.addEventListener("change", () => {
+  roiState.mode = roiModeSelect.value;
+  updateRoiModeUI();
+  if (roiState.mode === "none") {
+    clearRoi();
+  } else {
+    roiState.active = Boolean(roiState.start && roiState.end);
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+  }
+});
+
+roiLogToggle?.addEventListener("change", () => {
+  roiState.log = roiLogToggle.checked;
+  scheduleRoiUpdate();
+});
+
 maskToggle?.addEventListener("change", () => {
   state.maskEnabled = maskToggle.checked;
   state.maskAuto = false;
+  updateGlobalStats();
   redraw();
+  scheduleRoiUpdate();
 });
 
 autoContrastBtn.addEventListener("click", () => {
@@ -2537,9 +3012,29 @@ canvasWrap.addEventListener(
 canvasWrap.addEventListener("scroll", () => {
   scheduleOverview();
   schedulePixelOverlay();
+  scheduleRoiOverlay();
+});
+
+canvasWrap.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
 });
 
 canvasWrap.addEventListener("pointerdown", (event) => {
+  if (event.button === 2 && roiState.mode !== "none") {
+    const point = getImagePointFromEvent(event);
+    if (!point) return;
+    roiDragging = true;
+    roiDragPointer = event.pointerId;
+    roiState.active = true;
+    roiState.start = point;
+    roiState.end = point;
+    canvasWrap.classList.add("is-roi");
+    canvasWrap.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+    return;
+  }
   if (event.button !== 0) return;
   if (event.target.closest(".loading")) return;
   panning = true;
@@ -2556,6 +3051,14 @@ canvasWrap.addEventListener("pointerdown", (event) => {
 
 canvasWrap.addEventListener("pointermove", (event) => {
   updateCursorOverlay(event);
+  if (roiDragging) {
+    const point = getImagePointFromEvent(event);
+    if (!point) return;
+    roiState.end = point;
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+    return;
+  }
   if (!panning) return;
   const dx = event.clientX - panStart.x;
   const dy = event.clientY - panStart.y;
@@ -2574,15 +3077,30 @@ function stopPan(event) {
   }
 }
 
+function stopRoi(event) {
+  if (!roiDragging) return;
+  roiDragging = false;
+  roiDragPointer = null;
+  canvasWrap.classList.remove("is-roi");
+  if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
+    canvasWrap.releasePointerCapture(event.pointerId);
+  }
+  scheduleRoiOverlay();
+  scheduleRoiUpdate();
+}
+
 canvasWrap.addEventListener("pointerup", (event) => {
+  stopRoi(event);
   stopPan(event);
 });
 
 canvasWrap.addEventListener("pointercancel", (event) => {
+  stopRoi(event);
   stopPan(event);
 });
 
 canvasWrap.addEventListener("pointerleave", () => {
+  stopRoi();
   hideCursorOverlay();
 });
 
@@ -2796,6 +3314,8 @@ window.addEventListener("resize", () => {
   scheduleOverview();
   scheduleHistogram();
   schedulePixelOverlay();
+  scheduleRoiOverlay();
+  scheduleRoiUpdate();
 });
 
 initRenderer();
@@ -2817,6 +3337,14 @@ if (histLogY) {
 }
 if (colormapSelect) {
   colormapSelect.value = state.colormap;
+}
+if (roiModeSelect) {
+  roiState.mode = roiModeSelect.value;
+  roiState.active = false;
+  updateRoiModeUI();
+}
+if (roiLogToggle) {
+  roiState.log = roiLogToggle.checked;
 }
 if (pixelLabelToggle) {
   state.pixelLabels = pixelLabelToggle.checked;
