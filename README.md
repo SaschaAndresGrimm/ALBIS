@@ -83,6 +83,7 @@ VIEWER_DATA_DIR=/path/to/data python backend/app.py
 - Dataset `/entry/data/data` is auto‑preferred if present.
 - External links in master files are supported if targets are inside the data directory.
 - `hdf5plugin` is loaded to support compressed datasets.
+- The main viewer and tools sidebar scroll independently.
 - WebGL texture size limits may apply for very large frames.
 
 ## Next Milestones
