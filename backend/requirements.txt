@@ -1,0 +1,4 @@
+fastapi
+uvicorn[standard]
+h5py
+numpy

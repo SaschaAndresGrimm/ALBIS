@@ -1,0 +1,2820 @@
+const fileSelect = document.getElementById("file-select");
+const datasetSelect = document.getElementById("dataset-select");
+const frameRange = document.getElementById("frame-range");
+const frameIndex = document.getElementById("frame-index");
+const frameStep = document.getElementById("frame-step");
+const fpsRange = document.getElementById("fps-range");
+const fpsValue = document.getElementById("fps-value");
+const autoScaleToggle = document.getElementById("auto-scale");
+const minInput = document.getElementById("min-input");
+const maxInput = document.getElementById("max-input");
+const maskToggle = document.getElementById("mask-toggle");
+const zoomRange = document.getElementById("zoom-range");
+const zoomValue = document.getElementById("zoom-value");
+const resetView = document.getElementById("reset-view");
+const exportBtn = document.getElementById("export-btn");
+const statusEl = document.getElementById("status");
+const loadingEl = document.getElementById("loading");
+const metaShape = document.getElementById("meta-shape");
+const metaDtype = document.getElementById("meta-dtype");
+const metaRange = document.getElementById("meta-range");
+const metaRenderer = document.getElementById("meta-renderer");
+const toolbarPath = document.getElementById("toolbar-path");
+const autoContrastBtn = document.getElementById("auto-contrast");
+const invertToggle = document.getElementById("invert-color");
+const colormapSelect = document.getElementById("colormap-select");
+const prevBtn = document.getElementById("btn-prev");
+const nextBtn = document.getElementById("btn-next");
+const playBtn = document.getElementById("btn-play");
+const toolsPanel = document.getElementById("tools-panel");
+const panelToggle = document.getElementById("panel-toggle");
+const panelResizer = document.getElementById("panel-resizer");
+const panelEdgeToggle = document.getElementById("panel-edge-toggle");
+const panelHeadToggle = document.getElementById("panel-head-toggle");
+const appLayout = document.querySelector(".app");
+const canvasWrap = document.getElementById("canvas-wrap");
+const canvas = document.getElementById("image-canvas");
+const pixelOverlay = document.getElementById("pixel-overlay");
+const pixelCtx = pixelOverlay?.getContext("2d");
+const histCanvas = document.getElementById("hist-canvas");
+const histCtx = histCanvas.getContext("2d");
+const histTooltip = document.getElementById("hist-tooltip");
+const histLogX = document.getElementById("hist-log-x");
+const histLogY = document.getElementById("hist-log-y");
+const overviewCanvas = document.getElementById("overview-canvas");
+const overviewCtx = overviewCanvas?.getContext("2d");
+const cursorOverlay = document.getElementById("cursor-overlay");
+const canvasShell = document.querySelector(".canvas-shell");
+const pixelLabelToggle = document.getElementById("pixel-label-toggle");
+const sectionToggles = document.querySelectorAll("[data-section-toggle]");
+const collapseAllBtn = document.getElementById("collapse-all");
+const expandAllBtn = document.getElementById("expand-all");
+const splash = document.getElementById("splash");
+const splashCanvas = document.getElementById("splash-canvas");
+const splashCtx = splashCanvas?.getContext("2d");
+const dataSection = document.getElementById("data-section");
+const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
+const dropdown = document.getElementById("menu-dropdown");
+const dropdownPanels = document.querySelectorAll(".dropdown-panel");
+const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
+const aboutModal = document.getElementById("about-modal");
+const aboutClose = document.getElementById("about-close");
+const fileInput = document.getElementById("file-input");
+const uploadBar = document.getElementById("upload-bar");
+const uploadBarFill = document.getElementById("upload-bar-fill");
+const uploadBarText = document.getElementById("upload-bar-text");
+
+let renderer = null;
+let activeMenu = "file";
+let closeTimer = null;
+let overviewScheduled = false;
+let histogramScheduled = false;
+let overviewDragging = false;
+let overviewDragOffset = { x: 0, y: 0 };
+let overviewRect = null;
+let overviewDragMode = null;
+let overviewHandle = null;
+let overviewAnchor = null;
+let overviewResizeCenter = false;
+let histDragging = false;
+let histDragTarget = null;
+let panning = false;
+let panStart = { x: 0, y: 0, scrollLeft: 0, scrollTop: 0 };
+let pixelOverlayScheduled = false;
+let sectionStateStore = {};
+
+const state = {
+  file: "",
+  dataset: "",
+  shape: [],
+  dtype: "",
+  frameCount: 1,
+  frameIndex: 0,
+  isLoading: false,
+  pendingFrame: null,
+  playing: false,
+  playTimer: null,
+  fps: 5,
+  step: 1,
+  panelWidth: 640,
+  panelCollapsed: true,
+  autoScale: true,
+  min: 0,
+  max: 1,
+  colormap: "heat",
+  invert: false,
+  zoom: 1,
+  dataRaw: null,
+  dataFloat: null,
+  histogram: null,
+  stats: null,
+  histLogX: true,
+  histLogY: true,
+  pixelLabels: true,
+  maskRaw: null,
+  maskShape: null,
+  maskAvailable: false,
+  maskEnabled: false,
+  maskAuto: true,
+  maskFile: "",
+  maskPath: "",
+  hasFrame: false,
+  width: 0,
+  height: 0,
+};
+
+const API = "/api";
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 50;
+const PIXEL_LABEL_MIN_ZOOM = 15;
+const PIXEL_LABEL_MAX_CELLS = 25000;
+
+function setStatus(text) {
+  statusEl.textContent = text;
+}
+
+function formatValue(value) {
+  if (!Number.isFinite(value)) return "";
+  const dtype = state.dtype || "";
+  if (dtype.includes("f")) {
+    return value.toFixed(3);
+  }
+  return Math.round(value).toString();
+}
+
+function normalizeMaskData(data) {
+  if (!data) return null;
+  if (data instanceof Uint32Array) return data;
+  const out = new Uint32Array(data.length);
+  for (let i = 0; i < data.length; i += 1) {
+    out[i] = data[i];
+  }
+  return out;
+}
+
+function updateMaskUI() {
+  if (!maskToggle) return;
+  maskToggle.disabled = !state.maskAvailable;
+  maskToggle.checked = Boolean(state.maskEnabled && state.maskAvailable);
+}
+
+function syncMaskAvailability(forceEnable = false) {
+  const matches =
+    state.maskRaw &&
+    Array.isArray(state.maskShape) &&
+    state.maskShape.length === 2 &&
+    state.width &&
+    state.height &&
+    state.maskShape[0] === state.height &&
+    state.maskShape[1] === state.width;
+  state.maskAvailable = Boolean(matches);
+  if (!state.maskAvailable) {
+    state.maskEnabled = false;
+  } else if (forceEnable || state.maskAuto) {
+    state.maskEnabled = true;
+  }
+  updateMaskUI();
+}
+
+function clearMaskState() {
+  state.maskRaw = null;
+  state.maskShape = null;
+  state.maskAvailable = false;
+  state.maskEnabled = false;
+  state.maskAuto = true;
+  state.maskFile = "";
+  state.maskPath = "";
+  updateMaskUI();
+}
+
+async function loadMask(forceEnable = false) {
+  if (!state.file) {
+    clearMaskState();
+    return;
+  }
+  if (state.maskFile === state.file && state.maskRaw) {
+    syncMaskAvailability(forceEnable);
+    return;
+  }
+  state.maskFile = state.file;
+  state.maskRaw = null;
+  state.maskShape = null;
+  state.maskAvailable = false;
+  if (forceEnable) {
+    state.maskEnabled = true;
+  }
+  updateMaskUI();
+  try {
+    const res = await fetch(`${API}/mask?file=${encodeURIComponent(state.file)}`);
+    if (!res.ok) {
+      state.maskEnabled = false;
+      updateMaskUI();
+      return;
+    }
+    const buffer = await res.arrayBuffer();
+    const dtype = parseDtype(res.headers.get("X-Dtype"));
+    const shape = parseShape(res.headers.get("X-Shape"));
+    const data = typedArrayFrom(buffer, dtype);
+    state.maskRaw = normalizeMaskData(data);
+    state.maskShape = shape;
+    state.maskPath = res.headers.get("X-Mask-Path") || "";
+    syncMaskAvailability(forceEnable);
+    if (state.hasFrame) {
+      redraw();
+    }
+  } catch (err) {
+    console.error(err);
+    state.maskEnabled = false;
+    state.maskAvailable = false;
+    updateMaskUI();
+  }
+}
+
+function snapHistogramValue(value) {
+  if (!Number.isFinite(value)) return value;
+  const info = getDtypeInfo(state.dtype);
+  if (info && (info.kind === "u" || info.kind === "i")) {
+    return Math.round(value);
+  }
+  return value;
+}
+
+function showHistTooltip(text, x, y) {
+  if (!histTooltip) return;
+  histTooltip.textContent = text;
+  histTooltip.style.left = `${Math.round(x)}px`;
+  histTooltip.style.top = `${Math.round(y)}px`;
+  histTooltip.classList.add("is-visible");
+  histTooltip.setAttribute("aria-hidden", "false");
+}
+
+function hideHistTooltip() {
+  if (!histTooltip) return;
+  histTooltip.classList.remove("is-visible");
+  histTooltip.setAttribute("aria-hidden", "true");
+}
+
+function showCursorOverlay(text, clientX, clientY) {
+  if (!cursorOverlay || !canvasShell) return;
+  cursorOverlay.textContent = text;
+  cursorOverlay.classList.add("is-visible");
+  cursorOverlay.setAttribute("aria-hidden", "false");
+  const shellRect = canvasShell.getBoundingClientRect();
+  let left = clientX - shellRect.left + 12;
+  let top = clientY - shellRect.top + 12;
+  const maxLeft = shellRect.width - cursorOverlay.offsetWidth - 6;
+  const maxTop = shellRect.height - cursorOverlay.offsetHeight - 6;
+  left = Math.min(maxLeft, Math.max(6, left));
+  top = Math.min(maxTop, Math.max(6, top));
+  cursorOverlay.style.left = `${left}px`;
+  cursorOverlay.style.top = `${top}px`;
+}
+
+function hideCursorOverlay() {
+  if (!cursorOverlay) return;
+  cursorOverlay.classList.remove("is-visible");
+  cursorOverlay.setAttribute("aria-hidden", "true");
+}
+
+function updateCursorOverlay(event) {
+  if (!state.hasFrame || !state.dataRaw || !state.width || !state.height) {
+    hideCursorOverlay();
+    return;
+  }
+  if (!canvasWrap || !canvasShell) {
+    hideCursorOverlay();
+    return;
+  }
+  const rect = canvasWrap.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+    hideCursorOverlay();
+    return;
+  }
+  const zoom = state.zoom || 1;
+  const imgX = (canvasWrap.scrollLeft + x) / zoom;
+  const imgY = (canvasWrap.scrollTop + y) / zoom;
+  const ix = Math.floor(imgX);
+  const iy = Math.floor(imgY);
+  if (ix < 0 || iy < 0 || ix >= state.width || iy >= state.height) {
+    hideCursorOverlay();
+    return;
+  }
+  const dataY = renderer?.type === "webgl" ? state.height - 1 - iy : iy;
+  const idx = dataY * state.width + ix;
+  const value = state.dataRaw[idx];
+  const label = `X ${ix}  Y ${iy}  Value ${formatValue(value)}`;
+  showCursorOverlay(label, event.clientX, event.clientY);
+}
+
+function clearPixelOverlay() {
+  if (!pixelOverlay || !pixelCtx) return;
+  pixelCtx.clearRect(0, 0, pixelOverlay.width, pixelOverlay.height);
+}
+
+function drawPixelOverlay() {
+  if (!pixelOverlay || !pixelCtx || !canvasWrap) return;
+  const width = canvasWrap.clientWidth || 1;
+  const height = canvasWrap.clientHeight || 1;
+  pixelOverlay.style.left = `${canvasWrap.offsetLeft}px`;
+  pixelOverlay.style.top = `${canvasWrap.offsetTop}px`;
+  pixelOverlay.style.width = `${width}px`;
+  pixelOverlay.style.height = `${height}px`;
+  const dpr = window.devicePixelRatio || 1;
+  pixelOverlay.width = Math.max(1, Math.floor(width * dpr));
+  pixelOverlay.height = Math.max(1, Math.floor(height * dpr));
+  pixelCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  pixelCtx.clearRect(0, 0, width, height);
+
+  if (!state.hasFrame || !state.dataRaw || !state.pixelLabels) return;
+  const zoom = state.zoom || 1;
+  if (zoom < PIXEL_LABEL_MIN_ZOOM) return;
+
+  const viewX = canvasWrap.scrollLeft / zoom;
+  const viewY = canvasWrap.scrollTop / zoom;
+  const viewW = canvasWrap.clientWidth / zoom;
+  const viewH = canvasWrap.clientHeight / zoom;
+  let startX = Math.floor(viewX);
+  let startY = Math.floor(viewY);
+  let endX = Math.ceil(viewX + viewW);
+  let endY = Math.ceil(viewY + viewH);
+  startX = Math.max(0, startX);
+  startY = Math.max(0, startY);
+  endX = Math.min(state.width, endX);
+  endY = Math.min(state.height, endY);
+
+  const cells = Math.max(0, endX - startX) * Math.max(0, endY - startY);
+  if (cells === 0 || cells > PIXEL_LABEL_MAX_CELLS) {
+    return;
+  }
+
+  const fontSize = Math.min(14, Math.max(6, zoom * 0.9));
+  pixelCtx.font = `${fontSize}px "Lucida Grande", "Helvetica Neue", Arial, sans-serif`;
+  pixelCtx.textAlign = "center";
+  pixelCtx.textBaseline = "middle";
+  pixelCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  pixelCtx.shadowColor = "rgba(0, 0, 0, 0.7)";
+  pixelCtx.shadowBlur = 2;
+
+  for (let y = startY; y < endY; y += 1) {
+    const dataY = renderer?.type === "webgl" ? state.height - 1 - y : y;
+    const rowOffset = dataY * state.width;
+    const screenY = (y - viewY) * zoom + zoom / 2;
+    for (let x = startX; x < endX; x += 1) {
+      const value = state.dataRaw[rowOffset + x];
+      const screenX = (x - viewX) * zoom + zoom / 2;
+      pixelCtx.fillText(formatValue(value), screenX, screenY);
+    }
+  }
+  pixelCtx.shadowBlur = 0;
+}
+
+function setLoading(show) {
+  if (!loadingEl) return;
+  loadingEl.style.display = show ? "block" : "none";
+}
+
+function scheduleOverview() {
+  if (overviewScheduled) return;
+  overviewScheduled = true;
+  window.requestAnimationFrame(() => {
+    overviewScheduled = false;
+    drawOverview();
+  });
+}
+
+function scheduleHistogram() {
+  if (histogramScheduled) return;
+  histogramScheduled = true;
+  window.requestAnimationFrame(() => {
+    histogramScheduled = false;
+    if (state.histogram) {
+      drawHistogram(state.histogram);
+    }
+  });
+}
+
+function schedulePixelOverlay() {
+  if (pixelOverlayScheduled) return;
+  pixelOverlayScheduled = true;
+  window.requestAnimationFrame(() => {
+    pixelOverlayScheduled = false;
+    drawPixelOverlay();
+  });
+}
+
+function getOverviewMetrics() {
+  if (!overviewCanvas) return null;
+  const wrap = overviewCanvas.parentElement;
+  const width = wrap?.clientWidth || 1;
+  const height = wrap?.clientHeight || 1;
+  const imgW = state.width || 1;
+  const imgH = state.height || 1;
+  const scale = Math.min(width / imgW, height / imgH);
+  const drawW = imgW * scale;
+  const drawH = imgH * scale;
+  const offsetX = (width - drawW) / 2;
+  const offsetY = (height - drawH) / 2;
+  return { width, height, imgW, imgH, scale, offsetX, offsetY };
+}
+
+function getViewRect() {
+  const imgW = state.width;
+  const imgH = state.height;
+  if (!imgW || !imgH) return null;
+  const zoom = state.zoom || 1;
+  const scaleX = zoom;
+  const scaleY = zoom;
+  const viewW = canvasWrap.clientWidth / scaleX;
+  const viewH = canvasWrap.clientHeight / scaleY;
+  const viewWClamped = Math.min(viewW, imgW);
+  const viewHClamped = Math.min(viewH, imgH);
+  let viewX = canvasWrap.scrollLeft / scaleX;
+  let viewY = canvasWrap.scrollTop / scaleY;
+  viewX = Math.max(0, Math.min(imgW - viewWClamped, viewX));
+  viewY = Math.max(0, Math.min(imgH - viewHClamped, viewY));
+  return { viewX, viewY, viewW: viewWClamped, viewH: viewHClamped, scaleX, scaleY };
+}
+
+function overviewEventToImage(event) {
+  if (!overviewCanvas || !state.hasFrame || !state.width || !state.height) return null;
+  const metrics = getOverviewMetrics();
+  if (!metrics) return null;
+  const rect = overviewCanvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * (metrics.width / rect.width);
+  const y = (event.clientY - rect.top) * (metrics.height / rect.height);
+  const imgX = (x - metrics.offsetX) / metrics.scale;
+  const imgY = (y - metrics.offsetY) / metrics.scale;
+  return {
+    x: Math.max(0, Math.min(metrics.imgW, imgX)),
+    y: Math.max(0, Math.min(metrics.imgH, imgY)),
+  };
+}
+
+function overviewEventToOverview(event) {
+  if (!overviewCanvas) return null;
+  const metrics = getOverviewMetrics();
+  if (!metrics) return null;
+  const rect = overviewCanvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * (metrics.width / rect.width);
+  const y = (event.clientY - rect.top) * (metrics.height / rect.height);
+  return { x, y, metrics };
+}
+
+function panToImageCenter(x, y) {
+  const view = getViewRect();
+  if (!view) return;
+  const maxX = Math.max(0, state.width - view.viewW);
+  const maxY = Math.max(0, state.height - view.viewH);
+  const targetX = Math.max(0, Math.min(maxX, x - view.viewW / 2));
+  const targetY = Math.max(0, Math.min(maxY, y - view.viewH / 2));
+  canvasWrap.scrollLeft = targetX * view.scaleX;
+  canvasWrap.scrollTop = targetY * view.scaleY;
+  scheduleOverview();
+}
+
+function scrollToView(viewX, viewY) {
+  if (!state.width || !state.height) return;
+  const zoom = state.zoom || 1;
+  canvasWrap.scrollLeft = viewX * zoom;
+  canvasWrap.scrollTop = viewY * zoom;
+}
+
+function getOverviewHandleAt(point) {
+  if (!overviewRect) return null;
+  const handleSize = overviewRect.handleSize || 8;
+  const threshold = handleSize;
+  for (const handle of overviewRect.handles) {
+    if (Math.abs(point.x - handle.x) <= threshold && Math.abs(point.y - handle.y) <= threshold) {
+      return handle.name;
+    }
+  }
+  return null;
+}
+
+function getAnchorForHandle(view, handle, keepCenter) {
+  if (keepCenter) {
+    return { x: view.viewX + view.viewW / 2, y: view.viewY + view.viewH / 2 };
+  }
+  switch (handle) {
+    case "nw":
+      return { x: view.viewX + view.viewW, y: view.viewY + view.viewH };
+    case "ne":
+      return { x: view.viewX, y: view.viewY + view.viewH };
+    case "se":
+      return { x: view.viewX, y: view.viewY };
+    case "sw":
+      return { x: view.viewX + view.viewW, y: view.viewY };
+    case "n":
+      return { x: view.viewX + view.viewW / 2, y: view.viewY + view.viewH };
+    case "s":
+      return { x: view.viewX + view.viewW / 2, y: view.viewY };
+    case "e":
+      return { x: view.viewX, y: view.viewY + view.viewH / 2 };
+    case "w":
+      return { x: view.viewX + view.viewW, y: view.viewY + view.viewH / 2 };
+    default:
+      return null;
+  }
+}
+
+function resizeViewFromHandle(point, handle, keepCenter) {
+  if (!overviewAnchor || !state.width || !state.height) return;
+  const anchor = overviewAnchor;
+  const aspect = canvasWrap.clientWidth / canvasWrap.clientHeight || 1;
+  let width;
+  let height;
+
+  if (keepCenter) {
+    const dx = Math.abs(point.x - anchor.x);
+    const dy = Math.abs(point.y - anchor.y);
+    if (handle === "n" || handle === "s") {
+      height = dy * 2;
+      width = height * aspect;
+    } else if (handle === "e" || handle === "w") {
+      width = dx * 2;
+      height = width / aspect;
+    } else {
+      width = dx * 2;
+      height = dy * 2;
+      if (width / height > aspect) {
+        height = width / aspect;
+      } else {
+        width = height * aspect;
+      }
+    }
+  } else if (handle === "n" || handle === "s") {
+    height = Math.abs(point.y - anchor.y);
+    width = height * aspect;
+  } else if (handle === "e" || handle === "w") {
+    width = Math.abs(point.x - anchor.x);
+    height = width / aspect;
+  } else {
+    width = Math.abs(point.x - anchor.x);
+    height = Math.abs(point.y - anchor.y);
+    if (width / height > aspect) {
+      height = width / aspect;
+    } else {
+      width = height * aspect;
+    }
+  }
+
+  if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) return;
+  const minViewW = Math.max(30, state.width * 0.02);
+  if (width < minViewW) {
+    width = minViewW;
+    height = width / aspect;
+  }
+  width = Math.min(width, state.width);
+  height = Math.min(height, state.height);
+
+  let viewX;
+  let viewY;
+  if (keepCenter) {
+    viewX = anchor.x - width / 2;
+    viewY = anchor.y - height / 2;
+  } else {
+    switch (handle) {
+      case "nw":
+        viewX = anchor.x - width;
+        viewY = anchor.y - height;
+        break;
+      case "ne":
+        viewX = anchor.x;
+        viewY = anchor.y - height;
+        break;
+      case "se":
+        viewX = anchor.x;
+        viewY = anchor.y;
+        break;
+      case "sw":
+        viewX = anchor.x - width;
+        viewY = anchor.y;
+        break;
+      case "n":
+        viewX = anchor.x - width / 2;
+        viewY = anchor.y - height;
+        break;
+      case "s":
+        viewX = anchor.x - width / 2;
+        viewY = anchor.y;
+        break;
+      case "e":
+        viewX = anchor.x;
+        viewY = anchor.y - height / 2;
+        break;
+      case "w":
+        viewX = anchor.x - width;
+        viewY = anchor.y - height / 2;
+        break;
+      default:
+        return;
+    }
+  }
+
+  viewX = Math.max(0, Math.min(state.width - width, viewX));
+  viewY = Math.max(0, Math.min(state.height - height, viewY));
+
+  const zoomX = canvasWrap.clientWidth / width;
+  const zoomY = canvasWrap.clientHeight / height;
+  const zoom = Math.min(6, Math.max(0.5, Math.min(zoomX, zoomY)));
+  setZoom(zoom);
+  window.requestAnimationFrame(() => {
+    scrollToView(viewX, viewY);
+    scheduleOverview();
+  });
+}
+
+function drawOverview() {
+  if (!overviewCanvas || !overviewCtx) return;
+  const metrics = getOverviewMetrics();
+  if (!metrics) return;
+  const { width, height, imgW, imgH, scale, offsetX, offsetY } = metrics;
+  const dpr = window.devicePixelRatio || 1;
+  overviewCanvas.width = Math.max(1, Math.floor(width * dpr));
+  overviewCanvas.height = Math.max(1, Math.floor(height * dpr));
+  overviewCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  overviewCtx.fillStyle = "#1e1e1e";
+  overviewCtx.fillRect(0, 0, width, height);
+
+  if (!state.hasFrame || !state.width || !state.height) {
+    overviewCtx.strokeStyle = "rgba(255,255,255,0.2)";
+    overviewCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
+    overviewCtx.fillStyle = "rgba(200,200,200,0.6)";
+    overviewCtx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+    overviewCtx.textAlign = "center";
+    overviewCtx.textBaseline = "middle";
+    overviewCtx.fillText("No image", width / 2, height / 2);
+    overviewRect = null;
+    return;
+  }
+
+  const drawW = imgW * scale;
+  const drawH = imgH * scale;
+  overviewCtx.drawImage(canvas, 0, 0, imgW, imgH, offsetX, offsetY, drawW, drawH);
+
+  const view = getViewRect();
+  if (!view) {
+    overviewRect = null;
+    return;
+  }
+  const rectX = offsetX + view.viewX * scale;
+  const rectY = offsetY + view.viewY * scale;
+  const rectW = view.viewW * scale;
+  const rectH = view.viewH * scale;
+
+  overviewCtx.fillStyle = "rgba(0, 0, 0, 0.35)";
+  overviewCtx.fillRect(offsetX, offsetY, drawW, drawH);
+  overviewCtx.drawImage(
+    canvas,
+    view.viewX,
+    view.viewY,
+    view.viewW,
+    view.viewH,
+    rectX,
+    rectY,
+    rectW,
+    rectH
+  );
+
+  overviewCtx.strokeStyle = "rgba(0, 0, 0, 0.65)";
+  overviewCtx.lineWidth = 3;
+  overviewCtx.strokeRect(rectX, rectY, rectW, rectH);
+  overviewCtx.strokeStyle = "rgba(140, 210, 255, 0.95)";
+  overviewCtx.lineWidth = 1.5;
+  overviewCtx.strokeRect(rectX, rectY, rectW, rectH);
+  overviewCtx.fillStyle = "rgba(110, 181, 255, 0.12)";
+  overviewCtx.fillRect(rectX, rectY, rectW, rectH);
+
+  const handleSize = 7;
+  const half = handleSize / 2;
+  const handles = [
+    { name: "nw", x: rectX, y: rectY },
+    { name: "ne", x: rectX + rectW, y: rectY },
+    { name: "se", x: rectX + rectW, y: rectY + rectH },
+    { name: "sw", x: rectX, y: rectY + rectH },
+    { name: "n", x: rectX + rectW / 2, y: rectY },
+    { name: "e", x: rectX + rectW, y: rectY + rectH / 2 },
+    { name: "s", x: rectX + rectW / 2, y: rectY + rectH },
+    { name: "w", x: rectX, y: rectY + rectH / 2 },
+  ];
+  overviewCtx.fillStyle = "rgba(220, 245, 255, 0.95)";
+  overviewCtx.strokeStyle = "rgba(10, 20, 30, 0.8)";
+  overviewCtx.lineWidth = 1;
+  handles.forEach((handle) => {
+    overviewCtx.fillRect(handle.x - half, handle.y - half, handleSize, handleSize);
+    overviewCtx.strokeRect(handle.x - half, handle.y - half, handleSize, handleSize);
+  });
+
+  overviewRect = { rectX, rectY, rectW, rectH, handles, handleSize, view, metrics };
+}
+
+function setZoom(value) {
+  const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value)));
+  state.zoom = clamped;
+  canvas.style.transform = `scale(${clamped})`;
+  if (zoomRange) {
+    zoomRange.value = String(clamped);
+  }
+  if (zoomValue) {
+    zoomValue.textContent = `${clamped.toFixed(1)}x`;
+  }
+  schedulePixelOverlay();
+}
+
+function zoomAt(clientX, clientY, nextZoom) {
+  if (!canvasWrap) {
+    setZoom(nextZoom);
+    return;
+  }
+  const rect = canvasWrap.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  const prevZoom = state.zoom || 1;
+  const worldX = (canvasWrap.scrollLeft + x) / prevZoom;
+  const worldY = (canvasWrap.scrollTop + y) / prevZoom;
+
+  setZoom(nextZoom);
+
+  const newScrollLeft = worldX * state.zoom - x;
+  const newScrollTop = worldY * state.zoom - y;
+  const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
+  const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
+  canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft));
+  canvasWrap.scrollTop = Math.max(0, Math.min(maxScrollTop, newScrollTop));
+  scheduleOverview();
+}
+
+function fitImageToView() {
+  if (!canvasWrap || !state.width || !state.height) return;
+  const scale = Math.min(
+    canvasWrap.clientWidth / state.width,
+    canvasWrap.clientHeight / state.height
+  );
+  if (!Number.isFinite(scale) || scale <= 0) return;
+  setZoom(scale);
+  canvasWrap.scrollLeft = 0;
+  canvasWrap.scrollTop = 0;
+  scheduleOverview();
+  schedulePixelOverlay();
+}
+
+function updateFpsLabel() {
+  if (fpsValue) {
+    fpsValue.textContent = `${state.fps} fps`;
+  }
+}
+
+function setFps(value) {
+  const clamped = Math.max(1, Math.min(60, Math.round(value)));
+  state.fps = clamped;
+  if (fpsRange) {
+    fpsRange.value = String(clamped);
+  }
+  updateFpsLabel();
+  if (state.playing) {
+    stopPlayback();
+    startPlayback();
+  }
+}
+
+function updatePlayButtons() {
+  const disabled = !state.file || !state.dataset || state.frameCount <= 1;
+  if (playBtn) {
+    playBtn.classList.toggle("is-active", state.playing);
+    playBtn.disabled = disabled;
+    playBtn.textContent = state.playing ? "▮▮" : "▶";
+  }
+  if (prevBtn) prevBtn.disabled = disabled;
+  if (nextBtn) nextBtn.disabled = disabled;
+}
+
+function applyPanelState() {
+  if (!toolsPanel || !appLayout) return;
+  toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
+  const width = state.panelCollapsed ? 28 : state.panelWidth;
+  appLayout.style.setProperty("--panel-width", `${width}px`);
+  if (panelToggle) {
+    panelToggle.textContent = state.panelCollapsed ? "▶" : "◀";
+    panelToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand tools" : "Collapse tools");
+  }
+  if (panelEdgeToggle) {
+    panelEdgeToggle.textContent = state.panelCollapsed ? "▶" : "◀";
+    panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand tools" : "Collapse tools");
+  }
+  scheduleOverview();
+  scheduleHistogram();
+}
+
+function togglePanel() {
+  state.panelCollapsed = !state.panelCollapsed;
+  applyPanelState();
+  try {
+    localStorage.setItem("albis.panelCollapsed", String(state.panelCollapsed));
+    localStorage.setItem("albis.panelWidth", String(state.panelWidth));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function toggleSection(event) {
+  const button = event.currentTarget;
+  const section = button.closest(".panel-section");
+  if (!section) return;
+  setSectionState(section, !section.classList.contains("is-collapsed"));
+  scheduleOverview();
+  scheduleHistogram();
+  schedulePixelOverlay();
+}
+
+function setSectionState(section, collapsed, persist = true) {
+  section.classList.toggle("is-collapsed", collapsed);
+  const id = section.dataset.section;
+  if (persist && id) {
+    sectionStateStore[id] = collapsed;
+    try {
+      localStorage.setItem("albis.sectionStates", JSON.stringify(sectionStateStore));
+    } catch {
+      // ignore storage errors
+    }
+  }
+}
+
+function setAllSections(collapsed) {
+  const sections = document.querySelectorAll(".panel-section[data-section]");
+  sections.forEach((section) => {
+    setSectionState(section, collapsed, false);
+    const id = section.dataset.section;
+    if (id) {
+      sectionStateStore[id] = collapsed;
+    }
+  });
+  try {
+    localStorage.setItem("albis.sectionStates", JSON.stringify(sectionStateStore));
+  } catch {
+    // ignore storage errors
+  }
+  scheduleOverview();
+  scheduleHistogram();
+  schedulePixelOverlay();
+}
+
+function setPanelWidth(width) {
+  const clamped = Math.max(220, Math.min(900, Math.round(width)));
+  state.panelWidth = clamped;
+  state.panelCollapsed = false;
+  applyPanelState();
+  scheduleHistogram();
+  try {
+    localStorage.setItem("albis.panelWidth", String(state.panelWidth));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function stopPlayback() {
+  if (state.playTimer) {
+    window.clearInterval(state.playTimer);
+    state.playTimer = null;
+  }
+  state.playing = false;
+  updatePlayButtons();
+}
+
+function startPlayback() {
+  if (state.playing || state.frameCount <= 1) return;
+  state.playing = true;
+  updatePlayButtons();
+  setLoading(false);
+  state.playTimer = window.setInterval(() => {
+    if (!state.playing) return;
+    const step = Math.max(1, state.step);
+    const next = state.frameIndex + step >= state.frameCount ? 0 : state.frameIndex + step;
+    requestFrame(next);
+  }, Math.max(1000 / state.fps, 50));
+}
+
+function requestFrame(index) {
+  if (!state.frameCount || !state.dataset || !state.file) return;
+  const clamped = Math.max(0, Math.min(state.frameCount - 1, index));
+  state.frameIndex = clamped;
+  frameRange.value = String(clamped);
+  frameIndex.value = String(clamped);
+  updateToolbar();
+  if (state.isLoading) {
+    state.pendingFrame = clamped;
+    return;
+  }
+  loadFrame();
+}
+
+function drawGlowDot(ctx, x, y, core, glow) {
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, glow);
+  grad.addColorStop(0, "rgba(255,255,255,0.95)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, glow, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.98)";
+  ctx.beginPath();
+  ctx.arc(x, y, core, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawSplash() {
+  if (!splash || !splashCanvas || !splashCtx) return;
+  const size = Math.min(splash.clientWidth, splash.clientHeight) * 0.62;
+  const dpr = window.devicePixelRatio || 1;
+  const canvasSize = Math.max(1, Math.floor(size));
+  splashCanvas.width = canvasSize * dpr;
+  splashCanvas.height = canvasSize * dpr;
+  splashCanvas.style.width = `${canvasSize}px`;
+  splashCanvas.style.height = `${canvasSize}px`;
+  splashCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  splashCtx.clearRect(0, 0, canvasSize, canvasSize);
+  splashCtx.fillStyle = "#000";
+  splashCtx.fillRect(0, 0, canvasSize, canvasSize);
+
+  const center = canvasSize / 2;
+  const radius = canvasSize * 0.42;
+  const arms = 6;
+  const baseSteps = [0.16, 0.28, 0.4, 0.52, 0.64, 0.76, 0.9, 1.0];
+  const branchSteps = [
+    { t: 0.3, len: 0.22 },
+    { t: 0.46, len: 0.24 },
+    { t: 0.62, len: 0.2 },
+    { t: 0.78, len: 0.16 },
+  ];
+
+  for (let arm = 0; arm < arms; arm += 1) {
+    const angle = (arm * Math.PI * 2) / arms;
+    baseSteps.forEach((t) => {
+      const r = t * radius;
+      const core = Math.max(1.4, (1 - t) * radius * 0.06 + 1.2);
+      const glow = core * 2.1;
+      const x = center + Math.cos(angle) * r;
+      const y = center + Math.sin(angle) * r;
+      drawGlowDot(splashCtx, x, y, core, glow);
+    });
+
+    branchSteps.forEach((step) => {
+      const baseR = step.t * radius;
+      const branchLen = step.len * radius;
+      [1, -1].forEach((sign) => {
+        const branchAngle = angle + sign * (Math.PI / 6);
+        [0.45, 0.9].forEach((factor) => {
+          const r = baseR + branchLen * factor;
+          const core = Math.max(1.2, (1 - step.t) * radius * 0.045 + 1.0);
+          const glow = core * 2.0;
+          const x = center + Math.cos(branchAngle) * r;
+          const y = center + Math.sin(branchAngle) * r;
+          drawGlowDot(splashCtx, x, y, core, glow);
+        });
+      });
+    });
+  }
+
+  const ringCount = 12;
+  const ringRadius = radius * 0.22;
+  for (let i = 0; i < ringCount; i += 1) {
+    const angle = (i * Math.PI * 2) / ringCount;
+    const x = center + Math.cos(angle) * ringRadius;
+    const y = center + Math.sin(angle) * ringRadius;
+    drawGlowDot(splashCtx, x, y, 2.2, 4.4);
+  }
+
+  drawGlowDot(splashCtx, center, center, radius * 0.08, radius * 0.18);
+}
+
+function showSplash() {
+  splash?.classList.remove("is-hidden");
+}
+
+function hideSplash() {
+  splash?.classList.add("is-hidden");
+}
+
+function updateToolbar() {
+  if (!toolbarPath) return;
+  if (!state.file) {
+    toolbarPath.textContent = "No file loaded";
+    return;
+  }
+  const frameLabel = state.frameCount > 1 ? `${state.frameIndex + 1} / ${state.frameCount}` : "single";
+  const datasetLabel = state.dataset ? ` ${state.dataset}` : "";
+  toolbarPath.textContent = `${state.file}${datasetLabel}  ${frameLabel}`;
+}
+
+function setActiveMenu(menu, anchor) {
+  activeMenu = menu;
+  menuButtons.forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.menu === menu);
+  });
+  dropdownPanels.forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.menu === menu);
+  });
+  if (anchor && dropdown) {
+    const chrome = document.querySelector(".chrome");
+    const anchorRect = anchor.getBoundingClientRect();
+    const chromeRect = chrome.getBoundingClientRect();
+    dropdown.style.left = `${anchorRect.left - chromeRect.left}px`;
+  }
+}
+
+function openMenu(menu, anchor) {
+  if (!dropdown) return;
+  dropdown.classList.add("is-open");
+  dropdown.setAttribute("aria-hidden", "false");
+  setActiveMenu(menu, anchor);
+}
+
+function closeMenu() {
+  if (!dropdown) return;
+  dropdown.classList.remove("is-open");
+  dropdown.setAttribute("aria-hidden", "true");
+}
+
+function scheduleClose() {
+  window.clearTimeout(closeTimer);
+  closeTimer = window.setTimeout(() => {
+    closeMenu();
+  }, 250);
+}
+
+function cancelClose() {
+  window.clearTimeout(closeTimer);
+}
+
+function openFileModal() {
+  closeMenu();
+  fileInput?.click();
+}
+
+function showUploadProgress() {
+  if (!uploadBar) return;
+  uploadBar.classList.add("is-active");
+  uploadBar.classList.remove("is-processing");
+  uploadBar.setAttribute("aria-hidden", "false");
+  if (uploadBarFill) uploadBarFill.style.width = "0%";
+  if (uploadBarText) uploadBarText.textContent = "Uploading 0%";
+}
+
+function updateUploadProgress(percent) {
+  if (!uploadBar) return;
+  const value = Math.max(0, Math.min(100, percent));
+  if (uploadBarFill) uploadBarFill.style.width = `${value}%`;
+  if (uploadBarText) uploadBarText.textContent = `Uploading ${value}%`;
+}
+
+function hideUploadProgress() {
+  if (!uploadBar) return;
+  uploadBar.classList.remove("is-active");
+  uploadBar.classList.remove("is-processing");
+  uploadBar.setAttribute("aria-hidden", "true");
+}
+
+function showProcessingProgress(label = "Processing…") {
+  if (!uploadBar) return;
+  uploadBar.classList.add("is-active");
+  uploadBar.classList.add("is-processing");
+  uploadBar.setAttribute("aria-hidden", "false");
+  if (uploadBarFill) uploadBarFill.style.width = "40%";
+  if (uploadBarText) uploadBarText.textContent = label;
+}
+
+function hideProcessingProgress() {
+  if (!uploadBar) return;
+  uploadBar.classList.remove("is-processing");
+  if (!uploadBar.classList.contains("is-active")) return;
+  uploadBar.classList.remove("is-active");
+  uploadBar.setAttribute("aria-hidden", "true");
+}
+
+function flashDataSection() {
+  if (!dataSection) return;
+  dataSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  dataSection.classList.add("flash");
+  window.setTimeout(() => dataSection.classList.remove("flash"), 800);
+}
+
+function exportFrame(filenameOverride) {
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const name = filenameOverride || `frame_${state.frameIndex}.png`;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+async function handleMenuAction(action) {
+  switch (action) {
+    case "help-docs":
+      window.open("docs.html", "_blank");
+      break;
+    case "help-about":
+      if (aboutModal) {
+        aboutModal.classList.add("is-open");
+      }
+      break;
+    case "new-window":
+      window.open(window.location.href, "_blank");
+      break;
+    case "open":
+      openFileModal();
+      break;
+    case "close-file":
+      closeCurrentFile();
+      break;
+    case "save-as": {
+      const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
+      const suggested = `${base}_frame_${state.frameIndex + 1}.png`;
+      const name = window.prompt("Save As", suggested);
+      if (name) {
+        exportFrame(name);
+      }
+      break;
+    }
+    case "export":
+      exportFrame();
+      break;
+    default:
+      break;
+  }
+}
+
+function handleShortcut(event) {
+  const isMod = event.metaKey || event.ctrlKey;
+  if (!isMod) return;
+  const key = event.key.toLowerCase();
+  if (["o", "s", "e", "n", "w"].includes(key)) {
+    event.preventDefault();
+  }
+  switch (key) {
+    case "o":
+      openFileModal();
+      break;
+    case "w":
+      closeCurrentFile();
+      break;
+    case "s":
+      handleMenuAction("save-as");
+      break;
+    case "e":
+      handleMenuAction("export");
+      break;
+    case "n":
+      handleMenuAction("new-window");
+      break;
+    default:
+      break;
+  }
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+function option(label, value) {
+  const opt = document.createElement("option");
+  opt.value = value;
+  opt.textContent = label;
+  return opt;
+}
+
+function createShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const info = gl.getShaderInfoLog(shader);
+    gl.deleteShader(shader);
+    throw new Error(info || "Shader compile failed");
+  }
+  return shader;
+}
+
+function createProgram(gl, vertexSource, fragmentSource) {
+  const vs = createShader(gl, gl.VERTEX_SHADER, vertexSource);
+  const fs = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+  const program = gl.createProgram();
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  gl.deleteShader(vs);
+  gl.deleteShader(fs);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const info = gl.getProgramInfoLog(program);
+    gl.deleteProgram(program);
+    throw new Error(info || "Program link failed");
+  }
+  return program;
+}
+
+function createWebGLRenderer() {
+  const gl = canvas.getContext("webgl2", {
+    antialias: false,
+    preserveDrawingBuffer: true,
+  });
+  if (!gl) {
+    return null;
+  }
+
+  const vertexSource = `#version 300 es
+    in vec2 a_position;
+    out vec2 v_tex;
+    void main() {
+      v_tex = a_position * 0.5 + 0.5;
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+
+  const fragmentSource = `#version 300 es
+    precision highp float;
+    precision highp int;
+    precision highp usampler2D;
+    uniform sampler2D u_data;
+    uniform sampler2D u_lut;
+    uniform usampler2D u_mask;
+    uniform float u_mask_enabled;
+    uniform float u_min;
+    uniform float u_max;
+    uniform float u_invert;
+    in vec2 v_tex;
+    out vec4 outColor;
+    void main() {
+      float value = texture(u_data, v_tex).r;
+      if (u_mask_enabled > 0.5) {
+        uint mask = texture(u_mask, v_tex).r;
+        if ((mask & 1u) != 0u) {
+          value = 0.0;
+        } else if ((mask & 0x1Eu) != 0u) {
+          outColor = vec4(0.2, 0.6, 1.0, 1.0);
+          return;
+        }
+      }
+      float denom = max(u_max - u_min, 1.0);
+      float norm = clamp((value - u_min) / denom, 0.0, 1.0);
+      if (u_invert > 0.5) {
+        norm = 1.0 - norm;
+      }
+      outColor = texture(u_lut, vec2(norm, 0.5));
+    }
+  `;
+
+  let program;
+  try {
+    program = createProgram(gl, vertexSource, fragmentSource);
+  } catch (err) {
+    console.error(err);
+    setStatus("WebGL shader error");
+    return {
+      type: "webgl",
+      render: () => {},
+    };
+  }
+
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const positionLoc = gl.getAttribLocation(program, "a_position");
+  gl.enableVertexAttribArray(positionLoc);
+  gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+
+  const dataTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, dataTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  const lutTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, lutTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  const maskTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, maskTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.R32UI,
+    1,
+    1,
+    0,
+    gl.RED_INTEGER,
+    gl.UNSIGNED_INT,
+    new Uint32Array([0])
+  );
+
+  const uniforms = {
+    data: gl.getUniformLocation(program, "u_data"),
+    lut: gl.getUniformLocation(program, "u_lut"),
+    mask: gl.getUniformLocation(program, "u_mask"),
+    maskEnabled: gl.getUniformLocation(program, "u_mask_enabled"),
+    min: gl.getUniformLocation(program, "u_min"),
+    max: gl.getUniformLocation(program, "u_max"),
+    invert: gl.getUniformLocation(program, "u_invert"),
+  };
+
+  const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  let maskTexWidth = 1;
+  let maskTexHeight = 1;
+  let lastMaskData = null;
+
+  return {
+    type: "webgl",
+    maxTextureSize,
+    render({ floatData, width, height, min, max, palette, invert, mask, maskWidth, maskHeight, maskEnabled }) {
+      if (!floatData) return;
+      if (width > maxTextureSize || height > maxTextureSize) {
+        setStatus(`Frame exceeds max texture size ${maxTextureSize}px`);
+        return;
+      }
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      gl.viewport(0, 0, width, height);
+      gl.useProgram(program);
+      gl.bindVertexArray(vao);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, dataTex);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, width, height, 0, gl.RED, gl.FLOAT, floatData);
+      gl.uniform1i(uniforms.data, 0);
+
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, lutTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, palette);
+      gl.uniform1i(uniforms.lut, 1);
+
+      const useMask = Boolean(
+        maskEnabled &&
+          mask &&
+          maskWidth === width &&
+          maskHeight === height &&
+          mask.length === width * height
+      );
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, maskTex);
+      gl.uniform1i(uniforms.mask, 2);
+      gl.uniform1f(uniforms.maskEnabled, useMask ? 1.0 : 0.0);
+      if (useMask && (mask !== lastMaskData || maskTexWidth !== width || maskTexHeight !== height)) {
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.R32UI,
+          width,
+          height,
+          0,
+          gl.RED_INTEGER,
+          gl.UNSIGNED_INT,
+          mask
+        );
+        maskTexWidth = width;
+        maskTexHeight = height;
+        lastMaskData = mask;
+      }
+
+      gl.uniform1f(uniforms.min, min);
+      gl.uniform1f(uniforms.max, max);
+      gl.uniform1f(uniforms.invert, invert ? 1.0 : 0.0);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    },
+  };
+}
+
+function createCpuRenderer() {
+  const ctx = canvas.getContext("2d");
+  return {
+    type: "cpu",
+    render({ data, width, height, min, max, palette, invert, mask, maskEnabled }) {
+      if (!data) return;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      const imageData = ctx.createImageData(width, height);
+      const out = imageData.data;
+      const range = max - min || 1;
+      for (let i = 0; i < data.length; i += 1) {
+        let v = data[i];
+        if (maskEnabled && mask && mask.length === data.length) {
+          const maskValue = mask[i];
+          if (maskValue & 1) {
+            v = 0;
+          } else if (maskValue & 0x1e) {
+            const j = i * 4;
+            out[j] = 51;
+            out[j + 1] = 153;
+            out[j + 2] = 255;
+            out[j + 3] = 255;
+            continue;
+          }
+        }
+        let norm = Math.min(1, Math.max(0, (v - min) / range));
+        if (invert) {
+          norm = 1 - norm;
+        }
+        const idx = Math.floor(norm * 255) * 4;
+        const j = i * 4;
+        out[j] = palette[idx];
+        out[j + 1] = palette[idx + 1];
+        out[j + 2] = palette[idx + 2];
+        out[j + 3] = 255;
+      }
+      ctx.putImageData(imageData, 0, 0);
+    },
+  };
+}
+
+function initRenderer() {
+  renderer = createWebGLRenderer();
+  if (!renderer) {
+    renderer = createCpuRenderer();
+  }
+  metaRenderer.textContent = renderer.type === "webgl" ? "WebGL2" : "CPU";
+}
+
+async function loadFiles() {
+  const data = await fetchJSON(`${API}/files`);
+  fileSelect.innerHTML = "";
+  if (data.files.length > 0) {
+    const placeholder = option("Select file…", "");
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    fileSelect.appendChild(placeholder);
+    data.files.forEach((name) => fileSelect.appendChild(option(name, name)));
+    state.file = "";
+    state.dataset = "";
+    setStatus("Select a file to begin");
+    updateToolbar();
+    showSplash();
+    setLoading(false);
+  } else {
+    data.files.forEach((name) => fileSelect.appendChild(option(name, name)));
+    setStatus("No HDF5 files found");
+    showSplash();
+    setLoading(false);
+  }
+}
+
+function sortDatasets(datasets) {
+  const primary = datasets.find((d) => d.path.includes("/entry/data/data"));
+  if (primary) {
+    return [primary, ...datasets.filter((d) => d !== primary)];
+  }
+  return datasets;
+}
+
+async function loadDatasets() {
+  if (!state.file) return;
+  state.hasFrame = false;
+  stopPlayback();
+  await loadMask(true);
+  showProcessingProgress("Scanning datasets…");
+  setLoading(true);
+  setStatus("Scanning datasets…");
+  const data = await fetchJSON(`${API}/datasets?file=${encodeURIComponent(state.file)}`);
+  const candidates = data.datasets
+    .filter((d) => d.image)
+    .sort((a, b) => b.size - a.size);
+
+  datasetSelect.innerHTML = "";
+  const ordered = sortDatasets(candidates);
+  ordered.forEach((d) => datasetSelect.appendChild(option(`${d.path} (${d.shape.join("x")})`, d.path)));
+
+  if (ordered.length > 0) {
+    state.dataset = ordered[0].path;
+    datasetSelect.value = state.dataset;
+    await loadMetadata();
+  } else {
+    setStatus("No image datasets found");
+    showSplash();
+    setLoading(false);
+  }
+  hideProcessingProgress();
+}
+
+async function loadMetadata() {
+  if (!state.file || !state.dataset) return;
+  showProcessingProgress("Loading metadata…");
+  setStatus("Loading metadata…");
+  try {
+    state.maskAuto = true;
+    const data = await fetchJSON(
+      `${API}/metadata?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(state.dataset)}`
+    );
+    state.shape = data.shape;
+    state.dtype = data.dtype;
+    state.frameCount = data.shape.length === 3 ? data.shape[0] : 1;
+    state.frameIndex = 0;
+    frameRange.max = Math.max(state.frameCount - 1, 0);
+    frameRange.value = "0";
+    frameIndex.value = "0";
+    metaShape.textContent = data.shape.join(" × ");
+    metaDtype.textContent = data.dtype;
+    updateToolbar();
+    await loadFrame();
+  } finally {
+    hideProcessingProgress();
+  }
+}
+
+function parseShape(header) {
+  if (!header) return [];
+  return header.split(",").map((v) => parseInt(v, 10));
+}
+
+function parseDtype(header) {
+  return header || state.dtype;
+}
+
+function typedArrayFrom(buffer, dtype) {
+  switch (dtype) {
+    case "<u1":
+    case "|u1":
+      return new Uint8Array(buffer);
+    case "<u2":
+      return new Uint16Array(buffer);
+    case "<u4":
+      return new Uint32Array(buffer);
+    case "<i2":
+      return new Int16Array(buffer);
+    case "<i4":
+      return new Int32Array(buffer);
+    case "<f4":
+      return new Float32Array(buffer);
+    case "<f8":
+      return new Float64Array(buffer);
+    default:
+      return new Uint32Array(buffer);
+  }
+}
+
+function toFloat32(data) {
+  if (data instanceof Float32Array) return data;
+  const out = new Float32Array(data.length);
+  for (let i = 0; i < data.length; i += 1) {
+    out[i] = data[i];
+  }
+  return out;
+}
+
+function getDtypeInfo(dtype) {
+  if (!dtype) return null;
+  if (dtype.length >= 3 && (dtype[0] === "<" || dtype[0] === ">" || dtype[0] === "|")) {
+    const kind = dtype[1];
+    const bytes = Number.parseInt(dtype.slice(2), 10);
+    if (Number.isFinite(bytes) && bytes > 0) {
+      return { kind, bits: bytes * 8 };
+    }
+    return null;
+  }
+  const lower = dtype.toLowerCase();
+  if (lower.startsWith("uint")) {
+    const bits = Number.parseInt(lower.slice(4), 10);
+    if (Number.isFinite(bits)) {
+      return { kind: "u", bits };
+    }
+  }
+  if (lower.startsWith("int")) {
+    const bits = Number.parseInt(lower.slice(3), 10);
+    if (Number.isFinite(bits)) {
+      return { kind: "i", bits };
+    }
+  }
+  if (lower.startsWith("float")) {
+    const bits = Number.parseInt(lower.slice(5), 10);
+    if (Number.isFinite(bits)) {
+      return { kind: "f", bits };
+    }
+  }
+  return null;
+}
+
+function getSaturationMax(rawMax) {
+  const info = getDtypeInfo(state.dtype);
+  if (!info || info.kind === "f") return null;
+  if (!Number.isFinite(rawMax)) return null;
+  const bits = info.bits;
+  if (!Number.isFinite(bits) || bits <= 0 || bits > 52) return null;
+  const dtypeMax = info.kind === "u" ? 2 ** bits - 1 : 2 ** (bits - 1) - 1;
+  const candidates = [4, 8, 12, 16, 32];
+  for (const candBits of candidates) {
+    if (candBits > bits) continue;
+    const candMax = 2 ** candBits - 1;
+    if (rawMax === candMax) {
+      return candMax;
+    }
+  }
+  return dtypeMax;
+}
+
+function chooseHistogramBins(count) {
+  if (!Number.isFinite(count) || count <= 0) return 256;
+  const bins = Math.round(Math.sqrt(count));
+  return Math.max(64, Math.min(1024, bins));
+}
+
+const AUTO_CONTRAST_LOW = 0.001;
+const AUTO_CONTRAST_HIGH = 0.999;
+const AUTO_CONTRAST_BINS = 4096;
+
+function computeHistogram(data, min, max, satMax, bins, logX) {
+  const hist = new Uint32Array(bins);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || bins <= 0) {
+    return hist;
+  }
+  const range = max - min || 1;
+  let mapValue = (v) => (v - min) / range;
+  if (logX) {
+    const symlog = (v) => Math.sign(v) * Math.log10(1 + Math.abs(v));
+    const minMap = symlog(min);
+    const maxMap = symlog(max);
+    const mapRange = maxMap - minMap || 1;
+    mapValue = (v) => (symlog(v) - minMap) / mapRange;
+  }
+
+  for (let i = 0; i < data.length; i += 1) {
+    const v = data[i];
+    if (!Number.isFinite(v)) continue;
+    if (v < 0) continue;
+    if (satMax !== null && v === satMax) continue;
+    const t = mapValue(v);
+    if (!Number.isFinite(t)) continue;
+    const idx = Math.min(bins - 1, Math.max(0, Math.floor(t * (bins - 1))));
+    hist[idx] += 1;
+  }
+  return hist;
+}
+
+function computeAutoLevels(data, satMaxInput) {
+  let rawMax = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < data.length; i += 1) {
+    const v = data[i];
+    if (!Number.isFinite(v)) continue;
+    if (v < 0) continue;
+    if (v > rawMax) rawMax = v;
+  }
+
+  const satMax = satMaxInput ?? getSaturationMax(rawMax);
+  let minLog = Number.POSITIVE_INFINITY;
+  let maxLog = Number.NEGATIVE_INFINITY;
+  let count = 0;
+
+  for (let i = 0; i < data.length; i += 1) {
+    const v = data[i];
+    if (!Number.isFinite(v)) continue;
+    if (v < 0) continue;
+    if (satMax !== null && v === satMax) continue;
+    const lv = Math.log1p(v);
+    if (lv < minLog) minLog = lv;
+    if (lv > maxLog) maxLog = lv;
+    count += 1;
+  }
+
+  if (!Number.isFinite(minLog) || !Number.isFinite(maxLog) || count === 0) {
+    return { min: state.stats?.min ?? 0, max: state.stats?.max ?? 1 };
+  }
+
+  const bins = Math.max(256, Math.min(AUTO_CONTRAST_BINS, Math.round(Math.sqrt(count)) * 4));
+  const hist = new Uint32Array(bins);
+  const range = maxLog - minLog || 1;
+
+  for (let i = 0; i < data.length; i += 1) {
+    const v = data[i];
+    if (!Number.isFinite(v)) continue;
+    if (v < 0) continue;
+    if (satMax !== null && v === satMax) continue;
+    const lv = Math.log1p(v);
+    const idx = Math.min(bins - 1, Math.max(0, Math.floor(((lv - minLog) / range) * (bins - 1))));
+    hist[idx] += 1;
+  }
+
+  const lowTarget = count * AUTO_CONTRAST_LOW;
+  const highTarget = count * AUTO_CONTRAST_HIGH;
+  let cumulative = 0;
+  let lowBin = 0;
+  for (let i = 0; i < bins; i += 1) {
+    cumulative += hist[i];
+    if (cumulative >= lowTarget) {
+      lowBin = i;
+      break;
+    }
+  }
+  cumulative = 0;
+  let highBin = bins - 1;
+  for (let i = 0; i < bins; i += 1) {
+    cumulative += hist[i];
+    if (cumulative >= highTarget) {
+      highBin = i;
+      break;
+    }
+  }
+  if (highBin <= lowBin) {
+    highBin = Math.min(bins - 1, lowBin + 1);
+  }
+
+  const lowLog = minLog + (lowBin / (bins - 1)) * range;
+  const highLog = minLog + (highBin / (bins - 1)) * range;
+  const minVal = Math.expm1(lowLog);
+  const maxVal = Math.expm1(highLog);
+  if (!Number.isFinite(minVal) || !Number.isFinite(maxVal) || minVal >= maxVal) {
+    return { min: state.stats?.min ?? 0, max: state.stats?.max ?? 1 };
+  }
+  return { min: minVal, max: maxVal };
+}
+
+function computeStats(data) {
+  let rawMax = Number.NEGATIVE_INFINITY;
+
+  for (let i = 0; i < data.length; i += 1) {
+    const v = data[i];
+    if (!Number.isFinite(v)) continue;
+    if (v < 0) continue;
+    if (v > rawMax) rawMax = v;
+  }
+
+  const satMax = getSaturationMax(rawMax);
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+
+  for (let i = 0; i < data.length; i += 1) {
+    const v = data[i];
+    if (!Number.isFinite(v)) continue;
+    if (v < 0) continue;
+    if (satMax !== null && v === satMax) continue;
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: 0, max: 1, hist: new Uint32Array(0), satMax, bins: 0 };
+  }
+
+  const bins = chooseHistogramBins(data.length);
+  const hist = computeHistogram(data, min, max, satMax, bins, state.histLogX);
+  return { min, max, hist, satMax, bins };
+}
+
+function histogramValueToX(value, width) {
+  const minVal = state.stats?.min ?? 0;
+  const maxVal = state.stats?.max ?? 1;
+  if (!Number.isFinite(value) || !Number.isFinite(minVal) || !Number.isFinite(maxVal)) {
+    return 0;
+  }
+  const range = maxVal - minVal || 1;
+  if (!state.histLogX) {
+    return ((value - minVal) / range) * width;
+  }
+  const symlog = (v) => Math.sign(v) * Math.log10(1 + Math.abs(v));
+  const minMap = symlog(minVal);
+  const maxMap = symlog(maxVal);
+  const mapRange = maxMap - minMap || 1;
+  const mapped = (symlog(value) - minMap) / mapRange;
+  return Math.min(width, Math.max(0, mapped * width));
+}
+
+function histogramXToValue(x, width) {
+  const minVal = state.stats?.min ?? 0;
+  const maxVal = state.stats?.max ?? 1;
+  const clampedX = Math.min(width, Math.max(0, x));
+  const t = width ? clampedX / width : 0;
+  if (!state.histLogX) {
+    return minVal + t * (maxVal - minVal);
+  }
+  const symlog = (v) => Math.sign(v) * Math.log10(1 + Math.abs(v));
+  const invSymlog = (v) => Math.sign(v) * (10 ** Math.abs(v) - 1);
+  const minMap = symlog(minVal);
+  const maxMap = symlog(maxVal);
+  const mapRange = maxMap - minMap || 1;
+  const mapped = minMap + t * mapRange;
+  return invSymlog(mapped);
+}
+
+function getHistTooltipPosition(canvasRect, x) {
+  const container = histCanvas.parentElement;
+  if (!container) return { left: x, top: 0 };
+  const containerRect = container.getBoundingClientRect();
+  const left = x + canvasRect.left - containerRect.left + 8;
+  const top = canvasRect.top - containerRect.top + 6;
+  return { left, top };
+}
+
+function buildPalette(name) {
+  const palette = new Uint8Array(256 * 4);
+  const mixStops = (stops, t) => {
+    const scaled = t * (stops.length - 1);
+    const idx = Math.floor(scaled);
+    const frac = scaled - idx;
+    const a = stops[idx];
+    const b = stops[Math.min(idx + 1, stops.length - 1)];
+    return [
+      Math.round(a[0] + (b[0] - a[0]) * frac),
+      Math.round(a[1] + (b[1] - a[1]) * frac),
+      Math.round(a[2] + (b[2] - a[2]) * frac),
+    ];
+  };
+  for (let i = 0; i < 256; i += 1) {
+    const t = i / 255;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    if (name === "gray") {
+      r = g = b = Math.round(t * 255);
+    } else if (name === "heat") {
+      const tt = t * 3;
+      r = Math.min(255, Math.round(255 * Math.min(tt, 1)));
+      g = Math.min(255, Math.round(255 * Math.max(0, tt - 1)));
+      b = Math.min(255, Math.round(255 * Math.max(0, tt - 2)));
+    } else if (name === "viridis") {
+      [r, g, b] = mixStops(
+        [
+          [68, 1, 84],
+          [59, 82, 139],
+          [33, 145, 140],
+          [94, 201, 97],
+          [253, 231, 37],
+        ],
+        t
+      );
+    } else if (name === "magma") {
+      [r, g, b] = mixStops(
+        [
+          [0, 0, 4],
+          [53, 15, 83],
+          [132, 32, 102],
+          [196, 66, 74],
+          [251, 135, 53],
+          [252, 253, 191],
+        ],
+        t
+      );
+    } else if (name === "inferno") {
+      [r, g, b] = mixStops(
+        [
+          [0, 0, 4],
+          [51, 13, 81],
+          [120, 28, 109],
+          [190, 55, 84],
+          [249, 101, 49],
+          [252, 255, 164],
+        ],
+        t
+      );
+    } else if (name === "cividis") {
+      [r, g, b] = mixStops(
+        [
+          [0, 32, 76],
+          [40, 77, 117],
+          [92, 125, 127],
+          [147, 173, 112],
+          [207, 223, 108],
+          [253, 231, 37],
+        ],
+        t
+      );
+    } else if (name === "turbo") {
+      [r, g, b] = mixStops(
+        [
+          [48, 18, 59],
+          [50, 127, 216],
+          [63, 195, 160],
+          [189, 211, 57],
+          [249, 143, 8],
+          [179, 21, 22],
+        ],
+        t
+      );
+    } else if (name === "blueYellowRed") {
+      r = Math.round(255 * Math.min(1, Math.max(0, t * 1.2)));
+      g = Math.round(255 * Math.min(1, Math.max(0, 1.2 - Math.abs(t - 0.5) * 2)));
+      b = Math.round(255 * Math.min(1, Math.max(0, 1 - t * 1.2)));
+    } else if (name === "albisHdr") {
+      const gamma = Math.pow(t, 0.7);
+      r = Math.round(255 * Math.min(1, gamma * 1.1));
+      g = Math.round(255 * Math.min(1, gamma * 0.9 + t * 0.3));
+      b = Math.round(255 * Math.min(1, (1 - gamma) * 0.4 + t * 0.6));
+    }
+    const base = i * 4;
+    palette[base] = r;
+    palette[base + 1] = g;
+    palette[base + 2] = b;
+    palette[base + 3] = 255;
+  }
+  return palette;
+}
+
+function drawHistogram(hist) {
+  const width = histCanvas.clientWidth;
+  const height = histCanvas.clientHeight;
+  if (width < 4 || height < 4) {
+    return;
+  }
+  histCanvas.width = width * window.devicePixelRatio;
+  histCanvas.height = height * window.devicePixelRatio;
+  histCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+  histCtx.clearRect(0, 0, width, height);
+  histCtx.fillStyle = "#2b2b2b";
+  histCtx.fillRect(0, 0, width, height);
+  if (!hist || hist.length === 0) {
+    histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+    histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
+    return;
+  }
+  const maxCount = Math.max(...hist);
+  const bins = hist.length;
+  const pad = 10;
+  const drawableHeight = Math.max(4, height - pad);
+  const logY = state.histLogY;
+  const yDenom = logY ? Math.log10(1 + maxCount) : maxCount;
+
+  const barWidth = width / bins;
+  histCtx.fillStyle = "#dcdcdc";
+  for (let i = 0; i < bins; i += 1) {
+    const count = hist[i];
+    const norm = yDenom ? (logY ? Math.log10(1 + count) / yDenom : count / yDenom) : 0;
+    const h = norm * drawableHeight;
+    histCtx.fillRect(i * barWidth, height - h, Math.max(1, barWidth), h);
+  }
+
+  const minVal = state.min;
+  const maxVal = state.max;
+  if (Number.isFinite(minVal) && Number.isFinite(maxVal)) {
+    const minX = histogramValueToX(minVal, width);
+    const maxX = histogramValueToX(maxVal, width);
+    const markerTop = 2;
+    const markerBottom = height - 2;
+
+    const drawMarker = (x, color, label) => {
+      histCtx.strokeStyle = color;
+      histCtx.lineWidth = 1.5;
+      histCtx.beginPath();
+      histCtx.moveTo(x, markerTop);
+      histCtx.lineTo(x, markerBottom);
+      histCtx.stroke();
+
+      histCtx.fillStyle = color;
+      histCtx.fillRect(x - 3, markerTop, 6, 8);
+      histCtx.strokeStyle = "rgba(0,0,0,0.6)";
+      histCtx.strokeRect(x - 3, markerTop, 6, 8);
+
+      if (label) {
+        histCtx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+        histCtx.textBaseline = "top";
+        histCtx.fillStyle = "#f2f2f2";
+        const metrics = histCtx.measureText(label);
+        const textX = Math.min(width - metrics.width - 4, Math.max(4, x + 6));
+        histCtx.fillText(label, textX, markerTop + 10);
+      }
+    };
+
+    drawMarker(minX, "#6eb5ff", `BG ${formatValue(minVal)}`);
+    drawMarker(maxX, "#ffd166", `FG ${formatValue(maxVal)}`);
+  }
+
+  histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
+}
+
+function clearHistogram() {
+  const width = histCanvas.clientWidth || 1;
+  const height = histCanvas.clientHeight || 1;
+  histCanvas.width = width * window.devicePixelRatio;
+  histCanvas.height = height * window.devicePixelRatio;
+  histCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+  histCtx.fillStyle = "#2b2b2b";
+  histCtx.fillRect(0, 0, width, height);
+  histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
+}
+
+function closeCurrentFile() {
+  stopPlayback();
+  state.file = "";
+  state.dataset = "";
+  state.shape = [];
+  state.dtype = "";
+  state.frameCount = 1;
+  state.frameIndex = 0;
+  state.dataRaw = null;
+  state.dataFloat = null;
+  state.histogram = null;
+  state.stats = null;
+  state.hasFrame = false;
+  clearMaskState();
+  updateToolbar();
+  setStatus("No file loaded");
+  setLoading(false);
+  hideUploadProgress();
+  hideProcessingProgress();
+  showSplash();
+
+  fileSelect.selectedIndex = 0;
+  datasetSelect.innerHTML = "";
+  frameRange.max = "0";
+  frameRange.value = "0";
+  frameIndex.value = "0";
+  minInput.value = "";
+  maxInput.value = "";
+  metaShape.textContent = "-";
+  metaDtype.textContent = "-";
+  metaRange.textContent = "-";
+
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.clearRect(0, 0, 1, 1);
+  }
+  clearHistogram();
+  updatePlayButtons();
+}
+
+function applyFrame(data, width, height, dtype) {
+  state.dataRaw = data;
+  state.dataFloat = renderer.type === "webgl" ? toFloat32(data) : null;
+  state.width = width;
+  state.height = height;
+  state.dtype = dtype;
+  state.stats = computeStats(data);
+  state.histogram = state.stats.hist;
+
+  if (state.autoScale) {
+    const levels = computeAutoLevels(data, state.stats.satMax ?? null);
+    state.min = levels.min;
+    state.max = levels.max;
+    minInput.value = formatValue(state.min);
+    maxInput.value = formatValue(state.max);
+  }
+
+  metaRange.textContent = `${formatValue(state.stats.min)} → ${formatValue(state.stats.max)}`;
+  syncMaskAvailability(false);
+  redraw();
+  if (!state.hasFrame) {
+    fitImageToView();
+  }
+  state.hasFrame = true;
+  hideSplash();
+  updatePlayButtons();
+  scheduleOverview();
+  schedulePixelOverlay();
+}
+
+function redraw() {
+  if (!state.dataRaw) return;
+  const palette = buildPalette(state.colormap);
+  const maskReady =
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === state.height &&
+    state.maskShape[1] === state.width;
+  const maskData = maskReady ? state.maskRaw : null;
+  const maskWidth = maskReady ? state.maskShape[1] : 0;
+  const maskHeight = maskReady ? state.maskShape[0] : 0;
+  if (renderer.type === "webgl") {
+    renderer.render({
+      floatData: state.dataFloat,
+      width: state.width,
+      height: state.height,
+      min: state.min,
+      max: state.max,
+      palette,
+      invert: state.invert,
+      mask: maskData,
+      maskWidth,
+      maskHeight,
+      maskEnabled: maskReady,
+    });
+  } else {
+    renderer.render({
+      data: state.dataRaw,
+      width: state.width,
+      height: state.height,
+      min: state.min,
+      max: state.max,
+      palette,
+      invert: state.invert,
+      mask: maskData,
+      maskEnabled: maskReady,
+    });
+  }
+  if (state.histogram) {
+    drawHistogram(state.histogram);
+  }
+  scheduleOverview();
+  scheduleHistogram();
+  schedulePixelOverlay();
+}
+
+async function loadFrame() {
+  if (!state.file || !state.dataset) return;
+  if (state.isLoading) return;
+  state.isLoading = true;
+  if (!state.playing) {
+    setLoading(true);
+    setStatus("Loading frame…");
+  } else {
+    setLoading(false);
+  }
+  const url = `${API}/frame?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(
+    state.dataset
+  )}&index=${state.frameIndex}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    setStatus("Failed to load frame");
+    setLoading(false);
+    state.isLoading = false;
+    if (!state.hasFrame) {
+      showSplash();
+    }
+    return;
+  }
+  const buffer = await res.arrayBuffer();
+  const dtype = parseDtype(res.headers.get("X-Dtype"));
+  const shape = parseShape(res.headers.get("X-Shape"));
+  const data = typedArrayFrom(buffer, dtype);
+
+  const height = shape[0];
+  const width = shape[1];
+  metaShape.textContent = `${width} × ${height}`;
+  metaDtype.textContent = dtype;
+
+  applyFrame(data, width, height, dtype);
+  setStatus(`Frame ${state.frameIndex + 1} / ${state.frameCount}`);
+  updateToolbar();
+  setLoading(false);
+  state.isLoading = false;
+  if (state.pendingFrame !== null && state.pendingFrame !== state.frameIndex) {
+    const next = state.pendingFrame;
+    state.pendingFrame = null;
+    requestFrame(next);
+  } else {
+    state.pendingFrame = null;
+  }
+}
+
+menuButtons.forEach((btn) => {
+  btn.addEventListener("mouseenter", () => {
+    cancelClose();
+    openMenu(btn.dataset.menu, btn);
+  });
+  btn.addEventListener("click", () => {
+    cancelClose();
+    if (dropdown.classList.contains("is-open") && activeMenu === btn.dataset.menu) {
+      closeMenu();
+    } else {
+      openMenu(btn.dataset.menu, btn);
+    }
+  });
+});
+
+dropdown?.addEventListener("mouseenter", cancelClose);
+dropdown?.addEventListener("mouseleave", scheduleClose);
+
+document.addEventListener("click", (event) => {
+  if (!dropdown) return;
+  const withinMenu = event.target.closest(".menu-bar") || event.target.closest(".menu-dropdown");
+  if (!withinMenu) {
+    closeMenu();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeMenu();
+    if (aboutModal) {
+      aboutModal.classList.remove("is-open");
+    }
+    return;
+  }
+  if (event.key === "F1") {
+    event.preventDefault();
+    handleMenuAction("help-docs");
+    return;
+  }
+  handleShortcut(event);
+});
+
+menuActions.forEach((item) => {
+  item.addEventListener("click", () => {
+    if (item.classList.contains("is-disabled")) return;
+    handleMenuAction(item.dataset.action);
+    closeMenu();
+  });
+});
+
+if (fileInput) {
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    setStatus("Uploading file…");
+    setLoading(true);
+    showUploadProgress();
+    try {
+      const payload = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${API}/upload`, true);
+        xhr.responseType = "json";
+        xhr.upload.addEventListener("progress", (event) => {
+          if (!event.lengthComputable) {
+            updateUploadProgress(0);
+            return;
+          }
+          const percent = Math.round((event.loaded / event.total) * 100);
+          updateUploadProgress(percent);
+        });
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(xhr.response);
+          } else {
+            reject(new Error(xhr.response?.detail || "Upload failed"));
+          }
+        });
+        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        const form = new FormData();
+        form.append("file", file);
+        xhr.send(form);
+      });
+      updateUploadProgress(100);
+      await loadFiles();
+      if (payload?.filename) {
+        state.file = payload.filename;
+        fileSelect.value = payload.filename;
+        await loadDatasets();
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("Failed to upload file");
+      setLoading(false);
+    } finally {
+      hideUploadProgress();
+      fileInput.value = "";
+    }
+  });
+}
+
+if (aboutClose) {
+  aboutClose.addEventListener("click", () => {
+    aboutModal?.classList.remove("is-open");
+  });
+}
+fileSelect.addEventListener("change", async (event) => {
+  state.file = event.target.value;
+  if (!state.file) return;
+  stopPlayback();
+  await loadDatasets();
+});
+
+datasetSelect.addEventListener("change", async (event) => {
+  state.dataset = event.target.value;
+  stopPlayback();
+  await loadMetadata();
+});
+
+frameRange.addEventListener("input", async (event) => {
+  stopPlayback();
+  const value = Number(event.target.value);
+  requestFrame(value);
+});
+
+frameIndex.addEventListener("change", async (event) => {
+  stopPlayback();
+  const value = Math.max(0, Math.min(state.frameCount - 1, Number(event.target.value)));
+  requestFrame(value);
+});
+
+frameStep?.addEventListener("change", () => {
+  const value = Math.max(1, Math.round(Number(frameStep.value || 1)));
+  state.step = value;
+  frameStep.value = String(value);
+});
+
+fpsRange?.addEventListener("input", () => {
+  setFps(Number(fpsRange.value));
+});
+
+colormapSelect?.addEventListener("change", () => {
+  const value = colormapSelect.value;
+  if (value) {
+    state.colormap = value;
+    redraw();
+  }
+});
+
+autoScaleToggle.addEventListener("change", () => {
+  state.autoScale = autoScaleToggle.checked;
+  if (state.autoScale && state.dataRaw && state.stats) {
+    const levels = computeAutoLevels(state.dataRaw, state.stats.satMax ?? null);
+    state.min = levels.min;
+    state.max = levels.max;
+    minInput.value = formatValue(state.min);
+    maxInput.value = formatValue(state.max);
+  }
+  redraw();
+});
+
+maskToggle?.addEventListener("change", () => {
+  state.maskEnabled = maskToggle.checked;
+  state.maskAuto = false;
+  redraw();
+});
+
+autoContrastBtn.addEventListener("click", () => {
+  if (!state.stats || !state.dataRaw) return;
+  state.autoScale = true;
+  autoScaleToggle.checked = true;
+  const levels = computeAutoLevels(state.dataRaw, state.stats.satMax ?? null);
+  state.min = levels.min;
+  state.max = levels.max;
+  minInput.value = formatValue(state.min);
+  maxInput.value = formatValue(state.max);
+  redraw();
+});
+
+invertToggle.addEventListener("change", () => {
+  state.invert = invertToggle.checked;
+  redraw();
+});
+
+[histLogX, histLogY].forEach((toggle) => {
+  if (!toggle) return;
+  toggle.addEventListener("change", () => {
+    state.histLogX = histLogX?.checked ?? state.histLogX;
+    state.histLogY = histLogY?.checked ?? state.histLogY;
+    if (state.dataRaw && state.stats) {
+      const bins = state.stats.bins || chooseHistogramBins(state.dataRaw.length);
+      state.histogram = computeHistogram(
+        state.dataRaw,
+        state.stats.min,
+        state.stats.max,
+        state.stats.satMax ?? null,
+        bins,
+        state.histLogX
+      );
+    }
+    scheduleHistogram();
+  });
+});
+
+[minInput, maxInput].forEach((input) => {
+  input.addEventListener("change", () => {
+    if (!state.dataRaw) return;
+    state.min = snapHistogramValue(Number(minInput.value || state.min));
+    state.max = snapHistogramValue(Number(maxInput.value || state.max));
+    minInput.value = formatValue(state.min);
+    maxInput.value = formatValue(state.max);
+    state.autoScale = false;
+    autoScaleToggle.checked = false;
+    redraw();
+  });
+});
+
+zoomRange.addEventListener("input", () => {
+  if (!canvasWrap) {
+    setZoom(zoomRange.value);
+    scheduleOverview();
+    return;
+  }
+  const rect = canvasWrap.getBoundingClientRect();
+  zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, Number(zoomRange.value));
+});
+
+resetView.addEventListener("click", () => {
+  fitImageToView();
+});
+
+prevBtn?.addEventListener("click", () => {
+  stopPlayback();
+  requestFrame(state.frameIndex - Math.max(1, state.step));
+});
+
+nextBtn?.addEventListener("click", () => {
+  stopPlayback();
+  requestFrame(state.frameIndex + Math.max(1, state.step));
+});
+
+playBtn?.addEventListener("click", () => {
+  if (state.playing) {
+    stopPlayback();
+  } else {
+    startPlayback();
+  }
+});
+
+panelToggle?.addEventListener("click", () => {
+  togglePanel();
+});
+
+panelEdgeToggle?.addEventListener("click", () => {
+  togglePanel();
+});
+
+panelHeadToggle?.addEventListener("click", () => {
+  togglePanel();
+});
+
+sectionToggles.forEach((btn) => {
+  btn.addEventListener("click", toggleSection);
+});
+
+collapseAllBtn?.addEventListener("click", () => {
+  setAllSections(true);
+});
+
+expandAllBtn?.addEventListener("click", () => {
+  setAllSections(false);
+});
+
+try {
+  const storedSections = localStorage.getItem("albis.sectionStates");
+  if (storedSections) {
+    sectionStateStore = JSON.parse(storedSections) || {};
+  }
+} catch {
+  sectionStateStore = {};
+}
+
+sectionToggles.forEach((btn) => {
+  const section = btn.closest(".panel-section");
+  const id = section?.dataset.section;
+  if (id && sectionStateStore[id]) {
+    setSectionState(section, true, false);
+  }
+});
+
+panelResizer?.addEventListener("mousedown", (event) => {
+  if (!appLayout) return;
+  if (state.panelCollapsed) {
+    state.panelCollapsed = false;
+    applyPanelState();
+  }
+  const startX = event.clientX;
+  const startWidth = toolsPanel?.getBoundingClientRect().width || state.panelWidth;
+  function onMove(e) {
+    const delta = startX - e.clientX;
+    setPanelWidth(startWidth + delta);
+    scheduleHistogram();
+  }
+  function onUp(e) {
+    const delta = startX - e.clientX;
+    const finalWidth = startWidth + delta;
+    if (finalWidth < 140) {
+      state.panelCollapsed = true;
+    }
+    applyPanelState();
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+    document.body.style.cursor = "";
+  }
+  document.body.style.cursor = "col-resize";
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+});
+
+canvasWrap.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+    const delta = Math.sign(event.deltaY);
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, state.zoom - delta * 0.2));
+    zoomAt(event.clientX, event.clientY, next);
+  },
+  { passive: false }
+);
+
+canvasWrap.addEventListener("scroll", () => {
+  scheduleOverview();
+  schedulePixelOverlay();
+});
+
+canvasWrap.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  if (event.target.closest(".loading")) return;
+  panning = true;
+  panStart = {
+    x: event.clientX,
+    y: event.clientY,
+    scrollLeft: canvasWrap.scrollLeft,
+    scrollTop: canvasWrap.scrollTop,
+  };
+  canvasWrap.classList.add("is-panning");
+  canvasWrap.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+
+canvasWrap.addEventListener("pointermove", (event) => {
+  updateCursorOverlay(event);
+  if (!panning) return;
+  const dx = event.clientX - panStart.x;
+  const dy = event.clientY - panStart.y;
+  canvasWrap.scrollLeft = panStart.scrollLeft - dx;
+  canvasWrap.scrollTop = panStart.scrollTop - dy;
+  scheduleOverview();
+});
+
+function stopPan(event) {
+  if (!panning) return;
+  panning = false;
+  canvasWrap.classList.remove("is-panning");
+  schedulePixelOverlay();
+  if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
+    canvasWrap.releasePointerCapture(event.pointerId);
+  }
+}
+
+canvasWrap.addEventListener("pointerup", (event) => {
+  stopPan(event);
+});
+
+canvasWrap.addEventListener("pointercancel", (event) => {
+  stopPan(event);
+});
+
+canvasWrap.addEventListener("pointerleave", () => {
+  hideCursorOverlay();
+});
+
+canvasWrap.addEventListener("dblclick", (event) => {
+  event.preventDefault();
+  const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, state.zoom * 2));
+  zoomAt(event.clientX, event.clientY, next);
+});
+
+overviewCanvas?.addEventListener("pointerdown", (event) => {
+  if (!state.hasFrame) return;
+  const point = overviewEventToImage(event);
+  const overviewPoint = overviewEventToOverview(event);
+  const view = getViewRect();
+  if (!point || !overviewPoint || !view) return;
+
+  const handle = getOverviewHandleAt(overviewPoint);
+  if (handle) {
+    overviewDragMode = "resize";
+    overviewHandle = handle;
+    overviewResizeCenter = event.altKey;
+    overviewAnchor = getAnchorForHandle(view, handle, overviewResizeCenter);
+    overviewDragOffset = { x: 0, y: 0 };
+  } else {
+    overviewDragMode = "move";
+    overviewResizeCenter = false;
+    const inView =
+      point.x >= view.viewX &&
+      point.x <= view.viewX + view.viewW &&
+      point.y >= view.viewY &&
+      point.y <= view.viewY + view.viewH;
+    if (inView) {
+      const centerX = view.viewX + view.viewW / 2;
+      const centerY = view.viewY + view.viewH / 2;
+      overviewDragOffset = { x: point.x - centerX, y: point.y - centerY };
+    } else {
+      overviewDragOffset = { x: 0, y: 0 };
+    }
+  }
+
+  overviewDragging = true;
+  overviewCanvas.style.cursor = "";
+  overviewCanvas.classList.add("is-dragging");
+  overviewCanvas.setPointerCapture(event.pointerId);
+  if (overviewDragMode === "resize") {
+    resizeViewFromHandle(point, overviewHandle, overviewResizeCenter);
+  } else {
+    panToImageCenter(point.x - overviewDragOffset.x, point.y - overviewDragOffset.y);
+  }
+});
+
+overviewCanvas?.addEventListener("pointermove", (event) => {
+  if (!state.hasFrame) return;
+  if (!overviewDragging) {
+    const overviewPoint = overviewEventToOverview(event);
+    if (!overviewPoint) return;
+    const handle = getOverviewHandleAt(overviewPoint);
+    if (handle) {
+      if (handle === "n" || handle === "s") {
+        overviewCanvas.style.cursor = "ns-resize";
+      } else if (handle === "e" || handle === "w") {
+        overviewCanvas.style.cursor = "ew-resize";
+      } else {
+        overviewCanvas.style.cursor =
+          handle === "nw" || handle === "se" ? "nwse-resize" : "nesw-resize";
+      }
+    } else {
+      overviewCanvas.style.cursor = "";
+    }
+    return;
+  }
+  const point = overviewEventToImage(event);
+  if (!point) return;
+  if (overviewDragMode === "resize") {
+    resizeViewFromHandle(point, overviewHandle, overviewResizeCenter);
+  } else {
+    panToImageCenter(point.x - overviewDragOffset.x, point.y - overviewDragOffset.y);
+  }
+});
+
+function stopOverviewDrag(event) {
+  if (!overviewDragging) return;
+  overviewDragging = false;
+  overviewDragMode = null;
+  overviewHandle = null;
+  overviewAnchor = null;
+  overviewResizeCenter = false;
+  overviewCanvas?.classList.remove("is-dragging");
+  if (overviewCanvas) {
+    overviewCanvas.style.cursor = "";
+  }
+  if (event && overviewCanvas && overviewCanvas.hasPointerCapture(event.pointerId)) {
+    overviewCanvas.releasePointerCapture(event.pointerId);
+  }
+}
+
+overviewCanvas?.addEventListener("pointerup", (event) => {
+  stopOverviewDrag(event);
+});
+
+overviewCanvas?.addEventListener("pointercancel", (event) => {
+  stopOverviewDrag(event);
+});
+
+overviewCanvas?.addEventListener("pointerleave", () => {
+  if (!overviewDragging && overviewCanvas) {
+    overviewCanvas.style.cursor = "";
+  }
+});
+
+histCanvas.addEventListener("pointerdown", (event) => {
+  if (!state.stats) return;
+  const rect = histCanvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const width = histCanvas.clientWidth;
+  const minX = histogramValueToX(state.min, width);
+  const maxX = histogramValueToX(state.max, width);
+  const threshold = 6;
+  const distMin = Math.abs(x - minX);
+  const distMax = Math.abs(x - maxX);
+  if (Math.min(distMin, distMax) > threshold) return;
+  histDragTarget = distMin <= distMax ? "min" : "max";
+  histDragging = true;
+  histCanvas.setPointerCapture(event.pointerId);
+  histCanvas.style.cursor = "ew-resize";
+  const { left, top } = getHistTooltipPosition(rect, x);
+  const label = histDragTarget === "min" ? "BG" : "FG";
+  showHistTooltip(`${label} ${formatValue(histDragTarget === "min" ? state.min : state.max)}`, left, top);
+  event.preventDefault();
+});
+
+histCanvas.addEventListener("pointermove", (event) => {
+  if (!state.stats) return;
+  const rect = histCanvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const width = histCanvas.clientWidth;
+  if (!histDragging) {
+    const minX = histogramValueToX(state.min, width);
+    const maxX = histogramValueToX(state.max, width);
+    const threshold = 6;
+    const distMin = Math.abs(x - minX);
+    const distMax = Math.abs(x - maxX);
+    if (Math.min(distMin, distMax) <= threshold) {
+      const target = distMin <= distMax ? "min" : "max";
+      histCanvas.style.cursor = "ew-resize";
+      const { left, top } = getHistTooltipPosition(rect, x);
+      const label = target === "min" ? "BG" : "FG";
+      showHistTooltip(`${label} ${formatValue(target === "min" ? state.min : state.max)}`, left, top);
+    } else {
+      histCanvas.style.cursor = "";
+      hideHistTooltip();
+    }
+    return;
+  }
+
+  const value = snapHistogramValue(histogramXToValue(x, width));
+  if (!Number.isFinite(value)) return;
+  const minVal = state.stats.min;
+  const maxVal = state.stats.max;
+  if (histDragTarget === "min") {
+    const clamped = Math.max(minVal, Math.min(value, state.max));
+    state.min = clamped;
+    minInput.value = formatValue(state.min);
+  } else if (histDragTarget === "max") {
+    const clamped = Math.min(maxVal, Math.max(value, state.min));
+    state.max = clamped;
+    maxInput.value = formatValue(state.max);
+  }
+  state.autoScale = false;
+  autoScaleToggle.checked = false;
+  redraw();
+  const { left, top } = getHistTooltipPosition(rect, x);
+  const label = histDragTarget === "min" ? "BG" : "FG";
+  showHistTooltip(`${label} ${formatValue(histDragTarget === "min" ? state.min : state.max)}`, left, top);
+  event.preventDefault();
+});
+
+function stopHistDrag(event) {
+  if (!histDragging) return;
+  histDragging = false;
+  histDragTarget = null;
+  histCanvas.style.cursor = "";
+  hideHistTooltip();
+  if (event && histCanvas.hasPointerCapture(event.pointerId)) {
+    histCanvas.releasePointerCapture(event.pointerId);
+  }
+}
+
+histCanvas.addEventListener("pointerup", (event) => {
+  stopHistDrag(event);
+});
+
+histCanvas.addEventListener("pointercancel", (event) => {
+  stopHistDrag(event);
+});
+
+histCanvas.addEventListener("pointerleave", () => {
+  if (!histDragging) {
+    histCanvas.style.cursor = "";
+    hideHistTooltip();
+  }
+});
+
+exportBtn?.addEventListener("click", () => {
+  exportFrame();
+});
+
+window.addEventListener("resize", () => {
+  if (state.histogram) drawHistogram(state.histogram);
+  drawSplash();
+  scheduleOverview();
+  scheduleHistogram();
+  schedulePixelOverlay();
+});
+
+initRenderer();
+showSplash();
+drawSplash();
+if (fpsRange) {
+  setFps(Number(fpsRange.value));
+}
+if (frameStep) {
+  const stepValue = Math.max(1, Math.round(Number(frameStep.value || 1)));
+  state.step = stepValue;
+  frameStep.value = String(stepValue);
+}
+if (histLogX) {
+  state.histLogX = histLogX.checked;
+}
+if (histLogY) {
+  state.histLogY = histLogY.checked;
+}
+if (colormapSelect) {
+  colormapSelect.value = state.colormap;
+}
+if (pixelLabelToggle) {
+  state.pixelLabels = pixelLabelToggle.checked;
+  pixelLabelToggle.addEventListener("change", () => {
+    state.pixelLabels = pixelLabelToggle.checked;
+    schedulePixelOverlay();
+  });
+}
+try {
+  const storedWidth = Number(localStorage.getItem("albis.panelWidth"));
+  const storedCollapsed = localStorage.getItem("albis.panelCollapsed");
+  if (storedWidth) {
+    state.panelWidth = Math.max(220, Math.min(900, storedWidth));
+  }
+  if (storedCollapsed !== null) {
+    state.panelCollapsed = storedCollapsed === "true";
+  }
+} catch {
+  // ignore storage errors
+}
+applyPanelState();
+loadFiles().catch((err) => {
+  console.error(err);
+  setStatus("Failed to initialize");
+  showSplash();
+  setLoading(false);
+});
+updatePlayButtons();

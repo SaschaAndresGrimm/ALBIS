@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ALBIS — ALBIS WEB VIEW</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="chrome">
+        <div class="menu-bar">
+          <div class="menu-left">
+            <button class="menu-item is-active" data-menu="file">File</button>
+            <button class="menu-item" data-menu="autoload">Auto Load</button>
+            <button class="menu-item" data-menu="help">Help</button>
+          </div>
+          <div class="menu-right">DECTRIS</div>
+        </div>
+        <div class="menu-dropdown" id="menu-dropdown" aria-hidden="true">
+          <div class="dropdown-panel" data-menu="file">
+            <button class="dropdown-item" data-action="new-window">
+              <span>New Window</span>
+              <span class="shortcut">⌘N</span>
+            </button>
+            <button class="dropdown-item" data-action="open">
+              <span>Open…</span>
+              <span class="shortcut">⌘O</span>
+            </button>
+            <button class="dropdown-item" data-action="close-file">
+              <span>Close File</span>
+              <span class="shortcut">⌘W</span>
+            </button>
+            <button class="dropdown-item" data-action="save-as">
+              <span>Save As…</span>
+              <span class="shortcut">⌘S</span>
+            </button>
+            <button class="dropdown-item" data-action="export">
+              <span>Export</span>
+              <span class="shortcut">⌘E</span>
+            </button>
+          </div>
+          <div class="dropdown-panel" data-menu="autoload">
+            <div class="dropdown-item is-disabled">
+              <span>Enable Auto Load</span>
+            </div>
+            <div class="dropdown-item is-disabled">
+              <span>Configure…</span>
+            </div>
+          </div>
+          <div class="dropdown-panel" data-menu="help">
+            <button class="dropdown-item" data-action="help-docs">
+              <span>Documentation</span>
+              <span class="shortcut">F1</span>
+            </button>
+            <button class="dropdown-item" data-action="help-about">
+              <span>About</span>
+            </button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <div class="toolbar-buttons">
+            <button class="tool-btn" id="btn-prev" aria-label="Previous frame">⟵</button>
+            <button class="tool-btn" id="btn-next" aria-label="Next frame">⟶</button>
+            <button class="tool-btn" id="btn-play" aria-label="Play">▶</button>
+          </div>
+          <div class="toolbar-path" id="toolbar-path">No file loaded</div>
+          <div class="toolbar-right">
+          </div>
+        </div>
+        <div class="upload-bar" id="upload-bar" aria-hidden="true">
+          <div class="upload-bar-fill" id="upload-bar-fill"></div>
+          <div class="upload-bar-text" id="upload-bar-text">Uploading 0%</div>
+        </div>
+      </div>
+
+      <div class="app">
+        <main class="viewer">
+          <div class="canvas-shell">
+            <div class="canvas-wrap" id="canvas-wrap">
+              <canvas id="image-canvas"></canvas>
+              <div class="loading" id="loading">Loading frame…</div>
+            </div>
+            <canvas id="pixel-overlay"></canvas>
+            <div class="splash" id="splash">
+              <canvas id="splash-canvas"></canvas>
+              <div class="splash-label">
+                <div class="splash-title">ALBIS — ALBIS WEB VIEW</div>
+                <div class="splash-sub">File → Open to load an HDF5 stack</div>
+              </div>
+            </div>
+            <div class="cursor-overlay" id="cursor-overlay" aria-hidden="true"></div>
+            <div class="status-overlay" id="status">Idle</div>
+          </div>
+        </main>
+
+        <div class="panel-resizer" id="panel-resizer" aria-hidden="true"></div>
+        <aside class="panel is-collapsed" id="tools-panel">
+          <div class="panel-collapsed-tab" id="panel-tab">
+            <button class="panel-toggle" id="panel-toggle" aria-label="Expand tools">▶</button>
+            <span class="panel-tab-label">Tools</span>
+          </div>
+          <button class="panel-edge-toggle" id="panel-edge-toggle" aria-label="Collapse tools">◀</button>
+          <button class="panel-head panel-head-toggle" id="panel-head-toggle" type="button">
+            Tools
+            <span class="section-chevron">▾</span>
+          </button>
+          <div class="panel-body">
+          <div class="panel-actions">
+            <button class="btn" id="collapse-all">Collapse All</button>
+            <button class="btn" id="expand-all">Expand All</button>
+          </div>
+          <section class="panel-section" data-section="view">
+            <button class="section-title" type="button" data-section-toggle>
+              View
+              <span class="section-chevron">▾</span>
+            </button>
+            <div class="thumb-view">
+              <canvas id="overview-canvas"></canvas>
+            </div>
+          </section>
+
+          <section class="panel-section" data-section="histogram">
+            <button class="section-title" type="button" data-section-toggle>
+              Histogram
+              <span class="section-chevron">▾</span>
+            </button>
+            <div class="histogram">
+              <canvas id="hist-canvas" width="800" height="140"></canvas>
+              <div class="hist-tooltip" id="hist-tooltip" aria-hidden="true"></div>
+            </div>
+            <div class="check-grid hist-options">
+              <label class="checkbox">
+                <input id="hist-log-x" type="checkbox" checked />
+                Log X
+              </label>
+              <label class="checkbox">
+                <input id="hist-log-y" type="checkbox" checked />
+                Log Y
+              </label>
+            </div>
+            <div class="range-row">
+              <label>
+                <span>Background</span>
+                <input id="min-input" type="number" step="1" />
+              </label>
+              <label>
+                <span>Foreground</span>
+                <input id="max-input" type="number" step="1" />
+              </label>
+            </div>
+            <div class="range-actions">
+              <button id="auto-contrast" class="btn">Auto Contrast</button>
+              <label class="checkbox">
+                <input id="auto-scale" type="checkbox" checked />
+                Auto
+              </label>
+            </div>
+          </section>
+
+          <section class="panel-section" data-section="color">
+            <button class="section-title" type="button" data-section-toggle>
+              Color
+              <span class="section-chevron">▾</span>
+            </button>
+            <label class="field">
+              <span>Color Map</span>
+              <select id="colormap-select">
+                <option value="heat" selected>Heat</option>
+                <option value="albisHdr">High Dynamic Range</option>
+                <option value="gray">Grey Scale</option>
+                <option value="viridis">Rainbow (Viridis)</option>
+                <option value="magma">Magma</option>
+                <option value="inferno">Inferno</option>
+                <option value="cividis">Cividis</option>
+                <option value="turbo">Turbo</option>
+              </select>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="invert-color" />
+              Invert Color
+            </label>
+          </section>
+
+          <section class="panel-section" id="data-section" data-section="data">
+            <button class="section-title" type="button" data-section-toggle>
+              Data
+              <span class="section-chevron">▾</span>
+            </button>
+            <label class="field">
+              <span>HDF5 file</span>
+              <select id="file-select"></select>
+            </label>
+            <label class="field">
+              <span>Dataset</span>
+              <select id="dataset-select"></select>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="mask-toggle" disabled />
+              Mask pixels
+            </label>
+            <div class="field">
+              <span>Frame</span>
+              <div class="inline">
+                <input id="frame-range" type="range" min="0" max="0" value="0" />
+                <input id="frame-index" type="number" min="0" value="0" />
+              </div>
+            </div>
+            <div class="field">
+              <span>Step</span>
+              <input id="frame-step" type="number" min="1" step="1" value="1" />
+            </div>
+            <div class="field">
+              <span>Playback (fps)</span>
+              <div class="inline">
+                <input id="fps-range" type="range" min="1" max="30" step="1" value="5" />
+                <div id="fps-value" class="pill">5 fps</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-section" data-section="zoom">
+            <button class="section-title" type="button" data-section-toggle>
+              Zoom
+              <span class="section-chevron">▾</span>
+            </button>
+            <div class="inline">
+              <input id="zoom-range" type="range" min="0.1" max="50" step="0.1" value="1" />
+              <div id="zoom-value" class="pill">1.0x</div>
+            </div>
+            <label class="checkbox">
+              <input id="pixel-label-toggle" type="checkbox" checked />
+              Show Pixel Values
+            </label>
+            <button id="reset-view" class="btn">Fit to Window</button>
+          </section>
+
+          <section class="panel-section meta" data-section="info">
+            <button class="section-title" type="button" data-section-toggle>
+              Info
+              <span class="section-chevron">▾</span>
+            </button>
+            <div class="meta-row"><span>Renderer</span><strong id="meta-renderer">-</strong></div>
+            <div class="meta-row"><span>Shape</span><strong id="meta-shape">-</strong></div>
+            <div class="meta-row"><span>DType</span><strong id="meta-dtype">-</strong></div>
+            <div class="meta-row"><span>Range</span><strong id="meta-range">-</strong></div>
+          </section>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+
+
+    <input class="file-input" id="file-input" type="file" accept=".h5,.hdf5" />
+    <div class="modal" id="about-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
+        <div class="modal-header">
+          <div id="about-title">About ALBIS — ALBIS WEB VIEW</div>
+          <button class="modal-close" id="about-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>ALBIS (ALBIS WEB VIEW) — Albis-style web viewer prototype.</p>
+          <p>Rendering: WebGL2 with LUTs (CPU fallback).</p>
+          <p>Dataset: HDF5 stacks.</p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ALBIS Documentation</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        background: #2b2b2b;
+        color: #f2f2f2;
+        font-family: "Lucida Grande", "Helvetica Neue", Arial, sans-serif;
+      }
+      .page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 32px 24px 48px;
+      }
+      h1,
+      h2 {
+        margin: 0 0 12px;
+        font-weight: 600;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      h2 {
+        font-size: 16px;
+        margin-top: 24px;
+      }
+      p {
+        line-height: 1.5;
+      }
+      ul {
+        margin: 8px 0 0 16px;
+        padding: 0;
+      }
+      li {
+        margin: 6px 0;
+      }
+      code {
+        background: #1b1b1b;
+        padding: 2px 6px;
+        border-radius: 3px;
+        border: 1px solid #111;
+        font-size: 12px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 4px 8px;
+        background: #1d1d1d;
+        border: 1px solid #111;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-right: 8px;
+      }
+      a {
+        color: #6eb5ff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>ALBIS — ALBIS WEB VIEW</h1>
+      <p>
+        ALBIS is a local, Albis-style HDF5 viewer for large stacks. It focuses on fast frame
+        navigation, robust contrast controls, and inspection tools for diffraction data.
+      </p>
+
+      <h2>Core Features</h2>
+      <ul>
+        <li>File → Open uploads `.h5/.hdf5` stacks using the system file picker.</li>
+        <li>Dataset selection, frame slider, step, play/pause and FPS controls.</li>
+        <li>Fit-to-window, cursor-centered zoom, double‑click zoom, and drag to pan.</li>
+        <li>Overview panel with viewport rectangle and drag-resize zoom.</li>
+        <li>Histogram with log X/Y, auto-contrast (log-percentiles), and draggable BG/FG.</li>
+        <li>Heat (default), HDR, Grey, Viridis, Magma, Inferno, Cividis, Turbo color maps.</li>
+      </ul>
+
+      <h2>Tips</h2>
+      <ul>
+        <li><span class="pill">Mouse Wheel</span> zoom at cursor.</li>
+        <li><span class="pill">Double‑Click</span> zoom in (cursor-centered).</li>
+        <li><span class="pill">Alt/Option</span> while resizing overview keeps center fixed.</li>
+        <li>Pixel labels appear at high zoom and can be toggled in the Zoom section.</li>
+      </ul>
+
+      <h2>API (Local)</h2>
+      <ul>
+        <li><code>/api/files</code></li>
+        <li><code>/api/datasets?file=...</code></li>
+        <li><code>/api/metadata?file=...&dataset=...</code></li>
+        <li><code>/api/frame?file=...&dataset=...&index=...</code></li>
+        <li><code>/api/preview?file=...&dataset=...&index=...</code></li>
+        <li><code>/api/upload</code></li>
+      </ul>
+
+      <p>
+        For the full project notes and roadmap, see the repository README.
+      </p>
+    </div>
+  </body>
+</html>
