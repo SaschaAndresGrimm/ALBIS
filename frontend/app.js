@@ -2672,6 +2672,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
     return;
   }
+  const plotMeta = canvasEl._roiPlotMeta || {};
   const values = logScale ? data.map((v) => Math.log10(1 + Math.max(0, v))) : data;
   const maxValue = Math.max(...values);
   const padL = 34;
@@ -2688,6 +2689,69 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.lineTo(padL + drawableWidth, padT + drawableHeight);
   ctx.stroke();
 
+  ctx.strokeStyle = "rgba(120, 120, 120, 0.8)";
+  ctx.fillStyle = "#cfcfcf";
+  ctx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+
+  const measureMaxLabel = (labels) =>
+    labels.reduce((max, label) => Math.max(max, ctx.measureText(label).width), 0);
+
+  let xTickCount = Math.max(2, Math.min(4, Math.floor(drawableWidth / 90)));
+  while (xTickCount > 1) {
+    const labels = [];
+    for (let i = 0; i <= xTickCount; i += 1) {
+      const t = i / xTickCount;
+      const xValue = plotMeta.xStart + t * (values.length - 1) * (plotMeta.xStep ?? 1);
+      labels.push(formatStat(xValue));
+    }
+    const maxLabel = measureMaxLabel(labels);
+    const spacing = drawableWidth / xTickCount;
+    if (maxLabel + 6 <= spacing) break;
+    xTickCount -= 1;
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let i = 0; i <= xTickCount; i += 1) {
+    const t = i / xTickCount;
+    const x = padL + t * drawableWidth;
+    ctx.beginPath();
+    ctx.moveTo(x, padT + drawableHeight);
+    ctx.lineTo(x, padT + drawableHeight + 4);
+    ctx.stroke();
+    const xValue = plotMeta.xStart + t * (values.length - 1) * (plotMeta.xStep ?? 1);
+    ctx.fillText(formatStat(xValue), x, padT + drawableHeight + 6);
+  }
+
+  let yTickCount = Math.max(2, Math.min(4, Math.floor(drawableHeight / 50)));
+  while (yTickCount > 1) {
+    const labels = [];
+    for (let i = 0; i <= yTickCount; i += 1) {
+      const t = i / yTickCount;
+      const displayVal = t * maxValue;
+      const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
+      labels.push(formatStat(actualVal));
+    }
+    const maxLabel = measureMaxLabel(labels);
+    const spacing = drawableHeight / yTickCount;
+    if (maxLabel + 6 <= spacing) break;
+    yTickCount -= 1;
+  }
+
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= yTickCount; i += 1) {
+    const t = i / yTickCount;
+    const y = padT + drawableHeight - t * drawableHeight;
+    ctx.beginPath();
+    ctx.moveTo(padL - 4, y);
+    ctx.lineTo(padL, y);
+    ctx.stroke();
+    const displayVal = t * maxValue;
+    const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
+    ctx.fillText(formatStat(actualVal), padL - 6, y);
+  }
+
   ctx.strokeStyle = "#e5e5e5";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -2702,7 +2766,6 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   });
   ctx.stroke();
 
-  const plotMeta = canvasEl._roiPlotMeta || {};
   const xLabel = plotMeta.xLabel || "Index";
   const yLabel = plotMeta.yLabel || "Value";
   ctx.fillStyle = "#cfcfcf";
