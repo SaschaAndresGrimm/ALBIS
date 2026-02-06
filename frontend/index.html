@@ -88,287 +88,283 @@
         </main>
 
         <div class="panel-resizer" id="panel-resizer" aria-hidden="true"></div>
-        <aside class="panel is-collapsed" id="tools-panel">
-          <div class="panel-collapsed-tab" id="panel-tab">
-            <button class="panel-toggle" id="panel-toggle" aria-label="Expand tools">▶</button>
-            <span class="panel-tab-label">Tools</span>
-          </div>
-          <button class="panel-edge-toggle" id="panel-edge-toggle" aria-label="Collapse tools">◀</button>
-          <button class="panel-head panel-head-toggle" id="panel-head-toggle" type="button">
-            Tools
-            <span class="section-chevron">▾</span>
-          </button>
+        <aside class="panel is-collapsed" id="side-panel">
+          <button class="panel-edge-toggle" id="panel-edge-toggle" aria-label="Collapse panel">◀</button>
           <div class="panel-body">
-          <div class="panel-actions">
-            <button class="btn" id="collapse-all">Collapse All</button>
-            <button class="btn" id="expand-all">Expand All</button>
+          <div class="panel-tabs" role="tablist">
+            <button class="panel-tab is-active" data-panel-tab="view" type="button">Viewport</button>
+            <button class="panel-tab" data-panel-tab="data" type="button">Data</button>
           </div>
-          <section class="panel-section" data-section="view">
-            <button class="section-title" type="button" data-section-toggle>
-              View
-              <span class="section-chevron">▾</span>
-            </button>
-            <div class="thumb-view">
-              <canvas id="overview-canvas"></canvas>
-            </div>
-          </section>
 
-          <section class="panel-section" data-section="histogram">
-            <button class="section-title" type="button" data-section-toggle>
-              Histogram
-              <span class="section-chevron">▾</span>
-            </button>
-            <div class="histogram">
-              <canvas id="hist-canvas" width="800" height="140"></canvas>
-              <div class="hist-tooltip" id="hist-tooltip" aria-hidden="true"></div>
-            </div>
-            <div class="check-grid hist-options">
-              <label class="checkbox">
-                <input id="hist-log-x" type="checkbox" checked />
-                Log X
-              </label>
-              <label class="checkbox">
-                <input id="hist-log-y" type="checkbox" checked />
-                Log Y
-              </label>
-            </div>
-            <div class="range-row">
-              <label>
-                <span>Background</span>
-                <input id="min-input" type="number" step="1" />
-              </label>
-              <label>
-                <span>Foreground</span>
-                <input id="max-input" type="number" step="1" />
-              </label>
-            </div>
-            <div class="range-actions">
-              <button id="auto-contrast" class="btn">Auto Contrast</button>
-              <label class="checkbox">
-                <input id="auto-scale" type="checkbox" checked />
-                Auto
-              </label>
-            </div>
-          </section>
-
-          <section class="panel-section" data-section="color">
-            <button class="section-title" type="button" data-section-toggle>
-              Color
-              <span class="section-chevron">▾</span>
-            </button>
-            <label class="field">
-              <span>Color Map</span>
-              <select id="colormap-select">
-                <option value="heat" selected>Heat</option>
-                <option value="albisHdr">High Dynamic Range</option>
-                <option value="gray">Grey Scale</option>
-                <option value="viridis">Rainbow (Viridis)</option>
-                <option value="magma">Magma</option>
-                <option value="inferno">Inferno</option>
-                <option value="cividis">Cividis</option>
-                <option value="turbo">Turbo</option>
-              </select>
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" id="invert-color" />
-              Invert Color
-            </label>
-          </section>
-
-          <section class="panel-section" id="data-section" data-section="data">
-            <button class="section-title" type="button" data-section-toggle>
-              Data
-              <span class="section-chevron">▾</span>
-            </button>
-            <label class="field">
-              <span>Mode</span>
-              <select id="autoload-mode">
-                <option value="file">File</option>
-                <option value="watch">Watch Folder</option>
-                <option value="simplon">SIMPLON Monitor</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>HDF5 file</span>
-              <select id="file-select"></select>
-            </label>
-            <label class="field">
-              <span>Dataset</span>
-              <select id="dataset-select"></select>
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" id="mask-toggle" disabled />
-              Mask pixels
-            </label>
-            <div class="field">
-              <span>Frame</span>
-              <div class="inline">
-                <input id="frame-range" type="range" min="0" max="0" value="0" />
-                <input id="frame-index" type="number" min="0" value="0" />
+          <div class="panel-tab-content is-active" data-panel-tab="view">
+            <section class="panel-section" data-section="view">
+              <button class="section-title" type="button" data-section-toggle>
+                View
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="thumb-view">
+                <canvas id="overview-canvas"></canvas>
               </div>
-            </div>
-            <div class="field">
-              <span>Step</span>
-              <input id="frame-step" type="number" min="1" step="1" value="1" />
-            </div>
-            <div class="field">
-              <span>Playback (fps)</span>
-              <div class="inline">
-                <input id="fps-range" type="range" min="1" max="30" step="1" value="5" />
-                <div id="fps-value" class="pill">5 fps</div>
-              </div>
-            </div>
-            <div class="autoload-group" id="autoload-watch">
-              <label class="field">
-                <span>Folder (relative)</span>
-                <div class="inline">
-                  <input id="autoload-dir" type="text" list="autoload-dir-list" placeholder="test_data or /abs/path" />
-                  <button class="btn" id="autoload-browse" type="button">Browse…</button>
+              <div class="zoom-controls">
+                <div class="field zoom-row">
+                  <span>Zoom</span>
+                  <div class="inline">
+                    <input id="zoom-range" type="range" min="0.1" max="50" step="0.1" value="1" />
+                    <div id="zoom-value" class="pill">1.0x</div>
+                  </div>
                 </div>
-                <datalist id="autoload-dir-list"></datalist>
-              </label>
-              <label class="field">
-                <span>Poll (ms)</span>
-                <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
-              </label>
-              <label class="field">
-                <span>Filename pattern</span>
-                <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
-              </label>
-              <div class="check-grid">
-                <label class="checkbox">
-                  <input id="autoload-type-hdf5" type="checkbox" checked />
-                  HDF5
-                </label>
-                <label class="checkbox">
-                  <input id="autoload-type-tiff" type="checkbox" checked />
-                  TIFF
-                </label>
-                <label class="checkbox">
-                  <input id="autoload-type-cbf" type="checkbox" checked />
-                  CBF
-                </label>
+                <div class="check-grid">
+                  <label class="checkbox">
+                    <input id="pixel-label-toggle" type="checkbox" checked />
+                    Show Pixel Values
+                  </label>
+                  <label class="checkbox">
+                    <input type="checkbox" id="mask-toggle" disabled />
+                    Mask pixels
+                  </label>
+                </div>
+                <button id="reset-view" class="btn">Fit to Window</button>
               </div>
-            </div>
-            <div class="autoload-group is-hidden" id="autoload-simplon">
-              <label class="field">
-                <span>Base URL</span>
-                <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
-              </label>
-              <label class="field">
-                <span>API Version</span>
-                <input id="simplon-version" type="text" value="1.8.0" />
-              </label>
-              <label class="field">
-                <span>Timeout (ms)</span>
-                <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
-              </label>
-              <label class="checkbox">
-                <input id="simplon-enable" type="checkbox" checked />
-                Enable monitor
-              </label>
-            </div>
-            <div class="autoload-actions">
-              <button class="btn" id="autoload-toggle">Start</button>
-            </div>
-            <div class="autoload-meta">
-              <div class="meta-row"><span>Status</span><strong id="autoload-status">Idle</strong></div>
-              <div class="meta-row"><span>Latest</span><strong id="autoload-latest">-</strong></div>
-            </div>
-          </section>
-
-          <section class="panel-section" data-section="roi" id="roi-section">
-            <button class="section-title" type="button" data-section-toggle>
-              ROI
-              <span class="section-chevron">▾</span>
-            </button>
-            <label class="field">
-              <span>Mode</span>
-              <select id="roi-mode">
-                <option value="none" selected>None</option>
-                <option value="line">Line ROI</option>
-                <option value="box">Box ROI</option>
-                <option value="circle">Circle ROI</option>
-                <option value="annulus">Annulus ROI</option>
-              </select>
-            </label>
-            <div class="roi-help" id="roi-help">Right‑drag on the image to define the ROI.</div>
-            <div class="roi-params">
-              <label class="field roi-radius-field is-hidden" id="roi-radius-field">
-                <span>Radius (px)</span>
-                <input id="roi-radius" type="number" min="0" step="1" />
-              </label>
-              <div class="roi-ring-fields is-hidden" id="roi-ring-fields">
+              <div class="view-color-controls">
                 <label class="field">
-                  <span>Inner (px)</span>
-                  <input id="roi-inner-radius" type="number" min="0" step="1" />
+                  <span>Color Map</span>
+                  <div class="inline color-map-row">
+                    <select id="colormap-select">
+                      <option value="heat" selected>Heat</option>
+                      <option value="albisHdr">High Dynamic Range</option>
+                      <option value="gray">Grey Scale</option>
+                      <option value="viridis">Rainbow (Viridis)</option>
+                      <option value="magma">Magma</option>
+                      <option value="inferno">Inferno</option>
+                      <option value="cividis">Cividis</option>
+                      <option value="turbo">Turbo</option>
+                    </select>
+                    <label class="checkbox">
+                      <input type="checkbox" id="invert-color" />
+                      Invert Color
+                    </label>
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel-section" data-section="histogram">
+              <button class="section-title" type="button" data-section-toggle>
+                Histogram
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="histogram">
+                <canvas id="hist-canvas" width="800" height="140"></canvas>
+                <div class="hist-tooltip" id="hist-tooltip" aria-hidden="true"></div>
+              </div>
+              <div class="range-row">
+                <label class="range-inline">
+                  <span>BG</span>
+                  <input id="min-input" type="number" step="1" />
+                </label>
+                <label class="range-inline">
+                  <span>FG</span>
+                  <input id="max-input" type="number" step="1" />
+                </label>
+              </div>
+              <div class="range-actions">
+                <button id="auto-contrast" class="btn">Auto Contrast</button>
+                <label class="checkbox">
+                  <input id="auto-scale" type="checkbox" checked />
+                  Auto
+                </label>
+              </div>
+            </section>
+
+            <section class="panel-section" data-section="roi" id="roi-section">
+              <button class="section-title" type="button" data-section-toggle>
+                ROI
+                <span class="section-chevron">▾</span>
+              </button>
+              <label class="field">
+                <span class="sr-only">Mode</span>
+                <select id="roi-mode">
+                  <option value="none" selected>None</option>
+                  <option value="line">Line ROI</option>
+                  <option value="box">Box ROI</option>
+                  <option value="circle">Circle ROI</option>
+                  <option value="annulus">Annulus ROI</option>
+                </select>
+              </label>
+              <div class="roi-help" id="roi-help">Right‑drag on the image to define the ROI.</div>
+              <div class="roi-params" id="roi-params">
+                <div class="roi-center-fields is-hidden" id="roi-center-fields">
+                  <label class="roi-mini-field">
+                    <span class="roi-mini-label">X</span>
+                    <input id="roi-center-x" type="number" min="0" step="1" />
+                  </label>
+                  <label class="roi-mini-field">
+                    <span class="roi-mini-label">Y</span>
+                    <input id="roi-center-y" type="number" min="0" step="1" />
+                  </label>
+                </div>
+                <label class="roi-mini-field roi-radius-field is-hidden" id="roi-radius-field">
+                  <span class="roi-mini-label">R</span>
+                  <input id="roi-radius" type="number" min="0" step="1" />
+                </label>
+                <div class="roi-ring-fields is-hidden" id="roi-ring-fields">
+                  <label class="roi-mini-field">
+                    <span class="roi-mini-label">Inner</span>
+                    <input id="roi-inner-radius" type="number" min="0" step="1" />
+                  </label>
+                  <label class="roi-mini-field">
+                    <span class="roi-mini-label">Outer</span>
+                    <input id="roi-outer-radius" type="number" min="0" step="1" />
+                  </label>
+                </div>
+              </div>
+              <div class="roi-stats">
+                <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
+                <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
+                <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
+                <div class="meta-row"><span id="roi-count-label">Samples</span><strong id="roi-count">-</strong></div>
+                <div class="meta-row"><span>Mean</span><strong id="roi-mean">-</strong></div>
+                <div class="meta-row"><span>Min</span><strong id="roi-min">-</strong></div>
+                <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
+                <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
+                <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
+              </div>
+              <label class="checkbox roi-log-toggle">
+                <input id="roi-log" type="checkbox" />
+                Log plot
+              </label>
+              <div class="roi-plots">
+                <div class="roi-plot" id="roi-line-plot">
+                  <div class="roi-plot-title">Line Profile</div>
+                  <canvas id="roi-line-canvas"></canvas>
+                  <div class="roi-tooltip" aria-hidden="true"></div>
+                </div>
+                <div class="roi-plot" id="roi-box-plot-x">
+                  <div class="roi-plot-title">X Projection</div>
+                  <canvas id="roi-x-canvas"></canvas>
+                  <div class="roi-tooltip" aria-hidden="true"></div>
+                </div>
+                <div class="roi-plot" id="roi-box-plot-y">
+                  <div class="roi-plot-title">Y Projection</div>
+                  <canvas id="roi-y-canvas"></canvas>
+                  <div class="roi-tooltip" aria-hidden="true"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-section meta" data-section="info">
+              <button class="section-title" type="button" data-section-toggle>
+                Info
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="meta-row"><span>Renderer</span><strong id="meta-renderer">-</strong></div>
+              <div class="meta-row"><span>Shape</span><strong id="meta-shape">-</strong></div>
+              <div class="meta-row"><span>DType</span><strong id="meta-dtype">-</strong></div>
+              <div class="meta-row"><span>Range</span><strong id="meta-range">-</strong></div>
+            </section>
+          </div>
+
+          <div class="panel-tab-content" data-panel-tab="data">
+            <div class="panel-tab-card" id="data-section">
+              <label class="field">
+                <span>Mode</span>
+                <select id="autoload-mode">
+                  <option value="file">File</option>
+                  <option value="watch">Watch Folder</option>
+                  <option value="simplon">SIMPLON Monitor</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>HDF5 file</span>
+                <select id="file-select"></select>
+              </label>
+              <label class="field">
+                <span>Dataset</span>
+                <select id="dataset-select"></select>
+              </label>
+              <div class="field">
+                <span>Frame</span>
+                <div class="inline">
+                  <input id="frame-range" type="range" min="0" max="0" value="0" />
+                  <input id="frame-index" type="number" min="0" value="0" />
+                </div>
+              </div>
+              <div class="field">
+                <span>Step</span>
+                <input id="frame-step" type="number" min="1" step="1" value="1" />
+              </div>
+              <div class="field">
+                <span>Playback (fps)</span>
+                <div class="inline">
+                  <input id="fps-range" type="range" min="1" max="30" step="1" value="5" />
+                  <div id="fps-value" class="pill">5 fps</div>
+                </div>
+              </div>
+              <div class="autoload-group" id="autoload-watch">
+                <label class="field">
+                  <span>Folder (relative)</span>
+                  <div class="inline">
+                    <input
+                      id="autoload-dir"
+                      type="text"
+                      list="autoload-dir-list"
+                      placeholder="test_data or /abs/path"
+                    />
+                    <button class="btn" id="autoload-browse" type="button">Browse…</button>
+                  </div>
+                  <datalist id="autoload-dir-list"></datalist>
                 </label>
                 <label class="field">
-                  <span>Outer (px)</span>
-                  <input id="roi-outer-radius" type="number" min="0" step="1" />
+                  <span>Poll (ms)</span>
+                  <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
+                </label>
+                <label class="field">
+                  <span>Filename pattern</span>
+                  <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
+                </label>
+                <div class="check-grid">
+                  <label class="checkbox">
+                    <input id="autoload-type-hdf5" type="checkbox" checked />
+                    HDF5
+                  </label>
+                  <label class="checkbox">
+                    <input id="autoload-type-tiff" type="checkbox" checked />
+                    TIFF
+                  </label>
+                  <label class="checkbox">
+                    <input id="autoload-type-cbf" type="checkbox" checked />
+                    CBF
+                  </label>
+                </div>
+              </div>
+              <div class="autoload-group is-hidden" id="autoload-simplon">
+                <label class="field">
+                  <span>Base URL</span>
+                  <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
+                </label>
+                <label class="field">
+                  <span>API Version</span>
+                  <input id="simplon-version" type="text" value="1.8.0" />
+                </label>
+                <label class="field">
+                  <span>Timeout (ms)</span>
+                  <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
+                </label>
+                <label class="checkbox">
+                  <input id="simplon-enable" type="checkbox" checked />
+                  Enable monitor
                 </label>
               </div>
-            </div>
-            <div class="roi-stats">
-              <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
-              <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
-              <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
-              <div class="meta-row"><span id="roi-count-label">Samples</span><strong id="roi-count">-</strong></div>
-              <div class="meta-row"><span>Mean</span><strong id="roi-mean">-</strong></div>
-              <div class="meta-row"><span>Min</span><strong id="roi-min">-</strong></div>
-              <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
-              <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
-              <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
-            </div>
-            <label class="checkbox">
-              <input id="roi-log" type="checkbox" />
-              Log plot
-            </label>
-            <div class="roi-plots">
-              <div class="roi-plot" id="roi-line-plot">
-                <div class="roi-plot-title">Line Profile</div>
-                <canvas id="roi-line-canvas"></canvas>
-                <div class="roi-tooltip" aria-hidden="true"></div>
+              <div class="autoload-actions">
+                <button class="btn" id="autoload-toggle">Start</button>
               </div>
-              <div class="roi-plot" id="roi-box-plot-x">
-                <div class="roi-plot-title">X Projection</div>
-                <canvas id="roi-x-canvas"></canvas>
-                <div class="roi-tooltip" aria-hidden="true"></div>
-              </div>
-              <div class="roi-plot" id="roi-box-plot-y">
-                <div class="roi-plot-title">Y Projection</div>
-                <canvas id="roi-y-canvas"></canvas>
-                <div class="roi-tooltip" aria-hidden="true"></div>
+              <div class="autoload-meta">
+                <div class="meta-row"><span>Status</span><strong id="autoload-status">Idle</strong></div>
+                <div class="meta-row"><span>Latest</span><strong id="autoload-latest">-</strong></div>
               </div>
             </div>
-          </section>
+          </div>
 
-          <section class="panel-section" data-section="zoom">
-            <button class="section-title" type="button" data-section-toggle>
-              Zoom
-              <span class="section-chevron">▾</span>
-            </button>
-            <div class="inline">
-              <input id="zoom-range" type="range" min="0.1" max="50" step="0.1" value="1" />
-              <div id="zoom-value" class="pill">1.0x</div>
-            </div>
-            <label class="checkbox">
-              <input id="pixel-label-toggle" type="checkbox" checked />
-              Show Pixel Values
-            </label>
-            <button id="reset-view" class="btn">Fit to Window</button>
-          </section>
-
-          <section class="panel-section meta" data-section="info">
-            <button class="section-title" type="button" data-section-toggle>
-              Info
-              <span class="section-chevron">▾</span>
-            </button>
-            <div class="meta-row"><span>Renderer</span><strong id="meta-renderer">-</strong></div>
-            <div class="meta-row"><span>Shape</span><strong id="meta-shape">-</strong></div>
-            <div class="meta-row"><span>DType</span><strong id="meta-dtype">-</strong></div>
-            <div class="meta-row"><span>Range</span><strong id="meta-range">-</strong></div>
-          </section>
           </div>
         </aside>
       </div>

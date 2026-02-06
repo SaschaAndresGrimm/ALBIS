@@ -26,11 +26,11 @@ const colormapSelect = document.getElementById("colormap-select");
 const prevBtn = document.getElementById("btn-prev");
 const nextBtn = document.getElementById("btn-next");
 const playBtn = document.getElementById("btn-play");
-const toolsPanel = document.getElementById("tools-panel");
-const panelToggle = document.getElementById("panel-toggle");
+const toolsPanel = document.getElementById("side-panel");
 const panelResizer = document.getElementById("panel-resizer");
 const panelEdgeToggle = document.getElementById("panel-edge-toggle");
-const panelHeadToggle = document.getElementById("panel-head-toggle");
+const panelTabs = document.querySelectorAll(".panel-tab");
+const panelTabContents = document.querySelectorAll(".panel-tab-content");
 const appLayout = document.querySelector(".app");
 const canvasWrap = document.getElementById("canvas-wrap");
 const canvas = document.getElementById("image-canvas");
@@ -49,8 +49,6 @@ const cursorOverlay = document.getElementById("cursor-overlay");
 const canvasShell = document.querySelector(".canvas-shell");
 const pixelLabelToggle = document.getElementById("pixel-label-toggle");
 const sectionToggles = document.querySelectorAll("[data-section-toggle]");
-const collapseAllBtn = document.getElementById("collapse-all");
-const expandAllBtn = document.getElementById("expand-all");
 const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
@@ -77,8 +75,12 @@ const liveBadge = document.getElementById("live-badge");
 const roiHelp = document.getElementById("roi-help");
 const roiModeSelect = document.getElementById("roi-mode");
 const roiLogToggle = document.getElementById("roi-log");
+const roiParams = document.getElementById("roi-params");
 const roiRadiusField = document.getElementById("roi-radius-field");
 const roiRadiusInput = document.getElementById("roi-radius");
+const roiCenterFields = document.getElementById("roi-center-fields");
+const roiCenterXInput = document.getElementById("roi-center-x");
+const roiCenterYInput = document.getElementById("roi-center-y");
 const roiRingFields = document.getElementById("roi-ring-fields");
 const roiInnerInput = document.getElementById("roi-inner-radius");
 const roiOuterInput = document.getElementById("roi-outer-radius");
@@ -135,6 +137,7 @@ let roiOverlayScheduled = false;
 let roiUpdateScheduled = false;
 let roiDragging = false;
 let roiDragPointer = null;
+let panelTabState = "view";
 
 const roiState = {
   mode: "none",
@@ -991,13 +994,9 @@ function applyPanelState() {
   toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
   const width = state.panelCollapsed ? 28 : state.panelWidth;
   appLayout.style.setProperty("--panel-width", `${width}px`);
-  if (panelToggle) {
-    panelToggle.textContent = state.panelCollapsed ? "▶" : "◀";
-    panelToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand tools" : "Collapse tools");
-  }
   if (panelEdgeToggle) {
     panelEdgeToggle.textContent = state.panelCollapsed ? "▶" : "◀";
-    panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand tools" : "Collapse tools");
+    panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand panel" : "Collapse panel");
   }
   scheduleOverview();
   scheduleHistogram();
@@ -1035,25 +1034,6 @@ function setSectionState(section, collapsed, persist = true) {
       // ignore storage errors
     }
   }
-}
-
-function setAllSections(collapsed) {
-  const sections = document.querySelectorAll(".panel-section[data-section]");
-  sections.forEach((section) => {
-    setSectionState(section, collapsed, false);
-    const id = section.dataset.section;
-    if (id) {
-      sectionStateStore[id] = collapsed;
-    }
-  });
-  try {
-    localStorage.setItem("albis.sectionStates", JSON.stringify(sectionStateStore));
-  } catch {
-    // ignore storage errors
-  }
-  scheduleOverview();
-  scheduleHistogram();
-  schedulePixelOverlay();
 }
 
 function setPanelWidth(width) {
@@ -1290,9 +1270,30 @@ function hideProcessingProgress() {
 
 function flashDataSection() {
   if (!dataSection) return;
+  setPanelTab("data");
   dataSection.scrollIntoView({ behavior: "smooth", block: "start" });
   dataSection.classList.add("flash");
   window.setTimeout(() => dataSection.classList.remove("flash"), 800);
+}
+
+function setPanelTab(tabId, persist = true) {
+  panelTabState = tabId;
+  panelTabs.forEach((tab) => {
+    tab.classList.toggle("is-active", tab.dataset.panelTab === tabId);
+  });
+  panelTabContents.forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.panelTab === tabId);
+  });
+  if (persist) {
+    try {
+      localStorage.setItem("albis.panelTab", tabId);
+    } catch {
+      // ignore storage errors
+    }
+  }
+  scheduleOverview();
+  scheduleHistogram();
+  schedulePixelOverlay();
 }
 
 function setDataControlsForHdf5() {
@@ -2684,8 +2685,34 @@ function setRoiText(el, value) {
   el.textContent = value;
 }
 
+function updateRoiCenterInputs() {
+  if (!roiCenterXInput || !roiCenterYInput) return;
+  if (!roiState.start || (roiState.mode !== "circle" && roiState.mode !== "annulus")) {
+    roiCenterXInput.value = "";
+    roiCenterYInput.value = "";
+    return;
+  }
+  roiCenterXInput.value = String(Math.round(roiState.start.x));
+  roiCenterYInput.value = String(Math.round(roiState.start.y));
+}
+
+function applyRoiCenterFromInputs() {
+  if (!roiCenterXInput || !roiCenterYInput) return null;
+  const xVal = Number(roiCenterXInput.value);
+  const yVal = Number(roiCenterYInput.value);
+  if (!Number.isFinite(xVal) || !Number.isFinite(yVal)) return null;
+  const x = Math.max(0, Math.min(state.width - 1, Math.round(xVal)));
+  const y = Math.max(0, Math.min(state.height - 1, Math.round(yVal)));
+  return { x, y };
+}
+
 function updateRoiModeUI() {
   const mode = roiState.mode;
+  const showPlots = mode !== "none";
+  if (roiParams) {
+    roiParams.classList.toggle("is-circle", mode === "circle");
+    roiParams.classList.toggle("is-annulus", mode === "annulus");
+  }
   if (roiLinePlot) {
     const showLine = mode === "line" || mode === "circle" || mode === "annulus";
     roiLinePlot.classList.toggle("is-hidden", !showLine);
@@ -2700,8 +2727,15 @@ function updateRoiModeUI() {
   if (roiBoxPlotY) {
     roiBoxPlotY.classList.toggle("is-hidden", mode !== "box");
   }
+  const logToggleEl = roiLogToggle?.closest(".roi-log-toggle");
+  if (logToggleEl) {
+    logToggleEl.classList.toggle("is-hidden", !showPlots);
+  }
   if (roiRadiusField) {
     roiRadiusField.classList.toggle("is-hidden", mode !== "circle");
+  }
+  if (roiCenterFields) {
+    roiCenterFields.classList.toggle("is-hidden", mode !== "circle" && mode !== "annulus");
   }
   if (roiRingFields) {
     roiRingFields.classList.toggle("is-hidden", mode !== "annulus");
@@ -2731,6 +2765,7 @@ function updateRoiModeUI() {
       roiHelp.textContent = "Right‑drag on the image to define the ROI.";
     }
   }
+  updateRoiCenterInputs();
 }
 
 function clearRoi() {
@@ -2744,6 +2779,8 @@ function clearRoi() {
   roiState.innerRadius = 0;
   roiState.outerRadius = 0;
   if (roiRadiusInput) roiRadiusInput.value = "";
+  if (roiCenterXInput) roiCenterXInput.value = "";
+  if (roiCenterYInput) roiCenterYInput.value = "";
   if (roiInnerInput) roiInnerInput.value = "";
   if (roiOuterInput) roiOuterInput.value = "";
   setRoiText(roiStartEl, "-");
@@ -3763,29 +3800,78 @@ roiLogToggle?.addEventListener("change", () => {
 });
 
 roiRadiusInput?.addEventListener("change", () => {
-  if (!roiState.start || roiState.mode !== "circle") return;
+  if (roiState.mode !== "circle") return;
+  if (!roiState.start) {
+    const center = applyRoiCenterFromInputs();
+    if (center) {
+      roiState.start = center;
+      roiState.end = center;
+    }
+  }
+  if (!roiState.start) return;
   const radius = Math.max(0, Math.round(Number(roiRadiusInput.value || 0)));
   roiState.outerRadius = radius;
   roiState.end = { x: Math.min(state.width - 1, roiState.start.x + radius), y: roiState.start.y };
+  roiState.active = true;
+  updateRoiCenterInputs();
   scheduleRoiOverlay();
   scheduleRoiUpdate();
 });
 
 roiInnerInput?.addEventListener("change", () => {
-  if (!roiState.start || roiState.mode !== "annulus") return;
+  if (roiState.mode !== "annulus") return;
+  if (!roiState.start) {
+    const center = applyRoiCenterFromInputs();
+    if (center) {
+      roiState.start = center;
+      roiState.end = center;
+    }
+  }
+  if (!roiState.start) return;
   const inner = Math.max(0, Math.round(Number(roiInnerInput.value || 0)));
   roiState.innerRadius = inner;
+  roiState.active = true;
+  updateRoiCenterInputs();
   scheduleRoiOverlay();
   scheduleRoiUpdate();
 });
 
 roiOuterInput?.addEventListener("change", () => {
-  if (!roiState.start || roiState.mode !== "annulus") return;
+  if (roiState.mode !== "annulus") return;
+  if (!roiState.start) {
+    const center = applyRoiCenterFromInputs();
+    if (center) {
+      roiState.start = center;
+      roiState.end = center;
+    }
+  }
+  if (!roiState.start) return;
   const outer = Math.max(0, Math.round(Number(roiOuterInput.value || 0)));
   roiState.outerRadius = outer;
   roiState.end = { x: Math.min(state.width - 1, roiState.start.x + outer), y: roiState.start.y };
+  roiState.active = true;
+  updateRoiCenterInputs();
   scheduleRoiOverlay();
   scheduleRoiUpdate();
+});
+
+[roiCenterXInput, roiCenterYInput].forEach((input) => {
+  input?.addEventListener("change", () => {
+    if (roiState.mode !== "circle" && roiState.mode !== "annulus") return;
+    const center = applyRoiCenterFromInputs();
+    if (!center) return;
+    roiState.start = center;
+    const outer =
+      roiState.mode === "circle"
+        ? Math.max(0, Math.round(Number(roiRadiusInput?.value || roiState.outerRadius || 0)))
+        : Math.max(0, Math.round(Number(roiOuterInput?.value || roiState.outerRadius || 0)));
+    roiState.outerRadius = outer;
+    roiState.end = { x: Math.min(state.width - 1, center.x + outer), y: center.y };
+    roiState.active = true;
+    updateRoiCenterInputs();
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+  });
 });
 
 maskToggle?.addEventListener("change", () => {
@@ -3878,28 +3964,20 @@ playBtn?.addEventListener("click", () => {
   }
 });
 
-panelToggle?.addEventListener("click", () => {
-  togglePanel();
-});
-
 panelEdgeToggle?.addEventListener("click", () => {
   togglePanel();
 });
 
-panelHeadToggle?.addEventListener("click", () => {
-  togglePanel();
+panelTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    const target = tab.dataset.panelTab;
+    if (!target) return;
+    setPanelTab(target);
+  });
 });
 
 sectionToggles.forEach((btn) => {
   btn.addEventListener("click", toggleSection);
-});
-
-collapseAllBtn?.addEventListener("click", () => {
-  setAllSections(true);
-});
-
-expandAllBtn?.addEventListener("click", () => {
-  setAllSections(false);
 });
 
 try {
@@ -3918,6 +3996,17 @@ sectionToggles.forEach((btn) => {
     setSectionState(section, true, false);
   }
 });
+try {
+  const storedPanelTab = localStorage.getItem("albis.panelTab");
+  if (storedPanelTab) {
+    const normalized = storedPanelTab === "tools" ? "view" : storedPanelTab;
+    setPanelTab(normalized, false);
+  } else {
+    setPanelTab("view", false);
+  }
+} catch {
+  setPanelTab("view", false);
+}
 
 panelResizer?.addEventListener("mousedown", (event) => {
   if (!appLayout) return;
@@ -3979,6 +4068,7 @@ canvasWrap.addEventListener("pointerdown", (event) => {
     roiState.start = point;
     roiState.end = point;
     if (roiState.mode === "circle" || roiState.mode === "annulus") {
+      updateRoiCenterInputs();
       roiState.outerRadius = 0;
       if (roiState.mode === "circle") {
         roiState.innerRadius = 0;
