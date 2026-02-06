@@ -55,6 +55,26 @@ const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const dataSection = document.getElementById("data-section");
+const autoloadSection = document.getElementById("autoload-section");
+const autoloadMode = document.getElementById("autoload-mode");
+const autoloadDir = document.getElementById("autoload-dir");
+const autoloadInterval = document.getElementById("autoload-interval");
+const autoloadStatus = document.getElementById("autoload-status");
+const autoloadLatest = document.getElementById("autoload-latest");
+const autoloadToggle = document.getElementById("autoload-toggle");
+const autoloadWatch = document.getElementById("autoload-watch");
+const autoloadSimplon = document.getElementById("autoload-simplon");
+const autoloadBrowse = document.getElementById("autoload-browse");
+const autoloadDirList = document.getElementById("autoload-dir-list");
+const autoloadPattern = document.getElementById("autoload-pattern");
+const autoloadTypeHdf5 = document.getElementById("autoload-type-hdf5");
+const autoloadTypeTiff = document.getElementById("autoload-type-tiff");
+const autoloadTypeCbf = document.getElementById("autoload-type-cbf");
+const simplonUrl = document.getElementById("simplon-url");
+const simplonVersion = document.getElementById("simplon-version");
+const simplonTimeout = document.getElementById("simplon-timeout");
+const simplonEnable = document.getElementById("simplon-enable");
+const liveBadge = document.getElementById("live-badge");
 const roiHelp = document.getElementById("roi-help");
 const roiModeSelect = document.getElementById("roi-mode");
 const roiLogToggle = document.getElementById("roi-log");
@@ -170,6 +190,28 @@ const state = {
   width: 0,
   height: 0,
   globalStats: null,
+  autoload: {
+    mode: "off",
+    dir: "",
+    interval: 1000,
+    types: {
+      hdf5: true,
+      tiff: true,
+      cbf: true,
+    },
+    pattern: "",
+    simplonUrl: "",
+    simplonVersion: "1.8.0",
+    simplonTimeout: 500,
+    simplonEnable: true,
+    autoStart: false,
+    running: false,
+    timer: null,
+    busy: false,
+    lastFile: "",
+    lastMtime: 0,
+    lastUpdate: 0,
+  },
 };
 
 const API = "/api";
@@ -1254,6 +1296,399 @@ function flashDataSection() {
   window.setTimeout(() => dataSection.classList.remove("flash"), 800);
 }
 
+function flashAutoloadSection() {
+  if (!autoloadSection) return;
+  autoloadSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  autoloadSection.classList.add("flash");
+  window.setTimeout(() => autoloadSection.classList.remove("flash"), 800);
+}
+
+function setDataControlsForHdf5() {
+  if (datasetSelect) datasetSelect.disabled = false;
+  if (frameRange) frameRange.disabled = false;
+  if (frameIndex) frameIndex.disabled = false;
+  if (frameStep) frameStep.disabled = false;
+  if (fpsRange) fpsRange.disabled = false;
+}
+
+function setDataControlsForImage() {
+  if (datasetSelect) datasetSelect.disabled = true;
+  if (frameRange) frameRange.disabled = true;
+  if (frameIndex) frameIndex.disabled = true;
+  if (frameStep) frameStep.disabled = true;
+  if (fpsRange) fpsRange.disabled = true;
+}
+
+function formatTimeStamp(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString();
+}
+
+function setAutoloadStatus(text, markUpdate = false) {
+  if (markUpdate) {
+    state.autoload.lastUpdate = Date.now();
+  }
+  if (autoloadStatus) {
+    const stamp = state.autoload.lastUpdate ? ` (${formatTimeStamp(state.autoload.lastUpdate)})` : "";
+    autoloadStatus.textContent = `${text}${stamp}`;
+  }
+  updateLiveBadge();
+}
+
+function setAutoloadLatest(text) {
+  if (autoloadLatest) {
+    autoloadLatest.textContent = text || "-";
+  }
+}
+
+function updateLiveBadge() {
+  if (!liveBadge) return;
+  if (!state.autoload.running || state.autoload.mode !== "simplon") {
+    liveBadge.classList.remove("is-active", "is-wait");
+    liveBadge.setAttribute("aria-hidden", "true");
+    return;
+  }
+  liveBadge.classList.add("is-active");
+  const age = Date.now() - (state.autoload.lastUpdate || 0);
+  const wait = !state.autoload.lastUpdate || age > state.autoload.interval * 2;
+  liveBadge.classList.toggle("is-wait", wait);
+  liveBadge.textContent = wait ? "WAIT" : "LIVE";
+  liveBadge.setAttribute("aria-hidden", "false");
+}
+
+function persistAutoloadSettings() {
+  try {
+    const payload = {
+      mode: state.autoload.mode,
+      dir: state.autoload.dir,
+      interval: state.autoload.interval,
+      types: state.autoload.types,
+      pattern: state.autoload.pattern,
+      simplonUrl: state.autoload.simplonUrl,
+      simplonVersion: state.autoload.simplonVersion,
+      simplonTimeout: state.autoload.simplonTimeout,
+      simplonEnable: state.autoload.simplonEnable,
+      autoStart: state.autoload.autoStart,
+    };
+    localStorage.setItem("albis.autoload", JSON.stringify(payload));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function updateAutoloadUI() {
+  if (autoloadMode) autoloadMode.value = state.autoload.mode;
+  if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "watch");
+  if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
+  if (autoloadToggle) {
+    autoloadToggle.classList.toggle("is-hidden", state.autoload.mode === "off");
+    autoloadToggle.disabled = state.autoload.mode === "off";
+    autoloadToggle.textContent = state.autoload.running ? "Stop" : "Start";
+  }
+  updateLiveBadge();
+}
+
+async function loadAutoloadFolders() {
+  if (!autoloadDirList) return;
+  try {
+    const data = await fetchJSON(`${API}/folders`);
+    const folders = Array.isArray(data.folders) ? data.folders : [];
+    const current = state.autoload.dir || autoloadDir.value || "";
+    autoloadDirList.innerHTML = "";
+    autoloadDirList.appendChild(option(".", ""));
+    folders.forEach((name) => autoloadDirList.appendChild(option(name, name)));
+    if (current && !folders.includes(current)) {
+      autoloadDirList.appendChild(option(current, current));
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function loadAutoloadSettings() {
+  try {
+    const raw = localStorage.getItem("albis.autoload");
+    if (raw) {
+      const stored = JSON.parse(raw);
+      if (stored && typeof stored === "object") {
+        state.autoload.mode = stored.mode || state.autoload.mode;
+        state.autoload.dir = stored.dir || "";
+        state.autoload.interval = Number(stored.interval || state.autoload.interval);
+        if (stored.types && typeof stored.types === "object") {
+          state.autoload.types = {
+            hdf5: stored.types.hdf5 !== false,
+            tiff: stored.types.tiff !== false,
+            cbf: stored.types.cbf !== false,
+          };
+        }
+        state.autoload.pattern = stored.pattern || "";
+        state.autoload.simplonUrl = stored.simplonUrl || "";
+        state.autoload.simplonVersion = stored.simplonVersion || state.autoload.simplonVersion;
+        state.autoload.simplonTimeout = Number(stored.simplonTimeout || state.autoload.simplonTimeout);
+        state.autoload.simplonEnable =
+          stored.simplonEnable !== undefined ? Boolean(stored.simplonEnable) : state.autoload.simplonEnable;
+        state.autoload.autoStart = Boolean(stored.autoStart);
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+  if (autoloadMode) autoloadMode.value = state.autoload.mode;
+  if (autoloadDir) autoloadDir.value = state.autoload.dir;
+  if (autoloadInterval) autoloadInterval.value = String(state.autoload.interval || 1000);
+  if (autoloadTypeHdf5) autoloadTypeHdf5.checked = state.autoload.types.hdf5;
+  if (autoloadTypeTiff) autoloadTypeTiff.checked = state.autoload.types.tiff;
+  if (autoloadTypeCbf) autoloadTypeCbf.checked = state.autoload.types.cbf;
+  if (autoloadPattern) autoloadPattern.value = state.autoload.pattern;
+  if (simplonUrl) simplonUrl.value = state.autoload.simplonUrl;
+  if (simplonVersion) simplonVersion.value = state.autoload.simplonVersion;
+  if (simplonTimeout) simplonTimeout.value = String(state.autoload.simplonTimeout || 500);
+  if (simplonEnable) simplonEnable.checked = Boolean(state.autoload.simplonEnable);
+  updateAutoloadUI();
+  setAutoloadStatus("Idle");
+  setAutoloadLatest("-");
+  if (state.autoload.autoStart && state.autoload.mode !== "off") {
+    startAutoload();
+  }
+}
+
+async function setSimplonMode(enabled) {
+  if (!simplonUrl || !simplonVersion) return;
+  const url = simplonUrl.value.trim();
+  if (!url) return;
+  const version = simplonVersion.value.trim() || "1.8.0";
+  const mode = enabled ? "enabled" : "disabled";
+  try {
+    await fetch(
+      `${API}/simplon/mode?url=${encodeURIComponent(url)}&version=${encodeURIComponent(
+        version
+      )}&mode=${mode}`,
+      { method: "POST" }
+    );
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function startAutoload() {
+  state.autoload.mode = autoloadMode?.value || state.autoload.mode;
+  state.autoload.dir = autoloadDir?.value?.trim() || "";
+  state.autoload.interval = Math.max(200, Number(autoloadInterval?.value || 1000));
+  state.autoload.types = {
+    hdf5: autoloadTypeHdf5?.checked ?? true,
+    tiff: autoloadTypeTiff?.checked ?? true,
+    cbf: autoloadTypeCbf?.checked ?? true,
+  };
+  state.autoload.pattern = autoloadPattern?.value?.trim() || "";
+  state.autoload.simplonUrl = simplonUrl?.value?.trim() || "";
+  state.autoload.simplonVersion = simplonVersion?.value?.trim() || "1.8.0";
+  state.autoload.simplonTimeout = Math.max(100, Number(simplonTimeout?.value || 500));
+  state.autoload.simplonEnable = simplonEnable?.checked ?? true;
+  if (state.autoload.mode === "off") {
+    await stopAutoload({ keepMode: false });
+    return;
+  }
+  await stopAutoload({ keepMode: true, disableMonitor: false });
+  state.autoload.running = true;
+  state.autoload.autoStart = true;
+  state.autoload.lastFile = "";
+  state.autoload.lastMtime = 0;
+  state.autoload.lastUpdate = 0;
+  updateAutoloadUI();
+  setAutoloadStatus(`Running (${state.autoload.mode === "watch" ? "Watch folder" : "SIMPLON monitor"})`);
+  persistAutoloadSettings();
+  if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
+    await setSimplonMode(true);
+  }
+  updateLiveBadge();
+  autoloadTick();
+  state.autoload.timer = window.setInterval(autoloadTick, state.autoload.interval);
+}
+
+async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
+  if (state.autoload.timer) {
+    window.clearInterval(state.autoload.timer);
+    state.autoload.timer = null;
+  }
+  if (state.autoload.running && state.autoload.mode === "simplon" && disableMonitor) {
+    await setSimplonMode(false);
+  }
+  state.autoload.running = false;
+  state.autoload.busy = false;
+  state.autoload.autoStart = keepMode ? state.autoload.autoStart : false;
+  if (!keepMode) {
+    state.autoload.mode = "off";
+  }
+  updateAutoloadUI();
+  setAutoloadStatus(state.autoload.mode === "off" ? "Idle" : "Stopped");
+  updateLiveBadge();
+  persistAutoloadSettings();
+}
+
+async function autoloadTick() {
+  if (!state.autoload.running || state.autoload.busy) return;
+  if (state.isLoading) return;
+  state.autoload.busy = true;
+  try {
+    if (state.autoload.mode === "watch") {
+      await autoloadWatchTick();
+    } else if (state.autoload.mode === "simplon") {
+      await autoloadSimplonTick();
+    }
+  } finally {
+    state.autoload.busy = false;
+  }
+}
+
+async function autoloadWatchTick() {
+  const folder = state.autoload.dir || "";
+  const exts = [];
+  if (state.autoload.types.hdf5) exts.push("h5", "hdf5");
+  if (state.autoload.types.tiff) exts.push("tif", "tiff");
+  if (state.autoload.types.cbf) exts.push("cbf");
+  if (exts.length === 0) {
+    setAutoloadStatus("Watch: no types selected");
+    return;
+  }
+  const pattern = state.autoload.pattern || "";
+  const url = `${API}/autoload/latest?folder=${encodeURIComponent(folder)}&exts=${encodeURIComponent(
+    exts.join(",")
+  )}&pattern=${encodeURIComponent(pattern)}`;
+  const res = await fetch(url);
+  if (res.status === 204) {
+    setAutoloadStatus("Watch: no files");
+    setAutoloadLatest("-");
+    return;
+  }
+  if (!res.ok) {
+    setAutoloadStatus("Watch: error");
+    return;
+  }
+  const payload = await res.json();
+  if (!payload?.file) {
+    setAutoloadStatus("Watch: no files");
+    return;
+  }
+  const mtime = Number(payload.mtime || 0);
+  if (payload.file === state.autoload.lastFile && mtime <= state.autoload.lastMtime) {
+    return;
+  }
+  const previousFile = state.autoload.lastFile;
+  state.autoload.lastFile = payload.file;
+  state.autoload.lastMtime = mtime;
+  setAutoloadLatest(payload.file);
+  await loadAutoloadFile(payload.file);
+  setAutoloadStatus(payload.file === previousFile ? "Watch: updated" : "Watch: loaded", true);
+}
+
+async function autoloadSimplonTick() {
+  const baseUrl = state.autoload.simplonUrl || "";
+  if (!baseUrl) {
+    setAutoloadStatus("SIMPLON: set base URL");
+    return;
+  }
+  const version = state.autoload.simplonVersion || "1.8.0";
+  const timeout = state.autoload.simplonTimeout || 500;
+  const enable = state.autoload.simplonEnable ? "1" : "0";
+  const url = `${API}/simplon/monitor?url=${encodeURIComponent(baseUrl)}&version=${encodeURIComponent(
+    version
+  )}&timeout=${encodeURIComponent(timeout)}&enable=${enable}`;
+  const res = await fetch(url);
+  if (res.status === 204) {
+    setAutoloadStatus("SIMPLON: no frame");
+    updateLiveBadge();
+    return;
+  }
+  if (!res.ok) {
+    setAutoloadStatus("SIMPLON: error");
+    updateLiveBadge();
+    return;
+  }
+  const buffer = await res.arrayBuffer();
+  const dtype = parseDtype(res.headers.get("X-Dtype"));
+  const shape = parseShape(res.headers.get("X-Shape"));
+  const data = typedArrayFrom(buffer, dtype);
+  let label = "SIMPLON monitor";
+  try {
+    label = `SIMPLON monitor (${new URL(baseUrl).host})`;
+  } catch {
+    if (baseUrl) {
+      label = `SIMPLON monitor (${baseUrl})`;
+    }
+  }
+  applyExternalFrame(data, shape, dtype, label, false);
+  setAutoloadLatest("monitor");
+  setAutoloadStatus("SIMPLON: updated", true);
+  updateLiveBadge();
+}
+
+async function loadAutoloadFile(file) {
+  const lower = file.toLowerCase();
+  if (lower.endsWith(".h5") || lower.endsWith(".hdf5")) {
+    const wasFile = state.file;
+    state.file = file;
+    if (fileSelect) {
+      const existing = Array.from(fileSelect.options).some((opt) => opt.value === file);
+      if (!existing) {
+        fileSelect.appendChild(option(file, file));
+      }
+      fileSelect.value = file;
+    }
+    setDataControlsForHdf5();
+    await loadDatasets();
+    if (state.frameCount > 1) {
+      requestFrame(state.frameCount - 1);
+    }
+    return;
+  }
+  await loadImageFile(file);
+}
+
+async function loadImageFile(file) {
+  stopPlayback();
+  setLoading(true);
+  setStatus("Loading image…");
+  const res = await fetch(`${API}/image?file=${encodeURIComponent(file)}`);
+  if (!res.ok) {
+    setStatus("Failed to load image");
+    setLoading(false);
+    return;
+  }
+  const buffer = await res.arrayBuffer();
+  const dtype = parseDtype(res.headers.get("X-Dtype"));
+  const shape = parseShape(res.headers.get("X-Shape"));
+  const data = typedArrayFrom(buffer, dtype);
+  applyExternalFrame(data, shape, dtype, file, true);
+  setLoading(false);
+}
+
+function applyExternalFrame(data, shape, dtype, label, fitView) {
+  if (!Array.isArray(shape) || shape.length < 2) return;
+  stopPlayback();
+  if (fitView) {
+    state.hasFrame = false;
+  }
+  state.file = label;
+  state.dataset = "";
+  state.frameCount = 1;
+  state.frameIndex = 0;
+  frameRange.max = "0";
+  frameRange.value = "0";
+  frameIndex.value = "0";
+  datasetSelect.innerHTML = "";
+  datasetSelect.appendChild(option("Single image", ""));
+  datasetSelect.value = "";
+  setDataControlsForImage();
+  clearMaskState();
+
+  const height = shape[0];
+  const width = shape[1];
+  metaShape.textContent = `${width} × ${height}`;
+  metaDtype.textContent = dtype;
+  applyFrame(data, width, height, dtype);
+  updateToolbar();
+}
+
 function exportFrame(filenameOverride) {
   canvas.toBlob((blob) => {
     if (!blob) return;
@@ -1629,25 +2064,39 @@ function initRenderer() {
 }
 
 async function loadFiles() {
+  setDataControlsForHdf5();
   const data = await fetchJSON(`${API}/files`);
   fileSelect.innerHTML = "";
+  const existingFile = state.file;
   if (data.files.length > 0) {
     const placeholder = option("Select file…", "");
     placeholder.disabled = true;
     placeholder.selected = true;
     fileSelect.appendChild(placeholder);
     data.files.forEach((name) => fileSelect.appendChild(option(name, name)));
-    state.file = "";
-    state.dataset = "";
-    setStatus("Select a file to begin");
-    updateToolbar();
-    showSplash();
-    setLoading(false);
+    if (existingFile) {
+      const hasExisting = data.files.includes(existingFile);
+      if (!hasExisting) {
+        fileSelect.appendChild(option(existingFile, existingFile));
+      }
+      fileSelect.value = existingFile;
+    } else {
+      state.file = "";
+      state.dataset = "";
+      setStatus("Select a file to begin");
+      updateToolbar();
+      showSplash();
+      setLoading(false);
+    }
+    loadAutoloadFolders();
   } else {
     data.files.forEach((name) => fileSelect.appendChild(option(name, name)));
-    setStatus("No HDF5 files found");
-    showSplash();
-    setLoading(false);
+    if (!existingFile) {
+      setStatus("No HDF5 files found");
+      showSplash();
+      setLoading(false);
+    }
+    loadAutoloadFolders();
   }
 }
 
@@ -1663,29 +2112,38 @@ async function loadDatasets() {
   if (!state.file) return;
   state.hasFrame = false;
   stopPlayback();
+  setDataControlsForHdf5();
   await loadMask(true);
   showProcessingProgress("Scanning datasets…");
   setLoading(true);
   setStatus("Scanning datasets…");
-  const data = await fetchJSON(`${API}/datasets?file=${encodeURIComponent(state.file)}`);
-  const candidates = data.datasets
-    .filter((d) => d.image)
-    .sort((a, b) => b.size - a.size);
+  try {
+    const data = await fetchJSON(`${API}/datasets?file=${encodeURIComponent(state.file)}`);
+    const candidates = data.datasets
+      .filter((d) => d.image)
+      .sort((a, b) => b.size - a.size);
 
-  datasetSelect.innerHTML = "";
-  const ordered = sortDatasets(candidates);
-  ordered.forEach((d) => datasetSelect.appendChild(option(`${d.path} (${d.shape.join("x")})`, d.path)));
+    datasetSelect.innerHTML = "";
+    const ordered = sortDatasets(candidates);
+    ordered.forEach((d) => datasetSelect.appendChild(option(`${d.path} (${d.shape.join("x")})`, d.path)));
 
-  if (ordered.length > 0) {
-    state.dataset = ordered[0].path;
-    datasetSelect.value = state.dataset;
-    await loadMetadata();
-  } else {
-    setStatus("No image datasets found");
+    if (ordered.length > 0) {
+      state.dataset = ordered[0].path;
+      datasetSelect.value = state.dataset;
+      await loadMetadata();
+    } else {
+      setStatus("No image datasets found");
+      showSplash();
+      setLoading(false);
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("Failed to scan datasets");
     showSplash();
     setLoading(false);
+  } finally {
+    hideProcessingProgress();
   }
-  hideProcessingProgress();
 }
 
 async function loadMetadata() {
@@ -3118,6 +3576,113 @@ fpsRange?.addEventListener("input", () => {
   setFps(Number(fpsRange.value));
 });
 
+autoloadMode?.addEventListener("change", () => {
+  const nextMode = autoloadMode.value;
+  if (state.autoload.running) {
+    stopAutoload();
+  }
+  state.autoload.mode = nextMode;
+  updateAutoloadUI();
+  persistAutoloadSettings();
+  if (state.autoload.mode !== "off") {
+    startAutoload();
+  }
+});
+
+autoloadDir?.addEventListener("change", () => {
+  state.autoload.dir = autoloadDir.value.trim();
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "watch") {
+    autoloadTick();
+  }
+});
+
+autoloadInterval?.addEventListener("change", () => {
+  state.autoload.interval = Math.max(200, Number(autoloadInterval.value || 1000));
+  persistAutoloadSettings();
+  if (state.autoload.running) {
+    startAutoload();
+  }
+});
+
+[autoloadTypeHdf5, autoloadTypeTiff, autoloadTypeCbf].forEach((input) => {
+  input?.addEventListener("change", () => {
+    state.autoload.types = {
+      hdf5: autoloadTypeHdf5?.checked ?? true,
+      tiff: autoloadTypeTiff?.checked ?? true,
+      cbf: autoloadTypeCbf?.checked ?? true,
+    };
+    persistAutoloadSettings();
+    if (state.autoload.running && state.autoload.mode === "watch") {
+      autoloadTick();
+    }
+  });
+});
+
+autoloadPattern?.addEventListener("change", () => {
+  state.autoload.pattern = autoloadPattern.value.trim();
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "watch") {
+    autoloadTick();
+  }
+});
+
+autoloadBrowse?.addEventListener("click", async () => {
+  try {
+    const res = await fetch(`${API}/choose-folder`);
+    if (res.status === 204) {
+      return;
+    }
+    if (!res.ok) {
+      setAutoloadStatus("Folder picker unavailable");
+      return;
+    }
+    const data = await res.json();
+    if (data?.path && autoloadDir) {
+      autoloadDir.value = data.path;
+      state.autoload.dir = data.path;
+      persistAutoloadSettings();
+      if (state.autoload.running && state.autoload.mode === "watch") {
+        autoloadTick();
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    setAutoloadStatus("Folder picker failed");
+  }
+});
+
+simplonUrl?.addEventListener("change", () => {
+  state.autoload.simplonUrl = simplonUrl.value.trim();
+  persistAutoloadSettings();
+});
+
+simplonVersion?.addEventListener("change", () => {
+  state.autoload.simplonVersion = simplonVersion.value.trim() || "1.8.0";
+  persistAutoloadSettings();
+});
+
+simplonTimeout?.addEventListener("change", () => {
+  state.autoload.simplonTimeout = Math.max(100, Number(simplonTimeout.value || 500));
+  persistAutoloadSettings();
+});
+
+simplonEnable?.addEventListener("change", async () => {
+  state.autoload.simplonEnable = simplonEnable.checked;
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "simplon") {
+    await setSimplonMode(state.autoload.simplonEnable);
+  }
+});
+
+autoloadToggle?.addEventListener("click", () => {
+  if (state.autoload.running) {
+    stopAutoload();
+  } else {
+    startAutoload();
+  }
+});
+
 colormapSelect?.addEventListener("change", () => {
   const value = colormapSelect.value;
   if (value) {
@@ -3746,6 +4311,8 @@ try {
   // ignore storage errors
 }
 applyPanelState();
+loadAutoloadSettings();
+loadAutoloadFolders();
 loadFiles().catch((err) => {
   console.error(err);
   setStatus("Failed to initialize");

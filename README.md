@@ -23,6 +23,12 @@ Override with:
 VIEWER_DATA_DIR=/path/to/data python backend/app.py
 ```
 
+Absolute folder watching is enabled by default for Auto Load. You can disable it with:
+
+```bash
+VIEWER_ALLOW_ABS=0 python backend/app.py
+```
+
 ## Current Features
 
 - **File handling**
@@ -30,6 +36,12 @@ VIEWER_DATA_DIR=/path/to/data python backend/app.py
   - If the selected file already exists under the data directory, it is opened **in place** (no copy).
   - File → Close: clears current dataset.
   - Export PNG: saves the current frame.
+- **Auto Load**
+  - Watch folder: continuously loads the newest `.h5/.hdf5`, `.tif/.tiff`, or `.cbf` file.
+  - File‑type filters for watch mode (HDF5 / TIFF / CBF).
+  - Optional filename pattern (glob) filter for watch mode.
+  - Browse… opens a native folder picker (macOS) to select absolute paths.
+  - SIMPLON monitor: pulls the latest monitor image (TIFF) from the detector API with a live badge.
 - **Dataset + frame navigation**
   - Dataset selection, frame slider, frame step, play/pause with FPS.
   - Toolbar buttons for previous/next/play.
@@ -71,11 +83,17 @@ VIEWER_DATA_DIR=/path/to/data python backend/app.py
 ## API Endpoints
 
 - `GET /api/files`
+- `GET /api/folders`
 - `GET /api/datasets?file=...`
 - `GET /api/metadata?file=...&dataset=...`
 - `GET /api/frame?file=...&dataset=...&index=...`
 - `GET /api/preview?file=...&dataset=...&index=...`
 - `GET /api/mask?file=...`
+- `GET /api/autoload/latest?folder=...&pattern=...&exts=...`
+- `GET /api/image?file=...`
+- `GET /api/simplon/monitor?url=...`
+- `POST /api/simplon/mode?url=...&mode=enabled|disabled`
+- `GET /api/choose-folder`
 - `POST /api/upload`
 
 ## Notes
@@ -88,7 +106,6 @@ VIEWER_DATA_DIR=/path/to/data python backend/app.py
 
 ## Next Milestones
 
-1. Live SIMPLON 1 Hz polling + stream overlay.
-2. Export to TIFF/PNG with metadata sidecar, batch export.
-3. WebGL tiling for >16 MP frames.
-4. Peak finder / spot tracking utilities.
+1. Export to TIFF/PNG with metadata sidecar, batch export.
+2. WebGL tiling for >16 MP frames.
+3. Peak finder / spot tracking utilities.

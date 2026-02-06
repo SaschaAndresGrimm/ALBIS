@@ -12,7 +12,6 @@
         <div class="menu-bar">
           <div class="menu-left">
             <button class="menu-item is-active" data-menu="file">File</button>
-            <button class="menu-item" data-menu="autoload">Auto Load</button>
             <button class="menu-item" data-menu="help">Help</button>
           </div>
           <div class="menu-right">DECTRIS</div>
@@ -40,14 +39,6 @@
               <span class="shortcut">⌘E</span>
             </button>
           </div>
-          <div class="dropdown-panel" data-menu="autoload">
-            <div class="dropdown-item is-disabled">
-              <span>Enable Auto Load</span>
-            </div>
-            <div class="dropdown-item is-disabled">
-              <span>Configure…</span>
-            </div>
-          </div>
           <div class="dropdown-panel" data-menu="help">
             <button class="dropdown-item" data-action="help-docs">
               <span>Documentation</span>
@@ -64,10 +55,11 @@
             <button class="tool-btn" id="btn-next" aria-label="Next frame">⟶</button>
             <button class="tool-btn" id="btn-play" aria-label="Play">▶</button>
           </div>
-          <div class="toolbar-path" id="toolbar-path">No file loaded</div>
-          <div class="toolbar-right">
-          </div>
+        <div class="toolbar-path" id="toolbar-path">No file loaded</div>
+        <div class="toolbar-right">
+          <div class="live-badge" id="live-badge" aria-hidden="true">LIVE</div>
         </div>
+      </div>
         <div class="upload-bar" id="upload-bar" aria-hidden="true">
           <div class="upload-bar-fill" id="upload-bar-fill"></div>
           <div class="upload-bar-text" id="upload-bar-text">Uploading 0%</div>
@@ -217,6 +209,78 @@
                 <input id="fps-range" type="range" min="1" max="30" step="1" value="5" />
                 <div id="fps-value" class="pill">5 fps</div>
               </div>
+            </div>
+          </section>
+
+          <section class="panel-section" data-section="autoload" id="autoload-section">
+            <button class="section-title" type="button" data-section-toggle>
+              Auto Load
+              <span class="section-chevron">▾</span>
+            </button>
+            <label class="field">
+              <span>Mode</span>
+              <select id="autoload-mode">
+                <option value="off" selected>Off</option>
+                <option value="watch">Watch Folder</option>
+                <option value="simplon">SIMPLON Monitor</option>
+              </select>
+            </label>
+            <div class="autoload-group" id="autoload-watch">
+              <label class="field">
+                <span>Folder (relative)</span>
+                <div class="inline">
+                  <input id="autoload-dir" type="text" list="autoload-dir-list" placeholder="test_data or /abs/path" />
+                  <button class="btn" id="autoload-browse" type="button">Browse…</button>
+                </div>
+                <datalist id="autoload-dir-list"></datalist>
+              </label>
+              <label class="field">
+                <span>Poll (ms)</span>
+                <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
+              </label>
+              <label class="field">
+                <span>Filename pattern</span>
+                <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
+              </label>
+              <div class="check-grid">
+                <label class="checkbox">
+                  <input id="autoload-type-hdf5" type="checkbox" checked />
+                  HDF5
+                </label>
+                <label class="checkbox">
+                  <input id="autoload-type-tiff" type="checkbox" checked />
+                  TIFF
+                </label>
+                <label class="checkbox">
+                  <input id="autoload-type-cbf" type="checkbox" checked />
+                  CBF
+                </label>
+              </div>
+            </div>
+            <div class="autoload-group is-hidden" id="autoload-simplon">
+              <label class="field">
+                <span>Base URL</span>
+                <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
+              </label>
+              <label class="field">
+                <span>API Version</span>
+                <input id="simplon-version" type="text" value="1.8.0" />
+              </label>
+              <label class="field">
+                <span>Timeout (ms)</span>
+                <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
+              </label>
+              <label class="checkbox">
+                <input id="simplon-enable" type="checkbox" checked />
+                Enable monitor
+              </label>
+            </div>
+            <div class="autoload-actions">
+              <button class="btn" id="autoload-toggle">Start</button>
+            </div>
+            <div class="autoload-meta">
+              <div class="meta-row"><span>Status</span><strong id="autoload-status">Idle</strong></div>
+              <div class="meta-row"><span>Latest</span><strong id="autoload-latest">-</strong></div>
             </div>
           </section>
 

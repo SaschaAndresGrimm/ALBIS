@@ -1,15 +1,25 @@
 from __future__ import annotations
 
+import fnmatch
+import io
+import json
 import os
+import platform
+import subprocess
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Any
 
 import hdf5plugin  # noqa: F401
 import h5py
 import numpy as np
+import tifffile
+import fabio
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 import shutil
 
@@ -18,6 +28,9 @@ if not DATA_DIR:
     DATA_DIR = Path(__file__).resolve().parents[1]
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW")
+
+AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf"}
+ALLOW_ABS_PATHS = os.environ.get("VIEWER_ALLOW_ABS", "1").lower() in {"1", "true", "yes", "on"}
 
 
 def _safe_rel_path(name: str) -> Path:
@@ -34,11 +47,60 @@ def _safe_rel_path(name: str) -> Path:
 
 
 def _resolve_file(name: str) -> Path:
+    raw = Path(name)
+    if raw.is_absolute():
+        if not ALLOW_ABS_PATHS:
+            raise HTTPException(status_code=400, detail="Absolute paths are disabled")
+        path = raw.expanduser().resolve()
+        if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
+            raise HTTPException(status_code=404, detail="File not found")
+        return path
     safe = _safe_rel_path(name)
     path = (DATA_DIR / safe).resolve()
     if not _is_within(path, DATA_DIR.resolve()):
         raise HTTPException(status_code=400, detail="Invalid file name")
     if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
+        raise HTTPException(status_code=404, detail="File not found")
+    return path
+
+
+def _resolve_dir(name: str | None) -> Path:
+    if name is None:
+        return DATA_DIR.resolve()
+    trimmed = name.strip()
+    if trimmed in ("", ".", "./"):
+        return DATA_DIR.resolve()
+    raw = Path(trimmed)
+    if raw.is_absolute():
+        if not ALLOW_ABS_PATHS:
+            raise HTTPException(status_code=400, detail="Absolute paths are disabled")
+        path = raw.expanduser().resolve()
+        if not path.exists() or not path.is_dir():
+            raise HTTPException(status_code=404, detail="Directory not found")
+        return path
+    safe = _safe_rel_path(trimmed)
+    path = (DATA_DIR / safe).resolve()
+    if not _is_within(path, DATA_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid directory")
+    if not path.exists() or not path.is_dir():
+        raise HTTPException(status_code=404, detail="Directory not found")
+    return path
+
+
+def _resolve_image_file(name: str) -> Path:
+    raw = Path(name)
+    if raw.is_absolute():
+        if not ALLOW_ABS_PATHS:
+            raise HTTPException(status_code=400, detail="Absolute paths are disabled")
+        path = raw.expanduser().resolve()
+        if not path.exists() or path.suffix.lower() not in AUTOLOAD_EXTS:
+            raise HTTPException(status_code=404, detail="File not found")
+        return path
+    safe = _safe_rel_path(name)
+    path = (DATA_DIR / safe).resolve()
+    if not _is_within(path, DATA_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    if not path.exists() or path.suffix.lower() not in AUTOLOAD_EXTS:
         raise HTTPException(status_code=404, detail="File not found")
     return path
 
@@ -51,6 +113,132 @@ def _is_within(path: Path, root: Path) -> bool:
         return False
 
 
+def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
+    if arr.ndim == 2:
+        frame = arr
+    elif arr.ndim == 3:
+        if arr.shape[-1] in (3, 4):
+            frame = arr[..., 0]
+        else:
+            idx = max(0, min(index, arr.shape[0] - 1))
+            frame = arr[idx]
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported image shape")
+    frame = np.ascontiguousarray(frame)
+    if frame.dtype.byteorder == ">" or (frame.dtype.byteorder == "=" and sys.byteorder == "big"):
+        frame = frame.byteswap().newbyteorder("<")
+    return frame
+
+
+def _read_tiff(path: Path, index: int = 0) -> np.ndarray:
+    arr = tifffile.imread(path)
+    return _normalize_image_array(np.asarray(arr), index=index)
+
+
+def _read_cbf(path: Path) -> np.ndarray:
+    image = fabio.open(str(path))
+    arr = np.asarray(image.data)
+    return _normalize_image_array(arr)
+
+
+def _parse_ext_filter(exts: str | None) -> set[str]:
+    if not exts:
+        return set(AUTOLOAD_EXTS)
+    cleaned: set[str] = set()
+    for raw in exts.split(","):
+        token = raw.strip().lower()
+        if not token:
+            continue
+        if not token.startswith("."):
+            token = f".{token}"
+        cleaned.add(token)
+    allowed = cleaned.intersection(AUTOLOAD_EXTS)
+    return allowed or set(AUTOLOAD_EXTS)
+
+
+def _matches_pattern(path: Path, pattern: str | None, root: Path) -> bool:
+    if not pattern:
+        return True
+    norm = pattern.strip()
+    if not norm:
+        return True
+    try:
+        rel = path.relative_to(root).as_posix()
+    except ValueError:
+        rel = path.name
+    target = rel if ("/" in norm or "\\" in norm) else path.name
+    return fnmatch.fnmatch(target, norm)
+
+
+def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) -> Path | None:
+    latest_path: Path | None = None
+    latest_mtime = -1.0
+    root = root.resolve()
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in allowed_exts:
+            continue
+        if not _matches_pattern(path, pattern, root):
+            continue
+        try:
+            rel = path.relative_to(root)
+        except ValueError:
+            continue
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue
+        if mtime > latest_mtime:
+            latest_mtime = mtime
+            latest_path = path
+    return latest_path
+
+
+def _simplon_base(url: str, version: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise HTTPException(status_code=400, detail="Invalid SIMPLON base URL")
+    base = url.rstrip("/")
+    ver = (version or "1.8.0").strip().strip("/")
+    if not ver:
+        ver = "1.8.0"
+    return f"{base}/monitor/api/{ver}"
+
+
+def _simplon_set_mode(base: str, mode: str) -> None:
+    payload = json.dumps({"value": mode}).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base}/config/mode",
+        data=payload,
+        method="PUT",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            resp.read()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Failed to update SIMPLON monitor mode") from exc
+
+
+def _simplon_fetch_monitor(base: str, timeout_ms: int) -> bytes | None:
+    query = urllib.parse.urlencode({"timeout": max(0, int(timeout_ms))}) if timeout_ms else ""
+    url = f"{base}/images/monitor"
+    if query:
+        url = f"{url}?{query}"
+    try:
+        with urllib.request.urlopen(url, timeout=max(timeout_ms / 1000 + 1, 2)) as resp:
+            return resp.read()
+    except urllib.error.HTTPError as exc:
+        if exc.code in {204, 408}:
+            return None
+        raise HTTPException(status_code=502, detail=f"SIMPLON monitor error {exc.code}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Failed to fetch SIMPLON monitor image") from exc
+
+
 def _resolve_external_path(base_file: Path, filename: str | None) -> Path | None:
     if not filename:
         return None
@@ -58,9 +246,10 @@ def _resolve_external_path(base_file: Path, filename: str | None) -> Path | None
     if not target.is_absolute():
         target = base_file.parent / target
     target = target.expanduser().resolve()
-    allowed_root = DATA_DIR.resolve() if DATA_DIR else base_file.parent.resolve()
-    if allowed_root and not _is_within(target, allowed_root):
-        return None
+    if not ALLOW_ABS_PATHS:
+        allowed_root = DATA_DIR.resolve() if DATA_DIR else base_file.parent.resolve()
+        if allowed_root and not _is_within(target, allowed_root):
+            return None
     if not target.exists() or target.suffix.lower() not in {".h5", ".hdf5"}:
         return None
     return target
@@ -238,6 +427,141 @@ def files() -> dict[str, list[str]]:
                 continue
             items.append(rel)
     return {"files": sorted(set(items))}
+
+
+@app.get("/api/folders")
+def folders() -> dict[str, list[str]]:
+    dirs: set[str] = set()
+    for path in DATA_DIR.rglob("*"):
+        if not path.is_dir():
+            continue
+        try:
+            rel = path.relative_to(DATA_DIR).as_posix()
+        except ValueError:
+            continue
+        if not rel:
+            continue
+        if any(part.startswith(".") for part in Path(rel).parts):
+            continue
+        dirs.add(rel)
+    return {"folders": sorted(dirs)}
+
+
+@app.get("/api/choose-folder")
+def choose_folder() -> Response:
+    if not ALLOW_ABS_PATHS:
+        raise HTTPException(status_code=403, detail="Absolute paths are disabled")
+    if platform.system() != "Darwin":
+        raise HTTPException(status_code=501, detail="Folder picker not supported on this OS")
+    script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").lower()
+        if "user canceled" in stderr:
+            return Response(status_code=204)
+        raise HTTPException(status_code=500, detail="Folder picker failed") from exc
+    path = result.stdout.strip()
+    if not path:
+        return Response(status_code=204)
+    return JSONResponse({"path": path})
+
+
+@app.get("/api/autoload/latest")
+def autoload_latest(
+    folder: str | None = Query(None),
+    exts: str | None = Query(None),
+    pattern: str | None = Query(None),
+) -> Response:
+    root = _resolve_dir(folder)
+    allowed = _parse_ext_filter(exts)
+    latest = _latest_image_file(root, allowed, pattern)
+    if not latest:
+        return Response(status_code=204)
+    try:
+        rel = latest.resolve().relative_to(DATA_DIR.resolve()).as_posix()
+        absolute = False
+        file_label = rel
+    except ValueError:
+        if not ALLOW_ABS_PATHS:
+            raise HTTPException(status_code=400, detail="Invalid file location")
+        absolute = True
+        file_label = str(latest.resolve())
+    return JSONResponse(
+        {
+            "file": file_label,
+            "ext": latest.suffix.lower(),
+            "mtime": latest.stat().st_mtime,
+            "absolute": absolute,
+        }
+    )
+
+
+@app.get("/api/image")
+def image(
+    file: str = Query(..., min_length=1),
+    index: int = Query(0, ge=0),
+) -> Response:
+    path = _resolve_image_file(file)
+    ext = path.suffix.lower()
+    if ext in {".h5", ".hdf5"}:
+        raise HTTPException(status_code=400, detail="Use /api/frame for HDF5 datasets")
+    if ext in {".tif", ".tiff"}:
+        arr = _read_tiff(path, index=index)
+    elif ext == ".cbf":
+        arr = _read_cbf(path)
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported image format")
+
+    data = arr.tobytes(order="C")
+    headers = {
+        "X-Dtype": arr.dtype.str,
+        "X-Shape": ",".join(str(x) for x in arr.shape),
+        "X-Frame": "0",
+    }
+    return Response(content=data, media_type="application/octet-stream", headers=headers)
+
+
+@app.get("/api/simplon/monitor")
+def simplon_monitor(
+    url: str = Query(..., min_length=4),
+    version: str = Query("1.8.0"),
+    timeout: int = Query(500, ge=0),
+    enable: bool = Query(True),
+) -> Response:
+    base = _simplon_base(url, version)
+    if enable:
+        _simplon_set_mode(base, "enabled")
+    data = _simplon_fetch_monitor(base, timeout)
+    if data is None:
+        return Response(status_code=204)
+    arr = _normalize_image_array(np.asarray(tifffile.imread(io.BytesIO(data))))
+    data_bytes = arr.tobytes(order="C")
+    headers = {
+        "X-Dtype": arr.dtype.str,
+        "X-Shape": ",".join(str(x) for x in arr.shape),
+        "X-Frame": "0",
+    }
+    return Response(content=data_bytes, media_type="application/octet-stream", headers=headers)
+
+
+@app.post("/api/simplon/mode")
+def simplon_mode(
+    url: str = Query(..., min_length=4),
+    version: str = Query("1.8.0"),
+    mode: str = Query("enabled"),
+) -> dict[str, str]:
+    mode_value = mode.lower()
+    if mode_value not in {"enabled", "disabled"}:
+        raise HTTPException(status_code=400, detail="Invalid monitor mode")
+    base = _simplon_base(url, version)
+    _simplon_set_mode(base, mode_value)
+    return {"status": "ok", "mode": mode_value}
 
 
 @app.post("/api/upload")
