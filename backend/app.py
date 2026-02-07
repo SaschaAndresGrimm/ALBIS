@@ -15,6 +15,9 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+import logging
+from logging.handlers import RotatingFileHandler
+import tempfile
 import hdf5plugin  # noqa: F401
 import h5py
 import numpy as np
@@ -39,6 +42,64 @@ MAX_UPLOAD_MB = int(os.environ.get("ALBIS_MAX_UPLOAD_MB", "0") or 0)
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
 _files_cache: tuple[float, list[str]] = (0.0, [])
 _folders_cache: tuple[float, list[str]] = (0.0, [])
+
+
+def _init_logging() -> logging.Logger:
+    level_name = os.environ.get("ALBIS_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logger = logging.getLogger("albis")
+    if logger.handlers:
+        return logger
+    logger.setLevel(level)
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    stream = logging.StreamHandler()
+    stream.setFormatter(formatter)
+    logger.addHandler(stream)
+
+    log_dir_env = os.environ.get("ALBIS_LOG_DIR", "").strip()
+    log_dir = Path(log_dir_env).expanduser() if log_dir_env else (DATA_DIR / "logs")
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        log_dir = Path(tempfile.gettempdir()) / "albis-logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        file_handler = RotatingFileHandler(
+            log_dir / "albis.log",
+            maxBytes=5 * 1024 * 1024,
+            backupCount=5,
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except OSError:
+        logger.warning("Failed to initialize file logging in %s", log_dir)
+    return logger
+
+
+logger = _init_logging()
+logger.info("ALBIS data dir: %s", DATA_DIR)
+
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception("Unhandled error: %s %s", request.method, request.url.path)
+        raise
+    duration_ms = (time.perf_counter() - start) * 1000
+    status = response.status_code
+    if status >= 500:
+        logger.error("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+    elif status >= 400:
+        logger.warning("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+    else:
+        if duration_ms >= 1000:
+            logger.info("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+        else:
+            logger.debug("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+    return response
 
 
 def _safe_rel_path(name: str) -> Path:
@@ -575,6 +636,7 @@ def choose_folder() -> Response:
     if not ALLOW_ABS_PATHS:
         raise HTTPException(status_code=403, detail="Absolute paths are disabled")
     system = platform.system()
+    logger.debug("Folder picker requested (os=%s)", system)
     if system == "Darwin":
         script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
         try:
@@ -610,6 +672,7 @@ def choose_folder() -> Response:
 
     if not path:
         return Response(status_code=204)
+    logger.info("Folder picker selected: %s", path)
     return JSONResponse({"path": path})
 
 
@@ -623,6 +686,7 @@ def autoload_latest(
     allowed = _parse_ext_filter(exts)
     latest = _latest_image_file(root, allowed, pattern)
     if not latest:
+        logger.debug("Autoload scan: no file found (folder=%s pattern=%s)", root, pattern or "")
         return Response(status_code=204)
     try:
         rel = latest.resolve().relative_to(DATA_DIR.resolve()).as_posix()
@@ -633,6 +697,7 @@ def autoload_latest(
             raise HTTPException(status_code=400, detail="Invalid file location")
         absolute = True
         file_label = str(latest.resolve())
+    logger.debug("Autoload scan: latest=%s absolute=%s", file_label, absolute)
     return JSONResponse(
         {
             "file": file_label,
@@ -680,6 +745,7 @@ def simplon_monitor(
         _simplon_set_mode(base, "enabled")
     data = _simplon_fetch_monitor(base, timeout)
     if data is None:
+        logger.debug("SIMPLON monitor: no data (url=%s)", url)
         return Response(status_code=204)
     arr = _normalize_image_array(np.asarray(tifffile.imread(io.BytesIO(data))))
     data_bytes = arr.tobytes(order="C")
@@ -702,6 +768,7 @@ def simplon_mode(
         raise HTTPException(status_code=400, detail="Invalid monitor mode")
     base = _simplon_base(url, version)
     _simplon_set_mode(base, mode_value)
+    logger.info("SIMPLON monitor mode: %s (url=%s)", mode_value, url)
     return {"status": "ok", "mode": mode_value}
 
 
@@ -712,7 +779,9 @@ def simplon_mask(
 ) -> Response:
     arr = _simplon_fetch_pixel_mask(url, version)
     if arr is None:
+        logger.debug("SIMPLON mask: not available (url=%s)", url)
         return Response(status_code=204)
+    logger.info("SIMPLON mask fetched (url=%s)", url)
     data = arr.tobytes(order="C")
     headers = {
         "X-Dtype": arr.dtype.str,
@@ -733,6 +802,7 @@ async def upload(file: UploadFile = File(...), folder: str | None = Query(None))
     dest = (root / safe).resolve()
     if not _is_within(dest, root):
         raise HTTPException(status_code=400, detail="Invalid file name")
+    logger.info("Upload start: %s -> %s", safe, dest)
     written = 0
     chunk_size = 1024 * 1024 * 4
     try:
@@ -752,6 +822,7 @@ async def upload(file: UploadFile = File(...), folder: str | None = Query(None))
         except OSError:
             pass
         raise
+    logger.info("Upload complete: %s (%d bytes)", dest, written)
     return {"filename": safe}
 
 

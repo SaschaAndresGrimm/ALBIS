@@ -55,6 +55,21 @@ To limit upload size (in MB):
 ALBIS_MAX_UPLOAD_MB=2048
 ```
 
+## Logging
+
+Logs are written to `<VIEWER_DATA_DIR>/logs/albis.log` by default.  
+When using the launcher, `VIEWER_DATA_DIR` defaults to `~/ALBIS-data`.
+
+You can configure:
+
+```bash
+# log level: DEBUG, INFO, WARNING, ERROR
+ALBIS_LOG_LEVEL=INFO
+
+# log directory
+ALBIS_LOG_DIR=/path/to/logs
+```
+
 ## Packaging (PyInstaller)
 
 ALBIS can be bundled into a **platform‑native app** (no Python required) using PyInstaller.
