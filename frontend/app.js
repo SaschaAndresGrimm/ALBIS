@@ -31,6 +31,7 @@ const playBtn = document.getElementById("btn-play");
 const toolsPanel = document.getElementById("side-panel");
 const panelResizer = document.getElementById("panel-resizer");
 const panelEdgeToggle = document.getElementById("panel-edge-toggle");
+const panelFab = document.getElementById("panel-fab");
 const panelTabs = document.querySelectorAll(".panel-tab");
 const panelTabContents = document.querySelectorAll(".panel-tab-content");
 const appLayout = document.querySelector(".app");
@@ -221,6 +222,85 @@ const state = {
 };
 
 const API = "/api";
+const clientLogBuffer = [];
+let clientLogTimer = null;
+let clientLogSending = false;
+
+function formatClientArg(arg) {
+  if (arg instanceof Error) {
+    return `${arg.message}${arg.stack ? `\n${arg.stack}` : ""}`;
+  }
+  if (typeof arg === "object") {
+    try {
+      return JSON.stringify(arg);
+    } catch {
+      return String(arg);
+    }
+  }
+  return String(arg);
+}
+
+function logClient(level, message, context, extra) {
+  if (!message) return;
+  clientLogBuffer.push({
+    level,
+    message: String(message).slice(0, 2000),
+    context,
+    extra,
+    url: window.location.href,
+    userAgent: navigator.userAgent,
+  });
+  if (!clientLogTimer) {
+    clientLogTimer = window.setTimeout(flushClientLogs, 250);
+  }
+}
+
+async function flushClientLogs() {
+  clientLogTimer = null;
+  if (clientLogSending || clientLogBuffer.length === 0) return;
+  clientLogSending = true;
+  const entry = clientLogBuffer.shift();
+  try {
+    await fetch(`${API}/client-log`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+    });
+  } catch {
+    // drop on network errors
+  } finally {
+    clientLogSending = false;
+    if (clientLogBuffer.length) {
+      clientLogTimer = window.setTimeout(flushClientLogs, 250);
+    }
+  }
+}
+
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+console.error = (...args) => {
+  originalConsoleError(...args);
+  logClient("error", args.map(formatClientArg).join(" "));
+};
+console.warn = (...args) => {
+  originalConsoleWarn(...args);
+  logClient("warning", args.map(formatClientArg).join(" "));
+};
+
+window.addEventListener("error", (event) => {
+  logClient("error", event.message || "Unhandled error", {
+    source: event.filename,
+    line: event.lineno,
+    column: event.colno,
+    stack: event.error?.stack,
+  });
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  logClient("error", "Unhandled promise rejection", {
+    reason: formatClientArg(event.reason),
+  });
+});
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 50;
 const PIXEL_LABEL_MIN_ZOOM = 15;
@@ -996,12 +1076,20 @@ function updatePlayButtons() {
 function applyPanelState() {
   if (!toolsPanel || !appLayout) return;
   toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
-  const width = state.panelCollapsed ? 28 : state.panelWidth;
+  const maxPanelWidth =
+    window.innerWidth < 900 ? Math.max(220, Math.floor(window.innerWidth * 0.7)) : 900;
+  const targetWidth = Math.max(220, Math.min(maxPanelWidth, state.panelWidth));
+  const width = state.panelCollapsed ? 28 : targetWidth;
   appLayout.style.setProperty("--panel-width", `${width}px`);
   document.documentElement.style.setProperty("--panel-width", `${width}px`);
   if (panelEdgeToggle) {
-    panelEdgeToggle.textContent = state.panelCollapsed ? "▶" : "◀";
+    panelEdgeToggle.textContent = state.panelCollapsed ? "◀" : "▶";
     panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand panel" : "Collapse panel");
+  }
+  if (panelFab) {
+    panelFab.classList.toggle("is-collapsed", state.panelCollapsed);
+    panelFab.textContent = state.panelCollapsed ? "◀" : "▶";
+    panelFab.setAttribute("aria-label", state.panelCollapsed ? "Open panel" : "Collapse panel");
   }
   scheduleOverview();
   scheduleHistogram();
@@ -1042,7 +1130,9 @@ function setSectionState(section, collapsed, persist = true) {
 }
 
 function setPanelWidth(width) {
-  const clamped = Math.max(220, Math.min(900, Math.round(width)));
+  const maxPanelWidth =
+    window.innerWidth < 900 ? Math.max(220, Math.floor(window.innerWidth * 0.7)) : 900;
+  const clamped = Math.max(220, Math.min(maxPanelWidth, Math.round(width)));
   state.panelWidth = clamped;
   state.panelCollapsed = false;
   applyPanelState();
@@ -4333,6 +4423,9 @@ playBtn?.addEventListener("click", () => {
 panelEdgeToggle?.addEventListener("click", () => {
   togglePanel();
 });
+panelFab?.addEventListener("click", () => {
+  togglePanel();
+});
 
 panelTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -4751,6 +4844,7 @@ exportBtn?.addEventListener("click", () => {
 window.addEventListener("resize", () => {
   if (state.histogram) drawHistogram(state.histogram);
   drawSplash();
+  applyPanelState();
   scheduleOverview();
   scheduleHistogram();
   schedulePixelOverlay();
@@ -4801,6 +4895,8 @@ try {
   }
   if (storedCollapsed !== null) {
     state.panelCollapsed = storedCollapsed === "true";
+  } else if (window.innerWidth < 900) {
+    state.panelCollapsed = true;
   }
 } catch {
   // ignore storage errors

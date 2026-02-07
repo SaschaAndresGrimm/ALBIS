@@ -355,6 +355,8 @@ body {
   overflow: auto;
   background: #6b6b6b;
   cursor: default;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .canvas-wrap.is-panning {
@@ -797,6 +799,91 @@ body {
   border: 1px solid #0f0f0f;
   padding: 4px 6px;
   font-size: 12px;
+}
+
+.panel-fab {
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 80px;
+  border-radius: 14px;
+  background: linear-gradient(to bottom, #6a6a6a, #2b2b2b);
+  border: 1px solid #0d0d0d;
+  color: #f7f7f7;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  z-index: 5;
+}
+
+.panel-fab:hover {
+  background: linear-gradient(to bottom, #7a7a7a, #353535);
+}
+
+.panel-fab.is-collapsed {
+  box-shadow: 0 0 0 1px rgba(120, 170, 255, 0.35), 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 900px) {
+  .menu-bar {
+    padding: 3px 6px;
+  }
+
+  .menu-item {
+    font-size: 14px;
+    padding: 4px 8px;
+  }
+
+  .toolbar {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+
+  .tool-btn {
+    font-size: 14px;
+    padding: 6px 10px;
+  }
+
+  .toolbar-path {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+
+  .panel {
+    padding: 6px;
+  }
+
+  .panel-tab {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .panel-tab-card {
+    gap: 6px;
+  }
+
+  .panel-edge-toggle {
+    left: -16px;
+    width: 16px;
+    height: 96px;
+    font-size: 14px;
+  }
+
+  .panel-fab {
+    width: 36px;
+    height: 96px;
+    font-size: 16px;
+    left: -18px;
+  }
+
+  .panel-resizer {
+    width: 10px;
+  }
 }
 
 .range-actions {

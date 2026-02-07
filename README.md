@@ -70,6 +70,8 @@ ALBIS_LOG_LEVEL=INFO
 ALBIS_LOG_DIR=/path/to/logs
 ```
 
+Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
+
 ## Packaging (PyInstaller)
 
 ALBIS can be bundled into a **platform‑native app** (no Python required) using PyInstaller.

@@ -23,7 +23,7 @@ import h5py
 import numpy as np
 import tifffile
 import fabio
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 import shutil
@@ -588,6 +588,50 @@ def _resolve_dataset(
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/api/client-log")
+def client_log(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
+    try:
+        level = str(payload.get("level", "info")).lower()
+        message = str(payload.get("message", "")).strip()
+        context = payload.get("context")
+        meta = {
+            "url": payload.get("url"),
+            "userAgent": payload.get("userAgent"),
+            "extra": payload.get("extra"),
+        }
+        if not message:
+            return {"status": "ignored"}
+        if len(message) > 2000:
+            message = message[:2000] + "…"
+        if isinstance(context, str) and len(context) > 4000:
+            context = context[:4000] + "…"
+        try:
+            meta_json = json.dumps(meta, default=str)
+        except Exception:
+            meta_json = "{}"
+        if isinstance(context, (dict, list)):
+            try:
+                context = json.dumps(context, default=str)
+            except Exception:
+                context = str(context)
+        level_map = {
+            "debug": logging.DEBUG,
+            "info": logging.INFO,
+            "warning": logging.WARNING,
+            "error": logging.ERROR,
+            "critical": logging.CRITICAL,
+        }
+        log_level = level_map.get(level, logging.INFO)
+        if context:
+            logger.log(log_level, "CLIENT %s | %s | %s", message, context, meta_json)
+        else:
+            logger.log(log_level, "CLIENT %s | %s", message, meta_json)
+        return {"status": "ok"}
+    except Exception as exc:
+        logger.exception("Failed to record client log: %s", exc)
+        raise HTTPException(status_code=400, detail="Invalid log payload")
 
 
 def _prefix_paths(root: Path, items: list[str]) -> list[str]:
