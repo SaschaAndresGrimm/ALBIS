@@ -306,6 +306,20 @@ window.addEventListener("unhandledrejection", (event) => {
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 50;
 const PIXEL_LABEL_MIN_ZOOM = 15;
+
+function getMinZoom() {
+  if (!canvasWrap || !state.width || !state.height) {
+    return MIN_ZOOM;
+  }
+  const scale = Math.min(
+    canvasWrap.clientWidth / state.width,
+    canvasWrap.clientHeight / state.height
+  );
+  if (!Number.isFinite(scale) || scale <= 0) {
+    return MIN_ZOOM;
+  }
+  return Math.min(1, scale);
+}
 const PIXEL_LABEL_MAX_CELLS = 25000;
 
 function setStatus(text) {
@@ -995,10 +1009,12 @@ function drawOverview() {
 }
 
 function setZoom(value) {
-  const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value)));
+  const minZoom = getMinZoom();
+  const clamped = Math.max(minZoom, Math.min(MAX_ZOOM, Number(value)));
   state.zoom = clamped;
   canvas.style.transform = `scale(${clamped})`;
   if (zoomRange) {
+    zoomRange.min = String(minZoom);
     zoomRange.value = String(clamped);
   }
   if (zoomValue) {
@@ -2853,8 +2869,8 @@ function getSaturationMax(rawMax) {
 
 function chooseHistogramBins(count) {
   if (!Number.isFinite(count) || count <= 0) return 256;
-  const bins = Math.round(Math.sqrt(count));
-  return Math.max(64, Math.min(1024, bins));
+  const bins = Math.round(Math.sqrt(count) * 0.5);
+  return Math.max(32, Math.min(256, bins));
 }
 
 const AUTO_CONTRAST_LOW = 0.001;
@@ -4719,7 +4735,8 @@ canvasWrap.addEventListener(
   (event) => {
     event.preventDefault();
     const delta = Math.sign(event.deltaY);
-    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, state.zoom - delta * 0.2));
+    const minZoom = getMinZoom();
+    const next = Math.min(MAX_ZOOM, Math.max(minZoom, state.zoom - delta * 0.2));
     zoomAt(event.clientX, event.clientY, next);
   },
   { passive: false }
@@ -4851,7 +4868,8 @@ canvasWrap.addEventListener("pointerleave", () => {
 
 canvasWrap.addEventListener("dblclick", (event) => {
   event.preventDefault();
-  const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, state.zoom * 2));
+  const minZoom = getMinZoom();
+  const next = Math.min(MAX_ZOOM, Math.max(minZoom, state.zoom * 2));
   zoomAt(event.clientX, event.clientY, next);
 });
 
@@ -5059,6 +5077,9 @@ exportBtn?.addEventListener("click", () => {
 });
 
 window.addEventListener("resize", () => {
+  if (state.hasFrame) {
+    setZoom(state.zoom);
+  }
   if (state.histogram) drawHistogram(state.histogram);
   drawSplash();
   applyPanelState();
