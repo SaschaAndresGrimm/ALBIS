@@ -12,7 +12,7 @@ python backend/app.py
 ```
 
 Open `http://localhost:8000` (ALBIS).  
-To access from another device on the same network, use `http://<your-mac-ip>:8000`.
+To access from another device on the same network, use `http://<your-ip>:8000`.
 
 ## Data Location
 
@@ -28,6 +28,63 @@ Absolute folder watching is enabled by default for Auto Load. You can disable it
 ```bash
 VIEWER_ALLOW_ABS=0 python backend/app.py
 ```
+
+## Packaging (PyInstaller)
+
+ALBIS can be bundled into a **platform‑native app** (no Python required) using PyInstaller.
+
+### Build (macOS)
+
+```bash
+./scripts/build_mac.sh
+```
+
+### Build (Linux)
+
+```bash
+./scripts/build_linux.sh
+```
+
+### Build (Windows)
+
+```powershell
+.\scripts\build_windows.ps1
+```
+
+### Output
+
+The packaged app is created under `dist/ALBIS/`.
+
+By default, the launcher uses `~/ALBIS-data` as a writable data directory.  
+Override it with:
+
+```bash
+ALBIS_DATA_DIR=/path/to/data ./dist/ALBIS/ALBIS
+```
+
+## Installers
+
+### macOS (DMG)
+
+```bash
+./scripts/package_mac_dmg.sh
+```
+
+### Linux (AppImage)
+
+```bash
+./scripts/package_linux_appimage.sh
+```
+
+Requires `appimagetool` on your PATH.
+
+### Windows (Inno Setup)
+
+```powershell
+.\scripts\package_windows_innosetup.ps1
+```
+
+Requires Inno Setup (`iscc`) on your PATH.
 
 ## Current Features
 

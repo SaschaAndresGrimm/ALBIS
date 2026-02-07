@@ -790,7 +790,13 @@ def mask(file: str = Query(..., min_length=1)) -> Response:
         return Response(content=data, media_type="application/octet-stream", headers=headers)
 
 
-STATIC_DIR = Path(__file__).resolve().parents[1] / "frontend"
+def _resource_root() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parents[1]
+
+
+STATIC_DIR = _resource_root() / "frontend"
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 
