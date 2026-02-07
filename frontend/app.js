@@ -176,7 +176,7 @@ const state = {
   autoScale: true,
   min: 0,
   max: 1,
-  colormap: "heat",
+  colormap: "albulaHdr",
   invert: false,
   zoom: 1,
   dataRaw: null,
@@ -2407,6 +2407,8 @@ function createWebGLRenderer() {
     uniform float u_min;
     uniform float u_max;
     uniform float u_invert;
+    uniform float u_data_max;
+    uniform float u_hdr;
     in vec2 v_tex;
     out vec4 outColor;
     void main() {
@@ -2421,7 +2423,26 @@ function createWebGLRenderer() {
         }
       }
       float denom = max(u_max - u_min, 1.0);
-      float norm = clamp((value - u_min) / denom, 0.0, 1.0);
+      float t = (value - u_min) / denom;
+      float norm = 0.0;
+      if (u_hdr > 0.5) {
+        if (t <= 0.0) {
+          norm = 0.0;
+        } else if (t <= 1.0) {
+          const float HDR_GAMMA = 1.0;
+          norm = 0.5 * pow(t, HDR_GAMMA);
+        } else {
+          const float HDR_OVER = 50.0;
+          const float HDR_OVER_GAMMA = 0.28;
+          float overRange = max(u_data_max - u_max, 1.0);
+          float overRatio = max(0.0, (value - u_max) / overRange);
+          float over = log(1.0 + overRatio * HDR_OVER) / log(1.0 + HDR_OVER);
+          over = pow(over, HDR_OVER_GAMMA);
+          norm = 0.5 + 0.5 * clamp(over, 0.0, 1.0);
+        }
+      } else {
+        norm = clamp(t, 0.0, 1.0);
+      }
       if (u_invert > 0.5) {
         norm = 1.0 - norm;
       }
@@ -2491,6 +2512,8 @@ function createWebGLRenderer() {
     min: gl.getUniformLocation(program, "u_min"),
     max: gl.getUniformLocation(program, "u_max"),
     invert: gl.getUniformLocation(program, "u_invert"),
+    hdr: gl.getUniformLocation(program, "u_hdr"),
+    dataMax: gl.getUniformLocation(program, "u_data_max"),
   };
 
   const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
@@ -2501,7 +2524,21 @@ function createWebGLRenderer() {
   return {
     type: "webgl",
     maxTextureSize,
-    render({ floatData, width, height, min, max, palette, invert, mask, maskWidth, maskHeight, maskEnabled }) {
+    render({
+      floatData,
+      width,
+      height,
+      min,
+      max,
+      palette,
+      invert,
+      mask,
+      maskWidth,
+      maskHeight,
+      maskEnabled,
+      colormap,
+      dataMax,
+    }) {
       if (!floatData) return;
       if (width > maxTextureSize || height > maxTextureSize) {
         setStatus(`Frame exceeds max texture size ${maxTextureSize}px`);
@@ -2559,6 +2596,8 @@ function createWebGLRenderer() {
       gl.uniform1f(uniforms.min, min);
       gl.uniform1f(uniforms.max, max);
       gl.uniform1f(uniforms.invert, invert ? 1.0 : 0.0);
+      gl.uniform1f(uniforms.hdr, colormap === "albulaHdr" ? 1.0 : 0.0);
+      gl.uniform1f(uniforms.dataMax, Number.isFinite(dataMax) ? dataMax : max);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     },
   };
@@ -2568,7 +2607,7 @@ function createCpuRenderer() {
   const ctx = canvas.getContext("2d");
   return {
     type: "cpu",
-    render({ data, width, height, min, max, palette, invert, mask, maskEnabled }) {
+    render({ data, width, height, min, max, palette, invert, mask, maskEnabled, colormap, dataMax }) {
       if (!data) return;
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
@@ -2576,7 +2615,6 @@ function createCpuRenderer() {
       }
       const imageData = ctx.createImageData(width, height);
       const out = imageData.data;
-      const range = max - min || 1;
       for (let i = 0; i < data.length; i += 1) {
         let v = data[i];
         if (maskEnabled && mask && mask.length === data.length) {
@@ -2592,10 +2630,7 @@ function createCpuRenderer() {
             continue;
           }
         }
-        let norm = Math.min(1, Math.max(0, (v - min) / range));
-        if (invert) {
-          norm = 1 - norm;
-        }
+        const norm = mapValueToNorm(v);
         const idx = Math.floor(norm * 255) * 4;
         const j = i * 4;
         out[j] = palette[idx];
@@ -2825,6 +2860,9 @@ function chooseHistogramBins(count) {
 const AUTO_CONTRAST_LOW = 0.001;
 const AUTO_CONTRAST_HIGH = 0.999;
 const AUTO_CONTRAST_BINS = 4096;
+const ALBULA_HDR_OVER = 50;
+const ALBULA_HDR_GAMMA = 1.0;
+const ALBULA_HDR_OVER_GAMMA = 0.3;
 
 function computeHistogram(data, min, max, satMax, bins, logX) {
   const hist = new Uint32Array(bins);
@@ -2998,6 +3036,36 @@ function histogramXToValue(x, width) {
   return invSymlog(mapped);
 }
 
+function mapValueToNorm(value) {
+  if (!Number.isFinite(value)) return 0;
+  const minVal = Number.isFinite(state.min) ? state.min : 0;
+  const maxVal = Number.isFinite(state.max) ? state.max : minVal + 1;
+  const dataMax = Number.isFinite(state.stats?.max) ? state.stats.max : maxVal;
+  const range = maxVal - minVal || 1;
+  let t = (value - minVal) / range;
+  let norm = 0;
+  if (state.colormap === "albulaHdr") {
+    if (t <= 0) {
+      norm = 0;
+    } else if (t <= 1) {
+      norm = 0.5 * Math.pow(t, ALBULA_HDR_GAMMA);
+    } else {
+      const overRange = Math.max(1e-6, dataMax - maxVal);
+      const overRatio = Math.max(0, (value - maxVal) / overRange);
+      let over =
+        Math.log(1 + overRatio * ALBULA_HDR_OVER) / Math.log(1 + ALBULA_HDR_OVER);
+      over = Math.pow(over, ALBULA_HDR_OVER_GAMMA);
+      norm = 0.5 + 0.5 * Math.min(1, Math.max(0, over));
+    }
+  } else {
+    norm = Math.min(1, Math.max(0, t));
+  }
+  if (state.invert) {
+    norm = 1 - norm;
+  }
+  return Math.min(1, Math.max(0, norm));
+}
+
 function getHistTooltipPosition(canvasRect, x) {
   const container = histCanvas.parentElement;
   if (!container) return { left: x, top: 0 };
@@ -3019,6 +3087,21 @@ function buildPalette(name) {
       Math.round(a[0] + (b[0] - a[0]) * frac),
       Math.round(a[1] + (b[1] - a[1]) * frac),
       Math.round(a[2] + (b[2] - a[2]) * frac),
+    ];
+  };
+  const mixStopsAt = (stops, t) => {
+    let idx = 0;
+    while (idx < stops.length - 1 && t > stops[idx + 1].t) {
+      idx += 1;
+    }
+    const a = stops[idx];
+    const b = stops[Math.min(idx + 1, stops.length - 1)];
+    const span = b.t - a.t || 1;
+    const frac = Math.min(1, Math.max(0, (t - a.t) / span));
+    return [
+      Math.round(a.c[0] + (b.c[0] - a.c[0]) * frac),
+      Math.round(a.c[1] + (b.c[1] - a.c[1]) * frac),
+      Math.round(a.c[2] + (b.c[2] - a.c[2]) * frac),
     ];
   };
   for (let i = 0; i < 256; i += 1) {
@@ -3101,6 +3184,17 @@ function buildPalette(name) {
       r = Math.round(255 * Math.min(1, gamma * 1.1));
       g = Math.round(255 * Math.min(1, gamma * 0.9 + t * 0.3));
       b = Math.round(255 * Math.min(1, (1 - gamma) * 0.4 + t * 0.6));
+    } else if (name === "albulaHdr") {
+      [r, g, b] = mixStopsAt(
+        [
+          { t: 0.0, c: [255, 255, 255] },
+          { t: 0.51, c: [0, 0, 0] },
+          { t: 0.54, c: [255, 0, 0] },
+          { t: 0.58, c: [255, 255, 0] },
+          { t: 1.0, c: [255, 255, 255] },
+        ],
+        t
+      );
     }
     const base = i * 4;
     palette[base] = r;
@@ -3208,11 +3302,8 @@ function drawColorbar() {
   histColorCtx.clearRect(0, 0, width, height);
 
   const palette = buildPalette(state.colormap);
-  const minVal = Number.isFinite(state.min) ? state.min : 0;
-  const maxVal = Number.isFinite(state.max) ? state.max : minVal + 1;
-  const range = maxVal - minVal || 1;
-  const statsMin = Number.isFinite(state.stats?.min) ? state.stats.min : minVal;
-  const statsMax = Number.isFinite(state.stats?.max) ? state.stats.max : maxVal;
+  const statsMin = Number.isFinite(state.stats?.min) ? state.stats.min : state.min;
+  const statsMax = Number.isFinite(state.stats?.max) ? state.stats.max : state.max;
   const statsRange = statsMax - statsMin || 1;
   const useLogX = Boolean(state.histLogX);
   const symlog = (v) => Math.sign(v) * Math.log10(1 + Math.abs(v));
@@ -3228,12 +3319,7 @@ function drawColorbar() {
     const value = useLogX
       ? invSymlog(minMap + t * mapRange)
       : statsMin + t * statsRange;
-    let norm = (value - minVal) / range;
-    if (!Number.isFinite(norm)) norm = 0;
-    norm = Math.min(1, Math.max(0, norm));
-    if (state.invert) {
-      norm = 1 - norm;
-    }
+    const norm = mapValueToNorm(value);
     const idx = Math.min(maxIdx, Math.max(0, Math.round(norm * maxIdx)));
     const p = idx * 4;
     const r = palette[p];
@@ -4000,6 +4086,8 @@ function redraw() {
       max: state.max,
       palette,
       invert: state.invert,
+      colormap: state.colormap,
+      dataMax: state.stats?.max ?? state.max,
       mask: maskData,
       maskWidth,
       maskHeight,
@@ -4014,6 +4102,8 @@ function redraw() {
       max: state.max,
       palette,
       invert: state.invert,
+      colormap: state.colormap,
+      dataMax: state.stats?.max ?? state.max,
       mask: maskData,
       maskEnabled: maskReady,
     });
