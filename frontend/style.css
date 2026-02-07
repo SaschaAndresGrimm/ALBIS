@@ -228,6 +228,10 @@ body {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 2px;
   border: 1px solid rgba(0, 0, 0, 0.4);
+  max-width: calc(100% - var(--panel-width, 28px) - 120px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .toolbar-right {
@@ -455,6 +459,9 @@ body {
   border: 1px solid #1d1d1d;
   padding: 8px;
   transition: box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .panel-tab-card.flash {
@@ -774,6 +781,14 @@ body {
   font-size: 12px;
 }
 
+.check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  font-size: 12px;
+}
+
 .hist-options {
   margin-top: 6px;
 }
@@ -790,6 +805,40 @@ body {
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
+}
+
+.field.data-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.field.data-row > span {
+  min-width: 72px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.field.data-row > input,
+.field.data-row .inline {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field.data-row .inline {
+  align-items: center;
+}
+
+.field.data-row .pill {
+  min-width: 48px;
+  text-align: center;
+}
+
+.data-row-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  align-items: center;
 }
 
 .autoload-group {
@@ -919,6 +968,21 @@ body {
   border: 1px solid #0f0f0f;
   padding: 4px 6px;
   font-size: 12px;
+}
+
+#simplon-url,
+#simplon-version,
+#simplon-timeout {
+  background: #1e1e1e;
+  color: #f2f2f2;
+  border: 1px solid #0f0f0f;
+}
+
+#simplon-url:focus,
+#simplon-version:focus,
+#simplon-timeout:focus {
+  background: #1e1e1e;
+  color: #f2f2f2;
 }
 
 .roi-stats {
@@ -1065,7 +1129,7 @@ body {
 .splash {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: #000 url("ressources/image.png") center/cover no-repeat;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1073,6 +1137,7 @@ body {
   gap: 16px;
   z-index: 4;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .splash.is-hidden {
@@ -1080,21 +1145,25 @@ body {
 }
 
 #splash-canvas {
-  width: min(60vmin, 520px);
-  height: min(60vmin, 520px);
-  display: block;
+  display: none;
 }
 
 .splash-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 48px;
+  z-index: 1;
   text-align: center;
-  color: #dcdcdc;
-  font-size: 12px;
-  letter-spacing: 0.4px;
+  color: #f5f7ff;
+  font-size: 14px;
+  letter-spacing: 2.2px;
+  text-shadow: 0 0 18px rgba(60, 120, 220, 0.5);
 }
 
 .splash-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 32px;
+  font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 4px;
 }

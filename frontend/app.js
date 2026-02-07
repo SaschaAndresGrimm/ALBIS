@@ -1,5 +1,7 @@
 const fileSelect = document.getElementById("file-select");
 const datasetSelect = document.getElementById("dataset-select");
+const fileField = document.getElementById("file-field");
+const datasetField = document.getElementById("dataset-field");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
@@ -58,7 +60,6 @@ const autoloadDir = document.getElementById("autoload-dir");
 const autoloadInterval = document.getElementById("autoload-interval");
 const autoloadStatus = document.getElementById("autoload-status");
 const autoloadLatest = document.getElementById("autoload-latest");
-const autoloadToggle = document.getElementById("autoload-toggle");
 const autoloadWatch = document.getElementById("autoload-watch");
 const autoloadSimplon = document.getElementById("autoload-simplon");
 const autoloadBrowse = document.getElementById("autoload-browse");
@@ -213,6 +214,8 @@ const state = {
     lastFile: "",
     lastMtime: 0,
     lastUpdate: 0,
+    lastPoll: 0,
+    lastMonitorSig: "",
   },
 };
 
@@ -983,7 +986,7 @@ function updatePlayButtons() {
   if (playBtn) {
     playBtn.classList.toggle("is-active", state.playing);
     playBtn.disabled = disabled;
-    playBtn.textContent = state.playing ? "▮▮" : "▶";
+    playBtn.textContent = state.playing ? "⏸" : "⏯";
   }
   if (prevBtn) prevBtn.disabled = disabled;
   if (nextBtn) nextBtn.disabled = disabled;
@@ -994,6 +997,7 @@ function applyPanelState() {
   toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
   const width = state.panelCollapsed ? 28 : state.panelWidth;
   appLayout.style.setProperty("--panel-width", `${width}px`);
+  document.documentElement.style.setProperty("--panel-width", `${width}px`);
   if (panelEdgeToggle) {
     panelEdgeToggle.textContent = state.panelCollapsed ? "▶" : "◀";
     panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand panel" : "Collapse panel");
@@ -1085,83 +1089,218 @@ function requestFrame(index) {
   loadFrame();
 }
 
-function drawGlowDot(ctx, x, y, core, glow) {
+function drawGlowDot(ctx, x, y, core, glow, rgb = "255,255,255") {
   const grad = ctx.createRadialGradient(x, y, 0, x, y, glow);
-  grad.addColorStop(0, "rgba(255,255,255,0.95)");
-  grad.addColorStop(1, "rgba(255,255,255,0)");
+  grad.addColorStop(0, `rgba(${rgb},0.95)`);
+  grad.addColorStop(1, `rgba(${rgb},0)`);
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(x, y, glow, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.98)";
+  ctx.fillStyle = `rgba(${rgb},0.98)`;
   ctx.beginPath();
   ctx.arc(x, y, core, 0, Math.PI * 2);
   ctx.fill();
 }
 
-function drawSplash() {
-  if (!splash || !splashCanvas || !splashCtx) return;
-  const size = Math.min(splash.clientWidth, splash.clientHeight) * 0.62;
-  const dpr = window.devicePixelRatio || 1;
-  const canvasSize = Math.max(1, Math.floor(size));
-  splashCanvas.width = canvasSize * dpr;
-  splashCanvas.height = canvasSize * dpr;
-  splashCanvas.style.width = `${canvasSize}px`;
-  splashCanvas.style.height = `${canvasSize}px`;
-  splashCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  splashCtx.clearRect(0, 0, canvasSize, canvasSize);
-  splashCtx.fillStyle = "#000";
-  splashCtx.fillRect(0, 0, canvasSize, canvasSize);
+function seededRandom(seed) {
+  let value = seed % 2147483647;
+  if (value <= 0) value += 2147483646;
+  return () => {
+    value = (value * 16807) % 2147483647;
+    return (value - 1) / 2147483646;
+  };
+}
 
-  const center = canvasSize / 2;
-  const radius = canvasSize * 0.42;
-  const arms = 6;
-  const baseSteps = [0.16, 0.28, 0.4, 0.52, 0.64, 0.76, 0.9, 1.0];
+function drawStarfield(ctx, width, height) {
+  const rand = seededRandom(Math.floor(width * 13 + height * 29));
+  const total = Math.round(
+    Math.min(420, Math.max(180, (width * height) / 7000)),
+  );
+
+  for (let i = 0; i < total; i += 1) {
+    const x = rand() * width;
+    const y = rand() * height;
+    const intensity = rand();
+    const size = 0.4 + Math.pow(intensity, 2.1) * 1.6;
+    const glow = size * (intensity > 0.82 ? 6.5 : 3.2);
+    const tint = intensity > 0.75 ? "190,220,255" : "255,255,255";
+    drawGlowDot(ctx, x, y, size, glow, tint);
+  }
+
+  for (let i = 0; i < 6; i += 1) {
+    const cx = width * (0.15 + rand() * 0.7);
+    const cy = height * (0.15 + rand() * 0.7);
+    const radius = Math.min(width, height) * (0.2 + rand() * 0.25);
+    const haze = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    haze.addColorStop(0, "rgba(80,130,200,0.12)");
+    haze.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = haze;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawSnowflake(ctx, centerX, centerY, radius) {
+  const segments = [];
+  const addSegment = (x1, y1, x2, y2) => {
+    segments.push({ x1, y1, x2, y2 });
+  };
+
   const branchSteps = [
-    { t: 0.3, len: 0.22 },
-    { t: 0.46, len: 0.24 },
-    { t: 0.62, len: 0.2 },
-    { t: 0.78, len: 0.16 },
+    { t: 0.16, len: 0.28 },
+    { t: 0.3, len: 0.26 },
+    { t: 0.44, len: 0.24 },
+    { t: 0.58, len: 0.22 },
+    { t: 0.7, len: 0.2 },
+    { t: 0.82, len: 0.16 },
+    { t: 0.92, len: 0.12 },
   ];
 
-  for (let arm = 0; arm < arms; arm += 1) {
-    const angle = (arm * Math.PI * 2) / arms;
-    baseSteps.forEach((t) => {
-      const r = t * radius;
-      const core = Math.max(1.4, (1 - t) * radius * 0.06 + 1.2);
-      const glow = core * 2.1;
-      const x = center + Math.cos(angle) * r;
-      const y = center + Math.sin(angle) * r;
-      drawGlowDot(splashCtx, x, y, core, glow);
-    });
+  for (let arm = 0; arm < 6; arm += 1) {
+    const angle = (arm * Math.PI * 2) / 6;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    addSegment(centerX, centerY, centerX + dx * radius, centerY + dy * radius);
 
     branchSteps.forEach((step) => {
-      const baseR = step.t * radius;
-      const branchLen = step.len * radius;
+      const baseX = centerX + dx * radius * step.t;
+      const baseY = centerY + dy * radius * step.t;
+      const branchLen = radius * step.len;
+
       [1, -1].forEach((sign) => {
         const branchAngle = angle + sign * (Math.PI / 6);
-        [0.45, 0.9].forEach((factor) => {
-          const r = baseR + branchLen * factor;
-          const core = Math.max(1.2, (1 - step.t) * radius * 0.045 + 1.0);
-          const glow = core * 2.0;
-          const x = center + Math.cos(branchAngle) * r;
-          const y = center + Math.sin(branchAngle) * r;
-          drawGlowDot(splashCtx, x, y, core, glow);
-        });
+        const bx = baseX + Math.cos(branchAngle) * branchLen;
+        const by = baseY + Math.sin(branchAngle) * branchLen;
+        addSegment(baseX, baseY, bx, by);
+
+        const twigBaseX =
+          baseX + Math.cos(branchAngle) * branchLen * 0.62;
+        const twigBaseY =
+          baseY + Math.sin(branchAngle) * branchLen * 0.62;
+        const twigAngle = branchAngle + sign * (Math.PI / 10);
+        const twigLen = branchLen * 0.42;
+        addSegment(
+          twigBaseX,
+          twigBaseY,
+          twigBaseX + Math.cos(twigAngle) * twigLen,
+          twigBaseY + Math.sin(twigAngle) * twigLen,
+        );
       });
+    });
+
+    const tipX = centerX + dx * radius;
+    const tipY = centerY + dy * radius;
+    const tipLen = radius * 0.12;
+    [1, -1].forEach((sign) => {
+      const tipAngle = angle + sign * (Math.PI / 9);
+      addSegment(
+        tipX - dx * tipLen * 0.25,
+        tipY - dy * tipLen * 0.25,
+        tipX + Math.cos(tipAngle) * tipLen,
+        tipY + Math.sin(tipAngle) * tipLen,
+      );
     });
   }
 
-  const ringCount = 12;
-  const ringRadius = radius * 0.22;
-  for (let i = 0; i < ringCount; i += 1) {
-    const angle = (i * Math.PI * 2) / ringCount;
-    const x = center + Math.cos(angle) * ringRadius;
-    const y = center + Math.sin(angle) * ringRadius;
-    drawGlowDot(splashCtx, x, y, 2.2, 4.4);
-  }
+  const strokeSegments = (width, color, blur = 0, shadow = "") => {
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.shadowBlur = blur;
+    ctx.shadowColor = shadow;
+    ctx.beginPath();
+    segments.forEach((seg) => {
+      ctx.moveTo(seg.x1, seg.y1);
+      ctx.lineTo(seg.x2, seg.y2);
+    });
+    ctx.stroke();
+    ctx.restore();
+  };
 
-  drawGlowDot(splashCtx, center, center, radius * 0.08, radius * 0.18);
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  strokeSegments(
+    Math.max(2.6, radius * 0.02),
+    "rgba(120,190,255,0.2)",
+    Math.max(18, radius * 0.12),
+    "rgba(120,190,255,0.8)",
+  );
+  strokeSegments(
+    Math.max(1.6, radius * 0.012),
+    "rgba(200,235,255,0.85)",
+  );
+  strokeSegments(Math.max(0.9, radius * 0.006), "rgba(255,255,255,0.98)");
+
+  const coreGlow = ctx.createRadialGradient(
+    centerX,
+    centerY,
+    0,
+    centerX,
+    centerY,
+    radius * 0.18,
+  );
+  coreGlow.addColorStop(0, "rgba(230,245,255,0.9)");
+  coreGlow.addColorStop(1, "rgba(120,190,255,0)");
+  ctx.fillStyle = coreGlow;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSplash() {
+  if (!splash || !splashCanvas || !splashCtx) return;
+  const width = Math.max(1, Math.floor(splash.clientWidth));
+  const height = Math.max(1, Math.floor(splash.clientHeight));
+  const dpr = window.devicePixelRatio || 1;
+  splashCanvas.width = width * dpr;
+  splashCanvas.height = height * dpr;
+  splashCanvas.style.width = `${width}px`;
+  splashCanvas.style.height = `${height}px`;
+  splashCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  splashCtx.clearRect(0, 0, width, height);
+  splashCtx.fillStyle = "#000";
+  splashCtx.fillRect(0, 0, width, height);
+
+  const centerX = width / 2;
+  const centerY = height / 2 - Math.min(24, height * 0.03);
+  const radius = Math.min(width, height) * 0.22;
+
+  drawStarfield(splashCtx, width, height);
+
+  const halo = splashCtx.createRadialGradient(
+    centerX,
+    centerY,
+    0,
+    centerX,
+    centerY,
+    radius * 3.2,
+  );
+  halo.addColorStop(0, "rgba(20,40,70,0.45)");
+  halo.addColorStop(1, "rgba(0,0,0,0)");
+  splashCtx.fillStyle = halo;
+  splashCtx.beginPath();
+  splashCtx.arc(centerX, centerY, radius * 3.2, 0, Math.PI * 2);
+  splashCtx.fill();
+
+  drawSnowflake(splashCtx, centerX, centerY, radius);
+
+  const vignette = splashCtx.createRadialGradient(
+    centerX,
+    centerY,
+    radius * 0.6,
+    centerX,
+    centerY,
+    Math.max(width, height) * 0.7,
+  );
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(0,0,0,0.65)");
+  splashCtx.fillStyle = vignette;
+  splashCtx.fillRect(0, 0, width, height);
 }
 
 function showSplash() {
@@ -1178,9 +1317,15 @@ function updateToolbar() {
     toolbarPath.textContent = "No file loaded";
     return;
   }
-  const frameLabel = state.frameCount > 1 ? `${state.frameIndex + 1} / ${state.frameCount}` : "single";
+  let frameLabel = "";
+  if (state.frameCount > 1) {
+    frameLabel = `${state.frameIndex + 1} / ${state.frameCount}`;
+  } else if (state.autoload.mode !== "file" && state.autoload.lastUpdate) {
+    frameLabel = formatTimeStamp(state.autoload.lastUpdate);
+  }
   const datasetLabel = state.dataset ? ` ${state.dataset}` : "";
-  toolbarPath.textContent = `${state.file}${datasetLabel}  ${frameLabel}`;
+  const suffix = frameLabel ? `  ${frameLabel}` : "";
+  toolbarPath.textContent = `${state.file}${datasetLabel}${suffix}`;
 }
 
 function setActiveMenu(menu, anchor) {
@@ -1321,17 +1466,26 @@ function setAutoloadStatus(text, markUpdate = false) {
   if (markUpdate) {
     state.autoload.lastUpdate = Date.now();
   }
-  if (autoloadStatus) {
-    const stamp = state.autoload.lastUpdate ? ` (${formatTimeStamp(state.autoload.lastUpdate)})` : "";
-    autoloadStatus.textContent = `${text}${stamp}`;
-  }
+  updateAutoloadMeta();
   updateLiveBadge();
 }
 
 function setAutoloadLatest(text) {
-  if (autoloadLatest) {
-    autoloadLatest.textContent = text || "-";
+  updateAutoloadMeta();
+}
+
+function updateAutoloadMeta() {
+  if (autoloadStatus) {
+    autoloadStatus.textContent = state.autoload.lastPoll
+      ? formatTimeStamp(state.autoload.lastPoll)
+      : "-";
   }
+  if (autoloadLatest) {
+    autoloadLatest.textContent = state.autoload.lastUpdate
+      ? formatTimeStamp(state.autoload.lastUpdate)
+      : "-";
+  }
+  updateToolbar();
 }
 
 function updateLiveBadge() {
@@ -1373,11 +1527,8 @@ function updateAutoloadUI() {
   if (autoloadMode) autoloadMode.value = state.autoload.mode;
   if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "watch");
   if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
-  if (autoloadToggle) {
-    autoloadToggle.classList.toggle("is-hidden", state.autoload.mode === "file");
-    autoloadToggle.disabled = state.autoload.mode === "file";
-    autoloadToggle.textContent = state.autoload.running ? "Stop" : "Start";
-  }
+  if (fileField) fileField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
+  if (datasetField) datasetField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   if (frameRange) frameRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (frameStep) frameStep.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (fpsRange) fpsRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
@@ -1385,6 +1536,7 @@ function updateAutoloadUI() {
     const meta = autoloadStatus.closest(".autoload-meta");
     if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file");
   }
+  updateAutoloadMeta();
   updateLiveBadge();
 }
 
@@ -1448,7 +1600,7 @@ function loadAutoloadSettings() {
   updateAutoloadUI();
   setAutoloadStatus("Idle");
   setAutoloadLatest("-");
-  if (state.autoload.autoStart && state.autoload.mode !== "file") {
+  if (state.autoload.mode !== "file") {
     startAutoload();
   }
 }
@@ -1495,7 +1647,10 @@ async function startAutoload() {
   state.autoload.lastFile = "";
   state.autoload.lastMtime = 0;
   state.autoload.lastUpdate = 0;
+  state.autoload.lastPoll = 0;
+  state.autoload.lastMonitorSig = "";
   updateAutoloadUI();
+  updateAutoloadMeta();
   setAutoloadStatus(`Running (${state.autoload.mode === "watch" ? "Watch folder" : "SIMPLON monitor"})`);
   persistAutoloadSettings();
   if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
@@ -1531,6 +1686,8 @@ async function autoloadTick() {
   if (!state.autoload.running || state.autoload.busy) return;
   if (state.isLoading) return;
   state.autoload.busy = true;
+  state.autoload.lastPoll = Date.now();
+  updateAutoloadMeta();
   try {
     if (state.autoload.mode === "watch") {
       await autoloadWatchTick();
@@ -1577,10 +1734,15 @@ async function autoloadWatchTick() {
   }
   const previousFile = state.autoload.lastFile;
   state.autoload.lastFile = payload.file;
+  const previousMtime = state.autoload.lastMtime;
   state.autoload.lastMtime = mtime;
-  setAutoloadLatest(payload.file);
   await loadAutoloadFile(payload.file);
-  setAutoloadStatus(payload.file === previousFile ? "Watch: updated" : "Watch: loaded", true);
+  const changed = payload.file !== previousFile || mtime > previousMtime;
+  if (changed) {
+    state.autoload.lastUpdate = Date.now();
+    updateAutoloadMeta();
+  }
+  setAutoloadStatus(payload.file === previousFile ? "Watch: updated" : "Watch: loaded");
 }
 
 async function autoloadSimplonTick() {
@@ -1610,6 +1772,13 @@ async function autoloadSimplonTick() {
   const dtype = parseDtype(res.headers.get("X-Dtype"));
   const shape = parseShape(res.headers.get("X-Shape"));
   const data = typedArrayFrom(buffer, dtype);
+  const sig = hashBufferSample(buffer);
+  const changed = sig && sig !== state.autoload.lastMonitorSig;
+  if (changed) {
+    state.autoload.lastMonitorSig = sig;
+    state.autoload.lastUpdate = Date.now();
+    updateAutoloadMeta();
+  }
   let label = "SIMPLON monitor";
   try {
     label = `SIMPLON monitor (${new URL(baseUrl).host})`;
@@ -1619,8 +1788,7 @@ async function autoloadSimplonTick() {
     }
   }
   applyExternalFrame(data, shape, dtype, label, false, true);
-  setAutoloadLatest("monitor");
-  setAutoloadStatus("SIMPLON: updated", true);
+  setAutoloadStatus("SIMPLON: updated");
   updateLiveBadge();
 }
 
@@ -1632,7 +1800,7 @@ async function loadAutoloadFile(file) {
     if (fileSelect) {
       const existing = Array.from(fileSelect.options).some((opt) => opt.value === file);
       if (!existing) {
-        fileSelect.appendChild(option(file, file));
+        fileSelect.appendChild(option(fileLabel(file), file));
       }
       fileSelect.value = file;
     }
@@ -1834,6 +2002,26 @@ function option(label, value) {
   opt.value = value;
   opt.textContent = label;
   return opt;
+}
+
+function fileLabel(path) {
+  if (!path) return "";
+  const parts = path.split(/[/\\\\]/);
+  return parts[parts.length - 1] || path;
+}
+
+function hashBufferSample(buffer) {
+  if (!buffer) return "";
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.length;
+  if (!len) return "0";
+  const stride = Math.max(1, Math.floor(len / 2048));
+  let hash = 2166136261;
+  for (let i = 0; i < len; i += stride) {
+    hash ^= bytes[i];
+    hash = (hash * 16777619) >>> 0;
+  }
+  return `${len}-${hash}`;
 }
 
 function createShader(gl, type, source) {
@@ -2113,11 +2301,11 @@ async function loadFiles() {
     placeholder.disabled = true;
     placeholder.selected = true;
     fileSelect.appendChild(placeholder);
-    data.files.forEach((name) => fileSelect.appendChild(option(name, name)));
+    data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
     if (existingFile) {
       const hasExisting = data.files.includes(existingFile);
       if (!hasExisting) {
-        fileSelect.appendChild(option(existingFile, existingFile));
+        fileSelect.appendChild(option(fileLabel(existingFile), existingFile));
       }
       fileSelect.value = existingFile;
     } else {
@@ -2130,7 +2318,7 @@ async function loadFiles() {
     }
     loadAutoloadFolders();
   } else {
-    data.files.forEach((name) => fileSelect.appendChild(option(name, name)));
+    data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
     if (!existingFile) {
       setStatus("No HDF5 files found");
       showSplash();
@@ -3748,14 +3936,6 @@ simplonEnable?.addEventListener("change", async () => {
   persistAutoloadSettings();
   if (state.autoload.running && state.autoload.mode === "simplon") {
     await setSimplonMode(state.autoload.simplonEnable);
-  }
-});
-
-autoloadToggle?.addEventListener("click", () => {
-  if (state.autoload.running) {
-    stopAutoload();
-  } else {
-    startAutoload();
   }
 });
 

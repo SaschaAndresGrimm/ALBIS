@@ -51,9 +51,9 @@
         </div>
         <div class="toolbar">
           <div class="toolbar-buttons">
-            <button class="tool-btn" id="btn-prev" aria-label="Previous frame">⟵</button>
-            <button class="tool-btn" id="btn-next" aria-label="Next frame">⟶</button>
-            <button class="tool-btn" id="btn-play" aria-label="Play">▶</button>
+            <button class="tool-btn" id="btn-prev" aria-label="Previous frame">◀</button>
+            <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
+            <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
           </div>
         <div class="toolbar-path" id="toolbar-path">No file loaded</div>
         <div class="toolbar-right">
@@ -78,8 +78,7 @@
             <div class="splash" id="splash">
               <canvas id="splash-canvas"></canvas>
               <div class="splash-label">
-                <div class="splash-title">ALBIS — ALBIS WEB VIEW</div>
-                <div class="splash-sub">File → Open to load an HDF5 stack</div>
+                <div class="splash-title">ALBIS</div>
               </div>
             </div>
             <div class="cursor-overlay" id="cursor-overlay" aria-hidden="true"></div>
@@ -93,7 +92,7 @@
           <div class="panel-body">
           <div class="panel-tabs" role="tablist">
             <button class="panel-tab is-active" data-panel-tab="view" type="button">Viewport</button>
-            <button class="panel-tab" data-panel-tab="data" type="button">Data</button>
+            <button class="panel-tab" data-panel-tab="data" type="button">Images</button>
           </div>
 
           <div class="panel-tab-content is-active" data-panel-tab="view">
@@ -264,45 +263,19 @@
             </section>
           </div>
 
-          <div class="panel-tab-content" data-panel-tab="data">
+            <div class="panel-tab-content" data-panel-tab="data">
             <div class="panel-tab-card" id="data-section">
               <label class="field">
-                <span>Mode</span>
+                <span>Data Source</span>
                 <select id="autoload-mode">
                   <option value="file">File</option>
                   <option value="watch">Watch Folder</option>
                   <option value="simplon">SIMPLON Monitor</option>
                 </select>
               </label>
-              <label class="field">
-                <span>HDF5 file</span>
-                <select id="file-select"></select>
-              </label>
-              <label class="field">
-                <span>Dataset</span>
-                <select id="dataset-select"></select>
-              </label>
-              <div class="field">
-                <span>Frame</span>
-                <div class="inline">
-                  <input id="frame-range" type="range" min="0" max="0" value="0" />
-                  <input id="frame-index" type="number" min="0" value="0" />
-                </div>
-              </div>
-              <div class="field">
-                <span>Step</span>
-                <input id="frame-step" type="number" min="1" step="1" value="1" />
-              </div>
-              <div class="field">
-                <span>Playback (fps)</span>
-                <div class="inline">
-                  <input id="fps-range" type="range" min="1" max="30" step="1" value="5" />
-                  <div id="fps-value" class="pill">5 fps</div>
-                </div>
-              </div>
               <div class="autoload-group" id="autoload-watch">
                 <label class="field">
-                  <span>Folder (relative)</span>
+                  <span>Folder</span>
                   <div class="inline">
                     <input
                       id="autoload-dir"
@@ -322,7 +295,7 @@
                   <span>Filename pattern</span>
                   <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
                 </label>
-                <div class="check-grid">
+                <div class="check-row">
                   <label class="checkbox">
                     <input id="autoload-type-hdf5" type="checkbox" checked />
                     HDF5
@@ -336,6 +309,34 @@
                     CBF
                   </label>
                 </div>
+              </div>
+              <label class="field" id="file-field">
+                <span>Image File</span>
+                <select id="file-select"></select>
+              </label>
+              <label class="field" id="dataset-field">
+                <span>Dataset</span>
+                <select id="dataset-select"></select>
+              </label>
+              <div class="field">
+                <span>Frame</span>
+                <div class="inline">
+                  <input id="frame-range" type="range" min="0" max="0" value="0" />
+                  <input id="frame-index" type="number" min="0" value="0" />
+                </div>
+              </div>
+              <div class="data-row-grid">
+                <label class="field data-row">
+                  <span>Step</span>
+                  <input id="frame-step" type="number" min="1" step="1" value="1" />
+                </label>
+                <label class="field data-row">
+                  <span>Playback (fps)</span>
+                  <div class="inline data-inline">
+                    <input id="fps-range" type="range" min="1" max="10" step="1" value="5" />
+                    <div id="fps-value" class="pill">5 fps</div>
+                  </div>
+                </label>
               </div>
               <div class="autoload-group is-hidden" id="autoload-simplon">
                 <label class="field">
@@ -355,12 +356,9 @@
                   Enable monitor
                 </label>
               </div>
-              <div class="autoload-actions">
-                <button class="btn" id="autoload-toggle">Start</button>
-              </div>
               <div class="autoload-meta">
-                <div class="meta-row"><span>Status</span><strong id="autoload-status">Idle</strong></div>
-                <div class="meta-row"><span>Latest</span><strong id="autoload-latest">-</strong></div>
+                <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
+                <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
               </div>
             </div>
           </div>
