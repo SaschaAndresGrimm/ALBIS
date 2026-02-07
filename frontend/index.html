@@ -30,14 +30,42 @@
               <span>Close File</span>
               <span class="shortcut">⌘W</span>
             </button>
-            <button class="dropdown-item" data-action="save-as">
+            <div class="dropdown-item dropdown-submenu-parent">
               <span>Save As…</span>
-              <span class="shortcut">⌘S</span>
-            </button>
-            <button class="dropdown-item" data-action="export">
+              <span class="submenu-caret">▶</span>
+              <div class="dropdown-submenu">
+                <button class="dropdown-item" data-action="save-full">
+                  <span>Full Image</span>
+                  <span class="shortcut">⌘S</span>
+                </button>
+                <button class="dropdown-item" data-action="save-visible">
+                  <span>Visible Area</span>
+                  <span class="shortcut">⇧⌘S</span>
+                </button>
+                <button class="dropdown-item" data-action="save-window">
+                  <span>Viewer Window</span>
+                  <span class="shortcut">⌥⌘S</span>
+                </button>
+              </div>
+            </div>
+            <div class="dropdown-item dropdown-submenu-parent">
               <span>Export</span>
-              <span class="shortcut">⌘E</span>
-            </button>
+              <span class="submenu-caret">▶</span>
+              <div class="dropdown-submenu">
+                <button class="dropdown-item" data-action="export-full">
+                  <span>Full Image</span>
+                  <span class="shortcut">⌘E</span>
+                </button>
+                <button class="dropdown-item" data-action="export-visible">
+                  <span>Visible Area</span>
+                  <span class="shortcut">⇧⌘E</span>
+                </button>
+                <button class="dropdown-item" data-action="export-window">
+                  <span>Viewer Window</span>
+                  <span class="shortcut">⌥⌘E</span>
+                </button>
+              </div>
+            </div>
           </div>
           <div class="dropdown-panel" data-menu="help">
             <button class="dropdown-item" data-action="help-docs">
@@ -387,6 +415,7 @@
         </div>
       </div>
     </div>
+    <script src="vendor/html2canvas.min.js"></script>
     <script type="module" src="app.js"></script>
   </body>
 </html>

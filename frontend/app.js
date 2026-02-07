@@ -1913,6 +1913,136 @@ function exportFrame(filenameOverride) {
   });
 }
 
+function downloadCanvasImage(sourceCanvas, filename) {
+  sourceCanvas.toBlob((blob) => {
+    if (!blob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+function renderRegionToCanvas(region) {
+  if (!state.dataRaw || !region) return null;
+  const { x, y, width, height } = region;
+  if (width <= 0 || height <= 0) return null;
+  const outCanvas = document.createElement("canvas");
+  outCanvas.width = width;
+  outCanvas.height = height;
+  const ctx = outCanvas.getContext("2d");
+  if (!ctx) return null;
+
+  const imageData = ctx.createImageData(width, height);
+  const out = imageData.data;
+  const palette = buildPalette(state.colormap);
+  const range = state.max - state.min || 1;
+  const maskReady =
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === state.height &&
+    state.maskShape[1] === state.width;
+  const maskData = maskReady ? state.maskRaw : null;
+
+  for (let row = 0; row < height; row += 1) {
+    const imgY = y + row;
+    const dataY = renderer?.type === "webgl" ? state.height - 1 - imgY : imgY;
+    const rowOffset = dataY * state.width;
+    const outOffset = row * width * 4;
+    for (let col = 0; col < width; col += 1) {
+      const imgX = x + col;
+      const idx = rowOffset + imgX;
+      let v = state.dataRaw[idx];
+      if (maskReady && maskData) {
+        const maskValue = maskData[idx];
+        if (maskValue & 1) {
+          v = 0;
+        } else if (maskValue & 0x1e) {
+          const j = outOffset + col * 4;
+          out[j] = 51;
+          out[j + 1] = 153;
+          out[j + 2] = 255;
+          out[j + 3] = 255;
+          continue;
+        }
+      }
+      let norm = Math.min(1, Math.max(0, (v - state.min) / range));
+      if (state.invert) {
+        norm = 1 - norm;
+      }
+      const p = Math.floor(norm * 255) * 4;
+      const j = outOffset + col * 4;
+      out[j] = palette[p];
+      out[j + 1] = palette[p + 1];
+      out[j + 2] = palette[p + 2];
+      out[j + 3] = 255;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return outCanvas;
+}
+
+function getVisibleRegion() {
+  if (!canvasWrap || !state.width || !state.height) return null;
+  const zoom = state.zoom || 1;
+  const viewX = canvasWrap.scrollLeft / zoom;
+  const viewY = canvasWrap.scrollTop / zoom;
+  const viewW = canvasWrap.clientWidth / zoom;
+  const viewH = canvasWrap.clientHeight / zoom;
+  let startX = Math.floor(viewX);
+  let startY = Math.floor(viewY);
+  let endX = Math.ceil(viewX + viewW);
+  let endY = Math.ceil(viewY + viewH);
+  startX = Math.max(0, startX);
+  startY = Math.max(0, startY);
+  endX = Math.min(state.width, endX);
+  endY = Math.min(state.height, endY);
+  const width = Math.max(0, endX - startX);
+  const height = Math.max(0, endY - startY);
+  return { x: startX, y: startY, width, height };
+}
+
+function exportFullImage(filenameOverride) {
+  if (!state.dataRaw) return;
+  const full = renderRegionToCanvas({ x: 0, y: 0, width: state.width, height: state.height });
+  if (!full) return;
+  const name = filenameOverride || `frame_${state.frameIndex}_full.png`;
+  downloadCanvasImage(full, name);
+}
+
+function exportVisibleArea(filenameOverride) {
+  const region = getVisibleRegion();
+  if (!region) return;
+  const image = renderRegionToCanvas(region);
+  if (!image) return;
+  const name = filenameOverride || `frame_${state.frameIndex}_view.png`;
+  downloadCanvasImage(image, name);
+}
+
+async function exportViewerWindow(filenameOverride) {
+  if (typeof window.html2canvas !== "function") {
+    setStatus("Viewer export unavailable");
+    return;
+  }
+  const target = document.querySelector(".page");
+  if (!target) return;
+  try {
+    const shot = await window.html2canvas(target, {
+      backgroundColor: null,
+      scale: window.devicePixelRatio || 1,
+      useCORS: true,
+    });
+    const name = filenameOverride || `albis_view_${state.frameIndex + 1}.png`;
+    downloadCanvasImage(shot, name);
+  } catch (err) {
+    console.error(err);
+    setStatus("Viewer export failed");
+  }
+}
+
 async function handleMenuAction(action) {
   switch (action) {
     case "help-docs":
@@ -1932,17 +2062,40 @@ async function handleMenuAction(action) {
     case "close-file":
       closeCurrentFile();
       break;
-    case "save-as": {
+    case "save-full": {
       const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
       const suggested = `${base}_frame_${state.frameIndex + 1}.png`;
-      const name = window.prompt("Save As", suggested);
+      const name = window.prompt("Save As (Full Image)", suggested);
       if (name) {
-        exportFrame(name);
+        exportFullImage(name);
       }
       break;
     }
-    case "export":
-      exportFrame();
+    case "save-visible": {
+      const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
+      const suggested = `${base}_view_${state.frameIndex + 1}.png`;
+      const name = window.prompt("Save As (Visible Area)", suggested);
+      if (name) {
+        exportVisibleArea(name);
+      }
+      break;
+    }
+    case "save-window": {
+      const suggested = `albis_view_${state.frameIndex + 1}.png`;
+      const name = window.prompt("Save As (Viewer Window)", suggested);
+      if (name) {
+        exportViewerWindow(name);
+      }
+      break;
+    }
+    case "export-full":
+      exportFullImage();
+      break;
+    case "export-visible":
+      exportVisibleArea();
+      break;
+    case "export-window":
+      exportViewerWindow();
       break;
     default:
       break;
@@ -1953,6 +2106,8 @@ function handleShortcut(event) {
   const isMod = event.metaKey || event.ctrlKey;
   if (!isMod) return;
   const key = event.key.toLowerCase();
+  const isShift = event.shiftKey;
+  const isAlt = event.altKey;
   if (["o", "s", "e", "n", "w"].includes(key)) {
     event.preventDefault();
   }
@@ -1964,10 +2119,22 @@ function handleShortcut(event) {
       closeCurrentFile();
       break;
     case "s":
-      handleMenuAction("save-as");
+      if (isAlt) {
+        handleMenuAction("save-window");
+      } else if (isShift) {
+        handleMenuAction("save-visible");
+      } else {
+        handleMenuAction("save-full");
+      }
       break;
     case "e":
-      handleMenuAction("export");
+      if (isAlt) {
+        handleMenuAction("export-window");
+      } else if (isShift) {
+        handleMenuAction("export-visible");
+      } else {
+        handleMenuAction("export-full");
+      }
       break;
     case "n":
       handleMenuAction("new-window");
@@ -4578,7 +4745,7 @@ histCanvas.addEventListener("pointerleave", () => {
 });
 
 exportBtn?.addEventListener("click", () => {
-  exportFrame();
+  exportFullImage();
 });
 
 window.addEventListener("resize", () => {
