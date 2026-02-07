@@ -42,9 +42,12 @@ MAX_UPLOAD_MB = int(os.environ.get("ALBIS_MAX_UPLOAD_MB", "0") or 0)
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
 _files_cache: tuple[float, list[str]] = (0.0, [])
 _folders_cache: tuple[float, list[str]] = (0.0, [])
+LOG_DIR: Path | None = None
+LOG_PATH: Path | None = None
 
 
 def _init_logging() -> logging.Logger:
+    global LOG_DIR, LOG_PATH
     level_name = os.environ.get("ALBIS_LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
     logger = logging.getLogger("albis")
@@ -63,9 +66,11 @@ def _init_logging() -> logging.Logger:
     except OSError:
         log_dir = Path(tempfile.gettempdir()) / "albis-logs"
         log_dir.mkdir(parents=True, exist_ok=True)
+    LOG_DIR = log_dir
+    LOG_PATH = log_dir / "albis.log"
     try:
         file_handler = RotatingFileHandler(
-            log_dir / "albis.log",
+            LOG_PATH,
             maxBytes=5 * 1024 * 1024,
             backupCount=5,
         )
@@ -632,6 +637,29 @@ def client_log(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
     except Exception as exc:
         logger.exception("Failed to record client log: %s", exc)
         raise HTTPException(status_code=400, detail="Invalid log payload")
+
+
+@app.post("/api/open-log")
+def open_log() -> dict[str, str]:
+    if LOG_PATH is None:
+        raise HTTPException(status_code=500, detail="Log file unavailable")
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        LOG_PATH.touch(exist_ok=True)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="Failed to access log file") from exc
+
+    system = platform.system()
+    try:
+        if system == "Windows":
+            os.startfile(str(LOG_PATH))  # type: ignore[attr-defined]
+        elif system == "Darwin":
+            subprocess.run(["open", str(LOG_PATH)], check=False)
+        else:
+            subprocess.run(["xdg-open", str(LOG_PATH)], check=False)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to open log file") from exc
+    return {"status": "ok", "path": str(LOG_PATH)}
 
 
 def _prefix_paths(root: Path, items: list[str]) -> list[str]:

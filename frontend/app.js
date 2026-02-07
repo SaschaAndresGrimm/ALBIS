@@ -43,6 +43,8 @@ const roiOverlay = document.getElementById("roi-overlay");
 const roiCtx = roiOverlay?.getContext("2d");
 const histCanvas = document.getElementById("hist-canvas");
 const histCtx = histCanvas.getContext("2d");
+const histColorbar = document.getElementById("hist-colorbar");
+const histColorCtx = histColorbar?.getContext("2d");
 const histTooltip = document.getElementById("hist-tooltip");
 const histLogX = document.getElementById("hist-log-x");
 const histLogY = document.getElementById("hist-log-y");
@@ -2138,6 +2140,17 @@ async function handleMenuAction(action) {
     case "help-docs":
       window.open("docs.html", "_blank");
       break;
+    case "help-log":
+      try {
+        const res = await fetch(`${API}/open-log`, { method: "POST" });
+        if (!res.ok) {
+          setStatus("Failed to open log file");
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus("Failed to open log file");
+      }
+      break;
     case "help-about":
       if (aboutModal) {
         aboutModal.classList.add("is-open");
@@ -2231,6 +2244,56 @@ function handleShortcut(event) {
       break;
     default:
       break;
+  }
+}
+
+function isFormElement(target) {
+  if (!target) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName ? target.tagName.toLowerCase() : "";
+  if (["input", "textarea", "select", "option"].includes(tag)) return true;
+  return Boolean(target.closest?.("input, textarea, select, [contenteditable='true']"));
+}
+
+function handleNavShortcut(event) {
+  if (event.metaKey || event.ctrlKey || event.altKey) return false;
+  if (event.key === "Tab" || event.keyCode === 9) {
+    event.preventDefault();
+    if (state.playing) {
+      stopPlayback();
+    } else {
+      startPlayback();
+    }
+    return true;
+  }
+  if (isFormElement(event.target)) return false;
+  switch (event.key) {
+    case "ArrowLeft":
+      event.preventDefault();
+      stopPlayback();
+      requestFrame(state.frameIndex - 1);
+      return true;
+    case "ArrowRight":
+      event.preventDefault();
+      stopPlayback();
+      requestFrame(state.frameIndex + 1);
+      return true;
+    case "ArrowUp": {
+      event.preventDefault();
+      stopPlayback();
+      const step = Math.max(1, state.step || 1);
+      requestFrame(state.frameIndex - step);
+      return true;
+    }
+    case "ArrowDown": {
+      event.preventDefault();
+      stopPlayback();
+      const step = Math.max(1, state.step || 1);
+      requestFrame(state.frameIndex + step);
+      return true;
+    }
+    default:
+      return false;
   }
 }
 
@@ -3118,6 +3181,7 @@ function drawHistogram(hist) {
 
   histCtx.strokeStyle = "rgba(0,0,0,0.5)";
   histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
+  drawColorbar();
 }
 
 function clearHistogram() {
@@ -3130,6 +3194,62 @@ function clearHistogram() {
   histCtx.fillRect(0, 0, width, height);
   histCtx.strokeStyle = "rgba(0,0,0,0.5)";
   histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
+  drawColorbar();
+}
+
+function drawColorbar() {
+  if (!histColorbar || !histColorCtx) return;
+  const width = histColorbar.clientWidth || 1;
+  const height = histColorbar.clientHeight || 1;
+  const dpr = window.devicePixelRatio || 1;
+  histColorbar.width = Math.max(1, Math.floor(width * dpr));
+  histColorbar.height = Math.max(1, Math.floor(height * dpr));
+  histColorCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  histColorCtx.clearRect(0, 0, width, height);
+
+  const palette = buildPalette(state.colormap);
+  const minVal = Number.isFinite(state.min) ? state.min : 0;
+  const maxVal = Number.isFinite(state.max) ? state.max : minVal + 1;
+  const range = maxVal - minVal || 1;
+  const statsMin = Number.isFinite(state.stats?.min) ? state.stats.min : minVal;
+  const statsMax = Number.isFinite(state.stats?.max) ? state.stats.max : maxVal;
+  const statsRange = statsMax - statsMin || 1;
+  const useLogX = Boolean(state.histLogX);
+  const symlog = (v) => Math.sign(v) * Math.log10(1 + Math.abs(v));
+  const invSymlog = (v) => Math.sign(v) * (10 ** Math.abs(v) - 1);
+  const minMap = useLogX ? symlog(statsMin) : 0;
+  const maxMap = useLogX ? symlog(statsMax) : 0;
+  const mapRange = useLogX ? maxMap - minMap || 1 : 1;
+  const imageData = histColorCtx.createImageData(width, height);
+  const data = imageData.data;
+  const maxIdx = 255;
+  for (let x = 0; x < width; x += 1) {
+    const t = width > 1 ? x / (width - 1) : 0;
+    const value = useLogX
+      ? invSymlog(minMap + t * mapRange)
+      : statsMin + t * statsRange;
+    let norm = (value - minVal) / range;
+    if (!Number.isFinite(norm)) norm = 0;
+    norm = Math.min(1, Math.max(0, norm));
+    if (state.invert) {
+      norm = 1 - norm;
+    }
+    const idx = Math.min(maxIdx, Math.max(0, Math.round(norm * maxIdx)));
+    const p = idx * 4;
+    const r = palette[p];
+    const g = palette[p + 1];
+    const b = palette[p + 2];
+    for (let y = 0; y < height; y += 1) {
+      const i = (y * width + x) * 4;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
+    }
+  }
+  histColorCtx.putImageData(imageData, 0, 0);
+  histColorCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histColorCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 
 function setRoiText(el, value) {
@@ -3987,6 +4107,9 @@ document.addEventListener("keydown", (event) => {
     }
     return;
   }
+  if (handleNavShortcut(event)) {
+    return;
+  }
   if (event.key === "F1") {
     event.preventDefault();
     handleMenuAction("help-docs");
@@ -4220,6 +4343,7 @@ colormapSelect?.addEventListener("change", () => {
   if (value) {
     state.colormap = value;
     redraw();
+    scheduleHistogram();
   }
 });
 
@@ -4233,6 +4357,7 @@ autoScaleToggle.addEventListener("change", () => {
     maxInput.value = formatValue(state.max);
   }
   redraw();
+  scheduleHistogram();
 });
 
 roiModeSelect?.addEventListener("change", () => {
@@ -4348,11 +4473,13 @@ autoContrastBtn.addEventListener("click", () => {
   minInput.value = formatValue(state.min);
   maxInput.value = formatValue(state.max);
   redraw();
+  scheduleHistogram();
 });
 
 invertToggle.addEventListener("change", () => {
   state.invert = invertToggle.checked;
   redraw();
+  scheduleHistogram();
 });
 
 [histLogX, histLogY].forEach((toggle) => {
@@ -4385,6 +4512,7 @@ invertToggle.addEventListener("change", () => {
     state.autoScale = false;
     autoScaleToggle.checked = false;
     redraw();
+    scheduleHistogram();
   });
 });
 
@@ -4759,9 +4887,7 @@ histCanvas.addEventListener("pointerdown", (event) => {
   histDragging = true;
   histCanvas.setPointerCapture(event.pointerId);
   histCanvas.style.cursor = "ew-resize";
-  const { left, top } = getHistTooltipPosition(rect, x);
-  const label = histDragTarget === "min" ? "BG" : "FG";
-  showHistTooltip(`${label} ${formatValue(histDragTarget === "min" ? state.min : state.max)}`, left, top);
+  hideHistTooltip();
   event.preventDefault();
 });
 
@@ -4777,13 +4903,15 @@ histCanvas.addEventListener("pointermove", (event) => {
     const distMin = Math.abs(x - minX);
     const distMax = Math.abs(x - maxX);
     if (Math.min(distMin, distMax) <= threshold) {
-      const target = distMin <= distMax ? "min" : "max";
       histCanvas.style.cursor = "ew-resize";
-      const { left, top } = getHistTooltipPosition(rect, x);
-      const label = target === "min" ? "BG" : "FG";
-      showHistTooltip(`${label} ${formatValue(target === "min" ? state.min : state.max)}`, left, top);
     } else {
       histCanvas.style.cursor = "";
+    }
+    const value = snapHistogramValue(histogramXToValue(x, width));
+    if (Number.isFinite(value)) {
+      const { left, top } = getHistTooltipPosition(rect, x);
+      showHistTooltip(`Value ${formatValue(value)}`, left, top);
+    } else {
       hideHistTooltip();
     }
     return;
@@ -4805,9 +4933,8 @@ histCanvas.addEventListener("pointermove", (event) => {
   state.autoScale = false;
   autoScaleToggle.checked = false;
   redraw();
-  const { left, top } = getHistTooltipPosition(rect, x);
-  const label = histDragTarget === "min" ? "BG" : "FG";
-  showHistTooltip(`${label} ${formatValue(histDragTarget === "min" ? state.min : state.max)}`, left, top);
+  scheduleHistogram();
+  hideHistTooltip();
   event.preventDefault();
 });
 

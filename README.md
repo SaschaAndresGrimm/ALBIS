@@ -181,6 +181,9 @@ Requires Inno Setup (`iscc`) on your PATH.
 - `⌘S` Save As (Export PNG)
 - `⌘E` Export
 - `F1` Documentation
+- `Tab` Play/Pause
+- `←`/`→` Previous/Next frame
+- `↑`/`↓` Jump by Step setting
 
 ## API Endpoints
 

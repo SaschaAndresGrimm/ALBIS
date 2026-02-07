@@ -72,6 +72,9 @@
               <span>Documentation</span>
               <span class="shortcut">F1</span>
             </button>
+            <button class="dropdown-item" data-action="help-log">
+              <span>Open Log File</span>
+            </button>
             <button class="dropdown-item" data-action="help-about">
               <span>About</span>
             </button>
@@ -182,6 +185,7 @@
               </button>
               <div class="histogram">
                 <canvas id="hist-canvas" width="800" height="140"></canvas>
+                <canvas id="hist-colorbar" width="800" height="16"></canvas>
                 <div class="hist-tooltip" id="hist-tooltip" aria-hidden="true"></div>
               </div>
               <div class="range-row">
