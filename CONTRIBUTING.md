@@ -1,8 +1,6 @@
 # Contributing to ALBIS
 
-Thanks for considering a contribution! This project is a practical, ALBULA‑style viewer
-for large HDF5 diffraction data. Contributions that improve usability, stability, and
-scientific workflows are welcome.
+Thanks for considering a contribution! This project is a practical, ALBULA‑style viewer for HDF5 diffraction data. Contributions that improve usability, stability, and workflows are welcome.
 
 ## Quick start (dev)
 
@@ -46,5 +44,4 @@ Please include:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the repository’s
-license.
+By contributing, you agree that your contributions will be licensed under the repository’s license.

@@ -529,15 +529,34 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def _prefix_paths(root: Path, items: list[str]) -> list[str]:
+    root = root.resolve()
+    data_root = DATA_DIR.resolve()
+    try:
+        rel_root = root.relative_to(data_root)
+        prefix = rel_root.as_posix()
+    except ValueError:
+        return [str((root / Path(item)).resolve()) for item in items]
+    if prefix in ("", "."):
+        return items
+    return [f"{prefix}/{item}" for item in items]
+
+
 @app.get("/api/files")
-def files() -> dict[str, list[str]]:
+def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
     global _files_cache
-    now = time.monotonic()
-    if SCAN_CACHE_SEC > 0 and now - _files_cache[0] < SCAN_CACHE_SEC:
-        return {"files": _files_cache[1]}
-    items = _scan_files(DATA_DIR)
-    _files_cache = (now, items)
-    return {"files": items}
+    trimmed = (folder or "").strip()
+    use_cache = trimmed in ("", ".", "./")
+    if use_cache:
+        now = time.monotonic()
+        if SCAN_CACHE_SEC > 0 and now - _files_cache[0] < SCAN_CACHE_SEC:
+            return {"files": _files_cache[1]}
+        items = _scan_files(DATA_DIR)
+        _files_cache = (now, items)
+        return {"files": items}
+    root = _resolve_dir(trimmed)
+    items = _scan_files(root)
+    return {"files": _prefix_paths(root, items)}
 
 
 @app.get("/api/folders")
@@ -703,14 +722,17 @@ def simplon_mask(
 
 
 @app.post("/api/upload")
-async def upload(file: UploadFile = File(...)) -> dict[str, str]:
+async def upload(file: UploadFile = File(...), folder: str | None = Query(None)) -> dict[str, str]:
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing filename")
     safe_path = _safe_rel_path(Path(file.filename).name)
     safe = safe_path.as_posix()
     if not safe.lower().endswith((".h5", ".hdf5")):
         raise HTTPException(status_code=400, detail="Only .h5/.hdf5 files are supported")
-    dest = (DATA_DIR / safe).resolve()
+    root = _resolve_dir(folder) if folder else DATA_DIR.resolve()
+    dest = (root / safe).resolve()
+    if not _is_within(dest, root):
+        raise HTTPException(status_code=400, detail="Invalid file name")
     written = 0
     chunk_size = 1024 * 1024 * 4
     try:

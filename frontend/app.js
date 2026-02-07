@@ -60,6 +60,7 @@ const autoloadDir = document.getElementById("autoload-dir");
 const autoloadInterval = document.getElementById("autoload-interval");
 const autoloadStatus = document.getElementById("autoload-status");
 const autoloadLatest = document.getElementById("autoload-latest");
+const autoloadFolder = document.getElementById("autoload-folder");
 const autoloadWatch = document.getElementById("autoload-watch");
 const autoloadSimplon = document.getElementById("autoload-simplon");
 const autoloadBrowse = document.getElementById("autoload-browse");
@@ -1525,6 +1526,9 @@ function persistAutoloadSettings() {
 
 function updateAutoloadUI() {
   if (autoloadMode) autoloadMode.value = state.autoload.mode;
+  if (autoloadFolder) {
+    autoloadFolder.classList.toggle("is-hidden", state.autoload.mode === "simplon");
+  }
   if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "watch");
   if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
   if (fileField) fileField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
@@ -1981,10 +1985,11 @@ async function fetchJSON(url) {
   return res.json();
 }
 
-async function findExistingFile(filename) {
+async function findExistingFile(filename, folder = "") {
   if (!filename) return null;
   try {
-    const data = await fetchJSON(`${API}/files`);
+    const url = folder ? `${API}/files?folder=${encodeURIComponent(folder)}` : `${API}/files`;
+    const data = await fetchJSON(url);
     const matches = data.files.filter((file) => file === filename || file.endsWith(`/${filename}`));
     if (matches.length === 0) return null;
     const exact = matches.find((file) => file === filename);
@@ -2293,7 +2298,9 @@ function initRenderer() {
 
 async function loadFiles() {
   setDataControlsForHdf5();
-  const data = await fetchJSON(`${API}/files`);
+  const folder = (autoloadDir?.value || state.autoload.dir || "").trim();
+  const url = folder ? `${API}/files?folder=${encodeURIComponent(folder)}` : `${API}/files`;
+  const data = await fetchJSON(url);
   fileSelect.innerHTML = "";
   const existingFile = state.file;
   if (data.files.length > 0) {
@@ -3743,10 +3750,11 @@ if (fileInput) {
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
+    const uploadFolder = (autoloadDir?.value || state.autoload.dir || "").trim();
     setLoading(true);
     setStatus("Checking for existing file…");
     try {
-      const existing = await findExistingFile(file.name);
+      const existing = await findExistingFile(file.name, uploadFolder);
       if (existing) {
         setStatus(`Using existing file: ${existing}`);
         await loadFiles();
@@ -3760,7 +3768,10 @@ if (fileInput) {
       showUploadProgress();
       const payload = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", `${API}/upload`, true);
+        const uploadUrl = uploadFolder
+          ? `${API}/upload?folder=${encodeURIComponent(uploadFolder)}`
+          : `${API}/upload`;
+        xhr.open("POST", uploadUrl, true);
         xhr.responseType = "json";
         xhr.upload.addEventListener("progress", (event) => {
           if (!event.lengthComputable) {
@@ -3848,7 +3859,9 @@ autoloadMode?.addEventListener("change", () => {
   state.autoload.mode = nextMode;
   updateAutoloadUI();
   persistAutoloadSettings();
-  if (state.autoload.mode !== "file") {
+  if (state.autoload.mode === "file") {
+    loadFiles().catch((err) => console.error(err));
+  } else {
     startAutoload();
   }
 });
@@ -3856,6 +3869,9 @@ autoloadMode?.addEventListener("change", () => {
 autoloadDir?.addEventListener("change", () => {
   state.autoload.dir = autoloadDir.value.trim();
   persistAutoloadSettings();
+  if (state.autoload.mode === "file") {
+    loadFiles().catch((err) => console.error(err));
+  }
   if (state.autoload.running && state.autoload.mode === "watch") {
     autoloadTick();
   }
@@ -3906,6 +3922,9 @@ autoloadBrowse?.addEventListener("click", async () => {
       autoloadDir.value = data.path;
       state.autoload.dir = data.path;
       persistAutoloadSettings();
+      if (state.autoload.mode === "file") {
+        loadFiles().catch((err) => console.error(err));
+      }
       if (state.autoload.running && state.autoload.mode === "watch") {
         autoloadTick();
       }
