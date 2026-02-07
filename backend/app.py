@@ -8,6 +8,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -32,6 +33,12 @@ app = FastAPI(title="ALBIS — ALBIS WEB VIEW")
 
 AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf"}
 ALLOW_ABS_PATHS = os.environ.get("VIEWER_ALLOW_ABS", "1").lower() in {"1", "true", "yes", "on"}
+SCAN_CACHE_SEC = float(os.environ.get("ALBIS_SCAN_CACHE_SEC", "2.0") or 0.0)
+MAX_SCAN_DEPTH = int(os.environ.get("ALBIS_MAX_SCAN_DEPTH", "-1") or -1)
+MAX_UPLOAD_MB = int(os.environ.get("ALBIS_MAX_UPLOAD_MB", "0") or 0)
+MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
+_files_cache: tuple[float, list[str]] = (0.0, [])
+_folders_cache: tuple[float, list[str]] = (0.0, [])
 
 
 def _safe_rel_path(name: str) -> Path:
@@ -157,44 +164,105 @@ def _parse_ext_filter(exts: str | None) -> set[str]:
     return allowed or set(AUTOLOAD_EXTS)
 
 
-def _matches_pattern(path: Path, pattern: str | None, root: Path) -> bool:
-    if not pattern:
-        return True
-    norm = pattern.strip()
-    if not norm:
-        return True
-    try:
-        rel = path.relative_to(root).as_posix()
-    except ValueError:
-        rel = path.name
-    target = rel if ("/" in norm or "\\" in norm) else path.name
-    return fnmatch.fnmatch(target, norm)
+def _iter_entries(root: Path, max_depth: int | None):
+    stack: list[tuple[Path, int]] = [(root, 0)]
+    while stack:
+        base, depth = stack.pop()
+        try:
+            with os.scandir(base) as it:
+                for entry in it:
+                    name = entry.name
+                    if name.startswith("."):
+                        continue
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            if max_depth is None or depth < max_depth:
+                                stack.append((Path(entry.path), depth + 1))
+                        elif entry.is_file(follow_symlinks=False):
+                            yield entry.path, name
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+
+
+def _scan_files(root: Path) -> list[str]:
+    items: list[str] = []
+    max_depth = None if MAX_SCAN_DEPTH < 0 else MAX_SCAN_DEPTH
+    root = root.resolve()
+    for path_str, name in _iter_entries(root, max_depth):
+        ext = os.path.splitext(name)[1].lower()
+        if ext not in {".h5", ".hdf5"}:
+            continue
+        try:
+            rel = os.path.relpath(path_str, root)
+        except ValueError:
+            continue
+        if rel.startswith(".."):
+            continue
+        items.append(rel.replace(os.sep, "/"))
+    return sorted(set(items))
+
+
+def _scan_folders(root: Path) -> list[str]:
+    dirs: set[str] = set()
+    max_depth = None if MAX_SCAN_DEPTH < 0 else MAX_SCAN_DEPTH
+    stack: list[tuple[Path, int]] = [(root.resolve(), 0)]
+    while stack:
+        base, depth = stack.pop()
+        try:
+            with os.scandir(base) as it:
+                for entry in it:
+                    name = entry.name
+                    if name.startswith("."):
+                        continue
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            if max_depth is None or depth < max_depth:
+                                stack.append((Path(entry.path), depth + 1))
+                            try:
+                                rel = os.path.relpath(entry.path, root)
+                            except ValueError:
+                                continue
+                            if not rel or rel.startswith(".."):
+                                continue
+                            dirs.add(rel.replace(os.sep, "/"))
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return sorted(dirs)
 
 
 def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) -> Path | None:
     latest_path: Path | None = None
     latest_mtime = -1.0
+    max_depth = None if MAX_SCAN_DEPTH < 0 else MAX_SCAN_DEPTH
     root = root.resolve()
-    for path in root.rglob("*"):
-        if not path.is_file():
+    pattern_norm = (pattern or "").strip()
+    needs_rel = "/" in pattern_norm or "\\" in pattern_norm
+    for path_str, name in _iter_entries(root, max_depth):
+        ext = os.path.splitext(name)[1].lower()
+        if ext not in allowed_exts:
             continue
-        if path.suffix.lower() not in allowed_exts:
-            continue
-        if not _matches_pattern(path, pattern, root):
-            continue
+        if pattern_norm:
+            if needs_rel:
+                try:
+                    rel = os.path.relpath(path_str, root).replace(os.sep, "/")
+                except ValueError:
+                    continue
+                target = rel
+            else:
+                target = name
+            if not fnmatch.fnmatch(target, pattern_norm):
+                continue
         try:
-            rel = path.relative_to(root)
-        except ValueError:
-            continue
-        if any(part.startswith(".") for part in rel.parts):
-            continue
-        try:
-            mtime = path.stat().st_mtime
+            mtime = os.stat(path_str).st_mtime
         except OSError:
             continue
         if mtime > latest_mtime:
             latest_mtime = mtime
-            latest_path = path
+            latest_path = Path(path_str)
     return latest_path
 
 
@@ -463,59 +531,64 @@ def health() -> dict[str, str]:
 
 @app.get("/api/files")
 def files() -> dict[str, list[str]]:
-    items: list[str] = []
-    for pattern in ("*.h5", "*.hdf5"):
-        for path in DATA_DIR.rglob(pattern):
-            if not path.is_file():
-                continue
-            try:
-                rel = path.relative_to(DATA_DIR).as_posix()
-            except ValueError:
-                continue
-            if any(part.startswith(".") for part in Path(rel).parts):
-                continue
-            items.append(rel)
-    return {"files": sorted(set(items))}
+    global _files_cache
+    now = time.monotonic()
+    if SCAN_CACHE_SEC > 0 and now - _files_cache[0] < SCAN_CACHE_SEC:
+        return {"files": _files_cache[1]}
+    items = _scan_files(DATA_DIR)
+    _files_cache = (now, items)
+    return {"files": items}
 
 
 @app.get("/api/folders")
 def folders() -> dict[str, list[str]]:
-    dirs: set[str] = set()
-    for path in DATA_DIR.rglob("*"):
-        if not path.is_dir():
-            continue
-        try:
-            rel = path.relative_to(DATA_DIR).as_posix()
-        except ValueError:
-            continue
-        if not rel:
-            continue
-        if any(part.startswith(".") for part in Path(rel).parts):
-            continue
-        dirs.add(rel)
-    return {"folders": sorted(dirs)}
+    global _folders_cache
+    now = time.monotonic()
+    if SCAN_CACHE_SEC > 0 and now - _folders_cache[0] < SCAN_CACHE_SEC:
+        return {"folders": _folders_cache[1]}
+    items = _scan_folders(DATA_DIR)
+    _folders_cache = (now, items)
+    return {"folders": items}
 
 
 @app.get("/api/choose-folder")
 def choose_folder() -> Response:
     if not ALLOW_ABS_PATHS:
         raise HTTPException(status_code=403, detail="Absolute paths are disabled")
-    if platform.system() != "Darwin":
-        raise HTTPException(status_code=501, detail="Folder picker not supported on this OS")
-    script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
-    try:
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as exc:
-        stderr = (exc.stderr or "").lower()
-        if "user canceled" in stderr:
+    system = platform.system()
+    if system == "Darwin":
+        script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            stderr = (exc.stderr or "").lower()
+            if "user canceled" in stderr:
+                return Response(status_code=204)
+            raise HTTPException(status_code=500, detail="Folder picker failed") from exc
+        path = result.stdout.strip()
+        if not path:
             return Response(status_code=204)
-        raise HTTPException(status_code=500, detail="Folder picker failed") from exc
-    path = result.stdout.strip()
+        return JSONResponse({"path": path})
+
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Folder picker unavailable") from exc
+
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    try:
+        path = filedialog.askdirectory(title="Select Auto Load folder")
+    finally:
+        root.destroy()
+
     if not path:
         return Response(status_code=204)
     return JSONResponse({"path": path})
@@ -638,8 +711,25 @@ async def upload(file: UploadFile = File(...)) -> dict[str, str]:
     if not safe.lower().endswith((".h5", ".hdf5")):
         raise HTTPException(status_code=400, detail="Only .h5/.hdf5 files are supported")
     dest = (DATA_DIR / safe).resolve()
-    with dest.open("wb") as fh:
-        shutil.copyfileobj(file.file, fh)
+    written = 0
+    chunk_size = 1024 * 1024 * 4
+    try:
+        with dest.open("wb") as fh:
+            while True:
+                chunk = file.file.read(chunk_size)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if MAX_UPLOAD_BYTES and written > MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="Upload too large")
+                fh.write(chunk)
+    except HTTPException:
+        try:
+            if dest.exists():
+                dest.unlink()
+        except OSError:
+            pass
+        raise
     return {"filename": safe}
 
 
@@ -803,4 +893,7 @@ app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    host = os.environ.get("ALBIS_HOST", "127.0.0.1")
+    port = int(os.environ.get("ALBIS_PORT", "8000") or 8000)
+    reload = os.environ.get("ALBIS_RELOAD", "0").lower() in {"1", "true", "yes", "on"}
+    uvicorn.run("app:app", host=host, port=port, reload=reload)

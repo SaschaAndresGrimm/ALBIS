@@ -2,6 +2,9 @@
 
 ALBIS (ALBIS WEB VIEW) is a local, **ALBULA‑style** web viewer for large HDF5 stacks and diffraction data.
 
+- Contributions welcome: see `CONTRIBUTING.md`.
+- Security: see `SECURITY.md`.
+
 ## Run (backend + frontend)
 
 ```bash
@@ -11,8 +14,15 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-Open `http://localhost:8000` (ALBIS).  
-To access from another device on the same network, use `http://<your-ip>:8000`.
+Open `http://localhost:8000` (ALBIS).
+
+To allow LAN access:
+
+```bash
+ALBIS_HOST=0.0.0.0 python backend/app.py
+```
+
+Then use `http://<your-ip>:8000` from another device.
 
 ## Data Location
 
@@ -27,6 +37,22 @@ Absolute folder watching is enabled by default for Auto Load. You can disable it
 
 ```bash
 VIEWER_ALLOW_ABS=0 python backend/app.py
+```
+
+For large directory trees, you can tune scanning:
+
+```bash
+# cache directory scans (seconds)
+ALBIS_SCAN_CACHE_SEC=2
+
+# limit recursive scan depth (-1 = unlimited)
+ALBIS_MAX_SCAN_DEPTH=3
+```
+
+To limit upload size (in MB):
+
+```bash
+ALBIS_MAX_UPLOAD_MB=2048
 ```
 
 ## Packaging (PyInstaller)
