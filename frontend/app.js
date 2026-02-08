@@ -27,6 +27,7 @@ const metaRange = document.getElementById("meta-range");
 const metaRenderer = document.getElementById("meta-renderer");
 const toolbarPath = document.getElementById("toolbar-path");
 const backendBadge = document.getElementById("backend-badge");
+const aboutVersion = document.getElementById("about-version");
 const autoContrastBtn = document.getElementById("auto-contrast");
 const invertToggle = document.getElementById("invert-color");
 const colormapSelect = document.getElementById("colormap-select");
@@ -179,6 +180,7 @@ const state = {
   thresholdIndex: 0,
   thresholdEnergies: [],
   backendAlive: false,
+  backendVersion: "0.1",
   isLoading: false,
   pendingFrame: null,
   playing: false,
@@ -2105,14 +2107,30 @@ function updateBackendBadge() {
   backendBadge.setAttribute("aria-hidden", "false");
 }
 
+function updateAboutVersion() {
+  if (!aboutVersion) return;
+  aboutVersion.textContent = `Version ${state.backendVersion || "0.1"}`;
+}
+
 async function checkBackendHealth() {
   if (!backendBadge) return;
   let alive = false;
+  let version = state.backendVersion || "0.1";
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 1500);
   try {
     const res = await fetch(`${API}/health`, { signal: controller.signal, cache: "no-store" });
-    alive = res.ok;
+    if (res.ok) {
+      alive = true;
+      try {
+        const data = await res.json();
+        if (data?.version) {
+          version = String(data.version);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
   } catch {
     alive = false;
   } finally {
@@ -2120,10 +2138,12 @@ async function checkBackendHealth() {
   }
   if (state.backendAlive !== alive) {
     state.backendAlive = alive;
-    updateBackendBadge();
-  } else {
-    updateBackendBadge();
   }
+  if (state.backendVersion !== version) {
+    state.backendVersion = version;
+    updateAboutVersion();
+  }
+  updateBackendBadge();
 }
 
 function startBackendHeartbeat() {
@@ -5792,4 +5812,5 @@ loadFiles().catch((err) => {
   setLoading(false);
 });
 updatePlayButtons();
+updateAboutVersion();
 startBackendHeartbeat();

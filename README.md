@@ -1,9 +1,28 @@
 # ALBIS (ALBIS WEB VIEW)
 
-ALBIS (ALBIS WEB VIEW) is a local, **ALBULA‑style** web viewer for large HDF5 stacks and diffraction data.
+ALBIS is an **ALBULA‑style**, browser‑based image viewer for diffraction data and large HDF5 stacks. It is platform‑independent, free, and open source.
+
+It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
+
+Image sources can be:
+- Files on disk (`.h5/.hdf5`, `.tif/.tiff`, `.cbf`).
+- The detector **SIMPLON monitor** stream for live viewing.
+
+ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
+
+Project note: this is a private vibe‑coding project for fun and educational purposes.
 
 - Contributions welcome: see `CONTRIBUTING.md`.
 - Security: see `SECURITY.md`.
+
+## Highlights
+
+- ALBULA‑style UI with fast navigation and contrast control.
+- Full support for DECTRIS filewriter1 and filewriter2 (multi‑threshold data with selector).
+- Live SIMPLON monitor mode with mask prefetch.
+- ROI tools (line, box, circle, annulus) with statistics and plots.
+- Pixel mask support (gaps and defective pixels).
+- WebGL2 rendering with CPU fallback.
 
 ## Run (backend + frontend)
 
@@ -14,7 +33,7 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-Open `http://localhost:8000` (ALBIS).
+Open `http://localhost:<port>` (ALBIS).
 
 To allow LAN access:
 
@@ -22,11 +41,11 @@ To allow LAN access:
 ALBIS_HOST=0.0.0.0 python backend/app.py
 ```
 
-Then use `http://<your-ip>:8000` from another device.
+Then use `http://<your-ip>:<8000>` from another device.
 
 ## Data Location
 
-By default the backend scans the project root (recursively) for `*.h5` / `*.hdf5`.  
+By default the backend scans the project root (recursively) for `*.h5` / `*.hdf5`.
 Override with:
 
 ```bash
@@ -57,7 +76,7 @@ ALBIS_MAX_UPLOAD_MB=2048
 
 ## Logging
 
-Logs are written to `<VIEWER_DATA_DIR>/logs/albis.log` by default.  
+Logs are written to `<VIEWER_DATA_DIR>/logs/albis.log` by default.
 When using the launcher, `VIEWER_DATA_DIR` defaults to `~/ALBIS-data`.
 
 You can configure:
@@ -98,120 +117,32 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 
 The packaged app is created under `dist/ALBIS/`.
 
-By default, the launcher uses `~/ALBIS-data` as a writable data directory.  
+By default, the launcher uses `~/ALBIS-data` as a writable data directory.
 Override it with:
 
 ```bash
 ALBIS_DATA_DIR=/path/to/data ./dist/ALBIS/ALBIS
 ```
 
-## Installers
-
-### macOS (DMG)
-
-```bash
-./scripts/package_mac_dmg.sh
-```
-
-### Linux (AppImage)
-
-```bash
-./scripts/package_linux_appimage.sh
-```
-
-Requires `appimagetool` on your PATH.
-
-### Windows (Inno Setup)
-
-```powershell
-.\scripts\package_windows_innosetup.ps1
-```
-
-Requires Inno Setup (`iscc`) on your PATH.
-
-## Current Features
-
-- **File handling**
-  - File → Open: system file picker uploads `.h5/.hdf5` if not already in the data directory.
-  - If the selected file already exists under the data directory, it is opened **in place** (no copy).
-  - File → Close: clears current dataset.
-  - Export PNG: saves the current frame.
-- **Data + Auto Load (merged)**
-  - Mode: `File` (default), `Watch Folder`, or `SIMPLON Monitor`.
-  - Watch folder: continuously loads the newest `.h5/.hdf5`, `.tif/.tiff`, or `.cbf` file.
-  - File‑type filters for watch mode (HDF5 / TIFF / CBF).
-  - Optional filename pattern (glob) filter for watch mode.
-  - Browse… opens a native folder picker (macOS) to select absolute paths.
-  - SIMPLON monitor: pulls the latest monitor image (TIFF) from the detector API with a live badge.
-  - SIMPLON monitor fetches the detector pixel mask at start and applies it to monitor frames.
-- **Dataset + frame navigation**
-  - Dataset selection, frame slider, frame step, play/pause with FPS.
-  - Toolbar buttons for previous/next/play.
-- **Viewer**
-  - Fit‑to‑window on first load and on demand.
-  - Mouse‑wheel zoom (cursor‑centered), slider zoom, double‑click zoom.
-  - Drag to pan.
-  - Cursor overlay with **0‑indexed X/Y** and pixel value.
-  - Pixel value overlay at high zoom (toggleable).
-- **Overview panel**
-  - Live overview image with viewport rectangle.
-  - Drag to pan; drag handles to zoom. Alt/Option resizes around center.
-- **Histogram**
-  - Full‑frame histogram (excludes negative values and dtype saturation max).
-  - Log X / Log Y toggles.
-  - Auto‑contrast using log‑percentile stretch (0.1% → 99.9%).
-  - Draggable background/foreground markers with tooltips.
-- **ROI tools**
-  - Line, box, circle, and annulus ROIs (right‑drag on the image).
-  - Stats: min, max, mean, sum, std, pixel count.
-  - Plots: line profile, X/Y projections, radial profile.
-  - Axis labels, ticks, and hover readout values.
-- **Masking**
-  - Optional detector pixel mask from master files.
-  - Gaps (bit 0) render as value 0; defective pixels (bits 1‑4) render blue.
-- **Color maps**
-  - Heat (default), HDR, Grey, Viridis, Magma, Inferno, Cividis, Turbo.
-- **Rendering**
-  - WebGL2 LUT pipeline with CPU fallback.
-
 ## Keyboard Shortcuts
 
 - `⌘O` Open
 - `⌘W` Close File
-- `⌘S` Save As (Export PNG)
+- `⌘S` Save As
 - `⌘E` Export
 - `F1` Documentation
 - `Tab` Play/Pause
 - `←`/`→` Previous/Next frame
-- `↑`/`↓` Jump by Step setting
+- `↑`/`↓` Jump by Step setting (or threshold change when multi‑threshold is active)
 
-## API Endpoints
+## Roadmap — Next Milestones
 
-- `GET /api/files`
-- `GET /api/folders`
-- `GET /api/datasets?file=...`
-- `GET /api/metadata?file=...&dataset=...`
-- `GET /api/frame?file=...&dataset=...&index=...`
-- `GET /api/preview?file=...&dataset=...&index=...`
-- `GET /api/mask?file=...`
-- `GET /api/autoload/latest?folder=...&pattern=...&exts=...`
-- `GET /api/image?file=...`
-- `GET /api/simplon/monitor?url=...`
-- `GET /api/simplon/mask?url=...`
-- `POST /api/simplon/mode?url=...&mode=enabled|disabled`
-- `GET /api/choose-folder`
-- `POST /api/upload`
+1. Resolution rings.
+2. Spot finding.
+3. Config file.
+4. Metadata browser.
+5. Detector control and status.
+6. Installer for non‑Python users.
 
 ## Notes
-
-- Dataset `/entry/data/data` is auto‑preferred if present.
-- External links in master files are supported if targets are inside the data directory.
-- `hdf5plugin` is loaded to support compressed datasets.
-- The main viewer and tools sidebar scroll independently.
 - WebGL texture size limits may apply for very large frames.
-
-## Next Milestones
-
-1. Export to TIFF/PNG with metadata sidecar, batch export.
-2. WebGL tiling for >16 MP frames.
-3. Peak finder / spot tracking utilities.

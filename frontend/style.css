@@ -279,14 +279,14 @@ body {
 }
 
 .toolbar-path {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 12px;
   color: #e8f3ff;
   padding: 2px 8px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 2px;
   border: 1px solid rgba(0, 0, 0, 0.4);
-  max-width: calc(100% - var(--panel-width, 28px) - 200px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -294,11 +294,9 @@ body {
 
 .toolbar-right {
   display: flex;
-  position: absolute;
-  top: 4px;
-  right: 10px;
   gap: 6px;
   align-items: center;
+  margin-left: auto;
 }
 
 .backend-badge {

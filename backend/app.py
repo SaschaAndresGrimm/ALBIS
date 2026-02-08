@@ -32,7 +32,9 @@ DATA_DIR = Path(os.environ.get("VIEWER_DATA_DIR", "")).expanduser()
 if not DATA_DIR:
     DATA_DIR = Path(__file__).resolve().parents[1]
 
-app = FastAPI(title="ALBIS — ALBIS WEB VIEW")
+ALBIS_VERSION = "0.1"
+
+app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
 AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf"}
 ALLOW_ABS_PATHS = os.environ.get("VIEWER_ALLOW_ABS", "1").lower() in {"1", "true", "yes", "on"}
@@ -615,7 +617,7 @@ def _resolve_dataset(
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "version": ALBIS_VERSION}
 
 
 @app.post("/api/client-log")
