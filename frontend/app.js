@@ -179,6 +179,8 @@ const state = {
   colormap: "albulaHdr",
   invert: false,
   zoom: 1,
+  renderOffsetX: 0,
+  renderOffsetY: 0,
   dataRaw: null,
   dataFloat: null,
   histogram: null,
@@ -369,8 +371,10 @@ function getImagePointFromEvent(event) {
   const y = event.clientY - rect.top;
   if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
   const zoom = state.zoom || 1;
-  const imgX = (canvasWrap.scrollLeft + x) / zoom;
-  const imgY = (canvasWrap.scrollTop + y) / zoom;
+  const offsetX = state.renderOffsetX || 0;
+  const offsetY = state.renderOffsetY || 0;
+  const imgX = (canvasWrap.scrollLeft + x - offsetX) / zoom;
+  const imgY = (canvasWrap.scrollTop + y - offsetY) / zoom;
   const ix = Math.max(0, Math.min(state.width - 1, Math.round(imgX)));
   const iy = Math.max(0, Math.min(state.height - 1, Math.round(imgY)));
   return { x: ix, y: iy };
@@ -529,8 +533,10 @@ function updateCursorOverlay(event) {
     return;
   }
   const zoom = state.zoom || 1;
-  const imgX = (canvasWrap.scrollLeft + x) / zoom;
-  const imgY = (canvasWrap.scrollTop + y) / zoom;
+  const offsetX = state.renderOffsetX || 0;
+  const offsetY = state.renderOffsetY || 0;
+  const imgX = (canvasWrap.scrollLeft + x - offsetX) / zoom;
+  const imgY = (canvasWrap.scrollTop + y - offsetY) / zoom;
   const ix = Math.floor(imgX);
   const iy = Math.floor(imgY);
   if (ix < 0 || iy < 0 || ix >= state.width || iy >= state.height) {
@@ -565,6 +571,8 @@ function drawPixelOverlay() {
   if (!state.hasFrame || !state.dataRaw || !state.pixelLabels) return;
   const zoom = state.zoom || 1;
   if (zoom < PIXEL_LABEL_MIN_ZOOM) return;
+  const offsetX = state.renderOffsetX || 0;
+  const offsetY = state.renderOffsetY || 0;
 
   const viewX = canvasWrap.scrollLeft / zoom;
   const viewY = canvasWrap.scrollTop / zoom;
@@ -594,10 +602,10 @@ function drawPixelOverlay() {
 
   for (let y = startY; y < endY; y += 1) {
     const rowOffset = y * state.width;
-    const screenY = (y - viewY) * zoom + zoom / 2;
+    const screenY = (y - viewY) * zoom + zoom / 2 + offsetY;
     for (let x = startX; x < endX; x += 1) {
       const value = state.dataRaw[rowOffset + x];
-      const screenX = (x - viewX) * zoom + zoom / 2;
+      const screenX = (x - viewX) * zoom + zoom / 2 + offsetX;
       pixelCtx.fillText(formatValue(value), screenX, screenY);
     }
   }
@@ -621,12 +629,14 @@ function drawRoiOverlay() {
   roiCtx.clearRect(0, 0, width, height);
   if (!roiState.active || roiState.mode === "none" || !roiState.start || !roiState.end) return;
   const zoom = state.zoom || 1;
+  const offsetX = state.renderOffsetX || 0;
+  const offsetY = state.renderOffsetY || 0;
   const viewX = canvasWrap.scrollLeft / zoom;
   const viewY = canvasWrap.scrollTop / zoom;
-  const x0 = (roiState.start.x - viewX) * zoom;
-  const y0 = (roiState.start.y - viewY) * zoom;
-  const x1 = (roiState.end.x - viewX) * zoom;
-  const y1 = (roiState.end.y - viewY) * zoom;
+  const x0 = (roiState.start.x - viewX) * zoom + offsetX;
+  const y0 = (roiState.start.y - viewY) * zoom + offsetY;
+  const x1 = (roiState.end.x - viewX) * zoom + offsetX;
+  const y1 = (roiState.end.y - viewY) * zoom + offsetY;
 
   roiCtx.save();
   roiCtx.lineWidth = 2;
@@ -1010,7 +1020,13 @@ function setZoom(value) {
   const minZoom = getMinZoom();
   const clamped = Math.max(minZoom, Math.min(MAX_ZOOM, Number(value)));
   state.zoom = clamped;
-  canvas.style.transform = `scale(${clamped})`;
+  const offsetX =
+    canvasWrap && state.width
+      ? Math.max(0, (canvasWrap.clientWidth - state.width * clamped) / 2)
+      : 0;
+  state.renderOffsetX = Number.isFinite(offsetX) ? offsetX : 0;
+  state.renderOffsetY = 0;
+  canvas.style.transform = `translate(${state.renderOffsetX}px, ${state.renderOffsetY}px) scale(${clamped})`;
   if (zoomRange) {
     zoomRange.min = String(minZoom);
     zoomRange.value = String(clamped);
@@ -1031,13 +1047,17 @@ function zoomAt(clientX, clientY, nextZoom) {
   const x = clientX - rect.left;
   const y = clientY - rect.top;
   const prevZoom = state.zoom || 1;
-  const worldX = (canvasWrap.scrollLeft + x) / prevZoom;
-  const worldY = (canvasWrap.scrollTop + y) / prevZoom;
+  const prevOffsetX = state.renderOffsetX || 0;
+  const prevOffsetY = state.renderOffsetY || 0;
+  const worldX = (canvasWrap.scrollLeft + x - prevOffsetX) / prevZoom;
+  const worldY = (canvasWrap.scrollTop + y - prevOffsetY) / prevZoom;
 
   setZoom(nextZoom);
 
-  const newScrollLeft = worldX * state.zoom - x;
-  const newScrollTop = worldY * state.zoom - y;
+  const newOffsetX = state.renderOffsetX || 0;
+  const newOffsetY = state.renderOffsetY || 0;
+  const newScrollLeft = worldX * state.zoom - x + newOffsetX;
+  const newScrollTop = worldY * state.zoom - y + newOffsetY;
   const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
   const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
   canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft));
