@@ -748,6 +748,58 @@ def choose_folder() -> Response:
     return JSONResponse({"path": path})
 
 
+@app.get("/api/choose-file")
+def choose_file() -> Response:
+    if not ALLOW_ABS_PATHS:
+        raise HTTPException(status_code=403, detail="Absolute paths are disabled")
+    system = platform.system()
+    logger.debug("File picker requested (os=%s)", system)
+    if system == "Darwin":
+        script = 'POSIX path of (choose file with prompt "Select HDF5 file")'
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            stderr = (exc.stderr or "").lower()
+            if "user canceled" in stderr:
+                return Response(status_code=204)
+            raise HTTPException(status_code=500, detail="File picker failed") from exc
+        path = result.stdout.strip()
+        if not path:
+            return Response(status_code=204)
+    else:
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail="File picker unavailable") from exc
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        try:
+            path = filedialog.askopenfilename(
+                title="Select HDF5 file",
+                filetypes=[("HDF5 files", "*.h5 *.hdf5"), ("All files", "*.*")],
+            )
+        finally:
+            root.destroy()
+
+        if not path:
+            return Response(status_code=204)
+    picked = Path(path).expanduser().resolve()
+    if picked.suffix.lower() not in {".h5", ".hdf5"}:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    if not picked.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    logger.info("File picker selected: %s", picked)
+    return JSONResponse({"path": str(picked)})
+
+
 @app.get("/api/autoload/latest")
 def autoload_latest(
     folder: str | None = Query(None),

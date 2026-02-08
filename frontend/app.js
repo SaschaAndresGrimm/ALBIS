@@ -222,6 +222,7 @@ const state = {
     lastUpdate: 0,
     lastPoll: 0,
     lastMonitorSig: "",
+    lastMaskAttempt: 0,
   },
 };
 
@@ -390,6 +391,32 @@ function normalizeMaskData(data) {
   return out;
 }
 
+function alignMaskToFrame() {
+  if (
+    !state.maskRaw ||
+    !Array.isArray(state.maskShape) ||
+    state.maskShape.length !== 2 ||
+    !state.width ||
+    !state.height
+  ) {
+    return;
+  }
+  const [maskH, maskW] = state.maskShape;
+  if (maskH === state.height && maskW === state.width) {
+    return;
+  }
+  if (maskH === state.width && maskW === state.height) {
+    const transposed = new Uint32Array(state.width * state.height);
+    for (let y = 0; y < state.height; y += 1) {
+      for (let x = 0; x < state.width; x += 1) {
+        transposed[y * state.width + x] = state.maskRaw[x * state.height + y];
+      }
+    }
+    state.maskRaw = transposed;
+    state.maskShape = [state.height, state.width];
+  }
+}
+
 function updateMaskUI() {
   if (!maskToggle) return;
   maskToggle.disabled = !state.maskAvailable;
@@ -456,6 +483,7 @@ async function loadMask(forceEnable = false) {
     state.maskRaw = normalizeMaskData(data);
     state.maskShape = shape;
     state.maskPath = res.headers.get("X-Mask-Path") || "";
+    alignMaskToFrame();
     syncMaskAvailability(forceEnable);
     if (state.hasFrame) {
       updateGlobalStats();
@@ -1526,8 +1554,45 @@ function cancelClose() {
   window.clearTimeout(closeTimer);
 }
 
-function openFileModal() {
+function dirnameFromPath(path) {
+  if (!path) return "";
+  const normalized = path.replace(/\\/g, "/");
+  const idx = normalized.lastIndexOf("/");
+  if (idx <= 0) {
+    return normalized.startsWith("/") ? "/" : "";
+  }
+  return normalized.slice(0, idx);
+}
+
+async function openFileModal() {
   closeMenu();
+  await ensureFileMode();
+  try {
+    const res = await fetch(`${API}/choose-file`);
+    if (res.status === 204) return;
+    if (!res.ok) {
+      throw new Error(`Picker failed: ${res.status}`);
+    }
+    const data = await res.json();
+    const path = data?.path;
+    if (!path) return;
+    const folder = dirnameFromPath(path);
+    if (autoloadDir) autoloadDir.value = folder;
+    state.autoload.dir = folder;
+    state.file = path;
+    await loadFiles();
+    if (fileSelect) {
+      const existing = Array.from(fileSelect.options).some((opt) => opt.value === path);
+      if (!existing) {
+        fileSelect.appendChild(option(fileLabel(path), path));
+      }
+      fileSelect.value = path;
+    }
+    await loadDatasets();
+    return;
+  } catch (err) {
+    console.error(err);
+  }
   fileInput?.click();
 }
 
@@ -1815,8 +1880,9 @@ async function startAutoload() {
   setAutoloadStatus(`Running (${state.autoload.mode === "watch" ? "Watch folder" : "SIMPLON monitor"})`);
   persistAutoloadSettings();
   if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
-    await fetchSimplonMask();
     await setSimplonMode(true);
+    state.autoload.lastMaskAttempt = Date.now();
+    await fetchSimplonMask();
   }
   updateLiveBadge();
   autoloadTick();
@@ -1841,6 +1907,12 @@ async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
   setAutoloadStatus(state.autoload.mode === "file" ? "Idle" : "Stopped");
   updateLiveBadge();
   persistAutoloadSettings();
+}
+
+async function ensureFileMode() {
+  if (state.autoload.running || state.autoload.mode !== "file") {
+    await stopAutoload({ keepMode: false, disableMonitor: true });
+  }
 }
 
 async function autoloadTick() {
@@ -1911,6 +1983,14 @@ async function autoloadSimplonTick() {
   if (!baseUrl) {
     setAutoloadStatus("SIMPLON: set base URL");
     return;
+  }
+  if (!state.maskAvailable) {
+    const now = Date.now();
+    const lastAttempt = state.autoload.lastMaskAttempt || 0;
+    if (now - lastAttempt > 5000) {
+      state.autoload.lastMaskAttempt = now;
+      await fetchSimplonMask();
+    }
   }
   const version = state.autoload.simplonVersion || "1.8.0";
   const timeout = state.autoload.simplonTimeout || 500;
@@ -2046,6 +2126,7 @@ async function fetchSimplonMask() {
     state.maskShape = shape;
     state.maskAuto = true;
     state.maskFile = "__simplon__";
+    alignMaskToFrame();
     syncMaskAvailability(true);
     if (state.hasFrame) {
       updateGlobalStats();
@@ -4126,6 +4207,7 @@ function applyFrame(data, width, height, dtype) {
   }
 
   metaRange.textContent = `${formatValue(state.stats.min)} → ${formatValue(state.stats.max)}`;
+  alignMaskToFrame();
   syncMaskAvailability(false);
   redraw();
   if (!state.hasFrame) {
@@ -4295,6 +4377,7 @@ if (fileInput) {
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
+    await ensureFileMode();
     const uploadFolder = (autoloadDir?.value || state.autoload.dir || "").trim();
     setLoading(true);
     setStatus("Checking for existing file…");
@@ -4362,6 +4445,7 @@ if (aboutClose) {
   });
 }
 fileSelect.addEventListener("change", async (event) => {
+  await ensureFileMode();
   state.file = event.target.value;
   if (!state.file) return;
   stopPlayback();
