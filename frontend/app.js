@@ -2,6 +2,10 @@ const fileSelect = document.getElementById("file-select");
 const datasetSelect = document.getElementById("dataset-select");
 const fileField = document.getElementById("file-field");
 const datasetField = document.getElementById("dataset-field");
+const thresholdField = document.getElementById("threshold-field");
+const thresholdSelect = document.getElementById("threshold-select");
+const toolbarThresholdWrap = document.getElementById("toolbar-threshold-wrap");
+const toolbarThresholdSelect = document.getElementById("toolbar-threshold");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
@@ -169,6 +173,9 @@ const state = {
   dtype: "",
   frameCount: 1,
   frameIndex: 0,
+  thresholdCount: 1,
+  thresholdIndex: 0,
+  thresholdEnergies: [],
   isLoading: false,
   pendingFrame: null,
   playing: false,
@@ -354,6 +361,15 @@ function formatStat(value) {
   return value.toFixed(3);
 }
 
+function formatEnergy(value) {
+  if (!Number.isFinite(value)) return "";
+  const rounded = Math.round(value);
+  if (Math.abs(value - rounded) < 0.05) {
+    return String(rounded);
+  }
+  return value.toFixed(1);
+}
+
 function syncOverlayCanvas(overlay, ctx) {
   if (!overlay || !ctx || !canvasWrap) return null;
   const width = canvasWrap.clientWidth || 1;
@@ -461,11 +477,13 @@ async function loadMask(forceEnable = false) {
     clearMaskState();
     return;
   }
-  if (state.maskFile === state.file && state.maskRaw) {
+  const maskKey =
+    state.thresholdCount > 1 ? `${state.file}#${state.thresholdIndex}` : state.file;
+  if (state.maskFile === maskKey && state.maskRaw) {
     syncMaskAvailability(forceEnable);
     return;
   }
-  state.maskFile = state.file;
+  state.maskFile = maskKey;
   state.maskRaw = null;
   state.maskShape = null;
   state.maskAvailable = false;
@@ -474,7 +492,9 @@ async function loadMask(forceEnable = false) {
   }
   updateMaskUI();
   try {
-    const res = await fetch(`${API}/mask?file=${encodeURIComponent(state.file)}`);
+    const thresholdParam =
+      state.thresholdCount > 1 ? `&threshold=${state.thresholdIndex}` : "";
+    const res = await fetch(`${API}/mask?file=${encodeURIComponent(state.file)}${thresholdParam}`);
     if (!res.ok) {
       state.maskEnabled = false;
       updateMaskUI();
@@ -1426,6 +1446,52 @@ function updateFpsLabel() {
   }
 }
 
+function updateThresholdOptions() {
+  if (!thresholdSelect || !thresholdField) return;
+  const count = Math.max(1, state.thresholdCount || 1);
+  const show = count > 1 && state.autoload.mode !== "simplon";
+  thresholdField.classList.toggle("is-hidden", !show);
+  if (toolbarThresholdWrap) {
+    toolbarThresholdWrap.classList.toggle("is-hidden", !show);
+  }
+  thresholdSelect.innerHTML = "";
+  if (toolbarThresholdSelect) {
+    toolbarThresholdSelect.innerHTML = "";
+  }
+  const energies = Array.isArray(state.thresholdEnergies) ? state.thresholdEnergies : [];
+  for (let i = 0; i < count; i += 1) {
+    const energy = energies[i];
+    const energyText = Number.isFinite(energy) ? ` ${formatEnergy(energy)} eV` : "";
+    const label = `Thr${i + 1}${energyText}`;
+    thresholdSelect.appendChild(option(label, String(i)));
+    if (toolbarThresholdSelect) {
+      toolbarThresholdSelect.appendChild(option(label, String(i)));
+    }
+  }
+  const idx = Math.max(0, Math.min(count - 1, state.thresholdIndex || 0));
+  state.thresholdIndex = idx;
+  thresholdSelect.value = String(idx);
+  if (toolbarThresholdSelect) {
+    toolbarThresholdSelect.value = String(idx);
+  }
+  thresholdSelect.disabled = count <= 1;
+  if (toolbarThresholdSelect) {
+    toolbarThresholdSelect.disabled = count <= 1;
+  }
+}
+
+async function setThresholdIndex(nextIndex) {
+  const count = Math.max(1, state.thresholdCount || 1);
+  const clamped = Math.max(0, Math.min(count - 1, Math.round(nextIndex)));
+  if (clamped === state.thresholdIndex) return;
+  state.thresholdIndex = clamped;
+  if (thresholdSelect) thresholdSelect.value = String(clamped);
+  if (toolbarThresholdSelect) toolbarThresholdSelect.value = String(clamped);
+  state.maskFile = "";
+  await loadMask(true);
+  requestFrame(state.frameIndex);
+}
+
 function setFps(value) {
   const clamped = Math.max(1, Math.min(10, Math.round(value)));
   state.fps = clamped;
@@ -1964,6 +2030,7 @@ function setPanelTab(tabId, persist = true) {
 
 function setDataControlsForHdf5() {
   if (datasetSelect) datasetSelect.disabled = false;
+  if (thresholdSelect) thresholdSelect.disabled = false;
   if (frameRange) frameRange.disabled = false;
   if (frameIndex) frameIndex.disabled = false;
   if (frameStep) frameStep.disabled = false;
@@ -1972,6 +2039,7 @@ function setDataControlsForHdf5() {
 
 function setDataControlsForImage() {
   if (datasetSelect) datasetSelect.disabled = true;
+  if (thresholdSelect) thresholdSelect.disabled = true;
   if (frameRange) frameRange.disabled = true;
   if (frameIndex) frameIndex.disabled = true;
   if (frameStep) frameStep.disabled = true;
@@ -2053,6 +2121,7 @@ function updateAutoloadUI() {
   if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
   if (fileField) fileField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   if (datasetField) datasetField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
+  if (thresholdField) thresholdField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   if (frameRange) frameRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (frameStep) frameStep.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (fpsRange) fpsRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
@@ -2062,6 +2131,7 @@ function updateAutoloadUI() {
   }
   updateAutoloadMeta();
   updateLiveBadge();
+  updateThresholdOptions();
 }
 
 async function loadAutoloadFolders() {
@@ -2381,7 +2451,11 @@ function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = f
   state.dataset = "";
   state.frameCount = 1;
   state.frameIndex = 0;
+  state.thresholdCount = 1;
+  state.thresholdIndex = 0;
+  state.thresholdEnergies = [];
   updateFrameControls();
+  updateThresholdOptions();
   datasetSelect.innerHTML = "";
   datasetSelect.appendChild(option("Single image", ""));
   datasetSelect.value = "";
@@ -2713,6 +2787,14 @@ function handleNavShortcut(event) {
     return true;
   }
   if (isFormElement(event.target)) return false;
+  const hasThresholds = state.thresholdCount > 1 && state.autoload.mode !== "simplon";
+  if (hasThresholds && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+    event.preventDefault();
+    stopPlayback();
+    const delta = event.key === "ArrowUp" ? -1 : 1;
+    void setThresholdIndex(state.thresholdIndex + delta);
+    return true;
+  }
   switch (event.key) {
     case "ArrowLeft":
       event.preventDefault();
@@ -3200,12 +3282,23 @@ async function loadMetadata() {
     );
     state.shape = data.shape;
     state.dtype = data.dtype;
-    state.frameCount = data.shape.length === 3 ? data.shape[0] : 1;
+    if (data.shape.length === 4) {
+      state.frameCount = data.shape[0];
+      state.thresholdCount = data.shape[1];
+      state.thresholdEnergies = Array.isArray(data.threshold_energies) ? data.threshold_energies : [];
+    } else {
+      state.frameCount = data.shape.length === 3 ? data.shape[0] : 1;
+      state.thresholdCount = 1;
+      state.thresholdEnergies = [];
+    }
+    state.thresholdIndex = Math.max(0, Math.min(state.thresholdIndex, state.thresholdCount - 1));
     state.frameIndex = 0;
     updateFrameControls();
+    updateThresholdOptions();
     metaShape.textContent = data.shape.join(" × ");
     metaDtype.textContent = data.dtype;
     updateToolbar();
+    await loadMask(true);
     await loadFrame();
   } finally {
     hideProcessingProgress();
@@ -4450,6 +4543,9 @@ function closeCurrentFile() {
   state.dtype = "";
   state.frameCount = 1;
   state.frameIndex = 0;
+  state.thresholdCount = 1;
+  state.thresholdIndex = 0;
+  state.thresholdEnergies = [];
   state.dataRaw = null;
   state.dataFloat = null;
   state.histogram = null;
@@ -4467,6 +4563,7 @@ function closeCurrentFile() {
   fileSelect.selectedIndex = 0;
   datasetSelect.innerHTML = "";
   updateFrameControls();
+  updateThresholdOptions();
   minInput.value = "";
   maxInput.value = "";
   metaShape.textContent = "-";
@@ -4581,7 +4678,9 @@ async function loadFrame() {
   }
   const url = `${API}/frame?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(
     state.dataset
-  )}&index=${state.frameIndex}`;
+  )}&index=${state.frameIndex}${
+    state.thresholdCount > 1 ? `&threshold=${state.thresholdIndex}` : ""
+  }`;
   const res = await fetch(url);
   if (!res.ok) {
     setStatus("Failed to load frame");
@@ -4752,6 +4851,16 @@ datasetSelect.addEventListener("change", async (event) => {
   state.dataset = event.target.value;
   stopPlayback();
   await loadMetadata();
+});
+
+thresholdSelect?.addEventListener("change", async (event) => {
+  const value = Math.max(0, Number(event.target.value || 0));
+  await setThresholdIndex(value);
+});
+
+toolbarThresholdSelect?.addEventListener("change", async (event) => {
+  const value = Math.max(0, Number(event.target.value || 0));
+  await setThresholdIndex(value);
 });
 
 frameRange.addEventListener("input", async (event) => {

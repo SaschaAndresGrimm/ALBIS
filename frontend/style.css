@@ -234,6 +234,31 @@ body {
   gap: 6px;
 }
 
+.toolbar-threshold {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.toolbar-threshold.is-hidden {
+  display: none;
+}
+
+.toolbar-threshold select {
+  background: #0f0f0f;
+  color: #e6e6e6;
+  border: 1px solid #0a0a0a;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  min-width: 56px;
+}
+
+.toolbar-threshold select:disabled {
+  opacity: 0.6;
+}
+
 .tool-btn {
   background: linear-gradient(to bottom, #3a3a3a, #1c1c1c);
   color: #f5f5f5;

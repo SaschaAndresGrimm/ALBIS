@@ -457,7 +457,7 @@ def _dataset_info(name: str, obj: Any) -> dict[str, Any] | None:
 
 
 def _is_image_dataset(info: dict[str, Any]) -> bool:
-    if info["ndim"] not in (2, 3):
+    if info["ndim"] not in (2, 3, 4):
         return False
     dtype = info["dtype"]
     return any(token in dtype for token in ("int", "uint", "float"))
@@ -473,13 +473,36 @@ MASK_PATHS = (
 )
 
 
-def _find_pixel_mask(h5: h5py.File) -> h5py.Dataset | None:
+def _find_pixel_mask(h5: h5py.File, threshold: int | None = None) -> h5py.Dataset | None:
+    if threshold is not None:
+        key = f"/entry/instrument/detector/threshold_{threshold + 1}_channel/pixel_mask"
+        if key in h5:
+            obj = h5[key]
+            if isinstance(obj, h5py.Dataset) and obj.ndim == 2:
+                return obj
     for path in MASK_PATHS:
         if path in h5:
             obj = h5[path]
             if isinstance(obj, h5py.Dataset) and obj.ndim == 2:
                 return obj
     return None
+
+
+def _read_threshold_energies(h5: h5py.File, count: int) -> list[float | None]:
+    energies: list[float | None] = []
+    for idx in range(count):
+        energy = None
+        key = f"/entry/instrument/detector/threshold_{idx + 1}_channel/threshold_energy"
+        if key in h5:
+            try:
+                data = h5[key][()]
+                arr = np.asarray(data)
+                if arr.size:
+                    energy = float(arr.reshape(-1)[0])
+            except Exception:
+                energy = None
+        energies.append(energy)
+    return energies
 
 
 def _walk_datasets(
@@ -977,7 +1000,7 @@ def metadata(file: str = Query(..., min_length=1), dataset: str = Query(..., min
             dset, extra_files = _resolve_dataset(h5, path, dataset)
             try:
                 shape = tuple(int(x) for x in dset.shape)
-                return {
+                response = {
                     "path": dataset,
                     "shape": shape,
                     "dtype": str(dset.dtype),
@@ -985,6 +1008,9 @@ def metadata(file: str = Query(..., min_length=1), dataset: str = Query(..., min
                     "chunks": dset.chunks,
                     "maxshape": dset.maxshape,
                 }
+                if dset.ndim == 4:
+                    response["threshold_energies"] = _read_threshold_energies(h5, shape[1])
+                return response
             finally:
                 for handle in extra_files:
                     handle.close()
@@ -997,6 +1023,7 @@ def frame(
     file: str = Query(..., min_length=1),
     dataset: str = Query(..., min_length=1),
     index: int = Query(0, ge=0),
+    threshold: int = Query(0, ge=0),
 ) -> Response:
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
@@ -1005,14 +1032,20 @@ def frame(
         except KeyError:
             raise HTTPException(status_code=404, detail="Dataset not found")
         try:
-            if dset.ndim == 3:
+            if dset.ndim == 4:
+                if index >= dset.shape[0]:
+                    raise HTTPException(status_code=416, detail="Frame index out of range")
+                if threshold >= dset.shape[1]:
+                    raise HTTPException(status_code=416, detail="Threshold index out of range")
+                frame_data = dset[index, threshold, :, :]
+            elif dset.ndim == 3:
                 if index >= dset.shape[0]:
                     raise HTTPException(status_code=416, detail="Frame index out of range")
                 frame_data = dset[index, :, :]
             elif dset.ndim == 2:
                 frame_data = dset[:, :]
             else:
-                raise HTTPException(status_code=400, detail="Dataset is not 2D or 3D")
+                raise HTTPException(status_code=400, detail="Dataset is not 2D, 3D, or 4D")
         finally:
             for handle in extra_files:
                 handle.close()
@@ -1036,6 +1069,7 @@ def preview(
     dataset: str = Query(..., min_length=1),
     index: int = Query(0, ge=0),
     max_size: int = Query(1024, ge=64, le=4096),
+    threshold: int = Query(0, ge=0),
 ) -> Response:
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
@@ -1044,14 +1078,20 @@ def preview(
         except KeyError:
             raise HTTPException(status_code=404, detail="Dataset not found")
         try:
-            if dset.ndim == 3:
+            if dset.ndim == 4:
+                if index >= dset.shape[0]:
+                    raise HTTPException(status_code=416, detail="Frame index out of range")
+                if threshold >= dset.shape[1]:
+                    raise HTTPException(status_code=416, detail="Threshold index out of range")
+                frame_data = dset[index, threshold, :, :]
+            elif dset.ndim == 3:
                 if index >= dset.shape[0]:
                     raise HTTPException(status_code=416, detail="Frame index out of range")
                 frame_data = dset[index, :, :]
             elif dset.ndim == 2:
                 frame_data = dset[:, :]
             else:
-                raise HTTPException(status_code=400, detail="Dataset is not 2D or 3D")
+                raise HTTPException(status_code=400, detail="Dataset is not 2D, 3D, or 4D")
         finally:
             for handle in extra_files:
                 handle.close()
@@ -1077,10 +1117,13 @@ def preview(
 
 
 @app.get("/api/mask")
-def mask(file: str = Query(..., min_length=1)) -> Response:
+def mask(
+    file: str = Query(..., min_length=1),
+    threshold: int | None = Query(None, ge=0),
+) -> Response:
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
-        dset = _find_pixel_mask(h5)
+        dset = _find_pixel_mask(h5, threshold=threshold)
         if not dset:
             raise HTTPException(status_code=404, detail="Pixel mask not found")
         if dset.ndim != 2:
