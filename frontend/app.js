@@ -537,8 +537,7 @@ function updateCursorOverlay(event) {
     hideCursorOverlay();
     return;
   }
-  const dataY = renderer?.type === "webgl" ? state.height - 1 - iy : iy;
-  const idx = dataY * state.width + ix;
+  const idx = iy * state.width + ix;
   const value = state.dataRaw[idx];
   const label = `X ${ix}  Y ${iy}  Value ${formatValue(value)}`;
   showCursorOverlay(label, event.clientX, event.clientY);
@@ -594,8 +593,7 @@ function drawPixelOverlay() {
   pixelCtx.shadowBlur = 2;
 
   for (let y = startY; y < endY; y += 1) {
-    const dataY = renderer?.type === "webgl" ? state.height - 1 - y : y;
-    const rowOffset = dataY * state.width;
+    const rowOffset = y * state.width;
     const screenY = (y - viewY) * zoom + zoom / 2;
     for (let x = startX; x < endX; x += 1) {
       const value = state.dataRaw[rowOffset + x];
@@ -2057,8 +2055,7 @@ function renderRegionToCanvas(region) {
 
   for (let row = 0; row < height; row += 1) {
     const imgY = y + row;
-    const dataY = renderer?.type === "webgl" ? state.height - 1 - imgY : imgY;
-    const rowOffset = dataY * state.width;
+    const rowOffset = imgY * state.width;
     const outOffset = row * width * 4;
     for (let col = 0; col < width; col += 1) {
       const imgX = x + col;
@@ -2572,6 +2569,7 @@ function createWebGLRenderer() {
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, dataTex);
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, width, height, 0, gl.RED, gl.FLOAT, floatData);
       gl.uniform1i(uniforms.data, 0);
 
@@ -3485,8 +3483,7 @@ function applyMaskToValue(value, maskValue) {
 
 function sampleValue(ix, iy) {
   if (!state.dataRaw) return null;
-  const dataY = renderer?.type === "webgl" ? state.height - 1 - iy : iy;
-  const idx = dataY * state.width + ix;
+  const idx = iy * state.width + ix;
   const raw = state.dataRaw[idx];
   if (
     state.maskEnabled &&
