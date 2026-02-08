@@ -33,7 +33,7 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-Open `http://localhost:<port>` (ALBIS).
+Open `http://localhost:8000` (ALBIS).
 
 To allow LAN access:
 
@@ -41,7 +41,7 @@ To allow LAN access:
 ALBIS_HOST=0.0.0.0 python backend/app.py
 ```
 
-Then use `http://<your-ip>:<8000>` from another device.
+Then use `http://<your-ip>:8000` from another device.
 
 ## Data Location
 
@@ -66,12 +66,6 @@ ALBIS_SCAN_CACHE_SEC=2
 
 # limit recursive scan depth (-1 = unlimited)
 ALBIS_MAX_SCAN_DEPTH=3
-```
-
-To limit upload size (in MB):
-
-```bash
-ALBIS_MAX_UPLOAD_MB=2048
 ```
 
 ## Logging
@@ -140,9 +134,9 @@ ALBIS_DATA_DIR=/path/to/data ./dist/ALBIS/ALBIS
 1. Resolution rings.
 2. Spot finding.
 3. Config file.
-4. Metadata browser.
-5. Detector control and status.
-6. Installer for non‑Python users.
+4. Detector control and status.
+5. Installer for non‑Python users.
+6. Make it mobile friendly
 
 ## Notes
 - WebGL texture size limits may apply for very large frames.

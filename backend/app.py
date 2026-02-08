@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import math
 import fnmatch
 import io
 import json
@@ -518,6 +519,51 @@ def _collect_h5_attrs(obj: Any) -> list[dict[str, Any]]:
     except Exception:
         return []
     return attrs
+
+
+def _array_preview_to_list(arr: np.ndarray) -> Any:
+    if arr.ndim == 0:
+        return _serialize_h5_value(arr.item())
+    if arr.ndim == 1:
+        return [_serialize_h5_value(v) for v in arr.tolist()]
+    if arr.ndim == 2:
+        return [[_serialize_h5_value(v) for v in row] for row in arr.tolist()]
+    return _serialize_h5_value(arr)
+
+
+def _dataset_value_preview(
+    dset: h5py.Dataset,
+    max_cells: int = 2048,
+    max_rows: int = 128,
+    max_cols: int = 128,
+) -> tuple[Any | None, tuple[int, ...] | None, bool, dict[str, Any] | None]:
+    shape = tuple(int(x) for x in dset.shape) if dset.shape else ()
+    total = int(np.prod(shape)) if shape else 1
+    if total <= 0:
+        return None, None, False, None
+    try:
+        if dset.ndim == 0:
+            value = np.asarray(dset[()])
+            return _array_preview_to_list(value), shape, False, None
+        if dset.ndim == 1:
+            count = max(1, min(shape[0], max_cells))
+            data = np.asarray(dset[:count])
+            truncated = count < shape[0]
+            return _array_preview_to_list(data), (count,), truncated, None
+        rows = max(1, min(shape[-2], max_rows))
+        cols = max(1, min(shape[-1], max_cols))
+        if rows * cols > max_cells:
+            scale = math.sqrt(max_cells / max(rows * cols, 1))
+            rows = max(1, int(rows * scale))
+            cols = max(1, int(cols * scale))
+        lead = (0,) * max(0, dset.ndim - 2)
+        data = np.asarray(dset[lead + (slice(0, rows), slice(0, cols))])
+        preview_shape = tuple(int(x) for x in data.shape)
+        truncated = rows < shape[-2] or cols < shape[-1] or dset.ndim > 2
+        slice_info = {"lead": list(lead), "rows": rows, "cols": cols} if dset.ndim > 2 else None
+        return _array_preview_to_list(data), preview_shape, truncated, slice_info
+    except Exception:
+        return None, None, False, None
 
 
 def _find_pixel_mask(h5: h5py.File, threshold: int | None = None) -> h5py.Dataset | None:
@@ -1129,6 +1175,112 @@ def hdf5_node(file: str = Query(..., min_length=1), path: str = Query(..., min_l
                 "preview": preview,
             }
         raise HTTPException(status_code=400, detail="Unsupported node type")
+
+
+@app.get("/api/hdf5/value")
+def hdf5_value(
+    file: str = Query(..., min_length=1),
+    path: str = Query(..., min_length=1),
+    max_cells: int = Query(2048, ge=16, le=65536),
+) -> dict[str, Any]:
+    file_path = _resolve_file(file)
+    with h5py.File(file_path, "r") as h5:
+        if path not in h5:
+            raise HTTPException(status_code=404, detail="Path not found")
+        obj = h5[path]
+        if not isinstance(obj, h5py.Dataset):
+            raise HTTPException(status_code=400, detail="Not a dataset")
+        preview, preview_shape, truncated, slice_info = _dataset_value_preview(obj, max_cells=max_cells)
+        return {
+            "path": path,
+            "type": "dataset",
+            "shape": tuple(int(x) for x in obj.shape),
+            "dtype": str(obj.dtype),
+            "preview": preview,
+            "preview_shape": preview_shape,
+            "truncated": truncated,
+            "slice": slice_info,
+        }
+
+
+@app.get("/api/hdf5/search")
+def hdf5_search(
+    file: str = Query(..., min_length=1),
+    query: str = Query(..., min_length=1),
+    limit: int = Query(200, ge=1, le=1000),
+) -> dict[str, Any]:
+    needle = query.strip().lower()
+    if not needle:
+        return {"matches": []}
+    file_path = _resolve_file(file)
+    matches: list[dict[str, Any]] = []
+    with h5py.File(file_path, "r") as h5:
+        stack: list[tuple[str, h5py.Group]] = [("/", h5["/"])]
+        while stack and len(matches) < limit:
+            base_path, group = stack.pop()
+            try:
+                names = sorted(group.keys())
+            except Exception:
+                continue
+            for name in names:
+                child_path = f"{base_path}/{name}" if base_path != "/" else f"/{name}"
+                is_match = needle in name.lower() or needle in child_path.lower()
+                try:
+                    link = group.get(name, getlink=True)
+                except Exception:
+                    link = None
+                if isinstance(link, h5py.ExternalLink):
+                    if is_match:
+                        matches.append(
+                            {
+                                "name": name,
+                                "path": child_path,
+                                "type": "link",
+                                "link": "external",
+                                "target": f"{link.filename}:{link.path}",
+                            }
+                        )
+                    continue
+                if isinstance(link, h5py.SoftLink):
+                    if is_match:
+                        matches.append(
+                            {
+                                "name": name,
+                                "path": child_path,
+                                "type": "link",
+                                "link": "soft",
+                                "target": str(link.path),
+                            }
+                        )
+                    continue
+                try:
+                    child = group[name]
+                except Exception:
+                    continue
+                if isinstance(child, h5py.Group):
+                    if is_match:
+                        matches.append(
+                            {
+                                "name": name,
+                                "path": child_path,
+                                "type": "group",
+                                "hasChildren": len(child.keys()) > 0,
+                            }
+                        )
+                    stack.append((child_path, child))
+                elif isinstance(child, h5py.Dataset) and is_match:
+                    matches.append(
+                        {
+                            "name": name,
+                            "path": child_path,
+                            "type": "dataset",
+                            "shape": tuple(int(x) for x in child.shape),
+                            "dtype": str(child.dtype),
+                        }
+                    )
+                if len(matches) >= limit:
+                    break
+    return {"matches": matches}
 
 
 @app.get("/api/metadata")

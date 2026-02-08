@@ -81,6 +81,9 @@ const inspectorShape = document.getElementById("inspector-shape");
 const inspectorDtype = document.getElementById("inspector-dtype");
 const inspectorAttrs = document.getElementById("inspector-attrs");
 const inspectorPreview = document.getElementById("inspector-preview");
+const inspectorSearchInput = document.getElementById("inspector-search-input");
+const inspectorSearchClear = document.getElementById("inspector-search-clear");
+const inspectorResults = document.getElementById("inspector-results");
 const autoloadBrowse = document.getElementById("autoload-browse");
 const autoloadDirList = document.getElementById("autoload-dir-list");
 const autoloadPattern = document.getElementById("autoload-pattern");
@@ -406,7 +409,7 @@ function resetInspectorDetails() {
   if (inspectorShape) inspectorShape.textContent = "-";
   if (inspectorDtype) inspectorDtype.textContent = "-";
   if (inspectorAttrs) inspectorAttrs.innerHTML = "";
-  if (inspectorPreview) inspectorPreview.textContent = "";
+  if (inspectorPreview) inspectorPreview.innerHTML = "";
 }
 
 function setInspectorMessage(message) {
@@ -414,6 +417,205 @@ function setInspectorMessage(message) {
   inspectorSelectedRow = null;
   inspectorTree.innerHTML = `<div class="inspector-empty">${message}</div>`;
   resetInspectorDetails();
+  if (inspectorResults) {
+    inspectorResults.innerHTML = "";
+    inspectorResults.classList.add("is-hidden");
+  }
+}
+
+function clearInspectorSearch() {
+  if (inspectorSearchInput) inspectorSearchInput.value = "";
+  if (inspectorResults) {
+    inspectorResults.innerHTML = "";
+    inspectorResults.classList.add("is-hidden");
+  }
+}
+
+function renderInspectorResults(results, query) {
+  if (!inspectorResults) return;
+  if (!query) {
+    inspectorResults.innerHTML = "";
+    inspectorResults.classList.add("is-hidden");
+    return;
+  }
+  inspectorResults.classList.remove("is-hidden");
+  if (!Array.isArray(results) || results.length === 0) {
+    inspectorResults.innerHTML = `<div class="inspector-empty">No matches.</div>`;
+    return;
+  }
+  inspectorResults.innerHTML = "";
+  results.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "inspector-result";
+    row.dataset.path = item.path || "";
+    row.dataset.type = item.type || "";
+    if (item.type === "link" && item.target) {
+      row.dataset.target = item.target;
+    }
+    const name = document.createElement("span");
+    name.className = "inspector-result-name";
+    name.textContent = item.path || item.name || "";
+    const meta = document.createElement("span");
+    meta.className = "inspector-result-meta";
+    if (item.type === "dataset" && item.shape && item.dtype) {
+      meta.textContent = `${item.shape.join("×")} ${item.dtype}`;
+    } else if (item.type === "link" && item.target) {
+      meta.textContent = item.target;
+    } else {
+      meta.textContent = item.type || "";
+    }
+    row.appendChild(name);
+    row.appendChild(meta);
+    inspectorResults.appendChild(row);
+  });
+}
+
+async function runInspectorSearch(query) {
+  if (!isHdf5File(state.file)) {
+    renderInspectorResults([], query);
+    return;
+  }
+  if (!query) {
+    renderInspectorResults([], "");
+    return;
+  }
+  try {
+    const data = await fetchJSON(
+      `${API}/hdf5/search?file=${encodeURIComponent(state.file)}&query=${encodeURIComponent(query)}`
+    );
+    renderInspectorResults(data.matches || [], query);
+  } catch (err) {
+    console.error(err);
+    renderInspectorResults([], query);
+  }
+}
+
+function renderInspectorLink(path, target) {
+  if (inspectorPath) inspectorPath.textContent = path || "-";
+  if (inspectorType) inspectorType.textContent = "link";
+  if (inspectorShape) inspectorShape.textContent = "-";
+  if (inspectorDtype) inspectorDtype.textContent = "-";
+  if (inspectorAttrs) {
+    inspectorAttrs.innerHTML = "";
+    const attrRow = document.createElement("div");
+    attrRow.className = "inspector-attr-row";
+    const name = document.createElement("span");
+    name.textContent = "Target";
+    const value = document.createElement("span");
+    value.textContent = target || "-";
+    attrRow.appendChild(name);
+    attrRow.appendChild(value);
+    inspectorAttrs.appendChild(attrRow);
+  }
+  if (inspectorPreview) inspectorPreview.innerHTML = "";
+}
+
+function formatInspectorCell(value) {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "-";
+  }
+  return String(value);
+}
+
+function buildInspectorTable1D(values) {
+  const table = document.createElement("table");
+  table.className = "inspector-table";
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  ["Index", "Value"].forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headRow.appendChild(th);
+  });
+  head.appendChild(headRow);
+  table.appendChild(head);
+  const body = document.createElement("tbody");
+  values.forEach((value, idx) => {
+    const row = document.createElement("tr");
+    const indexCell = document.createElement("td");
+    indexCell.textContent = String(idx);
+    const valueCell = document.createElement("td");
+    valueCell.textContent = formatInspectorCell(value);
+    row.appendChild(indexCell);
+    row.appendChild(valueCell);
+    body.appendChild(row);
+  });
+  table.appendChild(body);
+  return table;
+}
+
+function buildInspectorTable2D(values) {
+  const table = document.createElement("table");
+  table.className = "inspector-table";
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const corner = document.createElement("th");
+  corner.textContent = "";
+  headRow.appendChild(corner);
+  const cols = values.length ? values[0].length : 0;
+  for (let c = 0; c < cols; c += 1) {
+    const th = document.createElement("th");
+    th.textContent = String(c);
+    headRow.appendChild(th);
+  }
+  head.appendChild(headRow);
+  table.appendChild(head);
+  const body = document.createElement("tbody");
+  values.forEach((rowValues, r) => {
+    const row = document.createElement("tr");
+    const indexCell = document.createElement("td");
+    indexCell.textContent = String(r);
+    row.appendChild(indexCell);
+    rowValues.forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = formatInspectorCell(value);
+      row.appendChild(cell);
+    });
+    body.appendChild(row);
+  });
+  table.appendChild(body);
+  return table;
+}
+
+function renderInspectorPreview(data) {
+  if (!inspectorPreview) return;
+  inspectorPreview.innerHTML = "";
+  if (!data || data.preview === null || data.preview === undefined) {
+    return;
+  }
+  const actions = document.createElement("div");
+  actions.className = "inspector-preview-actions";
+  const link = document.createElement("a");
+  link.href = `${API}/hdf5/value?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(
+    data.path || ""
+  )}&max_cells=65536`;
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.textContent = "Open in new tab";
+  actions.appendChild(link);
+  inspectorPreview.appendChild(actions);
+
+  const preview = data.preview;
+  if (Array.isArray(preview)) {
+    const table = Array.isArray(preview[0]) ? buildInspectorTable2D(preview) : buildInspectorTable1D(preview);
+    inspectorPreview.appendChild(table);
+  } else {
+    const text = document.createElement("div");
+    text.textContent = formatInspectorValue(preview);
+    inspectorPreview.appendChild(text);
+  }
+
+  if (data.preview_shape) {
+    const note = document.createElement("div");
+    note.className = "inspector-preview-note";
+    const shapeText = data.preview_shape.join("×");
+    note.textContent = `Preview ${shapeText}${data.truncated ? " (truncated)" : ""}`;
+    if (data.slice && Array.isArray(data.slice.lead) && data.slice.lead.length) {
+      note.textContent += ` • Slice [${data.slice.lead.join(", ")}]`;
+    }
+    inspectorPreview.appendChild(note);
+  }
 }
 
 function buildInspectorRow(node) {
@@ -490,6 +692,7 @@ async function fetchInspectorTree(path = "/") {
 
 async function loadInspectorRoot() {
   if (!inspectorTree) return;
+  clearInspectorSearch();
   if (!isHdf5File(state.file)) {
     setInspectorMessage("File inspector is available for HDF5 files only.");
     return;
@@ -541,10 +744,18 @@ async function showInspectorNode(path) {
         });
       }
     }
-    if (inspectorPreview) {
-      inspectorPreview.textContent = data.preview !== undefined && data.preview !== null
-        ? formatInspectorValue(data.preview)
-        : "";
+    if (data.type === "dataset") {
+      try {
+        const valueData = await fetchJSON(
+          `${API}/hdf5/value?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`
+        );
+        renderInspectorPreview(valueData);
+      } catch (err) {
+        console.error(err);
+        if (inspectorPreview) inspectorPreview.innerHTML = "";
+      }
+    } else if (inspectorPreview) {
+      inspectorPreview.innerHTML = "";
     }
   } catch (err) {
     console.error(err);
@@ -5041,24 +5252,7 @@ inspectorTree?.addEventListener("click", async (event) => {
   const nodePath = node.dataset.path || "";
   selectInspectorRow(row);
   if (nodeType === "link") {
-    if (inspectorPath) inspectorPath.textContent = nodePath || "-";
-    if (inspectorType) inspectorType.textContent = "link";
-    if (inspectorShape) inspectorShape.textContent = "-";
-    if (inspectorDtype) inspectorDtype.textContent = "-";
-    if (inspectorAttrs) {
-      inspectorAttrs.innerHTML = "";
-      const target = node.dataset.target || "-";
-      const attrRow = document.createElement("div");
-      attrRow.className = "inspector-attr-row";
-      const name = document.createElement("span");
-      name.textContent = "Target";
-      const value = document.createElement("span");
-      value.textContent = target;
-      attrRow.appendChild(name);
-      attrRow.appendChild(value);
-      inspectorAttrs.appendChild(attrRow);
-    }
-    if (inspectorPreview) inspectorPreview.textContent = "";
+    renderInspectorLink(nodePath || "-", node.dataset.target || "-");
     return;
   }
   if (nodeType === "group") {
@@ -5084,6 +5278,35 @@ inspectorTree?.addEventListener("click", async (event) => {
   if (nodePath) {
     await showInspectorNode(nodePath);
   }
+});
+
+let inspectorSearchTimer = null;
+inspectorSearchInput?.addEventListener("input", () => {
+  if (inspectorSearchTimer) {
+    window.clearTimeout(inspectorSearchTimer);
+  }
+  const query = inspectorSearchInput.value.trim();
+  inspectorSearchTimer = window.setTimeout(() => {
+    runInspectorSearch(query);
+  }, 250);
+});
+
+inspectorSearchClear?.addEventListener("click", () => {
+  clearInspectorSearch();
+  runInspectorSearch("");
+});
+
+inspectorResults?.addEventListener("click", async (event) => {
+  const row = event.target.closest(".inspector-result");
+  if (!row) return;
+  const nodePath = row.dataset.path || "";
+  const nodeType = row.dataset.type || "";
+  if (!nodePath) return;
+  if (nodeType === "link") {
+    renderInspectorLink(nodePath, row.dataset.target || "-");
+    return;
+  }
+  await showInspectorNode(nodePath);
 });
 
 if (fileInput) {
