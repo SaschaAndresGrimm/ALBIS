@@ -1124,6 +1124,14 @@ body {
   font-size: 11px;
 }
 
+.roi-stats .meta-row {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  column-gap: 10px;
+  align-items: center;
+  justify-content: start;
+}
+
 .roi-plots {
   display: grid;
   gap: 6px;
