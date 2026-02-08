@@ -544,8 +544,23 @@ function updateCursorOverlay(event) {
     return;
   }
   const idx = iy * state.width + ix;
-  const value = state.dataRaw[idx];
-  const label = `X ${ix}  Y ${iy}  Value ${formatValue(value)}`;
+  let labelValue = formatValue(state.dataRaw[idx]);
+  if (
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === state.height &&
+    state.maskShape[1] === state.width
+  ) {
+    const maskValue = state.maskRaw[idx];
+    if (maskValue & 1) {
+      labelValue = "G";
+    } else if (maskValue & 0x1e) {
+      labelValue = "D";
+    }
+  }
+  const label = `X ${ix}  Y ${iy}  Value ${labelValue}`;
   showCursorOverlay(label, event.clientX, event.clientY);
 }
 
@@ -573,6 +588,13 @@ function drawPixelOverlay() {
   if (zoom < PIXEL_LABEL_MIN_ZOOM) return;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
+  const maskReady =
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === state.height &&
+    state.maskShape[1] === state.width;
 
   const viewX = canvasWrap.scrollLeft / zoom;
   const viewY = canvasWrap.scrollTop / zoom;
@@ -604,9 +626,18 @@ function drawPixelOverlay() {
     const rowOffset = y * state.width;
     const screenY = (y - viewY) * zoom + zoom / 2 + offsetY;
     for (let x = startX; x < endX; x += 1) {
-      const value = state.dataRaw[rowOffset + x];
+      const idx = rowOffset + x;
+      let text = formatValue(state.dataRaw[idx]);
+      if (maskReady && state.maskRaw) {
+        const maskValue = state.maskRaw[idx];
+        if (maskValue & 1) {
+          text = "G";
+        } else if (maskValue & 0x1e) {
+          text = "D";
+        }
+      }
       const screenX = (x - viewX) * zoom + zoom / 2 + offsetX;
-      pixelCtx.fillText(formatValue(value), screenX, screenY);
+      pixelCtx.fillText(text, screenX, screenY);
     }
   }
   pixelCtx.shadowBlur = 0;
@@ -2084,7 +2115,12 @@ function renderRegionToCanvas(region) {
       if (maskReady && maskData) {
         const maskValue = maskData[idx];
         if (maskValue & 1) {
-          v = 0;
+          const j = outOffset + col * 4;
+          out[j] = 0;
+          out[j + 1] = 0;
+          out[j + 2] = 0;
+          out[j + 3] = 255;
+          continue;
         } else if (maskValue & 0x1e) {
           const j = outOffset + col * 4;
           out[j] = 51;
@@ -2449,7 +2485,8 @@ function createWebGLRenderer() {
       if (u_mask_enabled > 0.5) {
         uint mask = texture(u_mask, v_tex).r;
         if ((mask & 1u) != 0u) {
-          value = 0.0;
+          outColor = vec4(0.0, 0.0, 0.0, 1.0);
+          return;
         } else if ((mask & 0x1Eu) != 0u) {
           outColor = vec4(0.2, 0.6, 1.0, 1.0);
           return;
@@ -2654,7 +2691,12 @@ function createCpuRenderer() {
         if (maskEnabled && mask && mask.length === data.length) {
           const maskValue = mask[i];
           if (maskValue & 1) {
-            v = 0;
+            const j = i * 4;
+            out[j] = 0;
+            out[j + 1] = 0;
+            out[j + 2] = 0;
+            out[j + 3] = 255;
+            continue;
           } else if (maskValue & 0x1e) {
             const j = i * 4;
             out[j] = 51;
