@@ -169,7 +169,7 @@ const state = {
   pendingFrame: null,
   playing: false,
   playTimer: null,
-  fps: 5,
+  fps: 1,
   step: 1,
   panelWidth: 640,
   panelCollapsed: true,
@@ -1145,7 +1145,7 @@ function updateFpsLabel() {
 }
 
 function setFps(value) {
-  const clamped = Math.max(1, Math.min(60, Math.round(value)));
+  const clamped = Math.max(1, Math.min(10, Math.round(value)));
   state.fps = clamped;
   if (fpsRange) {
     fpsRange.value = String(clamped);
@@ -1248,6 +1248,23 @@ function stopPlayback() {
   updatePlayButtons();
 }
 
+function updateFrameControls() {
+  const total = Math.max(1, state.frameCount || 1);
+  const displayValue = Math.max(1, Math.min(total, (state.frameIndex || 0) + 1));
+  if (frameRange) {
+    frameRange.min = "1";
+    frameRange.max = String(total);
+    frameRange.value = String(displayValue);
+    frameRange.disabled = total <= 1;
+  }
+  if (frameIndex) {
+    frameIndex.min = "1";
+    frameIndex.max = String(total);
+    frameIndex.value = String(displayValue);
+    frameIndex.disabled = total <= 1;
+  }
+}
+
 function startPlayback() {
   if (state.playing || state.frameCount <= 1) return;
   state.playing = true;
@@ -1265,8 +1282,7 @@ function requestFrame(index) {
   if (!state.frameCount || !state.dataset || !state.file) return;
   const clamped = Math.max(0, Math.min(state.frameCount - 1, index));
   state.frameIndex = clamped;
-  frameRange.value = String(clamped);
-  frameIndex.value = String(clamped);
+  updateFrameControls();
   updateToolbar();
   if (state.isLoading) {
     state.pendingFrame = clamped;
@@ -2083,9 +2099,7 @@ function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = f
   state.dataset = "";
   state.frameCount = 1;
   state.frameIndex = 0;
-  frameRange.max = "0";
-  frameRange.value = "0";
-  frameIndex.value = "0";
+  updateFrameControls();
   datasetSelect.innerHTML = "";
   datasetSelect.appendChild(option("Single image", ""));
   datasetSelect.value = "";
@@ -2906,9 +2920,7 @@ async function loadMetadata() {
     state.dtype = data.dtype;
     state.frameCount = data.shape.length === 3 ? data.shape[0] : 1;
     state.frameIndex = 0;
-    frameRange.max = Math.max(state.frameCount - 1, 0);
-    frameRange.value = "0";
-    frameIndex.value = "0";
+    updateFrameControls();
     metaShape.textContent = data.shape.join(" × ");
     metaDtype.textContent = data.dtype;
     updateToolbar();
@@ -4168,9 +4180,7 @@ function closeCurrentFile() {
 
   fileSelect.selectedIndex = 0;
   datasetSelect.innerHTML = "";
-  frameRange.max = "0";
-  frameRange.value = "0";
-  frameIndex.value = "0";
+  updateFrameControls();
   minInput.value = "";
   maxInput.value = "";
   metaShape.textContent = "-";
@@ -4460,14 +4470,14 @@ datasetSelect.addEventListener("change", async (event) => {
 
 frameRange.addEventListener("input", async (event) => {
   stopPlayback();
-  const value = Number(event.target.value);
-  requestFrame(value);
+  const value = Math.round(Number(event.target.value || 1));
+  requestFrame(value - 1);
 });
 
 frameIndex.addEventListener("change", async (event) => {
   stopPlayback();
-  const value = Math.max(0, Math.min(state.frameCount - 1, Number(event.target.value)));
-  requestFrame(value);
+  const value = Math.round(Number(event.target.value || 1));
+  requestFrame(value - 1);
 });
 
 frameStep?.addEventListener("change", () => {

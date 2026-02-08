@@ -178,6 +178,7 @@ body {
   padding: 4px 10px;
   background: linear-gradient(to bottom, var(--toolbar-blue), var(--toolbar-blue-dark));
   border-bottom: 1px solid #0a0a0a;
+  position: relative;
 }
 
 .upload-bar {
@@ -268,6 +269,9 @@ body {
 
 .toolbar-right {
   display: flex;
+  position: absolute;
+  top: 4px;
+  right: 10px;
 }
 
 .live-badge {

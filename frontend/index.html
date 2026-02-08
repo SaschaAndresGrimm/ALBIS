@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ALBIS — ALBIS WEB VIEW</title>
+    <link rel="icon" href="favicon.ico" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -14,7 +15,7 @@
             <button class="menu-item is-active" data-menu="file">File</button>
             <button class="menu-item" data-menu="help">Help</button>
           </div>
-          <div class="menu-right">DECTRIS</div>
+          <div class="menu-right">ALBIS</div>
         </div>
         <div class="menu-dropdown" id="menu-dropdown" aria-hidden="true">
           <div class="dropdown-panel" data-menu="file">
@@ -356,8 +357,8 @@
               <div class="field">
                 <span>Frame</span>
                 <div class="inline">
-                  <input id="frame-range" type="range" min="0" max="0" value="0" />
-                  <input id="frame-index" type="number" min="0" value="0" />
+                    <input id="frame-range" type="range" min="1" max="1" value="1" />
+                    <input id="frame-index" type="number" min="1" value="1" />
                 </div>
               </div>
               <div class="data-row-grid">
@@ -368,8 +369,8 @@
                 <label class="field data-row">
                   <span>Playback (fps)</span>
                   <div class="inline data-inline">
-                    <input id="fps-range" type="range" min="1" max="10" step="1" value="5" />
-                    <div id="fps-value" class="pill">5 fps</div>
+                    <input id="fps-range" type="range" min="1" max="10" step="1" value="1" />
+                    <div id="fps-value" class="pill">1 fps</div>
                   </div>
                 </label>
               </div>
