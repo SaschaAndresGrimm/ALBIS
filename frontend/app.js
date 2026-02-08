@@ -73,6 +73,14 @@ const autoloadFolder = document.getElementById("autoload-folder");
 const autoloadWatch = document.getElementById("autoload-watch");
 const autoloadTypesRow = document.getElementById("autoload-types");
 const autoloadSimplon = document.getElementById("autoload-simplon");
+const inspectorTree = document.getElementById("inspector-tree");
+const inspectorDetails = document.getElementById("inspector-details");
+const inspectorPath = document.getElementById("inspector-path");
+const inspectorType = document.getElementById("inspector-type");
+const inspectorShape = document.getElementById("inspector-shape");
+const inspectorDtype = document.getElementById("inspector-dtype");
+const inspectorAttrs = document.getElementById("inspector-attrs");
+const inspectorPreview = document.getElementById("inspector-preview");
 const autoloadBrowse = document.getElementById("autoload-browse");
 const autoloadDirList = document.getElementById("autoload-dir-list");
 const autoloadPattern = document.getElementById("autoload-pattern");
@@ -155,6 +163,7 @@ let roiEditStart = null;
 let roiEditSnapshot = null;
 let panelTabState = "view";
 let backendTimer = null;
+let inspectorSelectedRow = null;
 
 const roiState = {
   mode: "none",
@@ -374,6 +383,173 @@ function formatEnergy(value) {
     return String(rounded);
   }
   return value.toFixed(1);
+}
+
+function isHdf5File(path) {
+  return typeof path === "string" && (path.toLowerCase().endsWith(".h5") || path.toLowerCase().endsWith(".hdf5"));
+}
+
+function formatInspectorValue(value) {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function resetInspectorDetails() {
+  if (inspectorPath) inspectorPath.textContent = "-";
+  if (inspectorType) inspectorType.textContent = "-";
+  if (inspectorShape) inspectorShape.textContent = "-";
+  if (inspectorDtype) inspectorDtype.textContent = "-";
+  if (inspectorAttrs) inspectorAttrs.innerHTML = "";
+  if (inspectorPreview) inspectorPreview.textContent = "";
+}
+
+function setInspectorMessage(message) {
+  if (!inspectorTree) return;
+  inspectorSelectedRow = null;
+  inspectorTree.innerHTML = `<div class="inspector-empty">${message}</div>`;
+  resetInspectorDetails();
+}
+
+function buildInspectorRow(node) {
+  const li = document.createElement("li");
+  li.className = "inspector-node";
+  li.dataset.path = node.path || "";
+  li.dataset.type = node.type || "";
+  if (node.type === "link" && node.target) {
+    li.dataset.target = node.target;
+  }
+  const row = document.createElement("div");
+  row.className = "inspector-row";
+
+  const toggle = document.createElement("button");
+  toggle.className = "inspector-toggle";
+  if (node.type === "group" && node.hasChildren) {
+    toggle.textContent = "▸";
+  } else {
+    toggle.textContent = "";
+    toggle.classList.add("is-hidden");
+  }
+
+  const name = document.createElement("span");
+  name.textContent = node.name || node.path || "/";
+
+  const meta = document.createElement("span");
+  meta.className = "inspector-meta";
+  if (node.type === "dataset" && node.shape && node.dtype) {
+    meta.textContent = `${node.shape.join("×")} ${node.dtype}`;
+  } else if (node.type === "link" && node.target) {
+    meta.textContent = node.target;
+  } else if (node.type === "group") {
+    meta.textContent = "Group";
+  } else {
+    meta.textContent = node.type || "";
+  }
+
+  row.appendChild(toggle);
+  row.appendChild(name);
+  row.appendChild(meta);
+  li.appendChild(row);
+
+  if (node.type === "group") {
+    const children = document.createElement("ul");
+    children.className = "inspector-children";
+    li.appendChild(children);
+  }
+
+  return li;
+}
+
+function renderInspectorTree(nodes, container) {
+  if (!container) return;
+  container.innerHTML = "";
+  const target =
+    container.classList.contains("inspector-children") ? container : document.createElement("ul");
+  if (!container.classList.contains("inspector-children")) {
+    target.className = "inspector-node";
+  }
+  nodes.forEach((node) => {
+    target.appendChild(buildInspectorRow(node));
+  });
+  if (target !== container) {
+    container.appendChild(target);
+  }
+}
+
+async function fetchInspectorTree(path = "/") {
+  const res = await fetchJSON(
+    `${API}/hdf5/tree?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`
+  );
+  return res.children || [];
+}
+
+async function loadInspectorRoot() {
+  if (!inspectorTree) return;
+  if (!isHdf5File(state.file)) {
+    setInspectorMessage("File inspector is available for HDF5 files only.");
+    return;
+  }
+  try {
+    const children = await fetchInspectorTree("/");
+    renderInspectorTree(children, inspectorTree);
+    inspectorSelectedRow = null;
+    resetInspectorDetails();
+  } catch (err) {
+    console.error(err);
+    setInspectorMessage("Failed to load HDF5 tree.");
+  }
+}
+
+function selectInspectorRow(row) {
+  if (inspectorSelectedRow) {
+    inspectorSelectedRow.classList.remove("is-selected");
+  }
+  inspectorSelectedRow = row;
+  if (inspectorSelectedRow) {
+    inspectorSelectedRow.classList.add("is-selected");
+  }
+}
+
+async function showInspectorNode(path) {
+  if (!inspectorDetails) return;
+  try {
+    const data = await fetchJSON(
+      `${API}/hdf5/node?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`
+    );
+    if (inspectorPath) inspectorPath.textContent = data.path || path;
+    if (inspectorType) inspectorType.textContent = data.type || "-";
+    if (inspectorShape) inspectorShape.textContent = data.shape ? data.shape.join("×") : "-";
+    if (inspectorDtype) inspectorDtype.textContent = data.dtype || "-";
+    if (inspectorAttrs) {
+      inspectorAttrs.innerHTML = "";
+      if (Array.isArray(data.attrs) && data.attrs.length) {
+        data.attrs.forEach((attr) => {
+          const row = document.createElement("div");
+          row.className = "inspector-attr-row";
+          const name = document.createElement("span");
+          name.textContent = attr.name;
+          const val = document.createElement("span");
+          val.textContent = formatInspectorValue(attr.value);
+          row.appendChild(name);
+          row.appendChild(val);
+          inspectorAttrs.appendChild(row);
+        });
+      }
+    }
+    if (inspectorPreview) {
+      inspectorPreview.textContent = data.preview !== undefined && data.preview !== null
+        ? formatInspectorValue(data.preview)
+        : "";
+    }
+  } catch (err) {
+    console.error(err);
+    setInspectorMessage("Failed to load node details.");
+  }
 }
 
 function syncOverlayCanvas(overlay, ctx) {
@@ -2535,6 +2711,7 @@ function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = f
   if (!preserveMask) {
     clearMaskState();
   }
+  setInspectorMessage("File inspector is available for HDF5 files only.");
 
   const height = shape[0];
   const width = shape[1];
@@ -3326,6 +3503,7 @@ async function loadDatasets() {
     datasetSelect.innerHTML = "";
     const ordered = sortDatasets(candidates);
     ordered.forEach((d) => datasetSelect.appendChild(option(`${d.path} (${d.shape.join("x")})`, d.path)));
+    await loadInspectorRoot();
 
     if (ordered.length > 0) {
       state.dataset = ordered[0].path;
@@ -4644,6 +4822,7 @@ function closeCurrentFile() {
   hideUploadProgress();
   hideProcessingProgress();
   showSplash();
+  setInspectorMessage("Select an HDF5 file to browse metadata.");
 
   fileSelect.selectedIndex = 0;
   datasetSelect.innerHTML = "";
@@ -4851,6 +5030,60 @@ menuActions.forEach((item) => {
     handleMenuAction(item.dataset.action);
     closeMenu();
   });
+});
+
+inspectorTree?.addEventListener("click", async (event) => {
+  const row = event.target.closest(".inspector-row");
+  if (!row) return;
+  const node = row.parentElement;
+  if (!node) return;
+  const nodeType = node.dataset.type || "";
+  const nodePath = node.dataset.path || "";
+  selectInspectorRow(row);
+  if (nodeType === "link") {
+    if (inspectorPath) inspectorPath.textContent = nodePath || "-";
+    if (inspectorType) inspectorType.textContent = "link";
+    if (inspectorShape) inspectorShape.textContent = "-";
+    if (inspectorDtype) inspectorDtype.textContent = "-";
+    if (inspectorAttrs) {
+      inspectorAttrs.innerHTML = "";
+      const target = node.dataset.target || "-";
+      const attrRow = document.createElement("div");
+      attrRow.className = "inspector-attr-row";
+      const name = document.createElement("span");
+      name.textContent = "Target";
+      const value = document.createElement("span");
+      value.textContent = target;
+      attrRow.appendChild(name);
+      attrRow.appendChild(value);
+      inspectorAttrs.appendChild(attrRow);
+    }
+    if (inspectorPreview) inspectorPreview.textContent = "";
+    return;
+  }
+  if (nodeType === "group") {
+    const toggle = node.querySelector(".inspector-toggle");
+    const willOpen = !node.classList.contains("is-open");
+    node.classList.toggle("is-open", willOpen);
+    if (toggle) {
+      toggle.textContent = willOpen ? "▾" : "▸";
+    }
+    if (willOpen && node.dataset.loaded !== "true") {
+      try {
+        const children = await fetchInspectorTree(nodePath);
+        const container = node.querySelector(".inspector-children");
+        if (container) {
+          renderInspectorTree(children, container);
+        }
+        node.dataset.loaded = "true";
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+  if (nodePath) {
+    await showInspectorNode(nodePath);
+  }
 });
 
 if (fileInput) {

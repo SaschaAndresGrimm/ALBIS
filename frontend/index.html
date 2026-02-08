@@ -405,6 +405,23 @@
                 <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
               </div>
             </div>
+            <section class="panel-section inspector" data-section="inspector">
+              <button class="section-title" type="button" data-section-toggle>
+                File Inspector
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="inspector-tree" id="inspector-tree">
+                <div class="inspector-empty">Select an HDF5 file to browse metadata.</div>
+              </div>
+              <div class="inspector-details" id="inspector-details">
+                <div class="meta-row"><span>Path</span><strong id="inspector-path">-</strong></div>
+                <div class="meta-row"><span>Type</span><strong id="inspector-type">-</strong></div>
+                <div class="meta-row"><span>Shape</span><strong id="inspector-shape">-</strong></div>
+                <div class="meta-row"><span>DType</span><strong id="inspector-dtype">-</strong></div>
+                <div class="inspector-attrs" id="inspector-attrs"></div>
+                <div class="inspector-preview" id="inspector-preview"></div>
+              </div>
+            </section>
           </div>
 
           </div>

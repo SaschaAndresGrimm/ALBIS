@@ -731,6 +731,124 @@ body {
   border-bottom: none;
 }
 
+.panel-section.inspector {
+  margin-top: 8px;
+}
+
+.inspector-tree {
+  max-height: 220px;
+  overflow: auto;
+  background: #1f1f1f;
+  border: 1px solid #101010;
+  padding: 6px;
+  font-size: 12px;
+}
+
+.inspector-empty {
+  color: #b8b8b8;
+  font-size: 11px;
+  padding: 6px;
+}
+
+.inspector-node {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.inspector-node > .inspector-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.inspector-row:hover {
+  background: rgba(120, 170, 255, 0.15);
+}
+
+.inspector-row.is-selected {
+  background: rgba(120, 170, 255, 0.3);
+}
+
+.inspector-toggle {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: #d0d0d0;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+
+.inspector-toggle.is-hidden {
+  visibility: hidden;
+}
+
+.inspector-meta {
+  color: #9aa0a6;
+  font-size: 10px;
+  text-align: right;
+}
+
+.inspector-children {
+  margin: 2px 0 2px 16px;
+  padding-left: 8px;
+  border-left: 1px dotted #3a3a3a;
+  display: none;
+}
+
+.inspector-node.is-open > .inspector-children {
+  display: block;
+}
+
+.inspector-details {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  display: grid;
+  gap: 6px;
+}
+
+.inspector-details .meta-row strong {
+  text-align: right;
+  font-weight: 600;
+  color: #f2f2f2;
+  word-break: break-all;
+}
+
+.inspector-attrs {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.inspector-attr-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inspector-attr-row span:last-child {
+  color: #f2f2f2;
+  word-break: break-all;
+  text-align: right;
+}
+
+.inspector-preview {
+  background: #1b1b1b;
+  border: 1px solid #111;
+  padding: 6px;
+  font-size: 11px;
+  color: #e6e6e6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .thumb-view {
   height: 140px;
   background: #2b2b2b;

@@ -475,6 +475,51 @@ MASK_PATHS = (
 )
 
 
+def _serialize_h5_value(value: Any) -> Any:
+    if isinstance(value, bytes):
+        try:
+            return value.decode("utf-8")
+        except Exception:
+            return value.decode("utf-8", "replace")
+    if isinstance(value, np.generic):
+        try:
+            return value.item()
+        except Exception:
+            return str(value)
+    if isinstance(value, np.ndarray):
+        if value.size == 1:
+            return _serialize_h5_value(value.reshape(-1)[0])
+        if value.dtype.kind == "S":
+            try:
+                return [v.decode("utf-8", "replace") for v in value.reshape(-1)[:16]]
+            except Exception:
+                return value.reshape(-1)[:16].tolist()
+        if value.size <= 16:
+            return value.tolist()
+        return {
+            "shape": value.shape,
+            "dtype": str(value.dtype),
+            "preview": value.reshape(-1)[:16].tolist(),
+            "truncated": True,
+        }
+    if isinstance(value, (list, tuple)):
+        return [_serialize_h5_value(v) for v in value]
+    return value
+
+
+def _collect_h5_attrs(obj: Any) -> list[dict[str, Any]]:
+    attrs: list[dict[str, Any]] = []
+    try:
+        for key in obj.attrs.keys():
+            try:
+                attrs.append({"name": str(key), "value": _serialize_h5_value(obj.attrs[key])})
+            except Exception:
+                attrs.append({"name": str(key), "value": "<unreadable>"})
+    except Exception:
+        return []
+    return attrs
+
+
 def _find_pixel_mask(h5: h5py.File, threshold: int | None = None) -> h5py.Dataset | None:
     if threshold is not None:
         key = f"/entry/instrument/detector/threshold_{threshold + 1}_channel/pixel_mask"
@@ -992,6 +1037,98 @@ def datasets(file: str = Query(..., min_length=1)) -> dict[str, Any]:
                 except Exception:
                     pass
     return {"datasets": results}
+
+
+@app.get("/api/hdf5/tree")
+def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> dict[str, Any]:
+    file_path = _resolve_file(file)
+    with h5py.File(file_path, "r") as h5:
+        if path not in h5:
+            raise HTTPException(status_code=404, detail="Path not found")
+        obj = h5[path]
+        if not isinstance(obj, h5py.Group):
+            return {"path": path, "children": []}
+        children: list[dict[str, Any]] = []
+        for name in obj.keys():
+            child_path = f"{path}/{name}" if path != "/" else f"/{name}"
+            try:
+                link = obj.get(name, getlink=True)
+            except Exception:
+                link = None
+            if isinstance(link, h5py.ExternalLink):
+                children.append(
+                    {
+                        "name": name,
+                        "path": child_path,
+                        "type": "link",
+                        "link": "external",
+                        "target": f"{link.filename}:{link.path}",
+                    }
+                )
+                continue
+            if isinstance(link, h5py.SoftLink):
+                children.append(
+                    {
+                        "name": name,
+                        "path": child_path,
+                        "type": "link",
+                        "link": "soft",
+                        "target": str(link.path),
+                    }
+                )
+                continue
+            try:
+                child = obj[name]
+            except Exception:
+                continue
+            if isinstance(child, h5py.Group):
+                children.append(
+                    {
+                        "name": name,
+                        "path": child_path,
+                        "type": "group",
+                        "hasChildren": len(child.keys()) > 0,
+                    }
+                )
+            elif isinstance(child, h5py.Dataset):
+                children.append(
+                    {
+                        "name": name,
+                        "path": child_path,
+                        "type": "dataset",
+                        "shape": tuple(int(x) for x in child.shape),
+                        "dtype": str(child.dtype),
+                    }
+                )
+        children.sort(key=lambda item: (item.get("type") != "group", item.get("name", "")))
+        return {"path": path, "children": children}
+
+
+@app.get("/api/hdf5/node")
+def hdf5_node(file: str = Query(..., min_length=1), path: str = Query(..., min_length=1)) -> dict[str, Any]:
+    file_path = _resolve_file(file)
+    with h5py.File(file_path, "r") as h5:
+        if path not in h5:
+            raise HTTPException(status_code=404, detail="Path not found")
+        obj = h5[path]
+        if isinstance(obj, h5py.Group):
+            return {"path": path, "type": "group", "attrs": _collect_h5_attrs(obj)}
+        if isinstance(obj, h5py.Dataset):
+            preview = None
+            try:
+                if obj.size <= 64 or obj.ndim == 0:
+                    preview = _serialize_h5_value(obj[()])
+            except Exception:
+                preview = None
+            return {
+                "path": path,
+                "type": "dataset",
+                "shape": tuple(int(x) for x in obj.shape),
+                "dtype": str(obj.dtype),
+                "attrs": _collect_h5_attrs(obj),
+                "preview": preview,
+            }
+        raise HTTPException(status_code=400, detail="Unsupported node type")
 
 
 @app.get("/api/metadata")
