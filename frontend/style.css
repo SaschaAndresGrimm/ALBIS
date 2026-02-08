@@ -483,6 +483,13 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin-bottom: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: linear-gradient(to bottom, #4a4a4a, #2c2c2c);
+  padding: 6px;
+  margin: -8px -8px 8px -8px;
+  border-bottom: 1px solid #1d1d1d;
 }
 
 .panel-tab {
@@ -1212,22 +1219,6 @@ body {
 .roi-plot.is-hidden {
   display: none;
 }
-
-@media (max-width: 980px) {
-  .app {
-    grid-template-columns: 1fr;
-  }
-
-  .panel {
-    border-left: none;
-    border-top: 1px solid #2a2a2a;
-  }
-
-  .panel-resizer {
-    display: none;
-  }
-}
-
 
 .modal {
   position: fixed;

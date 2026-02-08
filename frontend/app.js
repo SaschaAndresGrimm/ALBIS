@@ -2031,6 +2031,7 @@ function setPanelTab(tabId, persist = true) {
 function setDataControlsForHdf5() {
   if (datasetSelect) datasetSelect.disabled = false;
   if (thresholdSelect) thresholdSelect.disabled = false;
+  if (toolbarThresholdSelect) toolbarThresholdSelect.disabled = false;
   if (frameRange) frameRange.disabled = false;
   if (frameIndex) frameIndex.disabled = false;
   if (frameStep) frameStep.disabled = false;
@@ -2040,6 +2041,7 @@ function setDataControlsForHdf5() {
 function setDataControlsForImage() {
   if (datasetSelect) datasetSelect.disabled = true;
   if (thresholdSelect) thresholdSelect.disabled = true;
+  if (toolbarThresholdSelect) toolbarThresholdSelect.disabled = true;
   if (frameRange) frameRange.disabled = true;
   if (frameIndex) frameIndex.disabled = true;
   if (frameStep) frameStep.disabled = true;
@@ -2574,9 +2576,9 @@ function renderRegionToCanvas(region) {
           continue;
         } else if (maskValue & 0x1e) {
           const j = outOffset + col * 4;
-          out[j] = 51;
-          out[j + 1] = 153;
-          out[j + 2] = 255;
+          out[j] = 25;
+          out[j + 1] = 50;
+          out[j + 2] = 120;
           out[j + 3] = 255;
           continue;
         }
@@ -2786,15 +2788,18 @@ function handleNavShortcut(event) {
     }
     return true;
   }
-  if (isFormElement(event.target)) return false;
   const hasThresholds = state.thresholdCount > 1 && state.autoload.mode !== "simplon";
+  const isThresholdTarget =
+    event.target === thresholdSelect || event.target === toolbarThresholdSelect;
   if (hasThresholds && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+    if (!isThresholdTarget && isFormElement(event.target)) return false;
     event.preventDefault();
     stopPlayback();
     const delta = event.key === "ArrowUp" ? -1 : 1;
     void setThresholdIndex(state.thresholdIndex + delta);
     return true;
   }
+  if (isFormElement(event.target)) return false;
   switch (event.key) {
     case "ArrowLeft":
       event.preventDefault();
@@ -2947,7 +2952,7 @@ function createWebGLRenderer() {
           outColor = vec4(0.0, 0.0, 0.0, 1.0);
           return;
         } else if ((mask & 0x1Eu) != 0u) {
-          outColor = vec4(0.2, 0.6, 1.0, 1.0);
+          outColor = vec4(0.1, 0.2, 0.47, 1.0);
           return;
         }
       }
@@ -3158,9 +3163,9 @@ function createCpuRenderer() {
             continue;
           } else if (maskValue & 0x1e) {
             const j = i * 4;
-            out[j] = 51;
-            out[j + 1] = 153;
-            out[j + 2] = 255;
+            out[j] = 25;
+            out[j + 1] = 50;
+            out[j + 2] = 120;
             out[j + 3] = 255;
             continue;
           }
