@@ -1119,17 +1119,24 @@ body {
 
 .roi-stats {
   display: grid;
-  gap: 4px;
+  grid-template-columns: max-content minmax(90px, max-content);
+  column-gap: 12px;
+  row-gap: 4px;
   margin-bottom: 6px;
   font-size: 11px;
 }
 
 .roi-stats .meta-row {
-  display: grid;
-  grid-template-columns: max-content max-content;
-  column-gap: 10px;
-  align-items: center;
-  justify-content: start;
+  display: contents;
+}
+
+.roi-stats .meta-row span {
+  justify-self: start;
+}
+
+.roi-stats .meta-row strong {
+  justify-self: center;
+  text-align: center;
 }
 
 .roi-plots {

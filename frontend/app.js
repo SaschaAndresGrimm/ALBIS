@@ -4265,10 +4265,14 @@ function updateRoiStats() {
       }
     }
 
-    const profile = Array.from(radialSum, (v, i) =>
-      radialCount[i] ? v / radialCount[i] : 0
-    );
-    roiState.lineProfile = profile;
+    const profile = Array.from(radialSum, (v, i) => (radialCount[i] ? v / radialCount[i] : 0));
+    let displayProfile = profile;
+    let displayStart = 0;
+    if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
+      displayStart = Math.min(roiState.innerRadius, profile.length - 1);
+      displayProfile = profile.slice(displayStart);
+    }
+    roiState.lineProfile = displayProfile;
     roiState.xProjection = null;
     roiState.yProjection = null;
     if (roiState.mode === "circle") {
@@ -4287,11 +4291,11 @@ function updateRoiStats() {
       roiLineCanvas._roiPlotMeta = {
         xLabel: "Radius (px)",
         yLabel: "Intensity",
-        xStart: 0,
+        xStart: displayStart,
         xStep: 1,
       };
     }
-    drawRoiPlot(roiLineCanvas, roiLineCtx, profile, roiState.log);
+    drawRoiPlot(roiLineCanvas, roiLineCtx, displayProfile, roiState.log);
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
   }
