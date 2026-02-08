@@ -286,7 +286,7 @@ body {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 2px;
   border: 1px solid rgba(0, 0, 0, 0.4);
-  max-width: calc(100% - var(--panel-width, 28px) - 120px);
+  max-width: calc(100% - var(--panel-width, 28px) - 200px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -297,6 +297,49 @@ body {
   position: absolute;
   top: 4px;
   right: 10px;
+  gap: 6px;
+  align-items: center;
+}
+
+.backend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  color: #9bd4ff;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
+  pointer-events: none;
+}
+
+.backend-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5bb9ff;
+  box-shadow: 0 0 6px rgba(90, 180, 255, 0.7);
+}
+
+.backend-badge.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.backend-badge.is-off {
+  color: #f0a0a0;
+}
+
+.backend-badge.is-off::before {
+  background: #e05d5d;
+  box-shadow: 0 0 6px rgba(224, 93, 93, 0.7);
 }
 
 .live-badge {

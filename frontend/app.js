@@ -26,6 +26,7 @@ const metaDtype = document.getElementById("meta-dtype");
 const metaRange = document.getElementById("meta-range");
 const metaRenderer = document.getElementById("meta-renderer");
 const toolbarPath = document.getElementById("toolbar-path");
+const backendBadge = document.getElementById("backend-badge");
 const autoContrastBtn = document.getElementById("auto-contrast");
 const invertToggle = document.getElementById("invert-color");
 const colormapSelect = document.getElementById("colormap-select");
@@ -151,6 +152,7 @@ let roiEditHandle = null;
 let roiEditStart = null;
 let roiEditSnapshot = null;
 let panelTabState = "view";
+let backendTimer = null;
 
 const roiState = {
   mode: "none",
@@ -176,6 +178,7 @@ const state = {
   thresholdCount: 1,
   thresholdIndex: 0,
   thresholdEnergies: [],
+  backendAlive: false,
   isLoading: false,
   pendingFrame: null,
   playing: false,
@@ -2092,6 +2095,44 @@ function updateLiveBadge() {
   liveBadge.classList.toggle("is-wait", wait);
   liveBadge.textContent = wait ? "WAIT" : "LIVE";
   liveBadge.setAttribute("aria-hidden", "false");
+}
+
+function updateBackendBadge() {
+  if (!backendBadge) return;
+  backendBadge.classList.toggle("is-off", !state.backendAlive);
+  backendBadge.classList.toggle("is-active", true);
+  backendBadge.textContent = state.backendAlive ? "SERVER" : "OFFLINE";
+  backendBadge.setAttribute("aria-hidden", "false");
+}
+
+async function checkBackendHealth() {
+  if (!backendBadge) return;
+  let alive = false;
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 1500);
+  try {
+    const res = await fetch(`${API}/health`, { signal: controller.signal, cache: "no-store" });
+    alive = res.ok;
+  } catch {
+    alive = false;
+  } finally {
+    window.clearTimeout(timer);
+  }
+  if (state.backendAlive !== alive) {
+    state.backendAlive = alive;
+    updateBackendBadge();
+  } else {
+    updateBackendBadge();
+  }
+}
+
+function startBackendHeartbeat() {
+  if (!backendBadge) return;
+  if (backendTimer) {
+    window.clearInterval(backendTimer);
+  }
+  checkBackendHealth();
+  backendTimer = window.setInterval(checkBackendHealth, 4000);
 }
 
 function persistAutoloadSettings() {
@@ -5751,3 +5792,4 @@ loadFiles().catch((err) => {
   setLoading(false);
 });
 updatePlayButtons();
+startBackendHeartbeat();
