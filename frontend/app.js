@@ -71,6 +71,7 @@ const autoloadStatus = document.getElementById("autoload-status");
 const autoloadLatest = document.getElementById("autoload-latest");
 const autoloadFolder = document.getElementById("autoload-folder");
 const autoloadWatch = document.getElementById("autoload-watch");
+const autoloadTypesRow = document.getElementById("autoload-types");
 const autoloadSimplon = document.getElementById("autoload-simplon");
 const autoloadBrowse = document.getElementById("autoload-browse");
 const autoloadDirList = document.getElementById("autoload-dir-list");
@@ -2181,6 +2182,7 @@ function updateAutoloadUI() {
     autoloadFolder.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   }
   if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "watch");
+  if (autoloadTypesRow) autoloadTypesRow.classList.toggle("is-hidden", state.autoload.mode === "watch");
   if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
   if (fileField) fileField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   if (datasetField) datasetField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
@@ -2289,6 +2291,12 @@ async function startAutoload() {
     tiff: autoloadTypeTiff?.checked ?? true,
     cbf: autoloadTypeCbf?.checked ?? true,
   };
+  if (state.autoload.mode === "watch") {
+    state.autoload.types = { hdf5: true, tiff: true, cbf: true };
+    if (autoloadTypeHdf5) autoloadTypeHdf5.checked = true;
+    if (autoloadTypeTiff) autoloadTypeTiff.checked = true;
+    if (autoloadTypeCbf) autoloadTypeCbf.checked = true;
+  }
   state.autoload.pattern = autoloadPattern?.value?.trim() || "";
   state.autoload.simplonUrl = simplonUrl?.value?.trim() || "";
   state.autoload.simplonVersion = simplonVersion?.value?.trim() || "1.8.0";
@@ -2311,6 +2319,7 @@ async function startAutoload() {
   setAutoloadStatus(`Running (${state.autoload.mode === "watch" ? "Watch folder" : "SIMPLON monitor"})`);
   persistAutoloadSettings();
   if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
+    setStatus("SIMPLON monitor");
     await setSimplonMode(true);
     state.autoload.lastMaskAttempt = Date.now();
     await fetchSimplonMask();
@@ -4321,6 +4330,8 @@ function updateRoiStats() {
     const height = bottom - top + 1;
     const xProj = new Float64Array(width);
     const yProj = new Float64Array(height);
+    const xCounts = new Int32Array(width);
+    const yCounts = new Int32Array(height);
 
     for (let y = top; y <= bottom; y += 1) {
       const rowIndex = y - top;
@@ -4339,8 +4350,16 @@ function updateRoiStats() {
           m2 += delta * (v - mean);
           xProj[colIndex] += v;
           yProj[rowIndex] += v;
+          xCounts[colIndex] += 1;
+          yCounts[rowIndex] += 1;
         }
       }
+    }
+    for (let i = 0; i < xProj.length; i += 1) {
+      xProj[i] = xCounts[i] > 0 ? xProj[i] / xCounts[i] : 0;
+    }
+    for (let i = 0; i < yProj.length; i += 1) {
+      yProj[i] = yCounts[i] > 0 ? yProj[i] / yCounts[i] : 0;
     }
     roiState.xProjection = Array.from(xProj);
     roiState.yProjection = Array.from(yProj);
@@ -4357,7 +4376,7 @@ function updateRoiStats() {
     if (roiXCanvas) {
       roiXCanvas._roiPlotMeta = {
         xLabel: "X Pixel",
-        yLabel: "Sum",
+        yLabel: "Mean",
         xStart: left,
         xStep: 1,
       };
@@ -4365,7 +4384,7 @@ function updateRoiStats() {
     if (roiYCanvas) {
       roiYCanvas._roiPlotMeta = {
         xLabel: "Y Pixel",
-        yLabel: "Sum",
+        yLabel: "Mean",
         xStart: top,
         xStep: 1,
       };
