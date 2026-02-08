@@ -4906,7 +4906,10 @@ canvasWrap.addEventListener("contextmenu", (event) => {
 });
 
 canvasWrap.addEventListener("pointerdown", (event) => {
-  if (event.button === 2 && roiState.mode !== "none") {
+  const isRightClick = event.button === 2 || event.buttons === 2 || event.which === 3;
+  const isCtrlClick = event.button === 0 && event.ctrlKey;
+  const roiTrigger = roiState.mode !== "none" && (isRightClick || isCtrlClick);
+  if (roiTrigger) {
     const point = getImagePointFromEvent(event);
     if (!point) return;
     roiDragging = true;
@@ -4954,24 +4957,7 @@ canvasWrap.addEventListener("pointermove", (event) => {
   if (roiDragging) {
     const point = getImagePointFromEvent(event);
     if (!point) return;
-    roiState.end = point;
-    if (roiState.mode === "circle" || roiState.mode === "annulus") {
-      const dx = roiState.end.x - roiState.start.x;
-      const dy = roiState.end.y - roiState.start.y;
-      const outer = Math.max(0, Math.round(Math.hypot(dx, dy)));
-      roiState.outerRadius = outer;
-      if (roiState.mode === "circle") {
-        if (roiRadiusInput) roiRadiusInput.value = String(outer);
-      } else {
-        if (roiOuterInput) roiOuterInput.value = String(outer);
-        if (!roiState.innerRadius || roiState.innerRadius >= outer) {
-          roiState.innerRadius = Math.max(0, Math.round(outer * 0.5));
-          if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
-        }
-      }
-    }
-    scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    updateRoiDrag(point);
     return;
   }
   if (!panning) return;
@@ -5004,6 +4990,27 @@ function stopRoi(event) {
   scheduleRoiUpdate();
 }
 
+function updateRoiDrag(point) {
+  roiState.end = point;
+  if (roiState.mode === "circle" || roiState.mode === "annulus") {
+    const dx = roiState.end.x - roiState.start.x;
+    const dy = roiState.end.y - roiState.start.y;
+    const outer = Math.max(0, Math.round(Math.hypot(dx, dy)));
+    roiState.outerRadius = outer;
+    if (roiState.mode === "circle") {
+      if (roiRadiusInput) roiRadiusInput.value = String(outer);
+    } else {
+      if (roiOuterInput) roiOuterInput.value = String(outer);
+      if (!roiState.innerRadius || roiState.innerRadius >= outer) {
+        roiState.innerRadius = Math.max(0, Math.round(outer * 0.5));
+        if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
+      }
+    }
+  }
+  scheduleRoiOverlay();
+  scheduleRoiUpdate();
+}
+
 canvasWrap.addEventListener("pointerup", (event) => {
   stopRoi(event);
   stopPan(event);
@@ -5012,6 +5019,18 @@ canvasWrap.addEventListener("pointerup", (event) => {
 canvasWrap.addEventListener("pointercancel", (event) => {
   stopRoi(event);
   stopPan(event);
+});
+
+window.addEventListener("mousemove", (event) => {
+  if (!roiDragging) return;
+  const point = getImagePointFromEvent(event);
+  if (!point) return;
+  updateRoiDrag(point);
+});
+
+window.addEventListener("mouseup", (event) => {
+  if (!roiDragging) return;
+  stopRoi(event);
 });
 
 canvasWrap.addEventListener("pointerleave", () => {
