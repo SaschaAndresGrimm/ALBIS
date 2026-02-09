@@ -1352,7 +1352,8 @@ function drawResolutionOverlay() {
   resolutionCtx.setLineDash([6, 6]);
   resolutionCtx.lineJoin = "round";
   resolutionCtx.lineCap = "round";
-  resolutionCtx.font = "12px 'Avenir', 'Segoe UI', sans-serif";
+  const fontSize = 14;
+  resolutionCtx.font = `${fontSize}px 'Avenir', 'Segoe UI', sans-serif`;
   resolutionCtx.textBaseline = "middle";
   const labelAngle = -Math.PI / 6;
   params.rings.forEach((d) => {
@@ -1376,11 +1377,18 @@ function drawResolutionOverlay() {
     const labelX = centerX + Math.cos(labelAngle) * screenRadius;
     const labelY = centerY + Math.sin(labelAngle) * screenRadius;
     const label = Number.isFinite(d) ? `${d.toFixed(2).replace(/\.00$/, "")} Å` : "Å";
+    const textX = labelX + 8;
+    const textY = labelY;
+    const textWidth = resolutionCtx.measureText(label).width;
+    const padX = 6;
+    const padY = 3;
+    resolutionCtx.fillStyle = "rgba(10, 20, 40, 0.55)";
+    resolutionCtx.fillRect(textX - padX, textY - fontSize / 2 - padY, textWidth + padX * 2, fontSize + padY * 2);
     resolutionCtx.lineWidth = 3;
-    resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.6)";
-    resolutionCtx.strokeText(label, labelX + 6, labelY);
-    resolutionCtx.fillStyle = "rgba(230, 240, 255, 0.95)";
-    resolutionCtx.fillText(label, labelX + 6, labelY);
+    resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+    resolutionCtx.strokeText(label, textX, textY);
+    resolutionCtx.fillStyle = "rgba(230, 240, 255, 0.98)";
+    resolutionCtx.fillText(label, textX, textY);
   });
   resolutionCtx.restore();
 }

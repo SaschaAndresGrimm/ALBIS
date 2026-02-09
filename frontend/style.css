@@ -990,29 +990,82 @@ body {
   flex: 1 1 auto;
 }
 
-.ring-values input,
-.ring-center input {
-  width: 64px;
-  text-align: center;
-}
-
-.ring-values {
-  gap: 6px;
-}
-
-.ring-center {
-  gap: 8px;
-}
-
 .rings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 6px;
+  gap: 6px 10px;
+  margin-top: 0;
 }
 
 .rings-grid .field {
   margin: 0;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field {
+  gap: 2px;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field input,
+.panel-tab-content[data-panel-tab="analysis"] .field select {
+  max-width: 220px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field .inline {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#rings-count {
+  max-width: 80px;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .panel-section {
+  gap: 6px;
+}
+
+.rings-grid-top {
+  margin-top: 2px;
+}
+
+.rings-grid-bottom {
+  align-items: end;
+}
+
+.ring-center {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 220px;
+}
+
+.ring-values {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 320px;
+}
+
+.ring-values input,
+.ring-center input {
+  text-align: center;
+  min-width: 0;
+}
+
+.rings-count-field input {
+  max-width: 80px;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.analysis-grid .field input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .field.zoom-row {

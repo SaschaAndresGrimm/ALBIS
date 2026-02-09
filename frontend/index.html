@@ -441,7 +441,7 @@
                 <input id="rings-toggle" type="checkbox" />
                 Show resolution rings
               </label>
-              <div class="rings-grid">
+              <div class="rings-grid rings-grid-top">
                 <label class="field">
                   <span>Detector distance (mm)</span>
                   <input id="rings-distance" type="number" min="0" step="1" placeholder="e.g. 250" />
@@ -456,25 +456,27 @@
                 </label>
                 <label class="field">
                   <span>Beam center (px)</span>
-                  <div class="inline ring-center">
+                  <div class="ring-center">
                     <input id="rings-center-x" type="number" step="1" placeholder="X" />
                     <input id="rings-center-y" type="number" step="1" placeholder="Y" />
                   </div>
                 </label>
               </div>
-              <label class="field">
-                <span>Ring count</span>
-                <input id="rings-count" type="number" min="1" max="4" step="1" value="3" />
-              </label>
-              <label class="field">
-                <span>Rings (Å)</span>
-                <div class="inline ring-values">
-                  <input id="ring-r1" type="number" min="0" step="0.1" value="1.0" />
-                  <input id="ring-r2" type="number" min="0" step="0.1" value="2.0" />
-                  <input id="ring-r3" type="number" min="0" step="0.1" value="4.0" />
-                  <input id="ring-r4" type="number" min="0" step="0.1" value="8.0" />
-                </div>
-              </label>
+              <div class="rings-grid rings-grid-bottom">
+                <label class="field rings-count-field">
+                  <span>Ring count</span>
+                  <input id="rings-count" type="number" min="1" max="4" step="1" value="3" />
+                </label>
+                <label class="field rings-values-field">
+                  <span>Rings (Å)</span>
+                  <div class="ring-values">
+                    <input id="ring-r1" type="number" min="0" step="0.1" value="1.0" />
+                    <input id="ring-r2" type="number" min="0" step="0.1" value="2.0" />
+                    <input id="ring-r3" type="number" min="0" step="0.1" value="4.0" />
+                    <input id="ring-r4" type="number" min="0" step="0.1" value="8.0" />
+                  </div>
+                </label>
+              </div>
             </section>
           </div>
 
