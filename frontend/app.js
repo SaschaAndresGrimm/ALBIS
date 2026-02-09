@@ -63,6 +63,10 @@ const sectionToggles = document.querySelectorAll("[data-section-toggle]");
 const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
+const resolutionOverlay = document.getElementById("resolution-overlay");
+const resolutionCtx = resolutionOverlay?.getContext("2d");
+const peakOverlay = document.getElementById("peak-overlay");
+const peakCtx = peakOverlay?.getContext("2d");
 const dataSection = document.getElementById("data-section");
 const autoloadMode = document.getElementById("autoload-mode");
 const autoloadDir = document.getElementById("autoload-dir");
@@ -127,6 +131,23 @@ const roiXCanvas = document.getElementById("roi-x-canvas");
 const roiXCtx = roiXCanvas?.getContext("2d");
 const roiYCanvas = document.getElementById("roi-y-canvas");
 const roiYCtx = roiYCanvas?.getContext("2d");
+const ringsToggle = document.getElementById("rings-toggle");
+const ringsDistance = document.getElementById("rings-distance");
+const ringsPixel = document.getElementById("rings-pixel");
+const ringsEnergy = document.getElementById("rings-energy");
+const ringsCenterX = document.getElementById("rings-center-x");
+const ringsCenterY = document.getElementById("rings-center-y");
+const ringsCount = document.getElementById("rings-count");
+const ringInputs = [
+  document.getElementById("ring-r1"),
+  document.getElementById("ring-r2"),
+  document.getElementById("ring-r3"),
+  document.getElementById("ring-r4"),
+].filter(Boolean);
+const peaksEnableToggle = document.getElementById("peaks-enable");
+const peaksCountInput = document.getElementById("peaks-count");
+const peaksExportBtn = document.getElementById("peaks-export");
+const peaksBody = document.getElementById("peaks-body");
 const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
 const dropdown = document.getElementById("menu-dropdown");
 const dropdownPanels = document.querySelectorAll(".dropdown-panel");
@@ -164,6 +185,12 @@ let roiEditing = false;
 let roiEditHandle = null;
 let roiEditStart = null;
 let roiEditSnapshot = null;
+let zoomWheelTarget = null;
+let zoomWheelRaf = null;
+let zoomWheelPivot = null;
+let resolutionOverlayScheduled = false;
+let peakOverlayScheduled = false;
+let peakFinderScheduled = false;
 let panelTabState = "view";
 let backendTimer = null;
 let inspectorSelectedRow = null;
@@ -181,6 +208,20 @@ const roiState = {
   innerRadius: 0,
   outerRadius: 0,
 };
+const analysisState = {
+  ringsEnabled: false,
+  distanceMm: null,
+  pixelSizeUm: null,
+  energyEv: null,
+  centerX: null,
+  centerY: null,
+  rings: [1, 2, 4, 8],
+  ringCount: 3,
+  peaksEnabled: false,
+  peakCount: 25,
+  peaks: [],
+  selectedPeak: -1,
+};
 
 const state = {
   file: "",
@@ -193,7 +234,7 @@ const state = {
   thresholdIndex: 0,
   thresholdEnergies: [],
   backendAlive: false,
-  backendVersion: "0.1",
+  backendVersion: "0.2",
   isLoading: false,
   pendingFrame: null,
   playing: false,
@@ -338,6 +379,7 @@ window.addEventListener("unhandledrejection", (event) => {
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 50;
 const PIXEL_LABEL_MIN_ZOOM = 15;
+const PEAK_BAD_MASK_BITS = 0x1f;
 
 function getMinZoom() {
   if (!canvasWrap || !state.width || !state.height) {
@@ -1013,7 +1055,9 @@ function updateCursorOverlay(event) {
       labelValue = "D";
     }
   }
-  const label = `X ${ix}  Y ${iy}  Value ${labelValue}`;
+  const resolutionValue = getResolutionAtPixel(ix, iy);
+  const resolutionText = Number.isFinite(resolutionValue) ? `  d ${resolutionValue.toFixed(4)} Å` : "";
+  const label = `X ${ix}  Y ${iy}  Value ${labelValue}${resolutionText}`;
   showCursorOverlay(label, event.clientX, event.clientY);
 }
 
@@ -1123,29 +1167,66 @@ function drawRoiOverlay() {
   const y1 = (roiState.end.y - viewY) * zoom + offsetY;
 
   roiCtx.save();
-  roiCtx.lineWidth = 2;
-  roiCtx.strokeStyle = "rgba(255, 255, 255, 0.95)";
   roiCtx.setLineDash([6, 4]);
+  roiCtx.lineJoin = "round";
+  roiCtx.lineCap = "round";
+  const strokeWithHalo = () => {
+    roiCtx.lineWidth = 4;
+    roiCtx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+    roiCtx.stroke();
+    roiCtx.lineWidth = 2;
+    roiCtx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    roiCtx.stroke();
+  };
   if (roiState.mode === "line") {
     roiCtx.beginPath();
     roiCtx.moveTo(x0, y0);
     roiCtx.lineTo(x1, y1);
-    roiCtx.stroke();
+    strokeWithHalo();
   } else if (roiState.mode === "box") {
     const left = Math.min(x0, x1);
     const top = Math.min(y0, y1);
     const w = Math.abs(x1 - x0);
     const h = Math.abs(y1 - y0);
-    roiCtx.strokeRect(left, top, w, h);
+    if (w > 0 && h > 0) {
+      roiCtx.save();
+      roiCtx.setLineDash([]);
+      roiCtx.fillStyle = "rgba(160, 160, 160, 0.08)";
+      roiCtx.fillRect(left, top, w, h);
+      roiCtx.restore();
+    }
+    roiCtx.beginPath();
+    roiCtx.rect(left, top, w, h);
+    strokeWithHalo();
   } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
     const radius = Math.hypot(x1 - x0, y1 - y0);
+    if (radius > 0) {
+      roiCtx.save();
+      roiCtx.setLineDash([]);
+      roiCtx.fillStyle = "rgba(160, 160, 160, 0.08)";
+      roiCtx.beginPath();
+      roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
+      if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
+        const inner = roiState.innerRadius * zoom;
+        roiCtx.moveTo(x0 + inner, y0);
+        roiCtx.arc(x0, y0, inner, 0, Math.PI * 2);
+        try {
+          roiCtx.fill("evenodd");
+        } catch {
+          roiCtx.fill();
+        }
+      } else {
+        roiCtx.fill();
+      }
+      roiCtx.restore();
+    }
     roiCtx.beginPath();
     roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
-    roiCtx.stroke();
+    strokeWithHalo();
     if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
       roiCtx.beginPath();
       roiCtx.arc(x0, y0, roiState.innerRadius * zoom, 0, Math.PI * 2);
-      roiCtx.stroke();
+      strokeWithHalo();
     }
   }
   roiCtx.restore();
@@ -1200,6 +1281,387 @@ function drawRoiHandles(ctx, x0, y0, x1, y1, zoom) {
     }
   }
   ctx.restore();
+}
+
+function scheduleResolutionOverlay() {
+  if (!resolutionOverlay || !resolutionCtx) return;
+  if (resolutionOverlayScheduled) return;
+  resolutionOverlayScheduled = true;
+  window.requestAnimationFrame(() => {
+    resolutionOverlayScheduled = false;
+    drawResolutionOverlay();
+  });
+}
+
+function getDefaultCenter() {
+  if (Array.isArray(state.shape) && state.shape.length >= 2) {
+    const width = state.shape[state.shape.length - 1];
+    const height = state.shape[state.shape.length - 2];
+    if (Number.isFinite(width) && Number.isFinite(height)) {
+      return { x: width / 2, y: height / 2 };
+    }
+  }
+  if (state.width && state.height) {
+    return { x: state.width / 2, y: state.height / 2 };
+  }
+  return { x: 0, y: 0 };
+}
+
+function getRingParams() {
+  const distanceMm = Number(ringsDistance?.value || analysisState.distanceMm);
+  const pixelSizeUm = Number(ringsPixel?.value || analysisState.pixelSizeUm);
+  const energyEv = Number(ringsEnergy?.value || analysisState.energyEv);
+  const centerX = Number(ringsCenterX?.value);
+  const centerY = Number(ringsCenterY?.value);
+  const center = {
+    x: Number.isFinite(centerX) ? centerX : analysisState.centerX,
+    y: Number.isFinite(centerY) ? centerY : analysisState.centerY,
+  };
+  const fallback = getDefaultCenter();
+  if (!Number.isFinite(center.x)) center.x = fallback.x;
+  if (!Number.isFinite(center.y)) center.y = fallback.y;
+  const count = Number(ringsCount?.value || analysisState.ringCount || 3);
+  const maxCount = Math.max(1, ringInputs.length);
+  const ringLimit = Number.isFinite(count)
+    ? Math.max(1, Math.min(maxCount, Math.round(count)))
+    : Math.min(3, maxCount);
+  const rings = ringInputs
+    .map((input, index) => {
+      const value = Number(input?.value || analysisState.rings[index]);
+      return Number.isFinite(value) && value > 0 ? value : null;
+    })
+    .filter((value) => value !== null)
+    .slice(0, ringLimit);
+  return {
+    distanceMm: Number.isFinite(distanceMm) ? distanceMm : null,
+    pixelSizeUm: Number.isFinite(pixelSizeUm) ? pixelSizeUm : null,
+    energyEv: Number.isFinite(energyEv) ? energyEv : null,
+    centerX: center.x,
+    centerY: center.y,
+    rings,
+  };
+}
+
+function getResolutionAtPixel(ix, iy, params = getRingParams()) {
+  if (!Number.isFinite(ix) || !Number.isFinite(iy)) return null;
+  if (!params || !params.distanceMm || !params.pixelSizeUm || !params.energyEv) return null;
+  const lambda = 12398.4193 / params.energyEv;
+  if (!Number.isFinite(lambda) || lambda <= 0) return null;
+  const pixelSizeMm = params.pixelSizeUm / 1000;
+  if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) return null;
+
+  const dxPx = ix - params.centerX;
+  const dyPx = iy - params.centerY;
+  const radiusPx = Math.hypot(dxPx, dyPx);
+  const radiusMm = radiusPx * pixelSizeMm;
+  const twoTheta = Math.atan2(radiusMm, params.distanceMm);
+  const sinArg = Math.sin(twoTheta / 2);
+  if (!Number.isFinite(sinArg) || sinArg <= 0) return null;
+  const d = lambda / (2 * sinArg);
+  return Number.isFinite(d) && d > 0 ? d : null;
+}
+
+function renderPeakList() {
+  if (!peaksBody) return;
+  peaksBody.innerHTML = "";
+  if (!analysisState.peaksEnabled) {
+    const empty = document.createElement("div");
+    empty.className = "peaks-empty";
+    empty.textContent = "Enable \"Find peaks\" to detect diffraction peaks.";
+    peaksBody.appendChild(empty);
+    return;
+  }
+  if (!analysisState.peaks.length) {
+    const empty = document.createElement("div");
+    empty.className = "peaks-empty";
+    empty.textContent = state.hasFrame ? "No peaks detected." : "Load a frame to detect peaks.";
+    peaksBody.appendChild(empty);
+    return;
+  }
+  analysisState.peaks.forEach((peak, idx) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "peaks-row";
+    if (idx === analysisState.selectedPeak) {
+      row.classList.add("is-selected");
+    }
+    row.innerHTML = `<span>${peak.x}</span><span>${peak.y}</span><span>${formatStat(peak.intensity)}</span>`;
+    row.addEventListener("click", () => {
+      analysisState.selectedPeak = idx;
+      renderPeakList();
+      schedulePeakOverlay();
+    });
+    peaksBody.appendChild(row);
+  });
+}
+
+function detectPeaks(maxPeaks) {
+  if (!state.hasFrame || !state.dataRaw || !state.width || !state.height) return [];
+  const width = state.width;
+  const height = state.height;
+  if (width < 3 || height < 3 || maxPeaks < 1) return [];
+
+  const data = state.dataRaw;
+  const maskReady =
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === height &&
+    state.maskShape[1] === width;
+  const mask = maskReady ? state.maskRaw : null;
+
+  const candidates = [];
+  const candidateLimit = Math.min(4096, Math.max(128, maxPeaks * 24));
+  let minCandidateValue = Number.POSITIVE_INFINITY;
+  let minCandidateIndex = -1;
+
+  function pushCandidate(x, y, value) {
+    if (candidates.length < candidateLimit) {
+      candidates.push({ x, y, intensity: value });
+      if (value < minCandidateValue) {
+        minCandidateValue = value;
+        minCandidateIndex = candidates.length - 1;
+      }
+      return;
+    }
+    if (value <= minCandidateValue || minCandidateIndex < 0) return;
+    candidates[minCandidateIndex] = { x, y, intensity: value };
+    minCandidateValue = Number.POSITIVE_INFINITY;
+    minCandidateIndex = -1;
+    for (let i = 0; i < candidates.length; i += 1) {
+      if (candidates[i].intensity < minCandidateValue) {
+        minCandidateValue = candidates[i].intensity;
+        minCandidateIndex = i;
+      }
+    }
+  }
+
+  for (let y = 1; y < height - 1; y += 1) {
+    const row = y * width;
+    for (let x = 1; x < width - 1; x += 1) {
+      const idx = row + x;
+      const v = data[idx];
+      if (!Number.isFinite(v) || v <= 0) continue;
+      if (mask && (mask[idx] & PEAK_BAD_MASK_BITS)) continue;
+
+      let left = data[idx - 1];
+      let right = data[idx + 1];
+      let up = data[idx - width];
+      let down = data[idx + width];
+      if (mask) {
+        if (mask[idx - 1] & PEAK_BAD_MASK_BITS) left = Number.NEGATIVE_INFINITY;
+        if (mask[idx + 1] & PEAK_BAD_MASK_BITS) right = Number.NEGATIVE_INFINITY;
+        if (mask[idx - width] & PEAK_BAD_MASK_BITS) up = Number.NEGATIVE_INFINITY;
+        if (mask[idx + width] & PEAK_BAD_MASK_BITS) down = Number.NEGATIVE_INFINITY;
+      }
+      if (!Number.isFinite(left)) left = Number.NEGATIVE_INFINITY;
+      if (!Number.isFinite(right)) right = Number.NEGATIVE_INFINITY;
+      if (!Number.isFinite(up)) up = Number.NEGATIVE_INFINITY;
+      if (!Number.isFinite(down)) down = Number.NEGATIVE_INFINITY;
+
+      if (!(v > left && v >= right && v > up && v >= down)) continue;
+      pushCandidate(x, y, v);
+    }
+  }
+
+  candidates.sort((a, b) => b.intensity - a.intensity);
+  const selected = [];
+  const minSeparation = Math.max(4, Math.round(Math.min(width, height) * 0.004));
+  const minSeparationSq = minSeparation * minSeparation;
+  for (let i = 0; i < candidates.length; i += 1) {
+    const candidate = candidates[i];
+    let tooClose = false;
+    for (let j = 0; j < selected.length; j += 1) {
+      const dx = candidate.x - selected[j].x;
+      const dy = candidate.y - selected[j].y;
+      if (dx * dx + dy * dy < minSeparationSq) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (!tooClose) {
+      selected.push(candidate);
+      if (selected.length >= maxPeaks) break;
+    }
+  }
+  return selected;
+}
+
+function runPeakFinder() {
+  peakFinderScheduled = false;
+  if (!analysisState.peaksEnabled) {
+    analysisState.peaks = [];
+    analysisState.selectedPeak = -1;
+    renderPeakList();
+    schedulePeakOverlay();
+    return;
+  }
+  const requested = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput?.value || analysisState.peakCount || 25))));
+  analysisState.peakCount = requested;
+  if (peaksCountInput) {
+    peaksCountInput.value = String(requested);
+  }
+  analysisState.peaks = detectPeaks(requested);
+  if (analysisState.selectedPeak >= analysisState.peaks.length) {
+    analysisState.selectedPeak = analysisState.peaks.length ? 0 : -1;
+  }
+  if (analysisState.selectedPeak < 0 && analysisState.peaks.length) {
+    analysisState.selectedPeak = 0;
+  }
+  renderPeakList();
+  schedulePeakOverlay();
+}
+
+function schedulePeakFinder() {
+  if (peakFinderScheduled) return;
+  peakFinderScheduled = true;
+  window.setTimeout(runPeakFinder, 0);
+}
+
+function exportPeakCsv() {
+  if (!analysisState.peaks.length) return;
+  const rows = ["x,y,intensity"];
+  analysisState.peaks.forEach((peak) => {
+    rows.push(`${peak.x},${peak.y},${peak.intensity}`);
+  });
+  const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  const base = (state.file || "peaks").split("/").pop().replace(/\.[^.]+$/, "");
+  const thresholdSuffix = state.thresholdCount > 1 ? `_thr${state.thresholdIndex + 1}` : "";
+  link.href = url;
+  link.download = `${base}_frame_${state.frameIndex + 1}${thresholdSuffix}_peaks.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function schedulePeakOverlay() {
+  if (!peakOverlay || !peakCtx) return;
+  if (peakOverlayScheduled) return;
+  peakOverlayScheduled = true;
+  window.requestAnimationFrame(() => {
+    peakOverlayScheduled = false;
+    drawPeakOverlay();
+  });
+}
+
+function drawPeakOverlay() {
+  if (!peakOverlay || !peakCtx || !canvasWrap) return;
+  const metrics = syncOverlayCanvas(peakOverlay, peakCtx);
+  if (!metrics) return;
+  const { width, height } = metrics;
+  peakCtx.clearRect(0, 0, width, height);
+  if (!state.hasFrame || !analysisState.peaksEnabled || !analysisState.peaks.length) return;
+
+  const zoom = state.zoom || 1;
+  const offsetX = state.renderOffsetX || 0;
+  const offsetY = state.renderOffsetY || 0;
+  const viewX = canvasWrap.scrollLeft / zoom;
+  const viewY = canvasWrap.scrollTop / zoom;
+
+  analysisState.peaks.forEach((peak, index) => {
+    const sx = (peak.x - viewX) * zoom + offsetX;
+    const sy = (peak.y - viewY) * zoom + offsetY;
+    if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
+    const selected = index === analysisState.selectedPeak;
+    const zoomScale = Math.max(0, Math.log2(Math.max(1, zoom)));
+    const radius = selected
+      ? Math.max(11, Math.min(28, 13 + zoomScale * 2.2))
+      : Math.max(9, Math.min(22, 10 + zoomScale * 1.7));
+
+    peakCtx.beginPath();
+    peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
+    peakCtx.lineWidth = selected ? 4.4 : 3.2;
+    peakCtx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    peakCtx.stroke();
+
+    peakCtx.beginPath();
+    peakCtx.arc(sx, sy, Math.max(1.2, radius * 0.18), 0, Math.PI * 2);
+    peakCtx.lineWidth = selected ? 3.2 : 2.2;
+    peakCtx.strokeStyle = selected ? "rgba(70, 255, 95, 0.98)" : "rgba(42, 122, 242, 0.98)";
+    peakCtx.stroke();
+
+    if (selected) {
+      const core = Math.max(2.4, radius * 0.2);
+      peakCtx.beginPath();
+      peakCtx.arc(sx, sy, core + 2, 0, Math.PI * 2);
+      peakCtx.fillStyle = "rgba(0, 0, 0, 0.75)";
+      peakCtx.fill();
+      peakCtx.beginPath();
+      peakCtx.arc(sx, sy, core, 0, Math.PI * 2);
+      peakCtx.fillStyle = "rgba(95, 255, 100, 0.98)";
+      peakCtx.fill();
+    }
+  });
+}
+
+function drawResolutionOverlay() {
+  if (!resolutionOverlay || !resolutionCtx || !canvasWrap) return;
+  const metrics = syncOverlayCanvas(resolutionOverlay, resolutionCtx);
+  if (!metrics) return;
+  const { width, height } = metrics;
+  resolutionCtx.clearRect(0, 0, width, height);
+  if (!analysisState.ringsEnabled || !state.hasFrame) return;
+  const params = getRingParams();
+  if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) return;
+  const lambda = 12398.4193 / params.energyEv;
+  if (!Number.isFinite(lambda) || lambda <= 0) return;
+  const zoom = state.zoom || 1;
+  const offsetX = state.renderOffsetX || 0;
+  const offsetY = state.renderOffsetY || 0;
+  const viewX = canvasWrap.scrollLeft / zoom;
+  const viewY = canvasWrap.scrollTop / zoom;
+  const centerX = (params.centerX - viewX) * zoom + offsetX;
+  const centerY = (params.centerY - viewY) * zoom + offsetY;
+  const pixelSizeMm = params.pixelSizeUm / 1000;
+  if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) return;
+
+  resolutionCtx.save();
+  resolutionCtx.setLineDash([6, 6]);
+  resolutionCtx.lineJoin = "round";
+  resolutionCtx.lineCap = "round";
+  const fontSize = 14;
+  resolutionCtx.font = `${fontSize}px 'Avenir', 'Segoe UI', sans-serif`;
+  resolutionCtx.textBaseline = "middle";
+  const labelAngle = -Math.PI / 6;
+  params.rings.forEach((d) => {
+    const sinArg = lambda / (2 * d);
+    if (!Number.isFinite(sinArg) || sinArg <= 0 || sinArg >= 1) return;
+    const twoTheta = 2 * Math.asin(sinArg);
+    const radiusMm = params.distanceMm * Math.tan(twoTheta);
+    const radiusPx = radiusMm / pixelSizeMm;
+    if (!Number.isFinite(radiusPx) || radiusPx <= 0) return;
+    const screenRadius = radiusPx * zoom;
+    if (screenRadius < 5) return;
+    resolutionCtx.beginPath();
+    resolutionCtx.arc(centerX, centerY, screenRadius, 0, Math.PI * 2);
+    resolutionCtx.lineWidth = 3.5;
+    resolutionCtx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+    resolutionCtx.stroke();
+    resolutionCtx.lineWidth = 2;
+    resolutionCtx.strokeStyle = "rgba(20, 80, 170, 0.95)";
+    resolutionCtx.stroke();
+
+    const labelX = centerX + Math.cos(labelAngle) * screenRadius;
+    const labelY = centerY + Math.sin(labelAngle) * screenRadius;
+    const label = Number.isFinite(d) ? `${d.toFixed(2).replace(/\.00$/, "")} Å` : "Å";
+    const textX = labelX + 8;
+    const textY = labelY;
+    const textWidth = resolutionCtx.measureText(label).width;
+    const padX = 6;
+    const padY = 3;
+    resolutionCtx.fillStyle = "rgba(10, 20, 40, 0.55)";
+    resolutionCtx.fillRect(textX - padX, textY - fontSize / 2 - padY, textWidth + padX * 2, fontSize + padY * 2);
+    resolutionCtx.lineWidth = 3;
+    resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+    resolutionCtx.strokeText(label, textX, textY);
+    resolutionCtx.fillStyle = "rgba(230, 240, 255, 0.98)";
+    resolutionCtx.fillText(label, textX, textY);
+  });
+  resolutionCtx.restore();
 }
 
 function getPointerCanvasPos(event) {
@@ -1798,6 +2260,8 @@ function setZoom(value) {
   }
   schedulePixelOverlay();
   scheduleRoiOverlay();
+  scheduleResolutionOverlay();
+  schedulePeakOverlay();
 }
 
 function zoomAt(clientX, clientY, nextZoom) {
@@ -1825,6 +2289,35 @@ function zoomAt(clientX, clientY, nextZoom) {
   canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft));
   canvasWrap.scrollTop = Math.max(0, Math.min(maxScrollTop, newScrollTop));
   scheduleOverview();
+}
+
+function normalizeWheelDelta(event) {
+  let delta = event.deltaY;
+  if (event.deltaMode === 1) {
+    delta *= 16;
+  } else if (event.deltaMode === 2) {
+    delta *= 120;
+  }
+  if (!Number.isFinite(delta)) return 0;
+  return Math.max(-200, Math.min(200, delta));
+}
+
+function stepWheelZoom() {
+  if (zoomWheelTarget === null || !zoomWheelPivot) {
+    zoomWheelRaf = null;
+    return;
+  }
+  const current = state.zoom || 1;
+  const minZoom = getMinZoom();
+  const target = Math.max(minZoom, Math.min(MAX_ZOOM, zoomWheelTarget));
+  const next = current + (target - current) * 0.35;
+  zoomAt(zoomWheelPivot.x, zoomWheelPivot.y, next);
+  if (Math.abs(target - next) < 0.001) {
+    zoomWheelTarget = null;
+    zoomWheelRaf = null;
+    return;
+  }
+  zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
 }
 
 function fitImageToView() {
@@ -2427,6 +2920,7 @@ function setPanelTab(tabId, persist = true) {
   scheduleOverview();
   scheduleHistogram();
   schedulePixelOverlay();
+  scheduleResolutionOverlay();
 }
 
 function setDataControlsForHdf5() {
@@ -2505,13 +2999,13 @@ function updateBackendBadge() {
 
 function updateAboutVersion() {
   if (!aboutVersion) return;
-  aboutVersion.textContent = `Version ${state.backendVersion || "0.1"}`;
+  aboutVersion.textContent = `Version ${state.backendVersion || "0.2"}`;
 }
 
 async function checkBackendHealth() {
   if (!backendBadge) return;
   let alive = false;
-  let version = state.backendVersion || "0.1";
+  let version = state.backendVersion || "0.2";
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 1500);
   try {
@@ -3770,10 +4264,54 @@ async function loadMetadata() {
     metaShape.textContent = data.shape.join(" × ");
     metaDtype.textContent = data.dtype;
     updateToolbar();
+    await loadAnalysisParams();
     await loadMask(true);
     await loadFrame();
   } finally {
     hideProcessingProgress();
+  }
+}
+
+async function loadAnalysisParams() {
+  if (!state.file || !isHdf5File(state.file)) {
+    return;
+  }
+  try {
+    const data = await fetchJSON(
+      `${API}/analysis/params?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(
+        state.dataset || ""
+      )}`
+    );
+    if (Number.isFinite(data.distance_mm) && ringsDistance) {
+      analysisState.distanceMm = data.distance_mm;
+      ringsDistance.value = String(Math.round(data.distance_mm));
+    }
+    if (Number.isFinite(data.pixel_size_um) && ringsPixel) {
+      analysisState.pixelSizeUm = data.pixel_size_um;
+      ringsPixel.value = data.pixel_size_um.toFixed(2);
+    }
+    if (Number.isFinite(data.energy_ev) && ringsEnergy) {
+      analysisState.energyEv = data.energy_ev;
+      ringsEnergy.value = String(Math.round(data.energy_ev));
+    }
+    const fallback = getDefaultCenter();
+    const centerX = Number.isFinite(data.center_x_px) ? data.center_x_px : fallback.x;
+    const centerY = Number.isFinite(data.center_y_px) ? data.center_y_px : fallback.y;
+    analysisState.centerX = centerX;
+    analysisState.centerY = centerY;
+    if (ringsCenterX) ringsCenterX.value = Math.round(centerX).toString();
+    if (ringsCenterY) ringsCenterY.value = Math.round(centerY).toString();
+    if (ringInputs.length && ringInputs.every((input) => !input.value)) {
+      ringInputs.forEach((input, idx) => {
+        const value = analysisState.rings[idx] ?? "";
+        if (value) {
+          input.value = String(value);
+        }
+      });
+    }
+    scheduleResolutionOverlay();
+  } catch (err) {
+    console.error(err);
   }
 }
 
@@ -5034,6 +5572,8 @@ function closeCurrentFile() {
   state.stats = null;
   state.hasFrame = false;
   state.globalStats = null;
+  analysisState.peaks = [];
+  analysisState.selectedPeak = -1;
   clearMaskState();
   updateToolbar();
   setStatus("No file loaded");
@@ -5060,6 +5600,8 @@ function closeCurrentFile() {
     ctx.clearRect(0, 0, 1, 1);
   }
   clearHistogram();
+  renderPeakList();
+  schedulePeakOverlay();
   clearRoi();
   updatePlayButtons();
 }
@@ -5095,6 +5637,8 @@ function applyFrame(data, width, height, dtype) {
   scheduleOverview();
   scheduleRoiUpdate();
   schedulePixelOverlay();
+  scheduleResolutionOverlay();
+  schedulePeakFinder();
 }
 
 function redraw() {
@@ -5147,6 +5691,7 @@ function redraw() {
   scheduleOverview();
   scheduleHistogram();
   schedulePixelOverlay();
+  schedulePeakOverlay();
 }
 
 async function loadFrame() {
@@ -5664,6 +6209,7 @@ maskToggle?.addEventListener("change", () => {
   updateGlobalStats();
   redraw();
   scheduleRoiUpdate();
+  schedulePeakFinder();
 });
 
 autoContrastBtn.addEventListener("click", () => {
@@ -5831,10 +6377,16 @@ canvasWrap.addEventListener(
   "wheel",
   (event) => {
     event.preventDefault();
-    const delta = Math.sign(event.deltaY);
+    const delta = normalizeWheelDelta(event);
+    if (!delta) return;
+    const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
+    const factor = Math.exp(-delta * 0.002);
     const minZoom = getMinZoom();
-    const next = Math.min(MAX_ZOOM, Math.max(minZoom, state.zoom - delta * 0.2));
-    zoomAt(event.clientX, event.clientY, next);
+    zoomWheelTarget = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
+    zoomWheelPivot = { x: event.clientX, y: event.clientY };
+    if (!zoomWheelRaf) {
+      zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
+    }
   },
   { passive: false }
 );
@@ -5843,6 +6395,8 @@ canvasWrap.addEventListener("scroll", () => {
   scheduleOverview();
   schedulePixelOverlay();
   scheduleRoiOverlay();
+  scheduleResolutionOverlay();
+  schedulePeakOverlay();
 });
 
 canvasWrap.addEventListener("contextmenu", (event) => {
@@ -6234,6 +6788,8 @@ window.addEventListener("resize", () => {
   schedulePixelOverlay();
   scheduleRoiOverlay();
   scheduleRoiUpdate();
+  scheduleResolutionOverlay();
+  schedulePeakOverlay();
 });
 
 initRenderer();
@@ -6264,6 +6820,88 @@ if (roiModeSelect) {
 if (roiLogToggle) {
   roiState.log = roiLogToggle.checked;
 }
+updateRingsFromInputs();
+
+function updateRingsFromInputs() {
+  if (ringsToggle) {
+    analysisState.ringsEnabled = ringsToggle.checked;
+  }
+  if (ringsCount) {
+    const count = Number(ringsCount.value);
+    const maxCount = Math.max(1, ringInputs.length);
+    analysisState.ringCount = Number.isFinite(count)
+      ? Math.max(1, Math.min(maxCount, Math.round(count)))
+      : Math.min(3, maxCount);
+    ringsCount.value = String(analysisState.ringCount);
+  }
+  if (ringsDistance) {
+    const value = Number(ringsDistance.value);
+    analysisState.distanceMm = Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (ringsPixel) {
+    const value = Number(ringsPixel.value);
+    analysisState.pixelSizeUm = Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (ringsEnergy) {
+    const value = Number(ringsEnergy.value);
+    analysisState.energyEv = Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (ringsCenterX) {
+    const value = Number(ringsCenterX.value);
+    analysisState.centerX = Number.isFinite(value) ? value : analysisState.centerX;
+  }
+  if (ringsCenterY) {
+    const value = Number(ringsCenterY.value);
+    analysisState.centerY = Number.isFinite(value) ? value : analysisState.centerY;
+  }
+  if (ringInputs.length) {
+    analysisState.rings = ringInputs
+      .map((input, idx) => {
+        const value = Number(input.value || analysisState.rings[idx]);
+        return Number.isFinite(value) && value > 0 ? value : null;
+      })
+      .filter((value) => value !== null);
+  }
+  ringInputs.forEach((input, idx) => {
+    if (!input) return;
+    const visible = idx < analysisState.ringCount;
+    input.style.display = visible ? "" : "none";
+  });
+  scheduleResolutionOverlay();
+}
+
+[ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ringsCount, ...ringInputs]
+  .filter(Boolean)
+  .forEach((input) => {
+    const eventName = input.type === "checkbox" ? "change" : "input";
+    input.addEventListener(eventName, updateRingsFromInputs);
+  });
+
+if (peaksCountInput) {
+  const initial = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput.value || 25))));
+  analysisState.peakCount = initial;
+  peaksCountInput.value = String(initial);
+  peaksCountInput.addEventListener("change", () => {
+    const next = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput.value || analysisState.peakCount))));
+    analysisState.peakCount = next;
+    peaksCountInput.value = String(next);
+    schedulePeakFinder();
+  });
+}
+
+if (peaksEnableToggle) {
+  analysisState.peaksEnabled = peaksEnableToggle.checked;
+  peaksEnableToggle.addEventListener("change", () => {
+    analysisState.peaksEnabled = peaksEnableToggle.checked;
+    schedulePeakFinder();
+  });
+}
+
+peaksExportBtn?.addEventListener("click", () => {
+  exportPeakCsv();
+});
+
+renderPeakList();
 if (pixelLabelToggle) {
   state.pixelLabels = pixelLabelToggle.checked;
   pixelLabelToggle.addEventListener("change", () => {

@@ -109,6 +109,8 @@
               <canvas id="image-canvas"></canvas>
               <div class="loading" id="loading">Loading frame…</div>
             </div>
+            <canvas id="resolution-overlay"></canvas>
+            <canvas id="peak-overlay"></canvas>
             <canvas id="pixel-overlay"></canvas>
             <canvas id="roi-overlay"></canvas>
             <div class="splash" id="splash">
@@ -129,6 +131,7 @@
           <div class="panel-tabs" role="tablist">
             <button class="panel-tab is-active" data-panel-tab="view" type="button">Viewport</button>
             <button class="panel-tab" data-panel-tab="data" type="button">Images</button>
+            <button class="panel-tab" data-panel-tab="analysis" type="button">Analysis</button>
           </div>
 
           <div class="panel-tab-content is-active" data-panel-tab="view">
@@ -301,7 +304,7 @@
             </section>
           </div>
 
-            <div class="panel-tab-content" data-panel-tab="data">
+          <div class="panel-tab-content" data-panel-tab="data">
             <div class="panel-tab-card" id="data-section">
               <label class="field">
                 <span>Data Source</span>
@@ -429,6 +432,82 @@
             </section>
           </div>
 
+          <div class="panel-tab-content" data-panel-tab="analysis">
+            <section class="panel-section" data-section="resolution-rings">
+              <button class="section-title" type="button" data-section-toggle>
+                Resolution Rings
+                <span class="section-chevron">▾</span>
+              </button>
+              <label class="checkbox">
+                <input id="rings-toggle" type="checkbox" />
+                Show resolution rings
+              </label>
+              <div class="rings-grid rings-grid-top">
+                <label class="field">
+                  <span>Detector distance (mm)</span>
+                  <input id="rings-distance" type="number" min="0" step="1" placeholder="e.g. 250" />
+                </label>
+                <label class="field">
+                  <span>Pixel size (µm)</span>
+                  <input id="rings-pixel" type="number" min="0" step="0.1" placeholder="e.g. 75" />
+                </label>
+                <label class="field">
+                  <span>Photon energy (eV)</span>
+                  <input id="rings-energy" type="number" min="0" step="1" placeholder="e.g. 12000" />
+                </label>
+                <label class="field">
+                  <span>Beam center (px)</span>
+                  <div class="ring-center">
+                    <input id="rings-center-x" type="number" step="1" placeholder="X" />
+                    <input id="rings-center-y" type="number" step="1" placeholder="Y" />
+                  </div>
+                </label>
+              </div>
+              <div class="rings-grid rings-grid-bottom">
+                <label class="field rings-count-field">
+                  <span>Ring count</span>
+                  <input id="rings-count" type="number" min="1" max="4" step="1" value="3" />
+                </label>
+                <label class="field rings-values-field">
+                  <span>Rings (Å)</span>
+                  <div class="ring-values">
+                    <input id="ring-r1" type="number" min="0" step="0.1" value="1.0" />
+                    <input id="ring-r2" type="number" min="0" step="0.1" value="2.0" />
+                    <input id="ring-r3" type="number" min="0" step="0.1" value="4.0" />
+                    <input id="ring-r4" type="number" min="0" step="0.1" value="8.0" />
+                  </div>
+                </label>
+              </div>
+            </section>
+            <section class="panel-section" data-section="peak-finder">
+              <button class="section-title" type="button" data-section-toggle>
+                Peak Finder
+                <span class="section-chevron">▾</span>
+              </button>
+              <label class="checkbox peaks-enable-toggle">
+                <input id="peaks-enable" type="checkbox" />
+                <span>Find peaks</span>
+              </label>
+              <label class="field peaks-count-field">
+                <span>Peaks to find</span>
+                <input id="peaks-count" type="number" min="1" max="500" step="1" value="25" />
+              </label>
+              <div class="peaks-actions">
+                <button id="peaks-export" class="btn" type="button">Export CSV</button>
+              </div>
+              <div class="peaks-list" id="peaks-list">
+                <div class="peaks-head">
+                  <span>X</span>
+                  <span>Y</span>
+                  <span>Intensity</span>
+                </div>
+                <div class="peaks-body" id="peaks-body">
+                  <div class="peaks-empty">Load a frame to detect peaks.</div>
+                </div>
+              </div>
+            </section>
+          </div>
+
           </div>
         </aside>
       </div>
@@ -446,7 +525,7 @@
         </div>
         <div class="modal-body">
           <p>ALBIS WEB VIEW — ALBULA-style web viewer prototype.</p>
-          <p id="about-version">Version 0.1</p>
+          <p id="about-version">Version 0.2</p>
           <p>Rendering: WebGL2 with LUTs (CPU fallback).</p>
           <p>Dataset: HDF5 stacks.</p>
         </div>

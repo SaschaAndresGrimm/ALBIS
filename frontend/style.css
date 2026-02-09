@@ -440,13 +440,25 @@ body {
 #pixel-overlay {
   position: absolute;
   pointer-events: none;
+  z-index: 4;
+}
+
+#resolution-overlay {
+  position: absolute;
+  pointer-events: none;
   z-index: 2;
+}
+
+#peak-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
 }
 
 #roi-overlay {
   position: absolute;
   pointer-events: none;
-  z-index: 3;
+  z-index: 5;
 }
 
 #image-canvas {
@@ -982,6 +994,171 @@ body {
 
 .color-map-row select {
   flex: 1 1 auto;
+}
+
+.rings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin-top: 0;
+}
+
+.rings-grid .field {
+  margin: 0;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field {
+  gap: 2px;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field input,
+.panel-tab-content[data-panel-tab="analysis"] .field select {
+  max-width: 220px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field .inline {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#rings-count {
+  max-width: 80px;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .panel-section {
+  gap: 6px;
+}
+
+.rings-grid-top {
+  margin-top: 2px;
+}
+
+.rings-grid-bottom {
+  align-items: end;
+}
+
+.ring-center {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 220px;
+}
+
+.ring-values {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 320px;
+}
+
+.ring-values input,
+.ring-center input {
+  text-align: center;
+  min-width: 0;
+}
+
+.rings-count-field input {
+  max-width: 80px;
+}
+
+.peaks-count-field input {
+  max-width: 96px;
+}
+
+.peaks-enable-toggle {
+  margin-bottom: 6px;
+}
+
+.peaks-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.peaks-actions .btn {
+  flex: 1 1 auto;
+}
+
+.peaks-list {
+  border: 1px solid #101010;
+  background: #1e1e1e;
+}
+
+.peaks-head,
+.peaks-row {
+  display: grid;
+  grid-template-columns: 52px 52px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.peaks-head {
+  padding: 4px 6px;
+  border-bottom: 1px solid #101010;
+  background: #262626;
+  font-size: 11px;
+  color: #d8d8d8;
+  font-weight: 600;
+}
+
+.peaks-head span,
+.peaks-row span {
+  font-variant-numeric: tabular-nums;
+}
+
+.peaks-head span:nth-child(1),
+.peaks-head span:nth-child(2),
+.peaks-row span:nth-child(1),
+.peaks-row span:nth-child(2) {
+  text-align: center;
+}
+
+.peaks-head span:nth-child(3),
+.peaks-row span:nth-child(3) {
+  text-align: right;
+}
+
+.peaks-body {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.peaks-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #161616;
+  background: transparent;
+  color: #ededed;
+  text-align: left;
+  padding: 4px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.peaks-row:hover {
+  background: rgba(110, 181, 255, 0.15);
+}
+
+.peaks-row.is-selected {
+  background: rgba(40, 120, 220, 0.35);
+}
+
+.peaks-empty {
+  padding: 8px;
+  color: #b0b0b0;
+  font-size: 11px;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.analysis-grid .field input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .field.zoom-row {
