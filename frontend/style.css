@@ -1003,6 +1003,20 @@ body {
   margin-top: 0;
 }
 
+.panel-section[data-section="resolution-rings"] .rings-grid {
+  justify-content: start;
+}
+
+.panel-section[data-section="resolution-rings"] .rings-grid-top {
+  grid-template-columns: repeat(2, minmax(170px, 210px));
+  gap: 4px 8px;
+}
+
+.panel-section[data-section="resolution-rings"] .rings-grid-bottom {
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 4px 8px;
+}
+
 .rings-grid .field {
   margin: 0;
 }
@@ -1051,6 +1065,16 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   max-width: 320px;
+}
+
+.panel-section[data-section="resolution-rings"] .ring-center {
+  max-width: 170px;
+  gap: 4px;
+}
+
+.panel-section[data-section="resolution-rings"] .ring-values {
+  max-width: 290px;
+  gap: 4px;
 }
 
 .ring-values input,
@@ -1148,6 +1172,48 @@ body {
   padding: 8px;
   color: #b0b0b0;
   font-size: 11px;
+}
+
+.series-sum-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  align-items: end;
+}
+
+.series-sum-grid .checkbox {
+  margin-bottom: 2px;
+}
+
+.series-sum-progress {
+  position: relative;
+  height: 22px;
+  border: 1px solid #0f0f0f;
+  background: #1e1e1e;
+  overflow: hidden;
+}
+
+.series-sum-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, #2b78d4, #6eb5ff);
+  transition: width 0.15s linear;
+}
+
+.series-sum-progress-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #f0f0f0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  padding: 0 6px;
 }
 
 .analysis-grid {

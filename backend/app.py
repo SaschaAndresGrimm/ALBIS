@@ -11,10 +11,12 @@ import re
 import platform
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +51,8 @@ _files_cache: tuple[float, list[str]] = (0.0, [])
 _folders_cache: tuple[float, list[str]] = (0.0, [])
 LOG_DIR: Path | None = None
 LOG_PATH: Path | None = None
+_series_jobs: dict[str, dict[str, Any]] = {}
+_series_jobs_lock = threading.Lock()
 
 
 def _init_logging() -> logging.Logger:
@@ -1147,6 +1151,222 @@ def _extract_frame(view: dict[str, Any], index: int, threshold: int) -> np.ndarr
     raise HTTPException(status_code=400, detail="Unsupported dataset view")
 
 
+def _series_job_update(job_id: str, **changes: Any) -> None:
+    with _series_jobs_lock:
+        job = _series_jobs.get(job_id)
+        if not job:
+            return
+        job.update(changes)
+        job["updated_at"] = time.time()
+
+
+def _resolve_series_output_base(output_path: str | None) -> Path:
+    raw = (output_path or "").strip()
+    if raw:
+        target = Path(raw).expanduser()
+        if not target.is_absolute():
+            target = (DATA_DIR / target).resolve()
+        else:
+            target = target.resolve()
+    else:
+        target = (DATA_DIR / "output" / "series_sum").resolve()
+
+    if target.exists() and target.is_dir():
+        target = (target / "series_sum").resolve()
+
+    allowed_root = DATA_DIR.resolve()
+    if not ALLOW_ABS_PATHS and not _is_within(target, allowed_root):
+        raise HTTPException(status_code=400, detail="Output path is outside data directory")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def _next_available_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+    stem = path.stem
+    suffix = path.suffix
+    for idx in range(1, 10000):
+        candidate = path.with_name(f"{stem}_{idx:03d}{suffix}")
+        if not candidate.exists():
+            return candidate
+    raise HTTPException(status_code=500, detail="Unable to allocate output file name")
+
+
+def _mask_flag_value(dtype: np.dtype) -> float:
+    if np.issubdtype(dtype, np.integer):
+        return float(np.iinfo(dtype).max)
+    if np.issubdtype(dtype, np.floating):
+        return float(np.finfo(dtype).max)
+    return float(np.iinfo(np.uint32).max)
+
+
+def _iter_sum_ranges(frame_count: int, mode: str, step: int) -> list[tuple[int, int]]:
+    if frame_count <= 0:
+        return []
+    if mode == "all":
+        return [(0, frame_count - 1)]
+    size = max(1, int(step))
+    ranges: list[tuple[int, int]] = []
+    start = 0
+    while start < frame_count:
+        end = min(frame_count - 1, start + size - 1)
+        ranges.append((start, end))
+        start = end + 1
+    return ranges
+
+
+def _run_series_summing_job(
+    job_id: str,
+    file: str,
+    dataset: str,
+    mode: str,
+    step: int,
+    output_path: str | None,
+    output_format: str,
+    apply_mask: bool,
+) -> None:
+    try:
+        source_path = _resolve_file(file)
+        base_target = _resolve_series_output_base(output_path)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        output_format = output_format.lower()
+        mode = mode.lower()
+        step = max(1, int(step))
+
+        _series_job_update(job_id, status="running", message="Preparing datasets…", progress=0.01)
+
+        with h5py.File(source_path, "r") as h5:
+            view, extra_files = _resolve_dataset_view(h5, source_path, dataset)
+            try:
+                shape = tuple(int(x) for x in view["shape"])
+                ndim = int(view["ndim"])
+                if ndim not in (3, 4):
+                    raise HTTPException(status_code=400, detail="Series summing requires 3D or 4D image stacks")
+                frame_count = int(shape[0])
+                threshold_count = int(shape[1]) if ndim == 4 else 1
+                ranges = _iter_sum_ranges(frame_count, mode, step)
+                if not ranges:
+                    raise HTTPException(status_code=400, detail="No frames available for summing")
+
+                source_dtype = np.dtype(view["dtype"])
+                flag_value = _mask_flag_value(source_dtype)
+                masks: list[np.ndarray | None] = []
+                for thr in range(threshold_count):
+                    if not apply_mask:
+                        masks.append(None)
+                        continue
+                    mask_dset = _find_pixel_mask(h5, threshold=thr if threshold_count > 1 else None)
+                    if mask_dset is None:
+                        masks.append(None)
+                        continue
+                    mask_arr = np.asarray(mask_dset)
+                    masks.append((mask_arr & 0x1F) != 0)
+
+                total_steps = max(1, frame_count * threshold_count)
+                processed = 0
+                sums: list[tuple[int, int, int, int, np.ndarray]] = []
+
+                for thr in range(threshold_count):
+                    bad_mask = masks[thr]
+                    for chunk_idx, (start_idx, end_idx) in enumerate(ranges):
+                        acc: np.ndarray | None = None
+                        for frame_idx in range(start_idx, end_idx + 1):
+                            arr = _extract_frame(view, frame_idx, thr)
+                            arr = np.asarray(arr, dtype=np.float64)
+                            if acc is None:
+                                acc = np.zeros_like(arr, dtype=np.float64)
+                            if bad_mask is not None:
+                                tmp = arr.copy()
+                                tmp[bad_mask] = 0.0
+                                acc += tmp
+                            else:
+                                acc += arr
+                            processed += 1
+                            progress = min(0.95, processed / total_steps)
+                            _series_job_update(
+                                job_id,
+                                progress=progress,
+                                message=f"Summing threshold {thr + 1}/{threshold_count}, frame {frame_idx + 1}/{frame_count}",
+                            )
+                        if acc is None:
+                            continue
+                        if bad_mask is not None:
+                            acc[bad_mask] = flag_value
+                        sums.append((thr, chunk_idx, start_idx, end_idx, acc))
+
+            finally:
+                for handle in extra_files:
+                    try:
+                        handle.close()
+                    except Exception:
+                        pass
+
+        outputs: list[str] = []
+        _series_job_update(job_id, progress=0.97, message="Writing outputs…")
+        if output_format in {"hdf5", "h5"}:
+            if base_target.suffix.lower() in {".h5", ".hdf5"}:
+                out_file = base_target
+            else:
+                out_file = base_target.parent / f"{base_target.name}_{timestamp}.h5"
+            out_file = _next_available_path(out_file)
+            with h5py.File(out_file, "w") as out_h5:
+                out_h5.attrs["source_file"] = str(source_path)
+                out_h5.attrs["source_dataset"] = str(dataset)
+                out_h5.attrs["series_mode"] = mode
+                out_h5.attrs["frame_count"] = int(frame_count)
+                out_h5.attrs["threshold_count"] = int(threshold_count)
+                out_h5.attrs["mask_applied"] = bool(apply_mask)
+                root = out_h5.require_group("sum")
+                for thr, chunk_idx, start_idx, end_idx, arr in sums:
+                    target_group = root.require_group(f"threshold_{thr + 1:02d}") if threshold_count > 1 else root
+                    name = "all" if mode == "all" else f"chunk_{chunk_idx + 1:04d}"
+                    dset = target_group.create_dataset(
+                        name,
+                        data=arr,
+                        compression="gzip",
+                        compression_opts=4,
+                        shuffle=True,
+                    )
+                    dset.attrs["threshold_index"] = int(thr)
+                    dset.attrs["chunk_index"] = int(chunk_idx)
+                    dset.attrs["start_frame"] = int(start_idx)
+                    dset.attrs["end_frame"] = int(end_idx)
+                outputs.append(str(out_file))
+        elif output_format in {"tiff", "tif"}:
+            base_name = base_target.stem or base_target.name or "series_sum"
+            out_dir = base_target.parent
+            for thr, chunk_idx, start_idx, end_idx, arr in sums:
+                thr_tag = f"_thr{thr + 1:02d}" if threshold_count > 1 else ""
+                chunk_tag = "_all" if mode == "all" else f"_chunk{chunk_idx + 1:04d}_f{start_idx + 1:06d}-{end_idx + 1:06d}"
+                out_file = out_dir / f"{base_name}{thr_tag}{chunk_tag}_{timestamp}.tiff"
+                out_file = _next_available_path(out_file)
+                tifffile.imwrite(out_file, arr.astype(np.float32), photometric="minisblack")
+                outputs.append(str(out_file))
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported output format")
+
+        _series_job_update(
+            job_id,
+            status="done",
+            progress=1.0,
+            message=f"Completed: wrote {len(outputs)} file(s)",
+            outputs=outputs,
+            done_at=time.time(),
+        )
+    except Exception as exc:
+        logger.exception("Series summing failed: %s", exc)
+        detail = exc.detail if isinstance(exc, HTTPException) else str(exc)
+        _series_job_update(
+            job_id,
+            status="error",
+            progress=1.0,
+            message=f"Failed: {detail}",
+            error=str(detail),
+            done_at=time.time(),
+        )
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "version": ALBIS_VERSION}
@@ -1889,6 +2109,83 @@ def analysis_params(
         "center_y_px": center_y_px,
         "shape": shape,
     }
+
+
+@app.post("/api/analysis/series-sum/start")
+def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    file = str(payload.get("file", "")).strip()
+    dataset = str(payload.get("dataset", "")).strip()
+    mode = str(payload.get("mode", "all")).strip().lower()
+    step = int(payload.get("step", 10) or 10)
+    output_path = payload.get("output_path")
+    output_format = str(payload.get("format", "hdf5")).strip().lower()
+    apply_mask = bool(payload.get("apply_mask", True))
+
+    if not file:
+        raise HTTPException(status_code=400, detail="Missing file")
+    if not dataset:
+        raise HTTPException(status_code=400, detail="Missing dataset")
+    if mode not in {"all", "step"}:
+        raise HTTPException(status_code=400, detail="Invalid mode")
+    if output_format not in {"hdf5", "h5", "tiff", "tif"}:
+        raise HTTPException(status_code=400, detail="Invalid format")
+    if step < 1:
+        raise HTTPException(status_code=400, detail="Step must be >= 1")
+
+    job_id = uuid.uuid4().hex
+    job_data = {
+        "id": job_id,
+        "status": "queued",
+        "progress": 0.0,
+        "message": "Queued",
+        "created_at": time.time(),
+        "updated_at": time.time(),
+        "outputs": [],
+        "error": None,
+        "config": {
+            "file": file,
+            "dataset": dataset,
+            "mode": mode,
+            "step": step,
+            "format": output_format,
+            "apply_mask": apply_mask,
+            "output_path": output_path,
+        },
+    }
+    with _series_jobs_lock:
+        _series_jobs[job_id] = job_data
+        # keep memory bounded
+        done_jobs = [jid for jid, info in _series_jobs.items() if info.get("status") in {"done", "error"}]
+        if len(done_jobs) > 200:
+            done_jobs.sort(key=lambda jid: float(_series_jobs[jid].get("updated_at", 0.0)))
+            for old_id in done_jobs[: len(done_jobs) - 200]:
+                _series_jobs.pop(old_id, None)
+
+    worker = threading.Thread(
+        target=_run_series_summing_job,
+        kwargs={
+            "job_id": job_id,
+            "file": file,
+            "dataset": dataset,
+            "mode": mode,
+            "step": step,
+            "output_path": str(output_path or ""),
+            "output_format": output_format,
+            "apply_mask": apply_mask,
+        },
+        daemon=True,
+    )
+    worker.start()
+    return {"job_id": job_id, "status": "queued"}
+
+
+@app.get("/api/analysis/series-sum/status")
+def analysis_series_sum_status(job_id: str = Query(..., min_length=1)) -> dict[str, Any]:
+    with _series_jobs_lock:
+        job = _series_jobs.get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return dict(job)
 
 
 @app.get("/api/metadata")
