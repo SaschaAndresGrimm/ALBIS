@@ -144,8 +144,8 @@ const ringInputs = [
   document.getElementById("ring-r3"),
   document.getElementById("ring-r4"),
 ].filter(Boolean);
+const peaksEnableToggle = document.getElementById("peaks-enable");
 const peaksCountInput = document.getElementById("peaks-count");
-const peaksFindBtn = document.getElementById("peaks-find");
 const peaksExportBtn = document.getElementById("peaks-export");
 const peaksBody = document.getElementById("peaks-body");
 const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
@@ -217,6 +217,7 @@ const analysisState = {
   centerY: null,
   rings: [1, 2, 4, 8],
   ringCount: 3,
+  peaksEnabled: false,
   peakCount: 25,
   peaks: [],
   selectedPeak: -1,
@@ -233,7 +234,7 @@ const state = {
   thresholdIndex: 0,
   thresholdEnergies: [],
   backendAlive: false,
-  backendVersion: "0.1",
+  backendVersion: "0.2",
   isLoading: false,
   pendingFrame: null,
   playing: false,
@@ -1363,6 +1364,13 @@ function getResolutionAtPixel(ix, iy, params = getRingParams()) {
 function renderPeakList() {
   if (!peaksBody) return;
   peaksBody.innerHTML = "";
+  if (!analysisState.peaksEnabled) {
+    const empty = document.createElement("div");
+    empty.className = "peaks-empty";
+    empty.textContent = "Enable \"Find peaks\" to detect diffraction peaks.";
+    peaksBody.appendChild(empty);
+    return;
+  }
   if (!analysisState.peaks.length) {
     const empty = document.createElement("div");
     empty.className = "peaks-empty";
@@ -1482,6 +1490,13 @@ function detectPeaks(maxPeaks) {
 
 function runPeakFinder() {
   peakFinderScheduled = false;
+  if (!analysisState.peaksEnabled) {
+    analysisState.peaks = [];
+    analysisState.selectedPeak = -1;
+    renderPeakList();
+    schedulePeakOverlay();
+    return;
+  }
   const requested = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput?.value || analysisState.peakCount || 25))));
   analysisState.peakCount = requested;
   if (peaksCountInput) {
@@ -1539,7 +1554,7 @@ function drawPeakOverlay() {
   if (!metrics) return;
   const { width, height } = metrics;
   peakCtx.clearRect(0, 0, width, height);
-  if (!state.hasFrame || !analysisState.peaks.length) return;
+  if (!state.hasFrame || !analysisState.peaksEnabled || !analysisState.peaks.length) return;
 
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
@@ -1552,18 +1567,34 @@ function drawPeakOverlay() {
     const sy = (peak.y - viewY) * zoom + offsetY;
     if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
     const selected = index === analysisState.selectedPeak;
-    const radius = selected ? Math.max(8, Math.min(16, 4 + zoom * 0.2)) : Math.max(6, Math.min(12, 3 + zoom * 0.15));
+    const zoomScale = Math.max(0, Math.log2(Math.max(1, zoom)));
+    const radius = selected
+      ? Math.max(11, Math.min(28, 13 + zoomScale * 2.2))
+      : Math.max(9, Math.min(22, 10 + zoomScale * 1.7));
 
     peakCtx.beginPath();
     peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
-    peakCtx.lineWidth = selected ? 3.5 : 2.2;
-    peakCtx.strokeStyle = selected ? "rgba(140, 210, 255, 0.98)" : "rgba(20, 80, 170, 0.96)";
+    peakCtx.lineWidth = selected ? 4.4 : 3.2;
+    peakCtx.strokeStyle = "rgba(255, 255, 255, 0.95)";
     peakCtx.stroke();
 
     peakCtx.beginPath();
     peakCtx.arc(sx, sy, Math.max(1.2, radius * 0.18), 0, Math.PI * 2);
-    peakCtx.fillStyle = selected ? "rgba(170, 230, 255, 0.95)" : "rgba(20, 80, 170, 0.75)";
-    peakCtx.fill();
+    peakCtx.lineWidth = selected ? 3.2 : 2.2;
+    peakCtx.strokeStyle = selected ? "rgba(70, 255, 95, 0.98)" : "rgba(42, 122, 242, 0.98)";
+    peakCtx.stroke();
+
+    if (selected) {
+      const core = Math.max(2.4, radius * 0.2);
+      peakCtx.beginPath();
+      peakCtx.arc(sx, sy, core + 2, 0, Math.PI * 2);
+      peakCtx.fillStyle = "rgba(0, 0, 0, 0.75)";
+      peakCtx.fill();
+      peakCtx.beginPath();
+      peakCtx.arc(sx, sy, core, 0, Math.PI * 2);
+      peakCtx.fillStyle = "rgba(95, 255, 100, 0.98)";
+      peakCtx.fill();
+    }
   });
 }
 
@@ -2968,13 +2999,13 @@ function updateBackendBadge() {
 
 function updateAboutVersion() {
   if (!aboutVersion) return;
-  aboutVersion.textContent = `Version ${state.backendVersion || "0.1"}`;
+  aboutVersion.textContent = `Version ${state.backendVersion || "0.2"}`;
 }
 
 async function checkBackendHealth() {
   if (!backendBadge) return;
   let alive = false;
-  let version = state.backendVersion || "0.1";
+  let version = state.backendVersion || "0.2";
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 1500);
   try {
@@ -6858,9 +6889,13 @@ if (peaksCountInput) {
   });
 }
 
-peaksFindBtn?.addEventListener("click", () => {
-  runPeakFinder();
-});
+if (peaksEnableToggle) {
+  analysisState.peaksEnabled = peaksEnableToggle.checked;
+  peaksEnableToggle.addEventListener("change", () => {
+    analysisState.peaksEnabled = peaksEnableToggle.checked;
+    schedulePeakFinder();
+  });
+}
 
 peaksExportBtn?.addEventListener("click", () => {
   exportPeakCsv();

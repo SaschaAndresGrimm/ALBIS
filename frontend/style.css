@@ -1067,6 +1067,10 @@ body {
   max-width: 96px;
 }
 
+.peaks-enable-toggle {
+  margin-bottom: 6px;
+}
+
 .peaks-actions {
   display: flex;
   gap: 8px;

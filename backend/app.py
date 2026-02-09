@@ -34,7 +34,7 @@ DATA_DIR = Path(os.environ.get("VIEWER_DATA_DIR", "")).expanduser()
 if not DATA_DIR:
     DATA_DIR = Path(__file__).resolve().parents[1]
 
-ALBIS_VERSION = "0.1"
+ALBIS_VERSION = "0.2"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 

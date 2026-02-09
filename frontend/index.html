@@ -484,12 +484,15 @@
                 Peak Finder
                 <span class="section-chevron">▾</span>
               </button>
+              <label class="checkbox peaks-enable-toggle">
+                <input id="peaks-enable" type="checkbox" />
+                <span>Find peaks</span>
+              </label>
               <label class="field peaks-count-field">
                 <span>Peaks to find</span>
                 <input id="peaks-count" type="number" min="1" max="500" step="1" value="25" />
               </label>
               <div class="peaks-actions">
-                <button id="peaks-find" class="btn" type="button">Find Peaks</button>
                 <button id="peaks-export" class="btn" type="button">Export CSV</button>
               </div>
               <div class="peaks-list" id="peaks-list">
@@ -522,7 +525,7 @@
         </div>
         <div class="modal-body">
           <p>ALBIS WEB VIEW — ALBULA-style web viewer prototype.</p>
-          <p id="about-version">Version 0.1</p>
+          <p id="about-version">Version 0.2</p>
           <p>Rendering: WebGL2 with LUTs (CPU fallback).</p>
           <p>Dataset: HDF5 stacks.</p>
         </div>
