@@ -33,19 +33,32 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 import shutil
 
-DATA_DIR = Path(os.environ.get("VIEWER_DATA_DIR", "")).expanduser()
-if not DATA_DIR:
-    DATA_DIR = Path(__file__).resolve().parents[1]
+try:
+    from .config import get_bool, get_float, get_int, get_str, load_config, resolve_path
+except ImportError:  # pragma: no cover - supports `python backend/app.py`
+    from config import get_bool, get_float, get_int, get_str, load_config, resolve_path
+
+CONFIG, CONFIG_PATH = load_config()
+CONFIG_BASE_DIR = CONFIG_PATH.parent
+
+data_root_cfg = get_str(CONFIG, ("data", "root"), "").strip()
+if data_root_cfg:
+    DATA_DIR = resolve_path(data_root_cfg, base_dir=CONFIG_BASE_DIR)
+else:
+    if getattr(sys, "frozen", False):
+        DATA_DIR = Path.home() / "ALBIS-data"
+    else:
+        DATA_DIR = Path(__file__).resolve().parents[1]
 
 ALBIS_VERSION = "0.2"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
 AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf"}
-ALLOW_ABS_PATHS = os.environ.get("VIEWER_ALLOW_ABS", "1").lower() in {"1", "true", "yes", "on"}
-SCAN_CACHE_SEC = float(os.environ.get("ALBIS_SCAN_CACHE_SEC", "2.0") or 0.0)
-MAX_SCAN_DEPTH = int(os.environ.get("ALBIS_MAX_SCAN_DEPTH", "-1") or -1)
-MAX_UPLOAD_MB = int(os.environ.get("ALBIS_MAX_UPLOAD_MB", "0") or 0)
+ALLOW_ABS_PATHS = get_bool(CONFIG, ("data", "allow_abs_paths"), True)
+SCAN_CACHE_SEC = get_float(CONFIG, ("data", "scan_cache_sec"), 2.0)
+MAX_SCAN_DEPTH = get_int(CONFIG, ("data", "max_scan_depth"), -1)
+MAX_UPLOAD_MB = get_int(CONFIG, ("data", "max_upload_mb"), 0)
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
 _files_cache: tuple[float, list[str]] = (0.0, [])
 _folders_cache: tuple[float, list[str]] = (0.0, [])
@@ -57,7 +70,7 @@ _series_jobs_lock = threading.Lock()
 
 def _init_logging() -> logging.Logger:
     global LOG_DIR, LOG_PATH
-    level_name = os.environ.get("ALBIS_LOG_LEVEL", "INFO").upper()
+    level_name = get_str(CONFIG, ("logging", "level"), "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
     logger = logging.getLogger("albis")
     if logger.handlers:
@@ -68,8 +81,8 @@ def _init_logging() -> logging.Logger:
     stream.setFormatter(formatter)
     logger.addHandler(stream)
 
-    log_dir_env = os.environ.get("ALBIS_LOG_DIR", "").strip()
-    log_dir = Path(log_dir_env).expanduser() if log_dir_env else (DATA_DIR / "logs")
+    log_dir_cfg = get_str(CONFIG, ("logging", "dir"), "").strip()
+    log_dir = resolve_path(log_dir_cfg, base_dir=CONFIG_BASE_DIR) if log_dir_cfg else (DATA_DIR / "logs")
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError:
@@ -92,6 +105,7 @@ def _init_logging() -> logging.Logger:
 
 logger = _init_logging()
 logger.info("ALBIS data dir: %s", DATA_DIR)
+logger.info("ALBIS config: %s", CONFIG_PATH)
 
 
 @app.middleware("http")
@@ -2390,7 +2404,7 @@ app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 if __name__ == "__main__":
     import uvicorn
 
-    host = os.environ.get("ALBIS_HOST", "127.0.0.1")
-    port = int(os.environ.get("ALBIS_PORT", "8000") or 8000)
-    reload = os.environ.get("ALBIS_RELOAD", "0").lower() in {"1", "true", "yes", "on"}
+    host = get_str(CONFIG, ("server", "host"), "127.0.0.1")
+    port = max(1, get_int(CONFIG, ("server", "port"), 8000))
+    reload = get_bool(CONFIG, ("server", "reload"), False)
     uvicorn.run("app:app", host=host, port=port, reload=reload)

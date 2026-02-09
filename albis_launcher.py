@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import socket
 import threading
 import time
@@ -8,6 +7,8 @@ import webbrowser
 from pathlib import Path
 
 import uvicorn
+
+from backend.config import get_bool, get_float, get_int, get_str, load_config
 
 
 def _find_free_port() -> int:
@@ -30,30 +31,32 @@ def _wait_for_server(host: str, port: int, timeout: float = 5.0) -> bool:
 
 
 def main() -> None:
-    host = os.environ.get("ALBIS_HOST", "127.0.0.1")
-    port = int(os.environ.get("ALBIS_PORT", "0") or 0)
+    app_config, _config_path = load_config()
+
+    host = get_str(app_config, ("server", "host"), "127.0.0.1")
+    port = get_int(app_config, ("launcher", "port"), 0)
     if port <= 0:
         port = _find_free_port()
 
-    data_root = os.environ.get("ALBIS_DATA_DIR")
-    if not data_root:
-        data_root = str(Path.home() / "ALBIS-data")
-    os.environ.setdefault("VIEWER_DATA_DIR", data_root)
-    Path(data_root).expanduser().mkdir(parents=True, exist_ok=True)
+    data_root = get_str(app_config, ("data", "root"), "").strip()
+    if data_root:
+        Path(data_root).expanduser().mkdir(parents=True, exist_ok=True)
 
-    config = uvicorn.Config(
+    uvicorn_config = uvicorn.Config(
         "backend.app:app",
         host=host,
         port=port,
         log_level="info",
     )
-    server = uvicorn.Server(config)
+    server = uvicorn.Server(uvicorn_config)
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
 
-    _wait_for_server(host, port)
-    target_host = host if host not in {"0.0.0.0", "::"} else "127.0.0.1"
-    webbrowser.open(f"http://{target_host}:{port}")
+    startup_timeout = max(0.5, get_float(app_config, ("launcher", "startup_timeout_sec"), 5.0))
+    _wait_for_server(host, port, timeout=startup_timeout)
+    if get_bool(app_config, ("launcher", "open_browser"), True):
+        target_host = host if host not in {"0.0.0.0", "::"} else "127.0.0.1"
+        webbrowser.open(f"http://{target_host}:{port}")
 
     try:
         while thread.is_alive():

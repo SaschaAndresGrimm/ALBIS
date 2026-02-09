@@ -38,53 +38,46 @@ python backend/app.py
 
 Open `http://localhost:8000` (ALBIS).
 
-To allow LAN access:
+## Configuration (`albis.config.json`)
 
-```bash
-ALBIS_HOST=0.0.0.0 python backend/app.py
+ALBIS runtime settings are configured via `albis.config.json` (project root by default).
+
+Example:
+
+```json
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "reload": false
+  },
+  "data": {
+    "root": "/path/to/data",
+    "allow_abs_paths": true,
+    "scan_cache_sec": 2.0,
+    "max_scan_depth": 3,
+    "max_upload_mb": 0
+  },
+  "logging": {
+    "level": "INFO",
+    "dir": ""
+  },
+  "launcher": {
+    "port": 0,
+    "startup_timeout_sec": 5.0,
+    "open_browser": true
+  }
+}
 ```
 
-Then use `http://<your-ip>:8000` from another device.
-
-## Data Location
-
-By default the backend scans the project root (recursively) for `*.h5` / `*.hdf5`.
-Override with:
-
-```bash
-VIEWER_DATA_DIR=/path/to/data python backend/app.py
-```
-
-Absolute folder watching is enabled by default for Auto Load. You can disable it with:
-
-```bash
-VIEWER_ALLOW_ABS=0 python backend/app.py
-```
-
-For large directory trees, you can tune scanning:
-
-```bash
-# cache directory scans (seconds)
-ALBIS_SCAN_CACHE_SEC=2
-
-# limit recursive scan depth (-1 = unlimited)
-ALBIS_MAX_SCAN_DEPTH=3
-```
+Notes:
+- `data.root = ""` defaults to project root for source runs and `~/ALBIS-data` for packaged runs.
+- `server.host = "0.0.0.0"` enables LAN access (`http://<your-ip>:8000`).
+- `logging.dir = ""` writes logs to `<data.root>/logs/albis.log`.
 
 ## Logging
 
-Logs are written to `<VIEWER_DATA_DIR>/logs/albis.log` by default.
-When using the launcher, `VIEWER_DATA_DIR` defaults to `~/ALBIS-data`.
-
-You can configure:
-
-```bash
-# log level: DEBUG, INFO, WARNING, ERROR
-ALBIS_LOG_LEVEL=INFO
-
-# log directory
-ALBIS_LOG_DIR=/path/to/logs
-```
+Log level and log directory are configured in `albis.config.json` under `logging.level` and `logging.dir`.
 
 Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
 
@@ -113,13 +106,7 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ### Output
 
 The packaged app is created under `dist/ALBIS/`.
-
-By default, the launcher uses `~/ALBIS-data` as a writable data directory.
-Override it with:
-
-```bash
-ALBIS_DATA_DIR=/path/to/data ./dist/ALBIS/ALBIS
-```
+Use `albis.config.json` to change data path, host/port, logging, and launcher behavior.
 
 ## Keyboard Shortcuts
 
