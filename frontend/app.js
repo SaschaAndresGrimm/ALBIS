@@ -65,6 +65,8 @@ const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const resolutionOverlay = document.getElementById("resolution-overlay");
 const resolutionCtx = resolutionOverlay?.getContext("2d");
+const peakOverlay = document.getElementById("peak-overlay");
+const peakCtx = peakOverlay?.getContext("2d");
 const dataSection = document.getElementById("data-section");
 const autoloadMode = document.getElementById("autoload-mode");
 const autoloadDir = document.getElementById("autoload-dir");
@@ -142,6 +144,10 @@ const ringInputs = [
   document.getElementById("ring-r3"),
   document.getElementById("ring-r4"),
 ].filter(Boolean);
+const peaksCountInput = document.getElementById("peaks-count");
+const peaksFindBtn = document.getElementById("peaks-find");
+const peaksExportBtn = document.getElementById("peaks-export");
+const peaksBody = document.getElementById("peaks-body");
 const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
 const dropdown = document.getElementById("menu-dropdown");
 const dropdownPanels = document.querySelectorAll(".dropdown-panel");
@@ -183,6 +189,8 @@ let zoomWheelTarget = null;
 let zoomWheelRaf = null;
 let zoomWheelPivot = null;
 let resolutionOverlayScheduled = false;
+let peakOverlayScheduled = false;
+let peakFinderScheduled = false;
 let panelTabState = "view";
 let backendTimer = null;
 let inspectorSelectedRow = null;
@@ -209,6 +217,9 @@ const analysisState = {
   centerY: null,
   rings: [1, 2, 4, 8],
   ringCount: 3,
+  peakCount: 25,
+  peaks: [],
+  selectedPeak: -1,
 };
 
 const state = {
@@ -367,6 +378,7 @@ window.addEventListener("unhandledrejection", (event) => {
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 50;
 const PIXEL_LABEL_MIN_ZOOM = 15;
+const PEAK_BAD_MASK_BITS = 0x1f;
 
 function getMinZoom() {
   if (!canvasWrap || !state.width || !state.height) {
@@ -1348,6 +1360,213 @@ function getResolutionAtPixel(ix, iy, params = getRingParams()) {
   return Number.isFinite(d) && d > 0 ? d : null;
 }
 
+function renderPeakList() {
+  if (!peaksBody) return;
+  peaksBody.innerHTML = "";
+  if (!analysisState.peaks.length) {
+    const empty = document.createElement("div");
+    empty.className = "peaks-empty";
+    empty.textContent = state.hasFrame ? "No peaks detected." : "Load a frame to detect peaks.";
+    peaksBody.appendChild(empty);
+    return;
+  }
+  analysisState.peaks.forEach((peak, idx) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "peaks-row";
+    if (idx === analysisState.selectedPeak) {
+      row.classList.add("is-selected");
+    }
+    row.innerHTML = `<span>${peak.x}</span><span>${peak.y}</span><span>${formatStat(peak.intensity)}</span>`;
+    row.addEventListener("click", () => {
+      analysisState.selectedPeak = idx;
+      renderPeakList();
+      schedulePeakOverlay();
+    });
+    peaksBody.appendChild(row);
+  });
+}
+
+function detectPeaks(maxPeaks) {
+  if (!state.hasFrame || !state.dataRaw || !state.width || !state.height) return [];
+  const width = state.width;
+  const height = state.height;
+  if (width < 3 || height < 3 || maxPeaks < 1) return [];
+
+  const data = state.dataRaw;
+  const maskReady =
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === height &&
+    state.maskShape[1] === width;
+  const mask = maskReady ? state.maskRaw : null;
+
+  const candidates = [];
+  const candidateLimit = Math.min(4096, Math.max(128, maxPeaks * 24));
+  let minCandidateValue = Number.POSITIVE_INFINITY;
+  let minCandidateIndex = -1;
+
+  function pushCandidate(x, y, value) {
+    if (candidates.length < candidateLimit) {
+      candidates.push({ x, y, intensity: value });
+      if (value < minCandidateValue) {
+        minCandidateValue = value;
+        minCandidateIndex = candidates.length - 1;
+      }
+      return;
+    }
+    if (value <= minCandidateValue || minCandidateIndex < 0) return;
+    candidates[minCandidateIndex] = { x, y, intensity: value };
+    minCandidateValue = Number.POSITIVE_INFINITY;
+    minCandidateIndex = -1;
+    for (let i = 0; i < candidates.length; i += 1) {
+      if (candidates[i].intensity < minCandidateValue) {
+        minCandidateValue = candidates[i].intensity;
+        minCandidateIndex = i;
+      }
+    }
+  }
+
+  for (let y = 1; y < height - 1; y += 1) {
+    const row = y * width;
+    for (let x = 1; x < width - 1; x += 1) {
+      const idx = row + x;
+      const v = data[idx];
+      if (!Number.isFinite(v) || v <= 0) continue;
+      if (mask && (mask[idx] & PEAK_BAD_MASK_BITS)) continue;
+
+      let left = data[idx - 1];
+      let right = data[idx + 1];
+      let up = data[idx - width];
+      let down = data[idx + width];
+      if (mask) {
+        if (mask[idx - 1] & PEAK_BAD_MASK_BITS) left = Number.NEGATIVE_INFINITY;
+        if (mask[idx + 1] & PEAK_BAD_MASK_BITS) right = Number.NEGATIVE_INFINITY;
+        if (mask[idx - width] & PEAK_BAD_MASK_BITS) up = Number.NEGATIVE_INFINITY;
+        if (mask[idx + width] & PEAK_BAD_MASK_BITS) down = Number.NEGATIVE_INFINITY;
+      }
+      if (!Number.isFinite(left)) left = Number.NEGATIVE_INFINITY;
+      if (!Number.isFinite(right)) right = Number.NEGATIVE_INFINITY;
+      if (!Number.isFinite(up)) up = Number.NEGATIVE_INFINITY;
+      if (!Number.isFinite(down)) down = Number.NEGATIVE_INFINITY;
+
+      if (!(v > left && v >= right && v > up && v >= down)) continue;
+      pushCandidate(x, y, v);
+    }
+  }
+
+  candidates.sort((a, b) => b.intensity - a.intensity);
+  const selected = [];
+  const minSeparation = Math.max(4, Math.round(Math.min(width, height) * 0.004));
+  const minSeparationSq = minSeparation * minSeparation;
+  for (let i = 0; i < candidates.length; i += 1) {
+    const candidate = candidates[i];
+    let tooClose = false;
+    for (let j = 0; j < selected.length; j += 1) {
+      const dx = candidate.x - selected[j].x;
+      const dy = candidate.y - selected[j].y;
+      if (dx * dx + dy * dy < minSeparationSq) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (!tooClose) {
+      selected.push(candidate);
+      if (selected.length >= maxPeaks) break;
+    }
+  }
+  return selected;
+}
+
+function runPeakFinder() {
+  peakFinderScheduled = false;
+  const requested = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput?.value || analysisState.peakCount || 25))));
+  analysisState.peakCount = requested;
+  if (peaksCountInput) {
+    peaksCountInput.value = String(requested);
+  }
+  analysisState.peaks = detectPeaks(requested);
+  if (analysisState.selectedPeak >= analysisState.peaks.length) {
+    analysisState.selectedPeak = analysisState.peaks.length ? 0 : -1;
+  }
+  if (analysisState.selectedPeak < 0 && analysisState.peaks.length) {
+    analysisState.selectedPeak = 0;
+  }
+  renderPeakList();
+  schedulePeakOverlay();
+}
+
+function schedulePeakFinder() {
+  if (peakFinderScheduled) return;
+  peakFinderScheduled = true;
+  window.setTimeout(runPeakFinder, 0);
+}
+
+function exportPeakCsv() {
+  if (!analysisState.peaks.length) return;
+  const rows = ["x,y,intensity"];
+  analysisState.peaks.forEach((peak) => {
+    rows.push(`${peak.x},${peak.y},${peak.intensity}`);
+  });
+  const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  const base = (state.file || "peaks").split("/").pop().replace(/\.[^.]+$/, "");
+  const thresholdSuffix = state.thresholdCount > 1 ? `_thr${state.thresholdIndex + 1}` : "";
+  link.href = url;
+  link.download = `${base}_frame_${state.frameIndex + 1}${thresholdSuffix}_peaks.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function schedulePeakOverlay() {
+  if (!peakOverlay || !peakCtx) return;
+  if (peakOverlayScheduled) return;
+  peakOverlayScheduled = true;
+  window.requestAnimationFrame(() => {
+    peakOverlayScheduled = false;
+    drawPeakOverlay();
+  });
+}
+
+function drawPeakOverlay() {
+  if (!peakOverlay || !peakCtx || !canvasWrap) return;
+  const metrics = syncOverlayCanvas(peakOverlay, peakCtx);
+  if (!metrics) return;
+  const { width, height } = metrics;
+  peakCtx.clearRect(0, 0, width, height);
+  if (!state.hasFrame || !analysisState.peaks.length) return;
+
+  const zoom = state.zoom || 1;
+  const offsetX = state.renderOffsetX || 0;
+  const offsetY = state.renderOffsetY || 0;
+  const viewX = canvasWrap.scrollLeft / zoom;
+  const viewY = canvasWrap.scrollTop / zoom;
+
+  analysisState.peaks.forEach((peak, index) => {
+    const sx = (peak.x - viewX) * zoom + offsetX;
+    const sy = (peak.y - viewY) * zoom + offsetY;
+    if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
+    const selected = index === analysisState.selectedPeak;
+    const radius = selected ? Math.max(8, Math.min(16, 4 + zoom * 0.2)) : Math.max(6, Math.min(12, 3 + zoom * 0.15));
+
+    peakCtx.beginPath();
+    peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
+    peakCtx.lineWidth = selected ? 3.5 : 2.2;
+    peakCtx.strokeStyle = selected ? "rgba(140, 210, 255, 0.98)" : "rgba(20, 80, 170, 0.96)";
+    peakCtx.stroke();
+
+    peakCtx.beginPath();
+    peakCtx.arc(sx, sy, Math.max(1.2, radius * 0.18), 0, Math.PI * 2);
+    peakCtx.fillStyle = selected ? "rgba(170, 230, 255, 0.95)" : "rgba(20, 80, 170, 0.75)";
+    peakCtx.fill();
+  });
+}
+
 function drawResolutionOverlay() {
   if (!resolutionOverlay || !resolutionCtx || !canvasWrap) return;
   const metrics = syncOverlayCanvas(resolutionOverlay, resolutionCtx);
@@ -2011,6 +2230,7 @@ function setZoom(value) {
   schedulePixelOverlay();
   scheduleRoiOverlay();
   scheduleResolutionOverlay();
+  schedulePeakOverlay();
 }
 
 function zoomAt(clientX, clientY, nextZoom) {
@@ -5321,6 +5541,8 @@ function closeCurrentFile() {
   state.stats = null;
   state.hasFrame = false;
   state.globalStats = null;
+  analysisState.peaks = [];
+  analysisState.selectedPeak = -1;
   clearMaskState();
   updateToolbar();
   setStatus("No file loaded");
@@ -5347,6 +5569,8 @@ function closeCurrentFile() {
     ctx.clearRect(0, 0, 1, 1);
   }
   clearHistogram();
+  renderPeakList();
+  schedulePeakOverlay();
   clearRoi();
   updatePlayButtons();
 }
@@ -5383,6 +5607,7 @@ function applyFrame(data, width, height, dtype) {
   scheduleRoiUpdate();
   schedulePixelOverlay();
   scheduleResolutionOverlay();
+  schedulePeakFinder();
 }
 
 function redraw() {
@@ -5435,6 +5660,7 @@ function redraw() {
   scheduleOverview();
   scheduleHistogram();
   schedulePixelOverlay();
+  schedulePeakOverlay();
 }
 
 async function loadFrame() {
@@ -5952,6 +6178,7 @@ maskToggle?.addEventListener("change", () => {
   updateGlobalStats();
   redraw();
   scheduleRoiUpdate();
+  schedulePeakFinder();
 });
 
 autoContrastBtn.addEventListener("click", () => {
@@ -6138,6 +6365,7 @@ canvasWrap.addEventListener("scroll", () => {
   schedulePixelOverlay();
   scheduleRoiOverlay();
   scheduleResolutionOverlay();
+  schedulePeakOverlay();
 });
 
 canvasWrap.addEventListener("contextmenu", (event) => {
@@ -6530,6 +6758,7 @@ window.addEventListener("resize", () => {
   scheduleRoiOverlay();
   scheduleRoiUpdate();
   scheduleResolutionOverlay();
+  schedulePeakOverlay();
 });
 
 initRenderer();
@@ -6616,6 +6845,28 @@ function updateRingsFromInputs() {
     const eventName = input.type === "checkbox" ? "change" : "input";
     input.addEventListener(eventName, updateRingsFromInputs);
   });
+
+if (peaksCountInput) {
+  const initial = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput.value || 25))));
+  analysisState.peakCount = initial;
+  peaksCountInput.value = String(initial);
+  peaksCountInput.addEventListener("change", () => {
+    const next = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput.value || analysisState.peakCount))));
+    analysisState.peakCount = next;
+    peaksCountInput.value = String(next);
+    schedulePeakFinder();
+  });
+}
+
+peaksFindBtn?.addEventListener("click", () => {
+  runPeakFinder();
+});
+
+peaksExportBtn?.addEventListener("click", () => {
+  exportPeakCsv();
+});
+
+renderPeakList();
 if (pixelLabelToggle) {
   state.pixelLabels = pixelLabelToggle.checked;
   pixelLabelToggle.addEventListener("change", () => {

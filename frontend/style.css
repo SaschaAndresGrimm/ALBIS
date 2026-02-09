@@ -440,7 +440,7 @@ body {
 #pixel-overlay {
   position: absolute;
   pointer-events: none;
-  z-index: 3;
+  z-index: 4;
 }
 
 #resolution-overlay {
@@ -449,10 +449,16 @@ body {
   z-index: 2;
 }
 
+#peak-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+}
+
 #roi-overlay {
   position: absolute;
   pointer-events: none;
-  z-index: 4;
+  z-index: 5;
 }
 
 #image-canvas {
@@ -1055,6 +1061,89 @@ body {
 
 .rings-count-field input {
   max-width: 80px;
+}
+
+.peaks-count-field input {
+  max-width: 96px;
+}
+
+.peaks-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.peaks-actions .btn {
+  flex: 1 1 auto;
+}
+
+.peaks-list {
+  border: 1px solid #101010;
+  background: #1e1e1e;
+}
+
+.peaks-head,
+.peaks-row {
+  display: grid;
+  grid-template-columns: 52px 52px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.peaks-head {
+  padding: 4px 6px;
+  border-bottom: 1px solid #101010;
+  background: #262626;
+  font-size: 11px;
+  color: #d8d8d8;
+  font-weight: 600;
+}
+
+.peaks-head span,
+.peaks-row span {
+  font-variant-numeric: tabular-nums;
+}
+
+.peaks-head span:nth-child(1),
+.peaks-head span:nth-child(2),
+.peaks-row span:nth-child(1),
+.peaks-row span:nth-child(2) {
+  text-align: center;
+}
+
+.peaks-head span:nth-child(3),
+.peaks-row span:nth-child(3) {
+  text-align: right;
+}
+
+.peaks-body {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.peaks-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #161616;
+  background: transparent;
+  color: #ededed;
+  text-align: left;
+  padding: 4px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.peaks-row:hover {
+  background: rgba(110, 181, 255, 0.15);
+}
+
+.peaks-row.is-selected {
+  background: rgba(40, 120, 220, 0.35);
+}
+
+.peaks-empty {
+  padding: 8px;
+  color: #b0b0b0;
+  font-size: 11px;
 }
 
 .analysis-grid {

@@ -110,6 +110,7 @@
               <div class="loading" id="loading">Loading frame…</div>
             </div>
             <canvas id="resolution-overlay"></canvas>
+            <canvas id="peak-overlay"></canvas>
             <canvas id="pixel-overlay"></canvas>
             <canvas id="roi-overlay"></canvas>
             <div class="splash" id="splash">
@@ -476,6 +477,30 @@
                     <input id="ring-r4" type="number" min="0" step="0.1" value="8.0" />
                   </div>
                 </label>
+              </div>
+            </section>
+            <section class="panel-section" data-section="peak-finder">
+              <button class="section-title" type="button" data-section-toggle>
+                Peak Finder
+                <span class="section-chevron">▾</span>
+              </button>
+              <label class="field peaks-count-field">
+                <span>Peaks to find</span>
+                <input id="peaks-count" type="number" min="1" max="500" step="1" value="25" />
+              </label>
+              <div class="peaks-actions">
+                <button id="peaks-find" class="btn" type="button">Find Peaks</button>
+                <button id="peaks-export" class="btn" type="button">Export CSV</button>
+              </div>
+              <div class="peaks-list" id="peaks-list">
+                <div class="peaks-head">
+                  <span>X</span>
+                  <span>Y</span>
+                  <span>Intensity</span>
+                </div>
+                <div class="peaks-body" id="peaks-body">
+                  <div class="peaks-empty">Load a frame to detect peaks.</div>
+                </div>
               </div>
             </section>
           </div>
