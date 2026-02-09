@@ -1201,6 +1201,13 @@ def _mask_flag_value(dtype: np.dtype) -> float:
     return float(np.iinfo(np.uint32).max)
 
 
+def _mask_slices(mask_bits: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    gap_mask = (mask_bits & 0x01) != 0
+    bad_mask = (mask_bits & 0x1E) != 0
+    any_mask = gap_mask | bad_mask
+    return gap_mask, bad_mask, any_mask
+
+
 def _iter_sum_ranges(frame_count: int, mode: str, step: int) -> list[tuple[int, int]]:
     if frame_count <= 0:
         return []
@@ -1251,24 +1258,24 @@ def _run_series_summing_job(
 
                 source_dtype = np.dtype(view["dtype"])
                 flag_value = _mask_flag_value(source_dtype)
-                masks: list[np.ndarray | None] = []
+                mask_bits_by_thr: list[np.ndarray | None] = []
                 for thr in range(threshold_count):
                     if not apply_mask:
-                        masks.append(None)
+                        mask_bits_by_thr.append(None)
                         continue
                     mask_dset = _find_pixel_mask(h5, threshold=thr if threshold_count > 1 else None)
                     if mask_dset is None:
-                        masks.append(None)
+                        mask_bits_by_thr.append(None)
                         continue
-                    mask_arr = np.asarray(mask_dset)
-                    masks.append((mask_arr & 0x1F) != 0)
+                    mask_bits_by_thr.append(np.asarray(mask_dset, dtype=np.uint32))
 
                 total_steps = max(1, frame_count * threshold_count)
                 processed = 0
-                sums: list[tuple[int, int, int, int, np.ndarray]] = []
+                sums: list[tuple[int, int, int, int, np.ndarray, np.ndarray | None]] = []
 
                 for thr in range(threshold_count):
-                    bad_mask = masks[thr]
+                    mask_bits = mask_bits_by_thr[thr]
+                    _, _, any_mask = _mask_slices(mask_bits) if mask_bits is not None else (None, None, None)
                     for chunk_idx, (start_idx, end_idx) in enumerate(ranges):
                         acc: np.ndarray | None = None
                         for frame_idx in range(start_idx, end_idx + 1):
@@ -1276,9 +1283,9 @@ def _run_series_summing_job(
                             arr = np.asarray(arr, dtype=np.float64)
                             if acc is None:
                                 acc = np.zeros_like(arr, dtype=np.float64)
-                            if bad_mask is not None:
+                            if any_mask is not None:
                                 tmp = arr.copy()
-                                tmp[bad_mask] = 0.0
+                                tmp[any_mask] = 0.0
                                 acc += tmp
                             else:
                                 acc += arr
@@ -1291,9 +1298,7 @@ def _run_series_summing_job(
                             )
                         if acc is None:
                             continue
-                        if bad_mask is not None:
-                            acc[bad_mask] = flag_value
-                        sums.append((thr, chunk_idx, start_idx, end_idx, acc))
+                        sums.append((thr, chunk_idx, start_idx, end_idx, acc, mask_bits))
 
             finally:
                 for handle in extra_files:
@@ -1317,31 +1322,92 @@ def _run_series_summing_job(
                 out_h5.attrs["frame_count"] = int(frame_count)
                 out_h5.attrs["threshold_count"] = int(threshold_count)
                 out_h5.attrs["mask_applied"] = bool(apply_mask)
-                root = out_h5.require_group("sum")
-                for thr, chunk_idx, start_idx, end_idx, arr in sums:
-                    target_group = root.require_group(f"threshold_{thr + 1:02d}") if threshold_count > 1 else root
-                    name = "all" if mode == "all" else f"chunk_{chunk_idx + 1:04d}"
-                    dset = target_group.create_dataset(
-                        name,
-                        data=arr,
-                        compression="gzip",
-                        compression_opts=4,
-                        shuffle=True,
-                    )
-                    dset.attrs["threshold_index"] = int(thr)
-                    dset.attrs["chunk_index"] = int(chunk_idx)
-                    dset.attrs["start_frame"] = int(start_idx)
-                    dset.attrs["end_frame"] = int(end_idx)
+
+                out_frame_count = len(ranges)
+                image_h = int(shape[-2])
+                image_w = int(shape[-1])
+                if threshold_count > 1:
+                    data_shape = (out_frame_count, threshold_count, image_h, image_w)
+                    data_chunks = (1, 1, image_h, image_w)
+                else:
+                    data_shape = (out_frame_count, image_h, image_w)
+                    data_chunks = (1, image_h, image_w)
+
+                entry_group = out_h5.require_group("/entry")
+                data_group = entry_group.require_group("data")
+                data_dset = data_group.create_dataset(
+                    "data",
+                    shape=data_shape,
+                    dtype=np.float64,
+                    chunks=data_chunks,
+                    compression="gzip",
+                    compression_opts=4,
+                    shuffle=True,
+                )
+                data_dset.attrs["sum_mode"] = mode
+                data_dset.attrs["source_dataset"] = str(dataset)
+                data_dset.attrs["frame_count_in"] = int(frame_count)
+                data_dset.attrs["frame_count_out"] = int(out_frame_count)
+                data_dset.attrs["threshold_count"] = int(threshold_count)
+                data_dset.attrs["signal"] = "data"
+
+                chunk_start = np.asarray([r[0] for r in ranges], dtype=np.int64)
+                chunk_end = np.asarray([r[1] for r in ranges], dtype=np.int64)
+                data_group.create_dataset("sum_start_frame", data=chunk_start)
+                data_group.create_dataset("sum_end_frame", data=chunk_end)
+
+                for thr, chunk_idx, _start_idx, _end_idx, arr, mask_bits in sums:
+                    arr_out = np.asarray(arr, dtype=np.float64)
+                    if mask_bits is not None:
+                        _, _, any_mask = _mask_slices(mask_bits)
+                        arr_out = arr_out.copy()
+                        arr_out[any_mask] = flag_value
+                    if threshold_count > 1:
+                        data_dset[chunk_idx, thr, :, :] = arr_out
+                    else:
+                        data_dset[chunk_idx, :, :] = arr_out
+
+                if apply_mask:
+                    base_mask_bits = mask_bits_by_thr[0] if mask_bits_by_thr else None
+                    if base_mask_bits is not None:
+                        mask_group = out_h5.require_group("/entry/instrument/detector/detectorSpecific")
+                        mask_group.create_dataset(
+                            "pixel_mask",
+                            data=base_mask_bits.astype(np.uint32),
+                            compression="gzip",
+                        )
+                    if threshold_count > 1:
+                        detector_group = out_h5.require_group("/entry/instrument/detector")
+                        for thr, mask_bits in enumerate(mask_bits_by_thr):
+                            if mask_bits is None:
+                                continue
+                            thr_group = detector_group.require_group(f"threshold_{thr + 1}_channel")
+                            thr_group.create_dataset(
+                                "pixel_mask",
+                                data=mask_bits.astype(np.uint32),
+                                compression="gzip",
+                            )
                 outputs.append(str(out_file))
         elif output_format in {"tiff", "tif"}:
             base_name = base_target.stem or base_target.name or "series_sum"
             out_dir = base_target.parent
-            for thr, chunk_idx, start_idx, end_idx, arr in sums:
+            for thr, chunk_idx, start_idx, end_idx, arr, mask_bits in sums:
                 thr_tag = f"_thr{thr + 1:02d}" if threshold_count > 1 else ""
                 chunk_tag = "_all" if mode == "all" else f"_chunk{chunk_idx + 1:04d}_f{start_idx + 1:06d}-{end_idx + 1:06d}"
                 out_file = out_dir / f"{base_name}{thr_tag}{chunk_tag}_{timestamp}.tiff"
                 out_file = _next_available_path(out_file)
-                tifffile.imwrite(out_file, arr.astype(np.float32), photometric="minisblack")
+                arr_out = np.rint(np.asarray(arr, dtype=np.float64))
+                tiff_dtype: np.dtype = np.int32
+                max_val = float(np.nanmax(arr_out)) if arr_out.size else 0.0
+                if max_val > float(np.iinfo(np.int32).max):
+                    tiff_dtype = np.int64
+                arr_tiff = arr_out.astype(tiff_dtype, casting="unsafe")
+                if mask_bits is not None:
+                    gap_mask, bad_mask, _ = _mask_slices(mask_bits)
+                    arr_tiff = arr_tiff.copy()
+                    arr_tiff[gap_mask] = -1
+                    arr_tiff[bad_mask] = -2
+                tifffile.imwrite(out_file, arr_tiff, photometric="minisblack")
                 outputs.append(str(out_file))
         else:
             raise HTTPException(status_code=400, detail="Unsupported output format")

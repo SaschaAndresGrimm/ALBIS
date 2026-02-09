@@ -1174,15 +1174,36 @@ body {
   font-size: 11px;
 }
 
-.series-sum-grid {
+.panel-section[data-section="series-summing"] .field input,
+.panel-section[data-section="series-summing"] .field select {
+  max-width: none;
+}
+
+.series-sum-options {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 10px;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 6px 10px;
   align-items: end;
 }
 
-.series-sum-grid .checkbox {
-  margin-bottom: 2px;
+.series-sum-options .field {
+  margin: 0;
+}
+
+.series-sum-mask-option {
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.series-sum-output-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+#series-sum-output {
+  width: 100%;
 }
 
 .series-sum-progress {

@@ -511,25 +511,18 @@
                 Series Summing
                 <span class="section-chevron">▾</span>
               </button>
-              <label class="field">
-                <span>Sum mode</span>
-                <select id="series-sum-mode">
-                  <option value="all">All frames</option>
-                  <option value="step">Chunks of N frames</option>
-                </select>
-              </label>
-              <label class="field" id="series-sum-step-field">
-                <span>Chunk size (N)</span>
-                <input id="series-sum-step" type="number" min="1" step="1" value="10" />
-              </label>
-              <label class="field">
-                <span>Output path</span>
-                <div class="inline">
-                  <input id="series-sum-output" type="text" placeholder="output/series_sum" />
-                  <button id="series-sum-browse" class="btn" type="button">Browse…</button>
-                </div>
-              </label>
-              <div class="series-sum-grid">
+              <div class="series-sum-options">
+                <label class="field">
+                  <span>Sum mode</span>
+                  <select id="series-sum-mode">
+                    <option value="all">All frames</option>
+                    <option value="step">Chunks of N frames</option>
+                  </select>
+                </label>
+                <label class="field" id="series-sum-step-field">
+                  <span>Chunk size (N)</span>
+                  <input id="series-sum-step" type="number" min="1" step="1" value="10" />
+                </label>
                 <label class="field">
                   <span>Format</span>
                   <select id="series-sum-format">
@@ -537,11 +530,18 @@
                     <option value="tiff">TIFF</option>
                   </select>
                 </label>
-                <label class="checkbox">
+                <label class="checkbox series-sum-mask-option">
                   <input id="series-sum-mask" type="checkbox" checked />
                   Apply mask if available
                 </label>
               </div>
+              <label class="field">
+                <span>Output path</span>
+                <div class="inline series-sum-output-row">
+                  <input id="series-sum-output" type="text" placeholder="output/series_sum" />
+                  <button id="series-sum-browse" class="btn" type="button">Browse…</button>
+                </div>
+              </label>
               <button id="series-sum-start" class="btn" type="button">Start Summing</button>
               <div class="series-sum-progress" id="series-sum-progress">
                 <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>

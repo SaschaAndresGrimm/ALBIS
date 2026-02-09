@@ -5,7 +5,7 @@ ALBIS is an **ALBULA‑style**, browser‑based image viewer for diffraction dat
 It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
-- Files on disk (`.h5/.hdf5`, `.tif/.tiff`, `.cbf`).
+- Files on disk (`.h5/.hdf5`).
 - The detector **SIMPLON monitor** stream for live viewing.
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
@@ -25,6 +25,7 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 - ROI tools (line, box, circle, annulus) with statistics and plots.
 - Pixel mask support (gaps and defective pixels).
 - WebGL2 rendering with CPU fallback.
+- spotfinding & resolution rings overlay
 
 ## Run (backend + frontend)
 
@@ -133,12 +134,10 @@ ALBIS_DATA_DIR=/path/to/data ./dist/ALBIS/ALBIS
 
 ## Roadmap — Next Milestones
 
-1. Resolution rings.
-2. Spot finding.
-3. Config file.
-4. Detector control and status.
-5. Installer for non‑Python users.
-6. Make it mobile friendly
+1. Config file.
+2. Detector control and status.
+3. Installer for non‑Python users.
+4. Make it mobile friendly
 
 ## Notes
 - WebGL texture size limits may apply for very large frames.
