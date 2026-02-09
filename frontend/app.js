@@ -164,6 +164,9 @@ let roiEditing = false;
 let roiEditHandle = null;
 let roiEditStart = null;
 let roiEditSnapshot = null;
+let zoomWheelTarget = null;
+let zoomWheelRaf = null;
+let zoomWheelPivot = null;
 let panelTabState = "view";
 let backendTimer = null;
 let inspectorSelectedRow = null;
@@ -1862,6 +1865,35 @@ function zoomAt(clientX, clientY, nextZoom) {
   canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft));
   canvasWrap.scrollTop = Math.max(0, Math.min(maxScrollTop, newScrollTop));
   scheduleOverview();
+}
+
+function normalizeWheelDelta(event) {
+  let delta = event.deltaY;
+  if (event.deltaMode === 1) {
+    delta *= 16;
+  } else if (event.deltaMode === 2) {
+    delta *= 120;
+  }
+  if (!Number.isFinite(delta)) return 0;
+  return Math.max(-200, Math.min(200, delta));
+}
+
+function stepWheelZoom() {
+  if (zoomWheelTarget === null || !zoomWheelPivot) {
+    zoomWheelRaf = null;
+    return;
+  }
+  const current = state.zoom || 1;
+  const minZoom = getMinZoom();
+  const target = Math.max(minZoom, Math.min(MAX_ZOOM, zoomWheelTarget));
+  const next = current + (target - current) * 0.35;
+  zoomAt(zoomWheelPivot.x, zoomWheelPivot.y, next);
+  if (Math.abs(target - next) < 0.001) {
+    zoomWheelTarget = null;
+    zoomWheelRaf = null;
+    return;
+  }
+  zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
 }
 
 function fitImageToView() {
@@ -5868,10 +5900,16 @@ canvasWrap.addEventListener(
   "wheel",
   (event) => {
     event.preventDefault();
-    const delta = Math.sign(event.deltaY);
+    const delta = normalizeWheelDelta(event);
+    if (!delta) return;
+    const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
+    const factor = Math.exp(-delta * 0.002);
     const minZoom = getMinZoom();
-    const next = Math.min(MAX_ZOOM, Math.max(minZoom, state.zoom - delta * 0.2));
-    zoomAt(event.clientX, event.clientY, next);
+    zoomWheelTarget = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
+    zoomWheelPivot = { x: event.clientX, y: event.clientY };
+    if (!zoomWheelRaf) {
+      zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
+    }
   },
   { passive: false }
 );
