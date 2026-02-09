@@ -594,6 +594,14 @@ function renderInspectorPreview(data) {
   link.rel = "noopener";
   link.textContent = "Open in new tab";
   actions.appendChild(link);
+  if (Array.isArray(data.shape) && data.shape.length > 0) {
+    const csvLink = document.createElement("a");
+    csvLink.href = `${API}/hdf5/csv?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(
+      data.path || ""
+    )}&max_cells=65536`;
+    csvLink.textContent = "Download CSV";
+    actions.appendChild(csvLink);
+  }
   inspectorPreview.appendChild(actions);
 
   const preview = data.preview;

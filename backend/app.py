@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import csv
 import math
 import fnmatch
 import io
@@ -564,6 +565,38 @@ def _dataset_value_preview(
         return _array_preview_to_list(data), preview_shape, truncated, slice_info
     except Exception:
         return None, None, False, None
+
+
+def _dataset_preview_array(
+    dset: h5py.Dataset,
+    max_cells: int = 65536,
+    max_rows: int = 1024,
+    max_cols: int = 1024,
+) -> tuple[np.ndarray | None, bool, dict[str, Any] | None]:
+    shape = tuple(int(x) for x in dset.shape) if dset.shape else ()
+    total = int(np.prod(shape)) if shape else 1
+    if total <= 0:
+        return None, False, None
+    try:
+        if dset.ndim == 0:
+            return np.asarray(dset[()]), False, None
+        if dset.ndim == 1:
+            count = max(1, min(shape[0], max_cells))
+            data = np.asarray(dset[:count])
+            return data, count < shape[0], None
+        rows = max(1, min(shape[-2], max_rows))
+        cols = max(1, min(shape[-1], max_cols))
+        if rows * cols > max_cells:
+            scale = math.sqrt(max_cells / max(rows * cols, 1))
+            rows = max(1, int(rows * scale))
+            cols = max(1, int(cols * scale))
+        lead = (0,) * max(0, dset.ndim - 2)
+        data = np.asarray(dset[lead + (slice(0, rows), slice(0, cols))])
+        truncated = rows < shape[-2] or cols < shape[-1] or dset.ndim > 2
+        slice_info = {"lead": list(lead), "rows": rows, "cols": cols} if dset.ndim > 2 else None
+        return data, truncated, slice_info
+    except Exception:
+        return None, False, None
 
 
 def _find_pixel_mask(h5: h5py.File, threshold: int | None = None) -> h5py.Dataset | None:
@@ -1281,6 +1314,44 @@ def hdf5_search(
                 if len(matches) >= limit:
                     break
     return {"matches": matches}
+
+
+@app.get("/api/hdf5/csv")
+def hdf5_csv(
+    file: str = Query(..., min_length=1),
+    path: str = Query(..., min_length=1),
+    max_cells: int = Query(65536, ge=64, le=262144),
+) -> Response:
+    file_path = _resolve_file(file)
+    with h5py.File(file_path, "r") as h5:
+        if path not in h5:
+            raise HTTPException(status_code=404, detail="Path not found")
+        obj = h5[path]
+        if not isinstance(obj, h5py.Dataset):
+            raise HTTPException(status_code=400, detail="Not a dataset")
+        data, truncated, slice_info = _dataset_preview_array(obj, max_cells=max_cells)
+        if data is None:
+            raise HTTPException(status_code=500, detail="Unable to read dataset")
+        output = io.StringIO()
+        if slice_info:
+            output.write(
+                f"# slice={slice_info.get('lead')} rows={slice_info.get('rows')} cols={slice_info.get('cols')}\n"
+            )
+        writer = csv.writer(output)
+        if data.ndim == 0:
+            writer.writerow([_serialize_h5_value(data.item())])
+        elif data.ndim == 1:
+            writer.writerow(["index", "value"])
+            for idx, value in enumerate(data.tolist()):
+                writer.writerow([idx, _serialize_h5_value(value)])
+        else:
+            for row in data.tolist():
+                writer.writerow([_serialize_h5_value(v) for v in row])
+        if truncated:
+            output.write("# truncated\n")
+        filename = path.strip("/").replace("/", "_") or "dataset"
+        headers = {"Content-Disposition": f'attachment; filename="{filename}.csv"'}
+        return Response(content=output.getvalue(), media_type="text/csv", headers=headers)
 
 
 @app.get("/api/metadata")
