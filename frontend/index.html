@@ -258,21 +258,35 @@
                   </label>
                 </div>
               </div>
-              <div class="roi-stats">
-                <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
-                <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
-                <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
-                <div class="meta-row"><span id="roi-count-label">Samples</span><strong id="roi-count">-</strong></div>
-                <div class="meta-row"><span>Mean</span><strong id="roi-mean">-</strong></div>
-                <div class="meta-row"><span>Min</span><strong id="roi-min">-</strong></div>
-                <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
-                <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
-                <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
+              <div class="roi-stats roi-stats-grid">
+                <div class="roi-stats-col">
+                  <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
+                  <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
+                  <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
+                  <div class="meta-row"><span id="roi-count-label">Samples</span><strong id="roi-count">-</strong></div>
+                </div>
+                <div class="roi-stats-col">
+                  <div class="meta-row"><span>Min</span><strong id="roi-min">-</strong></div>
+                  <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
+                  <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
+                  <div class="meta-row"><span>Median</span><strong id="roi-median">-</strong></div>
+                  <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
+                </div>
               </div>
               <label class="checkbox roi-log-toggle">
                 <input id="roi-log" type="checkbox" />
                 Log plot
               </label>
+              <div class="roi-plot-limits" id="roi-plot-limits">
+                <label class="checkbox roi-limits-enable">
+                  <input id="roi-limits-enable" type="checkbox" />
+                  Manual plot limits (dbl-click plot axis)
+                </label>
+                <div class="roi-limits-hint is-hidden" id="roi-limits-hint">
+                  Double-click left axis for Y min/max, or bottom axis for X min/max.
+                  Shift+double-click axis to reset that axis.
+                </div>
+              </div>
               <div class="roi-plots">
                 <div class="roi-plot" id="roi-line-plot">
                   <div class="roi-plot-title">Line Profile</div>

@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+python-multipart
 hdf5plugin
 h5py
 numpy

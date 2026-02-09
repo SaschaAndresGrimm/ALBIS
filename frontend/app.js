@@ -111,16 +111,19 @@ const roiCenterYInput = document.getElementById("roi-center-y");
 const roiRingFields = document.getElementById("roi-ring-fields");
 const roiInnerInput = document.getElementById("roi-inner-radius");
 const roiOuterInput = document.getElementById("roi-outer-radius");
+const roiPlotLimits = document.getElementById("roi-plot-limits");
+const roiLimitsEnable = document.getElementById("roi-limits-enable");
+const roiLimitsHint = document.getElementById("roi-limits-hint");
 const roiStartEl = document.getElementById("roi-start");
 const roiEndEl = document.getElementById("roi-end");
 const roiSizeLabel = document.getElementById("roi-size-label");
 const roiSizeEl = document.getElementById("roi-size");
 const roiCountLabel = document.getElementById("roi-count-label");
 const roiCountEl = document.getElementById("roi-count");
-const roiMeanEl = document.getElementById("roi-mean");
 const roiMinEl = document.getElementById("roi-min");
 const roiMaxEl = document.getElementById("roi-max");
 const roiSumEl = document.getElementById("roi-sum");
+const roiMedianEl = document.getElementById("roi-median");
 const roiStdEl = document.getElementById("roi-std");
 const roiLinePlot = document.getElementById("roi-line-plot");
 const roiBoxPlotX = document.getElementById("roi-box-plot-x");
@@ -218,6 +221,13 @@ const roiState = {
   yProjection: null,
   innerRadius: 0,
   outerRadius: 0,
+  plotLimits: {
+    enabled: false,
+    xMin: null,
+    xMax: null,
+    yMin: null,
+    yMax: null,
+  },
 };
 const analysisState = {
   ringsEnabled: false,
@@ -437,6 +447,46 @@ function formatStat(value) {
     return value.toString();
   }
   return value.toFixed(3);
+}
+
+function quickSelect(values, k) {
+  let left = 0;
+  let right = values.length - 1;
+  while (left < right) {
+    const pivot = values[(left + right) >> 1];
+    let i = left;
+    let j = right;
+    while (i <= j) {
+      while (values[i] < pivot) i += 1;
+      while (values[j] > pivot) j -= 1;
+      if (i <= j) {
+        [values[i], values[j]] = [values[j], values[i]];
+        i += 1;
+        j -= 1;
+      }
+    }
+    if (k <= j) {
+      right = j;
+    } else if (k >= i) {
+      left = i;
+    } else {
+      break;
+    }
+  }
+  return values[k];
+}
+
+function computeMedian(values) {
+  if (!values || values.length === 0) return Number.NaN;
+  const n = values.length;
+  const work = values.slice();
+  const mid = Math.floor(n / 2);
+  const high = quickSelect(work, mid);
+  if (n % 2 === 1) {
+    return high;
+  }
+  const low = quickSelect(work, mid - 1);
+  return (low + high) * 0.5;
 }
 
 function formatEnergy(value) {
@@ -4970,7 +5020,9 @@ function drawHistogram(hist) {
     const markerTop = 2;
     const markerBottom = height - 2;
 
-    const drawMarker = (x, color, label) => {
+    const drawMarker = (x, color, label, options = {}) => {
+      const preferRight = options.preferRight !== false;
+      const labelY = Number.isFinite(options.labelY) ? options.labelY : markerTop + 10;
       histCtx.strokeStyle = color;
       histCtx.lineWidth = 1.5;
       histCtx.beginPath();
@@ -4988,13 +5040,27 @@ function drawHistogram(hist) {
         histCtx.textBaseline = "top";
         histCtx.fillStyle = "#f2f2f2";
         const metrics = histCtx.measureText(label);
-        const textX = Math.min(width - metrics.width - 4, Math.max(4, x + 6));
-        histCtx.fillText(label, textX, markerTop + 10);
+        let textX;
+        if (preferRight) {
+          textX = Math.min(width - metrics.width - 4, Math.max(4, x + 6));
+        } else {
+          textX = Math.max(4, Math.min(width - metrics.width - 4, x - metrics.width - 6));
+        }
+        histCtx.fillText(label, textX, labelY);
       }
     };
 
-    drawMarker(minX, "#6eb5ff", `BG ${formatValue(minVal)}`);
-    drawMarker(maxX, "#ffd166", `FG ${formatValue(maxVal)}`);
+    const labelsClose = Math.abs(maxX - minX) < 120;
+    const labelTop = markerTop + 10;
+    const labelBottom = markerTop + 24;
+    drawMarker(minX, "#6eb5ff", `BG ${formatValue(minVal)}`, {
+      preferRight: true,
+      labelY: labelTop,
+    });
+    drawMarker(maxX, "#ffd166", `FG ${formatValue(maxVal)}`, {
+      preferRight: false,
+      labelY: labelsClose ? labelBottom : labelTop,
+    });
   }
 
   histCtx.strokeStyle = "rgba(0,0,0,0.5)";
@@ -5088,6 +5154,84 @@ function applyRoiCenterFromInputs() {
   return { x, y };
 }
 
+function syncRoiPlotLimitControls() {
+  if (roiLimitsHint) {
+    roiLimitsHint.classList.toggle("is-hidden", !roiState.plotLimits.enabled);
+  }
+}
+
+function updateRoiPlotLimitsEnabled() {
+  roiState.plotLimits.enabled = Boolean(roiLimitsEnable?.checked);
+  if (!roiState.plotLimits.enabled) {
+    roiState.plotLimits.xMin = null;
+    roiState.plotLimits.xMax = null;
+    roiState.plotLimits.yMin = null;
+    roiState.plotLimits.yMax = null;
+  }
+  syncRoiPlotLimitControls();
+  scheduleRoiUpdate();
+}
+
+function setRoiPlotAxisLimits(axis, minValue, maxValue) {
+  if (axis !== "x" && axis !== "y") return;
+  const minKey = axis === "x" ? "xMin" : "yMin";
+  const maxKey = axis === "x" ? "xMax" : "yMax";
+  let lo = Number.isFinite(minValue) ? minValue : null;
+  let hi = Number.isFinite(maxValue) ? maxValue : null;
+  if (lo !== null && hi !== null && lo > hi) {
+    [lo, hi] = [hi, lo];
+  }
+  roiState.plotLimits[minKey] = lo;
+  roiState.plotLimits[maxKey] = hi;
+}
+
+function promptRoiPlotAxisLimits(canvasEl, axis, reset = false) {
+  const plot = canvasEl?._roiPlot;
+  if (!plot || (axis !== "x" && axis !== "y")) return;
+  if (!roiState.plotLimits.enabled) {
+    roiState.plotLimits.enabled = true;
+    if (roiLimitsEnable) roiLimitsEnable.checked = true;
+  }
+  if (reset) {
+    setRoiPlotAxisLimits(axis, null, null);
+    syncRoiPlotLimitControls();
+    scheduleRoiUpdate();
+    return;
+  }
+
+  const fallbackMin = axis === "x" ? plot.xMin : plot.yMin;
+  const fallbackMax = axis === "x" ? plot.xMax : plot.yMax;
+  const currentMin =
+    axis === "x"
+      ? (Number.isFinite(roiState.plotLimits.xMin) ? roiState.plotLimits.xMin : fallbackMin)
+      : (Number.isFinite(roiState.plotLimits.yMin) ? roiState.plotLimits.yMin : fallbackMin);
+  const currentMax =
+    axis === "x"
+      ? (Number.isFinite(roiState.plotLimits.xMax) ? roiState.plotLimits.xMax : fallbackMax)
+      : (Number.isFinite(roiState.plotLimits.yMax) ? roiState.plotLimits.yMax : fallbackMax);
+  const axisLabel = axis.toUpperCase();
+  const response = window.prompt(
+    `Set ${axisLabel} limits as min,max (blank to reset)`,
+    `${formatStat(currentMin)},${formatStat(currentMax)}`
+  );
+  if (response === null) return;
+  const raw = response.trim();
+  if (!raw) {
+    setRoiPlotAxisLimits(axis, null, null);
+    syncRoiPlotLimitControls();
+    scheduleRoiUpdate();
+    return;
+  }
+  const parts = raw.split(/[,\s;]+/).filter(Boolean);
+  if (parts.length !== 2) return;
+  const lo = Number(parts[0]);
+  const hi = Number(parts[1]);
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return;
+  setRoiPlotAxisLimits(axis, lo, hi);
+  syncRoiPlotLimitControls();
+  scheduleRoiUpdate();
+}
+
 function updateRoiModeUI() {
   const mode = roiState.mode;
   const showPlots = mode !== "none";
@@ -5112,6 +5256,9 @@ function updateRoiModeUI() {
   const logToggleEl = roiLogToggle?.closest(".roi-log-toggle");
   if (logToggleEl) {
     logToggleEl.classList.toggle("is-hidden", !showPlots);
+  }
+  if (roiPlotLimits) {
+    roiPlotLimits.classList.toggle("is-hidden", !showPlots);
   }
   if (roiRadiusField) {
     roiRadiusField.classList.toggle("is-hidden", mode !== "circle");
@@ -5148,6 +5295,7 @@ function updateRoiModeUI() {
     }
   }
   updateRoiCenterInputs();
+  syncRoiPlotLimitControls();
 }
 
 function clearRoi() {
@@ -5169,10 +5317,10 @@ function clearRoi() {
   setRoiText(roiEndEl, "-");
   setRoiText(roiSizeEl, "-");
   setRoiText(roiCountEl, "-");
-  setRoiText(roiMeanEl, "-");
   setRoiText(roiMinEl, "-");
   setRoiText(roiMaxEl, "-");
   setRoiText(roiSumEl, "-");
+  setRoiText(roiMedianEl, "-");
   setRoiText(roiStdEl, "-");
   drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
   drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
@@ -5328,10 +5476,10 @@ function updateRoiStats() {
     }
     setRoiText(roiSizeEl, state.width && state.height ? `${state.width} × ${state.height}` : "-");
     setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
-    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
     setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
     setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
     setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
+    setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
     setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = null;
@@ -5354,10 +5502,10 @@ function updateRoiStats() {
     setRoiText(roiEndEl, "-");
     setRoiText(roiSizeEl, "-");
     setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
-    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
     setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
     setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
     setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
+    setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
     setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
@@ -5378,6 +5526,7 @@ function updateRoiStats() {
   let count = 0;
   let mean = 0;
   let m2 = 0;
+  const statsValues = [];
 
   if (roiState.mode === "line") {
     const dx = x1 - x0;
@@ -5395,6 +5544,7 @@ function updateRoiStats() {
       if (sampled.skip || !Number.isFinite(v)) {
         continue;
       }
+      statsValues.push(v);
       count += 1;
       sum += v;
       min = Math.min(min, v);
@@ -5410,10 +5560,11 @@ function updateRoiStats() {
     setRoiText(roiSizeEl, formatStat(length));
     setRoiText(roiCountEl, count ? `${count}` : "0");
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
-    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
+    const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
     setRoiText(roiMinEl, count ? formatStat(min) : "-");
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
+    setRoiText(roiMedianEl, count ? formatStat(median) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
@@ -5446,6 +5597,7 @@ function updateRoiStats() {
         if (!sampled) continue;
         const v = sampled.value;
         if (!sampled.skip && Number.isFinite(v)) {
+          statsValues.push(v);
           count += 1;
           sum += v;
           min = Math.min(min, v);
@@ -5472,10 +5624,11 @@ function updateRoiStats() {
     setRoiText(roiSizeEl, `${width} × ${height}`);
     setRoiText(roiCountEl, count ? `${count}` : "0");
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
-    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
+    const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
     setRoiText(roiMinEl, count ? formatStat(min) : "-");
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
+    setRoiText(roiMedianEl, count ? formatStat(median) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     if (roiXCanvas) {
@@ -5534,6 +5687,7 @@ function updateRoiStats() {
         if (!sampled) continue;
         const v = sampled.value;
         if (!sampled.skip && Number.isFinite(v)) {
+          statsValues.push(v);
           count += 1;
           sum += v;
           min = Math.min(min, v);
@@ -5565,10 +5719,11 @@ function updateRoiStats() {
     }
     setRoiText(roiCountEl, count ? `${count}` : "0");
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
-    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
+    const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
     setRoiText(roiMinEl, count ? formatStat(min) : "-");
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
+    setRoiText(roiMedianEl, count ? formatStat(median) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
@@ -5602,8 +5757,51 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     return;
   }
   const plotMeta = canvasEl._roiPlotMeta || {};
-  const values = logScale ? data.map((v) => Math.log10(1 + Math.max(0, v))) : data;
-  const maxValue = Math.max(...values);
+  const xStepRaw = Number(plotMeta.xStep ?? 1);
+  const xStep = Number.isFinite(xStepRaw) && xStepRaw !== 0 ? xStepRaw : 1;
+  let xStart = Number(plotMeta.xStart ?? 0) || 0;
+  let visibleData = data;
+  const limits = roiState.plotLimits || {};
+  if (limits.enabled && data.length > 0) {
+    const totalMinX = xStart;
+    const totalMaxX = xStart + (data.length - 1) * xStep;
+    const lo = Number.isFinite(limits.xMin) ? Math.max(totalMinX, limits.xMin) : totalMinX;
+    const hi = Number.isFinite(limits.xMax) ? Math.min(totalMaxX, limits.xMax) : totalMaxX;
+    if (hi < lo) {
+      visibleData = [];
+    } else {
+      const firstIdx = Math.max(0, Math.ceil((lo - xStart) / xStep));
+      const lastIdx = Math.min(data.length - 1, Math.floor((hi - xStart) / xStep));
+      if (lastIdx >= firstIdx) {
+        visibleData = data.slice(firstIdx, lastIdx + 1);
+        xStart += firstIdx * xStep;
+      } else {
+        visibleData = [];
+      }
+    }
+  }
+  if (!visibleData || visibleData.length === 0) {
+    canvasEl._roiPlot = null;
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
+    return;
+  }
+
+  const valuesRaw = visibleData;
+  const values = logScale ? valuesRaw.map((v) => Math.log10(1 + Math.max(0, v))) : valuesRaw;
+  let minValue = 0;
+  if (limits.enabled && Number.isFinite(limits.yMin)) {
+    minValue = logScale ? Math.log10(1 + Math.max(0, limits.yMin)) : limits.yMin;
+  }
+  let maxValue = Math.max(...values);
+  if (limits.enabled && Number.isFinite(limits.yMax)) {
+    maxValue = logScale ? Math.log10(1 + Math.max(0, limits.yMax)) : limits.yMax;
+  }
+  if (!Number.isFinite(minValue)) minValue = 0;
+  if (!Number.isFinite(maxValue) || maxValue <= minValue) {
+    maxValue = minValue + 1;
+  }
+  const yRange = maxValue - minValue;
   const padL = 34;
   const padR = 8;
   const padT = 8;
@@ -5630,7 +5828,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     const labels = [];
     for (let i = 0; i <= xTickCount; i += 1) {
       const t = i / xTickCount;
-      const xValue = plotMeta.xStart + t * (values.length - 1) * (plotMeta.xStep ?? 1);
+      const xValue = xStart + t * (values.length - 1) * xStep;
       labels.push(formatStat(xValue));
     }
     const maxLabel = measureMaxLabel(labels);
@@ -5648,7 +5846,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.moveTo(x, padT + drawableHeight);
     ctx.lineTo(x, padT + drawableHeight + 4);
     ctx.stroke();
-    const xValue = plotMeta.xStart + t * (values.length - 1) * (plotMeta.xStep ?? 1);
+    const xValue = xStart + t * (values.length - 1) * xStep;
     ctx.fillText(formatStat(xValue), x, padT + drawableHeight + 6);
   }
 
@@ -5657,7 +5855,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     const labels = [];
     for (let i = 0; i <= yTickCount; i += 1) {
       const t = i / yTickCount;
-      const displayVal = t * maxValue;
+      const displayVal = minValue + t * yRange;
       const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
       labels.push(formatStat(actualVal));
     }
@@ -5676,7 +5874,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.moveTo(padL - 4, y);
     ctx.lineTo(padL, y);
     ctx.stroke();
-    const displayVal = t * maxValue;
+    const displayVal = minValue + t * yRange;
     const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
     ctx.fillText(formatStat(actualVal), padL - 6, y);
   }
@@ -5686,7 +5884,8 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.beginPath();
   values.forEach((v, i) => {
     const x = padL + (i / Math.max(1, values.length - 1)) * drawableWidth;
-    const y = padT + drawableHeight - (maxValue ? (v / maxValue) * drawableHeight : 0);
+    const yNorm = yRange ? (v - minValue) / yRange : 0;
+    const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
     if (i === 0) {
       ctx.moveTo(x, y);
     } else {
@@ -5697,6 +5896,10 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
 
   const xLabel = plotMeta.xLabel || "Index";
   const yLabel = plotMeta.yLabel || "Value";
+  const xMinActual = xStart;
+  const xMaxActual = xStart + (values.length - 1) * xStep;
+  const yMinActual = logScale ? Math.max(0, Math.pow(10, minValue) - 1) : minValue;
+  const yMaxActual = logScale ? Math.max(0, Math.pow(10, maxValue) - 1) : maxValue;
   ctx.fillStyle = "#cfcfcf";
   ctx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
   ctx.textAlign = "center";
@@ -5708,7 +5911,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.restore();
 
   canvasEl._roiPlot = {
-    data,
+    data: visibleData,
     log: logScale,
     xLabel,
     yLabel,
@@ -5718,8 +5921,12 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     padB,
     width,
     height,
-    xStart: plotMeta.xStart ?? 0,
-    xStep: plotMeta.xStep ?? 1,
+    xStart,
+    xStep,
+    xMin: xMinActual,
+    xMax: xMaxActual,
+    yMin: yMinActual,
+    yMax: yMaxActual,
   };
   ctx.strokeStyle = "rgba(0,0,0,0.5)";
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
@@ -6298,6 +6505,8 @@ roiLogToggle?.addEventListener("change", () => {
   scheduleRoiUpdate();
 });
 
+roiLimitsEnable?.addEventListener("change", updateRoiPlotLimitsEnabled);
+
 roiRadiusInput?.addEventListener("change", () => {
   if (roiState.mode !== "circle") return;
   if (!roiState.start) {
@@ -6424,8 +6633,21 @@ invertToggle.addEventListener("change", () => {
 [minInput, maxInput].forEach((input) => {
   input.addEventListener("change", () => {
     if (!state.dataRaw) return;
-    state.min = snapHistogramValue(Number(minInput.value || state.min));
-    state.max = snapHistogramValue(Number(maxInput.value || state.max));
+    const statsMin = Number.isFinite(state.stats?.min) ? state.stats.min : Math.min(state.min, state.max);
+    const statsMax = Number.isFinite(state.stats?.max) ? state.stats.max : Math.max(state.min, state.max);
+    let nextMin = snapHistogramValue(Number(minInput.value || state.min));
+    let nextMax = snapHistogramValue(Number(maxInput.value || state.max));
+    nextMin = Math.max(statsMin, Math.min(statsMax, nextMin));
+    nextMax = Math.max(statsMin, Math.min(statsMax, nextMax));
+    if (input === minInput && nextMin > nextMax) {
+      nextMin = nextMax;
+    } else if (input === maxInput && nextMax < nextMin) {
+      nextMax = nextMin;
+    } else if (nextMin > nextMax) {
+      nextMax = nextMin;
+    }
+    state.min = nextMin;
+    state.max = nextMax;
     minInput.value = formatValue(state.min);
     maxInput.value = formatValue(state.max);
     state.autoScale = false;
@@ -6747,6 +6969,22 @@ canvasWrap.addEventListener("dblclick", (event) => {
   if (!canvasEl) return;
   canvasEl.addEventListener("mousemove", (event) => updateRoiTooltip(event, canvasEl));
   canvasEl.addEventListener("mouseleave", () => hideRoiTooltip(canvasEl));
+  canvasEl.addEventListener("dblclick", (event) => {
+    const plot = canvasEl._roiPlot;
+    if (!plot) return;
+    const rect = canvasEl.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const inYAxis = x <= plot.padL;
+    const inXAxis = y >= plot.height - plot.padB;
+    if (!inYAxis && !inXAxis) return;
+    event.preventDefault();
+    if (inYAxis) {
+      promptRoiPlotAxisLimits(canvasEl, "y", event.shiftKey);
+    } else {
+      promptRoiPlotAxisLimits(canvasEl, "x", event.shiftKey);
+    }
+  });
 });
 
 overviewCanvas?.addEventListener("pointerdown", (event) => {
@@ -6990,6 +7228,7 @@ if (roiModeSelect) {
 if (roiLogToggle) {
   roiState.log = roiLogToggle.checked;
 }
+updateRoiPlotLimitsEnabled();
 updateRingsFromInputs();
 
 function updateRingsFromInputs() {
