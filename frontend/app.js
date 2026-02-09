@@ -63,6 +63,8 @@ const sectionToggles = document.querySelectorAll("[data-section-toggle]");
 const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
+const resolutionOverlay = document.getElementById("resolution-overlay");
+const resolutionCtx = resolutionOverlay?.getContext("2d");
 const dataSection = document.getElementById("data-section");
 const autoloadMode = document.getElementById("autoload-mode");
 const autoloadDir = document.getElementById("autoload-dir");
@@ -127,6 +129,19 @@ const roiXCanvas = document.getElementById("roi-x-canvas");
 const roiXCtx = roiXCanvas?.getContext("2d");
 const roiYCanvas = document.getElementById("roi-y-canvas");
 const roiYCtx = roiYCanvas?.getContext("2d");
+const ringsToggle = document.getElementById("rings-toggle");
+const ringsDistance = document.getElementById("rings-distance");
+const ringsPixel = document.getElementById("rings-pixel");
+const ringsEnergy = document.getElementById("rings-energy");
+const ringsCenterX = document.getElementById("rings-center-x");
+const ringsCenterY = document.getElementById("rings-center-y");
+const ringsCount = document.getElementById("rings-count");
+const ringInputs = [
+  document.getElementById("ring-r1"),
+  document.getElementById("ring-r2"),
+  document.getElementById("ring-r3"),
+  document.getElementById("ring-r4"),
+].filter(Boolean);
 const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
 const dropdown = document.getElementById("menu-dropdown");
 const dropdownPanels = document.querySelectorAll(".dropdown-panel");
@@ -167,6 +182,7 @@ let roiEditSnapshot = null;
 let zoomWheelTarget = null;
 let zoomWheelRaf = null;
 let zoomWheelPivot = null;
+let resolutionOverlayScheduled = false;
 let panelTabState = "view";
 let backendTimer = null;
 let inspectorSelectedRow = null;
@@ -183,6 +199,16 @@ const roiState = {
   yProjection: null,
   innerRadius: 0,
   outerRadius: 0,
+};
+const analysisState = {
+  ringsEnabled: false,
+  distanceMm: null,
+  pixelSizeUm: null,
+  energyEv: null,
+  centerX: null,
+  centerY: null,
+  rings: [1, 2, 4, 8],
+  ringCount: 3,
 };
 
 const state = {
@@ -1242,6 +1268,123 @@ function drawRoiHandles(ctx, x0, y0, x1, y1, zoom) {
   ctx.restore();
 }
 
+function scheduleResolutionOverlay() {
+  if (!resolutionOverlay || !resolutionCtx) return;
+  if (resolutionOverlayScheduled) return;
+  resolutionOverlayScheduled = true;
+  window.requestAnimationFrame(() => {
+    resolutionOverlayScheduled = false;
+    drawResolutionOverlay();
+  });
+}
+
+function getDefaultCenter() {
+  if (Array.isArray(state.shape) && state.shape.length >= 2) {
+    const width = state.shape[state.shape.length - 1];
+    const height = state.shape[state.shape.length - 2];
+    if (Number.isFinite(width) && Number.isFinite(height)) {
+      return { x: width / 2, y: height / 2 };
+    }
+  }
+  if (state.width && state.height) {
+    return { x: state.width / 2, y: state.height / 2 };
+  }
+  return { x: 0, y: 0 };
+}
+
+function getRingParams() {
+  const distanceMm = Number(ringsDistance?.value || analysisState.distanceMm);
+  const pixelSizeUm = Number(ringsPixel?.value || analysisState.pixelSizeUm);
+  const energyEv = Number(ringsEnergy?.value || analysisState.energyEv);
+  const centerX = Number(ringsCenterX?.value);
+  const centerY = Number(ringsCenterY?.value);
+  const center = {
+    x: Number.isFinite(centerX) ? centerX : analysisState.centerX,
+    y: Number.isFinite(centerY) ? centerY : analysisState.centerY,
+  };
+  const fallback = getDefaultCenter();
+  if (!Number.isFinite(center.x)) center.x = fallback.x;
+  if (!Number.isFinite(center.y)) center.y = fallback.y;
+  const count = Number(ringsCount?.value || analysisState.ringCount || 3);
+  const maxCount = Math.max(1, ringInputs.length);
+  const ringLimit = Number.isFinite(count)
+    ? Math.max(1, Math.min(maxCount, Math.round(count)))
+    : Math.min(3, maxCount);
+  const rings = ringInputs
+    .map((input, index) => {
+      const value = Number(input?.value || analysisState.rings[index]);
+      return Number.isFinite(value) && value > 0 ? value : null;
+    })
+    .filter((value) => value !== null)
+    .slice(0, ringLimit);
+  return {
+    distanceMm: Number.isFinite(distanceMm) ? distanceMm : null,
+    pixelSizeUm: Number.isFinite(pixelSizeUm) ? pixelSizeUm : null,
+    energyEv: Number.isFinite(energyEv) ? energyEv : null,
+    centerX: center.x,
+    centerY: center.y,
+    rings,
+  };
+}
+
+function drawResolutionOverlay() {
+  if (!resolutionOverlay || !resolutionCtx || !canvasWrap) return;
+  const metrics = syncOverlayCanvas(resolutionOverlay, resolutionCtx);
+  if (!metrics) return;
+  const { width, height } = metrics;
+  resolutionCtx.clearRect(0, 0, width, height);
+  if (!analysisState.ringsEnabled || !state.hasFrame) return;
+  const params = getRingParams();
+  if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) return;
+  const lambda = 12398.4193 / params.energyEv;
+  if (!Number.isFinite(lambda) || lambda <= 0) return;
+  const zoom = state.zoom || 1;
+  const offsetX = state.renderOffsetX || 0;
+  const offsetY = state.renderOffsetY || 0;
+  const viewX = canvasWrap.scrollLeft / zoom;
+  const viewY = canvasWrap.scrollTop / zoom;
+  const centerX = (params.centerX - viewX) * zoom + offsetX;
+  const centerY = (params.centerY - viewY) * zoom + offsetY;
+  const pixelSizeMm = params.pixelSizeUm / 1000;
+  if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) return;
+
+  resolutionCtx.save();
+  resolutionCtx.setLineDash([6, 6]);
+  resolutionCtx.lineJoin = "round";
+  resolutionCtx.lineCap = "round";
+  resolutionCtx.font = "12px 'Avenir', 'Segoe UI', sans-serif";
+  resolutionCtx.textBaseline = "middle";
+  const labelAngle = -Math.PI / 6;
+  params.rings.forEach((d) => {
+    const sinArg = lambda / (2 * d);
+    if (!Number.isFinite(sinArg) || sinArg <= 0 || sinArg >= 1) return;
+    const twoTheta = 2 * Math.asin(sinArg);
+    const radiusMm = params.distanceMm * Math.tan(twoTheta);
+    const radiusPx = radiusMm / pixelSizeMm;
+    if (!Number.isFinite(radiusPx) || radiusPx <= 0) return;
+    const screenRadius = radiusPx * zoom;
+    if (screenRadius < 5) return;
+    resolutionCtx.beginPath();
+    resolutionCtx.arc(centerX, centerY, screenRadius, 0, Math.PI * 2);
+    resolutionCtx.lineWidth = 3.5;
+    resolutionCtx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+    resolutionCtx.stroke();
+    resolutionCtx.lineWidth = 2;
+    resolutionCtx.strokeStyle = "rgba(20, 80, 170, 0.95)";
+    resolutionCtx.stroke();
+
+    const labelX = centerX + Math.cos(labelAngle) * screenRadius;
+    const labelY = centerY + Math.sin(labelAngle) * screenRadius;
+    const label = Number.isFinite(d) ? `${d.toFixed(2).replace(/\.00$/, "")} Å` : "Å";
+    resolutionCtx.lineWidth = 3;
+    resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+    resolutionCtx.strokeText(label, labelX + 6, labelY);
+    resolutionCtx.fillStyle = "rgba(230, 240, 255, 0.95)";
+    resolutionCtx.fillText(label, labelX + 6, labelY);
+  });
+  resolutionCtx.restore();
+}
+
 function getPointerCanvasPos(event) {
   if (!canvasWrap) return null;
   const rect = canvasWrap.getBoundingClientRect();
@@ -1838,6 +1981,7 @@ function setZoom(value) {
   }
   schedulePixelOverlay();
   scheduleRoiOverlay();
+  scheduleResolutionOverlay();
 }
 
 function zoomAt(clientX, clientY, nextZoom) {
@@ -2496,6 +2640,7 @@ function setPanelTab(tabId, persist = true) {
   scheduleOverview();
   scheduleHistogram();
   schedulePixelOverlay();
+  scheduleResolutionOverlay();
 }
 
 function setDataControlsForHdf5() {
@@ -3839,10 +3984,54 @@ async function loadMetadata() {
     metaShape.textContent = data.shape.join(" × ");
     metaDtype.textContent = data.dtype;
     updateToolbar();
+    await loadAnalysisParams();
     await loadMask(true);
     await loadFrame();
   } finally {
     hideProcessingProgress();
+  }
+}
+
+async function loadAnalysisParams() {
+  if (!state.file || !isHdf5File(state.file)) {
+    return;
+  }
+  try {
+    const data = await fetchJSON(
+      `${API}/analysis/params?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(
+        state.dataset || ""
+      )}`
+    );
+    if (Number.isFinite(data.distance_mm) && ringsDistance) {
+      analysisState.distanceMm = data.distance_mm;
+      ringsDistance.value = String(Math.round(data.distance_mm));
+    }
+    if (Number.isFinite(data.pixel_size_um) && ringsPixel) {
+      analysisState.pixelSizeUm = data.pixel_size_um;
+      ringsPixel.value = data.pixel_size_um.toFixed(2);
+    }
+    if (Number.isFinite(data.energy_ev) && ringsEnergy) {
+      analysisState.energyEv = data.energy_ev;
+      ringsEnergy.value = String(Math.round(data.energy_ev));
+    }
+    const fallback = getDefaultCenter();
+    const centerX = Number.isFinite(data.center_x_px) ? data.center_x_px : fallback.x;
+    const centerY = Number.isFinite(data.center_y_px) ? data.center_y_px : fallback.y;
+    analysisState.centerX = centerX;
+    analysisState.centerY = centerY;
+    if (ringsCenterX) ringsCenterX.value = Math.round(centerX).toString();
+    if (ringsCenterY) ringsCenterY.value = Math.round(centerY).toString();
+    if (ringInputs.length && ringInputs.every((input) => !input.value)) {
+      ringInputs.forEach((input, idx) => {
+        const value = analysisState.rings[idx] ?? "";
+        if (value) {
+          input.value = String(value);
+        }
+      });
+    }
+    scheduleResolutionOverlay();
+  } catch (err) {
+    console.error(err);
   }
 }
 
@@ -5164,6 +5353,7 @@ function applyFrame(data, width, height, dtype) {
   scheduleOverview();
   scheduleRoiUpdate();
   schedulePixelOverlay();
+  scheduleResolutionOverlay();
 }
 
 function redraw() {
@@ -5918,6 +6108,7 @@ canvasWrap.addEventListener("scroll", () => {
   scheduleOverview();
   schedulePixelOverlay();
   scheduleRoiOverlay();
+  scheduleResolutionOverlay();
 });
 
 canvasWrap.addEventListener("contextmenu", (event) => {
@@ -6309,6 +6500,7 @@ window.addEventListener("resize", () => {
   schedulePixelOverlay();
   scheduleRoiOverlay();
   scheduleRoiUpdate();
+  scheduleResolutionOverlay();
 });
 
 initRenderer();
@@ -6339,6 +6531,62 @@ if (roiModeSelect) {
 if (roiLogToggle) {
   roiState.log = roiLogToggle.checked;
 }
+updateRingsFromInputs();
+
+function updateRingsFromInputs() {
+  if (ringsToggle) {
+    analysisState.ringsEnabled = ringsToggle.checked;
+  }
+  if (ringsCount) {
+    const count = Number(ringsCount.value);
+    const maxCount = Math.max(1, ringInputs.length);
+    analysisState.ringCount = Number.isFinite(count)
+      ? Math.max(1, Math.min(maxCount, Math.round(count)))
+      : Math.min(3, maxCount);
+    ringsCount.value = String(analysisState.ringCount);
+  }
+  if (ringsDistance) {
+    const value = Number(ringsDistance.value);
+    analysisState.distanceMm = Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (ringsPixel) {
+    const value = Number(ringsPixel.value);
+    analysisState.pixelSizeUm = Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (ringsEnergy) {
+    const value = Number(ringsEnergy.value);
+    analysisState.energyEv = Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (ringsCenterX) {
+    const value = Number(ringsCenterX.value);
+    analysisState.centerX = Number.isFinite(value) ? value : analysisState.centerX;
+  }
+  if (ringsCenterY) {
+    const value = Number(ringsCenterY.value);
+    analysisState.centerY = Number.isFinite(value) ? value : analysisState.centerY;
+  }
+  if (ringInputs.length) {
+    analysisState.rings = ringInputs
+      .map((input, idx) => {
+        const value = Number(input.value || analysisState.rings[idx]);
+        return Number.isFinite(value) && value > 0 ? value : null;
+      })
+      .filter((value) => value !== null);
+  }
+  ringInputs.forEach((input, idx) => {
+    if (!input) return;
+    const visible = idx < analysisState.ringCount;
+    input.style.display = visible ? "" : "none";
+  });
+  scheduleResolutionOverlay();
+}
+
+[ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ringsCount, ...ringInputs]
+  .filter(Boolean)
+  .forEach((input) => {
+    const eventName = input.type === "checkbox" ? "change" : "input";
+    input.addEventListener(eventName, updateRingsFromInputs);
+  });
 if (pixelLabelToggle) {
   state.pixelLabels = pixelLabelToggle.checked;
   pixelLabelToggle.addEventListener("change", () => {

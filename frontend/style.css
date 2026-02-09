@@ -440,13 +440,19 @@ body {
 #pixel-overlay {
   position: absolute;
   pointer-events: none;
+  z-index: 3;
+}
+
+#resolution-overlay {
+  position: absolute;
+  pointer-events: none;
   z-index: 2;
 }
 
 #roi-overlay {
   position: absolute;
   pointer-events: none;
-  z-index: 3;
+  z-index: 4;
 }
 
 #image-canvas {
@@ -982,6 +988,31 @@ body {
 
 .color-map-row select {
   flex: 1 1 auto;
+}
+
+.ring-values input,
+.ring-center input {
+  width: 64px;
+  text-align: center;
+}
+
+.ring-values {
+  gap: 6px;
+}
+
+.ring-center {
+  gap: 8px;
+}
+
+.rings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.rings-grid .field {
+  margin: 0;
 }
 
 .field.zoom-row {

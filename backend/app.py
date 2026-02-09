@@ -614,6 +614,119 @@ def _find_pixel_mask(h5: h5py.File, threshold: int | None = None) -> h5py.Datase
     return None
 
 
+def _coerce_scalar(value: Any) -> float | None:
+    try:
+        if isinstance(value, np.ndarray):
+            if value.size == 0:
+                return None
+            value = value.reshape(-1)[0]
+        if isinstance(value, np.generic):
+            value = value.item()
+        return float(value)
+    except Exception:
+        return None
+
+
+def _get_units(obj: Any) -> str | None:
+    try:
+        units = obj.attrs.get("units") or obj.attrs.get("unit")
+        if isinstance(units, bytes):
+            return units.decode("utf-8", "replace")
+        if isinstance(units, np.ndarray) and units.size == 1:
+            units = units.reshape(-1)[0]
+        if isinstance(units, np.generic):
+            units = units.item()
+        if isinstance(units, bytes):
+            return units.decode("utf-8", "replace")
+        return str(units) if units is not None else None
+    except Exception:
+        return None
+
+
+def _read_scalar(h5: h5py.File, paths: list[str]) -> tuple[float | None, str | None]:
+    for path in paths:
+        if path in h5:
+            obj = h5[path]
+            if not isinstance(obj, h5py.Dataset):
+                continue
+            try:
+                value = _coerce_scalar(obj[()])
+            except Exception:
+                value = None
+            units = _get_units(obj)
+            if value is not None:
+                return value, units
+    return None, None
+
+
+def _norm_unit(unit: str | None) -> str:
+    return (unit or "").strip().lower().replace("µ", "u")
+
+
+def _to_mm(value: float, unit: str | None) -> float:
+    u = _norm_unit(unit)
+    if u in {"m", "meter", "metre", "meters", "metres"}:
+        return value * 1000
+    if u in {"cm", "centimeter", "centimetre", "centimeters", "centimetres"}:
+        return value * 10
+    if u in {"mm", "millimeter", "millimetre", "millimeters", "millimetres"}:
+        return value
+    if u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
+        return value / 1000
+    if u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
+        return value / 1e6
+    if value < 0.5:
+        return value * 1000
+    return value
+
+
+def _to_um(value: float, unit: str | None) -> float:
+    u = _norm_unit(unit)
+    if u in {"m", "meter", "metre", "meters", "metres"}:
+        return value * 1e6
+    if u in {"cm", "centimeter", "centimetre", "centimeters", "centimetres"}:
+        return value * 1e4
+    if u in {"mm", "millimeter", "millimetre", "millimeters", "millimetres"}:
+        return value * 1000
+    if u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
+        return value
+    if u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
+        return value / 1000
+    if value < 1e-2:
+        return value * 1e6
+    if value < 1:
+        return value * 1000
+    return value
+
+
+def _to_ev(value: float, unit: str | None) -> float:
+    u = _norm_unit(unit)
+    if u in {"kev", "kiloelectronvolt", "kiloelectronvolts"}:
+        return value * 1000
+    if u in {"ev", "electronvolt", "electronvolts"}:
+        return value
+    if value < 1000:
+        return value * 1000
+    return value
+
+
+def _wavelength_to_ev(value: float, unit: str | None) -> float | None:
+    u = _norm_unit(unit)
+    wavelength_m = None
+    if u in {"m", "meter", "metre", "meters", "metres"}:
+        wavelength_m = value
+    elif u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
+        wavelength_m = value * 1e-9
+    elif u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
+        wavelength_m = value * 1e-6
+    elif u in {"a", "ang", "angstrom", "angstroms"}:
+        wavelength_m = value * 1e-10
+    elif value < 1e-6:
+        wavelength_m = value
+    if wavelength_m is None or wavelength_m <= 0:
+        return None
+    return 12398.4193 / (wavelength_m * 1e10)
+
 def _read_threshold_energies(h5: h5py.File, count: int) -> list[float | None]:
     energies: list[float | None] = []
     for idx in range(count):
@@ -1352,6 +1465,135 @@ def hdf5_csv(
         filename = path.strip("/").replace("/", "_") or "dataset"
         headers = {"Content-Disposition": f'attachment; filename="{filename}.csv"'}
         return Response(content=output.getvalue(), media_type="text/csv", headers=headers)
+
+
+@app.get("/api/analysis/params")
+def analysis_params(
+    file: str = Query(..., min_length=1),
+    dataset: str | None = Query(None),
+) -> dict[str, Any]:
+    file_path = _resolve_file(file)
+    distance_val, distance_unit = None, None
+    pixel_x_val, pixel_x_unit = None, None
+    pixel_y_val, pixel_y_unit = None, None
+    energy_val, energy_unit = None, None
+    wavelength_val, wavelength_unit = None, None
+    center_x_val, center_x_unit = None, None
+    center_y_val, center_y_unit = None, None
+    shape = None
+
+    with h5py.File(file_path, "r") as h5:
+        if dataset:
+            try:
+                dset, extra_files = _resolve_dataset(h5, file_path, dataset)
+                try:
+                    shape = tuple(int(x) for x in dset.shape)
+                finally:
+                    for handle in extra_files:
+                        handle.close()
+            except Exception:
+                shape = None
+
+        distance_val, distance_unit = _read_scalar(
+            h5,
+            [
+                "/entry/instrument/detector/detector_distance",
+                "/entry/instrument/detector/distance",
+                "/entry/instrument/detector/detectorSpecific/detector_distance",
+            ],
+        )
+        pixel_x_val, pixel_x_unit = _read_scalar(
+            h5,
+            [
+                "/entry/instrument/detector/x_pixel_size",
+                "/entry/instrument/detector/detectorSpecific/x_pixel_size",
+                "/entry/instrument/detector/pixel_size",
+            ],
+        )
+        pixel_y_val, pixel_y_unit = _read_scalar(
+            h5,
+            [
+                "/entry/instrument/detector/y_pixel_size",
+                "/entry/instrument/detector/detectorSpecific/y_pixel_size",
+                "/entry/instrument/detector/pixel_size",
+            ],
+        )
+        energy_val, energy_unit = _read_scalar(
+            h5,
+            [
+                "/entry/instrument/beam/incident_energy",
+                "/entry/instrument/beam/energy",
+                "/entry/instrument/beam/photon_energy",
+                "/entry/instrument/source/energy",
+            ],
+        )
+        wavelength_val, wavelength_unit = _read_scalar(
+            h5,
+            [
+                "/entry/instrument/beam/incident_wavelength",
+                "/entry/instrument/beam/wavelength",
+                "/entry/instrument/beam/photon_wavelength",
+            ],
+        )
+        center_x_val, center_x_unit = _read_scalar(
+            h5,
+            [
+                "/entry/instrument/detector/beam_center_x",
+                "/entry/instrument/detector/beam_center_x_mm",
+                "/entry/instrument/detector/detectorSpecific/beam_center_x",
+            ],
+        )
+        center_y_val, center_y_unit = _read_scalar(
+            h5,
+            [
+                "/entry/instrument/detector/beam_center_y",
+                "/entry/instrument/detector/beam_center_y_mm",
+                "/entry/instrument/detector/detectorSpecific/beam_center_y",
+            ],
+        )
+
+    distance_mm = _to_mm(distance_val, distance_unit) if distance_val is not None else None
+
+    pixel_size_um = None
+    if pixel_x_val is not None:
+        pixel_size_um = _to_um(pixel_x_val, pixel_x_unit)
+    if pixel_y_val is not None:
+        pixel_y_um = _to_um(pixel_y_val, pixel_y_unit)
+        pixel_size_um = (
+            (pixel_size_um + pixel_y_um) / 2 if pixel_size_um is not None else pixel_y_um
+        )
+
+    energy_ev = None
+    if energy_val is not None:
+        energy_ev = _to_ev(energy_val, energy_unit)
+    elif wavelength_val is not None:
+        energy_ev = _wavelength_to_ev(wavelength_val, wavelength_unit)
+
+    center_x_px = None
+    center_y_px = None
+    if center_x_val is not None:
+        unit = _norm_unit(center_x_unit)
+        if unit in {"mm", "m", "cm", "um", "nm"}:
+            if pixel_size_um:
+                center_x_px = _to_mm(center_x_val, center_x_unit) / (pixel_size_um / 1000)
+        else:
+            center_x_px = center_x_val
+    if center_y_val is not None:
+        unit = _norm_unit(center_y_unit)
+        if unit in {"mm", "m", "cm", "um", "nm"}:
+            if pixel_size_um:
+                center_y_px = _to_mm(center_y_val, center_y_unit) / (pixel_size_um / 1000)
+        else:
+            center_y_px = center_y_val
+
+    return {
+        "distance_mm": distance_mm,
+        "pixel_size_um": pixel_size_um,
+        "energy_ev": energy_ev,
+        "center_x_px": center_x_px,
+        "center_y_px": center_y_px,
+        "shape": shape,
+    }
 
 
 @app.get("/api/metadata")
