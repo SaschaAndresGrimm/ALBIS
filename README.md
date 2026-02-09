@@ -15,6 +15,8 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 - Contributions welcome: see `CONTRIBUTING.md`.
 - Security: see `SECURITY.md`.
 
+![ALBIS screenshot](frontend/ressources/albis.png)
+
 ## Highlights
 
 - ALBULA‑style UI with fast navigation and contrast control.

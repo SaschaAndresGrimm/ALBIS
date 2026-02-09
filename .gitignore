@@ -5,6 +5,7 @@ node_modules/
 .DS_Store
 build/
 dist/
+logs/
 *.h5
 *.hdf5
 test_data/
