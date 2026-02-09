@@ -4191,6 +4191,10 @@ async function loadFiles() {
 }
 
 function sortDatasets(datasets) {
+  const linkedStack = datasets.find((d) => d.path === "/entry/data");
+  if (linkedStack) {
+    return [linkedStack, ...datasets.filter((d) => d !== linkedStack)];
+  }
   const primary = datasets.find((d) => d.path.includes("/entry/data/data"));
   if (primary) {
     return [primary, ...datasets.filter((d) => d !== primary)];

@@ -7,6 +7,7 @@ import fnmatch
 import io
 import json
 import os
+import re
 import platform
 import subprocess
 import sys
@@ -803,6 +804,225 @@ def _walk_datasets(
         _walk_datasets(target_obj, child_path, file_path, results, next_ancestors, file_cache)
 
 
+_LINKED_DATA_NAME_RE = re.compile(r"^data(?:[_-]?(\d+))?$")
+
+
+def _is_linked_data_member(name: str) -> bool:
+    return _LINKED_DATA_NAME_RE.match(name) is not None
+
+
+def _linked_member_sort_key(path_or_name: str) -> tuple[int, int, str]:
+    name = path_or_name.rsplit("/", 1)[-1]
+    match = _LINKED_DATA_NAME_RE.match(name)
+    if not match:
+        return (1, 0, name)
+    suffix = match.group(1)
+    return (0, int(suffix) if suffix else 0, name)
+
+
+def _aggregate_linked_stack_datasets(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for info in results:
+        if not info.get("image"):
+            continue
+        path = str(info.get("path", ""))
+        if "/" not in path.strip("/"):
+            continue
+        parent, name = path.rsplit("/", 1)
+        if not _is_linked_data_member(name):
+            continue
+        grouped.setdefault(parent, []).append(info)
+
+    remove_paths: set[str] = set()
+    synthetic: list[dict[str, Any]] = []
+    for parent, members in grouped.items():
+        if len(members) < 2:
+            continue
+        ordered = sorted(members, key=lambda item: _linked_member_sort_key(str(item.get("path", ""))))
+        first = ordered[0]
+        ndim = int(first.get("ndim") or 0)
+        if ndim not in (3, 4):
+            continue
+        dtype = str(first.get("dtype", ""))
+        shape = tuple(int(x) for x in (first.get("shape") or ()))
+        if len(shape) != ndim:
+            continue
+        tail = shape[1:]
+        total_frames = 0
+        valid: list[dict[str, Any]] = []
+        for item in ordered:
+            item_shape = tuple(int(x) for x in (item.get("shape") or ()))
+            if (
+                int(item.get("ndim") or 0) != ndim
+                or str(item.get("dtype", "")) != dtype
+                or len(item_shape) != ndim
+                or tuple(item_shape[1:]) != tail
+                or int(item_shape[0]) <= 0
+            ):
+                continue
+            total_frames += int(item_shape[0])
+            valid.append(item)
+        if len(valid) < 2 or total_frames <= 0:
+            continue
+        agg_shape = (int(total_frames),) + tail
+        synthetic.append(
+            {
+                "path": parent,
+                "shape": agg_shape,
+                "dtype": dtype,
+                "ndim": ndim,
+                "size": int(np.prod(agg_shape)),
+                "chunks": None,
+                "maxshape": None,
+                "image": True,
+                "linked_stack": True,
+                "members": [str(item.get("path")) for item in valid],
+            }
+        )
+        for item in valid:
+            remove_paths.add(str(item.get("path", "")))
+
+    if not synthetic:
+        return results
+    filtered = [item for item in results if str(item.get("path", "")) not in remove_paths]
+    filtered.extend(synthetic)
+    return filtered
+
+
+def _resolve_node(
+    h5: h5py.File, base_file: Path, path: str
+) -> tuple[Any, Path, list[h5py.File]]:
+    parts = [p for p in path.strip("/").split("/") if p]
+    if not parts:
+        return h5["/"], base_file, []
+    current: Any = h5["/"]
+    current_file = base_file
+    opened: list[h5py.File] = []
+
+    try:
+        for idx, part in enumerate(parts):
+            if not isinstance(current, h5py.Group):
+                raise KeyError("Path not found")
+            link = current.get(part, getlink=True)
+            if link is None:
+                raise KeyError("Path not found")
+            if isinstance(link, h5py.ExternalLink):
+                target_path = _resolve_external_path(current_file, link.filename)
+                if not target_path:
+                    raise KeyError("Path not found")
+                try:
+                    target_file = h5py.File(target_path, "r")
+                except OSError as exc:
+                    raise KeyError("Path not found") from exc
+                opened.append(target_file)
+                current_file = target_path
+                try:
+                    current = target_file[link.path]
+                except Exception as exc:
+                    raise KeyError("Path not found") from exc
+            elif isinstance(link, h5py.SoftLink):
+                try:
+                    current = current[link.path]
+                except Exception as exc:
+                    raise KeyError("Path not found") from exc
+            else:
+                try:
+                    current = current[part]
+                except Exception as exc:
+                    raise KeyError("Path not found") from exc
+            if idx < len(parts) - 1 and isinstance(current, h5py.Dataset):
+                raise KeyError("Path not found")
+    except Exception:
+        for handle in opened:
+            try:
+                handle.close()
+            except Exception:
+                pass
+        raise
+    return current, current_file, opened
+
+
+def _resolve_group_linked_stack(
+    group: h5py.Group,
+    group_path: str,
+    group_file: Path,
+    opened: list[h5py.File],
+) -> dict[str, Any] | None:
+    segments: list[dict[str, Any]] = []
+    ndim: int | None = None
+    dtype: str | None = None
+    tail: tuple[int, ...] | None = None
+
+    for name in sorted(group.keys(), key=_linked_member_sort_key):
+        if not _is_linked_data_member(name):
+            continue
+        try:
+            link = group.get(name, getlink=True)
+        except Exception:
+            continue
+        if isinstance(link, h5py.ExternalLink):
+            target_path = _resolve_external_path(group_file, link.filename)
+            if not target_path:
+                continue
+            try:
+                target_file = h5py.File(target_path, "r")
+            except OSError:
+                continue
+            opened.append(target_file)
+            try:
+                child = target_file[link.path]
+            except Exception:
+                continue
+        elif isinstance(link, h5py.SoftLink):
+            try:
+                child = group[link.path]
+            except Exception:
+                continue
+        else:
+            try:
+                child = group[name]
+            except Exception:
+                continue
+        if not isinstance(child, h5py.Dataset):
+            continue
+        child_shape = tuple(int(x) for x in child.shape)
+        child_ndim = int(child.ndim)
+        if child_ndim not in (3, 4) or len(child_shape) != child_ndim or child_shape[0] <= 0:
+            continue
+        child_dtype = str(child.dtype)
+        child_tail = child_shape[1:]
+        if ndim is None:
+            ndim = child_ndim
+            dtype = child_dtype
+            tail = child_tail
+        elif child_ndim != ndim or child_dtype != dtype or child_tail != tail:
+            continue
+        child_path = f"{group_path.rstrip('/')}/{name}" if group_path != "/" else f"/{name}"
+        segments.append(
+            {
+                "path": child_path,
+                "dataset": child,
+                "frames": int(child_shape[0]),
+                "shape": child_shape,
+            }
+        )
+
+    if not segments or ndim is None or tail is None or dtype is None:
+        return None
+    total_frames = sum(int(seg["frames"]) for seg in segments)
+    if total_frames <= 0:
+        return None
+    shape = (int(total_frames),) + tail
+    return {
+        "kind": "linked_stack",
+        "path": group_path,
+        "shape": shape,
+        "dtype": dtype,
+        "ndim": ndim,
+        "segments": segments,
+    }
+
+
 def _resolve_dataset(
     h5: h5py.File, base_file: Path, dataset: str
 ) -> tuple[h5py.Dataset, list[h5py.File]]:
@@ -850,6 +1070,81 @@ def _resolve_dataset(
     if not isinstance(current, h5py.Dataset):
         raise KeyError("Dataset not found")
     return current, opened
+
+
+def _resolve_dataset_view(
+    h5: h5py.File, base_file: Path, dataset: str
+) -> tuple[dict[str, Any], list[h5py.File]]:
+    node, current_file, opened = _resolve_node(h5, base_file, dataset)
+    if isinstance(node, h5py.Dataset):
+        return (
+            {
+                "kind": "dataset",
+                "path": dataset,
+                "shape": tuple(int(x) for x in node.shape),
+                "dtype": str(node.dtype),
+                "ndim": int(node.ndim),
+                "dataset": node,
+            },
+            opened,
+        )
+    if isinstance(node, h5py.Group):
+        stack = _resolve_group_linked_stack(node, dataset, current_file, opened)
+        if stack is not None:
+            return stack, opened
+    for handle in opened:
+        try:
+            handle.close()
+        except Exception:
+            pass
+    raise KeyError("Dataset not found")
+
+
+def _extract_frame(view: dict[str, Any], index: int, threshold: int) -> np.ndarray:
+    if view["kind"] == "dataset":
+        dset = view["dataset"]
+        if dset.ndim == 4:
+            if index >= dset.shape[0]:
+                raise HTTPException(status_code=416, detail="Frame index out of range")
+            if threshold >= dset.shape[1]:
+                raise HTTPException(status_code=416, detail="Threshold index out of range")
+            return np.asarray(dset[index, threshold, :, :])
+        if dset.ndim == 3:
+            if index >= dset.shape[0]:
+                raise HTTPException(status_code=416, detail="Frame index out of range")
+            return np.asarray(dset[index, :, :])
+        if dset.ndim == 2:
+            return np.asarray(dset[:, :])
+        raise HTTPException(status_code=400, detail="Dataset is not 2D, 3D, or 4D")
+
+    if view["kind"] == "linked_stack":
+        shape = tuple(int(x) for x in view["shape"])
+        if not shape:
+            raise HTTPException(status_code=400, detail="Dataset has invalid shape")
+        total_frames = int(shape[0])
+        if index >= total_frames:
+            raise HTTPException(status_code=416, detail="Frame index out of range")
+        ndim = int(view["ndim"])
+        if ndim == 4 and threshold >= int(shape[1]):
+            raise HTTPException(status_code=416, detail="Threshold index out of range")
+        local = int(index)
+        selected: dict[str, Any] | None = None
+        for segment in view["segments"]:
+            frames = int(segment["frames"])
+            if local < frames:
+                selected = segment
+                break
+            local -= frames
+        if selected is None:
+            raise HTTPException(status_code=416, detail="Frame index out of range")
+        dset = selected["dataset"]
+        if ndim == 4:
+            return np.asarray(dset[local, threshold, :, :])
+        if ndim == 3:
+            return np.asarray(dset[local, :, :])
+        raise HTTPException(status_code=400, detail="Dataset is not 3D or 4D")
+
+    raise HTTPException(status_code=400, detail="Unsupported dataset view")
 
 
 @app.get("/api/health")
@@ -1228,7 +1523,7 @@ def datasets(file: str = Query(..., min_length=1)) -> dict[str, Any]:
                     handle.close()
                 except Exception:
                     pass
-    return {"datasets": results}
+    return {"datasets": _aggregate_linked_stack_datasets(results)}
 
 
 @app.get("/api/hdf5/tree")
@@ -1485,9 +1780,9 @@ def analysis_params(
     with h5py.File(file_path, "r") as h5:
         if dataset:
             try:
-                dset, extra_files = _resolve_dataset(h5, file_path, dataset)
+                view, extra_files = _resolve_dataset_view(h5, file_path, dataset)
                 try:
-                    shape = tuple(int(x) for x in dset.shape)
+                    shape = tuple(int(x) for x in view["shape"])
                 finally:
                     for handle in extra_files:
                         handle.close()
@@ -1601,18 +1896,19 @@ def metadata(file: str = Query(..., min_length=1), dataset: str = Query(..., min
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
         try:
-            dset, extra_files = _resolve_dataset(h5, path, dataset)
+            view, extra_files = _resolve_dataset_view(h5, path, dataset)
             try:
-                shape = tuple(int(x) for x in dset.shape)
+                shape = tuple(int(x) for x in view["shape"])
                 response = {
                     "path": dataset,
                     "shape": shape,
-                    "dtype": str(dset.dtype),
-                    "ndim": dset.ndim,
-                    "chunks": dset.chunks,
-                    "maxshape": dset.maxshape,
+                    "dtype": str(view["dtype"]),
+                    "ndim": int(view["ndim"]),
+                    "chunks": view["dataset"].chunks if view["kind"] == "dataset" else None,
+                    "maxshape": view["dataset"].maxshape if view["kind"] == "dataset" else None,
+                    "linked_stack": view["kind"] == "linked_stack",
                 }
-                if dset.ndim == 4:
+                if int(view["ndim"]) == 4:
                     response["threshold_energies"] = _read_threshold_energies(h5, shape[1])
                 return response
             finally:
@@ -1632,24 +1928,11 @@ def frame(
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
         try:
-            dset, extra_files = _resolve_dataset(h5, path, dataset)
+            view, extra_files = _resolve_dataset_view(h5, path, dataset)
         except KeyError:
             raise HTTPException(status_code=404, detail="Dataset not found")
         try:
-            if dset.ndim == 4:
-                if index >= dset.shape[0]:
-                    raise HTTPException(status_code=416, detail="Frame index out of range")
-                if threshold >= dset.shape[1]:
-                    raise HTTPException(status_code=416, detail="Threshold index out of range")
-                frame_data = dset[index, threshold, :, :]
-            elif dset.ndim == 3:
-                if index >= dset.shape[0]:
-                    raise HTTPException(status_code=416, detail="Frame index out of range")
-                frame_data = dset[index, :, :]
-            elif dset.ndim == 2:
-                frame_data = dset[:, :]
-            else:
-                raise HTTPException(status_code=400, detail="Dataset is not 2D, 3D, or 4D")
+            frame_data = _extract_frame(view, index=index, threshold=threshold)
         finally:
             for handle in extra_files:
                 handle.close()
@@ -1678,24 +1961,11 @@ def preview(
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
         try:
-            dset, extra_files = _resolve_dataset(h5, path, dataset)
+            view, extra_files = _resolve_dataset_view(h5, path, dataset)
         except KeyError:
             raise HTTPException(status_code=404, detail="Dataset not found")
         try:
-            if dset.ndim == 4:
-                if index >= dset.shape[0]:
-                    raise HTTPException(status_code=416, detail="Frame index out of range")
-                if threshold >= dset.shape[1]:
-                    raise HTTPException(status_code=416, detail="Threshold index out of range")
-                frame_data = dset[index, threshold, :, :]
-            elif dset.ndim == 3:
-                if index >= dset.shape[0]:
-                    raise HTTPException(status_code=416, detail="Frame index out of range")
-                frame_data = dset[index, :, :]
-            elif dset.ndim == 2:
-                frame_data = dset[:, :]
-            else:
-                raise HTTPException(status_code=400, detail="Dataset is not 2D, 3D, or 4D")
+            frame_data = _extract_frame(view, index=index, threshold=threshold)
         finally:
             for handle in extra_files:
                 handle.close()
