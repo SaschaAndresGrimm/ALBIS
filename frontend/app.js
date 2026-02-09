@@ -1123,29 +1123,66 @@ function drawRoiOverlay() {
   const y1 = (roiState.end.y - viewY) * zoom + offsetY;
 
   roiCtx.save();
-  roiCtx.lineWidth = 2;
-  roiCtx.strokeStyle = "rgba(255, 255, 255, 0.95)";
   roiCtx.setLineDash([6, 4]);
+  roiCtx.lineJoin = "round";
+  roiCtx.lineCap = "round";
+  const strokeWithHalo = () => {
+    roiCtx.lineWidth = 4;
+    roiCtx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+    roiCtx.stroke();
+    roiCtx.lineWidth = 2;
+    roiCtx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    roiCtx.stroke();
+  };
   if (roiState.mode === "line") {
     roiCtx.beginPath();
     roiCtx.moveTo(x0, y0);
     roiCtx.lineTo(x1, y1);
-    roiCtx.stroke();
+    strokeWithHalo();
   } else if (roiState.mode === "box") {
     const left = Math.min(x0, x1);
     const top = Math.min(y0, y1);
     const w = Math.abs(x1 - x0);
     const h = Math.abs(y1 - y0);
-    roiCtx.strokeRect(left, top, w, h);
+    if (w > 0 && h > 0) {
+      roiCtx.save();
+      roiCtx.setLineDash([]);
+      roiCtx.fillStyle = "rgba(160, 160, 160, 0.08)";
+      roiCtx.fillRect(left, top, w, h);
+      roiCtx.restore();
+    }
+    roiCtx.beginPath();
+    roiCtx.rect(left, top, w, h);
+    strokeWithHalo();
   } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
     const radius = Math.hypot(x1 - x0, y1 - y0);
+    if (radius > 0) {
+      roiCtx.save();
+      roiCtx.setLineDash([]);
+      roiCtx.fillStyle = "rgba(160, 160, 160, 0.08)";
+      roiCtx.beginPath();
+      roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
+      if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
+        const inner = roiState.innerRadius * zoom;
+        roiCtx.moveTo(x0 + inner, y0);
+        roiCtx.arc(x0, y0, inner, 0, Math.PI * 2);
+        try {
+          roiCtx.fill("evenodd");
+        } catch {
+          roiCtx.fill();
+        }
+      } else {
+        roiCtx.fill();
+      }
+      roiCtx.restore();
+    }
     roiCtx.beginPath();
     roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
-    roiCtx.stroke();
+    strokeWithHalo();
     if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
       roiCtx.beginPath();
       roiCtx.arc(x0, y0, roiState.innerRadius * zoom, 0, Math.PI * 2);
-      roiCtx.stroke();
+      strokeWithHalo();
     }
   }
   roiCtx.restore();
