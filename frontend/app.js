@@ -1042,7 +1042,9 @@ function updateCursorOverlay(event) {
       labelValue = "D";
     }
   }
-  const label = `X ${ix}  Y ${iy}  Value ${labelValue}`;
+  const resolutionValue = getResolutionAtPixel(ix, iy);
+  const resolutionText = Number.isFinite(resolutionValue) ? `  d ${resolutionValue.toFixed(4)} Å` : "";
+  const label = `X ${ix}  Y ${iy}  Value ${labelValue}${resolutionText}`;
   showCursorOverlay(label, event.clientX, event.clientY);
 }
 
@@ -1325,6 +1327,25 @@ function getRingParams() {
     centerY: center.y,
     rings,
   };
+}
+
+function getResolutionAtPixel(ix, iy, params = getRingParams()) {
+  if (!Number.isFinite(ix) || !Number.isFinite(iy)) return null;
+  if (!params || !params.distanceMm || !params.pixelSizeUm || !params.energyEv) return null;
+  const lambda = 12398.4193 / params.energyEv;
+  if (!Number.isFinite(lambda) || lambda <= 0) return null;
+  const pixelSizeMm = params.pixelSizeUm / 1000;
+  if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) return null;
+
+  const dxPx = ix - params.centerX;
+  const dyPx = iy - params.centerY;
+  const radiusPx = Math.hypot(dxPx, dyPx);
+  const radiusMm = radiusPx * pixelSizeMm;
+  const twoTheta = Math.atan2(radiusMm, params.distanceMm);
+  const sinArg = Math.sin(twoTheta / 2);
+  if (!Number.isFinite(sinArg) || sinArg <= 0) return null;
+  const d = lambda / (2 * sinArg);
+  return Number.isFinite(d) && d > 0 ? d : null;
 }
 
 function drawResolutionOverlay() {
