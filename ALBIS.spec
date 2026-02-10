@@ -21,6 +21,8 @@ if icon_path and not os.path.exists(icon_path):
     icon_path = ""
 
 datas = [("frontend", "frontend")]
+if os.path.exists("albis.config.json"):
+    datas.append(("albis.config.json", "."))
 binaries: list = []
 hiddenimports: list = ["backend.app", "backend.config"]
 

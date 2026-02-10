@@ -92,6 +92,7 @@ Notes:
 - `data.root = ""` defaults to project root for source runs and `~/ALBIS-data` for packaged runs.
 - `server.host = "0.0.0.0"` enables LAN access (`http://<your-ip>:8000`).
 - `logging.dir = ""` writes logs to `<data.root>/logs/albis.log`.
+- Packaged installs auto-create a default user config at `~/.config/albis/config.json` on first run (if no config is found).
 
 ## Logging
 
@@ -110,10 +111,11 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ```
 
 This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-mac-v0.2-<commit>.zip`
-- `ALBIS-mac-v0.2-<commit>.dmg`
+- `ALBIS-mac-v0.3-<commit>.zip`
+- `ALBIS-mac-v0.3-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
+DMG images include an `Applications` shortcut for drag-and-drop installation.
 
 ### Build (Linux)
 
@@ -122,7 +124,7 @@ This produces versioned artifacts in `dist/`, e.g.:
 ```
 
 Example output:
-- `ALBIS-linux-v0.2-<commit>.tar.gz`
+- `ALBIS-linux-v0.3-<commit>.tar.gz`
 
 ### Build (Windows)
 
@@ -131,9 +133,9 @@ Example output:
 ```
 
 Example output:
-- `ALBIS-win-v0.2-<commit>.zip`
+- `ALBIS-win-v0.3-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-v0.2-<commit>.exe`
+  `ALBIS-Setup-v0.3-<commit>.exe`
 
 ### Output
 

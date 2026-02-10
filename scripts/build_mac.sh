@@ -49,7 +49,15 @@ fi
 
 if command -v hdiutil >/dev/null 2>&1; then
   rm -f "$DMG_OUT"
-  hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$MAC_SRC" -ov -format UDZO "$DMG_OUT" >/dev/null
+  DMG_SRC="$MAC_SRC"
+  if [[ "$MAC_SRC" == *.app ]]; then
+    DMG_STAGE="$TEMP_DIR/dmg-stage"
+    mkdir -p "$DMG_STAGE"
+    cp -R "$MAC_SRC" "$DMG_STAGE/$(basename "$MAC_SRC")"
+    ln -s "/Applications" "$DMG_STAGE/Applications"
+    DMG_SRC="$DMG_STAGE"
+  fi
+  hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$DMG_SRC" -ov -format UDZO "$DMG_OUT" >/dev/null
 fi
 
 echo "Output:"

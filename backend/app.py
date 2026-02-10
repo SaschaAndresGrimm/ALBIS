@@ -50,7 +50,7 @@ else:
     else:
         DATA_DIR = Path(__file__).resolve().parents[1]
 
-ALBIS_VERSION = "0.2"
+ALBIS_VERSION = "0.3"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 

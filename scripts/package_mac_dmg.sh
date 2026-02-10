@@ -21,5 +21,17 @@ fi
 OUT="dist/ALBIS-mac-${TAG}.dmg"
 rm -f "$OUT"
 
-hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$SRC" -ov -format UDZO "$OUT"
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+DMG_SRC="$SRC"
+if [[ "$SRC" == *.app ]]; then
+  DMG_STAGE="$TEMP_DIR/dmg-stage"
+  mkdir -p "$DMG_STAGE"
+  cp -R "$SRC" "$DMG_STAGE/$(basename "$SRC")"
+  ln -s "/Applications" "$DMG_STAGE/Applications"
+  DMG_SRC="$DMG_STAGE"
+fi
+
+hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$DMG_SRC" -ov -format UDZO "$OUT"
 echo "Output: $OUT"

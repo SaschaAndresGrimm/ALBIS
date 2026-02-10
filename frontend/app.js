@@ -260,7 +260,7 @@ const state = {
   thresholdIndex: 0,
   thresholdEnergies: [],
   backendAlive: false,
-  backendVersion: "0.2",
+  backendVersion: "0.3",
   isLoading: false,
   pendingFrame: null,
   playing: false,
@@ -3304,13 +3304,13 @@ function updateBackendBadge() {
 
 function updateAboutVersion() {
   if (!aboutVersion) return;
-  aboutVersion.textContent = `Version ${state.backendVersion || "0.2"}`;
+  aboutVersion.textContent = `Version ${state.backendVersion || "0.3"}`;
 }
 
 async function checkBackendHealth() {
   if (!backendBadge) return;
   let alive = false;
-  let version = state.backendVersion || "0.2";
+  let version = state.backendVersion || "0.3";
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 1500);
   try {

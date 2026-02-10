@@ -43,12 +43,16 @@ def _default_config_path() -> Path:
     return _repo_root() / CONFIG_FILE_NAME
 
 
+def _user_config_path() -> Path:
+    return Path.home() / ".config" / "albis" / "config.json"
+
+
 def _candidate_paths() -> list[Path]:
     candidates = [Path.cwd() / CONFIG_FILE_NAME]
     if getattr(sys, "frozen", False):
         candidates.append(Path(sys.executable).resolve().parent / CONFIG_FILE_NAME)
     candidates.append(_repo_root() / CONFIG_FILE_NAME)
-    candidates.append(Path.home() / ".config" / "albis" / "config.json")
+    candidates.append(_user_config_path())
 
     deduped: list[Path] = []
     seen: set[Path] = set()
@@ -78,6 +82,18 @@ def _parse_config(path: Path) -> dict[str, Any]:
     return raw
 
 
+def _write_default_config(path: Path) -> bool:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            with path.open("w", encoding="utf-8") as fh:
+                json.dump(DEFAULT_CONFIG, fh, indent=2)
+                fh.write("\n")
+        return True
+    except OSError:
+        return False
+
+
 def load_config() -> tuple[dict[str, Any], Path]:
     config = copy.deepcopy(DEFAULT_CONFIG)
     config_path: Path | None = None
@@ -86,6 +102,11 @@ def load_config() -> tuple[dict[str, Any], Path]:
             config_path = path
             break
     if config_path is None:
+        if getattr(sys, "frozen", False):
+            user_path = _user_config_path()
+            if _write_default_config(user_path):
+                return config, user_path
+        _write_default_config(_default_config_path())
         return config, _default_config_path()
     _deep_merge(config, _parse_config(config_path))
     return config, config_path
