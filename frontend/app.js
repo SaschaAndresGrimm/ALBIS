@@ -4226,10 +4226,9 @@ function createWebGLRenderer() {
   const fragmentSource = `#version 300 es
     precision highp float;
     precision highp int;
-    precision highp usampler2D;
     uniform sampler2D u_data;
     uniform sampler2D u_lut;
-    uniform usampler2D u_mask;
+    uniform sampler2D u_mask;
     uniform float u_mask_enabled;
     uniform float u_min;
     uniform float u_max;
@@ -4241,11 +4240,11 @@ function createWebGLRenderer() {
     void main() {
       float value = texture(u_data, v_tex).r;
       if (u_mask_enabled > 0.5) {
-        uint mask = texture(u_mask, v_tex).r;
-        if ((mask & 1u) != 0u) {
+        float maskClass = texture(u_mask, v_tex).r;
+        if (maskClass > 0.75) {
           outColor = vec4(0.0, 0.0, 0.0, 1.0);
           return;
-        } else if ((mask & 0x1Eu) != 0u) {
+        } else if (maskClass > 0.25) {
           outColor = vec4(0.1, 0.2, 0.47, 1.0);
           return;
         }
@@ -4339,13 +4338,13 @@ function createWebGLRenderer() {
   gl.texImage2D(
     gl.TEXTURE_2D,
     0,
-    gl.R32UI,
+    gl.R8,
     1,
     1,
     0,
-    gl.RED_INTEGER,
-    gl.UNSIGNED_INT,
-    new Uint32Array([0])
+    gl.RED,
+    gl.UNSIGNED_BYTE,
+    new Uint8Array([0])
   );
 
   const uniforms = {
@@ -4364,6 +4363,7 @@ function createWebGLRenderer() {
   let maskTexWidth = 1;
   let maskTexHeight = 1;
   let lastMaskData = null;
+  let maskClassData = null;
 
   return {
     type: "webgl",
@@ -4431,17 +4431,30 @@ function createWebGLRenderer() {
       gl.uniform1i(uniforms.mask, 2);
       gl.uniform1f(uniforms.maskEnabled, useMask ? 1.0 : 0.0);
       if (useMask && (mask !== lastMaskData || maskTexWidth !== width || maskTexHeight !== height)) {
+        if (!maskClassData || maskClassData.length !== width * height) {
+          maskClassData = new Uint8Array(width * height);
+        }
+        for (let i = 0; i < mask.length; i += 1) {
+          const bits = mask[i];
+          if (bits & 1) {
+            maskClassData[i] = 255;
+          } else if (bits & 0x1e) {
+            maskClassData[i] = 128;
+          } else {
+            maskClassData[i] = 0;
+          }
+        }
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
         gl.texImage2D(
           gl.TEXTURE_2D,
           0,
-          gl.R32UI,
+          gl.R8,
           width,
           height,
           0,
-          gl.RED_INTEGER,
-          gl.UNSIGNED_INT,
-          mask
+          gl.RED,
+          gl.UNSIGNED_BYTE,
+          maskClassData
         );
         maskTexWidth = width;
         maskTexHeight = height;
