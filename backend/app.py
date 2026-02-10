@@ -1553,6 +1553,97 @@ def _prefix_paths(root: Path, items: list[str]) -> list[str]:
     return [f"{prefix}/{item}" for item in items]
 
 
+def _display_available() -> bool:
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def _run_linux_dialog(cmd: list[str]) -> str | None:
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode == 0:
+        picked = result.stdout.strip()
+        return picked or None
+    if result.returncode in {1, 255}:
+        return None
+    stderr = (result.stderr or "").strip() or "Unknown dialog error"
+    raise RuntimeError(stderr)
+
+
+def _linux_choose_folder() -> str | None:
+    if not _display_available():
+        raise RuntimeError("No graphical display available")
+    zenity = shutil.which("zenity")
+    if zenity:
+        return _run_linux_dialog([zenity, "--file-selection", "--directory", "--title=Select folder"])
+    kdialog = shutil.which("kdialog")
+    if kdialog:
+        return _run_linux_dialog([kdialog, "--getexistingdirectory", str(Path.home())])
+    raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
+
+
+def _linux_choose_file() -> str | None:
+    if not _display_available():
+        raise RuntimeError("No graphical display available")
+    zenity = shutil.which("zenity")
+    if zenity:
+        return _run_linux_dialog(
+            [
+                zenity,
+                "--file-selection",
+                "--title=Select HDF5 file",
+                "--file-filter=HDF5 files | *.h5 *.hdf5",
+                "--file-filter=All files | *",
+            ]
+        )
+    kdialog = shutil.which("kdialog")
+    if kdialog:
+        return _run_linux_dialog([kdialog, "--getopenfilename", str(Path.home()), "*.h5 *.hdf5"])
+    raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
+
+
+def _tk_choose_folder() -> str | None:
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except Exception as exc:
+        raise RuntimeError("Tk folder picker unavailable") from exc
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        root.attributes("-topmost", True)
+    except Exception:
+        pass
+    try:
+        return filedialog.askdirectory(title="Select Auto Load folder") or None
+    finally:
+        root.destroy()
+
+
+def _tk_choose_file() -> str | None:
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except Exception as exc:
+        raise RuntimeError("Tk file picker unavailable") from exc
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        root.attributes("-topmost", True)
+    except Exception:
+        pass
+    try:
+        return (
+            filedialog.askopenfilename(
+                title="Select HDF5 file",
+                filetypes=[("HDF5 files", "*.h5 *.hdf5"), ("All files", "*.*")],
+            )
+            or None
+        )
+    finally:
+        root.destroy()
+
+
 @app.get("/api/files")
 def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
     """List discoverable image files from data root or a selected subfolder."""
@@ -1608,18 +1699,16 @@ def choose_folder() -> Response:
         return JSONResponse({"path": path})
 
     try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Folder picker unavailable") from exc
-
-    root = tk.Tk()
-    root.withdraw()
-    root.attributes("-topmost", True)
-    try:
-        path = filedialog.askdirectory(title="Select Auto Load folder")
-    finally:
-        root.destroy()
+        if system == "Linux":
+            try:
+                path = _linux_choose_folder()
+            except RuntimeError:
+                path = _tk_choose_folder()
+        else:
+            path = _tk_choose_folder()
+    except RuntimeError as exc:
+        logger.warning("Folder picker failed (os=%s): %s", system, exc)
+        raise HTTPException(status_code=500, detail=f"Folder picker unavailable: {exc}") from exc
 
     if not path:
         return Response(status_code=204)
@@ -1652,21 +1741,16 @@ def choose_file() -> Response:
             return Response(status_code=204)
     else:
         try:
-            import tkinter as tk
-            from tkinter import filedialog
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail="File picker unavailable") from exc
-
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        try:
-            path = filedialog.askopenfilename(
-                title="Select HDF5 file",
-                filetypes=[("HDF5 files", "*.h5 *.hdf5"), ("All files", "*.*")],
-            )
-        finally:
-            root.destroy()
+            if system == "Linux":
+                try:
+                    path = _linux_choose_file()
+                except RuntimeError:
+                    path = _tk_choose_file()
+            else:
+                path = _tk_choose_file()
+        except RuntimeError as exc:
+            logger.warning("File picker failed (os=%s): %s", system, exc)
+            raise HTTPException(status_code=500, detail=f"File picker unavailable: {exc}") from exc
 
         if not path:
             return Response(status_code=204)
