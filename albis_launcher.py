@@ -42,12 +42,10 @@ def main() -> None:
     if data_root:
         Path(data_root).expanduser().mkdir(parents=True, exist_ok=True)
 
-    uvicorn_config = uvicorn.Config(
-        "backend.app:app",
-        host=host,
-        port=port,
-        log_level="info",
-    )
+    # Use a direct object reference so frozen builds do not rely on dynamic module import strings.
+    from backend.app import app as asgi_app
+
+    uvicorn_config = uvicorn.Config(asgi_app, host=host, port=port, log_level="info")
     server = uvicorn.Server(uvicorn_config)
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()

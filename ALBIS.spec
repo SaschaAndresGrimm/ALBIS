@@ -9,13 +9,13 @@ block_cipher = None
 
 datas = [("frontend", "frontend")]
 binaries: list = []
-hiddenimports: list = []
+hiddenimports: list = ["backend.app", "backend.config"]
 
 for name in ("hdf5plugin", "fabio"):
-    collected = collect_all(name)
-    datas += collected.datas
-    binaries += collected.binaries
-    hiddenimports += collected.hiddenimports
+    collected_datas, collected_binaries, collected_hiddenimports = collect_all(name)
+    datas += collected_datas
+    binaries += collected_binaries
+    hiddenimports += collected_hiddenimports
 
 a = Analysis(
     ["albis_launcher.py"],
@@ -25,7 +25,14 @@ a = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        "PyQt5",
+        "PyQt6",
+        "PySide2",
+        "PySide6",
+        "shiboken2",
+        "shiboken6",
+    ],
     noarchive=False,
 )
 
