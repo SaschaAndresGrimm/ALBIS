@@ -1637,33 +1637,57 @@ function drawPeakOverlay() {
     const selected = index === analysisState.selectedPeak;
     const zoomScale = Math.max(0, Math.log2(Math.max(1, zoom)));
     const radius = selected
-      ? Math.max(11, Math.min(28, 13 + zoomScale * 2.2))
-      : Math.max(9, Math.min(22, 10 + zoomScale * 1.7));
-
-    peakCtx.beginPath();
-    peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
-    peakCtx.lineWidth = selected ? 4.4 : 3.2;
-    peakCtx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-    peakCtx.stroke();
-
-    peakCtx.beginPath();
-    peakCtx.arc(sx, sy, Math.max(1.2, radius * 0.18), 0, Math.PI * 2);
-    peakCtx.lineWidth = selected ? 3.2 : 2.2;
-    peakCtx.strokeStyle = selected ? "rgba(70, 255, 95, 0.98)" : "rgba(42, 122, 242, 0.98)";
-    peakCtx.stroke();
+      ? Math.max(14, Math.min(34, 16 + zoomScale * 2.2))
+      : Math.max(8, Math.min(16, 9 + zoomScale * 0.6));
 
     if (selected) {
-      const core = Math.max(2.4, radius * 0.2);
+      peakCtx.setLineDash([]);
       peakCtx.beginPath();
-      peakCtx.arc(sx, sy, core + 2, 0, Math.PI * 2);
-      peakCtx.fillStyle = "rgba(0, 0, 0, 0.75)";
-      peakCtx.fill();
+      peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
+      peakCtx.lineWidth = 3.8;
+      peakCtx.strokeStyle = "rgba(18, 18, 18, 0.92)";
+      peakCtx.stroke();
+
       peakCtx.beginPath();
-      peakCtx.arc(sx, sy, core, 0, Math.PI * 2);
-      peakCtx.fillStyle = "rgba(95, 255, 100, 0.98)";
-      peakCtx.fill();
+      peakCtx.arc(sx, sy, radius - 1.5, 0, Math.PI * 2);
+      peakCtx.lineWidth = 2.6;
+      peakCtx.strokeStyle = "rgba(72, 255, 105, 0.98)";
+      peakCtx.stroke();
+
+      const cross = radius + 5;
+      peakCtx.beginPath();
+      peakCtx.moveTo(sx - cross, sy);
+      peakCtx.lineTo(sx + cross, sy);
+      peakCtx.moveTo(sx, sy - cross);
+      peakCtx.lineTo(sx, sy + cross);
+      peakCtx.lineWidth = 5.2;
+      peakCtx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+      peakCtx.stroke();
+
+      peakCtx.beginPath();
+      peakCtx.moveTo(sx - cross, sy);
+      peakCtx.lineTo(sx + cross, sy);
+      peakCtx.moveTo(sx, sy - cross);
+      peakCtx.lineTo(sx, sy + cross);
+      peakCtx.lineWidth = 2.8;
+      peakCtx.strokeStyle = "rgba(72, 255, 105, 0.98)";
+      peakCtx.stroke();
+    } else {
+      peakCtx.setLineDash([5, 4]);
+      peakCtx.beginPath();
+      peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
+      peakCtx.lineWidth = 1.8;
+      peakCtx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+      peakCtx.stroke();
+
+      peakCtx.beginPath();
+      peakCtx.arc(sx, sy, Math.max(3, radius - 2), 0, Math.PI * 2);
+      peakCtx.lineWidth = 1.2;
+      peakCtx.strokeStyle = "rgba(70, 155, 255, 0.72)";
+      peakCtx.stroke();
     }
   });
+  peakCtx.setLineDash([]);
 }
 
 function setSeriesSumProgress(progress, text) {
