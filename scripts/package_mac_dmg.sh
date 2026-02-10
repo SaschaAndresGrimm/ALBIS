@@ -7,6 +7,8 @@ cd "$ROOT"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 VERSION_INFO="$("$PYTHON_BIN" scripts/version_info.py --shell)"
 eval "$VERSION_INFO"
+OS_VERSION="$(sw_vers -productVersion 2>/dev/null || uname -r)"
+OS_TAG="$(echo "${OS_VERSION}" | tr '.' '_' | tr -cd '[:alnum:]_')"
 
 SRC="dist/ALBIS"
 if [ -d "dist/ALBIS.app" ]; then
@@ -18,7 +20,7 @@ if [ ! -d "$SRC" ]; then
   exit 1
 fi
 
-OUT="dist/ALBIS-mac-${TAG}.dmg"
+OUT="dist/ALBIS-macos-${OS_TAG}-${TAG}.dmg"
 rm -f "$OUT"
 
 TEMP_DIR="$(mktemp -d)"

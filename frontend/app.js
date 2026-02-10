@@ -165,12 +165,18 @@ const peaksExportBtn = document.getElementById("peaks-export");
 const peaksBody = document.getElementById("peaks-body");
 const seriesSumMode = document.getElementById("series-sum-mode");
 const seriesSumStepField = document.getElementById("series-sum-step-field");
+const seriesSumStepLabel = document.getElementById("series-sum-step-label");
 const seriesSumStep = document.getElementById("series-sum-step");
+const seriesSumRangeStartField = document.getElementById("series-sum-range-start-field");
+const seriesSumRangeEndField = document.getElementById("series-sum-range-end-field");
+const seriesSumRangeStart = document.getElementById("series-sum-range-start");
+const seriesSumRangeEnd = document.getElementById("series-sum-range-end");
 const seriesSumOutput = document.getElementById("series-sum-output");
 const seriesSumBrowse = document.getElementById("series-sum-browse");
 const seriesSumFormat = document.getElementById("series-sum-format");
 const seriesSumMask = document.getElementById("series-sum-mask");
 const seriesSumStart = document.getElementById("series-sum-start");
+const seriesSumProgress = document.getElementById("series-sum-progress");
 const seriesSumProgressFill = document.getElementById("series-sum-progress-fill");
 const seriesSumProgressText = document.getElementById("series-sum-progress-text");
 const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
@@ -260,7 +266,8 @@ const analysisState = {
   peaksEnabled: false,
   peakCount: 25,
   peaks: [],
-  selectedPeak: -1,
+  selectedPeaks: [],
+  peakSelectionAnchor: null,
 };
 
 const state = {
@@ -341,6 +348,8 @@ const state = {
     progress: 0,
     message: "Idle",
     outputs: [],
+    openTarget: "",
+    autoOutputPath: "",
   },
 };
 
@@ -1401,6 +1410,7 @@ function getRingParams() {
   const energyEv = Number(ringsEnergy?.value || analysisState.energyEv);
   const centerX = Number(ringsCenterX?.value);
   const centerY = Number(ringsCenterY?.value);
+  const centerKnown = Number.isFinite(centerX) || Number.isFinite(centerY) || Number.isFinite(analysisState.centerX) || Number.isFinite(analysisState.centerY);
   const center = {
     x: Number.isFinite(centerX) ? centerX : analysisState.centerX,
     y: Number.isFinite(centerY) ? centerY : analysisState.centerY,
@@ -1426,6 +1436,7 @@ function getRingParams() {
     energyEv: Number.isFinite(energyEv) ? energyEv : null,
     centerX: center.x,
     centerY: center.y,
+    centerKnown,
     rings,
   };
 }
@@ -1470,12 +1481,34 @@ function renderPeakList() {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "peaks-row";
-    if (idx === analysisState.selectedPeak) {
+    if (analysisState.selectedPeaks.includes(idx)) {
       row.classList.add("is-selected");
     }
     row.innerHTML = `<span>${peak.x}</span><span>${peak.y}</span><span>${formatStat(peak.intensity)}</span>`;
-    row.addEventListener("click", () => {
-      analysisState.selectedPeak = idx;
+    row.addEventListener("click", (event) => {
+      const anchor = analysisState.peakSelectionAnchor;
+      if (event.shiftKey && Number.isInteger(anchor) && anchor >= 0 && anchor < analysisState.peaks.length) {
+        const start = Math.min(anchor, idx);
+        const end = Math.max(anchor, idx);
+        const range = [];
+        for (let i = start; i <= end; i += 1) {
+          range.push(i);
+        }
+        analysisState.selectedPeaks = range;
+      } else if (event.metaKey || event.ctrlKey) {
+        if (analysisState.selectedPeaks.includes(idx)) {
+          analysisState.selectedPeaks = analysisState.selectedPeaks.filter((v) => v !== idx);
+        } else {
+          analysisState.selectedPeaks = [...analysisState.selectedPeaks, idx].sort((a, b) => a - b);
+        }
+        analysisState.peakSelectionAnchor = idx;
+      } else {
+        analysisState.selectedPeaks = [idx];
+        analysisState.peakSelectionAnchor = idx;
+      }
+      if (!Number.isInteger(analysisState.peakSelectionAnchor)) {
+        analysisState.peakSelectionAnchor = idx;
+      }
       renderPeakList();
       schedulePeakOverlay();
     });
@@ -1580,7 +1613,8 @@ function runPeakFinder() {
   peakFinderScheduled = false;
   if (!analysisState.peaksEnabled) {
     analysisState.peaks = [];
-    analysisState.selectedPeak = -1;
+    analysisState.selectedPeaks = [];
+    analysisState.peakSelectionAnchor = null;
     renderPeakList();
     schedulePeakOverlay();
     return;
@@ -1591,11 +1625,24 @@ function runPeakFinder() {
     peaksCountInput.value = String(requested);
   }
   analysisState.peaks = detectPeaks(requested);
-  if (analysisState.selectedPeak >= analysisState.peaks.length) {
-    analysisState.selectedPeak = analysisState.peaks.length ? 0 : -1;
+  analysisState.selectedPeaks = analysisState.selectedPeaks.filter(
+    (idx) => Number.isInteger(idx) && idx >= 0 && idx < analysisState.peaks.length
+  );
+  if (
+    !Number.isInteger(analysisState.peakSelectionAnchor) ||
+    analysisState.peakSelectionAnchor < 0 ||
+    analysisState.peakSelectionAnchor >= analysisState.peaks.length
+  ) {
+    analysisState.peakSelectionAnchor = analysisState.selectedPeaks.length
+      ? analysisState.selectedPeaks[analysisState.selectedPeaks.length - 1]
+      : null;
   }
-  if (analysisState.selectedPeak < 0 && analysisState.peaks.length) {
-    analysisState.selectedPeak = 0;
+  if (!analysisState.selectedPeaks.length && analysisState.peaks.length) {
+    analysisState.selectedPeaks = [0];
+    analysisState.peakSelectionAnchor = 0;
+  }
+  if (!analysisState.peaks.length) {
+    analysisState.peakSelectionAnchor = null;
   }
   renderPeakList();
   schedulePeakOverlay();
@@ -1651,10 +1698,10 @@ function drawPeakOverlay() {
   const viewY = canvasWrap.scrollTop / zoom;
 
   analysisState.peaks.forEach((peak, index) => {
-    const sx = (peak.x - viewX) * zoom + offsetX;
-    const sy = (peak.y - viewY) * zoom + offsetY;
+    const sx = (peak.x + 0.5 - viewX) * zoom + offsetX;
+    const sy = (peak.y + 0.5 - viewY) * zoom + offsetY;
     if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
-    const selected = index === analysisState.selectedPeak;
+    const selected = analysisState.selectedPeaks.includes(index);
     const zoomScale = Math.max(0, Math.log2(Math.max(1, zoom)));
     const radius = selected
       ? Math.max(14, Math.min(34, 16 + zoomScale * 2.2))
@@ -1723,12 +1770,37 @@ function setSeriesSumProgress(progress, text) {
       ? `${pct}  ${state.seriesSum.message || "Running…"}`
       : state.seriesSum.message || "Idle";
   }
+  updateSeriesSumProgressOpenState();
 }
 
 function updateSeriesSumUi() {
-  const mode = seriesSumMode?.value || "all";
+  const mode = (seriesSumMode?.value || "all").toLowerCase();
+  const isNth = mode === "nth";
+  const isRange = mode === "range";
   if (seriesSumStepField) {
-    seriesSumStepField.classList.toggle("is-hidden", mode !== "step");
+    seriesSumStepField.classList.toggle("is-hidden", mode === "all");
+  }
+  if (seriesSumStepLabel) {
+    seriesSumStepLabel.textContent = isNth ? "Nth interval (N)" : "Chunk size (N)";
+  }
+  if (seriesSumRangeStartField) {
+    seriesSumRangeStartField.classList.toggle("is-hidden", !isRange);
+  }
+  if (seriesSumRangeEndField) {
+    seriesSumRangeEndField.classList.toggle("is-hidden", !isRange);
+  }
+  const totalFrames = Math.max(1, Number(state.frameCount || 1));
+  if (seriesSumRangeStart) {
+    seriesSumRangeStart.min = "1";
+    seriesSumRangeStart.max = String(totalFrames);
+    const nextStart = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumRangeStart.value || 1))));
+    seriesSumRangeStart.value = String(nextStart);
+  }
+  if (seriesSumRangeEnd) {
+    seriesSumRangeEnd.min = "1";
+    seriesSumRangeEnd.max = String(totalFrames);
+    const nextEnd = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumRangeEnd.value || totalFrames))));
+    seriesSumRangeEnd.value = String(nextEnd);
   }
   const ready = Boolean(state.file && state.dataset);
   if (seriesSumStart) {
@@ -1742,7 +1814,13 @@ function updateSeriesSumUi() {
     seriesSumMode.disabled = state.seriesSum.running || !ready;
   }
   if (seriesSumStep) {
-    seriesSumStep.disabled = state.seriesSum.running || mode !== "step" || !ready;
+    seriesSumStep.disabled = state.seriesSum.running || mode === "all" || !ready;
+  }
+  if (seriesSumRangeStart) {
+    seriesSumRangeStart.disabled = state.seriesSum.running || !isRange || !ready;
+  }
+  if (seriesSumRangeEnd) {
+    seriesSumRangeEnd.disabled = state.seriesSum.running || !isRange || !ready;
   }
   if (seriesSumOutput) {
     seriesSumOutput.disabled = state.seriesSum.running || !ready;
@@ -1762,6 +1840,11 @@ function stopSeriesSumPolling() {
   }
 }
 
+function resolveSeriesOpenTarget(outputs) {
+  if (!Array.isArray(outputs) || !outputs.length) return "";
+  return String(outputs[0]);
+}
+
 async function pollSeriesSumStatus() {
   if (!state.seriesSum.jobId) {
     state.seriesSum.running = false;
@@ -1775,8 +1858,10 @@ async function pollSeriesSumStatus() {
     const status = data.status || "running";
     const progress = Number.isFinite(data.progress) ? Number(data.progress) : state.seriesSum.progress;
     const message = data.message || state.seriesSum.message || "Running…";
+    const outputs = Array.isArray(data.outputs) ? data.outputs : [];
     state.seriesSum.running = status === "queued" || status === "running";
-    state.seriesSum.outputs = Array.isArray(data.outputs) ? data.outputs : [];
+    state.seriesSum.outputs = outputs;
+    state.seriesSum.openTarget = state.seriesSum.running ? "" : resolveSeriesOpenTarget(outputs);
     setSeriesSumProgress(progress, message);
     updateSeriesSumUi();
     if (state.seriesSum.running) {
@@ -1792,6 +1877,7 @@ async function pollSeriesSumStatus() {
   } catch (err) {
     console.error(err);
     state.seriesSum.running = false;
+    state.seriesSum.openTarget = "";
     setSeriesSumProgress(1, "Failed to query status");
     updateSeriesSumUi();
     setStatus("Series summing status failed");
@@ -1805,11 +1891,19 @@ async function startSeriesSumming() {
   if (seriesSumStep) {
     seriesSumStep.value = String(step);
   }
+  const rangeStart = Math.max(1, Math.round(Number(seriesSumRangeStart?.value || 1)));
+  const rangeEnd = Math.max(1, Math.round(Number(seriesSumRangeEnd?.value || state.frameCount || 1)));
+  if (mode === "range" && rangeStart > rangeEnd) {
+    setStatus("Range start must be <= range end");
+    return;
+  }
   const payload = {
     file: state.file,
     dataset: state.dataset,
     mode,
     step,
+    range_start: mode === "range" ? rangeStart : null,
+    range_end: mode === "range" ? rangeEnd : null,
     output_path: (seriesSumOutput?.value || "").trim(),
     format: (seriesSumFormat?.value || "hdf5").toLowerCase(),
     apply_mask: Boolean(seriesSumMask?.checked),
@@ -1819,6 +1913,7 @@ async function startSeriesSumming() {
     state.seriesSum.running = true;
     state.seriesSum.jobId = "";
     state.seriesSum.outputs = [];
+    state.seriesSum.openTarget = "";
     setSeriesSumProgress(0, "Submitting job…");
     updateSeriesSumUi();
     const data = await fetchJSONWithInit(`${API}/analysis/series-sum/start`, {
@@ -1904,6 +1999,27 @@ function drawResolutionOverlay() {
     resolutionCtx.fillStyle = "rgba(230, 240, 255, 0.98)";
     resolutionCtx.fillText(label, textX, textY);
   });
+
+  if (params.centerKnown) {
+    const arm = Math.max(10, Math.min(22, 10 + Math.log2(Math.max(1, zoom)) * 4));
+    resolutionCtx.setLineDash([]);
+    resolutionCtx.beginPath();
+    resolutionCtx.moveTo(centerX - arm, centerY);
+    resolutionCtx.lineTo(centerX + arm, centerY);
+    resolutionCtx.moveTo(centerX, centerY - arm);
+    resolutionCtx.lineTo(centerX, centerY + arm);
+    resolutionCtx.lineWidth = 4;
+    resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.72)";
+    resolutionCtx.stroke();
+    resolutionCtx.beginPath();
+    resolutionCtx.moveTo(centerX - arm, centerY);
+    resolutionCtx.lineTo(centerX + arm, centerY);
+    resolutionCtx.moveTo(centerX, centerY - arm);
+    resolutionCtx.lineTo(centerX, centerY + arm);
+    resolutionCtx.lineWidth = 2.2;
+    resolutionCtx.strokeStyle = "rgba(255, 65, 65, 0.96)";
+    resolutionCtx.stroke();
+  }
   resolutionCtx.restore();
 }
 
@@ -3142,6 +3258,47 @@ function dirnameFromPath(path) {
   return normalized.slice(0, idx);
 }
 
+function defaultSeriesSumOutputPath(filePath) {
+  if (!filePath) return "output/series_sum";
+  const normalized = String(filePath).replace(/\\/g, "/");
+  const lastSlash = normalized.lastIndexOf("/");
+  const lastDot = normalized.lastIndexOf(".");
+  const base = lastDot > lastSlash ? normalized.slice(0, lastDot) : normalized;
+  return `${base}_series_sum`;
+}
+
+function syncSeriesSumOutputPath(force = false) {
+  const autoPath = defaultSeriesSumOutputPath(state.file);
+  if (!seriesSumOutput) {
+    state.seriesSum.autoOutputPath = autoPath;
+    return;
+  }
+  const current = (seriesSumOutput.value || "").trim();
+  if (force || !current || current === state.seriesSum.autoOutputPath) {
+    seriesSumOutput.value = autoPath;
+  }
+  state.seriesSum.autoOutputPath = autoPath;
+}
+
+function updateSeriesSumProgressOpenState() {
+  if (!seriesSumProgress) return;
+  const canOpen = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
+  seriesSumProgress.classList.toggle("is-clickable", canOpen);
+  seriesSumProgress.title = canOpen ? "Click to open output" : "";
+}
+
+async function openSeriesSumOutputTarget() {
+  if (state.seriesSum.running || !state.seriesSum.openTarget) return;
+  try {
+    await ensureFileMode();
+    await loadAutoloadFile(state.seriesSum.openTarget);
+    setStatus("Opened series output in ALBIS");
+  } catch (err) {
+    console.error(err);
+    setStatus("Failed to open series output");
+  }
+}
+
 async function openFileModal() {
   closeMenu();
   await ensureFileMode();
@@ -3158,6 +3315,7 @@ async function openFileModal() {
     if (autoloadDir) autoloadDir.value = folder;
     state.autoload.dir = folder;
     state.file = path;
+    syncSeriesSumOutputPath();
     await loadFiles();
     if (fileSelect) {
       const existing = Array.from(fileSelect.options).some((opt) => opt.value === path);
@@ -4637,6 +4795,7 @@ async function loadMetadata() {
     }
     state.thresholdIndex = Math.max(0, Math.min(state.thresholdIndex, state.thresholdCount - 1));
     state.frameIndex = 0;
+    syncSeriesSumOutputPath();
     updateFrameControls();
     updateThresholdOptions();
     metaShape.textContent = data.shape.join(" × ");
@@ -6132,7 +6291,8 @@ function closeCurrentFile() {
   state.hasFrame = false;
   state.globalStats = null;
   analysisState.peaks = [];
-  analysisState.selectedPeak = -1;
+  analysisState.selectedPeaks = [];
+  analysisState.peakSelectionAnchor = null;
   clearMaskState();
   updateToolbar();
   setStatus("No file loaded");
@@ -6161,6 +6321,7 @@ function closeCurrentFile() {
   clearHistogram();
   renderPeakList();
   schedulePeakOverlay();
+  syncSeriesSumOutputPath(true);
   clearRoi();
   updatePlayButtons();
 }
@@ -6506,6 +6667,7 @@ fileSelect.addEventListener("change", async (event) => {
   await ensureFileMode();
   state.file = event.target.value;
   if (!state.file) return;
+  syncSeriesSumOutputPath();
   stopPlayback();
   await loadDatasets();
 });
@@ -7533,6 +7695,9 @@ if (peaksEnableToggle) {
   analysisState.peaksEnabled = peaksEnableToggle.checked;
   peaksEnableToggle.addEventListener("change", () => {
     analysisState.peaksEnabled = peaksEnableToggle.checked;
+    if (!analysisState.peaksEnabled) {
+      analysisState.peakSelectionAnchor = null;
+    }
     schedulePeakFinder();
   });
 }
@@ -7542,7 +7707,7 @@ peaksExportBtn?.addEventListener("click", () => {
 });
 
 if (seriesSumOutput && !seriesSumOutput.value.trim()) {
-  seriesSumOutput.value = "output/series_sum";
+  syncSeriesSumOutputPath(true);
 }
 
 seriesSumMode?.addEventListener("change", () => {
@@ -7552,6 +7717,18 @@ seriesSumMode?.addEventListener("change", () => {
 seriesSumStep?.addEventListener("change", () => {
   const value = Math.max(1, Math.round(Number(seriesSumStep.value || 10)));
   seriesSumStep.value = String(value);
+});
+
+seriesSumRangeStart?.addEventListener("change", () => {
+  const total = Math.max(1, Number(state.frameCount || 1));
+  const value = Math.max(1, Math.min(total, Math.round(Number(seriesSumRangeStart.value || 1))));
+  seriesSumRangeStart.value = String(value);
+});
+
+seriesSumRangeEnd?.addEventListener("change", () => {
+  const total = Math.max(1, Number(state.frameCount || 1));
+  const value = Math.max(1, Math.min(total, Math.round(Number(seriesSumRangeEnd.value || total))));
+  seriesSumRangeEnd.value = String(value);
 });
 
 seriesSumBrowse?.addEventListener("click", async () => {
@@ -7572,6 +7749,10 @@ seriesSumBrowse?.addEventListener("click", async () => {
     console.error(err);
     setStatus("Series output picker failed");
   }
+});
+
+seriesSumProgress?.addEventListener("click", () => {
+  openSeriesSumOutputTarget();
 });
 
 seriesSumStart?.addEventListener("click", () => {

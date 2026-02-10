@@ -7,8 +7,10 @@ cd "$ROOT"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 VERSION_INFO="$("$PYTHON_BIN" scripts/version_info.py --shell)"
 eval "$VERSION_INFO"
-ZIP_OUT="dist/ALBIS-mac-${TAG}.zip"
-DMG_OUT="dist/ALBIS-mac-${TAG}.dmg"
+OS_VERSION="$(sw_vers -productVersion 2>/dev/null || uname -r)"
+OS_TAG="$(echo "${OS_VERSION}" | tr '.' '_' | tr -cd '[:alnum:]_')"
+ZIP_OUT="dist/ALBIS-macos-${OS_TAG}-${TAG}.zip"
+DMG_OUT="dist/ALBIS-macos-${OS_TAG}-${TAG}.dmg"
 
 if ! "$PYTHON_BIN" -m PyInstaller --version >/dev/null 2>&1; then
   echo "PyInstaller not found for ${PYTHON_BIN}; installing to user site..."

@@ -6,7 +6,13 @@ Set-Location $root
 $versionInfo = python .\scripts\version_info.py --json | ConvertFrom-Json
 $version = $versionInfo.version
 $tag = $versionInfo.tag
-$outBase = "ALBIS-Setup-" + $tag
+try {
+  $osVersion = (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).Version
+} catch {
+  $osVersion = [System.Environment]::OSVersion.Version.ToString()
+}
+$osTag = "windows-" + (($osVersion -replace '[^0-9\.]', '') -replace '\.', '_')
+$outBase = "ALBIS-Setup-" + $osTag + "-" + $tag
 
 if (-not (Test-Path ".\\dist\\ALBIS")) {
   Write-Host "Missing dist\\ALBIS. Run .\\scripts\\build_windows.ps1 first."

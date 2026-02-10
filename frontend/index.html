@@ -531,11 +531,21 @@
                   <select id="series-sum-mode">
                     <option value="all">All frames</option>
                     <option value="step">Chunks of N frames</option>
+                    <option value="nth">Every Nth frame</option>
+                    <option value="range">Range (start-end in chunks)</option>
                   </select>
                 </label>
                 <label class="field" id="series-sum-step-field">
-                  <span>Chunk size (N)</span>
+                  <span id="series-sum-step-label">Chunk size (N)</span>
                   <input id="series-sum-step" type="number" min="1" step="1" value="10" />
+                </label>
+                <label class="field is-hidden" id="series-sum-range-start-field">
+                  <span>Start frame</span>
+                  <input id="series-sum-range-start" type="number" min="1" step="1" value="1" />
+                </label>
+                <label class="field is-hidden" id="series-sum-range-end-field">
+                  <span>End frame</span>
+                  <input id="series-sum-range-end" type="number" min="1" step="1" value="1" />
                 </label>
                 <label class="field">
                   <span>Format</span>

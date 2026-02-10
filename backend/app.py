@@ -1240,20 +1240,64 @@ def _mask_slices(mask_bits: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndar
     return gap_mask, bad_mask, any_mask
 
 
-def _iter_sum_ranges(frame_count: int, mode: str, step: int) -> list[tuple[int, int]]:
-    """Build inclusive frame ranges for `all` or chunked summing modes."""
+def _iter_sum_groups(
+    frame_count: int,
+    mode: str,
+    step: int,
+    range_start_1: int | None = None,
+    range_end_1: int | None = None,
+) -> list[dict[str, Any]]:
+    """Build frame groups for summing.
+
+    Modes:
+    - all: one group with every frame
+    - step: contiguous chunks of N frames
+    - nth: one group with every Nth frame
+    - range: contiguous chunks of N frames between start/end (1-indexed)
+    """
     if frame_count <= 0:
         return []
-    if mode == "all":
-        return [(0, frame_count - 1)]
+
     size = max(1, int(step))
-    ranges: list[tuple[int, int]] = []
-    start = 0
-    while start < frame_count:
-        end = min(frame_count - 1, start + size - 1)
-        ranges.append((start, end))
-        start = end + 1
-    return ranges
+    groups: list[dict[str, Any]] = []
+
+    if mode == "all":
+        indices = list(range(frame_count))
+        return [{"indices": indices, "start": 0, "end": frame_count - 1, "count": len(indices)}]
+
+    if mode == "step":
+        start = 0
+        while start < frame_count:
+            end = min(frame_count - 1, start + size - 1)
+            indices = list(range(start, end + 1))
+            groups.append({"indices": indices, "start": start, "end": end, "count": len(indices)})
+            start = end + 1
+        return groups
+
+    if mode == "nth":
+        indices = list(range(0, frame_count, size))
+        if not indices:
+            return []
+        return [{"indices": indices, "start": indices[0], "end": indices[-1], "count": len(indices)}]
+
+    if mode == "range":
+        start_1 = int(range_start_1 or 1)
+        end_1 = int(range_end_1 or frame_count)
+        start = max(0, start_1 - 1)
+        end = min(frame_count - 1, end_1 - 1)
+        if start > end:
+            raise HTTPException(status_code=400, detail="Range start must be <= range end")
+        cursor = start
+        while cursor <= end:
+            chunk_end = min(end, cursor + size - 1)
+            indices = list(range(cursor, chunk_end + 1))
+            groups.append(
+                {"indices": indices, "start": cursor, "end": chunk_end, "count": len(indices)}
+            )
+            cursor = chunk_end + 1
+        return groups
+
+    raise HTTPException(status_code=400, detail="Invalid series summing mode")
 
 
 def _run_series_summing_job(
@@ -1262,6 +1306,8 @@ def _run_series_summing_job(
     dataset: str,
     mode: str,
     step: int,
+    range_start: int | None,
+    range_end: int | None,
     output_path: str | None,
     output_format: str,
     apply_mask: bool,
@@ -1286,8 +1332,8 @@ def _run_series_summing_job(
                     raise HTTPException(status_code=400, detail="Series summing requires 3D or 4D image stacks")
                 frame_count = int(shape[0])
                 threshold_count = int(shape[1]) if ndim == 4 else 1
-                ranges = _iter_sum_ranges(frame_count, mode, step)
-                if not ranges:
+                groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
+                if not groups:
                     raise HTTPException(status_code=400, detail="No frames available for summing")
 
                 source_dtype = np.dtype(view["dtype"])
@@ -1303,16 +1349,20 @@ def _run_series_summing_job(
                         continue
                     mask_bits_by_thr.append(np.asarray(mask_dset, dtype=np.uint32))
 
-                total_steps = max(1, frame_count * threshold_count)
+                total_input_frames = sum(int(group["count"]) for group in groups)
+                total_steps = max(1, total_input_frames * threshold_count)
                 processed = 0
-                sums: list[tuple[int, int, int, int, np.ndarray, np.ndarray | None]] = []
+                sums: list[tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]] = []
 
                 for thr in range(threshold_count):
                     mask_bits = mask_bits_by_thr[thr]
                     _, _, any_mask = _mask_slices(mask_bits) if mask_bits is not None else (None, None, None)
-                    for chunk_idx, (start_idx, end_idx) in enumerate(ranges):
+                    for chunk_idx, group in enumerate(groups):
+                        start_idx = int(group["start"])
+                        end_idx = int(group["end"])
+                        frame_indices = list(group["indices"])
                         acc: np.ndarray | None = None
-                        for frame_idx in range(start_idx, end_idx + 1):
+                        for frame_idx in frame_indices:
                             arr = _extract_frame(view, frame_idx, thr)
                             arr = np.asarray(arr, dtype=np.float64)
                             if acc is None:
@@ -1328,11 +1378,14 @@ def _run_series_summing_job(
                             _series_job_update(
                                 job_id,
                                 progress=progress,
-                                message=f"Summing threshold {thr + 1}/{threshold_count}, frame {frame_idx + 1}/{frame_count}",
+                                message=(
+                                    f"Summing threshold {thr + 1}/{threshold_count}, "
+                                    f"frame {frame_idx + 1}/{frame_count}"
+                                ),
                             )
                         if acc is None:
                             continue
-                        sums.append((thr, chunk_idx, start_idx, end_idx, acc, mask_bits))
+                        sums.append((thr, chunk_idx, start_idx, end_idx, len(frame_indices), acc, mask_bits))
 
             finally:
                 for handle in extra_files:
@@ -1357,7 +1410,7 @@ def _run_series_summing_job(
                 out_h5.attrs["threshold_count"] = int(threshold_count)
                 out_h5.attrs["mask_applied"] = bool(apply_mask)
 
-                out_frame_count = len(ranges)
+                out_frame_count = len(groups)
                 image_h = int(shape[-2])
                 image_w = int(shape[-1])
                 if threshold_count > 1:
@@ -1379,18 +1432,25 @@ def _run_series_summing_job(
                     shuffle=True,
                 )
                 data_dset.attrs["sum_mode"] = mode
+                data_dset.attrs["sum_step"] = int(step)
+                if range_start is not None:
+                    data_dset.attrs["sum_range_start"] = int(range_start)
+                if range_end is not None:
+                    data_dset.attrs["sum_range_end"] = int(range_end)
                 data_dset.attrs["source_dataset"] = str(dataset)
                 data_dset.attrs["frame_count_in"] = int(frame_count)
                 data_dset.attrs["frame_count_out"] = int(out_frame_count)
                 data_dset.attrs["threshold_count"] = int(threshold_count)
                 data_dset.attrs["signal"] = "data"
 
-                chunk_start = np.asarray([r[0] for r in ranges], dtype=np.int64)
-                chunk_end = np.asarray([r[1] for r in ranges], dtype=np.int64)
+                chunk_start = np.asarray([int(group["start"]) for group in groups], dtype=np.int64)
+                chunk_end = np.asarray([int(group["end"]) for group in groups], dtype=np.int64)
+                chunk_count = np.asarray([int(group["count"]) for group in groups], dtype=np.int64)
                 data_group.create_dataset("sum_start_frame", data=chunk_start)
                 data_group.create_dataset("sum_end_frame", data=chunk_end)
+                data_group.create_dataset("sum_frame_count", data=chunk_count)
 
-                for thr, chunk_idx, _start_idx, _end_idx, arr, mask_bits in sums:
+                for thr, chunk_idx, _start_idx, _end_idx, _count, arr, mask_bits in sums:
                     arr_out = np.asarray(arr, dtype=np.float64)
                     if mask_bits is not None:
                         _, _, any_mask = _mask_slices(mask_bits)
@@ -1425,9 +1485,14 @@ def _run_series_summing_job(
         elif output_format in {"tiff", "tif"}:
             base_name = base_target.stem or base_target.name or "series_sum"
             out_dir = base_target.parent
-            for thr, chunk_idx, start_idx, end_idx, arr, mask_bits in sums:
+            for thr, chunk_idx, start_idx, end_idx, frame_count_in_sum, arr, mask_bits in sums:
                 thr_tag = f"_thr{thr + 1:02d}" if threshold_count > 1 else ""
-                chunk_tag = "_all" if mode == "all" else f"_chunk{chunk_idx + 1:04d}_f{start_idx + 1:06d}-{end_idx + 1:06d}"
+                if mode == "all":
+                    chunk_tag = "_all"
+                elif mode == "nth":
+                    chunk_tag = f"_every{step:03d}_n{frame_count_in_sum:05d}"
+                else:
+                    chunk_tag = f"_chunk{chunk_idx + 1:04d}_f{start_idx + 1:06d}-{end_idx + 1:06d}"
                 out_file = out_dir / f"{base_name}{thr_tag}{chunk_tag}_{timestamp}.tiff"
                 out_file = _next_available_path(out_file)
                 arr_out = np.rint(np.asarray(arr, dtype=np.float64))
@@ -2308,6 +2373,10 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
     dataset = str(payload.get("dataset", "")).strip()
     mode = str(payload.get("mode", "all")).strip().lower()
     step = int(payload.get("step", 10) or 10)
+    range_start = payload.get("range_start")
+    range_end = payload.get("range_end")
+    range_start = int(range_start) if range_start is not None and str(range_start).strip() != "" else None
+    range_end = int(range_end) if range_end is not None and str(range_end).strip() != "" else None
     output_path = payload.get("output_path")
     output_format = str(payload.get("format", "hdf5")).strip().lower()
     apply_mask = bool(payload.get("apply_mask", True))
@@ -2316,12 +2385,18 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
         raise HTTPException(status_code=400, detail="Missing file")
     if not dataset:
         raise HTTPException(status_code=400, detail="Missing dataset")
-    if mode not in {"all", "step"}:
+    if mode not in {"all", "step", "nth", "range"}:
         raise HTTPException(status_code=400, detail="Invalid mode")
     if output_format not in {"hdf5", "h5", "tiff", "tif"}:
         raise HTTPException(status_code=400, detail="Invalid format")
     if step < 1:
         raise HTTPException(status_code=400, detail="Step must be >= 1")
+    if range_start is not None and range_start < 1:
+        raise HTTPException(status_code=400, detail="Range start must be >= 1")
+    if range_end is not None and range_end < 1:
+        raise HTTPException(status_code=400, detail="Range end must be >= 1")
+    if range_start is not None and range_end is not None and range_start > range_end:
+        raise HTTPException(status_code=400, detail="Range start must be <= range end")
 
     job_id = uuid.uuid4().hex
     job_data = {
@@ -2338,6 +2413,8 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
             "dataset": dataset,
             "mode": mode,
             "step": step,
+            "range_start": range_start,
+            "range_end": range_end,
             "format": output_format,
             "apply_mask": apply_mask,
             "output_path": output_path,
@@ -2360,6 +2437,8 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
             "dataset": dataset,
             "mode": mode,
             "step": step,
+            "range_start": range_start,
+            "range_end": range_end,
             "output_path": str(output_path or ""),
             "output_format": output_format,
             "apply_mask": apply_mask,
@@ -2377,6 +2456,38 @@ def analysis_series_sum_status(job_id: str = Query(..., min_length=1)) -> dict[s
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         return dict(job)
+
+
+@app.post("/api/open-path")
+def open_path(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
+    raw = str(payload.get("path", "")).strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Missing path")
+
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = (DATA_DIR / path).resolve()
+    else:
+        path = path.resolve()
+
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Path does not exist")
+
+    allowed_root = DATA_DIR.resolve()
+    if not ALLOW_ABS_PATHS and not _is_within(path, allowed_root):
+        raise HTTPException(status_code=400, detail="Path is outside data directory")
+
+    system = platform.system()
+    try:
+        if system == "Windows":
+            os.startfile(str(path))  # type: ignore[attr-defined]
+        elif system == "Darwin":
+            subprocess.run(["open", str(path)], check=False)
+        else:
+            subprocess.run(["xdg-open", str(path)], check=False)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to open path") from exc
+    return {"status": "ok", "path": str(path)}
 
 
 @app.get("/api/metadata")
