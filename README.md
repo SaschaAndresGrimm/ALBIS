@@ -38,6 +38,24 @@ python backend/app.py
 
 Open `http://localhost:8000` (ALBIS).
 
+## Run Modes
+
+- Python/source mode:
+  Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
+- Standalone mode:
+  Use packaged artifacts created by the build scripts (no Python installation required on target machines).
+
+## Architecture
+
+ALBIS uses a server-client architecture:
+
+- Backend server (FastAPI + Python):
+  Loads detector/image data, handles monitor streams, computes metadata/analysis, and exposes REST endpoints.
+- Frontend client (browser UI):
+  Runs in the browser, renders images/overlays, and interacts with the backend over HTTP.
+- Local deployment model:
+  The backend typically runs on the same machine as the user, and the UI connects to `http://localhost:<port>`.
+
 ## Configuration (`albis.config.json`)
 
 ALBIS runtime settings are configured via `albis.config.json` (project root by default).
@@ -91,11 +109,20 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ./scripts/build_mac.sh
 ```
 
+This produces versioned artifacts in `dist/`, e.g.:
+- `ALBIS-mac-v0.2-<commit>.zip`
+- `ALBIS-mac-v0.2-<commit>.dmg`
+
+`build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
+
 ### Build (Linux)
 
 ```bash
 ./scripts/build_linux.sh
 ```
+
+Example output:
+- `ALBIS-linux-v0.2-<commit>.tar.gz`
 
 ### Build (Windows)
 
@@ -103,9 +130,14 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 .\scripts\build_windows.ps1
 ```
 
+Example output:
+- `ALBIS-win-v0.2-<commit>.zip`
+- Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
+  `ALBIS-Setup-v0.2-<commit>.exe`
+
 ### Output
 
-The packaged app is created under `dist/ALBIS/`.
+The unpacked app payload is created under `dist/ALBIS/` (and on macOS additionally `dist/ALBIS.app`).
 Use `albis.config.json` to change data path, host/port, logging, and launcher behavior.
 
 ## Keyboard Shortcuts
@@ -121,10 +153,9 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 
 ## Roadmap — Next Milestones
 
-1. Config file.
-2. Detector control and status.
-3. Installer for non‑Python users.
-4. Make it mobile friendly
+1. Detector control and status.
+2. Installer for non‑Python users.
+3. ...? =)
 
 ## Notes
 - WebGL texture size limits may apply for very large frames.

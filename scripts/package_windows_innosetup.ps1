@@ -3,6 +3,11 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+$versionInfo = python .\scripts\version_info.py --json | ConvertFrom-Json
+$version = $versionInfo.version
+$tag = $versionInfo.tag
+$outBase = "ALBIS-Setup-" + $tag
+
 if (-not (Test-Path ".\\dist\\ALBIS")) {
   Write-Host "Missing dist\\ALBIS. Run .\\scripts\\build_windows.ps1 first."
   exit 1
@@ -14,5 +19,5 @@ if (-not $iscc) {
   exit 1
 }
 
-iscc ".\\scripts\\installer_windows.iss"
-Write-Host "Output: dist\\ALBIS-Setup.exe"
+iscc "/DAppVersion=$version" "/DOutputBaseFilename=$outBase" ".\\scripts\\installer_windows.iss"
+Write-Host ("Output: dist\\" + $outBase + ".exe")

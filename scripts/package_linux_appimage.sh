@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+VERSION_INFO="$("$PYTHON_BIN" scripts/version_info.py --shell)"
+eval "$VERSION_INFO"
+
 if [ ! -d "dist/ALBIS" ]; then
   echo "Missing dist/ALBIS. Run ./scripts/build_linux.sh first."
   exit 1
@@ -41,5 +45,7 @@ if [ -f "frontend/ressources/image.png" ]; then
   cp "frontend/ressources/image.png" "$APPDIR/ALBIS.png"
 fi
 
-appimagetool "$APPDIR" "dist/ALBIS.AppImage"
-echo "Output: dist/ALBIS.AppImage"
+OUT="dist/ALBIS-linux-${TAG}.AppImage"
+rm -f "$OUT"
+appimagetool "$APPDIR" "$OUT"
+echo "Output: $OUT"

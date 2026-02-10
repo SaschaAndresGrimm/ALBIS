@@ -3,9 +3,22 @@
 from __future__ import annotations
 
 import os
+import sys
 from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
+
+icon_path = os.environ.get("ALBIS_ICON", "").strip()
+if not icon_path:
+    for candidate in (
+        os.path.abspath("frontend/ressources/icon.icns"),
+        os.path.abspath("frontend/ressources/icon.png"),
+    ):
+        if os.path.exists(candidate):
+            icon_path = candidate
+            break
+if icon_path and not os.path.exists(icon_path):
+    icon_path = ""
 
 datas = [("frontend", "frontend")]
 binaries: list = []
@@ -50,6 +63,7 @@ exe = EXE(
     upx=True,
     console=False,
     disable_windowed_traceback=False,
+    icon=icon_path or None,
 )
 
 coll = COLLECT(
@@ -61,3 +75,12 @@ coll = COLLECT(
     upx=True,
     name="ALBIS",
 )
+
+if sys.platform == "darwin":
+    app_icon = icon_path if icon_path.lower().endswith(".icns") else None
+    app = BUNDLE(
+        coll,
+        name="ALBIS.app",
+        icon=app_icon,
+        bundle_identifier="com.saschaandresgrimm.albis",
+    )

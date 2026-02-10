@@ -4,8 +4,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-python3 -m pip install --upgrade pyinstaller
-python3 -m PyInstaller ALBIS.spec
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+VERSION_INFO="$("$PYTHON_BIN" scripts/version_info.py --shell)"
+eval "$VERSION_INFO"
 
-tar -czf dist/ALBIS-linux.tar.gz -C dist ALBIS
-echo "Output: dist/ALBIS and dist/ALBIS-linux.tar.gz"
+"$PYTHON_BIN" -m pip install --upgrade pyinstaller
+"$PYTHON_BIN" -m PyInstaller ALBIS.spec
+
+OUT="dist/ALBIS-linux-${TAG}.tar.gz"
+rm -f "$OUT"
+tar -czf "$OUT" -C dist ALBIS
+echo "Output: dist/ALBIS and ${OUT}"

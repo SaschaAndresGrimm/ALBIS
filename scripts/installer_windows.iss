@@ -1,10 +1,16 @@
 [Setup]
 AppName=ALBIS
-AppVersion=1.0.0
+#ifndef AppVersion
+#define AppVersion "0.0.0"
+#endif
+AppVersion={#AppVersion}
 DefaultDirName={pf}\ALBIS
 DefaultGroupName=ALBIS
 OutputDir=dist
-OutputBaseFilename=ALBIS-Setup
+#ifndef OutputBaseFilename
+#define OutputBaseFilename "ALBIS-Setup"
+#endif
+OutputBaseFilename={#OutputBaseFilename}
 Compression=lzma
 SolidCompression=yes
 DisableProgramGroupPage=yes
