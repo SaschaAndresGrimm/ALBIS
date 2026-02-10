@@ -130,6 +130,10 @@ body {
   background: #2a2a2a;
 }
 
+.dropdown-submenu-parent.is-open {
+  background: #2a2a2a;
+}
+
 .submenu-caret {
   margin-left: auto;
   color: #9a9a9a;
@@ -150,6 +154,10 @@ body {
 }
 
 .dropdown-submenu-parent:hover .dropdown-submenu {
+  display: block;
+}
+
+.dropdown-submenu-parent.is-open .dropdown-submenu {
   display: block;
 }
 
@@ -385,7 +393,7 @@ body {
 .app {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 6px var(--panel-width, 28px);
+  grid-template-columns: minmax(0, 1fr) 6px minmax(28px, var(--panel-width, 28px));
   min-height: 0;
   overflow: hidden;
 }
@@ -515,7 +523,7 @@ body {
   background: linear-gradient(to bottom, var(--panel-light), var(--panel-dark));
   border-left: 1px solid #1b1b1b;
   padding: 8px;
-  overflow-x: visible;
+  overflow-x: hidden;
   overflow-y: hidden;
   position: relative;
   height: 100%;
@@ -1428,6 +1436,10 @@ body {
 }
 
 @media (max-width: 900px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr) 8px minmax(28px, min(56vw, var(--panel-width, 28px)));
+  }
+
   .menu-bar {
     padding: 3px 6px;
   }
@@ -1481,6 +1493,39 @@ body {
 
   .panel-resizer {
     width: 10px;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .menu-item,
+  .tool-btn,
+  .panel-tab,
+  .btn,
+  .dropdown-item {
+    min-height: 36px;
+    font-size: 14px;
+  }
+
+  .menu-item {
+    padding: 6px 10px;
+  }
+
+  .tool-btn,
+  .btn {
+    padding: 8px 12px;
+  }
+
+  .field select,
+  .field input[type="number"],
+  .field input[type="text"],
+  .range-row input {
+    min-height: 34px;
+    font-size: 14px;
+  }
+
+  .checkbox {
+    min-height: 30px;
+    font-size: 14px;
   }
 }
 

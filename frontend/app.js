@@ -164,6 +164,7 @@ const seriesSumProgressText = document.getElementById("series-sum-progress-text"
 const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
 const dropdown = document.getElementById("menu-dropdown");
 const dropdownPanels = document.querySelectorAll(".dropdown-panel");
+const submenuParents = document.querySelectorAll(".dropdown-submenu-parent");
 const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
 const aboutModal = document.getElementById("about-modal");
 const aboutClose = document.getElementById("about-close");
@@ -208,6 +209,10 @@ let seriesSumPollTimer = null;
 let panelTabState = "view";
 let backendTimer = null;
 let inspectorSelectedRow = null;
+const coarsePointerQuery = window.matchMedia("(hover: none), (pointer: coarse)");
+let touchGestureActive = false;
+let touchGestureDistance = 0;
+let touchGestureMid = null;
 
 const roiState = {
   mode: "none",
@@ -2525,6 +2530,71 @@ function normalizeWheelDelta(event) {
   return Math.max(-200, Math.min(200, delta));
 }
 
+function touchDistance(t0, t1) {
+  const dx = t1.clientX - t0.clientX;
+  const dy = t1.clientY - t0.clientY;
+  return Math.hypot(dx, dy);
+}
+
+function touchMidpoint(t0, t1) {
+  return {
+    x: (t0.clientX + t1.clientX) * 0.5,
+    y: (t0.clientY + t1.clientY) * 0.5,
+  };
+}
+
+function startTouchGesture(touches) {
+  if (!canvasWrap || touches.length < 2) return;
+  const t0 = touches[0];
+  const t1 = touches[1];
+  touchGestureDistance = touchDistance(t0, t1);
+  touchGestureMid = touchMidpoint(t0, t1);
+  touchGestureActive = true;
+  canvasWrap.classList.add("is-panning");
+}
+
+function stopTouchGesture() {
+  touchGestureActive = false;
+  touchGestureDistance = 0;
+  touchGestureMid = null;
+  if (canvasWrap) {
+    canvasWrap.classList.remove("is-panning");
+  }
+}
+
+function updateTouchGesture(touches) {
+  if (!canvasWrap || touches.length < 2) return;
+  const t0 = touches[0];
+  const t1 = touches[1];
+  const nextDistance = touchDistance(t0, t1);
+  const nextMid = touchMidpoint(t0, t1);
+  if (!Number.isFinite(nextDistance) || nextDistance <= 0) return;
+
+  if (!touchGestureActive || !touchGestureMid || touchGestureDistance <= 0) {
+    touchGestureDistance = nextDistance;
+    touchGestureMid = nextMid;
+    touchGestureActive = true;
+    return;
+  }
+
+  const minZoom = getMinZoom();
+  const scale = Math.max(0.25, Math.min(4, nextDistance / touchGestureDistance));
+  const nextZoom = Math.max(minZoom, Math.min(MAX_ZOOM, (state.zoom || 1) * scale));
+  zoomAt(nextMid.x, nextMid.y, nextZoom);
+
+  const dx = nextMid.x - touchGestureMid.x;
+  const dy = nextMid.y - touchGestureMid.y;
+  if (dx || dy) {
+    const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
+    const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
+    canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, canvasWrap.scrollLeft - dx));
+    canvasWrap.scrollTop = Math.max(0, Math.min(maxScrollTop, canvasWrap.scrollTop - dy));
+  }
+
+  touchGestureDistance = nextDistance;
+  touchGestureMid = nextMid;
+}
+
 function stepWheelZoom() {
   if (zoomWheelTarget === null || !zoomWheelPivot) {
     zoomWheelRaf = null;
@@ -3013,8 +3083,17 @@ function setActiveMenu(menu, anchor) {
   }
 }
 
+function isCoarsePointerDevice() {
+  return Boolean(coarsePointerQuery?.matches);
+}
+
+function closeSubmenus() {
+  submenuParents.forEach((parent) => parent.classList.remove("is-open"));
+}
+
 function openMenu(menu, anchor) {
   if (!dropdown) return;
+  closeSubmenus();
   dropdown.classList.add("is-open");
   dropdown.setAttribute("aria-hidden", "false");
   setActiveMenu(menu, anchor);
@@ -3022,6 +3101,7 @@ function openMenu(menu, anchor) {
 
 function closeMenu() {
   if (!dropdown) return;
+  closeSubmenus();
   dropdown.classList.remove("is-open");
   dropdown.setAttribute("aria-hidden", "true");
 }
@@ -6199,6 +6279,20 @@ menuButtons.forEach((btn) => {
   });
 });
 
+submenuParents.forEach((parent) => {
+  parent.addEventListener("click", (event) => {
+    if (!isCoarsePointerDevice()) return;
+    if (event.target.closest(".dropdown-submenu")) return;
+    const alreadyOpen = parent.classList.contains("is-open");
+    closeSubmenus();
+    if (!alreadyOpen) {
+      parent.classList.add("is-open");
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  });
+});
+
 dropdown?.addEventListener("mouseenter", cancelClose);
 dropdown?.addEventListener("mouseleave", scheduleClose);
 
@@ -6859,7 +6953,45 @@ canvasWrap.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
 
+canvasWrap.addEventListener(
+  "touchstart",
+  (event) => {
+    if (event.touches.length >= 2) {
+      startTouchGesture(event.touches);
+      event.preventDefault();
+    }
+  },
+  { passive: false }
+);
+
+canvasWrap.addEventListener(
+  "touchmove",
+  (event) => {
+    if (!touchGestureActive && event.touches.length < 2) return;
+    if (event.touches.length >= 2) {
+      updateTouchGesture(event.touches);
+      event.preventDefault();
+      return;
+    }
+    stopTouchGesture();
+  },
+  { passive: false }
+);
+
+canvasWrap.addEventListener("touchend", (event) => {
+  if (event.touches.length >= 2) {
+    startTouchGesture(event.touches);
+    return;
+  }
+  stopTouchGesture();
+});
+
+canvasWrap.addEventListener("touchcancel", () => {
+  stopTouchGesture();
+});
+
 canvasWrap.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "touch") return;
   const isRightClick = event.button === 2 || event.buttons === 2 || event.which === 3;
   const isCtrlClick = event.button === 0 && event.ctrlKey;
   const roiTrigger = roiState.mode !== "none" && (isRightClick || isCtrlClick);
@@ -6919,6 +7051,7 @@ canvasWrap.addEventListener("pointerdown", (event) => {
 });
 
 canvasWrap.addEventListener("pointermove", (event) => {
+  if (event.pointerType === "touch") return;
   updateCursorOverlay(event);
   if (roiEditing) {
     const point = getImagePointFromEvent(event);
