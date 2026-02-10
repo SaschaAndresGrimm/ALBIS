@@ -13,6 +13,11 @@ python backend/app.py
 
 Open `http://localhost:8000`.
 
+## Contributor docs
+
+- Architecture and data flow: `docs/ARCHITECTURE.md`
+- Function/file navigation map: `docs/CODE_MAP.md`
+
 ## How to help
 
 - Bug reports with clear steps and sample data (if shareable).
@@ -35,6 +40,7 @@ Please include:
 - Describe the motivation and approach.
 - Include screenshots or recordings for UI changes.
 - Update docs when behavior changes.
+- If you add/reshape major logic paths, update `docs/ARCHITECTURE.md` or `docs/CODE_MAP.md`.
 
 ## Code style
 

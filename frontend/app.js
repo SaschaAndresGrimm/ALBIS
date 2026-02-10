@@ -1,3 +1,15 @@
+/*
+ * ALBIS frontend controller.
+ *
+ * This file drives:
+ * - UI state and interactions (menus, tabs, shortcuts, gestures)
+ * - Data-source orchestration (file/watch/monitor)
+ * - Rendering (WebGL2 primary + CPU fallback)
+ * - Overlay layers (ROI, rings, peaks, pixel labels, histogram)
+ *
+ * Use `docs/CODE_MAP.md` for a quick function-level navigation guide.
+ */
+
 const fileSelect = document.getElementById("file-select");
 const datasetSelect = document.getElementById("dataset-select");
 const fileField = document.getElementById("file-field");
@@ -215,6 +227,7 @@ let touchGestureDistance = 0;
 let touchGestureMid = null;
 
 const roiState = {
+  // Active ROI geometry and derived plot configuration.
   mode: "none",
   start: null,
   end: null,
@@ -235,6 +248,7 @@ const roiState = {
   },
 };
 const analysisState = {
+  // Analysis overlays rendered on top of the current frame.
   ringsEnabled: false,
   distanceMm: null,
   pixelSizeUm: null,
@@ -250,6 +264,7 @@ const analysisState = {
 };
 
 const state = {
+  // Global view/data state used across renderer + UI controls.
   file: "",
   dataset: "",
   shape: [],
@@ -4189,6 +4204,8 @@ function createProgram(gl, vertexSource, fragmentSource) {
 }
 
 function createWebGLRenderer() {
+  // WebGL2 renderer is the primary path for large image performance.
+  // It handles contrast mapping and masking directly in the fragment shader.
   const gl = canvas.getContext("webgl2", {
     antialias: false,
     preserveDrawingBuffer: true,
@@ -4773,6 +4790,8 @@ function getPaletteColorCount(palette) {
 }
 
 function mapAlbulaHdrToNorm(value, bg, fg) {
+  // Emulate ALBULA HDR transfer:
+  // linear ramp until FG, then logarithmic compression for brighter peaks.
   if (!Number.isFinite(value) || !Number.isFinite(bg) || !Number.isFinite(fg)) {
     return 0;
   }
@@ -5605,6 +5624,8 @@ function updateRoiTooltip(event, canvasEl) {
 }
 
 function updateRoiStats() {
+  // This function is intentionally central: it computes ROI statistics and
+  // updates all derived plots/labels in one pass to keep UI state consistent.
   if (!state.hasFrame) {
     if (roiState.active) {
       clearRoi();

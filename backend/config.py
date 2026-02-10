@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Config loading helpers shared by backend and launcher.
+
+The loader merges user config values onto `DEFAULT_CONFIG` and keeps strict,
+predictable path resolution for both source and frozen (packaged) execution.
+"""
+
 import copy
 import json
 import sys

@@ -14,6 +14,7 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 
 - Contributions welcome: see `CONTRIBUTING.md`.
 - Security: see `SECURITY.md`.
+- Developer architecture docs: `docs/ARCHITECTURE.md` and `docs/CODE_MAP.md`.
 
 ![ALBIS screenshot](frontend/ressources/albis.png)
 
@@ -55,6 +56,11 @@ ALBIS uses a server-client architecture:
   Runs in the browser, renders images/overlays, and interacts with the backend over HTTP.
 - Local deployment model:
   The backend typically runs on the same machine as the user, and the UI connects to `http://localhost:<port>`.
+
+Detailed implementation notes:
+
+- System architecture and data flows: `docs/ARCHITECTURE.md`
+- Backend/frontend code navigation map: `docs/CODE_MAP.md`
 
 ## Configuration (`albis.config.json`)
 

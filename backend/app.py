@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""ALBIS backend API service.
+
+This module keeps backend runtime logic centralized for simple packaged
+execution. It handles path safety, image IO, metadata extraction, analysis
+endpoints, monitor integration, and long-running series jobs.
+"""
+
 import base64
 import csv
 import math
@@ -839,6 +846,13 @@ def _linked_member_sort_key(path_or_name: str) -> tuple[int, int, str]:
 
 
 def _aggregate_linked_stack_datasets(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Replace segmented `data_*` datasets with one synthetic stack entry.
+
+    Many master files split one logical stack into sibling datasets such as
+    `/entry/data/data_000001`, `/entry/data/data_000002`, etc. The frontend
+    expects one continuous frame axis, so we merge compatible members into one
+    synthetic descriptor while retaining segment paths in `members`.
+    """
     grouped: dict[str, list[dict[str, Any]]] = {}
     for info in results:
         if not info.get("image"):
@@ -910,6 +924,7 @@ def _aggregate_linked_stack_datasets(results: list[dict[str, Any]]) -> list[dict
 def _resolve_node(
     h5: h5py.File, base_file: Path, path: str
 ) -> tuple[Any, Path, list[h5py.File]]:
+    """Resolve HDF5 object path while following soft/external links safely."""
     parts = [p for p in path.strip("/").split("/") if p]
     if not parts:
         return h5["/"], base_file, []
@@ -966,6 +981,7 @@ def _resolve_group_linked_stack(
     group_file: Path,
     opened: list[h5py.File],
 ) -> dict[str, Any] | None:
+    """Interpret a group as segmented stack if members are compatible."""
     segments: list[dict[str, Any]] = []
     ndim: int | None = None
     dtype: str | None = None
@@ -1093,6 +1109,7 @@ def _resolve_dataset(
 def _resolve_dataset_view(
     h5: h5py.File, base_file: Path, dataset: str
 ) -> tuple[dict[str, Any], list[h5py.File]]:
+    """Normalize target into either direct dataset view or linked-stack view."""
     node, current_file, opened = _resolve_node(h5, base_file, dataset)
     if isinstance(node, h5py.Dataset):
         return (
@@ -1119,6 +1136,7 @@ def _resolve_dataset_view(
 
 
 def _extract_frame(view: dict[str, Any], index: int, threshold: int) -> np.ndarray:
+    """Extract one 2D frame from a normalized dataset view."""
     if view["kind"] == "dataset":
         dset = view["dataset"]
         if dset.ndim == 4:
@@ -1223,6 +1241,7 @@ def _mask_slices(mask_bits: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndar
 
 
 def _iter_sum_ranges(frame_count: int, mode: str, step: int) -> list[tuple[int, int]]:
+    """Build inclusive frame ranges for `all` or chunked summing modes."""
     if frame_count <= 0:
         return []
     if mode == "all":
@@ -1247,6 +1266,7 @@ def _run_series_summing_job(
     output_format: str,
     apply_mask: bool,
 ) -> None:
+    """Background worker for series summing output generation."""
     try:
         source_path = _resolve_file(file)
         base_target = _resolve_series_output_base(output_path)
@@ -1520,6 +1540,7 @@ def open_log() -> dict[str, str]:
 
 
 def _prefix_paths(root: Path, items: list[str]) -> list[str]:
+    """Prefix scanned file names with selected subfolder when needed."""
     root = root.resolve()
     data_root = DATA_DIR.resolve()
     try:
@@ -1534,6 +1555,7 @@ def _prefix_paths(root: Path, items: list[str]) -> list[str]:
 
 @app.get("/api/files")
 def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
+    """List discoverable image files from data root or a selected subfolder."""
     global _files_cache
     trimmed = (folder or "").strip()
     use_cache = trimmed in ("", ".", "./")
@@ -1809,6 +1831,7 @@ async def upload(file: UploadFile = File(...), folder: str | None = Query(None))
 
 @app.get("/api/datasets")
 def datasets(file: str = Query(..., min_length=1)) -> dict[str, Any]:
+    """Discover image-capable datasets, including synthetic linked stacks."""
     path = _resolve_file(file)
     results: list[dict[str, Any]] = []
     with h5py.File(path, "r") as h5:
@@ -1828,6 +1851,7 @@ def datasets(file: str = Query(..., min_length=1)) -> dict[str, Any]:
 
 @app.get("/api/hdf5/tree")
 def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> dict[str, Any]:
+    """Return one tree level for the file inspector."""
     file_path = _resolve_file(file)
     with h5py.File(file_path, "r") as h5:
         if path not in h5:
@@ -1893,6 +1917,7 @@ def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> d
 
 @app.get("/api/hdf5/node")
 def hdf5_node(file: str = Query(..., min_length=1), path: str = Query(..., min_length=1)) -> dict[str, Any]:
+    """Return node metadata and attributes for the inspector details pane."""
     file_path = _resolve_file(file)
     with h5py.File(file_path, "r") as h5:
         if path not in h5:
@@ -1924,6 +1949,7 @@ def hdf5_value(
     path: str = Query(..., min_length=1),
     max_cells: int = Query(2048, ge=16, le=65536),
 ) -> dict[str, Any]:
+    """Return value preview payload for scalar/array inspector rendering."""
     file_path = _resolve_file(file)
     with h5py.File(file_path, "r") as h5:
         if path not in h5:
@@ -2193,6 +2219,7 @@ def analysis_params(
 
 @app.post("/api/analysis/series-sum/start")
 def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Start asynchronous series summing and return pollable job metadata."""
     file = str(payload.get("file", "")).strip()
     dataset = str(payload.get("dataset", "")).strip()
     mode = str(payload.get("mode", "all")).strip().lower()
