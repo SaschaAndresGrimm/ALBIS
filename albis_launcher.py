@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import socket
+import sys
 import threading
 import time
 import webbrowser
@@ -9,6 +10,28 @@ from pathlib import Path
 import uvicorn
 
 from backend.config import get_bool, get_float, get_int, get_str, load_config
+
+
+class _NullStream:
+    """Fallback stdio stream for frozen/windowed builds without a console."""
+
+    def write(self, _data: str) -> int:
+        return 0
+
+    def flush(self) -> None:
+        return None
+
+    def isatty(self) -> bool:
+        return False
+
+
+def _ensure_stdio_streams() -> None:
+    # PyInstaller windowed executables on Windows may start with stdout/stderr set to None.
+    # Uvicorn/logging formatters call `.isatty()` on those streams during startup.
+    if sys.stdout is None:
+        sys.stdout = _NullStream()
+    if sys.stderr is None:
+        sys.stderr = _NullStream()
 
 
 def _find_free_port() -> int:
@@ -31,6 +54,7 @@ def _wait_for_server(host: str, port: int, timeout: float = 5.0) -> bool:
 
 
 def main() -> None:
+    _ensure_stdio_streams()
     app_config, _config_path = load_config()
 
     host = get_str(app_config, ("server", "host"), "127.0.0.1")
