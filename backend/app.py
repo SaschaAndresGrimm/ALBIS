@@ -30,11 +30,7 @@ from typing import Any
 import logging
 from logging.handlers import RotatingFileHandler
 import tempfile
-import hdf5plugin  # noqa: F401
-import h5py
 import numpy as np
-import tifffile
-import fabio
 from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -57,7 +53,7 @@ else:
     else:
         DATA_DIR = Path(__file__).resolve().parents[1]
 
-ALBIS_VERSION = "0.3"
+ALBIS_VERSION = "0.4"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
@@ -73,6 +69,40 @@ LOG_DIR: Path | None = None
 LOG_PATH: Path | None = None
 _series_jobs: dict[str, dict[str, Any]] = {}
 _series_jobs_lock = threading.Lock()
+h5py = None
+tifffile = None
+fabio = None
+_hdf5_stack_ready = False
+
+
+def _ensure_hdf5_stack() -> None:
+    """Lazy-load HDF5 modules and compression plugins on first use."""
+    global h5py, _hdf5_stack_ready
+    if not _hdf5_stack_ready:
+        import hdf5plugin as _hdf5plugin  # noqa: F401
+
+        _ = _hdf5plugin
+        _hdf5_stack_ready = True
+    if h5py is None:
+        import h5py as _h5py  # type: ignore[import-not-found]
+
+        h5py = _h5py
+
+
+def _ensure_tifffile() -> None:
+    global tifffile
+    if tifffile is None:
+        import tifffile as _tifffile  # type: ignore[import-not-found]
+
+        tifffile = _tifffile
+
+
+def _ensure_fabio() -> None:
+    global fabio
+    if fabio is None:
+        import fabio as _fabio  # type: ignore[import-not-found]
+
+        fabio = _fabio
 
 
 def _init_logging() -> logging.Logger:
@@ -235,11 +265,13 @@ def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
 
 
 def _read_tiff(path: Path, index: int = 0) -> np.ndarray:
+    _ensure_tifffile()
     arr = tifffile.imread(path)
     return _normalize_image_array(np.asarray(arr), index=index)
 
 
 def _read_cbf(path: Path) -> np.ndarray:
+    _ensure_fabio()
     image = fabio.open(str(path))
     arr = np.asarray(image.data)
     return _normalize_image_array(arr)
@@ -1313,6 +1345,8 @@ def _run_series_summing_job(
     apply_mask: bool,
 ) -> None:
     """Background worker for series summing output generation."""
+    _ensure_hdf5_stack()
+    _ensure_tifffile()
     try:
         source_path = _resolve_file(file)
         base_target = _resolve_series_output_base(output_path)
@@ -1892,6 +1926,7 @@ def simplon_monitor(
     timeout: int = Query(500, ge=0),
     enable: bool = Query(True),
 ) -> Response:
+    _ensure_tifffile()
     base = _simplon_base(url, version)
     if enable:
         _simplon_set_mode(base, "enabled")
@@ -1981,6 +2016,7 @@ async def upload(file: UploadFile = File(...), folder: str | None = Query(None))
 @app.get("/api/datasets")
 def datasets(file: str = Query(..., min_length=1)) -> dict[str, Any]:
     """Discover image-capable datasets, including synthetic linked stacks."""
+    _ensure_hdf5_stack()
     path = _resolve_file(file)
     results: list[dict[str, Any]] = []
     with h5py.File(path, "r") as h5:
@@ -2001,6 +2037,7 @@ def datasets(file: str = Query(..., min_length=1)) -> dict[str, Any]:
 @app.get("/api/hdf5/tree")
 def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> dict[str, Any]:
     """Return one tree level for the file inspector."""
+    _ensure_hdf5_stack()
     file_path = _resolve_file(file)
     with h5py.File(file_path, "r") as h5:
         if path not in h5:
@@ -2067,6 +2104,7 @@ def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> d
 @app.get("/api/hdf5/node")
 def hdf5_node(file: str = Query(..., min_length=1), path: str = Query(..., min_length=1)) -> dict[str, Any]:
     """Return node metadata and attributes for the inspector details pane."""
+    _ensure_hdf5_stack()
     file_path = _resolve_file(file)
     with h5py.File(file_path, "r") as h5:
         if path not in h5:
@@ -2099,6 +2137,7 @@ def hdf5_value(
     max_cells: int = Query(2048, ge=16, le=65536),
 ) -> dict[str, Any]:
     """Return value preview payload for scalar/array inspector rendering."""
+    _ensure_hdf5_stack()
     file_path = _resolve_file(file)
     with h5py.File(file_path, "r") as h5:
         if path not in h5:
@@ -2125,6 +2164,7 @@ def hdf5_search(
     query: str = Query(..., min_length=1),
     limit: int = Query(200, ge=1, le=1000),
 ) -> dict[str, Any]:
+    _ensure_hdf5_stack()
     needle = query.strip().lower()
     if not needle:
         return {"matches": []}
@@ -2205,6 +2245,7 @@ def hdf5_csv(
     path: str = Query(..., min_length=1),
     max_cells: int = Query(65536, ge=64, le=262144),
 ) -> Response:
+    _ensure_hdf5_stack()
     file_path = _resolve_file(file)
     with h5py.File(file_path, "r") as h5:
         if path not in h5:
@@ -2242,6 +2283,7 @@ def analysis_params(
     file: str = Query(..., min_length=1),
     dataset: str | None = Query(None),
 ) -> dict[str, Any]:
+    _ensure_hdf5_stack()
     file_path = _resolve_file(file)
     distance_val, distance_unit = None, None
     pixel_x_val, pixel_x_unit = None, None
@@ -2492,6 +2534,7 @@ def open_path(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
 
 @app.get("/api/metadata")
 def metadata(file: str = Query(..., min_length=1), dataset: str = Query(..., min_length=1)) -> dict[str, Any]:
+    _ensure_hdf5_stack()
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
         try:
@@ -2524,6 +2567,7 @@ def frame(
     index: int = Query(0, ge=0),
     threshold: int = Query(0, ge=0),
 ) -> Response:
+    _ensure_hdf5_stack()
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
         try:
@@ -2557,6 +2601,7 @@ def preview(
     max_size: int = Query(1024, ge=64, le=4096),
     threshold: int = Query(0, ge=0),
 ) -> Response:
+    _ensure_hdf5_stack()
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
         try:
@@ -2594,6 +2639,7 @@ def mask(
     file: str = Query(..., min_length=1),
     threshold: int | None = Query(None, ge=0),
 ) -> Response:
+    _ensure_hdf5_stack()
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
         dset = _find_pixel_mask(h5, threshold=threshold)

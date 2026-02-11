@@ -75,6 +75,7 @@ const sectionToggles = document.querySelectorAll("[data-section-toggle]");
 const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
+const splashStatus = document.getElementById("splash-status");
 const resolutionOverlay = document.getElementById("resolution-overlay");
 const resolutionCtx = resolutionOverlay?.getContext("2d");
 const peakOverlay = document.getElementById("peak-overlay");
@@ -282,7 +283,7 @@ const state = {
   thresholdIndex: 0,
   thresholdEnergies: [],
   backendAlive: false,
-  backendVersion: "0.3",
+  backendVersion: "0.4",
   isLoading: false,
   pendingFrame: null,
   playing: false,
@@ -3175,6 +3176,11 @@ function showSplash() {
   splash?.classList.remove("is-hidden");
 }
 
+function setSplashStatus(text) {
+  if (!splashStatus) return;
+  splashStatus.textContent = text || "";
+}
+
 function hideSplash() {
   splash?.classList.add("is-hidden");
 }
@@ -3477,13 +3483,12 @@ function updateBackendBadge() {
 
 function updateAboutVersion() {
   if (!aboutVersion) return;
-  aboutVersion.textContent = `Version ${state.backendVersion || "0.3"}`;
+  aboutVersion.textContent = `Version ${state.backendVersion || "0.4"}`;
 }
 
 async function checkBackendHealth() {
-  if (!backendBadge) return;
   let alive = false;
-  let version = state.backendVersion || "0.3";
+  let version = state.backendVersion || "0.4";
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 1500);
   try {
@@ -3512,15 +3517,49 @@ async function checkBackendHealth() {
     updateAboutVersion();
   }
   updateBackendBadge();
+  return alive;
 }
 
 function startBackendHeartbeat() {
-  if (!backendBadge) return;
   if (backendTimer) {
     window.clearInterval(backendTimer);
   }
-  checkBackendHealth();
-  backendTimer = window.setInterval(checkBackendHealth, 4000);
+  void checkBackendHealth();
+  backendTimer = window.setInterval(() => {
+    void checkBackendHealth();
+  }, 4000);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForBackendReady(timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs;
+  let attempts = 0;
+  while (Date.now() < deadline) {
+    attempts += 1;
+    setSplashStatus(`Starting backend... (${attempts})`);
+    const alive = await checkBackendHealth();
+    if (alive) {
+      setSplashStatus(`Backend ready (v${state.backendVersion || "0.4"})`);
+      return true;
+    }
+    await sleep(250);
+  }
+  setSplashStatus("Backend startup is taking longer than expected...");
+  return false;
+}
+
+async function bootstrapApp() {
+  showSplash();
+  drawSplash();
+  setSplashStatus("Starting backend...");
+  await waitForBackendReady();
+  setSplashStatus("Loading file list...");
+  await loadAutoloadFolders();
+  await loadFiles();
+  setSplashStatus("Ready");
 }
 
 function persistAutoloadSettings() {
@@ -7785,13 +7824,14 @@ try {
 }
 applyPanelState();
 loadAutoloadSettings();
-loadAutoloadFolders();
-loadFiles().catch((err) => {
+updatePlayButtons();
+updateAboutVersion();
+startBackendHeartbeat();
+
+void bootstrapApp().catch((err) => {
   console.error(err);
+  setSplashStatus("Initialization failed");
   setStatus("Failed to initialize");
   showSplash();
   setLoading(false);
 });
-updatePlayButtons();
-updateAboutVersion();
-startBackendHeartbeat();

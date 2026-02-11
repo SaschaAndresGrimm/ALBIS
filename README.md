@@ -117,8 +117,8 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ```
 
 This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-macos-<os_version>-v0.3-<commit>.zip`
-- `ALBIS-macos-<os_version>-v0.3-<commit>.dmg`
+- `ALBIS-macos-<os_version>-v0.4-<commit>.zip`
+- `ALBIS-macos-<os_version>-v0.4-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
@@ -130,7 +130,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 ```
 
 Example output:
-- `ALBIS-linux-<distro_version>-v0.3-<commit>.tar.gz`
+- `ALBIS-linux-<distro_version>-v0.4-<commit>.tar.gz`
 
 ### Build (Windows)
 
@@ -139,9 +139,9 @@ Example output:
 ```
 
 Example output:
-- `ALBIS-windows-<os_version>-v0.3-<commit>.zip`
+- `ALBIS-windows-<os_version>-v0.4-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-windows-<os_version>-v0.3-<commit>.exe`
+  `ALBIS-Setup-windows-<os_version>-v0.4-<commit>.exe`
 
 ### Output
 
