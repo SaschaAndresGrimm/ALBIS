@@ -233,6 +233,8 @@ const coarsePointerQuery = window.matchMedia("(hover: none), (pointer: coarse)")
 let touchGestureActive = false;
 let touchGestureDistance = 0;
 let touchGestureMid = null;
+let touchDragActive = false;
+let touchDragStart = null;
 
 const roiState = {
   // Active ROI geometry and derived plot configuration.
@@ -2838,13 +2840,24 @@ function updatePlayButtons() {
 
 function applyPanelState() {
   if (!toolsPanel || !appLayout) return;
+  
+  const isMobile = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+  
   toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
-  const maxPanelWidth =
-    window.innerWidth < 900 ? Math.max(220, Math.floor(window.innerWidth * 0.7)) : 900;
-  const targetWidth = Math.max(220, Math.min(maxPanelWidth, state.panelWidth));
-  const width = state.panelCollapsed ? 28 : targetWidth;
-  appLayout.style.setProperty("--panel-width", `${width}px`);
-  document.documentElement.style.setProperty("--panel-width", `${width}px`);
+  
+  // Mobile: show/hide panel with translation
+  if (isMobile && window.innerWidth < 768) {
+    toolsPanel.classList.toggle("is-visible", !state.panelCollapsed);
+  } else {
+    // Desktop/tablet: use panel width
+    const maxPanelWidth =
+      window.innerWidth < 900 ? Math.max(220, Math.floor(window.innerWidth * 0.7)) : 900;
+    const targetWidth = Math.max(220, Math.min(maxPanelWidth, state.panelWidth));
+    const width = state.panelCollapsed ? 28 : targetWidth;
+    appLayout.style.setProperty("--panel-width", `${width}px`);
+    document.documentElement.style.setProperty("--panel-width", `${width}px`);
+  }
+  
   if (panelEdgeToggle) {
     panelEdgeToggle.textContent = state.panelCollapsed ? "◀" : "▶";
     panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand panel" : "Collapse panel");
@@ -7513,8 +7526,20 @@ canvasWrap.addEventListener(
   "touchstart",
   (event) => {
     if (event.touches.length >= 2) {
+      // Multi-touch: pinch/zoom gesture
+      stopTouchDrag();
       startTouchGesture(event.touches);
       event.preventDefault();
+    } else if (event.touches.length === 1) {
+      // Single touch: prepare for dragging
+      const touch = event.touches[0];
+      touchDragStart = {
+        x: touch.clientX,
+        y: touch.clientY,
+        scrollLeft: canvasWrap.scrollLeft,
+        scrollTop: canvasWrap.scrollTop,
+      };
+      touchDragActive = true;
     }
   },
   { passive: false }
@@ -7523,13 +7548,23 @@ canvasWrap.addEventListener(
 canvasWrap.addEventListener(
   "touchmove",
   (event) => {
-    if (!touchGestureActive && event.touches.length < 2) return;
     if (event.touches.length >= 2) {
+      // Multi-touch: continue zoom gesture
+      if (!touchGestureActive) return;
       updateTouchGesture(event.touches);
       event.preventDefault();
       return;
     }
-    stopTouchGesture();
+    
+    if (event.touches.length === 1 && touchDragActive && touchDragStart) {
+      // Single touch drag: pan the canvas
+      const touch = event.touches[0];
+      const dx = touch.clientX - touchDragStart.x;
+      const dy = touch.clientY - touchDragStart.y;
+      canvasWrap.scrollLeft = touchDragStart.scrollLeft - dx;
+      canvasWrap.scrollTop = touchDragStart.scrollTop - dy;
+      event.preventDefault();
+    }
   },
   { passive: false }
 );
@@ -7540,11 +7575,18 @@ canvasWrap.addEventListener("touchend", (event) => {
     return;
   }
   stopTouchGesture();
+  stopTouchDrag();
 });
 
 canvasWrap.addEventListener("touchcancel", () => {
   stopTouchGesture();
+  stopTouchDrag();
 });
+
+function stopTouchDrag() {
+  touchDragActive = false;
+  touchDragStart = null;
+}
 
 canvasWrap.addEventListener("pointerdown", (event) => {
   if (event.pointerType === "touch") return;
