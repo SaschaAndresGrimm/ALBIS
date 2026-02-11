@@ -213,6 +213,8 @@ let pixelOverlayScheduled = false;
 let sectionStateStore = {};
 let roiOverlayScheduled = false;
 let roiUpdateScheduled = false;
+let roiPlotResizing = null; // Track which ROI plot is being resized
+let roiPlotResizeStart = { x: 0, y: 0, height: 0, container: null };
 let roiDragging = false;
 let roiDragPointer = null;
 let roiEditing = false;
@@ -7768,7 +7770,94 @@ canvasWrap.addEventListener("dblclick", (event) => {
       promptRoiPlotAxisLimits(canvasEl, "x", event.shiftKey);
     }
   });
+  canvasEl.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      const plot = canvasEl._roiPlot;
+      if (!plot) return;
+      const rect = canvasEl.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const inYAxis = x <= plot.padL;
+      const inXAxis = y >= plot.height - plot.padB;
+      if (!inYAxis && !inXAxis) return;
+      const delta = normalizeWheelDelta(event);
+      if (!delta) return;
+      const factor = Math.exp(-delta * 0.002);
+      if (inYAxis) {
+        const yRange = plot.yMax - plot.yMin;
+        const cursorFrac = (plot.height - plot.padB - y) / (plot.height - plot.padB - plot.padT);
+        const cursorValue = plot.yMin + cursorFrac * yRange;
+        const newRange = yRange / factor;
+        const newMin = cursorValue - cursorFrac * newRange;
+        const newMax = cursorValue + (1 - cursorFrac) * newRange;
+        if (!roiState.plotLimits.enabled) {
+          roiState.plotLimits.enabled = true;
+          if (roiLimitsEnable) roiLimitsEnable.checked = true;
+        }
+        setRoiPlotAxisLimits("y", newMin, newMax);
+      } else {
+        const xRange = plot.xMax - plot.xMin;
+        const cursorFrac = (x - plot.padL) / (plot.width - plot.padL - plot.padR);
+        const cursorValue = plot.xMin + cursorFrac * xRange;
+        const newRange = xRange / factor;
+        const newMin = cursorValue - cursorFrac * newRange;
+        const newMax = cursorValue + (1 - cursorFrac) * newRange;
+        if (!roiState.plotLimits.enabled) {
+          roiState.plotLimits.enabled = true;
+          if (roiLimitsEnable) roiLimitsEnable.checked = true;
+        }
+        setRoiPlotAxisLimits("x", newMin, newMax);
+      }
+      syncRoiPlotLimitControls();
+      scheduleRoiUpdate();
+    },
+    { passive: false }
+  );
 });
+
+// ROI plot resize handles
+[roiLinePlot, roiBoxPlotX, roiBoxPlotY].forEach((plotContainer) => {
+  if (!plotContainer) return;
+  const resizeHandle = plotContainer.querySelector(".roi-resize-handle");
+  if (!resizeHandle) return;
+  
+  resizeHandle.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return; // Only left mouse button
+    event.preventDefault();
+    roiPlotResizing = plotContainer;
+    const rect = plotContainer.getBoundingClientRect();
+    roiPlotResizeStart = {
+      x: event.clientX,
+      y: event.clientY,
+      height: rect.height,
+      container: plotContainer,
+    };
+    document.addEventListener("pointermove", onRoiPlotResizeMove);
+    document.addEventListener("pointerup", onRoiPlotResizeEnd);
+  });
+});
+
+function onRoiPlotResizeMove(event) {
+  if (!roiPlotResizing) return;
+  const dy = event.clientY - roiPlotResizeStart.y;
+  const newHeight = Math.max(80, roiPlotResizeStart.height + dy);
+  roiPlotResizing.style.height = `${newHeight}px`;
+}
+
+function onRoiPlotResizeEnd() {
+  if (roiPlotResizing) {
+    const canvas = roiPlotResizing.querySelector("canvas");
+    if (canvas) {
+      // Trigger a redraw due to canvas size change
+      scheduleRoiUpdate();
+    }
+  }
+  roiPlotResizing = null;
+  document.removeEventListener("pointermove", onRoiPlotResizeMove);
+  document.removeEventListener("pointerup", onRoiPlotResizeEnd);
+}
 
 overviewCanvas?.addEventListener("pointerdown", (event) => {
   if (!state.hasFrame) return;

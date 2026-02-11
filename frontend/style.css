@@ -1888,17 +1888,22 @@ body {
   border: 1px solid #1a1a1a;
   padding: 6px;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
 }
 
 .roi-plot-title {
   font-size: 11px;
   color: #d7d7d7;
   margin-bottom: 4px;
+  flex-shrink: 0;
 }
 
 .roi-plot canvas {
   width: 100%;
-  height: 110px;
+  flex: 1;
+  min-height: 80px;
   display: block;
 }
 
@@ -1924,6 +1929,23 @@ body {
 
 .roi-plot.is-hidden {
   display: none;
+}
+
+.roi-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(100, 100, 100, 0.6) 50%);
+  border-top: 1px solid rgba(100, 100, 100, 0.3);
+  border-left: 1px solid rgba(100, 100, 100, 0.3);
+  border-radius: 2px 0 0 0;
+}
+
+.roi-resize-handle:hover {
+  background: linear-gradient(135deg, transparent 50%, rgba(120, 120, 120, 0.8) 50%);
 }
 
 .modal {
