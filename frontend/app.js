@@ -3309,33 +3309,86 @@ async function openSeriesSumOutputTarget() {
 async function openFileModal() {
   closeMenu();
   await ensureFileMode();
-  try {
-    const res = await fetch(`${API}/choose-file`);
-    if (res.status === 204) return;
-    if (!res.ok) {
-      throw new Error(`Picker failed: ${res.status}`);
-    }
-    const data = await res.json();
-    const path = data?.path;
-    if (!path) return;
-    const folder = dirnameFromPath(path);
-    if (autoloadDir) autoloadDir.value = folder;
-    state.autoload.dir = folder;
-    state.file = path;
-    syncSeriesSumOutputPath();
-    await loadFiles();
-    if (fileSelect) {
-      const existing = Array.from(fileSelect.options).some((opt) => opt.value === path);
-      if (!existing) {
-        fileSelect.appendChild(option(fileLabel(path), path));
+
+  // If backend is local, use native dialog
+  if (backendIsLocal) {
+    try {
+      const res = await fetch(`${API}/choose-file`);
+      if (res.status === 204) return;
+      if (!res.ok) {
+        throw new Error(`Picker failed: ${res.status}`);
       }
-      fileSelect.value = path;
+      const data = await res.json();
+      const path = data?.path;
+      if (!path) return;
+      const folder = dirnameFromPath(path);
+      if (autoloadDir) autoloadDir.value = folder;
+      state.autoload.dir = folder;
+      state.file = path;
+      syncSeriesSumOutputPath();
+      await loadFiles();
+      if (fileSelect) {
+        const existing = Array.from(fileSelect.options).some((opt) => opt.value === path);
+        if (!existing) {
+          fileSelect.appendChild(option(fileLabel(path), path));
+        }
+        fileSelect.value = path;
+      }
+      await loadDatasets();
+      return;
+    } catch (err) {
+      console.error(err);
     }
-    await loadDatasets();
-    return;
-  } catch (err) {
-    console.error(err);
+  } else if (filesystemMode?.value === "local") {
+    // Use HTML5 file input for local filesystem on remote backend
+    fileInput.accept = ".h5,.hdf5";
+    fileInput.onchange = async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      
+      // For local files, we store the filename but note that actual file reading
+      // from user's machine requires a backend upload endpoint
+      try {
+        const folder = dirnameFromPath(file.name);
+        if (autoloadDir) autoloadDir.value = folder;
+        state.autoload.dir = folder;
+        state.file = file.name;
+        syncSeriesSumOutputPath();
+        setStatus(`Local file selected: ${file.name} (upload endpoint needed for data access)`);
+        return;
+      } catch (err) {
+        console.error(err);
+        setStatus("Failed to select local file");
+      }
+    };
+    fileInput.click();
+  } else {
+    // Use web file browser for remote filesystem
+    try {
+      const selectedFile = await openFileDialog();
+      if (!selectedFile) return;
+      
+      const folder = dirnameFromPath(selectedFile);
+      if (autoloadDir) autoloadDir.value = folder;
+      state.autoload.dir = folder;
+      state.file = selectedFile;
+      syncSeriesSumOutputPath();
+      await loadFiles();
+      if (fileSelect) {
+        const existing = Array.from(fileSelect.options).some((opt) => opt.value === selectedFile);
+        if (!existing) {
+          fileSelect.appendChild(option(fileLabel(selectedFile), selectedFile));
+        }
+        fileSelect.value = selectedFile;
+      }
+      await loadDatasets();
+      return;
+    } catch (err) {
+      console.error(err);
+    }
   }
+
+  // Fallback to HTML5 file input
   fileInput?.click();
 }
 
@@ -6812,7 +6865,7 @@ let fileBrowserState = {
   selectedPath: "",
   mode: null, // "autoload" or "series-sum"
   inputElement: null,
-  filesystemMode: "remote", // "local" or "remote"
+  filesystemMode: "local", // "local" or "remote" (default to local)
 };
 
 // Detect if backend and frontend are on the same machine
@@ -6954,6 +7007,9 @@ async function loadAndRenderBrowser(path) {
   }
 }
 
+let fileDialogPromise = null;
+let fileDialogResolve = null;
+
 function openFileBrowser(mode, inputElement) {
   fileBrowserState.mode = mode;
   fileBrowserState.inputElement = inputElement;
@@ -6963,17 +7019,48 @@ function openFileBrowser(mode, inputElement) {
   loadAndRenderBrowser("").catch((err) => console.error(err));
 }
 
+function openFileDialog() {
+  return new Promise((resolve, reject) => {
+    fileDialogPromise = { resolve, reject };
+    fileBrowserState.mode = "file-open";
+    fileBrowserState.inputElement = null;
+    fileBrowserState.currentPath = "";
+    fileBrowserState.selectedPath = "";
+    browseModal.classList.add("is-open");
+    loadAndRenderBrowser("").catch((err) => {
+      fileDialogPromise = null;
+      reject(err);
+    });
+  });
+}
+
 function closeFileBrowser() {
   browseModal.classList.remove("is-open");
 }
 
 browseSelectBtn?.addEventListener("click", () => {
+  const selected = fileBrowserState.selectedPath;
+
+  // Handle file open dialog mode
+  if (fileBrowserState.mode === "file-open") {
+    closeFileBrowser();
+    if (fileDialogPromise) {
+      if (selected) {
+        fileDialogPromise.resolve(selected);
+      } else {
+        fileDialogPromise.reject(new Error("No file selected"));
+      }
+      fileDialogPromise = null;
+    }
+    return;
+  }
+
+  // Handle folder/path selection modes
   if (!fileBrowserState.inputElement) {
     closeFileBrowser();
     return;
   }
 
-  const selected = fileBrowserState.selectedPath;
   if (!selected) {
     setStatus("No file selected");
     return;
