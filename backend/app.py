@@ -802,6 +802,72 @@ def _read_threshold_energies(h5: h5py.File, count: int) -> list[float | None]:
     return energies
 
 
+def _copy_h5_metadata(src_h5: h5py.File, dst_h5: h5py.File, threshold_count: int) -> None:
+    """Copy metadata from source H5 to destination, including channel info and threshold energies."""
+    # Copy root-level attributes
+    for key, val in src_h5.attrs.items():
+        if key not in dst_h5.attrs:
+            try:
+                dst_h5.attrs[key] = val
+            except Exception:
+                pass
+    
+    # Copy instrument/detector metadata, especially channel and threshold info
+    if "/entry/instrument/detector" in src_h5:
+        src_detector = src_h5["/entry/instrument/detector"]
+        dst_detector = dst_h5.require_group("/entry/instrument/detector")
+        
+        # Copy detector group attributes
+        for key, val in src_detector.attrs.items():
+            if key not in dst_detector.attrs:
+                try:
+                    dst_detector.attrs[key] = val
+                except Exception:
+                    pass
+        
+        # Copy channel information (threshold channels)
+        for thr in range(threshold_count):
+            channel_path = f"threshold_{thr + 1}_channel"
+            if channel_path in src_detector:
+                src_channel = src_detector[channel_path]
+                dst_channel = dst_detector.require_group(channel_path)
+                
+                # Copy channel attributes
+                for key, val in src_channel.attrs.items():
+                    if key not in dst_channel.attrs:
+                        try:
+                            dst_channel.attrs[key] = val
+                        except Exception:
+                            pass
+                
+                # Copy important datasets from channel (threshold_energy, etc.)
+                for item_name in src_channel:
+                    if item_name in ("pixel_mask",):  # Skip pixel_mask, handled separately
+                        continue
+                    src_item = src_channel[item_name]
+                    if isinstance(src_item, h5py.Dataset) and item_name not in dst_channel:
+                        try:
+                            dst_channel.create_dataset(item_name, data=src_item[()])
+                        except Exception:
+                            pass
+    
+    # Copy sample/beamline metadata if present
+    for group_path in ("/entry/instrument", "/entry/sample", "/entry/data"):
+        if group_path in src_h5 and group_path not in dst_h5:
+            try:
+                src_group = src_h5[group_path]
+                dst_group = dst_h5.require_group(group_path)
+                # Copy group attributes
+                for key, val in src_group.attrs.items():
+                    if key not in dst_group.attrs:
+                        try:
+                            dst_group.attrs[key] = val
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+
 def _walk_datasets(
     obj: Any,
     base_path: str,
@@ -1456,6 +1522,14 @@ def _run_series_summing_job(
 
                 entry_group = out_h5.require_group("/entry")
                 data_group = entry_group.require_group("data")
+                
+                # Copy metadata from source H5 file
+                try:
+                    with h5py.File(source_path, "r") as src_h5:
+                        _copy_h5_metadata(src_h5, out_h5, threshold_count)
+                except Exception:
+                    pass  # If metadata copy fails, continue with data writing
+                
                 data_dset = data_group.create_dataset(
                     "data",
                     shape=data_shape,
