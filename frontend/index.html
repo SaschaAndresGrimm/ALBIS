@@ -322,6 +322,13 @@
           <div class="panel-tab-content" data-panel-tab="data">
             <div class="panel-tab-card" id="data-section">
               <label class="field">
+                <span>File System</span>
+                <select id="filesystem-mode">
+                  <option value="remote">Remote Server</option>
+                  <option value="local">Local Machine</option>
+                </select>
+              </label>
+              <label class="field">
                 <span>Data Source</span>
                 <select id="autoload-mode">
                   <option value="file">File</option>
@@ -598,6 +605,42 @@
         </div>
       </div>
     </div>
+
+    <div class="modal" id="browse-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card browse-modal-card" role="dialog" aria-modal="true" aria-labelledby="browse-title">
+        <div class="modal-header">
+          <div id="browse-title">Select Folder</div>
+          <button class="modal-close" id="browse-close">✕</button>
+        </div>
+        <div class="modal-body browse-modal-body">
+          <div class="browse-breadcrumb" id="browse-breadcrumb">
+            <button class="breadcrumb-btn" data-path="">Root</button>
+          </div>
+          <div class="browse-content">
+            <div class="browse-folders">
+              <div class="browse-section-title">Folders</div>
+              <div class="browse-list" id="browse-folders-list"></div>
+            </div>
+            <div class="browse-files">
+              <div class="browse-section-title">HDF5 Files</div>
+              <div class="browse-list" id="browse-files-list"></div>
+            </div>
+          </div>
+          <div class="browse-path">
+            <label>
+              <span>Path:</span>
+              <input id="browse-path-input" type="text" readonly />
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="browse-cancel">Cancel</button>
+          <button class="btn btn-primary" id="browse-select">Select</button>
+        </div>
+      </div>
+    </div>
+
     <script src="vendor/html2canvas.min.js"></script>
     <script type="module" src="app.js"></script>
   </body>

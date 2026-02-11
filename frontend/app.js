@@ -82,6 +82,7 @@ const peakOverlay = document.getElementById("peak-overlay");
 const peakCtx = peakOverlay?.getContext("2d");
 const dataSection = document.getElementById("data-section");
 const autoloadMode = document.getElementById("autoload-mode");
+const filesystemMode = document.getElementById("filesystem-mode");
 const autoloadDir = document.getElementById("autoload-dir");
 const autoloadInterval = document.getElementById("autoload-interval");
 const autoloadStatus = document.getElementById("autoload-status");
@@ -6805,31 +6806,264 @@ autoloadPattern?.addEventListener("change", () => {
   }
 });
 
-autoloadBrowse?.addEventListener("click", async () => {
+// File browser modal state and logic
+let fileBrowserState = {
+  currentPath: "",
+  selectedPath: "",
+  mode: null, // "autoload" or "series-sum"
+  inputElement: null,
+  filesystemMode: "remote", // "local" or "remote"
+};
+
+// Detect if backend and frontend are on the same machine
+function isBackendLocal() {
   try {
-    const res = await fetch(`${API}/choose-folder`);
-    if (res.status === 204) {
-      return;
-    }
+    const url = new URL(API, window.location.href);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "[::1]" ||
+      hostname === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+const backendIsLocal = isBackendLocal();
+
+const browseModal = document.getElementById("browse-modal");
+const browseBreadcrumb = document.getElementById("browse-breadcrumb");
+const browseFoldersList = document.getElementById("browse-folders-list");
+const browseFilesList = document.getElementById("browse-files-list");
+const browsePathInput = document.getElementById("browse-path-input");
+const browseSelectBtn = document.getElementById("browse-select");
+const browseCancelBtn = document.getElementById("browse-cancel");
+const browseCloseBtn = document.getElementById("browse-close");
+
+async function loadBrowseDirectory(path) {
+  try {
+    const query = path ? `?path=${encodeURIComponent(path)}` : "";
+    const res = await fetch(`${API}/browse${query}`);
     if (!res.ok) {
-      setAutoloadStatus("Folder picker unavailable");
-      return;
+      console.error("Failed to browse directory:", res.status);
+      return null;
     }
     const data = await res.json();
-    if (data?.path && autoloadDir) {
-      autoloadDir.value = data.path;
-      state.autoload.dir = data.path;
-      persistAutoloadSettings();
-      if (state.autoload.mode === "file") {
-        loadFiles().catch((err) => console.error(err));
-      }
-      if (state.autoload.running && state.autoload.mode === "watch") {
-        autoloadTick();
-      }
-    }
+    return data;
   } catch (err) {
-    console.error(err);
-    setAutoloadStatus("Folder picker failed");
+    console.error("Browse directory error:", err);
+    return null;
+  }
+}
+
+function renderBrowseContent(data) {
+  if (!data) return;
+
+  fileBrowserState.currentPath = data.currentPath || "";
+  fileBrowserState.selectedPath = fileBrowserState.currentPath;
+  browsePathInput.value = fileBrowserState.selectedPath;
+
+  // Update breadcrumb
+  browseBreadcrumb.innerHTML = "";
+  const rootBtn = document.createElement("button");
+  rootBtn.className = "breadcrumb-btn";
+  rootBtn.textContent = "Root";
+  rootBtn.dataset.path = "";
+  if (data.currentPath === "") {
+    rootBtn.classList.add("is-active");
+  }
+  rootBtn.addEventListener("click", () => loadAndRenderBrowser(""));
+  browseBreadcrumb.appendChild(rootBtn);
+
+  if (data.currentPath && data.currentPath !== "") {
+    const parts = data.currentPath.split("/");
+    let accumulated = "";
+    for (const part of parts) {
+      accumulated = accumulated ? `${accumulated}/${part}` : part;
+      const btn = document.createElement("button");
+      btn.className = "breadcrumb-btn";
+      btn.textContent = part;
+      btn.dataset.path = accumulated;
+      if (accumulated === data.currentPath) {
+        btn.classList.add("is-active");
+      }
+      btn.addEventListener("click", () => loadAndRenderBrowser(accumulated));
+      browseBreadcrumb.appendChild(btn);
+    }
+  }
+
+  // Render folders
+  browseFoldersList.innerHTML = "";
+  if (data.folders && data.folders.length > 0) {
+    for (const folder of data.folders) {
+      const btn = document.createElement("button");
+      btn.className = "browse-item";
+      btn.textContent = folder;
+      btn.addEventListener("click", () => {
+        const newPath = fileBrowserState.currentPath
+          ? `${fileBrowserState.currentPath}/${folder}`
+          : folder;
+        loadAndRenderBrowser(newPath);
+      });
+      browseFoldersList.appendChild(btn);
+    }
+  } else {
+    const empty = document.createElement("div");
+    empty.style.padding = "8px";
+    empty.style.color = "#999";
+    empty.style.fontSize = "11px";
+    empty.textContent = "No folders";
+    browseFoldersList.appendChild(empty);
+  }
+
+  // Render files
+  browseFilesList.innerHTML = "";
+  if (data.files && data.files.length > 0) {
+    for (const file of data.files) {
+      const btn = document.createElement("button");
+      btn.className = "browse-item";
+      btn.textContent = file;
+      btn.addEventListener("click", () => {
+        fileBrowserState.selectedPath = fileBrowserState.currentPath
+          ? `${fileBrowserState.currentPath}/${file}`
+          : file;
+        browsePathInput.value = fileBrowserState.selectedPath;
+        document.querySelectorAll(".browse-item.is-selected").forEach((el) => {
+          el.classList.remove("is-selected");
+        });
+        btn.classList.add("is-selected");
+      });
+      browseFilesList.appendChild(btn);
+    }
+  } else {
+    const empty = document.createElement("div");
+    empty.style.padding = "8px";
+    empty.style.color = "#999";
+    empty.style.fontSize = "11px";
+    empty.textContent = "No HDF5 files";
+    browseFilesList.appendChild(empty);
+  }
+}
+
+async function loadAndRenderBrowser(path) {
+  const data = await loadBrowseDirectory(path);
+  if (data) {
+    renderBrowseContent(data);
+  }
+}
+
+function openFileBrowser(mode, inputElement) {
+  fileBrowserState.mode = mode;
+  fileBrowserState.inputElement = inputElement;
+  fileBrowserState.currentPath = "";
+  fileBrowserState.selectedPath = "";
+  browseModal.classList.add("is-open");
+  loadAndRenderBrowser("").catch((err) => console.error(err));
+}
+
+function closeFileBrowser() {
+  browseModal.classList.remove("is-open");
+}
+
+browseSelectBtn?.addEventListener("click", () => {
+  if (!fileBrowserState.inputElement) {
+    closeFileBrowser();
+    return;
+  }
+
+  const selected = fileBrowserState.selectedPath;
+  if (!selected) {
+    setStatus("No file selected");
+    return;
+  }
+
+  if (fileBrowserState.mode === "autoload") {
+    autoloadDir.value = selected;
+    state.autoload.dir = selected;
+    persistAutoloadSettings();
+    if (state.autoload.mode === "file") {
+      loadFiles().catch((err) => console.error(err));
+    }
+    if (state.autoload.running && state.autoload.mode === "watch") {
+      autoloadTick();
+    }
+  } else if (fileBrowserState.mode === "series-sum") {
+    const picked = selected.replace(/[\\/]$/, "");
+    seriesSumOutput.value = `${picked}/series_sum`;
+  }
+
+  closeFileBrowser();
+});
+
+browseCancelBtn?.addEventListener("click", closeFileBrowser);
+browseCloseBtn?.addEventListener("click", closeFileBrowser);
+
+browseModal?.addEventListener("click", (event) => {
+  if (event.target === browseModal) {
+    closeFileBrowser();
+  }
+});
+
+// Handle filesystem mode selection
+filesystemMode?.addEventListener("change", () => {
+  fileBrowserState.filesystemMode = filesystemMode.value;
+});
+
+async function handleLocalFileSelection(mode, inputElement) {
+  fileInput.accept = ".h5,.hdf5";
+  fileInput.onchange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (mode === "autoload") {
+      // For local filesystem, we can only use the HTML file input
+      // Store the selected filename (this is a client-side only selection)
+      autoloadDir.value = file.name;
+      state.autoload.dir = file.name;
+      persistAutoloadSettings();
+      // Note: actual file loading from user's machine would require additional upload endpoint
+      setAutoloadStatus("Local file selected (upload endpoint needed for full support)");
+    }
+  };
+  fileInput.click();
+}
+
+autoloadBrowse?.addEventListener("click", async () => {
+  // If backend is local, always use native dialog
+  if (backendIsLocal) {
+    try {
+      const res = await fetch(`${API}/choose-folder`);
+      if (res.status === 204) {
+        return;
+      }
+      if (!res.ok) {
+        setAutoloadStatus("Folder picker unavailable");
+        return;
+      }
+      const data = await res.json();
+      if (data?.path && autoloadDir) {
+        autoloadDir.value = data.path;
+        state.autoload.dir = data.path;
+        persistAutoloadSettings();
+        if (state.autoload.mode === "file") {
+          loadFiles().catch((err) => console.error(err));
+        }
+        if (state.autoload.running && state.autoload.mode === "watch") {
+          autoloadTick();
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setAutoloadStatus("Folder picker failed");
+    }
+  } else if (filesystemMode?.value === "local") {
+    // Use HTML5 file input for local filesystem on remote backend
+    handleLocalFileSelection("autoload", autoloadDir);
+  } else {
+    // Use web browser for remote filesystem
+    openFileBrowser("autoload", autoloadDir);
   }
 });
 
@@ -7633,6 +7867,12 @@ window.addEventListener("resize", () => {
 });
 
 initRenderer();
+
+// Hide filesystem mode selector if backend is local
+if (backendIsLocal && filesystemMode) {
+  filesystemMode.parentElement?.classList.add("is-hidden");
+}
+
 showSplash();
 drawSplash();
 if (fpsRange) {
@@ -7772,21 +8012,31 @@ seriesSumRangeEnd?.addEventListener("change", () => {
 
 seriesSumBrowse?.addEventListener("click", async () => {
   if (state.seriesSum.running) return;
-  try {
-    const res = await fetch(`${API}/choose-folder`);
-    if (res.status === 204) return;
-    if (!res.ok) {
-      setStatus("Series output picker unavailable");
-      return;
+  
+  // If backend is local, always use native dialog
+  if (backendIsLocal) {
+    try {
+      const res = await fetch(`${API}/choose-folder`);
+      if (res.status === 204) return;
+      if (!res.ok) {
+        setStatus("Series output picker unavailable");
+        return;
+      }
+      const data = await res.json();
+      if (data?.path && seriesSumOutput) {
+        const picked = String(data.path).replace(/[\\/]$/, "");
+        seriesSumOutput.value = `${picked}/series_sum`;
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("Series output picker failed");
     }
-    const data = await res.json();
-    if (data?.path && seriesSumOutput) {
-      const picked = String(data.path).replace(/[\\/]$/, "");
-      seriesSumOutput.value = `${picked}/series_sum`;
-    }
-  } catch (err) {
-    console.error(err);
-    setStatus("Series output picker failed");
+  } else if (filesystemMode?.value === "local") {
+    // Use HTML5 file input for local filesystem on remote backend
+    handleLocalFileSelection("series-sum", seriesSumOutput);
+  } else {
+    // Use web browser for remote filesystem
+    openFileBrowser("series-sum", seriesSumOutput);
   }
 });
 

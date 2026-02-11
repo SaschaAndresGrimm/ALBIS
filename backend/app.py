@@ -1862,6 +1862,79 @@ def choose_file() -> Response:
     return JSONResponse({"path": str(picked)})
 
 
+@app.get("/api/browse")
+def browse(path: str | None = Query(None)) -> dict[str, Any]:
+    """List folders and HDF5 files in a directory for web-based file browser.
+    
+    Returns:
+        - folders: list of subdirectory names
+        - files: list of HDF5 file names with relative paths
+        - currentPath: the resolved directory path (relative to DATA_DIR if allowed)
+        - root: the root DATA_DIR path
+        - canGoUp: whether we can navigate to parent directory
+    """
+    try:
+        target_dir = _resolve_dir(path)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            target_dir = DATA_DIR.resolve()
+        else:
+            raise
+
+    # Get folders in current directory
+    dirs: set[str] = set()
+    try:
+        with os.scandir(target_dir) as it:
+            for entry in it:
+                if entry.name.startswith("."):
+                    continue
+                try:
+                    if entry.is_dir(follow_symlinks=False):
+                        dirs.add(entry.name)
+                except OSError:
+                    continue
+    except OSError:
+        pass
+
+    # Get HDF5 files in current directory (non-recursive)
+    files: set[str] = set()
+    try:
+        with os.scandir(target_dir) as it:
+            for entry in it:
+                if entry.name.startswith("."):
+                    continue
+                try:
+                    if entry.is_file(follow_symlinks=False):
+                        ext = os.path.splitext(entry.name)[1].lower()
+                        if ext in {".h5", ".hdf5"}:
+                            files.add(entry.name)
+                except OSError:
+                    continue
+    except OSError:
+        pass
+
+    # Compute relative path display
+    data_root = DATA_DIR.resolve()
+    try:
+        rel_path = target_dir.relative_to(data_root)
+        current_path_display = rel_path.as_posix() if rel_path != Path(".") else ""
+    except ValueError:
+        # Outside DATA_DIR, show absolute if allowed
+        current_path_display = str(target_dir) if ALLOW_ABS_PATHS else ""
+
+    # Check if we can go up
+    can_go_up = target_dir.resolve() != data_root.resolve()
+
+    return {
+        "folders": sorted(dirs),
+        "files": sorted(files),
+        "currentPath": current_path_display,
+        "root": str(data_root),
+        "canGoUp": can_go_up,
+        "allowAbsolutePaths": ALLOW_ABS_PATHS,
+    }
+
+
 @app.get("/api/autoload/latest")
 def autoload_latest(
     folder: str | None = Query(None),
