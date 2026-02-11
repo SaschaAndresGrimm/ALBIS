@@ -2399,14 +2399,6 @@ function getAnchorForHandle(view, handle, keepCenter) {
       return { x: view.viewX, y: view.viewY };
     case "sw":
       return { x: view.viewX + view.viewW, y: view.viewY };
-    case "n":
-      return { x: view.viewX + view.viewW / 2, y: view.viewY + view.viewH };
-    case "s":
-      return { x: view.viewX + view.viewW / 2, y: view.viewY };
-    case "e":
-      return { x: view.viewX, y: view.viewY + view.viewH / 2 };
-    case "w":
-      return { x: view.viewX + view.viewW, y: view.viewY + view.viewH / 2 };
     default:
       return null;
   }
@@ -2587,10 +2579,6 @@ function drawOverview() {
     { name: "ne", x: rectX + rectW, y: rectY },
     { name: "se", x: rectX + rectW, y: rectY + rectH },
     { name: "sw", x: rectX, y: rectY + rectH },
-    { name: "n", x: rectX + rectW / 2, y: rectY },
-    { name: "e", x: rectX + rectW, y: rectY + rectH / 2 },
-    { name: "s", x: rectX + rectW / 2, y: rectY + rectH },
-    { name: "w", x: rectX, y: rectY + rectH / 2 },
   ];
   overviewCtx.fillStyle = "rgba(220, 245, 255, 0.95)";
   overviewCtx.strokeStyle = "rgba(10, 20, 30, 0.8)";
@@ -7831,14 +7819,8 @@ overviewCanvas?.addEventListener("pointermove", (event) => {
     if (!overviewPoint) return;
     const handle = getOverviewHandleAt(overviewPoint);
     if (handle) {
-      if (handle === "n" || handle === "s") {
-        overviewCanvas.style.cursor = "ns-resize";
-      } else if (handle === "e" || handle === "w") {
-        overviewCanvas.style.cursor = "ew-resize";
-      } else {
-        overviewCanvas.style.cursor =
-          handle === "nw" || handle === "se" ? "nwse-resize" : "nesw-resize";
-      }
+      overviewCanvas.style.cursor =
+        handle === "nw" || handle === "se" ? "nwse-resize" : "nesw-resize";
     } else {
       overviewCanvas.style.cursor = "";
     }
