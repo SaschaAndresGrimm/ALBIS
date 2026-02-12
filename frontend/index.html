@@ -13,6 +13,7 @@
         <div class="menu-bar">
           <div class="menu-left">
             <button class="menu-item is-active" data-menu="file">File</button>
+            <button class="menu-item" data-menu="settings">Settings</button>
             <button class="menu-item" data-menu="help">Help</button>
           </div>
           <div class="menu-right">ALBIS</div>
@@ -67,6 +68,12 @@
                 </button>
               </div>
             </div>
+          </div>
+          <div class="dropdown-panel" data-menu="settings">
+            <button class="dropdown-item" data-action="settings-open">
+              <span>Preferences…</span>
+              <span class="shortcut">⌘,</span>
+            </button>
           </div>
           <div class="dropdown-panel" data-menu="help">
             <button class="dropdown-item" data-action="help-docs">
@@ -515,7 +522,7 @@
               </label>
               <label class="field peaks-count-field">
                 <span>Peaks to find</span>
-                <input id="peaks-count" type="number" min="1" max="500" step="1" value="25" />
+                <input id="peaks-count" type="number" min="1" max="1000" step="1" value="100" />
               </label>
               <div class="peaks-actions">
                 <button id="peaks-export" class="btn" type="button">Export CSV</button>
@@ -605,6 +612,87 @@
           <p id="about-version">Version 0.4</p>
           <p>Rendering: WebGL2 with LUTs (CPU fallback).</p>
           <p>Dataset: HDF5 stacks.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="settings-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="modal-header">
+          <div id="settings-title">Settings</div>
+          <button class="modal-close" id="settings-close">✕</button>
+        </div>
+        <div class="modal-body settings-modal-body">
+          <div class="settings-meta">
+            <div>Config file: <code id="settings-config-path">-</code></div>
+            <div class="settings-hint">Some settings apply after restart.</div>
+          </div>
+          <div class="settings-grid">
+            <label class="field">
+              <span>Server host</span>
+              <input id="settings-server-host" type="text" />
+            </label>
+            <label class="field">
+              <span>Server port</span>
+              <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
+            </label>
+            <label class="checkbox settings-check">
+              <input id="settings-server-reload" type="checkbox" />
+              Enable backend reload
+            </label>
+            <label class="field">
+              <span>Launcher port</span>
+              <input id="settings-launcher-port" type="number" min="0" max="65535" step="1" />
+            </label>
+            <label class="field">
+              <span>Startup timeout (s)</span>
+              <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
+            </label>
+            <label class="checkbox settings-check">
+              <input id="settings-open-browser" type="checkbox" />
+              Open browser on launch
+            </label>
+            <label class="field settings-span-2">
+              <span>Data root</span>
+              <input id="settings-data-root" type="text" />
+            </label>
+            <label class="checkbox settings-check">
+              <input id="settings-allow-abs" type="checkbox" />
+              Allow absolute paths
+            </label>
+            <label class="field">
+              <span>Scan cache (s)</span>
+              <input id="settings-scan-cache" type="number" min="0" step="0.1" />
+            </label>
+            <label class="field">
+              <span>Max scan depth</span>
+              <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
+            </label>
+            <label class="field">
+              <span>Max upload (MB)</span>
+              <input id="settings-max-upload" type="number" min="0" step="1" />
+            </label>
+            <label class="field">
+              <span>Log level</span>
+              <select id="settings-log-level">
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+            </label>
+            <label class="field settings-span-2">
+              <span>Log directory</span>
+              <input id="settings-log-dir" type="text" />
+            </label>
+          </div>
+          <div class="settings-message" id="settings-message"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="settings-cancel">Cancel</button>
+          <button class="btn btn-primary" id="settings-save">Save</button>
         </div>
       </div>
     </div>

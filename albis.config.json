@@ -1,16 +1,16 @@
 {
   "server": {
-    "host": "127.0.0.1",
+    "host": "0.0.0.0",
     "port": 8000,
-    "reload": false
+    "reload": true
   },
   "launcher": {
-    "port": 0,
+    "port": 8080,
     "startup_timeout_sec": 5.0,
     "open_browser": true
   },
   "data": {
-    "root": "",
+    "root": "./data",
     "allow_abs_paths": true,
     "scan_cache_sec": 2.0,
     "max_scan_depth": -1,
@@ -18,6 +18,6 @@
   },
   "logging": {
     "level": "INFO",
-    "dir": ""
+    "dir": "./logs"
   }
 }

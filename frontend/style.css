@@ -2016,6 +2016,72 @@ body {
   margin: 0 0 6px;
 }
 
+.settings-modal-card {
+  width: min(760px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.settings-meta {
+  display: grid;
+  gap: 4px;
+  color: #c8c8c8;
+  font-size: 12px;
+}
+
+.settings-hint {
+  color: #9fb8df;
+  font-size: 11px;
+}
+
+#settings-config-path {
+  color: #d6e6ff;
+  word-break: break-all;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.settings-span-2 {
+  grid-column: span 2;
+}
+
+.settings-check {
+  min-height: 34px;
+  align-self: end;
+}
+
+.settings-message {
+  min-height: 16px;
+  font-size: 12px;
+  color: #d8d8d8;
+}
+
+.settings-message.is-error {
+  color: #ff8888;
+}
+
+@media (max-width: 760px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-span-2 {
+    grid-column: span 1;
+  }
+}
+
 
 .splash {
   position: absolute;

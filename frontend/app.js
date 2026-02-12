@@ -188,6 +188,25 @@ const submenuParents = document.querySelectorAll(".dropdown-submenu-parent");
 const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
 const aboutModal = document.getElementById("about-modal");
 const aboutClose = document.getElementById("about-close");
+const settingsModal = document.getElementById("settings-modal");
+const settingsClose = document.getElementById("settings-close");
+const settingsCancel = document.getElementById("settings-cancel");
+const settingsSave = document.getElementById("settings-save");
+const settingsConfigPath = document.getElementById("settings-config-path");
+const settingsMessage = document.getElementById("settings-message");
+const settingsServerHost = document.getElementById("settings-server-host");
+const settingsServerPort = document.getElementById("settings-server-port");
+const settingsServerReload = document.getElementById("settings-server-reload");
+const settingsLauncherPort = document.getElementById("settings-launcher-port");
+const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
+const settingsOpenBrowser = document.getElementById("settings-open-browser");
+const settingsDataRoot = document.getElementById("settings-data-root");
+const settingsAllowAbs = document.getElementById("settings-allow-abs");
+const settingsScanCache = document.getElementById("settings-scan-cache");
+const settingsMaxScanDepth = document.getElementById("settings-max-scan-depth");
+const settingsMaxUpload = document.getElementById("settings-max-upload");
+const settingsLogLevel = document.getElementById("settings-log-level");
+const settingsLogDir = document.getElementById("settings-log-dir");
 const fileInput = document.getElementById("file-input");
 const uploadBar = document.getElementById("upload-bar");
 const uploadBarFill = document.getElementById("upload-bar-fill");
@@ -4188,6 +4207,122 @@ async function exportViewerWindow(filenameOverride) {
   }
 }
 
+function setSettingsMessage(text, isError = false) {
+  if (!settingsMessage) return;
+  settingsMessage.textContent = text || "";
+  settingsMessage.classList.toggle("is-error", Boolean(isError));
+}
+
+function closeSettingsModal() {
+  settingsModal?.classList.remove("is-open");
+  setSettingsMessage("");
+}
+
+function fillSettingsForm(config, configPath = "") {
+  if (!config || !settingsServerHost) return;
+  settingsServerHost.value = String(config?.server?.host ?? "127.0.0.1");
+  settingsServerPort.value = String(Number(config?.server?.port ?? 8000));
+  settingsServerReload.checked = Boolean(config?.server?.reload);
+
+  settingsLauncherPort.value = String(Number(config?.launcher?.port ?? 0));
+  settingsStartupTimeout.value = String(Number(config?.launcher?.startup_timeout_sec ?? 5.0));
+  settingsOpenBrowser.checked = Boolean(config?.launcher?.open_browser ?? true);
+
+  settingsDataRoot.value = String(config?.data?.root ?? "");
+  settingsAllowAbs.checked = Boolean(config?.data?.allow_abs_paths ?? true);
+  settingsScanCache.value = String(Number(config?.data?.scan_cache_sec ?? 2.0));
+  settingsMaxScanDepth.value = String(Number(config?.data?.max_scan_depth ?? -1));
+  settingsMaxUpload.value = String(Number(config?.data?.max_upload_mb ?? 0));
+
+  settingsLogLevel.value = String(config?.logging?.level ?? "INFO").toUpperCase();
+  settingsLogDir.value = String(config?.logging?.dir ?? "");
+  if (settingsConfigPath) {
+    settingsConfigPath.textContent = configPath || "-";
+  }
+}
+
+function collectSettingsForm() {
+  const asInt = (value, fallback) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    return Math.round(num);
+  };
+  const asFloat = (value, fallback) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    return num;
+  };
+
+  return {
+    server: {
+      host: (settingsServerHost?.value || "127.0.0.1").trim() || "127.0.0.1",
+      port: Math.max(0, Math.min(65535, asInt(settingsServerPort?.value, 8000))),
+      reload: Boolean(settingsServerReload?.checked),
+    },
+    launcher: {
+      port: Math.max(0, Math.min(65535, asInt(settingsLauncherPort?.value, 0))),
+      startup_timeout_sec: Math.max(0.1, asFloat(settingsStartupTimeout?.value, 5.0)),
+      open_browser: Boolean(settingsOpenBrowser?.checked),
+    },
+    data: {
+      root: (settingsDataRoot?.value || "").trim(),
+      allow_abs_paths: Boolean(settingsAllowAbs?.checked),
+      scan_cache_sec: Math.max(0, asFloat(settingsScanCache?.value, 2.0)),
+      max_scan_depth: Math.max(-1, asInt(settingsMaxScanDepth?.value, -1)),
+      max_upload_mb: Math.max(0, asInt(settingsMaxUpload?.value, 0)),
+    },
+    logging: {
+      level: (settingsLogLevel?.value || "INFO").toUpperCase(),
+      dir: (settingsLogDir?.value || "").trim(),
+    },
+  };
+}
+
+async function openSettingsModal() {
+  closeMenu();
+  if (!settingsModal) return;
+  settingsModal.classList.add("is-open");
+  setSettingsMessage("Loading settings...");
+  try {
+    const res = await fetch(`${API}/settings`);
+    if (!res.ok) {
+      throw new Error(`Settings request failed: ${res.status}`);
+    }
+    const payload = await res.json();
+    fillSettingsForm(payload?.config || {}, payload?.path || "");
+    setSettingsMessage("Edit values and click Save.");
+  } catch (err) {
+    console.error(err);
+    setSettingsMessage("Failed to load settings", true);
+  }
+}
+
+async function saveSettingsFromModal() {
+  if (!settingsSave) return;
+  const config = collectSettingsForm();
+  settingsSave.disabled = true;
+  setSettingsMessage("Saving settings...");
+  try {
+    const res = await fetch(`${API}/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.detail || `Save failed (${res.status})`);
+    }
+    fillSettingsForm(data?.config || config, data?.path || "");
+    setSettingsMessage("Saved. Restart ALBIS to apply all settings.");
+    setStatus("Settings saved. Restart ALBIS to apply all settings.");
+  } catch (err) {
+    console.error(err);
+    setSettingsMessage(String(err?.message || "Failed to save settings"), true);
+  } finally {
+    settingsSave.disabled = false;
+  }
+}
+
 async function handleMenuAction(action) {
   switch (action) {
     case "help-docs":
@@ -4203,6 +4338,9 @@ async function handleMenuAction(action) {
         console.error(err);
         setStatus("Failed to open log file");
       }
+      break;
+    case "settings-open":
+      openSettingsModal();
       break;
     case "help-about":
       if (aboutModal) {
@@ -4264,7 +4402,7 @@ function handleShortcut(event) {
   const key = event.key.toLowerCase();
   const isShift = event.shiftKey;
   const isAlt = event.altKey;
-  if (["o", "s", "e", "n", "w"].includes(key)) {
+  if (["o", "s", "e", "n", "w", ","].includes(key)) {
     event.preventDefault();
   }
   switch (key) {
@@ -4294,6 +4432,9 @@ function handleShortcut(event) {
       break;
     case "n":
       handleMenuAction("new-window");
+      break;
+    case ",":
+      handleMenuAction("settings-open");
       break;
     default:
       break;
@@ -6598,8 +6739,10 @@ document.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeMenu();
-    if (aboutModal) {
-      aboutModal.classList.remove("is-open");
+    aboutModal?.classList.remove("is-open");
+    settingsModal?.classList.remove("is-open");
+    if (browseModal?.classList.contains("is-open")) {
+      closeFileBrowser();
     }
     return;
   }
@@ -6759,6 +6902,13 @@ if (aboutClose) {
     aboutModal?.classList.remove("is-open");
   });
 }
+
+settingsClose?.addEventListener("click", closeSettingsModal);
+settingsCancel?.addEventListener("click", closeSettingsModal);
+settingsSave?.addEventListener("click", () => {
+  void saveSettingsFromModal();
+});
+settingsModal?.querySelector(".modal-backdrop")?.addEventListener("click", closeSettingsModal);
 fileSelect.addEventListener("change", async (event) => {
   await ensureFileMode();
   state.file = event.target.value;

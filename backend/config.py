@@ -38,6 +38,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
 }
 
+_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
@@ -100,8 +102,60 @@ def _write_default_config(path: Path) -> bool:
         return False
 
 
+def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
+    """Return a fully-typed config payload merged with defaults."""
+    merged = copy.deepcopy(DEFAULT_CONFIG)
+    if isinstance(raw, dict):
+        _deep_merge(merged, raw)
+
+    server_host = get_str(merged, ("server", "host"), "127.0.0.1").strip() or "127.0.0.1"
+    server_port = max(0, min(65535, get_int(merged, ("server", "port"), 8000)))
+    launcher_port = max(0, min(65535, get_int(merged, ("launcher", "port"), 0)))
+    startup_timeout = max(0.1, get_float(merged, ("launcher", "startup_timeout_sec"), 5.0))
+    scan_cache = max(0.0, get_float(merged, ("data", "scan_cache_sec"), 2.0))
+    max_scan_depth = get_int(merged, ("data", "max_scan_depth"), -1)
+    if max_scan_depth < -1:
+        max_scan_depth = -1
+    max_upload_mb = max(0, get_int(merged, ("data", "max_upload_mb"), 0))
+    log_level = get_str(merged, ("logging", "level"), "INFO").upper()
+    if log_level not in _LOG_LEVELS:
+        log_level = "INFO"
+
+    return {
+        "server": {
+            "host": server_host,
+            "port": server_port,
+            "reload": get_bool(merged, ("server", "reload"), False),
+        },
+        "launcher": {
+            "port": launcher_port,
+            "startup_timeout_sec": startup_timeout,
+            "open_browser": get_bool(merged, ("launcher", "open_browser"), True),
+        },
+        "data": {
+            "root": get_str(merged, ("data", "root"), ""),
+            "allow_abs_paths": get_bool(merged, ("data", "allow_abs_paths"), True),
+            "scan_cache_sec": scan_cache,
+            "max_scan_depth": max_scan_depth,
+            "max_upload_mb": max_upload_mb,
+        },
+        "logging": {
+            "level": log_level,
+            "dir": get_str(merged, ("logging", "dir"), ""),
+        },
+    }
+
+
+def save_config(config: dict[str, Any], path: Path) -> None:
+    """Persist a normalized config to disk."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        json.dump(normalize_config(config), fh, indent=2)
+        fh.write("\n")
+
+
 def load_config() -> tuple[dict[str, Any], Path]:
-    config = copy.deepcopy(DEFAULT_CONFIG)
+    config = normalize_config(None)
     config_path: Path | None = None
     for path in _candidate_paths():
         if path.exists():
@@ -114,8 +168,7 @@ def load_config() -> tuple[dict[str, Any], Path]:
                 return config, user_path
         _write_default_config(_default_config_path())
         return config, _default_config_path()
-    _deep_merge(config, _parse_config(config_path))
-    return config, config_path
+    return normalize_config(_parse_config(config_path)), config_path
 
 
 def get_nested(config: dict[str, Any], keys: tuple[str, ...], default: Any) -> Any:

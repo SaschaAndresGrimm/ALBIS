@@ -37,9 +37,9 @@ from fastapi.staticfiles import StaticFiles
 import shutil
 
 try:
-    from .config import get_bool, get_float, get_int, get_str, load_config, resolve_path
+    from .config import DEFAULT_CONFIG, get_bool, get_float, get_int, get_str, load_config, normalize_config, resolve_path, save_config
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from config import get_bool, get_float, get_int, get_str, load_config, resolve_path
+    from config import DEFAULT_CONFIG, get_bool, get_float, get_int, get_str, load_config, normalize_config, resolve_path, save_config
 
 CONFIG, CONFIG_PATH = load_config()
 CONFIG_BASE_DIR = CONFIG_PATH.parent
@@ -1643,6 +1643,48 @@ def _run_series_summing_job(
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "version": ALBIS_VERSION}
+
+
+def _settings_payload() -> dict[str, Any]:
+    return {
+        "config": CONFIG,
+        "defaults": DEFAULT_CONFIG,
+        "path": str(CONFIG_PATH),
+        "restart_required": True,
+    }
+
+
+@app.get("/api/settings")
+def get_settings() -> dict[str, Any]:
+    return _settings_payload()
+
+
+@app.post("/api/settings")
+def save_settings(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    global CONFIG, ALLOW_ABS_PATHS, SCAN_CACHE_SEC, MAX_SCAN_DEPTH, MAX_UPLOAD_MB, MAX_UPLOAD_BYTES
+    raw = payload.get("config") if isinstance(payload, dict) else None
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=400, detail="Missing config payload")
+
+    try:
+        normalized = normalize_config(raw)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid config: {exc}") from exc
+
+    try:
+        save_config(normalized, CONFIG_PATH)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="Failed to save config") from exc
+
+    CONFIG = normalized
+    ALLOW_ABS_PATHS = get_bool(CONFIG, ("data", "allow_abs_paths"), True)
+    SCAN_CACHE_SEC = get_float(CONFIG, ("data", "scan_cache_sec"), 2.0)
+    MAX_SCAN_DEPTH = get_int(CONFIG, ("data", "max_scan_depth"), -1)
+    MAX_UPLOAD_MB = max(0, get_int(CONFIG, ("data", "max_upload_mb"), 0))
+    MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
+
+    logger.info("Config updated via UI: %s", CONFIG_PATH)
+    return _settings_payload()
 
 
 @app.post("/api/client-log")
