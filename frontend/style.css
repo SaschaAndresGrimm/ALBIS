@@ -1278,7 +1278,7 @@ body {
 .series-sum-options {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px 10px;
+  gap: 6px 8px;
   align-items: end;
 }
 
@@ -1287,12 +1287,37 @@ body {
   min-width: 0;
 }
 
+#series-sum-mode-field {
+  grid-column: span 2;
+}
+
+#series-sum-operation-field,
+#series-sum-format-field,
+#series-sum-step-field,
+#series-sum-range-start-field,
+#series-sum-range-end-field,
+#series-sum-normalize-frame-field {
+  grid-column: span 1;
+}
+
+.series-sum-normalize-option,
 .series-sum-mask-option {
-  margin-bottom: 6px;
+  margin: 0 0 4px;
   white-space: nowrap;
   align-self: end;
   justify-self: start;
-  grid-column: 4;
+}
+
+.series-sum-normalize-option {
+  grid-column: span 2;
+}
+
+.series-sum-mask-option {
+  grid-column: span 2;
+}
+
+#series-sum-normalize-frame {
+  max-width: 110px;
 }
 
 .series-sum-output-row {
@@ -1587,6 +1612,8 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  #series-sum-mode-field,
+  .series-sum-normalize-option,
   .series-sum-mask-option {
     grid-column: span 2;
   }

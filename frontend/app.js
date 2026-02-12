@@ -166,6 +166,7 @@ const peaksCountInput = document.getElementById("peaks-count");
 const peaksExportBtn = document.getElementById("peaks-export");
 const peaksBody = document.getElementById("peaks-body");
 const seriesSumMode = document.getElementById("series-sum-mode");
+const seriesSumOperation = document.getElementById("series-sum-operation");
 const seriesSumStepField = document.getElementById("series-sum-step-field");
 const seriesSumStepLabel = document.getElementById("series-sum-step-label");
 const seriesSumStep = document.getElementById("series-sum-step");
@@ -173,6 +174,9 @@ const seriesSumRangeStartField = document.getElementById("series-sum-range-start
 const seriesSumRangeEndField = document.getElementById("series-sum-range-end-field");
 const seriesSumRangeStart = document.getElementById("series-sum-range-start");
 const seriesSumRangeEnd = document.getElementById("series-sum-range-end");
+const seriesSumNormalizeEnable = document.getElementById("series-sum-normalize-enable");
+const seriesSumNormalizeFrameField = document.getElementById("series-sum-normalize-frame-field");
+const seriesSumNormalizeFrame = document.getElementById("series-sum-normalize-frame");
 const seriesSumOutput = document.getElementById("series-sum-output");
 const seriesSumBrowse = document.getElementById("series-sum-browse");
 const seriesSumFormat = document.getElementById("series-sum-format");
@@ -1789,11 +1793,18 @@ function setSeriesSumProgress(progress, text) {
   if (seriesSumProgressFill) {
     seriesSumProgressFill.style.width = `${(value * 100).toFixed(1)}%`;
   }
+  const canOpen = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
   if (seriesSumProgressText) {
-    const pct = `${Math.round(value * 100)}%`;
-    seriesSumProgressText.textContent = state.seriesSum.running
-      ? `${pct}  ${state.seriesSum.message || "Running…"}`
-      : state.seriesSum.message || "Idle";
+    if (state.seriesSum.running) {
+      const pct = `${Math.round(value * 100)}%`;
+      seriesSumProgressText.textContent = `${pct}  ${state.seriesSum.message || "Running…"}`;
+    } else {
+      let message = state.seriesSum.message || "Idle";
+      if (canOpen && !/click to open/i.test(message)) {
+        message = `${message} — click to open`;
+      }
+      seriesSumProgressText.textContent = message;
+    }
   }
   updateSeriesSumProgressOpenState();
 }
@@ -1802,6 +1813,7 @@ function updateSeriesSumUi() {
   const mode = (seriesSumMode?.value || "all").toLowerCase();
   const isNth = mode === "nth";
   const isRange = mode === "range";
+  const normalizeEnabled = Boolean(seriesSumNormalizeEnable?.checked);
   if (seriesSumStepField) {
     seriesSumStepField.classList.toggle("is-hidden", mode === "all");
   }
@@ -1813,6 +1825,9 @@ function updateSeriesSumUi() {
   }
   if (seriesSumRangeEndField) {
     seriesSumRangeEndField.classList.toggle("is-hidden", !isRange);
+  }
+  if (seriesSumNormalizeFrameField) {
+    seriesSumNormalizeFrameField.classList.toggle("is-hidden", !normalizeEnabled);
   }
   const totalFrames = Math.max(1, Number(state.frameCount || 1));
   if (seriesSumRangeStart) {
@@ -1827,16 +1842,25 @@ function updateSeriesSumUi() {
     const nextEnd = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumRangeEnd.value || totalFrames))));
     seriesSumRangeEnd.value = String(nextEnd);
   }
+  if (seriesSumNormalizeFrame) {
+    seriesSumNormalizeFrame.min = "1";
+    seriesSumNormalizeFrame.max = String(totalFrames);
+    const nextNorm = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumNormalizeFrame.value || 1))));
+    seriesSumNormalizeFrame.value = String(nextNorm);
+  }
   const ready = Boolean(state.file && state.dataset);
   if (seriesSumStart) {
     seriesSumStart.disabled = !ready || state.seriesSum.running;
     seriesSumStart.textContent = state.seriesSum.running ? "Summing…" : "Start Summing";
   }
   if (seriesSumBrowse) {
-    seriesSumBrowse.disabled = state.seriesSum.running;
+    seriesSumBrowse.disabled = state.seriesSum.running || !ready;
   }
   if (seriesSumMode) {
     seriesSumMode.disabled = state.seriesSum.running || !ready;
+  }
+  if (seriesSumOperation) {
+    seriesSumOperation.disabled = state.seriesSum.running || !ready;
   }
   if (seriesSumStep) {
     seriesSumStep.disabled = state.seriesSum.running || mode === "all" || !ready;
@@ -1846,6 +1870,12 @@ function updateSeriesSumUi() {
   }
   if (seriesSumRangeEnd) {
     seriesSumRangeEnd.disabled = state.seriesSum.running || !isRange || !ready;
+  }
+  if (seriesSumNormalizeEnable) {
+    seriesSumNormalizeEnable.disabled = state.seriesSum.running || !ready;
+  }
+  if (seriesSumNormalizeFrame) {
+    seriesSumNormalizeFrame.disabled = state.seriesSum.running || !normalizeEnabled || !ready;
   }
   if (seriesSumOutput) {
     seriesSumOutput.disabled = state.seriesSum.running || !ready;
@@ -1912,21 +1942,37 @@ async function pollSeriesSumStatus() {
 async function startSeriesSumming() {
   if (!state.file || !state.dataset || state.seriesSum.running) return;
   const mode = (seriesSumMode?.value || "all").toLowerCase();
+  const operation = (seriesSumOperation?.value || "sum").toLowerCase();
+  const normalizeEnabled = Boolean(seriesSumNormalizeEnable?.checked);
+  const totalFrames = Math.max(1, Math.round(Number(state.frameCount || 1)));
+
   const step = Math.max(1, Math.round(Number(seriesSumStep?.value || 10)));
   if (seriesSumStep) {
     seriesSumStep.value = String(step);
   }
+
   const rangeStart = Math.max(1, Math.round(Number(seriesSumRangeStart?.value || 1)));
-  const rangeEnd = Math.max(1, Math.round(Number(seriesSumRangeEnd?.value || state.frameCount || 1)));
+  const rangeEnd = Math.max(1, Math.round(Number(seriesSumRangeEnd?.value || totalFrames)));
   if (mode === "range" && rangeStart > rangeEnd) {
     setStatus("Range start must be <= range end");
     return;
   }
+
+  let normalizeFrame = null;
+  if (normalizeEnabled) {
+    normalizeFrame = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumNormalizeFrame?.value || 1))));
+    if (seriesSumNormalizeFrame) {
+      seriesSumNormalizeFrame.value = String(normalizeFrame);
+    }
+  }
+
   const payload = {
     file: state.file,
     dataset: state.dataset,
     mode,
     step,
+    operation,
+    normalize_frame: normalizeFrame,
     range_start: mode === "range" ? rangeStart : null,
     range_end: mode === "range" ? rangeEnd : null,
     output_path: (seriesSumOutput?.value || "").trim(),
@@ -8343,6 +8389,14 @@ seriesSumMode?.addEventListener("change", () => {
   updateSeriesSumUi();
 });
 
+seriesSumOperation?.addEventListener("change", () => {
+  updateSeriesSumUi();
+});
+
+seriesSumNormalizeEnable?.addEventListener("change", () => {
+  updateSeriesSumUi();
+});
+
 seriesSumStep?.addEventListener("change", () => {
   const value = Math.max(1, Math.round(Number(seriesSumStep.value || 10)));
   seriesSumStep.value = String(value);
@@ -8358,6 +8412,12 @@ seriesSumRangeEnd?.addEventListener("change", () => {
   const total = Math.max(1, Number(state.frameCount || 1));
   const value = Math.max(1, Math.min(total, Math.round(Number(seriesSumRangeEnd.value || total))));
   seriesSumRangeEnd.value = String(value);
+});
+
+seriesSumNormalizeFrame?.addEventListener("change", () => {
+  const total = Math.max(1, Number(state.frameCount || 1));
+  const value = Math.max(1, Math.min(total, Math.round(Number(seriesSumNormalizeFrame.value || 1))));
+  seriesSumNormalizeFrame.value = String(value);
 });
 
 seriesSumBrowse?.addEventListener("click", async () => {

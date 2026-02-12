@@ -544,13 +544,28 @@
                 <span class="section-chevron">▾</span>
               </button>
               <div class="series-sum-options">
-                <label class="field">
+                <label class="field" id="series-sum-mode-field">
                   <span>Sum mode</span>
                   <select id="series-sum-mode">
                     <option value="all">All frames</option>
                     <option value="step">Chunks of N frames</option>
                     <option value="nth">Every Nth frame</option>
                     <option value="range">Range (start-end in chunks)</option>
+                  </select>
+                </label>
+                <label class="field" id="series-sum-operation-field">
+                  <span>Operation</span>
+                  <select id="series-sum-operation">
+                    <option value="sum">Sum</option>
+                    <option value="mean">Mean</option>
+                    <option value="median">Median</option>
+                  </select>
+                </label>
+                <label class="field" id="series-sum-format-field">
+                  <span>Format</span>
+                  <select id="series-sum-format">
+                    <option value="hdf5">HDF5</option>
+                    <option value="tiff">TIFF</option>
                   </select>
                 </label>
                 <label class="field" id="series-sum-step-field">
@@ -565,16 +580,17 @@
                   <span>End frame</span>
                   <input id="series-sum-range-end" type="number" min="1" step="1" value="1" />
                 </label>
-                <label class="field">
-                  <span>Format</span>
-                  <select id="series-sum-format">
-                    <option value="hdf5">HDF5</option>
-                    <option value="tiff">TIFF</option>
-                  </select>
+                <label class="checkbox series-sum-normalize-option">
+                  <input id="series-sum-normalize-enable" type="checkbox" />
+                  Normalize by frame
+                </label>
+                <label class="field is-hidden" id="series-sum-normalize-frame-field">
+                  <span>Norm frame</span>
+                  <input id="series-sum-normalize-frame" type="number" min="1" step="1" value="1" />
                 </label>
                 <label class="checkbox series-sum-mask-option">
                   <input id="series-sum-mask" type="checkbox" checked />
-                  Apply mask if available
+                  Apply mask
                 </label>
               </div>
               <label class="field">
