@@ -36,6 +36,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "level": "INFO",
         "dir": "",
     },
+    "ui": {
+        "tool_hints": False,
+    },
 }
 
 _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -142,6 +145,9 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         "logging": {
             "level": log_level,
             "dir": get_str(merged, ("logging", "dir"), ""),
+        },
+        "ui": {
+            "tool_hints": get_bool(merged, ("ui", "tool_hints"), False),
         },
     }
 

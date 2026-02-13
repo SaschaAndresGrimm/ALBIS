@@ -204,6 +204,7 @@ const settingsServerReload = document.getElementById("settings-server-reload");
 const settingsLauncherPort = document.getElementById("settings-launcher-port");
 const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
 const settingsOpenBrowser = document.getElementById("settings-open-browser");
+const settingsToolHints = document.getElementById("settings-tool-hints");
 const settingsDataRoot = document.getElementById("settings-data-root");
 const settingsAllowAbs = document.getElementById("settings-allow-abs");
 const settingsScanCache = document.getElementById("settings-scan-cache");
@@ -311,6 +312,7 @@ const state = {
   thresholdEnergies: [],
   backendAlive: false,
   backendVersion: "0.4",
+  toolHintsEnabled: false,
   isLoading: false,
   pendingFrame: null,
   playing: false,
@@ -516,6 +518,241 @@ function formatRoiTick(value) {
   if (abs >= 100) return value.toFixed(1);
   if (abs >= 10) return value.toFixed(2);
   return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+
+
+const HELP_SELECTORS = [
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "label.checkbox",
+  ".menu-item",
+  ".dropdown-item",
+  ".panel-tab",
+  ".section-title",
+  ".panel-fab",
+  ".panel-edge-toggle",
+  ".panel-resizer",
+  ".roi-resize-handle",
+].join(",");
+const HELP_DELAY_MS = 1000;
+let helpTooltip = null;
+let helpTimer = null;
+let helpTarget = null;
+let helpLastEvent = null;
+
+function getHelpLabelText(target) {
+  if (!target) return "";
+  const label = target.closest("label");
+  if (label) {
+    const span = label.querySelector("span");
+    const labelText = (span ? span.textContent : label.textContent) || "";
+    return labelText.replace(/\s+/g, " ").trim();
+  }
+  if (target.id) {
+    const labelFor = document.querySelector(`label[for="${target.id}"]`);
+    if (labelFor) {
+      return (labelFor.textContent || "").replace(/\s+/g, " ").trim();
+    }
+  }
+  return "";
+}
+
+function getHelpText(target) {
+  if (!target) return "";
+  const dataHelp = target.dataset?.help;
+  if (dataHelp) return dataHelp;
+  const ariaLabel = target.getAttribute?.("aria-label");
+  if (ariaLabel) return ariaLabel;
+  const title = target.getAttribute?.("title");
+  if (title) return title;
+  if (target.classList?.contains("menu-item")) {
+    const text = (target.textContent || "").replace(/\s+/g, " ").trim();
+    if (text) return `Open ${text} menu`;
+  }
+  if (target.classList?.contains("dropdown-item")) {
+    const text = target.querySelector("span")?.textContent?.trim() || "";
+    if (text) return text;
+  }
+  const labelText = getHelpLabelText(target);
+  if (labelText) return labelText;
+  const text = (target.textContent || "").replace(/\s+/g, " ").trim();
+  if (text) return text;
+  return "";
+}
+
+function applyHelpMap() {
+  const helpMap = {
+    "btn-prev": "Previous frame",
+    "btn-next": "Next frame",
+    "btn-play": "Play/pause playback",
+    "toolbar-threshold": "Select detector threshold",
+    "zoom-range": "Zoom image",
+    "reset-view": "Fit image to window",
+    "pixel-label-toggle": "Show pixel values at high zoom",
+    "mask-toggle": "Apply pixel mask (if available)",
+    "colormap-select": "Choose color map",
+    "invert-color": "Invert color map",
+    "rings-toggle": "Show resolution rings",
+    "roi-mode": "Select ROI mode",
+    "roi-log": "Log-scale ROI plots",
+    "roi-limits-enable": "Autoscale ROI plots",
+    "roi-export-csv": "Export ROI projection data as CSV",
+    "autoload-mode": "Select image source",
+    "filesystem-mode": "Select filesystem source",
+    "autoload-dir": "Folder to watch",
+    "autoload-browse": "Browse for a folder",
+    "autoload-pattern": "Filename filter (supports wildcards)",
+    "autoload-interval": "Polling interval (ms)",
+    "simplon-url": "SIMPLON base URL",
+    "simplon-timeout": "Monitor timeout (ms)",
+    "simplon-enable": "Enable live monitor",
+    "panel-fab": "Toggle side panel",
+    "panel-resizer": "Resize side panel",
+    "inspector-search-input": "Search the HDF5 tree",
+    "inspector-search-clear": "Clear search",
+  };
+  Object.entries(helpMap).forEach(([id, text]) => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.help) {
+      el.dataset.help = text;
+    }
+  });
+  document.querySelectorAll(".roi-resize-handle").forEach((el) => {
+    if (!el.dataset.help) el.dataset.help = "Drag to resize plot";
+  });
+  document.querySelectorAll("[data-help]").forEach((el) => {
+    if (el.hasAttribute("title")) {
+      el.removeAttribute("title");
+    }
+  });
+}
+
+
+function setToolHintsEnabled(enabled) {
+  state.toolHintsEnabled = Boolean(enabled);
+  if (!state.toolHintsEnabled) {
+    hideHelp();
+  }
+}
+
+function positionHelpTooltip(event) {
+  if (!helpTooltip || !helpLastEvent) return;
+  const evt = event || helpLastEvent;
+  const padding = 12;
+  const offset = 14;
+  let x = evt.clientX + offset;
+  let y = evt.clientY + offset;
+  const rect = helpTooltip.getBoundingClientRect();
+  const maxX = window.innerWidth - rect.width - padding;
+  const maxY = window.innerHeight - rect.height - padding;
+  if (x > maxX) x = Math.max(padding, evt.clientX - rect.width - offset);
+  if (y > maxY) y = Math.max(padding, evt.clientY - rect.height - offset);
+  helpTooltip.style.left = `${x}px`;
+  helpTooltip.style.top = `${y}px`;
+}
+
+function showHelp(target, event, immediate = false) {
+  if (!helpTooltip || !state.toolHintsEnabled) return;
+  const text = getHelpText(target);
+  if (!text) return;
+  helpTarget = target;
+  helpLastEvent = event;
+  if (helpTimer) {
+    clearTimeout(helpTimer);
+    helpTimer = null;
+  }
+  const reveal = () => {
+    helpTooltip.textContent = text;
+    helpTooltip.classList.add("is-visible");
+    positionHelpTooltip(event);
+  };
+  if (immediate) {
+    reveal();
+  } else {
+    helpTimer = setTimeout(reveal, HELP_DELAY_MS);
+  }
+}
+
+function hideHelp() {
+  if (helpTimer) {
+    clearTimeout(helpTimer);
+    helpTimer = null;
+  }
+  if (helpTooltip) {
+    helpTooltip.classList.remove("is-visible");
+  }
+  helpTarget = null;
+}
+
+function findHelpTarget(node) {
+  if (!node) return null;
+  if (node.closest(".help-tooltip")) return null;
+  return node.closest(HELP_SELECTORS);
+}
+
+window.addEventListener("DOMContentLoaded", initHelpTooltips, { once: true });
+
+function initHelpTooltips() {
+  if (helpTooltip) return;
+  helpTooltip = document.createElement("div");
+  helpTooltip.className = "help-tooltip";
+  helpTooltip.setAttribute("role", "tooltip");
+  document.body.appendChild(helpTooltip);
+  applyHelpMap();
+
+  document.addEventListener("pointerover", (event) => {
+    const target = findHelpTarget(event.target);
+    if (!target) return;
+    if (target === helpTarget) return;
+    showHelp(target, event, false);
+  }, true);
+
+  document.addEventListener("mouseover", (event) => {
+    const target = findHelpTarget(event.target);
+    if (!target) return;
+    if (target === helpTarget) return;
+    showHelp(target, event, false);
+  });
+
+  document.addEventListener("pointermove", (event) => {
+    if (!helpTooltip) return;
+    if (helpTimer) {
+      helpLastEvent = event;
+      return;
+    }
+    if (!helpTooltip.classList.contains("is-visible")) return;
+    helpLastEvent = event;
+    positionHelpTooltip(event);
+  });
+
+  document.addEventListener("pointerout", (event) => {
+    if (!helpTarget) return;
+    const related = event.relatedTarget;
+    if (related && helpTarget.contains(related)) return;
+    hideHelp();
+  }, true);
+
+  document.addEventListener("mouseout", (event) => {
+    if (!helpTarget) return;
+    const related = event.relatedTarget;
+    if (related && helpTarget.contains(related)) return;
+    hideHelp();
+  }, true);
+
+  document.addEventListener("focusin", (event) => {
+    const target = findHelpTarget(event.target);
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const fakeEvent = { clientX: rect.left + rect.width / 2, clientY: rect.top };
+    showHelp(target, fakeEvent, true);
+  }, true);
+
+  document.addEventListener("focusout", () => {
+    hideHelp();
+  });
 }
 
 function quickSelect(values, k) {
@@ -3684,11 +3921,26 @@ async function waitForBackendReady(timeoutMs = 20000) {
   return false;
 }
 
+
+async function fetchSettingsConfig() {
+  try {
+    const payload = await fetchJSON(`${API}/settings`);
+    const config = payload?.config || {};
+    if (typeof config?.ui?.tool_hints !== "undefined") {
+      setToolHintsEnabled(Boolean(config.ui.tool_hints));
+    }
+  } catch (err) {
+    console.warn("Settings fetch failed", err);
+  }
+}
+
 async function bootstrapApp() {
   showSplash();
   drawSplash();
   setSplashStatus("Starting backend...");
   await waitForBackendReady();
+  setSplashStatus("Loading settings...");
+  await fetchSettingsConfig();
   setSplashStatus("Loading file list...");
   await loadAutoloadFolders();
   await loadFiles();
@@ -4284,6 +4536,10 @@ function fillSettingsForm(config, configPath = "") {
   settingsLauncherPort.value = String(Number(config?.launcher?.port ?? 0));
   settingsStartupTimeout.value = String(Number(config?.launcher?.startup_timeout_sec ?? 5.0));
   settingsOpenBrowser.checked = Boolean(config?.launcher?.open_browser ?? true);
+  if (settingsToolHints) {
+    const toolHints = config?.ui?.tool_hints;
+    settingsToolHints.checked = Boolean(toolHints ?? state.toolHintsEnabled);
+  }
 
   settingsDataRoot.value = String(config?.data?.root ?? "");
   settingsAllowAbs.checked = Boolean(config?.data?.allow_abs_paths ?? true);
@@ -4332,6 +4588,9 @@ function collectSettingsForm() {
       level: (settingsLogLevel?.value || "INFO").toUpperCase(),
       dir: (settingsLogDir?.value || "").trim(),
     },
+    ui: {
+      tool_hints: Boolean(settingsToolHints?.checked),
+    },
   };
 }
 
@@ -4346,7 +4605,12 @@ async function openSettingsModal() {
       throw new Error(`Settings request failed: ${res.status}`);
     }
     const payload = await res.json();
-    fillSettingsForm(payload?.config || {}, payload?.path || "");
+    const config = payload?.config || {};
+    fillSettingsForm(config, payload?.path || "");
+    if (settingsToolHints) settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
+    if (typeof config?.ui?.tool_hints !== "undefined") {
+      setToolHintsEnabled(Boolean(config.ui.tool_hints));
+    }
     setSettingsMessage("Edit values and click Save.");
   } catch (err) {
     console.error(err);
@@ -4370,6 +4634,9 @@ async function saveSettingsFromModal() {
       throw new Error(data?.detail || `Save failed (${res.status})`);
     }
     fillSettingsForm(data?.config || config, data?.path || "");
+    if (settingsToolHints) {
+      setToolHintsEnabled(settingsToolHints.checked);
+    }
     setSettingsMessage("Saved. Restart ALBIS to apply all settings.");
     setStatus("Settings saved. Restart ALBIS to apply all settings.");
   } catch (err) {
@@ -8518,6 +8785,7 @@ applyPanelState();
 loadAutoloadSettings();
 updatePlayButtons();
 updateAboutVersion();
+initHelpTooltips();
 startBackendHeartbeat();
 
 void bootstrapApp().catch((err) => {

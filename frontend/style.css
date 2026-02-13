@@ -1485,6 +1485,28 @@ body {
   display: block;
 }
 
+.help-tooltip {
+  position: fixed;
+  z-index: 3000;
+  padding: 5px 8px;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid #000;
+  border-radius: 4px;
+  color: #f2f2f2;
+  font-size: 11px;
+  line-height: 1.2;
+  max-width: 260px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  transition: opacity 0.12s ease;
+}
+
+.help-tooltip.is-visible {
+  opacity: 1;
+}
+
 .range-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

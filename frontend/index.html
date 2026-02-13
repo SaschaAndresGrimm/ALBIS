@@ -201,7 +201,7 @@
                 <span class="section-chevron">▾</span>
               </button>
               <div class="histogram">
-                <canvas id="hist-canvas" width="800" height="140"></canvas>
+                <canvas id="hist-canvas" width="800" height="50"></canvas>
                 <canvas id="hist-colorbar" width="800" height="16"></canvas>
                 <div class="hist-tooltip" id="hist-tooltip" aria-hidden="true"></div>
               </div>
@@ -665,6 +665,10 @@
             <label class="checkbox settings-check">
               <input id="settings-open-browser" type="checkbox" />
               Open browser on launch
+            </label>
+            <label class="checkbox settings-check settings-span-2">
+              <input id="settings-tool-hints" type="checkbox" />
+              Enable tool hints
             </label>
             <label class="field settings-span-2">
               <span>Data root</span>
