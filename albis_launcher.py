@@ -8,6 +8,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 from pathlib import Path
+import json
 
 import uvicorn
 
@@ -35,6 +36,58 @@ def _ensure_stdio_streams() -> None:
     if sys.stderr is None:
         sys.stderr = _NullStream()
 
+
+
+
+def _server_info_path() -> Path:
+    return Path.home() / ".config" / "albis" / "server.json"
+
+
+def _load_last_server() -> tuple[str, int] | None:
+    path = _server_info_path()
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    host = str(payload.get("host") or "").strip()
+    try:
+        port = int(payload.get("port") or 0)
+    except (TypeError, ValueError):
+        port = 0
+    if not host or port <= 0:
+        return None
+    return host, port
+
+
+def _save_last_server(host: str, port: int) -> None:
+    if not host or port <= 0:
+        return
+    path = _server_info_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {"host": host, "port": int(port), "ts": time.time()}
+        path.write_text(json.dumps(payload), encoding="utf-8")
+    except OSError:
+        return
+
+
+def _normalize_host(host: str) -> str:
+    return host if host not in {"0.0.0.0", "::"} else "127.0.0.1"
+
+
+def _server_running(host: str, port: int) -> bool:
+    if not host or port <= 0:
+        return False
+    return _wait_for_health(host, port, timeout=0.8)
+
+
+def _open_browser(host: str, port: int) -> None:
+    target_host = _normalize_host(host)
+    webbrowser.open(f"http://{target_host}:{port}")
 
 def _find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -91,7 +144,20 @@ def main() -> None:
 
     host = get_str(app_config, ("server", "host"), "127.0.0.1")
     port = get_int(app_config, ("launcher", "port"), 0)
+
+    # If a server is already running, just open the browser and exit.
+    if port > 0 and _server_running(host, port):
+        _launcher_log(start_ts, f"existing server detected on {host}:{port}")
+        _open_browser(host, port)
+        return
     if port <= 0:
+        last = _load_last_server()
+        if last:
+            last_host, last_port = last
+            if _server_running(last_host, last_port):
+                _launcher_log(start_ts, f"existing server detected on {last_host}:{last_port}")
+                _open_browser(last_host, last_port)
+                return
         port = _find_free_port()
     _launcher_log(start_ts, f"using {host}:{port}")
 
@@ -119,10 +185,10 @@ def main() -> None:
         _launcher_log(start_ts, "health endpoint ready")
     else:
         _launcher_log(start_ts, "health check timed out")
+    _save_last_server(host, port)
     if get_bool(app_config, ("launcher", "open_browser"), True):
-        target_host = host if host not in {"0.0.0.0", "::"} else "127.0.0.1"
         _launcher_log(start_ts, "opening browser")
-        webbrowser.open(f"http://{target_host}:{port}")
+        _open_browser(host, port)
 
     try:
         while thread.is_alive():
