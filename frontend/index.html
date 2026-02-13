@@ -281,19 +281,16 @@
                   <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
                 </div>
               </div>
-              <label class="checkbox roi-log-toggle">
-                <input id="roi-log" type="checkbox" />
-                Log plot
-              </label>
-              <div class="roi-plot-limits" id="roi-plot-limits">
-                <label class="checkbox roi-limits-enable">
-                  <input id="roi-limits-enable" type="checkbox" />
-                  Manual plot limits (dbl-click plot axis)
+              <div class="roi-plot-controls" id="roi-plot-controls">
+                <label class="checkbox roi-log-toggle">
+                  <input id="roi-log" type="checkbox" />
+                  Log plot
                 </label>
-                <div class="roi-limits-hint is-hidden" id="roi-limits-hint">
-                  Double-click left axis for Y min/max, or bottom axis for X min/max.
-                  Shift+double-click axis to reset that axis.
-                </div>
+                <label class="checkbox roi-autoscale-toggle">
+                  <input id="roi-limits-enable" type="checkbox" checked />
+                  Autoscale
+                </label>
+                <button id="roi-export-csv" class="btn btn-secondary roi-export-btn" type="button">Export CSV</button>
               </div>
               <div class="roi-plots">
                 <div class="roi-plot" id="roi-line-plot">

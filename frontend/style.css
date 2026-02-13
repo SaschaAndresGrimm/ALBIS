@@ -1410,23 +1410,24 @@ body {
   display: none;
 }
 
-.roi-plot-limits {
-  margin-top: 2px;
+.roi-plot-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 
-.roi-limits-enable {
-  margin-bottom: 2px;
+.roi-autoscale-toggle {
+  font-size: 12px;
 }
 
-.roi-limits-hint.is-hidden {
-  display: none;
+.roi-export-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  font-size: 11px;
 }
 
-.roi-limits-hint {
-  font-size: 10px;
-  color: #b8b8b8;
-  line-height: 1.3;
-}
 
 #overview-canvas {
   width: 100%;
@@ -1906,8 +1907,8 @@ body {
 
 .roi-plots {
   display: grid;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .roi-plot {
@@ -1917,20 +1918,20 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100px;
+  min-height: 42px;
 }
 
 .roi-plot-title {
   font-size: 11px;
   color: #d7d7d7;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   flex-shrink: 0;
 }
 
 .roi-plot canvas {
   width: 100%;
   flex: 1;
-  min-height: 80px;
+  min-height: 30px;
   display: block;
 }
 
@@ -2149,7 +2150,7 @@ body {
   font-size: 32px;
   font-weight: 700;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .splash-sub {
