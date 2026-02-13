@@ -92,81 +92,85 @@ def _open_browser(host: str, port: int) -> None:
     target_host = _normalize_host(host)
     webbrowser.open(f"http://{target_host}:{port}")
 
-class _DockMenuHandler(Foundation.NSObject):
-    def initWithConfig_(self, config: dict | None):
-        self = Foundation.NSObject.init(self)
-        if self is None:
-            return None
-        config = config or {}
-        self.host = str(config.get("host") or "127.0.0.1")
-        try:
-            self.port = int(config.get("port") or 0)
-        except (TypeError, ValueError):
-            self.port = 0
-        self.log_dir = str(config.get("log_dir") or "")
-        self.status_item = None
-        self.status_bar_item = None
-        return self
+if Foundation is not None:
+    class _DockMenuHandler(Foundation.NSObject):
+        def initWithConfig_(self, config: dict | None):
+            self = Foundation.NSObject.init(self)
+            if self is None:
+                return None
+            config = config or {}
+            self.host = str(config.get("host") or "127.0.0.1")
+            try:
+                self.port = int(config.get("port") or 0)
+            except (TypeError, ValueError):
+                self.port = 0
+            self.log_dir = str(config.get("log_dir") or "")
+            self.status_item = None
+            self.status_bar_item = None
+            return self
 
-    def _current_host_port(self):
-        last = _load_last_server()
-        if last:
-            return last
-        return self.host, self.port
+        def _current_host_port(self):
+            last = _load_last_server()
+            if last:
+                return last
+            return self.host, self.port
 
-    def _current_url(self) -> str | None:
-        host, port = self._current_host_port()
-        if not host or port <= 0:
-            return None
-        return f"http://{_normalize_host(host)}:{port}"
+        def _current_url(self) -> str | None:
+            host, port = self._current_host_port()
+            if not host or port <= 0:
+                return None
+            return f"http://{_normalize_host(host)}:{port}"
 
-    def openBrowser_(self, _sender):
-        url = self._current_url()
-        if url:
-            webbrowser.open(url)
+        def openBrowser_(self, _sender):
+            url = self._current_url()
+            if url:
+                webbrowser.open(url)
 
-    def copyURL_(self, _sender):
-        url = self._current_url()
-        if not url or AppKit is None:
-            return
-        pasteboard = AppKit.NSPasteboard.generalPasteboard()
-        pasteboard.clearContents()
-        pasteboard.setString_forType_(url, AppKit.NSPasteboardTypeString)
+        def copyURL_(self, _sender):
+            url = self._current_url()
+            if not url or AppKit is None:
+                return
+            pasteboard = AppKit.NSPasteboard.generalPasteboard()
+            pasteboard.clearContents()
+            pasteboard.setString_forType_(url, AppKit.NSPasteboardTypeString)
 
-    def openLogs_(self, _sender):
-        try:
-            import subprocess
+        def openLogs_(self, _sender):
+            try:
+                import subprocess
 
-            log_path = Path(self.log_dir or "logs").expanduser().resolve()
-            subprocess.run(["open", str(log_path)], check=False)
-        except Exception:
-            return
+                log_path = Path(self.log_dir or "logs").expanduser().resolve()
+                subprocess.run(["open", str(log_path)], check=False)
+            except Exception:
+                return
 
-    def quit_(self, _sender):
-        if AppKit is None:
-            return
-        AppKit.NSApp().terminate_(None)
+        def quit_(self, _sender):
+            if AppKit is None:
+                return
+            AppKit.NSApp().terminate_(None)
 
-    def _update_status_bar(self):
-        if AppKit is None or self.status_bar_item is None:
-            return
-        host, port = self._current_host_port()
-        status = "Online" if _server_running(host, port) else "Offline"
-        tooltip = f"ALBIS Server: {status} ({_normalize_host(host)}:{port})"
-        button = self.status_bar_item.button()
-        if button is not None:
-            button.setTitle_("ALBIS")
-            button.setToolTip_(tooltip)
+        def _update_status_bar(self):
+            if AppKit is None or self.status_bar_item is None:
+                return
+            host, port = self._current_host_port()
+            status = "Online" if _server_running(host, port) else "Offline"
+            tooltip = f"ALBIS Server: {status} ({_normalize_host(host)}:{port})"
+            button = self.status_bar_item.button()
+            if button is not None:
+                button.setTitle_("ALBIS")
+                button.setToolTip_(tooltip)
 
-    def menuWillOpen_(self, _menu):
-        if self.status_item is None:
-            return
-        host, port = self._current_host_port()
-        status = "Online" if _server_running(host, port) else "Offline"
-        label = f"Server: {status} ({_normalize_host(host)}:{port})"
-        self.status_item.setTitle_(label)
-        self._update_status_bar()
+        def menuWillOpen_(self, _menu):
+            if self.status_item is None:
+                return
+            host, port = self._current_host_port()
+            status = "Online" if _server_running(host, port) else "Offline"
+            label = f"Server: {status} ({_normalize_host(host)}:{port})"
+            self.status_item.setTitle_(label)
+            self._update_status_bar()
 
+
+else:
+    _DockMenuHandler = None
 
 def _port_available(host: str, port: int) -> bool:
     if port <= 0:
@@ -181,7 +185,7 @@ def _port_available(host: str, port: int) -> bool:
         return False
 
 def _start_macos_menus(host: str, port: int, app_config: dict) -> bool:
-    if AppKit is None or Foundation is None or sys.platform != "darwin":
+    if AppKit is None or Foundation is None or sys.platform != "darwin" or _DockMenuHandler is None:
         return False
     try:
         log_dir = get_str(app_config, ("logging", "dir"), "")
