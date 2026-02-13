@@ -301,6 +301,11 @@ def main() -> None:
         _update_server_status(host, port, "running", health=True, source="existing")
         _open_browser(host, port)
         return
+    if port > 0 and _wait_for_server(host, port, timeout=0.6):
+        _launcher_log(start_ts, f"existing server detected (socket) on {host}:{port}")
+        _update_server_status(host, port, "running", health=False, source="existing-socket")
+        _open_browser(host, port)
+        return
     if port <= 0:
         last = _load_last_server()
         if last:
@@ -308,6 +313,11 @@ def main() -> None:
             if _server_running(last_host, last_port):
                 _launcher_log(start_ts, f"existing server detected on {last_host}:{last_port}")
                 _update_server_status(last_host, last_port, "running", health=True, source="existing")
+                _open_browser(last_host, last_port)
+                return
+            if _wait_for_server(last_host, last_port, timeout=0.6):
+                _launcher_log(start_ts, f"existing server detected (socket) on {last_host}:{last_port}")
+                _update_server_status(last_host, last_port, "running", health=False, source="existing-socket")
                 _open_browser(last_host, last_port)
                 return
         port = _find_free_port()
