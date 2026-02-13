@@ -4251,13 +4251,30 @@ async function autoloadSimplonTick() {
     state.autoload.lastUpdate = Date.now();
     updateAutoloadMeta();
   }
+  const simplonMeta = applySimplonMeta(res.headers);
+  if (!state.autoload.loggedSimplonHeaders) {
+    state.autoload.loggedSimplonHeaders = true;
+    logClient("info", "SIMPLON response headers", {
+      headers: Object.fromEntries(res.headers.entries()),
+    });
+  }
   let label = "SIMPLON monitor";
+  let hostLabel = "";
   try {
-    label = `SIMPLON monitor (${new URL(baseUrl).host})`;
+    hostLabel = new URL(baseUrl).host;
   } catch {
-    if (baseUrl) {
-      label = `SIMPLON monitor (${baseUrl})`;
-    }
+    hostLabel = baseUrl || "";
+  }
+  if (hostLabel) {
+    label = `${label} (${hostLabel})`;
+  }
+  const detailParts = [];
+  if (simplonMeta.series !== '' && simplonMeta.series != null) detailParts.push(`S${simplonMeta.series}`);
+  if (simplonMeta.image !== '' && simplonMeta.image != null) detailParts.push(`Img${simplonMeta.image}`);
+  const timeLabel = formatSimplonTimestamp(simplonMeta.date);
+  if (timeLabel) detailParts.push(timeLabel);
+  if (detailParts.length) {
+    label = `${label} ${detailParts.join(" ")}`;
   }
   applyExternalFrame(data, shape, dtype, label, false, true);
   setAutoloadStatus("SIMPLON: updated");
@@ -5416,6 +5433,67 @@ async function loadAnalysisParams() {
 function parseShape(header) {
   if (!header) return [];
   return header.split(",").map((v) => parseInt(v, 10));
+}
+
+function parseHeaderFloat(headers, key) {
+  if (!headers) return null;
+  const raw = headers.get(key);
+  if (raw === null || raw === undefined || raw === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseSimplonTimestamp(raw) {
+  if (!raw) return null;
+  const cleaned = String(raw).replace(/\.(\d{3})\d+Z$/, ".$1Z");
+  const parsed = new Date(cleaned);
+  if (!Number.isNaN(parsed.valueOf())) return parsed;
+  return null;
+}
+
+function formatSimplonTimestamp(raw) {
+  const parsed = parseSimplonTimestamp(raw);
+  if (parsed) {
+    return parsed.toLocaleString();
+  }
+  return raw ? String(raw) : "";
+}
+
+function applySimplonMeta(headers) {
+  if (!headers) return {};
+  const distanceMm = parseHeaderFloat(headers, "X-Simplon-DetectorDistance-MM");
+  const energyEv = parseHeaderFloat(headers, "X-Simplon-Energy-Ev");
+  const centerX = parseHeaderFloat(headers, "X-Simplon-BeamCenter-X");
+  const centerY = parseHeaderFloat(headers, "X-Simplon-BeamCenter-Y");
+  let updated = false;
+  if (Number.isFinite(distanceMm) && ringsDistance) {
+    analysisState.distanceMm = distanceMm;
+    ringsDistance.value = String(Math.round(distanceMm));
+    updated = true;
+  }
+  if (Number.isFinite(energyEv) && ringsEnergy) {
+    analysisState.energyEv = energyEv;
+    ringsEnergy.value = String(Math.round(energyEv));
+    updated = true;
+  }
+  if (Number.isFinite(centerX) && ringsCenterX) {
+    analysisState.centerX = centerX;
+    ringsCenterX.value = Math.round(centerX).toString();
+    updated = true;
+  }
+  if (Number.isFinite(centerY) && ringsCenterY) {
+    analysisState.centerY = centerY;
+    ringsCenterY.value = Math.round(centerY).toString();
+    updated = true;
+  }
+  if (updated) {
+    scheduleResolutionOverlay();
+  }
+  return {
+    series: headers.get("X-Simplon-Series") || "",
+    image: headers.get("X-Simplon-Image") || "",
+    date: headers.get("X-Simplon-Date") || "",
+  };
 }
 
 function parseDtype(header) {

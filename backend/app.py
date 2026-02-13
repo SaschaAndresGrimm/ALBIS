@@ -17,6 +17,7 @@ import os
 import re
 import platform
 import subprocess
+import struct
 import sys
 import threading
 import time
@@ -95,6 +96,222 @@ def _ensure_tifffile() -> None:
         import tifffile as _tifffile  # type: ignore[import-not-found]
 
         tifffile = _tifffile
+
+
+_DECTRIS_TIFF_TAG = 0xC7F8
+_TIFF_TYPE_SIZES = {
+    1: 1,  # BYTE
+    2: 1,  # ASCII
+    3: 2,  # SHORT
+    4: 4,  # LONG
+    5: 8,  # RATIONAL
+    7: 1,  # UNDEFINED
+    11: 4,  # FLOAT
+    12: 8,  # DOUBLE
+}
+
+
+def _decode_tiff_values(type_code: int, count: int, data: bytes, byteorder: str) -> Any:
+    if count <= 0:
+        return None
+    fmt_prefix = "<" if byteorder == "little" else ">"
+    if type_code == 2:
+        try:
+            return data.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+        except Exception:
+            return ""
+    if type_code in {1, 7}:
+        if count == 1:
+            return int(data[0]) if data else None
+        return [int(b) for b in data[:count]]
+    if type_code == 3:
+        size = count * 2
+        raw = data[:size].ljust(size, b"\x00")
+        values = struct.unpack(f"{fmt_prefix}{count}H", raw)
+        return values[0] if count == 1 else list(values)
+    if type_code == 4:
+        size = count * 4
+        raw = data[:size].ljust(size, b"\x00")
+        values = struct.unpack(f"{fmt_prefix}{count}I", raw)
+        return values[0] if count == 1 else list(values)
+    if type_code == 11:
+        size = count * 4
+        raw = data[:size].ljust(size, b"\x00")
+        values = struct.unpack(f"{fmt_prefix}{count}f", raw)
+        return values[0] if count == 1 else list(values)
+    if type_code == 12:
+        size = count * 8
+        raw = data[:size].ljust(size, b"\x00")
+        values = struct.unpack(f"{fmt_prefix}{count}d", raw)
+        return values[0] if count == 1 else list(values)
+    return None
+
+
+def _parse_dectris_ifd(
+    raw: bytes, byteorder: str, offset: int = 0, absolute_offsets: bool = False
+) -> dict[int, Any]:
+    if not raw:
+        return {}
+    bo = "little" if byteorder == "<" else "big"
+    if len(raw) < offset + 2:
+        return {}
+    count = int.from_bytes(raw[offset : offset + 2], bo)
+    entry_offset = offset + 2
+    base = 0 if absolute_offsets else offset
+    entries: dict[int, Any] = {}
+    for _ in range(count):
+        if entry_offset + 12 > len(raw):
+            break
+        tag = int.from_bytes(raw[entry_offset : entry_offset + 2], bo)
+        type_code = int.from_bytes(raw[entry_offset + 2 : entry_offset + 4], bo)
+        value_count = int.from_bytes(raw[entry_offset + 4 : entry_offset + 8], bo)
+        value_offset = raw[entry_offset + 8 : entry_offset + 12]
+        entry_offset += 12
+        size = _TIFF_TYPE_SIZES.get(type_code)
+        if not size:
+            continue
+        total = size * value_count
+        if total <= 4:
+            value_bytes = value_offset[:total]
+        else:
+            value_ptr = int.from_bytes(value_offset, bo)
+            if not absolute_offsets:
+                value_ptr = base + value_ptr
+            if value_ptr + total > len(raw):
+                continue
+            value_bytes = raw[value_ptr : value_ptr + total]
+        entries[tag] = _decode_tiff_values(type_code, value_count, value_bytes, bo)
+    return entries
+
+
+def _parse_dectris_tag_value(value: Any, byteorder: str) -> dict[int, Any]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return {int(k): v for k, v in value.items()}
+    if isinstance(value, np.ndarray):
+        value = value.tobytes()
+    if isinstance(value, memoryview):
+        value = value.tobytes()
+    if isinstance(value, (bytes, bytearray)):
+        return _parse_dectris_ifd(bytes(value), byteorder)
+    if isinstance(value, (list, tuple)):
+        if value and all(isinstance(item, tuple) and len(item) == 2 for item in value):
+            try:
+                return {int(k): v for k, v in value}
+            except Exception:
+                return {}
+    return {}
+
+
+def _first_number(value: Any) -> float | None:
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return None
+        value = value[0]
+    if isinstance(value, np.generic):
+        value = value.item()
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_int(value: Any) -> int | None:
+    number = _first_number(value)
+    if number is None:
+        return None
+    try:
+        return int(number)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bytes):
+        try:
+            return value.decode("ascii", errors="replace").strip("\x00")
+        except Exception:
+            return None
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return None
+        return _as_str(value[0])
+    return str(value)
+
+
+def _as_pair(value: Any) -> tuple[float, float] | None:
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    if isinstance(value, (list, tuple)) and len(value) >= 2:
+        first = _first_number(value[0])
+        second = _first_number(value[1])
+        if first is None or second is None:
+            return None
+        return float(first), float(second)
+    return None
+
+
+def _distance_to_mm(value: float | None) -> float | None:
+    if value is None or not math.isfinite(value):
+        return None
+    if value <= 10:
+        return value * 1000.0
+    return value
+
+
+def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, Any]:
+    meta: dict[str, Any] = {}
+    try:
+        page = tiff.pages[0]
+    except Exception:
+        return meta
+    tag = page.tags.get(_DECTRIS_TIFF_TAG)
+    if tag is None:
+        return meta
+    entries: dict[int, Any] = {}
+    if isinstance(tag.value, int):
+        if raw is None:
+            try:
+                raw = tiff.filehandle.read()
+            except Exception:
+                raw = None
+        if raw:
+            entries = _parse_dectris_ifd(raw, tiff.byteorder, tag.value, absolute_offsets=True)
+    if not entries:
+        entries = _parse_dectris_tag_value(tag.value, tiff.byteorder)
+    if not entries:
+        return meta
+    series_number = _as_int(entries.get(0x0002))
+    image_number = _as_int(entries.get(0x0003))
+    image_datetime = _as_str(entries.get(0x0004))
+    threshold_energy = _first_number(entries.get(0x0006))
+    incident_energy = _first_number(entries.get(0x0009))
+    incident_wavelength = _first_number(entries.get(0x000A))
+    beam_center = _as_pair(entries.get(0x0016))
+    detector_distance = _first_number(entries.get(0x0017))
+    energy_ev = None
+    if incident_energy is not None and math.isfinite(incident_energy):
+        energy_ev = float(incident_energy)
+    elif incident_wavelength is not None and incident_wavelength > 0:
+        energy_ev = 12398.4193 / float(incident_wavelength)
+    meta.update(
+        {
+            "series_number": series_number,
+            "image_number": image_number,
+            "image_datetime": image_datetime,
+            "threshold_energy_ev": threshold_energy,
+            "energy_ev": energy_ev,
+            "wavelength_a": incident_wavelength,
+            "distance_mm": _distance_to_mm(detector_distance),
+            "beam_center_px": beam_center,
+        }
+    )
+    return meta
 
 
 def _ensure_fabio() -> None:
@@ -2169,13 +2386,40 @@ def simplon_monitor(
     if data is None:
         logger.debug("SIMPLON monitor: no data (url=%s)", url)
         return Response(status_code=204)
-    arr = _normalize_image_array(np.asarray(tifffile.imread(io.BytesIO(data))))
+    meta: dict[str, Any] = {}
+    try:
+        with tifffile.TiffFile(io.BytesIO(data)) as tiff:
+            meta = _simplon_meta_from_tiff(tiff, raw=data)
+            arr = _normalize_image_array(np.asarray(tiff.asarray()))
+    except Exception:
+        arr = _normalize_image_array(np.asarray(tifffile.imread(io.BytesIO(data))))
+    if meta:
+        logger.debug("SIMPLON meta (url=%s): %s", url, meta)
     data_bytes = arr.tobytes(order="C")
     headers = {
         "X-Dtype": arr.dtype.str,
         "X-Shape": ",".join(str(x) for x in arr.shape),
         "X-Frame": "0",
     }
+    if meta:
+        if meta.get("series_number") is not None:
+            headers["X-Simplon-Series"] = str(meta["series_number"])
+        if meta.get("image_number") is not None:
+            headers["X-Simplon-Image"] = str(meta["image_number"])
+        if meta.get("image_datetime"):
+            headers["X-Simplon-Date"] = str(meta["image_datetime"])
+        if meta.get("threshold_energy_ev") is not None:
+            headers["X-Simplon-Threshold-Ev"] = str(meta["threshold_energy_ev"])
+        if meta.get("energy_ev") is not None:
+            headers["X-Simplon-Energy-Ev"] = str(meta["energy_ev"])
+        if meta.get("wavelength_a") is not None:
+            headers["X-Simplon-Wavelength-A"] = str(meta["wavelength_a"])
+        if meta.get("distance_mm") is not None:
+            headers["X-Simplon-DetectorDistance-MM"] = str(meta["distance_mm"])
+        if meta.get("beam_center_px"):
+            center = meta["beam_center_px"]
+            headers["X-Simplon-BeamCenter-X"] = str(center[0])
+            headers["X-Simplon-BeamCenter-Y"] = str(center[1])
     return Response(content=data_bytes, media_type="application/octet-stream", headers=headers)
 
 
