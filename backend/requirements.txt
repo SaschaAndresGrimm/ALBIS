@@ -6,3 +6,4 @@ h5py
 numpy
 tifffile
 fabio
+pyobjc; sys_platform == "darwin"

@@ -174,6 +174,26 @@ def load_config() -> tuple[dict[str, Any], Path]:
                 return config, user_path
         _write_default_config(_default_config_path())
         return config, _default_config_path()
+    if getattr(sys, "frozen", False):
+        user_path = _user_config_path()
+        exe_dir = Path(sys.executable).resolve().parent
+        if user_path.exists():
+            config_path = user_path
+        else:
+            try:
+                config_path.resolve().relative_to(exe_dir)
+            except ValueError:
+                pass
+            else:
+                try:
+                    raw = _parse_config(config_path)
+                except Exception:
+                    raw = config
+                try:
+                    save_config(raw, user_path)
+                    config_path = user_path
+                except OSError:
+                    pass
     return normalize_config(_parse_config(config_path)), config_path
 
 
