@@ -91,6 +91,15 @@ const autoloadFolder = document.getElementById("autoload-folder");
 const autoloadWatch = document.getElementById("autoload-watch");
 const autoloadTypesRow = document.getElementById("autoload-types");
 const autoloadSimplon = document.getElementById("autoload-simplon");
+const simplonMetaPanel = document.getElementById("simplon-meta");
+const simplonSeriesEl = document.getElementById("simplon-series");
+const simplonImageEl = document.getElementById("simplon-image");
+const simplonTimeEl = document.getElementById("simplon-time");
+const simplonEnergyEl = document.getElementById("simplon-energy");
+const simplonThresholdEl = document.getElementById("simplon-threshold");
+const simplonWavelengthEl = document.getElementById("simplon-wavelength");
+const simplonDistanceEl = document.getElementById("simplon-distance");
+const simplonCenterEl = document.getElementById("simplon-center");
 const inspectorSection = document.querySelector(".panel-section.inspector");
 const imageHeaderSection = document.getElementById("image-header-section");
 const imageHeaderText = document.getElementById("image-header-text");
@@ -380,6 +389,7 @@ const state = {
     lastPoll: 0,
     lastMonitorSig: "",
     lastMaskAttempt: 0,
+    simplonMeta: {},
   },
   seriesSum: {
     running: false,
@@ -4103,6 +4113,12 @@ function updateAutoloadUI() {
     const meta = autoloadStatus.closest(".autoload-meta");
     if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file");
   }
+  if (simplonMetaPanel) {
+    simplonMetaPanel.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
+    if (state.autoload.mode === "simplon") {
+      updateSimplonMetaUI(state.autoload.simplonMeta || {});
+    }
+  }
   updateAutoloadMeta();
   updateLiveBadge();
   updateThresholdOptions();
@@ -5667,6 +5683,38 @@ function formatSimplonTimestamp(raw) {
   return raw ? String(raw) : "";
 }
 
+function formatSimplonValue(value, digits = 2) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (Number.isInteger(value)) return String(value);
+    return value.toFixed(digits);
+  }
+  return String(value);
+}
+
+function updateSimplonMetaUI(meta) {
+  if (!simplonMetaPanel) return;
+  if (state.autoload.mode !== "simplon") {
+    simplonMetaPanel.classList.add("is-hidden");
+    return;
+  }
+  simplonMetaPanel.classList.remove("is-hidden");
+  if (simplonSeriesEl) simplonSeriesEl.textContent = formatSimplonValue(meta.series);
+  if (simplonImageEl) simplonImageEl.textContent = formatSimplonValue(meta.image);
+  if (simplonTimeEl) simplonTimeEl.textContent = formatSimplonTimestamp(meta.date) || "-";
+  if (simplonEnergyEl) simplonEnergyEl.textContent = formatSimplonValue(meta.energyEv, 1);
+  if (simplonThresholdEl) simplonThresholdEl.textContent = formatSimplonValue(meta.thresholdEv, 1);
+  if (simplonWavelengthEl) simplonWavelengthEl.textContent = formatSimplonValue(meta.wavelengthA, 4);
+  if (simplonDistanceEl) simplonDistanceEl.textContent = formatSimplonValue(meta.distanceMm, 2);
+  if (simplonCenterEl) {
+    if (Number.isFinite(meta.centerX) && Number.isFinite(meta.centerY)) {
+      simplonCenterEl.textContent = `${Math.round(meta.centerX)}, ${Math.round(meta.centerY)}`;
+    } else {
+      simplonCenterEl.textContent = "-";
+    }
+  }
+}
+
 function applyImageMeta(headers) {
   if (!headers) return;
   const distanceMm = parseHeaderFloat(headers, "X-Image-DetectorDistance-MM");
@@ -5713,6 +5761,8 @@ function applySimplonMeta(headers) {
   if (!headers) return {};
   const distanceMm = parseHeaderFloat(headers, "X-Simplon-DetectorDistance-MM");
   const energyEv = parseHeaderFloat(headers, "X-Simplon-Energy-Ev");
+  const thresholdEv = parseHeaderFloat(headers, "X-Simplon-Threshold-Ev");
+  const wavelengthA = parseHeaderFloat(headers, "X-Simplon-Wavelength-A");
   const centerX = parseHeaderFloat(headers, "X-Simplon-BeamCenter-X");
   const centerY = parseHeaderFloat(headers, "X-Simplon-BeamCenter-Y");
   let updated = false;
@@ -5739,11 +5789,20 @@ function applySimplonMeta(headers) {
   if (updated) {
     scheduleResolutionOverlay();
   }
-  return {
+  const meta = {
     series: headers.get("X-Simplon-Series") || "",
     image: headers.get("X-Simplon-Image") || "",
     date: headers.get("X-Simplon-Date") || "",
+    energyEv,
+    thresholdEv,
+    wavelengthA,
+    distanceMm,
+    centerX,
+    centerY,
   };
+  state.autoload.simplonMeta = meta;
+  updateSimplonMetaUI(meta);
+  return meta;
 }
 
 function parseDtype(header) {

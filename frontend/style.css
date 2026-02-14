@@ -1801,6 +1801,24 @@ body {
   word-break: break-all;
 }
 
+.simplon-meta {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #232323;
+}
+
+.simplon-meta .meta-row {
+  font-size: 12px;
+}
+
+.simplon-meta strong {
+  font-weight: 600;
+  font-size: 12px;
+  text-align: right;
+  margin-left: 8px;
+  word-break: break-word;
+}
+
 .inline {
   display: grid;
   grid-template-columns: 1fr auto;
