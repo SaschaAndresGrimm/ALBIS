@@ -314,6 +314,168 @@ def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, An
     return meta
 
 
+_PILATUS_NUM_RE = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
+
+
+def _parse_unit_value(text: str) -> tuple[float | None, str]:
+    if not text:
+        return None, ""
+    match = _PILATUS_NUM_RE.search(text)
+    if not match:
+        return None, ""
+    value = float(match.group(0))
+    unit_match = re.search(rf"{re.escape(match.group(0))}\s*([A-Za-zµÅ]+)", text)
+    unit = unit_match.group(1) if unit_match else ""
+    return value, unit
+
+
+def _convert_length(value: float | None, unit: str, target: str) -> float | None:
+    if value is None or not math.isfinite(value):
+        return None
+    unit_l = unit.lower()
+    if target == "um":
+        if unit_l in {"m", "meter", "metre"}:
+            return value * 1e6
+        if unit_l == "mm":
+            return value * 1e3
+        if unit_l in {"um", "µm"}:
+            return value
+        if unit_l == "nm":
+            return value * 1e-3
+        return value
+    if target == "mm":
+        if unit_l in {"m", "meter", "metre"}:
+            return value * 1e3
+        if unit_l == "cm":
+            return value * 10.0
+        if unit_l == "mm":
+            return value
+        if unit_l in {"um", "µm"}:
+            return value * 1e-3
+        return value
+    if target == "a":
+        if unit_l in {"a", "å", "angstrom", "ang"}:
+            return value
+        if unit_l == "nm":
+            return value * 10.0
+        if unit_l in {"m", "meter", "metre"}:
+            return value * 1e10
+        if unit_l == "mm":
+            return value * 1e7
+        return value
+    return value
+
+
+def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
+    meta: dict[str, Any] = {}
+    if not text:
+        return meta
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            line = line[1:].strip()
+        lower = line.lower()
+        if "pixel_size" in lower and "pixel_size_um" not in meta:
+            value, unit = _parse_unit_value(line)
+            pixel_um = _convert_length(value, unit, "um")
+            if pixel_um is not None:
+                meta["pixel_size_um"] = float(pixel_um)
+            continue
+        if "beam_xy" in lower or "beam center" in lower or "beam_center" in lower:
+            nums = _PILATUS_NUM_RE.findall(line)
+            if len(nums) >= 2:
+                meta["beam_center_px"] = (float(nums[0]), float(nums[1]))
+            continue
+        if "detector_distance" in lower or "detector distance" in lower:
+            value, unit = _parse_unit_value(line)
+            distance_mm = _convert_length(value, unit, "mm")
+            if distance_mm is not None:
+                meta["distance_mm"] = float(distance_mm)
+            continue
+        if "wavelength" in lower and "wavelength_a" not in meta:
+            value, unit = _parse_unit_value(line)
+            wavelength_a = _convert_length(value, unit, "a")
+            if wavelength_a is not None:
+                meta["wavelength_a"] = float(wavelength_a)
+            continue
+        if "energy" in lower and "threshold" not in lower and "energy_ev" not in meta:
+            value, unit = _parse_unit_value(line)
+            if value is None:
+                continue
+            unit_l = unit.lower()
+            if unit_l in {"kev"}:
+                meta["energy_ev"] = float(value * 1000.0)
+            elif unit_l in {"ev"}:
+                meta["energy_ev"] = float(value)
+            continue
+    if "energy_ev" not in meta:
+        wavelength = meta.get("wavelength_a")
+        if wavelength and wavelength > 0:
+            meta["energy_ev"] = float(12398.4193 / wavelength)
+    return meta
+
+
+def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
+    _ensure_fabio()
+    try:
+        image = fabio.open(str(path))
+    except Exception:
+        if path.suffix.lower() == ".gz":
+            try:
+                import gzip
+                import tempfile
+
+                with gzip.open(path, "rb") as gz:
+                    data = gz.read()
+                with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
+                    tmp.write(data)
+                    tmp_path = Path(tmp.name)
+                try:
+                    image = fabio.open(str(tmp_path))
+                finally:
+                    try:
+                        tmp_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+            except Exception:
+                return {}
+        else:
+            return {}
+    header = getattr(image, "header", {}) or {}
+    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
+    if isinstance(text, bytes):
+        text = text.decode("utf-8", errors="ignore")
+    if not text:
+        try:
+            text = "\n".join(f"{k} {v}" for k, v in header.items())
+        except Exception:
+            text = ""
+    meta = _parse_pilatus_header_text(text)
+    return meta
+
+
+def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
+    _ensure_tifffile()
+    try:
+        with tifffile.TiffFile(path) as tiff:
+            desc = ""
+            try:
+                desc = tiff.pages[0].description or ""
+            except Exception:
+                desc = ""
+    except Exception:
+        desc = ""
+    meta = _parse_pilatus_header_text(desc)
+    if meta:
+        return meta
+    try:
+        return _pilatus_meta_from_fabio(path)
+    except Exception:
+        return {}
+
+
 def _ensure_fabio() -> None:
     global fabio
     if fabio is None:
@@ -2481,16 +2643,21 @@ def image(
 ) -> Response:
     path = _resolve_image_file(file)
     ext = _image_ext_name(path.name)
+    meta: dict[str, Any] = {}
     if ext in {".h5", ".hdf5"}:
         raise HTTPException(status_code=400, detail="Use /api/frame for HDF5 datasets")
     if ext in {".tif", ".tiff"}:
         arr = _read_tiff(path, index=index)
+        meta = _pilatus_meta_from_tiff(path)
     elif ext == ".cbf":
         arr = _read_cbf(path)
+        meta = _pilatus_meta_from_fabio(path)
     elif ext == ".cbf.gz":
         arr = _read_cbf_gz(path)
+        meta = _pilatus_meta_from_fabio(path)
     elif ext == ".edf":
         arr = _read_edf(path)
+        meta = _pilatus_meta_from_fabio(path)
     else:
         raise HTTPException(status_code=400, detail="Unsupported image format")
 
@@ -2500,6 +2667,20 @@ def image(
         "X-Shape": ",".join(str(x) for x in arr.shape),
         "X-Frame": "0",
     }
+    if meta:
+        logger.debug("Image meta (%s): %s", path.name, meta)
+        if meta.get("distance_mm") is not None:
+            headers["X-Image-DetectorDistance-MM"] = str(meta["distance_mm"])
+        if meta.get("pixel_size_um") is not None:
+            headers["X-Image-PixelSize-UM"] = str(meta["pixel_size_um"])
+        if meta.get("energy_ev") is not None:
+            headers["X-Image-Energy-Ev"] = str(meta["energy_ev"])
+        if meta.get("wavelength_a") is not None:
+            headers["X-Image-Wavelength-A"] = str(meta["wavelength_a"])
+        if meta.get("beam_center_px"):
+            center = meta["beam_center_px"]
+            headers["X-Image-BeamCenter-X"] = str(center[0])
+            headers["X-Image-BeamCenter-Y"] = str(center[1])
     return Response(content=data, media_type="application/octet-stream", headers=headers)
 
 

@@ -1231,6 +1231,21 @@ function normalizeMaskData(data) {
   return out;
 }
 
+function buildNegativeMask(data) {
+  if (!data || !data.length) return null;
+  let hasMask = false;
+  const mask = new Uint32Array(data.length);
+  for (let i = 0; i < data.length; i += 1) {
+    const value = data[i];
+    if (!Number.isFinite(value)) continue;
+    if (value < 0) {
+      hasMask = true;
+      mask[i] = value === -1 ? 1 : 0x1e;
+    }
+  }
+  return hasMask ? mask : null;
+}
+
 function alignMaskToFrame() {
   if (
     !state.maskRaw ||
@@ -4374,13 +4389,20 @@ async function loadImageFile(file) {
   const dtype = parseDtype(res.headers.get("X-Dtype"));
   const shape = parseShape(res.headers.get("X-Shape"));
   const data = typedArrayFrom(buffer, dtype);
-  applyExternalFrame(data, shape, dtype, file, true);
+  applyImageMeta(res.headers);
+  applyExternalFrame(data, shape, dtype, file, true, false, {
+    autoMask: true,
+    maskKey: `auto:${file}`,
+  });
   setLoading(false);
 }
 
 function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false, options = {}) {
   if (!Array.isArray(shape) || shape.length < 2) return;
-  stopPlayback();
+  const keepPlaying = Boolean(options.keepPlaying);
+  if (!(keepPlaying && state.playing)) {
+    stopPlayback();
+  }
   const preserveSeries = Boolean(options.preserveSeries);
   if (fitView) {
     state.hasFrame = false;
@@ -4413,13 +4435,23 @@ function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = f
     datasetSelect.value = "";
     setDataControlsForSeries();
   }
+  const height = shape[0];
+  const width = shape[1];
   if (!preserveMask) {
     clearMaskState();
   }
+  if (options.autoMask) {
+    const autoMask = buildNegativeMask(data);
+    if (autoMask) {
+      state.maskRaw = autoMask;
+      state.maskShape = [height, width];
+      state.maskAuto = true;
+      state.maskFile = options.maskKey || `auto:${label}`;
+      updateMaskUI();
+    }
+  }
   setInspectorMessage("File inspector is available for HDF5 files only.");
 
-  const height = shape[0];
-  const width = shape[1];
   metaShape.textContent = `${width} × ${height}`;
   metaDtype.textContent = dtype;
   applyFrame(data, width, height, dtype);
@@ -5555,6 +5587,48 @@ function formatSimplonTimestamp(raw) {
     return parsed.toLocaleString();
   }
   return raw ? String(raw) : "";
+}
+
+function applyImageMeta(headers) {
+  if (!headers) return;
+  const distanceMm = parseHeaderFloat(headers, "X-Image-DetectorDistance-MM");
+  const pixelSizeUm = parseHeaderFloat(headers, "X-Image-PixelSize-UM");
+  let energyEv = parseHeaderFloat(headers, "X-Image-Energy-Ev");
+  const wavelengthA = parseHeaderFloat(headers, "X-Image-Wavelength-A");
+  const centerX = parseHeaderFloat(headers, "X-Image-BeamCenter-X");
+  const centerY = parseHeaderFloat(headers, "X-Image-BeamCenter-Y");
+  if (!Number.isFinite(energyEv) && Number.isFinite(wavelengthA) && wavelengthA > 0) {
+    energyEv = 12398.4193 / wavelengthA;
+  }
+  let updated = false;
+  if (Number.isFinite(distanceMm) && ringsDistance) {
+    analysisState.distanceMm = distanceMm;
+    ringsDistance.value = String(Math.round(distanceMm));
+    updated = true;
+  }
+  if (Number.isFinite(pixelSizeUm) && ringsPixel) {
+    analysisState.pixelSizeUm = pixelSizeUm;
+    ringsPixel.value = pixelSizeUm.toFixed(2);
+    updated = true;
+  }
+  if (Number.isFinite(energyEv) && ringsEnergy) {
+    analysisState.energyEv = energyEv;
+    ringsEnergy.value = String(Math.round(energyEv));
+    updated = true;
+  }
+  if (Number.isFinite(centerX) && ringsCenterX) {
+    analysisState.centerX = centerX;
+    ringsCenterX.value = Math.round(centerX).toString();
+    updated = true;
+  }
+  if (Number.isFinite(centerY) && ringsCenterY) {
+    analysisState.centerY = centerY;
+    ringsCenterY.value = Math.round(centerY).toString();
+    updated = true;
+  }
+  if (updated) {
+    scheduleResolutionOverlay();
+  }
 }
 
 function applySimplonMeta(headers) {
@@ -7208,13 +7282,21 @@ async function loadSeriesFrame() {
   const dtype = parseDtype(res.headers.get("X-Dtype"));
   const shape = parseShape(res.headers.get("X-Shape"));
   const data = typedArrayFrom(buffer, dtype);
+  applyImageMeta(res.headers);
 
   const height = shape[0];
   const width = shape[1];
   metaShape.textContent = `${width} × ${height}`;
   metaDtype.textContent = dtype;
 
-  applyExternalFrame(data, shape, dtype, state.file || file, false, false, { preserveSeries: true });
+  const seriesKey = state.seriesLabel || state.file || file;
+  const reuseMask = Boolean(state.maskRaw && state.maskFile === `auto:${seriesKey}`);
+  applyExternalFrame(data, shape, dtype, state.file || file, false, reuseMask, {
+    preserveSeries: true,
+    keepPlaying: true,
+    autoMask: !reuseMask,
+    maskKey: `auto:${seriesKey}`,
+  });
   setStatus(`Frame ${state.frameIndex + 1} / ${state.frameCount}`);
   updateToolbar();
   setLoading(false);
