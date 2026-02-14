@@ -328,7 +328,7 @@ const state = {
   imageHeaderFile: "",
   imageHeaderText: "",
   backendAlive: false,
-  backendVersion: "0.4",
+  backendVersion: "0.5",
   toolHintsEnabled: false,
   isLoading: false,
   pendingFrame: null,
