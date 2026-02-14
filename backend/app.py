@@ -32,7 +32,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import tempfile
 import numpy as np
-from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 import shutil
@@ -58,7 +58,7 @@ ALBIS_VERSION = "0.4"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
-AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf"}
+AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}
 ALLOW_ABS_PATHS = get_bool(CONFIG, ("data", "allow_abs_paths"), True)
 SCAN_CACHE_SEC = get_float(CONFIG, ("data", "scan_cache_sec"), 2.0)
 MAX_SCAN_DEPTH = get_int(CONFIG, ("data", "max_scan_depth"), -1)
@@ -444,14 +444,14 @@ def _resolve_image_file(name: str) -> Path:
         if not ALLOW_ABS_PATHS:
             raise HTTPException(status_code=400, detail="Absolute paths are disabled")
         path = raw.expanduser().resolve()
-        if not path.exists() or path.suffix.lower() not in AUTOLOAD_EXTS:
+        if not path.exists() or _image_ext_name(path.name) not in AUTOLOAD_EXTS:
             raise HTTPException(status_code=404, detail="File not found")
         return path
     safe = _safe_rel_path(name)
     path = (DATA_DIR / safe).resolve()
     if not _is_within(path, DATA_DIR.resolve()):
         raise HTTPException(status_code=400, detail="Invalid file name")
-    if not path.exists() or path.suffix.lower() not in AUTOLOAD_EXTS:
+    if not path.exists() or _image_ext_name(path.name) not in AUTOLOAD_EXTS:
         raise HTTPException(status_code=404, detail="File not found")
     return path
 
@@ -462,6 +462,36 @@ def _is_within(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+
+def _image_ext_name(name: str) -> str:
+    lower = name.lower()
+    if lower.endswith(".cbf.gz"):
+        return ".cbf.gz"
+    return Path(lower).suffix
+
+
+
+def _strip_image_ext(name: str, ext: str) -> str:
+    if ext == ".cbf.gz" and name.lower().endswith(ext):
+        return name[: -len(ext)]
+    if name.lower().endswith(ext):
+        return name[: -len(ext)]
+    return Path(name).stem
+
+
+
+def _split_series_name(name: str) -> tuple[str, str, str] | None:
+    ext = _image_ext_name(name)
+    stem = _strip_image_ext(name, ext)
+    match = re.match(r"^(.*?)(\d+)([^\d]*)$", stem)
+    if not match:
+        return None
+    prefix, digits, suffix = match.groups()
+    if not digits:
+        return None
+    return prefix, digits, suffix
 
 
 def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
@@ -494,6 +524,40 @@ def _read_cbf(path: Path) -> np.ndarray:
     return _normalize_image_array(arr)
 
 
+
+def _read_cbf_gz(path: Path) -> np.ndarray:
+    _ensure_fabio()
+    try:
+        image = fabio.open(str(path))
+        arr = np.asarray(image.data)
+        return _normalize_image_array(arr)
+    except Exception:
+        import gzip
+        import tempfile
+
+        with gzip.open(path, "rb") as gz:
+            data = gz.read()
+        with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
+            tmp.write(data)
+            tmp_path = Path(tmp.name)
+        try:
+            image = fabio.open(str(tmp_path))
+            arr = np.asarray(image.data)
+            return _normalize_image_array(arr)
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
+def _read_edf(path: Path) -> np.ndarray:
+    _ensure_fabio()
+    image = fabio.open(str(path))
+    arr = np.asarray(image.data)
+    return _normalize_image_array(arr)
+
+
 def _parse_ext_filter(exts: str | None) -> set[str]:
     if not exts:
         return set(AUTOLOAD_EXTS)
@@ -505,6 +569,8 @@ def _parse_ext_filter(exts: str | None) -> set[str]:
         if not token.startswith("."):
             token = f".{token}"
         cleaned.add(token)
+        if token == ".cbf":
+            cleaned.add(".cbf.gz")
     allowed = cleaned.intersection(AUTOLOAD_EXTS)
     return allowed or set(AUTOLOAD_EXTS)
 
@@ -536,8 +602,8 @@ def _scan_files(root: Path) -> list[str]:
     max_depth = None if MAX_SCAN_DEPTH < 0 else MAX_SCAN_DEPTH
     root = root.resolve()
     for path_str, name in _iter_entries(root, max_depth):
-        ext = os.path.splitext(name)[1].lower()
-        if ext not in {".h5", ".hdf5"}:
+        ext = _image_ext_name(name)
+        if ext not in AUTOLOAD_EXTS:
             continue
         try:
             rel = os.path.relpath(path_str, root)
@@ -587,7 +653,7 @@ def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) 
     pattern_norm = (pattern or "").strip()
     needs_rel = "/" in pattern_norm or "\\" in pattern_norm
     for path_str, name in _iter_entries(root, max_depth):
-        ext = os.path.splitext(name)[1].lower()
+        ext = _image_ext_name(name)
         if ext not in allowed_exts:
             continue
         if pattern_norm:
@@ -2140,6 +2206,68 @@ def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
     return {"files": _prefix_paths(root, items)}
 
 
+
+
+@app.get("/api/series")
+def series(file: str = Query(...)) -> dict[str, object]:
+    path = _resolve_image_file(file)
+    ext = _image_ext_name(path.name)
+    if ext in {".h5", ".hdf5"}:
+        return {"files": [file], "index": 0, "series": False}
+    parts = _split_series_name(path.name)
+    if not parts:
+        return {"files": [file], "index": 0, "series": False}
+    prefix, digits, suffix = parts
+    entries: list[tuple[int, Path]] = []
+    try:
+        with os.scandir(path.parent) as it:
+            for entry in it:
+                if not entry.is_file(follow_symlinks=False):
+                    continue
+                name = entry.name
+                if _image_ext_name(name) != ext:
+                    continue
+                stem = _strip_image_ext(name, ext)
+                match = re.match(rf"{re.escape(prefix)}(\d+){re.escape(suffix)}$", stem)
+                if not match:
+                    continue
+                try:
+                    idx = int(match.group(1))
+                except ValueError:
+                    continue
+                entries.append((idx, Path(entry.path)))
+    except OSError:
+        return {"files": [file], "index": 0, "series": False}
+    if not entries:
+        return {"files": [file], "index": 0, "series": False}
+    entries.sort(key=lambda item: item[0])
+    paths = [p for _, p in entries]
+    is_abs = Path(file).is_absolute()
+    if is_abs:
+        files = [str(p) for p in paths]
+        target = str(path)
+    else:
+        root = DATA_DIR.resolve()
+        files = []
+        target = None
+        for p in paths:
+            try:
+                rel = p.resolve().relative_to(root)
+            except ValueError:
+                continue
+            rel_str = str(rel).replace(os.sep, "/")
+            files.append(rel_str)
+            if p.resolve() == path.resolve():
+                target = rel_str
+        if target is None:
+            target = file
+    try:
+        index = files.index(target)
+    except ValueError:
+        index = 0
+    return {"files": files, "index": index, "series": len(files) > 1}
+
+
 @app.get("/api/folders")
 def folders() -> dict[str, list[str]]:
     global _folders_cache
@@ -2233,7 +2361,7 @@ def choose_file() -> Response:
         if not path:
             return Response(status_code=204)
     picked = Path(path).expanduser().resolve()
-    if picked.suffix.lower() not in {".h5", ".hdf5"}:
+    if _image_ext_name(picked.name) not in AUTOLOAD_EXTS:
         raise HTTPException(status_code=400, detail="Unsupported file type")
     if not picked.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -2243,11 +2371,11 @@ def choose_file() -> Response:
 
 @app.get("/api/browse")
 def browse(path: str | None = Query(None)) -> dict[str, Any]:
-    """List folders and HDF5 files in a directory for web-based file browser.
+    """List folders and image files in a directory for web-based file browser.
     
     Returns:
         - folders: list of subdirectory names
-        - files: list of HDF5 file names with relative paths
+        - files: list of image file names with relative paths
         - currentPath: the resolved directory path (relative to DATA_DIR if allowed)
         - root: the root DATA_DIR path
         - canGoUp: whether we can navigate to parent directory
@@ -2284,8 +2412,8 @@ def browse(path: str | None = Query(None)) -> dict[str, Any]:
                     continue
                 try:
                     if entry.is_file(follow_symlinks=False):
-                        ext = os.path.splitext(entry.name)[1].lower()
-                        if ext in {".h5", ".hdf5"}:
+                        ext = _image_ext_name(entry.name)
+                        if ext in AUTOLOAD_EXTS:
                             files.add(entry.name)
                 except OSError:
                     continue
@@ -2339,7 +2467,7 @@ def autoload_latest(
     return JSONResponse(
         {
             "file": file_label,
-            "ext": latest.suffix.lower(),
+            "ext": _image_ext_name(latest.name),
             "mtime": latest.stat().st_mtime,
             "absolute": absolute,
         }
@@ -2352,13 +2480,17 @@ def image(
     index: int = Query(0, ge=0),
 ) -> Response:
     path = _resolve_image_file(file)
-    ext = path.suffix.lower()
+    ext = _image_ext_name(path.name)
     if ext in {".h5", ".hdf5"}:
         raise HTTPException(status_code=400, detail="Use /api/frame for HDF5 datasets")
     if ext in {".tif", ".tiff"}:
         arr = _read_tiff(path, index=index)
     elif ext == ".cbf":
         arr = _read_cbf(path)
+    elif ext == ".cbf.gz":
+        arr = _read_cbf_gz(path)
+    elif ext == ".edf":
+        arr = _read_edf(path)
     else:
         raise HTTPException(status_code=400, detail="Unsupported image format")
 
@@ -3156,6 +3288,16 @@ def _resource_root() -> Path:
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS)
     return Path(__file__).resolve().parents[1]
+
+
+@app.middleware("http")
+async def _no_cache_static(request: 'Request', call_next):
+    response = await call_next(request)
+    if request.method == "GET":
+        path = request.url.path
+        if path in {"/", "/index.html", "/app.js", "/style.css", "/docs.html"}:
+            response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 STATIC_DIR = _resource_root() / "frontend"

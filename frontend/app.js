@@ -310,6 +310,8 @@ const state = {
   thresholdCount: 1,
   thresholdIndex: 0,
   thresholdEnergies: [],
+  seriesFiles: [],
+  seriesLabel: "",
   backendAlive: false,
   backendVersion: "0.4",
   toolHintsEnabled: false,
@@ -355,6 +357,7 @@ const state = {
       hdf5: true,
       tiff: true,
       cbf: true,
+      edf: true,
     },
     pattern: "",
     simplonUrl: "",
@@ -1290,7 +1293,7 @@ function clearMaskState() {
 }
 
 async function loadMask(forceEnable = false) {
-  if (!state.file) {
+  if (!state.file || !isHdfFile(state.file)) {
     clearMaskState();
     return;
   }
@@ -3131,7 +3134,8 @@ function setFps(value) {
 }
 
 function updatePlayButtons() {
-  const disabled = !state.file || !state.dataset || state.frameCount <= 1;
+  const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
+  const disabled = !state.file || (!state.dataset && !hasSeries) || state.frameCount <= 1;
   if (playBtn) {
     playBtn.classList.toggle("is-active", state.playing);
     playBtn.disabled = disabled;
@@ -3263,7 +3267,8 @@ function startPlayback() {
 }
 
 function requestFrame(index) {
-  if (!state.frameCount || !state.dataset || !state.file) return;
+  const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
+  if (!state.frameCount || (!state.dataset && !hasSeries) || !state.file) return;
   const clamped = Math.max(0, Math.min(state.frameCount - 1, index));
   state.frameIndex = clamped;
   updateFrameControls();
@@ -3650,14 +3655,18 @@ async function openFileModal() {
         }
         fileSelect.value = path;
       }
-      await loadDatasets();
+      if (isHdfFile(path)) {
+        await loadDatasets();
+      } else {
+        await loadImageSeries(path);
+      }
       return;
     } catch (err) {
       console.error(err);
     }
   } else if (filesystemMode?.value === "local") {
     // Use HTML5 file input for local filesystem on remote backend
-    fileInput.accept = ".h5,.hdf5";
+    fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf";
     fileInput.onchange = async (event) => {
       const file = event.target.files?.[0];
       if (!file) return;
@@ -3697,7 +3706,11 @@ async function openFileModal() {
         }
         fileSelect.value = selectedFile;
       }
-      await loadDatasets();
+      if (isHdfFile(selectedFile)) {
+        await loadDatasets();
+      } else {
+        await loadImageSeries(selectedFile);
+      }
       return;
     } catch (err) {
       console.error(err);
@@ -3795,6 +3808,16 @@ function setDataControlsForImage() {
   if (frameIndex) frameIndex.disabled = true;
   if (frameStep) frameStep.disabled = true;
   if (fpsRange) fpsRange.disabled = true;
+}
+
+function setDataControlsForSeries() {
+  if (datasetSelect) datasetSelect.disabled = true;
+  if (thresholdSelect) thresholdSelect.disabled = true;
+  if (toolbarThresholdSelect) toolbarThresholdSelect.disabled = true;
+  if (frameRange) frameRange.disabled = false;
+  if (frameIndex) frameIndex.disabled = false;
+  if (frameStep) frameStep.disabled = false;
+  if (fpsRange) fpsRange.disabled = false;
 }
 
 function formatTimeStamp(ts) {
@@ -4168,7 +4191,8 @@ async function autoloadWatchTick() {
   const exts = [];
   if (state.autoload.types.hdf5) exts.push("h5", "hdf5");
   if (state.autoload.types.tiff) exts.push("tif", "tiff");
-  if (state.autoload.types.cbf) exts.push("cbf");
+  if (state.autoload.types.cbf) exts.push("cbf", "cbf.gz");
+  if (state.autoload.types.edf) exts.push("edf");
   if (exts.length === 0) {
     setAutoloadStatus("Watch: no types selected");
     return;
@@ -4300,6 +4324,39 @@ async function loadAutoloadFile(file) {
     }
     return;
   }
+  await loadImageSeries(file);
+}
+
+async function loadImageSeries(file) {
+  if (!file) return;
+  if (!isSeriesCapable(file)) {
+    state.seriesFiles = [];
+    state.seriesLabel = "";
+    await loadImageFile(file);
+    return;
+  }
+  try {
+    const data = await fetchJSON(`${API}/series?file=${encodeURIComponent(file)}`);
+    const files = Array.isArray(data.files) ? data.files : [file];
+    if (data.series && files.length > 1) {
+      state.seriesFiles = files;
+      state.seriesLabel = fileLabel(file);
+      state.file = file;
+      state.dataset = "";
+      state.frameCount = files.length;
+      state.frameIndex = Math.max(0, Math.min(files.length - 1, Number(data.index || 0)));
+      state.hasFrame = false;
+      updateFrameControls();
+      updatePlayButtons();
+      setDataControlsForSeries();
+      await loadSeriesFrame();
+      return;
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+  state.seriesFiles = [];
+  state.seriesLabel = "";
   await loadImageFile(file);
 }
 
@@ -4321,25 +4378,41 @@ async function loadImageFile(file) {
   setLoading(false);
 }
 
-function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false) {
+function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false, options = {}) {
   if (!Array.isArray(shape) || shape.length < 2) return;
   stopPlayback();
+  const preserveSeries = Boolean(options.preserveSeries);
   if (fitView) {
     state.hasFrame = false;
   }
-  state.file = label;
-  state.dataset = "";
-  state.frameCount = 1;
-  state.frameIndex = 0;
-  state.thresholdCount = 1;
-  state.thresholdIndex = 0;
-  state.thresholdEnergies = [];
-  updateFrameControls();
-  updateThresholdOptions();
-  datasetSelect.innerHTML = "";
-  datasetSelect.appendChild(option("Single image", ""));
-  datasetSelect.value = "";
-  setDataControlsForImage();
+  if (!preserveSeries) {
+    state.file = label;
+    state.dataset = "";
+    state.seriesFiles = [];
+    state.seriesLabel = "";
+    state.frameCount = 1;
+    state.frameIndex = 0;
+    state.thresholdCount = 1;
+    state.thresholdIndex = 0;
+    state.thresholdEnergies = [];
+    updateFrameControls();
+    updateThresholdOptions();
+    datasetSelect.innerHTML = "";
+    datasetSelect.appendChild(option("Single image", ""));
+    datasetSelect.value = "";
+    setDataControlsForImage();
+  } else {
+    state.dataset = "";
+    state.thresholdCount = 1;
+    state.thresholdIndex = 0;
+    state.thresholdEnergies = [];
+    updateFrameControls();
+    updateThresholdOptions();
+    datasetSelect.innerHTML = "";
+    datasetSelect.appendChild(option("Series image", ""));
+    datasetSelect.value = "";
+    setDataControlsForSeries();
+  }
   if (!preserveMask) {
     clearMaskState();
   }
@@ -4890,6 +4963,25 @@ function option(label, value) {
   return opt;
 }
 
+function isHdfFile(path) {
+  if (!path) return false;
+  const lower = String(path).toLowerCase();
+  return lower.endsWith(".h5") || lower.endsWith(".hdf5");
+}
+
+function isSeriesCapable(path) {
+  if (!path) return false;
+  const lower = String(path).toLowerCase();
+  if (isHdfFile(lower)) return false;
+  return (
+    lower.endsWith(".cbf") ||
+    lower.endsWith(".cbf.gz") ||
+    lower.endsWith(".edf") ||
+    lower.endsWith(".tif") ||
+    lower.endsWith(".tiff")
+  );
+}
+
 function fileLabel(path) {
   if (!path) return "";
   const parts = path.split(/[/\\\\]/);
@@ -5292,7 +5384,7 @@ async function loadFiles() {
   } else {
     data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
     if (!existingFile) {
-      setStatus("No HDF5 files found");
+      setStatus("No image files found");
       showSplash();
       setLoading(false);
     }
@@ -5314,8 +5406,14 @@ function sortDatasets(datasets) {
 
 async function loadDatasets() {
   if (!state.file) return;
+  if (!isHdfFile(state.file)) {
+    await loadImageSeries(state.file);
+    return;
+  }
   state.hasFrame = false;
   stopPlayback();
+  state.seriesFiles = [];
+  state.seriesLabel = "";
   setDataControlsForHdf5();
   await loadMask(true);
   showProcessingProgress("Scanning datasets…");
@@ -7083,7 +7181,58 @@ function redraw() {
   schedulePeakOverlay();
 }
 
+async function loadSeriesFrame() {
+  const files = Array.isArray(state.seriesFiles) ? state.seriesFiles : [];
+  if (!files.length) return;
+  const file = files[state.frameIndex];
+  if (!file) return;
+  if (state.isLoading) return;
+  state.isLoading = true;
+  if (!state.playing) {
+    setLoading(true);
+    setStatus("Loading frame…");
+  } else {
+    setLoading(false);
+  }
+  const res = await fetch(`${API}/image?file=${encodeURIComponent(file)}`);
+  if (!res.ok) {
+    setStatus("Failed to load image");
+    setLoading(false);
+    state.isLoading = false;
+    if (!state.hasFrame) {
+      showSplash();
+    }
+    return;
+  }
+  const buffer = await res.arrayBuffer();
+  const dtype = parseDtype(res.headers.get("X-Dtype"));
+  const shape = parseShape(res.headers.get("X-Shape"));
+  const data = typedArrayFrom(buffer, dtype);
+
+  const height = shape[0];
+  const width = shape[1];
+  metaShape.textContent = `${width} × ${height}`;
+  metaDtype.textContent = dtype;
+
+  applyExternalFrame(data, shape, dtype, state.file || file, false, false, { preserveSeries: true });
+  setStatus(`Frame ${state.frameIndex + 1} / ${state.frameCount}`);
+  updateToolbar();
+  setLoading(false);
+  state.isLoading = false;
+  if (state.pendingFrame !== null && state.pendingFrame !== state.frameIndex) {
+    const next = state.pendingFrame;
+    state.pendingFrame = null;
+    requestFrame(next);
+  } else {
+    state.pendingFrame = null;
+  }
+}
+
 async function loadFrame() {
+  if (Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0) {
+    await loadSeriesFrame();
+    return;
+  }
   if (!state.file || !state.dataset) return;
   if (state.isLoading) return;
   state.isLoading = true;
@@ -7351,7 +7500,11 @@ fileSelect.addEventListener("change", async (event) => {
   if (!state.file) return;
   syncSeriesSumOutputPath();
   stopPlayback();
-  await loadDatasets();
+  if (isHdfFile(state.file)) {
+    await loadDatasets();
+  } else {
+    await loadImageSeries(state.file);
+  }
 });
 
 datasetSelect.addEventListener("change", async (event) => {
@@ -7584,7 +7737,7 @@ function renderBrowseContent(data) {
     empty.style.padding = "8px";
     empty.style.color = "#999";
     empty.style.fontSize = "11px";
-    empty.textContent = "No HDF5 files";
+    empty.textContent = "No image files";
     browseFilesList.appendChild(empty);
   }
 }
@@ -7688,7 +7841,7 @@ filesystemMode?.addEventListener("change", () => {
 });
 
 async function handleLocalFileSelection(mode, inputElement) {
-  fileInput.accept = ".h5,.hdf5";
+  fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf";
   fileInput.onchange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
