@@ -2486,14 +2486,21 @@ def _linux_choose_file() -> str | None:
             [
                 zenity,
                 "--file-selection",
-                "--title=Select HDF5 file",
-                "--file-filter=HDF5 files | *.h5 *.hdf5",
+                "--title=Select image file",
+                "--file-filter=Image files | *.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf",
                 "--file-filter=All files | *",
             ]
         )
     kdialog = shutil.which("kdialog")
     if kdialog:
-        return _run_linux_dialog([kdialog, "--getopenfilename", str(Path.home()), "*.h5 *.hdf5"])
+        return _run_linux_dialog(
+            [
+                kdialog,
+                "--getopenfilename",
+                str(Path.home()),
+                "Image files (*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf) | All files (*)",
+            ]
+        )
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
 
 
@@ -2532,8 +2539,11 @@ def _tk_choose_file() -> str | None:
     try:
         return (
             filedialog.askopenfilename(
-                title="Select HDF5 file",
-                filetypes=[("HDF5 files", "*.h5 *.hdf5"), ("All files", "*.*")],
+                title="Select image file",
+                filetypes=[
+                    ("Image files", "*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf"),
+                    ("All files", "*.*"),
+                ],
             )
             or None
         )
@@ -2682,7 +2692,7 @@ def choose_file() -> Response:
     system = platform.system()
     logger.debug("File picker requested (os=%s)", system)
     if system == "Darwin":
-        script = 'POSIX path of (choose file with prompt "Select HDF5 file")'
+        script = 'POSIX path of (choose file with prompt "Select image file")'
         try:
             result = subprocess.run(
                 ["osascript", "-e", script],
@@ -2977,8 +2987,9 @@ async def upload(file: UploadFile = File(...), folder: str | None = Query(None))
         raise HTTPException(status_code=400, detail="Missing filename")
     safe_path = _safe_rel_path(Path(file.filename).name)
     safe = safe_path.as_posix()
-    if not safe.lower().endswith((".h5", ".hdf5")):
-        raise HTTPException(status_code=400, detail="Only .h5/.hdf5 files are supported")
+    ext = _image_ext_name(safe)
+    if ext not in AUTOLOAD_EXTS:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
     root = _resolve_dir(folder) if folder else DATA_DIR.resolve()
     dest = (root / safe).resolve()
     if not _is_within(dest, root):
