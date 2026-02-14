@@ -8,4 +8,9 @@ dist/
 logs/
 *.h5
 *.hdf5
+*.cbf
+*.cbf.gz
+*.tiff
+*.tif
+*.edf
 test_data/

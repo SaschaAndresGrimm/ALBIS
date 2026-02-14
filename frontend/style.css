@@ -843,6 +843,30 @@ body {
   margin-top: 8px;
 }
 
+.panel-section.image-header {
+  margin-top: 8px;
+}
+
+.image-header-empty {
+  color: #b8b8b8;
+  font-size: 11px;
+  padding: 6px 4px;
+}
+
+.image-header-text {
+  max-height: 220px;
+  overflow: auto;
+  background: #1b1b1b;
+  border: 1px solid #111;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #f0f0f0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
 .inspector-search {
   display: flex;
   gap: 6px;
@@ -1775,6 +1799,24 @@ body {
   text-align: right;
   margin-left: 8px;
   word-break: break-all;
+}
+
+.simplon-meta {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #232323;
+}
+
+.simplon-meta .meta-row {
+  font-size: 12px;
+}
+
+.simplon-meta strong {
+  font-weight: 600;
+  font-size: 12px;
+  text-align: right;
+  margin-left: 8px;
+  word-break: break-word;
 }
 
 .inline {

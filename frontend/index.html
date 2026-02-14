@@ -436,6 +436,16 @@
                 <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
                 <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
               </div>
+              <div class="simplon-meta is-hidden" id="simplon-meta">
+                <div class="meta-row"><span>Series</span><strong id="simplon-series">-</strong></div>
+                <div class="meta-row"><span>Image</span><strong id="simplon-image">-</strong></div>
+                <div class="meta-row"><span>Timestamp</span><strong id="simplon-time">-</strong></div>
+                <div class="meta-row"><span>Energy (eV)</span><strong id="simplon-energy">-</strong></div>
+                <div class="meta-row"><span>Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
+                <div class="meta-row"><span>Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
+                <div class="meta-row"><span>Distance (mm)</span><strong id="simplon-distance">-</strong></div>
+                <div class="meta-row"><span>Beam center (px)</span><strong id="simplon-center">-</strong></div>
+              </div>
             </div>
             <section class="panel-section inspector" data-section="inspector">
               <button class="section-title" type="button" data-section-toggle>
@@ -458,6 +468,14 @@
                 <div class="inspector-attrs" id="inspector-attrs"></div>
                 <div class="inspector-preview" id="inspector-preview"></div>
               </div>
+            </section>
+            <section class="panel-section image-header is-hidden" data-section="image-header" id="image-header-section">
+              <button class="section-title" type="button" data-section-toggle>
+                Image Header
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="image-header-empty" id="image-header-empty">No header available.</div>
+              <pre class="image-header-text" id="image-header-text"></pre>
             </section>
           </div>
 
@@ -612,7 +630,7 @@
 
 
 
-    <input class="file-input" id="file-input" type="file" accept=".h5,.hdf5" />
+    <input class="file-input" id="file-input" type="file" accept=".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf" multiple />
     <div class="modal" id="about-modal" aria-hidden="true">
       <div class="modal-backdrop"></div>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="about-title">

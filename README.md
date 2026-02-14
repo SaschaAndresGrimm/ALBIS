@@ -5,7 +5,7 @@ ALBIS is an **ALBULA‑style**, browser‑based image viewer for diffraction dat
 It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
-- Files on disk (`.h5/.hdf5`).
+- Files on disk (`.h5/.hdf5` stacks) and common detector image formats (`.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`). Numbered series are treated like stacks.
 - The detector **SIMPLON monitor** stream for live viewing.
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
@@ -160,14 +160,16 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 - `↑`/`↓` Jump by Step setting (or threshold change when multi‑threshold is active)
 
 ## Roadmap — Next Milestones
-
-1. Detector control and status.
-2. Installer for non‑Python users.
-3. ...? =)
+- v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
+- v0.6 multi pane view or synch of multiple windows
+- v0.7 server - client(s) implementation
+- v0.8 detector control and status.
+- v0.9 facelift
+- v1.0 it's done!
+- ...? =)
 
 ## Notes
-- WebGL texture size limits may apply for very large frames.
-
+- current focus of the development is server and client running on the same machine.
 
 ## Acknowledgements and Contributions
 This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set for many the benchmark.

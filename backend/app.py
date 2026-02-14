@@ -32,7 +32,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import tempfile
 import numpy as np
-from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 import shutil
@@ -58,7 +58,7 @@ ALBIS_VERSION = "0.4"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
-AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf"}
+AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}
 ALLOW_ABS_PATHS = get_bool(CONFIG, ("data", "allow_abs_paths"), True)
 SCAN_CACHE_SEC = get_float(CONFIG, ("data", "scan_cache_sec"), 2.0)
 MAX_SCAN_DEPTH = get_int(CONFIG, ("data", "max_scan_depth"), -1)
@@ -314,6 +314,203 @@ def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, An
     return meta
 
 
+_PILATUS_NUM_RE = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
+
+
+def _parse_unit_value(text: str) -> tuple[float | None, str]:
+    if not text:
+        return None, ""
+    match = _PILATUS_NUM_RE.search(text)
+    if not match:
+        return None, ""
+    value = float(match.group(0))
+    unit_match = re.search(rf"{re.escape(match.group(0))}\s*([A-Za-zµÅ]+)", text)
+    unit = unit_match.group(1) if unit_match else ""
+    return value, unit
+
+
+def _convert_length(value: float | None, unit: str, target: str) -> float | None:
+    if value is None or not math.isfinite(value):
+        return None
+    unit_l = unit.lower()
+    if target == "um":
+        if unit_l in {"m", "meter", "metre"}:
+            return value * 1e6
+        if unit_l == "mm":
+            return value * 1e3
+        if unit_l in {"um", "µm"}:
+            return value
+        if unit_l == "nm":
+            return value * 1e-3
+        return value
+    if target == "mm":
+        if unit_l in {"m", "meter", "metre"}:
+            return value * 1e3
+        if unit_l == "cm":
+            return value * 10.0
+        if unit_l == "mm":
+            return value
+        if unit_l in {"um", "µm"}:
+            return value * 1e-3
+        return value
+    if target == "a":
+        if unit_l in {"a", "å", "angstrom", "ang"}:
+            return value
+        if unit_l == "nm":
+            return value * 10.0
+        if unit_l in {"m", "meter", "metre"}:
+            return value * 1e10
+        if unit_l == "mm":
+            return value * 1e7
+        return value
+    return value
+
+
+def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
+    meta: dict[str, Any] = {}
+    if not text:
+        return meta
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            line = line[1:].strip()
+        lower = line.lower()
+        if "pixel_size" in lower and "pixel_size_um" not in meta:
+            value, unit = _parse_unit_value(line)
+            pixel_um = _convert_length(value, unit, "um")
+            if pixel_um is not None:
+                meta["pixel_size_um"] = float(pixel_um)
+            continue
+        if "beam_xy" in lower or "beam center" in lower or "beam_center" in lower:
+            nums = _PILATUS_NUM_RE.findall(line)
+            if len(nums) >= 2:
+                meta["beam_center_px"] = (float(nums[0]), float(nums[1]))
+            continue
+        if "detector_distance" in lower or "detector distance" in lower:
+            value, unit = _parse_unit_value(line)
+            distance_mm = _convert_length(value, unit, "mm")
+            if distance_mm is not None:
+                meta["distance_mm"] = float(distance_mm)
+            continue
+        if "wavelength" in lower and "wavelength_a" not in meta:
+            value, unit = _parse_unit_value(line)
+            wavelength_a = _convert_length(value, unit, "a")
+            if wavelength_a is not None:
+                meta["wavelength_a"] = float(wavelength_a)
+            continue
+        if "energy" in lower and "threshold" not in lower and "energy_ev" not in meta:
+            value, unit = _parse_unit_value(line)
+            if value is None:
+                continue
+            unit_l = unit.lower()
+            if unit_l in {"kev"}:
+                meta["energy_ev"] = float(value * 1000.0)
+            elif unit_l in {"ev"}:
+                meta["energy_ev"] = float(value)
+            continue
+    if "energy_ev" not in meta:
+        wavelength = meta.get("wavelength_a")
+        if wavelength and wavelength > 0:
+            meta["energy_ev"] = float(12398.4193 / wavelength)
+    return meta
+
+
+def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
+    image = _open_fabio_image(path)
+    if image is None:
+        return {}
+    header = getattr(image, "header", {}) or {}
+    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
+    if isinstance(text, bytes):
+        text = text.decode("utf-8", errors="ignore")
+    if not text:
+        try:
+            text = "\n".join(f"{k} {v}" for k, v in header.items())
+        except Exception:
+            text = ""
+    meta = _parse_pilatus_header_text(text)
+    return meta
+
+
+def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
+    _ensure_tifffile()
+    try:
+        with tifffile.TiffFile(path) as tiff:
+            desc = ""
+            try:
+                desc = tiff.pages[0].description or ""
+            except Exception:
+                desc = ""
+    except Exception:
+        desc = ""
+    meta = _parse_pilatus_header_text(desc)
+    if meta:
+        return meta
+    try:
+        return _pilatus_meta_from_fabio(path)
+    except Exception:
+        return {}
+
+
+def _open_fabio_image(path: Path):
+    _ensure_fabio()
+    try:
+        return fabio.open(str(path))
+    except Exception:
+        if path.suffix.lower() != ".gz":
+            return None
+        try:
+            import gzip
+            import tempfile
+
+            with gzip.open(path, "rb") as gz:
+                data = gz.read()
+            with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
+                tmp.write(data)
+                tmp_path = Path(tmp.name)
+            try:
+                return fabio.open(str(tmp_path))
+            finally:
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+        except Exception:
+            return None
+
+
+def _pilatus_header_text(path: Path) -> str:
+    ext = _image_ext_name(path.name)
+    if ext in {".tif", ".tiff"}:
+        _ensure_tifffile()
+        try:
+            with tifffile.TiffFile(path) as tiff:
+                desc = ""
+                try:
+                    desc = tiff.pages[0].description or ""
+                except Exception:
+                    desc = ""
+            if desc:
+                return str(desc)
+        except Exception:
+            pass
+    image = _open_fabio_image(path)
+    if image is None:
+        return ""
+    header = getattr(image, "header", {}) or {}
+    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
+    if isinstance(text, bytes):
+        text = text.decode("utf-8", errors="ignore")
+    if text:
+        return str(text)
+    try:
+        return "\n".join(f"{k} {v}" for k, v in header.items())
+    except Exception:
+        return ""
+
+
 def _ensure_fabio() -> None:
     global fabio
     if fabio is None:
@@ -444,14 +641,14 @@ def _resolve_image_file(name: str) -> Path:
         if not ALLOW_ABS_PATHS:
             raise HTTPException(status_code=400, detail="Absolute paths are disabled")
         path = raw.expanduser().resolve()
-        if not path.exists() or path.suffix.lower() not in AUTOLOAD_EXTS:
+        if not path.exists() or _image_ext_name(path.name) not in AUTOLOAD_EXTS:
             raise HTTPException(status_code=404, detail="File not found")
         return path
     safe = _safe_rel_path(name)
     path = (DATA_DIR / safe).resolve()
     if not _is_within(path, DATA_DIR.resolve()):
         raise HTTPException(status_code=400, detail="Invalid file name")
-    if not path.exists() or path.suffix.lower() not in AUTOLOAD_EXTS:
+    if not path.exists() or _image_ext_name(path.name) not in AUTOLOAD_EXTS:
         raise HTTPException(status_code=404, detail="File not found")
     return path
 
@@ -462,6 +659,75 @@ def _is_within(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+
+def _image_ext_name(name: str) -> str:
+    lower = name.lower()
+    if lower.endswith(".cbf.gz"):
+        return ".cbf.gz"
+    return Path(lower).suffix
+
+
+
+def _strip_image_ext(name: str, ext: str) -> str:
+    if ext == ".cbf.gz" and name.lower().endswith(ext):
+        return name[: -len(ext)]
+    if name.lower().endswith(ext):
+        return name[: -len(ext)]
+    return Path(name).stem
+
+
+
+def _split_series_name(name: str) -> tuple[str, str, str] | None:
+    ext = _image_ext_name(name)
+    stem = _strip_image_ext(name, ext)
+    match = re.match(r"^(.*?)(\d+)([^\d]*)$", stem)
+    if not match:
+        return None
+    prefix, digits, suffix = match.groups()
+    if not digits:
+        return None
+    return prefix, digits, suffix
+
+
+def _resolve_series_files(path: Path) -> tuple[list[Path], int]:
+    """Resolve a sequence of numbered files into a sorted series."""
+    ext = _image_ext_name(path.name)
+    if ext not in {".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}:
+        return [path], 0
+    parts = _split_series_name(path.name)
+    if not parts:
+        return [path], 0
+    prefix, digits, suffix = parts
+    pattern = re.compile(
+        rf"^{re.escape(prefix)}(\d+){re.escape(suffix)}{re.escape(ext)}$",
+        re.IGNORECASE,
+    )
+    matches: list[tuple[int, Path]] = []
+    try:
+        for entry in path.parent.iterdir():
+            if not entry.is_file():
+                continue
+            if _image_ext_name(entry.name) != ext:
+                continue
+            match = pattern.match(entry.name)
+            if not match:
+                continue
+            idx = int(match.group(1))
+            matches.append((idx, entry))
+    except OSError:
+        return [path], 0
+    if not matches:
+        return [path], 0
+    matches.sort(key=lambda item: item[0])
+    files = [item[1] for item in matches]
+    index = 0
+    for i, (_, entry) in enumerate(matches):
+        if entry.name == path.name:
+            index = i
+            break
+    return files, index
 
 
 def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
@@ -494,6 +760,40 @@ def _read_cbf(path: Path) -> np.ndarray:
     return _normalize_image_array(arr)
 
 
+
+def _read_cbf_gz(path: Path) -> np.ndarray:
+    _ensure_fabio()
+    try:
+        image = fabio.open(str(path))
+        arr = np.asarray(image.data)
+        return _normalize_image_array(arr)
+    except Exception:
+        import gzip
+        import tempfile
+
+        with gzip.open(path, "rb") as gz:
+            data = gz.read()
+        with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
+            tmp.write(data)
+            tmp_path = Path(tmp.name)
+        try:
+            image = fabio.open(str(tmp_path))
+            arr = np.asarray(image.data)
+            return _normalize_image_array(arr)
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
+def _read_edf(path: Path) -> np.ndarray:
+    _ensure_fabio()
+    image = fabio.open(str(path))
+    arr = np.asarray(image.data)
+    return _normalize_image_array(arr)
+
+
 def _parse_ext_filter(exts: str | None) -> set[str]:
     if not exts:
         return set(AUTOLOAD_EXTS)
@@ -505,6 +805,8 @@ def _parse_ext_filter(exts: str | None) -> set[str]:
         if not token.startswith("."):
             token = f".{token}"
         cleaned.add(token)
+        if token == ".cbf":
+            cleaned.add(".cbf.gz")
     allowed = cleaned.intersection(AUTOLOAD_EXTS)
     return allowed or set(AUTOLOAD_EXTS)
 
@@ -536,8 +838,8 @@ def _scan_files(root: Path) -> list[str]:
     max_depth = None if MAX_SCAN_DEPTH < 0 else MAX_SCAN_DEPTH
     root = root.resolve()
     for path_str, name in _iter_entries(root, max_depth):
-        ext = os.path.splitext(name)[1].lower()
-        if ext not in {".h5", ".hdf5"}:
+        ext = _image_ext_name(name)
+        if ext not in AUTOLOAD_EXTS:
             continue
         try:
             rel = os.path.relpath(path_str, root)
@@ -587,7 +889,7 @@ def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) 
     pattern_norm = (pattern or "").strip()
     needs_rel = "/" in pattern_norm or "\\" in pattern_norm
     for path_str, name in _iter_entries(root, max_depth):
-        ext = os.path.splitext(name)[1].lower()
+        ext = _image_ext_name(name)
         if ext not in allowed_exts:
             continue
         if pattern_norm:
@@ -1630,10 +1932,10 @@ def _run_series_summing_job(
     apply_mask: bool,
 ) -> None:
     """Background worker for series summing output generation."""
-    _ensure_hdf5_stack()
     _ensure_tifffile()
     try:
-        source_path = _resolve_file(file)
+        source_path = _resolve_image_file(file)
+        ext = _image_ext_name(source_path.name)
         base_target = _resolve_series_output_base(output_path)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         output_format = output_format.lower()
@@ -1644,112 +1946,228 @@ def _run_series_summing_job(
 
         _series_job_update(job_id, status="running", message="Preparing datasets…", progress=0.01)
 
-        with h5py.File(source_path, "r") as h5:
-            view, extra_files = _resolve_dataset_view(h5, source_path, dataset)
-            try:
-                shape = tuple(int(x) for x in view["shape"])
-                ndim = int(view["ndim"])
-                if ndim not in (3, 4):
-                    raise HTTPException(status_code=400, detail="Series summing requires 3D or 4D image stacks")
-                frame_count = int(shape[0])
-                threshold_count = int(shape[1]) if ndim == 4 else 1
-                if normalize_frame_idx is not None and (
-                    normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
-                ):
-                    raise HTTPException(status_code=400, detail="Normalize frame is out of range")
-                groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
-                if not groups:
-                    raise HTTPException(status_code=400, detail="No frames available for summing")
+        if ext in {".h5", ".hdf5"}:
+            _ensure_hdf5_stack()
+            with h5py.File(source_path, "r") as h5:
+                view, extra_files = _resolve_dataset_view(h5, source_path, dataset)
+                try:
+                    shape = tuple(int(x) for x in view["shape"])
+                    ndim = int(view["ndim"])
+                    if ndim not in (3, 4):
+                        raise HTTPException(
+                            status_code=400, detail="Series summing requires 3D or 4D image stacks"
+                        )
+                    frame_count = int(shape[0])
+                    threshold_count = int(shape[1]) if ndim == 4 else 1
+                    if normalize_frame_idx is not None and (
+                        normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
+                    ):
+                        raise HTTPException(status_code=400, detail="Normalize frame is out of range")
+                    groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
+                    if not groups:
+                        raise HTTPException(status_code=400, detail="No frames available for summing")
 
-                source_dtype = np.dtype(view["dtype"])
-                flag_value = _mask_flag_value(source_dtype)
-                mask_bits_by_thr: list[np.ndarray | None] = []
-                for thr in range(threshold_count):
-                    if not apply_mask:
-                        mask_bits_by_thr.append(None)
-                        continue
-                    mask_dset = _find_pixel_mask(h5, threshold=thr if threshold_count > 1 else None)
-                    if mask_dset is None:
-                        mask_bits_by_thr.append(None)
-                        continue
-                    mask_bits_by_thr.append(np.asarray(mask_dset, dtype=np.uint32))
+                    source_dtype = np.dtype(view["dtype"])
+                    flag_value = _mask_flag_value(source_dtype)
+                    mask_bits_by_thr: list[np.ndarray | None] = []
+                    for thr in range(threshold_count):
+                        if not apply_mask:
+                            mask_bits_by_thr.append(None)
+                            continue
+                        mask_dset = _find_pixel_mask(h5, threshold=thr if threshold_count > 1 else None)
+                        if mask_dset is None:
+                            mask_bits_by_thr.append(None)
+                            continue
+                        mask_bits_by_thr.append(np.asarray(mask_dset, dtype=np.uint32))
 
-                total_input_frames = sum(int(group["count"]) for group in groups)
-                total_steps = max(1, total_input_frames * threshold_count)
-                processed = 0
-                sums: list[tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]] = []
+                    total_input_frames = sum(int(group["count"]) for group in groups)
+                    total_steps = max(1, total_input_frames * threshold_count)
+                    processed = 0
+                    sums: list[tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]] = []
 
-                for thr in range(threshold_count):
-                    mask_bits = mask_bits_by_thr[thr]
-                    _, _, any_mask = _mask_slices(mask_bits) if mask_bits is not None else (None, None, None)
-                    norm_ref: np.ndarray | None = None
-                    norm_ref_valid: np.ndarray | None = None
-                    if normalize_frame_idx is not None:
-                        norm_ref = np.asarray(_extract_frame(view, normalize_frame_idx, thr), dtype=np.float64)
-                        if any_mask is not None:
-                            norm_ref = norm_ref.copy()
-                            norm_ref[any_mask] = np.nan
-                        norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
-
-                    for chunk_idx, group in enumerate(groups):
-                        start_idx = int(group["start"])
-                        end_idx = int(group["end"])
-                        frame_indices = list(group["indices"])
-                        acc: np.ndarray | None = None
-                        median_stack: list[np.ndarray] | None = [] if operation == "median" else None
-                        for frame_idx in frame_indices:
-                            arr = _extract_frame(view, frame_idx, thr)
-                            arr = np.asarray(arr, dtype=np.float64)
-                            if norm_ref is not None and norm_ref_valid is not None:
-                                arr = np.divide(
-                                    arr,
-                                    norm_ref,
-                                    out=np.zeros_like(arr, dtype=np.float64),
-                                    where=norm_ref_valid,
-                                )
+                    for thr in range(threshold_count):
+                        mask_bits = mask_bits_by_thr[thr]
+                        _, _, any_mask = (
+                            _mask_slices(mask_bits) if mask_bits is not None else (None, None, None)
+                        )
+                        norm_ref: np.ndarray | None = None
+                        norm_ref_valid: np.ndarray | None = None
+                        if normalize_frame_idx is not None:
+                            norm_ref = np.asarray(_extract_frame(view, normalize_frame_idx, thr), dtype=np.float64)
                             if any_mask is not None:
-                                arr = arr.copy()
-                                arr[any_mask] = 0.0
+                                norm_ref = norm_ref.copy()
+                                norm_ref[any_mask] = np.nan
+                            norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
+
+                        for chunk_idx, group in enumerate(groups):
+                            start_idx = int(group["start"])
+                            end_idx = int(group["end"])
+                            frame_indices = list(group["indices"])
+                            acc: np.ndarray | None = None
+                            median_stack: list[np.ndarray] | None = [] if operation == "median" else None
+                            for frame_idx in frame_indices:
+                                arr = _extract_frame(view, frame_idx, thr)
+                                arr = np.asarray(arr, dtype=np.float64)
+                                if norm_ref is not None and norm_ref_valid is not None:
+                                    arr = np.divide(
+                                        arr,
+                                        norm_ref,
+                                        out=np.zeros_like(arr, dtype=np.float64),
+                                        where=norm_ref_valid,
+                                    )
+                                if any_mask is not None:
+                                    arr = arr.copy()
+                                    arr[any_mask] = 0.0
+                                if operation == "median":
+                                    if median_stack is not None:
+                                        median_stack.append(arr)
+                                else:
+                                    if acc is None:
+                                        acc = np.zeros_like(arr, dtype=np.float64)
+                                    acc += arr
+                                processed += 1
+                                progress = min(0.95, processed / total_steps)
+                                _series_job_update(
+                                    job_id,
+                                    progress=progress,
+                                    message=(
+                                        f"{operation.capitalize()} threshold {thr + 1}/{threshold_count}, "
+                                        f"frame {frame_idx + 1}/{frame_count}"
+                                    ),
+                                )
                             if operation == "median":
-                                if median_stack is not None:
-                                    median_stack.append(arr)
+                                if not median_stack:
+                                    continue
+                                reduced = np.median(np.stack(median_stack, axis=0), axis=0)
                             else:
                                 if acc is None:
-                                    acc = np.zeros_like(arr, dtype=np.float64)
-                                acc += arr
-                            processed += 1
-                            progress = min(0.95, processed / total_steps)
-                            _series_job_update(
-                                job_id,
-                                progress=progress,
-                                message=(
-                                    f"{operation.capitalize()} threshold {thr + 1}/{threshold_count}, "
-                                    f"frame {frame_idx + 1}/{frame_count}"
-                                ),
+                                    continue
+                                if operation == "mean":
+                                    reduced = acc / float(max(1, len(frame_indices)))
+                                else:
+                                    reduced = acc
+                            sums.append(
+                                (thr, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits)
                             )
-                        if operation == "median":
-                            if not median_stack:
-                                continue
-                            reduced = np.median(np.stack(median_stack, axis=0), axis=0)
-                        else:
-                            if acc is None:
-                                continue
-                            if operation == "mean":
-                                reduced = acc / float(max(1, len(frame_indices)))
-                            else:
-                                reduced = acc
-                        sums.append((thr, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits))
 
-            finally:
-                for handle in extra_files:
-                    try:
-                        handle.close()
-                    except Exception:
-                        pass
+                finally:
+                    for handle in extra_files:
+                        try:
+                            handle.close()
+                        except Exception:
+                            pass
+        else:
+            series_files, _ = _resolve_series_files(source_path)
+            frame_count = len(series_files)
+            threshold_count = 1
+            if normalize_frame_idx is not None and (
+                normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
+            ):
+                raise HTTPException(status_code=400, detail="Normalize frame is out of range")
+            groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
+            if not groups:
+                raise HTTPException(status_code=400, detail="No frames available for summing")
+
+            def read_image(path: Path) -> np.ndarray:
+                ext_name = _image_ext_name(path.name)
+                if ext_name in {".tif", ".tiff"}:
+                    return _read_tiff(path, index=0)
+                if ext_name == ".cbf":
+                    return _read_cbf(path)
+                if ext_name == ".cbf.gz":
+                    return _read_cbf_gz(path)
+                if ext_name == ".edf":
+                    return _read_edf(path)
+                raise HTTPException(status_code=400, detail="Unsupported image format")
+
+            sample = read_image(series_files[0])
+            image_h = int(sample.shape[-2])
+            image_w = int(sample.shape[-1])
+            shape = (int(frame_count), image_h, image_w)
+            source_dtype = np.dtype(sample.dtype)
+            flag_value = _mask_flag_value(source_dtype)
+            mask_bits = np.zeros((image_h, image_w), dtype=np.uint32) if apply_mask else None
+            mask_bits_by_thr = [mask_bits]
+
+            norm_ref: np.ndarray | None = None
+            norm_ref_valid: np.ndarray | None = None
+            if normalize_frame_idx is not None:
+                ref_arr = np.asarray(read_image(series_files[normalize_frame_idx]), dtype=np.float64)
+                if apply_mask:
+                    neg = ref_arr < 0
+                    if neg.any():
+                        gaps = ref_arr == -1
+                        if mask_bits is not None:
+                            mask_bits[gaps] |= 1
+                            mask_bits[neg & ~gaps] |= 0x1E
+                        ref_arr = ref_arr.copy()
+                        ref_arr[neg] = np.nan
+                norm_ref = ref_arr
+                norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
+
+            total_input_frames = sum(int(group["count"]) for group in groups)
+            total_steps = max(1, total_input_frames)
+            processed = 0
+            sums = []
+
+            for chunk_idx, group in enumerate(groups):
+                start_idx = int(group["start"])
+                end_idx = int(group["end"])
+                frame_indices = list(group["indices"])
+                acc: np.ndarray | None = None
+                median_stack: list[np.ndarray] | None = [] if operation == "median" else None
+                for frame_idx in frame_indices:
+                    arr = np.asarray(read_image(series_files[frame_idx]), dtype=np.float64)
+                    if apply_mask:
+                        neg = arr < 0
+                        if neg.any():
+                            gaps = arr == -1
+                            if mask_bits is not None:
+                                mask_bits[gaps] |= 1
+                                mask_bits[neg & ~gaps] |= 0x1E
+                            arr = arr.copy()
+                            arr[neg] = 0.0
+                        if mask_bits is not None and np.any(mask_bits):
+                            arr = arr.copy()
+                            arr[mask_bits != 0] = 0.0
+                    if norm_ref is not None and norm_ref_valid is not None:
+                        arr = np.divide(
+                            arr,
+                            norm_ref,
+                            out=np.zeros_like(arr, dtype=np.float64),
+                            where=norm_ref_valid,
+                        )
+                    if operation == "median":
+                        if median_stack is not None:
+                            median_stack.append(arr)
+                    else:
+                        if acc is None:
+                            acc = np.zeros_like(arr, dtype=np.float64)
+                        acc += arr
+                    processed += 1
+                    progress = min(0.95, processed / total_steps)
+                    _series_job_update(
+                        job_id,
+                        progress=progress,
+                        message=f"{operation.capitalize()} frame {frame_idx + 1}/{frame_count}",
+                    )
+                if operation == "median":
+                    if not median_stack:
+                        continue
+                    reduced = np.median(np.stack(median_stack, axis=0), axis=0)
+                else:
+                    if acc is None:
+                        continue
+                    if operation == "mean":
+                        reduced = acc / float(max(1, len(frame_indices)))
+                    else:
+                        reduced = acc
+                sums.append((0, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits))
 
         outputs: list[str] = []
         _series_job_update(job_id, progress=0.97, message="Writing outputs…")
         if output_format in {"hdf5", "h5"}:
+            _ensure_hdf5_stack()
             if base_target.suffix.lower() in {".h5", ".hdf5"}:
                 out_file = base_target
             else:
@@ -1779,12 +2197,13 @@ def _run_series_summing_job(
                 entry_group = out_h5.require_group("/entry")
                 data_group = entry_group.require_group("data")
                 
-                # Copy metadata from source H5 file
-                try:
-                    with h5py.File(source_path, "r") as src_h5:
-                        _copy_h5_metadata(src_h5, out_h5, threshold_count)
-                except Exception:
-                    pass  # If metadata copy fails, continue with data writing
+                # Copy metadata from source H5 file when available
+                if ext in {".h5", ".hdf5"}:
+                    try:
+                        with h5py.File(source_path, "r") as src_h5:
+                            _copy_h5_metadata(src_h5, out_h5, threshold_count)
+                    except Exception:
+                        pass  # If metadata copy fails, continue with data writing
                 
                 data_dset = data_group.create_dataset(
                     "data",
@@ -2067,14 +2486,21 @@ def _linux_choose_file() -> str | None:
             [
                 zenity,
                 "--file-selection",
-                "--title=Select HDF5 file",
-                "--file-filter=HDF5 files | *.h5 *.hdf5",
+                "--title=Select image file",
+                "--file-filter=Image files | *.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf",
                 "--file-filter=All files | *",
             ]
         )
     kdialog = shutil.which("kdialog")
     if kdialog:
-        return _run_linux_dialog([kdialog, "--getopenfilename", str(Path.home()), "*.h5 *.hdf5"])
+        return _run_linux_dialog(
+            [
+                kdialog,
+                "--getopenfilename",
+                str(Path.home()),
+                "Image files (*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf) | All files (*)",
+            ]
+        )
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
 
 
@@ -2113,8 +2539,11 @@ def _tk_choose_file() -> str | None:
     try:
         return (
             filedialog.askopenfilename(
-                title="Select HDF5 file",
-                filetypes=[("HDF5 files", "*.h5 *.hdf5"), ("All files", "*.*")],
+                title="Select image file",
+                filetypes=[
+                    ("Image files", "*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf"),
+                    ("All files", "*.*"),
+                ],
             )
             or None
         )
@@ -2138,6 +2567,68 @@ def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
     root = _resolve_dir(trimmed)
     items = _scan_files(root)
     return {"files": _prefix_paths(root, items)}
+
+
+
+
+@app.get("/api/series")
+def series(file: str = Query(...)) -> dict[str, object]:
+    path = _resolve_image_file(file)
+    ext = _image_ext_name(path.name)
+    if ext in {".h5", ".hdf5"}:
+        return {"files": [file], "index": 0, "series": False}
+    parts = _split_series_name(path.name)
+    if not parts:
+        return {"files": [file], "index": 0, "series": False}
+    prefix, digits, suffix = parts
+    entries: list[tuple[int, Path]] = []
+    try:
+        with os.scandir(path.parent) as it:
+            for entry in it:
+                if not entry.is_file(follow_symlinks=False):
+                    continue
+                name = entry.name
+                if _image_ext_name(name) != ext:
+                    continue
+                stem = _strip_image_ext(name, ext)
+                match = re.match(rf"{re.escape(prefix)}(\d+){re.escape(suffix)}$", stem)
+                if not match:
+                    continue
+                try:
+                    idx = int(match.group(1))
+                except ValueError:
+                    continue
+                entries.append((idx, Path(entry.path)))
+    except OSError:
+        return {"files": [file], "index": 0, "series": False}
+    if not entries:
+        return {"files": [file], "index": 0, "series": False}
+    entries.sort(key=lambda item: item[0])
+    paths = [p for _, p in entries]
+    is_abs = Path(file).is_absolute()
+    if is_abs:
+        files = [str(p) for p in paths]
+        target = str(path)
+    else:
+        root = DATA_DIR.resolve()
+        files = []
+        target = None
+        for p in paths:
+            try:
+                rel = p.resolve().relative_to(root)
+            except ValueError:
+                continue
+            rel_str = str(rel).replace(os.sep, "/")
+            files.append(rel_str)
+            if p.resolve() == path.resolve():
+                target = rel_str
+        if target is None:
+            target = file
+    try:
+        index = files.index(target)
+    except ValueError:
+        index = 0
+    return {"files": files, "index": index, "series": len(files) > 1}
 
 
 @app.get("/api/folders")
@@ -2201,7 +2692,7 @@ def choose_file() -> Response:
     system = platform.system()
     logger.debug("File picker requested (os=%s)", system)
     if system == "Darwin":
-        script = 'POSIX path of (choose file with prompt "Select HDF5 file")'
+        script = 'POSIX path of (choose file with prompt "Select image file")'
         try:
             result = subprocess.run(
                 ["osascript", "-e", script],
@@ -2233,7 +2724,7 @@ def choose_file() -> Response:
         if not path:
             return Response(status_code=204)
     picked = Path(path).expanduser().resolve()
-    if picked.suffix.lower() not in {".h5", ".hdf5"}:
+    if _image_ext_name(picked.name) not in AUTOLOAD_EXTS:
         raise HTTPException(status_code=400, detail="Unsupported file type")
     if not picked.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -2243,11 +2734,11 @@ def choose_file() -> Response:
 
 @app.get("/api/browse")
 def browse(path: str | None = Query(None)) -> dict[str, Any]:
-    """List folders and HDF5 files in a directory for web-based file browser.
+    """List folders and image files in a directory for web-based file browser.
     
     Returns:
         - folders: list of subdirectory names
-        - files: list of HDF5 file names with relative paths
+        - files: list of image file names with relative paths
         - currentPath: the resolved directory path (relative to DATA_DIR if allowed)
         - root: the root DATA_DIR path
         - canGoUp: whether we can navigate to parent directory
@@ -2284,8 +2775,8 @@ def browse(path: str | None = Query(None)) -> dict[str, Any]:
                     continue
                 try:
                     if entry.is_file(follow_symlinks=False):
-                        ext = os.path.splitext(entry.name)[1].lower()
-                        if ext in {".h5", ".hdf5"}:
+                        ext = _image_ext_name(entry.name)
+                        if ext in AUTOLOAD_EXTS:
                             files.add(entry.name)
                 except OSError:
                     continue
@@ -2339,7 +2830,7 @@ def autoload_latest(
     return JSONResponse(
         {
             "file": file_label,
-            "ext": latest.suffix.lower(),
+            "ext": _image_ext_name(latest.name),
             "mtime": latest.stat().st_mtime,
             "absolute": absolute,
         }
@@ -2352,13 +2843,22 @@ def image(
     index: int = Query(0, ge=0),
 ) -> Response:
     path = _resolve_image_file(file)
-    ext = path.suffix.lower()
+    ext = _image_ext_name(path.name)
+    meta: dict[str, Any] = {}
     if ext in {".h5", ".hdf5"}:
         raise HTTPException(status_code=400, detail="Use /api/frame for HDF5 datasets")
     if ext in {".tif", ".tiff"}:
         arr = _read_tiff(path, index=index)
+        meta = _pilatus_meta_from_tiff(path)
     elif ext == ".cbf":
         arr = _read_cbf(path)
+        meta = _pilatus_meta_from_fabio(path)
+    elif ext == ".cbf.gz":
+        arr = _read_cbf_gz(path)
+        meta = _pilatus_meta_from_fabio(path)
+    elif ext == ".edf":
+        arr = _read_edf(path)
+        meta = _pilatus_meta_from_fabio(path)
     else:
         raise HTTPException(status_code=400, detail="Unsupported image format")
 
@@ -2368,7 +2868,32 @@ def image(
         "X-Shape": ",".join(str(x) for x in arr.shape),
         "X-Frame": "0",
     }
+    if meta:
+        logger.debug("Image meta (%s): %s", path.name, meta)
+        if meta.get("distance_mm") is not None:
+            headers["X-Image-DetectorDistance-MM"] = str(meta["distance_mm"])
+        if meta.get("pixel_size_um") is not None:
+            headers["X-Image-PixelSize-UM"] = str(meta["pixel_size_um"])
+        if meta.get("energy_ev") is not None:
+            headers["X-Image-Energy-Ev"] = str(meta["energy_ev"])
+        if meta.get("wavelength_a") is not None:
+            headers["X-Image-Wavelength-A"] = str(meta["wavelength_a"])
+        if meta.get("beam_center_px"):
+            center = meta["beam_center_px"]
+            headers["X-Image-BeamCenter-X"] = str(center[0])
+            headers["X-Image-BeamCenter-Y"] = str(center[1])
     return Response(content=data, media_type="application/octet-stream", headers=headers)
+
+
+@app.get("/api/image/header")
+def image_header(file: str = Query(..., min_length=1)) -> dict[str, str]:
+    path = _resolve_image_file(file)
+    ext = _image_ext_name(path.name)
+    if ext in {".h5", ".hdf5"}:
+        raise HTTPException(status_code=400, detail="Header is only available for non-HDF images")
+    header_text = _pilatus_header_text(path)
+    logger.debug("Image header (%s): %d chars", path.name, len(header_text))
+    return {"header": header_text or ""}
 
 
 @app.get("/api/simplon/monitor")
@@ -2462,8 +2987,9 @@ async def upload(file: UploadFile = File(...), folder: str | None = Query(None))
         raise HTTPException(status_code=400, detail="Missing filename")
     safe_path = _safe_rel_path(Path(file.filename).name)
     safe = safe_path.as_posix()
-    if not safe.lower().endswith((".h5", ".hdf5")):
-        raise HTTPException(status_code=400, detail="Only .h5/.hdf5 files are supported")
+    ext = _image_ext_name(safe)
+    if ext not in AUTOLOAD_EXTS:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
     root = _resolve_dir(folder) if folder else DATA_DIR.resolve()
     dest = (root / safe).resolve()
     if not _is_within(dest, root):
@@ -2489,7 +3015,12 @@ async def upload(file: UploadFile = File(...), folder: str | None = Query(None))
             pass
         raise
     logger.info("Upload complete: %s (%d bytes)", dest, written)
-    return {"filename": safe}
+    try:
+        resolved_rel = dest.relative_to(DATA_DIR.resolve()).as_posix()
+        open_path = resolved_rel
+    except ValueError:
+        open_path = str(dest)
+    return {"filename": safe, "path": open_path}
 
 
 @app.get("/api/datasets")
@@ -2911,7 +3442,8 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
 
     if not file:
         raise HTTPException(status_code=400, detail="Missing file")
-    if not dataset:
+    ext = _image_ext_name(Path(file).name)
+    if ext in {".h5", ".hdf5"} and not dataset:
         raise HTTPException(status_code=400, detail="Missing dataset")
     if mode not in {"all", "step", "nth", "range"}:
         raise HTTPException(status_code=400, detail="Invalid mode")
@@ -3156,6 +3688,16 @@ def _resource_root() -> Path:
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS)
     return Path(__file__).resolve().parents[1]
+
+
+@app.middleware("http")
+async def _no_cache_static(request: 'Request', call_next):
+    response = await call_next(request)
+    if request.method == "GET":
+        path = request.url.path
+        if path in {"/", "/index.html", "/app.js", "/style.css", "/docs.html"}:
+            response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 STATIC_DIR = _resource_root() / "frontend"
