@@ -3015,7 +3015,12 @@ async def upload(file: UploadFile = File(...), folder: str | None = Query(None))
             pass
         raise
     logger.info("Upload complete: %s (%d bytes)", dest, written)
-    return {"filename": safe}
+    try:
+        resolved_rel = dest.relative_to(DATA_DIR.resolve()).as_posix()
+        open_path = resolved_rel
+    except ValueError:
+        open_path = str(dest)
+    return {"filename": safe, "path": open_path}
 
 
 @app.get("/api/datasets")

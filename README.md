@@ -160,10 +160,13 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 - `↑`/`↓` Jump by Step setting (or threshold change when multi‑threshold is active)
 
 ## Roadmap — Next Milestones
-
-1. Detector control and status.
-2. Installer for non‑Python users.
-3. ...? =)
+- v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
+- v0.6 multi pane view or synch of multiple windows
+- v0.7 server - client(s) implementation
+- v0.8 detector control and status.
+- v0.9 facelift
+- v1.0 it's done!
+- ...? =)
 
 ## Notes
 - current focus of the development is server and client running on the same machine.
