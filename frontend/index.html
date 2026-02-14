@@ -91,7 +91,19 @@
         <div class="toolbar">
           <div class="toolbar-buttons">
             <button class="tool-btn" id="btn-prev" aria-label="Previous frame">◀</button>
+            <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
+              <input id="frame-range" type="range" min="1" max="1" value="1" />
+              <input id="frame-index" type="number" min="1" value="1" />
+            </div>
             <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
+            <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
+              <select id="frame-step" aria-label="Frame step">
+                <option value="1" selected>Step 1</option>
+                <option value="10">Step 10</option>
+                <option value="100">Step 100</option>
+                <option value="1000">Step 1000</option>
+              </select>
+            </div>
             <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
             <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
               <select id="toolbar-threshold" aria-label="Threshold"></select>
@@ -137,9 +149,9 @@
           <button class="panel-fab" id="panel-fab" type="button" aria-label="Open panel">◀</button>
           <div class="panel-body">
           <div class="panel-tabs" role="tablist">
-            <button class="panel-tab is-active" data-panel-tab="view" type="button">Viewport</button>
-            <button class="panel-tab" data-panel-tab="data" type="button">Images</button>
-            <button class="panel-tab" data-panel-tab="analysis" type="button">Analysis</button>
+            <button class="panel-tab is-active" data-panel-tab="view" type="button">View</button>
+            <button class="panel-tab" data-panel-tab="data" type="button">Data</button>
+            <button class="panel-tab" data-panel-tab="analysis" type="button">Overlay</button>
           </div>
 
           <div class="panel-tab-content is-active" data-panel-tab="view">
@@ -224,96 +236,6 @@
               </div>
             </section>
 
-            <section class="panel-section" data-section="roi" id="roi-section">
-              <button class="section-title" type="button" data-section-toggle>
-                ROI
-                <span class="section-chevron">▾</span>
-              </button>
-              <label class="field">
-                <span class="sr-only">Mode</span>
-                <select id="roi-mode">
-                  <option value="none" selected>None</option>
-                  <option value="line">Line ROI</option>
-                  <option value="box">Box ROI</option>
-                  <option value="circle">Circle ROI</option>
-                  <option value="annulus">Annulus ROI</option>
-                </select>
-              </label>
-              <div class="roi-help" id="roi-help">Right‑drag on the image to define the ROI.</div>
-              <div class="roi-params" id="roi-params">
-                <div class="roi-center-fields is-hidden" id="roi-center-fields">
-                  <label class="roi-mini-field">
-                    <span class="roi-mini-label">X</span>
-                    <input id="roi-center-x" type="number" min="0" step="1" />
-                  </label>
-                  <label class="roi-mini-field">
-                    <span class="roi-mini-label">Y</span>
-                    <input id="roi-center-y" type="number" min="0" step="1" />
-                  </label>
-                </div>
-                <label class="roi-mini-field roi-radius-field is-hidden" id="roi-radius-field">
-                  <span class="roi-mini-label">R</span>
-                  <input id="roi-radius" type="number" min="0" step="1" />
-                </label>
-                <div class="roi-ring-fields is-hidden" id="roi-ring-fields">
-                  <label class="roi-mini-field">
-                    <span class="roi-mini-label">Inner</span>
-                    <input id="roi-inner-radius" type="number" min="0" step="1" />
-                  </label>
-                  <label class="roi-mini-field">
-                    <span class="roi-mini-label">Outer</span>
-                    <input id="roi-outer-radius" type="number" min="0" step="1" />
-                  </label>
-                </div>
-              </div>
-              <div class="roi-stats roi-stats-grid">
-                <div class="roi-stats-col">
-                  <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
-                  <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
-                  <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
-                  <div class="meta-row"><span id="roi-count-label">Samples</span><strong id="roi-count">-</strong></div>
-                </div>
-                <div class="roi-stats-col">
-                  <div class="meta-row"><span>Min</span><strong id="roi-min">-</strong></div>
-                  <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
-                  <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
-                  <div class="meta-row"><span>Median</span><strong id="roi-median">-</strong></div>
-                  <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
-                </div>
-              </div>
-              <div class="roi-plot-controls" id="roi-plot-controls">
-                <label class="checkbox roi-log-toggle">
-                  <input id="roi-log" type="checkbox" />
-                  Log plot
-                </label>
-                <label class="checkbox roi-autoscale-toggle">
-                  <input id="roi-limits-enable" type="checkbox" checked />
-                  Autoscale
-                </label>
-                <button id="roi-export-csv" class="btn btn-secondary roi-export-btn" type="button">Export CSV</button>
-              </div>
-              <div class="roi-plots">
-                <div class="roi-plot" id="roi-line-plot">
-                  <div class="roi-plot-title">Line Profile</div>
-                  <canvas id="roi-line-canvas"></canvas>
-                  <div class="roi-tooltip" aria-hidden="true"></div>
-                  <div class="roi-resize-handle"></div>
-                </div>
-                <div class="roi-plot" id="roi-box-plot-x">
-                  <div class="roi-plot-title">X Projection</div>
-                  <canvas id="roi-x-canvas"></canvas>
-                  <div class="roi-tooltip" aria-hidden="true"></div>
-                  <div class="roi-resize-handle"></div>
-                </div>
-                <div class="roi-plot" id="roi-box-plot-y">
-                  <div class="roi-plot-title">Y Projection</div>
-                  <canvas id="roi-y-canvas"></canvas>
-                  <div class="roi-tooltip" aria-hidden="true"></div>
-                  <div class="roi-resize-handle"></div>
-                </div>
-              </div>
-            </section>
-
             <section class="panel-section meta" data-section="info">
               <button class="section-title" type="button" data-section-toggle>
                 Info
@@ -395,24 +317,11 @@
                 <select id="threshold-select"></select>
               </label>
               <div class="field">
-                <span>Frame</span>
-                <div class="inline">
-                    <input id="frame-range" type="range" min="1" max="1" value="1" />
-                    <input id="frame-index" type="number" min="1" value="1" />
+                <span>Playback (fps)</span>
+                <div class="inline data-inline">
+                  <input id="fps-range" type="range" min="1" max="10" step="1" value="1" />
+                  <div id="fps-value" class="pill">1 fps</div>
                 </div>
-              </div>
-              <div class="data-row-grid">
-                <label class="field data-row">
-                  <span>Step</span>
-                  <input id="frame-step" type="number" min="1" step="1" value="1" />
-                </label>
-                <label class="field data-row">
-                  <span>Playback (fps)</span>
-                  <div class="inline data-inline">
-                    <input id="fps-range" type="range" min="1" max="10" step="1" value="1" />
-                    <div id="fps-value" class="pill">1 fps</div>
-                  </div>
-                </label>
               </div>
               <div class="autoload-group is-hidden" id="autoload-simplon">
                 <label class="field">
@@ -477,9 +386,170 @@
               <div class="image-header-empty" id="image-header-empty">No header available.</div>
               <pre class="image-header-text" id="image-header-text"></pre>
             </section>
+            <section class="panel-section" data-section="series-summing">
+              <button class="section-title" type="button" data-section-toggle>
+                Series Operations
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="series-sum-options">
+                <label class="field" id="series-sum-mode-field">
+                  <span>Sum mode</span>
+                  <select id="series-sum-mode">
+                    <option value="all">All frames</option>
+                    <option value="step">Chunks of N frames</option>
+                    <option value="nth">Every Nth frame</option>
+                    <option value="range">Range (start-end in chunks)</option>
+                  </select>
+                </label>
+                <label class="field" id="series-sum-operation-field">
+                  <span>Operation</span>
+                  <select id="series-sum-operation">
+                    <option value="sum">Sum</option>
+                    <option value="mean">Mean</option>
+                    <option value="median">Median</option>
+                  </select>
+                </label>
+                <label class="field" id="series-sum-format-field">
+                  <span>Format</span>
+                  <select id="series-sum-format">
+                    <option value="hdf5">HDF5</option>
+                    <option value="tiff">TIFF</option>
+                  </select>
+                </label>
+                <label class="field" id="series-sum-step-field">
+                  <span id="series-sum-step-label">Chunk size (N)</span>
+                  <input id="series-sum-step" type="number" min="1" step="1" value="10" />
+                </label>
+                <label class="field is-hidden" id="series-sum-range-start-field">
+                  <span>Start frame</span>
+                  <input id="series-sum-range-start" type="number" min="1" step="1" value="1" />
+                </label>
+                <label class="field is-hidden" id="series-sum-range-end-field">
+                  <span>End frame</span>
+                  <input id="series-sum-range-end" type="number" min="1" step="1" value="1" />
+                </label>
+                <label class="checkbox series-sum-normalize-option">
+                  <input id="series-sum-normalize-enable" type="checkbox" />
+                  Normalize by frame
+                </label>
+                <label class="field is-hidden" id="series-sum-normalize-frame-field">
+                  <span>Norm frame</span>
+                  <input id="series-sum-normalize-frame" type="number" min="1" step="1" value="1" />
+                </label>
+                <label class="checkbox series-sum-mask-option">
+                  <input id="series-sum-mask" type="checkbox" checked />
+                  Apply mask
+                </label>
+              </div>
+              <label class="field">
+                <span>Output path</span>
+                <div class="inline series-sum-output-row">
+                  <input id="series-sum-output" type="text" placeholder="output/series_sum" />
+                  <button id="series-sum-browse" class="btn" type="button">Browse…</button>
+                </div>
+              </label>
+              <button id="series-sum-start" class="btn" type="button">Start Summing</button>
+              <div class="series-sum-progress" id="series-sum-progress">
+                <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
+                <div class="series-sum-progress-text" id="series-sum-progress-text">Idle</div>
+              </div>
+            </section>
           </div>
 
           <div class="panel-tab-content" data-panel-tab="analysis">
+            <section class="panel-section" data-section="roi" id="roi-section">
+              <button class="section-title" type="button" data-section-toggle>
+                Statistics and ROI
+                <span class="section-chevron">▾</span>
+              </button>
+              <label class="field">
+                <span class="sr-only">Mode</span>
+                <select id="roi-mode">
+                  <option value="none" selected>None</option>
+                  <option value="line">Line ROI</option>
+                  <option value="box">Box ROI</option>
+                  <option value="circle">Circle ROI</option>
+                  <option value="annulus">Annulus ROI</option>
+                </select>
+              </label>
+              <div class="roi-help" id="roi-help">Right‑drag on the image to define the ROI.</div>
+              <div class="roi-params" id="roi-params">
+                <div class="roi-center-fields is-hidden" id="roi-center-fields">
+                  <label class="roi-mini-field">
+                    <span class="roi-mini-label">X</span>
+                    <input id="roi-center-x" type="number" min="0" step="1" />
+                  </label>
+                  <label class="roi-mini-field">
+                    <span class="roi-mini-label">Y</span>
+                    <input id="roi-center-y" type="number" min="0" step="1" />
+                  </label>
+                </div>
+                <label class="roi-mini-field roi-radius-field is-hidden" id="roi-radius-field">
+                  <span class="roi-mini-label">R</span>
+                  <input id="roi-radius" type="number" min="0" step="1" />
+                </label>
+                <div class="roi-ring-fields is-hidden" id="roi-ring-fields">
+                  <label class="roi-mini-field">
+                    <span class="roi-mini-label">Inner</span>
+                    <input id="roi-inner-radius" type="number" min="0" step="1" />
+                  </label>
+                  <label class="roi-mini-field">
+                    <span class="roi-mini-label">Outer</span>
+                    <input id="roi-outer-radius" type="number" min="0" step="1" />
+                  </label>
+                </div>
+              </div>
+              <div class="roi-stats roi-stats-grid">
+                <div class="roi-stats-col">
+                  <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
+                  <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
+                  <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
+                  <div class="meta-row"><span id="roi-count-label">Samples</span><strong id="roi-count">-</strong></div>
+                  <div class="meta-row"><span>Total pixels</span><strong id="roi-total">-</strong></div>
+                  <div class="meta-row"><span>Gap pixels</span><strong id="roi-gap">-</strong></div>
+                  <div class="meta-row"><span>Defective pixels</span><strong id="roi-defective">-</strong></div>
+                  <div class="meta-row"><span>Saturated pixels</span><strong id="roi-saturated">-</strong></div>
+                </div>
+                <div class="roi-stats-col">
+                  <div class="meta-row"><span>Min</span><strong id="roi-min">-</strong></div>
+                  <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
+                  <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
+                  <div class="meta-row"><span>Median</span><strong id="roi-median">-</strong></div>
+                  <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
+                </div>
+              </div>
+              <div class="roi-plot-controls" id="roi-plot-controls">
+                <label class="checkbox roi-log-toggle">
+                  <input id="roi-log" type="checkbox" />
+                  Log plot
+                </label>
+                <label class="checkbox roi-autoscale-toggle">
+                  <input id="roi-limits-enable" type="checkbox" checked />
+                  Autoscale
+                </label>
+                <button id="roi-export-csv" class="btn btn-secondary roi-export-btn" type="button">Export CSV</button>
+              </div>
+              <div class="roi-plots">
+                <div class="roi-plot" id="roi-line-plot">
+                  <div class="roi-plot-title">Line Profile</div>
+                  <canvas id="roi-line-canvas"></canvas>
+                  <div class="roi-tooltip" aria-hidden="true"></div>
+                  <div class="roi-resize-handle"></div>
+                </div>
+                <div class="roi-plot" id="roi-box-plot-x">
+                  <div class="roi-plot-title">X Projection</div>
+                  <canvas id="roi-x-canvas"></canvas>
+                  <div class="roi-tooltip" aria-hidden="true"></div>
+                  <div class="roi-resize-handle"></div>
+                </div>
+                <div class="roi-plot" id="roi-box-plot-y">
+                  <div class="roi-plot-title">Y Projection</div>
+                  <canvas id="roi-y-canvas"></canvas>
+                  <div class="roi-tooltip" aria-hidden="true"></div>
+                  <div class="roi-resize-handle"></div>
+                </div>
+              </div>
+            </section>
             <section class="panel-section" data-section="resolution-rings">
               <button class="section-title" type="button" data-section-toggle>
                 Resolution Rings
@@ -551,74 +621,6 @@
                 <div class="peaks-body" id="peaks-body">
                   <div class="peaks-empty">Load a frame to detect peaks.</div>
                 </div>
-              </div>
-            </section>
-            <section class="panel-section" data-section="series-summing">
-              <button class="section-title" type="button" data-section-toggle>
-                Series Summing
-                <span class="section-chevron">▾</span>
-              </button>
-              <div class="series-sum-options">
-                <label class="field" id="series-sum-mode-field">
-                  <span>Sum mode</span>
-                  <select id="series-sum-mode">
-                    <option value="all">All frames</option>
-                    <option value="step">Chunks of N frames</option>
-                    <option value="nth">Every Nth frame</option>
-                    <option value="range">Range (start-end in chunks)</option>
-                  </select>
-                </label>
-                <label class="field" id="series-sum-operation-field">
-                  <span>Operation</span>
-                  <select id="series-sum-operation">
-                    <option value="sum">Sum</option>
-                    <option value="mean">Mean</option>
-                    <option value="median">Median</option>
-                  </select>
-                </label>
-                <label class="field" id="series-sum-format-field">
-                  <span>Format</span>
-                  <select id="series-sum-format">
-                    <option value="hdf5">HDF5</option>
-                    <option value="tiff">TIFF</option>
-                  </select>
-                </label>
-                <label class="field" id="series-sum-step-field">
-                  <span id="series-sum-step-label">Chunk size (N)</span>
-                  <input id="series-sum-step" type="number" min="1" step="1" value="10" />
-                </label>
-                <label class="field is-hidden" id="series-sum-range-start-field">
-                  <span>Start frame</span>
-                  <input id="series-sum-range-start" type="number" min="1" step="1" value="1" />
-                </label>
-                <label class="field is-hidden" id="series-sum-range-end-field">
-                  <span>End frame</span>
-                  <input id="series-sum-range-end" type="number" min="1" step="1" value="1" />
-                </label>
-                <label class="checkbox series-sum-normalize-option">
-                  <input id="series-sum-normalize-enable" type="checkbox" />
-                  Normalize by frame
-                </label>
-                <label class="field is-hidden" id="series-sum-normalize-frame-field">
-                  <span>Norm frame</span>
-                  <input id="series-sum-normalize-frame" type="number" min="1" step="1" value="1" />
-                </label>
-                <label class="checkbox series-sum-mask-option">
-                  <input id="series-sum-mask" type="checkbox" checked />
-                  Apply mask
-                </label>
-              </div>
-              <label class="field">
-                <span>Output path</span>
-                <div class="inline series-sum-output-row">
-                  <input id="series-sum-output" type="text" placeholder="output/series_sum" />
-                  <button id="series-sum-browse" class="btn" type="button">Browse…</button>
-                </div>
-              </label>
-              <button id="series-sum-start" class="btn" type="button">Start Summing</button>
-              <div class="series-sum-progress" id="series-sum-progress">
-                <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
-                <div class="series-sum-progress-text" id="series-sum-progress-text">Idle</div>
               </div>
             </section>
           </div>

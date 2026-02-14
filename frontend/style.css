@@ -319,6 +319,54 @@ body {
 .toolbar-buttons {
   display: flex;
   gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.toolbar-frame {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 240px;
+  max-width: 340px;
+}
+
+.toolbar-frame.is-hidden {
+  display: none;
+}
+
+.toolbar-frame input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.toolbar-frame input[type="number"] {
+  width: 62px;
+  background: #111;
+  color: #e6e6e6;
+  border: 1px solid #0a0a0a;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+
+.toolbar-step {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-step.is-hidden {
+  display: none;
+}
+
+.toolbar-step select {
+  background: #0f0f0f;
+  color: #e6e6e6;
+  border: 1px solid #0a0a0a;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  min-width: 78px;
 }
 
 .toolbar-threshold {
@@ -620,8 +668,7 @@ body {
 }
 
 .panel-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   gap: 0;
   margin-bottom: 8px;
   position: sticky;
@@ -634,6 +681,7 @@ body {
 }
 
 .panel-tab {
+  flex: 1 1 0;
   background: linear-gradient(to bottom, #3f3f3f, #252525);
   border: 1px solid #111;
   border-right-width: 0;
@@ -1617,6 +1665,21 @@ body {
   .tool-btn {
     font-size: 14px;
     padding: 6px 10px;
+  }
+
+  .toolbar-frame {
+    min-width: 150px;
+    max-width: 220px;
+  }
+
+  .toolbar-frame input[type="number"] {
+    width: 52px;
+    font-size: 10px;
+  }
+
+  .toolbar-step select {
+    min-width: 64px;
+    font-size: 10px;
   }
 
   .toolbar-path {
