@@ -166,8 +166,7 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 3. ...? =)
 
 ## Notes
-- WebGL texture size limits may apply for very large frames.
-
+- current focus of the development is server and client running on the same machine.
 
 ## Acknowledgements and Contributions
 This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set for many the benchmark.

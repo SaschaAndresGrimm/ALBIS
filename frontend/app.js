@@ -91,6 +91,10 @@ const autoloadFolder = document.getElementById("autoload-folder");
 const autoloadWatch = document.getElementById("autoload-watch");
 const autoloadTypesRow = document.getElementById("autoload-types");
 const autoloadSimplon = document.getElementById("autoload-simplon");
+const inspectorSection = document.querySelector(".panel-section.inspector");
+const imageHeaderSection = document.getElementById("image-header-section");
+const imageHeaderText = document.getElementById("image-header-text");
+const imageHeaderEmpty = document.getElementById("image-header-empty");
 const inspectorTree = document.getElementById("inspector-tree");
 const inspectorDetails = document.getElementById("inspector-details");
 const inspectorPath = document.getElementById("inspector-path");
@@ -312,6 +316,8 @@ const state = {
   thresholdEnergies: [],
   seriesFiles: [],
   seriesLabel: "",
+  imageHeaderFile: "",
+  imageHeaderText: "",
   backendAlive: false,
   backendVersion: "0.4",
   toolHintsEnabled: false,
@@ -811,6 +817,18 @@ function isHdf5File(path) {
   return typeof path === "string" && (path.toLowerCase().endsWith(".h5") || path.toLowerCase().endsWith(".hdf5"));
 }
 
+function isHeaderCapableFile(path) {
+  if (typeof path !== "string") return false;
+  const lower = path.toLowerCase();
+  return (
+    lower.endsWith(".cbf") ||
+    lower.endsWith(".cbf.gz") ||
+    lower.endsWith(".edf") ||
+    lower.endsWith(".tif") ||
+    lower.endsWith(".tiff")
+  );
+}
+
 function formatInspectorValue(value) {
   if (value === null || value === undefined) return "-";
   if (typeof value === "string") return value;
@@ -839,6 +857,65 @@ function setInspectorMessage(message) {
   if (inspectorResults) {
     inspectorResults.innerHTML = "";
     inspectorResults.classList.add("is-hidden");
+  }
+}
+
+function setImageHeader(text) {
+  if (!imageHeaderText || !imageHeaderEmpty) return;
+  const headerText = typeof text === "string" ? text.trim() : "";
+  const hasText = headerText.length > 0;
+  imageHeaderText.textContent = hasText ? text : "";
+  imageHeaderText.classList.toggle("is-hidden", !hasText);
+  imageHeaderEmpty.classList.toggle("is-hidden", hasText);
+}
+
+function clearImageHeader() {
+  state.imageHeaderFile = "";
+  state.imageHeaderText = "";
+  setImageHeader("");
+}
+
+async function loadImageHeader(file) {
+  if (!file || !isHeaderCapableFile(file)) {
+    clearImageHeader();
+    return;
+  }
+  if (state.imageHeaderFile === file && state.imageHeaderText) {
+    setImageHeader(state.imageHeaderText);
+    return;
+  }
+  try {
+    const data = await fetchJSON(`${API}/image/header?file=${encodeURIComponent(file)}`);
+    const text = typeof data.header === "string" ? data.header : "";
+    state.imageHeaderFile = file;
+    state.imageHeaderText = text;
+    setImageHeader(text);
+  } catch (err) {
+    console.warn(err);
+    state.imageHeaderFile = file;
+    state.imageHeaderText = "";
+    setImageHeader("");
+  }
+}
+
+function updateInspectorHeaderVisibility(file) {
+  const target = file || "";
+  const showInspector = Boolean(target && isHdf5File(target));
+  const showHeader = Boolean(target && isHeaderCapableFile(target));
+  if (inspectorSection) inspectorSection.classList.toggle("is-hidden", !showInspector);
+  if (imageHeaderSection) imageHeaderSection.classList.toggle("is-hidden", !showHeader);
+  if (showInspector) {
+    clearImageHeader();
+    if (!inspectorTree || !inspectorTree.children.length) {
+      setInspectorMessage("Select an HDF5 file to browse metadata.");
+    }
+  } else {
+    if (inspectorSection) setInspectorMessage("File inspector is available for HDF5 files only.");
+    if (showHeader) {
+      loadImageHeader(target);
+    } else {
+      clearImageHeader();
+    }
   }
 }
 
@@ -3813,6 +3890,7 @@ function setDataControlsForHdf5() {
   if (frameIndex) frameIndex.disabled = false;
   if (frameStep) frameStep.disabled = false;
   if (fpsRange) fpsRange.disabled = false;
+  updateInspectorHeaderVisibility(state.file);
 }
 
 function setDataControlsForImage() {
@@ -3823,6 +3901,7 @@ function setDataControlsForImage() {
   if (frameIndex) frameIndex.disabled = true;
   if (frameStep) frameStep.disabled = true;
   if (fpsRange) fpsRange.disabled = true;
+  updateInspectorHeaderVisibility(state.file);
 }
 
 function setDataControlsForSeries() {
@@ -3833,6 +3912,7 @@ function setDataControlsForSeries() {
   if (frameIndex) frameIndex.disabled = false;
   if (frameStep) frameStep.disabled = false;
   if (fpsRange) fpsRange.disabled = false;
+  updateInspectorHeaderVisibility(state.file);
 }
 
 function formatTimeStamp(ts) {
@@ -4450,8 +4530,6 @@ function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = f
       updateMaskUI();
     }
   }
-  setInspectorMessage("File inspector is available for HDF5 files only.");
-
   metaShape.textContent = `${width} × ${height}`;
   metaDtype.textContent = dtype;
   applyFrame(data, width, height, dtype);
@@ -7139,13 +7217,14 @@ function closeCurrentFile() {
   analysisState.selectedPeaks = [];
   analysisState.peakSelectionAnchor = null;
   clearMaskState();
+  clearImageHeader();
   updateToolbar();
   setStatus("No file loaded");
   setLoading(false);
   hideUploadProgress();
   hideProcessingProgress();
   showSplash();
-  setInspectorMessage("Select an HDF5 file to browse metadata.");
+  updateInspectorHeaderVisibility("");
 
   fileSelect.selectedIndex = 0;
   datasetSelect.innerHTML = "";

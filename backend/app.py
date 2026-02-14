@@ -418,31 +418,9 @@ def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
 
 
 def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
-    _ensure_fabio()
-    try:
-        image = fabio.open(str(path))
-    except Exception:
-        if path.suffix.lower() == ".gz":
-            try:
-                import gzip
-                import tempfile
-
-                with gzip.open(path, "rb") as gz:
-                    data = gz.read()
-                with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
-                    tmp.write(data)
-                    tmp_path = Path(tmp.name)
-                try:
-                    image = fabio.open(str(tmp_path))
-                finally:
-                    try:
-                        tmp_path.unlink(missing_ok=True)
-                    except Exception:
-                        pass
-            except Exception:
-                return {}
-        else:
-            return {}
+    image = _open_fabio_image(path)
+    if image is None:
+        return {}
     header = getattr(image, "header", {}) or {}
     text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
     if isinstance(text, bytes):
@@ -474,6 +452,63 @@ def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
         return _pilatus_meta_from_fabio(path)
     except Exception:
         return {}
+
+
+def _open_fabio_image(path: Path):
+    _ensure_fabio()
+    try:
+        return fabio.open(str(path))
+    except Exception:
+        if path.suffix.lower() != ".gz":
+            return None
+        try:
+            import gzip
+            import tempfile
+
+            with gzip.open(path, "rb") as gz:
+                data = gz.read()
+            with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
+                tmp.write(data)
+                tmp_path = Path(tmp.name)
+            try:
+                return fabio.open(str(tmp_path))
+            finally:
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+        except Exception:
+            return None
+
+
+def _pilatus_header_text(path: Path) -> str:
+    ext = _image_ext_name(path.name)
+    if ext in {".tif", ".tiff"}:
+        _ensure_tifffile()
+        try:
+            with tifffile.TiffFile(path) as tiff:
+                desc = ""
+                try:
+                    desc = tiff.pages[0].description or ""
+                except Exception:
+                    desc = ""
+            if desc:
+                return str(desc)
+        except Exception:
+            pass
+    image = _open_fabio_image(path)
+    if image is None:
+        return ""
+    header = getattr(image, "header", {}) or {}
+    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
+    if isinstance(text, bytes):
+        text = text.decode("utf-8", errors="ignore")
+    if text:
+        return str(text)
+    try:
+        return "\n".join(f"{k} {v}" for k, v in header.items())
+    except Exception:
+        return ""
 
 
 def _ensure_fabio() -> None:
@@ -2838,6 +2873,17 @@ def image(
             headers["X-Image-BeamCenter-X"] = str(center[0])
             headers["X-Image-BeamCenter-Y"] = str(center[1])
     return Response(content=data, media_type="application/octet-stream", headers=headers)
+
+
+@app.get("/api/image/header")
+def image_header(file: str = Query(..., min_length=1)) -> dict[str, str]:
+    path = _resolve_image_file(file)
+    ext = _image_ext_name(path.name)
+    if ext in {".h5", ".hdf5"}:
+        raise HTTPException(status_code=400, detail="Header is only available for non-HDF images")
+    header_text = _pilatus_header_text(path)
+    logger.debug("Image header (%s): %d chars", path.name, len(header_text))
+    return {"header": header_text or ""}
 
 
 @app.get("/api/simplon/monitor")
