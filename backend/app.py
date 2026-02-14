@@ -656,6 +656,45 @@ def _split_series_name(name: str) -> tuple[str, str, str] | None:
     return prefix, digits, suffix
 
 
+def _resolve_series_files(path: Path) -> tuple[list[Path], int]:
+    """Resolve a sequence of numbered files into a sorted series."""
+    ext = _image_ext_name(path.name)
+    if ext not in {".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}:
+        return [path], 0
+    parts = _split_series_name(path.name)
+    if not parts:
+        return [path], 0
+    prefix, digits, suffix = parts
+    pattern = re.compile(
+        rf"^{re.escape(prefix)}(\d+){re.escape(suffix)}{re.escape(ext)}$",
+        re.IGNORECASE,
+    )
+    matches: list[tuple[int, Path]] = []
+    try:
+        for entry in path.parent.iterdir():
+            if not entry.is_file():
+                continue
+            if _image_ext_name(entry.name) != ext:
+                continue
+            match = pattern.match(entry.name)
+            if not match:
+                continue
+            idx = int(match.group(1))
+            matches.append((idx, entry))
+    except OSError:
+        return [path], 0
+    if not matches:
+        return [path], 0
+    matches.sort(key=lambda item: item[0])
+    files = [item[1] for item in matches]
+    index = 0
+    for i, (_, entry) in enumerate(matches):
+        if entry.name == path.name:
+            index = i
+            break
+    return files, index
+
+
 def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
     if arr.ndim == 2:
         frame = arr
@@ -1858,10 +1897,10 @@ def _run_series_summing_job(
     apply_mask: bool,
 ) -> None:
     """Background worker for series summing output generation."""
-    _ensure_hdf5_stack()
     _ensure_tifffile()
     try:
-        source_path = _resolve_file(file)
+        source_path = _resolve_image_file(file)
+        ext = _image_ext_name(source_path.name)
         base_target = _resolve_series_output_base(output_path)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         output_format = output_format.lower()
@@ -1872,112 +1911,228 @@ def _run_series_summing_job(
 
         _series_job_update(job_id, status="running", message="Preparing datasets…", progress=0.01)
 
-        with h5py.File(source_path, "r") as h5:
-            view, extra_files = _resolve_dataset_view(h5, source_path, dataset)
-            try:
-                shape = tuple(int(x) for x in view["shape"])
-                ndim = int(view["ndim"])
-                if ndim not in (3, 4):
-                    raise HTTPException(status_code=400, detail="Series summing requires 3D or 4D image stacks")
-                frame_count = int(shape[0])
-                threshold_count = int(shape[1]) if ndim == 4 else 1
-                if normalize_frame_idx is not None and (
-                    normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
-                ):
-                    raise HTTPException(status_code=400, detail="Normalize frame is out of range")
-                groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
-                if not groups:
-                    raise HTTPException(status_code=400, detail="No frames available for summing")
+        if ext in {".h5", ".hdf5"}:
+            _ensure_hdf5_stack()
+            with h5py.File(source_path, "r") as h5:
+                view, extra_files = _resolve_dataset_view(h5, source_path, dataset)
+                try:
+                    shape = tuple(int(x) for x in view["shape"])
+                    ndim = int(view["ndim"])
+                    if ndim not in (3, 4):
+                        raise HTTPException(
+                            status_code=400, detail="Series summing requires 3D or 4D image stacks"
+                        )
+                    frame_count = int(shape[0])
+                    threshold_count = int(shape[1]) if ndim == 4 else 1
+                    if normalize_frame_idx is not None and (
+                        normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
+                    ):
+                        raise HTTPException(status_code=400, detail="Normalize frame is out of range")
+                    groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
+                    if not groups:
+                        raise HTTPException(status_code=400, detail="No frames available for summing")
 
-                source_dtype = np.dtype(view["dtype"])
-                flag_value = _mask_flag_value(source_dtype)
-                mask_bits_by_thr: list[np.ndarray | None] = []
-                for thr in range(threshold_count):
-                    if not apply_mask:
-                        mask_bits_by_thr.append(None)
-                        continue
-                    mask_dset = _find_pixel_mask(h5, threshold=thr if threshold_count > 1 else None)
-                    if mask_dset is None:
-                        mask_bits_by_thr.append(None)
-                        continue
-                    mask_bits_by_thr.append(np.asarray(mask_dset, dtype=np.uint32))
+                    source_dtype = np.dtype(view["dtype"])
+                    flag_value = _mask_flag_value(source_dtype)
+                    mask_bits_by_thr: list[np.ndarray | None] = []
+                    for thr in range(threshold_count):
+                        if not apply_mask:
+                            mask_bits_by_thr.append(None)
+                            continue
+                        mask_dset = _find_pixel_mask(h5, threshold=thr if threshold_count > 1 else None)
+                        if mask_dset is None:
+                            mask_bits_by_thr.append(None)
+                            continue
+                        mask_bits_by_thr.append(np.asarray(mask_dset, dtype=np.uint32))
 
-                total_input_frames = sum(int(group["count"]) for group in groups)
-                total_steps = max(1, total_input_frames * threshold_count)
-                processed = 0
-                sums: list[tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]] = []
+                    total_input_frames = sum(int(group["count"]) for group in groups)
+                    total_steps = max(1, total_input_frames * threshold_count)
+                    processed = 0
+                    sums: list[tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]] = []
 
-                for thr in range(threshold_count):
-                    mask_bits = mask_bits_by_thr[thr]
-                    _, _, any_mask = _mask_slices(mask_bits) if mask_bits is not None else (None, None, None)
-                    norm_ref: np.ndarray | None = None
-                    norm_ref_valid: np.ndarray | None = None
-                    if normalize_frame_idx is not None:
-                        norm_ref = np.asarray(_extract_frame(view, normalize_frame_idx, thr), dtype=np.float64)
-                        if any_mask is not None:
-                            norm_ref = norm_ref.copy()
-                            norm_ref[any_mask] = np.nan
-                        norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
-
-                    for chunk_idx, group in enumerate(groups):
-                        start_idx = int(group["start"])
-                        end_idx = int(group["end"])
-                        frame_indices = list(group["indices"])
-                        acc: np.ndarray | None = None
-                        median_stack: list[np.ndarray] | None = [] if operation == "median" else None
-                        for frame_idx in frame_indices:
-                            arr = _extract_frame(view, frame_idx, thr)
-                            arr = np.asarray(arr, dtype=np.float64)
-                            if norm_ref is not None and norm_ref_valid is not None:
-                                arr = np.divide(
-                                    arr,
-                                    norm_ref,
-                                    out=np.zeros_like(arr, dtype=np.float64),
-                                    where=norm_ref_valid,
-                                )
+                    for thr in range(threshold_count):
+                        mask_bits = mask_bits_by_thr[thr]
+                        _, _, any_mask = (
+                            _mask_slices(mask_bits) if mask_bits is not None else (None, None, None)
+                        )
+                        norm_ref: np.ndarray | None = None
+                        norm_ref_valid: np.ndarray | None = None
+                        if normalize_frame_idx is not None:
+                            norm_ref = np.asarray(_extract_frame(view, normalize_frame_idx, thr), dtype=np.float64)
                             if any_mask is not None:
-                                arr = arr.copy()
-                                arr[any_mask] = 0.0
+                                norm_ref = norm_ref.copy()
+                                norm_ref[any_mask] = np.nan
+                            norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
+
+                        for chunk_idx, group in enumerate(groups):
+                            start_idx = int(group["start"])
+                            end_idx = int(group["end"])
+                            frame_indices = list(group["indices"])
+                            acc: np.ndarray | None = None
+                            median_stack: list[np.ndarray] | None = [] if operation == "median" else None
+                            for frame_idx in frame_indices:
+                                arr = _extract_frame(view, frame_idx, thr)
+                                arr = np.asarray(arr, dtype=np.float64)
+                                if norm_ref is not None and norm_ref_valid is not None:
+                                    arr = np.divide(
+                                        arr,
+                                        norm_ref,
+                                        out=np.zeros_like(arr, dtype=np.float64),
+                                        where=norm_ref_valid,
+                                    )
+                                if any_mask is not None:
+                                    arr = arr.copy()
+                                    arr[any_mask] = 0.0
+                                if operation == "median":
+                                    if median_stack is not None:
+                                        median_stack.append(arr)
+                                else:
+                                    if acc is None:
+                                        acc = np.zeros_like(arr, dtype=np.float64)
+                                    acc += arr
+                                processed += 1
+                                progress = min(0.95, processed / total_steps)
+                                _series_job_update(
+                                    job_id,
+                                    progress=progress,
+                                    message=(
+                                        f"{operation.capitalize()} threshold {thr + 1}/{threshold_count}, "
+                                        f"frame {frame_idx + 1}/{frame_count}"
+                                    ),
+                                )
                             if operation == "median":
-                                if median_stack is not None:
-                                    median_stack.append(arr)
+                                if not median_stack:
+                                    continue
+                                reduced = np.median(np.stack(median_stack, axis=0), axis=0)
                             else:
                                 if acc is None:
-                                    acc = np.zeros_like(arr, dtype=np.float64)
-                                acc += arr
-                            processed += 1
-                            progress = min(0.95, processed / total_steps)
-                            _series_job_update(
-                                job_id,
-                                progress=progress,
-                                message=(
-                                    f"{operation.capitalize()} threshold {thr + 1}/{threshold_count}, "
-                                    f"frame {frame_idx + 1}/{frame_count}"
-                                ),
+                                    continue
+                                if operation == "mean":
+                                    reduced = acc / float(max(1, len(frame_indices)))
+                                else:
+                                    reduced = acc
+                            sums.append(
+                                (thr, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits)
                             )
-                        if operation == "median":
-                            if not median_stack:
-                                continue
-                            reduced = np.median(np.stack(median_stack, axis=0), axis=0)
-                        else:
-                            if acc is None:
-                                continue
-                            if operation == "mean":
-                                reduced = acc / float(max(1, len(frame_indices)))
-                            else:
-                                reduced = acc
-                        sums.append((thr, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits))
 
-            finally:
-                for handle in extra_files:
-                    try:
-                        handle.close()
-                    except Exception:
-                        pass
+                finally:
+                    for handle in extra_files:
+                        try:
+                            handle.close()
+                        except Exception:
+                            pass
+        else:
+            series_files, _ = _resolve_series_files(source_path)
+            frame_count = len(series_files)
+            threshold_count = 1
+            if normalize_frame_idx is not None and (
+                normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
+            ):
+                raise HTTPException(status_code=400, detail="Normalize frame is out of range")
+            groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
+            if not groups:
+                raise HTTPException(status_code=400, detail="No frames available for summing")
+
+            def read_image(path: Path) -> np.ndarray:
+                ext_name = _image_ext_name(path.name)
+                if ext_name in {".tif", ".tiff"}:
+                    return _read_tiff(path, index=0)
+                if ext_name == ".cbf":
+                    return _read_cbf(path)
+                if ext_name == ".cbf.gz":
+                    return _read_cbf_gz(path)
+                if ext_name == ".edf":
+                    return _read_edf(path)
+                raise HTTPException(status_code=400, detail="Unsupported image format")
+
+            sample = read_image(series_files[0])
+            image_h = int(sample.shape[-2])
+            image_w = int(sample.shape[-1])
+            shape = (int(frame_count), image_h, image_w)
+            source_dtype = np.dtype(sample.dtype)
+            flag_value = _mask_flag_value(source_dtype)
+            mask_bits = np.zeros((image_h, image_w), dtype=np.uint32) if apply_mask else None
+            mask_bits_by_thr = [mask_bits]
+
+            norm_ref: np.ndarray | None = None
+            norm_ref_valid: np.ndarray | None = None
+            if normalize_frame_idx is not None:
+                ref_arr = np.asarray(read_image(series_files[normalize_frame_idx]), dtype=np.float64)
+                if apply_mask:
+                    neg = ref_arr < 0
+                    if neg.any():
+                        gaps = ref_arr == -1
+                        if mask_bits is not None:
+                            mask_bits[gaps] |= 1
+                            mask_bits[neg & ~gaps] |= 0x1E
+                        ref_arr = ref_arr.copy()
+                        ref_arr[neg] = np.nan
+                norm_ref = ref_arr
+                norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
+
+            total_input_frames = sum(int(group["count"]) for group in groups)
+            total_steps = max(1, total_input_frames)
+            processed = 0
+            sums = []
+
+            for chunk_idx, group in enumerate(groups):
+                start_idx = int(group["start"])
+                end_idx = int(group["end"])
+                frame_indices = list(group["indices"])
+                acc: np.ndarray | None = None
+                median_stack: list[np.ndarray] | None = [] if operation == "median" else None
+                for frame_idx in frame_indices:
+                    arr = np.asarray(read_image(series_files[frame_idx]), dtype=np.float64)
+                    if apply_mask:
+                        neg = arr < 0
+                        if neg.any():
+                            gaps = arr == -1
+                            if mask_bits is not None:
+                                mask_bits[gaps] |= 1
+                                mask_bits[neg & ~gaps] |= 0x1E
+                            arr = arr.copy()
+                            arr[neg] = 0.0
+                        if mask_bits is not None and np.any(mask_bits):
+                            arr = arr.copy()
+                            arr[mask_bits != 0] = 0.0
+                    if norm_ref is not None and norm_ref_valid is not None:
+                        arr = np.divide(
+                            arr,
+                            norm_ref,
+                            out=np.zeros_like(arr, dtype=np.float64),
+                            where=norm_ref_valid,
+                        )
+                    if operation == "median":
+                        if median_stack is not None:
+                            median_stack.append(arr)
+                    else:
+                        if acc is None:
+                            acc = np.zeros_like(arr, dtype=np.float64)
+                        acc += arr
+                    processed += 1
+                    progress = min(0.95, processed / total_steps)
+                    _series_job_update(
+                        job_id,
+                        progress=progress,
+                        message=f"{operation.capitalize()} frame {frame_idx + 1}/{frame_count}",
+                    )
+                if operation == "median":
+                    if not median_stack:
+                        continue
+                    reduced = np.median(np.stack(median_stack, axis=0), axis=0)
+                else:
+                    if acc is None:
+                        continue
+                    if operation == "mean":
+                        reduced = acc / float(max(1, len(frame_indices)))
+                    else:
+                        reduced = acc
+                sums.append((0, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits))
 
         outputs: list[str] = []
         _series_job_update(job_id, progress=0.97, message="Writing outputs…")
         if output_format in {"hdf5", "h5"}:
+            _ensure_hdf5_stack()
             if base_target.suffix.lower() in {".h5", ".hdf5"}:
                 out_file = base_target
             else:
@@ -2007,12 +2162,13 @@ def _run_series_summing_job(
                 entry_group = out_h5.require_group("/entry")
                 data_group = entry_group.require_group("data")
                 
-                # Copy metadata from source H5 file
-                try:
-                    with h5py.File(source_path, "r") as src_h5:
-                        _copy_h5_metadata(src_h5, out_h5, threshold_count)
-                except Exception:
-                    pass  # If metadata copy fails, continue with data writing
+                # Copy metadata from source H5 file when available
+                if ext in {".h5", ".hdf5"}:
+                    try:
+                        with h5py.File(source_path, "r") as src_h5:
+                            _copy_h5_metadata(src_h5, out_h5, threshold_count)
+                    except Exception:
+                        pass  # If metadata copy fails, continue with data writing
                 
                 data_dset = data_group.create_dataset(
                     "data",
@@ -3224,7 +3380,8 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
 
     if not file:
         raise HTTPException(status_code=400, detail="Missing file")
-    if not dataset:
+    ext = _image_ext_name(Path(file).name)
+    if ext in {".h5", ".hdf5"} and not dataset:
         raise HTTPException(status_code=400, detail="Missing dataset")
     if mode not in {"all", "step", "nth", "range"}:
         raise HTTPException(status_code=400, detail="Invalid mode")

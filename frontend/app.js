@@ -2114,7 +2114,7 @@ function updateSeriesSumUi() {
     const nextNorm = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumNormalizeFrame.value || 1))));
     seriesSumNormalizeFrame.value = String(nextNorm);
   }
-  const ready = Boolean(state.file && state.dataset);
+  const ready = Boolean(state.file && (isHdfFile(state.file) ? state.dataset : true));
   if (seriesSumStart) {
     seriesSumStart.disabled = !ready || state.seriesSum.running;
     seriesSumStart.textContent = state.seriesSum.running ? "Summing…" : "Start Summing";
@@ -2206,7 +2206,7 @@ async function pollSeriesSumStatus() {
 }
 
 async function startSeriesSumming() {
-  if (!state.file || !state.dataset || state.seriesSum.running) return;
+  if (!state.file || (isHdfFile(state.file) && !state.dataset) || state.seriesSum.running) return;
   const mode = (seriesSumMode?.value || "all").toLowerCase();
   const operation = (seriesSumOperation?.value || "sum").toLowerCase();
   const normalizeEnabled = Boolean(seriesSumNormalizeEnable?.checked);

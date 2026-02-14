@@ -5,7 +5,7 @@ ALBIS is an **ALBULA‑style**, browser‑based image viewer for diffraction dat
 It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
-- Files on disk (`.h5/.hdf5`).
+- Files on disk (`.h5/.hdf5` stacks) and common detector image formats (`.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`). Numbered series are treated like stacks.
 - The detector **SIMPLON monitor** stream for live viewing.
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
