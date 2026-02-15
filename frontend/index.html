@@ -93,15 +93,31 @@
             <button class="tool-btn" id="btn-prev" aria-label="Previous frame">◀</button>
             <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
               <input id="frame-range" type="range" min="1" max="1" value="1" />
-              <input id="frame-index" type="number" min="1" value="1" />
             </div>
             <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
+            <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
+              <input id="frame-index" type="number" min="1" value="1" />
+            </div>
             <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
               <select id="frame-step" aria-label="Frame step">
                 <option value="1" selected>Step 1</option>
                 <option value="10">Step 10</option>
                 <option value="100">Step 100</option>
                 <option value="1000">Step 1000</option>
+              </select>
+            </div>
+            <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
+              <select id="fps-select" aria-label="Playback speed">
+                <option value="1" selected>1 fps</option>
+                <option value="2">2 fps</option>
+                <option value="3">3 fps</option>
+                <option value="4">4 fps</option>
+                <option value="5">5 fps</option>
+                <option value="6">6 fps</option>
+                <option value="7">7 fps</option>
+                <option value="8">8 fps</option>
+                <option value="9">9 fps</option>
+                <option value="10">10 fps</option>
               </select>
             </div>
             <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
@@ -316,13 +332,6 @@
                 <span>Threshold</span>
                 <select id="threshold-select"></select>
               </label>
-              <div class="field">
-                <span>Playback (fps)</span>
-                <div class="inline data-inline">
-                  <input id="fps-range" type="range" min="1" max="10" step="1" value="1" />
-                  <div id="fps-value" class="pill">1 fps</div>
-                </div>
-              </div>
               <div class="autoload-group is-hidden" id="autoload-simplon">
                 <label class="field">
                   <span>Base URL</span>
@@ -515,6 +524,7 @@
                   <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
                   <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
                   <div class="meta-row"><span>Median</span><strong id="roi-median">-</strong></div>
+                  <div class="meta-row"><span>Mean</span><strong id="roi-mean">-</strong></div>
                   <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
                 </div>
               </div>
@@ -552,13 +562,15 @@
             </section>
             <section class="panel-section" data-section="resolution-rings">
               <button class="section-title" type="button" data-section-toggle>
-                Resolution Rings
+                <span class="section-title-main">
+                  <label class="section-switch">
+                    <input id="rings-toggle" type="checkbox" />
+                    <span class="section-switch-track" aria-hidden="true"></span>
+                  </label>
+                  <span>Resolution Rings</span>
+                </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <label class="checkbox">
-                <input id="rings-toggle" type="checkbox" />
-                Show resolution rings
-              </label>
               <div class="rings-grid rings-grid-top">
                 <label class="field">
                   <span>Detector distance (mm)</span>
@@ -598,18 +610,20 @@
             </section>
             <section class="panel-section" data-section="peak-finder">
               <button class="section-title" type="button" data-section-toggle>
-                Peak Finder
+                <span class="section-title-main">
+                  <label class="section-switch">
+                    <input id="peaks-enable" type="checkbox" />
+                    <span class="section-switch-track" aria-hidden="true"></span>
+                  </label>
+                  <span>Peak Finder</span>
+                </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <label class="checkbox peaks-enable-toggle">
-                <input id="peaks-enable" type="checkbox" />
-                <span>Find peaks</span>
-              </label>
-              <label class="field peaks-count-field">
-                <span>Peaks to find</span>
-                <input id="peaks-count" type="number" min="1" max="1000" step="1" value="100" />
-              </label>
-              <div class="peaks-actions">
+              <div class="peaks-controls">
+                <label class="field peaks-count-field">
+                  <span>Peaks to find</span>
+                  <input id="peaks-count" type="number" min="1" max="1000" step="1" value="100" />
+                </label>
                 <button id="peaks-export" class="btn" type="button">Export CSV</button>
               </div>
               <div class="peaks-list" id="peaks-list">

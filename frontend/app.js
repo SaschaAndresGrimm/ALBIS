@@ -19,12 +19,13 @@ const thresholdSelect = document.getElementById("threshold-select");
 const toolbarThresholdWrap = document.getElementById("toolbar-threshold-wrap");
 const toolbarThresholdSelect = document.getElementById("toolbar-threshold");
 const toolbarFrameWrap = document.getElementById("toolbar-frame-wrap");
+const toolbarFrameIndexWrap = document.getElementById("toolbar-frame-index-wrap");
 const toolbarStepWrap = document.getElementById("toolbar-step-wrap");
+const toolbarFpsWrap = document.getElementById("toolbar-fps-wrap");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
-const fpsRange = document.getElementById("fps-range");
-const fpsValue = document.getElementById("fps-value");
+const fpsSelect = document.getElementById("fps-select");
 const autoScaleToggle = document.getElementById("auto-scale");
 const minInput = document.getElementById("min-input");
 const maxInput = document.getElementById("max-input");
@@ -74,6 +75,7 @@ const cursorOverlay = document.getElementById("cursor-overlay");
 const canvasShell = document.querySelector(".canvas-shell");
 const pixelLabelToggle = document.getElementById("pixel-label-toggle");
 const sectionToggles = document.querySelectorAll("[data-section-toggle]");
+const sectionSwitches = document.querySelectorAll(".section-switch");
 const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
@@ -157,6 +159,7 @@ const roiMinEl = document.getElementById("roi-min");
 const roiMaxEl = document.getElementById("roi-max");
 const roiSumEl = document.getElementById("roi-sum");
 const roiMedianEl = document.getElementById("roi-median");
+const roiMeanEl = document.getElementById("roi-mean");
 const roiStdEl = document.getElementById("roi-std");
 const roiLinePlot = document.getElementById("roi-line-plot");
 const roiBoxPlotX = document.getElementById("roi-box-plot-x");
@@ -617,6 +620,7 @@ function applyHelpMap() {
     "frame-range": "Frame position",
     "frame-index": "Current frame number",
     "frame-step": "Frame step size",
+    "fps-select": "Playback speed",
     "toolbar-threshold": "Select detector threshold",
     "zoom-range": "Zoom image",
     "reset-view": "Fit image to window",
@@ -3185,8 +3189,8 @@ function fitImageToView() {
 }
 
 function updateFpsLabel() {
-  if (fpsValue) {
-    fpsValue.textContent = `${state.fps} fps`;
+  if (fpsSelect) {
+    fpsSelect.value = String(state.fps);
   }
 }
 
@@ -3239,9 +3243,7 @@ async function setThresholdIndex(nextIndex) {
 function setFps(value) {
   const clamped = Math.max(1, Math.min(10, Math.round(value)));
   state.fps = clamped;
-  if (fpsRange) {
-    fpsRange.value = String(clamped);
-  }
+  if (fpsSelect) fpsSelect.value = String(clamped);
   updateFpsLabel();
   if (state.playing) {
     stopPlayback();
@@ -3909,7 +3911,7 @@ function setDataControlsForHdf5() {
   if (frameRange) frameRange.disabled = false;
   if (frameIndex) frameIndex.disabled = false;
   if (frameStep) frameStep.disabled = false;
-  if (fpsRange) fpsRange.disabled = false;
+  if (fpsSelect) fpsSelect.disabled = false;
   updateInspectorHeaderVisibility(state.file);
 }
 
@@ -3920,7 +3922,7 @@ function setDataControlsForImage() {
   if (frameRange) frameRange.disabled = true;
   if (frameIndex) frameIndex.disabled = true;
   if (frameStep) frameStep.disabled = true;
-  if (fpsRange) fpsRange.disabled = true;
+  if (fpsSelect) fpsSelect.disabled = true;
   updateInspectorHeaderVisibility(state.file);
 }
 
@@ -3931,7 +3933,7 @@ function setDataControlsForSeries() {
   if (frameRange) frameRange.disabled = false;
   if (frameIndex) frameIndex.disabled = false;
   if (frameStep) frameStep.disabled = false;
-  if (fpsRange) fpsRange.disabled = false;
+  if (fpsSelect) fpsSelect.disabled = false;
   updateInspectorHeaderVisibility(state.file);
 }
 
@@ -4117,8 +4119,9 @@ function updateAutoloadUI() {
   if (datasetField) datasetField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   if (thresholdField) thresholdField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (toolbarStepWrap) toolbarStepWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (fpsRange) fpsRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (toolbarFpsWrap) toolbarFpsWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (autoloadStatus) {
     const meta = autoloadStatus.closest(".autoload-meta");
     if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file");
@@ -6659,6 +6662,7 @@ function clearRoi() {
   setRoiText(roiMaxEl, "-");
   setRoiText(roiSumEl, "-");
   setRoiText(roiMedianEl, "-");
+  setRoiText(roiMeanEl, "-");
   setRoiText(roiStdEl, "-");
   drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
   drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
@@ -6892,7 +6896,7 @@ function updateRoiStats() {
       roiSizeLabel.textContent = "Image";
     }
     if (roiCountLabel) {
-      roiCountLabel.textContent = "Valid pixels";
+      roiCountLabel.textContent = "Pixels";
     }
     setRoiText(roiSizeEl, state.width && state.height ? `${state.width} × ${state.height}` : "-");
     setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
@@ -6910,6 +6914,7 @@ function updateRoiStats() {
     setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
     setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
     setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
+    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
     setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = null;
@@ -6946,6 +6951,7 @@ function updateRoiStats() {
     setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
     setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
     setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
+    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
     setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
@@ -7009,6 +7015,7 @@ function updateRoiStats() {
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
@@ -7075,6 +7082,7 @@ function updateRoiStats() {
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     if (roiXCanvas) {
@@ -7172,6 +7180,7 @@ function updateRoiStats() {
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
@@ -7944,8 +7953,8 @@ frameStep?.addEventListener("change", () => {
   setFrameStep(frameStep.value);
 });
 
-fpsRange?.addEventListener("input", () => {
-  setFps(Number(fpsRange.value));
+fpsSelect?.addEventListener("change", () => {
+  setFps(Number(fpsSelect.value));
 });
 
 autoloadMode?.addEventListener("change", () => {
@@ -8566,6 +8575,14 @@ panelTabs.forEach((tab) => {
 
 sectionToggles.forEach((btn) => {
   btn.addEventListener("click", toggleSection);
+});
+
+sectionSwitches.forEach((toggle) => {
+  ["mousedown", "click", "dblclick"].forEach((eventName) => {
+    toggle.addEventListener(eventName, (event) => {
+      event.stopPropagation();
+    });
+  });
 });
 
 try {
@@ -9204,8 +9221,8 @@ if (backendIsLocal && filesystemMode) {
 
 showSplash();
 drawSplash();
-if (fpsRange) {
-  setFps(Number(fpsRange.value));
+if (fpsSelect) {
+  setFps(Number(fpsSelect.value));
 }
 if (frameStep) {
   setFrameStep(frameStep.value);
