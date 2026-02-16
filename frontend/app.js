@@ -4488,22 +4488,28 @@ async function loadImageFile(file) {
   stopPlayback();
   setLoading(true);
   setStatus("Loading image…");
-  const res = await fetch(`${API}/image?file=${encodeURIComponent(file)}`);
-  if (!res.ok) {
+  try {
+    const res = await fetch(`${API}/image?file=${encodeURIComponent(file)}`);
+    if (!res.ok) {
+      setStatus("Failed to load image");
+      return;
+    }
+    const buffer = await res.arrayBuffer();
+    const dtype = parseDtype(res.headers.get("X-Dtype"));
+    const shape = parseShape(res.headers.get("X-Shape"));
+    const data = typedArrayFrom(buffer, dtype);
+    applyImageMeta(res.headers);
+    applyExternalFrame(data, shape, dtype, file, true, false, {
+      autoMask: true,
+      maskKey: `auto:${file}`,
+    });
+    setStatus("Frame 1 / 1");
+  } catch (err) {
+    console.error(err);
     setStatus("Failed to load image");
+  } finally {
     setLoading(false);
-    return;
   }
-  const buffer = await res.arrayBuffer();
-  const dtype = parseDtype(res.headers.get("X-Dtype"));
-  const shape = parseShape(res.headers.get("X-Shape"));
-  const data = typedArrayFrom(buffer, dtype);
-  applyImageMeta(res.headers);
-  applyExternalFrame(data, shape, dtype, file, true, false, {
-    autoMask: true,
-    maskKey: `auto:${file}`,
-  });
-  setLoading(false);
 }
 
 function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false, options = {}) {
