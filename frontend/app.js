@@ -18,11 +18,14 @@ const thresholdField = document.getElementById("threshold-field");
 const thresholdSelect = document.getElementById("threshold-select");
 const toolbarThresholdWrap = document.getElementById("toolbar-threshold-wrap");
 const toolbarThresholdSelect = document.getElementById("toolbar-threshold");
+const toolbarFrameWrap = document.getElementById("toolbar-frame-wrap");
+const toolbarFrameIndexWrap = document.getElementById("toolbar-frame-index-wrap");
+const toolbarStepWrap = document.getElementById("toolbar-step-wrap");
+const toolbarFpsWrap = document.getElementById("toolbar-fps-wrap");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
-const fpsRange = document.getElementById("fps-range");
-const fpsValue = document.getElementById("fps-value");
+const fpsSelect = document.getElementById("fps-select");
 const autoScaleToggle = document.getElementById("auto-scale");
 const minInput = document.getElementById("min-input");
 const maxInput = document.getElementById("max-input");
@@ -72,6 +75,7 @@ const cursorOverlay = document.getElementById("cursor-overlay");
 const canvasShell = document.querySelector(".canvas-shell");
 const pixelLabelToggle = document.getElementById("pixel-label-toggle");
 const sectionToggles = document.querySelectorAll("[data-section-toggle]");
+const sectionSwitches = document.querySelectorAll(".section-switch");
 const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
@@ -147,10 +151,15 @@ const roiSizeLabel = document.getElementById("roi-size-label");
 const roiSizeEl = document.getElementById("roi-size");
 const roiCountLabel = document.getElementById("roi-count-label");
 const roiCountEl = document.getElementById("roi-count");
+const roiTotalEl = document.getElementById("roi-total");
+const roiGapEl = document.getElementById("roi-gap");
+const roiDefectiveEl = document.getElementById("roi-defective");
+const roiSaturatedEl = document.getElementById("roi-saturated");
 const roiMinEl = document.getElementById("roi-min");
 const roiMaxEl = document.getElementById("roi-max");
 const roiSumEl = document.getElementById("roi-sum");
 const roiMedianEl = document.getElementById("roi-median");
+const roiMeanEl = document.getElementById("roi-mean");
 const roiStdEl = document.getElementById("roi-std");
 const roiLinePlot = document.getElementById("roi-line-plot");
 const roiBoxPlotX = document.getElementById("roi-box-plot-x");
@@ -484,6 +493,7 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 50;
+const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
 const PIXEL_LABEL_MIN_ZOOM = 15;
 const PEAK_BAD_MASK_BITS = 0x1f;
 
@@ -607,6 +617,10 @@ function applyHelpMap() {
     "btn-prev": "Previous frame",
     "btn-next": "Next frame",
     "btn-play": "Play/pause playback",
+    "frame-range": "Frame position",
+    "frame-index": "Current frame number",
+    "frame-step": "Frame step size",
+    "fps-select": "Playback speed",
     "toolbar-threshold": "Select detector threshold",
     "zoom-range": "Zoom image",
     "reset-view": "Fit image to window",
@@ -3019,8 +3033,12 @@ function setZoom(value) {
     canvasWrap && state.width
       ? Math.max(0, (canvasWrap.clientWidth - state.width * clamped) / 2)
       : 0;
+  const offsetY =
+    canvasWrap && state.height
+      ? Math.max(0, (canvasWrap.clientHeight - state.height * clamped) / 2)
+      : 0;
   state.renderOffsetX = Number.isFinite(offsetX) ? offsetX : 0;
-  state.renderOffsetY = 0;
+  state.renderOffsetY = Number.isFinite(offsetY) ? offsetY : 0;
   canvas.style.transform = `translate(${state.renderOffsetX}px, ${state.renderOffsetY}px) scale(${clamped})`;
   if (zoomRange) {
     zoomRange.min = String(minZoom);
@@ -3171,8 +3189,8 @@ function fitImageToView() {
 }
 
 function updateFpsLabel() {
-  if (fpsValue) {
-    fpsValue.textContent = `${state.fps} fps`;
+  if (fpsSelect) {
+    fpsSelect.value = String(state.fps);
   }
 }
 
@@ -3225,13 +3243,20 @@ async function setThresholdIndex(nextIndex) {
 function setFps(value) {
   const clamped = Math.max(1, Math.min(10, Math.round(value)));
   state.fps = clamped;
-  if (fpsRange) {
-    fpsRange.value = String(clamped);
-  }
+  if (fpsSelect) fpsSelect.value = String(clamped);
   updateFpsLabel();
   if (state.playing) {
     stopPlayback();
     startPlayback();
+  }
+}
+
+function setFrameStep(value) {
+  const parsed = Math.round(Number(value || 1));
+  const next = FRAME_STEP_OPTIONS.includes(parsed) ? parsed : FRAME_STEP_OPTIONS[0];
+  state.step = next;
+  if (frameStep) {
+    frameStep.value = String(next);
   }
 }
 
@@ -3363,7 +3388,7 @@ function startPlayback() {
   state.playTimer = window.setInterval(() => {
     if (!state.playing) return;
     const step = Math.max(1, state.step);
-    const next = state.frameIndex + step >= state.frameCount ? 0 : state.frameIndex + step;
+    const next = (state.frameIndex + step) % state.frameCount;
     requestFrame(next);
   }, Math.max(1000 / state.fps, 50));
 }
@@ -3886,7 +3911,7 @@ function setDataControlsForHdf5() {
   if (frameRange) frameRange.disabled = false;
   if (frameIndex) frameIndex.disabled = false;
   if (frameStep) frameStep.disabled = false;
-  if (fpsRange) fpsRange.disabled = false;
+  if (fpsSelect) fpsSelect.disabled = false;
   updateInspectorHeaderVisibility(state.file);
 }
 
@@ -3897,7 +3922,7 @@ function setDataControlsForImage() {
   if (frameRange) frameRange.disabled = true;
   if (frameIndex) frameIndex.disabled = true;
   if (frameStep) frameStep.disabled = true;
-  if (fpsRange) fpsRange.disabled = true;
+  if (fpsSelect) fpsSelect.disabled = true;
   updateInspectorHeaderVisibility(state.file);
 }
 
@@ -3908,7 +3933,7 @@ function setDataControlsForSeries() {
   if (frameRange) frameRange.disabled = false;
   if (frameIndex) frameIndex.disabled = false;
   if (frameStep) frameStep.disabled = false;
-  if (fpsRange) fpsRange.disabled = false;
+  if (fpsSelect) fpsSelect.disabled = false;
   updateInspectorHeaderVisibility(state.file);
 }
 
@@ -4093,9 +4118,10 @@ function updateAutoloadUI() {
   if (fileField) fileField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   if (datasetField) datasetField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
   if (thresholdField) thresholdField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
-  if (frameRange) frameRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (frameStep) frameStep.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (fpsRange) fpsRange.closest(".field")?.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (toolbarStepWrap) toolbarStepWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (toolbarFpsWrap) toolbarFpsWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (autoloadStatus) {
     const meta = autoloadStatus.closest(".autoload-meta");
     if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file");
@@ -6628,10 +6654,15 @@ function clearRoi() {
   setRoiText(roiEndEl, "-");
   setRoiText(roiSizeEl, "-");
   setRoiText(roiCountEl, "-");
+  setRoiText(roiTotalEl, "-");
+  setRoiText(roiGapEl, "-");
+  setRoiText(roiDefectiveEl, "-");
+  setRoiText(roiSaturatedEl, "-");
   setRoiText(roiMinEl, "-");
   setRoiText(roiMaxEl, "-");
   setRoiText(roiSumEl, "-");
   setRoiText(roiMedianEl, "-");
+  setRoiText(roiMeanEl, "-");
   setRoiText(roiStdEl, "-");
   drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
   drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
@@ -6650,23 +6681,35 @@ function applyMaskToValue(value, maskValue) {
   return { value, skip: false };
 }
 
+function getMaskFlags(maskValue) {
+  if (!Number.isFinite(maskValue)) {
+    return { gap: false, defective: false };
+  }
+  return {
+    gap: Boolean(maskValue & 1),
+    defective: Boolean(maskValue & 0x1e),
+  };
+}
+
 function sampleValue(ix, iy) {
   if (!state.dataRaw) return null;
   const idx = iy * state.width + ix;
   const raw = state.dataRaw[idx];
-  if (
-    state.maskEnabled &&
+  const hasMask =
     state.maskAvailable &&
     state.maskRaw &&
     state.maskShape &&
     state.maskShape[0] === state.height &&
-    state.maskShape[1] === state.width
+    state.maskShape[1] === state.width;
+  const maskValue = hasMask ? state.maskRaw[idx] : null;
+  if (
+    state.maskEnabled &&
+    hasMask
   ) {
-    const maskValue = state.maskRaw[idx];
     const masked = applyMaskToValue(raw, maskValue);
-    return { value: masked.value, skip: masked.skip };
+    return { value: masked.value, skip: masked.skip, raw, maskValue };
   }
-  return { value: raw, skip: false };
+  return { value: raw, skip: false, raw, maskValue };
 }
 
 function computeGlobalStats() {
@@ -6677,19 +6720,34 @@ function computeGlobalStats() {
   let count = 0;
   let mean = 0;
   let m2 = 0;
-  const useMask =
-    state.maskEnabled &&
+  let gapPixels = 0;
+  let defectivePixels = 0;
+  let saturatedPixels = 0;
+  const satMax = state.stats?.satMax ?? null;
+  const hasMask =
     state.maskAvailable &&
     state.maskRaw &&
     state.maskShape &&
     state.maskShape[0] === state.height &&
     state.maskShape[1] === state.width;
+  const useMask =
+    state.maskEnabled &&
+    hasMask;
 
   for (let i = 0; i < state.dataRaw.length; i += 1) {
     let v = state.dataRaw[i];
+    const maskValue = hasMask ? state.maskRaw[i] : null;
+    const flags = getMaskFlags(maskValue);
+    if (flags.gap) {
+      gapPixels += 1;
+    } else if (flags.defective) {
+      defectivePixels += 1;
+    }
+    if (satMax !== null && Number.isFinite(v) && v === satMax && !flags.gap && !flags.defective) {
+      saturatedPixels += 1;
+    }
     if (!Number.isFinite(v)) continue;
     if (useMask) {
-      const maskValue = state.maskRaw[i];
       const masked = applyMaskToValue(v, maskValue);
       if (masked.skip) continue;
       v = masked.value;
@@ -6704,10 +6762,32 @@ function computeGlobalStats() {
   }
 
   if (count === 0) {
-    return { count: 0, sum: 0, mean: 0, min: 0, max: 0, std: 0 };
+    return {
+      count: 0,
+      sum: 0,
+      mean: 0,
+      min: 0,
+      max: 0,
+      std: 0,
+      totalPixels: state.dataRaw.length,
+      gapPixels,
+      defectivePixels,
+      saturatedPixels,
+    };
   }
   const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
-  return { count, sum, mean, min, max, std };
+  return {
+    count,
+    sum,
+    mean,
+    min,
+    max,
+    std,
+    totalPixels: state.dataRaw.length,
+    gapPixels,
+    defectivePixels,
+    saturatedPixels,
+  };
 }
 
 function updateGlobalStats() {
@@ -6767,6 +6847,37 @@ function updateRoiTooltip(event, canvasEl) {
   showRoiTooltip(canvasEl, label, event.clientX, event.clientY);
 }
 
+function createRoiPixelCounters() {
+  return { total: 0, gap: 0, defective: 0, saturated: 0 };
+}
+
+function accumulateRoiPixelCounters(counters, sampled, satMax) {
+  if (!counters || !sampled) return;
+  counters.total += 1;
+  const flags = getMaskFlags(sampled.maskValue);
+  if (flags.gap) {
+    counters.gap += 1;
+  } else if (flags.defective) {
+    counters.defective += 1;
+  }
+  if (
+    satMax !== null &&
+    Number.isFinite(sampled.raw) &&
+    sampled.raw === satMax &&
+    !flags.gap &&
+    !flags.defective
+  ) {
+    counters.saturated += 1;
+  }
+}
+
+function updateRoiPixelCounterFields(counters) {
+  setRoiText(roiTotalEl, counters ? `${counters.total}` : "-");
+  setRoiText(roiGapEl, counters ? `${counters.gap}` : "-");
+  setRoiText(roiDefectiveEl, counters ? `${counters.defective}` : "-");
+  setRoiText(roiSaturatedEl, counters ? `${counters.saturated}` : "-");
+}
+
 function updateRoiStats() {
   // This function is intentionally central: it computes ROI statistics and
   // updates all derived plots/labels in one pass to keep UI state consistent.
@@ -6789,10 +6900,21 @@ function updateRoiStats() {
     }
     setRoiText(roiSizeEl, state.width && state.height ? `${state.width} × ${state.height}` : "-");
     setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
+    updateRoiPixelCounterFields(
+      stats
+        ? {
+            total: stats.totalPixels ?? 0,
+            gap: stats.gapPixels ?? 0,
+            defective: stats.defectivePixels ?? 0,
+            saturated: stats.saturatedPixels ?? 0,
+          }
+        : null
+    );
     setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
     setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
     setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
     setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
+    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
     setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = null;
@@ -6815,10 +6937,21 @@ function updateRoiStats() {
     setRoiText(roiEndEl, "-");
     setRoiText(roiSizeEl, "-");
     setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
+    updateRoiPixelCounterFields(
+      stats
+        ? {
+            total: stats.totalPixels ?? 0,
+            gap: stats.gapPixels ?? 0,
+            defective: stats.defectivePixels ?? 0,
+            saturated: stats.saturatedPixels ?? 0,
+          }
+        : null
+    );
     setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
     setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
     setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
     setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
+    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
     setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
@@ -6840,6 +6973,8 @@ function updateRoiStats() {
   let mean = 0;
   let m2 = 0;
   const statsValues = [];
+  const satMax = state.stats?.satMax ?? null;
+  const pixelCounters = createRoiPixelCounters();
 
   if (roiState.mode === "line") {
     const dx = x1 - x0;
@@ -6852,6 +6987,7 @@ function updateRoiStats() {
       const iy = Math.max(0, Math.min(state.height - 1, Math.round(y0 + dy * t)));
       const sampled = sampleValue(ix, iy);
       if (!sampled) continue;
+      accumulateRoiPixelCounters(pixelCounters, sampled, satMax);
       const v = sampled.value;
       values.push(Number.isFinite(v) ? v : 0);
       if (sampled.skip || !Number.isFinite(v)) {
@@ -6872,12 +7008,14 @@ function updateRoiStats() {
     roiState.yProjection = null;
     setRoiText(roiSizeEl, formatStat(length));
     setRoiText(roiCountEl, count ? `${count}` : "0");
+    updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
     setRoiText(roiMinEl, count ? formatStat(min) : "-");
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
@@ -6908,6 +7046,7 @@ function updateRoiStats() {
         const colIndex = x - left;
         const sampled = sampleValue(x, y);
         if (!sampled) continue;
+        accumulateRoiPixelCounters(pixelCounters, sampled, satMax);
         const v = sampled.value;
         if (!sampled.skip && Number.isFinite(v)) {
           statsValues.push(v);
@@ -6936,12 +7075,14 @@ function updateRoiStats() {
     roiState.lineProfile = null;
     setRoiText(roiSizeEl, `${width} × ${height}`);
     setRoiText(roiCountEl, count ? `${count}` : "0");
+    updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
     setRoiText(roiMinEl, count ? formatStat(min) : "-");
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     if (roiXCanvas) {
@@ -6998,6 +7139,7 @@ function updateRoiStats() {
         if (r2 > outerR2 || r2 < innerR2) continue;
         const sampled = sampleValue(x, y);
         if (!sampled) continue;
+        accumulateRoiPixelCounters(pixelCounters, sampled, satMax);
         const v = sampled.value;
         if (!sampled.skip && Number.isFinite(v)) {
           statsValues.push(v);
@@ -7031,12 +7173,14 @@ function updateRoiStats() {
       setRoiText(roiSizeEl, `${roiState.innerRadius} → ${outerRadius}`);
     }
     setRoiText(roiCountEl, count ? `${count}` : "0");
+    updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
     setRoiText(roiMinEl, count ? formatStat(min) : "-");
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
+    setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
@@ -7806,13 +7950,11 @@ frameIndex.addEventListener("change", async (event) => {
 });
 
 frameStep?.addEventListener("change", () => {
-  const value = Math.max(1, Math.round(Number(frameStep.value || 1)));
-  state.step = value;
-  frameStep.value = String(value);
+  setFrameStep(frameStep.value);
 });
 
-fpsRange?.addEventListener("input", () => {
-  setFps(Number(fpsRange.value));
+fpsSelect?.addEventListener("change", () => {
+  setFps(Number(fpsSelect.value));
 });
 
 autoloadMode?.addEventListener("change", () => {
@@ -8433,6 +8575,14 @@ panelTabs.forEach((tab) => {
 
 sectionToggles.forEach((btn) => {
   btn.addEventListener("click", toggleSection);
+});
+
+sectionSwitches.forEach((toggle) => {
+  ["mousedown", "click", "dblclick"].forEach((eventName) => {
+    toggle.addEventListener(eventName, (event) => {
+      event.stopPropagation();
+    });
+  });
 });
 
 try {
@@ -9071,13 +9221,11 @@ if (backendIsLocal && filesystemMode) {
 
 showSplash();
 drawSplash();
-if (fpsRange) {
-  setFps(Number(fpsRange.value));
+if (fpsSelect) {
+  setFps(Number(fpsSelect.value));
 }
 if (frameStep) {
-  const stepValue = Math.max(1, Math.round(Number(frameStep.value || 1)));
-  state.step = stepValue;
-  frameStep.value = String(stepValue);
+  setFrameStep(frameStep.value);
 }
 if (histLogX) {
   state.histLogX = histLogX.checked;

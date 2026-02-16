@@ -555,8 +555,23 @@ def _init_logging() -> logging.Logger:
 
 
 logger = _init_logging()
-logger.info("ALBIS data dir: %s", DATA_DIR)
-logger.info("ALBIS config: %s", CONFIG_PATH)
+_startup_banner_logged = False
+
+
+@app.on_event("startup")
+async def _log_startup_banner() -> None:
+    """Log startup paths once per serving process.
+
+    Keep this out of module import time so uvicorn reload supervisors do not
+    spam repeated startup lines.
+    """
+    global _startup_banner_logged
+    if _startup_banner_logged:
+        return
+    _startup_banner_logged = True
+    pid = os.getpid()
+    logger.info("ALBIS data dir (pid=%s): %s", pid, DATA_DIR)
+    logger.info("ALBIS config (pid=%s): %s", pid, CONFIG_PATH)
 
 
 @app.middleware("http")

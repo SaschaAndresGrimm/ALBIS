@@ -319,6 +319,81 @@ body {
 .toolbar-buttons {
   display: flex;
   gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.toolbar-frame {
+  display: flex;
+  align-items: center;
+  min-width: 180px;
+  max-width: 300px;
+}
+
+.toolbar-frame.is-hidden {
+  display: none;
+}
+
+.toolbar-frame input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.toolbar-frame-index {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-frame-index.is-hidden {
+  display: none;
+}
+
+.toolbar-frame-index input[type="number"] {
+  width: 62px;
+  background: #111;
+  color: #e6e6e6;
+  border: 1px solid #0a0a0a;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+
+.toolbar-step {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-step.is-hidden {
+  display: none;
+}
+
+.toolbar-step select {
+  background: #0f0f0f;
+  color: #e6e6e6;
+  border: 1px solid #0a0a0a;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  min-width: 78px;
+}
+
+.toolbar-fps {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-fps.is-hidden {
+  display: none;
+}
+
+.toolbar-fps select {
+  background: #0f0f0f;
+  color: #e6e6e6;
+  border: 1px solid #0a0a0a;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  min-width: 66px;
 }
 
 .toolbar-threshold {
@@ -620,8 +695,7 @@ body {
 }
 
 .panel-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   gap: 0;
   margin-bottom: 8px;
   position: sticky;
@@ -634,6 +708,7 @@ body {
 }
 
 .panel-tab {
+  flex: 1 1 0;
   background: linear-gradient(to bottom, #3f3f3f, #252525);
   border: 1px solid #111;
   border-right-width: 0;
@@ -809,6 +884,13 @@ body {
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
+}
+
+.section-title-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .section-title:focus {
@@ -1211,17 +1293,22 @@ body {
   max-width: 96px;
 }
 
-.peaks-enable-toggle {
-  margin-bottom: 6px;
-}
-
-.peaks-actions {
+.peaks-controls {
   display: flex;
-  gap: 8px;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
-.peaks-actions .btn {
+.peaks-controls .peaks-count-field {
   flex: 1 1 auto;
+  margin: 0;
+}
+
+.peaks-controls .btn {
+  flex: 0 0 auto;
+  min-width: 110px;
 }
 
 .peaks-list {
@@ -1619,6 +1706,22 @@ body {
     padding: 6px 10px;
   }
 
+  .toolbar-frame {
+    min-width: 150px;
+    max-width: 220px;
+  }
+
+  .toolbar-frame-index input[type="number"] {
+    width: 52px;
+    font-size: 10px;
+  }
+
+  .toolbar-step select,
+  .toolbar-fps select {
+    min-width: 64px;
+    font-size: 10px;
+  }
+
   .toolbar-path {
     font-size: 11px;
     padding: 4px 6px;
@@ -1730,6 +1833,54 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 12px;
+}
+
+.section-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 16px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.section-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.section-switch-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  border: 1px solid #0f0f0f;
+  background: linear-gradient(to bottom, #2a2a2a, #191919);
+  transition: background 0.2s ease;
+}
+
+.section-switch-track::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  top: 1px;
+  left: 1px;
+  border-radius: 50%;
+  background: #d8d8d8;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease;
+}
+
+.section-switch input:checked + .section-switch-track {
+  background: linear-gradient(to bottom, #3a84d5, #205f9c);
+}
+
+.section-switch input:checked + .section-switch-track::after {
+  transform: translateX(14px);
 }
 
 .field {
