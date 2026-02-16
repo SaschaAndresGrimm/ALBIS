@@ -5902,6 +5902,22 @@ function typedArrayFrom(buffer, dtype) {
       return new Int16Array(buffer);
     case "<i4":
       return new Int32Array(buffer);
+    case "<u8": {
+      const in64 = new BigUint64Array(buffer);
+      const out = new Float64Array(in64.length);
+      for (let i = 0; i < in64.length; i += 1) {
+        out[i] = Number(in64[i]);
+      }
+      return out;
+    }
+    case "<i8": {
+      const in64 = new BigInt64Array(buffer);
+      const out = new Float64Array(in64.length);
+      for (let i = 0; i < in64.length; i += 1) {
+        out[i] = Number(in64[i]);
+      }
+      return out;
+    }
     case "<f4":
       return new Float32Array(buffer);
     case "<f8":
