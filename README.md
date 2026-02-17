@@ -119,6 +119,16 @@ requests.post(
 ).raise_for_status()
 ```
 
+### Quick local smoke test
+
+`test_scripts/stream_ingest.py` posts one synthetic frame to the backend:
+
+```bash
+python test_scripts/stream_ingest.py
+```
+
+Important: the script `source_id` must match the UI `Remote Stream` source id (default `default`).
+
 ## Architecture
 
 ALBIS uses a server-client architecture:
@@ -190,8 +200,8 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ```
 
 This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-macos-<os_version>-v0.4-<commit>.zip`
-- `ALBIS-macos-<os_version>-v0.4-<commit>.dmg`
+- `ALBIS-macos-<os_version>-v0.6-<commit>.zip`
+- `ALBIS-macos-<os_version>-v0.6-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
@@ -203,7 +213,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 ```
 
 Example output:
-- `ALBIS-linux-<distro_version>-v0.4-<commit>.tar.gz`
+- `ALBIS-linux-<distro_version>-v0.6-<commit>.tar.gz`
 
 ### Build (Windows)
 
@@ -212,9 +222,9 @@ Example output:
 ```
 
 Example output:
-- `ALBIS-windows-<os_version>-v0.4-<commit>.zip`
+- `ALBIS-windows-<os_version>-v0.6-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-windows-<os_version>-v0.4-<commit>.exe`
+  `ALBIS-Setup-windows-<os_version>-v0.6-<commit>.exe`
 
 ### Output
 
@@ -234,10 +244,10 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 
 ## Roadmap — Next Milestones
 - [x] v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
-- [] v0.6 server - client(s) implementation
-- [] v0.7 detector control and status.
-- [] v0.8 facelift
-- [] v0.9 refactor, tests, document
+- [x] v0.6 server-client remote stream API (frame + metadata ingest)
+- [ ] v0.7 detector control and status
+- [ ] v0.8 facelift
+- [ ] v0.9 refactor, tests, document
 - ...? =)
 
 ## Notes
