@@ -92,6 +92,9 @@ import json
 import requests
 import numpy as np
 
+PORT = 8080
+SOURCE_ID = "default"
+
 frame = (np.random.rand(512, 512) * 1000).astype("<u2")
 meta = {
     "format": "raw",
@@ -112,7 +115,7 @@ meta = {
 }
 
 requests.post(
-    "http://127.0.0.1:8000/api/remote/v1/frame?source_id=demo",
+    f"http://127.0.0.1:{PORT}/api/remote/v1/frame?source_id={SOURCE_ID}",
     data={"meta": json.dumps(meta)},
     files={"image": ("frame.raw", frame.tobytes(), "application/octet-stream")},
     timeout=5,
@@ -245,9 +248,8 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 ## Roadmap — Next Milestones
 - [x] v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
 - [x] v0.6 server-client remote stream API (frame + metadata ingest)
-- [ ] v0.7 detector control and status
-- [ ] v0.8 facelift
-- [ ] v0.9 refactor, tests, document
+- [ ] v0.7 ~~detector control and status~~ will be an independent project - disentangle control and view. facelift moved to v 0.7
+- [ ] v0.8 refactor, tests, documentation
 - ...? =)
 
 ## Notes

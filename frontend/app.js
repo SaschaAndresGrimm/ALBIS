@@ -3,7 +3,7 @@
  *
  * This file drives:
  * - UI state and interactions (menus, tabs, shortcuts, gestures)
- * - Data-source orchestration (file/watch/monitor)
+ * - Data-source orchestration (file/monitor/remote + optional watch)
  * - Rendering (WebGL2 primary + CPU fallback)
  * - Overlay layers (ROI, rings, peaks, pixel labels, histogram)
  *
@@ -93,6 +93,8 @@ const autoloadStatus = document.getElementById("autoload-status");
 const autoloadLatest = document.getElementById("autoload-latest");
 const autoloadFolder = document.getElementById("autoload-folder");
 const autoloadWatch = document.getElementById("autoload-watch");
+const autoloadWatchEnabled = document.getElementById("autoload-watch-enabled");
+const autoloadWatchOptions = document.getElementById("autoload-watch-options");
 const autoloadTypesRow = document.getElementById("autoload-types");
 const autoloadSimplon = document.getElementById("autoload-simplon");
 const autoloadRemote = document.getElementById("autoload-remote");
@@ -389,6 +391,7 @@ const state = {
   globalStats: null,
   autoload: {
     mode: "file",
+    watchEnabled: false,
     dir: "",
     interval: 1000,
     types: {
@@ -675,6 +678,7 @@ function applyHelpMap() {
     "autoload-mode": "Select image source",
     "filesystem-mode": "Select filesystem source",
     "autoload-dir": "Folder to watch",
+    "autoload-watch-enabled": "Automatically watch selected folder for new files",
     "autoload-browse": "Browse for a folder",
     "autoload-pattern": "Filename filter (supports wildcards)",
     "autoload-interval": "Polling interval (ms)",
@@ -4181,6 +4185,7 @@ function persistAutoloadSettings() {
   try {
     const payload = {
       mode: state.autoload.mode,
+      watchEnabled: state.autoload.watchEnabled,
       dir: state.autoload.dir,
       interval: state.autoload.interval,
       types: state.autoload.types,
@@ -4206,8 +4211,10 @@ function updateAutoloadUI() {
       state.autoload.mode === "simplon" || state.autoload.mode === "remote"
     );
   }
-  if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "watch");
-  if (autoloadTypesRow) autoloadTypesRow.classList.toggle("is-hidden", state.autoload.mode === "watch");
+  if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  if (autoloadWatchEnabled) autoloadWatchEnabled.checked = Boolean(state.autoload.watchEnabled);
+  if (autoloadWatchOptions) autoloadWatchOptions.classList.toggle("is-hidden", !state.autoload.watchEnabled);
+  if (autoloadTypesRow) autoloadTypesRow.classList.toggle("is-hidden", !state.autoload.watchEnabled);
   if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
   if (autoloadRemote) autoloadRemote.classList.toggle("is-hidden", state.autoload.mode !== "remote");
   const hideDatasetUi = state.autoload.mode === "simplon" || state.autoload.mode === "remote";
@@ -4220,7 +4227,7 @@ function updateAutoloadUI() {
   if (toolbarFpsWrap) toolbarFpsWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (autoloadStatus) {
     const meta = autoloadStatus.closest(".autoload-meta");
-    if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file");
+    if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file" && !state.autoload.watchEnabled);
   }
   if (simplonMetaPanel) {
     simplonMetaPanel.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
@@ -4263,7 +4270,9 @@ function loadAutoloadSettings() {
       const stored = JSON.parse(raw);
       if (stored && typeof stored === "object") {
         const storedMode = stored.mode || state.autoload.mode;
-        state.autoload.mode = storedMode === "off" ? "file" : storedMode;
+        state.autoload.mode = storedMode === "off" || storedMode === "watch" ? "file" : storedMode;
+        state.autoload.watchEnabled =
+          stored.watchEnabled !== undefined ? Boolean(stored.watchEnabled) : storedMode === "watch";
         state.autoload.dir = stored.dir || "";
         state.autoload.interval = Number(stored.interval || state.autoload.interval);
         if (stored.types && typeof stored.types === "object") {
@@ -4287,6 +4296,7 @@ function loadAutoloadSettings() {
     // ignore storage errors
   }
   if (autoloadMode) autoloadMode.value = state.autoload.mode;
+  if (autoloadWatchEnabled) autoloadWatchEnabled.checked = Boolean(state.autoload.watchEnabled);
   if (autoloadDir) autoloadDir.value = state.autoload.dir;
   if (autoloadInterval) autoloadInterval.value = String(state.autoload.interval || 1000);
   if (autoloadTypeHdf5) autoloadTypeHdf5.checked = state.autoload.types.hdf5;
@@ -4302,7 +4312,7 @@ function loadAutoloadSettings() {
   updateAutoloadUI();
   setAutoloadStatus("Idle");
   setAutoloadLatest("-");
-  if (state.autoload.mode !== "file") {
+  if (state.autoload.mode !== "file" || state.autoload.watchEnabled) {
     startAutoload();
   }
 }
@@ -4327,6 +4337,7 @@ async function setSimplonMode(enabled) {
 
 async function startAutoload() {
   state.autoload.mode = autoloadMode?.value || state.autoload.mode;
+  state.autoload.watchEnabled = autoloadWatchEnabled?.checked ?? state.autoload.watchEnabled;
   state.autoload.dir = autoloadDir?.value?.trim() || "";
   state.autoload.interval = Math.max(200, Number(autoloadInterval?.value || 1000));
   state.autoload.types = {
@@ -4334,12 +4345,6 @@ async function startAutoload() {
     tiff: autoloadTypeTiff?.checked ?? true,
     cbf: autoloadTypeCbf?.checked ?? true,
   };
-  if (state.autoload.mode === "watch") {
-    state.autoload.types = { hdf5: true, tiff: true, cbf: true };
-    if (autoloadTypeHdf5) autoloadTypeHdf5.checked = true;
-    if (autoloadTypeTiff) autoloadTypeTiff.checked = true;
-    if (autoloadTypeCbf) autoloadTypeCbf.checked = true;
-  }
   state.autoload.pattern = autoloadPattern?.value?.trim() || "";
   state.autoload.simplonUrl = simplonUrl?.value?.trim() || "";
   state.autoload.simplonVersion = simplonVersion?.value?.trim() || "1.8.0";
@@ -4349,7 +4354,7 @@ async function startAutoload() {
   if (state.autoload.mode === "remote") {
     state.autoload.interval = Math.max(100, Number(remoteIntervalInput?.value || state.autoload.interval || 1000));
   }
-  if (state.autoload.mode === "file") {
+  if (state.autoload.mode === "file" && !state.autoload.watchEnabled) {
     await stopAutoload({ keepMode: false });
     return;
   }
@@ -4369,7 +4374,7 @@ async function startAutoload() {
   updateAutoloadMeta();
   setAutoloadStatus(
     `Running (${
-      state.autoload.mode === "watch"
+      state.autoload.mode === "file" && state.autoload.watchEnabled
         ? "Watch folder"
         : state.autoload.mode === "simplon"
           ? "SIMPLON monitor"
@@ -4434,7 +4439,7 @@ async function autoloadTick() {
   state.autoload.lastPoll = Date.now();
   updateAutoloadMeta();
   try {
-    if (state.autoload.mode === "watch") {
+    if (state.autoload.mode === "file" && state.autoload.watchEnabled) {
       await autoloadWatchTick();
     } else if (state.autoload.mode === "simplon") {
       await autoloadSimplonTick();
@@ -8324,8 +8329,23 @@ autoloadMode?.addEventListener("change", () => {
   persistAutoloadSettings();
   if (state.autoload.mode === "file") {
     loadFiles().catch((err) => console.error(err));
+    if (state.autoload.watchEnabled) {
+      startAutoload();
+    }
   } else {
     startAutoload();
+  }
+});
+
+autoloadWatchEnabled?.addEventListener("change", () => {
+  state.autoload.watchEnabled = autoloadWatchEnabled.checked;
+  updateAutoloadUI();
+  persistAutoloadSettings();
+  if (state.autoload.mode !== "file") return;
+  if (state.autoload.watchEnabled) {
+    startAutoload();
+  } else if (state.autoload.running) {
+    stopAutoload({ keepMode: true, disableMonitor: false });
   }
 });
 
@@ -8335,7 +8355,7 @@ autoloadDir?.addEventListener("change", () => {
   if (state.autoload.mode === "file") {
     loadFiles().catch((err) => console.error(err));
   }
-  if (state.autoload.running && state.autoload.mode === "watch") {
+  if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
     autoloadTick();
   }
 });
@@ -8343,7 +8363,7 @@ autoloadDir?.addEventListener("change", () => {
 autoloadInterval?.addEventListener("change", () => {
   state.autoload.interval = Math.max(200, Number(autoloadInterval.value || 1000));
   persistAutoloadSettings();
-  if (state.autoload.running && state.autoload.mode === "watch") {
+  if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
     startAutoload();
   }
 });
@@ -8378,7 +8398,7 @@ remoteSourceInput?.addEventListener("change", () => {
       cbf: autoloadTypeCbf?.checked ?? true,
     };
     persistAutoloadSettings();
-    if (state.autoload.running && state.autoload.mode === "watch") {
+    if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
       autoloadTick();
     }
   });
@@ -8387,7 +8407,7 @@ remoteSourceInput?.addEventListener("change", () => {
 autoloadPattern?.addEventListener("change", () => {
   state.autoload.pattern = autoloadPattern.value.trim();
   persistAutoloadSettings();
-  if (state.autoload.running && state.autoload.mode === "watch") {
+  if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
     autoloadTick();
   }
 });
@@ -8606,7 +8626,7 @@ browseSelectBtn?.addEventListener("click", () => {
     if (state.autoload.mode === "file") {
       loadFiles().catch((err) => console.error(err));
     }
-    if (state.autoload.running && state.autoload.mode === "watch") {
+    if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
       autoloadTick();
     }
   } else if (fileBrowserState.mode === "series-sum") {
@@ -8670,7 +8690,7 @@ autoloadBrowse?.addEventListener("click", async () => {
         if (state.autoload.mode === "file") {
           loadFiles().catch((err) => console.error(err));
         }
-        if (state.autoload.running && state.autoload.mode === "watch") {
+        if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
           autoloadTick();
         }
       }
