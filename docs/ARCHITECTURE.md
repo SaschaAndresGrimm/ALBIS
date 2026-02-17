@@ -21,6 +21,7 @@ Responsibilities:
 - Serve static frontend assets.
 - Resolve and validate file/folder paths.
 - Read HDF5/TIFF/CBF frame data.
+- Ingest external frames through the Remote Stream API.
 - Build dataset metadata (shape, dtype, thresholds, masks).
 - Execute analysis endpoints (ROI, rings parameters, peak finding helpers, series summing).
 - Handle monitor streaming and monitor mask fetching through SIMPLON.
@@ -41,6 +42,7 @@ Responsibilities:
 - Render overlays (ROI, peak markers, resolution rings, histogram, cursor info).
 - Manage menu interactions, keyboard shortcuts, panel behavior, and mobile gestures.
 - Poll backend endpoints and orchestrate data source modes (file, watch folder, monitor).
+- Poll remote frame sources and apply pushed metadata/overlays (resolution + peak sets).
 
 Rendering layers:
 
@@ -86,6 +88,15 @@ Build scripts in `scripts/` generate platform-specific artifacts and include `ve
 2. Backend requests monitor TIFF payload from detector API.
 3. Backend tries to fetch detector pixel mask and applies it consistently.
 4. Frontend updates image and status badges (`WAIT/LIVE` and backend health).
+
+### Remote stream flow
+
+1. External producer pushes frame bytes + metadata to `POST /api/remote/v1/frame`.
+2. Backend decodes payload (`raw`, TIFF, CBF/CBF.GZ, EDF) and stores latest frame per `source_id`.
+3. Frontend in `Remote Stream` mode polls:
+   - `GET /api/remote/v1/latest` for new frame bytes
+   - `GET /api/remote/v1/meta` for enriched metadata (`peak_sets`, display fields)
+4. Frontend updates frame, ring parameters, remote metadata panel, and peak overlays.
 
 ### Series summing flow
 

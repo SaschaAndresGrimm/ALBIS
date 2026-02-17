@@ -7,6 +7,7 @@ It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports *
 Image sources can be:
 - Files on disk (`.h5/.hdf5` stacks) and common detector image formats (`.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
 - The detector **SIMPLON monitor** stream for live viewing.
+- The **Remote Stream API** (`/api/remote/v1/*`) for externally pushed frames + metadata.
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
 
@@ -23,6 +24,7 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 - ALBULA‑style UI with fast navigation and contrast control.
 - Full support for DECTRIS filewriter1 and filewriter2 (multi‑threshold data with selector).
 - Live SIMPLON monitor mode with mask prefetch.
+- Remote Stream mode for live external producers (with optional ring parameters and colored peak overlays).
 - ROI tools (line, box, circle, annulus) with statistics and plots.
 - Pixel mask support (gaps and defective pixels).
 - WebGL2 rendering with CPU fallback.
@@ -45,6 +47,87 @@ Open `http://localhost:8000` (ALBIS).
   Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
 - Standalone mode:
   Use packaged artifacts created by the build scripts (no Python installation required on target machines).
+
+## Remote Stream API
+
+ALBIS can ingest externally generated frames and metadata when Data Source is set to `Remote Stream`.
+
+### Endpoints
+
+- `POST /api/remote/v1/frame`
+  - Query:
+    - `source_id` (optional, default `default`)
+    - `seq` (optional sequence number)
+  - Multipart fields:
+    - `image` (required): raw frame bytes or encoded image bytes
+    - `meta` (optional): JSON string
+- `GET /api/remote/v1/latest`
+  - Query:
+    - `source_id`
+    - `after_seq` (optional; returns `204` if no new frame)
+  - Returns frame bytes and `X-Remote-*` headers
+- `GET /api/remote/v1/meta`
+  - Query:
+    - `source_id`
+    - `seq` (optional)
+  - Returns parsed metadata including `peak_sets`
+
+### Supported `meta` keys
+
+- Decode settings:
+  - `format`: `raw`, `tiff`, `cbf`, `cbf.gz`, `edf`
+  - `dtype` and `shape` (required for `raw`)
+- Display:
+  - `display_name`, `series_number`, `image_number`, `image_datetime`
+- Resolution ring parameters:
+  - `distance_mm`, `pixel_size_um`, `energy_ev`, `wavelength_a`
+  - `beam_center_x`, `beam_center_y` or `resolution.beam_center_px: [x, y]`
+- Overlay peak lists:
+  - `peak_sets`: list of `{name, color, points}` where points are `[x, y]` or `[x, y, intensity]`
+
+### Minimal sender example
+
+```python
+import json
+import requests
+import numpy as np
+
+frame = (np.random.rand(512, 512) * 1000).astype("<u2")
+meta = {
+    "format": "raw",
+    "dtype": "<u2",
+    "shape": [512, 512],
+    "display_name": "Remote demo frame",
+    "series_number": 1,
+    "image_number": 42,
+    "resolution": {
+        "distance_mm": 150.0,
+        "pixel_size_um": 75.0,
+        "energy_ev": 12000.0,
+        "beam_center_px": [256, 256]
+    },
+    "peak_sets": [
+        {"name": "predicted", "color": "#00ff88", "points": [[240, 250], [270, 265]]}
+    ]
+}
+
+requests.post(
+    "http://127.0.0.1:8000/api/remote/v1/frame?source_id=demo",
+    data={"meta": json.dumps(meta)},
+    files={"image": ("frame.raw", frame.tobytes(), "application/octet-stream")},
+    timeout=5,
+).raise_for_status()
+```
+
+### Quick local smoke test
+
+`test_scripts/stream_ingest.py` posts one synthetic frame to the backend:
+
+```bash
+python test_scripts/stream_ingest.py
+```
+
+Important: the script `source_id` must match the UI `Remote Stream` source id (default `default`).
 
 ## Architecture
 
@@ -117,8 +200,8 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ```
 
 This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-macos-<os_version>-v0.4-<commit>.zip`
-- `ALBIS-macos-<os_version>-v0.4-<commit>.dmg`
+- `ALBIS-macos-<os_version>-v0.6-<commit>.zip`
+- `ALBIS-macos-<os_version>-v0.6-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
@@ -130,7 +213,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 ```
 
 Example output:
-- `ALBIS-linux-<distro_version>-v0.4-<commit>.tar.gz`
+- `ALBIS-linux-<distro_version>-v0.6-<commit>.tar.gz`
 
 ### Build (Windows)
 
@@ -139,9 +222,9 @@ Example output:
 ```
 
 Example output:
-- `ALBIS-windows-<os_version>-v0.4-<commit>.zip`
+- `ALBIS-windows-<os_version>-v0.6-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-windows-<os_version>-v0.4-<commit>.exe`
+  `ALBIS-Setup-windows-<os_version>-v0.6-<commit>.exe`
 
 ### Output
 
@@ -161,10 +244,10 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 
 ## Roadmap — Next Milestones
 - [x] v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
-- [] v0.6 server - client(s) implementation
-- [] v0.7 detector control and status.
-- [] v0.8 facelift
-- [] v0.9 refactor, tests, document
+- [x] v0.6 server-client remote stream API (frame + metadata ingest)
+- [ ] v0.7 detector control and status
+- [ ] v0.8 facelift
+- [ ] v0.9 refactor, tests, document
 - ...? =)
 
 ## Notes

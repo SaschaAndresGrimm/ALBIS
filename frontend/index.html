@@ -277,6 +277,7 @@
                   <option value="file">File</option>
                   <option value="watch">Watch Folder</option>
                   <option value="simplon">SIMPLON Monitor</option>
+                  <option value="remote">Remote Stream</option>
                 </select>
               </label>
               <div class="autoload-group" id="autoload-folder">
@@ -348,6 +349,16 @@
                   Enable monitor
                 </label>
               </div>
+              <div class="autoload-group is-hidden" id="autoload-remote">
+                <label class="field">
+                  <span>Source ID</span>
+                  <input id="remote-source-id" type="text" value="default" placeholder="default" />
+                </label>
+                <label class="field">
+                  <span>Poll (ms)</span>
+                  <input id="remote-interval" type="number" min="100" step="100" value="1000" />
+                </label>
+              </div>
               <div class="autoload-meta">
                 <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
                 <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
@@ -361,6 +372,18 @@
                 <div class="meta-row"><span>Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
                 <div class="meta-row"><span>Distance (mm)</span><strong id="simplon-distance">-</strong></div>
                 <div class="meta-row"><span>Beam center (px)</span><strong id="simplon-center">-</strong></div>
+              </div>
+              <div class="remote-meta is-hidden" id="remote-meta">
+                <div class="meta-row"><span>Source</span><strong id="remote-source">-</strong></div>
+                <div class="meta-row"><span>Sequence</span><strong id="remote-seq">-</strong></div>
+                <div class="meta-row"><span>Series</span><strong id="remote-series">-</strong></div>
+                <div class="meta-row"><span>Image</span><strong id="remote-image">-</strong></div>
+                <div class="meta-row"><span>Timestamp</span><strong id="remote-time">-</strong></div>
+                <div class="meta-row"><span>Energy (eV)</span><strong id="remote-energy">-</strong></div>
+                <div class="meta-row"><span>Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
+                <div class="meta-row"><span>Distance (mm)</span><strong id="remote-distance">-</strong></div>
+                <div class="meta-row"><span>Beam center (px)</span><strong id="remote-center">-</strong></div>
+                <div class="meta-row"><span>Peak sets</span><strong id="remote-peak-sets">-</strong></div>
               </div>
             </div>
             <section class="panel-section inspector" data-section="inspector">
@@ -655,7 +678,7 @@
         </div>
         <div class="modal-body">
           <p>ALBIS WEB VIEW — ALBULA-style web viewer prototype by SasG.</p>
-          <p id="about-version">Version 0.5</p>
+          <p id="about-version">Version 0.6</p>
           <p>Rendering: WebGL2 with LUTs (CPU fallback).</p>
           <p>Dataset: HDF5 stacks.</p>
         </div>
