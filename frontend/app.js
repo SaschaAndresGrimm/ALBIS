@@ -149,8 +149,6 @@ const roiStartEl = document.getElementById("roi-start");
 const roiEndEl = document.getElementById("roi-end");
 const roiSizeLabel = document.getElementById("roi-size-label");
 const roiSizeEl = document.getElementById("roi-size");
-const roiCountLabel = document.getElementById("roi-count-label");
-const roiCountEl = document.getElementById("roi-count");
 const roiTotalEl = document.getElementById("roi-total");
 const roiGapEl = document.getElementById("roi-gap");
 const roiDefectiveEl = document.getElementById("roi-defective");
@@ -218,6 +216,7 @@ const settingsModal = document.getElementById("settings-modal");
 const settingsClose = document.getElementById("settings-close");
 const settingsCancel = document.getElementById("settings-cancel");
 const settingsSave = document.getElementById("settings-save");
+const settingsSaveClose = document.getElementById("settings-save-close");
 const settingsConfigPath = document.getElementById("settings-config-path");
 const settingsMessage = document.getElementById("settings-message");
 const settingsServerHost = document.getElementById("settings-server-host");
@@ -514,6 +513,27 @@ const PIXEL_LABEL_MAX_CELLS = 25000;
 
 function setStatus(text) {
   statusEl.textContent = text;
+}
+
+function currentFrameStatusText() {
+  const total = Math.max(1, Number(state.frameCount) || 1);
+  const index = Math.max(0, Math.min(total - 1, Number(state.frameIndex) || 0));
+  return `Frame ${index + 1} / ${total}`;
+}
+
+function middleTruncate(text, maxChars) {
+  const value = String(text || "");
+  if (!value) return "";
+  const limit = Math.max(6, Math.floor(Number(maxChars) || 0));
+  if (value.length <= limit) return value;
+  const side = Math.max(2, Math.floor((limit - 1) / 2));
+  return `${value.slice(0, side)}…${value.slice(-side)}`;
+}
+
+function estimateToolbarChars() {
+  if (!toolbarPath) return 80;
+  const width = Math.max(160, toolbarPath.clientWidth || 0);
+  return Math.max(24, Math.floor(width / 7.4));
 }
 
 function formatValue(value) {
@@ -1549,7 +1569,7 @@ function updateCursorOverlay(event) {
     }
   }
   const resolutionValue = getResolutionAtPixel(ix, iy);
-  const resolutionText = Number.isFinite(resolutionValue) ? `  d ${resolutionValue.toFixed(4)} Å` : "";
+  const resolutionText = Number.isFinite(resolutionValue) ? `  d ${resolutionValue.toFixed(1)} Å` : "";
   const label = `X ${ix}  Y ${iy}  Value ${labelValue}${resolutionText}`;
   showCursorOverlay(label, event.clientX, event.clientY);
 }
@@ -2218,7 +2238,7 @@ function updateSeriesSumUi() {
   const ready = Boolean(state.file && (isHdfFile(state.file) ? state.dataset : true));
   if (seriesSumStart) {
     seriesSumStart.disabled = !ready || state.seriesSum.running;
-    seriesSumStart.textContent = state.seriesSum.running ? "Summing…" : "Start Summing";
+    seriesSumStart.textContent = state.seriesSum.running ? "Summing…" : "Start";
   }
   if (seriesSumBrowse) {
     seriesSumBrowse.disabled = state.seriesSum.running || !ready;
@@ -2700,6 +2720,12 @@ function scheduleRoiUpdate() {
 function setLoading(show) {
   if (!loadingEl) return;
   loadingEl.style.display = show ? "block" : "none";
+  if (!show && statusEl && state.hasFrame) {
+    const status = (statusEl.textContent || "").trim();
+    if (/^Loading (image|frame|metadata|datasets)(…|\.{3})$/i.test(status)) {
+      setStatus(currentFrameStatusText());
+    }
+  }
 }
 
 function scheduleOverview() {
@@ -3641,15 +3667,21 @@ function updateToolbar() {
     updateSeriesSumUi();
     return;
   }
+  const maxChars = estimateToolbarChars();
+  const fileName = fileLabel(state.file);
   let frameLabel = "";
   if (state.frameCount > 1) {
     frameLabel = `${state.frameIndex + 1} / ${state.frameCount}`;
   } else if (state.autoload.mode !== "file" && state.autoload.lastUpdate) {
     frameLabel = formatTimeStamp(state.autoload.lastUpdate);
   }
-  const datasetLabel = state.dataset ? ` ${state.dataset}` : "";
+  const datasetRaw = state.dataset ? middleTruncate(state.dataset, 38) : "";
+  const datasetLabel = datasetRaw ? ` ${datasetRaw}` : "";
   const suffix = frameLabel ? `  ${frameLabel}` : "";
-  toolbarPath.textContent = `${state.file}${datasetLabel}${suffix}`;
+  const reserved = datasetLabel.length + suffix.length;
+  const fileBudget = Math.max(10, maxChars - reserved);
+  const fileText = middleTruncate(fileName, fileBudget);
+  toolbarPath.textContent = `${fileText}${datasetLabel}${suffix}`;
   updateSeriesSumUi();
 }
 
@@ -4846,17 +4878,20 @@ async function openSettingsModal() {
     if (typeof config?.ui?.tool_hints !== "undefined") {
       setToolHintsEnabled(Boolean(config.ui.tool_hints));
     }
-    setSettingsMessage("Edit values and click Save.");
+    setSettingsMessage("Edit values and click Save or Save & Close.");
   } catch (err) {
     console.error(err);
     setSettingsMessage("Failed to load settings", true);
   }
 }
 
-async function saveSettingsFromModal() {
+async function saveSettingsFromModal(closeAfter = false) {
   if (!settingsSave) return;
   const config = collectSettingsForm();
   settingsSave.disabled = true;
+  if (settingsSaveClose) {
+    settingsSaveClose.disabled = true;
+  }
   setSettingsMessage("Saving settings...");
   try {
     const res = await fetch(`${API}/settings`, {
@@ -4874,11 +4909,17 @@ async function saveSettingsFromModal() {
     }
     setSettingsMessage("Saved. Restart ALBIS to apply all settings.");
     setStatus("Settings saved. Restart ALBIS to apply all settings.");
+    if (closeAfter) {
+      closeSettingsModal();
+    }
   } catch (err) {
     console.error(err);
     setSettingsMessage(String(err?.message || "Failed to save settings"), true);
   } finally {
     settingsSave.disabled = false;
+    if (settingsSaveClose) {
+      settingsSaveClose.disabled = false;
+    }
   }
 }
 
@@ -6641,9 +6682,6 @@ function updateRoiModeUI() {
       roiSizeLabel.textContent = "Image";
     }
   }
-  if (roiCountLabel) {
-    roiCountLabel.textContent = mode === "line" ? "Samples" : "Pixels";
-  }
   if (roiHelp) {
     if (mode === "annulus") {
       roiHelp.textContent = "Right‑drag to set outer radius. Adjust inner radius below.";
@@ -6675,7 +6713,6 @@ function clearRoi() {
   setRoiText(roiStartEl, "-");
   setRoiText(roiEndEl, "-");
   setRoiText(roiSizeEl, "-");
-  setRoiText(roiCountEl, "-");
   setRoiText(roiTotalEl, "-");
   setRoiText(roiGapEl, "-");
   setRoiText(roiDefectiveEl, "-");
@@ -6745,6 +6782,7 @@ function computeGlobalStats() {
   let gapPixels = 0;
   let defectivePixels = 0;
   let saturatedPixels = 0;
+  const samples = [];
   const satMax = state.stats?.satMax ?? null;
   const hasMask =
     state.maskAvailable &&
@@ -6776,6 +6814,7 @@ function computeGlobalStats() {
     }
     count += 1;
     sum += v;
+    samples.push(v);
     min = Math.min(min, v);
     max = Math.max(max, v);
     const delta = v - mean;
@@ -6788,6 +6827,7 @@ function computeGlobalStats() {
       count: 0,
       sum: 0,
       mean: 0,
+      median: 0,
       min: 0,
       max: 0,
       std: 0,
@@ -6798,10 +6838,12 @@ function computeGlobalStats() {
     };
   }
   const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
+  const median = samples.length ? computeMedian(samples) : 0;
   return {
     count,
     sum,
     mean,
+    median,
     min,
     max,
     std,
@@ -6911,17 +6953,13 @@ function updateRoiStats() {
   }
   if (roiState.mode === "none") {
     roiState.active = false;
-    const stats = state.globalStats;
+    const stats = state.globalStats || computeGlobalStats();
     setRoiText(roiStartEl, "-");
     setRoiText(roiEndEl, "-");
     if (roiSizeLabel) {
       roiSizeLabel.textContent = "Image";
     }
-    if (roiCountLabel) {
-      roiCountLabel.textContent = "Pixels";
-    }
     setRoiText(roiSizeEl, state.width && state.height ? `${state.width} × ${state.height}` : "-");
-    setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
     updateRoiPixelCounterFields(
       stats
         ? {
@@ -6958,7 +6996,6 @@ function updateRoiStats() {
     setRoiText(roiStartEl, "-");
     setRoiText(roiEndEl, "-");
     setRoiText(roiSizeEl, "-");
-    setRoiText(roiCountEl, stats ? `${stats.count}` : "-");
     updateRoiPixelCounterFields(
       stats
         ? {
@@ -7029,7 +7066,6 @@ function updateRoiStats() {
     roiState.xProjection = null;
     roiState.yProjection = null;
     setRoiText(roiSizeEl, formatStat(length));
-    setRoiText(roiCountEl, count ? `${count}` : "0");
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
@@ -7096,7 +7132,6 @@ function updateRoiStats() {
     roiState.yProjection = Array.from(yProj);
     roiState.lineProfile = null;
     setRoiText(roiSizeEl, `${width} × ${height}`);
-    setRoiText(roiCountEl, count ? `${count}` : "0");
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
@@ -7194,7 +7229,6 @@ function updateRoiStats() {
     } else {
       setRoiText(roiSizeEl, `${roiState.innerRadius} → ${outerRadius}`);
     }
-    setRoiText(roiCountEl, count ? `${count}` : "0");
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
@@ -7620,45 +7654,53 @@ async function loadSeriesFrame() {
   if (!file) return;
   if (state.isLoading) return;
   state.isLoading = true;
-  if (!state.playing) {
+  const showLoading = !state.playing;
+  if (showLoading) {
     setLoading(true);
     setStatus("Loading frame…");
   } else {
     setLoading(false);
   }
-  const res = await fetch(`${API}/image?file=${encodeURIComponent(file)}`);
-  if (!res.ok) {
+  try {
+    const res = await fetch(`${API}/image?file=${encodeURIComponent(file)}`);
+    if (!res.ok) {
+      setStatus("Failed to load image");
+      if (!state.hasFrame) {
+        showSplash();
+      }
+      return;
+    }
+    const buffer = await res.arrayBuffer();
+    const dtype = parseDtype(res.headers.get("X-Dtype"));
+    const shape = parseShape(res.headers.get("X-Shape"));
+    const data = typedArrayFrom(buffer, dtype);
+    applyImageMeta(res.headers);
+
+    const height = shape[0];
+    const width = shape[1];
+    metaShape.textContent = `${width} × ${height}`;
+    metaDtype.textContent = dtype;
+
+    const seriesKey = state.seriesLabel || state.file || file;
+    const reuseMask = Boolean(state.maskRaw && state.maskFile === `auto:${seriesKey}`);
+    applyExternalFrame(data, shape, dtype, state.file || file, false, reuseMask, {
+      preserveSeries: true,
+      keepPlaying: true,
+      autoMask: !reuseMask,
+      maskKey: `auto:${seriesKey}`,
+    });
+    setStatus(currentFrameStatusText());
+    updateToolbar();
+  } catch (err) {
+    console.error(err);
     setStatus("Failed to load image");
-    setLoading(false);
-    state.isLoading = false;
     if (!state.hasFrame) {
       showSplash();
     }
-    return;
+  } finally {
+    setLoading(false);
+    state.isLoading = false;
   }
-  const buffer = await res.arrayBuffer();
-  const dtype = parseDtype(res.headers.get("X-Dtype"));
-  const shape = parseShape(res.headers.get("X-Shape"));
-  const data = typedArrayFrom(buffer, dtype);
-  applyImageMeta(res.headers);
-
-  const height = shape[0];
-  const width = shape[1];
-  metaShape.textContent = `${width} × ${height}`;
-  metaDtype.textContent = dtype;
-
-  const seriesKey = state.seriesLabel || state.file || file;
-  const reuseMask = Boolean(state.maskRaw && state.maskFile === `auto:${seriesKey}`);
-  applyExternalFrame(data, shape, dtype, state.file || file, false, reuseMask, {
-    preserveSeries: true,
-    keepPlaying: true,
-    autoMask: !reuseMask,
-    maskKey: `auto:${seriesKey}`,
-  });
-  setStatus(`Frame ${state.frameIndex + 1} / ${state.frameCount}`);
-  updateToolbar();
-  setLoading(false);
-  state.isLoading = false;
   if (state.pendingFrame !== null && state.pendingFrame !== state.frameIndex) {
     const next = state.pendingFrame;
     state.pendingFrame = null;
@@ -7687,31 +7729,38 @@ async function loadFrame() {
   )}&index=${state.frameIndex}${
     state.thresholdCount > 1 ? `&threshold=${state.thresholdIndex}` : ""
   }`;
-  const res = await fetch(url);
-  if (!res.ok) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      setStatus("Failed to load frame");
+      if (!state.hasFrame) {
+        showSplash();
+      }
+      return;
+    }
+    const buffer = await res.arrayBuffer();
+    const dtype = parseDtype(res.headers.get("X-Dtype"));
+    const shape = parseShape(res.headers.get("X-Shape"));
+    const data = typedArrayFrom(buffer, dtype);
+
+    const height = shape[0];
+    const width = shape[1];
+    metaShape.textContent = `${width} × ${height}`;
+    metaDtype.textContent = dtype;
+
+    applyFrame(data, width, height, dtype);
+    setStatus(currentFrameStatusText());
+    updateToolbar();
+  } catch (err) {
+    console.error(err);
     setStatus("Failed to load frame");
-    setLoading(false);
-    state.isLoading = false;
     if (!state.hasFrame) {
       showSplash();
     }
-    return;
+  } finally {
+    setLoading(false);
+    state.isLoading = false;
   }
-  const buffer = await res.arrayBuffer();
-  const dtype = parseDtype(res.headers.get("X-Dtype"));
-  const shape = parseShape(res.headers.get("X-Shape"));
-  const data = typedArrayFrom(buffer, dtype);
-
-  const height = shape[0];
-  const width = shape[1];
-  metaShape.textContent = `${width} × ${height}`;
-  metaDtype.textContent = dtype;
-
-  applyFrame(data, width, height, dtype);
-  setStatus(`Frame ${state.frameIndex + 1} / ${state.frameCount}`);
-  updateToolbar();
-  setLoading(false);
-  state.isLoading = false;
   if (state.pendingFrame !== null && state.pendingFrame !== state.frameIndex) {
     const next = state.pendingFrame;
     state.pendingFrame = null;
@@ -7928,6 +7977,9 @@ settingsClose?.addEventListener("click", closeSettingsModal);
 settingsCancel?.addEventListener("click", closeSettingsModal);
 settingsSave?.addEventListener("click", () => {
   void saveSettingsFromModal();
+});
+settingsSaveClose?.addEventListener("click", () => {
+  void saveSettingsFromModal(true);
 });
 settingsModal?.querySelector(".modal-backdrop")?.addEventListener("click", closeSettingsModal);
 fileSelect.addEventListener("change", async (event) => {
@@ -9222,6 +9274,7 @@ window.addEventListener("resize", () => {
   if (state.hasFrame) {
     setZoom(state.zoom);
   }
+  updateToolbar();
   if (state.histogram) drawHistogram(state.histogram);
   drawSplash();
   applyPanelState();
