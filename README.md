@@ -48,6 +48,33 @@ Open `http://localhost:8000` (ALBIS).
 - Standalone mode:
   Use packaged artifacts created by the build scripts (no Python installation required on target machines).
 
+## Developer Quality Gates
+
+Install dev tooling:
+
+```bash
+pip install -r requirements-dev.txt
+npm ci
+```
+
+Run local checks:
+
+```bash
+ruff check backend tests scripts test_scripts
+black --check tests scripts test_scripts
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
+npm run lint:js
+```
+
+Optional pre-commit hooks:
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
+CI runs on GitHub Actions across Linux/macOS/Windows (Python 3.10) plus frontend lint.
+
 ## Remote Stream API
 
 ALBIS can ingest externally generated frames and metadata when Data Source is set to `Remote Stream`.

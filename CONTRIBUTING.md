@@ -13,6 +13,13 @@ python backend/app.py
 
 Open `http://localhost:8000`.
 
+Install contributor tooling:
+
+```bash
+pip install -r requirements-dev.txt
+npm ci
+```
+
 ## Contributor docs
 
 - Architecture and data flow: `docs/ARCHITECTURE.md`
@@ -41,6 +48,22 @@ Please include:
 - Include screenshots or recordings for UI changes.
 - Update docs when behavior changes.
 - If you add/reshape major logic paths, update `docs/ARCHITECTURE.md` or `docs/CODE_MAP.md`.
+
+## Local checks before PR
+
+```bash
+ruff check backend tests scripts test_scripts
+black --check tests scripts test_scripts
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
+npm run lint:js
+```
+
+Optional:
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
 
 ## Code style
 

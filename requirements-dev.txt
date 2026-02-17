@@ -1,0 +1,6 @@
+-r backend/requirements.txt
+pytest
+httpx
+ruff
+black
+pre-commit

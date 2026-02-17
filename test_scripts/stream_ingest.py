@@ -17,11 +17,9 @@ meta = {
         "distance_mm": 150.0,
         "pixel_size_um": 75.0,
         "energy_ev": 12000.0,
-        "beam_center_px": [256, 256]
+        "beam_center_px": [256, 256],
     },
-    "peak_sets": [
-        {"name": "predicted", "color": "#00ff88", "points": [[240, 250], [270, 265]]}
-    ]
+    "peak_sets": [{"name": "predicted", "color": "#00ff88", "points": [[240, 250], [270, 265]]}],
 }
 
 requests.post(
