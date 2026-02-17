@@ -19,6 +19,8 @@ This file is a quick navigation guide for contributors.
   - `_iter_entries`, `_scan_files`, `_scan_folders`, `_latest_image_file`
 - SIMPLON helpers:
   - `_simplon_base`, `_simplon_fetch_monitor`, `_simplon_fetch_pixel_mask`
+- Remote stream helpers:
+  - `_remote_read_image_bytes`, `_remote_extract_metadata`, `_remote_store_frame`
 - HDF5 inspection helpers:
   - `_dataset_info`, `_walk_datasets`, `_resolve_node`, `_resolve_dataset_view`
 - Multi-file linked stack support:
@@ -35,6 +37,7 @@ Endpoint clusters:
 - HDF5 browser: `/api/hdf5/*`
 - Analysis: `/api/analysis/*`
 - SIMPLON monitor: `/api/simplon/*`
+- Remote stream ingest: `/api/remote/v1/*`
 
 ## Frontend Regions (`frontend/app.js`)
 
@@ -53,7 +56,8 @@ Endpoint clusters:
   - Zoom/pan: `setZoom`, `zoomAt`, wheel/touch/pointer handlers
   - Menus/shortcuts: `openMenu`, `closeMenu`, `handleShortcut`
 - Data source modes:
-  - Autoload/watch folder/SIMPLON sections around `updateAutoloadUI` and monitor polling helpers
+  - Autoload/watch folder/SIMPLON/Remote sections around `updateAutoloadUI` and polling helpers
+  - Remote polling + metadata application: `autoloadRemoteTick`, `fetchRemoteMeta`, `applyRemoteMeta`
 
 ## Config and Packaging
 

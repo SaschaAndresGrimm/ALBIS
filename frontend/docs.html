@@ -93,13 +93,22 @@
         <li>Top toolbar: compact frame slider, frame index, step dropdown, FPS dropdown, and playback controls.</li>
         <li>Data tab: file source selection, file inspector/header viewer, and Series Operations (sum/mean/median).</li>
         <li>Multi‑threshold selector for filewriter2 datasets.</li>
-        <li>Data sources: File, Watch Folder, SIMPLON Monitor (live TIFF stream).</li>
+        <li>Data sources: File, Watch Folder, SIMPLON Monitor (live TIFF stream), and Remote Stream.</li>
         <li>Pixel mask support with gap/defect highlighting.</li>
         <li>Histogram with draggable BG/FG and inline Auto Contrast / Auto controls.</li>
         <li>Overlay tab: Statistics and ROI, Resolution Rings, Peak Finder.</li>
         <li>ROI statistics default to full-image values when ROI mode is set to None.</li>
         <li>Settings dialog (Settings menu) edits <code>albis.config.json</code> with Save / Save &amp; Close.</li>
         <li>WebGL2 rendering with CPU fallback.</li>
+      </ul>
+
+      <h2>Remote Stream</h2>
+      <ul>
+        <li>Use Data Source = <code>Remote Stream</code> and set a source id (default: <code>default</code>).</li>
+        <li>Send frames via <code>POST /api/remote/v1/frame</code> using multipart upload.</li>
+        <li>For raw frame bytes, provide <code>meta</code> JSON with <code>format=raw</code>, <code>dtype</code>, and <code>shape</code>.</li>
+        <li>Optional metadata updates ring parameters (distance, pixel size, energy, beam center).</li>
+        <li>Optional <code>peak_sets</code> render colored external peak overlays in the image.</li>
       </ul>
 
       <h2>Tips</h2>

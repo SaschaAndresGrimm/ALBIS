@@ -95,6 +95,7 @@ const autoloadFolder = document.getElementById("autoload-folder");
 const autoloadWatch = document.getElementById("autoload-watch");
 const autoloadTypesRow = document.getElementById("autoload-types");
 const autoloadSimplon = document.getElementById("autoload-simplon");
+const autoloadRemote = document.getElementById("autoload-remote");
 const simplonMetaPanel = document.getElementById("simplon-meta");
 const simplonSeriesEl = document.getElementById("simplon-series");
 const simplonImageEl = document.getElementById("simplon-image");
@@ -104,6 +105,19 @@ const simplonThresholdEl = document.getElementById("simplon-threshold");
 const simplonWavelengthEl = document.getElementById("simplon-wavelength");
 const simplonDistanceEl = document.getElementById("simplon-distance");
 const simplonCenterEl = document.getElementById("simplon-center");
+const remoteSourceInput = document.getElementById("remote-source-id");
+const remoteIntervalInput = document.getElementById("remote-interval");
+const remoteMetaPanel = document.getElementById("remote-meta");
+const remoteSourceEl = document.getElementById("remote-source");
+const remoteSeqEl = document.getElementById("remote-seq");
+const remoteSeriesEl = document.getElementById("remote-series");
+const remoteImageEl = document.getElementById("remote-image");
+const remoteTimeEl = document.getElementById("remote-time");
+const remoteEnergyEl = document.getElementById("remote-energy");
+const remoteWavelengthEl = document.getElementById("remote-wavelength");
+const remoteDistanceEl = document.getElementById("remote-distance");
+const remoteCenterEl = document.getElementById("remote-center");
+const remotePeakSetsEl = document.getElementById("remote-peak-sets");
 const inspectorSection = document.querySelector(".panel-section.inspector");
 const imageHeaderSection = document.getElementById("image-header-section");
 const imageHeaderText = document.getElementById("image-header-text");
@@ -316,6 +330,7 @@ const analysisState = {
   peaksEnabled: false,
   peakCount: 25,
   peaks: [],
+  externalPeakSets: [],
   selectedPeaks: [],
   peakSelectionAnchor: null,
 };
@@ -387,6 +402,9 @@ const state = {
     simplonVersion: "1.8.0",
     simplonTimeout: 500,
     simplonEnable: true,
+    remoteSourceId: "default",
+    remoteSeq: 0,
+    remoteMeta: {},
     autoStart: false,
     running: false,
     timer: null,
@@ -396,6 +414,7 @@ const state = {
     lastUpdate: 0,
     lastPoll: 0,
     lastMonitorSig: "",
+    lastRemoteSeq: 0,
     lastMaskAttempt: 0,
     simplonMeta: {},
   },
@@ -659,6 +678,8 @@ function applyHelpMap() {
     "autoload-browse": "Browse for a folder",
     "autoload-pattern": "Filename filter (supports wildcards)",
     "autoload-interval": "Polling interval (ms)",
+    "remote-source-id": "Remote stream source identifier",
+    "remote-interval": "Remote polling interval (ms)",
     "simplon-url": "SIMPLON base URL",
     "simplon-timeout": "Monitor timeout (ms)",
     "simplon-enable": "Enable live monitor",
@@ -2105,13 +2126,49 @@ function drawPeakOverlay() {
   if (!metrics) return;
   const { width, height } = metrics;
   peakCtx.clearRect(0, 0, width, height);
-  if (!state.hasFrame || !analysisState.peaksEnabled || !analysisState.peaks.length) return;
+  if (!state.hasFrame) return;
 
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
   const viewX = canvasWrap.scrollLeft / zoom;
   const viewY = canvasWrap.scrollTop / zoom;
+  const externalSets = Array.isArray(analysisState.externalPeakSets) ? analysisState.externalPeakSets : [];
+  const hasLocalPeaks = analysisState.peaksEnabled && Array.isArray(analysisState.peaks) && analysisState.peaks.length;
+
+  if (!hasLocalPeaks && !externalSets.length) return;
+
+  externalSets.forEach((set) => {
+    const color = typeof set?.color === "string" && set.color ? set.color : "#4aa3ff";
+    const points = Array.isArray(set?.points) ? set.points : [];
+    const radius = Math.max(5, Math.min(11, 7 + Math.log2(Math.max(1, zoom)) * 0.35));
+    points.forEach((peak) => {
+      const px = Number(peak?.x);
+      const py = Number(peak?.y);
+      if (!Number.isFinite(px) || !Number.isFinite(py)) return;
+      const sx = (px + 0.5 - viewX) * zoom + offsetX;
+      const sy = (py + 0.5 - viewY) * zoom + offsetY;
+      if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
+
+      peakCtx.setLineDash([4, 3]);
+      peakCtx.beginPath();
+      peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
+      peakCtx.lineWidth = 2.4;
+      peakCtx.strokeStyle = "rgba(10, 10, 10, 0.62)";
+      peakCtx.stroke();
+
+      peakCtx.beginPath();
+      peakCtx.arc(sx, sy, Math.max(3, radius - 1.5), 0, Math.PI * 2);
+      peakCtx.lineWidth = 1.35;
+      peakCtx.strokeStyle = color;
+      peakCtx.stroke();
+    });
+  });
+
+  if (!hasLocalPeaks) {
+    peakCtx.setLineDash([]);
+    return;
+  }
 
   analysisState.peaks.forEach((peak, index) => {
     const sx = (peak.x + 0.5 - viewX) * zoom + offsetX;
@@ -3223,7 +3280,7 @@ function updateFpsLabel() {
 function updateThresholdOptions() {
   if (!thresholdSelect || !thresholdField) return;
   const count = Math.max(1, state.thresholdCount || 1);
-  const show = count > 1 && state.autoload.mode !== "simplon";
+  const show = count > 1 && state.autoload.mode === "file";
   thresholdField.classList.toggle("is-hidden", !show);
   if (toolbarThresholdWrap) {
     toolbarThresholdWrap.classList.toggle("is-hidden", !show);
@@ -4002,7 +4059,8 @@ function updateAutoloadMeta() {
 
 function updateLiveBadge() {
   if (!liveBadge) return;
-  if (!state.autoload.running || state.autoload.mode !== "simplon") {
+  const liveMode = state.autoload.mode === "simplon" || state.autoload.mode === "remote";
+  if (!state.autoload.running || !liveMode) {
     liveBadge.classList.remove("is-active", "is-wait");
     liveBadge.setAttribute("aria-hidden", "true");
     return;
@@ -4131,6 +4189,7 @@ function persistAutoloadSettings() {
       simplonVersion: state.autoload.simplonVersion,
       simplonTimeout: state.autoload.simplonTimeout,
       simplonEnable: state.autoload.simplonEnable,
+      remoteSourceId: state.autoload.remoteSourceId,
       autoStart: state.autoload.autoStart,
     };
     localStorage.setItem("albis.autoload", JSON.stringify(payload));
@@ -4142,14 +4201,19 @@ function persistAutoloadSettings() {
 function updateAutoloadUI() {
   if (autoloadMode) autoloadMode.value = state.autoload.mode;
   if (autoloadFolder) {
-    autoloadFolder.classList.toggle("is-hidden", state.autoload.mode === "simplon");
+    autoloadFolder.classList.toggle(
+      "is-hidden",
+      state.autoload.mode === "simplon" || state.autoload.mode === "remote"
+    );
   }
   if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "watch");
   if (autoloadTypesRow) autoloadTypesRow.classList.toggle("is-hidden", state.autoload.mode === "watch");
   if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
-  if (fileField) fileField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
-  if (datasetField) datasetField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
-  if (thresholdField) thresholdField.classList.toggle("is-hidden", state.autoload.mode === "simplon");
+  if (autoloadRemote) autoloadRemote.classList.toggle("is-hidden", state.autoload.mode !== "remote");
+  const hideDatasetUi = state.autoload.mode === "simplon" || state.autoload.mode === "remote";
+  if (fileField) fileField.classList.toggle("is-hidden", hideDatasetUi);
+  if (datasetField) datasetField.classList.toggle("is-hidden", hideDatasetUi);
+  if (thresholdField) thresholdField.classList.toggle("is-hidden", hideDatasetUi);
   if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
   if (toolbarStepWrap) toolbarStepWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
@@ -4162,6 +4226,12 @@ function updateAutoloadUI() {
     simplonMetaPanel.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
     if (state.autoload.mode === "simplon") {
       updateSimplonMetaUI(state.autoload.simplonMeta || {});
+    }
+  }
+  if (remoteMetaPanel) {
+    remoteMetaPanel.classList.toggle("is-hidden", state.autoload.mode !== "remote");
+    if (state.autoload.mode === "remote") {
+      updateRemoteMetaUI(state.autoload.remoteMeta || {});
     }
   }
   updateAutoloadMeta();
@@ -4209,6 +4279,7 @@ function loadAutoloadSettings() {
         state.autoload.simplonTimeout = Number(stored.simplonTimeout || state.autoload.simplonTimeout);
         state.autoload.simplonEnable =
           stored.simplonEnable !== undefined ? Boolean(stored.simplonEnable) : state.autoload.simplonEnable;
+        state.autoload.remoteSourceId = String(stored.remoteSourceId || state.autoload.remoteSourceId || "default");
         state.autoload.autoStart = Boolean(stored.autoStart);
       }
     }
@@ -4226,6 +4297,8 @@ function loadAutoloadSettings() {
   if (simplonVersion) simplonVersion.value = state.autoload.simplonVersion;
   if (simplonTimeout) simplonTimeout.value = String(state.autoload.simplonTimeout || 500);
   if (simplonEnable) simplonEnable.checked = Boolean(state.autoload.simplonEnable);
+  if (remoteSourceInput) remoteSourceInput.value = state.autoload.remoteSourceId || "default";
+  if (remoteIntervalInput) remoteIntervalInput.value = String(state.autoload.interval || 1000);
   updateAutoloadUI();
   setAutoloadStatus("Idle");
   setAutoloadLatest("-");
@@ -4272,6 +4345,10 @@ async function startAutoload() {
   state.autoload.simplonVersion = simplonVersion?.value?.trim() || "1.8.0";
   state.autoload.simplonTimeout = Math.max(100, Number(simplonTimeout?.value || 500));
   state.autoload.simplonEnable = simplonEnable?.checked ?? true;
+  state.autoload.remoteSourceId = (remoteSourceInput?.value || state.autoload.remoteSourceId || "default").trim() || "default";
+  if (state.autoload.mode === "remote") {
+    state.autoload.interval = Math.max(100, Number(remoteIntervalInput?.value || state.autoload.interval || 1000));
+  }
   if (state.autoload.mode === "file") {
     await stopAutoload({ keepMode: false });
     return;
@@ -4284,9 +4361,21 @@ async function startAutoload() {
   state.autoload.lastUpdate = 0;
   state.autoload.lastPoll = 0;
   state.autoload.lastMonitorSig = "";
+  state.autoload.lastRemoteSeq = 0;
+  state.autoload.remoteSeq = 0;
+  state.autoload.remoteMeta = {};
+  analysisState.externalPeakSets = [];
   updateAutoloadUI();
   updateAutoloadMeta();
-  setAutoloadStatus(`Running (${state.autoload.mode === "watch" ? "Watch folder" : "SIMPLON monitor"})`);
+  setAutoloadStatus(
+    `Running (${
+      state.autoload.mode === "watch"
+        ? "Watch folder"
+        : state.autoload.mode === "simplon"
+          ? "SIMPLON monitor"
+          : "Remote stream"
+    })`
+  );
   persistAutoloadSettings();
   if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
     setStatus("SIMPLON monitor");
@@ -4300,6 +4389,7 @@ async function startAutoload() {
 }
 
 async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
+  const previousMode = state.autoload.mode;
   if (state.autoload.timer) {
     window.clearInterval(state.autoload.timer);
     state.autoload.timer = null;
@@ -4313,6 +4403,14 @@ async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
   if (!keepMode) {
     state.autoload.mode = "file";
   }
+  if (previousMode === "remote") {
+    state.autoload.remoteMeta = {};
+    state.autoload.lastRemoteSeq = 0;
+    state.autoload.remoteSeq = 0;
+    analysisState.externalPeakSets = [];
+    updateRemoteMetaUI({});
+    schedulePeakOverlay();
+  }
   updateAutoloadUI();
   setAutoloadStatus(state.autoload.mode === "file" ? "Idle" : "Stopped");
   updateLiveBadge();
@@ -4322,6 +4420,10 @@ async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
 async function ensureFileMode() {
   if (state.autoload.running || state.autoload.mode !== "file") {
     await stopAutoload({ keepMode: false, disableMonitor: true });
+  }
+  if (analysisState.externalPeakSets.length) {
+    analysisState.externalPeakSets = [];
+    schedulePeakOverlay();
   }
 }
 
@@ -4336,6 +4438,8 @@ async function autoloadTick() {
       await autoloadWatchTick();
     } else if (state.autoload.mode === "simplon") {
       await autoloadSimplonTick();
+    } else if (state.autoload.mode === "remote") {
+      await autoloadRemoteTick();
     }
   } finally {
     state.autoload.busy = false;
@@ -4458,6 +4562,97 @@ async function autoloadSimplonTick() {
   }
   applyExternalFrame(data, shape, dtype, label, false, true);
   setAutoloadStatus("SIMPLON: updated");
+  updateLiveBadge();
+}
+
+async function fetchRemoteMeta(sourceId, seq) {
+  if (!sourceId) return;
+  const params = new URLSearchParams({ source_id: sourceId });
+  if (Number.isFinite(seq) && seq > 0) {
+    params.set("seq", String(Math.round(seq)));
+  }
+  try {
+    const res = await fetch(`${API}/remote/v1/meta?${params.toString()}`, { cache: "no-store" });
+    if (res.status === 204 || !res.ok) {
+      return;
+    }
+    const payload = await res.json();
+    if (!payload || typeof payload !== "object") return;
+    const peakSets = Array.isArray(payload.peak_sets) ? payload.peak_sets : [];
+    const normalized = [];
+    peakSets.forEach((set, idx) => {
+      if (!set || typeof set !== "object") return;
+      const color = typeof set.color === "string" && set.color ? set.color : "#4aa3ff";
+      const name = typeof set.name === "string" && set.name ? set.name : `Set ${idx + 1}`;
+      const points = Array.isArray(set.points) ? set.points : [];
+      const list = [];
+      for (let i = 0; i < points.length; i += 1) {
+        const point = points[i];
+        if (!Array.isArray(point) || point.length < 2) continue;
+        const x = Number(point[0]);
+        const y = Number(point[1]);
+        const intensity = point.length > 2 ? Number(point[2]) : null;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        list.push({
+          x,
+          y,
+          intensity: Number.isFinite(intensity) ? intensity : null,
+        });
+      }
+      if (list.length) {
+        normalized.push({ name, color, points: list });
+      }
+    });
+    analysisState.externalPeakSets = normalized;
+    if (state.autoload.remoteMeta) {
+      state.autoload.remoteMeta.peakSets = normalized.length;
+      updateRemoteMetaUI(state.autoload.remoteMeta);
+    }
+    schedulePeakOverlay();
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function autoloadRemoteTick() {
+  const sourceId = (state.autoload.remoteSourceId || "default").trim() || "default";
+  const params = new URLSearchParams({ source_id: sourceId });
+  if (state.autoload.lastRemoteSeq > 0) {
+    params.set("after_seq", String(state.autoload.lastRemoteSeq));
+  }
+  const res = await fetch(`${API}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
+  if (res.status === 204) {
+    setAutoloadStatus("Remote: waiting");
+    updateLiveBadge();
+    return;
+  }
+  if (!res.ok) {
+    setAutoloadStatus("Remote: error");
+    updateLiveBadge();
+    return;
+  }
+  const buffer = await res.arrayBuffer();
+  const dtype = parseDtype(res.headers.get("X-Dtype"));
+  const shape = parseShape(res.headers.get("X-Shape"));
+  const data = typedArrayFrom(buffer, dtype);
+  const remoteMeta = applyRemoteMeta(res.headers);
+  const seq = Number(remoteMeta.seq || 0);
+  const label =
+    remoteMeta.displayName ||
+    `Remote stream (${sourceId})${Number.isFinite(seq) && seq > 0 ? ` #${seq}` : ""}`;
+  applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
+  if (Number.isFinite(seq) && seq > 0) {
+    if (seq !== state.autoload.lastRemoteSeq) {
+      state.autoload.lastRemoteSeq = seq;
+      await fetchRemoteMeta(sourceId, seq);
+    }
+  } else {
+    analysisState.externalPeakSets = [];
+    schedulePeakOverlay();
+  }
+  state.autoload.lastUpdate = Date.now();
+  updateAutoloadMeta();
+  setAutoloadStatus("Remote: updated");
   updateLiveBadge();
 }
 
@@ -5842,6 +6037,34 @@ function updateSimplonMetaUI(meta) {
   }
 }
 
+function updateRemoteMetaUI(meta) {
+  if (!remoteMetaPanel) return;
+  if (state.autoload.mode !== "remote") {
+    remoteMetaPanel.classList.add("is-hidden");
+    return;
+  }
+  remoteMetaPanel.classList.remove("is-hidden");
+  if (remoteSourceEl) remoteSourceEl.textContent = formatSimplonValue(meta.source);
+  if (remoteSeqEl) remoteSeqEl.textContent = formatSimplonValue(meta.seq);
+  if (remoteSeriesEl) remoteSeriesEl.textContent = formatSimplonValue(meta.series);
+  if (remoteImageEl) remoteImageEl.textContent = formatSimplonValue(meta.image);
+  if (remoteTimeEl) remoteTimeEl.textContent = formatSimplonTimestamp(meta.date) || "-";
+  if (remoteEnergyEl) remoteEnergyEl.textContent = formatSimplonValue(meta.energyEv, 1);
+  if (remoteWavelengthEl) remoteWavelengthEl.textContent = formatSimplonValue(meta.wavelengthA, 4);
+  if (remoteDistanceEl) remoteDistanceEl.textContent = formatSimplonValue(meta.distanceMm, 2);
+  if (remoteCenterEl) {
+    if (Number.isFinite(meta.centerX) && Number.isFinite(meta.centerY)) {
+      remoteCenterEl.textContent = `${Math.round(meta.centerX)}, ${Math.round(meta.centerY)}`;
+    } else {
+      remoteCenterEl.textContent = "-";
+    }
+  }
+  if (remotePeakSetsEl) {
+    const count = Number(meta.peakSets || 0);
+    remotePeakSetsEl.textContent = Number.isFinite(count) ? String(Math.max(0, Math.round(count))) : "-";
+  }
+}
+
 function applyImageMeta(headers) {
   if (!headers) return;
   const distanceMm = parseHeaderFloat(headers, "X-Image-DetectorDistance-MM");
@@ -5929,6 +6152,66 @@ function applySimplonMeta(headers) {
   };
   state.autoload.simplonMeta = meta;
   updateSimplonMetaUI(meta);
+  return meta;
+}
+
+function applyRemoteMeta(headers) {
+  if (!headers) return {};
+  const distanceMm = parseHeaderFloat(headers, "X-Remote-DetectorDistance-MM");
+  const pixelSizeUm = parseHeaderFloat(headers, "X-Remote-PixelSize-UM");
+  let energyEv = parseHeaderFloat(headers, "X-Remote-Energy-Ev");
+  const wavelengthA = parseHeaderFloat(headers, "X-Remote-Wavelength-A");
+  const centerX = parseHeaderFloat(headers, "X-Remote-BeamCenter-X");
+  const centerY = parseHeaderFloat(headers, "X-Remote-BeamCenter-Y");
+  if (!Number.isFinite(energyEv) && Number.isFinite(wavelengthA) && wavelengthA > 0) {
+    energyEv = 12398.4193 / wavelengthA;
+  }
+  let updated = false;
+  if (Number.isFinite(distanceMm) && ringsDistance) {
+    analysisState.distanceMm = distanceMm;
+    ringsDistance.value = String(Math.round(distanceMm));
+    updated = true;
+  }
+  if (Number.isFinite(pixelSizeUm) && ringsPixel) {
+    analysisState.pixelSizeUm = pixelSizeUm;
+    ringsPixel.value = pixelSizeUm.toFixed(2);
+    updated = true;
+  }
+  if (Number.isFinite(energyEv) && ringsEnergy) {
+    analysisState.energyEv = energyEv;
+    ringsEnergy.value = String(Math.round(energyEv));
+    updated = true;
+  }
+  if (Number.isFinite(centerX) && ringsCenterX) {
+    analysisState.centerX = centerX;
+    ringsCenterX.value = Math.round(centerX).toString();
+    updated = true;
+  }
+  if (Number.isFinite(centerY) && ringsCenterY) {
+    analysisState.centerY = centerY;
+    ringsCenterY.value = Math.round(centerY).toString();
+    updated = true;
+  }
+  if (updated) {
+    scheduleResolutionOverlay();
+  }
+  const meta = {
+    source: headers.get("X-Remote-Source") || state.autoload.remoteSourceId || "",
+    seq: Number(headers.get("X-Remote-Seq") || 0),
+    displayName: headers.get("X-Remote-Display") || "",
+    series: headers.get("X-Remote-Series") || "",
+    image: headers.get("X-Remote-Image") || "",
+    date: headers.get("X-Remote-Date") || "",
+    energyEv,
+    wavelengthA,
+    distanceMm,
+    centerX,
+    centerY,
+    peakSets: Number(headers.get("X-Remote-PeakSets") || 0),
+  };
+  state.autoload.remoteMeta = meta;
+  state.autoload.remoteSeq = Number.isFinite(meta.seq) ? meta.seq : state.autoload.remoteSeq;
+  updateRemoteMetaUI(meta);
   return meta;
 }
 
@@ -8060,8 +8343,30 @@ autoloadDir?.addEventListener("change", () => {
 autoloadInterval?.addEventListener("change", () => {
   state.autoload.interval = Math.max(200, Number(autoloadInterval.value || 1000));
   persistAutoloadSettings();
-  if (state.autoload.running) {
+  if (state.autoload.running && state.autoload.mode === "watch") {
     startAutoload();
+  }
+});
+
+remoteIntervalInput?.addEventListener("change", () => {
+  state.autoload.interval = Math.max(100, Number(remoteIntervalInput.value || 1000));
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "remote") {
+    startAutoload();
+  }
+});
+
+remoteSourceInput?.addEventListener("change", () => {
+  state.autoload.remoteSourceId = (remoteSourceInput.value || "default").trim() || "default";
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "remote") {
+    state.autoload.lastRemoteSeq = 0;
+    state.autoload.remoteSeq = 0;
+    state.autoload.remoteMeta = {};
+    analysisState.externalPeakSets = [];
+    updateRemoteMetaUI({});
+    schedulePeakOverlay();
+    autoloadTick();
   }
 });
 

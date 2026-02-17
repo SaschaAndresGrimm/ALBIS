@@ -7,6 +7,7 @@ It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports *
 Image sources can be:
 - Files on disk (`.h5/.hdf5` stacks) and common detector image formats (`.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
 - The detector **SIMPLON monitor** stream for live viewing.
+- The **Remote Stream API** (`/api/remote/v1/*`) for externally pushed frames + metadata.
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
 
@@ -23,6 +24,7 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 - ALBULA‑style UI with fast navigation and contrast control.
 - Full support for DECTRIS filewriter1 and filewriter2 (multi‑threshold data with selector).
 - Live SIMPLON monitor mode with mask prefetch.
+- Remote Stream mode for live external producers (with optional ring parameters and colored peak overlays).
 - ROI tools (line, box, circle, annulus) with statistics and plots.
 - Pixel mask support (gaps and defective pixels).
 - WebGL2 rendering with CPU fallback.
@@ -45,6 +47,77 @@ Open `http://localhost:8000` (ALBIS).
   Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
 - Standalone mode:
   Use packaged artifacts created by the build scripts (no Python installation required on target machines).
+
+## Remote Stream API
+
+ALBIS can ingest externally generated frames and metadata when Data Source is set to `Remote Stream`.
+
+### Endpoints
+
+- `POST /api/remote/v1/frame`
+  - Query:
+    - `source_id` (optional, default `default`)
+    - `seq` (optional sequence number)
+  - Multipart fields:
+    - `image` (required): raw frame bytes or encoded image bytes
+    - `meta` (optional): JSON string
+- `GET /api/remote/v1/latest`
+  - Query:
+    - `source_id`
+    - `after_seq` (optional; returns `204` if no new frame)
+  - Returns frame bytes and `X-Remote-*` headers
+- `GET /api/remote/v1/meta`
+  - Query:
+    - `source_id`
+    - `seq` (optional)
+  - Returns parsed metadata including `peak_sets`
+
+### Supported `meta` keys
+
+- Decode settings:
+  - `format`: `raw`, `tiff`, `cbf`, `cbf.gz`, `edf`
+  - `dtype` and `shape` (required for `raw`)
+- Display:
+  - `display_name`, `series_number`, `image_number`, `image_datetime`
+- Resolution ring parameters:
+  - `distance_mm`, `pixel_size_um`, `energy_ev`, `wavelength_a`
+  - `beam_center_x`, `beam_center_y` or `resolution.beam_center_px: [x, y]`
+- Overlay peak lists:
+  - `peak_sets`: list of `{name, color, points}` where points are `[x, y]` or `[x, y, intensity]`
+
+### Minimal sender example
+
+```python
+import json
+import requests
+import numpy as np
+
+frame = (np.random.rand(512, 512) * 1000).astype("<u2")
+meta = {
+    "format": "raw",
+    "dtype": "<u2",
+    "shape": [512, 512],
+    "display_name": "Remote demo frame",
+    "series_number": 1,
+    "image_number": 42,
+    "resolution": {
+        "distance_mm": 150.0,
+        "pixel_size_um": 75.0,
+        "energy_ev": 12000.0,
+        "beam_center_px": [256, 256]
+    },
+    "peak_sets": [
+        {"name": "predicted", "color": "#00ff88", "points": [[240, 250], [270, 265]]}
+    ]
+}
+
+requests.post(
+    "http://127.0.0.1:8000/api/remote/v1/frame?source_id=demo",
+    data={"meta": json.dumps(meta)},
+    files={"image": ("frame.raw", frame.tobytes(), "application/octet-stream")},
+    timeout=5,
+).raise_for_status()
+```
 
 ## Architecture
 
