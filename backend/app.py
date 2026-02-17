@@ -759,6 +759,23 @@ def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
     frame = np.ascontiguousarray(frame)
     if frame.dtype.byteorder == ">" or (frame.dtype.byteorder == "=" and sys.byteorder == "big"):
         frame = frame.byteswap().newbyteorder("<")
+    # Frontend transport currently supports up to 32-bit integer types directly.
+    # Some PILATUS TIFFs are stored as uint64 even though their dynamic range is much smaller.
+    # Downcast 64-bit integer data to a browser-safe dtype to avoid misinterpretation.
+    if frame.dtype.kind in {"u", "i"} and frame.dtype.itemsize > 4:
+        if frame.dtype.kind == "u":
+            vmax = int(np.max(frame, initial=0))
+            if vmax <= np.iinfo(np.uint32).max:
+                frame = frame.astype(np.uint32, copy=False)
+            else:
+                frame = frame.astype(np.float64, copy=False)
+        else:
+            vmin = int(np.min(frame, initial=0))
+            vmax = int(np.max(frame, initial=0))
+            if vmin >= np.iinfo(np.int32).min and vmax <= np.iinfo(np.int32).max:
+                frame = frame.astype(np.int32, copy=False)
+            else:
+                frame = frame.astype(np.float64, copy=False)
     return frame
 
 

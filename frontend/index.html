@@ -233,21 +233,19 @@
                 <canvas id="hist-colorbar" width="800" height="16"></canvas>
                 <div class="hist-tooltip" id="hist-tooltip" aria-hidden="true"></div>
               </div>
-              <div class="range-row">
-                <label class="range-inline">
-                  <span>BG</span>
-                  <input id="min-input" type="number" step="1" />
-                </label>
-                <label class="range-inline">
-                  <span>FG</span>
-                  <input id="max-input" type="number" step="1" />
-                </label>
-              </div>
-              <div class="range-actions">
+              <div class="range-actions range-actions-compact">
                 <button id="auto-contrast" class="btn">Auto Contrast</button>
                 <label class="checkbox">
                   <input id="auto-scale" type="checkbox" checked />
                   Auto
+                </label>
+                <label class="range-inline compact">
+                  <span>BG</span>
+                  <input id="min-input" type="number" step="1" />
+                </label>
+                <label class="range-inline compact">
+                  <span>FG</span>
+                  <input id="max-input" type="number" step="1" />
                 </label>
               </div>
             </section>
@@ -402,7 +400,7 @@
               </button>
               <div class="series-sum-options">
                 <label class="field" id="series-sum-mode-field">
-                  <span>Sum mode</span>
+                  <span>Mode</span>
                   <select id="series-sum-mode">
                     <option value="all">All frames</option>
                     <option value="step">Chunks of N frames</option>
@@ -457,10 +455,12 @@
                   <button id="series-sum-browse" class="btn" type="button">Browse…</button>
                 </div>
               </label>
-              <button id="series-sum-start" class="btn" type="button">Start Summing</button>
-              <div class="series-sum-progress" id="series-sum-progress">
-                <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
-                <div class="series-sum-progress-text" id="series-sum-progress-text">Idle</div>
+              <div class="series-sum-start-row">
+                <button id="series-sum-start" class="btn" type="button">Start</button>
+                <div class="series-sum-progress" id="series-sum-progress">
+                  <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
+                  <div class="series-sum-progress-text" id="series-sum-progress-text">Idle</div>
+                </div>
               </div>
             </section>
           </div>
@@ -513,7 +513,6 @@
                   <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
                   <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
                   <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
-                  <div class="meta-row"><span id="roi-count-label">Samples</span><strong id="roi-count">-</strong></div>
                   <div class="meta-row"><span>Total pixels</span><strong id="roi-total">-</strong></div>
                   <div class="meta-row"><span>Gap pixels</span><strong id="roi-gap">-</strong></div>
                   <div class="meta-row"><span>Defective pixels</span><strong id="roi-defective">-</strong></div>
@@ -655,7 +654,7 @@
           <button class="modal-close" id="about-close">✕</button>
         </div>
         <div class="modal-body">
-          <p>ALBIS WEB VIEW — ALBULA-style web viewer prototype.</p>
+          <p>ALBIS WEB VIEW — ALBULA-style web viewer prototype by SasG.</p>
           <p id="about-version">Version 0.5</p>
           <p>Rendering: WebGL2 with LUTs (CPU fallback).</p>
           <p>Dataset: HDF5 stacks.</p>
@@ -744,6 +743,7 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" id="settings-cancel">Cancel</button>
           <button class="btn btn-primary" id="settings-save">Save</button>
+          <button class="btn btn-primary" id="settings-save-close">Save &amp; Close</button>
         </div>
       </div>
     </div>

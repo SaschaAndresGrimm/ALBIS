@@ -1201,7 +1201,7 @@ body {
 .rings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 10px;
+  gap: 4px 8px;
   margin-top: 0;
 }
 
@@ -1210,13 +1210,13 @@ body {
 }
 
 .panel-section[data-section="resolution-rings"] .rings-grid-top {
-  grid-template-columns: repeat(2, minmax(170px, 210px));
-  gap: 4px 8px;
+  grid-template-columns: repeat(2, minmax(128px, 168px));
+  gap: 3px 6px;
 }
 
 .panel-section[data-section="resolution-rings"] .rings-grid-bottom {
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 4px 8px;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 3px 6px;
 }
 
 .rings-grid .field {
@@ -1224,14 +1224,15 @@ body {
 }
 
 .panel-tab-content[data-panel-tab="analysis"] .field {
-  gap: 2px;
+  gap: 1px;
 }
 
 .panel-tab-content[data-panel-tab="analysis"] .field input,
 .panel-tab-content[data-panel-tab="analysis"] .field select {
-  max-width: 220px;
+  max-width: 188px;
   width: 100%;
   box-sizing: border-box;
+  padding: 3px 6px;
 }
 
 .panel-tab-content[data-panel-tab="analysis"] .field .inline {
@@ -1240,7 +1241,7 @@ body {
 }
 
 #rings-count {
-  max-width: 80px;
+  max-width: 64px;
 }
 
 .panel-tab-content[data-panel-tab="analysis"] .panel-section {
@@ -1248,7 +1249,7 @@ body {
 }
 
 .rings-grid-top {
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .rings-grid-bottom {
@@ -1258,25 +1259,25 @@ body {
 .ring-center {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  max-width: 220px;
+  gap: 4px;
+  max-width: 150px;
 }
 
 .ring-values {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  max-width: 320px;
+  gap: 4px;
+  max-width: 248px;
 }
 
 .panel-section[data-section="resolution-rings"] .ring-center {
-  max-width: 170px;
-  gap: 4px;
+  max-width: 140px;
+  gap: 3px;
 }
 
 .panel-section[data-section="resolution-rings"] .ring-values {
-  max-width: 290px;
-  gap: 4px;
+  max-width: 232px;
+  gap: 3px;
 }
 
 .ring-values input,
@@ -1286,7 +1287,7 @@ body {
 }
 
 .rings-count-field input {
-  max-width: 80px;
+  max-width: 64px;
 }
 
 .peaks-count-field input {
@@ -1448,6 +1449,19 @@ body {
   border: 1px solid #0f0f0f;
   background: #1e1e1e;
   overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 180px;
+}
+
+.series-sum-start-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.series-sum-start-row .btn {
+  min-width: 88px;
 }
 
 .series-sum-progress.is-clickable {
@@ -1767,6 +1781,19 @@ body {
   .series-sum-mask-option {
     grid-column: span 2;
   }
+
+  .series-sum-start-row {
+    flex-wrap: wrap;
+  }
+
+  .series-sum-start-row .btn {
+    width: 100%;
+  }
+
+  .range-actions-compact {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -1807,6 +1834,44 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.range-actions-compact {
+  margin-top: 6px;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.range-actions-compact .btn {
+  white-space: nowrap;
+  padding: 4px 8px;
+}
+
+.range-actions-compact .checkbox {
+  white-space: nowrap;
+}
+
+.range-inline.compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.range-inline.compact span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.range-inline.compact input {
+  width: 78px;
+  min-width: 0;
+  background: #1e1e1e;
+  color: #f2f2f2;
+  border: 1px solid #0f0f0f;
+  padding: 3px 6px;
+  font-size: 12px;
 }
 
 .check-grid {
@@ -2260,7 +2325,7 @@ body {
 }
 
 .settings-modal-card {
-  width: min(760px, 92vw);
+  width: min(680px, 92vw);
   max-height: 82vh;
   display: flex;
   flex-direction: column;
@@ -2269,7 +2334,7 @@ body {
 .settings-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   overflow-y: auto;
 }
 
@@ -2293,15 +2358,30 @@ body {
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 12px;
+  gap: 6px 10px;
 }
 
 .settings-span-2 {
   grid-column: span 2;
 }
 
+.settings-grid .field {
+  gap: 1px;
+}
+
+.settings-grid .field input,
+.settings-grid .field select {
+  max-width: 220px;
+  padding: 3px 6px;
+}
+
+.settings-grid .settings-span-2 input,
+.settings-grid .settings-span-2 select {
+  max-width: 100%;
+}
+
 .settings-check {
-  min-height: 34px;
+  min-height: 30px;
   align-self: end;
 }
 
