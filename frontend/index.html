@@ -275,7 +275,6 @@
                 <span>Data Source</span>
                 <select id="autoload-mode">
                   <option value="file">File</option>
-                  <option value="watch">Watch Folder</option>
                   <option value="simplon">SIMPLON Monitor</option>
                   <option value="remote">Remote Stream</option>
                 </select>
@@ -296,6 +295,11 @@
                 </label>
               </div>
               <div class="autoload-group" id="autoload-watch">
+                <label class="checkbox">
+                  <input id="autoload-watch-enabled" type="checkbox" />
+                  Watch folder
+                </label>
+                <div id="autoload-watch-options">
                 <label class="field">
                   <span>Poll (ms)</span>
                   <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
@@ -317,6 +321,7 @@
                     <input id="autoload-type-cbf" type="checkbox" checked />
                     CBF
                   </label>
+                </div>
                 </div>
               </div>
               <label class="field" id="file-field">
