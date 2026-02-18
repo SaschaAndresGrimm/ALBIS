@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an improvement to ALBIS
+title: "[feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What workflow problem are you trying to solve?
+      placeholder: Describe the current limitation
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should ALBIS do?
+      placeholder: Describe expected behavior and UI/API changes
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: Other options you considered
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add screenshots, examples, sample files, or references
+

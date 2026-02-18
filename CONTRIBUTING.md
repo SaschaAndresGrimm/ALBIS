@@ -13,6 +13,13 @@ python backend/app.py
 
 Open `http://localhost:8000`.
 
+Install contributor tooling:
+
+```bash
+pip install -r requirements-dev.txt
+npm ci
+```
+
 ## Contributor docs
 
 - Architecture and data flow: `docs/ARCHITECTURE.md`
@@ -34,6 +41,10 @@ Please include:
 - Expected vs. actual behavior
 - Logs or console errors
 
+Use the GitHub issue forms:
+- Bug report: `.github/ISSUE_TEMPLATE/bug_report.yml`
+- Feature request: `.github/ISSUE_TEMPLATE/feature_request.yml`
+
 ## Pull requests
 
 - Keep changes focused and small.
@@ -41,6 +52,36 @@ Please include:
 - Include screenshots or recordings for UI changes.
 - Update docs when behavior changes.
 - If you add/reshape major logic paths, update `docs/ARCHITECTURE.md` or `docs/CODE_MAP.md`.
+
+## Local checks before PR
+
+```bash
+ruff check backend tests scripts test_scripts
+black --check tests scripts test_scripts
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
+npm run lint:js
+```
+
+Optional:
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
+## Repository governance
+
+- Code owners are defined in `CODEOWNERS`.
+- PR template is in `.github/PULL_REQUEST_TEMPLATE.md`.
+- Branch protection can be configured with:
+
+```bash
+./scripts/setup_branch_protection.sh main
+```
+
+Requirements:
+- GitHub CLI (`gh`) installed
+- Authenticated with repository admin permissions
 
 ## Code style
 
