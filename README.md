@@ -17,6 +17,11 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 - Security: see `SECURITY.md`.
 - Developer architecture docs: `docs/ARCHITECTURE.md` and `docs/CODE_MAP.md`.
 
+Community workflow files:
+- Issue forms: `.github/ISSUE_TEMPLATE/`
+- PR template: `.github/PULL_REQUEST_TEMPLATE.md`
+- Code owners: `CODEOWNERS`
+
 ![ALBIS screenshot](frontend/ressources/albis.png)
 
 ## Highlights
