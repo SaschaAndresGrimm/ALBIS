@@ -7,7 +7,6 @@ execution. It handles path safety, image IO, metadata extraction, analysis
 endpoints, monitor integration, and long-running series jobs.
 """
 
-import base64
 import csv
 import math
 import fnmatch
@@ -20,9 +19,6 @@ import subprocess
 import sys
 import threading
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any
@@ -49,14 +45,10 @@ try:
         save_config,
     )
     from .image_formats import (
-        _as_int,
-        _first_number,
         _image_ext_name,
         _pilatus_header_text,
         _pilatus_meta_from_fabio,
         _pilatus_meta_from_tiff,
-        _normalize_image_array,
-        _read_tiff_bytes,
         _read_tiff_bytes_with_simplon_meta,
         _read_cbf,
         _read_cbf_gz,
@@ -66,6 +58,25 @@ try:
         _split_series_name,
         _strip_image_ext,
         _write_tiff,
+    )
+    from .services.remote_stream import (
+        remote_extract_metadata as _remote_extract_metadata,
+        remote_parse_meta as _remote_parse_meta,
+        remote_read_image_bytes as _remote_read_image_bytes,
+        remote_safe_source_id as _remote_safe_source_id,
+        remote_snapshot as _remote_snapshot,
+        remote_store_frame as _remote_store_frame,
+    )
+    from .services.series_ops import (
+        iter_sum_groups as _iter_sum_groups,
+        mask_flag_value as _mask_flag_value,
+        mask_slices as _mask_slices,
+    )
+    from .services.simplon import (
+        simplon_base as _simplon_base,
+        simplon_fetch_monitor as _simplon_fetch_monitor,
+        simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
+        simplon_set_mode as _simplon_set_mode,
     )
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
@@ -80,14 +91,10 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         save_config,
     )
     from image_formats import (
-        _as_int,
-        _first_number,
         _image_ext_name,
         _pilatus_header_text,
         _pilatus_meta_from_fabio,
         _pilatus_meta_from_tiff,
-        _normalize_image_array,
-        _read_tiff_bytes,
         _read_tiff_bytes_with_simplon_meta,
         _read_cbf,
         _read_cbf_gz,
@@ -97,6 +104,25 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         _split_series_name,
         _strip_image_ext,
         _write_tiff,
+    )
+    from services.remote_stream import (
+        remote_extract_metadata as _remote_extract_metadata,
+        remote_parse_meta as _remote_parse_meta,
+        remote_read_image_bytes as _remote_read_image_bytes,
+        remote_safe_source_id as _remote_safe_source_id,
+        remote_snapshot as _remote_snapshot,
+        remote_store_frame as _remote_store_frame,
+    )
+    from services.series_ops import (
+        iter_sum_groups as _iter_sum_groups,
+        mask_flag_value as _mask_flag_value,
+        mask_slices as _mask_slices,
+    )
+    from services.simplon import (
+        simplon_base as _simplon_base,
+        simplon_fetch_monitor as _simplon_fetch_monitor,
+        simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
+        simplon_set_mode as _simplon_set_mode,
     )
 
 CONFIG, CONFIG_PATH = load_config()
@@ -127,9 +153,6 @@ LOG_DIR: Path | None = None
 LOG_PATH: Path | None = None
 _series_jobs: dict[str, dict[str, Any]] = {}
 _series_jobs_lock = threading.Lock()
-_remote_frames: dict[str, dict[str, Any]] = {}
-_remote_frames_lock = threading.Lock()
-_REMOTE_SOURCES_MAX = 64
 h5py = None
 _hdf5_stack_ready = False
 
@@ -430,358 +453,6 @@ def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) 
             latest_mtime = mtime
             latest_path = Path(path_str)
     return latest_path
-
-
-def _remote_safe_source_id(source_id: str | None) -> str:
-    raw = (source_id or "").strip()
-    if not raw:
-        return "default"
-    safe = re.sub(r"[^A-Za-z0-9_.:-]", "_", raw)
-    safe = safe[:64].strip("._-")
-    return safe or "default"
-
-
-def _remote_parse_meta(meta_raw: str | None) -> dict[str, Any]:
-    if not meta_raw:
-        return {}
-    try:
-        parsed = json.loads(meta_raw)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Invalid remote metadata JSON") from exc
-    if not isinstance(parsed, dict):
-        raise HTTPException(status_code=400, detail="Remote metadata must be a JSON object")
-    return parsed
-
-
-def _remote_parse_shape(value: Any) -> tuple[int, ...] | None:
-    if isinstance(value, str):
-        parts = [p.strip() for p in value.split(",") if p.strip()]
-        try:
-            dims = [int(p) for p in parts]
-        except ValueError:
-            return None
-    elif isinstance(value, (list, tuple)):
-        dims = []
-        for item in value:
-            try:
-                dims.append(int(item))
-            except (TypeError, ValueError):
-                return None
-    else:
-        return None
-    if not dims:
-        return None
-    if any(d <= 0 for d in dims):
-        return None
-    return tuple(dims)
-
-
-def _remote_read_image_bytes(
-    raw: bytes, *, meta: dict[str, Any], filename: str | None
-) -> np.ndarray:
-    fmt = str(meta.get("format") or "").strip().lower()
-    if not fmt and filename:
-        fmt = _image_ext_name(filename).lower()
-    if fmt in {"raw", "array", "binary", ""}:
-        dtype_raw = meta.get("dtype") or meta.get("type")
-        if not dtype_raw:
-            raise HTTPException(status_code=400, detail="Remote raw image requires metadata dtype")
-        shape = _remote_parse_shape(meta.get("shape"))
-        if not shape:
-            raise HTTPException(status_code=400, detail="Remote raw image requires metadata shape")
-        try:
-            dtype = np.dtype(str(dtype_raw))
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail="Invalid remote dtype") from exc
-        expected = int(np.prod(shape)) * dtype.itemsize
-        if expected != len(raw):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Remote raw image size mismatch (expected {expected} bytes, got {len(raw)})",
-            )
-        arr = np.frombuffer(raw, dtype=dtype).reshape(shape)
-        return _normalize_image_array(np.asarray(arr))
-
-    if fmt in {".tif", ".tiff", "tif", "tiff"}:
-        return _read_tiff_bytes(raw)
-
-    suffix_map = {
-        ".cbf": ".cbf",
-        "cbf": ".cbf",
-        ".cbf.gz": ".cbf.gz",
-        "cbf.gz": ".cbf.gz",
-        ".edf": ".edf",
-        "edf": ".edf",
-    }
-    if fmt in suffix_map:
-        suffix = suffix_map[fmt]
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp.write(raw)
-            tmp_path = Path(tmp.name)
-        try:
-            if suffix == ".cbf":
-                return _read_cbf(tmp_path)
-            if suffix == ".cbf.gz":
-                return _read_cbf_gz(tmp_path)
-            return _read_edf(tmp_path)
-        finally:
-            try:
-                tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
-
-    raise HTTPException(status_code=400, detail=f"Unsupported remote image format: {fmt}")
-
-
-def _remote_pick_float(meta: dict[str, Any], key: str) -> float | None:
-    value = meta.get(key)
-    if isinstance(value, dict):
-        return None
-    return _first_number(value)
-
-
-def _remote_parse_peak_sets(value: Any) -> list[dict[str, Any]]:
-    if not isinstance(value, list):
-        return []
-    cleaned_sets: list[dict[str, Any]] = []
-    for idx, item in enumerate(value[:32]):
-        if not isinstance(item, dict):
-            continue
-        raw_points = item.get("points")
-        if not isinstance(raw_points, list):
-            continue
-        points: list[list[float]] = []
-        for point in raw_points[:10000]:
-            if not isinstance(point, (list, tuple)) or len(point) < 2:
-                continue
-            x = _first_number(point[0])
-            y = _first_number(point[1])
-            if x is None or y is None or not math.isfinite(x) or not math.isfinite(y):
-                continue
-            intensity = _first_number(point[2]) if len(point) >= 3 else None
-            row = [float(x), float(y)]
-            if intensity is not None and math.isfinite(intensity):
-                row.append(float(intensity))
-            points.append(row)
-        if not points:
-            continue
-        name = str(item.get("name") or f"Set {idx + 1}")[:64]
-        color = str(item.get("color") or "#4aa3ff").strip()
-        if not re.fullmatch(r"#?[0-9A-Fa-f]{6}", color):
-            color = "#4aa3ff"
-        if not color.startswith("#"):
-            color = f"#{color}"
-        cleaned_sets.append({"name": name, "color": color, "points": points})
-    return cleaned_sets
-
-
-def _remote_extract_metadata(meta: dict[str, Any]) -> dict[str, Any]:
-    display = meta.get("display")
-    if not isinstance(display, dict):
-        display = {}
-    resolution = meta.get("resolution")
-    if not isinstance(resolution, dict):
-        resolution = {}
-
-    distance_mm = _first_number(resolution.get("distance_mm"))
-    if distance_mm is None:
-        distance_mm = _remote_pick_float(meta, "distance_mm")
-    pixel_size_um = _first_number(resolution.get("pixel_size_um"))
-    if pixel_size_um is None:
-        pixel_size_um = _remote_pick_float(meta, "pixel_size_um")
-    energy_ev = _first_number(resolution.get("energy_ev"))
-    if energy_ev is None:
-        energy_ev = _remote_pick_float(meta, "energy_ev")
-    wavelength_a = _first_number(resolution.get("wavelength_a"))
-    if wavelength_a is None:
-        wavelength_a = _remote_pick_float(meta, "wavelength_a")
-
-    beam_center = resolution.get("beam_center_px")
-    center_x = center_y = None
-    if isinstance(beam_center, (list, tuple)) and len(beam_center) >= 2:
-        center_x = _first_number(beam_center[0])
-        center_y = _first_number(beam_center[1])
-    if center_x is None:
-        center_x = _remote_pick_float(meta, "beam_center_x")
-    if center_y is None:
-        center_y = _remote_pick_float(meta, "beam_center_y")
-
-    return {
-        "display_name": str(meta.get("display_name") or "").strip(),
-        "series_number": _as_int(
-            display.get("series_number")
-            if "series_number" in display
-            else meta.get("series_number")
-        ),
-        "image_number": _as_int(
-            display.get("image_number") if "image_number" in display else meta.get("image_number")
-        ),
-        "image_datetime": str(
-            display.get("image_datetime")
-            if display.get("image_datetime") is not None
-            else meta.get("image_datetime") or ""
-        ).strip(),
-        "resolution": {
-            "distance_mm": (
-                distance_mm if distance_mm is not None and math.isfinite(distance_mm) else None
-            ),
-            "pixel_size_um": (
-                pixel_size_um
-                if pixel_size_um is not None and math.isfinite(pixel_size_um)
-                else None
-            ),
-            "energy_ev": energy_ev if energy_ev is not None and math.isfinite(energy_ev) else None,
-            "wavelength_a": (
-                wavelength_a if wavelength_a is not None and math.isfinite(wavelength_a) else None
-            ),
-            "beam_center_px": (
-                [center_x, center_y]
-                if center_x is not None
-                and center_y is not None
-                and math.isfinite(center_x)
-                and math.isfinite(center_y)
-                else None
-            ),
-        },
-        "peak_sets": _remote_parse_peak_sets(meta.get("peak_sets")),
-        "extra": meta.get("extra") if isinstance(meta.get("extra"), dict) else {},
-    }
-
-
-def _remote_store_frame(
-    *,
-    source_id: str,
-    frame: np.ndarray,
-    meta: dict[str, Any],
-    seq: int | None,
-) -> int:
-    now = time.time()
-    with _remote_frames_lock:
-        previous = _remote_frames.get(source_id)
-        next_seq = (
-            int(seq) if seq is not None else int(previous.get("seq", 0) + 1 if previous else 1)
-        )
-        _remote_frames[source_id] = {
-            "source_id": source_id,
-            "seq": next_seq,
-            "updated_at": now,
-            "dtype": frame.dtype.str,
-            "shape": tuple(int(v) for v in frame.shape),
-            "bytes": frame.tobytes(order="C"),
-            "meta": meta,
-        }
-        if len(_remote_frames) > _REMOTE_SOURCES_MAX:
-            oldest = sorted(
-                _remote_frames.items(),
-                key=lambda item: float(item[1].get("updated_at", 0.0)),
-            )
-            for old_source, _entry in oldest[: len(_remote_frames) - _REMOTE_SOURCES_MAX]:
-                _remote_frames.pop(old_source, None)
-        return next_seq
-
-
-def _remote_snapshot(source_id: str) -> dict[str, Any] | None:
-    with _remote_frames_lock:
-        frame = _remote_frames.get(source_id)
-        if not frame:
-            return None
-        return dict(frame)
-
-
-def _simplon_base(url: str, version: str) -> str:
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise HTTPException(status_code=400, detail="Invalid SIMPLON base URL")
-    base = url.rstrip("/")
-    ver = (version or "1.8.0").strip().strip("/")
-    if not ver:
-        ver = "1.8.0"
-    return f"{base}/monitor/api/{ver}"
-
-
-def _simplon_detector_base(url: str, version: str) -> str:
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise HTTPException(status_code=400, detail="Invalid SIMPLON base URL")
-    base = url.rstrip("/")
-    ver = (version or "1.8.0").strip().strip("/")
-    if not ver:
-        ver = "1.8.0"
-    return f"{base}/detector/api/{ver}"
-
-
-def _simplon_set_mode(base: str, mode: str) -> None:
-    payload = json.dumps({"value": mode}).encode("utf-8")
-    req = urllib.request.Request(
-        f"{base}/config/mode",
-        data=payload,
-        method="PUT",
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            resp.read()
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail="Failed to update SIMPLON monitor mode"
-        ) from exc
-
-
-def _simplon_fetch_monitor(base: str, timeout_ms: int) -> bytes | None:
-    query = urllib.parse.urlencode({"timeout": max(0, int(timeout_ms))}) if timeout_ms else ""
-    url = f"{base}/images/monitor"
-    if query:
-        url = f"{url}?{query}"
-    try:
-        with urllib.request.urlopen(url, timeout=max(timeout_ms / 1000 + 1, 2)) as resp:
-            return resp.read()
-    except urllib.error.HTTPError as exc:
-        if exc.code in {204, 408}:
-            return None
-        raise HTTPException(status_code=502, detail=f"SIMPLON monitor error {exc.code}") from exc
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail="Failed to fetch SIMPLON monitor image"
-        ) from exc
-
-
-def _simplon_fetch_pixel_mask(base_url: str, version: str) -> np.ndarray | None:
-    base = _simplon_detector_base(base_url, version)
-    candidates = ("pixel_mask", "threshold/1/pixel_mask")
-    last_error: Exception | None = None
-    for key in candidates:
-        try:
-            with urllib.request.urlopen(f"{base}/config/{key}", timeout=5) as resp:
-                payload = json.loads(resp.read().decode("utf-8"))
-        except Exception as exc:
-            last_error = exc
-            continue
-        value = payload.get("value")
-        if not isinstance(value, dict) or "__darray__" not in value:
-            last_error = ValueError("Invalid pixel mask response")
-            continue
-        data_b64 = value.get("data")
-        dtype_str = value.get("type")
-        shape = value.get("shape")
-        if not data_b64 or not dtype_str or not shape:
-            last_error = ValueError("Incomplete pixel mask response")
-            continue
-        try:
-            raw = base64.b64decode(data_b64)
-            dtype = np.dtype(dtype_str)
-            arr = np.frombuffer(raw, dtype=dtype)
-            height = int(shape[0])
-            width = int(shape[1])
-            arr = arr.reshape((height, width))
-        except Exception as exc:
-            last_error = exc
-            continue
-        return _normalize_image_array(arr)
-    if last_error:
-        raise HTTPException(
-            status_code=502, detail="Failed to fetch SIMPLON pixel mask"
-        ) from last_error
-    return None
 
 
 def _resolve_external_path(base_file: Path, filename: str | None) -> Path | None:
@@ -1622,83 +1293,6 @@ def _next_available_path(path: Path) -> Path:
         if not candidate.exists():
             return candidate
     raise HTTPException(status_code=500, detail="Unable to allocate output file name")
-
-
-def _mask_flag_value(dtype: np.dtype) -> float:
-    if np.issubdtype(dtype, np.integer):
-        return float(np.iinfo(dtype).max)
-    if np.issubdtype(dtype, np.floating):
-        return float(np.finfo(dtype).max)
-    return float(np.iinfo(np.uint32).max)
-
-
-def _mask_slices(mask_bits: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    gap_mask = (mask_bits & 0x01) != 0
-    bad_mask = (mask_bits & 0x1E) != 0
-    any_mask = gap_mask | bad_mask
-    return gap_mask, bad_mask, any_mask
-
-
-def _iter_sum_groups(
-    frame_count: int,
-    mode: str,
-    step: int,
-    range_start_1: int | None = None,
-    range_end_1: int | None = None,
-) -> list[dict[str, Any]]:
-    """Build frame groups for summing.
-
-    Modes:
-    - all: one group with every frame
-    - step: contiguous chunks of N frames
-    - nth: one group with every Nth frame
-    - range: contiguous chunks of N frames between start/end (1-indexed)
-    """
-    if frame_count <= 0:
-        return []
-
-    size = max(1, int(step))
-    groups: list[dict[str, Any]] = []
-
-    if mode == "all":
-        indices = list(range(frame_count))
-        return [{"indices": indices, "start": 0, "end": frame_count - 1, "count": len(indices)}]
-
-    if mode == "step":
-        start = 0
-        while start < frame_count:
-            end = min(frame_count - 1, start + size - 1)
-            indices = list(range(start, end + 1))
-            groups.append({"indices": indices, "start": start, "end": end, "count": len(indices)})
-            start = end + 1
-        return groups
-
-    if mode == "nth":
-        indices = list(range(0, frame_count, size))
-        if not indices:
-            return []
-        return [
-            {"indices": indices, "start": indices[0], "end": indices[-1], "count": len(indices)}
-        ]
-
-    if mode == "range":
-        start_1 = int(range_start_1 or 1)
-        end_1 = int(range_end_1 or frame_count)
-        start = max(0, start_1 - 1)
-        end = min(frame_count - 1, end_1 - 1)
-        if start > end:
-            raise HTTPException(status_code=400, detail="Range start must be <= range end")
-        cursor = start
-        while cursor <= end:
-            chunk_end = min(end, cursor + size - 1)
-            indices = list(range(cursor, chunk_end + 1))
-            groups.append(
-                {"indices": indices, "start": cursor, "end": chunk_end, "count": len(indices)}
-            )
-            cursor = chunk_end + 1
-        return groups
-
-    raise HTTPException(status_code=400, detail="Invalid series summing mode")
 
 
 def _run_series_summing_job(
