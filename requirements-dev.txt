@@ -2,5 +2,5 @@
 pytest
 httpx
 ruff
-black
+black==25.1.0
 pre-commit
