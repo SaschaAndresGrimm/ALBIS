@@ -6,6 +6,7 @@ This file is a quick navigation guide for contributors.
 
 - `backend/app.py`: API endpoints, file IO, metadata extraction, monitor integration, series-summing jobs.
 - `backend/config.py`: config discovery, merge, and typed access helpers.
+- `backend/image_formats.py`: detector image format readers (`tiff/cbf/cbf.gz/edf`) and metadata/header parsers.
 - `frontend/app.js`: UI controller, renderer orchestration, overlays, interaction logic.
 - `frontend/index.html`: UI structure and section anchors used by `app.js`.
 - `frontend/style.css`: ALBULA-style layout, panel systems, responsive/touch behavior.
@@ -19,6 +20,8 @@ This file is a quick navigation guide for contributors.
   - `_iter_entries`, `_scan_files`, `_scan_folders`, `_latest_image_file`
 - SIMPLON helpers:
   - `_simplon_base`, `_simplon_fetch_monitor`, `_simplon_fetch_pixel_mask`
+- Image format and metadata helpers:
+  - `backend/image_formats.py`: `_read_tiff`, `_read_cbf`, `_read_edf`, `_pilatus_header_text`, `_read_tiff_bytes_with_simplon_meta`
 - Remote stream helpers:
   - `_remote_read_image_bytes`, `_remote_extract_metadata`, `_remote_store_frame`
 - HDF5 inspection helpers:
@@ -28,7 +31,7 @@ This file is a quick navigation guide for contributors.
 - Analysis and math utilities:
   - `_read_threshold_energies`, `_read_scalar`, unit conversion helpers
 - Series summing:
-  - `_run_series_summing_job`, `_iter_sum_ranges`, `_mask_slices`
+  - `_run_series_summing_job`, `_iter_sum_groups`, `_mask_slices`
 
 Endpoint clusters:
 
@@ -75,8 +78,8 @@ Endpoint clusters:
 ## Where To Add New Features
 
 - New backend capability:
-  - add helper in `backend/app.py`
-  - expose endpoint in `backend/app.py`
+  - add endpoint and orchestration in `backend/app.py`
+  - prefer parser/reader logic in `backend/image_formats.py` or dedicated helper modules
   - update `docs/ARCHITECTURE.md` and README if user-facing
 - New frontend tool panel control:
   - add markup in `frontend/index.html`

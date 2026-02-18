@@ -17,7 +17,6 @@ import os
 import re
 import platform
 import subprocess
-import struct
 import sys
 import threading
 import time
@@ -38,9 +37,67 @@ from fastapi.staticfiles import StaticFiles
 import shutil
 
 try:
-    from .config import DEFAULT_CONFIG, get_bool, get_float, get_int, get_str, load_config, normalize_config, resolve_path, save_config
+    from .config import (
+        DEFAULT_CONFIG,
+        get_bool,
+        get_float,
+        get_int,
+        get_str,
+        load_config,
+        normalize_config,
+        resolve_path,
+        save_config,
+    )
+    from .image_formats import (
+        _as_int,
+        _first_number,
+        _image_ext_name,
+        _pilatus_header_text,
+        _pilatus_meta_from_fabio,
+        _pilatus_meta_from_tiff,
+        _normalize_image_array,
+        _read_tiff_bytes,
+        _read_tiff_bytes_with_simplon_meta,
+        _read_cbf,
+        _read_cbf_gz,
+        _read_edf,
+        _read_tiff,
+        _resolve_series_files,
+        _split_series_name,
+        _strip_image_ext,
+        _write_tiff,
+    )
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from config import DEFAULT_CONFIG, get_bool, get_float, get_int, get_str, load_config, normalize_config, resolve_path, save_config
+    from config import (
+        DEFAULT_CONFIG,
+        get_bool,
+        get_float,
+        get_int,
+        get_str,
+        load_config,
+        normalize_config,
+        resolve_path,
+        save_config,
+    )
+    from image_formats import (
+        _as_int,
+        _first_number,
+        _image_ext_name,
+        _pilatus_header_text,
+        _pilatus_meta_from_fabio,
+        _pilatus_meta_from_tiff,
+        _normalize_image_array,
+        _read_tiff_bytes,
+        _read_tiff_bytes_with_simplon_meta,
+        _read_cbf,
+        _read_cbf_gz,
+        _read_edf,
+        _read_tiff,
+        _resolve_series_files,
+        _split_series_name,
+        _strip_image_ext,
+        _write_tiff,
+    )
 
 CONFIG, CONFIG_PATH = load_config()
 CONFIG_BASE_DIR = CONFIG_PATH.parent
@@ -74,8 +131,6 @@ _remote_frames: dict[str, dict[str, Any]] = {}
 _remote_frames_lock = threading.Lock()
 _REMOTE_SOURCES_MAX = 64
 h5py = None
-tifffile = None
-fabio = None
 _hdf5_stack_ready = False
 
 
@@ -93,435 +148,6 @@ def _ensure_hdf5_stack() -> None:
         h5py = _h5py
 
 
-def _ensure_tifffile() -> None:
-    global tifffile
-    if tifffile is None:
-        import tifffile as _tifffile  # type: ignore[import-not-found]
-
-        tifffile = _tifffile
-
-
-_DECTRIS_TIFF_TAG = 0xC7F8
-_TIFF_TYPE_SIZES = {
-    1: 1,  # BYTE
-    2: 1,  # ASCII
-    3: 2,  # SHORT
-    4: 4,  # LONG
-    5: 8,  # RATIONAL
-    7: 1,  # UNDEFINED
-    11: 4,  # FLOAT
-    12: 8,  # DOUBLE
-}
-
-
-def _decode_tiff_values(type_code: int, count: int, data: bytes, byteorder: str) -> Any:
-    if count <= 0:
-        return None
-    fmt_prefix = "<" if byteorder == "little" else ">"
-    if type_code == 2:
-        try:
-            return data.split(b"\x00", 1)[0].decode("ascii", errors="replace")
-        except Exception:
-            return ""
-    if type_code in {1, 7}:
-        if count == 1:
-            return int(data[0]) if data else None
-        return [int(b) for b in data[:count]]
-    if type_code == 3:
-        size = count * 2
-        raw = data[:size].ljust(size, b"\x00")
-        values = struct.unpack(f"{fmt_prefix}{count}H", raw)
-        return values[0] if count == 1 else list(values)
-    if type_code == 4:
-        size = count * 4
-        raw = data[:size].ljust(size, b"\x00")
-        values = struct.unpack(f"{fmt_prefix}{count}I", raw)
-        return values[0] if count == 1 else list(values)
-    if type_code == 11:
-        size = count * 4
-        raw = data[:size].ljust(size, b"\x00")
-        values = struct.unpack(f"{fmt_prefix}{count}f", raw)
-        return values[0] if count == 1 else list(values)
-    if type_code == 12:
-        size = count * 8
-        raw = data[:size].ljust(size, b"\x00")
-        values = struct.unpack(f"{fmt_prefix}{count}d", raw)
-        return values[0] if count == 1 else list(values)
-    return None
-
-
-def _parse_dectris_ifd(
-    raw: bytes, byteorder: str, offset: int = 0, absolute_offsets: bool = False
-) -> dict[int, Any]:
-    if not raw:
-        return {}
-    bo = "little" if byteorder == "<" else "big"
-    if len(raw) < offset + 2:
-        return {}
-    count = int.from_bytes(raw[offset : offset + 2], bo)
-    entry_offset = offset + 2
-    base = 0 if absolute_offsets else offset
-    entries: dict[int, Any] = {}
-    for _ in range(count):
-        if entry_offset + 12 > len(raw):
-            break
-        tag = int.from_bytes(raw[entry_offset : entry_offset + 2], bo)
-        type_code = int.from_bytes(raw[entry_offset + 2 : entry_offset + 4], bo)
-        value_count = int.from_bytes(raw[entry_offset + 4 : entry_offset + 8], bo)
-        value_offset = raw[entry_offset + 8 : entry_offset + 12]
-        entry_offset += 12
-        size = _TIFF_TYPE_SIZES.get(type_code)
-        if not size:
-            continue
-        total = size * value_count
-        if total <= 4:
-            value_bytes = value_offset[:total]
-        else:
-            value_ptr = int.from_bytes(value_offset, bo)
-            if not absolute_offsets:
-                value_ptr = base + value_ptr
-            if value_ptr + total > len(raw):
-                continue
-            value_bytes = raw[value_ptr : value_ptr + total]
-        entries[tag] = _decode_tiff_values(type_code, value_count, value_bytes, bo)
-    return entries
-
-
-def _parse_dectris_tag_value(value: Any, byteorder: str) -> dict[int, Any]:
-    if value is None:
-        return {}
-    if isinstance(value, dict):
-        return {int(k): v for k, v in value.items()}
-    if isinstance(value, np.ndarray):
-        value = value.tobytes()
-    if isinstance(value, memoryview):
-        value = value.tobytes()
-    if isinstance(value, (bytes, bytearray)):
-        return _parse_dectris_ifd(bytes(value), byteorder)
-    if isinstance(value, (list, tuple)):
-        if value and all(isinstance(item, tuple) and len(item) == 2 for item in value):
-            try:
-                return {int(k): v for k, v in value}
-            except Exception:
-                return {}
-    return {}
-
-
-def _first_number(value: Any) -> float | None:
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, (list, tuple)):
-        if not value:
-            return None
-        value = value[0]
-    if isinstance(value, np.generic):
-        value = value.item()
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_int(value: Any) -> int | None:
-    number = _first_number(value)
-    if number is None:
-        return None
-    try:
-        return int(number)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_str(value: Any) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, bytes):
-        try:
-            return value.decode("ascii", errors="replace").strip("\x00")
-        except Exception:
-            return None
-    if isinstance(value, (list, tuple)):
-        if not value:
-            return None
-        return _as_str(value[0])
-    return str(value)
-
-
-def _as_pair(value: Any) -> tuple[float, float] | None:
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, (list, tuple)) and len(value) >= 2:
-        first = _first_number(value[0])
-        second = _first_number(value[1])
-        if first is None or second is None:
-            return None
-        return float(first), float(second)
-    return None
-
-
-def _distance_to_mm(value: float | None) -> float | None:
-    if value is None or not math.isfinite(value):
-        return None
-    if value <= 10:
-        return value * 1000.0
-    return value
-
-
-def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, Any]:
-    meta: dict[str, Any] = {}
-    try:
-        page = tiff.pages[0]
-    except Exception:
-        return meta
-    tag = page.tags.get(_DECTRIS_TIFF_TAG)
-    if tag is None:
-        return meta
-    entries: dict[int, Any] = {}
-    if isinstance(tag.value, int):
-        if raw is None:
-            try:
-                raw = tiff.filehandle.read()
-            except Exception:
-                raw = None
-        if raw:
-            entries = _parse_dectris_ifd(raw, tiff.byteorder, tag.value, absolute_offsets=True)
-    if not entries:
-        entries = _parse_dectris_tag_value(tag.value, tiff.byteorder)
-    if not entries:
-        return meta
-    series_number = _as_int(entries.get(0x0002))
-    image_number = _as_int(entries.get(0x0003))
-    image_datetime = _as_str(entries.get(0x0004))
-    threshold_energy = _first_number(entries.get(0x0006))
-    incident_energy = _first_number(entries.get(0x0009))
-    incident_wavelength = _first_number(entries.get(0x000A))
-    beam_center = _as_pair(entries.get(0x0016))
-    detector_distance = _first_number(entries.get(0x0017))
-    energy_ev = None
-    if incident_energy is not None and math.isfinite(incident_energy):
-        energy_ev = float(incident_energy)
-    elif incident_wavelength is not None and incident_wavelength > 0:
-        energy_ev = 12398.4193 / float(incident_wavelength)
-    meta.update(
-        {
-            "series_number": series_number,
-            "image_number": image_number,
-            "image_datetime": image_datetime,
-            "threshold_energy_ev": threshold_energy,
-            "energy_ev": energy_ev,
-            "wavelength_a": incident_wavelength,
-            "distance_mm": _distance_to_mm(detector_distance),
-            "beam_center_px": beam_center,
-        }
-    )
-    return meta
-
-
-_PILATUS_NUM_RE = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
-
-
-def _parse_unit_value(text: str) -> tuple[float | None, str]:
-    if not text:
-        return None, ""
-    match = _PILATUS_NUM_RE.search(text)
-    if not match:
-        return None, ""
-    value = float(match.group(0))
-    unit_match = re.search(rf"{re.escape(match.group(0))}\s*([A-Za-zµÅ]+)", text)
-    unit = unit_match.group(1) if unit_match else ""
-    return value, unit
-
-
-def _convert_length(value: float | None, unit: str, target: str) -> float | None:
-    if value is None or not math.isfinite(value):
-        return None
-    unit_l = unit.lower()
-    if target == "um":
-        if unit_l in {"m", "meter", "metre"}:
-            return value * 1e6
-        if unit_l == "mm":
-            return value * 1e3
-        if unit_l in {"um", "µm"}:
-            return value
-        if unit_l == "nm":
-            return value * 1e-3
-        return value
-    if target == "mm":
-        if unit_l in {"m", "meter", "metre"}:
-            return value * 1e3
-        if unit_l == "cm":
-            return value * 10.0
-        if unit_l == "mm":
-            return value
-        if unit_l in {"um", "µm"}:
-            return value * 1e-3
-        return value
-    if target == "a":
-        if unit_l in {"a", "å", "angstrom", "ang"}:
-            return value
-        if unit_l == "nm":
-            return value * 10.0
-        if unit_l in {"m", "meter", "metre"}:
-            return value * 1e10
-        if unit_l == "mm":
-            return value * 1e7
-        return value
-    return value
-
-
-def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
-    meta: dict[str, Any] = {}
-    if not text:
-        return meta
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        if line.startswith("#"):
-            line = line[1:].strip()
-        lower = line.lower()
-        if "pixel_size" in lower and "pixel_size_um" not in meta:
-            value, unit = _parse_unit_value(line)
-            pixel_um = _convert_length(value, unit, "um")
-            if pixel_um is not None:
-                meta["pixel_size_um"] = float(pixel_um)
-            continue
-        if "beam_xy" in lower or "beam center" in lower or "beam_center" in lower:
-            nums = _PILATUS_NUM_RE.findall(line)
-            if len(nums) >= 2:
-                meta["beam_center_px"] = (float(nums[0]), float(nums[1]))
-            continue
-        if "detector_distance" in lower or "detector distance" in lower:
-            value, unit = _parse_unit_value(line)
-            distance_mm = _convert_length(value, unit, "mm")
-            if distance_mm is not None:
-                meta["distance_mm"] = float(distance_mm)
-            continue
-        if "wavelength" in lower and "wavelength_a" not in meta:
-            value, unit = _parse_unit_value(line)
-            wavelength_a = _convert_length(value, unit, "a")
-            if wavelength_a is not None:
-                meta["wavelength_a"] = float(wavelength_a)
-            continue
-        if "energy" in lower and "threshold" not in lower and "energy_ev" not in meta:
-            value, unit = _parse_unit_value(line)
-            if value is None:
-                continue
-            unit_l = unit.lower()
-            if unit_l in {"kev"}:
-                meta["energy_ev"] = float(value * 1000.0)
-            elif unit_l in {"ev"}:
-                meta["energy_ev"] = float(value)
-            continue
-    if "energy_ev" not in meta:
-        wavelength = meta.get("wavelength_a")
-        if wavelength and wavelength > 0:
-            meta["energy_ev"] = float(12398.4193 / wavelength)
-    return meta
-
-
-def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
-    image = _open_fabio_image(path)
-    if image is None:
-        return {}
-    header = getattr(image, "header", {}) or {}
-    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
-    if isinstance(text, bytes):
-        text = text.decode("utf-8", errors="ignore")
-    if not text:
-        try:
-            text = "\n".join(f"{k} {v}" for k, v in header.items())
-        except Exception:
-            text = ""
-    meta = _parse_pilatus_header_text(text)
-    return meta
-
-
-def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
-    _ensure_tifffile()
-    try:
-        with tifffile.TiffFile(path) as tiff:
-            desc = ""
-            try:
-                desc = tiff.pages[0].description or ""
-            except Exception:
-                desc = ""
-    except Exception:
-        desc = ""
-    meta = _parse_pilatus_header_text(desc)
-    if meta:
-        return meta
-    try:
-        return _pilatus_meta_from_fabio(path)
-    except Exception:
-        return {}
-
-
-def _open_fabio_image(path: Path):
-    _ensure_fabio()
-    try:
-        return fabio.open(str(path))
-    except Exception:
-        if path.suffix.lower() != ".gz":
-            return None
-        try:
-            import gzip
-            import tempfile
-
-            with gzip.open(path, "rb") as gz:
-                data = gz.read()
-            with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
-                tmp.write(data)
-                tmp_path = Path(tmp.name)
-            try:
-                return fabio.open(str(tmp_path))
-            finally:
-                try:
-                    tmp_path.unlink(missing_ok=True)
-                except Exception:
-                    pass
-        except Exception:
-            return None
-
-
-def _pilatus_header_text(path: Path) -> str:
-    ext = _image_ext_name(path.name)
-    if ext in {".tif", ".tiff"}:
-        _ensure_tifffile()
-        try:
-            with tifffile.TiffFile(path) as tiff:
-                desc = ""
-                try:
-                    desc = tiff.pages[0].description or ""
-                except Exception:
-                    desc = ""
-            if desc:
-                return str(desc)
-        except Exception:
-            pass
-    image = _open_fabio_image(path)
-    if image is None:
-        return ""
-    header = getattr(image, "header", {}) or {}
-    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
-    if isinstance(text, bytes):
-        text = text.decode("utf-8", errors="ignore")
-    if text:
-        return str(text)
-    try:
-        return "\n".join(f"{k} {v}" for k, v in header.items())
-    except Exception:
-        return ""
-
-
-def _ensure_fabio() -> None:
-    global fabio
-    if fabio is None:
-        import fabio as _fabio  # type: ignore[import-not-found]
-
-        fabio = _fabio
-
-
 def _init_logging() -> logging.Logger:
     global LOG_DIR, LOG_PATH
     level_name = get_str(CONFIG, ("logging", "level"), "INFO").upper()
@@ -536,7 +162,9 @@ def _init_logging() -> logging.Logger:
     logger.addHandler(stream)
 
     log_dir_cfg = get_str(CONFIG, ("logging", "dir"), "").strip()
-    log_dir = resolve_path(log_dir_cfg, base_dir=CONFIG_BASE_DIR) if log_dir_cfg else (DATA_DIR / "logs")
+    log_dir = (
+        resolve_path(log_dir_cfg, base_dir=CONFIG_BASE_DIR) if log_dir_cfg else (DATA_DIR / "logs")
+    )
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError:
@@ -590,12 +218,18 @@ async def log_requests(request, call_next):
     if status >= 500:
         logger.error("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
     elif status >= 400:
-        logger.warning("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+        logger.warning(
+            "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
+        )
     else:
         if duration_ms >= 1000:
-            logger.info("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+            logger.info(
+                "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
+            )
         else:
-            logger.debug("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+            logger.debug(
+                "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
+            )
     return response
 
 
@@ -677,156 +311,6 @@ def _is_within(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
-
-
-
-def _image_ext_name(name: str) -> str:
-    lower = name.lower()
-    if lower.endswith(".cbf.gz"):
-        return ".cbf.gz"
-    return Path(lower).suffix
-
-
-
-def _strip_image_ext(name: str, ext: str) -> str:
-    if ext == ".cbf.gz" and name.lower().endswith(ext):
-        return name[: -len(ext)]
-    if name.lower().endswith(ext):
-        return name[: -len(ext)]
-    return Path(name).stem
-
-
-
-def _split_series_name(name: str) -> tuple[str, str, str] | None:
-    ext = _image_ext_name(name)
-    stem = _strip_image_ext(name, ext)
-    match = re.match(r"^(.*?)(\d+)([^\d]*)$", stem)
-    if not match:
-        return None
-    prefix, digits, suffix = match.groups()
-    if not digits:
-        return None
-    return prefix, digits, suffix
-
-
-def _resolve_series_files(path: Path) -> tuple[list[Path], int]:
-    """Resolve a sequence of numbered files into a sorted series."""
-    ext = _image_ext_name(path.name)
-    if ext not in {".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}:
-        return [path], 0
-    parts = _split_series_name(path.name)
-    if not parts:
-        return [path], 0
-    prefix, digits, suffix = parts
-    pattern = re.compile(
-        rf"^{re.escape(prefix)}(\d+){re.escape(suffix)}{re.escape(ext)}$",
-        re.IGNORECASE,
-    )
-    matches: list[tuple[int, Path]] = []
-    try:
-        for entry in path.parent.iterdir():
-            if not entry.is_file():
-                continue
-            if _image_ext_name(entry.name) != ext:
-                continue
-            match = pattern.match(entry.name)
-            if not match:
-                continue
-            idx = int(match.group(1))
-            matches.append((idx, entry))
-    except OSError:
-        return [path], 0
-    if not matches:
-        return [path], 0
-    matches.sort(key=lambda item: item[0])
-    files = [item[1] for item in matches]
-    index = 0
-    for i, (_, entry) in enumerate(matches):
-        if entry.name == path.name:
-            index = i
-            break
-    return files, index
-
-
-def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
-    if arr.ndim == 2:
-        frame = arr
-    elif arr.ndim == 3:
-        if arr.shape[-1] in (3, 4):
-            frame = arr[..., 0]
-        else:
-            idx = max(0, min(index, arr.shape[0] - 1))
-            frame = arr[idx]
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported image shape")
-    frame = np.ascontiguousarray(frame)
-    if frame.dtype.byteorder == ">" or (frame.dtype.byteorder == "=" and sys.byteorder == "big"):
-        frame = frame.byteswap().newbyteorder("<")
-    # Frontend transport currently supports up to 32-bit integer types directly.
-    # Some PILATUS TIFFs are stored as uint64 even though their dynamic range is much smaller.
-    # Downcast 64-bit integer data to a browser-safe dtype to avoid misinterpretation.
-    if frame.dtype.kind in {"u", "i"} and frame.dtype.itemsize > 4:
-        if frame.dtype.kind == "u":
-            vmax = int(np.max(frame, initial=0))
-            if vmax <= np.iinfo(np.uint32).max:
-                frame = frame.astype(np.uint32, copy=False)
-            else:
-                frame = frame.astype(np.float64, copy=False)
-        else:
-            vmin = int(np.min(frame, initial=0))
-            vmax = int(np.max(frame, initial=0))
-            if vmin >= np.iinfo(np.int32).min and vmax <= np.iinfo(np.int32).max:
-                frame = frame.astype(np.int32, copy=False)
-            else:
-                frame = frame.astype(np.float64, copy=False)
-    return frame
-
-
-def _read_tiff(path: Path, index: int = 0) -> np.ndarray:
-    _ensure_tifffile()
-    arr = tifffile.imread(path)
-    return _normalize_image_array(np.asarray(arr), index=index)
-
-
-def _read_cbf(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    image = fabio.open(str(path))
-    arr = np.asarray(image.data)
-    return _normalize_image_array(arr)
-
-
-
-def _read_cbf_gz(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    try:
-        image = fabio.open(str(path))
-        arr = np.asarray(image.data)
-        return _normalize_image_array(arr)
-    except Exception:
-        import gzip
-        import tempfile
-
-        with gzip.open(path, "rb") as gz:
-            data = gz.read()
-        with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
-            tmp.write(data)
-            tmp_path = Path(tmp.name)
-        try:
-            image = fabio.open(str(tmp_path))
-            arr = np.asarray(image.data)
-            return _normalize_image_array(arr)
-        finally:
-            try:
-                tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
-
-
-def _read_edf(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    image = fabio.open(str(path))
-    arr = np.asarray(image.data)
-    return _normalize_image_array(arr)
 
 
 def _parse_ext_filter(exts: str | None) -> set[str]:
@@ -992,7 +476,9 @@ def _remote_parse_shape(value: Any) -> tuple[int, ...] | None:
     return tuple(dims)
 
 
-def _remote_read_image_bytes(raw: bytes, *, meta: dict[str, Any], filename: str | None) -> np.ndarray:
+def _remote_read_image_bytes(
+    raw: bytes, *, meta: dict[str, Any], filename: str | None
+) -> np.ndarray:
     fmt = str(meta.get("format") or "").strip().lower()
     if not fmt and filename:
         fmt = _image_ext_name(filename).lower()
@@ -1017,9 +503,7 @@ def _remote_read_image_bytes(raw: bytes, *, meta: dict[str, Any], filename: str 
         return _normalize_image_array(np.asarray(arr))
 
     if fmt in {".tif", ".tiff", "tif", "tiff"}:
-        _ensure_tifffile()
-        arr = tifffile.imread(io.BytesIO(raw))
-        return _normalize_image_array(np.asarray(arr))
+        return _read_tiff_bytes(raw)
 
     suffix_map = {
         ".cbf": ".cbf",
@@ -1124,17 +608,40 @@ def _remote_extract_metadata(meta: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "display_name": str(meta.get("display_name") or "").strip(),
-        "series_number": _as_int(display.get("series_number") if "series_number" in display else meta.get("series_number")),
-        "image_number": _as_int(display.get("image_number") if "image_number" in display else meta.get("image_number")),
-        "image_datetime": str(display.get("image_datetime") if display.get("image_datetime") is not None else meta.get("image_datetime") or "").strip(),
+        "series_number": _as_int(
+            display.get("series_number")
+            if "series_number" in display
+            else meta.get("series_number")
+        ),
+        "image_number": _as_int(
+            display.get("image_number") if "image_number" in display else meta.get("image_number")
+        ),
+        "image_datetime": str(
+            display.get("image_datetime")
+            if display.get("image_datetime") is not None
+            else meta.get("image_datetime") or ""
+        ).strip(),
         "resolution": {
-            "distance_mm": distance_mm if distance_mm is not None and math.isfinite(distance_mm) else None,
-            "pixel_size_um": pixel_size_um if pixel_size_um is not None and math.isfinite(pixel_size_um) else None,
+            "distance_mm": (
+                distance_mm if distance_mm is not None and math.isfinite(distance_mm) else None
+            ),
+            "pixel_size_um": (
+                pixel_size_um
+                if pixel_size_um is not None and math.isfinite(pixel_size_um)
+                else None
+            ),
             "energy_ev": energy_ev if energy_ev is not None and math.isfinite(energy_ev) else None,
-            "wavelength_a": wavelength_a if wavelength_a is not None and math.isfinite(wavelength_a) else None,
-            "beam_center_px": [center_x, center_y]
-            if center_x is not None and center_y is not None and math.isfinite(center_x) and math.isfinite(center_y)
-            else None,
+            "wavelength_a": (
+                wavelength_a if wavelength_a is not None and math.isfinite(wavelength_a) else None
+            ),
+            "beam_center_px": (
+                [center_x, center_y]
+                if center_x is not None
+                and center_y is not None
+                and math.isfinite(center_x)
+                and math.isfinite(center_y)
+                else None
+            ),
         },
         "peak_sets": _remote_parse_peak_sets(meta.get("peak_sets")),
         "extra": meta.get("extra") if isinstance(meta.get("extra"), dict) else {},
@@ -1151,7 +658,9 @@ def _remote_store_frame(
     now = time.time()
     with _remote_frames_lock:
         previous = _remote_frames.get(source_id)
-        next_seq = int(seq) if seq is not None else int(previous.get("seq", 0) + 1 if previous else 1)
+        next_seq = (
+            int(seq) if seq is not None else int(previous.get("seq", 0) + 1 if previous else 1)
+        )
         _remote_frames[source_id] = {
             "source_id": source_id,
             "seq": next_seq,
@@ -1213,7 +722,9 @@ def _simplon_set_mode(base: str, mode: str) -> None:
         with urllib.request.urlopen(req, timeout=5) as resp:
             resp.read()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail="Failed to update SIMPLON monitor mode") from exc
+        raise HTTPException(
+            status_code=502, detail="Failed to update SIMPLON monitor mode"
+        ) from exc
 
 
 def _simplon_fetch_monitor(base: str, timeout_ms: int) -> bytes | None:
@@ -1229,7 +740,9 @@ def _simplon_fetch_monitor(base: str, timeout_ms: int) -> bytes | None:
             return None
         raise HTTPException(status_code=502, detail=f"SIMPLON monitor error {exc.code}") from exc
     except Exception as exc:
-        raise HTTPException(status_code=502, detail="Failed to fetch SIMPLON monitor image") from exc
+        raise HTTPException(
+            status_code=502, detail="Failed to fetch SIMPLON monitor image"
+        ) from exc
 
 
 def _simplon_fetch_pixel_mask(base_url: str, version: str) -> np.ndarray | None:
@@ -1265,7 +778,9 @@ def _simplon_fetch_pixel_mask(base_url: str, version: str) -> np.ndarray | None:
             continue
         return _normalize_image_array(arr)
     if last_error:
-        raise HTTPException(status_code=502, detail="Failed to fetch SIMPLON pixel mask") from last_error
+        raise HTTPException(
+            status_code=502, detail="Failed to fetch SIMPLON pixel mask"
+        ) from last_error
     return None
 
 
@@ -1570,6 +1085,7 @@ def _wavelength_to_ev(value: float, unit: str | None) -> float | None:
         return None
     return 12398.4193 / (wavelength_m * 1e10)
 
+
 def _read_threshold_energies(h5: h5py.File, count: int) -> list[float | None]:
     energies: list[float | None] = []
     for idx in range(count):
@@ -1596,12 +1112,12 @@ def _copy_h5_metadata(src_h5: h5py.File, dst_h5: h5py.File, threshold_count: int
                 dst_h5.attrs[key] = val
             except Exception:
                 pass
-    
+
     # Copy instrument/detector metadata, especially channel and threshold info
     if "/entry/instrument/detector" in src_h5:
         src_detector = src_h5["/entry/instrument/detector"]
         dst_detector = dst_h5.require_group("/entry/instrument/detector")
-        
+
         # Copy detector group attributes
         for key, val in src_detector.attrs.items():
             if key not in dst_detector.attrs:
@@ -1609,14 +1125,14 @@ def _copy_h5_metadata(src_h5: h5py.File, dst_h5: h5py.File, threshold_count: int
                     dst_detector.attrs[key] = val
                 except Exception:
                     pass
-        
+
         # Copy channel information (threshold channels)
         for thr in range(threshold_count):
             channel_path = f"threshold_{thr + 1}_channel"
             if channel_path in src_detector:
                 src_channel = src_detector[channel_path]
                 dst_channel = dst_detector.require_group(channel_path)
-                
+
                 # Copy channel attributes
                 for key, val in src_channel.attrs.items():
                     if key not in dst_channel.attrs:
@@ -1624,7 +1140,7 @@ def _copy_h5_metadata(src_h5: h5py.File, dst_h5: h5py.File, threshold_count: int
                             dst_channel.attrs[key] = val
                         except Exception:
                             pass
-                
+
                 # Copy important datasets from channel (threshold_energy, etc.)
                 for item_name in src_channel:
                     if item_name in ("pixel_mask",):  # Skip pixel_mask, handled separately
@@ -1635,7 +1151,7 @@ def _copy_h5_metadata(src_h5: h5py.File, dst_h5: h5py.File, threshold_count: int
                             dst_channel.create_dataset(item_name, data=src_item[()])
                         except Exception:
                             pass
-    
+
     # Copy sample/beamline metadata if present
     for group_path in ("/entry/instrument", "/entry/sample", "/entry/data"):
         if group_path in src_h5 and group_path not in dst_h5:
@@ -1753,7 +1269,9 @@ def _aggregate_linked_stack_datasets(results: list[dict[str, Any]]) -> list[dict
     for parent, members in grouped.items():
         if len(members) < 2:
             continue
-        ordered = sorted(members, key=lambda item: _linked_member_sort_key(str(item.get("path", ""))))
+        ordered = sorted(
+            members, key=lambda item: _linked_member_sort_key(str(item.get("path", "")))
+        )
         first = ordered[0]
         ndim = int(first.get("ndim") or 0)
         if ndim not in (3, 4):
@@ -1804,9 +1322,7 @@ def _aggregate_linked_stack_datasets(results: list[dict[str, Any]]) -> list[dict
     return filtered
 
 
-def _resolve_node(
-    h5: h5py.File, base_file: Path, path: str
-) -> tuple[Any, Path, list[h5py.File]]:
+def _resolve_node(h5: h5py.File, base_file: Path, path: str) -> tuple[Any, Path, list[h5py.File]]:
     """Resolve HDF5 object path while following soft/external links safely."""
     parts = [p for p in path.strip("/").split("/") if p]
     if not parts:
@@ -2161,7 +1677,9 @@ def _iter_sum_groups(
         indices = list(range(0, frame_count, size))
         if not indices:
             return []
-        return [{"indices": indices, "start": indices[0], "end": indices[-1], "count": len(indices)}]
+        return [
+            {"indices": indices, "start": indices[0], "end": indices[-1], "count": len(indices)}
+        ]
 
     if mode == "range":
         start_1 = int(range_start_1 or 1)
@@ -2198,7 +1716,6 @@ def _run_series_summing_job(
     apply_mask: bool,
 ) -> None:
     """Background worker for series summing output generation."""
-    _ensure_tifffile()
     try:
         source_path = _resolve_image_file(file)
         ext = _image_ext_name(source_path.name)
@@ -2228,10 +1745,14 @@ def _run_series_summing_job(
                     if normalize_frame_idx is not None and (
                         normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
                     ):
-                        raise HTTPException(status_code=400, detail="Normalize frame is out of range")
+                        raise HTTPException(
+                            status_code=400, detail="Normalize frame is out of range"
+                        )
                     groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
                     if not groups:
-                        raise HTTPException(status_code=400, detail="No frames available for summing")
+                        raise HTTPException(
+                            status_code=400, detail="No frames available for summing"
+                        )
 
                     source_dtype = np.dtype(view["dtype"])
                     flag_value = _mask_flag_value(source_dtype)
@@ -2240,7 +1761,9 @@ def _run_series_summing_job(
                         if not apply_mask:
                             mask_bits_by_thr.append(None)
                             continue
-                        mask_dset = _find_pixel_mask(h5, threshold=thr if threshold_count > 1 else None)
+                        mask_dset = _find_pixel_mask(
+                            h5, threshold=thr if threshold_count > 1 else None
+                        )
                         if mask_dset is None:
                             mask_bits_by_thr.append(None)
                             continue
@@ -2259,7 +1782,9 @@ def _run_series_summing_job(
                         norm_ref: np.ndarray | None = None
                         norm_ref_valid: np.ndarray | None = None
                         if normalize_frame_idx is not None:
-                            norm_ref = np.asarray(_extract_frame(view, normalize_frame_idx, thr), dtype=np.float64)
+                            norm_ref = np.asarray(
+                                _extract_frame(view, normalize_frame_idx, thr), dtype=np.float64
+                            )
                             if any_mask is not None:
                                 norm_ref = norm_ref.copy()
                                 norm_ref[any_mask] = np.nan
@@ -2270,7 +1795,9 @@ def _run_series_summing_job(
                             end_idx = int(group["end"])
                             frame_indices = list(group["indices"])
                             acc: np.ndarray | None = None
-                            median_stack: list[np.ndarray] | None = [] if operation == "median" else None
+                            median_stack: list[np.ndarray] | None = (
+                                [] if operation == "median" else None
+                            )
                             for frame_idx in frame_indices:
                                 arr = _extract_frame(view, frame_idx, thr)
                                 arr = np.asarray(arr, dtype=np.float64)
@@ -2313,7 +1840,15 @@ def _run_series_summing_job(
                                 else:
                                     reduced = acc
                             sums.append(
-                                (thr, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits)
+                                (
+                                    thr,
+                                    chunk_idx,
+                                    start_idx,
+                                    end_idx,
+                                    len(frame_indices),
+                                    reduced,
+                                    mask_bits,
+                                )
                             )
 
                 finally:
@@ -2358,7 +1893,9 @@ def _run_series_summing_job(
             norm_ref: np.ndarray | None = None
             norm_ref_valid: np.ndarray | None = None
             if normalize_frame_idx is not None:
-                ref_arr = np.asarray(read_image(series_files[normalize_frame_idx]), dtype=np.float64)
+                ref_arr = np.asarray(
+                    read_image(series_files[normalize_frame_idx]), dtype=np.float64
+                )
                 if apply_mask:
                     neg = ref_arr < 0
                     if neg.any():
@@ -2428,7 +1965,9 @@ def _run_series_summing_job(
                         reduced = acc / float(max(1, len(frame_indices)))
                     else:
                         reduced = acc
-                sums.append((0, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits))
+                sums.append(
+                    (0, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits)
+                )
 
         outputs: list[str] = []
         _series_job_update(job_id, progress=0.97, message="Writing outputs…")
@@ -2462,7 +2001,7 @@ def _run_series_summing_job(
 
                 entry_group = out_h5.require_group("/entry")
                 data_group = entry_group.require_group("data")
-                
+
                 # Copy metadata from source H5 file when available
                 if ext in {".h5", ".hdf5"}:
                     try:
@@ -2470,7 +2009,7 @@ def _run_series_summing_job(
                             _copy_h5_metadata(src_h5, out_h5, threshold_count)
                     except Exception:
                         pass  # If metadata copy fails, continue with data writing
-                
+
                 data_dset = data_group.create_dataset(
                     "data",
                     shape=data_shape,
@@ -2516,7 +2055,9 @@ def _run_series_summing_job(
                 if apply_mask:
                     base_mask_bits = mask_bits_by_thr[0] if mask_bits_by_thr else None
                     if base_mask_bits is not None:
-                        mask_group = out_h5.require_group("/entry/instrument/detector/detectorSpecific")
+                        mask_group = out_h5.require_group(
+                            "/entry/instrument/detector/detectorSpecific"
+                        )
                         mask_group.create_dataset(
                             "pixel_mask",
                             data=base_mask_bits.astype(np.uint32),
@@ -2562,7 +2103,7 @@ def _run_series_summing_job(
                     arr_tiff = arr_tiff.copy()
                     arr_tiff[gap_mask] = -1
                     arr_tiff[bad_mask] = -2
-                tifffile.imwrite(out_file, arr_tiff, photometric="minisblack")
+                _write_tiff(out_file, np.asarray(arr_tiff))
                 outputs.append(str(out_file))
         else:
             raise HTTPException(status_code=400, detail="Unsupported output format")
@@ -2736,7 +2277,9 @@ def _linux_choose_folder() -> str | None:
         raise RuntimeError("No graphical display available")
     zenity = shutil.which("zenity")
     if zenity:
-        return _run_linux_dialog([zenity, "--file-selection", "--directory", "--title=Select folder"])
+        return _run_linux_dialog(
+            [zenity, "--file-selection", "--directory", "--title=Select folder"]
+        )
     kdialog = shutil.which("kdialog")
     if kdialog:
         return _run_linux_dialog([kdialog, "--getexistingdirectory", str(Path.home())])
@@ -2833,8 +2376,6 @@ def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
     root = _resolve_dir(trimmed)
     items = _scan_files(root)
     return {"files": _prefix_paths(root, items)}
-
-
 
 
 @app.get("/api/series")
@@ -3001,7 +2542,7 @@ def choose_file() -> Response:
 @app.get("/api/browse")
 def browse(path: str | None = Query(None)) -> dict[str, Any]:
     """List folders and image files in a directory for web-based file browser.
-    
+
     Returns:
         - folders: list of subdirectory names
         - files: list of image file names with relative paths
@@ -3169,7 +2710,6 @@ def simplon_monitor(
     timeout: int = Query(500, ge=0),
     enable: bool = Query(True),
 ) -> Response:
-    _ensure_tifffile()
     base = _simplon_base(url, version)
     if enable:
         _simplon_set_mode(base, "enabled")
@@ -3177,13 +2717,7 @@ def simplon_monitor(
     if data is None:
         logger.debug("SIMPLON monitor: no data (url=%s)", url)
         return Response(status_code=204)
-    meta: dict[str, Any] = {}
-    try:
-        with tifffile.TiffFile(io.BytesIO(data)) as tiff:
-            meta = _simplon_meta_from_tiff(tiff, raw=data)
-            arr = _normalize_image_array(np.asarray(tiff.asarray()))
-    except Exception:
-        arr = _normalize_image_array(np.asarray(tifffile.imread(io.BytesIO(data))))
+    arr, meta = _read_tiff_bytes_with_simplon_meta(data)
     if meta:
         logger.debug("SIMPLON meta (url=%s): %s", url, meta)
     data_bytes = arr.tobytes(order="C")
@@ -3263,7 +2797,9 @@ async def remote_frame_ingest(
     safe_source = _remote_safe_source_id(source_id or str(meta_dict.get("source_id") or "default"))
     frame = _remote_read_image_bytes(payload, meta=meta_dict, filename=image.filename)
     extracted_meta = _remote_extract_metadata(meta_dict)
-    seq_value = _remote_store_frame(source_id=safe_source, frame=frame, meta=extracted_meta, seq=seq)
+    seq_value = _remote_store_frame(
+        source_id=safe_source, frame=frame, meta=extracted_meta, seq=seq
+    )
     logger.debug(
         "Remote frame ingested: source=%s seq=%s shape=%s dtype=%s peak_sets=%d",
         safe_source,
@@ -3328,7 +2864,9 @@ def remote_frame_latest(
         headers["X-Remote-BeamCenter-Y"] = str(center[1])
     peak_sets = meta.get("peak_sets") if isinstance(meta, dict) else []
     headers["X-Remote-PeakSets"] = str(len(peak_sets) if isinstance(peak_sets, list) else 0)
-    return Response(content=frame.get("bytes") or b"", media_type="application/octet-stream", headers=headers)
+    return Response(
+        content=frame.get("bytes") or b"", media_type="application/octet-stream", headers=headers
+    )
 
 
 @app.get("/api/remote/v1/meta")
@@ -3344,7 +2882,10 @@ def remote_frame_meta(
     if seq is not None and int(seq) != current_seq:
         return JSONResponse(
             status_code=409,
-            content={"detail": "Requested sequence is no longer current", "current_seq": current_seq},
+            content={
+                "detail": "Requested sequence is no longer current",
+                "current_seq": current_seq,
+            },
         )
     meta = frame.get("meta") if isinstance(frame.get("meta"), dict) else {}
     return JSONResponse(
@@ -3494,7 +3035,9 @@ def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> d
 
 
 @app.get("/api/hdf5/node")
-def hdf5_node(file: str = Query(..., min_length=1), path: str = Query(..., min_length=1)) -> dict[str, Any]:
+def hdf5_node(
+    file: str = Query(..., min_length=1), path: str = Query(..., min_length=1)
+) -> dict[str, Any]:
     """Return node metadata and attributes for the inspector details pane."""
     _ensure_hdf5_stack()
     file_path = _resolve_file(file)
@@ -3537,7 +3080,9 @@ def hdf5_value(
         obj = h5[path]
         if not isinstance(obj, h5py.Dataset):
             raise HTTPException(status_code=400, detail="Not a dataset")
-        preview, preview_shape, truncated, slice_info = _dataset_value_preview(obj, max_cells=max_cells)
+        preview, preview_shape, truncated, slice_info = _dataset_value_preview(
+            obj, max_cells=max_cells
+        )
         return {
             "path": path,
             "type": "dataset",
@@ -3816,7 +3361,9 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
     )
     range_start = payload.get("range_start")
     range_end = payload.get("range_end")
-    range_start = int(range_start) if range_start is not None and str(range_start).strip() != "" else None
+    range_start = (
+        int(range_start) if range_start is not None and str(range_start).strip() != "" else None
+    )
     range_end = int(range_end) if range_end is not None and str(range_end).strip() != "" else None
     output_path = payload.get("output_path")
     output_format = str(payload.get("format", "hdf5")).strip().lower()
@@ -3871,7 +3418,9 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
     with _series_jobs_lock:
         _series_jobs[job_id] = job_data
         # keep memory bounded
-        done_jobs = [jid for jid, info in _series_jobs.items() if info.get("status") in {"done", "error"}]
+        done_jobs = [
+            jid for jid, info in _series_jobs.items() if info.get("status") in {"done", "error"}
+        ]
         if len(done_jobs) > 200:
             done_jobs.sort(key=lambda jid: float(_series_jobs[jid].get("updated_at", 0.0)))
             for old_id in done_jobs[: len(done_jobs) - 200]:
@@ -3897,6 +3446,7 @@ def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, 
     )
     worker.start()
     return {"job_id": job_id, "status": "queued"}
+
 
 @app.get("/api/analysis/series-sum/status")
 def analysis_series_sum_status(job_id: str = Query(..., min_length=1)) -> dict[str, Any]:
@@ -3940,7 +3490,9 @@ def open_path(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
 
 
 @app.get("/api/metadata")
-def metadata(file: str = Query(..., min_length=1), dataset: str = Query(..., min_length=1)) -> dict[str, Any]:
+def metadata(
+    file: str = Query(..., min_length=1), dataset: str = Query(..., min_length=1)
+) -> dict[str, Any]:
     _ensure_hdf5_stack()
     path = _resolve_file(file)
     with h5py.File(path, "r") as h5:
@@ -4073,7 +3625,7 @@ def _resource_root() -> Path:
 
 
 @app.middleware("http")
-async def _no_cache_static(request: 'Request', call_next):
+async def _no_cache_static(request: "Request", call_next):
     response = await call_next(request)
     if request.method == "GET":
         path = request.url.path
