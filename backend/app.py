@@ -9,11 +9,8 @@ endpoints, monitor integration, and long-running series jobs.
 
 import math
 import fnmatch
-import json
 import os
 import re
-import platform
-import subprocess
 import sys
 import threading
 import time
@@ -77,6 +74,7 @@ try:
     )
     from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
     from .routes.files import FileRouteDeps, register_file_routes
+    from .routes.system import SystemRouteDeps, register_system_routes
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
         DEFAULT_CONFIG,
@@ -125,6 +123,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     )
     from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
     from routes.files import FileRouteDeps, register_file_routes
+    from routes.system import SystemRouteDeps, register_system_routes
 
 CONFIG, CONFIG_PATH = load_config()
 CONFIG_BASE_DIR = CONFIG_PATH.parent
@@ -1722,11 +1721,6 @@ def _run_series_summing_job(
         )
 
 
-@app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "version": ALBIS_VERSION}
-
-
 def _settings_payload() -> dict[str, Any]:
     return {
         "config": CONFIG,
@@ -1736,104 +1730,18 @@ def _settings_payload() -> dict[str, Any]:
     }
 
 
-@app.get("/api/settings")
-def get_settings() -> dict[str, Any]:
-    return _settings_payload()
-
-
-@app.post("/api/settings")
-def save_settings(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+def _apply_runtime_config(payload: dict[str, Any]) -> None:
     global CONFIG, ALLOW_ABS_PATHS, SCAN_CACHE_SEC, MAX_SCAN_DEPTH, MAX_UPLOAD_MB, MAX_UPLOAD_BYTES
-    raw = payload.get("config") if isinstance(payload, dict) else None
-    if not isinstance(raw, dict):
-        raise HTTPException(status_code=400, detail="Missing config payload")
-
-    try:
-        normalized = normalize_config(raw)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid config: {exc}") from exc
-
-    try:
-        save_config(normalized, CONFIG_PATH)
-    except OSError as exc:
-        raise HTTPException(status_code=500, detail="Failed to save config") from exc
-
-    CONFIG = normalized
+    CONFIG = payload
     ALLOW_ABS_PATHS = get_bool(CONFIG, ("data", "allow_abs_paths"), True)
     SCAN_CACHE_SEC = get_float(CONFIG, ("data", "scan_cache_sec"), 2.0)
     MAX_SCAN_DEPTH = get_int(CONFIG, ("data", "max_scan_depth"), -1)
     MAX_UPLOAD_MB = max(0, get_int(CONFIG, ("data", "max_upload_mb"), 0))
     MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
 
-    logger.info("Config updated via UI: %s", CONFIG_PATH)
-    return _settings_payload()
 
-
-@app.post("/api/client-log")
-def client_log(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
-    try:
-        level = str(payload.get("level", "info")).lower()
-        message = str(payload.get("message", "")).strip()
-        context = payload.get("context")
-        meta = {
-            "url": payload.get("url"),
-            "userAgent": payload.get("userAgent"),
-            "extra": payload.get("extra"),
-        }
-        if not message:
-            return {"status": "ignored"}
-        if len(message) > 2000:
-            message = message[:2000] + "…"
-        if isinstance(context, str) and len(context) > 4000:
-            context = context[:4000] + "…"
-        try:
-            meta_json = json.dumps(meta, default=str)
-        except Exception:
-            meta_json = "{}"
-        if isinstance(context, (dict, list)):
-            try:
-                context = json.dumps(context, default=str)
-            except Exception:
-                context = str(context)
-        level_map = {
-            "debug": logging.DEBUG,
-            "info": logging.INFO,
-            "warning": logging.WARNING,
-            "error": logging.ERROR,
-            "critical": logging.CRITICAL,
-        }
-        log_level = level_map.get(level, logging.INFO)
-        if context:
-            logger.log(log_level, "CLIENT %s | %s | %s", message, context, meta_json)
-        else:
-            logger.log(log_level, "CLIENT %s | %s", message, meta_json)
-        return {"status": "ok"}
-    except Exception as exc:
-        logger.exception("Failed to record client log: %s", exc)
-        raise HTTPException(status_code=400, detail="Invalid log payload")
-
-
-@app.post("/api/open-log")
-def open_log() -> dict[str, str]:
-    if LOG_PATH is None:
-        raise HTTPException(status_code=500, detail="Log file unavailable")
-    try:
-        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        LOG_PATH.touch(exist_ok=True)
-    except OSError as exc:
-        raise HTTPException(status_code=500, detail="Failed to access log file") from exc
-
-    system = platform.system()
-    try:
-        if system == "Windows":
-            os.startfile(str(LOG_PATH))  # type: ignore[attr-defined]
-        elif system == "Darwin":
-            subprocess.run(["open", str(LOG_PATH)], check=False)
-        else:
-            subprocess.run(["xdg-open", str(LOG_PATH)], check=False)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Failed to open log file") from exc
-    return {"status": "ok", "path": str(LOG_PATH)}
+def _get_log_path() -> Path | None:
+    return LOG_PATH
 
 
 def _get_allow_abs_paths() -> bool:
@@ -1846,6 +1754,25 @@ def _get_scan_cache_sec() -> float:
 
 def _get_max_upload_bytes() -> int:
     return MAX_UPLOAD_BYTES
+
+
+register_system_routes(
+    app,
+    SystemRouteDeps(
+        version=ALBIS_VERSION,
+        logger=logger,
+        default_config=DEFAULT_CONFIG,
+        config_path=CONFIG_PATH,
+        settings_payload=_settings_payload,
+        normalize_config=normalize_config,
+        save_config=save_config,
+        apply_runtime_config=_apply_runtime_config,
+        get_log_path=_get_log_path,
+        data_dir=DATA_DIR,
+        get_allow_abs_paths=_get_allow_abs_paths,
+        is_within=_is_within,
+    ),
+)
 
 
 register_file_routes(
@@ -2393,38 +2320,6 @@ def analysis_series_sum_status(job_id: str = Query(..., min_length=1)) -> dict[s
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         return dict(job)
-
-
-@app.post("/api/open-path")
-def open_path(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
-    raw = str(payload.get("path", "")).strip()
-    if not raw:
-        raise HTTPException(status_code=400, detail="Missing path")
-
-    path = Path(raw).expanduser()
-    if not path.is_absolute():
-        path = (DATA_DIR / path).resolve()
-    else:
-        path = path.resolve()
-
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Path does not exist")
-
-    allowed_root = DATA_DIR.resolve()
-    if not ALLOW_ABS_PATHS and not _is_within(path, allowed_root):
-        raise HTTPException(status_code=400, detail="Path is outside data directory")
-
-    system = platform.system()
-    try:
-        if system == "Windows":
-            os.startfile(str(path))  # type: ignore[attr-defined]
-        elif system == "Darwin":
-            subprocess.run(["open", str(path)], check=False)
-        else:
-            subprocess.run(["xdg-open", str(path)], check=False)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Failed to open path") from exc
-    return {"status": "ok", "path": str(path)}
 
 
 @app.get("/api/metadata")
