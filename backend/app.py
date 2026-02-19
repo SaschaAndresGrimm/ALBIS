@@ -28,7 +28,6 @@ import numpy as np
 from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-import shutil
 
 try:
     from .config import (
@@ -77,6 +76,7 @@ try:
         simplon_set_mode as _simplon_set_mode,
     )
     from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+    from .routes.files import FileRouteDeps, register_file_routes
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
         DEFAULT_CONFIG,
@@ -124,6 +124,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         simplon_set_mode as _simplon_set_mode,
     )
     from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+    from routes.files import FileRouteDeps, register_file_routes
 
 CONFIG, CONFIG_PATH = load_config()
 CONFIG_BASE_DIR = CONFIG_PATH.parent
@@ -147,8 +148,6 @@ SCAN_CACHE_SEC = get_float(CONFIG, ("data", "scan_cache_sec"), 2.0)
 MAX_SCAN_DEPTH = get_int(CONFIG, ("data", "max_scan_depth"), -1)
 MAX_UPLOAD_MB = get_int(CONFIG, ("data", "max_upload_mb"), 0)
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
-_files_cache: tuple[float, list[str]] = (0.0, [])
-_folders_cache: tuple[float, list[str]] = (0.0, [])
 LOG_DIR: Path | None = None
 LOG_PATH: Path | None = None
 _series_jobs: dict[str, dict[str, Any]] = {}
@@ -1837,405 +1836,40 @@ def open_log() -> dict[str, str]:
     return {"status": "ok", "path": str(LOG_PATH)}
 
 
-def _prefix_paths(root: Path, items: list[str]) -> list[str]:
-    """Prefix scanned file names with selected subfolder when needed."""
-    root = root.resolve()
-    data_root = DATA_DIR.resolve()
-    try:
-        rel_root = root.relative_to(data_root)
-        prefix = rel_root.as_posix()
-    except ValueError:
-        return [str((root / Path(item)).resolve()) for item in items]
-    if prefix in ("", "."):
-        return items
-    return [f"{prefix}/{item}" for item in items]
+def _get_allow_abs_paths() -> bool:
+    return ALLOW_ABS_PATHS
 
 
-def _display_available() -> bool:
-    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+def _get_scan_cache_sec() -> float:
+    return SCAN_CACHE_SEC
 
 
-def _run_linux_dialog(cmd: list[str]) -> str | None:
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode == 0:
-        picked = result.stdout.strip()
-        return picked or None
-    if result.returncode in {1, 255}:
-        return None
-    stderr = (result.stderr or "").strip() or "Unknown dialog error"
-    raise RuntimeError(stderr)
+def _get_max_upload_bytes() -> int:
+    return MAX_UPLOAD_BYTES
 
 
-def _linux_choose_folder() -> str | None:
-    if not _display_available():
-        raise RuntimeError("No graphical display available")
-    zenity = shutil.which("zenity")
-    if zenity:
-        return _run_linux_dialog(
-            [zenity, "--file-selection", "--directory", "--title=Select folder"]
-        )
-    kdialog = shutil.which("kdialog")
-    if kdialog:
-        return _run_linux_dialog([kdialog, "--getexistingdirectory", str(Path.home())])
-    raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
-
-
-def _linux_choose_file() -> str | None:
-    if not _display_available():
-        raise RuntimeError("No graphical display available")
-    zenity = shutil.which("zenity")
-    if zenity:
-        return _run_linux_dialog(
-            [
-                zenity,
-                "--file-selection",
-                "--title=Select image file",
-                "--file-filter=Image files | *.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf",
-                "--file-filter=All files | *",
-            ]
-        )
-    kdialog = shutil.which("kdialog")
-    if kdialog:
-        return _run_linux_dialog(
-            [
-                kdialog,
-                "--getopenfilename",
-                str(Path.home()),
-                "Image files (*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf) | All files (*)",
-            ]
-        )
-    raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
-
-
-def _tk_choose_folder() -> str | None:
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except Exception as exc:
-        raise RuntimeError("Tk folder picker unavailable") from exc
-
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        root.attributes("-topmost", True)
-    except Exception:
-        pass
-    try:
-        return filedialog.askdirectory(title="Select Auto Load folder") or None
-    finally:
-        root.destroy()
-
-
-def _tk_choose_file() -> str | None:
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except Exception as exc:
-        raise RuntimeError("Tk file picker unavailable") from exc
-
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        root.attributes("-topmost", True)
-    except Exception:
-        pass
-    try:
-        return (
-            filedialog.askopenfilename(
-                title="Select image file",
-                filetypes=[
-                    ("Image files", "*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf"),
-                    ("All files", "*.*"),
-                ],
-            )
-            or None
-        )
-    finally:
-        root.destroy()
-
-
-@app.get("/api/files")
-def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
-    """List discoverable image files from data root or a selected subfolder."""
-    global _files_cache
-    trimmed = (folder or "").strip()
-    use_cache = trimmed in ("", ".", "./")
-    if use_cache:
-        now = time.monotonic()
-        if SCAN_CACHE_SEC > 0 and now - _files_cache[0] < SCAN_CACHE_SEC:
-            return {"files": _files_cache[1]}
-        items = _scan_files(DATA_DIR)
-        _files_cache = (now, items)
-        return {"files": items}
-    root = _resolve_dir(trimmed)
-    items = _scan_files(root)
-    return {"files": _prefix_paths(root, items)}
-
-
-@app.get("/api/series")
-def series(file: str = Query(...)) -> dict[str, object]:
-    path = _resolve_image_file(file)
-    ext = _image_ext_name(path.name)
-    if ext in {".h5", ".hdf5"}:
-        return {"files": [file], "index": 0, "series": False}
-    parts = _split_series_name(path.name)
-    if not parts:
-        return {"files": [file], "index": 0, "series": False}
-    prefix, digits, suffix = parts
-    entries: list[tuple[int, Path]] = []
-    try:
-        with os.scandir(path.parent) as it:
-            for entry in it:
-                if not entry.is_file(follow_symlinks=False):
-                    continue
-                name = entry.name
-                if _image_ext_name(name) != ext:
-                    continue
-                stem = _strip_image_ext(name, ext)
-                match = re.match(rf"{re.escape(prefix)}(\d+){re.escape(suffix)}$", stem)
-                if not match:
-                    continue
-                try:
-                    idx = int(match.group(1))
-                except ValueError:
-                    continue
-                entries.append((idx, Path(entry.path)))
-    except OSError:
-        return {"files": [file], "index": 0, "series": False}
-    if not entries:
-        return {"files": [file], "index": 0, "series": False}
-    entries.sort(key=lambda item: item[0])
-    paths = [p for _, p in entries]
-    is_abs = Path(file).is_absolute()
-    if is_abs:
-        files = [str(p) for p in paths]
-        target = str(path)
-    else:
-        root = DATA_DIR.resolve()
-        files = []
-        target = None
-        for p in paths:
-            try:
-                rel = p.resolve().relative_to(root)
-            except ValueError:
-                continue
-            rel_str = str(rel).replace(os.sep, "/")
-            files.append(rel_str)
-            if p.resolve() == path.resolve():
-                target = rel_str
-        if target is None:
-            target = file
-    try:
-        index = files.index(target)
-    except ValueError:
-        index = 0
-    return {"files": files, "index": index, "series": len(files) > 1}
-
-
-@app.get("/api/folders")
-def folders() -> dict[str, list[str]]:
-    global _folders_cache
-    now = time.monotonic()
-    if SCAN_CACHE_SEC > 0 and now - _folders_cache[0] < SCAN_CACHE_SEC:
-        return {"folders": _folders_cache[1]}
-    items = _scan_folders(DATA_DIR)
-    _folders_cache = (now, items)
-    return {"folders": items}
-
-
-@app.get("/api/choose-folder")
-def choose_folder() -> Response:
-    if not ALLOW_ABS_PATHS:
-        raise HTTPException(status_code=403, detail="Absolute paths are disabled")
-    system = platform.system()
-    logger.debug("Folder picker requested (os=%s)", system)
-    if system == "Darwin":
-        script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
-        try:
-            result = subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as exc:
-            stderr = (exc.stderr or "").lower()
-            if "user canceled" in stderr:
-                return Response(status_code=204)
-            raise HTTPException(status_code=500, detail="Folder picker failed") from exc
-        path = result.stdout.strip()
-        if not path:
-            return Response(status_code=204)
-        return JSONResponse({"path": path})
-
-    try:
-        if system == "Linux":
-            try:
-                path = _linux_choose_folder()
-            except RuntimeError:
-                path = _tk_choose_folder()
-        else:
-            path = _tk_choose_folder()
-    except RuntimeError as exc:
-        logger.warning("Folder picker failed (os=%s): %s", system, exc)
-        raise HTTPException(status_code=500, detail=f"Folder picker unavailable: {exc}") from exc
-
-    if not path:
-        return Response(status_code=204)
-    logger.info("Folder picker selected: %s", path)
-    return JSONResponse({"path": path})
-
-
-@app.get("/api/choose-file")
-def choose_file() -> Response:
-    if not ALLOW_ABS_PATHS:
-        raise HTTPException(status_code=403, detail="Absolute paths are disabled")
-    system = platform.system()
-    logger.debug("File picker requested (os=%s)", system)
-    if system == "Darwin":
-        script = 'POSIX path of (choose file with prompt "Select image file")'
-        try:
-            result = subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as exc:
-            stderr = (exc.stderr or "").lower()
-            if "user canceled" in stderr:
-                return Response(status_code=204)
-            raise HTTPException(status_code=500, detail="File picker failed") from exc
-        path = result.stdout.strip()
-        if not path:
-            return Response(status_code=204)
-    else:
-        try:
-            if system == "Linux":
-                try:
-                    path = _linux_choose_file()
-                except RuntimeError:
-                    path = _tk_choose_file()
-            else:
-                path = _tk_choose_file()
-        except RuntimeError as exc:
-            logger.warning("File picker failed (os=%s): %s", system, exc)
-            raise HTTPException(status_code=500, detail=f"File picker unavailable: {exc}") from exc
-
-        if not path:
-            return Response(status_code=204)
-    picked = Path(path).expanduser().resolve()
-    if _image_ext_name(picked.name) not in AUTOLOAD_EXTS:
-        raise HTTPException(status_code=400, detail="Unsupported file type")
-    if not picked.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-    logger.info("File picker selected: %s", picked)
-    return JSONResponse({"path": str(picked)})
-
-
-@app.get("/api/browse")
-def browse(path: str | None = Query(None)) -> dict[str, Any]:
-    """List folders and image files in a directory for web-based file browser.
-
-    Returns:
-        - folders: list of subdirectory names
-        - files: list of image file names with relative paths
-        - currentPath: the resolved directory path (relative to DATA_DIR if allowed)
-        - root: the root DATA_DIR path
-        - canGoUp: whether we can navigate to parent directory
-    """
-    try:
-        target_dir = _resolve_dir(path)
-    except HTTPException as exc:
-        if exc.status_code == 404:
-            target_dir = DATA_DIR.resolve()
-        else:
-            raise
-
-    # Get folders in current directory
-    dirs: set[str] = set()
-    try:
-        with os.scandir(target_dir) as it:
-            for entry in it:
-                if entry.name.startswith("."):
-                    continue
-                try:
-                    if entry.is_dir(follow_symlinks=False):
-                        dirs.add(entry.name)
-                except OSError:
-                    continue
-    except OSError:
-        pass
-
-    # Get HDF5 files in current directory (non-recursive)
-    files: set[str] = set()
-    try:
-        with os.scandir(target_dir) as it:
-            for entry in it:
-                if entry.name.startswith("."):
-                    continue
-                try:
-                    if entry.is_file(follow_symlinks=False):
-                        ext = _image_ext_name(entry.name)
-                        if ext in AUTOLOAD_EXTS:
-                            files.add(entry.name)
-                except OSError:
-                    continue
-    except OSError:
-        pass
-
-    # Compute relative path display
-    data_root = DATA_DIR.resolve()
-    try:
-        rel_path = target_dir.relative_to(data_root)
-        current_path_display = rel_path.as_posix() if rel_path != Path(".") else ""
-    except ValueError:
-        # Outside DATA_DIR, show absolute if allowed
-        current_path_display = str(target_dir) if ALLOW_ABS_PATHS else ""
-
-    # Check if we can go up
-    can_go_up = target_dir.resolve() != data_root.resolve()
-
-    return {
-        "folders": sorted(dirs),
-        "files": sorted(files),
-        "currentPath": current_path_display,
-        "root": str(data_root),
-        "canGoUp": can_go_up,
-        "allowAbsolutePaths": ALLOW_ABS_PATHS,
-    }
-
-
-@app.get("/api/autoload/latest")
-def autoload_latest(
-    folder: str | None = Query(None),
-    exts: str | None = Query(None),
-    pattern: str | None = Query(None),
-) -> Response:
-    root = _resolve_dir(folder)
-    allowed = _parse_ext_filter(exts)
-    latest = _latest_image_file(root, allowed, pattern)
-    if not latest:
-        logger.debug("Autoload scan: no file found (folder=%s pattern=%s)", root, pattern or "")
-        return Response(status_code=204)
-    try:
-        rel = latest.resolve().relative_to(DATA_DIR.resolve()).as_posix()
-        absolute = False
-        file_label = rel
-    except ValueError:
-        if not ALLOW_ABS_PATHS:
-            raise HTTPException(status_code=400, detail="Invalid file location")
-        absolute = True
-        file_label = str(latest.resolve())
-    logger.debug("Autoload scan: latest=%s absolute=%s", file_label, absolute)
-    return JSONResponse(
-        {
-            "file": file_label,
-            "ext": _image_ext_name(latest.name),
-            "mtime": latest.stat().st_mtime,
-            "absolute": absolute,
-        }
-    )
+register_file_routes(
+    app,
+    FileRouteDeps(
+        data_dir=DATA_DIR,
+        autoload_exts=AUTOLOAD_EXTS,
+        logger=logger,
+        get_allow_abs_paths=_get_allow_abs_paths,
+        get_scan_cache_sec=_get_scan_cache_sec,
+        get_max_upload_bytes=_get_max_upload_bytes,
+        resolve_dir=_resolve_dir,
+        resolve_image_file=_resolve_image_file,
+        is_within=_is_within,
+        parse_ext_filter=_parse_ext_filter,
+        latest_image_file=_latest_image_file,
+        safe_rel_path=_safe_rel_path,
+        scan_files=_scan_files,
+        scan_folders=_scan_folders,
+        image_ext_name=_image_ext_name,
+        split_series_name=_split_series_name,
+        strip_image_ext=_strip_image_ext,
+    ),
+)
 
 
 @app.get("/api/image")
@@ -2496,48 +2130,6 @@ def remote_frame_meta(
             "extra": meta.get("extra") or {},
         }
     )
-
-
-@app.post("/api/upload")
-async def upload(file: UploadFile = File(...), folder: str | None = Query(None)) -> dict[str, str]:
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Missing filename")
-    safe_path = _safe_rel_path(Path(file.filename).name)
-    safe = safe_path.as_posix()
-    ext = _image_ext_name(safe)
-    if ext not in AUTOLOAD_EXTS:
-        raise HTTPException(status_code=400, detail="Unsupported file type")
-    root = _resolve_dir(folder) if folder else DATA_DIR.resolve()
-    dest = (root / safe).resolve()
-    if not _is_within(dest, root):
-        raise HTTPException(status_code=400, detail="Invalid file name")
-    logger.info("Upload start: %s -> %s", safe, dest)
-    written = 0
-    chunk_size = 1024 * 1024 * 4
-    try:
-        with dest.open("wb") as fh:
-            while True:
-                chunk = file.file.read(chunk_size)
-                if not chunk:
-                    break
-                written += len(chunk)
-                if MAX_UPLOAD_BYTES and written > MAX_UPLOAD_BYTES:
-                    raise HTTPException(status_code=413, detail="Upload too large")
-                fh.write(chunk)
-    except HTTPException:
-        try:
-            if dest.exists():
-                dest.unlink()
-        except OSError:
-            pass
-        raise
-    logger.info("Upload complete: %s (%d bytes)", dest, written)
-    try:
-        resolved_rel = dest.relative_to(DATA_DIR.resolve()).as_posix()
-        open_path = resolved_rel
-    except ValueError:
-        open_path = str(dest)
-    return {"filename": safe, "path": open_path}
 
 
 def _get_h5py() -> Any:
