@@ -14,7 +14,6 @@ import re
 import sys
 import threading
 import time
-import uuid
 from pathlib import Path
 from typing import Any
 
@@ -22,8 +21,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import tempfile
 import numpy as np
-from fastapi import Body, FastAPI, HTTPException, Query, Request
-from fastapi.responses import Response
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 
 try:
@@ -73,6 +71,8 @@ try:
         simplon_set_mode as _simplon_set_mode,
     )
     from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+    from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
+    from .routes.frames import FrameRouteDeps, register_frame_routes
     from .routes.files import FileRouteDeps, register_file_routes
     from .routes.system import SystemRouteDeps, register_system_routes
     from .routes.stream import StreamRouteDeps, register_stream_routes
@@ -123,6 +123,8 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         simplon_set_mode as _simplon_set_mode,
     )
     from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+    from routes.analysis import AnalysisRouteDeps, register_analysis_routes
+    from routes.frames import FrameRouteDeps, register_frame_routes
     from routes.files import FileRouteDeps, register_file_routes
     from routes.system import SystemRouteDeps, register_system_routes
     from routes.stream import StreamRouteDeps, register_stream_routes
@@ -1849,376 +1851,39 @@ register_hdf5_routes(
     ),
 )
 
-
-@app.get("/api/analysis/params")
-def analysis_params(
-    file: str = Query(..., min_length=1),
-    dataset: str | None = Query(None),
-) -> dict[str, Any]:
-    _ensure_hdf5_stack()
-    file_path = _resolve_file(file)
-    distance_val, distance_unit = None, None
-    pixel_x_val, pixel_x_unit = None, None
-    pixel_y_val, pixel_y_unit = None, None
-    energy_val, energy_unit = None, None
-    wavelength_val, wavelength_unit = None, None
-    center_x_val, center_x_unit = None, None
-    center_y_val, center_y_unit = None, None
-    shape = None
-
-    with h5py.File(file_path, "r") as h5:
-        if dataset:
-            try:
-                view, extra_files = _resolve_dataset_view(h5, file_path, dataset)
-                try:
-                    shape = tuple(int(x) for x in view["shape"])
-                finally:
-                    for handle in extra_files:
-                        handle.close()
-            except Exception:
-                shape = None
-
-        distance_val, distance_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/detector_distance",
-                "/entry/instrument/detector/distance",
-                "/entry/instrument/detector/detectorSpecific/detector_distance",
-            ],
-        )
-        pixel_x_val, pixel_x_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/x_pixel_size",
-                "/entry/instrument/detector/detectorSpecific/x_pixel_size",
-                "/entry/instrument/detector/pixel_size",
-            ],
-        )
-        pixel_y_val, pixel_y_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/y_pixel_size",
-                "/entry/instrument/detector/detectorSpecific/y_pixel_size",
-                "/entry/instrument/detector/pixel_size",
-            ],
-        )
-        energy_val, energy_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/beam/incident_energy",
-                "/entry/instrument/beam/energy",
-                "/entry/instrument/beam/photon_energy",
-                "/entry/instrument/source/energy",
-            ],
-        )
-        wavelength_val, wavelength_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/beam/incident_wavelength",
-                "/entry/instrument/beam/wavelength",
-                "/entry/instrument/beam/photon_wavelength",
-            ],
-        )
-        center_x_val, center_x_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/beam_center_x",
-                "/entry/instrument/detector/beam_center_x_mm",
-                "/entry/instrument/detector/detectorSpecific/beam_center_x",
-            ],
-        )
-        center_y_val, center_y_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/beam_center_y",
-                "/entry/instrument/detector/beam_center_y_mm",
-                "/entry/instrument/detector/detectorSpecific/beam_center_y",
-            ],
-        )
-
-    distance_mm = _to_mm(distance_val, distance_unit) if distance_val is not None else None
-
-    pixel_size_um = None
-    if pixel_x_val is not None:
-        pixel_size_um = _to_um(pixel_x_val, pixel_x_unit)
-    if pixel_y_val is not None:
-        pixel_y_um = _to_um(pixel_y_val, pixel_y_unit)
-        pixel_size_um = (
-            (pixel_size_um + pixel_y_um) / 2 if pixel_size_um is not None else pixel_y_um
-        )
-
-    energy_ev = None
-    if energy_val is not None:
-        energy_ev = _to_ev(energy_val, energy_unit)
-    elif wavelength_val is not None:
-        energy_ev = _wavelength_to_ev(wavelength_val, wavelength_unit)
-
-    center_x_px = None
-    center_y_px = None
-    if center_x_val is not None:
-        unit = _norm_unit(center_x_unit)
-        if unit in {"mm", "m", "cm", "um", "nm"}:
-            if pixel_size_um:
-                center_x_px = _to_mm(center_x_val, center_x_unit) / (pixel_size_um / 1000)
-        else:
-            center_x_px = center_x_val
-    if center_y_val is not None:
-        unit = _norm_unit(center_y_unit)
-        if unit in {"mm", "m", "cm", "um", "nm"}:
-            if pixel_size_um:
-                center_y_px = _to_mm(center_y_val, center_y_unit) / (pixel_size_um / 1000)
-        else:
-            center_y_px = center_y_val
-
-    return {
-        "distance_mm": distance_mm,
-        "pixel_size_um": pixel_size_um,
-        "energy_ev": energy_ev,
-        "center_x_px": center_x_px,
-        "center_y_px": center_y_px,
-        "shape": shape,
-    }
+register_analysis_routes(
+    app,
+    AnalysisRouteDeps(
+        ensure_hdf5_stack=_ensure_hdf5_stack,
+        get_h5py=_get_h5py,
+        resolve_file=_resolve_file,
+        resolve_dataset_view=_resolve_dataset_view,
+        read_scalar=_read_scalar,
+        to_mm=_to_mm,
+        to_um=_to_um,
+        to_ev=_to_ev,
+        wavelength_to_ev=_wavelength_to_ev,
+        norm_unit=_norm_unit,
+        read_threshold_energies=_read_threshold_energies,
+        run_series_summing_job=_run_series_summing_job,
+        series_jobs=_series_jobs,
+        series_jobs_lock=_series_jobs_lock,
+    ),
+)
 
 
-@app.post("/api/analysis/series-sum/start")
-def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    """Start asynchronous series summing and return pollable job metadata."""
-    file = str(payload.get("file", "")).strip()
-    dataset = str(payload.get("dataset", "")).strip()
-    mode = str(payload.get("mode", "all")).strip().lower()
-    step = int(payload.get("step", 10) or 10)
-    operation = str(payload.get("operation", "sum")).strip().lower()
-    normalize_frame = payload.get("normalize_frame")
-    normalize_frame = (
-        int(normalize_frame)
-        if normalize_frame is not None and str(normalize_frame).strip() != ""
-        else None
-    )
-    range_start = payload.get("range_start")
-    range_end = payload.get("range_end")
-    range_start = (
-        int(range_start) if range_start is not None and str(range_start).strip() != "" else None
-    )
-    range_end = int(range_end) if range_end is not None and str(range_end).strip() != "" else None
-    output_path = payload.get("output_path")
-    output_format = str(payload.get("format", "hdf5")).strip().lower()
-    apply_mask = bool(payload.get("apply_mask", True))
-
-    if not file:
-        raise HTTPException(status_code=400, detail="Missing file")
-    ext = _image_ext_name(Path(file).name)
-    if ext in {".h5", ".hdf5"} and not dataset:
-        raise HTTPException(status_code=400, detail="Missing dataset")
-    if mode not in {"all", "step", "nth", "range"}:
-        raise HTTPException(status_code=400, detail="Invalid mode")
-    if operation not in {"sum", "mean", "median"}:
-        raise HTTPException(status_code=400, detail="Invalid operation")
-    if output_format not in {"hdf5", "h5", "tiff", "tif"}:
-        raise HTTPException(status_code=400, detail="Invalid format")
-    if step < 1:
-        raise HTTPException(status_code=400, detail="Step must be >= 1")
-    if range_start is not None and range_start < 1:
-        raise HTTPException(status_code=400, detail="Range start must be >= 1")
-    if range_end is not None and range_end < 1:
-        raise HTTPException(status_code=400, detail="Range end must be >= 1")
-    if range_start is not None and range_end is not None and range_start > range_end:
-        raise HTTPException(status_code=400, detail="Range start must be <= range end")
-    if normalize_frame is not None and normalize_frame < 1:
-        raise HTTPException(status_code=400, detail="Normalize frame must be >= 1")
-
-    job_id = uuid.uuid4().hex
-    job_data = {
-        "id": job_id,
-        "status": "queued",
-        "progress": 0.0,
-        "message": "Queued",
-        "created_at": time.time(),
-        "updated_at": time.time(),
-        "outputs": [],
-        "error": None,
-        "config": {
-            "file": file,
-            "dataset": dataset,
-            "mode": mode,
-            "step": step,
-            "operation": operation,
-            "normalize_frame": normalize_frame,
-            "range_start": range_start,
-            "range_end": range_end,
-            "format": output_format,
-            "apply_mask": apply_mask,
-            "output_path": output_path,
-        },
-    }
-    with _series_jobs_lock:
-        _series_jobs[job_id] = job_data
-        # keep memory bounded
-        done_jobs = [
-            jid for jid, info in _series_jobs.items() if info.get("status") in {"done", "error"}
-        ]
-        if len(done_jobs) > 200:
-            done_jobs.sort(key=lambda jid: float(_series_jobs[jid].get("updated_at", 0.0)))
-            for old_id in done_jobs[: len(done_jobs) - 200]:
-                _series_jobs.pop(old_id, None)
-
-    worker = threading.Thread(
-        target=_run_series_summing_job,
-        kwargs={
-            "job_id": job_id,
-            "file": file,
-            "dataset": dataset,
-            "mode": mode,
-            "step": step,
-            "operation": operation,
-            "normalize_frame": normalize_frame,
-            "range_start": range_start,
-            "range_end": range_end,
-            "output_path": str(output_path or ""),
-            "output_format": output_format,
-            "apply_mask": apply_mask,
-        },
-        daemon=True,
-    )
-    worker.start()
-    return {"job_id": job_id, "status": "queued"}
-
-
-@app.get("/api/analysis/series-sum/status")
-def analysis_series_sum_status(job_id: str = Query(..., min_length=1)) -> dict[str, Any]:
-    with _series_jobs_lock:
-        job = _series_jobs.get(job_id)
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
-        return dict(job)
-
-
-@app.get("/api/metadata")
-def metadata(
-    file: str = Query(..., min_length=1), dataset: str = Query(..., min_length=1)
-) -> dict[str, Any]:
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    with h5py.File(path, "r") as h5:
-        try:
-            view, extra_files = _resolve_dataset_view(h5, path, dataset)
-            try:
-                shape = tuple(int(x) for x in view["shape"])
-                response = {
-                    "path": dataset,
-                    "shape": shape,
-                    "dtype": str(view["dtype"]),
-                    "ndim": int(view["ndim"]),
-                    "chunks": view["dataset"].chunks if view["kind"] == "dataset" else None,
-                    "maxshape": view["dataset"].maxshape if view["kind"] == "dataset" else None,
-                    "linked_stack": view["kind"] == "linked_stack",
-                }
-                if int(view["ndim"]) == 4:
-                    response["threshold_energies"] = _read_threshold_energies(h5, shape[1])
-                return response
-            finally:
-                for handle in extra_files:
-                    handle.close()
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Dataset not found")
-
-
-@app.get("/api/frame")
-def frame(
-    file: str = Query(..., min_length=1),
-    dataset: str = Query(..., min_length=1),
-    index: int = Query(0, ge=0),
-    threshold: int = Query(0, ge=0),
-) -> Response:
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    with h5py.File(path, "r") as h5:
-        try:
-            view, extra_files = _resolve_dataset_view(h5, path, dataset)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Dataset not found")
-        try:
-            frame_data = _extract_frame(view, index=index, threshold=threshold)
-        finally:
-            for handle in extra_files:
-                handle.close()
-
-        arr = np.asarray(frame_data)
-        if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
-            arr = arr.byteswap().newbyteorder("<")
-
-        data = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-            "X-Frame": str(index),
-        }
-        return Response(content=data, media_type="application/octet-stream", headers=headers)
-
-
-@app.get("/api/preview")
-def preview(
-    file: str = Query(..., min_length=1),
-    dataset: str = Query(..., min_length=1),
-    index: int = Query(0, ge=0),
-    max_size: int = Query(1024, ge=64, le=4096),
-    threshold: int = Query(0, ge=0),
-) -> Response:
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    with h5py.File(path, "r") as h5:
-        try:
-            view, extra_files = _resolve_dataset_view(h5, path, dataset)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Dataset not found")
-        try:
-            frame_data = _extract_frame(view, index=index, threshold=threshold)
-        finally:
-            for handle in extra_files:
-                handle.close()
-
-        arr = np.asarray(frame_data)
-        height, width = arr.shape
-        scale = max(height / max_size, width / max_size, 1.0)
-        if scale > 1:
-            step = int(np.ceil(scale))
-            arr = arr[::step, ::step]
-
-        if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
-            arr = arr.byteswap().newbyteorder("<")
-
-        data = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-            "X-Frame": str(index),
-            "X-Preview": "1",
-        }
-        return Response(content=data, media_type="application/octet-stream", headers=headers)
-
-
-@app.get("/api/mask")
-def mask(
-    file: str = Query(..., min_length=1),
-    threshold: int | None = Query(None, ge=0),
-) -> Response:
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    with h5py.File(path, "r") as h5:
-        dset = _find_pixel_mask(h5, threshold=threshold)
-        if not dset:
-            raise HTTPException(status_code=404, detail="Pixel mask not found")
-        if dset.ndim != 2:
-            raise HTTPException(status_code=400, detail="Pixel mask has invalid shape")
-        arr = np.asarray(dset)
-        if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
-            arr = arr.byteswap().newbyteorder("<")
-        data = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-            "X-Mask-Path": dset.name,
-        }
-        return Response(content=data, media_type="application/octet-stream", headers=headers)
+register_frame_routes(
+    app,
+    FrameRouteDeps(
+        ensure_hdf5_stack=_ensure_hdf5_stack,
+        get_h5py=_get_h5py,
+        resolve_file=_resolve_file,
+        resolve_dataset_view=_resolve_dataset_view,
+        extract_frame=_extract_frame,
+        find_pixel_mask=_find_pixel_mask,
+        read_threshold_energies=_read_threshold_energies,
+    ),
+)
 
 
 def _resource_root() -> Path:
