@@ -1,7 +1,7 @@
 {
   "name": "albis-web-view",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "ALBIS frontend lint tooling",
   "scripts": {
     "lint:js": "eslint frontend/app.js"
