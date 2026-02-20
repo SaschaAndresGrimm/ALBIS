@@ -10,6 +10,10 @@
  * Use `docs/CODE_MAP.md` for a quick function-level navigation guide.
  */
 
+import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
+import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
+import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
+
 const fileSelect = document.getElementById("file-select");
 const datasetSelect = document.getElementById("dataset-select");
 const fileField = document.getElementById("file-field");
@@ -299,140 +303,10 @@ let touchGestureMid = null;
 let touchDragActive = false;
 let touchDragStart = null;
 
-const roiState = {
-  // Active ROI geometry and derived plot configuration.
-  mode: "none",
-  start: null,
-  end: null,
-  active: false,
-  log: false,
-  stats: null,
-  lineProfile: null,
-  xProjection: null,
-  yProjection: null,
-  innerRadius: 0,
-  outerRadius: 0,
-  plotLimits: {
-    autoscale: true,
-    line: { xMin: null, xMax: null, yMin: null, yMax: null },
-    x: { xMin: null, xMax: null, yMin: null, yMax: null },
-    y: { xMin: null, xMax: null, yMin: null, yMax: null },
-  },
-};
-const analysisState = {
-  // Analysis overlays rendered on top of the current frame.
-  ringsEnabled: false,
-  distanceMm: null,
-  pixelSizeUm: null,
-  energyEv: null,
-  centerX: null,
-  centerY: null,
-  rings: [1, 2, 4, 8],
-  ringCount: 3,
-  peaksEnabled: false,
-  peakCount: 25,
-  peaks: [],
-  externalPeakSets: [],
-  selectedPeaks: [],
-  peakSelectionAnchor: null,
-};
+const roiState = createRoiState();
+const analysisState = createAnalysisState();
+const state = createAppState();
 
-const state = {
-  // Global view/data state used across renderer + UI controls.
-  file: "",
-  dataset: "",
-  shape: [],
-  dtype: "",
-  frameCount: 1,
-  frameIndex: 0,
-  thresholdCount: 1,
-  thresholdIndex: 0,
-  thresholdEnergies: [],
-  seriesFiles: [],
-  seriesLabel: "",
-  imageHeaderFile: "",
-  imageHeaderText: "",
-  backendAlive: false,
-  backendVersion: "0.5",
-  toolHintsEnabled: false,
-  isLoading: false,
-  pendingFrame: null,
-  playing: false,
-  playTimer: null,
-  fps: 1,
-  step: 1,
-  panelWidth: 640,
-  panelCollapsed: true,
-  autoScale: true,
-  min: 0,
-  max: 1,
-  colormap: "albulaHdr",
-  invert: false,
-  zoom: 1,
-  renderOffsetX: 0,
-  renderOffsetY: 0,
-  dataRaw: null,
-  dataFloat: null,
-  histogram: null,
-  stats: null,
-  histLogX: true,
-  histLogY: true,
-  pixelLabels: true,
-  maskRaw: null,
-  maskShape: null,
-  maskAvailable: false,
-  maskEnabled: false,
-  maskAuto: true,
-  maskFile: "",
-  maskPath: "",
-  hasFrame: false,
-  width: 0,
-  height: 0,
-  globalStats: null,
-  autoload: {
-    mode: "file",
-    watchEnabled: false,
-    dir: "",
-    interval: 1000,
-    types: {
-      hdf5: true,
-      tiff: true,
-      cbf: true,
-      edf: true,
-    },
-    pattern: "",
-    simplonUrl: "",
-    simplonVersion: "1.8.0",
-    simplonTimeout: 500,
-    simplonEnable: true,
-    remoteSourceId: "default",
-    remoteSeq: 0,
-    remoteMeta: {},
-    autoStart: false,
-    running: false,
-    timer: null,
-    busy: false,
-    lastFile: "",
-    lastMtime: 0,
-    lastUpdate: 0,
-    lastPoll: 0,
-    lastMonitorSig: "",
-    lastRemoteSeq: 0,
-    lastMaskAttempt: 0,
-    simplonMeta: {},
-  },
-  seriesSum: {
-    running: false,
-    jobId: "",
-    progress: 0,
-    message: "Idle",
-    outputs: [],
-    openTarget: "",
-    autoOutputPath: "",
-  },
-};
-
-const API = "/api";
 const clientLogBuffer = [];
 let clientLogTimer = null;
 let clientLogSending = false;
@@ -3978,23 +3852,19 @@ function flashDataSection() {
 
 function setPanelTab(tabId, persist = true) {
   panelTabState = tabId;
-  panelTabs.forEach((tab) => {
-    tab.classList.toggle("is-active", tab.dataset.panelTab === tabId);
+  applyPanelTab({
+    tabId,
+    panelTabs,
+    panelTabContents,
+    persist,
+    persistKey: "albis.panelTab",
+    onAfterChange: () => {
+      scheduleOverview();
+      scheduleHistogram();
+      schedulePixelOverlay();
+      scheduleResolutionOverlay();
+    },
   });
-  panelTabContents.forEach((panel) => {
-    panel.classList.toggle("is-active", panel.dataset.panelTab === tabId);
-  });
-  if (persist) {
-    try {
-      localStorage.setItem("albis.panelTab", tabId);
-    } catch {
-      // ignore storage errors
-    }
-  }
-  scheduleOverview();
-  scheduleHistogram();
-  schedulePixelOverlay();
-  scheduleResolutionOverlay();
 }
 
 function setDataControlsForHdf5() {
@@ -5300,29 +5170,6 @@ function handleNavShortcut(event) {
     default:
       return false;
   }
-}
-
-async function fetchJSON(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Request failed: ${res.status}`);
-  }
-  return res.json();
-}
-
-async function fetchJSONWithInit(url, init) {
-  const res = await fetch(url, init);
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const body = await res.json();
-      detail = body?.detail ? `: ${body.detail}` : "";
-    } catch {
-      // ignore parse errors
-    }
-    throw new Error(`Request failed: ${res.status}${detail}`);
-  }
-  return res.json();
 }
 
 async function findExistingFile(filename, folder = "") {
@@ -9000,15 +8847,11 @@ sectionToggles.forEach((btn) => {
     setSectionState(section, true, false);
   }
 });
-try {
-  const storedPanelTab = localStorage.getItem("albis.panelTab");
-  if (storedPanelTab) {
-    const normalized = storedPanelTab === "tools" ? "view" : storedPanelTab;
-    setPanelTab(normalized, false);
-  } else {
-    setPanelTab("view", false);
-  }
-} catch {
+const storedPanelTab = loadStoredPanelTab("albis.panelTab");
+if (storedPanelTab) {
+  const normalized = storedPanelTab === "tools" ? "view" : storedPanelTab;
+  setPanelTab(normalized, false);
+} else {
   setPanelTab("view", false);
 }
 
