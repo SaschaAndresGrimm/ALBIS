@@ -37,10 +37,15 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "ui": {
         "tool_hints": False,
+        "pixel_label_min_cell_px": 18,
+        "pixel_label_max_labels": 4000,
+        "pixel_label_format": "auto",
+        "pixel_label_show_during_drag": False,
     },
 }
 
 _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+_PIXEL_LABEL_FORMATS = {"auto", "integer", "scientific"}
 
 
 def _repo_root() -> Path:
@@ -121,6 +126,13 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     log_level = get_str(merged, ("logging", "level"), "INFO").upper()
     if log_level not in _LOG_LEVELS:
         log_level = "INFO"
+    pixel_label_min_cell_px = max(8, min(64, get_int(merged, ("ui", "pixel_label_min_cell_px"), 18)))
+    pixel_label_max_labels = max(100, min(100000, get_int(merged, ("ui", "pixel_label_max_labels"), 4000)))
+    pixel_label_format = (
+        get_str(merged, ("ui", "pixel_label_format"), "auto").strip().lower() or "auto"
+    )
+    if pixel_label_format not in _PIXEL_LABEL_FORMATS:
+        pixel_label_format = "auto"
 
     return {
         "server": {
@@ -145,6 +157,12 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         },
         "ui": {
             "tool_hints": get_bool(merged, ("ui", "tool_hints"), False),
+            "pixel_label_min_cell_px": pixel_label_min_cell_px,
+            "pixel_label_max_labels": pixel_label_max_labels,
+            "pixel_label_format": pixel_label_format,
+            "pixel_label_show_during_drag": get_bool(
+                merged, ("ui", "pixel_label_show_during_drag"), False
+            ),
         },
     }
 

@@ -1,7 +1,7 @@
 {
   "server": {
     "host": "0.0.0.0",
-    "port": 8000,
+    "port": 8080,
     "reload": true
   },
   "launcher": {
@@ -20,6 +20,10 @@
     "dir": "./logs"
   },
   "ui": {
-    "tool_hints": true
+    "tool_hints": false,
+    "pixel_label_min_cell_px": 18,
+    "pixel_label_max_labels": 4000,
+    "pixel_label_format": "auto",
+    "pixel_label_show_during_drag": false
   }
 }

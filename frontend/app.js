@@ -245,6 +245,10 @@ const settingsServerReload = document.getElementById("settings-server-reload");
 const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
 const settingsOpenBrowser = document.getElementById("settings-open-browser");
 const settingsToolHints = document.getElementById("settings-tool-hints");
+const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
+const settingsPixelLabelMax = document.getElementById("settings-pixel-label-max");
+const settingsPixelLabelFormat = document.getElementById("settings-pixel-label-format");
+const settingsPixelLabelDrag = document.getElementById("settings-pixel-label-drag");
 const settingsDataRoot = document.getElementById("settings-data-root");
 const settingsAllowAbs = document.getElementById("settings-allow-abs");
 const settingsScanCache = document.getElementById("settings-scan-cache");
@@ -288,6 +292,8 @@ let roiEditSnapshot = null;
 let zoomWheelTarget = null;
 let zoomWheelRaf = null;
 let zoomWheelPivot = null;
+let pixelOverlayInteractionUntil = 0;
+let pixelOverlayResumeTimer = null;
 let resolutionOverlayScheduled = false;
 let peakOverlayScheduled = false;
 let peakFinderScheduled = false;
@@ -388,7 +394,10 @@ window.addEventListener("unhandledrejection", (event) => {
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 50;
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
-const PIXEL_LABEL_MIN_ZOOM = 15;
+const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = 18;
+const PIXEL_LABEL_DEFAULT_MAX_LABELS = 4000;
+const PIXEL_LABEL_DENSE_ZOOM_PX = 24;
+const PIXEL_LABEL_INTERACTION_IDLE_MS = 140;
 const PEAK_BAD_MASK_BITS = 0x1f;
 
 function getMinZoom() {
@@ -404,7 +413,6 @@ function getMinZoom() {
   }
   return Math.min(1, scale);
 }
-const PIXEL_LABEL_MAX_CELLS = 25000;
 
 function setStatus(text) {
   statusEl.textContent = text;
@@ -438,6 +446,39 @@ function formatValue(value) {
     return value.toFixed(3);
   }
   return Math.round(value).toString();
+}
+
+function compactCount(value) {
+  if (!Number.isFinite(value)) return "";
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(abs >= 1e10 ? 0 : 1).replace(/\.0$/, "")}G`;
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(abs >= 1e7 ? 0 : 1).replace(/\.0$/, "")}M`;
+  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1).replace(/\.0$/, "")}k`;
+  return `${Math.round(value)}`;
+}
+
+function formatPixelLabelValue(value, cellPx, mode = "auto") {
+  if (!Number.isFinite(value)) return "";
+  const pixelWidth = Math.max(8, Number(cellPx) || 0);
+  const maxChars = Math.max(1, Math.floor((pixelWidth - 2) / 5.6));
+  const rounded = Math.round(value);
+  const scientific = Number(value).toExponential(1).replace("+", "");
+  const compact = compactCount(rounded);
+  const integer = String(rounded);
+
+  if (mode === "integer") {
+    return integer.length <= maxChars ? integer : compact.length <= maxChars ? compact : "";
+  }
+  if (mode === "scientific") {
+    return scientific.length <= maxChars ? scientific : "";
+  }
+
+  // Auto: prioritize readability and fit.
+  if (integer.length <= maxChars) return integer;
+  if (compact.length <= maxChars) return compact;
+  if (scientific.length <= maxChars) return scientific;
+  return "";
 }
 
 function formatStat(value) {
@@ -1477,6 +1518,25 @@ function clearPixelOverlay() {
   pixelCtx.clearRect(0, 0, pixelOverlay.width, pixelOverlay.height);
 }
 
+function isPixelOverlayInteractionActive() {
+  if (state.pixelLabelShowDuringDrag) return false;
+  return Date.now() < pixelOverlayInteractionUntil;
+}
+
+function deferPixelOverlayRedraw(delayMs = PIXEL_LABEL_INTERACTION_IDLE_MS) {
+  if (state.pixelLabelShowDuringDrag) return;
+  const delay = Math.max(0, Number(delayMs) || PIXEL_LABEL_INTERACTION_IDLE_MS);
+  pixelOverlayInteractionUntil = Date.now() + delay;
+  clearPixelOverlay();
+  if (pixelOverlayResumeTimer) {
+    window.clearTimeout(pixelOverlayResumeTimer);
+  }
+  pixelOverlayResumeTimer = window.setTimeout(() => {
+    pixelOverlayResumeTimer = null;
+    schedulePixelOverlay();
+  }, delay + 10);
+}
+
 function drawPixelOverlay() {
   if (!pixelOverlay || !pixelCtx || !canvasWrap) return;
   const width = canvasWrap.clientWidth || 1;
@@ -1492,8 +1552,10 @@ function drawPixelOverlay() {
   pixelCtx.clearRect(0, 0, width, height);
 
   if (!state.hasFrame || !state.dataRaw || !state.pixelLabels) return;
+  if (isPixelOverlayInteractionActive()) return;
   const zoom = state.zoom || 1;
-  if (zoom < PIXEL_LABEL_MIN_ZOOM) return;
+  const minCellPx = Math.max(8, Number(state.pixelLabelMinCellPx) || PIXEL_LABEL_DEFAULT_MIN_CELL_PX);
+  if (zoom < minCellPx) return;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
   const maskReady =
@@ -1517,25 +1579,39 @@ function drawPixelOverlay() {
   endX = Math.min(state.width, endX);
   endY = Math.min(state.height, endY);
 
-  const cells = Math.max(0, endX - startX) * Math.max(0, endY - startY);
-  if (cells === 0 || cells > PIXEL_LABEL_MAX_CELLS) {
+  const cols = Math.max(0, endX - startX);
+  const rows = Math.max(0, endY - startY);
+  const cells = cols * rows;
+  if (cells === 0) {
     return;
   }
+  const maxLabels = Math.max(
+    100,
+    Number.isFinite(state.pixelLabelMaxLabels) ? Number(state.pixelLabelMaxLabels) : PIXEL_LABEL_DEFAULT_MAX_LABELS
+  );
+  const denseZoomPx = Math.max(minCellPx + 4, PIXEL_LABEL_DENSE_ZOOM_PX);
+  const denseLabelBudget = Math.max(maxLabels, 16000);
+  let stride = 1;
+  const canRenderDense = zoom >= denseZoomPx && cells <= denseLabelBudget;
+  if (!canRenderDense && cells > maxLabels) {
+    stride = Math.max(1, Math.ceil(Math.sqrt(cells / maxLabels)));
+  }
 
-  const fontSize = Math.min(14, Math.max(6, zoom * 0.9));
+  const fontSize = Math.min(13, Math.max(7, zoom * 0.52));
   pixelCtx.font = `${fontSize}px "Lucida Grande", "Helvetica Neue", Arial, sans-serif`;
   pixelCtx.textAlign = "center";
   pixelCtx.textBaseline = "middle";
   pixelCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
   pixelCtx.shadowColor = "rgba(0, 0, 0, 0.7)";
   pixelCtx.shadowBlur = 2;
+  const formatMode = String(state.pixelLabelFormat || "auto").toLowerCase();
 
-  for (let y = startY; y < endY; y += 1) {
+  for (let y = startY; y < endY; y += stride) {
     const rowOffset = y * state.width;
     const screenY = (y - viewY) * zoom + zoom / 2 + offsetY;
-    for (let x = startX; x < endX; x += 1) {
+    for (let x = startX; x < endX; x += stride) {
       const idx = rowOffset + x;
-      let text = formatValue(state.dataRaw[idx]);
+      let text = formatPixelLabelValue(state.dataRaw[idx], zoom, formatMode);
       if (maskReady && state.maskRaw) {
         const maskValue = state.maskRaw[idx];
         if (maskValue & 1) {
@@ -1544,6 +1620,7 @@ function drawPixelOverlay() {
           text = "D";
         }
       }
+      if (!text) continue;
       const screenX = (x - viewX) * zoom + zoom / 2 + offsetX;
       pixelCtx.fillText(text, screenX, screenY);
     }
@@ -2683,6 +2760,10 @@ function scheduleHistogram() {
 }
 
 function schedulePixelOverlay() {
+  if (isPixelOverlayInteractionActive()) {
+    deferPixelOverlayRedraw();
+    return;
+  }
   if (pixelOverlayScheduled) return;
   pixelOverlayScheduled = true;
   window.requestAnimationFrame(() => {
@@ -3072,6 +3153,7 @@ function startTouchGesture(touches) {
   touchGestureMid = touchMidpoint(t0, t1);
   touchGestureActive = true;
   canvasWrap.classList.add("is-panning");
+  deferPixelOverlayRedraw();
 }
 
 function stopTouchGesture() {
@@ -3090,6 +3172,7 @@ function updateTouchGesture(touches) {
   const nextDistance = touchDistance(t0, t1);
   const nextMid = touchMidpoint(t0, t1);
   if (!Number.isFinite(nextDistance) || nextDistance <= 0) return;
+  deferPixelOverlayRedraw();
 
   if (!touchGestureActive || !touchGestureMid || touchGestureDistance <= 0) {
     touchGestureDistance = nextDistance;
@@ -3129,6 +3212,7 @@ function stepWheelZoom() {
   if (Math.abs(target - next) < 0.001) {
     zoomWheelTarget = null;
     zoomWheelRaf = null;
+    schedulePixelOverlay();
     return;
   }
   zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
@@ -4029,9 +4113,8 @@ async function fetchSettingsConfig() {
   try {
     const payload = await fetchJSON(`${API}/settings`);
     const config = payload?.config || {};
-    if (typeof config?.ui?.tool_hints !== "undefined") {
-      setToolHintsEnabled(Boolean(config.ui.tool_hints));
-    }
+    applyUiSettings(config?.ui);
+    schedulePixelOverlay();
   } catch (err) {
     console.warn("Settings fetch failed", err);
   }
@@ -4858,6 +4941,28 @@ function setSettingsMessage(text, isError = false) {
   settingsMessage.classList.toggle("is-error", Boolean(isError));
 }
 
+function applyUiSettings(uiConfig) {
+  const cfg = uiConfig && typeof uiConfig === "object" ? uiConfig : {};
+  if (typeof cfg.tool_hints !== "undefined") {
+    setToolHintsEnabled(Boolean(cfg.tool_hints));
+  }
+  const minCell = Number(cfg.pixel_label_min_cell_px);
+  if (Number.isFinite(minCell)) {
+    state.pixelLabelMinCellPx = Math.max(8, Math.min(64, Math.round(minCell)));
+  }
+  const maxLabels = Number(cfg.pixel_label_max_labels);
+  if (Number.isFinite(maxLabels)) {
+    state.pixelLabelMaxLabels = Math.max(100, Math.min(100000, Math.round(maxLabels)));
+  }
+  const format = String(cfg.pixel_label_format || "").toLowerCase();
+  if (format === "auto" || format === "integer" || format === "scientific") {
+    state.pixelLabelFormat = format;
+  }
+  if (typeof cfg.pixel_label_show_during_drag !== "undefined") {
+    state.pixelLabelShowDuringDrag = Boolean(cfg.pixel_label_show_during_drag);
+  }
+}
+
 function closeSettingsModal() {
   settingsModal?.classList.remove("is-open");
   setSettingsMessage("");
@@ -4874,6 +4979,24 @@ function fillSettingsForm(config, configPath = "") {
   if (settingsToolHints) {
     const toolHints = config?.ui?.tool_hints;
     settingsToolHints.checked = Boolean(toolHints ?? state.toolHintsEnabled);
+  }
+  if (settingsPixelLabelMin) {
+    settingsPixelLabelMin.value = String(
+      Number(config?.ui?.pixel_label_min_cell_px ?? state.pixelLabelMinCellPx ?? PIXEL_LABEL_DEFAULT_MIN_CELL_PX)
+    );
+  }
+  if (settingsPixelLabelMax) {
+    settingsPixelLabelMax.value = String(
+      Number(config?.ui?.pixel_label_max_labels ?? state.pixelLabelMaxLabels ?? PIXEL_LABEL_DEFAULT_MAX_LABELS)
+    );
+  }
+  if (settingsPixelLabelFormat) {
+    settingsPixelLabelFormat.value = String(config?.ui?.pixel_label_format ?? state.pixelLabelFormat ?? "auto");
+  }
+  if (settingsPixelLabelDrag) {
+    settingsPixelLabelDrag.checked = Boolean(
+      config?.ui?.pixel_label_show_during_drag ?? state.pixelLabelShowDuringDrag
+    );
   }
 
   settingsDataRoot.value = String(config?.data?.root ?? "");
@@ -4924,6 +5047,22 @@ function collectSettingsForm() {
     },
     ui: {
       tool_hints: Boolean(settingsToolHints?.checked),
+      pixel_label_min_cell_px: Math.max(
+        8,
+        Math.min(64, asInt(settingsPixelLabelMin?.value, state.pixelLabelMinCellPx || PIXEL_LABEL_DEFAULT_MIN_CELL_PX))
+      ),
+      pixel_label_max_labels: Math.max(
+        100,
+        Math.min(
+          100000,
+          asInt(settingsPixelLabelMax?.value, state.pixelLabelMaxLabels || PIXEL_LABEL_DEFAULT_MAX_LABELS)
+        )
+      ),
+      pixel_label_format: (() => {
+        const format = String(settingsPixelLabelFormat?.value || "auto").toLowerCase();
+        return format === "integer" || format === "scientific" ? format : "auto";
+      })(),
+      pixel_label_show_during_drag: Boolean(settingsPixelLabelDrag?.checked),
     },
   };
 }
@@ -4941,10 +5080,8 @@ async function openSettingsModal() {
     const payload = await res.json();
     const config = payload?.config || {};
     fillSettingsForm(config, payload?.path || "");
+    applyUiSettings(config?.ui);
     if (settingsToolHints) settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
-    if (typeof config?.ui?.tool_hints !== "undefined") {
-      setToolHintsEnabled(Boolean(config.ui.tool_hints));
-    }
     setSettingsMessage("Edit values and click Save or Save & Close.");
   } catch (err) {
     console.error(err);
@@ -4971,9 +5108,8 @@ async function saveSettingsFromModal(closeAfter = false) {
       throw new Error(data?.detail || `Save failed (${res.status})`);
     }
     fillSettingsForm(data?.config || config, data?.path || "");
-    if (settingsToolHints) {
-      setToolHintsEnabled(settingsToolHints.checked);
-    }
+    applyUiSettings(data?.config?.ui || config?.ui);
+    schedulePixelOverlay();
     setSettingsMessage("Saved. Restart ALBIS to apply all settings.");
     setStatus("Settings saved. Restart ALBIS to apply all settings.");
     if (closeAfter) {
@@ -8885,6 +9021,7 @@ canvasWrap.addEventListener(
   "wheel",
   (event) => {
     event.preventDefault();
+    deferPixelOverlayRedraw();
     const delta = normalizeWheelDelta(event);
     if (!delta) return;
     const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
@@ -8900,6 +9037,7 @@ canvasWrap.addEventListener(
 );
 
 canvasWrap.addEventListener("scroll", () => {
+  deferPixelOverlayRedraw();
   scheduleOverview();
   schedulePixelOverlay();
   scheduleRoiOverlay();
@@ -8947,6 +9085,7 @@ canvasWrap.addEventListener(
     
     if (event.touches.length === 1 && touchDragActive && touchDragStart) {
       // Single touch drag: pan the canvas
+      deferPixelOverlayRedraw();
       const touch = event.touches[0];
       const dx = touch.clientX - touchDragStart.x;
       const dy = touch.clientY - touchDragStart.y;
@@ -9033,6 +9172,7 @@ canvasWrap.addEventListener("pointerdown", (event) => {
     scrollTop: canvasWrap.scrollTop,
   };
   canvasWrap.classList.add("is-panning");
+  deferPixelOverlayRedraw();
   canvasWrap.setPointerCapture(event.pointerId);
   event.preventDefault();
 });
@@ -9057,6 +9197,7 @@ canvasWrap.addEventListener("pointermove", (event) => {
   const dy = event.clientY - panStart.y;
   canvasWrap.scrollLeft = panStart.scrollLeft - dx;
   canvasWrap.scrollTop = panStart.scrollTop - dy;
+  deferPixelOverlayRedraw();
   scheduleOverview();
 });
 

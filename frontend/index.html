@@ -727,6 +727,26 @@
               <input id="settings-tool-hints" type="checkbox" />
               Enable tool hints
             </label>
+            <label class="field">
+              <span>Pixel label min cell (px)</span>
+              <input id="settings-pixel-label-min" type="number" min="8" max="64" step="1" />
+            </label>
+            <label class="field">
+              <span>Pixel labels max/frame</span>
+              <input id="settings-pixel-label-max" type="number" min="100" max="100000" step="100" />
+            </label>
+            <label class="field">
+              <span>Pixel label format</span>
+              <select id="settings-pixel-label-format">
+                <option value="auto">Auto</option>
+                <option value="integer">Integer</option>
+                <option value="scientific">Scientific</option>
+              </select>
+            </label>
+            <label class="checkbox settings-check">
+              <input id="settings-pixel-label-drag" type="checkbox" />
+              Draw labels during pan/zoom
+            </label>
             <label class="field settings-span-2">
               <span>Data root</span>
               <input id="settings-data-root" type="text" />
