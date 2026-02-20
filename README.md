@@ -17,6 +17,11 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 - Security: see `SECURITY.md`.
 - Developer architecture docs: `docs/ARCHITECTURE.md` and `docs/CODE_MAP.md`.
 
+Community workflow files:
+- Issue forms: `.github/ISSUE_TEMPLATE/`
+- PR template: `.github/PULL_REQUEST_TEMPLATE.md`
+- Code owners: `CODEOWNERS`
+
 ![ALBIS screenshot](frontend/ressources/albis.png)
 
 ## Highlights
@@ -47,6 +52,33 @@ Open `http://localhost:8000` (ALBIS).
   Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
 - Standalone mode:
   Use packaged artifacts created by the build scripts (no Python installation required on target machines).
+
+## Developer Quality Gates
+
+Install dev tooling:
+
+```bash
+pip install -r requirements-dev.txt
+npm ci
+```
+
+Run local checks:
+
+```bash
+ruff check backend tests scripts test_scripts
+black --check tests scripts test_scripts
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
+npm run lint:js
+```
+
+Optional pre-commit hooks:
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
+CI runs on GitHub Actions across Linux/macOS/Windows (Python 3.10) plus frontend lint.
 
 ## Remote Stream API
 
@@ -203,8 +235,8 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ```
 
 This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-macos-<os_version>-v0.6-<commit>.zip`
-- `ALBIS-macos-<os_version>-v0.6-<commit>.dmg`
+- `ALBIS-macos-<os_version>-v0.7-<commit>.zip`
+- `ALBIS-macos-<os_version>-v0.7-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
@@ -216,7 +248,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 ```
 
 Example output:
-- `ALBIS-linux-<distro_version>-v0.6-<commit>.tar.gz`
+- `ALBIS-linux-<distro_version>-v0.7-<commit>.tar.gz`
 
 ### Build (Windows)
 
@@ -225,9 +257,9 @@ Example output:
 ```
 
 Example output:
-- `ALBIS-windows-<os_version>-v0.6-<commit>.zip`
+- `ALBIS-windows-<os_version>-v0.7-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-windows-<os_version>-v0.6-<commit>.exe`
+  `ALBIS-Setup-windows-<os_version>-v0.7-<commit>.exe`
 
 ### Output
 
@@ -248,8 +280,9 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 ## Roadmap — Next Milestones
 - [x] v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
 - [x] v0.6 server-client remote stream API (frame + metadata ingest)
-- [ ] v0.7 ~~detector control and status~~ will be an independent project - disentangle control and view. facelift moved to v 0.7
-- [ ] v0.8 refactor, tests, documentation
+- [x] v0.7 refactoring baseline (modular frontend + stronger tests)
+- [ ] v0.8 UI facelift and control/view disentangling
+- [ ] v0.9 refactor, tests, documentation
 - ...? =)
 
 ## Notes

@@ -36,7 +36,9 @@ def read_commit() -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Emit ALBIS version metadata for build scripts.")
     parser.add_argument("--json", action="store_true", help="Print JSON output")
-    parser.add_argument("--shell", action="store_true", help="Print shell-compatible KEY=VALUE lines")
+    parser.add_argument(
+        "--shell", action="store_true", help="Print shell-compatible KEY=VALUE lines"
+    )
     args = parser.parse_args()
 
     version = read_version()
