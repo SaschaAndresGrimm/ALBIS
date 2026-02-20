@@ -34,6 +34,7 @@ const autoScaleToggle = document.getElementById("auto-scale");
 const minInput = document.getElementById("min-input");
 const maxInput = document.getElementById("max-input");
 const maskToggle = document.getElementById("mask-toggle");
+const maskSaturatedToggle = document.getElementById("mask-saturated-toggle");
 const zoomRange = document.getElementById("zoom-range");
 const zoomValue = document.getElementById("zoom-value");
 const resetView = document.getElementById("reset-view");
@@ -582,6 +583,7 @@ function applyHelpMap() {
     "reset-view": "Fit image to window",
     "pixel-label-toggle": "Show pixel values at high zoom",
     "mask-toggle": "Apply pixel mask (if available)",
+    "mask-saturated-toggle": "Mask saturated pixels (datatype max)",
     "colormap-select": "Choose color map",
     "invert-color": "Invert color map",
     "rings-toggle": "Show resolution rings",
@@ -1333,9 +1335,15 @@ function alignMaskToFrame() {
 }
 
 function updateMaskUI() {
-  if (!maskToggle) return;
-  maskToggle.disabled = !state.maskAvailable;
-  maskToggle.checked = Boolean(state.maskEnabled && state.maskAvailable);
+  if (maskToggle) {
+    maskToggle.disabled = !state.maskAvailable;
+    maskToggle.checked = Boolean(state.maskEnabled && state.maskAvailable);
+  }
+  if (maskSaturatedToggle) {
+    const hasSatMax = Number.isFinite(getActiveSaturationMax());
+    maskSaturatedToggle.disabled = !hasSatMax;
+    maskSaturatedToggle.checked = Boolean(state.maskSaturatedEnabled && hasSatMax);
+  }
 }
 
 function syncMaskAvailability(forceEnable = false) {
@@ -1492,6 +1500,7 @@ function updateCursorOverlay(event) {
   }
   const idx = iy * state.width + ix;
   let labelValue = formatValue(state.dataRaw[idx]);
+  const satMax = getActiveSaturationMax();
   if (
     state.maskEnabled &&
     state.maskAvailable &&
@@ -1506,6 +1515,9 @@ function updateCursorOverlay(event) {
     } else if (maskValue & 0x1e) {
       labelValue = "D";
     }
+  }
+  if (state.maskSaturatedEnabled && labelValue !== "G" && labelValue !== "D" && isSaturatedValue(state.dataRaw[idx], satMax)) {
+    labelValue = "S";
   }
   const resolutionValue = getResolutionAtPixel(ix, iy);
   const resolutionText = Number.isFinite(resolutionValue) ? `  d ${resolutionValue.toFixed(1)} Å` : "";
@@ -1556,6 +1568,7 @@ function drawPixelOverlay() {
   const zoom = state.zoom || 1;
   const minCellPx = Math.max(8, Number(state.pixelLabelMinCellPx) || PIXEL_LABEL_DEFAULT_MIN_CELL_PX);
   if (zoom < minCellPx) return;
+  const satMax = getActiveSaturationMax();
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
   const maskReady =
@@ -1619,6 +1632,9 @@ function drawPixelOverlay() {
         } else if (maskValue & 0x1e) {
           text = "D";
         }
+      }
+      if (state.maskSaturatedEnabled && text !== "G" && text !== "D" && isSaturatedValue(state.dataRaw[idx], satMax)) {
+        text = "S";
       }
       if (!text) continue;
       const screenX = (x - viewX) * zoom + zoom / 2 + offsetX;
@@ -1926,6 +1942,14 @@ function detectPeaks(maxPeaks) {
     state.maskShape[0] === height &&
     state.maskShape[1] === width;
   const mask = maskReady ? state.maskRaw : null;
+  const satMaskEnabled = Boolean(state.maskSaturatedEnabled);
+  const satMax = getActiveSaturationMax();
+
+  const shouldIgnorePixel = (index) => {
+    if (mask && (mask[index] & PEAK_BAD_MASK_BITS)) return true;
+    if (satMaskEnabled && isSaturatedValue(data[index], satMax)) return true;
+    return false;
+  };
 
   const candidates = [];
   const candidateLimit = Math.min(4096, Math.max(128, maxPeaks * 24));
@@ -1959,18 +1983,16 @@ function detectPeaks(maxPeaks) {
       const idx = row + x;
       const v = data[idx];
       if (!Number.isFinite(v) || v <= 0) continue;
-      if (mask && (mask[idx] & PEAK_BAD_MASK_BITS)) continue;
+      if (shouldIgnorePixel(idx)) continue;
 
       let left = data[idx - 1];
       let right = data[idx + 1];
       let up = data[idx - width];
       let down = data[idx + width];
-      if (mask) {
-        if (mask[idx - 1] & PEAK_BAD_MASK_BITS) left = Number.NEGATIVE_INFINITY;
-        if (mask[idx + 1] & PEAK_BAD_MASK_BITS) right = Number.NEGATIVE_INFINITY;
-        if (mask[idx - width] & PEAK_BAD_MASK_BITS) up = Number.NEGATIVE_INFINITY;
-        if (mask[idx + width] & PEAK_BAD_MASK_BITS) down = Number.NEGATIVE_INFINITY;
-      }
+      if (shouldIgnorePixel(idx - 1)) left = Number.NEGATIVE_INFINITY;
+      if (shouldIgnorePixel(idx + 1)) right = Number.NEGATIVE_INFINITY;
+      if (shouldIgnorePixel(idx - width)) up = Number.NEGATIVE_INFINITY;
+      if (shouldIgnorePixel(idx + width)) down = Number.NEGATIVE_INFINITY;
       if (!Number.isFinite(left)) left = Number.NEGATIVE_INFINITY;
       if (!Number.isFinite(right)) right = Number.NEGATIVE_INFINITY;
       if (!Number.isFinite(up)) up = Number.NEGATIVE_INFINITY;
@@ -5491,6 +5513,8 @@ function createWebGLRenderer() {
     uniform sampler2D u_lut;
     uniform sampler2D u_mask;
     uniform float u_mask_enabled;
+    uniform float u_mask_saturated_enabled;
+    uniform float u_sat_max;
     uniform float u_min;
     uniform float u_max;
     uniform float u_invert;
@@ -5505,10 +5529,16 @@ function createWebGLRenderer() {
         if (maskClass > 0.75) {
           outColor = vec4(0.0, 0.0, 0.0, 1.0);
           return;
+        } else if (maskClass > 0.55) {
+          outColor = vec4(0.0, 0.62, 0.08, 1.0);
+          return;
         } else if (maskClass > 0.25) {
           outColor = vec4(0.1, 0.2, 0.47, 1.0);
           return;
         }
+      } else if (u_mask_saturated_enabled > 0.5 && abs(value - u_sat_max) <= max(1e-9, abs(u_sat_max) * 1e-6)) {
+        outColor = vec4(0.0, 0.62, 0.08, 1.0);
+        return;
       }
       float norm = 0.0;
       if (u_hdr > 0.5) {
@@ -5613,6 +5643,8 @@ function createWebGLRenderer() {
     lut: gl.getUniformLocation(program, "u_lut"),
     mask: gl.getUniformLocation(program, "u_mask"),
     maskEnabled: gl.getUniformLocation(program, "u_mask_enabled"),
+    maskSaturatedEnabled: gl.getUniformLocation(program, "u_mask_saturated_enabled"),
+    satMax: gl.getUniformLocation(program, "u_sat_max"),
     min: gl.getUniformLocation(program, "u_min"),
     max: gl.getUniformLocation(program, "u_max"),
     invert: gl.getUniformLocation(program, "u_invert"),
@@ -5624,6 +5656,10 @@ function createWebGLRenderer() {
   let maskTexWidth = 1;
   let maskTexHeight = 1;
   let lastMaskData = null;
+  let lastRawData = null;
+  let lastMaskEnabled = false;
+  let lastMaskSaturatedEnabled = false;
+  let lastSatMax = null;
   let maskClassData = null;
 
   return {
@@ -5641,6 +5677,8 @@ function createWebGLRenderer() {
       maskWidth,
       maskHeight,
       maskEnabled,
+      maskSaturatedEnabled,
+      satMax,
       colormap,
     }) {
       if (!floatData) return;
@@ -5680,25 +5718,33 @@ function createWebGLRenderer() {
       );
       gl.uniform1i(uniforms.lut, 1);
 
-      const useMask = Boolean(
-        maskEnabled &&
-          mask &&
-          maskWidth === width &&
-          maskHeight === height &&
-          mask.length === width * height
-      );
+      const validMask = Boolean(mask && maskWidth === width && maskHeight === height && mask.length === width * height);
+      const useMask = Boolean((maskEnabled && validMask) || (maskSaturatedEnabled && Number.isFinite(satMax)));
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, maskTex);
       gl.uniform1i(uniforms.mask, 2);
       gl.uniform1f(uniforms.maskEnabled, useMask ? 1.0 : 0.0);
-      if (useMask && (mask !== lastMaskData || maskTexWidth !== width || maskTexHeight !== height)) {
+      gl.uniform1f(uniforms.maskSaturatedEnabled, maskSaturatedEnabled && Number.isFinite(satMax) ? 1.0 : 0.0);
+      gl.uniform1f(uniforms.satMax, Number.isFinite(satMax) ? satMax : 0.0);
+      const shouldUploadMask =
+        useMask &&
+        (mask !== lastMaskData ||
+          floatData !== lastRawData ||
+          maskTexWidth !== width ||
+          maskTexHeight !== height ||
+          maskEnabled !== lastMaskEnabled ||
+          maskSaturatedEnabled !== lastMaskSaturatedEnabled ||
+          satMax !== lastSatMax);
+      if (shouldUploadMask) {
         if (!maskClassData || maskClassData.length !== width * height) {
           maskClassData = new Uint8Array(width * height);
         }
-        for (let i = 0; i < mask.length; i += 1) {
-          const bits = mask[i];
+        for (let i = 0; i < width * height; i += 1) {
+          const bits = validMask ? mask[i] : 0;
           if (bits & 1) {
             maskClassData[i] = 255;
+          } else if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(floatData[i], satMax)) {
+            maskClassData[i] = 160;
           } else if (bits & 0x1e) {
             maskClassData[i] = 128;
           } else {
@@ -5720,6 +5766,10 @@ function createWebGLRenderer() {
         maskTexWidth = width;
         maskTexHeight = height;
         lastMaskData = mask;
+        lastRawData = floatData;
+        lastMaskEnabled = Boolean(maskEnabled);
+        lastMaskSaturatedEnabled = Boolean(maskSaturatedEnabled);
+        lastSatMax = satMax;
       }
 
       gl.uniform1f(uniforms.min, min);
@@ -5736,7 +5786,7 @@ function createCpuRenderer() {
   const ctx = canvas.getContext("2d");
   return {
     type: "cpu",
-    render({ data, width, height, palette, mask, maskEnabled }) {
+    render({ data, width, height, palette, mask, maskEnabled, maskSaturatedEnabled, satMax }) {
       if (!data) return;
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
@@ -5764,6 +5814,14 @@ function createCpuRenderer() {
             out[j + 3] = 255;
             continue;
           }
+        }
+        if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(v, satMax)) {
+          const j = i * 4;
+          out[j] = 0;
+          out[j + 1] = 158;
+          out[j + 2] = 20;
+          out[j + 3] = 255;
+          continue;
         }
         const norm = mapValueToNorm(v);
         const idx = Math.floor(norm * maxIdx) * 4;
@@ -6299,6 +6357,16 @@ function getSaturationMax(rawMax) {
     }
   }
   return dtypeMax;
+}
+
+function getActiveSaturationMax() {
+  return Number.isFinite(state.stats?.satMax) ? state.stats.satMax : null;
+}
+
+function isSaturatedValue(value, satMax) {
+  if (!Number.isFinite(value) || !Number.isFinite(satMax)) return false;
+  const tolerance = Math.max(1e-9, Math.abs(satMax) * 1e-6);
+  return Math.abs(value - satMax) <= tolerance;
 }
 
 function chooseHistogramBins(count) {
@@ -6997,12 +7065,16 @@ function clearRoi() {
   drawRoiOverlay();
 }
 
-function applyMaskToValue(value, maskValue) {
-  if (!Number.isFinite(maskValue)) return { value, skip: false };
-  if (maskValue & 1) {
-    return { value: 0, skip: false };
+function applyMaskToValue(value, maskValue, satMax = getActiveSaturationMax()) {
+  if (Number.isFinite(maskValue)) {
+    if (maskValue & 1) {
+      return { value: 0, skip: false };
+    }
+    if (maskValue & 0x1e) {
+      return { value: 0, skip: true };
+    }
   }
-  if (maskValue & 0x1e) {
+  if (state.maskSaturatedEnabled && isSaturatedValue(value, satMax)) {
     return { value: 0, skip: true };
   }
   return { value, skip: false };
@@ -7022,6 +7094,7 @@ function sampleValue(ix, iy) {
   if (!state.dataRaw) return null;
   const idx = iy * state.width + ix;
   const raw = state.dataRaw[idx];
+  const satMax = getActiveSaturationMax();
   const hasMask =
     state.maskAvailable &&
     state.maskRaw &&
@@ -7029,11 +7102,9 @@ function sampleValue(ix, iy) {
     state.maskShape[0] === state.height &&
     state.maskShape[1] === state.width;
   const maskValue = hasMask ? state.maskRaw[idx] : null;
-  if (
-    state.maskEnabled &&
-    hasMask
-  ) {
-    const masked = applyMaskToValue(raw, maskValue);
+  const useMasking = (state.maskEnabled && hasMask) || state.maskSaturatedEnabled;
+  if (useMasking) {
+    const masked = applyMaskToValue(raw, maskValue, satMax);
     return { value: masked.value, skip: masked.skip, raw, maskValue };
   }
   return { value: raw, skip: false, raw, maskValue };
@@ -7051,16 +7122,14 @@ function computeGlobalStats() {
   let defectivePixels = 0;
   let saturatedPixels = 0;
   const samples = [];
-  const satMax = state.stats?.satMax ?? null;
+  const satMax = getActiveSaturationMax();
   const hasMask =
     state.maskAvailable &&
     state.maskRaw &&
     state.maskShape &&
     state.maskShape[0] === state.height &&
     state.maskShape[1] === state.width;
-  const useMask =
-    state.maskEnabled &&
-    hasMask;
+  const useMasking = (state.maskEnabled && hasMask) || state.maskSaturatedEnabled;
 
   for (let i = 0; i < state.dataRaw.length; i += 1) {
     let v = state.dataRaw[i];
@@ -7071,12 +7140,12 @@ function computeGlobalStats() {
     } else if (flags.defective) {
       defectivePixels += 1;
     }
-    if (satMax !== null && Number.isFinite(v) && v === satMax && !flags.gap && !flags.defective) {
+    if (satMax !== null && isSaturatedValue(v, satMax) && !flags.gap && !flags.defective) {
       saturatedPixels += 1;
     }
     if (!Number.isFinite(v)) continue;
-    if (useMask) {
-      const masked = applyMaskToValue(v, maskValue);
+    if (useMasking) {
+      const masked = applyMaskToValue(v, maskValue, satMax);
       if (masked.skip) continue;
       v = masked.value;
     }
@@ -7194,8 +7263,7 @@ function accumulateRoiPixelCounters(counters, sampled, satMax) {
   }
   if (
     satMax !== null &&
-    Number.isFinite(sampled.raw) &&
-    sampled.raw === satMax &&
+    isSaturatedValue(sampled.raw, satMax) &&
     !flags.gap &&
     !flags.defective
   ) {
@@ -7300,7 +7368,7 @@ function updateRoiStats() {
   let mean = 0;
   let m2 = 0;
   const statsValues = [];
-  const satMax = state.stats?.satMax ?? null;
+  const satMax = getActiveSaturationMax();
   const pixelCounters = createRoiPixelCounters();
 
   if (roiState.mode === "line") {
@@ -7879,9 +7947,12 @@ function redraw() {
   const maskData = maskReady ? state.maskRaw : null;
   const maskWidth = maskReady ? state.maskShape[1] : 0;
   const maskHeight = maskReady ? state.maskShape[0] : 0;
+  const satMax = getActiveSaturationMax();
+  const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
   if (renderer.type === "webgl") {
     renderer.render({
       floatData: state.dataFloat,
+      rawData: state.dataRaw,
       width: state.width,
       height: state.height,
       min: state.min,
@@ -7893,6 +7964,8 @@ function redraw() {
       maskWidth,
       maskHeight,
       maskEnabled: maskReady,
+      maskSaturatedEnabled,
+      satMax,
     });
   } else {
     renderer.render({
@@ -7904,6 +7977,8 @@ function redraw() {
       palette,
       mask: maskData,
       maskEnabled: maskReady,
+      maskSaturatedEnabled,
+      satMax,
     });
   }
   if (state.histogram) {
@@ -8833,6 +8908,14 @@ roiOuterInput?.addEventListener("change", () => {
 maskToggle?.addEventListener("change", () => {
   state.maskEnabled = maskToggle.checked;
   state.maskAuto = false;
+  updateGlobalStats();
+  redraw();
+  scheduleRoiUpdate();
+  schedulePeakFinder();
+});
+
+maskSaturatedToggle?.addEventListener("change", () => {
+  state.maskSaturatedEnabled = maskSaturatedToggle.checked;
   updateGlobalStats();
   redraw();
   scheduleRoiUpdate();
