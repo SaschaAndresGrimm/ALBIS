@@ -45,7 +45,7 @@ body:
     id: version
     attributes:
       label: ALBIS version / commit
-      placeholder: e.g. v0.6, commit abc1234
+      placeholder: e.g. v0.7, commit abc1234
     validations:
       required: true
   - type: input
@@ -71,4 +71,3 @@ body:
       label: Logs / screenshots
       description: Paste relevant backend/frontend logs and add screenshots if helpful
       render: shell
-

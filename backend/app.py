@@ -7,40 +7,128 @@ execution. It handles path safety, image IO, metadata extraction, analysis
 endpoints, monitor integration, and long-running series jobs.
 """
 
-import base64
-import csv
-import math
 import fnmatch
-import io
-import json
 import os
-import re
-import platform
-import subprocess
-import struct
 import sys
-import threading
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
-import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import logging
 from logging.handlers import RotatingFileHandler
 import tempfile
-import numpy as np
-from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-import shutil
 
 try:
-    from .config import DEFAULT_CONFIG, get_bool, get_float, get_int, get_str, load_config, normalize_config, resolve_path, save_config
+    from .config import (
+        DEFAULT_CONFIG,
+        get_bool,
+        get_float,
+        get_int,
+        get_str,
+        load_config,
+        normalize_config,
+        resolve_path,
+        save_config,
+    )
+    from .image_formats import (
+        _image_ext_name,
+        _pilatus_header_text,
+        _pilatus_meta_from_fabio,
+        _pilatus_meta_from_tiff,
+        _read_tiff_bytes_with_simplon_meta,
+        _read_cbf,
+        _read_cbf_gz,
+        _read_edf,
+        _read_tiff,
+        _resolve_series_files,
+        _split_series_name,
+        _strip_image_ext,
+        _write_tiff,
+    )
+    from .services.remote_stream import (
+        remote_extract_metadata as _remote_extract_metadata,
+        remote_parse_meta as _remote_parse_meta,
+        remote_read_image_bytes as _remote_read_image_bytes,
+        remote_safe_source_id as _remote_safe_source_id,
+        remote_snapshot as _remote_snapshot,
+        remote_store_frame as _remote_store_frame,
+    )
+    from .services.series_ops import (
+        iter_sum_groups as _iter_sum_groups,
+        mask_flag_value as _mask_flag_value,
+        mask_slices as _mask_slices,
+    )
+    from .services.series_summing import SeriesSummingDeps, SeriesSummingService
+    from .services.hdf5_stack import HDF5StackService
+    from .services.simplon import (
+        simplon_base as _simplon_base,
+        simplon_fetch_monitor as _simplon_fetch_monitor,
+        simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
+        simplon_set_mode as _simplon_set_mode,
+    )
+    from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+    from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
+    from .routes.frames import FrameRouteDeps, register_frame_routes
+    from .routes.files import FileRouteDeps, register_file_routes
+    from .routes.system import SystemRouteDeps, register_system_routes
+    from .routes.stream import StreamRouteDeps, register_stream_routes
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from config import DEFAULT_CONFIG, get_bool, get_float, get_int, get_str, load_config, normalize_config, resolve_path, save_config
+    from config import (
+        DEFAULT_CONFIG,
+        get_bool,
+        get_float,
+        get_int,
+        get_str,
+        load_config,
+        normalize_config,
+        resolve_path,
+        save_config,
+    )
+    from image_formats import (
+        _image_ext_name,
+        _pilatus_header_text,
+        _pilatus_meta_from_fabio,
+        _pilatus_meta_from_tiff,
+        _read_tiff_bytes_with_simplon_meta,
+        _read_cbf,
+        _read_cbf_gz,
+        _read_edf,
+        _read_tiff,
+        _resolve_series_files,
+        _split_series_name,
+        _strip_image_ext,
+        _write_tiff,
+    )
+    from services.remote_stream import (
+        remote_extract_metadata as _remote_extract_metadata,
+        remote_parse_meta as _remote_parse_meta,
+        remote_read_image_bytes as _remote_read_image_bytes,
+        remote_safe_source_id as _remote_safe_source_id,
+        remote_snapshot as _remote_snapshot,
+        remote_store_frame as _remote_store_frame,
+    )
+    from services.series_ops import (
+        iter_sum_groups as _iter_sum_groups,
+        mask_flag_value as _mask_flag_value,
+        mask_slices as _mask_slices,
+    )
+    from services.series_summing import SeriesSummingDeps, SeriesSummingService
+    from services.hdf5_stack import HDF5StackService
+    from services.simplon import (
+        simplon_base as _simplon_base,
+        simplon_fetch_monitor as _simplon_fetch_monitor,
+        simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
+        simplon_set_mode as _simplon_set_mode,
+    )
+    from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+    from routes.analysis import AnalysisRouteDeps, register_analysis_routes
+    from routes.frames import FrameRouteDeps, register_frame_routes
+    from routes.files import FileRouteDeps, register_file_routes
+    from routes.system import SystemRouteDeps, register_system_routes
+    from routes.stream import StreamRouteDeps, register_stream_routes
 
 CONFIG, CONFIG_PATH = load_config()
 CONFIG_BASE_DIR = CONFIG_PATH.parent
@@ -54,28 +142,38 @@ else:
     else:
         DATA_DIR = Path(__file__).resolve().parents[1]
 
-ALBIS_VERSION = "0.6.1"
+
+@dataclass
+class RuntimeState:
+    config: dict[str, Any]
+    config_path: Path
+    data_dir: Path
+    allow_abs_paths: bool = True
+    scan_cache_sec: float = 2.0
+    max_scan_depth: int = -1
+    max_upload_mb: int = 0
+    max_upload_bytes: int = 0
+
+    def apply_config(self, payload: dict[str, Any]) -> None:
+        self.config = payload
+        self.allow_abs_paths = get_bool(self.config, ("data", "allow_abs_paths"), True)
+        self.scan_cache_sec = get_float(self.config, ("data", "scan_cache_sec"), 2.0)
+        self.max_scan_depth = get_int(self.config, ("data", "max_scan_depth"), -1)
+        self.max_upload_mb = max(0, get_int(self.config, ("data", "max_upload_mb"), 0))
+        self.max_upload_bytes = self.max_upload_mb * 1024 * 1024 if self.max_upload_mb > 0 else 0
+
+
+runtime_state = RuntimeState(config=CONFIG, config_path=CONFIG_PATH, data_dir=DATA_DIR)
+runtime_state.apply_config(CONFIG)
+
+ALBIS_VERSION = "0.7"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
 AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}
-ALLOW_ABS_PATHS = get_bool(CONFIG, ("data", "allow_abs_paths"), True)
-SCAN_CACHE_SEC = get_float(CONFIG, ("data", "scan_cache_sec"), 2.0)
-MAX_SCAN_DEPTH = get_int(CONFIG, ("data", "max_scan_depth"), -1)
-MAX_UPLOAD_MB = get_int(CONFIG, ("data", "max_upload_mb"), 0)
-MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
-_files_cache: tuple[float, list[str]] = (0.0, [])
-_folders_cache: tuple[float, list[str]] = (0.0, [])
 LOG_DIR: Path | None = None
 LOG_PATH: Path | None = None
-_series_jobs: dict[str, dict[str, Any]] = {}
-_series_jobs_lock = threading.Lock()
-_remote_frames: dict[str, dict[str, Any]] = {}
-_remote_frames_lock = threading.Lock()
-_REMOTE_SOURCES_MAX = 64
 h5py = None
-tifffile = None
-fabio = None
 _hdf5_stack_ready = False
 
 
@@ -93,438 +191,14 @@ def _ensure_hdf5_stack() -> None:
         h5py = _h5py
 
 
-def _ensure_tifffile() -> None:
-    global tifffile
-    if tifffile is None:
-        import tifffile as _tifffile  # type: ignore[import-not-found]
-
-        tifffile = _tifffile
-
-
-_DECTRIS_TIFF_TAG = 0xC7F8
-_TIFF_TYPE_SIZES = {
-    1: 1,  # BYTE
-    2: 1,  # ASCII
-    3: 2,  # SHORT
-    4: 4,  # LONG
-    5: 8,  # RATIONAL
-    7: 1,  # UNDEFINED
-    11: 4,  # FLOAT
-    12: 8,  # DOUBLE
-}
-
-
-def _decode_tiff_values(type_code: int, count: int, data: bytes, byteorder: str) -> Any:
-    if count <= 0:
-        return None
-    fmt_prefix = "<" if byteorder == "little" else ">"
-    if type_code == 2:
-        try:
-            return data.split(b"\x00", 1)[0].decode("ascii", errors="replace")
-        except Exception:
-            return ""
-    if type_code in {1, 7}:
-        if count == 1:
-            return int(data[0]) if data else None
-        return [int(b) for b in data[:count]]
-    if type_code == 3:
-        size = count * 2
-        raw = data[:size].ljust(size, b"\x00")
-        values = struct.unpack(f"{fmt_prefix}{count}H", raw)
-        return values[0] if count == 1 else list(values)
-    if type_code == 4:
-        size = count * 4
-        raw = data[:size].ljust(size, b"\x00")
-        values = struct.unpack(f"{fmt_prefix}{count}I", raw)
-        return values[0] if count == 1 else list(values)
-    if type_code == 11:
-        size = count * 4
-        raw = data[:size].ljust(size, b"\x00")
-        values = struct.unpack(f"{fmt_prefix}{count}f", raw)
-        return values[0] if count == 1 else list(values)
-    if type_code == 12:
-        size = count * 8
-        raw = data[:size].ljust(size, b"\x00")
-        values = struct.unpack(f"{fmt_prefix}{count}d", raw)
-        return values[0] if count == 1 else list(values)
-    return None
-
-
-def _parse_dectris_ifd(
-    raw: bytes, byteorder: str, offset: int = 0, absolute_offsets: bool = False
-) -> dict[int, Any]:
-    if not raw:
-        return {}
-    bo = "little" if byteorder == "<" else "big"
-    if len(raw) < offset + 2:
-        return {}
-    count = int.from_bytes(raw[offset : offset + 2], bo)
-    entry_offset = offset + 2
-    base = 0 if absolute_offsets else offset
-    entries: dict[int, Any] = {}
-    for _ in range(count):
-        if entry_offset + 12 > len(raw):
-            break
-        tag = int.from_bytes(raw[entry_offset : entry_offset + 2], bo)
-        type_code = int.from_bytes(raw[entry_offset + 2 : entry_offset + 4], bo)
-        value_count = int.from_bytes(raw[entry_offset + 4 : entry_offset + 8], bo)
-        value_offset = raw[entry_offset + 8 : entry_offset + 12]
-        entry_offset += 12
-        size = _TIFF_TYPE_SIZES.get(type_code)
-        if not size:
-            continue
-        total = size * value_count
-        if total <= 4:
-            value_bytes = value_offset[:total]
-        else:
-            value_ptr = int.from_bytes(value_offset, bo)
-            if not absolute_offsets:
-                value_ptr = base + value_ptr
-            if value_ptr + total > len(raw):
-                continue
-            value_bytes = raw[value_ptr : value_ptr + total]
-        entries[tag] = _decode_tiff_values(type_code, value_count, value_bytes, bo)
-    return entries
-
-
-def _parse_dectris_tag_value(value: Any, byteorder: str) -> dict[int, Any]:
-    if value is None:
-        return {}
-    if isinstance(value, dict):
-        return {int(k): v for k, v in value.items()}
-    if isinstance(value, np.ndarray):
-        value = value.tobytes()
-    if isinstance(value, memoryview):
-        value = value.tobytes()
-    if isinstance(value, (bytes, bytearray)):
-        return _parse_dectris_ifd(bytes(value), byteorder)
-    if isinstance(value, (list, tuple)):
-        if value and all(isinstance(item, tuple) and len(item) == 2 for item in value):
-            try:
-                return {int(k): v for k, v in value}
-            except Exception:
-                return {}
-    return {}
-
-
-def _first_number(value: Any) -> float | None:
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, (list, tuple)):
-        if not value:
-            return None
-        value = value[0]
-    if isinstance(value, np.generic):
-        value = value.item()
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_int(value: Any) -> int | None:
-    number = _first_number(value)
-    if number is None:
-        return None
-    try:
-        return int(number)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_str(value: Any) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, bytes):
-        try:
-            return value.decode("ascii", errors="replace").strip("\x00")
-        except Exception:
-            return None
-    if isinstance(value, (list, tuple)):
-        if not value:
-            return None
-        return _as_str(value[0])
-    return str(value)
-
-
-def _as_pair(value: Any) -> tuple[float, float] | None:
-    if isinstance(value, np.ndarray):
-        value = value.tolist()
-    if isinstance(value, (list, tuple)) and len(value) >= 2:
-        first = _first_number(value[0])
-        second = _first_number(value[1])
-        if first is None or second is None:
-            return None
-        return float(first), float(second)
-    return None
-
-
-def _distance_to_mm(value: float | None) -> float | None:
-    if value is None or not math.isfinite(value):
-        return None
-    if value <= 10:
-        return value * 1000.0
-    return value
-
-
-def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, Any]:
-    meta: dict[str, Any] = {}
-    try:
-        page = tiff.pages[0]
-    except Exception:
-        return meta
-    tag = page.tags.get(_DECTRIS_TIFF_TAG)
-    if tag is None:
-        return meta
-    entries: dict[int, Any] = {}
-    if isinstance(tag.value, int):
-        if raw is None:
-            try:
-                raw = tiff.filehandle.read()
-            except Exception:
-                raw = None
-        if raw:
-            entries = _parse_dectris_ifd(raw, tiff.byteorder, tag.value, absolute_offsets=True)
-    if not entries:
-        entries = _parse_dectris_tag_value(tag.value, tiff.byteorder)
-    if not entries:
-        return meta
-    series_number = _as_int(entries.get(0x0002))
-    image_number = _as_int(entries.get(0x0003))
-    image_datetime = _as_str(entries.get(0x0004))
-    threshold_energy = _first_number(entries.get(0x0006))
-    incident_energy = _first_number(entries.get(0x0009))
-    incident_wavelength = _first_number(entries.get(0x000A))
-    beam_center = _as_pair(entries.get(0x0016))
-    detector_distance = _first_number(entries.get(0x0017))
-    energy_ev = None
-    if incident_energy is not None and math.isfinite(incident_energy):
-        energy_ev = float(incident_energy)
-    elif incident_wavelength is not None and incident_wavelength > 0:
-        energy_ev = 12398.4193 / float(incident_wavelength)
-    meta.update(
-        {
-            "series_number": series_number,
-            "image_number": image_number,
-            "image_datetime": image_datetime,
-            "threshold_energy_ev": threshold_energy,
-            "energy_ev": energy_ev,
-            "wavelength_a": incident_wavelength,
-            "distance_mm": _distance_to_mm(detector_distance),
-            "beam_center_px": beam_center,
-        }
-    )
-    return meta
-
-
-_PILATUS_NUM_RE = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
-
-
-def _parse_unit_value(text: str) -> tuple[float | None, str]:
-    if not text:
-        return None, ""
-    match = _PILATUS_NUM_RE.search(text)
-    if not match:
-        return None, ""
-    value = float(match.group(0))
-    unit_match = re.search(rf"{re.escape(match.group(0))}\s*([A-Za-zµÅ]+)", text)
-    unit = unit_match.group(1) if unit_match else ""
-    return value, unit
-
-
-def _convert_length(value: float | None, unit: str, target: str) -> float | None:
-    if value is None or not math.isfinite(value):
-        return None
-    unit_l = unit.lower()
-    if target == "um":
-        if unit_l in {"m", "meter", "metre"}:
-            return value * 1e6
-        if unit_l == "mm":
-            return value * 1e3
-        if unit_l in {"um", "µm"}:
-            return value
-        if unit_l == "nm":
-            return value * 1e-3
-        return value
-    if target == "mm":
-        if unit_l in {"m", "meter", "metre"}:
-            return value * 1e3
-        if unit_l == "cm":
-            return value * 10.0
-        if unit_l == "mm":
-            return value
-        if unit_l in {"um", "µm"}:
-            return value * 1e-3
-        return value
-    if target == "a":
-        if unit_l in {"a", "å", "angstrom", "ang"}:
-            return value
-        if unit_l == "nm":
-            return value * 10.0
-        if unit_l in {"m", "meter", "metre"}:
-            return value * 1e10
-        if unit_l == "mm":
-            return value * 1e7
-        return value
-    return value
-
-
-def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
-    meta: dict[str, Any] = {}
-    if not text:
-        return meta
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        if line.startswith("#"):
-            line = line[1:].strip()
-        lower = line.lower()
-        if "pixel_size" in lower and "pixel_size_um" not in meta:
-            value, unit = _parse_unit_value(line)
-            pixel_um = _convert_length(value, unit, "um")
-            if pixel_um is not None:
-                meta["pixel_size_um"] = float(pixel_um)
-            continue
-        if "beam_xy" in lower or "beam center" in lower or "beam_center" in lower:
-            nums = _PILATUS_NUM_RE.findall(line)
-            if len(nums) >= 2:
-                meta["beam_center_px"] = (float(nums[0]), float(nums[1]))
-            continue
-        if "detector_distance" in lower or "detector distance" in lower:
-            value, unit = _parse_unit_value(line)
-            distance_mm = _convert_length(value, unit, "mm")
-            if distance_mm is not None:
-                meta["distance_mm"] = float(distance_mm)
-            continue
-        if "wavelength" in lower and "wavelength_a" not in meta:
-            value, unit = _parse_unit_value(line)
-            wavelength_a = _convert_length(value, unit, "a")
-            if wavelength_a is not None:
-                meta["wavelength_a"] = float(wavelength_a)
-            continue
-        if "energy" in lower and "threshold" not in lower and "energy_ev" not in meta:
-            value, unit = _parse_unit_value(line)
-            if value is None:
-                continue
-            unit_l = unit.lower()
-            if unit_l in {"kev"}:
-                meta["energy_ev"] = float(value * 1000.0)
-            elif unit_l in {"ev"}:
-                meta["energy_ev"] = float(value)
-            continue
-    if "energy_ev" not in meta:
-        wavelength = meta.get("wavelength_a")
-        if wavelength and wavelength > 0:
-            meta["energy_ev"] = float(12398.4193 / wavelength)
-    return meta
-
-
-def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
-    image = _open_fabio_image(path)
-    if image is None:
-        return {}
-    header = getattr(image, "header", {}) or {}
-    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
-    if isinstance(text, bytes):
-        text = text.decode("utf-8", errors="ignore")
-    if not text:
-        try:
-            text = "\n".join(f"{k} {v}" for k, v in header.items())
-        except Exception:
-            text = ""
-    meta = _parse_pilatus_header_text(text)
-    return meta
-
-
-def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
-    _ensure_tifffile()
-    try:
-        with tifffile.TiffFile(path) as tiff:
-            desc = ""
-            try:
-                desc = tiff.pages[0].description or ""
-            except Exception:
-                desc = ""
-    except Exception:
-        desc = ""
-    meta = _parse_pilatus_header_text(desc)
-    if meta:
-        return meta
-    try:
-        return _pilatus_meta_from_fabio(path)
-    except Exception:
-        return {}
-
-
-def _open_fabio_image(path: Path):
-    _ensure_fabio()
-    try:
-        return fabio.open(str(path))
-    except Exception:
-        if path.suffix.lower() != ".gz":
-            return None
-        try:
-            import gzip
-            import tempfile
-
-            with gzip.open(path, "rb") as gz:
-                data = gz.read()
-            with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
-                tmp.write(data)
-                tmp_path = Path(tmp.name)
-            try:
-                return fabio.open(str(tmp_path))
-            finally:
-                try:
-                    tmp_path.unlink(missing_ok=True)
-                except Exception:
-                    pass
-        except Exception:
-            return None
-
-
-def _pilatus_header_text(path: Path) -> str:
-    ext = _image_ext_name(path.name)
-    if ext in {".tif", ".tiff"}:
-        _ensure_tifffile()
-        try:
-            with tifffile.TiffFile(path) as tiff:
-                desc = ""
-                try:
-                    desc = tiff.pages[0].description or ""
-                except Exception:
-                    desc = ""
-            if desc:
-                return str(desc)
-        except Exception:
-            pass
-    image = _open_fabio_image(path)
-    if image is None:
-        return ""
-    header = getattr(image, "header", {}) or {}
-    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
-    if isinstance(text, bytes):
-        text = text.decode("utf-8", errors="ignore")
-    if text:
-        return str(text)
-    try:
-        return "\n".join(f"{k} {v}" for k, v in header.items())
-    except Exception:
-        return ""
-
-
-def _ensure_fabio() -> None:
-    global fabio
-    if fabio is None:
-        import fabio as _fabio  # type: ignore[import-not-found]
-
-        fabio = _fabio
+def _get_h5py() -> Any:
+    _ensure_hdf5_stack()
+    return h5py
 
 
 def _init_logging() -> logging.Logger:
     global LOG_DIR, LOG_PATH
-    level_name = get_str(CONFIG, ("logging", "level"), "INFO").upper()
+    level_name = get_str(runtime_state.config, ("logging", "level"), "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
     logger = logging.getLogger("albis")
     if logger.handlers:
@@ -535,8 +209,12 @@ def _init_logging() -> logging.Logger:
     stream.setFormatter(formatter)
     logger.addHandler(stream)
 
-    log_dir_cfg = get_str(CONFIG, ("logging", "dir"), "").strip()
-    log_dir = resolve_path(log_dir_cfg, base_dir=CONFIG_BASE_DIR) if log_dir_cfg else (DATA_DIR / "logs")
+    log_dir_cfg = get_str(runtime_state.config, ("logging", "dir"), "").strip()
+    log_dir = (
+        resolve_path(log_dir_cfg, base_dir=CONFIG_BASE_DIR)
+        if log_dir_cfg
+        else (runtime_state.data_dir / "logs")
+    )
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError:
@@ -573,8 +251,8 @@ async def _log_startup_banner() -> None:
         return
     _startup_banner_logged = True
     pid = os.getpid()
-    logger.info("ALBIS data dir (pid=%s): %s", pid, DATA_DIR)
-    logger.info("ALBIS config (pid=%s): %s", pid, CONFIG_PATH)
+    logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
+    logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
 
 
 @app.middleware("http")
@@ -590,12 +268,18 @@ async def log_requests(request, call_next):
     if status >= 500:
         logger.error("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
     elif status >= 400:
-        logger.warning("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+        logger.warning(
+            "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
+        )
     else:
         if duration_ms >= 1000:
-            logger.info("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+            logger.info(
+                "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
+            )
         else:
-            logger.debug("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
+            logger.debug(
+                "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
+            )
     return response
 
 
@@ -615,15 +299,15 @@ def _safe_rel_path(name: str) -> Path:
 def _resolve_file(name: str) -> Path:
     raw = Path(name)
     if raw.is_absolute():
-        if not ALLOW_ABS_PATHS:
+        if not runtime_state.allow_abs_paths:
             raise HTTPException(status_code=400, detail="Absolute paths are disabled")
         path = raw.expanduser().resolve()
         if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
             raise HTTPException(status_code=404, detail="File not found")
         return path
     safe = _safe_rel_path(name)
-    path = (DATA_DIR / safe).resolve()
-    if not _is_within(path, DATA_DIR.resolve()):
+    path = (runtime_state.data_dir / safe).resolve()
+    if not _is_within(path, runtime_state.data_dir.resolve()):
         raise HTTPException(status_code=400, detail="Invalid file name")
     if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
         raise HTTPException(status_code=404, detail="File not found")
@@ -632,21 +316,21 @@ def _resolve_file(name: str) -> Path:
 
 def _resolve_dir(name: str | None) -> Path:
     if name is None:
-        return DATA_DIR.resolve()
+        return runtime_state.data_dir.resolve()
     trimmed = name.strip()
     if trimmed in ("", ".", "./"):
-        return DATA_DIR.resolve()
+        return runtime_state.data_dir.resolve()
     raw = Path(trimmed)
     if raw.is_absolute():
-        if not ALLOW_ABS_PATHS:
+        if not runtime_state.allow_abs_paths:
             raise HTTPException(status_code=400, detail="Absolute paths are disabled")
         path = raw.expanduser().resolve()
         if not path.exists() or not path.is_dir():
             raise HTTPException(status_code=404, detail="Directory not found")
         return path
     safe = _safe_rel_path(trimmed)
-    path = (DATA_DIR / safe).resolve()
-    if not _is_within(path, DATA_DIR.resolve()):
+    path = (runtime_state.data_dir / safe).resolve()
+    if not _is_within(path, runtime_state.data_dir.resolve()):
         raise HTTPException(status_code=400, detail="Invalid directory")
     if not path.exists() or not path.is_dir():
         raise HTTPException(status_code=404, detail="Directory not found")
@@ -656,15 +340,15 @@ def _resolve_dir(name: str | None) -> Path:
 def _resolve_image_file(name: str) -> Path:
     raw = Path(name)
     if raw.is_absolute():
-        if not ALLOW_ABS_PATHS:
+        if not runtime_state.allow_abs_paths:
             raise HTTPException(status_code=400, detail="Absolute paths are disabled")
         path = raw.expanduser().resolve()
         if not path.exists() or _image_ext_name(path.name) not in AUTOLOAD_EXTS:
             raise HTTPException(status_code=404, detail="File not found")
         return path
     safe = _safe_rel_path(name)
-    path = (DATA_DIR / safe).resolve()
-    if not _is_within(path, DATA_DIR.resolve()):
+    path = (runtime_state.data_dir / safe).resolve()
+    if not _is_within(path, runtime_state.data_dir.resolve()):
         raise HTTPException(status_code=400, detail="Invalid file name")
     if not path.exists() or _image_ext_name(path.name) not in AUTOLOAD_EXTS:
         raise HTTPException(status_code=404, detail="File not found")
@@ -677,156 +361,6 @@ def _is_within(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
-
-
-
-def _image_ext_name(name: str) -> str:
-    lower = name.lower()
-    if lower.endswith(".cbf.gz"):
-        return ".cbf.gz"
-    return Path(lower).suffix
-
-
-
-def _strip_image_ext(name: str, ext: str) -> str:
-    if ext == ".cbf.gz" and name.lower().endswith(ext):
-        return name[: -len(ext)]
-    if name.lower().endswith(ext):
-        return name[: -len(ext)]
-    return Path(name).stem
-
-
-
-def _split_series_name(name: str) -> tuple[str, str, str] | None:
-    ext = _image_ext_name(name)
-    stem = _strip_image_ext(name, ext)
-    match = re.match(r"^(.*?)(\d+)([^\d]*)$", stem)
-    if not match:
-        return None
-    prefix, digits, suffix = match.groups()
-    if not digits:
-        return None
-    return prefix, digits, suffix
-
-
-def _resolve_series_files(path: Path) -> tuple[list[Path], int]:
-    """Resolve a sequence of numbered files into a sorted series."""
-    ext = _image_ext_name(path.name)
-    if ext not in {".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}:
-        return [path], 0
-    parts = _split_series_name(path.name)
-    if not parts:
-        return [path], 0
-    prefix, digits, suffix = parts
-    pattern = re.compile(
-        rf"^{re.escape(prefix)}(\d+){re.escape(suffix)}{re.escape(ext)}$",
-        re.IGNORECASE,
-    )
-    matches: list[tuple[int, Path]] = []
-    try:
-        for entry in path.parent.iterdir():
-            if not entry.is_file():
-                continue
-            if _image_ext_name(entry.name) != ext:
-                continue
-            match = pattern.match(entry.name)
-            if not match:
-                continue
-            idx = int(match.group(1))
-            matches.append((idx, entry))
-    except OSError:
-        return [path], 0
-    if not matches:
-        return [path], 0
-    matches.sort(key=lambda item: item[0])
-    files = [item[1] for item in matches]
-    index = 0
-    for i, (_, entry) in enumerate(matches):
-        if entry.name == path.name:
-            index = i
-            break
-    return files, index
-
-
-def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
-    if arr.ndim == 2:
-        frame = arr
-    elif arr.ndim == 3:
-        if arr.shape[-1] in (3, 4):
-            frame = arr[..., 0]
-        else:
-            idx = max(0, min(index, arr.shape[0] - 1))
-            frame = arr[idx]
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported image shape")
-    frame = np.ascontiguousarray(frame)
-    if frame.dtype.byteorder == ">" or (frame.dtype.byteorder == "=" and sys.byteorder == "big"):
-        frame = frame.byteswap().newbyteorder("<")
-    # Frontend transport currently supports up to 32-bit integer types directly.
-    # Some PILATUS TIFFs are stored as uint64 even though their dynamic range is much smaller.
-    # Downcast 64-bit integer data to a browser-safe dtype to avoid misinterpretation.
-    if frame.dtype.kind in {"u", "i"} and frame.dtype.itemsize > 4:
-        if frame.dtype.kind == "u":
-            vmax = int(np.max(frame, initial=0))
-            if vmax <= np.iinfo(np.uint32).max:
-                frame = frame.astype(np.uint32, copy=False)
-            else:
-                frame = frame.astype(np.float64, copy=False)
-        else:
-            vmin = int(np.min(frame, initial=0))
-            vmax = int(np.max(frame, initial=0))
-            if vmin >= np.iinfo(np.int32).min and vmax <= np.iinfo(np.int32).max:
-                frame = frame.astype(np.int32, copy=False)
-            else:
-                frame = frame.astype(np.float64, copy=False)
-    return frame
-
-
-def _read_tiff(path: Path, index: int = 0) -> np.ndarray:
-    _ensure_tifffile()
-    arr = tifffile.imread(path)
-    return _normalize_image_array(np.asarray(arr), index=index)
-
-
-def _read_cbf(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    image = fabio.open(str(path))
-    arr = np.asarray(image.data)
-    return _normalize_image_array(arr)
-
-
-
-def _read_cbf_gz(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    try:
-        image = fabio.open(str(path))
-        arr = np.asarray(image.data)
-        return _normalize_image_array(arr)
-    except Exception:
-        import gzip
-        import tempfile
-
-        with gzip.open(path, "rb") as gz:
-            data = gz.read()
-        with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
-            tmp.write(data)
-            tmp_path = Path(tmp.name)
-        try:
-            image = fabio.open(str(tmp_path))
-            arr = np.asarray(image.data)
-            return _normalize_image_array(arr)
-        finally:
-            try:
-                tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
-
-
-def _read_edf(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    image = fabio.open(str(path))
-    arr = np.asarray(image.data)
-    return _normalize_image_array(arr)
 
 
 def _parse_ext_filter(exts: str | None) -> set[str]:
@@ -870,7 +404,7 @@ def _iter_entries(root: Path, max_depth: int | None):
 
 def _scan_files(root: Path) -> list[str]:
     items: list[str] = []
-    max_depth = None if MAX_SCAN_DEPTH < 0 else MAX_SCAN_DEPTH
+    max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
     root = root.resolve()
     for path_str, name in _iter_entries(root, max_depth):
         ext = _image_ext_name(name)
@@ -888,7 +422,7 @@ def _scan_files(root: Path) -> list[str]:
 
 def _scan_folders(root: Path) -> list[str]:
     dirs: set[str] = set()
-    max_depth = None if MAX_SCAN_DEPTH < 0 else MAX_SCAN_DEPTH
+    max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
     stack: list[tuple[Path, int]] = [(root.resolve(), 0)]
     while stack:
         base, depth = stack.pop()
@@ -919,7 +453,7 @@ def _scan_folders(root: Path) -> list[str]:
 def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) -> Path | None:
     latest_path: Path | None = None
     latest_mtime = -1.0
-    max_depth = None if MAX_SCAN_DEPTH < 0 else MAX_SCAN_DEPTH
+    max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
     root = root.resolve()
     pattern_norm = (pattern or "").strip()
     needs_rel = "/" in pattern_norm or "\\" in pattern_norm
@@ -948,3122 +482,208 @@ def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) 
     return latest_path
 
 
-def _remote_safe_source_id(source_id: str | None) -> str:
-    raw = (source_id or "").strip()
-    if not raw:
-        return "default"
-    safe = re.sub(r"[^A-Za-z0-9_.:-]", "_", raw)
-    safe = safe[:64].strip("._-")
-    return safe or "default"
-
-
-def _remote_parse_meta(meta_raw: str | None) -> dict[str, Any]:
-    if not meta_raw:
-        return {}
-    try:
-        parsed = json.loads(meta_raw)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Invalid remote metadata JSON") from exc
-    if not isinstance(parsed, dict):
-        raise HTTPException(status_code=400, detail="Remote metadata must be a JSON object")
-    return parsed
-
-
-def _remote_parse_shape(value: Any) -> tuple[int, ...] | None:
-    if isinstance(value, str):
-        parts = [p.strip() for p in value.split(",") if p.strip()]
-        try:
-            dims = [int(p) for p in parts]
-        except ValueError:
-            return None
-    elif isinstance(value, (list, tuple)):
-        dims = []
-        for item in value:
-            try:
-                dims.append(int(item))
-            except (TypeError, ValueError):
-                return None
-    else:
-        return None
-    if not dims:
-        return None
-    if any(d <= 0 for d in dims):
-        return None
-    return tuple(dims)
-
-
-def _remote_read_image_bytes(raw: bytes, *, meta: dict[str, Any], filename: str | None) -> np.ndarray:
-    fmt = str(meta.get("format") or "").strip().lower()
-    if not fmt and filename:
-        fmt = _image_ext_name(filename).lower()
-    if fmt in {"raw", "array", "binary", ""}:
-        dtype_raw = meta.get("dtype") or meta.get("type")
-        if not dtype_raw:
-            raise HTTPException(status_code=400, detail="Remote raw image requires metadata dtype")
-        shape = _remote_parse_shape(meta.get("shape"))
-        if not shape:
-            raise HTTPException(status_code=400, detail="Remote raw image requires metadata shape")
-        try:
-            dtype = np.dtype(str(dtype_raw))
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail="Invalid remote dtype") from exc
-        expected = int(np.prod(shape)) * dtype.itemsize
-        if expected != len(raw):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Remote raw image size mismatch (expected {expected} bytes, got {len(raw)})",
-            )
-        arr = np.frombuffer(raw, dtype=dtype).reshape(shape)
-        return _normalize_image_array(np.asarray(arr))
-
-    if fmt in {".tif", ".tiff", "tif", "tiff"}:
-        _ensure_tifffile()
-        arr = tifffile.imread(io.BytesIO(raw))
-        return _normalize_image_array(np.asarray(arr))
-
-    suffix_map = {
-        ".cbf": ".cbf",
-        "cbf": ".cbf",
-        ".cbf.gz": ".cbf.gz",
-        "cbf.gz": ".cbf.gz",
-        ".edf": ".edf",
-        "edf": ".edf",
-    }
-    if fmt in suffix_map:
-        suffix = suffix_map[fmt]
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp.write(raw)
-            tmp_path = Path(tmp.name)
-        try:
-            if suffix == ".cbf":
-                return _read_cbf(tmp_path)
-            if suffix == ".cbf.gz":
-                return _read_cbf_gz(tmp_path)
-            return _read_edf(tmp_path)
-        finally:
-            try:
-                tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
-
-    raise HTTPException(status_code=400, detail=f"Unsupported remote image format: {fmt}")
-
-
-def _remote_pick_float(meta: dict[str, Any], key: str) -> float | None:
-    value = meta.get(key)
-    if isinstance(value, dict):
-        return None
-    return _first_number(value)
-
-
-def _remote_parse_peak_sets(value: Any) -> list[dict[str, Any]]:
-    if not isinstance(value, list):
-        return []
-    cleaned_sets: list[dict[str, Any]] = []
-    for idx, item in enumerate(value[:32]):
-        if not isinstance(item, dict):
-            continue
-        raw_points = item.get("points")
-        if not isinstance(raw_points, list):
-            continue
-        points: list[list[float]] = []
-        for point in raw_points[:10000]:
-            if not isinstance(point, (list, tuple)) or len(point) < 2:
-                continue
-            x = _first_number(point[0])
-            y = _first_number(point[1])
-            if x is None or y is None or not math.isfinite(x) or not math.isfinite(y):
-                continue
-            intensity = _first_number(point[2]) if len(point) >= 3 else None
-            row = [float(x), float(y)]
-            if intensity is not None and math.isfinite(intensity):
-                row.append(float(intensity))
-            points.append(row)
-        if not points:
-            continue
-        name = str(item.get("name") or f"Set {idx + 1}")[:64]
-        color = str(item.get("color") or "#4aa3ff").strip()
-        if not re.fullmatch(r"#?[0-9A-Fa-f]{6}", color):
-            color = "#4aa3ff"
-        if not color.startswith("#"):
-            color = f"#{color}"
-        cleaned_sets.append({"name": name, "color": color, "points": points})
-    return cleaned_sets
-
-
-def _remote_extract_metadata(meta: dict[str, Any]) -> dict[str, Any]:
-    display = meta.get("display")
-    if not isinstance(display, dict):
-        display = {}
-    resolution = meta.get("resolution")
-    if not isinstance(resolution, dict):
-        resolution = {}
-
-    distance_mm = _first_number(resolution.get("distance_mm"))
-    if distance_mm is None:
-        distance_mm = _remote_pick_float(meta, "distance_mm")
-    pixel_size_um = _first_number(resolution.get("pixel_size_um"))
-    if pixel_size_um is None:
-        pixel_size_um = _remote_pick_float(meta, "pixel_size_um")
-    energy_ev = _first_number(resolution.get("energy_ev"))
-    if energy_ev is None:
-        energy_ev = _remote_pick_float(meta, "energy_ev")
-    wavelength_a = _first_number(resolution.get("wavelength_a"))
-    if wavelength_a is None:
-        wavelength_a = _remote_pick_float(meta, "wavelength_a")
-
-    beam_center = resolution.get("beam_center_px")
-    center_x = center_y = None
-    if isinstance(beam_center, (list, tuple)) and len(beam_center) >= 2:
-        center_x = _first_number(beam_center[0])
-        center_y = _first_number(beam_center[1])
-    if center_x is None:
-        center_x = _remote_pick_float(meta, "beam_center_x")
-    if center_y is None:
-        center_y = _remote_pick_float(meta, "beam_center_y")
-
-    return {
-        "display_name": str(meta.get("display_name") or "").strip(),
-        "series_number": _as_int(display.get("series_number") if "series_number" in display else meta.get("series_number")),
-        "image_number": _as_int(display.get("image_number") if "image_number" in display else meta.get("image_number")),
-        "image_datetime": str(display.get("image_datetime") if display.get("image_datetime") is not None else meta.get("image_datetime") or "").strip(),
-        "resolution": {
-            "distance_mm": distance_mm if distance_mm is not None and math.isfinite(distance_mm) else None,
-            "pixel_size_um": pixel_size_um if pixel_size_um is not None and math.isfinite(pixel_size_um) else None,
-            "energy_ev": energy_ev if energy_ev is not None and math.isfinite(energy_ev) else None,
-            "wavelength_a": wavelength_a if wavelength_a is not None and math.isfinite(wavelength_a) else None,
-            "beam_center_px": [center_x, center_y]
-            if center_x is not None and center_y is not None and math.isfinite(center_x) and math.isfinite(center_y)
-            else None,
-        },
-        "peak_sets": _remote_parse_peak_sets(meta.get("peak_sets")),
-        "extra": meta.get("extra") if isinstance(meta.get("extra"), dict) else {},
-    }
-
-
-def _remote_store_frame(
-    *,
-    source_id: str,
-    frame: np.ndarray,
-    meta: dict[str, Any],
-    seq: int | None,
-) -> int:
-    now = time.time()
-    with _remote_frames_lock:
-        previous = _remote_frames.get(source_id)
-        next_seq = int(seq) if seq is not None else int(previous.get("seq", 0) + 1 if previous else 1)
-        _remote_frames[source_id] = {
-            "source_id": source_id,
-            "seq": next_seq,
-            "updated_at": now,
-            "dtype": frame.dtype.str,
-            "shape": tuple(int(v) for v in frame.shape),
-            "bytes": frame.tobytes(order="C"),
-            "meta": meta,
-        }
-        if len(_remote_frames) > _REMOTE_SOURCES_MAX:
-            oldest = sorted(
-                _remote_frames.items(),
-                key=lambda item: float(item[1].get("updated_at", 0.0)),
-            )
-            for old_source, _entry in oldest[: len(_remote_frames) - _REMOTE_SOURCES_MAX]:
-                _remote_frames.pop(old_source, None)
-        return next_seq
-
-
-def _remote_snapshot(source_id: str) -> dict[str, Any] | None:
-    with _remote_frames_lock:
-        frame = _remote_frames.get(source_id)
-        if not frame:
-            return None
-        return dict(frame)
-
-
-def _simplon_base(url: str, version: str) -> str:
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise HTTPException(status_code=400, detail="Invalid SIMPLON base URL")
-    base = url.rstrip("/")
-    ver = (version or "1.8.0").strip().strip("/")
-    if not ver:
-        ver = "1.8.0"
-    return f"{base}/monitor/api/{ver}"
-
-
-def _simplon_detector_base(url: str, version: str) -> str:
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise HTTPException(status_code=400, detail="Invalid SIMPLON base URL")
-    base = url.rstrip("/")
-    ver = (version or "1.8.0").strip().strip("/")
-    if not ver:
-        ver = "1.8.0"
-    return f"{base}/detector/api/{ver}"
-
-
-def _simplon_set_mode(base: str, mode: str) -> None:
-    payload = json.dumps({"value": mode}).encode("utf-8")
-    req = urllib.request.Request(
-        f"{base}/config/mode",
-        data=payload,
-        method="PUT",
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            resp.read()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail="Failed to update SIMPLON monitor mode") from exc
-
-
-def _simplon_fetch_monitor(base: str, timeout_ms: int) -> bytes | None:
-    query = urllib.parse.urlencode({"timeout": max(0, int(timeout_ms))}) if timeout_ms else ""
-    url = f"{base}/images/monitor"
-    if query:
-        url = f"{url}?{query}"
-    try:
-        with urllib.request.urlopen(url, timeout=max(timeout_ms / 1000 + 1, 2)) as resp:
-            return resp.read()
-    except urllib.error.HTTPError as exc:
-        if exc.code in {204, 408}:
-            return None
-        raise HTTPException(status_code=502, detail=f"SIMPLON monitor error {exc.code}") from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail="Failed to fetch SIMPLON monitor image") from exc
-
-
-def _simplon_fetch_pixel_mask(base_url: str, version: str) -> np.ndarray | None:
-    base = _simplon_detector_base(base_url, version)
-    candidates = ("pixel_mask", "threshold/1/pixel_mask")
-    last_error: Exception | None = None
-    for key in candidates:
-        try:
-            with urllib.request.urlopen(f"{base}/config/{key}", timeout=5) as resp:
-                payload = json.loads(resp.read().decode("utf-8"))
-        except Exception as exc:
-            last_error = exc
-            continue
-        value = payload.get("value")
-        if not isinstance(value, dict) or "__darray__" not in value:
-            last_error = ValueError("Invalid pixel mask response")
-            continue
-        data_b64 = value.get("data")
-        dtype_str = value.get("type")
-        shape = value.get("shape")
-        if not data_b64 or not dtype_str or not shape:
-            last_error = ValueError("Incomplete pixel mask response")
-            continue
-        try:
-            raw = base64.b64decode(data_b64)
-            dtype = np.dtype(dtype_str)
-            arr = np.frombuffer(raw, dtype=dtype)
-            height = int(shape[0])
-            width = int(shape[1])
-            arr = arr.reshape((height, width))
-        except Exception as exc:
-            last_error = exc
-            continue
-        return _normalize_image_array(arr)
-    if last_error:
-        raise HTTPException(status_code=502, detail="Failed to fetch SIMPLON pixel mask") from last_error
-    return None
-
-
-def _resolve_external_path(base_file: Path, filename: str | None) -> Path | None:
-    if not filename:
-        return None
-    target = Path(str(filename))
-    if not target.is_absolute():
-        target = base_file.parent / target
-    target = target.expanduser().resolve()
-    if not ALLOW_ABS_PATHS:
-        allowed_root = DATA_DIR.resolve() if DATA_DIR else base_file.parent.resolve()
-        if allowed_root and not _is_within(target, allowed_root):
-            return None
-    if not target.exists() or target.suffix.lower() not in {".h5", ".hdf5"}:
-        return None
-    return target
-
-
-def _dataset_info(name: str, obj: Any) -> dict[str, Any] | None:
-    if not isinstance(obj, h5py.Dataset):
-        return None
-    shape = tuple(int(x) for x in obj.shape)
-    dtype = str(obj.dtype)
-    ndim = obj.ndim
-    size = int(np.prod(shape)) if shape else 0
-    return {
-        "path": f"/{name}" if not name.startswith("/") else name,
-        "shape": shape,
-        "dtype": dtype,
-        "ndim": ndim,
-        "size": size,
-        "chunks": obj.chunks,
-        "maxshape": obj.maxshape,
-    }
-
-
-def _is_image_dataset(info: dict[str, Any]) -> bool:
-    if info["ndim"] not in (2, 3, 4):
-        return False
-    dtype = info["dtype"]
-    return any(token in dtype for token in ("int", "uint", "float"))
-
-
-MASK_PATHS = (
-    "/entry/instrument/detector/detectorSpecific/pixel_mask",
-    "/entry/instrument/detector/pixel_mask",
-    "/entry/instrument/detector/detectorSpecific/bad_pixel_mask",
-    "/entry/instrument/detector/bad_pixel_mask",
-    "/entry/instrument/detector/pixel_mask_applied",
-    "/entry/instrument/detector/detectorSpecific/pixel_mask_applied",
+hdf5_stack = HDF5StackService(
+    data_dir=runtime_state.data_dir,
+    get_allow_abs_paths=lambda: runtime_state.allow_abs_paths,
+    is_within=_is_within,
+    get_h5py=_get_h5py,
 )
 
-
-def _serialize_h5_value(value: Any) -> Any:
-    if isinstance(value, bytes):
-        try:
-            return value.decode("utf-8")
-        except Exception:
-            return value.decode("utf-8", "replace")
-    if isinstance(value, np.generic):
-        try:
-            return value.item()
-        except Exception:
-            return str(value)
-    if isinstance(value, np.ndarray):
-        if value.size == 1:
-            return _serialize_h5_value(value.reshape(-1)[0])
-        if value.dtype.kind == "S":
-            try:
-                return [v.decode("utf-8", "replace") for v in value.reshape(-1)[:16]]
-            except Exception:
-                return value.reshape(-1)[:16].tolist()
-        if value.size <= 16:
-            return value.tolist()
-        return {
-            "shape": value.shape,
-            "dtype": str(value.dtype),
-            "preview": value.reshape(-1)[:16].tolist(),
-            "truncated": True,
-        }
-    if isinstance(value, (list, tuple)):
-        return [_serialize_h5_value(v) for v in value]
-    return value
-
-
-def _collect_h5_attrs(obj: Any) -> list[dict[str, Any]]:
-    attrs: list[dict[str, Any]] = []
-    try:
-        for key in obj.attrs.keys():
-            try:
-                attrs.append({"name": str(key), "value": _serialize_h5_value(obj.attrs[key])})
-            except Exception:
-                attrs.append({"name": str(key), "value": "<unreadable>"})
-    except Exception:
-        return []
-    return attrs
-
-
-def _array_preview_to_list(arr: np.ndarray) -> Any:
-    if arr.ndim == 0:
-        return _serialize_h5_value(arr.item())
-    if arr.ndim == 1:
-        return [_serialize_h5_value(v) for v in arr.tolist()]
-    if arr.ndim == 2:
-        return [[_serialize_h5_value(v) for v in row] for row in arr.tolist()]
-    return _serialize_h5_value(arr)
-
-
-def _dataset_value_preview(
-    dset: h5py.Dataset,
-    max_cells: int = 2048,
-    max_rows: int = 128,
-    max_cols: int = 128,
-) -> tuple[Any | None, tuple[int, ...] | None, bool, dict[str, Any] | None]:
-    shape = tuple(int(x) for x in dset.shape) if dset.shape else ()
-    total = int(np.prod(shape)) if shape else 1
-    if total <= 0:
-        return None, None, False, None
-    try:
-        if dset.ndim == 0:
-            value = np.asarray(dset[()])
-            return _array_preview_to_list(value), shape, False, None
-        if dset.ndim == 1:
-            count = max(1, min(shape[0], max_cells))
-            data = np.asarray(dset[:count])
-            truncated = count < shape[0]
-            return _array_preview_to_list(data), (count,), truncated, None
-        rows = max(1, min(shape[-2], max_rows))
-        cols = max(1, min(shape[-1], max_cols))
-        if rows * cols > max_cells:
-            scale = math.sqrt(max_cells / max(rows * cols, 1))
-            rows = max(1, int(rows * scale))
-            cols = max(1, int(cols * scale))
-        lead = (0,) * max(0, dset.ndim - 2)
-        data = np.asarray(dset[lead + (slice(0, rows), slice(0, cols))])
-        preview_shape = tuple(int(x) for x in data.shape)
-        truncated = rows < shape[-2] or cols < shape[-1] or dset.ndim > 2
-        slice_info = {"lead": list(lead), "rows": rows, "cols": cols} if dset.ndim > 2 else None
-        return _array_preview_to_list(data), preview_shape, truncated, slice_info
-    except Exception:
-        return None, None, False, None
-
-
-def _dataset_preview_array(
-    dset: h5py.Dataset,
-    max_cells: int = 65536,
-    max_rows: int = 1024,
-    max_cols: int = 1024,
-) -> tuple[np.ndarray | None, bool, dict[str, Any] | None]:
-    shape = tuple(int(x) for x in dset.shape) if dset.shape else ()
-    total = int(np.prod(shape)) if shape else 1
-    if total <= 0:
-        return None, False, None
-    try:
-        if dset.ndim == 0:
-            return np.asarray(dset[()]), False, None
-        if dset.ndim == 1:
-            count = max(1, min(shape[0], max_cells))
-            data = np.asarray(dset[:count])
-            return data, count < shape[0], None
-        rows = max(1, min(shape[-2], max_rows))
-        cols = max(1, min(shape[-1], max_cols))
-        if rows * cols > max_cells:
-            scale = math.sqrt(max_cells / max(rows * cols, 1))
-            rows = max(1, int(rows * scale))
-            cols = max(1, int(cols * scale))
-        lead = (0,) * max(0, dset.ndim - 2)
-        data = np.asarray(dset[lead + (slice(0, rows), slice(0, cols))])
-        truncated = rows < shape[-2] or cols < shape[-1] or dset.ndim > 2
-        slice_info = {"lead": list(lead), "rows": rows, "cols": cols} if dset.ndim > 2 else None
-        return data, truncated, slice_info
-    except Exception:
-        return None, False, None
-
-
-def _find_pixel_mask(h5: h5py.File, threshold: int | None = None) -> h5py.Dataset | None:
-    if threshold is not None:
-        key = f"/entry/instrument/detector/threshold_{threshold + 1}_channel/pixel_mask"
-        if key in h5:
-            obj = h5[key]
-            if isinstance(obj, h5py.Dataset) and obj.ndim == 2:
-                return obj
-    for path in MASK_PATHS:
-        if path in h5:
-            obj = h5[path]
-            if isinstance(obj, h5py.Dataset) and obj.ndim == 2:
-                return obj
-    return None
-
-
-def _coerce_scalar(value: Any) -> float | None:
-    try:
-        if isinstance(value, np.ndarray):
-            if value.size == 0:
-                return None
-            value = value.reshape(-1)[0]
-        if isinstance(value, np.generic):
-            value = value.item()
-        return float(value)
-    except Exception:
-        return None
-
-
-def _get_units(obj: Any) -> str | None:
-    try:
-        units = obj.attrs.get("units") or obj.attrs.get("unit")
-        if isinstance(units, bytes):
-            return units.decode("utf-8", "replace")
-        if isinstance(units, np.ndarray) and units.size == 1:
-            units = units.reshape(-1)[0]
-        if isinstance(units, np.generic):
-            units = units.item()
-        if isinstance(units, bytes):
-            return units.decode("utf-8", "replace")
-        return str(units) if units is not None else None
-    except Exception:
-        return None
-
-
-def _read_scalar(h5: h5py.File, paths: list[str]) -> tuple[float | None, str | None]:
-    for path in paths:
-        if path in h5:
-            obj = h5[path]
-            if not isinstance(obj, h5py.Dataset):
-                continue
-            try:
-                value = _coerce_scalar(obj[()])
-            except Exception:
-                value = None
-            units = _get_units(obj)
-            if value is not None:
-                return value, units
-    return None, None
-
-
-def _norm_unit(unit: str | None) -> str:
-    return (unit or "").strip().lower().replace("µ", "u")
-
-
-def _to_mm(value: float, unit: str | None) -> float:
-    u = _norm_unit(unit)
-    if u in {"m", "meter", "metre", "meters", "metres"}:
-        return value * 1000
-    if u in {"cm", "centimeter", "centimetre", "centimeters", "centimetres"}:
-        return value * 10
-    if u in {"mm", "millimeter", "millimetre", "millimeters", "millimetres"}:
-        return value
-    if u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
-        return value / 1000
-    if u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
-        return value / 1e6
-    if value < 0.5:
-        return value * 1000
-    return value
-
-
-def _to_um(value: float, unit: str | None) -> float:
-    u = _norm_unit(unit)
-    if u in {"m", "meter", "metre", "meters", "metres"}:
-        return value * 1e6
-    if u in {"cm", "centimeter", "centimetre", "centimeters", "centimetres"}:
-        return value * 1e4
-    if u in {"mm", "millimeter", "millimetre", "millimeters", "millimetres"}:
-        return value * 1000
-    if u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
-        return value
-    if u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
-        return value / 1000
-    if value < 1e-2:
-        return value * 1e6
-    if value < 1:
-        return value * 1000
-    return value
-
-
-def _to_ev(value: float, unit: str | None) -> float:
-    u = _norm_unit(unit)
-    if u in {"kev", "kiloelectronvolt", "kiloelectronvolts"}:
-        return value * 1000
-    if u in {"ev", "electronvolt", "electronvolts"}:
-        return value
-    if value < 1000:
-        return value * 1000
-    return value
-
-
-def _wavelength_to_ev(value: float, unit: str | None) -> float | None:
-    u = _norm_unit(unit)
-    wavelength_m = None
-    if u in {"m", "meter", "metre", "meters", "metres"}:
-        wavelength_m = value
-    elif u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
-        wavelength_m = value * 1e-9
-    elif u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
-        wavelength_m = value * 1e-6
-    elif u in {"a", "ang", "angstrom", "angstroms"}:
-        wavelength_m = value * 1e-10
-    elif value < 1e-6:
-        wavelength_m = value
-    if wavelength_m is None or wavelength_m <= 0:
-        return None
-    return 12398.4193 / (wavelength_m * 1e10)
-
-def _read_threshold_energies(h5: h5py.File, count: int) -> list[float | None]:
-    energies: list[float | None] = []
-    for idx in range(count):
-        energy = None
-        key = f"/entry/instrument/detector/threshold_{idx + 1}_channel/threshold_energy"
-        if key in h5:
-            try:
-                data = h5[key][()]
-                arr = np.asarray(data)
-                if arr.size:
-                    energy = float(arr.reshape(-1)[0])
-            except Exception:
-                energy = None
-        energies.append(energy)
-    return energies
-
-
-def _copy_h5_metadata(src_h5: h5py.File, dst_h5: h5py.File, threshold_count: int) -> None:
-    """Copy metadata from source H5 to destination, including channel info and threshold energies."""
-    # Copy root-level attributes
-    for key, val in src_h5.attrs.items():
-        if key not in dst_h5.attrs:
-            try:
-                dst_h5.attrs[key] = val
-            except Exception:
-                pass
-    
-    # Copy instrument/detector metadata, especially channel and threshold info
-    if "/entry/instrument/detector" in src_h5:
-        src_detector = src_h5["/entry/instrument/detector"]
-        dst_detector = dst_h5.require_group("/entry/instrument/detector")
-        
-        # Copy detector group attributes
-        for key, val in src_detector.attrs.items():
-            if key not in dst_detector.attrs:
-                try:
-                    dst_detector.attrs[key] = val
-                except Exception:
-                    pass
-        
-        # Copy channel information (threshold channels)
-        for thr in range(threshold_count):
-            channel_path = f"threshold_{thr + 1}_channel"
-            if channel_path in src_detector:
-                src_channel = src_detector[channel_path]
-                dst_channel = dst_detector.require_group(channel_path)
-                
-                # Copy channel attributes
-                for key, val in src_channel.attrs.items():
-                    if key not in dst_channel.attrs:
-                        try:
-                            dst_channel.attrs[key] = val
-                        except Exception:
-                            pass
-                
-                # Copy important datasets from channel (threshold_energy, etc.)
-                for item_name in src_channel:
-                    if item_name in ("pixel_mask",):  # Skip pixel_mask, handled separately
-                        continue
-                    src_item = src_channel[item_name]
-                    if isinstance(src_item, h5py.Dataset) and item_name not in dst_channel:
-                        try:
-                            dst_channel.create_dataset(item_name, data=src_item[()])
-                        except Exception:
-                            pass
-    
-    # Copy sample/beamline metadata if present
-    for group_path in ("/entry/instrument", "/entry/sample", "/entry/data"):
-        if group_path in src_h5 and group_path not in dst_h5:
-            try:
-                src_group = src_h5[group_path]
-                dst_group = dst_h5.require_group(group_path)
-                # Copy group attributes
-                for key, val in src_group.attrs.items():
-                    if key not in dst_group.attrs:
-                        try:
-                            dst_group.attrs[key] = val
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-
-
-def _walk_datasets(
-    obj: Any,
-    base_path: str,
-    file_path: Path,
-    results: list[dict[str, Any]],
-    ancestors: set[tuple[Path, bytes]],
-    file_cache: dict[Path, h5py.File],
-) -> None:
-    if isinstance(obj, h5py.Dataset):
-        info = _dataset_info(base_path, obj)
-        if info:
-            info["image"] = _is_image_dataset(info)
-            results.append(info)
-        return
-    if not isinstance(obj, h5py.Group):
-        return
-    obj_ref = (file_path, obj.id)
-    if obj_ref in ancestors:
-        return
-    next_ancestors = set(ancestors)
-    next_ancestors.add(obj_ref)
-
-    for name in obj.keys():
-        try:
-            link = obj.get(name, getlink=True)
-        except Exception:
-            continue
-        child_path = f"{base_path}/{name}" if base_path != "/" else f"/{name}"
-        if isinstance(link, h5py.ExternalLink):
-            target_path = _resolve_external_path(file_path, link.filename)
-            if not target_path:
-                continue
-            target_file = file_cache.get(target_path)
-            if target_file is None:
-                try:
-                    target_file = h5py.File(target_path, "r")
-                except OSError:
-                    continue
-                file_cache[target_path] = target_file
-            try:
-                target_obj = target_file[link.path]
-            except Exception:
-                continue
-            _walk_datasets(target_obj, child_path, target_path, results, next_ancestors, file_cache)
-            continue
-        if isinstance(link, h5py.SoftLink):
-            try:
-                target_obj = obj[link.path]
-            except Exception:
-                continue
-            _walk_datasets(target_obj, child_path, file_path, results, next_ancestors, file_cache)
-            continue
-        try:
-            target_obj = obj[name]
-        except Exception:
-            continue
-        _walk_datasets(target_obj, child_path, file_path, results, next_ancestors, file_cache)
-
-
-_LINKED_DATA_NAME_RE = re.compile(r"^data(?:[_-]?(\d+))?$")
-
-
-def _is_linked_data_member(name: str) -> bool:
-    return _LINKED_DATA_NAME_RE.match(name) is not None
-
-
-def _linked_member_sort_key(path_or_name: str) -> tuple[int, int, str]:
-    name = path_or_name.rsplit("/", 1)[-1]
-    match = _LINKED_DATA_NAME_RE.match(name)
-    if not match:
-        return (1, 0, name)
-    suffix = match.group(1)
-    return (0, int(suffix) if suffix else 0, name)
-
-
-def _aggregate_linked_stack_datasets(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Replace segmented `data_*` datasets with one synthetic stack entry.
-
-    Many master files split one logical stack into sibling datasets such as
-    `/entry/data/data_000001`, `/entry/data/data_000002`, etc. The frontend
-    expects one continuous frame axis, so we merge compatible members into one
-    synthetic descriptor while retaining segment paths in `members`.
-    """
-    grouped: dict[str, list[dict[str, Any]]] = {}
-    for info in results:
-        if not info.get("image"):
-            continue
-        path = str(info.get("path", ""))
-        if "/" not in path.strip("/"):
-            continue
-        parent, name = path.rsplit("/", 1)
-        if not _is_linked_data_member(name):
-            continue
-        grouped.setdefault(parent, []).append(info)
-
-    remove_paths: set[str] = set()
-    synthetic: list[dict[str, Any]] = []
-    for parent, members in grouped.items():
-        if len(members) < 2:
-            continue
-        ordered = sorted(members, key=lambda item: _linked_member_sort_key(str(item.get("path", ""))))
-        first = ordered[0]
-        ndim = int(first.get("ndim") or 0)
-        if ndim not in (3, 4):
-            continue
-        dtype = str(first.get("dtype", ""))
-        shape = tuple(int(x) for x in (first.get("shape") or ()))
-        if len(shape) != ndim:
-            continue
-        tail = shape[1:]
-        total_frames = 0
-        valid: list[dict[str, Any]] = []
-        for item in ordered:
-            item_shape = tuple(int(x) for x in (item.get("shape") or ()))
-            if (
-                int(item.get("ndim") or 0) != ndim
-                or str(item.get("dtype", "")) != dtype
-                or len(item_shape) != ndim
-                or tuple(item_shape[1:]) != tail
-                or int(item_shape[0]) <= 0
-            ):
-                continue
-            total_frames += int(item_shape[0])
-            valid.append(item)
-        if len(valid) < 2 or total_frames <= 0:
-            continue
-        agg_shape = (int(total_frames),) + tail
-        synthetic.append(
-            {
-                "path": parent,
-                "shape": agg_shape,
-                "dtype": dtype,
-                "ndim": ndim,
-                "size": int(np.prod(agg_shape)),
-                "chunks": None,
-                "maxshape": None,
-                "image": True,
-                "linked_stack": True,
-                "members": [str(item.get("path")) for item in valid],
-            }
-        )
-        for item in valid:
-            remove_paths.add(str(item.get("path", "")))
-
-    if not synthetic:
-        return results
-    filtered = [item for item in results if str(item.get("path", "")) not in remove_paths]
-    filtered.extend(synthetic)
-    return filtered
-
-
-def _resolve_node(
-    h5: h5py.File, base_file: Path, path: str
-) -> tuple[Any, Path, list[h5py.File]]:
-    """Resolve HDF5 object path while following soft/external links safely."""
-    parts = [p for p in path.strip("/").split("/") if p]
-    if not parts:
-        return h5["/"], base_file, []
-    current: Any = h5["/"]
-    current_file = base_file
-    opened: list[h5py.File] = []
-
-    try:
-        for idx, part in enumerate(parts):
-            if not isinstance(current, h5py.Group):
-                raise KeyError("Path not found")
-            link = current.get(part, getlink=True)
-            if link is None:
-                raise KeyError("Path not found")
-            if isinstance(link, h5py.ExternalLink):
-                target_path = _resolve_external_path(current_file, link.filename)
-                if not target_path:
-                    raise KeyError("Path not found")
-                try:
-                    target_file = h5py.File(target_path, "r")
-                except OSError as exc:
-                    raise KeyError("Path not found") from exc
-                opened.append(target_file)
-                current_file = target_path
-                try:
-                    current = target_file[link.path]
-                except Exception as exc:
-                    raise KeyError("Path not found") from exc
-            elif isinstance(link, h5py.SoftLink):
-                try:
-                    current = current[link.path]
-                except Exception as exc:
-                    raise KeyError("Path not found") from exc
-            else:
-                try:
-                    current = current[part]
-                except Exception as exc:
-                    raise KeyError("Path not found") from exc
-            if idx < len(parts) - 1 and isinstance(current, h5py.Dataset):
-                raise KeyError("Path not found")
-    except Exception:
-        for handle in opened:
-            try:
-                handle.close()
-            except Exception:
-                pass
-        raise
-    return current, current_file, opened
-
-
-def _resolve_group_linked_stack(
-    group: h5py.Group,
-    group_path: str,
-    group_file: Path,
-    opened: list[h5py.File],
-) -> dict[str, Any] | None:
-    """Interpret a group as segmented stack if members are compatible."""
-    segments: list[dict[str, Any]] = []
-    ndim: int | None = None
-    dtype: str | None = None
-    tail: tuple[int, ...] | None = None
-
-    for name in sorted(group.keys(), key=_linked_member_sort_key):
-        if not _is_linked_data_member(name):
-            continue
-        try:
-            link = group.get(name, getlink=True)
-        except Exception:
-            continue
-        if isinstance(link, h5py.ExternalLink):
-            target_path = _resolve_external_path(group_file, link.filename)
-            if not target_path:
-                continue
-            try:
-                target_file = h5py.File(target_path, "r")
-            except OSError:
-                continue
-            opened.append(target_file)
-            try:
-                child = target_file[link.path]
-            except Exception:
-                continue
-        elif isinstance(link, h5py.SoftLink):
-            try:
-                child = group[link.path]
-            except Exception:
-                continue
-        else:
-            try:
-                child = group[name]
-            except Exception:
-                continue
-        if not isinstance(child, h5py.Dataset):
-            continue
-        child_shape = tuple(int(x) for x in child.shape)
-        child_ndim = int(child.ndim)
-        if child_ndim not in (3, 4) or len(child_shape) != child_ndim or child_shape[0] <= 0:
-            continue
-        child_dtype = str(child.dtype)
-        child_tail = child_shape[1:]
-        if ndim is None:
-            ndim = child_ndim
-            dtype = child_dtype
-            tail = child_tail
-        elif child_ndim != ndim or child_dtype != dtype or child_tail != tail:
-            continue
-        child_path = f"{group_path.rstrip('/')}/{name}" if group_path != "/" else f"/{name}"
-        segments.append(
-            {
-                "path": child_path,
-                "dataset": child,
-                "frames": int(child_shape[0]),
-                "shape": child_shape,
-            }
-        )
-
-    if not segments or ndim is None or tail is None or dtype is None:
-        return None
-    total_frames = sum(int(seg["frames"]) for seg in segments)
-    if total_frames <= 0:
-        return None
-    shape = (int(total_frames),) + tail
-    return {
-        "kind": "linked_stack",
-        "path": group_path,
-        "shape": shape,
-        "dtype": dtype,
-        "ndim": ndim,
-        "segments": segments,
-    }
-
-
-def _resolve_dataset(
-    h5: h5py.File, base_file: Path, dataset: str
-) -> tuple[h5py.Dataset, list[h5py.File]]:
-    parts = [p for p in dataset.strip("/").split("/") if p]
-    if not parts:
-        raise KeyError("Dataset not found")
-    current: Any = h5["/"]
-    current_file = base_file
-    opened: list[h5py.File] = []
-
-    for idx, part in enumerate(parts):
-        if not isinstance(current, h5py.Group):
-            raise KeyError("Dataset not found")
-        link = current.get(part, getlink=True)
-        if link is None:
-            raise KeyError("Dataset not found")
-        if isinstance(link, h5py.ExternalLink):
-            target_path = _resolve_external_path(current_file, link.filename)
-            if not target_path:
-                raise KeyError("Dataset not found")
-            try:
-                target_file = h5py.File(target_path, "r")
-            except OSError as exc:
-                raise KeyError("Dataset not found") from exc
-            opened.append(target_file)
-            current_file = target_path
-            try:
-                current = target_file[link.path]
-            except Exception as exc:
-                raise KeyError("Dataset not found") from exc
-        elif isinstance(link, h5py.SoftLink):
-            try:
-                current = current[link.path]
-            except Exception as exc:
-                raise KeyError("Dataset not found") from exc
-        else:
-            try:
-                current = current[part]
-            except Exception as exc:
-                raise KeyError("Dataset not found") from exc
-
-        if idx < len(parts) - 1 and isinstance(current, h5py.Dataset):
-            raise KeyError("Dataset not found")
-
-    if not isinstance(current, h5py.Dataset):
-        raise KeyError("Dataset not found")
-    return current, opened
-
-
-def _resolve_dataset_view(
-    h5: h5py.File, base_file: Path, dataset: str
-) -> tuple[dict[str, Any], list[h5py.File]]:
-    """Normalize target into either direct dataset view or linked-stack view."""
-    node, current_file, opened = _resolve_node(h5, base_file, dataset)
-    if isinstance(node, h5py.Dataset):
-        return (
-            {
-                "kind": "dataset",
-                "path": dataset,
-                "shape": tuple(int(x) for x in node.shape),
-                "dtype": str(node.dtype),
-                "ndim": int(node.ndim),
-                "dataset": node,
-            },
-            opened,
-        )
-    if isinstance(node, h5py.Group):
-        stack = _resolve_group_linked_stack(node, dataset, current_file, opened)
-        if stack is not None:
-            return stack, opened
-    for handle in opened:
-        try:
-            handle.close()
-        except Exception:
-            pass
-    raise KeyError("Dataset not found")
-
-
-def _extract_frame(view: dict[str, Any], index: int, threshold: int) -> np.ndarray:
-    """Extract one 2D frame from a normalized dataset view."""
-    if view["kind"] == "dataset":
-        dset = view["dataset"]
-        if dset.ndim == 4:
-            if index >= dset.shape[0]:
-                raise HTTPException(status_code=416, detail="Frame index out of range")
-            if threshold >= dset.shape[1]:
-                raise HTTPException(status_code=416, detail="Threshold index out of range")
-            return np.asarray(dset[index, threshold, :, :])
-        if dset.ndim == 3:
-            if index >= dset.shape[0]:
-                raise HTTPException(status_code=416, detail="Frame index out of range")
-            return np.asarray(dset[index, :, :])
-        if dset.ndim == 2:
-            return np.asarray(dset[:, :])
-        raise HTTPException(status_code=400, detail="Dataset is not 2D, 3D, or 4D")
-
-    if view["kind"] == "linked_stack":
-        shape = tuple(int(x) for x in view["shape"])
-        if not shape:
-            raise HTTPException(status_code=400, detail="Dataset has invalid shape")
-        total_frames = int(shape[0])
-        if index >= total_frames:
-            raise HTTPException(status_code=416, detail="Frame index out of range")
-        ndim = int(view["ndim"])
-        if ndim == 4 and threshold >= int(shape[1]):
-            raise HTTPException(status_code=416, detail="Threshold index out of range")
-        local = int(index)
-        selected: dict[str, Any] | None = None
-        for segment in view["segments"]:
-            frames = int(segment["frames"])
-            if local < frames:
-                selected = segment
-                break
-            local -= frames
-        if selected is None:
-            raise HTTPException(status_code=416, detail="Frame index out of range")
-        dset = selected["dataset"]
-        if ndim == 4:
-            return np.asarray(dset[local, threshold, :, :])
-        if ndim == 3:
-            return np.asarray(dset[local, :, :])
-        raise HTTPException(status_code=400, detail="Dataset is not 3D or 4D")
-
-    raise HTTPException(status_code=400, detail="Unsupported dataset view")
-
-
-def _series_job_update(job_id: str, **changes: Any) -> None:
-    with _series_jobs_lock:
-        job = _series_jobs.get(job_id)
-        if not job:
-            return
-        job.update(changes)
-        job["updated_at"] = time.time()
-
-
-def _resolve_series_output_base(output_path: str | None) -> Path:
-    raw = (output_path or "").strip()
-    if raw:
-        target = Path(raw).expanduser()
-        if not target.is_absolute():
-            target = (DATA_DIR / target).resolve()
-        else:
-            target = target.resolve()
-    else:
-        target = (DATA_DIR / "output" / "series_sum").resolve()
-
-    if target.exists() and target.is_dir():
-        target = (target / "series_sum").resolve()
-
-    allowed_root = DATA_DIR.resolve()
-    if not ALLOW_ABS_PATHS and not _is_within(target, allowed_root):
-        raise HTTPException(status_code=400, detail="Output path is outside data directory")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    return target
-
-
-def _next_available_path(path: Path) -> Path:
-    if not path.exists():
-        return path
-    stem = path.stem
-    suffix = path.suffix
-    for idx in range(1, 10000):
-        candidate = path.with_name(f"{stem}_{idx:03d}{suffix}")
-        if not candidate.exists():
-            return candidate
-    raise HTTPException(status_code=500, detail="Unable to allocate output file name")
-
-
-def _mask_flag_value(dtype: np.dtype) -> float:
-    if np.issubdtype(dtype, np.integer):
-        return float(np.iinfo(dtype).max)
-    if np.issubdtype(dtype, np.floating):
-        return float(np.finfo(dtype).max)
-    return float(np.iinfo(np.uint32).max)
-
-
-def _mask_slices(mask_bits: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    gap_mask = (mask_bits & 0x01) != 0
-    bad_mask = (mask_bits & 0x1E) != 0
-    any_mask = gap_mask | bad_mask
-    return gap_mask, bad_mask, any_mask
-
-
-def _iter_sum_groups(
-    frame_count: int,
-    mode: str,
-    step: int,
-    range_start_1: int | None = None,
-    range_end_1: int | None = None,
-) -> list[dict[str, Any]]:
-    """Build frame groups for summing.
-
-    Modes:
-    - all: one group with every frame
-    - step: contiguous chunks of N frames
-    - nth: one group with every Nth frame
-    - range: contiguous chunks of N frames between start/end (1-indexed)
-    """
-    if frame_count <= 0:
-        return []
-
-    size = max(1, int(step))
-    groups: list[dict[str, Any]] = []
-
-    if mode == "all":
-        indices = list(range(frame_count))
-        return [{"indices": indices, "start": 0, "end": frame_count - 1, "count": len(indices)}]
-
-    if mode == "step":
-        start = 0
-        while start < frame_count:
-            end = min(frame_count - 1, start + size - 1)
-            indices = list(range(start, end + 1))
-            groups.append({"indices": indices, "start": start, "end": end, "count": len(indices)})
-            start = end + 1
-        return groups
-
-    if mode == "nth":
-        indices = list(range(0, frame_count, size))
-        if not indices:
-            return []
-        return [{"indices": indices, "start": indices[0], "end": indices[-1], "count": len(indices)}]
-
-    if mode == "range":
-        start_1 = int(range_start_1 or 1)
-        end_1 = int(range_end_1 or frame_count)
-        start = max(0, start_1 - 1)
-        end = min(frame_count - 1, end_1 - 1)
-        if start > end:
-            raise HTTPException(status_code=400, detail="Range start must be <= range end")
-        cursor = start
-        while cursor <= end:
-            chunk_end = min(end, cursor + size - 1)
-            indices = list(range(cursor, chunk_end + 1))
-            groups.append(
-                {"indices": indices, "start": cursor, "end": chunk_end, "count": len(indices)}
-            )
-            cursor = chunk_end + 1
-        return groups
-
-    raise HTTPException(status_code=400, detail="Invalid series summing mode")
-
-
-def _run_series_summing_job(
-    job_id: str,
-    file: str,
-    dataset: str,
-    mode: str,
-    step: int,
-    operation: str,
-    normalize_frame: int | None,
-    range_start: int | None,
-    range_end: int | None,
-    output_path: str | None,
-    output_format: str,
-    apply_mask: bool,
-) -> None:
-    """Background worker for series summing output generation."""
-    _ensure_tifffile()
-    try:
-        source_path = _resolve_image_file(file)
-        ext = _image_ext_name(source_path.name)
-        base_target = _resolve_series_output_base(output_path)
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        output_format = output_format.lower()
-        mode = mode.lower()
-        operation = operation.lower()
-        step = max(1, int(step))
-        normalize_frame_idx = int(normalize_frame) - 1 if normalize_frame is not None else None
-
-        _series_job_update(job_id, status="running", message="Preparing datasets…", progress=0.01)
-
-        if ext in {".h5", ".hdf5"}:
-            _ensure_hdf5_stack()
-            with h5py.File(source_path, "r") as h5:
-                view, extra_files = _resolve_dataset_view(h5, source_path, dataset)
-                try:
-                    shape = tuple(int(x) for x in view["shape"])
-                    ndim = int(view["ndim"])
-                    if ndim not in (3, 4):
-                        raise HTTPException(
-                            status_code=400, detail="Series summing requires 3D or 4D image stacks"
-                        )
-                    frame_count = int(shape[0])
-                    threshold_count = int(shape[1]) if ndim == 4 else 1
-                    if normalize_frame_idx is not None and (
-                        normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
-                    ):
-                        raise HTTPException(status_code=400, detail="Normalize frame is out of range")
-                    groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
-                    if not groups:
-                        raise HTTPException(status_code=400, detail="No frames available for summing")
-
-                    source_dtype = np.dtype(view["dtype"])
-                    flag_value = _mask_flag_value(source_dtype)
-                    mask_bits_by_thr: list[np.ndarray | None] = []
-                    for thr in range(threshold_count):
-                        if not apply_mask:
-                            mask_bits_by_thr.append(None)
-                            continue
-                        mask_dset = _find_pixel_mask(h5, threshold=thr if threshold_count > 1 else None)
-                        if mask_dset is None:
-                            mask_bits_by_thr.append(None)
-                            continue
-                        mask_bits_by_thr.append(np.asarray(mask_dset, dtype=np.uint32))
-
-                    total_input_frames = sum(int(group["count"]) for group in groups)
-                    total_steps = max(1, total_input_frames * threshold_count)
-                    processed = 0
-                    sums: list[tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]] = []
-
-                    for thr in range(threshold_count):
-                        mask_bits = mask_bits_by_thr[thr]
-                        _, _, any_mask = (
-                            _mask_slices(mask_bits) if mask_bits is not None else (None, None, None)
-                        )
-                        norm_ref: np.ndarray | None = None
-                        norm_ref_valid: np.ndarray | None = None
-                        if normalize_frame_idx is not None:
-                            norm_ref = np.asarray(_extract_frame(view, normalize_frame_idx, thr), dtype=np.float64)
-                            if any_mask is not None:
-                                norm_ref = norm_ref.copy()
-                                norm_ref[any_mask] = np.nan
-                            norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
-
-                        for chunk_idx, group in enumerate(groups):
-                            start_idx = int(group["start"])
-                            end_idx = int(group["end"])
-                            frame_indices = list(group["indices"])
-                            acc: np.ndarray | None = None
-                            median_stack: list[np.ndarray] | None = [] if operation == "median" else None
-                            for frame_idx in frame_indices:
-                                arr = _extract_frame(view, frame_idx, thr)
-                                arr = np.asarray(arr, dtype=np.float64)
-                                if norm_ref is not None and norm_ref_valid is not None:
-                                    arr = np.divide(
-                                        arr,
-                                        norm_ref,
-                                        out=np.zeros_like(arr, dtype=np.float64),
-                                        where=norm_ref_valid,
-                                    )
-                                if any_mask is not None:
-                                    arr = arr.copy()
-                                    arr[any_mask] = 0.0
-                                if operation == "median":
-                                    if median_stack is not None:
-                                        median_stack.append(arr)
-                                else:
-                                    if acc is None:
-                                        acc = np.zeros_like(arr, dtype=np.float64)
-                                    acc += arr
-                                processed += 1
-                                progress = min(0.95, processed / total_steps)
-                                _series_job_update(
-                                    job_id,
-                                    progress=progress,
-                                    message=(
-                                        f"{operation.capitalize()} threshold {thr + 1}/{threshold_count}, "
-                                        f"frame {frame_idx + 1}/{frame_count}"
-                                    ),
-                                )
-                            if operation == "median":
-                                if not median_stack:
-                                    continue
-                                reduced = np.median(np.stack(median_stack, axis=0), axis=0)
-                            else:
-                                if acc is None:
-                                    continue
-                                if operation == "mean":
-                                    reduced = acc / float(max(1, len(frame_indices)))
-                                else:
-                                    reduced = acc
-                            sums.append(
-                                (thr, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits)
-                            )
-
-                finally:
-                    for handle in extra_files:
-                        try:
-                            handle.close()
-                        except Exception:
-                            pass
-        else:
-            series_files, _ = _resolve_series_files(source_path)
-            frame_count = len(series_files)
-            threshold_count = 1
-            if normalize_frame_idx is not None and (
-                normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
-            ):
-                raise HTTPException(status_code=400, detail="Normalize frame is out of range")
-            groups = _iter_sum_groups(frame_count, mode, step, range_start, range_end)
-            if not groups:
-                raise HTTPException(status_code=400, detail="No frames available for summing")
-
-            def read_image(path: Path) -> np.ndarray:
-                ext_name = _image_ext_name(path.name)
-                if ext_name in {".tif", ".tiff"}:
-                    return _read_tiff(path, index=0)
-                if ext_name == ".cbf":
-                    return _read_cbf(path)
-                if ext_name == ".cbf.gz":
-                    return _read_cbf_gz(path)
-                if ext_name == ".edf":
-                    return _read_edf(path)
-                raise HTTPException(status_code=400, detail="Unsupported image format")
-
-            sample = read_image(series_files[0])
-            image_h = int(sample.shape[-2])
-            image_w = int(sample.shape[-1])
-            shape = (int(frame_count), image_h, image_w)
-            source_dtype = np.dtype(sample.dtype)
-            flag_value = _mask_flag_value(source_dtype)
-            mask_bits = np.zeros((image_h, image_w), dtype=np.uint32) if apply_mask else None
-            mask_bits_by_thr = [mask_bits]
-
-            norm_ref: np.ndarray | None = None
-            norm_ref_valid: np.ndarray | None = None
-            if normalize_frame_idx is not None:
-                ref_arr = np.asarray(read_image(series_files[normalize_frame_idx]), dtype=np.float64)
-                if apply_mask:
-                    neg = ref_arr < 0
-                    if neg.any():
-                        gaps = ref_arr == -1
-                        if mask_bits is not None:
-                            mask_bits[gaps] |= 1
-                            mask_bits[neg & ~gaps] |= 0x1E
-                        ref_arr = ref_arr.copy()
-                        ref_arr[neg] = np.nan
-                norm_ref = ref_arr
-                norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
-
-            total_input_frames = sum(int(group["count"]) for group in groups)
-            total_steps = max(1, total_input_frames)
-            processed = 0
-            sums = []
-
-            for chunk_idx, group in enumerate(groups):
-                start_idx = int(group["start"])
-                end_idx = int(group["end"])
-                frame_indices = list(group["indices"])
-                acc: np.ndarray | None = None
-                median_stack: list[np.ndarray] | None = [] if operation == "median" else None
-                for frame_idx in frame_indices:
-                    arr = np.asarray(read_image(series_files[frame_idx]), dtype=np.float64)
-                    if apply_mask:
-                        neg = arr < 0
-                        if neg.any():
-                            gaps = arr == -1
-                            if mask_bits is not None:
-                                mask_bits[gaps] |= 1
-                                mask_bits[neg & ~gaps] |= 0x1E
-                            arr = arr.copy()
-                            arr[neg] = 0.0
-                        if mask_bits is not None and np.any(mask_bits):
-                            arr = arr.copy()
-                            arr[mask_bits != 0] = 0.0
-                    if norm_ref is not None and norm_ref_valid is not None:
-                        arr = np.divide(
-                            arr,
-                            norm_ref,
-                            out=np.zeros_like(arr, dtype=np.float64),
-                            where=norm_ref_valid,
-                        )
-                    if operation == "median":
-                        if median_stack is not None:
-                            median_stack.append(arr)
-                    else:
-                        if acc is None:
-                            acc = np.zeros_like(arr, dtype=np.float64)
-                        acc += arr
-                    processed += 1
-                    progress = min(0.95, processed / total_steps)
-                    _series_job_update(
-                        job_id,
-                        progress=progress,
-                        message=f"{operation.capitalize()} frame {frame_idx + 1}/{frame_count}",
-                    )
-                if operation == "median":
-                    if not median_stack:
-                        continue
-                    reduced = np.median(np.stack(median_stack, axis=0), axis=0)
-                else:
-                    if acc is None:
-                        continue
-                    if operation == "mean":
-                        reduced = acc / float(max(1, len(frame_indices)))
-                    else:
-                        reduced = acc
-                sums.append((0, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits))
-
-        outputs: list[str] = []
-        _series_job_update(job_id, progress=0.97, message="Writing outputs…")
-        if output_format in {"hdf5", "h5"}:
-            _ensure_hdf5_stack()
-            if base_target.suffix.lower() in {".h5", ".hdf5"}:
-                out_file = base_target
-            else:
-                out_file = base_target.parent / f"{base_target.name}_{timestamp}.h5"
-            out_file = _next_available_path(out_file)
-            with h5py.File(out_file, "w") as out_h5:
-                out_h5.attrs["source_file"] = str(source_path)
-                out_h5.attrs["source_dataset"] = str(dataset)
-                out_h5.attrs["series_mode"] = mode
-                out_h5.attrs["operation"] = operation
-                out_h5.attrs["frame_count"] = int(frame_count)
-                out_h5.attrs["threshold_count"] = int(threshold_count)
-                out_h5.attrs["mask_applied"] = bool(apply_mask)
-                if normalize_frame is not None:
-                    out_h5.attrs["normalize_frame"] = int(normalize_frame)
-
-                out_frame_count = len(groups)
-                image_h = int(shape[-2])
-                image_w = int(shape[-1])
-                if threshold_count > 1:
-                    data_shape = (out_frame_count, threshold_count, image_h, image_w)
-                    data_chunks = (1, 1, image_h, image_w)
-                else:
-                    data_shape = (out_frame_count, image_h, image_w)
-                    data_chunks = (1, image_h, image_w)
-
-                entry_group = out_h5.require_group("/entry")
-                data_group = entry_group.require_group("data")
-                
-                # Copy metadata from source H5 file when available
-                if ext in {".h5", ".hdf5"}:
-                    try:
-                        with h5py.File(source_path, "r") as src_h5:
-                            _copy_h5_metadata(src_h5, out_h5, threshold_count)
-                    except Exception:
-                        pass  # If metadata copy fails, continue with data writing
-                
-                data_dset = data_group.create_dataset(
-                    "data",
-                    shape=data_shape,
-                    dtype=np.float64,
-                    chunks=data_chunks,
-                    compression="gzip",
-                    compression_opts=4,
-                    shuffle=True,
-                )
-                data_dset.attrs["sum_mode"] = mode
-                data_dset.attrs["sum_step"] = int(step)
-                data_dset.attrs["sum_operation"] = operation
-                if range_start is not None:
-                    data_dset.attrs["sum_range_start"] = int(range_start)
-                if range_end is not None:
-                    data_dset.attrs["sum_range_end"] = int(range_end)
-                if normalize_frame is not None:
-                    data_dset.attrs["sum_normalize_frame"] = int(normalize_frame)
-                data_dset.attrs["source_dataset"] = str(dataset)
-                data_dset.attrs["frame_count_in"] = int(frame_count)
-                data_dset.attrs["frame_count_out"] = int(out_frame_count)
-                data_dset.attrs["threshold_count"] = int(threshold_count)
-                data_dset.attrs["signal"] = "data"
-
-                chunk_start = np.asarray([int(group["start"]) for group in groups], dtype=np.int64)
-                chunk_end = np.asarray([int(group["end"]) for group in groups], dtype=np.int64)
-                chunk_count = np.asarray([int(group["count"]) for group in groups], dtype=np.int64)
-                data_group.create_dataset("sum_start_frame", data=chunk_start)
-                data_group.create_dataset("sum_end_frame", data=chunk_end)
-                data_group.create_dataset("sum_frame_count", data=chunk_count)
-
-                for thr, chunk_idx, _start_idx, _end_idx, _count, arr, mask_bits in sums:
-                    arr_out = np.asarray(arr, dtype=np.float64)
-                    if mask_bits is not None:
-                        _, _, any_mask = _mask_slices(mask_bits)
-                        arr_out = arr_out.copy()
-                        arr_out[any_mask] = flag_value
-                    if threshold_count > 1:
-                        data_dset[chunk_idx, thr, :, :] = arr_out
-                    else:
-                        data_dset[chunk_idx, :, :] = arr_out
-
-                if apply_mask:
-                    base_mask_bits = mask_bits_by_thr[0] if mask_bits_by_thr else None
-                    if base_mask_bits is not None:
-                        mask_group = out_h5.require_group("/entry/instrument/detector/detectorSpecific")
-                        mask_group.create_dataset(
-                            "pixel_mask",
-                            data=base_mask_bits.astype(np.uint32),
-                            compression="gzip",
-                        )
-                    if threshold_count > 1:
-                        detector_group = out_h5.require_group("/entry/instrument/detector")
-                        for thr, mask_bits in enumerate(mask_bits_by_thr):
-                            if mask_bits is None:
-                                continue
-                            thr_group = detector_group.require_group(f"threshold_{thr + 1}_channel")
-                            thr_group.create_dataset(
-                                "pixel_mask",
-                                data=mask_bits.astype(np.uint32),
-                                compression="gzip",
-                            )
-                outputs.append(str(out_file))
-        elif output_format in {"tiff", "tif"}:
-            base_name = base_target.stem or base_target.name or "series_sum"
-            out_dir = base_target.parent
-            use_float_tiff = operation in {"mean", "median"} or normalize_frame_idx is not None
-            for thr, chunk_idx, start_idx, end_idx, frame_count_in_sum, arr, mask_bits in sums:
-                thr_tag = f"_thr{thr + 1:02d}" if threshold_count > 1 else ""
-                if mode == "all":
-                    chunk_tag = "_all"
-                elif mode == "nth":
-                    chunk_tag = f"_every{step:03d}_n{frame_count_in_sum:05d}"
-                else:
-                    chunk_tag = f"_chunk{chunk_idx + 1:04d}_f{start_idx + 1:06d}-{end_idx + 1:06d}"
-                out_file = out_dir / f"{base_name}{thr_tag}{chunk_tag}_{timestamp}.tiff"
-                out_file = _next_available_path(out_file)
-                if use_float_tiff:
-                    arr_tiff = np.asarray(arr, dtype=np.float32)
-                else:
-                    arr_out = np.rint(np.asarray(arr, dtype=np.float64))
-                    tiff_dtype: np.dtype = np.int32
-                    max_val = float(np.nanmax(arr_out)) if arr_out.size else 0.0
-                    if max_val > float(np.iinfo(np.int32).max):
-                        tiff_dtype = np.int64
-                    arr_tiff = arr_out.astype(tiff_dtype, casting="unsafe")
-                if mask_bits is not None:
-                    gap_mask, bad_mask, _ = _mask_slices(mask_bits)
-                    arr_tiff = arr_tiff.copy()
-                    arr_tiff[gap_mask] = -1
-                    arr_tiff[bad_mask] = -2
-                tifffile.imwrite(out_file, arr_tiff, photometric="minisblack")
-                outputs.append(str(out_file))
-        else:
-            raise HTTPException(status_code=400, detail="Unsupported output format")
-
-        _series_job_update(
-            job_id,
-            status="done",
-            progress=1.0,
-            message=f"Completed: wrote {len(outputs)} file(s)",
-            outputs=outputs,
-            done_at=time.time(),
-        )
-    except Exception as exc:
-        logger.exception("Series summing failed: %s", exc)
-        detail = exc.detail if isinstance(exc, HTTPException) else str(exc)
-        _series_job_update(
-            job_id,
-            status="error",
-            progress=1.0,
-            message=f"Failed: {detail}",
-            error=str(detail),
-            done_at=time.time(),
-        )
-
-
-@app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "version": ALBIS_VERSION}
+_resolve_external_path = hdf5_stack.resolve_external_path
+_dataset_info = hdf5_stack.dataset_info
+_is_image_dataset = hdf5_stack.is_image_dataset
+_serialize_h5_value = hdf5_stack.serialize_h5_value
+_collect_h5_attrs = hdf5_stack.collect_h5_attrs
+_dataset_value_preview = hdf5_stack.dataset_value_preview
+_dataset_preview_array = hdf5_stack.dataset_preview_array
+_find_pixel_mask = hdf5_stack.find_pixel_mask
+_read_scalar = hdf5_stack.read_scalar
+_norm_unit = hdf5_stack.norm_unit
+_to_mm = hdf5_stack.to_mm
+_to_um = hdf5_stack.to_um
+_to_ev = hdf5_stack.to_ev
+_wavelength_to_ev = hdf5_stack.wavelength_to_ev
+_read_threshold_energies = hdf5_stack.read_threshold_energies
+_walk_datasets = hdf5_stack.walk_datasets
+_linked_member_sort_key = hdf5_stack.linked_member_sort_key
+_aggregate_linked_stack_datasets = hdf5_stack.aggregate_linked_stack_datasets
+_resolve_node = hdf5_stack.resolve_node
+_resolve_dataset = hdf5_stack.resolve_dataset
+_resolve_dataset_view = hdf5_stack.resolve_dataset_view
+_extract_frame = hdf5_stack.extract_frame
+
+series_summing = SeriesSummingService(
+    SeriesSummingDeps(
+        data_dir=runtime_state.data_dir,
+        get_allow_abs_paths=lambda: runtime_state.allow_abs_paths,
+        is_within=_is_within,
+        logger=logger,
+        ensure_hdf5_stack=_ensure_hdf5_stack,
+        get_h5py=_get_h5py,
+        resolve_image_file=_resolve_image_file,
+        image_ext_name=_image_ext_name,
+        resolve_series_files=_resolve_series_files,
+        read_tiff=_read_tiff,
+        read_cbf=_read_cbf,
+        read_cbf_gz=_read_cbf_gz,
+        read_edf=_read_edf,
+        write_tiff=_write_tiff,
+        iter_sum_groups=_iter_sum_groups,
+        mask_flag_value=_mask_flag_value,
+        mask_slices=_mask_slices,
+        resolve_dataset_view=_resolve_dataset_view,
+        extract_frame=_extract_frame,
+        find_pixel_mask=_find_pixel_mask,
+    )
+)
 
 
 def _settings_payload() -> dict[str, Any]:
     return {
-        "config": CONFIG,
+        "config": runtime_state.config,
         "defaults": DEFAULT_CONFIG,
-        "path": str(CONFIG_PATH),
+        "path": str(runtime_state.config_path),
         "restart_required": True,
     }
 
 
-@app.get("/api/settings")
-def get_settings() -> dict[str, Any]:
-    return _settings_payload()
-
-
-@app.post("/api/settings")
-def save_settings(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    global CONFIG, ALLOW_ABS_PATHS, SCAN_CACHE_SEC, MAX_SCAN_DEPTH, MAX_UPLOAD_MB, MAX_UPLOAD_BYTES
-    raw = payload.get("config") if isinstance(payload, dict) else None
-    if not isinstance(raw, dict):
-        raise HTTPException(status_code=400, detail="Missing config payload")
-
-    try:
-        normalized = normalize_config(raw)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid config: {exc}") from exc
-
-    try:
-        save_config(normalized, CONFIG_PATH)
-    except OSError as exc:
-        raise HTTPException(status_code=500, detail="Failed to save config") from exc
-
-    CONFIG = normalized
-    ALLOW_ABS_PATHS = get_bool(CONFIG, ("data", "allow_abs_paths"), True)
-    SCAN_CACHE_SEC = get_float(CONFIG, ("data", "scan_cache_sec"), 2.0)
-    MAX_SCAN_DEPTH = get_int(CONFIG, ("data", "max_scan_depth"), -1)
-    MAX_UPLOAD_MB = max(0, get_int(CONFIG, ("data", "max_upload_mb"), 0))
-    MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024 if MAX_UPLOAD_MB > 0 else 0
-
-    logger.info("Config updated via UI: %s", CONFIG_PATH)
-    return _settings_payload()
-
-
-@app.post("/api/client-log")
-def client_log(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
-    try:
-        level = str(payload.get("level", "info")).lower()
-        message = str(payload.get("message", "")).strip()
-        context = payload.get("context")
-        meta = {
-            "url": payload.get("url"),
-            "userAgent": payload.get("userAgent"),
-            "extra": payload.get("extra"),
-        }
-        if not message:
-            return {"status": "ignored"}
-        if len(message) > 2000:
-            message = message[:2000] + "…"
-        if isinstance(context, str) and len(context) > 4000:
-            context = context[:4000] + "…"
-        try:
-            meta_json = json.dumps(meta, default=str)
-        except Exception:
-            meta_json = "{}"
-        if isinstance(context, (dict, list)):
-            try:
-                context = json.dumps(context, default=str)
-            except Exception:
-                context = str(context)
-        level_map = {
-            "debug": logging.DEBUG,
-            "info": logging.INFO,
-            "warning": logging.WARNING,
-            "error": logging.ERROR,
-            "critical": logging.CRITICAL,
-        }
-        log_level = level_map.get(level, logging.INFO)
-        if context:
-            logger.log(log_level, "CLIENT %s | %s | %s", message, context, meta_json)
-        else:
-            logger.log(log_level, "CLIENT %s | %s", message, meta_json)
-        return {"status": "ok"}
-    except Exception as exc:
-        logger.exception("Failed to record client log: %s", exc)
-        raise HTTPException(status_code=400, detail="Invalid log payload")
-
-
-@app.post("/api/open-log")
-def open_log() -> dict[str, str]:
-    if LOG_PATH is None:
-        raise HTTPException(status_code=500, detail="Log file unavailable")
-    try:
-        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        LOG_PATH.touch(exist_ok=True)
-    except OSError as exc:
-        raise HTTPException(status_code=500, detail="Failed to access log file") from exc
-
-    system = platform.system()
-    try:
-        if system == "Windows":
-            os.startfile(str(LOG_PATH))  # type: ignore[attr-defined]
-        elif system == "Darwin":
-            subprocess.run(["open", str(LOG_PATH)], check=False)
-        else:
-            subprocess.run(["xdg-open", str(LOG_PATH)], check=False)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Failed to open log file") from exc
-    return {"status": "ok", "path": str(LOG_PATH)}
-
-
-def _prefix_paths(root: Path, items: list[str]) -> list[str]:
-    """Prefix scanned file names with selected subfolder when needed."""
-    root = root.resolve()
-    data_root = DATA_DIR.resolve()
-    try:
-        rel_root = root.relative_to(data_root)
-        prefix = rel_root.as_posix()
-    except ValueError:
-        return [str((root / Path(item)).resolve()) for item in items]
-    if prefix in ("", "."):
-        return items
-    return [f"{prefix}/{item}" for item in items]
-
-
-def _display_available() -> bool:
-    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-
-
-def _run_linux_dialog(cmd: list[str]) -> str | None:
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode == 0:
-        picked = result.stdout.strip()
-        return picked or None
-    if result.returncode in {1, 255}:
-        return None
-    stderr = (result.stderr or "").strip() or "Unknown dialog error"
-    raise RuntimeError(stderr)
-
-
-def _linux_choose_folder() -> str | None:
-    if not _display_available():
-        raise RuntimeError("No graphical display available")
-    zenity = shutil.which("zenity")
-    if zenity:
-        return _run_linux_dialog([zenity, "--file-selection", "--directory", "--title=Select folder"])
-    kdialog = shutil.which("kdialog")
-    if kdialog:
-        return _run_linux_dialog([kdialog, "--getexistingdirectory", str(Path.home())])
-    raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
-
-
-def _linux_choose_file() -> str | None:
-    if not _display_available():
-        raise RuntimeError("No graphical display available")
-    zenity = shutil.which("zenity")
-    if zenity:
-        return _run_linux_dialog(
-            [
-                zenity,
-                "--file-selection",
-                "--title=Select image file",
-                "--file-filter=Image files | *.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf",
-                "--file-filter=All files | *",
-            ]
-        )
-    kdialog = shutil.which("kdialog")
-    if kdialog:
-        return _run_linux_dialog(
-            [
-                kdialog,
-                "--getopenfilename",
-                str(Path.home()),
-                "Image files (*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf) | All files (*)",
-            ]
-        )
-    raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
-
-
-def _tk_choose_folder() -> str | None:
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except Exception as exc:
-        raise RuntimeError("Tk folder picker unavailable") from exc
-
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        root.attributes("-topmost", True)
-    except Exception:
-        pass
-    try:
-        return filedialog.askdirectory(title="Select Auto Load folder") or None
-    finally:
-        root.destroy()
-
-
-def _tk_choose_file() -> str | None:
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except Exception as exc:
-        raise RuntimeError("Tk file picker unavailable") from exc
-
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        root.attributes("-topmost", True)
-    except Exception:
-        pass
-    try:
-        return (
-            filedialog.askopenfilename(
-                title="Select image file",
-                filetypes=[
-                    ("Image files", "*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf"),
-                    ("All files", "*.*"),
-                ],
-            )
-            or None
-        )
-    finally:
-        root.destroy()
-
-
-@app.get("/api/files")
-def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
-    """List discoverable image files from data root or a selected subfolder."""
-    global _files_cache
-    trimmed = (folder or "").strip()
-    use_cache = trimmed in ("", ".", "./")
-    if use_cache:
-        now = time.monotonic()
-        if SCAN_CACHE_SEC > 0 and now - _files_cache[0] < SCAN_CACHE_SEC:
-            return {"files": _files_cache[1]}
-        items = _scan_files(DATA_DIR)
-        _files_cache = (now, items)
-        return {"files": items}
-    root = _resolve_dir(trimmed)
-    items = _scan_files(root)
-    return {"files": _prefix_paths(root, items)}
-
-
-
-
-@app.get("/api/series")
-def series(file: str = Query(...)) -> dict[str, object]:
-    path = _resolve_image_file(file)
-    ext = _image_ext_name(path.name)
-    if ext in {".h5", ".hdf5"}:
-        return {"files": [file], "index": 0, "series": False}
-    parts = _split_series_name(path.name)
-    if not parts:
-        return {"files": [file], "index": 0, "series": False}
-    prefix, digits, suffix = parts
-    entries: list[tuple[int, Path]] = []
-    try:
-        with os.scandir(path.parent) as it:
-            for entry in it:
-                if not entry.is_file(follow_symlinks=False):
-                    continue
-                name = entry.name
-                if _image_ext_name(name) != ext:
-                    continue
-                stem = _strip_image_ext(name, ext)
-                match = re.match(rf"{re.escape(prefix)}(\d+){re.escape(suffix)}$", stem)
-                if not match:
-                    continue
-                try:
-                    idx = int(match.group(1))
-                except ValueError:
-                    continue
-                entries.append((idx, Path(entry.path)))
-    except OSError:
-        return {"files": [file], "index": 0, "series": False}
-    if not entries:
-        return {"files": [file], "index": 0, "series": False}
-    entries.sort(key=lambda item: item[0])
-    paths = [p for _, p in entries]
-    is_abs = Path(file).is_absolute()
-    if is_abs:
-        files = [str(p) for p in paths]
-        target = str(path)
-    else:
-        root = DATA_DIR.resolve()
-        files = []
-        target = None
-        for p in paths:
-            try:
-                rel = p.resolve().relative_to(root)
-            except ValueError:
-                continue
-            rel_str = str(rel).replace(os.sep, "/")
-            files.append(rel_str)
-            if p.resolve() == path.resolve():
-                target = rel_str
-        if target is None:
-            target = file
-    try:
-        index = files.index(target)
-    except ValueError:
-        index = 0
-    return {"files": files, "index": index, "series": len(files) > 1}
-
-
-@app.get("/api/folders")
-def folders() -> dict[str, list[str]]:
-    global _folders_cache
-    now = time.monotonic()
-    if SCAN_CACHE_SEC > 0 and now - _folders_cache[0] < SCAN_CACHE_SEC:
-        return {"folders": _folders_cache[1]}
-    items = _scan_folders(DATA_DIR)
-    _folders_cache = (now, items)
-    return {"folders": items}
-
-
-@app.get("/api/choose-folder")
-def choose_folder() -> Response:
-    if not ALLOW_ABS_PATHS:
-        raise HTTPException(status_code=403, detail="Absolute paths are disabled")
-    system = platform.system()
-    logger.debug("Folder picker requested (os=%s)", system)
-    if system == "Darwin":
-        script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
-        try:
-            result = subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as exc:
-            stderr = (exc.stderr or "").lower()
-            if "user canceled" in stderr:
-                return Response(status_code=204)
-            raise HTTPException(status_code=500, detail="Folder picker failed") from exc
-        path = result.stdout.strip()
-        if not path:
-            return Response(status_code=204)
-        return JSONResponse({"path": path})
-
-    try:
-        if system == "Linux":
-            try:
-                path = _linux_choose_folder()
-            except RuntimeError:
-                path = _tk_choose_folder()
-        else:
-            path = _tk_choose_folder()
-    except RuntimeError as exc:
-        logger.warning("Folder picker failed (os=%s): %s", system, exc)
-        raise HTTPException(status_code=500, detail=f"Folder picker unavailable: {exc}") from exc
-
-    if not path:
-        return Response(status_code=204)
-    logger.info("Folder picker selected: %s", path)
-    return JSONResponse({"path": path})
-
-
-@app.get("/api/choose-file")
-def choose_file() -> Response:
-    if not ALLOW_ABS_PATHS:
-        raise HTTPException(status_code=403, detail="Absolute paths are disabled")
-    system = platform.system()
-    logger.debug("File picker requested (os=%s)", system)
-    if system == "Darwin":
-        script = 'POSIX path of (choose file with prompt "Select image file")'
-        try:
-            result = subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as exc:
-            stderr = (exc.stderr or "").lower()
-            if "user canceled" in stderr:
-                return Response(status_code=204)
-            raise HTTPException(status_code=500, detail="File picker failed") from exc
-        path = result.stdout.strip()
-        if not path:
-            return Response(status_code=204)
-    else:
-        try:
-            if system == "Linux":
-                try:
-                    path = _linux_choose_file()
-                except RuntimeError:
-                    path = _tk_choose_file()
-            else:
-                path = _tk_choose_file()
-        except RuntimeError as exc:
-            logger.warning("File picker failed (os=%s): %s", system, exc)
-            raise HTTPException(status_code=500, detail=f"File picker unavailable: {exc}") from exc
-
-        if not path:
-            return Response(status_code=204)
-    picked = Path(path).expanduser().resolve()
-    if _image_ext_name(picked.name) not in AUTOLOAD_EXTS:
-        raise HTTPException(status_code=400, detail="Unsupported file type")
-    if not picked.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-    logger.info("File picker selected: %s", picked)
-    return JSONResponse({"path": str(picked)})
-
-
-@app.get("/api/browse")
-def browse(path: str | None = Query(None)) -> dict[str, Any]:
-    """List folders and image files in a directory for web-based file browser.
-    
-    Returns:
-        - folders: list of subdirectory names
-        - files: list of image file names with relative paths
-        - currentPath: the resolved directory path (relative to DATA_DIR if allowed)
-        - root: the root DATA_DIR path
-        - canGoUp: whether we can navigate to parent directory
-    """
-    try:
-        target_dir = _resolve_dir(path)
-    except HTTPException as exc:
-        if exc.status_code == 404:
-            target_dir = DATA_DIR.resolve()
-        else:
-            raise
-
-    # Get folders in current directory
-    dirs: set[str] = set()
-    try:
-        with os.scandir(target_dir) as it:
-            for entry in it:
-                if entry.name.startswith("."):
-                    continue
-                try:
-                    if entry.is_dir(follow_symlinks=False):
-                        dirs.add(entry.name)
-                except OSError:
-                    continue
-    except OSError:
-        pass
-
-    # Get HDF5 files in current directory (non-recursive)
-    files: set[str] = set()
-    try:
-        with os.scandir(target_dir) as it:
-            for entry in it:
-                if entry.name.startswith("."):
-                    continue
-                try:
-                    if entry.is_file(follow_symlinks=False):
-                        ext = _image_ext_name(entry.name)
-                        if ext in AUTOLOAD_EXTS:
-                            files.add(entry.name)
-                except OSError:
-                    continue
-    except OSError:
-        pass
-
-    # Compute relative path display
-    data_root = DATA_DIR.resolve()
-    try:
-        rel_path = target_dir.relative_to(data_root)
-        current_path_display = rel_path.as_posix() if rel_path != Path(".") else ""
-    except ValueError:
-        # Outside DATA_DIR, show absolute if allowed
-        current_path_display = str(target_dir) if ALLOW_ABS_PATHS else ""
-
-    # Check if we can go up
-    can_go_up = target_dir.resolve() != data_root.resolve()
-
-    return {
-        "folders": sorted(dirs),
-        "files": sorted(files),
-        "currentPath": current_path_display,
-        "root": str(data_root),
-        "canGoUp": can_go_up,
-        "allowAbsolutePaths": ALLOW_ABS_PATHS,
-    }
-
-
-@app.get("/api/autoload/latest")
-def autoload_latest(
-    folder: str | None = Query(None),
-    exts: str | None = Query(None),
-    pattern: str | None = Query(None),
-) -> Response:
-    root = _resolve_dir(folder)
-    allowed = _parse_ext_filter(exts)
-    latest = _latest_image_file(root, allowed, pattern)
-    if not latest:
-        logger.debug("Autoload scan: no file found (folder=%s pattern=%s)", root, pattern or "")
-        return Response(status_code=204)
-    try:
-        rel = latest.resolve().relative_to(DATA_DIR.resolve()).as_posix()
-        absolute = False
-        file_label = rel
-    except ValueError:
-        if not ALLOW_ABS_PATHS:
-            raise HTTPException(status_code=400, detail="Invalid file location")
-        absolute = True
-        file_label = str(latest.resolve())
-    logger.debug("Autoload scan: latest=%s absolute=%s", file_label, absolute)
-    return JSONResponse(
-        {
-            "file": file_label,
-            "ext": _image_ext_name(latest.name),
-            "mtime": latest.stat().st_mtime,
-            "absolute": absolute,
-        }
-    )
-
-
-@app.get("/api/image")
-def image(
-    file: str = Query(..., min_length=1),
-    index: int = Query(0, ge=0),
-) -> Response:
-    path = _resolve_image_file(file)
-    ext = _image_ext_name(path.name)
-    meta: dict[str, Any] = {}
-    if ext in {".h5", ".hdf5"}:
-        raise HTTPException(status_code=400, detail="Use /api/frame for HDF5 datasets")
-    if ext in {".tif", ".tiff"}:
-        arr = _read_tiff(path, index=index)
-        meta = _pilatus_meta_from_tiff(path)
-    elif ext == ".cbf":
-        arr = _read_cbf(path)
-        meta = _pilatus_meta_from_fabio(path)
-    elif ext == ".cbf.gz":
-        arr = _read_cbf_gz(path)
-        meta = _pilatus_meta_from_fabio(path)
-    elif ext == ".edf":
-        arr = _read_edf(path)
-        meta = _pilatus_meta_from_fabio(path)
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported image format")
-
-    data = arr.tobytes(order="C")
-    headers = {
-        "X-Dtype": arr.dtype.str,
-        "X-Shape": ",".join(str(x) for x in arr.shape),
-        "X-Frame": "0",
-    }
-    if meta:
-        logger.debug("Image meta (%s): %s", path.name, meta)
-        if meta.get("distance_mm") is not None:
-            headers["X-Image-DetectorDistance-MM"] = str(meta["distance_mm"])
-        if meta.get("pixel_size_um") is not None:
-            headers["X-Image-PixelSize-UM"] = str(meta["pixel_size_um"])
-        if meta.get("energy_ev") is not None:
-            headers["X-Image-Energy-Ev"] = str(meta["energy_ev"])
-        if meta.get("wavelength_a") is not None:
-            headers["X-Image-Wavelength-A"] = str(meta["wavelength_a"])
-        if meta.get("beam_center_px"):
-            center = meta["beam_center_px"]
-            headers["X-Image-BeamCenter-X"] = str(center[0])
-            headers["X-Image-BeamCenter-Y"] = str(center[1])
-    return Response(content=data, media_type="application/octet-stream", headers=headers)
-
-
-@app.get("/api/image/header")
-def image_header(file: str = Query(..., min_length=1)) -> dict[str, str]:
-    path = _resolve_image_file(file)
-    ext = _image_ext_name(path.name)
-    if ext in {".h5", ".hdf5"}:
-        raise HTTPException(status_code=400, detail="Header is only available for non-HDF images")
-    header_text = _pilatus_header_text(path)
-    logger.debug("Image header (%s): %d chars", path.name, len(header_text))
-    return {"header": header_text or ""}
-
-
-@app.get("/api/simplon/monitor")
-def simplon_monitor(
-    url: str = Query(..., min_length=4),
-    version: str = Query("1.8.0"),
-    timeout: int = Query(500, ge=0),
-    enable: bool = Query(True),
-) -> Response:
-    _ensure_tifffile()
-    base = _simplon_base(url, version)
-    if enable:
-        _simplon_set_mode(base, "enabled")
-    data = _simplon_fetch_monitor(base, timeout)
-    if data is None:
-        logger.debug("SIMPLON monitor: no data (url=%s)", url)
-        return Response(status_code=204)
-    meta: dict[str, Any] = {}
-    try:
-        with tifffile.TiffFile(io.BytesIO(data)) as tiff:
-            meta = _simplon_meta_from_tiff(tiff, raw=data)
-            arr = _normalize_image_array(np.asarray(tiff.asarray()))
-    except Exception:
-        arr = _normalize_image_array(np.asarray(tifffile.imread(io.BytesIO(data))))
-    if meta:
-        logger.debug("SIMPLON meta (url=%s): %s", url, meta)
-    data_bytes = arr.tobytes(order="C")
-    headers = {
-        "X-Dtype": arr.dtype.str,
-        "X-Shape": ",".join(str(x) for x in arr.shape),
-        "X-Frame": "0",
-    }
-    if meta:
-        if meta.get("series_number") is not None:
-            headers["X-Simplon-Series"] = str(meta["series_number"])
-        if meta.get("image_number") is not None:
-            headers["X-Simplon-Image"] = str(meta["image_number"])
-        if meta.get("image_datetime"):
-            headers["X-Simplon-Date"] = str(meta["image_datetime"])
-        if meta.get("threshold_energy_ev") is not None:
-            headers["X-Simplon-Threshold-Ev"] = str(meta["threshold_energy_ev"])
-        if meta.get("energy_ev") is not None:
-            headers["X-Simplon-Energy-Ev"] = str(meta["energy_ev"])
-        if meta.get("wavelength_a") is not None:
-            headers["X-Simplon-Wavelength-A"] = str(meta["wavelength_a"])
-        if meta.get("distance_mm") is not None:
-            headers["X-Simplon-DetectorDistance-MM"] = str(meta["distance_mm"])
-        if meta.get("beam_center_px"):
-            center = meta["beam_center_px"]
-            headers["X-Simplon-BeamCenter-X"] = str(center[0])
-            headers["X-Simplon-BeamCenter-Y"] = str(center[1])
-    return Response(content=data_bytes, media_type="application/octet-stream", headers=headers)
-
-
-@app.post("/api/simplon/mode")
-def simplon_mode(
-    url: str = Query(..., min_length=4),
-    version: str = Query("1.8.0"),
-    mode: str = Query("enabled"),
-) -> dict[str, str]:
-    mode_value = mode.lower()
-    if mode_value not in {"enabled", "disabled"}:
-        raise HTTPException(status_code=400, detail="Invalid monitor mode")
-    base = _simplon_base(url, version)
-    _simplon_set_mode(base, mode_value)
-    logger.info("SIMPLON monitor mode: %s (url=%s)", mode_value, url)
-    return {"status": "ok", "mode": mode_value}
-
-
-@app.get("/api/simplon/mask")
-def simplon_mask(
-    url: str = Query(..., min_length=4),
-    version: str = Query("1.8.0"),
-) -> Response:
-    arr = _simplon_fetch_pixel_mask(url, version)
-    if arr is None:
-        logger.debug("SIMPLON mask: not available (url=%s)", url)
-        return Response(status_code=204)
-    logger.info("SIMPLON mask fetched (url=%s)", url)
-    data = arr.tobytes(order="C")
-    headers = {
-        "X-Dtype": arr.dtype.str,
-        "X-Shape": ",".join(str(x) for x in arr.shape),
-    }
-    return Response(content=data, media_type="application/octet-stream", headers=headers)
-
-
-@app.post("/api/remote/v1/frame")
-async def remote_frame_ingest(
-    source_id: str = Query("default", min_length=1),
-    seq: int | None = Query(None, ge=0),
-    meta: str = Form("{}"),
-    image: UploadFile = File(...),
-) -> dict[str, Any]:
-    if not image.filename:
-        raise HTTPException(status_code=400, detail="Missing image filename")
-    payload = await image.read()
-    if not payload:
-        raise HTTPException(status_code=400, detail="Empty image payload")
-    meta_dict = _remote_parse_meta(meta)
-    safe_source = _remote_safe_source_id(source_id or str(meta_dict.get("source_id") or "default"))
-    frame = _remote_read_image_bytes(payload, meta=meta_dict, filename=image.filename)
-    extracted_meta = _remote_extract_metadata(meta_dict)
-    seq_value = _remote_store_frame(source_id=safe_source, frame=frame, meta=extracted_meta, seq=seq)
-    logger.debug(
-        "Remote frame ingested: source=%s seq=%s shape=%s dtype=%s peak_sets=%d",
-        safe_source,
-        seq_value,
-        tuple(int(v) for v in frame.shape),
-        frame.dtype.str,
-        len(extracted_meta.get("peak_sets") or []),
-    )
-    return {"status": "ok", "source_id": safe_source, "seq": seq_value}
-
-
-@app.get("/api/remote/v1/latest")
-def remote_frame_latest(
-    source_id: str = Query("default", min_length=1),
-    after_seq: int | None = Query(None, ge=0),
-) -> Response:
-    safe_source = _remote_safe_source_id(source_id)
-    frame = _remote_snapshot(safe_source)
-    if not frame:
-        return Response(status_code=204)
-    seq = int(frame.get("seq", 0))
-    if after_seq is not None and seq <= int(after_seq):
-        return Response(status_code=204)
-
-    meta = frame.get("meta") or {}
-    resolution = meta.get("resolution") or {}
-    display_name = str(meta.get("display_name") or "").strip()
-    if not display_name:
-        parts: list[str] = [f"Remote stream ({safe_source})"]
-        if meta.get("series_number") is not None:
-            parts.append(f"S{meta.get('series_number')}")
-        if meta.get("image_number") is not None:
-            parts.append(f"Img{meta.get('image_number')}")
-        if meta.get("image_datetime"):
-            parts.append(str(meta.get("image_datetime")))
-        display_name = " ".join(parts)
-    headers = {
-        "X-Dtype": str(frame.get("dtype") or ""),
-        "X-Shape": ",".join(str(v) for v in frame.get("shape") or ()),
-        "X-Frame": "0",
-        "X-Remote-Source": safe_source,
-        "X-Remote-Seq": str(seq),
-        "X-Remote-Display": display_name,
-    }
-    if meta.get("series_number") is not None:
-        headers["X-Remote-Series"] = str(meta.get("series_number"))
-    if meta.get("image_number") is not None:
-        headers["X-Remote-Image"] = str(meta.get("image_number"))
-    if meta.get("image_datetime"):
-        headers["X-Remote-Date"] = str(meta.get("image_datetime"))
-    if resolution.get("distance_mm") is not None:
-        headers["X-Remote-DetectorDistance-MM"] = str(resolution.get("distance_mm"))
-    if resolution.get("pixel_size_um") is not None:
-        headers["X-Remote-PixelSize-UM"] = str(resolution.get("pixel_size_um"))
-    if resolution.get("energy_ev") is not None:
-        headers["X-Remote-Energy-Ev"] = str(resolution.get("energy_ev"))
-    if resolution.get("wavelength_a") is not None:
-        headers["X-Remote-Wavelength-A"] = str(resolution.get("wavelength_a"))
-    center = resolution.get("beam_center_px")
-    if isinstance(center, list) and len(center) >= 2:
-        headers["X-Remote-BeamCenter-X"] = str(center[0])
-        headers["X-Remote-BeamCenter-Y"] = str(center[1])
-    peak_sets = meta.get("peak_sets") if isinstance(meta, dict) else []
-    headers["X-Remote-PeakSets"] = str(len(peak_sets) if isinstance(peak_sets, list) else 0)
-    return Response(content=frame.get("bytes") or b"", media_type="application/octet-stream", headers=headers)
-
-
-@app.get("/api/remote/v1/meta")
-def remote_frame_meta(
-    source_id: str = Query("default", min_length=1),
-    seq: int | None = Query(None, ge=0),
-) -> Response:
-    safe_source = _remote_safe_source_id(source_id)
-    frame = _remote_snapshot(safe_source)
-    if not frame:
-        return Response(status_code=204)
-    current_seq = int(frame.get("seq", 0))
-    if seq is not None and int(seq) != current_seq:
-        return JSONResponse(
-            status_code=409,
-            content={"detail": "Requested sequence is no longer current", "current_seq": current_seq},
-        )
-    meta = frame.get("meta") if isinstance(frame.get("meta"), dict) else {}
-    return JSONResponse(
-        {
-            "source_id": safe_source,
-            "seq": current_seq,
-            "updated_at": frame.get("updated_at"),
-            "display_name": meta.get("display_name") or "",
-            "series_number": meta.get("series_number"),
-            "image_number": meta.get("image_number"),
-            "image_datetime": meta.get("image_datetime") or "",
-            "resolution": meta.get("resolution") or {},
-            "peak_sets": meta.get("peak_sets") or [],
-            "extra": meta.get("extra") or {},
-        }
-    )
-
-
-@app.post("/api/upload")
-async def upload(file: UploadFile = File(...), folder: str | None = Query(None)) -> dict[str, str]:
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Missing filename")
-    safe_path = _safe_rel_path(Path(file.filename).name)
-    safe = safe_path.as_posix()
-    ext = _image_ext_name(safe)
-    if ext not in AUTOLOAD_EXTS:
-        raise HTTPException(status_code=400, detail="Unsupported file type")
-    root = _resolve_dir(folder) if folder else DATA_DIR.resolve()
-    dest = (root / safe).resolve()
-    if not _is_within(dest, root):
-        raise HTTPException(status_code=400, detail="Invalid file name")
-    logger.info("Upload start: %s -> %s", safe, dest)
-    written = 0
-    chunk_size = 1024 * 1024 * 4
-    try:
-        with dest.open("wb") as fh:
-            while True:
-                chunk = file.file.read(chunk_size)
-                if not chunk:
-                    break
-                written += len(chunk)
-                if MAX_UPLOAD_BYTES and written > MAX_UPLOAD_BYTES:
-                    raise HTTPException(status_code=413, detail="Upload too large")
-                fh.write(chunk)
-    except HTTPException:
-        try:
-            if dest.exists():
-                dest.unlink()
-        except OSError:
-            pass
-        raise
-    logger.info("Upload complete: %s (%d bytes)", dest, written)
-    try:
-        resolved_rel = dest.relative_to(DATA_DIR.resolve()).as_posix()
-        open_path = resolved_rel
-    except ValueError:
-        open_path = str(dest)
-    return {"filename": safe, "path": open_path}
-
-
-@app.get("/api/datasets")
-def datasets(file: str = Query(..., min_length=1)) -> dict[str, Any]:
-    """Discover image-capable datasets, including synthetic linked stacks."""
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    results: list[dict[str, Any]] = []
-    with h5py.File(path, "r") as h5:
-        file_cache: dict[Path, h5py.File] = {path: h5}
-        try:
-            _walk_datasets(h5["/"], "/", path, results, set(), file_cache)
-        finally:
-            for cache_path, handle in file_cache.items():
-                if cache_path == path:
-                    continue
-                try:
-                    handle.close()
-                except Exception:
-                    pass
-    return {"datasets": _aggregate_linked_stack_datasets(results)}
-
-
-@app.get("/api/hdf5/tree")
-def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> dict[str, Any]:
-    """Return one tree level for the file inspector."""
-    _ensure_hdf5_stack()
-    file_path = _resolve_file(file)
-    with h5py.File(file_path, "r") as h5:
-        if path not in h5:
-            raise HTTPException(status_code=404, detail="Path not found")
-        obj = h5[path]
-        if not isinstance(obj, h5py.Group):
-            return {"path": path, "children": []}
-        children: list[dict[str, Any]] = []
-        for name in obj.keys():
-            child_path = f"{path}/{name}" if path != "/" else f"/{name}"
-            try:
-                link = obj.get(name, getlink=True)
-            except Exception:
-                link = None
-            if isinstance(link, h5py.ExternalLink):
-                children.append(
-                    {
-                        "name": name,
-                        "path": child_path,
-                        "type": "link",
-                        "link": "external",
-                        "target": f"{link.filename}:{link.path}",
-                    }
-                )
-                continue
-            if isinstance(link, h5py.SoftLink):
-                children.append(
-                    {
-                        "name": name,
-                        "path": child_path,
-                        "type": "link",
-                        "link": "soft",
-                        "target": str(link.path),
-                    }
-                )
-                continue
-            try:
-                child = obj[name]
-            except Exception:
-                continue
-            if isinstance(child, h5py.Group):
-                children.append(
-                    {
-                        "name": name,
-                        "path": child_path,
-                        "type": "group",
-                        "hasChildren": len(child.keys()) > 0,
-                    }
-                )
-            elif isinstance(child, h5py.Dataset):
-                children.append(
-                    {
-                        "name": name,
-                        "path": child_path,
-                        "type": "dataset",
-                        "shape": tuple(int(x) for x in child.shape),
-                        "dtype": str(child.dtype),
-                    }
-                )
-        children.sort(key=lambda item: (item.get("type") != "group", item.get("name", "")))
-        return {"path": path, "children": children}
-
-
-@app.get("/api/hdf5/node")
-def hdf5_node(file: str = Query(..., min_length=1), path: str = Query(..., min_length=1)) -> dict[str, Any]:
-    """Return node metadata and attributes for the inspector details pane."""
-    _ensure_hdf5_stack()
-    file_path = _resolve_file(file)
-    with h5py.File(file_path, "r") as h5:
-        if path not in h5:
-            raise HTTPException(status_code=404, detail="Path not found")
-        obj = h5[path]
-        if isinstance(obj, h5py.Group):
-            return {"path": path, "type": "group", "attrs": _collect_h5_attrs(obj)}
-        if isinstance(obj, h5py.Dataset):
-            preview = None
-            try:
-                if obj.size <= 64 or obj.ndim == 0:
-                    preview = _serialize_h5_value(obj[()])
-            except Exception:
-                preview = None
-            return {
-                "path": path,
-                "type": "dataset",
-                "shape": tuple(int(x) for x in obj.shape),
-                "dtype": str(obj.dtype),
-                "attrs": _collect_h5_attrs(obj),
-                "preview": preview,
-            }
-        raise HTTPException(status_code=400, detail="Unsupported node type")
-
-
-@app.get("/api/hdf5/value")
-def hdf5_value(
-    file: str = Query(..., min_length=1),
-    path: str = Query(..., min_length=1),
-    max_cells: int = Query(2048, ge=16, le=65536),
-) -> dict[str, Any]:
-    """Return value preview payload for scalar/array inspector rendering."""
-    _ensure_hdf5_stack()
-    file_path = _resolve_file(file)
-    with h5py.File(file_path, "r") as h5:
-        if path not in h5:
-            raise HTTPException(status_code=404, detail="Path not found")
-        obj = h5[path]
-        if not isinstance(obj, h5py.Dataset):
-            raise HTTPException(status_code=400, detail="Not a dataset")
-        preview, preview_shape, truncated, slice_info = _dataset_value_preview(obj, max_cells=max_cells)
-        return {
-            "path": path,
-            "type": "dataset",
-            "shape": tuple(int(x) for x in obj.shape),
-            "dtype": str(obj.dtype),
-            "preview": preview,
-            "preview_shape": preview_shape,
-            "truncated": truncated,
-            "slice": slice_info,
-        }
-
-
-@app.get("/api/hdf5/search")
-def hdf5_search(
-    file: str = Query(..., min_length=1),
-    query: str = Query(..., min_length=1),
-    limit: int = Query(200, ge=1, le=1000),
-) -> dict[str, Any]:
-    _ensure_hdf5_stack()
-    needle = query.strip().lower()
-    if not needle:
-        return {"matches": []}
-    file_path = _resolve_file(file)
-    matches: list[dict[str, Any]] = []
-    with h5py.File(file_path, "r") as h5:
-        stack: list[tuple[str, h5py.Group]] = [("/", h5["/"])]
-        while stack and len(matches) < limit:
-            base_path, group = stack.pop()
-            try:
-                names = sorted(group.keys())
-            except Exception:
-                continue
-            for name in names:
-                child_path = f"{base_path}/{name}" if base_path != "/" else f"/{name}"
-                is_match = needle in name.lower() or needle in child_path.lower()
-                try:
-                    link = group.get(name, getlink=True)
-                except Exception:
-                    link = None
-                if isinstance(link, h5py.ExternalLink):
-                    if is_match:
-                        matches.append(
-                            {
-                                "name": name,
-                                "path": child_path,
-                                "type": "link",
-                                "link": "external",
-                                "target": f"{link.filename}:{link.path}",
-                            }
-                        )
-                    continue
-                if isinstance(link, h5py.SoftLink):
-                    if is_match:
-                        matches.append(
-                            {
-                                "name": name,
-                                "path": child_path,
-                                "type": "link",
-                                "link": "soft",
-                                "target": str(link.path),
-                            }
-                        )
-                    continue
-                try:
-                    child = group[name]
-                except Exception:
-                    continue
-                if isinstance(child, h5py.Group):
-                    if is_match:
-                        matches.append(
-                            {
-                                "name": name,
-                                "path": child_path,
-                                "type": "group",
-                                "hasChildren": len(child.keys()) > 0,
-                            }
-                        )
-                    stack.append((child_path, child))
-                elif isinstance(child, h5py.Dataset) and is_match:
-                    matches.append(
-                        {
-                            "name": name,
-                            "path": child_path,
-                            "type": "dataset",
-                            "shape": tuple(int(x) for x in child.shape),
-                            "dtype": str(child.dtype),
-                        }
-                    )
-                if len(matches) >= limit:
-                    break
-    return {"matches": matches}
-
-
-@app.get("/api/hdf5/csv")
-def hdf5_csv(
-    file: str = Query(..., min_length=1),
-    path: str = Query(..., min_length=1),
-    max_cells: int = Query(65536, ge=64, le=262144),
-) -> Response:
-    _ensure_hdf5_stack()
-    file_path = _resolve_file(file)
-    with h5py.File(file_path, "r") as h5:
-        if path not in h5:
-            raise HTTPException(status_code=404, detail="Path not found")
-        obj = h5[path]
-        if not isinstance(obj, h5py.Dataset):
-            raise HTTPException(status_code=400, detail="Not a dataset")
-        data, truncated, slice_info = _dataset_preview_array(obj, max_cells=max_cells)
-        if data is None:
-            raise HTTPException(status_code=500, detail="Unable to read dataset")
-        output = io.StringIO()
-        if slice_info:
-            output.write(
-                f"# slice={slice_info.get('lead')} rows={slice_info.get('rows')} cols={slice_info.get('cols')}\n"
-            )
-        writer = csv.writer(output)
-        if data.ndim == 0:
-            writer.writerow([_serialize_h5_value(data.item())])
-        elif data.ndim == 1:
-            writer.writerow(["index", "value"])
-            for idx, value in enumerate(data.tolist()):
-                writer.writerow([idx, _serialize_h5_value(value)])
-        else:
-            for row in data.tolist():
-                writer.writerow([_serialize_h5_value(v) for v in row])
-        if truncated:
-            output.write("# truncated\n")
-        filename = path.strip("/").replace("/", "_") or "dataset"
-        headers = {"Content-Disposition": f'attachment; filename="{filename}.csv"'}
-        return Response(content=output.getvalue(), media_type="text/csv", headers=headers)
-
-
-@app.get("/api/analysis/params")
-def analysis_params(
-    file: str = Query(..., min_length=1),
-    dataset: str | None = Query(None),
-) -> dict[str, Any]:
-    _ensure_hdf5_stack()
-    file_path = _resolve_file(file)
-    distance_val, distance_unit = None, None
-    pixel_x_val, pixel_x_unit = None, None
-    pixel_y_val, pixel_y_unit = None, None
-    energy_val, energy_unit = None, None
-    wavelength_val, wavelength_unit = None, None
-    center_x_val, center_x_unit = None, None
-    center_y_val, center_y_unit = None, None
-    shape = None
-
-    with h5py.File(file_path, "r") as h5:
-        if dataset:
-            try:
-                view, extra_files = _resolve_dataset_view(h5, file_path, dataset)
-                try:
-                    shape = tuple(int(x) for x in view["shape"])
-                finally:
-                    for handle in extra_files:
-                        handle.close()
-            except Exception:
-                shape = None
-
-        distance_val, distance_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/detector_distance",
-                "/entry/instrument/detector/distance",
-                "/entry/instrument/detector/detectorSpecific/detector_distance",
-            ],
-        )
-        pixel_x_val, pixel_x_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/x_pixel_size",
-                "/entry/instrument/detector/detectorSpecific/x_pixel_size",
-                "/entry/instrument/detector/pixel_size",
-            ],
-        )
-        pixel_y_val, pixel_y_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/y_pixel_size",
-                "/entry/instrument/detector/detectorSpecific/y_pixel_size",
-                "/entry/instrument/detector/pixel_size",
-            ],
-        )
-        energy_val, energy_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/beam/incident_energy",
-                "/entry/instrument/beam/energy",
-                "/entry/instrument/beam/photon_energy",
-                "/entry/instrument/source/energy",
-            ],
-        )
-        wavelength_val, wavelength_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/beam/incident_wavelength",
-                "/entry/instrument/beam/wavelength",
-                "/entry/instrument/beam/photon_wavelength",
-            ],
-        )
-        center_x_val, center_x_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/beam_center_x",
-                "/entry/instrument/detector/beam_center_x_mm",
-                "/entry/instrument/detector/detectorSpecific/beam_center_x",
-            ],
-        )
-        center_y_val, center_y_unit = _read_scalar(
-            h5,
-            [
-                "/entry/instrument/detector/beam_center_y",
-                "/entry/instrument/detector/beam_center_y_mm",
-                "/entry/instrument/detector/detectorSpecific/beam_center_y",
-            ],
-        )
-
-    distance_mm = _to_mm(distance_val, distance_unit) if distance_val is not None else None
-
-    pixel_size_um = None
-    if pixel_x_val is not None:
-        pixel_size_um = _to_um(pixel_x_val, pixel_x_unit)
-    if pixel_y_val is not None:
-        pixel_y_um = _to_um(pixel_y_val, pixel_y_unit)
-        pixel_size_um = (
-            (pixel_size_um + pixel_y_um) / 2 if pixel_size_um is not None else pixel_y_um
-        )
-
-    energy_ev = None
-    if energy_val is not None:
-        energy_ev = _to_ev(energy_val, energy_unit)
-    elif wavelength_val is not None:
-        energy_ev = _wavelength_to_ev(wavelength_val, wavelength_unit)
-
-    center_x_px = None
-    center_y_px = None
-    if center_x_val is not None:
-        unit = _norm_unit(center_x_unit)
-        if unit in {"mm", "m", "cm", "um", "nm"}:
-            if pixel_size_um:
-                center_x_px = _to_mm(center_x_val, center_x_unit) / (pixel_size_um / 1000)
-        else:
-            center_x_px = center_x_val
-    if center_y_val is not None:
-        unit = _norm_unit(center_y_unit)
-        if unit in {"mm", "m", "cm", "um", "nm"}:
-            if pixel_size_um:
-                center_y_px = _to_mm(center_y_val, center_y_unit) / (pixel_size_um / 1000)
-        else:
-            center_y_px = center_y_val
-
-    return {
-        "distance_mm": distance_mm,
-        "pixel_size_um": pixel_size_um,
-        "energy_ev": energy_ev,
-        "center_x_px": center_x_px,
-        "center_y_px": center_y_px,
-        "shape": shape,
-    }
-
-
-@app.post("/api/analysis/series-sum/start")
-def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    """Start asynchronous series summing and return pollable job metadata."""
-    file = str(payload.get("file", "")).strip()
-    dataset = str(payload.get("dataset", "")).strip()
-    mode = str(payload.get("mode", "all")).strip().lower()
-    step = int(payload.get("step", 10) or 10)
-    operation = str(payload.get("operation", "sum")).strip().lower()
-    normalize_frame = payload.get("normalize_frame")
-    normalize_frame = (
-        int(normalize_frame)
-        if normalize_frame is not None and str(normalize_frame).strip() != ""
-        else None
-    )
-    range_start = payload.get("range_start")
-    range_end = payload.get("range_end")
-    range_start = int(range_start) if range_start is not None and str(range_start).strip() != "" else None
-    range_end = int(range_end) if range_end is not None and str(range_end).strip() != "" else None
-    output_path = payload.get("output_path")
-    output_format = str(payload.get("format", "hdf5")).strip().lower()
-    apply_mask = bool(payload.get("apply_mask", True))
-
-    if not file:
-        raise HTTPException(status_code=400, detail="Missing file")
-    ext = _image_ext_name(Path(file).name)
-    if ext in {".h5", ".hdf5"} and not dataset:
-        raise HTTPException(status_code=400, detail="Missing dataset")
-    if mode not in {"all", "step", "nth", "range"}:
-        raise HTTPException(status_code=400, detail="Invalid mode")
-    if operation not in {"sum", "mean", "median"}:
-        raise HTTPException(status_code=400, detail="Invalid operation")
-    if output_format not in {"hdf5", "h5", "tiff", "tif"}:
-        raise HTTPException(status_code=400, detail="Invalid format")
-    if step < 1:
-        raise HTTPException(status_code=400, detail="Step must be >= 1")
-    if range_start is not None and range_start < 1:
-        raise HTTPException(status_code=400, detail="Range start must be >= 1")
-    if range_end is not None and range_end < 1:
-        raise HTTPException(status_code=400, detail="Range end must be >= 1")
-    if range_start is not None and range_end is not None and range_start > range_end:
-        raise HTTPException(status_code=400, detail="Range start must be <= range end")
-    if normalize_frame is not None and normalize_frame < 1:
-        raise HTTPException(status_code=400, detail="Normalize frame must be >= 1")
-
-    job_id = uuid.uuid4().hex
-    job_data = {
-        "id": job_id,
-        "status": "queued",
-        "progress": 0.0,
-        "message": "Queued",
-        "created_at": time.time(),
-        "updated_at": time.time(),
-        "outputs": [],
-        "error": None,
-        "config": {
-            "file": file,
-            "dataset": dataset,
-            "mode": mode,
-            "step": step,
-            "operation": operation,
-            "normalize_frame": normalize_frame,
-            "range_start": range_start,
-            "range_end": range_end,
-            "format": output_format,
-            "apply_mask": apply_mask,
-            "output_path": output_path,
-        },
-    }
-    with _series_jobs_lock:
-        _series_jobs[job_id] = job_data
-        # keep memory bounded
-        done_jobs = [jid for jid, info in _series_jobs.items() if info.get("status") in {"done", "error"}]
-        if len(done_jobs) > 200:
-            done_jobs.sort(key=lambda jid: float(_series_jobs[jid].get("updated_at", 0.0)))
-            for old_id in done_jobs[: len(done_jobs) - 200]:
-                _series_jobs.pop(old_id, None)
-
-    worker = threading.Thread(
-        target=_run_series_summing_job,
-        kwargs={
-            "job_id": job_id,
-            "file": file,
-            "dataset": dataset,
-            "mode": mode,
-            "step": step,
-            "operation": operation,
-            "normalize_frame": normalize_frame,
-            "range_start": range_start,
-            "range_end": range_end,
-            "output_path": str(output_path or ""),
-            "output_format": output_format,
-            "apply_mask": apply_mask,
-        },
-        daemon=True,
-    )
-    worker.start()
-    return {"job_id": job_id, "status": "queued"}
-
-@app.get("/api/analysis/series-sum/status")
-def analysis_series_sum_status(job_id: str = Query(..., min_length=1)) -> dict[str, Any]:
-    with _series_jobs_lock:
-        job = _series_jobs.get(job_id)
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
-        return dict(job)
-
-
-@app.post("/api/open-path")
-def open_path(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
-    raw = str(payload.get("path", "")).strip()
-    if not raw:
-        raise HTTPException(status_code=400, detail="Missing path")
-
-    path = Path(raw).expanduser()
-    if not path.is_absolute():
-        path = (DATA_DIR / path).resolve()
-    else:
-        path = path.resolve()
-
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Path does not exist")
-
-    allowed_root = DATA_DIR.resolve()
-    if not ALLOW_ABS_PATHS and not _is_within(path, allowed_root):
-        raise HTTPException(status_code=400, detail="Path is outside data directory")
-
-    system = platform.system()
-    try:
-        if system == "Windows":
-            os.startfile(str(path))  # type: ignore[attr-defined]
-        elif system == "Darwin":
-            subprocess.run(["open", str(path)], check=False)
-        else:
-            subprocess.run(["xdg-open", str(path)], check=False)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Failed to open path") from exc
-    return {"status": "ok", "path": str(path)}
-
-
-@app.get("/api/metadata")
-def metadata(file: str = Query(..., min_length=1), dataset: str = Query(..., min_length=1)) -> dict[str, Any]:
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    with h5py.File(path, "r") as h5:
-        try:
-            view, extra_files = _resolve_dataset_view(h5, path, dataset)
-            try:
-                shape = tuple(int(x) for x in view["shape"])
-                response = {
-                    "path": dataset,
-                    "shape": shape,
-                    "dtype": str(view["dtype"]),
-                    "ndim": int(view["ndim"]),
-                    "chunks": view["dataset"].chunks if view["kind"] == "dataset" else None,
-                    "maxshape": view["dataset"].maxshape if view["kind"] == "dataset" else None,
-                    "linked_stack": view["kind"] == "linked_stack",
-                }
-                if int(view["ndim"]) == 4:
-                    response["threshold_energies"] = _read_threshold_energies(h5, shape[1])
-                return response
-            finally:
-                for handle in extra_files:
-                    handle.close()
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Dataset not found")
-
-
-@app.get("/api/frame")
-def frame(
-    file: str = Query(..., min_length=1),
-    dataset: str = Query(..., min_length=1),
-    index: int = Query(0, ge=0),
-    threshold: int = Query(0, ge=0),
-) -> Response:
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    with h5py.File(path, "r") as h5:
-        try:
-            view, extra_files = _resolve_dataset_view(h5, path, dataset)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Dataset not found")
-        try:
-            frame_data = _extract_frame(view, index=index, threshold=threshold)
-        finally:
-            for handle in extra_files:
-                handle.close()
-
-        arr = np.asarray(frame_data)
-        if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
-            arr = arr.byteswap().newbyteorder("<")
-
-        data = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-            "X-Frame": str(index),
-        }
-        return Response(content=data, media_type="application/octet-stream", headers=headers)
-
-
-@app.get("/api/preview")
-def preview(
-    file: str = Query(..., min_length=1),
-    dataset: str = Query(..., min_length=1),
-    index: int = Query(0, ge=0),
-    max_size: int = Query(1024, ge=64, le=4096),
-    threshold: int = Query(0, ge=0),
-) -> Response:
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    with h5py.File(path, "r") as h5:
-        try:
-            view, extra_files = _resolve_dataset_view(h5, path, dataset)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Dataset not found")
-        try:
-            frame_data = _extract_frame(view, index=index, threshold=threshold)
-        finally:
-            for handle in extra_files:
-                handle.close()
-
-        arr = np.asarray(frame_data)
-        height, width = arr.shape
-        scale = max(height / max_size, width / max_size, 1.0)
-        if scale > 1:
-            step = int(np.ceil(scale))
-            arr = arr[::step, ::step]
-
-        if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
-            arr = arr.byteswap().newbyteorder("<")
-
-        data = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-            "X-Frame": str(index),
-            "X-Preview": "1",
-        }
-        return Response(content=data, media_type="application/octet-stream", headers=headers)
-
-
-@app.get("/api/mask")
-def mask(
-    file: str = Query(..., min_length=1),
-    threshold: int | None = Query(None, ge=0),
-) -> Response:
-    _ensure_hdf5_stack()
-    path = _resolve_file(file)
-    with h5py.File(path, "r") as h5:
-        dset = _find_pixel_mask(h5, threshold=threshold)
-        if not dset:
-            raise HTTPException(status_code=404, detail="Pixel mask not found")
-        if dset.ndim != 2:
-            raise HTTPException(status_code=400, detail="Pixel mask has invalid shape")
-        arr = np.asarray(dset)
-        if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
-            arr = arr.byteswap().newbyteorder("<")
-        data = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-            "X-Mask-Path": dset.name,
-        }
-        return Response(content=data, media_type="application/octet-stream", headers=headers)
+def _apply_runtime_config(payload: dict[str, Any]) -> None:
+    runtime_state.apply_config(payload)
+
+
+def _get_log_path() -> Path | None:
+    return LOG_PATH
+
+
+def _get_allow_abs_paths() -> bool:
+    return runtime_state.allow_abs_paths
+
+
+def _get_scan_cache_sec() -> float:
+    return runtime_state.scan_cache_sec
+
+
+def _get_max_upload_bytes() -> int:
+    return runtime_state.max_upload_bytes
+
+
+register_system_routes(
+    app,
+    SystemRouteDeps(
+        version=ALBIS_VERSION,
+        logger=logger,
+        default_config=DEFAULT_CONFIG,
+        config_path=runtime_state.config_path,
+        settings_payload=_settings_payload,
+        normalize_config=normalize_config,
+        save_config=save_config,
+        apply_runtime_config=_apply_runtime_config,
+        get_log_path=_get_log_path,
+        data_dir=runtime_state.data_dir,
+        get_allow_abs_paths=_get_allow_abs_paths,
+        is_within=_is_within,
+    ),
+)
+
+
+register_file_routes(
+    app,
+    FileRouteDeps(
+        data_dir=runtime_state.data_dir,
+        autoload_exts=AUTOLOAD_EXTS,
+        logger=logger,
+        get_allow_abs_paths=_get_allow_abs_paths,
+        get_scan_cache_sec=_get_scan_cache_sec,
+        get_max_upload_bytes=_get_max_upload_bytes,
+        resolve_dir=_resolve_dir,
+        resolve_image_file=_resolve_image_file,
+        is_within=_is_within,
+        parse_ext_filter=_parse_ext_filter,
+        latest_image_file=_latest_image_file,
+        safe_rel_path=_safe_rel_path,
+        scan_files=_scan_files,
+        scan_folders=_scan_folders,
+        image_ext_name=_image_ext_name,
+        split_series_name=_split_series_name,
+        strip_image_ext=_strip_image_ext,
+    ),
+)
+
+
+register_stream_routes(
+    app,
+    StreamRouteDeps(
+        logger=logger,
+        resolve_image_file=_resolve_image_file,
+        image_ext_name=_image_ext_name,
+        read_tiff=_read_tiff,
+        read_cbf=_read_cbf,
+        read_cbf_gz=_read_cbf_gz,
+        read_edf=_read_edf,
+        pilatus_meta_from_tiff=_pilatus_meta_from_tiff,
+        pilatus_meta_from_fabio=_pilatus_meta_from_fabio,
+        pilatus_header_text=_pilatus_header_text,
+        simplon_base=_simplon_base,
+        simplon_set_mode=_simplon_set_mode,
+        simplon_fetch_monitor=_simplon_fetch_monitor,
+        simplon_fetch_pixel_mask=_simplon_fetch_pixel_mask,
+        read_tiff_bytes_with_simplon_meta=_read_tiff_bytes_with_simplon_meta,
+        remote_parse_meta=_remote_parse_meta,
+        remote_safe_source_id=_remote_safe_source_id,
+        remote_read_image_bytes=_remote_read_image_bytes,
+        remote_extract_metadata=_remote_extract_metadata,
+        remote_store_frame=_remote_store_frame,
+        remote_snapshot=_remote_snapshot,
+    ),
+)
+
+register_hdf5_routes(
+    app,
+    HDF5RouteDeps(
+        ensure_hdf5_stack=_ensure_hdf5_stack,
+        get_h5py=_get_h5py,
+        resolve_file=_resolve_file,
+        walk_datasets=_walk_datasets,
+        aggregate_linked_stack_datasets=_aggregate_linked_stack_datasets,
+        collect_h5_attrs=_collect_h5_attrs,
+        serialize_h5_value=_serialize_h5_value,
+        dataset_value_preview=_dataset_value_preview,
+        dataset_preview_array=_dataset_preview_array,
+    ),
+)
+
+register_analysis_routes(
+    app,
+    AnalysisRouteDeps(
+        ensure_hdf5_stack=_ensure_hdf5_stack,
+        get_h5py=_get_h5py,
+        resolve_file=_resolve_file,
+        resolve_dataset_view=_resolve_dataset_view,
+        read_scalar=_read_scalar,
+        to_mm=_to_mm,
+        to_um=_to_um,
+        to_ev=_to_ev,
+        wavelength_to_ev=_wavelength_to_ev,
+        norm_unit=_norm_unit,
+        read_threshold_energies=_read_threshold_energies,
+        start_series_sum_job=series_summing.start_job,
+        get_series_sum_job=series_summing.get_job,
+    ),
+)
+
+
+register_frame_routes(
+    app,
+    FrameRouteDeps(
+        ensure_hdf5_stack=_ensure_hdf5_stack,
+        get_h5py=_get_h5py,
+        resolve_file=_resolve_file,
+        resolve_dataset_view=_resolve_dataset_view,
+        extract_frame=_extract_frame,
+        find_pixel_mask=_find_pixel_mask,
+        read_threshold_energies=_read_threshold_energies,
+    ),
+)
 
 
 def _resource_root() -> Path:
@@ -4073,7 +693,7 @@ def _resource_root() -> Path:
 
 
 @app.middleware("http")
-async def _no_cache_static(request: 'Request', call_next):
+async def _no_cache_static(request: "Request", call_next):
     response = await call_next(request)
     if request.method == "GET":
         path = request.url.path
@@ -4089,7 +709,7 @@ app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 if __name__ == "__main__":
     import uvicorn
 
-    host = get_str(CONFIG, ("server", "host"), "127.0.0.1")
-    port = max(1, get_int(CONFIG, ("server", "port"), 8000))
-    reload = get_bool(CONFIG, ("server", "reload"), False)
+    host = get_str(runtime_state.config, ("server", "host"), "127.0.0.1")
+    port = max(1, get_int(runtime_state.config, ("server", "port"), 8000))
+    reload = get_bool(runtime_state.config, ("server", "reload"), False)
     uvicorn.run("app:app", host=host, port=port, reload=reload)
