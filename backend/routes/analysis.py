@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import threading
-import time
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -23,9 +20,8 @@ class AnalysisRouteDeps:
     wavelength_to_ev: Callable[[float, str | None], float | None]
     norm_unit: Callable[[str | None], str]
     read_threshold_energies: Callable[[Any, int], list[float | None]]
-    run_series_summing_job: Callable[..., None]
-    series_jobs: dict[str, dict[str, Any]]
-    series_jobs_lock: threading.Lock
+    start_series_sum_job: Callable[..., str]
+    get_series_sum_job: Callable[[str], dict[str, Any] | None]
 
 
 def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
@@ -207,68 +203,24 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         if normalize_frame is not None and normalize_frame < 1:
             raise HTTPException(status_code=400, detail="Normalize frame must be >= 1")
 
-        job_id = uuid.uuid4().hex
-        job_data = {
-            "id": job_id,
-            "status": "queued",
-            "progress": 0.0,
-            "message": "Queued",
-            "created_at": time.time(),
-            "updated_at": time.time(),
-            "outputs": [],
-            "error": None,
-            "config": {
-                "file": file,
-                "dataset": dataset,
-                "mode": mode,
-                "step": step,
-                "operation": operation,
-                "normalize_frame": normalize_frame,
-                "range_start": range_start,
-                "range_end": range_end,
-                "format": output_format,
-                "apply_mask": apply_mask,
-                "output_path": output_path,
-            },
-        }
-        with deps.series_jobs_lock:
-            deps.series_jobs[job_id] = job_data
-            # keep memory bounded
-            done_jobs = [
-                jid
-                for jid, info in deps.series_jobs.items()
-                if info.get("status") in {"done", "error"}
-            ]
-            if len(done_jobs) > 200:
-                done_jobs.sort(key=lambda jid: float(deps.series_jobs[jid].get("updated_at", 0.0)))
-                for old_id in done_jobs[: len(done_jobs) - 200]:
-                    deps.series_jobs.pop(old_id, None)
-
-        worker = threading.Thread(
-            target=deps.run_series_summing_job,
-            kwargs={
-                "job_id": job_id,
-                "file": file,
-                "dataset": dataset,
-                "mode": mode,
-                "step": step,
-                "operation": operation,
-                "normalize_frame": normalize_frame,
-                "range_start": range_start,
-                "range_end": range_end,
-                "output_path": str(output_path or ""),
-                "output_format": output_format,
-                "apply_mask": apply_mask,
-            },
-            daemon=True,
+        job_id = deps.start_series_sum_job(
+            file=file,
+            dataset=dataset,
+            mode=mode,
+            step=step,
+            operation=operation,
+            normalize_frame=normalize_frame,
+            range_start=range_start,
+            range_end=range_end,
+            output_path=str(output_path or ""),
+            output_format=output_format,
+            apply_mask=apply_mask,
         )
-        worker.start()
         return {"job_id": job_id, "status": "queued"}
 
     @app.get("/api/analysis/series-sum/status")
     def analysis_series_sum_status(job_id: str = Query(..., min_length=1)) -> dict[str, Any]:
-        with deps.series_jobs_lock:
-            job = deps.series_jobs.get(job_id)
-            if not job:
-                raise HTTPException(status_code=404, detail="Job not found")
-            return dict(job)
+        job = deps.get_series_sum_job(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return dict(job)
