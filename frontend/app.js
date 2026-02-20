@@ -1872,10 +1872,11 @@ function renderPeakList() {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "peaks-row";
-    if (analysisState.selectedPeaks.includes(idx)) {
+    const isSelected = analysisState.selectedPeaks.includes(idx);
+    if (isSelected) {
       row.classList.add("is-selected");
     }
-    row.innerHTML = `<span>${peak.x}</span><span>${peak.y}</span><span>${formatStat(peak.intensity)}</span>`;
+    row.innerHTML = `<span>${idx + 1}</span><span>${peak.x}</span><span>${peak.y}</span><span>${formatStat(peak.intensity)}</span>`;
     row.addEventListener("click", (event) => {
       const anchor = analysisState.peakSelectionAnchor;
       if (event.shiftKey && Number.isInteger(anchor) && anchor >= 0 && anchor < analysisState.peaks.length) {
@@ -1893,11 +1894,14 @@ function renderPeakList() {
           analysisState.selectedPeaks = [...analysisState.selectedPeaks, idx].sort((a, b) => a - b);
         }
         analysisState.peakSelectionAnchor = idx;
+      } else if (isSelected && analysisState.selectedPeaks.length === 1) {
+        analysisState.selectedPeaks = [];
+        analysisState.peakSelectionAnchor = null;
       } else {
         analysisState.selectedPeaks = [idx];
         analysisState.peakSelectionAnchor = idx;
       }
-      if (!Number.isInteger(analysisState.peakSelectionAnchor)) {
+      if (!Number.isInteger(analysisState.peakSelectionAnchor) && analysisState.selectedPeaks.length) {
         analysisState.peakSelectionAnchor = idx;
       }
       renderPeakList();
@@ -2010,7 +2014,7 @@ function runPeakFinder() {
     schedulePeakOverlay();
     return;
   }
-  const requested = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput?.value || analysisState.peakCount || 25))));
+  const requested = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput?.value || analysisState.peakCount || 25))));
   analysisState.peakCount = requested;
   if (peaksCountInput) {
     peaksCountInput.value = String(requested);
@@ -2028,10 +2032,6 @@ function runPeakFinder() {
       ? analysisState.selectedPeaks[analysisState.selectedPeaks.length - 1]
       : null;
   }
-  if (!analysisState.selectedPeaks.length && analysisState.peaks.length) {
-    analysisState.selectedPeaks = [0];
-    analysisState.peakSelectionAnchor = 0;
-  }
   if (!analysisState.peaks.length) {
     analysisState.peakSelectionAnchor = null;
   }
@@ -2047,9 +2047,9 @@ function schedulePeakFinder() {
 
 function exportPeakCsv() {
   if (!analysisState.peaks.length) return;
-  const rows = ["x,y,intensity"];
-  analysisState.peaks.forEach((peak) => {
-    rows.push(`${peak.x},${peak.y},${peak.intensity}`);
+  const rows = ["index,x,y,intensity"];
+  analysisState.peaks.forEach((peak, idx) => {
+    rows.push(`${idx + 1},${peak.x},${peak.y},${peak.intensity}`);
   });
   const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
   const link = document.createElement("a");
@@ -9684,11 +9684,11 @@ function updateRingsFromInputs() {
   });
 
 if (peaksCountInput) {
-  const initial = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput.value || 25))));
+  const initial = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || 25))));
   analysisState.peakCount = initial;
   peaksCountInput.value = String(initial);
   peaksCountInput.addEventListener("change", () => {
-    const next = Math.max(1, Math.min(500, Math.round(Number(peaksCountInput.value || analysisState.peakCount))));
+    const next = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || analysisState.peakCount))));
     analysisState.peakCount = next;
     peaksCountInput.value = String(next);
     schedulePeakFinder();
