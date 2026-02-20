@@ -20,9 +20,16 @@ fi
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-ICON_PNG="frontend/ressources/icon.png"
+# Prefer curated ALBIS icon assets when available.
+ICON_ICNS_ASSET="albis_assets/albis_macos.icns"
+ICON_PNG="albis_assets/albis_1024x1024.png"
+if [ ! -f "$ICON_PNG" ]; then
+  ICON_PNG="frontend/ressources/icon.png"
+fi
 ICON_ICNS="$TEMP_DIR/ALBIS.icns"
-if [ -f "$ICON_PNG" ] && command -v sips >/dev/null 2>&1 && command -v iconutil >/dev/null 2>&1; then
+if [ -f "$ICON_ICNS_ASSET" ]; then
+  export ALBIS_ICON="$ICON_ICNS_ASSET"
+elif [ -f "$ICON_PNG" ] && command -v sips >/dev/null 2>&1 && command -v iconutil >/dev/null 2>&1; then
   ICONSET_DIR="$TEMP_DIR/ALBIS.iconset"
   mkdir -p "$ICONSET_DIR"
   for size in 16 32 128 256 512; do
@@ -34,7 +41,8 @@ if [ -f "$ICON_PNG" ] && command -v sips >/dev/null 2>&1 && command -v iconutil 
   export ALBIS_ICON="$ICON_ICNS"
 fi
 
-"$PYTHON_BIN" -m PyInstaller ALBIS.spec
+# Non-interactive build: never prompt to remove existing output directories.
+"$PYTHON_BIN" -m PyInstaller --noconfirm --clean ALBIS.spec
 
 MAC_SRC="dist/ALBIS"
 if [ -d "dist/ALBIS.app" ]; then

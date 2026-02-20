@@ -14,7 +14,18 @@ try {
 $osTag = "windows-" + (($osVersion -replace '[^0-9\.]', '') -replace '\.', '_')
 
 python -m pip install --upgrade pyinstaller
-python -m PyInstaller ALBIS.spec
+
+# Prefer curated ALBIS icon assets when available.
+$assetIcon = Join-Path $root "albis_assets\\albis_256x256.png"
+$fallbackIcon = Join-Path $root "frontend\\ressources\\icon.png"
+if (Test-Path $assetIcon) {
+  $env:ALBIS_ICON = $assetIcon
+} elseif (Test-Path $fallbackIcon) {
+  $env:ALBIS_ICON = $fallbackIcon
+}
+
+# Non-interactive build: never prompt to remove existing output directories.
+python -m PyInstaller --noconfirm --clean ALBIS.spec
 
 $zip = Join-Path $root ("dist\\ALBIS-" + $osTag + "-" + $tag + ".zip")
 if (Test-Path $zip) {

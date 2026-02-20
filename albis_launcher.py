@@ -168,6 +168,12 @@ if Foundation is not None:
             self.status_item.setTitle_(label)
             self._update_status_bar()
 
+        # Handle app re-open from Dock icon (e.g. user clicks the app while it is already running).
+        # Opening the viewer URL here avoids the Dock bounce-without-action behavior in windowless apps.
+        def applicationShouldHandleReopen_hasVisibleWindows_(self, _app, _has_visible_windows):
+            self.openBrowser_(None)
+            return True
+
 
 else:
     _DockMenuHandler = None

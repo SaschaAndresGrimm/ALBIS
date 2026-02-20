@@ -10,10 +10,24 @@ block_cipher = None
 
 icon_path = os.environ.get("ALBIS_ICON", "").strip()
 if not icon_path:
-    for candidate in (
-        os.path.abspath("frontend/ressources/icon.icns"),
-        os.path.abspath("frontend/ressources/icon.png"),
-    ):
+    if sys.platform == "darwin":
+        candidates = (
+            os.path.abspath("albis_assets/albis_macos.icns"),
+            os.path.abspath("frontend/ressources/icon.icns"),
+            os.path.abspath("albis_assets/albis_1024x1024.png"),
+            os.path.abspath("frontend/ressources/icon.png"),
+        )
+    elif sys.platform == "win32":
+        candidates = (
+            os.path.abspath("albis_assets/albis_256x256.png"),
+            os.path.abspath("frontend/ressources/icon.png"),
+        )
+    else:
+        candidates = (
+            os.path.abspath("albis_assets/albis_512x512.png"),
+            os.path.abspath("frontend/ressources/icon.png"),
+        )
+    for candidate in candidates:
         if os.path.exists(candidate):
             icon_path = candidate
             break

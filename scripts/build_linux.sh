@@ -23,7 +23,16 @@ fi
 OS_TAG="$(printf '%s_%s' "$LINUX_ID" "$LINUX_VER" | tr '.-' '_' | tr -cd '[:alnum:]_')"
 
 "$PYTHON_BIN" -m pip install --upgrade pyinstaller
-"$PYTHON_BIN" -m PyInstaller ALBIS.spec
+
+# Prefer curated ALBIS icon assets when available.
+if [ -f "albis_assets/albis_512x512.png" ]; then
+  export ALBIS_ICON="$(pwd)/albis_assets/albis_512x512.png"
+elif [ -f "frontend/ressources/icon.png" ]; then
+  export ALBIS_ICON="$(pwd)/frontend/ressources/icon.png"
+fi
+
+# Non-interactive build: never prompt to remove existing output directories.
+"$PYTHON_BIN" -m PyInstaller --noconfirm --clean ALBIS.spec
 
 OUT="dist/ALBIS-linux-${OS_TAG}-${TAG}.tar.gz"
 rm -f "$OUT"
