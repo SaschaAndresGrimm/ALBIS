@@ -5,7 +5,6 @@
     "reload": true
   },
   "launcher": {
-    "port": 8080,
     "startup_timeout_sec": 5.0,
     "open_browser": true
   },

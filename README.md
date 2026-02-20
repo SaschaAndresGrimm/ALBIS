@@ -205,7 +205,6 @@ Example:
     "dir": ""
   },
   "launcher": {
-    "port": 0,
     "startup_timeout_sec": 5.0,
     "open_browser": true
   }
@@ -215,6 +214,7 @@ Example:
 Notes:
 - `data.root = ""` defaults to project root for source runs and `~/ALBIS-data` for packaged runs.
 - `server.host = "0.0.0.0"` enables LAN access (`http://<your-ip>:8000`).
+- `server.port` is the single port used by backend + launcher/browser startup.
 - `logging.dir = ""` writes logs to `<data.root>/logs/albis.log`.
 - Packaged installs auto-create a default user config at `~/.config/albis/config.json` on first run (if no config is found).
 

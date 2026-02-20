@@ -21,7 +21,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "reload": False,
     },
     "launcher": {
-        "port": 0,
         "startup_timeout_sec": 5.0,
         "open_browser": True,
     },
@@ -113,7 +112,6 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
 
     server_host = get_str(merged, ("server", "host"), "127.0.0.1").strip() or "127.0.0.1"
     server_port = max(0, min(65535, get_int(merged, ("server", "port"), 8000)))
-    launcher_port = max(0, min(65535, get_int(merged, ("launcher", "port"), 0)))
     startup_timeout = max(0.1, get_float(merged, ("launcher", "startup_timeout_sec"), 5.0))
     scan_cache = max(0.0, get_float(merged, ("data", "scan_cache_sec"), 2.0))
     max_scan_depth = get_int(merged, ("data", "max_scan_depth"), -1)
@@ -131,7 +129,6 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "reload": get_bool(merged, ("server", "reload"), False),
         },
         "launcher": {
-            "port": launcher_port,
             "startup_timeout_sec": startup_timeout,
             "open_browser": get_bool(merged, ("launcher", "open_browser"), True),
         },

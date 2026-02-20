@@ -242,7 +242,6 @@ const settingsMessage = document.getElementById("settings-message");
 const settingsServerHost = document.getElementById("settings-server-host");
 const settingsServerPort = document.getElementById("settings-server-port");
 const settingsServerReload = document.getElementById("settings-server-reload");
-const settingsLauncherPort = document.getElementById("settings-launcher-port");
 const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
 const settingsOpenBrowser = document.getElementById("settings-open-browser");
 const settingsToolHints = document.getElementById("settings-tool-hints");
@@ -4870,7 +4869,6 @@ function fillSettingsForm(config, configPath = "") {
   settingsServerPort.value = String(Number(config?.server?.port ?? 8000));
   settingsServerReload.checked = Boolean(config?.server?.reload);
 
-  settingsLauncherPort.value = String(Number(config?.launcher?.port ?? 0));
   settingsStartupTimeout.value = String(Number(config?.launcher?.startup_timeout_sec ?? 5.0));
   settingsOpenBrowser.checked = Boolean(config?.launcher?.open_browser ?? true);
   if (settingsToolHints) {
@@ -4910,7 +4908,6 @@ function collectSettingsForm() {
       reload: Boolean(settingsServerReload?.checked),
     },
     launcher: {
-      port: Math.max(0, Math.min(65535, asInt(settingsLauncherPort?.value, 0))),
       startup_timeout_sec: Math.max(0.1, asFloat(settingsStartupTimeout?.value, 5.0)),
       open_browser: Boolean(settingsOpenBrowser?.checked),
     },

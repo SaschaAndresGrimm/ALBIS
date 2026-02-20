@@ -293,7 +293,11 @@ def main() -> None:
     _launcher_log(start_ts, f"config loaded ({_config_path})")
 
     host = get_str(app_config, ("server", "host"), "127.0.0.1")
-    port = get_int(app_config, ("launcher", "port"), 0)
+    # Single-port model: launcher and backend share server.port.
+    # Keep fallback to legacy launcher.port for backward compatibility.
+    port = get_int(app_config, ("server", "port"), 8000)
+    if port <= 0:
+        port = get_int(app_config, ("launcher", "port"), 0)
 
     # If a server is already running, just open the browser and exit.
     if port > 0 and _server_running(host, port):
