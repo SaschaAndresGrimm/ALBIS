@@ -3644,7 +3644,7 @@ function applyPanelState() {
   }
   if (panelFab) {
     panelFab.classList.toggle("is-collapsed", state.panelCollapsed);
-    panelFab.textContent = state.panelCollapsed ? "◀" : "▶";
+    panelFab.textContent = state.panelCollapsed ? "Open menu ▾" : "Close menu ▴";
     panelFab.setAttribute("aria-label", state.panelCollapsed ? "Open panel" : "Collapse panel");
   }
   scheduleOverview();
