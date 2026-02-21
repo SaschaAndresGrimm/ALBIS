@@ -16,7 +16,7 @@
     "max_upload_mb": 0
   },
   "logging": {
-    "level": "DEBUG",
+    "level": "INFO",
     "dir": "./logs"
   },
   "ui": {

@@ -310,28 +310,33 @@
                   Watch folder
                 </label>
                 <div id="autoload-watch-options">
-                <label class="field">
-                  <span>Poll (ms)</span>
-                  <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
-                </label>
-                <label class="field">
-                  <span>Filename pattern</span>
-                  <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
-                </label>
-                <div class="check-row" id="autoload-types">
-                  <label class="checkbox">
-                    <input id="autoload-type-hdf5" type="checkbox" checked />
-                    HDF5
-                  </label>
-                  <label class="checkbox">
-                    <input id="autoload-type-tiff" type="checkbox" checked />
-                    TIFF
-                  </label>
-                  <label class="checkbox">
-                    <input id="autoload-type-cbf" type="checkbox" checked />
-                    CBF
-                  </label>
-                </div>
+                  <details class="advanced-details">
+                    <summary>Advanced watch options</summary>
+                    <div class="advanced-inner">
+                      <label class="field">
+                        <span>Poll (ms)</span>
+                        <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
+                      </label>
+                      <label class="field">
+                        <span>Filename pattern</span>
+                        <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
+                      </label>
+                      <div class="check-row" id="autoload-types">
+                        <label class="checkbox">
+                          <input id="autoload-type-hdf5" type="checkbox" checked />
+                          HDF5
+                        </label>
+                        <label class="checkbox">
+                          <input id="autoload-type-tiff" type="checkbox" checked />
+                          TIFF
+                        </label>
+                        <label class="checkbox">
+                          <input id="autoload-type-cbf" type="checkbox" checked />
+                          CBF
+                        </label>
+                      </div>
+                    </div>
+                  </details>
                 </div>
               </div>
               <label class="field" id="file-field">
@@ -351,28 +356,38 @@
                   <span>Base URL</span>
                   <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
                 </label>
-                <label class="field">
-                  <span>API Version</span>
-                  <input id="simplon-version" type="text" value="1.8.0" />
-                </label>
-                <label class="field">
-                  <span>Timeout (ms)</span>
-                  <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
-                </label>
                 <label class="checkbox">
                   <input id="simplon-enable" type="checkbox" checked />
                   Enable monitor
                 </label>
+                <details class="advanced-details">
+                  <summary>Advanced monitor options</summary>
+                  <div class="advanced-inner">
+                    <label class="field">
+                      <span>API Version</span>
+                      <input id="simplon-version" type="text" value="1.8.0" />
+                    </label>
+                    <label class="field">
+                      <span>Timeout (ms)</span>
+                      <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
+                    </label>
+                  </div>
+                </details>
               </div>
               <div class="autoload-group is-hidden" id="autoload-remote">
                 <label class="field">
                   <span>Source ID</span>
                   <input id="remote-source-id" type="text" value="default" placeholder="default" />
                 </label>
-                <label class="field">
-                  <span>Poll (ms)</span>
-                  <input id="remote-interval" type="number" min="100" step="100" value="1000" />
-                </label>
+                <details class="advanced-details">
+                  <summary>Advanced stream options</summary>
+                  <div class="advanced-inner">
+                    <label class="field">
+                      <span>Poll (ms)</span>
+                      <input id="remote-interval" type="number" min="100" step="100" value="1000" />
+                    </label>
+                  </div>
+                </details>
               </div>
               <div class="autoload-meta">
                 <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
@@ -608,27 +623,30 @@
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="rings-grid rings-grid-top">
-                <label class="field">
-                  <span>Detector distance (mm)</span>
-                  <input id="rings-distance" type="number" min="0" step="1" placeholder="e.g. 250" />
-                </label>
-                <label class="field">
-                  <span>Pixel size (µm)</span>
-                  <input id="rings-pixel" type="number" min="0" step="0.1" placeholder="e.g. 75" />
-                </label>
-                <label class="field">
-                  <span>Photon energy (eV)</span>
-                  <input id="rings-energy" type="number" min="0" step="1" placeholder="e.g. 12000" />
-                </label>
-                <label class="field">
-                  <span>Beam center (px)</span>
-                  <div class="ring-center">
-                    <input id="rings-center-x" type="number" step="1" placeholder="X" />
-                    <input id="rings-center-y" type="number" step="1" placeholder="Y" />
-                  </div>
-                </label>
-              </div>
+              <details class="advanced-details rings-advanced">
+                <summary>Geometry inputs</summary>
+                <div class="advanced-inner rings-grid rings-grid-top">
+                  <label class="field">
+                    <span>Detector distance (mm)</span>
+                    <input id="rings-distance" type="number" min="0" step="1" placeholder="e.g. 250" />
+                  </label>
+                  <label class="field">
+                    <span>Pixel size (µm)</span>
+                    <input id="rings-pixel" type="number" min="0" step="0.1" placeholder="e.g. 75" />
+                  </label>
+                  <label class="field">
+                    <span>Photon energy (eV)</span>
+                    <input id="rings-energy" type="number" min="0" step="1" placeholder="e.g. 12000" />
+                  </label>
+                  <label class="field">
+                    <span>Beam center (px)</span>
+                    <div class="ring-center">
+                      <input id="rings-center-x" type="number" step="1" placeholder="X" />
+                      <input id="rings-center-y" type="number" step="1" placeholder="Y" />
+                    </div>
+                  </label>
+                </div>
+              </details>
               <div class="rings-grid rings-grid-bottom">
                 <label class="field rings-count-field">
                   <span>Ring count</span>

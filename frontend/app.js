@@ -3029,14 +3029,14 @@ function drawOverview() {
   overviewCanvas.width = Math.max(1, Math.floor(width * dpr));
   overviewCanvas.height = Math.max(1, Math.floor(height * dpr));
   overviewCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  overviewCtx.fillStyle = "#1e1e1e";
+  overviewCtx.fillStyle = PLOT_THEME.bg;
   overviewCtx.fillRect(0, 0, width, height);
 
   if (!state.hasFrame || !state.width || !state.height) {
-    overviewCtx.strokeStyle = "rgba(255,255,255,0.2)";
+    overviewCtx.strokeStyle = PLOT_THEME.frame;
     overviewCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
-    overviewCtx.fillStyle = "rgba(200,200,200,0.6)";
-    overviewCtx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+    overviewCtx.fillStyle = "rgba(220, 232, 250, 0.7)";
+    overviewCtx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
     overviewCtx.textAlign = "center";
     overviewCtx.textBaseline = "middle";
     overviewCtx.fillText("No image", width / 2, height / 2);
