@@ -156,8 +156,6 @@
             <div class="toolbar-path" id="toolbar-path">No file loaded</div>
           </div>
           <div class="toolbar-right">
-            <div class="backend-badge" id="backend-badge" aria-hidden="true">SERVER</div>
-            <div class="live-badge" id="live-badge" aria-hidden="true">LIVE</div>
             <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" aria-label="Toggle full screen">⛶</button>
           </div>
         </div>
@@ -190,18 +188,21 @@
               <div class="viewer-footer-main">
                 <span class="viewer-footer-pill viewer-footer-status" id="status">Idle</span>
                 <span class="viewer-footer-pill" id="footer-file">No file</span>
-                <span class="viewer-footer-pill" id="footer-frame">Frame - / -</span>
                 <span class="viewer-footer-pill" id="footer-zoom">Zoom 1.0x</span>
                 <span class="viewer-footer-pill" id="footer-threshold">Threshold -</span>
               </div>
-              <a
-                class="viewer-footer-link"
-                id="footer-github"
-                href="https://github.com/SaschaAndresGrimm/ALBIS"
-                target="_blank"
-                rel="noopener noreferrer"
-                >GitHub</a
-              >
+              <div class="viewer-footer-side">
+                <div class="backend-badge" id="backend-badge" aria-hidden="true">SERVER</div>
+                <div class="live-badge" id="live-badge" aria-hidden="true">LIVE</div>
+                <a
+                  class="viewer-footer-link"
+                  id="footer-github"
+                  href="https://github.com/SaschaAndresGrimm/ALBIS"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >GitHub</a
+                >
+              </div>
             </div>
           </div>
         </main>

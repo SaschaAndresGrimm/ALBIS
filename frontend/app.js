@@ -90,7 +90,6 @@ const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const splashStatus = document.getElementById("splash-status");
 const footerFileEl = document.getElementById("footer-file");
-const footerFrameEl = document.getElementById("footer-frame");
 const footerZoomEl = document.getElementById("footer-zoom");
 const footerThresholdEl = document.getElementById("footer-threshold");
 const resolutionOverlay = document.getElementById("resolution-overlay");
@@ -456,7 +455,10 @@ function getMinZoom() {
 }
 
 function setStatus(text) {
-  statusEl.textContent = text;
+  if (!statusEl) return;
+  const normalized = String(text || "").trim();
+  statusEl.textContent = /^Frame\s+\d+\s*\/\s*\d+$/i.test(normalized) ? "Ready" : normalized || "Idle";
+  updateViewerFooter();
 }
 
 function currentFrameStatusText() {
@@ -4002,14 +4004,27 @@ async function toggleFullscreen() {
   }
 }
 
+function buildViewerSourceText(maxChars = 72) {
+  if (!state.file) return "No file loaded";
+  const fileName = fileLabel(state.file);
+  let frameLabel = "";
+  if (state.frameCount > 1) {
+    frameLabel = `${state.frameIndex + 1} / ${state.frameCount}`;
+  } else if (state.autoload.mode !== "file" && state.autoload.lastUpdate) {
+    frameLabel = formatTimeStamp(state.autoload.lastUpdate);
+  }
+  const datasetRaw = state.dataset ? middleTruncate(state.dataset, 38) : "";
+  const datasetLabel = datasetRaw ? ` ${datasetRaw}` : "";
+  const suffix = frameLabel ? `  ${frameLabel}` : "";
+  const reserved = datasetLabel.length + suffix.length;
+  const fileBudget = Math.max(10, maxChars - reserved);
+  const fileText = middleTruncate(fileName, fileBudget);
+  return `${fileText}${datasetLabel}${suffix}`;
+}
+
 function updateViewerFooter() {
   if (footerFileEl) {
-    footerFileEl.textContent = state.file ? middleTruncate(fileLabel(state.file), 38) : "No file";
-  }
-  if (footerFrameEl) {
-    footerFrameEl.textContent = state.hasFrame
-      ? `Frame ${state.frameIndex + 1} / ${Math.max(1, state.frameCount || 1)}`
-      : "Frame - / -";
+    footerFileEl.textContent = buildViewerSourceText(78);
   }
   if (footerZoomEl) {
     footerZoomEl.textContent = `Zoom ${(state.zoom || 1).toFixed(1)}x`;
@@ -4042,29 +4057,9 @@ function updateDataSourceSummary() {
 }
 
 function updateToolbar() {
-  if (!toolbarPath) return;
-  if (!state.file) {
-    toolbarPath.textContent = "No file loaded";
-    updateSeriesSumUi();
-    updateDataSourceSummary();
-    updateViewerFooter();
-    return;
+  if (toolbarPath) {
+    toolbarPath.textContent = buildViewerSourceText(estimateToolbarChars());
   }
-  const maxChars = estimateToolbarChars();
-  const fileName = fileLabel(state.file);
-  let frameLabel = "";
-  if (state.frameCount > 1) {
-    frameLabel = `${state.frameIndex + 1} / ${state.frameCount}`;
-  } else if (state.autoload.mode !== "file" && state.autoload.lastUpdate) {
-    frameLabel = formatTimeStamp(state.autoload.lastUpdate);
-  }
-  const datasetRaw = state.dataset ? middleTruncate(state.dataset, 38) : "";
-  const datasetLabel = datasetRaw ? ` ${datasetRaw}` : "";
-  const suffix = frameLabel ? `  ${frameLabel}` : "";
-  const reserved = datasetLabel.length + suffix.length;
-  const fileBudget = Math.max(10, maxChars - reserved);
-  const fileText = middleTruncate(fileName, fileBudget);
-  toolbarPath.textContent = `${fileText}${datasetLabel}${suffix}`;
   updateSeriesSumUi();
   updateDataSourceSummary();
   updateViewerFooter();
