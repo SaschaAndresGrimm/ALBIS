@@ -16,13 +16,13 @@
     "max_upload_mb": 0
   },
   "logging": {
-    "level": "DEBUG",
+    "level": "INFO",
     "dir": "./logs"
   },
   "ui": {
-    "tool_hints": false,
-    "pixel_label_min_cell_px": 18,
-    "pixel_label_max_labels": 4000,
+    "tool_hints": true,
+    "pixel_label_min_cell_px": 25,
+    "pixel_label_max_labels": 1000,
     "pixel_label_format": "auto",
     "pixel_label_show_during_drag": false
   }

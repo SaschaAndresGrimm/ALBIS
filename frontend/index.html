@@ -4,10 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ALBIS — ALBIS WEB VIEW</title>
-    <link rel="icon" href="favicon.ico" />
+    <link rel="icon" type="image/png" href="ressources/albis_512x512.png" />
+    <link rel="shortcut icon" href="ressources/albis_512x512.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body class="canvas-first">
     <div class="page">
       <div class="chrome">
         <div class="menu-bar">
@@ -74,6 +75,14 @@
               <span>Preferences…</span>
               <span class="shortcut">⌘,</span>
             </button>
+            <button class="dropdown-item" data-action="command-palette">
+              <span>Command Palette…</span>
+              <span class="shortcut">⌘K</span>
+            </button>
+            <button class="dropdown-item" data-action="toggle-fullscreen">
+              <span>Toggle Full Screen</span>
+              <span class="shortcut">F</span>
+            </button>
           </div>
           <div class="dropdown-panel" data-menu="help">
             <button class="dropdown-item" data-action="help-docs">
@@ -89,48 +98,119 @@
           </div>
         </div>
         <div class="toolbar">
-          <div class="toolbar-buttons">
-            <button class="tool-btn" id="btn-prev" aria-label="Previous frame">◀</button>
-            <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
-              <input id="frame-range" type="range" min="1" max="1" value="1" />
+          <div class="toolbar-main">
+            <div class="toolbar-buttons">
+              <div class="toolbar-cluster toolbar-cluster-transport">
+                <button class="tool-btn" id="btn-prev" aria-label="Previous frame">◀</button>
+                <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
+                <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
+              </div>
+                <div class="toolbar-cluster toolbar-cluster-frame">
+                  <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
+                    <input id="frame-range" type="range" min="1" max="1" value="1" />
+                  </div>
+                  <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
+                    <input id="frame-index" type="number" min="1" value="1" />
+                  </div>
+                  <div class="toolbar-playback is-hidden" id="toolbar-playback-wrap">
+                    <button
+                      class="tool-btn toolbar-playback-btn"
+                      id="toolbar-playback-toggle"
+                      type="button"
+                      aria-label="Playback options"
+                      aria-expanded="false"
+                      aria-haspopup="true"
+                      aria-controls="toolbar-playback-popover"
+                    >
+                      Playback ▾
+                    </button>
+                    <div class="toolbar-playback-popover" id="toolbar-playback-popover" aria-hidden="true">
+                      <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
+                        <select id="frame-step" aria-label="Frame step">
+                          <option value="1" selected>Step 1</option>
+                          <option value="10">Step 10</option>
+                          <option value="100">Step 100</option>
+                          <option value="1000">Step 1000</option>
+                        </select>
+                      </div>
+                      <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
+                        <select id="fps-select" aria-label="Playback speed">
+                          <option value="1" selected>1 fps</option>
+                          <option value="2">2 fps</option>
+                          <option value="3">3 fps</option>
+                          <option value="4">4 fps</option>
+                          <option value="5">5 fps</option>
+                          <option value="6">6 fps</option>
+                          <option value="7">7 fps</option>
+                          <option value="8">8 fps</option>
+                          <option value="9">9 fps</option>
+                          <option value="10">10 fps</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
+                    <select id="toolbar-threshold" aria-label="Threshold"></select>
+                  </div>
+                </div>
             </div>
-            <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
-            <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
-              <input id="frame-index" type="number" min="1" value="1" />
-            </div>
-            <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
-              <select id="frame-step" aria-label="Frame step">
-                <option value="1" selected>Step 1</option>
-                <option value="10">Step 10</option>
-                <option value="100">Step 100</option>
-                <option value="1000">Step 1000</option>
-              </select>
-            </div>
-            <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
-              <select id="fps-select" aria-label="Playback speed">
-                <option value="1" selected>1 fps</option>
-                <option value="2">2 fps</option>
-                <option value="3">3 fps</option>
-                <option value="4">4 fps</option>
-                <option value="5">5 fps</option>
-                <option value="6">6 fps</option>
-                <option value="7">7 fps</option>
-                <option value="8">8 fps</option>
-                <option value="9">9 fps</option>
-                <option value="10">10 fps</option>
-              </select>
-            </div>
-            <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
-            <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
-              <select id="toolbar-threshold" aria-label="Threshold"></select>
+            <div class="toolbar-path" id="toolbar-path">No file loaded</div>
+          </div>
+          <div class="toolbar-right">
+            <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" aria-label="Toggle full screen">⛶</button>
+            <div class="toolbar-more" id="toolbar-more-wrap">
+              <button
+                class="tool-btn toolbar-more-toggle"
+                id="toolbar-more-toggle"
+                type="button"
+                aria-label="More controls"
+                aria-expanded="false"
+                aria-haspopup="true"
+                aria-controls="toolbar-more-popover"
+              >
+                More ▾
+              </button>
+              <div class="toolbar-more-popover" id="toolbar-more-popover" aria-hidden="true">
+                <label class="field toolbar-more-field" id="toolbar-more-step-field">
+                  <span>Step</span>
+                  <select id="toolbar-more-step" aria-label="Frame step">
+                    <option value="1" selected>Step 1</option>
+                    <option value="10">Step 10</option>
+                    <option value="100">Step 100</option>
+                    <option value="1000">Step 1000</option>
+                  </select>
+                </label>
+                <label class="field toolbar-more-field" id="toolbar-more-fps-field">
+                  <span>Playback speed</span>
+                  <select id="toolbar-more-fps" aria-label="Playback speed">
+                    <option value="1" selected>1 fps</option>
+                    <option value="2">2 fps</option>
+                    <option value="3">3 fps</option>
+                    <option value="4">4 fps</option>
+                    <option value="5">5 fps</option>
+                    <option value="6">6 fps</option>
+                    <option value="7">7 fps</option>
+                    <option value="8">8 fps</option>
+                    <option value="9">9 fps</option>
+                    <option value="10">10 fps</option>
+                  </select>
+                </label>
+                <label class="field toolbar-more-field is-hidden" id="toolbar-more-threshold-field">
+                  <span>Threshold</span>
+                  <select id="toolbar-more-threshold" aria-label="Threshold"></select>
+                </label>
+                <div class="toolbar-more-actions">
+                  <button class="tool-btn" id="toolbar-more-panel-toggle" type="button" aria-label="Open side menu">
+                    Open side menu
+                  </button>
+                  <button class="tool-btn" id="toolbar-more-fullscreen" type="button" aria-label="Toggle full screen">
+                    Full screen
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        <div class="toolbar-path" id="toolbar-path">No file loaded</div>
-        <div class="toolbar-right">
-          <div class="backend-badge" id="backend-badge" aria-hidden="true">SERVER</div>
-          <div class="live-badge" id="live-badge" aria-hidden="true">LIVE</div>
         </div>
-      </div>
         <div class="upload-bar" id="upload-bar" aria-hidden="true">
           <div class="upload-bar-fill" id="upload-bar-fill"></div>
           <div class="upload-bar-text" id="upload-bar-text">Uploading 0%</div>
@@ -150,19 +230,66 @@
             <canvas id="roi-overlay"></canvas>
             <div class="splash" id="splash">
               <canvas id="splash-canvas"></canvas>
+              <div class="splash-art" aria-hidden="true"></div>
               <div class="splash-label">
                 <div class="splash-title">ALBIS</div>
                 <div class="splash-sub" id="splash-status">Starting backend...</div>
+                <div class="splash-actions">
+                  <button class="btn btn-primary splash-open-file" id="splash-open-file" type="button">
+                    Open file
+                  </button>
+                  <div class="splash-hint">Use File -> Open... to load your first dataset.</div>
+                </div>
               </div>
             </div>
             <div class="cursor-overlay" id="cursor-overlay" aria-hidden="true"></div>
-            <div class="status-overlay" id="status">Idle</div>
+            <div class="viewer-footer">
+              <div class="viewer-footer-main">
+                <span class="viewer-footer-pill viewer-footer-status" id="status" role="status" aria-live="polite">Idle</span>
+                <span class="viewer-footer-pill" id="footer-file">No file</span>
+                <span class="viewer-footer-pill" id="footer-zoom">Zoom 1.0x</span>
+              </div>
+              <div class="viewer-footer-side">
+                <div class="backend-badge" id="backend-badge" role="status" aria-live="polite" aria-hidden="true">SERVER</div>
+                <div class="live-badge" id="live-badge" role="status" aria-live="polite" aria-hidden="true">LIVE</div>
+                <span class="viewer-footer-pill viewer-footer-version" id="footer-version-frontend">FE v-</span>
+                <span class="viewer-footer-pill viewer-footer-version" id="footer-version-backend">BE v-</span>
+                <a
+                  class="viewer-footer-link"
+                  id="footer-github"
+                  href="https://github.com/SaschaAndresGrimm/ALBIS"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >
+                  <svg class="viewer-footer-github-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.38 7.86 10.9.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.27-5.23-5.67 0-1.25.45-2.27 1.19-3.07-.12-.29-.52-1.45.11-3.03 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.74.11 3.03.74.8 1.19 1.82 1.19 3.07 0 4.41-2.69 5.38-5.25 5.66.41.36.77 1.07.77 2.15 0 1.55-.01 2.8-.01 3.18 0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"
+                    ></path>
+                  </svg>
+                  <span>GitHub</span>
+                </a
+                >
+              </div>
+            </div>
           </div>
         </main>
 
-        <div class="panel-resizer" id="panel-resizer" aria-hidden="true"></div>
         <aside class="panel is-collapsed" id="side-panel">
-          <button class="panel-fab" id="panel-fab" type="button" aria-label="Open panel">◀</button>
+          <div class="panel-sheet-handle" id="panel-sheet-handle" aria-hidden="true">
+            <span class="panel-sheet-grip"></span>
+          </div>
+          <div class="panel-resizer" id="panel-resizer" aria-hidden="true"></div>
+          <button
+            class="panel-fab"
+            id="panel-fab"
+            type="button"
+            aria-label="Open panel"
+            aria-expanded="false"
+            aria-controls="side-panel"
+            title="Open side menu (M)"
+          >
+            Open menu ▾
+          </button>
           <div class="panel-body">
           <div class="panel-tabs" role="tablist">
             <button class="panel-tab is-active" data-panel-tab="view" type="button">View</button>
@@ -183,7 +310,7 @@
                 <div class="field zoom-row">
                   <span>Zoom</span>
                   <div class="inline">
-                    <input id="zoom-range" type="range" min="0.1" max="50" step="0.1" value="1" />
+                    <input id="zoom-range" type="range" min="0.02" max="50" step="0.01" value="1" />
                     <div id="zoom-value" class="pill">1.0x</div>
                   </div>
                 </div>
@@ -267,14 +394,18 @@
           </div>
 
           <div class="panel-tab-content" data-panel-tab="data">
-            <div class="panel-tab-card" id="data-section">
-              <label class="field">
-                <span>File System</span>
-                <select id="filesystem-mode">
-                  <option value="remote">Remote Server</option>
-                  <option value="local" selected>Local Machine</option>
-                </select>
-              </label>
+            <section class="panel-section" data-section="data-source" id="data-section">
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main">
+                  <span>Data Source</span>
+                  <span class="section-summary" id="summary-data-source">File · no file</span>
+                </span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="section-state is-empty" id="data-source-state" role="status" aria-live="polite">
+                Choose an image source to begin.
+              </div>
+              <div class="section-skeleton is-hidden" id="data-source-skeleton" aria-hidden="true"></div>
               <label class="field">
                 <span>Data Source</span>
                 <select id="autoload-mode">
@@ -293,40 +424,10 @@
                       list="autoload-dir-list"
                       placeholder="test_data or /abs/path"
                     />
-                    <button class="btn" id="autoload-browse" type="button">Browse…</button>
+                    <button class="btn btn-secondary" id="autoload-browse" type="button">Browse…</button>
                   </div>
                   <datalist id="autoload-dir-list"></datalist>
                 </label>
-              </div>
-              <div class="autoload-group" id="autoload-watch">
-                <label class="checkbox">
-                  <input id="autoload-watch-enabled" type="checkbox" />
-                  Watch folder
-                </label>
-                <div id="autoload-watch-options">
-                <label class="field">
-                  <span>Poll (ms)</span>
-                  <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
-                </label>
-                <label class="field">
-                  <span>Filename pattern</span>
-                  <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
-                </label>
-                <div class="check-row" id="autoload-types">
-                  <label class="checkbox">
-                    <input id="autoload-type-hdf5" type="checkbox" checked />
-                    HDF5
-                  </label>
-                  <label class="checkbox">
-                    <input id="autoload-type-tiff" type="checkbox" checked />
-                    TIFF
-                  </label>
-                  <label class="checkbox">
-                    <input id="autoload-type-cbf" type="checkbox" checked />
-                    CBF
-                  </label>
-                </div>
-                </div>
               </div>
               <label class="field" id="file-field">
                 <span>Image File</span>
@@ -340,66 +441,114 @@
                 <span>Threshold</span>
                 <select id="threshold-select"></select>
               </label>
-              <div class="autoload-group is-hidden" id="autoload-simplon">
-                <label class="field">
-                  <span>Base URL</span>
-                  <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
-                </label>
-                <label class="field">
-                  <span>API Version</span>
-                  <input id="simplon-version" type="text" value="1.8.0" />
-                </label>
-                <label class="field">
-                  <span>Timeout (ms)</span>
-                  <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
-                </label>
-                <label class="checkbox">
-                  <input id="simplon-enable" type="checkbox" checked />
-                  Enable monitor
-                </label>
-              </div>
-              <div class="autoload-group is-hidden" id="autoload-remote">
-                <label class="field">
-                  <span>Source ID</span>
-                  <input id="remote-source-id" type="text" value="default" placeholder="default" />
-                </label>
-                <label class="field">
-                  <span>Poll (ms)</span>
-                  <input id="remote-interval" type="number" min="100" step="100" value="1000" />
-                </label>
-              </div>
-              <div class="autoload-meta">
-                <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
-                <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
-              </div>
-              <div class="simplon-meta is-hidden" id="simplon-meta">
-                <div class="meta-row"><span>Series</span><strong id="simplon-series">-</strong></div>
-                <div class="meta-row"><span>Image</span><strong id="simplon-image">-</strong></div>
-                <div class="meta-row"><span>Timestamp</span><strong id="simplon-time">-</strong></div>
-                <div class="meta-row"><span>Energy (eV)</span><strong id="simplon-energy">-</strong></div>
-                <div class="meta-row"><span>Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
-                <div class="meta-row"><span>Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
-                <div class="meta-row"><span>Distance (mm)</span><strong id="simplon-distance">-</strong></div>
-                <div class="meta-row"><span>Beam center (px)</span><strong id="simplon-center">-</strong></div>
-              </div>
-              <div class="remote-meta is-hidden" id="remote-meta">
-                <div class="meta-row"><span>Source</span><strong id="remote-source">-</strong></div>
-                <div class="meta-row"><span>Sequence</span><strong id="remote-seq">-</strong></div>
-                <div class="meta-row"><span>Series</span><strong id="remote-series">-</strong></div>
-                <div class="meta-row"><span>Image</span><strong id="remote-image">-</strong></div>
-                <div class="meta-row"><span>Timestamp</span><strong id="remote-time">-</strong></div>
-                <div class="meta-row"><span>Energy (eV)</span><strong id="remote-energy">-</strong></div>
-                <div class="meta-row"><span>Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
-                <div class="meta-row"><span>Distance (mm)</span><strong id="remote-distance">-</strong></div>
-                <div class="meta-row"><span>Beam center (px)</span><strong id="remote-center">-</strong></div>
-                <div class="meta-row"><span>Peak sets</span><strong id="remote-peak-sets">-</strong></div>
-              </div>
-            </div>
-            <section class="panel-section inspector" data-section="inspector">
+              <details class="advanced-details">
+                <summary>Advanced source settings</summary>
+                <div class="advanced-inner">
+                  <label class="field">
+                    <span>File System</span>
+                    <select id="filesystem-mode">
+                      <option value="remote">Remote Server</option>
+                      <option value="local" selected>Local Machine</option>
+                    </select>
+                  </label>
+                  <div class="autoload-group" id="autoload-watch">
+                    <label class="checkbox">
+                      <input id="autoload-watch-enabled" type="checkbox" />
+                      Watch folder
+                    </label>
+                    <div id="autoload-watch-options">
+                      <label class="field">
+                        <span>Poll (ms)</span>
+                        <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
+                      </label>
+                      <label class="field">
+                        <span>Filename pattern</span>
+                        <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
+                      </label>
+                      <div class="check-row" id="autoload-types">
+                        <label class="checkbox">
+                          <input id="autoload-type-hdf5" type="checkbox" checked />
+                          HDF5
+                        </label>
+                        <label class="checkbox">
+                          <input id="autoload-type-tiff" type="checkbox" checked />
+                          TIFF
+                        </label>
+                        <label class="checkbox">
+                          <input id="autoload-type-cbf" type="checkbox" checked />
+                          CBF
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="autoload-group is-hidden" id="autoload-simplon">
+                    <label class="field">
+                      <span>Base URL</span>
+                      <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
+                    </label>
+                    <label class="checkbox">
+                      <input id="simplon-enable" type="checkbox" checked />
+                      Enable monitor
+                    </label>
+                    <label class="field">
+                      <span>API Version</span>
+                      <input id="simplon-version" type="text" value="1.8.0" />
+                    </label>
+                    <label class="field">
+                      <span>Timeout (ms)</span>
+                      <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
+                    </label>
+                  </div>
+                  <div class="autoload-group is-hidden" id="autoload-remote">
+                    <label class="field">
+                      <span>Source ID</span>
+                      <input id="remote-source-id" type="text" value="default" placeholder="default" />
+                    </label>
+                    <label class="field">
+                      <span>Poll (ms)</span>
+                      <input id="remote-interval" type="number" min="100" step="100" value="1000" />
+                    </label>
+                  </div>
+                  <div class="autoload-group advanced-status-block">
+                    <div class="advanced-status-title">Stream status</div>
+                    <div class="autoload-meta">
+                      <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
+                      <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
+                    </div>
+                    <div class="simplon-meta is-hidden" id="simplon-meta">
+                      <div class="meta-row"><span>Series</span><strong id="simplon-series">-</strong></div>
+                      <div class="meta-row"><span>Image</span><strong id="simplon-image">-</strong></div>
+                      <div class="meta-row"><span>Timestamp</span><strong id="simplon-time">-</strong></div>
+                      <div class="meta-row"><span>Energy (eV)</span><strong id="simplon-energy">-</strong></div>
+                      <div class="meta-row"><span>Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
+                      <div class="meta-row"><span>Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
+                      <div class="meta-row"><span>Distance (mm)</span><strong id="simplon-distance">-</strong></div>
+                      <div class="meta-row"><span>Beam center (px)</span><strong id="simplon-center">-</strong></div>
+                    </div>
+                    <div class="remote-meta is-hidden" id="remote-meta">
+                      <div class="meta-row"><span>Source</span><strong id="remote-source">-</strong></div>
+                      <div class="meta-row"><span>Sequence</span><strong id="remote-seq">-</strong></div>
+                      <div class="meta-row"><span>Series</span><strong id="remote-series">-</strong></div>
+                      <div class="meta-row"><span>Image</span><strong id="remote-image">-</strong></div>
+                      <div class="meta-row"><span>Timestamp</span><strong id="remote-time">-</strong></div>
+                      <div class="meta-row"><span>Energy (eV)</span><strong id="remote-energy">-</strong></div>
+                      <div class="meta-row"><span>Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
+                      <div class="meta-row"><span>Distance (mm)</span><strong id="remote-distance">-</strong></div>
+                      <div class="meta-row"><span>Beam center (px)</span><strong id="remote-center">-</strong></div>
+                      <div class="meta-row"><span>Peak sets</span><strong id="remote-peak-sets">-</strong></div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </section>
+            <section class="panel-section inspector is-collapsed" data-section="inspector">
               <button class="section-title" type="button" data-section-toggle>
                 File Inspector
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="inspector-state" role="status" aria-live="polite">
+                Select an HDF5 file to browse metadata.
+              </div>
               <div class="inspector-search">
                 <input id="inspector-search-input" type="search" placeholder="Search paths…" />
                 <button type="button" id="inspector-search-clear">Clear</button>
@@ -417,15 +566,19 @@
                 <div class="inspector-preview" id="inspector-preview"></div>
               </div>
             </section>
-            <section class="panel-section image-header is-hidden" data-section="image-header" id="image-header-section">
+            <section class="panel-section image-header is-hidden is-collapsed" data-section="image-header" id="image-header-section">
               <button class="section-title" type="button" data-section-toggle>
                 Image Header
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="image-header-state" role="status" aria-live="polite">
+                No header available.
+              </div>
+              <div class="image-header-loading is-hidden" id="image-header-loading" aria-hidden="true"></div>
               <div class="image-header-empty" id="image-header-empty">No header available.</div>
               <pre class="image-header-text" id="image-header-text"></pre>
             </section>
-            <section class="panel-section" data-section="series-summing">
+            <section class="panel-section is-collapsed" data-section="series-summing">
               <button class="section-title" type="button" data-section-toggle>
                 Series Operations
                 <span class="section-chevron">▾</span>
@@ -458,6 +611,7 @@
                 <label class="field" id="series-sum-step-field">
                   <span id="series-sum-step-label">Chunk size (N)</span>
                   <input id="series-sum-step" type="number" min="1" step="1" value="10" />
+                  <div class="field-hint is-hidden" id="series-sum-step-hint"></div>
                 </label>
                 <label class="field is-hidden" id="series-sum-range-start-field">
                   <span>Start frame</span>
@@ -484,11 +638,11 @@
                 <span>Output path</span>
                 <div class="inline series-sum-output-row">
                   <input id="series-sum-output" type="text" placeholder="output/series_sum" />
-                  <button id="series-sum-browse" class="btn" type="button">Browse…</button>
+                  <button id="series-sum-browse" class="btn btn-secondary" type="button">Browse…</button>
                 </div>
               </label>
               <div class="series-sum-start-row">
-                <button id="series-sum-start" class="btn" type="button">Start</button>
+                <button id="series-sum-start" class="btn btn-primary" type="button">Start</button>
                 <div class="series-sum-progress" id="series-sum-progress">
                   <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
                   <div class="series-sum-progress-text" id="series-sum-progress-text">Idle</div>
@@ -500,9 +654,15 @@
           <div class="panel-tab-content" data-panel-tab="analysis">
             <section class="panel-section" data-section="roi" id="roi-section">
               <button class="section-title" type="button" data-section-toggle>
-                Statistics and ROI
+                <span class="section-title-main">
+                  <span>Statistics and ROI</span>
+                  <span class="section-summary" id="summary-roi">Image stats</span>
+                </span>
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="roi-state" role="status" aria-live="polite">
+                Load a frame to use ROI tools.
+              </div>
               <label class="field">
                 <span class="sr-only">Mode</span>
                 <select id="roi-mode">
@@ -591,7 +751,7 @@
                 </div>
               </div>
             </section>
-            <section class="panel-section" data-section="resolution-rings">
+            <section class="panel-section is-collapsed" data-section="resolution-rings">
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
                   <label class="section-switch">
@@ -599,47 +759,52 @@
                     <span class="section-switch-track" aria-hidden="true"></span>
                   </label>
                   <span>Resolution Rings</span>
+                  <span class="section-summary" id="summary-rings">Off</span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="rings-grid rings-grid-top">
-                <label class="field">
-                  <span>Detector distance (mm)</span>
-                  <input id="rings-distance" type="number" min="0" step="1" placeholder="e.g. 250" />
-                </label>
-                <label class="field">
-                  <span>Pixel size (µm)</span>
-                  <input id="rings-pixel" type="number" min="0" step="0.1" placeholder="e.g. 75" />
-                </label>
-                <label class="field">
-                  <span>Photon energy (eV)</span>
-                  <input id="rings-energy" type="number" min="0" step="1" placeholder="e.g. 12000" />
-                </label>
-                <label class="field">
-                  <span>Beam center (px)</span>
-                  <div class="ring-center">
-                    <input id="rings-center-x" type="number" step="1" placeholder="X" />
-                    <input id="rings-center-y" type="number" step="1" placeholder="Y" />
-                  </div>
-                </label>
+              <div class="section-state is-empty" id="rings-state" role="status" aria-live="polite">
+                Enable rings to show resolution guides.
               </div>
+              <details class="advanced-details rings-advanced">
+                <summary>Geometry inputs</summary>
+                <div class="advanced-inner rings-grid rings-grid-top">
+                  <label class="field">
+                    <span>Detector distance (mm)</span>
+                    <input id="rings-distance" type="number" min="0" step="1" placeholder="e.g. 250" />
+                    <div class="field-hint is-hidden" id="rings-distance-hint"></div>
+                  </label>
+                  <label class="field">
+                    <span>Pixel size (µm)</span>
+                    <input id="rings-pixel" type="number" min="0" step="0.1" placeholder="e.g. 75" />
+                    <div class="field-hint is-hidden" id="rings-pixel-hint"></div>
+                  </label>
+                  <label class="field">
+                    <span>Photon energy (eV)</span>
+                    <input id="rings-energy" type="number" min="0" step="1" placeholder="e.g. 12000" />
+                    <div class="field-hint is-hidden" id="rings-energy-hint"></div>
+                  </label>
+                  <label class="field">
+                    <span>Beam center (px)</span>
+                    <div class="ring-center">
+                      <input id="rings-center-x" type="number" step="1" placeholder="X" />
+                      <input id="rings-center-y" type="number" step="1" placeholder="Y" />
+                    </div>
+                  </label>
+                </div>
+              </details>
               <div class="rings-grid rings-grid-bottom">
-                <label class="field rings-count-field">
-                  <span>Ring count</span>
-                  <input id="rings-count" type="number" min="1" max="4" step="1" value="3" />
-                </label>
                 <label class="field rings-values-field">
                   <span>Rings (Å)</span>
                   <div class="ring-values">
                     <input id="ring-r1" type="number" min="0" step="0.1" value="1.0" />
                     <input id="ring-r2" type="number" min="0" step="0.1" value="2.0" />
                     <input id="ring-r3" type="number" min="0" step="0.1" value="4.0" />
-                    <input id="ring-r4" type="number" min="0" step="0.1" value="8.0" />
                   </div>
                 </label>
               </div>
             </section>
-            <section class="panel-section" data-section="peak-finder">
+            <section class="panel-section is-collapsed" data-section="peak-finder">
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
                   <label class="section-switch">
@@ -647,15 +812,20 @@
                     <span class="section-switch-track" aria-hidden="true"></span>
                   </label>
                   <span>Peak Finder</span>
+                  <span class="section-summary" id="summary-peaks">Off</span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="peaks-state" role="status" aria-live="polite">
+                Enable Peak Finder to detect peaks.
+              </div>
               <div class="peaks-controls">
                 <label class="field peaks-count-field">
                   <span>Peaks to find</span>
                   <input id="peaks-count" type="number" min="1" max="1000" step="1" value="100" />
+                  <div class="field-hint is-hidden" id="peaks-count-hint"></div>
                 </label>
-                <button id="peaks-export" class="btn" type="button">Export CSV</button>
+                <button id="peaks-export" class="btn btn-secondary" type="button">Export CSV</button>
               </div>
               <div class="peaks-list" id="peaks-list">
                 <div class="peaks-head">
@@ -681,16 +851,26 @@
     <input class="file-input" id="file-input" type="file" accept=".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf" multiple />
     <div class="modal" id="about-modal" aria-hidden="true">
       <div class="modal-backdrop"></div>
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
+      <div class="modal-card about-modal-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
         <div class="modal-header">
           <div id="about-title">About ALBIS — ALBIS WEB VIEW</div>
           <button class="modal-close" id="about-close">✕</button>
         </div>
-        <div class="modal-body">
-          <p>ALBIS WEB VIEW — ALBULA-style web viewer prototype by SasG.</p>
-          <p id="about-version">Version 0.7</p>
-          <p>Rendering: WebGL2 with LUTs (CPU fallback).</p>
-          <p>Dataset: HDF5 stacks.</p>
+        <div class="modal-body about-modal-body">
+          <img class="about-logo" src="ressources/albis_512x512.png" alt="ALBIS logo" />
+          <p class="about-lead">
+            ALBIS WEB VIEW is a canvas-first diffraction viewer for fast exploration of HDF5 stacks and detector frames.
+          </p>
+          <p id="about-version" class="about-version">Version 0.8.0</p>
+          <div class="about-facts">
+            <div class="about-fact"><span>Author</span><strong>Sascha Grimm</strong></div>
+            <div class="about-fact"><span>Rendering</span><strong>WebGL2 + CPU fallback</strong></div>
+            <div class="about-fact"><span>Focus</span><strong>Interactive analysis and overlays</strong></div>
+            <div class="about-fact"><span>Formats</span><strong>HDF5, TIFF, CBF, EDF</strong></div>
+          </div>
+          <a class="about-repo-link" href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">
+            Open ALBIS on GitHub
+          </a>
         </div>
       </div>
     </div>
@@ -707,85 +887,120 @@
             <div>Config file: <code id="settings-config-path">-</code></div>
             <div class="settings-hint">Some settings apply after restart.</div>
           </div>
-          <div class="settings-grid">
-            <label class="field">
-              <span>Host</span>
-              <input id="settings-server-host" type="text" />
-            </label>
-            <label class="field">
-              <span>Port</span>
-              <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
-            </label>
-            <label class="checkbox settings-check">
-              <input id="settings-server-reload" type="checkbox" />
-              Enable backend reload
-            </label>
-            <label class="field">
-              <span>Startup timeout (s)</span>
-              <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
-            </label>
-            <label class="checkbox settings-check">
-              <input id="settings-open-browser" type="checkbox" />
-              Open browser on launch
-            </label>
-            <label class="checkbox settings-check settings-span-2">
-              <input id="settings-tool-hints" type="checkbox" />
-              Enable tool hints
-            </label>
-            <label class="field">
-              <span>Pixel label min cell (px)</span>
-              <input id="settings-pixel-label-min" type="number" min="8" max="64" step="1" />
-            </label>
-            <label class="field">
-              <span>Pixel labels max/frame</span>
-              <input id="settings-pixel-label-max" type="number" min="100" max="100000" step="100" />
-            </label>
-            <label class="field">
-              <span>Pixel label format</span>
-              <select id="settings-pixel-label-format">
-                <option value="auto">Auto</option>
-                <option value="integer">Integer</option>
-                <option value="scientific">Scientific</option>
-              </select>
-            </label>
-            <label class="checkbox settings-check">
-              <input id="settings-pixel-label-drag" type="checkbox" />
-              Draw labels during pan/zoom
-            </label>
-            <label class="field settings-span-2">
-              <span>Data root</span>
-              <input id="settings-data-root" type="text" />
-            </label>
-            <label class="checkbox settings-check">
-              <input id="settings-allow-abs" type="checkbox" />
-              Allow absolute paths
-            </label>
-            <label class="field">
-              <span>Scan cache (s)</span>
-              <input id="settings-scan-cache" type="number" min="0" step="0.1" />
-            </label>
-            <label class="field">
-              <span>Max scan depth</span>
-              <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
-            </label>
-            <label class="field">
-              <span>Max upload (MB)</span>
-              <input id="settings-max-upload" type="number" min="0" step="1" />
-            </label>
-            <label class="field">
-              <span>Log level</span>
-              <select id="settings-log-level">
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARNING">WARNING</option>
-                <option value="ERROR">ERROR</option>
-                <option value="CRITICAL">CRITICAL</option>
-              </select>
-            </label>
-            <label class="field settings-span-2">
-              <span>Log directory</span>
-              <input id="settings-log-dir" type="text" />
-            </label>
+          <div class="settings-sections">
+            <section class="settings-section">
+              <div class="settings-section-head">
+                <h3>Application</h3>
+                <p>Backend endpoint and launch behavior.</p>
+              </div>
+              <div class="settings-grid">
+                <label class="field">
+                  <span>Host</span>
+                  <input id="settings-server-host" type="text" />
+                </label>
+                <label class="field">
+                  <span>Port</span>
+                  <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
+                </label>
+                <label class="field">
+                  <span>Startup timeout (s)</span>
+                  <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
+                </label>
+                <label class="checkbox settings-check">
+                  <input id="settings-server-reload" type="checkbox" />
+                  Enable backend reload
+                </label>
+                <label class="checkbox settings-check">
+                  <input id="settings-open-browser" type="checkbox" />
+                  Open browser on launch
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section-head">
+                <h3>Viewer</h3>
+                <p>Interaction hints and pixel label behavior.</p>
+              </div>
+              <div class="settings-grid">
+                <label class="checkbox settings-check settings-span-2">
+                  <input id="settings-tool-hints" type="checkbox" />
+                  Enable tool hints
+                </label>
+                <label class="field">
+                  <span>Pixel label min cell (px)</span>
+                  <input id="settings-pixel-label-min" type="number" min="8" max="64" step="1" />
+                </label>
+                <label class="field">
+                  <span>Pixel labels max/frame</span>
+                  <input id="settings-pixel-label-max" type="number" min="100" max="100000" step="100" />
+                </label>
+                <label class="field">
+                  <span>Pixel label format</span>
+                  <select id="settings-pixel-label-format">
+                    <option value="auto">Auto</option>
+                    <option value="integer">Integer</option>
+                    <option value="scientific">Scientific</option>
+                  </select>
+                </label>
+                <label class="checkbox settings-check">
+                  <input id="settings-pixel-label-drag" type="checkbox" />
+                  Draw labels during pan/zoom
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section-head">
+                <h3>Data Access</h3>
+                <p>File system permissions and scan limits.</p>
+              </div>
+              <div class="settings-grid">
+                <label class="field settings-span-2">
+                  <span>Data root</span>
+                  <input id="settings-data-root" type="text" />
+                </label>
+                <label class="checkbox settings-check">
+                  <input id="settings-allow-abs" type="checkbox" />
+                  Allow absolute paths
+                </label>
+                <label class="field">
+                  <span>Scan cache (s)</span>
+                  <input id="settings-scan-cache" type="number" min="0" step="0.1" />
+                </label>
+                <label class="field">
+                  <span>Max scan depth</span>
+                  <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
+                </label>
+                <label class="field">
+                  <span>Max upload (MB)</span>
+                  <input id="settings-max-upload" type="number" min="0" step="1" />
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section-head">
+                <h3>Logging</h3>
+                <p>Verbosity and log output location.</p>
+              </div>
+              <div class="settings-grid">
+                <label class="field">
+                  <span>Log level</span>
+                  <select id="settings-log-level">
+                    <option value="DEBUG">DEBUG</option>
+                    <option value="INFO">INFO</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="ERROR">ERROR</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                  </select>
+                </label>
+                <label class="field settings-span-2">
+                  <span>Log directory</span>
+                  <input id="settings-log-dir" type="text" />
+                </label>
+              </div>
+            </section>
           </div>
           <div class="settings-message" id="settings-message"></div>
         </div>
@@ -829,6 +1044,20 @@
           <button class="btn btn-secondary" id="browse-cancel">Cancel</button>
           <button class="btn btn-primary" id="browse-select">Select</button>
         </div>
+      </div>
+    </div>
+
+    <div class="modal" id="command-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card command-modal-card" role="dialog" aria-modal="true" aria-labelledby="command-title">
+        <div class="command-header">
+          <div id="command-title">Command Palette</div>
+          <div class="command-hint">Enter to run • Esc to close</div>
+        </div>
+        <div class="command-search">
+          <input id="command-input" type="search" placeholder="Type a command or shortcut…" autocomplete="off" />
+        </div>
+        <div class="command-list" id="command-list"></div>
       </div>
     </div>
 

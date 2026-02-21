@@ -235,8 +235,8 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ```
 
 This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-macos-<os_version>-v0.7-<commit>.zip`
-- `ALBIS-macos-<os_version>-v0.7-<commit>.dmg`
+- `ALBIS-macos-<os_version>-v0.8.0-<commit>.zip`
+- `ALBIS-macos-<os_version>-v0.8.0-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
@@ -248,7 +248,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 ```
 
 Example output:
-- `ALBIS-linux-<distro_version>-v0.7-<commit>.tar.gz`
+- `ALBIS-linux-<distro_version>-v0.8.0-<commit>.tar.gz`
 
 ### Build (Windows)
 
@@ -257,9 +257,9 @@ Example output:
 ```
 
 Example output:
-- `ALBIS-windows-<os_version>-v0.7-<commit>.zip`
+- `ALBIS-windows-<os_version>-v0.8.0-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-windows-<os_version>-v0.7-<commit>.exe`
+  `ALBIS-Setup-windows-<os_version>-v0.8.0-<commit>.exe`
 
 ### Output
 
@@ -281,13 +281,14 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 - [x] v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
 - [x] v0.6 server-client remote stream API (frame + metadata ingest)
 - [x] v0.7 refactoring baseline (modular frontend + stronger tests)
-- [ ] v0.8 UI facelift and control/view disentangling
-- [ ] v0.9 refactor, tests, documentation
+- [x] v0.8 UI facelift
+- [ ] v0.9 JUNGFRAUJOCH data ingest
+- [ ] v1.0 Bug fixes and final documentation
 - ...? =)
 
 ## Notes
 - current focus of the development is server and client running on the same machine.
-- there are likely many little bugs hidden - reports or fixes are welcome
+- there are likely many little and possibly bigger bugs hidden - feeddback, reports, and fixes are welcome
 
 ## Acknowledgements and Contributions
 This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set for many the benchmark.

@@ -26,6 +26,18 @@ const toolbarFrameWrap = document.getElementById("toolbar-frame-wrap");
 const toolbarFrameIndexWrap = document.getElementById("toolbar-frame-index-wrap");
 const toolbarStepWrap = document.getElementById("toolbar-step-wrap");
 const toolbarFpsWrap = document.getElementById("toolbar-fps-wrap");
+const toolbarPlaybackWrap = document.getElementById("toolbar-playback-wrap");
+const toolbarPlaybackToggle = document.getElementById("toolbar-playback-toggle");
+const toolbarPlaybackPopover = document.getElementById("toolbar-playback-popover");
+const toolbarMoreWrap = document.getElementById("toolbar-more-wrap");
+const toolbarMoreToggle = document.getElementById("toolbar-more-toggle");
+const toolbarMorePopover = document.getElementById("toolbar-more-popover");
+const toolbarMoreStep = document.getElementById("toolbar-more-step");
+const toolbarMoreFps = document.getElementById("toolbar-more-fps");
+const toolbarMoreThresholdField = document.getElementById("toolbar-more-threshold-field");
+const toolbarMoreThreshold = document.getElementById("toolbar-more-threshold");
+const toolbarMorePanelToggle = document.getElementById("toolbar-more-panel-toggle");
+const toolbarMoreFullscreen = document.getElementById("toolbar-more-fullscreen");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
@@ -47,6 +59,7 @@ const metaRange = document.getElementById("meta-range");
 const metaRenderer = document.getElementById("meta-renderer");
 const toolbarPath = document.getElementById("toolbar-path");
 const backendBadge = document.getElementById("backend-badge");
+const fullscreenToggle = document.getElementById("fullscreen-toggle");
 const aboutVersion = document.getElementById("about-version");
 const autoContrastBtn = document.getElementById("auto-contrast");
 const invertToggle = document.getElementById("invert-color");
@@ -55,9 +68,11 @@ const prevBtn = document.getElementById("btn-prev");
 const nextBtn = document.getElementById("btn-next");
 const playBtn = document.getElementById("btn-play");
 const toolsPanel = document.getElementById("side-panel");
+const panelSheetHandle = document.getElementById("panel-sheet-handle");
 const panelResizer = document.getElementById("panel-resizer");
 const panelEdgeToggle = document.getElementById("panel-edge-toggle");
 const panelFab = document.getElementById("panel-fab");
+const panelBody = toolsPanel?.querySelector(".panel-body");
 const panelTabs = document.querySelectorAll(".panel-tab");
 const panelTabContents = document.querySelectorAll(".panel-tab-content");
 const appLayout = document.querySelector(".app");
@@ -85,6 +100,13 @@ const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const splashStatus = document.getElementById("splash-status");
+const splashActions = document.querySelector(".splash-actions");
+const splashOpenFileBtn = document.getElementById("splash-open-file");
+const viewerFooterEl = document.querySelector(".viewer-footer");
+const footerFileEl = document.getElementById("footer-file");
+const footerZoomEl = document.getElementById("footer-zoom");
+const footerFrontendVersionEl = document.getElementById("footer-version-frontend");
+const footerBackendVersionEl = document.getElementById("footer-version-backend");
 const resolutionOverlay = document.getElementById("resolution-overlay");
 const resolutionCtx = resolutionOverlay?.getContext("2d");
 const peakOverlay = document.getElementById("peak-overlay");
@@ -125,10 +147,15 @@ const remoteWavelengthEl = document.getElementById("remote-wavelength");
 const remoteDistanceEl = document.getElementById("remote-distance");
 const remoteCenterEl = document.getElementById("remote-center");
 const remotePeakSetsEl = document.getElementById("remote-peak-sets");
+const dataSourceSummaryEl = document.getElementById("summary-data-source");
+const dataSourceStateEl = document.getElementById("data-source-state");
+const dataSourceSkeletonEl = document.getElementById("data-source-skeleton");
 const inspectorSection = document.querySelector(".panel-section.inspector");
 const imageHeaderSection = document.getElementById("image-header-section");
+const imageHeaderStateEl = document.getElementById("image-header-state");
 const imageHeaderText = document.getElementById("image-header-text");
 const imageHeaderEmpty = document.getElementById("image-header-empty");
+const imageHeaderLoading = document.getElementById("image-header-loading");
 const inspectorTree = document.getElementById("inspector-tree");
 const inspectorDetails = document.getElementById("inspector-details");
 const inspectorPath = document.getElementById("inspector-path");
@@ -140,6 +167,7 @@ const inspectorPreview = document.getElementById("inspector-preview");
 const inspectorSearchInput = document.getElementById("inspector-search-input");
 const inspectorSearchClear = document.getElementById("inspector-search-clear");
 const inspectorResults = document.getElementById("inspector-results");
+const inspectorStateEl = document.getElementById("inspector-state");
 const autoloadBrowse = document.getElementById("autoload-browse");
 const autoloadDirList = document.getElementById("autoload-dir-list");
 const autoloadPattern = document.getElementById("autoload-pattern");
@@ -189,28 +217,37 @@ const roiXCanvas = document.getElementById("roi-x-canvas");
 const roiXCtx = roiXCanvas?.getContext("2d");
 const roiYCanvas = document.getElementById("roi-y-canvas");
 const roiYCtx = roiYCanvas?.getContext("2d");
+const roiSectionStateEl = document.getElementById("roi-state");
+const roiSummaryEl = document.getElementById("summary-roi");
 const ringsToggle = document.getElementById("rings-toggle");
 const ringsDistance = document.getElementById("rings-distance");
+const ringsDistanceHint = document.getElementById("rings-distance-hint");
 const ringsPixel = document.getElementById("rings-pixel");
+const ringsPixelHint = document.getElementById("rings-pixel-hint");
 const ringsEnergy = document.getElementById("rings-energy");
+const ringsEnergyHint = document.getElementById("rings-energy-hint");
 const ringsCenterX = document.getElementById("rings-center-x");
 const ringsCenterY = document.getElementById("rings-center-y");
-const ringsCount = document.getElementById("rings-count");
+const ringsSectionStateEl = document.getElementById("rings-state");
+const ringsSummaryEl = document.getElementById("summary-rings");
 const ringInputs = [
   document.getElementById("ring-r1"),
   document.getElementById("ring-r2"),
   document.getElementById("ring-r3"),
-  document.getElementById("ring-r4"),
 ].filter(Boolean);
 const peaksEnableToggle = document.getElementById("peaks-enable");
 const peaksCountInput = document.getElementById("peaks-count");
+const peaksCountHint = document.getElementById("peaks-count-hint");
 const peaksExportBtn = document.getElementById("peaks-export");
 const peaksBody = document.getElementById("peaks-body");
+const peaksSectionStateEl = document.getElementById("peaks-state");
+const peaksSummaryEl = document.getElementById("summary-peaks");
 const seriesSumMode = document.getElementById("series-sum-mode");
 const seriesSumOperation = document.getElementById("series-sum-operation");
 const seriesSumStepField = document.getElementById("series-sum-step-field");
 const seriesSumStepLabel = document.getElementById("series-sum-step-label");
 const seriesSumStep = document.getElementById("series-sum-step");
+const seriesSumStepHint = document.getElementById("series-sum-step-hint");
 const seriesSumRangeStartField = document.getElementById("series-sum-range-start-field");
 const seriesSumRangeEndField = document.getElementById("series-sum-range-end-field");
 const seriesSumRangeStart = document.getElementById("series-sum-range-start");
@@ -261,6 +298,9 @@ const fileInput = document.getElementById("file-input");
 const uploadBar = document.getElementById("upload-bar");
 const uploadBarFill = document.getElementById("upload-bar-fill");
 const uploadBarText = document.getElementById("upload-bar-text");
+const commandModal = document.getElementById("command-modal");
+const commandInput = document.getElementById("command-input");
+const commandList = document.getElementById("command-list");
 
 let renderer = null;
 let activeMenu = "file";
@@ -277,7 +317,7 @@ let overviewResizeCenter = false;
 let histDragging = false;
 let histDragTarget = null;
 let panning = false;
-let panStart = { x: 0, y: 0, scrollLeft: 0, scrollTop: 0 };
+let panStart = { x: 0, y: 0, effectiveLeft: 0, effectiveTop: 0 };
 let pixelOverlayScheduled = false;
 let sectionStateStore = {};
 let roiOverlayScheduled = false;
@@ -308,14 +348,35 @@ let touchGestureDistance = 0;
 let touchGestureMid = null;
 let touchDragActive = false;
 let touchDragStart = null;
+let mobilePanelSnap = 0.6;
+let mobilePanelDragActive = false;
+let mobilePanelDragPointer = null;
+let mobilePanelDragStartY = 0;
+let mobilePanelDragStartSnap = mobilePanelSnap;
+let commandPaletteItems = [];
+let commandPaletteIndex = 0;
+let commandPaletteLastFocus = null;
 
 const roiState = createRoiState();
 const analysisState = createAnalysisState();
 const state = createAppState();
 
+const PLOT_THEME = {
+  bg: "rgba(12, 18, 27, 0.96)",
+  frame: "rgba(78, 100, 137, 0.45)",
+  axis: "rgba(132, 156, 196, 0.82)",
+  grid: "rgba(88, 112, 152, 0.24)",
+  text: "#dce8ff",
+  bar: "rgba(236, 243, 255, 0.88)",
+  line: "rgba(236, 243, 255, 0.95)",
+  lineGlow: "rgba(102, 178, 255, 0.2)",
+  markerOutline: "rgba(8, 14, 22, 0.85)",
+};
+
 const clientLogBuffer = [];
 let clientLogTimer = null;
 let clientLogSending = false;
+const SECTION_STATE_VARIANTS = ["is-empty", "is-loading", "is-active", "is-warning"];
 
 function formatClientArg(arg) {
   if (arg instanceof Error) {
@@ -392,8 +453,11 @@ window.addEventListener("unhandledrejection", (event) => {
     reason: formatClientArg(event.reason),
   });
 });
-const MIN_ZOOM = 0.1;
+const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
+const APP_FRONTEND_VERSION = "0.8.0";
+const DEFAULT_RING_COUNT = 3;
+const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
 const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = 18;
 const PIXEL_LABEL_DEFAULT_MAX_LABELS = 4000;
@@ -405,18 +469,119 @@ function getMinZoom() {
   if (!canvasWrap || !state.width || !state.height) {
     return MIN_ZOOM;
   }
-  const scale = Math.min(
+  const fitScale = Math.min(
     canvasWrap.clientWidth / state.width,
     canvasWrap.clientHeight / state.height
   );
-  if (!Number.isFinite(scale) || scale <= 0) {
+  if (!Number.isFinite(fitScale) || fitScale <= 0) {
     return MIN_ZOOM;
   }
-  return Math.min(1, scale);
+  // Allow zooming out beyond fit-to-window for better context.
+  return Math.max(MIN_ZOOM, Math.min(1, fitScale * 0.1));
+}
+
+function getEffectiveScrollLeft() {
+  if (!canvasWrap) return 0;
+  return (canvasWrap.scrollLeft || 0) - (state.panOffsetX || 0);
+}
+
+function getEffectiveScrollTop() {
+  if (!canvasWrap) return 0;
+  return (canvasWrap.scrollTop || 0) - (state.panOffsetY || 0);
+}
+
+function applyCanvasTransform() {
+  if (!canvas) return;
+  const zoom = Number.isFinite(state.zoom) ? state.zoom : 1;
+  const tx = (state.renderOffsetX || 0) + (state.panOffsetX || 0);
+  const ty = (state.renderOffsetY || 0) + (state.panOffsetY || 0);
+  canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom})`;
+}
+
+function getPanOffsetBounds() {
+  if (!canvasWrap || !state.width || !state.height) {
+    return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+  }
+  const zoom = state.zoom || 1;
+  const scaledW = state.width * zoom;
+  const scaledH = state.height * zoom;
+  const viewW = canvasWrap.clientWidth || 0;
+  const viewH = canvasWrap.clientHeight || 0;
+  const baseX = state.renderOffsetX || 0;
+  const baseY = state.renderOffsetY || 0;
+
+  const computeBounds = (scaled, view, base, leadInset = 0, trailInset = 0) => {
+    if (!(scaled > 0) || !(view > 0) || scaled >= view) {
+      return { min: 0, max: 0 };
+    }
+    const minVisible = Math.min(scaled, Math.max(48, scaled * 0.16));
+    const insetLead = Math.max(0, Number(leadInset) || 0);
+    const insetTrail = Math.max(0, Number(trailInset) || 0);
+    const min = insetLead + minVisible - (base + scaled);
+    const max = view - insetTrail - minVisible - base;
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
+      return { min: 0, max: 0 };
+    }
+    return { min, max };
+  };
+
+  const footerInset = viewerFooterEl
+    ? Math.max(0, Math.round(viewerFooterEl.getBoundingClientRect().height) + 8)
+    : 0;
+  const bx = computeBounds(scaledW, viewW, baseX, 0, 0);
+  const by = computeBounds(scaledH, viewH, baseY, 0, footerInset);
+  return { minX: bx.min, maxX: bx.max, minY: by.min, maxY: by.max };
+}
+
+function clampPanOffsetsToBounds() {
+  const bounds = getPanOffsetBounds();
+  const nextX = Math.max(bounds.minX, Math.min(bounds.maxX, Number(state.panOffsetX) || 0));
+  const nextY = Math.max(bounds.minY, Math.min(bounds.maxY, Number(state.panOffsetY) || 0));
+  const changed = nextX !== state.panOffsetX || nextY !== state.panOffsetY;
+  state.panOffsetX = nextX;
+  state.panOffsetY = nextY;
+  return changed;
+}
+
+function syncViewportOverlays() {
+  scheduleOverview();
+  schedulePixelOverlay();
+  scheduleRoiOverlay();
+  scheduleResolutionOverlay();
+  schedulePeakOverlay();
+}
+
+function setEffectiveScroll(targetX, targetY, schedule = true) {
+  if (!canvasWrap) return;
+  const desiredX = Number.isFinite(targetX) ? targetX : 0;
+  const desiredY = Number.isFinite(targetY) ? targetY : 0;
+  const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
+  const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
+  const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, desiredX));
+  const nextScrollTop = Math.max(0, Math.min(maxScrollTop, desiredY));
+  state.panOffsetX = nextScrollLeft - desiredX;
+  state.panOffsetY = nextScrollTop - desiredY;
+  clampPanOffsetsToBounds();
+  canvasWrap.scrollLeft = nextScrollLeft;
+  canvasWrap.scrollTop = nextScrollTop;
+  applyCanvasTransform();
+  if (schedule) {
+    deferPixelOverlayRedraw();
+    syncViewportOverlays();
+  }
+}
+
+function updatePanCapability() {
+  if (!canvasWrap) return;
+  const canPan = Boolean(state.hasFrame && state.width && state.height);
+  canvasWrap.classList.toggle("can-pan", canPan);
 }
 
 function setStatus(text) {
-  statusEl.textContent = text;
+  if (!statusEl) return;
+  const normalized = String(text || "").trim();
+  statusEl.textContent = /^Frame\s+\d+\s*\/\s*\d+$/i.test(normalized) ? "Ready" : normalized || "Idle";
+  updateViewerFooter();
 }
 
 function currentFrameStatusText() {
@@ -432,6 +597,53 @@ function middleTruncate(text, maxChars) {
   if (value.length <= limit) return value;
   const side = Math.max(2, Math.floor((limit - 1) / 2));
   return `${value.slice(0, side)}…${value.slice(-side)}`;
+}
+
+function setSummaryChip(element, text, tone = "default") {
+  if (!element) return;
+  element.textContent = text || "";
+  element.classList.toggle("is-active", tone === "active");
+  element.classList.toggle("is-warning", tone === "warning");
+}
+
+function setFieldHint(inputEl, hintEl, message = "") {
+  const hasMessage = Boolean(message);
+  if (inputEl) {
+    inputEl.classList.toggle("is-invalid", hasMessage);
+  }
+  if (!hintEl) return;
+  hintEl.textContent = hasMessage ? message : "";
+  hintEl.classList.toggle("is-hidden", !hasMessage);
+}
+
+function buildSkeletonList(lineCount = 5) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "skeleton-list";
+  for (let i = 0; i < Math.max(1, lineCount); i += 1) {
+    const line = document.createElement("div");
+    line.className = "skeleton-line";
+    if (i % 3 === 1) {
+      line.classList.add("is-mid");
+    } else if (i % 3 === 2) {
+      line.classList.add("is-short");
+    }
+    wrapper.appendChild(line);
+  }
+  return wrapper;
+}
+
+function renderSkeletonBlock(container, lineCount = 5) {
+  if (!container) return;
+  container.innerHTML = "";
+  const skeleton = buildSkeletonList(lineCount);
+  if (container.tagName?.toLowerCase() === "ul") {
+    const li = document.createElement("li");
+    li.className = "inspector-empty";
+    li.appendChild(skeleton);
+    container.appendChild(li);
+    return;
+  }
+  container.appendChild(skeleton);
 }
 
 function estimateToolbarChars() {
@@ -521,6 +733,7 @@ const HELP_SELECTORS = [
   ".panel-fab",
   ".panel-edge-toggle",
   ".panel-resizer",
+  ".panel-sheet-handle",
   ".roi-resize-handle",
 ].join(",");
 const HELP_DELAY_MS = 1000;
@@ -571,14 +784,21 @@ function getHelpText(target) {
 
 function applyHelpMap() {
   const helpMap = {
-    "btn-prev": "Previous frame",
-    "btn-next": "Next frame",
-    "btn-play": "Play/pause playback",
+    "btn-prev": "Previous frame (Left Arrow)",
+    "btn-next": "Next frame (Right Arrow)",
+    "btn-play": "Play/pause playback (Tab)",
     "frame-range": "Frame position",
     "frame-index": "Current frame number",
+    "toolbar-playback-toggle": "Playback options (Step/FPS)",
+    "toolbar-more-toggle": "More controls",
+    "toolbar-more-panel-toggle": "Open or close side menu",
+    "toolbar-more-fullscreen": "Toggle full screen (F)",
     "frame-step": "Frame step size",
     "fps-select": "Playback speed",
-    "toolbar-threshold": "Select detector threshold",
+    "toolbar-more-step": "Frame step size",
+    "toolbar-more-fps": "Playback speed",
+    "toolbar-more-threshold": "Select detector threshold (Up/Down Arrow)",
+    "toolbar-threshold": "Select detector threshold (Up/Down Arrow)",
     "zoom-range": "Zoom image",
     "reset-view": "Fit image to window",
     "pixel-label-toggle": "Show pixel values at high zoom",
@@ -603,10 +823,13 @@ function applyHelpMap() {
     "simplon-url": "SIMPLON base URL",
     "simplon-timeout": "Monitor timeout (ms)",
     "simplon-enable": "Enable live monitor",
-    "panel-fab": "Toggle side panel",
+    "panel-fab": "Toggle side panel (M)",
     "panel-resizer": "Resize side panel",
+    "panel-sheet-handle": "Drag up/down to resize panel",
+    "fullscreen-toggle": "Toggle full screen (F)",
     "inspector-search-input": "Search the HDF5 tree",
     "inspector-search-clear": "Clear search",
+    "command-input": "Search and run commands",
   };
   Object.entries(helpMap).forEach(([id, text]) => {
     const el = document.getElementById(id);
@@ -614,6 +837,10 @@ function applyHelpMap() {
       el.dataset.help = text;
     }
   });
+  const commandMenuItem = document.querySelector('.dropdown-item[data-action="command-palette"]');
+  if (commandMenuItem && !commandMenuItem.dataset.help) {
+    commandMenuItem.dataset.help = "Command Palette (Cmd/Ctrl+K)";
+  }
   document.querySelectorAll(".roi-resize-handle").forEach((el) => {
     if (!el.dataset.help) el.dataset.help = "Drag to resize plot";
   });
@@ -834,11 +1061,51 @@ function resetInspectorDetails() {
   if (inspectorPreview) inspectorPreview.innerHTML = "";
 }
 
+function setSectionBadgeState(element, tone, message) {
+  if (!element) return;
+  const nextTone = tone === "loading" || tone === "active" || tone === "warning" ? tone : "empty";
+  SECTION_STATE_VARIANTS.forEach((className) => element.classList.remove(className));
+  element.classList.add(`is-${nextTone}`);
+  element.textContent = message || "";
+}
+
+function setDataSourceSectionState(tone, message, showSkeleton = false) {
+  setSectionBadgeState(dataSourceStateEl, tone, message);
+  if (!dataSourceSkeletonEl) return;
+  if (showSkeleton) {
+    renderSkeletonBlock(dataSourceSkeletonEl, 4);
+    dataSourceSkeletonEl.classList.remove("is-hidden");
+    dataSourceSkeletonEl.setAttribute("aria-hidden", "false");
+    return;
+  }
+  dataSourceSkeletonEl.classList.add("is-hidden");
+  dataSourceSkeletonEl.setAttribute("aria-hidden", "true");
+  dataSourceSkeletonEl.innerHTML = "";
+}
+
+function setImageHeaderSectionState(tone, message) {
+  setSectionBadgeState(imageHeaderStateEl, tone, message);
+}
+
+function setImageHeaderLoading(loading) {
+  if (!imageHeaderLoading) return;
+  if (loading) {
+    renderSkeletonBlock(imageHeaderLoading, 7);
+    imageHeaderLoading.classList.remove("is-hidden");
+    imageHeaderLoading.setAttribute("aria-hidden", "false");
+    return;
+  }
+  imageHeaderLoading.classList.add("is-hidden");
+  imageHeaderLoading.setAttribute("aria-hidden", "true");
+  imageHeaderLoading.innerHTML = "";
+}
+
 function setInspectorMessage(message) {
   if (!inspectorTree) return;
   inspectorSelectedRow = null;
   inspectorTree.innerHTML = `<div class="inspector-empty">${message}</div>`;
   resetInspectorDetails();
+  setSectionBadgeState(inspectorStateEl, /fail|error/i.test(message) ? "warning" : "empty", message);
   if (inspectorResults) {
     inspectorResults.innerHTML = "";
     inspectorResults.classList.add("is-hidden");
@@ -849,14 +1116,21 @@ function setImageHeader(text) {
   if (!imageHeaderText || !imageHeaderEmpty) return;
   const headerText = typeof text === "string" ? text.trim() : "";
   const hasText = headerText.length > 0;
+  setImageHeaderLoading(false);
   imageHeaderText.textContent = hasText ? text : "";
   imageHeaderText.classList.toggle("is-hidden", !hasText);
   imageHeaderEmpty.classList.toggle("is-hidden", hasText);
+  if (hasText) {
+    setImageHeaderSectionState("active", "Header loaded.");
+  } else {
+    setImageHeaderSectionState("empty", "No header available.");
+  }
 }
 
 function clearImageHeader() {
   state.imageHeaderFile = "";
   state.imageHeaderText = "";
+  setImageHeaderLoading(false);
   setImageHeader("");
 }
 
@@ -869,6 +1143,15 @@ async function loadImageHeader(file) {
     setImageHeader(state.imageHeaderText);
     return;
   }
+  setImageHeaderSectionState("loading", "Loading image header…");
+  setImageHeaderLoading(true);
+  if (imageHeaderText) {
+    imageHeaderText.textContent = "";
+    imageHeaderText.classList.add("is-hidden");
+  }
+  if (imageHeaderEmpty) {
+    imageHeaderEmpty.classList.add("is-hidden");
+  }
   try {
     const data = await fetchJSON(`${API}/image/header?file=${encodeURIComponent(file)}`);
     const text = typeof data.header === "string" ? data.header : "";
@@ -879,7 +1162,16 @@ async function loadImageHeader(file) {
     console.warn(err);
     state.imageHeaderFile = file;
     state.imageHeaderText = "";
-    setImageHeader("");
+    setImageHeaderLoading(false);
+    if (imageHeaderText) {
+      imageHeaderText.textContent = "";
+      imageHeaderText.classList.add("is-hidden");
+    }
+    if (imageHeaderEmpty) {
+      imageHeaderEmpty.classList.remove("is-hidden");
+      imageHeaderEmpty.textContent = "No header available.";
+    }
+    setImageHeaderSectionState("warning", "Header unavailable for this image.");
   }
 }
 
@@ -917,13 +1209,20 @@ function renderInspectorResults(results, query) {
   if (!query) {
     inspectorResults.innerHTML = "";
     inspectorResults.classList.add("is-hidden");
+    setSectionBadgeState(inspectorStateEl, "active", "Metadata browser ready.");
     return;
   }
   inspectorResults.classList.remove("is-hidden");
   if (!Array.isArray(results) || results.length === 0) {
     inspectorResults.innerHTML = `<div class="inspector-empty">No matches.</div>`;
+    setSectionBadgeState(inspectorStateEl, "empty", `No matches for "${query}".`);
     return;
   }
+  setSectionBadgeState(
+    inspectorStateEl,
+    "active",
+    `Found ${results.length} match${results.length === 1 ? "" : "es"} for "${query}".`
+  );
   inspectorResults.innerHTML = "";
   results.forEach((item) => {
     const row = document.createElement("div");
@@ -953,13 +1252,18 @@ function renderInspectorResults(results, query) {
 
 async function runInspectorSearch(query) {
   if (!isHdf5File(state.file)) {
-    renderInspectorResults([], query);
+    setSectionBadgeState(inspectorStateEl, "empty", "File inspector is available for HDF5 files only.");
+    if (inspectorResults) {
+      inspectorResults.innerHTML = "";
+      inspectorResults.classList.add("is-hidden");
+    }
     return;
   }
   if (!query) {
     renderInspectorResults([], "");
     return;
   }
+  setSectionBadgeState(inspectorStateEl, "loading", `Searching metadata for "${query}"…`);
   try {
     const data = await fetchJSON(
       `${API}/hdf5/search?file=${encodeURIComponent(state.file)}&query=${encodeURIComponent(query)}`
@@ -967,7 +1271,11 @@ async function runInspectorSearch(query) {
     renderInspectorResults(data.matches || [], query);
   } catch (err) {
     console.error(err);
-    renderInspectorResults([], query);
+    setSectionBadgeState(inspectorStateEl, "warning", "Search failed. Please try again.");
+    if (inspectorResults) {
+      inspectorResults.classList.remove("is-hidden");
+      inspectorResults.innerHTML = `<div class="inspector-empty">Search failed.</div>`;
+    }
   }
 }
 
@@ -989,6 +1297,7 @@ function renderInspectorLink(path, target) {
     inspectorAttrs.appendChild(attrRow);
   }
   if (inspectorPreview) inspectorPreview.innerHTML = "";
+  setSectionBadgeState(inspectorStateEl, "active", "Link target loaded.");
 }
 
 function formatInspectorCell(value) {
@@ -1186,11 +1495,19 @@ async function loadInspectorRoot() {
     setInspectorMessage("File inspector is available for HDF5 files only.");
     return;
   }
+  setSectionBadgeState(inspectorStateEl, "loading", "Loading metadata tree…");
+  renderSkeletonBlock(inspectorTree, 7);
+  resetInspectorDetails();
   try {
     const children = await fetchInspectorTree("/");
     renderInspectorTree(children, inspectorTree);
     inspectorSelectedRow = null;
     resetInspectorDetails();
+    if (children.length) {
+      setSectionBadgeState(inspectorStateEl, "active", "Metadata tree loaded.");
+    } else {
+      setSectionBadgeState(inspectorStateEl, "empty", "No metadata nodes found.");
+    }
   } catch (err) {
     console.error(err);
     setInspectorMessage("Failed to load HDF5 tree.");
@@ -1209,6 +1526,7 @@ function selectInspectorRow(row) {
 
 async function showInspectorNode(path) {
   if (!inspectorDetails) return;
+  setSectionBadgeState(inspectorStateEl, "loading", "Loading node details…");
   try {
     const data = await fetchJSON(
       `${API}/hdf5/node?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`
@@ -1246,6 +1564,7 @@ async function showInspectorNode(path) {
     } else if (inspectorPreview) {
       inspectorPreview.innerHTML = "";
     }
+    setSectionBadgeState(inspectorStateEl, "active", `Loaded ${data.type || "node"} details.`);
   } catch (err) {
     console.error(err);
     setInspectorMessage("Failed to load node details.");
@@ -1276,8 +1595,8 @@ function getImagePointFromEvent(event) {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const imgX = (canvasWrap.scrollLeft + x - offsetX) / zoom;
-  const imgY = (canvasWrap.scrollTop + y - offsetY) / zoom;
+  const imgX = (getEffectiveScrollLeft() + x - offsetX) / zoom;
+  const imgY = (getEffectiveScrollTop() + y - offsetY) / zoom;
   const ix = Math.max(0, Math.min(state.width - 1, Math.round(imgX)));
   const iy = Math.max(0, Math.min(state.height - 1, Math.round(imgY)));
   return { x: ix, y: iy };
@@ -1490,8 +1809,8 @@ function updateCursorOverlay(event) {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const imgX = (canvasWrap.scrollLeft + x - offsetX) / zoom;
-  const imgY = (canvasWrap.scrollTop + y - offsetY) / zoom;
+  const imgX = (getEffectiveScrollLeft() + x - offsetX) / zoom;
+  const imgY = (getEffectiveScrollTop() + y - offsetY) / zoom;
   const ix = Math.floor(imgX);
   const iy = Math.floor(imgY);
   if (ix < 0 || iy < 0 || ix >= state.width || iy >= state.height) {
@@ -1579,8 +1898,8 @@ function drawPixelOverlay() {
     state.maskShape[0] === state.height &&
     state.maskShape[1] === state.width;
 
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const viewW = canvasWrap.clientWidth / zoom;
   const viewH = canvasWrap.clientHeight / zoom;
   let startX = Math.floor(viewX);
@@ -1663,8 +1982,8 @@ function drawRoiOverlay() {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const x0 = (roiState.start.x - viewX) * zoom + offsetX;
   const y0 = (roiState.start.y - viewY) * zoom + offsetY;
   const x1 = (roiState.end.x - viewX) * zoom + offsetX;
@@ -1825,11 +2144,8 @@ function getRingParams() {
   const fallback = getDefaultCenter();
   if (!Number.isFinite(center.x)) center.x = fallback.x;
   if (!Number.isFinite(center.y)) center.y = fallback.y;
-  const count = Number(ringsCount?.value || analysisState.ringCount || 3);
   const maxCount = Math.max(1, ringInputs.length);
-  const ringLimit = Number.isFinite(count)
-    ? Math.max(1, Math.min(maxCount, Math.round(count)))
-    : Math.min(3, maxCount);
+  const ringLimit = Math.max(1, Math.min(maxCount, DEFAULT_RING_COUNT));
   const rings = ringInputs
     .map((input, index) => {
       const value = Number(input?.value || analysisState.rings[index]);
@@ -1867,14 +2183,128 @@ function getResolutionAtPixel(ix, iy, params = getRingParams()) {
   return Number.isFinite(d) && d > 0 ? d : null;
 }
 
+function getRoiModeLabel(mode) {
+  if (mode === "line") return "Line ROI";
+  if (mode === "box") return "Box ROI";
+  if (mode === "circle") return "Circle ROI";
+  if (mode === "annulus") return "Annulus ROI";
+  return "ROI";
+}
+
+function updateRoiSectionState() {
+  if (!roiSectionStateEl) return;
+  if (!state.hasFrame) {
+    setSectionBadgeState(roiSectionStateEl, "empty", "Load a frame to use ROI tools.");
+    setSummaryChip(roiSummaryEl, "No frame");
+    return;
+  }
+  if (roiState.mode === "none") {
+    setSectionBadgeState(roiSectionStateEl, "active", "Image statistics active. Choose an ROI mode for local stats.");
+    setSummaryChip(roiSummaryEl, "Image stats", "active");
+    return;
+  }
+  const modeLabel = getRoiModeLabel(roiState.mode);
+  if (!roiState.start || !roiState.end) {
+    setSectionBadgeState(
+      roiSectionStateEl,
+      "empty",
+      `${modeLabel} ready. Right-drag on the image to define the region.`
+    );
+    setSummaryChip(roiSummaryEl, `${modeLabel} ready`);
+    return;
+  }
+  setSectionBadgeState(roiSectionStateEl, "active", `${modeLabel} active.`);
+  setSummaryChip(roiSummaryEl, `${modeLabel} active`, "active");
+}
+
+function updateRingsSectionState() {
+  if (!ringsSectionStateEl) return;
+  if (!analysisState.ringsEnabled) {
+    setSectionBadgeState(ringsSectionStateEl, "empty", "Enable rings to show resolution guides.");
+    setSummaryChip(ringsSummaryEl, "Off");
+    return;
+  }
+  if (!state.hasFrame) {
+    setSectionBadgeState(ringsSectionStateEl, "loading", "Load a frame to render rings.");
+    setSummaryChip(ringsSummaryEl, "Waiting frame");
+    return;
+  }
+  const params = getRingParams();
+  if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) {
+    setSectionBadgeState(
+      ringsSectionStateEl,
+      "empty",
+      "Provide detector distance, pixel size, and photon energy to compute rings."
+    );
+    setSummaryChip(ringsSummaryEl, "Missing geometry", "warning");
+    return;
+  }
+  if (!params.rings.length) {
+    setSectionBadgeState(ringsSectionStateEl, "empty", "Add at least one ring value.");
+    setSummaryChip(ringsSummaryEl, "No rings", "warning");
+    return;
+  }
+  setSectionBadgeState(
+    ringsSectionStateEl,
+    "active",
+    `Showing ${params.rings.length} ring${params.rings.length === 1 ? "" : "s"}.`
+  );
+  setSummaryChip(ringsSummaryEl, `${params.rings.length} ring${params.rings.length === 1 ? "" : "s"}`, "active");
+}
+
+function updatePeaksSectionState() {
+  if (!peaksSectionStateEl) return;
+  if (!analysisState.peaksEnabled) {
+    setSectionBadgeState(peaksSectionStateEl, "empty", "Enable Peak Finder to detect peaks.");
+    setSummaryChip(peaksSummaryEl, "Off");
+    return;
+  }
+  if (!state.hasFrame) {
+    setSectionBadgeState(peaksSectionStateEl, "loading", "Load a frame to detect peaks.");
+    setSummaryChip(peaksSummaryEl, "Waiting frame");
+    return;
+  }
+  if (state.playing || state.isLoading || peakFinderScheduled) {
+    setSectionBadgeState(peaksSectionStateEl, "active", "Peak Finder active. Updating in the background.");
+    setSummaryChip(peaksSummaryEl, "Active", "active");
+    return;
+  }
+  if (!analysisState.peaks.length) {
+    setSectionBadgeState(peaksSectionStateEl, "empty", "No peaks detected on this frame.");
+    setSummaryChip(peaksSummaryEl, "No peaks");
+    return;
+  }
+  setSectionBadgeState(
+    peaksSectionStateEl,
+    "active",
+    `Detected ${analysisState.peaks.length} peak${analysisState.peaks.length === 1 ? "" : "s"}.`
+  );
+  setSummaryChip(
+    peaksSummaryEl,
+    `${analysisState.peaks.length} peak${analysisState.peaks.length === 1 ? "" : "s"}`,
+    "active"
+  );
+}
+
 function renderPeakList() {
   if (!peaksBody) return;
+  const isBusy = analysisState.peaksEnabled && state.hasFrame && (state.isLoading || peakFinderScheduled);
+  if (isBusy && peaksBody.childElementCount > 0) {
+    updatePeaksSectionState();
+    return;
+  }
   peaksBody.innerHTML = "";
+  if (isBusy) {
+    peaksBody.appendChild(buildSkeletonList(6));
+    updatePeaksSectionState();
+    return;
+  }
   if (!analysisState.peaksEnabled) {
     const empty = document.createElement("div");
     empty.className = "peaks-empty";
     empty.textContent = "Enable \"Find peaks\" to detect diffraction peaks.";
     peaksBody.appendChild(empty);
+    updatePeaksSectionState();
     return;
   }
   if (!analysisState.peaks.length) {
@@ -1882,6 +2312,7 @@ function renderPeakList() {
     empty.className = "peaks-empty";
     empty.textContent = state.hasFrame ? "No peaks detected." : "Load a frame to detect peaks.";
     peaksBody.appendChild(empty);
+    updatePeaksSectionState();
     return;
   }
   analysisState.peaks.forEach((peak, idx) => {
@@ -1925,6 +2356,7 @@ function renderPeakList() {
     });
     peaksBody.appendChild(row);
   });
+  updatePeaksSectionState();
 }
 
 function detectPeaks(maxPeaks) {
@@ -2040,6 +2472,7 @@ function runPeakFinder() {
   analysisState.peakCount = requested;
   if (peaksCountInput) {
     peaksCountInput.value = String(requested);
+    setFieldHint(peaksCountInput, peaksCountHint, "");
   }
   analysisState.peaks = detectPeaks(requested);
   analysisState.selectedPeaks = analysisState.selectedPeaks.filter(
@@ -2064,6 +2497,8 @@ function runPeakFinder() {
 function schedulePeakFinder() {
   if (peakFinderScheduled) return;
   peakFinderScheduled = true;
+  updatePeaksSectionState();
+  renderPeakList();
   window.setTimeout(runPeakFinder, 0);
 }
 
@@ -2107,8 +2542,8 @@ function drawPeakOverlay() {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const externalSets = Array.isArray(analysisState.externalPeakSets) ? analysisState.externalPeakSets : [];
   const hasLocalPeaks = analysisState.peaksEnabled && Array.isArray(analysisState.peaks) && analysisState.peaks.length;
 
@@ -2210,6 +2645,9 @@ function setSeriesSumProgress(progress, text) {
   const value = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
   state.seriesSum.progress = value;
   state.seriesSum.message = text || state.seriesSum.message || "Idle";
+  if (seriesSumProgress) {
+    seriesSumProgress.classList.toggle("is-loading", Boolean(state.seriesSum.running));
+  }
   if (seriesSumProgressFill) {
     seriesSumProgressFill.style.width = `${(value * 100).toFixed(1)}%`;
   }
@@ -2306,6 +2744,7 @@ function updateSeriesSumUi() {
   if (seriesSumMask) {
     seriesSumMask.disabled = state.seriesSum.running || !ready;
   }
+  validateSeriesStepInput(false);
 }
 
 function stopSeriesSumPolling() {
@@ -2366,10 +2805,12 @@ async function startSeriesSumming() {
   const normalizeEnabled = Boolean(seriesSumNormalizeEnable?.checked);
   const totalFrames = Math.max(1, Math.round(Number(state.frameCount || 1)));
 
-  const step = Math.max(1, Math.round(Number(seriesSumStep?.value || 10)));
-  if (seriesSumStep) {
-    seriesSumStep.value = String(step);
+  const parsedStep = validateSeriesStepInput(true);
+  if (!Number.isFinite(parsedStep) && mode !== "all") {
+    setStatus("Step must be an integer greater than or equal to 1");
+    return;
   }
+  const step = Number.isFinite(parsedStep) ? parsedStep : 1;
 
   const rangeStart = Math.max(1, Math.round(Number(seriesSumRangeStart?.value || 1)));
   const rangeEnd = Math.max(1, Math.round(Number(seriesSumRangeEnd?.value || totalFrames)));
@@ -2433,6 +2874,7 @@ function drawResolutionOverlay() {
   if (!metrics) return;
   const { width, height } = metrics;
   resolutionCtx.clearRect(0, 0, width, height);
+  updateRingsSectionState();
   if (!analysisState.ringsEnabled || !state.hasFrame) return;
   const params = getRingParams();
   if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) return;
@@ -2441,8 +2883,8 @@ function drawResolutionOverlay() {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const centerX = (params.centerX - viewX) * zoom + offsetX;
   const centerY = (params.centerY - viewY) * zoom + offsetY;
   const pixelSizeMm = params.pixelSizeUm / 1000;
@@ -2525,8 +2967,8 @@ function getRoiScreenGeometry() {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const x0 = (roiState.start.x - viewX) * zoom + offsetX;
   const y0 = (roiState.start.y - viewY) * zoom + offsetY;
   const x1 = (roiState.end.x - viewX) * zoom + offsetX;
@@ -2753,6 +3195,9 @@ function scheduleRoiUpdate() {
 function setLoading(show) {
   if (!loadingEl) return;
   loadingEl.style.display = show ? "block" : "none";
+  updateRoiSectionState();
+  updateRingsSectionState();
+  updatePeaksSectionState();
   if (!show && statusEl && state.hasFrame) {
     const status = (statusEl.textContent || "").trim();
     if (/^Loading (image|frame|metadata|datasets)(…|\.{3})$/i.test(status)) {
@@ -2820,8 +3265,8 @@ function getViewRect() {
   const viewH = canvasWrap.clientHeight / scaleY;
   const viewWClamped = Math.min(viewW, imgW);
   const viewHClamped = Math.min(viewH, imgH);
-  let viewX = canvasWrap.scrollLeft / scaleX;
-  let viewY = canvasWrap.scrollTop / scaleY;
+  let viewX = getEffectiveScrollLeft() / scaleX;
+  let viewY = getEffectiveScrollTop() / scaleY;
   viewX = Math.max(0, Math.min(imgW - viewWClamped, viewX));
   viewY = Math.max(0, Math.min(imgH - viewHClamped, viewY));
   return { viewX, viewY, viewW: viewWClamped, viewH: viewHClamped, scaleX, scaleY };
@@ -2859,16 +3304,13 @@ function panToImageCenter(x, y) {
   const maxY = Math.max(0, state.height - view.viewH);
   const targetX = Math.max(0, Math.min(maxX, x - view.viewW / 2));
   const targetY = Math.max(0, Math.min(maxY, y - view.viewH / 2));
-  canvasWrap.scrollLeft = targetX * view.scaleX;
-  canvasWrap.scrollTop = targetY * view.scaleY;
-  scheduleOverview();
+  setEffectiveScroll(targetX * view.scaleX, targetY * view.scaleY);
 }
 
 function scrollToView(viewX, viewY) {
   if (!state.width || !state.height) return;
   const zoom = state.zoom || 1;
-  canvasWrap.scrollLeft = viewX * zoom;
-  canvasWrap.scrollTop = viewY * zoom;
+  setEffectiveScroll(viewX * zoom, viewY * zoom);
 }
 
 function getOverviewHandleAt(point) {
@@ -3017,14 +3459,14 @@ function drawOverview() {
   overviewCanvas.width = Math.max(1, Math.floor(width * dpr));
   overviewCanvas.height = Math.max(1, Math.floor(height * dpr));
   overviewCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  overviewCtx.fillStyle = "#1e1e1e";
+  overviewCtx.fillStyle = PLOT_THEME.bg;
   overviewCtx.fillRect(0, 0, width, height);
 
   if (!state.hasFrame || !state.width || !state.height) {
-    overviewCtx.strokeStyle = "rgba(255,255,255,0.2)";
+    overviewCtx.strokeStyle = PLOT_THEME.frame;
     overviewCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
-    overviewCtx.fillStyle = "rgba(200,200,200,0.6)";
-    overviewCtx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+    overviewCtx.fillStyle = "rgba(220, 232, 250, 0.7)";
+    overviewCtx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
     overviewCtx.textAlign = "center";
     overviewCtx.textBaseline = "middle";
     overviewCtx.fillText("No image", width / 2, height / 2);
@@ -3102,7 +3544,9 @@ function setZoom(value) {
       : 0;
   state.renderOffsetX = Number.isFinite(offsetX) ? offsetX : 0;
   state.renderOffsetY = Number.isFinite(offsetY) ? offsetY : 0;
-  canvas.style.transform = `translate(${state.renderOffsetX}px, ${state.renderOffsetY}px) scale(${clamped})`;
+  clampPanOffsetsToBounds();
+  applyCanvasTransform();
+  updatePanCapability();
   if (zoomRange) {
     zoomRange.min = String(minZoom);
     zoomRange.value = String(clamped);
@@ -3110,6 +3554,7 @@ function setZoom(value) {
   if (zoomValue) {
     zoomValue.textContent = `${clamped.toFixed(1)}x`;
   }
+  updateViewerFooter();
   schedulePixelOverlay();
   scheduleRoiOverlay();
   scheduleResolutionOverlay();
@@ -3127,20 +3572,17 @@ function zoomAt(clientX, clientY, nextZoom) {
   const prevZoom = state.zoom || 1;
   const prevOffsetX = state.renderOffsetX || 0;
   const prevOffsetY = state.renderOffsetY || 0;
-  const worldX = (canvasWrap.scrollLeft + x - prevOffsetX) / prevZoom;
-  const worldY = (canvasWrap.scrollTop + y - prevOffsetY) / prevZoom;
+  const worldX = (getEffectiveScrollLeft() + x - prevOffsetX) / prevZoom;
+  const worldY = (getEffectiveScrollTop() + y - prevOffsetY) / prevZoom;
 
   setZoom(nextZoom);
 
   const newOffsetX = state.renderOffsetX || 0;
   const newOffsetY = state.renderOffsetY || 0;
-  const newScrollLeft = worldX * state.zoom - x + newOffsetX;
-  const newScrollTop = worldY * state.zoom - y + newOffsetY;
-  const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
-  const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
-  canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft));
-  canvasWrap.scrollTop = Math.max(0, Math.min(maxScrollTop, newScrollTop));
-  scheduleOverview();
+  const targetEffectiveX = worldX * state.zoom - x + newOffsetX;
+  const targetEffectiveY = worldY * state.zoom - y + newOffsetY;
+  setEffectiveScroll(targetEffectiveX, targetEffectiveY, false);
+  syncViewportOverlays();
 }
 
 function normalizeWheelDelta(event) {
@@ -3211,10 +3653,9 @@ function updateTouchGesture(touches) {
   const dx = nextMid.x - touchGestureMid.x;
   const dy = nextMid.y - touchGestureMid.y;
   if (dx || dy) {
-    const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
-    const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
-    canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, canvasWrap.scrollLeft - dx));
-    canvasWrap.scrollTop = Math.max(0, Math.min(maxScrollTop, canvasWrap.scrollTop - dy));
+    const nextEffectiveX = getEffectiveScrollLeft() - dx;
+    const nextEffectiveY = getEffectiveScrollTop() - dy;
+    setEffectiveScroll(nextEffectiveX, nextEffectiveY);
   }
 
   touchGestureDistance = nextDistance;
@@ -3248,15 +3689,82 @@ function fitImageToView() {
   );
   if (!Number.isFinite(scale) || scale <= 0) return;
   setZoom(scale);
-  canvasWrap.scrollLeft = 0;
-  canvasWrap.scrollTop = 0;
-  scheduleOverview();
-  schedulePixelOverlay();
+  state.panOffsetX = 0;
+  state.panOffsetY = 0;
+  setEffectiveScroll(0, 0, false);
+  syncViewportOverlays();
 }
 
 function updateFpsLabel() {
   if (fpsSelect) {
     fpsSelect.value = String(state.fps);
+  }
+  if (toolbarMoreFps) {
+    toolbarMoreFps.value = String(state.fps);
+  }
+}
+
+function setToolbarPlaybackPopoverOpen(open) {
+  if (!toolbarPlaybackWrap || !toolbarPlaybackToggle || !toolbarPlaybackPopover) return;
+  if (open) {
+    closeToolbarMorePopover();
+  }
+  toolbarPlaybackWrap.classList.toggle("is-open", open);
+  toolbarPlaybackToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  toolbarPlaybackToggle.textContent = open ? "Playback ▴" : "Playback ▾";
+  toolbarPlaybackPopover.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function closeToolbarPlaybackPopover() {
+  setToolbarPlaybackPopoverOpen(false);
+}
+
+function toggleToolbarPlaybackPopover() {
+  if (!toolbarPlaybackWrap || toolbarPlaybackWrap.classList.contains("is-hidden")) return;
+  const hasStep = Boolean(toolbarStepWrap && !toolbarStepWrap.classList.contains("is-hidden"));
+  const hasFps = Boolean(toolbarFpsWrap && !toolbarFpsWrap.classList.contains("is-hidden"));
+  if (!hasStep && !hasFps) return;
+  const willOpen = !toolbarPlaybackWrap.classList.contains("is-open");
+  setToolbarPlaybackPopoverOpen(willOpen);
+}
+
+function setToolbarMorePopoverOpen(open) {
+  if (!toolbarMoreWrap || !toolbarMoreToggle || !toolbarMorePopover) return;
+  if (open) {
+    closeToolbarPlaybackPopover();
+  }
+  toolbarMoreWrap.classList.toggle("is-open", open);
+  toolbarMoreToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  toolbarMoreToggle.textContent = open ? "More ▴" : "More ▾";
+  toolbarMorePopover.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function closeToolbarMorePopover() {
+  setToolbarMorePopoverOpen(false);
+}
+
+function toggleToolbarMorePopover() {
+  if (!toolbarMoreWrap || toolbarMoreWrap.classList.contains("is-hidden")) return;
+  const willOpen = !toolbarMoreWrap.classList.contains("is-open");
+  setToolbarMorePopoverOpen(willOpen);
+}
+
+function syncToolbarMoreControls() {
+  if (toolbarMoreStep) {
+    toolbarMoreStep.value = String(state.step || FRAME_STEP_OPTIONS[0]);
+  }
+  if (toolbarMoreFps) {
+    toolbarMoreFps.value = String(state.fps || 1);
+  }
+  if (toolbarMoreThreshold) {
+    toolbarMoreThreshold.value = String(state.thresholdIndex || 0);
+  }
+  if (toolbarMorePanelToggle) {
+    toolbarMorePanelToggle.textContent = state.panelCollapsed ? "Open side menu" : "Close side menu";
+    toolbarMorePanelToggle.setAttribute("aria-label", state.panelCollapsed ? "Open side menu" : "Close side menu");
+  }
+  if (toolbarMoreFullscreen) {
+    toolbarMoreFullscreen.textContent = document.fullscreenElement ? "Exit full screen" : "Full screen";
   }
 }
 
@@ -3272,6 +3780,9 @@ function updateThresholdOptions() {
   if (toolbarThresholdSelect) {
     toolbarThresholdSelect.innerHTML = "";
   }
+  if (toolbarMoreThreshold) {
+    toolbarMoreThreshold.innerHTML = "";
+  }
   const energies = Array.isArray(state.thresholdEnergies) ? state.thresholdEnergies : [];
   for (let i = 0; i < count; i += 1) {
     const energy = energies[i];
@@ -3281,6 +3792,9 @@ function updateThresholdOptions() {
     if (toolbarThresholdSelect) {
       toolbarThresholdSelect.appendChild(option(label, String(i)));
     }
+    if (toolbarMoreThreshold) {
+      toolbarMoreThreshold.appendChild(option(label, String(i)));
+    }
   }
   const idx = Math.max(0, Math.min(count - 1, state.thresholdIndex || 0));
   state.thresholdIndex = idx;
@@ -3288,10 +3802,19 @@ function updateThresholdOptions() {
   if (toolbarThresholdSelect) {
     toolbarThresholdSelect.value = String(idx);
   }
+  if (toolbarMoreThreshold) {
+    toolbarMoreThreshold.value = String(idx);
+    toolbarMoreThreshold.disabled = count <= 1;
+  }
+  if (toolbarMoreThresholdField) {
+    toolbarMoreThresholdField.classList.toggle("is-hidden", !show);
+  }
   thresholdSelect.disabled = count <= 1;
   if (toolbarThresholdSelect) {
     toolbarThresholdSelect.disabled = count <= 1;
   }
+  syncToolbarMoreControls();
+  updateViewerFooter();
 }
 
 async function setThresholdIndex(nextIndex) {
@@ -3301,6 +3824,7 @@ async function setThresholdIndex(nextIndex) {
   state.thresholdIndex = clamped;
   if (thresholdSelect) thresholdSelect.value = String(clamped);
   if (toolbarThresholdSelect) toolbarThresholdSelect.value = String(clamped);
+  if (toolbarMoreThreshold) toolbarMoreThreshold.value = String(clamped);
   state.maskFile = "";
   await loadMask(true);
   requestFrame(state.frameIndex);
@@ -3310,6 +3834,7 @@ function setFps(value) {
   const clamped = Math.max(1, Math.min(10, Math.round(value)));
   state.fps = clamped;
   if (fpsSelect) fpsSelect.value = String(clamped);
+  if (toolbarMoreFps) toolbarMoreFps.value = String(clamped);
   updateFpsLabel();
   if (state.playing) {
     stopPlayback();
@@ -3323,6 +3848,9 @@ function setFrameStep(value) {
   state.step = next;
   if (frameStep) {
     frameStep.value = String(next);
+  }
+  if (toolbarMoreStep) {
+    toolbarMoreStep.value = String(next);
   }
 }
 
@@ -3338,41 +3866,93 @@ function updatePlayButtons() {
   if (nextBtn) nextBtn.disabled = disabled;
 }
 
+function getMaxPanelWidth() {
+  return Math.max(220, Math.min(900, window.innerWidth - 24));
+}
+
+function isPhonePanelLayout() {
+  return Boolean(coarsePointerQuery?.matches) && window.innerWidth < 768;
+}
+
+function clampMobilePanelSnap(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return MOBILE_PANEL_SNAP_POINTS[0];
+  return Math.max(0.52, Math.min(1, numeric));
+}
+
+function nearestMobilePanelSnap(value) {
+  const clamped = clampMobilePanelSnap(value);
+  return MOBILE_PANEL_SNAP_POINTS.reduce((closest, candidate) =>
+    Math.abs(candidate - clamped) < Math.abs(closest - clamped) ? candidate : closest
+  );
+}
+
+function setMobilePanelSnap(value, snap = true, persist = false) {
+  mobilePanelSnap = snap ? nearestMobilePanelSnap(value) : clampMobilePanelSnap(value);
+  if (!toolsPanel) return;
+  const heightPct = `${Math.round(mobilePanelSnap * 100)}vh`;
+  toolsPanel.style.setProperty("--mobile-panel-height", heightPct);
+  toolsPanel.dataset.mobileSnap = mobilePanelSnap >= 0.95 ? "full" : "mid";
+  if (persist) {
+    try {
+      localStorage.setItem("albis.mobilePanelSnap", String(mobilePanelSnap));
+    } catch {
+      // ignore storage errors
+    }
+  }
+}
+
 function applyPanelState() {
   if (!toolsPanel || !appLayout) return;
-  
-  const isMobile = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
-  
+
+  const isPhone = isPhonePanelLayout();
   toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
-  
-  // Mobile: show/hide panel with translation
-  if (isMobile && window.innerWidth < 768) {
+  toolsPanel.classList.toggle("is-mobile-sheet", isPhone);
+  if (panelBody) {
+    panelBody.setAttribute("aria-hidden", state.panelCollapsed ? "true" : "false");
+  }
+
+  if (isPhone) {
+    setMobilePanelSnap(mobilePanelSnap, false);
     toolsPanel.classList.toggle("is-visible", !state.panelCollapsed);
+    appLayout.style.removeProperty("--panel-width");
+    document.documentElement.style.removeProperty("--panel-width");
   } else {
-    // Desktop/tablet: use panel width
-    const maxPanelWidth =
-      window.innerWidth < 900 ? Math.max(220, Math.floor(window.innerWidth * 0.7)) : 900;
+    toolsPanel.classList.remove("is-visible");
+    toolsPanel.style.removeProperty("--mobile-panel-height");
+    delete toolsPanel.dataset.mobileSnap;
+    const maxPanelWidth = getMaxPanelWidth();
     const targetWidth = Math.max(220, Math.min(maxPanelWidth, state.panelWidth));
-    const width = state.panelCollapsed ? 28 : targetWidth;
+    const width = state.panelCollapsed ? 34 : targetWidth;
     appLayout.style.setProperty("--panel-width", `${width}px`);
     document.documentElement.style.setProperty("--panel-width", `${width}px`);
   }
-  
+
   if (panelEdgeToggle) {
     panelEdgeToggle.textContent = state.panelCollapsed ? "◀" : "▶";
     panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand panel" : "Collapse panel");
   }
   if (panelFab) {
     panelFab.classList.toggle("is-collapsed", state.panelCollapsed);
-    panelFab.textContent = state.panelCollapsed ? "◀" : "▶";
+    panelFab.classList.toggle("is-open", !state.panelCollapsed);
+    panelFab.dataset.state = state.panelCollapsed ? "collapsed" : "expanded";
+    panelFab.textContent = state.panelCollapsed ? "Open menu ▾" : "Close menu ▴";
     panelFab.setAttribute("aria-label", state.panelCollapsed ? "Open panel" : "Collapse panel");
+    panelFab.setAttribute("aria-expanded", state.panelCollapsed ? "false" : "true");
+    panelFab.setAttribute("aria-keyshortcuts", "M");
+    panelFab.title = state.panelCollapsed ? "Open side menu (M)" : "Close side menu (M)";
   }
+  syncToolbarMoreControls();
   scheduleOverview();
   scheduleHistogram();
 }
 
 function togglePanel() {
+  const wasCollapsed = state.panelCollapsed;
   state.panelCollapsed = !state.panelCollapsed;
+  if (isPhonePanelLayout() && wasCollapsed && !state.panelCollapsed) {
+    setMobilePanelSnap(MOBILE_PANEL_SNAP_POINTS[0], true, true);
+  }
   applyPanelState();
   try {
     localStorage.setItem("albis.panelCollapsed", String(state.panelCollapsed));
@@ -3405,9 +3985,29 @@ function setSectionState(section, collapsed, persist = true) {
   }
 }
 
+function initializeSectionContentWrappers() {
+  const sections = document.querySelectorAll(".panel-section");
+  sections.forEach((section) => {
+    if (section.querySelector(":scope > .section-content")) {
+      return;
+    }
+    const title = section.querySelector(":scope > .section-title");
+    if (!title) return;
+    const wrapper = document.createElement("div");
+    wrapper.className = "section-content";
+    let node = title.nextSibling;
+    while (node) {
+      const next = node.nextSibling;
+      wrapper.appendChild(node);
+      node = next;
+    }
+    section.appendChild(wrapper);
+  });
+}
+
 function setPanelWidth(width) {
-  const maxPanelWidth =
-    window.innerWidth < 900 ? Math.max(220, Math.floor(window.innerWidth * 0.7)) : 900;
+  if (isPhonePanelLayout()) return;
+  const maxPanelWidth = getMaxPanelWidth();
   const clamped = Math.max(220, Math.min(maxPanelWidth, Math.round(width)));
   state.panelWidth = clamped;
   state.panelCollapsed = false;
@@ -3417,6 +4017,59 @@ function setPanelWidth(width) {
     localStorage.setItem("albis.panelWidth", String(state.panelWidth));
   } catch {
     // ignore storage errors
+  }
+}
+
+function startMobilePanelDrag(event) {
+  if (!isPhonePanelLayout() || state.panelCollapsed || !toolsPanel) return;
+  mobilePanelDragActive = true;
+  mobilePanelDragPointer = event.pointerId;
+  mobilePanelDragStartY = event.clientY;
+  mobilePanelDragStartSnap = mobilePanelSnap;
+  toolsPanel.classList.add("is-dragging");
+  if (panelSheetHandle?.setPointerCapture && Number.isInteger(event.pointerId)) {
+    panelSheetHandle.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+}
+
+function updateMobilePanelDrag(event) {
+  if (!mobilePanelDragActive) return;
+  if (!Number.isInteger(mobilePanelDragPointer) || event.pointerId === mobilePanelDragPointer) {
+    const viewportHeight = Math.max(320, window.innerHeight || 1);
+    const delta = mobilePanelDragStartY - event.clientY;
+    const next = mobilePanelDragStartSnap + delta / viewportHeight;
+    setMobilePanelSnap(next, false);
+    event.preventDefault();
+  }
+}
+
+function stopMobilePanelDrag(event, cancelled = false) {
+  if (!mobilePanelDragActive || !toolsPanel) return;
+  if (!Number.isInteger(mobilePanelDragPointer) || event.pointerId === mobilePanelDragPointer || cancelled) {
+    const dragDown = (event.clientY || mobilePanelDragStartY) - mobilePanelDragStartY;
+    mobilePanelDragActive = false;
+    mobilePanelDragPointer = null;
+    toolsPanel.classList.remove("is-dragging");
+    if (panelSheetHandle?.releasePointerCapture && Number.isInteger(event.pointerId)) {
+      try {
+        panelSheetHandle.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore release errors
+      }
+    }
+    if (!cancelled && dragDown > 120 && mobilePanelSnap <= MOBILE_PANEL_SNAP_POINTS[0] + 0.05) {
+      state.panelCollapsed = true;
+      applyPanelState();
+      try {
+        localStorage.setItem("albis.panelCollapsed", String(state.panelCollapsed));
+      } catch {
+        // ignore storage errors
+      }
+      return;
+    }
+    setMobilePanelSnap(mobilePanelSnap, true, true);
+    applyPanelState();
   }
 }
 
@@ -3687,27 +4340,66 @@ function drawSplash() {
   splashCtx.fillRect(0, 0, width, height);
 }
 
+function updateSplashCallToAction() {
+  if (!splashOpenFileBtn || !splash) return;
+  const splashVisible = !splash.classList.contains("is-hidden");
+  const ready = Boolean(state.backendAlive) && !state.isLoading;
+  const show = splashVisible && ready && !state.hasFrame;
+  if (splashActions) {
+    splashActions.classList.toggle("is-hidden", !show);
+  }
+  splashOpenFileBtn.classList.toggle("is-hidden", !show);
+  splashOpenFileBtn.disabled = !show;
+}
+
 function showSplash() {
   splash?.classList.remove("is-hidden");
+  updateSplashCallToAction();
 }
 
 function setSplashStatus(text) {
   if (!splashStatus) return;
-  splashStatus.textContent = text || "";
+  const normalized = String(text || "").trim();
+  splashStatus.textContent = normalized;
+  if (!splash) return;
+  const lower = normalized.toLowerCase();
+  const busy = Boolean(normalized) && !/\b(ready|failed|error|done|complete)\b/.test(lower);
+  splash.classList.toggle("is-busy", busy);
+  updateSplashCallToAction();
 }
 
 function hideSplash() {
   splash?.classList.add("is-hidden");
+  updateSplashCallToAction();
 }
 
-function updateToolbar() {
-  if (!toolbarPath) return;
-  if (!state.file) {
-    toolbarPath.textContent = "No file loaded";
-    updateSeriesSumUi();
-    return;
+function updateFullscreenUi() {
+  const active = Boolean(document.fullscreenElement);
+  document.body.classList.toggle("is-fullscreen", active);
+  if (fullscreenToggle) {
+    fullscreenToggle.classList.toggle("is-active", active);
+    fullscreenToggle.textContent = active ? "🗗" : "⛶";
+    fullscreenToggle.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
+    fullscreenToggle.title = active ? "Exit full screen (F)" : "Enter full screen (F)";
   }
-  const maxChars = estimateToolbarChars();
+  syncToolbarMoreControls();
+}
+
+async function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("Fullscreen unavailable");
+  }
+}
+
+function buildViewerSourceText(maxChars = 72) {
+  if (!state.file) return "No file loaded";
   const fileName = fileLabel(state.file);
   let frameLabel = "";
   if (state.frameCount > 1) {
@@ -3721,8 +4413,58 @@ function updateToolbar() {
   const reserved = datasetLabel.length + suffix.length;
   const fileBudget = Math.max(10, maxChars - reserved);
   const fileText = middleTruncate(fileName, fileBudget);
-  toolbarPath.textContent = `${fileText}${datasetLabel}${suffix}`;
+  return `${fileText}${datasetLabel}${suffix}`;
+}
+
+function updateFooterVersions() {
+  if (footerFrontendVersionEl) {
+    footerFrontendVersionEl.textContent = `FE v${APP_FRONTEND_VERSION}`;
+    footerFrontendVersionEl.title = `Frontend version ${APP_FRONTEND_VERSION}`;
+  }
+  if (footerBackendVersionEl) {
+    const backendVersion = state.backendVersion || "-";
+    footerBackendVersionEl.textContent = `BE v${backendVersion}`;
+    footerBackendVersionEl.title = `Backend version ${backendVersion}`;
+  }
+}
+
+function updateViewerFooter() {
+  if (footerFileEl) {
+    footerFileEl.textContent = buildViewerSourceText(78);
+  }
+  if (footerZoomEl) {
+    footerZoomEl.textContent = `Zoom ${(state.zoom || 1).toFixed(1)}x`;
+  }
+  updateFooterVersions();
+}
+
+function updateDataSourceSummary() {
+  if (!dataSourceSummaryEl) return;
+  const mode = (state.autoload.mode || "file").toLowerCase();
+  if (mode === "file") {
+    const hasFile = Boolean(state.file);
+    const fileText = hasFile ? middleTruncate(fileLabel(state.file), 24) : "no file";
+    setSummaryChip(dataSourceSummaryEl, `File · ${fileText}`, hasFile ? "active" : "default");
+    return;
+  }
+
+  const modeLabel = mode === "simplon" ? "SIMPLON" : "Remote";
+  const running = Boolean(state.autoload.running);
+  const age = Date.now() - (state.autoload.lastUpdate || 0);
+  const stale = running && (!state.autoload.lastUpdate || age > Math.max(1500, state.autoload.interval * 2));
+  const streamState = !running ? "idle" : stale ? "waiting" : "live";
+  const tone = stale ? "warning" : running ? "active" : "default";
+  setSummaryChip(dataSourceSummaryEl, `${modeLabel} · ${streamState}`, tone);
+}
+
+function updateToolbar() {
+  if (toolbarPath) {
+    toolbarPath.textContent = buildViewerSourceText(estimateToolbarChars());
+  }
   updateSeriesSumUi();
+  updateDataSourceSummary();
+  syncToolbarMoreControls();
+  updateViewerFooter();
 }
 
 function setActiveMenu(menu, anchor) {
@@ -3751,6 +4493,8 @@ function closeSubmenus() {
 
 function openMenu(menu, anchor) {
   if (!dropdown) return;
+  closeToolbarPlaybackPopover();
+  closeToolbarMorePopover();
   closeSubmenus();
   dropdown.classList.add("is-open");
   dropdown.setAttribute("aria-hidden", "false");
@@ -3950,6 +4694,9 @@ function hideProcessingProgress() {
 function flashDataSection() {
   if (!dataSection) return;
   setPanelTab("data");
+  if (dataSection.classList.contains("is-collapsed")) {
+    setSectionState(dataSection, false);
+  }
   dataSection.scrollIntoView({ behavior: "smooth", block: "start" });
   dataSection.classList.add("flash");
   window.setTimeout(() => dataSection.classList.remove("flash"), 800);
@@ -4041,7 +4788,10 @@ function updateLiveBadge() {
   const liveMode = state.autoload.mode === "simplon" || state.autoload.mode === "remote";
   if (!state.autoload.running || !liveMode) {
     liveBadge.classList.remove("is-active", "is-wait");
+    liveBadge.textContent = "LIVE";
     liveBadge.setAttribute("aria-hidden", "true");
+    liveBadge.removeAttribute("aria-label");
+    liveBadge.removeAttribute("title");
     return;
   }
   liveBadge.classList.add("is-active");
@@ -4049,6 +4799,8 @@ function updateLiveBadge() {
   const wait = !state.autoload.lastUpdate || age > state.autoload.interval * 2;
   liveBadge.classList.toggle("is-wait", wait);
   liveBadge.textContent = wait ? "WAIT" : "LIVE";
+  liveBadge.setAttribute("aria-label", wait ? "Stream waiting for updates" : "Stream live");
+  liveBadge.title = wait ? "Waiting for stream updates" : "Live stream active";
   liveBadge.setAttribute("aria-hidden", "false");
 }
 
@@ -4057,17 +4809,22 @@ function updateBackendBadge() {
   backendBadge.classList.toggle("is-off", !state.backendAlive);
   backendBadge.classList.toggle("is-active", true);
   backendBadge.textContent = state.backendAlive ? "SERVER" : "OFFLINE";
+  backendBadge.setAttribute("aria-label", state.backendAlive ? "Backend server online" : "Backend server offline");
+  backendBadge.title = state.backendAlive ? "Backend server online" : "Backend server offline";
   backendBadge.setAttribute("aria-hidden", "false");
+  updateFooterVersions();
+  updateSplashCallToAction();
 }
 
 function updateAboutVersion() {
   if (!aboutVersion) return;
-  aboutVersion.textContent = `Version ${state.backendVersion || "0.4"}`;
+  aboutVersion.textContent = `Version ${state.backendVersion || "0.8.0"}`;
+  updateFooterVersions();
 }
 
 async function checkBackendHealth() {
   let alive = false;
-  let version = state.backendVersion || "0.4";
+  let version = state.backendVersion || "0.8.0";
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 1500);
   try {
@@ -4121,7 +4878,7 @@ async function waitForBackendReady(timeoutMs = 20000) {
     setSplashStatus(`Starting backend... (${attempts})`);
     const alive = await checkBackendHealth();
     if (alive) {
-      setSplashStatus(`Backend ready (v${state.backendVersion || "0.4"})`);
+      setSplashStatus(`Backend ready (v${state.backendVersion || "0.8.0"})`);
       return true;
     }
     await sleep(250);
@@ -4152,7 +4909,7 @@ async function bootstrapApp() {
   setSplashStatus("Loading file list...");
   await loadAutoloadFolders();
   await loadFiles();
-  setSplashStatus("Ready");
+  setSplashStatus("Ready. Open a file to begin.");
 }
 
 function persistAutoloadSettings() {
@@ -4195,10 +4952,17 @@ function updateAutoloadUI() {
   if (fileField) fileField.classList.toggle("is-hidden", hideDatasetUi);
   if (datasetField) datasetField.classList.toggle("is-hidden", hideDatasetUi);
   if (thresholdField) thresholdField.classList.toggle("is-hidden", hideDatasetUi);
-  if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (toolbarStepWrap) toolbarStepWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (toolbarFpsWrap) toolbarFpsWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  const showPlaybackControls = state.autoload.mode === "file";
+  if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", !showPlaybackControls);
+  if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", !showPlaybackControls);
+  if (toolbarStepWrap) toolbarStepWrap.classList.toggle("is-hidden", !showPlaybackControls);
+  if (toolbarFpsWrap) toolbarFpsWrap.classList.toggle("is-hidden", !showPlaybackControls);
+  if (toolbarPlaybackWrap) {
+    toolbarPlaybackWrap.classList.toggle("is-hidden", !showPlaybackControls);
+    if (!showPlaybackControls) {
+      closeToolbarPlaybackPopover();
+    }
+  }
   if (autoloadStatus) {
     const meta = autoloadStatus.closest(".autoload-meta");
     if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file" && !state.autoload.watchEnabled);
@@ -4218,6 +4982,16 @@ function updateAutoloadUI() {
   updateAutoloadMeta();
   updateLiveBadge();
   updateThresholdOptions();
+  updateDataSourceSummary();
+  if (state.autoload.mode === "file") {
+    setDataSourceSectionState(state.file ? "active" : "empty", state.file ? "File mode ready." : "Select a file to begin.");
+  } else if (state.autoload.running) {
+    const label = state.autoload.mode === "simplon" ? "SIMPLON monitor active." : "Remote stream active.";
+    setDataSourceSectionState("active", label);
+  } else {
+    const label = state.autoload.mode === "simplon" ? "Configure SIMPLON source settings." : "Configure remote stream settings.";
+    setDataSourceSectionState("empty", label);
+  }
 }
 
 async function loadAutoloadFolders() {
@@ -4774,6 +5548,7 @@ function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = f
   metaShape.textContent = `${width} × ${height}`;
   metaDtype.textContent = dtype;
   applyFrame(data, width, height, dtype);
+  setDataSourceSectionState("active", preserveSeries ? "Series image loaded." : "Image loaded.");
   updateToolbar();
 }
 
@@ -4902,8 +5677,8 @@ function renderRegionToCanvas(region) {
 function getVisibleRegion() {
   if (!canvasWrap || !state.width || !state.height) return null;
   const zoom = state.zoom || 1;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const viewW = canvasWrap.clientWidth / zoom;
   const viewH = canvasWrap.clientHeight / zoom;
   let startX = Math.floor(viewX);
@@ -5148,6 +5923,352 @@ async function saveSettingsFromModal(closeAfter = false) {
   }
 }
 
+function isCommandPaletteOpen() {
+  return Boolean(commandModal?.classList.contains("is-open"));
+}
+
+function getCommandPaletteCommands() {
+  const hasFile = Boolean(state.file);
+  const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
+  const hasDataset = Boolean(state.dataset);
+  const hasFrame = Boolean(state.hasFrame);
+  const hasNavigableFrames = hasFrame && state.frameCount > 1 && (hasDataset || hasSeries);
+  const hasThresholds = hasFile && state.autoload.mode === "file" && state.thresholdCount > 1;
+  const canStartSeriesOps = hasFile && (!isHdfFile(state.file) || hasDataset) && !state.seriesSum.running;
+  const canOpenSeriesOutput = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
+  const togglePlaybackLabel = state.playing ? "Playback: Pause" : "Playback: Play";
+  const commands = [
+    {
+      id: "open-file",
+      label: "File: Open…",
+      shortcut: "Cmd/Ctrl+O",
+      search: "file open load",
+      run: () => openFileModal(),
+    },
+    {
+      id: "close-file",
+      label: "File: Close",
+      shortcut: "Cmd/Ctrl+W",
+      search: "file close",
+      when: hasFile,
+      run: () => closeCurrentFile(),
+    },
+    {
+      id: "new-window",
+      label: "File: New Window",
+      shortcut: "Cmd/Ctrl+N",
+      search: "file window",
+      run: () => window.open(window.location.href, "_blank"),
+    },
+    {
+      id: "preferences",
+      label: "Settings: Preferences…",
+      shortcut: "Cmd/Ctrl+,",
+      search: "settings preferences options",
+      run: () => openSettingsModal(),
+    },
+    {
+      id: "toggle-playback",
+      label: togglePlaybackLabel,
+      shortcut: "Tab",
+      search: "playback play pause",
+      when: hasNavigableFrames,
+      run: () => {
+        if (state.playing) {
+          stopPlayback();
+        } else {
+          startPlayback();
+        }
+      },
+    },
+    {
+      id: "frame-prev",
+      label: "Frame: Previous",
+      shortcut: "Left Arrow",
+      search: "frame previous left",
+      when: hasNavigableFrames,
+      run: () => {
+        stopPlayback();
+        requestFrame(state.frameIndex - 1);
+      },
+    },
+    {
+      id: "frame-next",
+      label: "Frame: Next",
+      shortcut: "Right Arrow",
+      search: "frame next right",
+      when: hasNavigableFrames,
+      run: () => {
+        stopPlayback();
+        requestFrame(state.frameIndex + 1);
+      },
+    },
+    {
+      id: "threshold-prev",
+      label: "Threshold: Previous",
+      shortcut: "Up Arrow",
+      search: "threshold detector previous",
+      when: hasThresholds,
+      run: async () => {
+        stopPlayback();
+        await setThresholdIndex(state.thresholdIndex - 1);
+      },
+    },
+    {
+      id: "threshold-next",
+      label: "Threshold: Next",
+      shortcut: "Down Arrow",
+      search: "threshold detector next",
+      when: hasThresholds,
+      run: async () => {
+        stopPlayback();
+        await setThresholdIndex(state.thresholdIndex + 1);
+      },
+    },
+    {
+      id: "fit-view",
+      label: "View: Fit Image",
+      shortcut: "",
+      search: "fit reset zoom view",
+      when: hasFrame,
+      run: () => fitImageToView(),
+    },
+    {
+      id: "export-full",
+      label: "Export: Full Image",
+      shortcut: "Cmd/Ctrl+E",
+      search: "export save full image png",
+      when: hasFrame,
+      run: () => exportFullImage(),
+    },
+    {
+      id: "export-visible",
+      label: "Export: Visible Area",
+      shortcut: "Shift+Cmd/Ctrl+E",
+      search: "export save visible area png",
+      when: hasFrame,
+      run: () => exportVisibleArea(),
+    },
+    {
+      id: "export-window",
+      label: "Export: Viewer Window",
+      shortcut: "Alt+Cmd/Ctrl+E",
+      search: "export save viewer window screenshot",
+      when: hasFrame,
+      run: () => exportViewerWindow(),
+    },
+    {
+      id: "series-start",
+      label: "Series: Start Operation",
+      shortcut: "",
+      search: "series sum mean median start analysis",
+      when: canStartSeriesOps,
+      run: () => startSeriesSumming(),
+    },
+    {
+      id: "series-open-output",
+      label: "Series: Open Latest Output",
+      shortcut: "",
+      search: "series sum output open result",
+      when: canOpenSeriesOutput,
+      run: () => openSeriesSumOutputTarget(),
+    },
+    {
+      id: "toggle-fullscreen",
+      label: document.fullscreenElement ? "View: Exit Full Screen" : "View: Enter Full Screen",
+      shortcut: "F",
+      search: "fullscreen immersive",
+      run: () => toggleFullscreen(),
+    },
+    {
+      id: "panel-toggle",
+      label: state.panelCollapsed ? "Panel: Open Side Panel" : "Panel: Collapse Side Panel",
+      shortcut: "",
+      search: "panel side toggle collapse",
+      run: () => togglePanel(),
+    },
+    {
+      id: "tab-view",
+      label: "Panel: View Tab",
+      shortcut: "",
+      search: "panel tab view",
+      when: panelTabState !== "view",
+      run: () => setPanelTab("view"),
+    },
+    {
+      id: "tab-data",
+      label: "Panel: Data Tab",
+      shortcut: "",
+      search: "panel tab data",
+      when: panelTabState !== "data",
+      run: () => setPanelTab("data"),
+    },
+    {
+      id: "tab-overlay",
+      label: "Panel: Overlay Tab",
+      shortcut: "",
+      search: "panel tab overlay analysis",
+      when: panelTabState !== "analysis",
+      run: () => setPanelTab("analysis"),
+    },
+    {
+      id: "help-docs",
+      label: "Help: Documentation",
+      shortcut: "F1",
+      search: "help docs documentation",
+      run: () => handleMenuAction("help-docs"),
+    },
+  ];
+  return commands.filter((command) => command.when !== false);
+}
+
+function filterCommandPaletteCommands(query) {
+  const commands = getCommandPaletteCommands();
+  const tokens = String(query || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!tokens.length) return commands;
+  return commands.filter((command) => {
+    const haystack = `${command.id || ""} ${command.label} ${command.search || ""} ${command.shortcut || ""}`
+      .toLowerCase();
+    return tokens.every((token) => haystack.includes(token));
+  });
+}
+
+function renderCommandPalette() {
+  if (!commandList) return;
+  commandPaletteItems = filterCommandPaletteCommands(commandInput?.value || "");
+  commandList.innerHTML = "";
+  if (!commandPaletteItems.length) {
+    const empty = document.createElement("div");
+    empty.className = "command-empty";
+    empty.textContent = "No commands found.";
+    commandList.appendChild(empty);
+    return;
+  }
+  commandPaletteIndex = Math.max(0, Math.min(commandPaletteIndex, commandPaletteItems.length - 1));
+  commandPaletteItems.forEach((command, idx) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "command-item";
+    if (idx === commandPaletteIndex) {
+      button.classList.add("is-active");
+    }
+    button.dataset.commandIndex = String(idx);
+
+    const label = document.createElement("span");
+    label.className = "command-label";
+    label.textContent = command.label;
+    button.appendChild(label);
+
+    if (command.shortcut) {
+      const shortcut = document.createElement("span");
+      shortcut.className = "command-shortcut";
+      shortcut.textContent = command.shortcut;
+      button.appendChild(shortcut);
+    }
+
+    button.addEventListener("mouseenter", () => {
+      if (idx === commandPaletteIndex) return;
+      commandPaletteIndex = idx;
+      renderCommandPalette();
+    });
+    button.addEventListener("click", () => {
+      executeCommandPalette(idx);
+    });
+    commandList.appendChild(button);
+  });
+  commandList.querySelector(".command-item.is-active")?.scrollIntoView({ block: "nearest" });
+}
+
+function openCommandPalette(prefill = "") {
+  if (!commandModal || !commandInput) return;
+  closeMenu();
+  closeToolbarPlaybackPopover();
+  closeToolbarMorePopover();
+  if (isCommandPaletteOpen()) {
+    if (typeof prefill === "string") {
+      commandInput.value = prefill;
+      commandPaletteIndex = 0;
+      renderCommandPalette();
+    }
+    commandInput.focus();
+    return;
+  }
+  commandPaletteLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  commandModal.classList.add("is-open");
+  commandModal.setAttribute("aria-hidden", "false");
+  commandInput.value = prefill;
+  commandPaletteIndex = 0;
+  renderCommandPalette();
+  commandInput.focus();
+  commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
+}
+
+function closeCommandPalette({ restoreFocus = true } = {}) {
+  if (!commandModal) return;
+  if (!isCommandPaletteOpen()) return;
+  commandModal.classList.remove("is-open");
+  commandModal.setAttribute("aria-hidden", "true");
+  commandPaletteItems = [];
+  commandPaletteIndex = 0;
+  if (restoreFocus && commandPaletteLastFocus && typeof commandPaletteLastFocus.focus === "function") {
+    commandPaletteLastFocus.focus({ preventScroll: true });
+  }
+  commandPaletteLastFocus = null;
+}
+
+function executeCommandPalette(index = commandPaletteIndex) {
+  const command = commandPaletteItems[index];
+  if (!command) return;
+  closeCommandPalette({ restoreFocus: false });
+  try {
+    const maybePromise = command.run?.();
+    if (maybePromise && typeof maybePromise.catch === "function") {
+      maybePromise.catch((err) => console.error(err));
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function handleCommandPaletteKeydown(event) {
+  if (!isCommandPaletteOpen()) return false;
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    closeCommandPalette();
+    return true;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeCommandPalette();
+    return true;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    if (commandPaletteItems.length) {
+      commandPaletteIndex = (commandPaletteIndex + 1) % commandPaletteItems.length;
+      renderCommandPalette();
+    }
+    return true;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    if (commandPaletteItems.length) {
+      commandPaletteIndex = (commandPaletteIndex - 1 + commandPaletteItems.length) % commandPaletteItems.length;
+      renderCommandPalette();
+    }
+    return true;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    executeCommandPalette(commandPaletteIndex);
+    return true;
+  }
+  return false;
+}
+
 async function handleMenuAction(action) {
   switch (action) {
     case "help-docs":
@@ -5166,6 +6287,12 @@ async function handleMenuAction(action) {
       break;
     case "settings-open":
       openSettingsModal();
+      break;
+    case "command-palette":
+      openCommandPalette();
+      break;
+    case "toggle-fullscreen":
+      toggleFullscreen();
       break;
     case "help-about":
       if (aboutModal) {
@@ -5227,7 +6354,7 @@ function handleShortcut(event) {
   const key = event.key.toLowerCase();
   const isShift = event.shiftKey;
   const isAlt = event.altKey;
-  if (["o", "s", "e", "n", "w", ","].includes(key)) {
+  if (["o", "s", "e", "n", "w", ",", "k"].includes(key)) {
     event.preventDefault();
   }
   switch (key) {
@@ -5260,6 +6387,13 @@ function handleShortcut(event) {
       break;
     case ",":
       handleMenuAction("settings-open");
+      break;
+    case "k":
+      if (isCommandPaletteOpen()) {
+        closeCommandPalette();
+      } else {
+        openCommandPalette();
+      }
       break;
     default:
       break;
@@ -5297,7 +6431,17 @@ function handleNavShortcut(event) {
     return true;
   }
   if (isFormElement(event.target)) return false;
+  if (!event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "f") {
+    event.preventDefault();
+    void toggleFullscreen();
+    return true;
+  }
   switch (event.key) {
+    case "m":
+    case "M":
+      event.preventDefault();
+      togglePanel();
+      return true;
     case "ArrowLeft":
       event.preventDefault();
       stopPlayback();
@@ -5846,40 +6990,52 @@ function initRenderer() {
 
 async function loadFiles() {
   setDataControlsForHdf5();
+  setDataSourceSectionState("loading", "Loading files…", true);
   const folder = (autoloadDir?.value || state.autoload.dir || "").trim();
   const url = folder ? `${API}/files?folder=${encodeURIComponent(folder)}` : `${API}/files`;
-  const data = await fetchJSON(url);
-  fileSelect.innerHTML = "";
-  const existingFile = state.file;
-  if (data.files.length > 0) {
-    const placeholder = option("Select file…", "");
-    placeholder.disabled = true;
-    placeholder.selected = true;
-    fileSelect.appendChild(placeholder);
-    data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
-    if (existingFile) {
-      const hasExisting = data.files.includes(existingFile);
-      if (!hasExisting) {
-        fileSelect.appendChild(option(fileLabel(existingFile), existingFile));
+  try {
+    const data = await fetchJSON(url);
+    fileSelect.innerHTML = "";
+    const existingFile = state.file;
+    if (data.files.length > 0) {
+      const placeholder = option("Select file…", "");
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      fileSelect.appendChild(placeholder);
+      data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
+      if (existingFile) {
+        const hasExisting = data.files.includes(existingFile);
+        if (!hasExisting) {
+          fileSelect.appendChild(option(fileLabel(existingFile), existingFile));
+        }
+        fileSelect.value = existingFile;
+        setDataSourceSectionState("active", "File list loaded.");
+      } else {
+        state.file = "";
+        state.dataset = "";
+        setStatus("Select a file to begin");
+        updateToolbar();
+        showSplash();
+        setSplashStatus("Ready. Open a file to begin.");
+        setLoading(false);
+        setDataSourceSectionState("empty", "Select a file to begin.");
       }
-      fileSelect.value = existingFile;
+      loadAutoloadFolders();
     } else {
-      state.file = "";
-      state.dataset = "";
-      setStatus("Select a file to begin");
-      updateToolbar();
-      showSplash();
-      setLoading(false);
+      data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
+      if (!existingFile) {
+        setStatus("No image files found");
+        showSplash();
+        setSplashStatus("No image files found. Open a file to begin.");
+        setLoading(false);
+      }
+      setDataSourceSectionState("warning", "No image files found in this folder.");
+      loadAutoloadFolders();
     }
-    loadAutoloadFolders();
-  } else {
-    data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
-    if (!existingFile) {
-      setStatus("No image files found");
-      showSplash();
-      setLoading(false);
-    }
-    loadAutoloadFolders();
+  } catch (err) {
+    console.error(err);
+    setStatus("Failed to load files");
+    setDataSourceSectionState("warning", "Failed to load file list.");
   }
 }
 
@@ -5910,6 +7066,7 @@ async function loadDatasets() {
   showProcessingProgress("Scanning datasets…");
   setLoading(true);
   setStatus("Scanning datasets…");
+  setDataSourceSectionState("loading", "Scanning datasets…", true);
   try {
     const data = await fetchJSON(`${API}/datasets?file=${encodeURIComponent(state.file)}`);
     const candidates = data.datasets
@@ -5925,16 +7082,21 @@ async function loadDatasets() {
       state.dataset = ordered[0].path;
       datasetSelect.value = state.dataset;
       await loadMetadata();
+      setDataSourceSectionState("active", "Dataset metadata loaded.");
     } else {
       setStatus("No image datasets found");
       showSplash();
+      setSplashStatus("No image datasets found. Open a different file.");
       setLoading(false);
+      setDataSourceSectionState("warning", "No image datasets found.");
     }
   } catch (err) {
     console.error(err);
     setStatus("Failed to scan datasets");
     showSplash();
+    setSplashStatus("Dataset scan failed. Open a file to continue.");
     setLoading(false);
+    setDataSourceSectionState("warning", "Failed to scan datasets.");
   } finally {
     hideProcessingProgress();
   }
@@ -5944,6 +7106,7 @@ async function loadMetadata() {
   if (!state.file || !state.dataset) return;
   showProcessingProgress("Loading metadata…");
   setStatus("Loading metadata…");
+  setDataSourceSectionState("loading", "Loading dataset metadata…", true);
   try {
     state.maskAuto = true;
     const data = await fetchJSON(
@@ -5971,6 +7134,11 @@ async function loadMetadata() {
     await loadAnalysisParams();
     await loadMask(true);
     await loadFrame();
+    setDataSourceSectionState("active", "Metadata ready.");
+  } catch (err) {
+    console.error(err);
+    setDataSourceSectionState("warning", "Failed to load metadata.");
+    throw err;
   } finally {
     hideProcessingProgress();
   }
@@ -6755,10 +7923,10 @@ function drawHistogram(hist) {
   histCanvas.height = height * window.devicePixelRatio;
   histCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
   histCtx.clearRect(0, 0, width, height);
-  histCtx.fillStyle = "#2b2b2b";
+  histCtx.fillStyle = PLOT_THEME.bg;
   histCtx.fillRect(0, 0, width, height);
   if (!hist || hist.length === 0) {
-    histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+    histCtx.strokeStyle = PLOT_THEME.frame;
     histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
     return;
   }
@@ -6770,7 +7938,7 @@ function drawHistogram(hist) {
   const yDenom = logY ? Math.log10(1 + maxCount) : maxCount;
 
   const barWidth = width / bins;
-  histCtx.fillStyle = "#dcdcdc";
+  histCtx.fillStyle = PLOT_THEME.bar;
   for (let i = 0; i < bins; i += 1) {
     const count = hist[i];
     const norm = yDenom ? (logY ? Math.log10(1 + count) / yDenom : count / yDenom) : 0;
@@ -6798,13 +7966,13 @@ function drawHistogram(hist) {
 
       histCtx.fillStyle = color;
       histCtx.fillRect(x - 3, markerTop, 6, 8);
-      histCtx.strokeStyle = "rgba(0,0,0,0.6)";
+      histCtx.strokeStyle = PLOT_THEME.markerOutline;
       histCtx.strokeRect(x - 3, markerTop, 6, 8);
 
       if (label) {
-        histCtx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+        histCtx.font = '600 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
         histCtx.textBaseline = "top";
-        histCtx.fillStyle = "#f2f2f2";
+        histCtx.fillStyle = PLOT_THEME.text;
         const metrics = histCtx.measureText(label);
         let textX;
         if (preferRight) {
@@ -6829,7 +7997,7 @@ function drawHistogram(hist) {
     });
   }
 
-  histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histCtx.strokeStyle = PLOT_THEME.frame;
   histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
   drawColorbar();
 }
@@ -6840,9 +8008,9 @@ function clearHistogram() {
   histCanvas.width = width * window.devicePixelRatio;
   histCanvas.height = height * window.devicePixelRatio;
   histCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-  histCtx.fillStyle = "#2b2b2b";
+  histCtx.fillStyle = PLOT_THEME.bg;
   histCtx.fillRect(0, 0, width, height);
-  histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histCtx.strokeStyle = PLOT_THEME.frame;
   histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
   drawColorbar();
 }
@@ -6890,7 +8058,7 @@ function drawColorbar() {
     }
   }
   histColorCtx.putImageData(imageData, 0, 0);
-  histColorCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histColorCtx.strokeStyle = PLOT_THEME.frame;
   histColorCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 
@@ -7029,6 +8197,7 @@ function updateRoiModeUI() {
   }
   updateRoiCenterInputs();
   syncRoiPlotLimitControls();
+  updateRoiSectionState();
 }
 
 function clearRoi() {
@@ -7063,6 +8232,7 @@ function clearRoi() {
   drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
   drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
   drawRoiOverlay();
+  updateRoiSectionState();
 }
 
 function applyMaskToValue(value, maskValue, satMax = getActiveSaturationMax()) {
@@ -7285,6 +8455,7 @@ function updateRoiStats() {
     if (roiState.active) {
       clearRoi();
     }
+    updateRoiSectionState();
     return;
   }
   if (roiState.mode === "none") {
@@ -7325,6 +8496,7 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
     drawRoiOverlay();
+    updateRoiSectionState();
     return;
   }
   if (!roiState.start || !roiState.end) {
@@ -7352,6 +8524,7 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
     drawRoiOverlay();
+    updateRoiSectionState();
     return;
   }
   const x0 = Math.max(0, Math.min(state.width - 1, roiState.start.x));
@@ -7587,6 +8760,7 @@ function updateRoiStats() {
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
   }
   drawRoiOverlay();
+  updateRoiSectionState();
 }
 
 function drawRoiPlot(canvasEl, ctx, data, logScale) {
@@ -7597,11 +8771,11 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   canvasEl.height = Math.max(1, Math.floor(height * window.devicePixelRatio));
   ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#2b2b2b";
+  ctx.fillStyle = PLOT_THEME.bg;
   ctx.fillRect(0, 0, width, height);
   if (!data || data.length === 0) {
     canvasEl._roiPlot = null;
-    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.strokeStyle = PLOT_THEME.frame;
     ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
     return;
   }
@@ -7633,7 +8807,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   }
   if (!visibleData || visibleData.length === 0) {
     canvasEl._roiPlot = null;
-    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.strokeStyle = PLOT_THEME.frame;
     ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
     return;
   }
@@ -7659,7 +8833,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   const padB = 30;
   const drawableHeight = Math.max(4, height - padT - padB);
   const drawableWidth = Math.max(4, width - padL - padR);
-  ctx.strokeStyle = "rgba(90, 90, 90, 0.9)";
+  ctx.strokeStyle = PLOT_THEME.axis;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(padL, padT);
@@ -7667,9 +8841,8 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.lineTo(padL + drawableWidth, padT + drawableHeight);
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(120, 120, 120, 0.8)";
-  ctx.fillStyle = "#cfcfcf";
-  ctx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+  ctx.fillStyle = PLOT_THEME.text;
+  ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
 
   const measureMaxLabel = (labels) =>
     labels.reduce((max, label) => Math.max(max, ctx.measureText(label).width), 0);
@@ -7693,6 +8866,12 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   for (let i = 0; i <= xTickCount; i += 1) {
     const t = i / xTickCount;
     const x = padL + t * drawableWidth;
+    ctx.strokeStyle = PLOT_THEME.grid;
+    ctx.beginPath();
+    ctx.moveTo(x, padT);
+    ctx.lineTo(x, padT + drawableHeight);
+    ctx.stroke();
+    ctx.strokeStyle = PLOT_THEME.axis;
     ctx.beginPath();
     ctx.moveTo(x, padT + drawableHeight);
     ctx.lineTo(x, padT + drawableHeight + 4);
@@ -7721,6 +8900,12 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   for (let i = 0; i <= yTickCount; i += 1) {
     const t = i / yTickCount;
     const y = padT + drawableHeight - t * drawableHeight;
+    ctx.strokeStyle = PLOT_THEME.grid;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL + drawableWidth, y);
+    ctx.stroke();
+    ctx.strokeStyle = PLOT_THEME.axis;
     ctx.beginPath();
     ctx.moveTo(padL - 4, y);
     ctx.lineTo(padL, y);
@@ -7730,8 +8915,10 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.fillText(formatRoiTick(actualVal), padL - 8, y);
   }
 
-  ctx.strokeStyle = "#e5e5e5";
+  ctx.strokeStyle = PLOT_THEME.line;
   ctx.lineWidth = 1;
+  ctx.shadowColor = PLOT_THEME.lineGlow;
+  ctx.shadowBlur = 2;
   ctx.beginPath();
   values.forEach((v, i) => {
     const x = padL + (i / Math.max(1, values.length - 1)) * drawableWidth;
@@ -7744,6 +8931,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     }
   });
   ctx.stroke();
+  ctx.shadowBlur = 0;
 
   const xLabel = plotMeta.xLabel || "Index";
   const yLabel = plotMeta.yLabel || "Value";
@@ -7751,8 +8939,8 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   const xMaxActual = xStart + (values.length - 1) * xStep;
   const yMinActual = logScale ? Math.max(0, Math.pow(10, minValue) - 1) : minValue;
   const yMaxActual = logScale ? Math.max(0, Math.pow(10, maxValue) - 1) : maxValue;
-  ctx.fillStyle = "#cfcfcf";
-  ctx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+  ctx.fillStyle = PLOT_THEME.text;
+  ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = "center";
   ctx.fillText(xLabel, padL + drawableWidth / 2, height - 4);
   ctx.save();
@@ -7779,7 +8967,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     yMin: yMinActual,
     yMax: yMaxActual,
   };
-  ctx.strokeStyle = "rgba(0,0,0,0.5)";
+  ctx.strokeStyle = PLOT_THEME.frame;
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 
@@ -7861,6 +9049,10 @@ function closeCurrentFile() {
   state.histogram = null;
   state.stats = null;
   state.hasFrame = false;
+  state.panOffsetX = 0;
+  state.panOffsetY = 0;
+  state.renderOffsetX = 0;
+  state.renderOffsetY = 0;
   state.globalStats = null;
   analysisState.peaks = [];
   analysisState.selectedPeaks = [];
@@ -7868,11 +9060,13 @@ function closeCurrentFile() {
   clearMaskState();
   clearImageHeader();
   updateToolbar();
+  setDataSourceSectionState("empty", "No file loaded.");
   setStatus("No file loaded");
   setLoading(false);
   hideUploadProgress();
   hideProcessingProgress();
   showSplash();
+  setSplashStatus("Ready. Open a file to begin.");
   updateInspectorHeaderVisibility("");
 
   fileSelect.selectedIndex = 0;
@@ -7891,11 +9085,15 @@ function closeCurrentFile() {
   if (ctx) {
     ctx.clearRect(0, 0, 1, 1);
   }
+  applyCanvasTransform();
+  updatePanCapability();
   clearHistogram();
   renderPeakList();
   schedulePeakOverlay();
   syncSeriesSumOutputPath(true);
   clearRoi();
+  updateRingsSectionState();
+  updatePeaksSectionState();
   updatePlayButtons();
 }
 
@@ -7925,6 +9123,7 @@ function applyFrame(data, width, height, dtype) {
     fitImageToView();
   }
   state.hasFrame = true;
+  updatePanCapability();
   hideSplash();
   updatePlayButtons();
   scheduleOverview();
@@ -8146,15 +9345,30 @@ dropdown?.addEventListener("mouseenter", cancelClose);
 dropdown?.addEventListener("mouseleave", scheduleClose);
 
 document.addEventListener("click", (event) => {
-  if (!dropdown) return;
   const withinMenu = event.target.closest(".menu-bar") || event.target.closest(".menu-dropdown");
-  if (!withinMenu) {
+  const withinPlayback = event.target.closest("#toolbar-playback-wrap");
+  const withinMore = event.target.closest("#toolbar-more-wrap");
+  if (!withinPlayback) {
+    closeToolbarPlaybackPopover();
+  }
+  if (!withinMore) {
+    closeToolbarMorePopover();
+  }
+  if (dropdown && !withinMenu) {
     closeMenu();
   }
 });
 
 document.addEventListener("keydown", (event) => {
+  if (isCommandPaletteOpen()) {
+    if (handleCommandPaletteKeydown(event)) {
+      return;
+    }
+    return;
+  }
   if (event.key === "Escape") {
+    closeToolbarPlaybackPopover();
+    closeToolbarMorePopover();
     closeMenu();
     aboutModal?.classList.remove("is-open");
     settingsModal?.classList.remove("is-open");
@@ -8203,14 +9417,18 @@ inspectorTree?.addEventListener("click", async (event) => {
     }
     if (willOpen && node.dataset.loaded !== "true") {
       try {
-        const children = await fetchInspectorTree(nodePath);
+        setSectionBadgeState(inspectorStateEl, "loading", "Loading child nodes…");
         const container = node.querySelector(".inspector-children");
+        renderSkeletonBlock(container, 4);
+        const children = await fetchInspectorTree(nodePath);
         if (container) {
           renderInspectorTree(children, container);
         }
         node.dataset.loaded = "true";
+        setSectionBadgeState(inspectorStateEl, "active", "Metadata tree loaded.");
       } catch (err) {
         console.error(err);
+        setSectionBadgeState(inspectorStateEl, "warning", "Failed to load child nodes.");
       }
     }
   }
@@ -8325,6 +9543,15 @@ settingsSaveClose?.addEventListener("click", () => {
   void saveSettingsFromModal(true);
 });
 settingsModal?.querySelector(".modal-backdrop")?.addEventListener("click", closeSettingsModal);
+commandInput?.addEventListener("input", () => {
+  commandPaletteIndex = 0;
+  renderCommandPalette();
+});
+commandModal?.addEventListener("click", (event) => {
+  if (event.target === commandModal || event.target.classList?.contains("modal-backdrop")) {
+    closeCommandPalette();
+  }
+});
 fileSelect.addEventListener("change", async (event) => {
   await ensureFileMode();
   state.file = event.target.value;
@@ -8368,10 +9595,12 @@ frameIndex.addEventListener("change", async (event) => {
 
 frameStep?.addEventListener("change", () => {
   setFrameStep(frameStep.value);
+  closeToolbarPlaybackPopover();
 });
 
 fpsSelect?.addEventListener("change", () => {
   setFps(Number(fpsSelect.value));
+  closeToolbarPlaybackPopover();
 });
 
 autoloadMode?.addEventListener("change", () => {
@@ -9020,12 +10249,73 @@ playBtn?.addEventListener("click", () => {
   }
 });
 
+toolbarPlaybackToggle?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleToolbarPlaybackPopover();
+});
+
+toolbarMoreToggle?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleToolbarMorePopover();
+});
+
+toolbarMoreStep?.addEventListener("change", () => {
+  setFrameStep(toolbarMoreStep.value);
+});
+
+toolbarMoreFps?.addEventListener("change", () => {
+  setFps(Number(toolbarMoreFps.value));
+});
+
+toolbarMoreThreshold?.addEventListener("change", async (event) => {
+  const value = Math.max(0, Number(event.target.value || 0));
+  await setThresholdIndex(value);
+});
+
+toolbarMorePanelToggle?.addEventListener("click", () => {
+  togglePanel();
+  closeToolbarMorePopover();
+});
+
+toolbarMoreFullscreen?.addEventListener("click", () => {
+  void toggleFullscreen();
+  closeToolbarMorePopover();
+});
+
+fullscreenToggle?.addEventListener("click", () => {
+  void toggleFullscreen();
+});
+
+splashOpenFileBtn?.addEventListener("click", () => {
+  void openFileModal();
+});
+
+document.addEventListener("fullscreenchange", updateFullscreenUi);
+
 panelEdgeToggle?.addEventListener("click", () => {
   togglePanel();
 });
 panelFab?.addEventListener("click", () => {
   togglePanel();
 });
+
+panelSheetHandle?.addEventListener("pointerdown", (event) => {
+  startMobilePanelDrag(event);
+});
+
+window.addEventListener("pointermove", (event) => {
+  updateMobilePanelDrag(event);
+});
+
+window.addEventListener("pointerup", (event) => {
+  stopMobilePanelDrag(event, false);
+});
+
+window.addEventListener("pointercancel", (event) => {
+  stopMobilePanelDrag(event, true);
+});
+
+initializeSectionContentWrappers();
 
 panelTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -9059,8 +10349,8 @@ try {
 sectionToggles.forEach((btn) => {
   const section = btn.closest(".panel-section");
   const id = section?.dataset.section;
-  if (id && sectionStateStore[id]) {
-    setSectionState(section, true, false);
+  if (id && Object.prototype.hasOwnProperty.call(sectionStateStore, id)) {
+    setSectionState(section, Boolean(sectionStateStore[id]), false);
   }
 });
 const storedPanelTab = loadStoredPanelTab("albis.panelTab");
@@ -9146,8 +10436,8 @@ canvasWrap.addEventListener(
       touchDragStart = {
         x: touch.clientX,
         y: touch.clientY,
-        scrollLeft: canvasWrap.scrollLeft,
-        scrollTop: canvasWrap.scrollTop,
+        effectiveLeft: getEffectiveScrollLeft(),
+        effectiveTop: getEffectiveScrollTop(),
       };
       touchDragActive = true;
     }
@@ -9172,8 +10462,9 @@ canvasWrap.addEventListener(
       const touch = event.touches[0];
       const dx = touch.clientX - touchDragStart.x;
       const dy = touch.clientY - touchDragStart.y;
-      canvasWrap.scrollLeft = touchDragStart.scrollLeft - dx;
-      canvasWrap.scrollTop = touchDragStart.scrollTop - dy;
+      const nextEffectiveX = touchDragStart.effectiveLeft - dx;
+      const nextEffectiveY = touchDragStart.effectiveTop - dy;
+      setEffectiveScroll(nextEffectiveX, nextEffectiveY);
       event.preventDefault();
     }
   },
@@ -9251,8 +10542,8 @@ canvasWrap.addEventListener("pointerdown", (event) => {
   panStart = {
     x: event.clientX,
     y: event.clientY,
-    scrollLeft: canvasWrap.scrollLeft,
-    scrollTop: canvasWrap.scrollTop,
+    effectiveLeft: getEffectiveScrollLeft(),
+    effectiveTop: getEffectiveScrollTop(),
   };
   canvasWrap.classList.add("is-panning");
   deferPixelOverlayRedraw();
@@ -9278,10 +10569,9 @@ canvasWrap.addEventListener("pointermove", (event) => {
   if (!panning) return;
   const dx = event.clientX - panStart.x;
   const dy = event.clientY - panStart.y;
-  canvasWrap.scrollLeft = panStart.scrollLeft - dx;
-  canvasWrap.scrollTop = panStart.scrollTop - dy;
-  deferPixelOverlayRedraw();
-  scheduleOverview();
+  const nextEffectiveX = panStart.effectiveLeft - dx;
+  const nextEffectiveY = panStart.effectiveTop - dy;
+  setEffectiveScroll(nextEffectiveX, nextEffectiveY);
 });
 
 function stopPan(event) {
@@ -9711,29 +11001,89 @@ if (roiLogToggle) {
 updateRoiPlotLimitsEnabled();
 updateRingsFromInputs();
 
+function parsePositiveNumberInput(inputEl, hintEl, label) {
+  if (!inputEl) return null;
+  const raw = String(inputEl.value || "").trim();
+  if (!raw) {
+    setFieldHint(inputEl, hintEl, "");
+    return null;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    setFieldHint(inputEl, hintEl, `${label} must be greater than 0.`);
+    return null;
+  }
+  setFieldHint(inputEl, hintEl, "");
+  return value;
+}
+
+function validatePeaksCountInput(commit = false) {
+  if (!peaksCountInput) return null;
+  const raw = String(peaksCountInput.value || "").trim();
+  if (!raw) {
+    setFieldHint(peaksCountInput, peaksCountHint, "Enter a value from 1 to 1000.");
+    return null;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    setFieldHint(peaksCountInput, peaksCountHint, "Enter a value from 1 to 1000.");
+    return null;
+  }
+  const rounded = Math.round(parsed);
+  const clamped = Math.max(1, Math.min(1000, rounded));
+  if (commit) {
+    peaksCountInput.value = String(clamped);
+  }
+  if ((clamped !== parsed || rounded !== parsed) && !commit) {
+    setFieldHint(peaksCountInput, peaksCountHint, "Using nearest integer in range 1-1000.");
+  } else {
+    setFieldHint(peaksCountInput, peaksCountHint, "");
+  }
+  return clamped;
+}
+
+function validateSeriesStepInput(commit = false) {
+  if (!seriesSumStep) return 1;
+  const mode = (seriesSumMode?.value || "all").toLowerCase();
+  if (mode === "all") {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "");
+    return 1;
+  }
+  const raw = String(seriesSumStep.value || "").trim();
+  if (!raw) {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "Enter an integer greater than or equal to 1.");
+    return null;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "Enter an integer greater than or equal to 1.");
+    return null;
+  }
+  const normalized = Math.max(1, Math.round(parsed));
+  if (commit) {
+    seriesSumStep.value = String(normalized);
+  }
+  if (normalized !== parsed && !commit) {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "Using nearest integer greater than or equal to 1.");
+  } else {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "");
+  }
+  return normalized;
+}
+
 function updateRingsFromInputs() {
   if (ringsToggle) {
     analysisState.ringsEnabled = ringsToggle.checked;
   }
-  if (ringsCount) {
-    const count = Number(ringsCount.value);
-    const maxCount = Math.max(1, ringInputs.length);
-    analysisState.ringCount = Number.isFinite(count)
-      ? Math.max(1, Math.min(maxCount, Math.round(count)))
-      : Math.min(3, maxCount);
-    ringsCount.value = String(analysisState.ringCount);
-  }
+  analysisState.ringCount = Math.max(1, Math.min(DEFAULT_RING_COUNT, Math.max(1, ringInputs.length)));
   if (ringsDistance) {
-    const value = Number(ringsDistance.value);
-    analysisState.distanceMm = Number.isFinite(value) && value > 0 ? value : null;
+    analysisState.distanceMm = parsePositiveNumberInput(ringsDistance, ringsDistanceHint, "Detector distance");
   }
   if (ringsPixel) {
-    const value = Number(ringsPixel.value);
-    analysisState.pixelSizeUm = Number.isFinite(value) && value > 0 ? value : null;
+    analysisState.pixelSizeUm = parsePositiveNumberInput(ringsPixel, ringsPixelHint, "Pixel size");
   }
   if (ringsEnergy) {
-    const value = Number(ringsEnergy.value);
-    analysisState.energyEv = Number.isFinite(value) && value > 0 ? value : null;
+    analysisState.energyEv = parsePositiveNumberInput(ringsEnergy, ringsEnergyHint, "Photon energy");
   }
   if (ringsCenterX) {
     const value = Number(ringsCenterX.value);
@@ -9756,10 +11106,11 @@ function updateRingsFromInputs() {
     const visible = idx < analysisState.ringCount;
     input.style.display = visible ? "" : "none";
   });
+  updateRingsSectionState();
   scheduleResolutionOverlay();
 }
 
-[ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ringsCount, ...ringInputs]
+[ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ...ringInputs]
   .filter(Boolean)
   .forEach((input) => {
     const eventName = input.type === "checkbox" ? "change" : "input";
@@ -9770,10 +11121,14 @@ if (peaksCountInput) {
   const initial = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || 25))));
   analysisState.peakCount = initial;
   peaksCountInput.value = String(initial);
+  setFieldHint(peaksCountInput, peaksCountHint, "");
+  peaksCountInput.addEventListener("input", () => {
+    validatePeaksCountInput(false);
+  });
   peaksCountInput.addEventListener("change", () => {
-    const next = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || analysisState.peakCount))));
+    const next = validatePeaksCountInput(true);
+    if (!Number.isFinite(next)) return;
     analysisState.peakCount = next;
-    peaksCountInput.value = String(next);
     schedulePeakFinder();
   });
 }
@@ -9810,8 +11165,11 @@ seriesSumNormalizeEnable?.addEventListener("change", () => {
 });
 
 seriesSumStep?.addEventListener("change", () => {
-  const value = Math.max(1, Math.round(Number(seriesSumStep.value || 10)));
-  seriesSumStep.value = String(value);
+  validateSeriesStepInput(true);
+});
+
+seriesSumStep?.addEventListener("input", () => {
+  validateSeriesStepInput(false);
 });
 
 seriesSumRangeStart?.addEventListener("change", () => {
@@ -9883,20 +11241,31 @@ if (pixelLabelToggle) {
 try {
   const storedWidth = Number(localStorage.getItem("albis.panelWidth"));
   const storedCollapsed = localStorage.getItem("albis.panelCollapsed");
+  const storedMobileSnap = Number(localStorage.getItem("albis.mobilePanelSnap"));
   if (storedWidth) {
-    state.panelWidth = Math.max(220, Math.min(900, storedWidth));
+    state.panelWidth = Math.max(220, Math.min(getMaxPanelWidth(), storedWidth));
   }
   if (storedCollapsed !== null) {
     state.panelCollapsed = storedCollapsed === "true";
   } else if (window.innerWidth < 900) {
     state.panelCollapsed = true;
   }
+  if (Number.isFinite(storedMobileSnap) && storedMobileSnap > 0) {
+    mobilePanelSnap = nearestMobilePanelSnap(storedMobileSnap);
+  }
 } catch {
   // ignore storage errors
 }
 applyPanelState();
+applyCanvasTransform();
+updatePanCapability();
 loadAutoloadSettings();
 updatePlayButtons();
+updateViewerFooter();
+if (!state.file) {
+  setDataSourceSectionState("empty", "Choose an image source to begin.");
+}
+updateFullscreenUi();
 updateAboutVersion();
 initHelpTooltips();
 startBackendHeartbeat();
