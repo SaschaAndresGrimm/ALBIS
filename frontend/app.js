@@ -313,6 +313,18 @@ const roiState = createRoiState();
 const analysisState = createAnalysisState();
 const state = createAppState();
 
+const PLOT_THEME = {
+  bg: "rgba(12, 18, 27, 0.96)",
+  frame: "rgba(78, 100, 137, 0.45)",
+  axis: "rgba(132, 156, 196, 0.82)",
+  grid: "rgba(88, 112, 152, 0.24)",
+  text: "#dce8ff",
+  bar: "rgba(236, 243, 255, 0.88)",
+  line: "rgba(236, 243, 255, 0.95)",
+  lineGlow: "rgba(102, 178, 255, 0.2)",
+  markerOutline: "rgba(8, 14, 22, 0.85)",
+};
+
 const clientLogBuffer = [];
 let clientLogTimer = null;
 let clientLogSending = false;
@@ -6755,10 +6767,10 @@ function drawHistogram(hist) {
   histCanvas.height = height * window.devicePixelRatio;
   histCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
   histCtx.clearRect(0, 0, width, height);
-  histCtx.fillStyle = "#2b2b2b";
+  histCtx.fillStyle = PLOT_THEME.bg;
   histCtx.fillRect(0, 0, width, height);
   if (!hist || hist.length === 0) {
-    histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+    histCtx.strokeStyle = PLOT_THEME.frame;
     histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
     return;
   }
@@ -6770,7 +6782,7 @@ function drawHistogram(hist) {
   const yDenom = logY ? Math.log10(1 + maxCount) : maxCount;
 
   const barWidth = width / bins;
-  histCtx.fillStyle = "#dcdcdc";
+  histCtx.fillStyle = PLOT_THEME.bar;
   for (let i = 0; i < bins; i += 1) {
     const count = hist[i];
     const norm = yDenom ? (logY ? Math.log10(1 + count) / yDenom : count / yDenom) : 0;
@@ -6798,13 +6810,13 @@ function drawHistogram(hist) {
 
       histCtx.fillStyle = color;
       histCtx.fillRect(x - 3, markerTop, 6, 8);
-      histCtx.strokeStyle = "rgba(0,0,0,0.6)";
+      histCtx.strokeStyle = PLOT_THEME.markerOutline;
       histCtx.strokeRect(x - 3, markerTop, 6, 8);
 
       if (label) {
-        histCtx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+        histCtx.font = '600 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
         histCtx.textBaseline = "top";
-        histCtx.fillStyle = "#f2f2f2";
+        histCtx.fillStyle = PLOT_THEME.text;
         const metrics = histCtx.measureText(label);
         let textX;
         if (preferRight) {
@@ -6829,7 +6841,7 @@ function drawHistogram(hist) {
     });
   }
 
-  histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histCtx.strokeStyle = PLOT_THEME.frame;
   histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
   drawColorbar();
 }
@@ -6840,9 +6852,9 @@ function clearHistogram() {
   histCanvas.width = width * window.devicePixelRatio;
   histCanvas.height = height * window.devicePixelRatio;
   histCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-  histCtx.fillStyle = "#2b2b2b";
+  histCtx.fillStyle = PLOT_THEME.bg;
   histCtx.fillRect(0, 0, width, height);
-  histCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histCtx.strokeStyle = PLOT_THEME.frame;
   histCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
   drawColorbar();
 }
@@ -6890,7 +6902,7 @@ function drawColorbar() {
     }
   }
   histColorCtx.putImageData(imageData, 0, 0);
-  histColorCtx.strokeStyle = "rgba(0,0,0,0.5)";
+  histColorCtx.strokeStyle = PLOT_THEME.frame;
   histColorCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 
@@ -7597,11 +7609,11 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   canvasEl.height = Math.max(1, Math.floor(height * window.devicePixelRatio));
   ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#2b2b2b";
+  ctx.fillStyle = PLOT_THEME.bg;
   ctx.fillRect(0, 0, width, height);
   if (!data || data.length === 0) {
     canvasEl._roiPlot = null;
-    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.strokeStyle = PLOT_THEME.frame;
     ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
     return;
   }
@@ -7633,7 +7645,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   }
   if (!visibleData || visibleData.length === 0) {
     canvasEl._roiPlot = null;
-    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.strokeStyle = PLOT_THEME.frame;
     ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
     return;
   }
@@ -7659,7 +7671,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   const padB = 30;
   const drawableHeight = Math.max(4, height - padT - padB);
   const drawableWidth = Math.max(4, width - padL - padR);
-  ctx.strokeStyle = "rgba(90, 90, 90, 0.9)";
+  ctx.strokeStyle = PLOT_THEME.axis;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(padL, padT);
@@ -7667,9 +7679,8 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.lineTo(padL + drawableWidth, padT + drawableHeight);
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(120, 120, 120, 0.8)";
-  ctx.fillStyle = "#cfcfcf";
-  ctx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+  ctx.fillStyle = PLOT_THEME.text;
+  ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
 
   const measureMaxLabel = (labels) =>
     labels.reduce((max, label) => Math.max(max, ctx.measureText(label).width), 0);
@@ -7693,6 +7704,12 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   for (let i = 0; i <= xTickCount; i += 1) {
     const t = i / xTickCount;
     const x = padL + t * drawableWidth;
+    ctx.strokeStyle = PLOT_THEME.grid;
+    ctx.beginPath();
+    ctx.moveTo(x, padT);
+    ctx.lineTo(x, padT + drawableHeight);
+    ctx.stroke();
+    ctx.strokeStyle = PLOT_THEME.axis;
     ctx.beginPath();
     ctx.moveTo(x, padT + drawableHeight);
     ctx.lineTo(x, padT + drawableHeight + 4);
@@ -7721,6 +7738,12 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   for (let i = 0; i <= yTickCount; i += 1) {
     const t = i / yTickCount;
     const y = padT + drawableHeight - t * drawableHeight;
+    ctx.strokeStyle = PLOT_THEME.grid;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL + drawableWidth, y);
+    ctx.stroke();
+    ctx.strokeStyle = PLOT_THEME.axis;
     ctx.beginPath();
     ctx.moveTo(padL - 4, y);
     ctx.lineTo(padL, y);
@@ -7730,8 +7753,10 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.fillText(formatRoiTick(actualVal), padL - 8, y);
   }
 
-  ctx.strokeStyle = "#e5e5e5";
+  ctx.strokeStyle = PLOT_THEME.line;
   ctx.lineWidth = 1;
+  ctx.shadowColor = PLOT_THEME.lineGlow;
+  ctx.shadowBlur = 2;
   ctx.beginPath();
   values.forEach((v, i) => {
     const x = padL + (i / Math.max(1, values.length - 1)) * drawableWidth;
@@ -7744,6 +7769,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     }
   });
   ctx.stroke();
+  ctx.shadowBlur = 0;
 
   const xLabel = plotMeta.xLabel || "Index";
   const yLabel = plotMeta.yLabel || "Value";
@@ -7751,8 +7777,8 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   const xMaxActual = xStart + (values.length - 1) * xStep;
   const yMinActual = logScale ? Math.max(0, Math.pow(10, minValue) - 1) : minValue;
   const yMaxActual = logScale ? Math.max(0, Math.pow(10, maxValue) - 1) : maxValue;
-  ctx.fillStyle = "#cfcfcf";
-  ctx.font = "10px \"Lucida Grande\", \"Helvetica Neue\", Arial, sans-serif";
+  ctx.fillStyle = PLOT_THEME.text;
+  ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = "center";
   ctx.fillText(xLabel, padL + drawableWidth / 2, height - 4);
   ctx.save();
@@ -7779,7 +7805,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     yMin: yMinActual,
     yMax: yMaxActual,
   };
-  ctx.strokeStyle = "rgba(0,0,0,0.5)";
+  ctx.strokeStyle = PLOT_THEME.frame;
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 

@@ -89,48 +89,54 @@
           </div>
         </div>
         <div class="toolbar">
-          <div class="toolbar-buttons">
-            <button class="tool-btn" id="btn-prev" aria-label="Previous frame">◀</button>
-            <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
-              <input id="frame-range" type="range" min="1" max="1" value="1" />
+          <div class="toolbar-main">
+            <div class="toolbar-buttons">
+              <div class="toolbar-cluster toolbar-cluster-transport">
+                <button class="tool-btn" id="btn-prev" aria-label="Previous frame">◀</button>
+                <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
+                <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
+              </div>
+              <div class="toolbar-cluster toolbar-cluster-frame">
+                <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
+                  <input id="frame-range" type="range" min="1" max="1" value="1" />
+                </div>
+                <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
+                  <input id="frame-index" type="number" min="1" value="1" />
+                </div>
+                <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
+                  <select id="frame-step" aria-label="Frame step">
+                    <option value="1" selected>Step 1</option>
+                    <option value="10">Step 10</option>
+                    <option value="100">Step 100</option>
+                    <option value="1000">Step 1000</option>
+                  </select>
+                </div>
+                <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
+                  <select id="fps-select" aria-label="Playback speed">
+                    <option value="1" selected>1 fps</option>
+                    <option value="2">2 fps</option>
+                    <option value="3">3 fps</option>
+                    <option value="4">4 fps</option>
+                    <option value="5">5 fps</option>
+                    <option value="6">6 fps</option>
+                    <option value="7">7 fps</option>
+                    <option value="8">8 fps</option>
+                    <option value="9">9 fps</option>
+                    <option value="10">10 fps</option>
+                  </select>
+                </div>
+                <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
+                  <select id="toolbar-threshold" aria-label="Threshold"></select>
+                </div>
+              </div>
             </div>
-            <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
-            <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
-              <input id="frame-index" type="number" min="1" value="1" />
-            </div>
-            <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
-              <select id="frame-step" aria-label="Frame step">
-                <option value="1" selected>Step 1</option>
-                <option value="10">Step 10</option>
-                <option value="100">Step 100</option>
-                <option value="1000">Step 1000</option>
-              </select>
-            </div>
-            <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
-              <select id="fps-select" aria-label="Playback speed">
-                <option value="1" selected>1 fps</option>
-                <option value="2">2 fps</option>
-                <option value="3">3 fps</option>
-                <option value="4">4 fps</option>
-                <option value="5">5 fps</option>
-                <option value="6">6 fps</option>
-                <option value="7">7 fps</option>
-                <option value="8">8 fps</option>
-                <option value="9">9 fps</option>
-                <option value="10">10 fps</option>
-              </select>
-            </div>
-            <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
-            <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
-              <select id="toolbar-threshold" aria-label="Threshold"></select>
-            </div>
+            <div class="toolbar-path" id="toolbar-path">No file loaded</div>
           </div>
-        <div class="toolbar-path" id="toolbar-path">No file loaded</div>
-        <div class="toolbar-right">
-          <div class="backend-badge" id="backend-badge" aria-hidden="true">SERVER</div>
-          <div class="live-badge" id="live-badge" aria-hidden="true">LIVE</div>
+          <div class="toolbar-right">
+            <div class="backend-badge" id="backend-badge" aria-hidden="true">SERVER</div>
+            <div class="live-badge" id="live-badge" aria-hidden="true">LIVE</div>
+          </div>
         </div>
-      </div>
         <div class="upload-bar" id="upload-bar" aria-hidden="true">
           <div class="upload-bar-fill" id="upload-bar-fill"></div>
           <div class="upload-bar-text" id="upload-bar-text">Uploading 0%</div>

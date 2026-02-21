@@ -7,133 +7,230 @@
     <style>
       :root {
         color-scheme: dark;
+        --surface-0: #121721;
+        --surface-1: #181f2b;
+        --surface-2: #20293a;
+        --surface-3: #2a3448;
+        --text: #edf3ff;
+        --muted: #aebad1;
+        --border: rgba(82, 103, 138, 0.45);
+        --accent: #4ea1ff;
+        --radius-sm: 4px;
+        --radius-md: 7px;
+        --radius-lg: 10px;
       }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         margin: 0;
-        background: #2b2b2b;
-        color: #f2f2f2;
-        font-family: "Lucida Grande", "Helvetica Neue", Arial, sans-serif;
+        background: radial-gradient(circle at 12% 0%, #273346 0%, #1a2130 38%, #121721 100%);
+        color: var(--text);
+        font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        background: linear-gradient(to bottom, #273246, #151922);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .brand {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6cb2ff;
+      }
+
+      .topbar a {
+        color: #dce8ff;
+        text-decoration: none;
+        font-size: 12px;
+        border: 1px solid rgba(95, 124, 174, 0.45);
+        border-radius: var(--radius-sm);
+        padding: 4px 8px;
+        background: rgba(22, 33, 49, 0.65);
+      }
+
       .page {
-        max-width: 980px;
+        max-width: 1020px;
         margin: 0 auto;
-        padding: 32px 24px 48px;
+        padding: 24px 18px 44px;
+        display: grid;
+        gap: 12px;
       }
+
+      .hero,
+      .doc-card {
+        background: linear-gradient(to bottom, rgba(31, 41, 58, 0.92), rgba(22, 30, 43, 0.92));
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 14px 16px;
+        box-shadow: 0 10px 24px rgba(4, 8, 16, 0.3);
+      }
+
       h1,
       h2 {
-        margin: 0 0 12px;
-        font-weight: 600;
+        margin: 0;
+        font-weight: 700;
+        letter-spacing: 0.01em;
       }
+
       h1 {
-        font-size: 24px;
+        font-size: 22px;
       }
+
       h2 {
         font-size: 16px;
-        margin-top: 24px;
+        margin-bottom: 8px;
       }
+
       p {
-        line-height: 1.5;
+        line-height: 1.55;
+        margin: 8px 0 0;
+        color: #dce8ff;
       }
+
       ul {
-        margin: 8px 0 0 16px;
+        margin: 6px 0 0 16px;
         padding: 0;
       }
+
       li {
         margin: 6px 0;
+        color: #dce8ff;
       }
+
       code {
-        background: #1b1b1b;
+        background: rgba(12, 18, 27, 0.96);
         padding: 2px 6px;
-        border-radius: 3px;
-        border: 1px solid #111;
+        border-radius: var(--radius-sm);
+        border: 1px solid rgba(47, 64, 89, 0.9);
         font-size: 12px;
+        color: #e8f2ff;
       }
+
       .pill {
         display: inline-block;
         padding: 4px 8px;
-        background: #1d1d1d;
-        border: 1px solid #111;
-        border-radius: 4px;
+        background: rgba(12, 19, 29, 0.95);
+        border: 1px solid rgba(20, 32, 49, 0.92);
+        border-radius: var(--radius-sm);
         font-size: 12px;
         margin-right: 8px;
       }
+
       a {
-        color: #6eb5ff;
+        color: var(--accent);
       }
+
       .note {
-        background: #1c1c1c;
-        border: 1px solid #111;
+        background: rgba(13, 19, 28, 0.92);
+        border: 1px solid rgba(78, 100, 137, 0.35);
         padding: 10px 12px;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         margin-top: 12px;
         font-size: 12px;
-        color: #d8d8d8;
+        color: #d8e6ff;
+      }
+
+      @media (max-width: 700px) {
+        .page {
+          padding: 14px 10px 30px;
+        }
+
+        .hero,
+        .doc-card {
+          padding: 12px;
+        }
       }
     </style>
   </head>
   <body>
+    <div class="topbar">
+      <div class="brand">ALBIS Docs</div>
+      <a href="/" title="Back to ALBIS">Back to Viewer</a>
+    </div>
     <div class="page">
-      <h1>ALBIS — ALBIS WEB VIEW</h1>
-      <p>
-        ALBIS is an <strong>ALBULA‑style</strong>, browser‑based viewer for diffraction images and large HDF5
-        stacks. It is platform‑independent, free, and open source.
-      </p>
-      <p>
-        It targets modern DECTRIS detectors (SELUN, EIGER2, PILATUS4) and supports filewriter1 and
-        filewriter2 layouts, including multi‑threshold data.
-      </p>
-
-      <div class="note">
-        Project note: this is a private vibe‑coding project for fun and educational purposes.
+      <div class="hero">
+        <h1>ALBIS — ALBIS WEB VIEW</h1>
+        <p>
+          ALBIS is an <strong>ALBULA‑style</strong>, browser‑based viewer for diffraction images and large HDF5
+          stacks. It is platform‑independent, free, and open source.
+        </p>
+        <p>
+          It targets modern DECTRIS detectors (SELUN, EIGER2, PILATUS4) and supports filewriter1 and
+          filewriter2 layouts, including multi‑threshold data.
+        </p>
+        <div class="note">
+          Project note: this is a private vibe‑coding project for fun and educational purposes.
+        </div>
       </div>
 
-      <h2>Core Features</h2>
-      <ul>
-        <li>File → Open loads HDF5 stacks and common detector formats (.tif/.tiff, .cbf/.cbf.gz, .edf).</li>
-        <li>Top toolbar: compact frame slider, frame index, step dropdown, FPS dropdown, and playback controls.</li>
-        <li>Data tab: file source selection, file inspector/header viewer, and Series Operations (sum/mean/median).</li>
-        <li>Multi‑threshold selector for filewriter2 datasets.</li>
-        <li>Data sources: File, Watch Folder, SIMPLON Monitor (live TIFF stream), and Remote Stream.</li>
-        <li>Pixel mask support with gap/defect highlighting.</li>
-        <li>Histogram with draggable BG/FG and inline Auto Contrast / Auto controls.</li>
-        <li>Overlay tab: Statistics and ROI, Resolution Rings, Peak Finder.</li>
-        <li>ROI statistics default to full-image values when ROI mode is set to None.</li>
-        <li>Settings dialog (Settings menu) edits <code>albis.config.json</code> with Save / Save &amp; Close.</li>
-        <li>WebGL2 rendering with CPU fallback.</li>
-      </ul>
+      <section class="doc-card">
+        <h2>Core Features</h2>
+        <ul>
+          <li>File → Open loads HDF5 stacks and common detector formats (.tif/.tiff, .cbf/.cbf.gz, .edf).</li>
+          <li>Top toolbar: compact frame slider, frame index, step dropdown, FPS dropdown, and playback controls.</li>
+          <li>Data tab: file source selection, file inspector/header viewer, and Series Operations (sum/mean/median).</li>
+          <li>Multi‑threshold selector for filewriter2 datasets.</li>
+          <li>Data sources: File, Watch Folder, SIMPLON Monitor (live TIFF stream), and Remote Stream.</li>
+          <li>Pixel mask support with gap/defect highlighting.</li>
+          <li>Histogram with draggable BG/FG and inline Auto Contrast / Auto controls.</li>
+          <li>Overlay tab: Statistics and ROI, Resolution Rings, Peak Finder.</li>
+          <li>ROI statistics default to full-image values when ROI mode is set to None.</li>
+          <li>Settings dialog (Settings menu) edits <code>albis.config.json</code> with Save / Save &amp; Close.</li>
+          <li>WebGL2 rendering with CPU fallback.</li>
+        </ul>
+      </section>
 
-      <h2>Remote Stream</h2>
-      <ul>
-        <li>Use Data Source = <code>Remote Stream</code> and set a source id (default: <code>default</code>).</li>
-        <li>Send frames via <code>POST /api/remote/v1/frame</code> using multipart upload.</li>
-        <li>The sender <code>source_id</code> must match the UI source id.</li>
-        <li><code>204 No Content</code> from <code>/api/remote/v1/latest</code> means “no new frame yet”.</li>
-        <li>For raw frame bytes, provide <code>meta</code> JSON with <code>format=raw</code>, <code>dtype</code>, and <code>shape</code>.</li>
-        <li>Optional metadata updates ring parameters (distance, pixel size, energy, beam center).</li>
-        <li>Optional <code>peak_sets</code> render colored external peak overlays in the image.</li>
-      </ul>
+      <section class="doc-card">
+        <h2>Remote Stream</h2>
+        <ul>
+          <li>Use Data Source = <code>Remote Stream</code> and set a source id (default: <code>default</code>).</li>
+          <li>Send frames via <code>POST /api/remote/v1/frame</code> using multipart upload.</li>
+          <li>The sender <code>source_id</code> must match the UI source id.</li>
+          <li><code>204 No Content</code> from <code>/api/remote/v1/latest</code> means “no new frame yet”.</li>
+          <li>For raw frame bytes, provide <code>meta</code> JSON with <code>format=raw</code>, <code>dtype</code>, and <code>shape</code>.</li>
+          <li>Optional metadata updates ring parameters (distance, pixel size, energy, beam center).</li>
+          <li>Optional <code>peak_sets</code> render colored external peak overlays in the image.</li>
+        </ul>
+      </section>
 
-      <h2>Tips</h2>
-      <ul>
-        <li><span class="pill">Mouse Wheel</span> zoom at cursor.</li>
-        <li><span class="pill">Double‑Click</span> zoom in.</li>
-        <li><span class="pill">Right‑Drag</span> define ROI.</li>
-        <li><span class="pill">Arrow Keys</span> frame or threshold navigation.</li>
-      </ul>
+      <section class="doc-card">
+        <h2>Tips</h2>
+        <ul>
+          <li><span class="pill">Mouse Wheel</span> zoom at cursor.</li>
+          <li><span class="pill">Double‑Click</span> zoom in.</li>
+          <li><span class="pill">Right‑Drag</span> define ROI.</li>
+          <li><span class="pill">Arrow Keys</span> frame or threshold navigation.</li>
+        </ul>
+      </section>
 
-      <h2>Roadmap — Next Milestones</h2>
-      <ul>
-        <li>Resolution rings.</li>
-        <li>Spot finding.</li>
-        <li>Config file.</li>
-        <li>Metadata browser.</li>
-        <li>Detector control and status.</li>
-        <li>Installer for non‑Python users.</li>
-      </ul>
+      <section class="doc-card">
+        <h2>Roadmap — Next Milestones</h2>
+        <ul>
+          <li>Resolution rings.</li>
+          <li>Spot finding.</li>
+          <li>Config file.</li>
+          <li>Metadata browser.</li>
+          <li>Detector control and status.</li>
+          <li>Installer for non‑Python users.</li>
+        </ul>
 
-      <p>
-        For build instructions, logs, and packaging details, see the README in the repository.
-      </p>
+        <p>
+          For build instructions, logs, and packaging details, see the README in the repository.
+        </p>
+      </section>
     </div>
   </body>
 </html>
