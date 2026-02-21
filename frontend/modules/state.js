@@ -30,7 +30,7 @@ export function createAnalysisState() {
     energyEv: null,
     centerX: null,
     centerY: null,
-    rings: [1, 2, 4, 8],
+    rings: [1, 2, 4],
     ringCount: 3,
     peaksEnabled: false,
     peakCount: 25,

@@ -90,10 +90,14 @@ const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const splashStatus = document.getElementById("splash-status");
+const splashActions = document.querySelector(".splash-actions");
+const splashOpenFileBtn = document.getElementById("splash-open-file");
 const viewerFooterEl = document.querySelector(".viewer-footer");
 const footerFileEl = document.getElementById("footer-file");
 const footerZoomEl = document.getElementById("footer-zoom");
 const footerThresholdEl = document.getElementById("footer-threshold");
+const footerFrontendVersionEl = document.getElementById("footer-version-frontend");
+const footerBackendVersionEl = document.getElementById("footer-version-backend");
 const resolutionOverlay = document.getElementById("resolution-overlay");
 const resolutionCtx = resolutionOverlay?.getContext("2d");
 const peakOverlay = document.getElementById("peak-overlay");
@@ -211,14 +215,12 @@ const ringsEnergy = document.getElementById("rings-energy");
 const ringsEnergyHint = document.getElementById("rings-energy-hint");
 const ringsCenterX = document.getElementById("rings-center-x");
 const ringsCenterY = document.getElementById("rings-center-y");
-const ringsCount = document.getElementById("rings-count");
 const ringsSectionStateEl = document.getElementById("rings-state");
 const ringsSummaryEl = document.getElementById("summary-rings");
 const ringInputs = [
   document.getElementById("ring-r1"),
   document.getElementById("ring-r2"),
   document.getElementById("ring-r3"),
-  document.getElementById("ring-r4"),
 ].filter(Boolean);
 const peaksEnableToggle = document.getElementById("peaks-enable");
 const peaksCountInput = document.getElementById("peaks-count");
@@ -435,6 +437,8 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
+const APP_FRONTEND_VERSION = "0.7.0";
+const DEFAULT_RING_COUNT = 3;
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
 const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = 18;
 const PIXEL_LABEL_DEFAULT_MAX_LABELS = 4000;
@@ -2057,11 +2061,8 @@ function getRingParams() {
   const fallback = getDefaultCenter();
   if (!Number.isFinite(center.x)) center.x = fallback.x;
   if (!Number.isFinite(center.y)) center.y = fallback.y;
-  const count = Number(ringsCount?.value || analysisState.ringCount || 3);
   const maxCount = Math.max(1, ringInputs.length);
-  const ringLimit = Number.isFinite(count)
-    ? Math.max(1, Math.min(maxCount, Math.round(count)))
-    : Math.min(3, maxCount);
+  const ringLimit = Math.max(1, Math.min(maxCount, DEFAULT_RING_COUNT));
   const rings = ringInputs
     .map((input, index) => {
       const value = Number(input?.value || analysisState.rings[index]);
@@ -2180,9 +2181,9 @@ function updatePeaksSectionState() {
     setSummaryChip(peaksSummaryEl, "Waiting frame");
     return;
   }
-  if (state.isLoading || peakFinderScheduled) {
-    setSectionBadgeState(peaksSectionStateEl, "loading", "Detecting peaks…");
-    setSummaryChip(peaksSummaryEl, "Detecting…", "active");
+  if (state.playing || state.isLoading || peakFinderScheduled) {
+    setSectionBadgeState(peaksSectionStateEl, "active", "Peak Finder active. Updating in the background.");
+    setSummaryChip(peaksSummaryEl, "Active", "active");
     return;
   }
   if (!analysisState.peaks.length) {
@@ -2204,8 +2205,13 @@ function updatePeaksSectionState() {
 
 function renderPeakList() {
   if (!peaksBody) return;
+  const isBusy = analysisState.peaksEnabled && state.hasFrame && (state.isLoading || peakFinderScheduled);
+  if (isBusy && peaksBody.childElementCount > 0) {
+    updatePeaksSectionState();
+    return;
+  }
   peaksBody.innerHTML = "";
-  if (analysisState.peaksEnabled && state.hasFrame && (state.isLoading || peakFinderScheduled)) {
+  if (isBusy) {
     peaksBody.appendChild(buildSkeletonList(6));
     updatePeaksSectionState();
     return;
@@ -4071,8 +4077,21 @@ function drawSplash() {
   splashCtx.fillRect(0, 0, width, height);
 }
 
+function updateSplashCallToAction() {
+  if (!splashOpenFileBtn || !splash) return;
+  const splashVisible = !splash.classList.contains("is-hidden");
+  const ready = Boolean(state.backendAlive) && !state.isLoading;
+  const show = splashVisible && ready && !state.hasFrame;
+  if (splashActions) {
+    splashActions.classList.toggle("is-hidden", !show);
+  }
+  splashOpenFileBtn.classList.toggle("is-hidden", !show);
+  splashOpenFileBtn.disabled = !show;
+}
+
 function showSplash() {
   splash?.classList.remove("is-hidden");
+  updateSplashCallToAction();
 }
 
 function setSplashStatus(text) {
@@ -4083,10 +4102,12 @@ function setSplashStatus(text) {
   const lower = normalized.toLowerCase();
   const busy = Boolean(normalized) && !/\b(ready|failed|error|done|complete)\b/.test(lower);
   splash.classList.toggle("is-busy", busy);
+  updateSplashCallToAction();
 }
 
 function hideSplash() {
   splash?.classList.add("is-hidden");
+  updateSplashCallToAction();
 }
 
 function updateFullscreenUi() {
@@ -4130,6 +4151,18 @@ function buildViewerSourceText(maxChars = 72) {
   return `${fileText}${datasetLabel}${suffix}`;
 }
 
+function updateFooterVersions() {
+  if (footerFrontendVersionEl) {
+    footerFrontendVersionEl.textContent = `FE v${APP_FRONTEND_VERSION}`;
+    footerFrontendVersionEl.title = `Frontend version ${APP_FRONTEND_VERSION}`;
+  }
+  if (footerBackendVersionEl) {
+    const backendVersion = state.backendVersion || "-";
+    footerBackendVersionEl.textContent = `BE v${backendVersion}`;
+    footerBackendVersionEl.title = `Backend version ${backendVersion}`;
+  }
+}
+
 function updateViewerFooter() {
   if (footerFileEl) {
     footerFileEl.textContent = buildViewerSourceText(78);
@@ -4143,6 +4176,7 @@ function updateViewerFooter() {
       ? `Threshold ${state.thresholdIndex + 1} / ${state.thresholdCount}`
       : "Threshold -";
   }
+  updateFooterVersions();
 }
 
 function updateDataSourceSummary() {
@@ -4517,11 +4551,14 @@ function updateBackendBadge() {
   backendBadge.setAttribute("aria-label", state.backendAlive ? "Backend server online" : "Backend server offline");
   backendBadge.title = state.backendAlive ? "Backend server online" : "Backend server offline";
   backendBadge.setAttribute("aria-hidden", "false");
+  updateFooterVersions();
+  updateSplashCallToAction();
 }
 
 function updateAboutVersion() {
   if (!aboutVersion) return;
   aboutVersion.textContent = `Version ${state.backendVersion || "0.4"}`;
+  updateFooterVersions();
 }
 
 async function checkBackendHealth() {
@@ -4611,7 +4648,7 @@ async function bootstrapApp() {
   setSplashStatus("Loading file list...");
   await loadAutoloadFolders();
   await loadFiles();
-  setSplashStatus("Ready");
+  setSplashStatus("Ready. Open a file to begin.");
 }
 
 function persistAutoloadSettings() {
@@ -6704,6 +6741,7 @@ async function loadFiles() {
       setStatus("Select a file to begin");
       updateToolbar();
       showSplash();
+      setSplashStatus("Ready. Open a file to begin.");
       setLoading(false);
     }
     loadAutoloadFolders();
@@ -6712,6 +6750,7 @@ async function loadFiles() {
     if (!existingFile) {
       setStatus("No image files found");
       showSplash();
+      setSplashStatus("No image files found. Open a file to begin.");
       setLoading(false);
     }
     loadAutoloadFolders();
@@ -6763,12 +6802,14 @@ async function loadDatasets() {
     } else {
       setStatus("No image datasets found");
       showSplash();
+      setSplashStatus("No image datasets found. Open a different file.");
       setLoading(false);
     }
   } catch (err) {
     console.error(err);
     setStatus("Failed to scan datasets");
     showSplash();
+    setSplashStatus("Dataset scan failed. Open a file to continue.");
     setLoading(false);
   } finally {
     hideProcessingProgress();
@@ -8732,6 +8773,7 @@ function closeCurrentFile() {
   hideUploadProgress();
   hideProcessingProgress();
   showSplash();
+  setSplashStatus("Ready. Open a file to begin.");
   updateInspectorHeaderVisibility("");
 
   fileSelect.selectedIndex = 0;
@@ -9919,6 +9961,10 @@ fullscreenToggle?.addEventListener("click", () => {
   void toggleFullscreen();
 });
 
+splashOpenFileBtn?.addEventListener("click", () => {
+  void openFileModal();
+});
+
 document.addEventListener("fullscreenchange", updateFullscreenUi);
 
 panelEdgeToggle?.addEventListener("click", () => {
@@ -10686,14 +10732,7 @@ function updateRingsFromInputs() {
   if (ringsToggle) {
     analysisState.ringsEnabled = ringsToggle.checked;
   }
-  if (ringsCount) {
-    const count = Number(ringsCount.value);
-    const maxCount = Math.max(1, ringInputs.length);
-    analysisState.ringCount = Number.isFinite(count)
-      ? Math.max(1, Math.min(maxCount, Math.round(count)))
-      : Math.min(3, maxCount);
-    ringsCount.value = String(analysisState.ringCount);
-  }
+  analysisState.ringCount = Math.max(1, Math.min(DEFAULT_RING_COUNT, Math.max(1, ringInputs.length)));
   if (ringsDistance) {
     analysisState.distanceMm = parsePositiveNumberInput(ringsDistance, ringsDistanceHint, "Detector distance");
   }
@@ -10728,7 +10767,7 @@ function updateRingsFromInputs() {
   scheduleResolutionOverlay();
 }
 
-[ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ringsCount, ...ringInputs]
+[ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ...ringInputs]
   .filter(Boolean)
   .forEach((input) => {
     const eventName = input.type === "checkbox" ? "change" : "input";

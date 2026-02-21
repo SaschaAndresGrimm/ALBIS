@@ -182,6 +182,12 @@
               <div class="splash-label">
                 <div class="splash-title">ALBIS</div>
                 <div class="splash-sub" id="splash-status">Starting backend...</div>
+                <div class="splash-actions">
+                  <button class="btn btn-primary splash-open-file" id="splash-open-file" type="button">
+                    Open file
+                  </button>
+                  <div class="splash-hint">Use File -> Open... to load your first dataset.</div>
+                </div>
               </div>
             </div>
             <div class="cursor-overlay" id="cursor-overlay" aria-hidden="true"></div>
@@ -195,6 +201,8 @@
               <div class="viewer-footer-side">
                 <div class="backend-badge" id="backend-badge" role="status" aria-live="polite" aria-hidden="true">SERVER</div>
                 <div class="live-badge" id="live-badge" role="status" aria-live="polite" aria-hidden="true">LIVE</div>
+                <span class="viewer-footer-pill viewer-footer-version" id="footer-version-frontend">FE v-</span>
+                <span class="viewer-footer-pill viewer-footer-version" id="footer-version-backend">BE v-</span>
                 <a
                   class="viewer-footer-link"
                   id="footer-github"
@@ -717,17 +725,12 @@
                 </div>
               </details>
               <div class="rings-grid rings-grid-bottom">
-                <label class="field rings-count-field">
-                  <span>Ring count</span>
-                  <input id="rings-count" type="number" min="1" max="4" step="1" value="3" />
-                </label>
                 <label class="field rings-values-field">
                   <span>Rings (Å)</span>
                   <div class="ring-values">
                     <input id="ring-r1" type="number" min="0" step="0.1" value="1.0" />
                     <input id="ring-r2" type="number" min="0" step="0.1" value="2.0" />
                     <input id="ring-r3" type="number" min="0" step="0.1" value="4.0" />
-                    <input id="ring-r4" type="number" min="0" step="0.1" value="8.0" />
                   </div>
                 </label>
               </div>

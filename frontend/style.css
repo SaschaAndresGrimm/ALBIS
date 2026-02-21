@@ -921,6 +921,17 @@ body {
   justify-content: center;
 }
 
+.viewer-footer-version {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  min-width: 68px;
+  justify-content: center;
+  color: #cfe1ff;
+  border-color: rgba(101, 129, 173, 0.42);
+  background: rgba(14, 24, 37, 0.72);
+}
+
 .viewer-footer-link {
   font-size: 13px;
   font-weight: 600;
@@ -1803,13 +1814,13 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .panel-section[data-section="resolution-rings"] .rings-grid-top {
-  grid-template-columns: repeat(2, minmax(128px, 168px));
-  gap: 3px 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
 }
 
 .panel-section[data-section="resolution-rings"] .rings-grid-bottom {
-  grid-template-columns: 74px minmax(0, 1fr);
-  gap: 3px 6px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px 0;
 }
 
 .rings-grid .field {
@@ -1840,10 +1851,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   gap: 6px;
 }
 
-#rings-count {
-  max-width: 64px;
-}
-
 .panel-tab-content[data-panel-tab="analysis"] .panel-section {
   gap: 6px;
 }
@@ -1865,29 +1872,27 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 
 .ring-values {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
-  max-width: 248px;
+  max-width: 192px;
 }
 
 .panel-section[data-section="resolution-rings"] .ring-center {
-  max-width: 140px;
-  gap: 3px;
+  max-width: none;
+  width: 100%;
+  gap: 6px;
 }
 
 .panel-section[data-section="resolution-rings"] .ring-values {
-  max-width: 232px;
-  gap: 3px;
+  max-width: none;
+  width: 100%;
+  gap: 6px;
 }
 
 .ring-values input,
 .ring-center input {
   text-align: center;
   min-width: 0;
-}
-
-.rings-count-field input {
-  max-width: 64px;
 }
 
 .peaks-count-field input {
@@ -1955,6 +1960,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .peaks-body {
+  height: 180px;
+  min-height: 180px;
   max-height: 180px;
   overflow-y: auto;
 }
@@ -1982,8 +1989,16 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 
 .peaks-empty {
   padding: 8px;
+  min-height: 20px;
   color: #b0b0b0;
   font-size: 11px;
+}
+
+.panel-section[data-section="peak-finder"] .section-state {
+  min-height: 30px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .panel-section[data-section="series-summing"] .field input,
@@ -3325,7 +3340,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   justify-content: center;
   gap: 18px;
   z-index: 4;
-  pointer-events: none;
+  pointer-events: auto;
   overflow: hidden;
   padding: 24px;
   opacity: 1;
@@ -3380,6 +3395,24 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   font-size: clamp(14px, 1.6vw, 18px);
   letter-spacing: 0.5px;
   text-shadow: 0 0 8px rgba(20, 40, 90, 0.6);
+}
+
+.splash-actions {
+  margin-top: 10px;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
+.splash-open-file {
+  min-width: 136px;
+  min-height: 34px;
+}
+
+.splash-hint {
+  color: #9db2d9;
+  font-size: 12px;
+  letter-spacing: 0.2px;
 }
 
 .splash-sub::before {
@@ -3677,7 +3710,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .panel-section[data-section="data-source"] .field,
-.panel-section[data-section="resolution-rings"] .field,
 .panel-section[data-section="peak-finder"] .field {
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr);
@@ -3686,7 +3718,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .panel-section[data-section="data-source"] .field > span,
-.panel-section[data-section="resolution-rings"] .field > span,
 .panel-section[data-section="peak-finder"] .field > span {
   margin: 0;
 }
@@ -3694,24 +3725,18 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .panel-section[data-section="data-source"] .field > input,
 .panel-section[data-section="data-source"] .field > select,
 .panel-section[data-section="data-source"] .field > .inline,
-.panel-section[data-section="resolution-rings"] .field > input,
-.panel-section[data-section="resolution-rings"] .field > select,
-.panel-section[data-section="resolution-rings"] .field > .ring-center,
-.panel-section[data-section="resolution-rings"] .field > .ring-values,
 .panel-section[data-section="peak-finder"] .field > input,
 .panel-section[data-section="peak-finder"] .field > select {
   grid-column: 2;
 }
 
 .panel-section[data-section="data-source"] .field > .field-hint,
-.panel-section[data-section="resolution-rings"] .field > .field-hint,
 .panel-section[data-section="peak-finder"] .field > .field-hint {
   grid-column: 2;
 }
 
 @media (max-width: 900px) {
   .panel-section[data-section="data-source"] .field,
-  .panel-section[data-section="resolution-rings"] .field,
   .panel-section[data-section="peak-finder"] .field {
     grid-template-columns: 1fr;
     gap: 6px 0;
@@ -3721,14 +3746,9 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   .panel-section[data-section="data-source"] .field > input,
   .panel-section[data-section="data-source"] .field > select,
   .panel-section[data-section="data-source"] .field > .inline,
-  .panel-section[data-section="resolution-rings"] .field > input,
-  .panel-section[data-section="resolution-rings"] .field > select,
-  .panel-section[data-section="resolution-rings"] .field > .ring-center,
-  .panel-section[data-section="resolution-rings"] .field > .ring-values,
   .panel-section[data-section="peak-finder"] .field > input,
   .panel-section[data-section="peak-finder"] .field > select,
   .panel-section[data-section="data-source"] .field > .field-hint,
-  .panel-section[data-section="resolution-rings"] .field > .field-hint,
   .panel-section[data-section="peak-finder"] .field > .field-hint {
     grid-column: 1;
   }
