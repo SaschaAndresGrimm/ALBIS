@@ -128,6 +128,7 @@ const remoteWavelengthEl = document.getElementById("remote-wavelength");
 const remoteDistanceEl = document.getElementById("remote-distance");
 const remoteCenterEl = document.getElementById("remote-center");
 const remotePeakSetsEl = document.getElementById("remote-peak-sets");
+const dataSourceSummaryEl = document.getElementById("summary-data-source");
 const inspectorSection = document.querySelector(".panel-section.inspector");
 const imageHeaderSection = document.getElementById("image-header-section");
 const imageHeaderText = document.getElementById("image-header-text");
@@ -143,6 +144,7 @@ const inspectorPreview = document.getElementById("inspector-preview");
 const inspectorSearchInput = document.getElementById("inspector-search-input");
 const inspectorSearchClear = document.getElementById("inspector-search-clear");
 const inspectorResults = document.getElementById("inspector-results");
+const inspectorStateEl = document.getElementById("inspector-state");
 const autoloadBrowse = document.getElementById("autoload-browse");
 const autoloadDirList = document.getElementById("autoload-dir-list");
 const autoloadPattern = document.getElementById("autoload-pattern");
@@ -192,13 +194,20 @@ const roiXCanvas = document.getElementById("roi-x-canvas");
 const roiXCtx = roiXCanvas?.getContext("2d");
 const roiYCanvas = document.getElementById("roi-y-canvas");
 const roiYCtx = roiYCanvas?.getContext("2d");
+const roiSectionStateEl = document.getElementById("roi-state");
+const roiSummaryEl = document.getElementById("summary-roi");
 const ringsToggle = document.getElementById("rings-toggle");
 const ringsDistance = document.getElementById("rings-distance");
+const ringsDistanceHint = document.getElementById("rings-distance-hint");
 const ringsPixel = document.getElementById("rings-pixel");
+const ringsPixelHint = document.getElementById("rings-pixel-hint");
 const ringsEnergy = document.getElementById("rings-energy");
+const ringsEnergyHint = document.getElementById("rings-energy-hint");
 const ringsCenterX = document.getElementById("rings-center-x");
 const ringsCenterY = document.getElementById("rings-center-y");
 const ringsCount = document.getElementById("rings-count");
+const ringsSectionStateEl = document.getElementById("rings-state");
+const ringsSummaryEl = document.getElementById("summary-rings");
 const ringInputs = [
   document.getElementById("ring-r1"),
   document.getElementById("ring-r2"),
@@ -207,13 +216,17 @@ const ringInputs = [
 ].filter(Boolean);
 const peaksEnableToggle = document.getElementById("peaks-enable");
 const peaksCountInput = document.getElementById("peaks-count");
+const peaksCountHint = document.getElementById("peaks-count-hint");
 const peaksExportBtn = document.getElementById("peaks-export");
 const peaksBody = document.getElementById("peaks-body");
+const peaksSectionStateEl = document.getElementById("peaks-state");
+const peaksSummaryEl = document.getElementById("summary-peaks");
 const seriesSumMode = document.getElementById("series-sum-mode");
 const seriesSumOperation = document.getElementById("series-sum-operation");
 const seriesSumStepField = document.getElementById("series-sum-step-field");
 const seriesSumStepLabel = document.getElementById("series-sum-step-label");
 const seriesSumStep = document.getElementById("series-sum-step");
+const seriesSumStepHint = document.getElementById("series-sum-step-hint");
 const seriesSumRangeStartField = document.getElementById("series-sum-range-start-field");
 const seriesSumRangeEndField = document.getElementById("series-sum-range-end-field");
 const seriesSumRangeStart = document.getElementById("series-sum-range-start");
@@ -264,6 +277,9 @@ const fileInput = document.getElementById("file-input");
 const uploadBar = document.getElementById("upload-bar");
 const uploadBarFill = document.getElementById("upload-bar-fill");
 const uploadBarText = document.getElementById("upload-bar-text");
+const commandModal = document.getElementById("command-modal");
+const commandInput = document.getElementById("command-input");
+const commandList = document.getElementById("command-list");
 
 let renderer = null;
 let activeMenu = "file";
@@ -311,6 +327,9 @@ let touchGestureDistance = 0;
 let touchGestureMid = null;
 let touchDragActive = false;
 let touchDragStart = null;
+let commandPaletteItems = [];
+let commandPaletteIndex = 0;
+let commandPaletteLastFocus = null;
 
 const roiState = createRoiState();
 const analysisState = createAnalysisState();
@@ -331,6 +350,7 @@ const PLOT_THEME = {
 const clientLogBuffer = [];
 let clientLogTimer = null;
 let clientLogSending = false;
+const SECTION_STATE_VARIANTS = ["is-empty", "is-loading", "is-active", "is-warning"];
 
 function formatClientArg(arg) {
   if (arg instanceof Error) {
@@ -447,6 +467,53 @@ function middleTruncate(text, maxChars) {
   if (value.length <= limit) return value;
   const side = Math.max(2, Math.floor((limit - 1) / 2));
   return `${value.slice(0, side)}…${value.slice(-side)}`;
+}
+
+function setSummaryChip(element, text, tone = "default") {
+  if (!element) return;
+  element.textContent = text || "";
+  element.classList.toggle("is-active", tone === "active");
+  element.classList.toggle("is-warning", tone === "warning");
+}
+
+function setFieldHint(inputEl, hintEl, message = "") {
+  const hasMessage = Boolean(message);
+  if (inputEl) {
+    inputEl.classList.toggle("is-invalid", hasMessage);
+  }
+  if (!hintEl) return;
+  hintEl.textContent = hasMessage ? message : "";
+  hintEl.classList.toggle("is-hidden", !hasMessage);
+}
+
+function buildSkeletonList(lineCount = 5) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "skeleton-list";
+  for (let i = 0; i < Math.max(1, lineCount); i += 1) {
+    const line = document.createElement("div");
+    line.className = "skeleton-line";
+    if (i % 3 === 1) {
+      line.classList.add("is-mid");
+    } else if (i % 3 === 2) {
+      line.classList.add("is-short");
+    }
+    wrapper.appendChild(line);
+  }
+  return wrapper;
+}
+
+function renderSkeletonBlock(container, lineCount = 5) {
+  if (!container) return;
+  container.innerHTML = "";
+  const skeleton = buildSkeletonList(lineCount);
+  if (container.tagName?.toLowerCase() === "ul") {
+    const li = document.createElement("li");
+    li.className = "inspector-empty";
+    li.appendChild(skeleton);
+    container.appendChild(li);
+    return;
+  }
+  container.appendChild(skeleton);
 }
 
 function estimateToolbarChars() {
@@ -586,15 +653,15 @@ function getHelpText(target) {
 
 function applyHelpMap() {
   const helpMap = {
-    "btn-prev": "Previous frame",
-    "btn-next": "Next frame",
-    "btn-play": "Play/pause playback",
+    "btn-prev": "Previous frame (Left Arrow)",
+    "btn-next": "Next frame (Right Arrow)",
+    "btn-play": "Play/pause playback (Tab)",
     "frame-range": "Frame position",
     "frame-index": "Current frame number",
-    "toolbar-playback-toggle": "Playback options",
+    "toolbar-playback-toggle": "Playback options (Step/FPS)",
     "frame-step": "Frame step size",
     "fps-select": "Playback speed",
-    "toolbar-threshold": "Select detector threshold",
+    "toolbar-threshold": "Select detector threshold (Up/Down Arrow)",
     "zoom-range": "Zoom image",
     "reset-view": "Fit image to window",
     "pixel-label-toggle": "Show pixel values at high zoom",
@@ -623,6 +690,7 @@ function applyHelpMap() {
     "panel-resizer": "Resize side panel",
     "inspector-search-input": "Search the HDF5 tree",
     "inspector-search-clear": "Clear search",
+    "command-input": "Search and run commands",
   };
   Object.entries(helpMap).forEach(([id, text]) => {
     const el = document.getElementById(id);
@@ -630,6 +698,10 @@ function applyHelpMap() {
       el.dataset.help = text;
     }
   });
+  const commandMenuItem = document.querySelector('.dropdown-item[data-action="command-palette"]');
+  if (commandMenuItem && !commandMenuItem.dataset.help) {
+    commandMenuItem.dataset.help = "Command Palette (Cmd/Ctrl+K)";
+  }
   document.querySelectorAll(".roi-resize-handle").forEach((el) => {
     if (!el.dataset.help) el.dataset.help = "Drag to resize plot";
   });
@@ -850,11 +922,20 @@ function resetInspectorDetails() {
   if (inspectorPreview) inspectorPreview.innerHTML = "";
 }
 
+function setSectionBadgeState(element, tone, message) {
+  if (!element) return;
+  const nextTone = tone === "loading" || tone === "active" || tone === "warning" ? tone : "empty";
+  SECTION_STATE_VARIANTS.forEach((className) => element.classList.remove(className));
+  element.classList.add(`is-${nextTone}`);
+  element.textContent = message || "";
+}
+
 function setInspectorMessage(message) {
   if (!inspectorTree) return;
   inspectorSelectedRow = null;
   inspectorTree.innerHTML = `<div class="inspector-empty">${message}</div>`;
   resetInspectorDetails();
+  setSectionBadgeState(inspectorStateEl, /fail|error/i.test(message) ? "warning" : "empty", message);
   if (inspectorResults) {
     inspectorResults.innerHTML = "";
     inspectorResults.classList.add("is-hidden");
@@ -933,13 +1014,20 @@ function renderInspectorResults(results, query) {
   if (!query) {
     inspectorResults.innerHTML = "";
     inspectorResults.classList.add("is-hidden");
+    setSectionBadgeState(inspectorStateEl, "active", "Metadata browser ready.");
     return;
   }
   inspectorResults.classList.remove("is-hidden");
   if (!Array.isArray(results) || results.length === 0) {
     inspectorResults.innerHTML = `<div class="inspector-empty">No matches.</div>`;
+    setSectionBadgeState(inspectorStateEl, "empty", `No matches for "${query}".`);
     return;
   }
+  setSectionBadgeState(
+    inspectorStateEl,
+    "active",
+    `Found ${results.length} match${results.length === 1 ? "" : "es"} for "${query}".`
+  );
   inspectorResults.innerHTML = "";
   results.forEach((item) => {
     const row = document.createElement("div");
@@ -969,13 +1057,18 @@ function renderInspectorResults(results, query) {
 
 async function runInspectorSearch(query) {
   if (!isHdf5File(state.file)) {
-    renderInspectorResults([], query);
+    setSectionBadgeState(inspectorStateEl, "empty", "File inspector is available for HDF5 files only.");
+    if (inspectorResults) {
+      inspectorResults.innerHTML = "";
+      inspectorResults.classList.add("is-hidden");
+    }
     return;
   }
   if (!query) {
     renderInspectorResults([], "");
     return;
   }
+  setSectionBadgeState(inspectorStateEl, "loading", `Searching metadata for "${query}"…`);
   try {
     const data = await fetchJSON(
       `${API}/hdf5/search?file=${encodeURIComponent(state.file)}&query=${encodeURIComponent(query)}`
@@ -983,7 +1076,11 @@ async function runInspectorSearch(query) {
     renderInspectorResults(data.matches || [], query);
   } catch (err) {
     console.error(err);
-    renderInspectorResults([], query);
+    setSectionBadgeState(inspectorStateEl, "warning", "Search failed. Please try again.");
+    if (inspectorResults) {
+      inspectorResults.classList.remove("is-hidden");
+      inspectorResults.innerHTML = `<div class="inspector-empty">Search failed.</div>`;
+    }
   }
 }
 
@@ -1005,6 +1102,7 @@ function renderInspectorLink(path, target) {
     inspectorAttrs.appendChild(attrRow);
   }
   if (inspectorPreview) inspectorPreview.innerHTML = "";
+  setSectionBadgeState(inspectorStateEl, "active", "Link target loaded.");
 }
 
 function formatInspectorCell(value) {
@@ -1202,11 +1300,19 @@ async function loadInspectorRoot() {
     setInspectorMessage("File inspector is available for HDF5 files only.");
     return;
   }
+  setSectionBadgeState(inspectorStateEl, "loading", "Loading metadata tree…");
+  renderSkeletonBlock(inspectorTree, 7);
+  resetInspectorDetails();
   try {
     const children = await fetchInspectorTree("/");
     renderInspectorTree(children, inspectorTree);
     inspectorSelectedRow = null;
     resetInspectorDetails();
+    if (children.length) {
+      setSectionBadgeState(inspectorStateEl, "active", "Metadata tree loaded.");
+    } else {
+      setSectionBadgeState(inspectorStateEl, "empty", "No metadata nodes found.");
+    }
   } catch (err) {
     console.error(err);
     setInspectorMessage("Failed to load HDF5 tree.");
@@ -1225,6 +1331,7 @@ function selectInspectorRow(row) {
 
 async function showInspectorNode(path) {
   if (!inspectorDetails) return;
+  setSectionBadgeState(inspectorStateEl, "loading", "Loading node details…");
   try {
     const data = await fetchJSON(
       `${API}/hdf5/node?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`
@@ -1262,6 +1369,7 @@ async function showInspectorNode(path) {
     } else if (inspectorPreview) {
       inspectorPreview.innerHTML = "";
     }
+    setSectionBadgeState(inspectorStateEl, "active", `Loaded ${data.type || "node"} details.`);
   } catch (err) {
     console.error(err);
     setInspectorMessage("Failed to load node details.");
@@ -1883,14 +1991,123 @@ function getResolutionAtPixel(ix, iy, params = getRingParams()) {
   return Number.isFinite(d) && d > 0 ? d : null;
 }
 
+function getRoiModeLabel(mode) {
+  if (mode === "line") return "Line ROI";
+  if (mode === "box") return "Box ROI";
+  if (mode === "circle") return "Circle ROI";
+  if (mode === "annulus") return "Annulus ROI";
+  return "ROI";
+}
+
+function updateRoiSectionState() {
+  if (!roiSectionStateEl) return;
+  if (!state.hasFrame) {
+    setSectionBadgeState(roiSectionStateEl, "empty", "Load a frame to use ROI tools.");
+    setSummaryChip(roiSummaryEl, "No frame");
+    return;
+  }
+  if (roiState.mode === "none") {
+    setSectionBadgeState(roiSectionStateEl, "active", "Image statistics active. Choose an ROI mode for local stats.");
+    setSummaryChip(roiSummaryEl, "Image stats", "active");
+    return;
+  }
+  const modeLabel = getRoiModeLabel(roiState.mode);
+  if (!roiState.start || !roiState.end) {
+    setSectionBadgeState(
+      roiSectionStateEl,
+      "empty",
+      `${modeLabel} ready. Right-drag on the image to define the region.`
+    );
+    setSummaryChip(roiSummaryEl, `${modeLabel} ready`);
+    return;
+  }
+  setSectionBadgeState(roiSectionStateEl, "active", `${modeLabel} active.`);
+  setSummaryChip(roiSummaryEl, `${modeLabel} active`, "active");
+}
+
+function updateRingsSectionState() {
+  if (!ringsSectionStateEl) return;
+  if (!analysisState.ringsEnabled) {
+    setSectionBadgeState(ringsSectionStateEl, "empty", "Enable rings to show resolution guides.");
+    setSummaryChip(ringsSummaryEl, "Off");
+    return;
+  }
+  if (!state.hasFrame) {
+    setSectionBadgeState(ringsSectionStateEl, "loading", "Load a frame to render rings.");
+    setSummaryChip(ringsSummaryEl, "Waiting frame");
+    return;
+  }
+  const params = getRingParams();
+  if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) {
+    setSectionBadgeState(
+      ringsSectionStateEl,
+      "empty",
+      "Provide detector distance, pixel size, and photon energy to compute rings."
+    );
+    setSummaryChip(ringsSummaryEl, "Missing geometry", "warning");
+    return;
+  }
+  if (!params.rings.length) {
+    setSectionBadgeState(ringsSectionStateEl, "empty", "Add at least one ring value.");
+    setSummaryChip(ringsSummaryEl, "No rings", "warning");
+    return;
+  }
+  setSectionBadgeState(
+    ringsSectionStateEl,
+    "active",
+    `Showing ${params.rings.length} ring${params.rings.length === 1 ? "" : "s"}.`
+  );
+  setSummaryChip(ringsSummaryEl, `${params.rings.length} ring${params.rings.length === 1 ? "" : "s"}`, "active");
+}
+
+function updatePeaksSectionState() {
+  if (!peaksSectionStateEl) return;
+  if (!analysisState.peaksEnabled) {
+    setSectionBadgeState(peaksSectionStateEl, "empty", "Enable Peak Finder to detect peaks.");
+    setSummaryChip(peaksSummaryEl, "Off");
+    return;
+  }
+  if (!state.hasFrame) {
+    setSectionBadgeState(peaksSectionStateEl, "loading", "Load a frame to detect peaks.");
+    setSummaryChip(peaksSummaryEl, "Waiting frame");
+    return;
+  }
+  if (state.isLoading || peakFinderScheduled) {
+    setSectionBadgeState(peaksSectionStateEl, "loading", "Detecting peaks…");
+    setSummaryChip(peaksSummaryEl, "Detecting…", "active");
+    return;
+  }
+  if (!analysisState.peaks.length) {
+    setSectionBadgeState(peaksSectionStateEl, "empty", "No peaks detected on this frame.");
+    setSummaryChip(peaksSummaryEl, "No peaks");
+    return;
+  }
+  setSectionBadgeState(
+    peaksSectionStateEl,
+    "active",
+    `Detected ${analysisState.peaks.length} peak${analysisState.peaks.length === 1 ? "" : "s"}.`
+  );
+  setSummaryChip(
+    peaksSummaryEl,
+    `${analysisState.peaks.length} peak${analysisState.peaks.length === 1 ? "" : "s"}`,
+    "active"
+  );
+}
+
 function renderPeakList() {
   if (!peaksBody) return;
   peaksBody.innerHTML = "";
+  if (analysisState.peaksEnabled && state.hasFrame && (state.isLoading || peakFinderScheduled)) {
+    peaksBody.appendChild(buildSkeletonList(6));
+    updatePeaksSectionState();
+    return;
+  }
   if (!analysisState.peaksEnabled) {
     const empty = document.createElement("div");
     empty.className = "peaks-empty";
     empty.textContent = "Enable \"Find peaks\" to detect diffraction peaks.";
     peaksBody.appendChild(empty);
+    updatePeaksSectionState();
     return;
   }
   if (!analysisState.peaks.length) {
@@ -1898,6 +2115,7 @@ function renderPeakList() {
     empty.className = "peaks-empty";
     empty.textContent = state.hasFrame ? "No peaks detected." : "Load a frame to detect peaks.";
     peaksBody.appendChild(empty);
+    updatePeaksSectionState();
     return;
   }
   analysisState.peaks.forEach((peak, idx) => {
@@ -1941,6 +2159,7 @@ function renderPeakList() {
     });
     peaksBody.appendChild(row);
   });
+  updatePeaksSectionState();
 }
 
 function detectPeaks(maxPeaks) {
@@ -2056,6 +2275,7 @@ function runPeakFinder() {
   analysisState.peakCount = requested;
   if (peaksCountInput) {
     peaksCountInput.value = String(requested);
+    setFieldHint(peaksCountInput, peaksCountHint, "");
   }
   analysisState.peaks = detectPeaks(requested);
   analysisState.selectedPeaks = analysisState.selectedPeaks.filter(
@@ -2080,6 +2300,8 @@ function runPeakFinder() {
 function schedulePeakFinder() {
   if (peakFinderScheduled) return;
   peakFinderScheduled = true;
+  updatePeaksSectionState();
+  renderPeakList();
   window.setTimeout(runPeakFinder, 0);
 }
 
@@ -2226,6 +2448,9 @@ function setSeriesSumProgress(progress, text) {
   const value = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
   state.seriesSum.progress = value;
   state.seriesSum.message = text || state.seriesSum.message || "Idle";
+  if (seriesSumProgress) {
+    seriesSumProgress.classList.toggle("is-loading", Boolean(state.seriesSum.running));
+  }
   if (seriesSumProgressFill) {
     seriesSumProgressFill.style.width = `${(value * 100).toFixed(1)}%`;
   }
@@ -2322,6 +2547,7 @@ function updateSeriesSumUi() {
   if (seriesSumMask) {
     seriesSumMask.disabled = state.seriesSum.running || !ready;
   }
+  validateSeriesStepInput(false);
 }
 
 function stopSeriesSumPolling() {
@@ -2382,10 +2608,12 @@ async function startSeriesSumming() {
   const normalizeEnabled = Boolean(seriesSumNormalizeEnable?.checked);
   const totalFrames = Math.max(1, Math.round(Number(state.frameCount || 1)));
 
-  const step = Math.max(1, Math.round(Number(seriesSumStep?.value || 10)));
-  if (seriesSumStep) {
-    seriesSumStep.value = String(step);
+  const parsedStep = validateSeriesStepInput(true);
+  if (!Number.isFinite(parsedStep) && mode !== "all") {
+    setStatus("Step must be an integer greater than or equal to 1");
+    return;
   }
+  const step = Number.isFinite(parsedStep) ? parsedStep : 1;
 
   const rangeStart = Math.max(1, Math.round(Number(seriesSumRangeStart?.value || 1)));
   const rangeEnd = Math.max(1, Math.round(Number(seriesSumRangeEnd?.value || totalFrames)));
@@ -2449,6 +2677,7 @@ function drawResolutionOverlay() {
   if (!metrics) return;
   const { width, height } = metrics;
   resolutionCtx.clearRect(0, 0, width, height);
+  updateRingsSectionState();
   if (!analysisState.ringsEnabled || !state.hasFrame) return;
   const params = getRingParams();
   if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) return;
@@ -2769,6 +2998,9 @@ function scheduleRoiUpdate() {
 function setLoading(show) {
   if (!loadingEl) return;
   loadingEl.style.display = show ? "block" : "none";
+  updateRoiSectionState();
+  updateRingsSectionState();
+  updatePeaksSectionState();
   if (!show && statusEl && state.hasFrame) {
     const status = (statusEl.textContent || "").trim();
     if (/^Loading (image|frame|metadata|datasets)(…|\.{3})$/i.test(status)) {
@@ -3737,11 +3969,31 @@ function hideSplash() {
   splash?.classList.add("is-hidden");
 }
 
+function updateDataSourceSummary() {
+  if (!dataSourceSummaryEl) return;
+  const mode = (state.autoload.mode || "file").toLowerCase();
+  if (mode === "file") {
+    const hasFile = Boolean(state.file);
+    const fileText = hasFile ? middleTruncate(fileLabel(state.file), 24) : "no file";
+    setSummaryChip(dataSourceSummaryEl, `File · ${fileText}`, hasFile ? "active" : "default");
+    return;
+  }
+
+  const modeLabel = mode === "simplon" ? "SIMPLON" : "Remote";
+  const running = Boolean(state.autoload.running);
+  const age = Date.now() - (state.autoload.lastUpdate || 0);
+  const stale = running && (!state.autoload.lastUpdate || age > Math.max(1500, state.autoload.interval * 2));
+  const streamState = !running ? "idle" : stale ? "waiting" : "live";
+  const tone = stale ? "warning" : running ? "active" : "default";
+  setSummaryChip(dataSourceSummaryEl, `${modeLabel} · ${streamState}`, tone);
+}
+
 function updateToolbar() {
   if (!toolbarPath) return;
   if (!state.file) {
     toolbarPath.textContent = "No file loaded";
     updateSeriesSumUi();
+    updateDataSourceSummary();
     return;
   }
   const maxChars = estimateToolbarChars();
@@ -3760,6 +4012,7 @@ function updateToolbar() {
   const fileText = middleTruncate(fileName, fileBudget);
   toolbarPath.textContent = `${fileText}${datasetLabel}${suffix}`;
   updateSeriesSumUi();
+  updateDataSourceSummary();
 }
 
 function setActiveMenu(menu, anchor) {
@@ -4266,6 +4519,7 @@ function updateAutoloadUI() {
   updateAutoloadMeta();
   updateLiveBadge();
   updateThresholdOptions();
+  updateDataSourceSummary();
 }
 
 async function loadAutoloadFolders() {
@@ -5196,6 +5450,344 @@ async function saveSettingsFromModal(closeAfter = false) {
   }
 }
 
+function isCommandPaletteOpen() {
+  return Boolean(commandModal?.classList.contains("is-open"));
+}
+
+function getCommandPaletteCommands() {
+  const hasFile = Boolean(state.file);
+  const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
+  const hasDataset = Boolean(state.dataset);
+  const hasFrame = Boolean(state.hasFrame);
+  const hasNavigableFrames = hasFrame && state.frameCount > 1 && (hasDataset || hasSeries);
+  const hasThresholds = hasFile && state.autoload.mode === "file" && state.thresholdCount > 1;
+  const canStartSeriesOps = hasFile && (!isHdfFile(state.file) || hasDataset) && !state.seriesSum.running;
+  const canOpenSeriesOutput = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
+  const togglePlaybackLabel = state.playing ? "Playback: Pause" : "Playback: Play";
+  const commands = [
+    {
+      id: "open-file",
+      label: "File: Open…",
+      shortcut: "Cmd/Ctrl+O",
+      search: "file open load",
+      run: () => openFileModal(),
+    },
+    {
+      id: "close-file",
+      label: "File: Close",
+      shortcut: "Cmd/Ctrl+W",
+      search: "file close",
+      when: hasFile,
+      run: () => closeCurrentFile(),
+    },
+    {
+      id: "new-window",
+      label: "File: New Window",
+      shortcut: "Cmd/Ctrl+N",
+      search: "file window",
+      run: () => window.open(window.location.href, "_blank"),
+    },
+    {
+      id: "preferences",
+      label: "Settings: Preferences…",
+      shortcut: "Cmd/Ctrl+,",
+      search: "settings preferences options",
+      run: () => openSettingsModal(),
+    },
+    {
+      id: "toggle-playback",
+      label: togglePlaybackLabel,
+      shortcut: "Tab",
+      search: "playback play pause",
+      when: hasNavigableFrames,
+      run: () => {
+        if (state.playing) {
+          stopPlayback();
+        } else {
+          startPlayback();
+        }
+      },
+    },
+    {
+      id: "frame-prev",
+      label: "Frame: Previous",
+      shortcut: "Left Arrow",
+      search: "frame previous left",
+      when: hasNavigableFrames,
+      run: () => {
+        stopPlayback();
+        requestFrame(state.frameIndex - 1);
+      },
+    },
+    {
+      id: "frame-next",
+      label: "Frame: Next",
+      shortcut: "Right Arrow",
+      search: "frame next right",
+      when: hasNavigableFrames,
+      run: () => {
+        stopPlayback();
+        requestFrame(state.frameIndex + 1);
+      },
+    },
+    {
+      id: "threshold-prev",
+      label: "Threshold: Previous",
+      shortcut: "Up Arrow",
+      search: "threshold detector previous",
+      when: hasThresholds,
+      run: async () => {
+        stopPlayback();
+        await setThresholdIndex(state.thresholdIndex - 1);
+      },
+    },
+    {
+      id: "threshold-next",
+      label: "Threshold: Next",
+      shortcut: "Down Arrow",
+      search: "threshold detector next",
+      when: hasThresholds,
+      run: async () => {
+        stopPlayback();
+        await setThresholdIndex(state.thresholdIndex + 1);
+      },
+    },
+    {
+      id: "fit-view",
+      label: "View: Fit Image",
+      shortcut: "",
+      search: "fit reset zoom view",
+      when: hasFrame,
+      run: () => fitImageToView(),
+    },
+    {
+      id: "export-full",
+      label: "Export: Full Image",
+      shortcut: "Cmd/Ctrl+E",
+      search: "export save full image png",
+      when: hasFrame,
+      run: () => exportFullImage(),
+    },
+    {
+      id: "export-visible",
+      label: "Export: Visible Area",
+      shortcut: "Shift+Cmd/Ctrl+E",
+      search: "export save visible area png",
+      when: hasFrame,
+      run: () => exportVisibleArea(),
+    },
+    {
+      id: "export-window",
+      label: "Export: Viewer Window",
+      shortcut: "Alt+Cmd/Ctrl+E",
+      search: "export save viewer window screenshot",
+      when: hasFrame,
+      run: () => exportViewerWindow(),
+    },
+    {
+      id: "series-start",
+      label: "Series: Start Operation",
+      shortcut: "",
+      search: "series sum mean median start analysis",
+      when: canStartSeriesOps,
+      run: () => startSeriesSumming(),
+    },
+    {
+      id: "series-open-output",
+      label: "Series: Open Latest Output",
+      shortcut: "",
+      search: "series sum output open result",
+      when: canOpenSeriesOutput,
+      run: () => openSeriesSumOutputTarget(),
+    },
+    {
+      id: "panel-toggle",
+      label: state.panelCollapsed ? "Panel: Open Side Panel" : "Panel: Collapse Side Panel",
+      shortcut: "",
+      search: "panel side toggle collapse",
+      run: () => togglePanel(),
+    },
+    {
+      id: "tab-view",
+      label: "Panel: View Tab",
+      shortcut: "",
+      search: "panel tab view",
+      when: panelTabState !== "view",
+      run: () => setPanelTab("view"),
+    },
+    {
+      id: "tab-data",
+      label: "Panel: Data Tab",
+      shortcut: "",
+      search: "panel tab data",
+      when: panelTabState !== "data",
+      run: () => setPanelTab("data"),
+    },
+    {
+      id: "tab-overlay",
+      label: "Panel: Overlay Tab",
+      shortcut: "",
+      search: "panel tab overlay analysis",
+      when: panelTabState !== "analysis",
+      run: () => setPanelTab("analysis"),
+    },
+    {
+      id: "help-docs",
+      label: "Help: Documentation",
+      shortcut: "F1",
+      search: "help docs documentation",
+      run: () => handleMenuAction("help-docs"),
+    },
+  ];
+  return commands.filter((command) => command.when !== false);
+}
+
+function filterCommandPaletteCommands(query) {
+  const commands = getCommandPaletteCommands();
+  const tokens = String(query || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!tokens.length) return commands;
+  return commands.filter((command) => {
+    const haystack = `${command.id || ""} ${command.label} ${command.search || ""} ${command.shortcut || ""}`
+      .toLowerCase();
+    return tokens.every((token) => haystack.includes(token));
+  });
+}
+
+function renderCommandPalette() {
+  if (!commandList) return;
+  commandPaletteItems = filterCommandPaletteCommands(commandInput?.value || "");
+  commandList.innerHTML = "";
+  if (!commandPaletteItems.length) {
+    const empty = document.createElement("div");
+    empty.className = "command-empty";
+    empty.textContent = "No commands found.";
+    commandList.appendChild(empty);
+    return;
+  }
+  commandPaletteIndex = Math.max(0, Math.min(commandPaletteIndex, commandPaletteItems.length - 1));
+  commandPaletteItems.forEach((command, idx) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "command-item";
+    if (idx === commandPaletteIndex) {
+      button.classList.add("is-active");
+    }
+    button.dataset.commandIndex = String(idx);
+
+    const label = document.createElement("span");
+    label.className = "command-label";
+    label.textContent = command.label;
+    button.appendChild(label);
+
+    if (command.shortcut) {
+      const shortcut = document.createElement("span");
+      shortcut.className = "command-shortcut";
+      shortcut.textContent = command.shortcut;
+      button.appendChild(shortcut);
+    }
+
+    button.addEventListener("mouseenter", () => {
+      if (idx === commandPaletteIndex) return;
+      commandPaletteIndex = idx;
+      renderCommandPalette();
+    });
+    button.addEventListener("click", () => {
+      executeCommandPalette(idx);
+    });
+    commandList.appendChild(button);
+  });
+  commandList.querySelector(".command-item.is-active")?.scrollIntoView({ block: "nearest" });
+}
+
+function openCommandPalette(prefill = "") {
+  if (!commandModal || !commandInput) return;
+  closeMenu();
+  closeToolbarPlaybackPopover();
+  if (isCommandPaletteOpen()) {
+    if (typeof prefill === "string") {
+      commandInput.value = prefill;
+      commandPaletteIndex = 0;
+      renderCommandPalette();
+    }
+    commandInput.focus();
+    return;
+  }
+  commandPaletteLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  commandModal.classList.add("is-open");
+  commandModal.setAttribute("aria-hidden", "false");
+  commandInput.value = prefill;
+  commandPaletteIndex = 0;
+  renderCommandPalette();
+  commandInput.focus();
+  commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
+}
+
+function closeCommandPalette({ restoreFocus = true } = {}) {
+  if (!commandModal) return;
+  if (!isCommandPaletteOpen()) return;
+  commandModal.classList.remove("is-open");
+  commandModal.setAttribute("aria-hidden", "true");
+  commandPaletteItems = [];
+  commandPaletteIndex = 0;
+  if (restoreFocus && commandPaletteLastFocus && typeof commandPaletteLastFocus.focus === "function") {
+    commandPaletteLastFocus.focus({ preventScroll: true });
+  }
+  commandPaletteLastFocus = null;
+}
+
+function executeCommandPalette(index = commandPaletteIndex) {
+  const command = commandPaletteItems[index];
+  if (!command) return;
+  closeCommandPalette({ restoreFocus: false });
+  try {
+    const maybePromise = command.run?.();
+    if (maybePromise && typeof maybePromise.catch === "function") {
+      maybePromise.catch((err) => console.error(err));
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function handleCommandPaletteKeydown(event) {
+  if (!isCommandPaletteOpen()) return false;
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    closeCommandPalette();
+    return true;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeCommandPalette();
+    return true;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    if (commandPaletteItems.length) {
+      commandPaletteIndex = (commandPaletteIndex + 1) % commandPaletteItems.length;
+      renderCommandPalette();
+    }
+    return true;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    if (commandPaletteItems.length) {
+      commandPaletteIndex = (commandPaletteIndex - 1 + commandPaletteItems.length) % commandPaletteItems.length;
+      renderCommandPalette();
+    }
+    return true;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    executeCommandPalette(commandPaletteIndex);
+    return true;
+  }
+  return false;
+}
+
 async function handleMenuAction(action) {
   switch (action) {
     case "help-docs":
@@ -5214,6 +5806,9 @@ async function handleMenuAction(action) {
       break;
     case "settings-open":
       openSettingsModal();
+      break;
+    case "command-palette":
+      openCommandPalette();
       break;
     case "help-about":
       if (aboutModal) {
@@ -5275,7 +5870,7 @@ function handleShortcut(event) {
   const key = event.key.toLowerCase();
   const isShift = event.shiftKey;
   const isAlt = event.altKey;
-  if (["o", "s", "e", "n", "w", ","].includes(key)) {
+  if (["o", "s", "e", "n", "w", ",", "k"].includes(key)) {
     event.preventDefault();
   }
   switch (key) {
@@ -5308,6 +5903,13 @@ function handleShortcut(event) {
       break;
     case ",":
       handleMenuAction("settings-open");
+      break;
+    case "k":
+      if (isCommandPaletteOpen()) {
+        closeCommandPalette();
+      } else {
+        openCommandPalette();
+      }
       break;
     default:
       break;
@@ -7077,6 +7679,7 @@ function updateRoiModeUI() {
   }
   updateRoiCenterInputs();
   syncRoiPlotLimitControls();
+  updateRoiSectionState();
 }
 
 function clearRoi() {
@@ -7111,6 +7714,7 @@ function clearRoi() {
   drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
   drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
   drawRoiOverlay();
+  updateRoiSectionState();
 }
 
 function applyMaskToValue(value, maskValue, satMax = getActiveSaturationMax()) {
@@ -7333,6 +7937,7 @@ function updateRoiStats() {
     if (roiState.active) {
       clearRoi();
     }
+    updateRoiSectionState();
     return;
   }
   if (roiState.mode === "none") {
@@ -7373,6 +7978,7 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
     drawRoiOverlay();
+    updateRoiSectionState();
     return;
   }
   if (!roiState.start || !roiState.end) {
@@ -7400,6 +8006,7 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
     drawRoiOverlay();
+    updateRoiSectionState();
     return;
   }
   const x0 = Math.max(0, Math.min(state.width - 1, roiState.start.x));
@@ -7635,6 +8242,7 @@ function updateRoiStats() {
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
   }
   drawRoiOverlay();
+  updateRoiSectionState();
 }
 
 function drawRoiPlot(canvasEl, ctx, data, logScale) {
@@ -7958,6 +8566,8 @@ function closeCurrentFile() {
   schedulePeakOverlay();
   syncSeriesSumOutputPath(true);
   clearRoi();
+  updateRingsSectionState();
+  updatePeaksSectionState();
   updatePlayButtons();
 }
 
@@ -8220,6 +8830,12 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (isCommandPaletteOpen()) {
+    if (handleCommandPaletteKeydown(event)) {
+      return;
+    }
+    return;
+  }
   if (event.key === "Escape") {
     closeToolbarPlaybackPopover();
     closeMenu();
@@ -8270,14 +8886,18 @@ inspectorTree?.addEventListener("click", async (event) => {
     }
     if (willOpen && node.dataset.loaded !== "true") {
       try {
-        const children = await fetchInspectorTree(nodePath);
+        setSectionBadgeState(inspectorStateEl, "loading", "Loading child nodes…");
         const container = node.querySelector(".inspector-children");
+        renderSkeletonBlock(container, 4);
+        const children = await fetchInspectorTree(nodePath);
         if (container) {
           renderInspectorTree(children, container);
         }
         node.dataset.loaded = "true";
+        setSectionBadgeState(inspectorStateEl, "active", "Metadata tree loaded.");
       } catch (err) {
         console.error(err);
+        setSectionBadgeState(inspectorStateEl, "warning", "Failed to load child nodes.");
       }
     }
   }
@@ -8392,6 +9012,15 @@ settingsSaveClose?.addEventListener("click", () => {
   void saveSettingsFromModal(true);
 });
 settingsModal?.querySelector(".modal-backdrop")?.addEventListener("click", closeSettingsModal);
+commandInput?.addEventListener("input", () => {
+  commandPaletteIndex = 0;
+  renderCommandPalette();
+});
+commandModal?.addEventListener("click", (event) => {
+  if (event.target === commandModal || event.target.classList?.contains("modal-backdrop")) {
+    closeCommandPalette();
+  }
+});
 fileSelect.addEventListener("change", async (event) => {
   await ensureFileMode();
   state.file = event.target.value;
@@ -9785,6 +10414,76 @@ if (roiLogToggle) {
 updateRoiPlotLimitsEnabled();
 updateRingsFromInputs();
 
+function parsePositiveNumberInput(inputEl, hintEl, label) {
+  if (!inputEl) return null;
+  const raw = String(inputEl.value || "").trim();
+  if (!raw) {
+    setFieldHint(inputEl, hintEl, "");
+    return null;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    setFieldHint(inputEl, hintEl, `${label} must be greater than 0.`);
+    return null;
+  }
+  setFieldHint(inputEl, hintEl, "");
+  return value;
+}
+
+function validatePeaksCountInput(commit = false) {
+  if (!peaksCountInput) return null;
+  const raw = String(peaksCountInput.value || "").trim();
+  if (!raw) {
+    setFieldHint(peaksCountInput, peaksCountHint, "Enter a value from 1 to 1000.");
+    return null;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    setFieldHint(peaksCountInput, peaksCountHint, "Enter a value from 1 to 1000.");
+    return null;
+  }
+  const rounded = Math.round(parsed);
+  const clamped = Math.max(1, Math.min(1000, rounded));
+  if (commit) {
+    peaksCountInput.value = String(clamped);
+  }
+  if ((clamped !== parsed || rounded !== parsed) && !commit) {
+    setFieldHint(peaksCountInput, peaksCountHint, "Using nearest integer in range 1-1000.");
+  } else {
+    setFieldHint(peaksCountInput, peaksCountHint, "");
+  }
+  return clamped;
+}
+
+function validateSeriesStepInput(commit = false) {
+  if (!seriesSumStep) return 1;
+  const mode = (seriesSumMode?.value || "all").toLowerCase();
+  if (mode === "all") {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "");
+    return 1;
+  }
+  const raw = String(seriesSumStep.value || "").trim();
+  if (!raw) {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "Enter an integer greater than or equal to 1.");
+    return null;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "Enter an integer greater than or equal to 1.");
+    return null;
+  }
+  const normalized = Math.max(1, Math.round(parsed));
+  if (commit) {
+    seriesSumStep.value = String(normalized);
+  }
+  if (normalized !== parsed && !commit) {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "Using nearest integer greater than or equal to 1.");
+  } else {
+    setFieldHint(seriesSumStep, seriesSumStepHint, "");
+  }
+  return normalized;
+}
+
 function updateRingsFromInputs() {
   if (ringsToggle) {
     analysisState.ringsEnabled = ringsToggle.checked;
@@ -9798,16 +10497,13 @@ function updateRingsFromInputs() {
     ringsCount.value = String(analysisState.ringCount);
   }
   if (ringsDistance) {
-    const value = Number(ringsDistance.value);
-    analysisState.distanceMm = Number.isFinite(value) && value > 0 ? value : null;
+    analysisState.distanceMm = parsePositiveNumberInput(ringsDistance, ringsDistanceHint, "Detector distance");
   }
   if (ringsPixel) {
-    const value = Number(ringsPixel.value);
-    analysisState.pixelSizeUm = Number.isFinite(value) && value > 0 ? value : null;
+    analysisState.pixelSizeUm = parsePositiveNumberInput(ringsPixel, ringsPixelHint, "Pixel size");
   }
   if (ringsEnergy) {
-    const value = Number(ringsEnergy.value);
-    analysisState.energyEv = Number.isFinite(value) && value > 0 ? value : null;
+    analysisState.energyEv = parsePositiveNumberInput(ringsEnergy, ringsEnergyHint, "Photon energy");
   }
   if (ringsCenterX) {
     const value = Number(ringsCenterX.value);
@@ -9830,6 +10526,7 @@ function updateRingsFromInputs() {
     const visible = idx < analysisState.ringCount;
     input.style.display = visible ? "" : "none";
   });
+  updateRingsSectionState();
   scheduleResolutionOverlay();
 }
 
@@ -9844,10 +10541,14 @@ if (peaksCountInput) {
   const initial = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || 25))));
   analysisState.peakCount = initial;
   peaksCountInput.value = String(initial);
+  setFieldHint(peaksCountInput, peaksCountHint, "");
+  peaksCountInput.addEventListener("input", () => {
+    validatePeaksCountInput(false);
+  });
   peaksCountInput.addEventListener("change", () => {
-    const next = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || analysisState.peakCount))));
+    const next = validatePeaksCountInput(true);
+    if (!Number.isFinite(next)) return;
     analysisState.peakCount = next;
-    peaksCountInput.value = String(next);
     schedulePeakFinder();
   });
 }
@@ -9884,8 +10585,11 @@ seriesSumNormalizeEnable?.addEventListener("change", () => {
 });
 
 seriesSumStep?.addEventListener("change", () => {
-  const value = Math.max(1, Math.round(Number(seriesSumStep.value || 10)));
-  seriesSumStep.value = String(value);
+  validateSeriesStepInput(true);
+});
+
+seriesSumStep?.addEventListener("input", () => {
+  validateSeriesStepInput(false);
 });
 
 seriesSumRangeStart?.addEventListener("change", () => {

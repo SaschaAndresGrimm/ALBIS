@@ -74,6 +74,10 @@
               <span>Preferences…</span>
               <span class="shortcut">⌘,</span>
             </button>
+            <button class="dropdown-item" data-action="command-palette">
+              <span>Command Palette…</span>
+              <span class="shortcut">⌘K</span>
+            </button>
           </div>
           <div class="dropdown-panel" data-menu="help">
             <button class="dropdown-item" data-action="help-docs">
@@ -290,7 +294,10 @@
           <div class="panel-tab-content" data-panel-tab="data">
             <section class="panel-section" data-section="data-source" id="data-section">
               <button class="section-title" type="button" data-section-toggle>
-                Data Source
+                <span class="section-title-main">
+                  <span>Data Source</span>
+                  <span class="section-summary" id="summary-data-source">File · no file</span>
+                </span>
                 <span class="section-chevron">▾</span>
               </button>
               <label class="field">
@@ -311,7 +318,7 @@
                       list="autoload-dir-list"
                       placeholder="test_data or /abs/path"
                     />
-                    <button class="btn" id="autoload-browse" type="button">Browse…</button>
+                    <button class="btn btn-secondary" id="autoload-browse" type="button">Browse…</button>
                   </div>
                   <datalist id="autoload-dir-list"></datalist>
                 </label>
@@ -433,6 +440,9 @@
                 File Inspector
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="inspector-state" role="status" aria-live="polite">
+                Select an HDF5 file to browse metadata.
+              </div>
               <div class="inspector-search">
                 <input id="inspector-search-input" type="search" placeholder="Search paths…" />
                 <button type="button" id="inspector-search-clear">Clear</button>
@@ -491,6 +501,7 @@
                 <label class="field" id="series-sum-step-field">
                   <span id="series-sum-step-label">Chunk size (N)</span>
                   <input id="series-sum-step" type="number" min="1" step="1" value="10" />
+                  <div class="field-hint is-hidden" id="series-sum-step-hint"></div>
                 </label>
                 <label class="field is-hidden" id="series-sum-range-start-field">
                   <span>Start frame</span>
@@ -517,11 +528,11 @@
                 <span>Output path</span>
                 <div class="inline series-sum-output-row">
                   <input id="series-sum-output" type="text" placeholder="output/series_sum" />
-                  <button id="series-sum-browse" class="btn" type="button">Browse…</button>
+                  <button id="series-sum-browse" class="btn btn-secondary" type="button">Browse…</button>
                 </div>
               </label>
               <div class="series-sum-start-row">
-                <button id="series-sum-start" class="btn" type="button">Start</button>
+                <button id="series-sum-start" class="btn btn-primary" type="button">Start</button>
                 <div class="series-sum-progress" id="series-sum-progress">
                   <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
                   <div class="series-sum-progress-text" id="series-sum-progress-text">Idle</div>
@@ -533,9 +544,15 @@
           <div class="panel-tab-content" data-panel-tab="analysis">
             <section class="panel-section" data-section="roi" id="roi-section">
               <button class="section-title" type="button" data-section-toggle>
-                Statistics and ROI
+                <span class="section-title-main">
+                  <span>Statistics and ROI</span>
+                  <span class="section-summary" id="summary-roi">Image stats</span>
+                </span>
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="roi-state" role="status" aria-live="polite">
+                Load a frame to use ROI tools.
+              </div>
               <label class="field">
                 <span class="sr-only">Mode</span>
                 <select id="roi-mode">
@@ -632,23 +649,30 @@
                     <span class="section-switch-track" aria-hidden="true"></span>
                   </label>
                   <span>Resolution Rings</span>
+                  <span class="section-summary" id="summary-rings">Off</span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="rings-state" role="status" aria-live="polite">
+                Enable rings to show resolution guides.
+              </div>
               <details class="advanced-details rings-advanced">
                 <summary>Geometry inputs</summary>
                 <div class="advanced-inner rings-grid rings-grid-top">
                   <label class="field">
                     <span>Detector distance (mm)</span>
                     <input id="rings-distance" type="number" min="0" step="1" placeholder="e.g. 250" />
+                    <div class="field-hint is-hidden" id="rings-distance-hint"></div>
                   </label>
                   <label class="field">
                     <span>Pixel size (µm)</span>
                     <input id="rings-pixel" type="number" min="0" step="0.1" placeholder="e.g. 75" />
+                    <div class="field-hint is-hidden" id="rings-pixel-hint"></div>
                   </label>
                   <label class="field">
                     <span>Photon energy (eV)</span>
                     <input id="rings-energy" type="number" min="0" step="1" placeholder="e.g. 12000" />
+                    <div class="field-hint is-hidden" id="rings-energy-hint"></div>
                   </label>
                   <label class="field">
                     <span>Beam center (px)</span>
@@ -683,15 +707,20 @@
                     <span class="section-switch-track" aria-hidden="true"></span>
                   </label>
                   <span>Peak Finder</span>
+                  <span class="section-summary" id="summary-peaks">Off</span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="peaks-state" role="status" aria-live="polite">
+                Enable Peak Finder to detect peaks.
+              </div>
               <div class="peaks-controls">
                 <label class="field peaks-count-field">
                   <span>Peaks to find</span>
                   <input id="peaks-count" type="number" min="1" max="1000" step="1" value="100" />
+                  <div class="field-hint is-hidden" id="peaks-count-hint"></div>
                 </label>
-                <button id="peaks-export" class="btn" type="button">Export CSV</button>
+                <button id="peaks-export" class="btn btn-secondary" type="button">Export CSV</button>
               </div>
               <div class="peaks-list" id="peaks-list">
                 <div class="peaks-head">
@@ -865,6 +894,20 @@
           <button class="btn btn-secondary" id="browse-cancel">Cancel</button>
           <button class="btn btn-primary" id="browse-select">Select</button>
         </div>
+      </div>
+    </div>
+
+    <div class="modal" id="command-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card command-modal-card" role="dialog" aria-modal="true" aria-labelledby="command-title">
+        <div class="command-header">
+          <div id="command-title">Command Palette</div>
+          <div class="command-hint">Enter to run • Esc to close</div>
+        </div>
+        <div class="command-search">
+          <input id="command-input" type="search" placeholder="Type a command or shortcut…" autocomplete="off" />
+        </div>
+        <div class="command-list" id="command-list"></div>
       </div>
     </div>
 
