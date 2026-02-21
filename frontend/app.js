@@ -3962,6 +3962,9 @@ function hideProcessingProgress() {
 function flashDataSection() {
   if (!dataSection) return;
   setPanelTab("data");
+  if (dataSection.classList.contains("is-collapsed")) {
+    setSectionState(dataSection, false);
+  }
   dataSection.scrollIntoView({ behavior: "smooth", block: "start" });
   dataSection.classList.add("flash");
   window.setTimeout(() => dataSection.classList.remove("flash"), 800);
@@ -9085,8 +9088,8 @@ try {
 sectionToggles.forEach((btn) => {
   const section = btn.closest(".panel-section");
   const id = section?.dataset.section;
-  if (id && sectionStateStore[id]) {
-    setSectionState(section, true, false);
+  if (id && Object.prototype.hasOwnProperty.call(sectionStateStore, id)) {
+    setSectionState(section, Boolean(sectionStateStore[id]), false);
   }
 });
 const storedPanelTab = loadStoredPanelTab("albis.panelTab");

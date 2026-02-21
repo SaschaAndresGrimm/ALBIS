@@ -273,14 +273,11 @@
           </div>
 
           <div class="panel-tab-content" data-panel-tab="data">
-            <div class="panel-tab-card" id="data-section">
-              <label class="field">
-                <span>File System</span>
-                <select id="filesystem-mode">
-                  <option value="remote">Remote Server</option>
-                  <option value="local" selected>Local Machine</option>
-                </select>
-              </label>
+            <section class="panel-section" data-section="data-source" id="data-section">
+              <button class="section-title" type="button" data-section-toggle>
+                Data Source
+                <span class="section-chevron">▾</span>
+              </button>
               <label class="field">
                 <span>Data Source</span>
                 <select id="autoload-mode">
@@ -304,15 +301,34 @@
                   <datalist id="autoload-dir-list"></datalist>
                 </label>
               </div>
-              <div class="autoload-group" id="autoload-watch">
-                <label class="checkbox">
-                  <input id="autoload-watch-enabled" type="checkbox" />
-                  Watch folder
-                </label>
-                <div id="autoload-watch-options">
-                  <details class="advanced-details">
-                    <summary>Advanced watch options</summary>
-                    <div class="advanced-inner">
+              <label class="field" id="file-field">
+                <span>Image File</span>
+                <select id="file-select"></select>
+              </label>
+              <label class="field" id="dataset-field">
+                <span>Dataset</span>
+                <select id="dataset-select"></select>
+              </label>
+              <label class="field is-hidden" id="threshold-field">
+                <span>Threshold</span>
+                <select id="threshold-select"></select>
+              </label>
+              <details class="advanced-details">
+                <summary>Advanced source settings</summary>
+                <div class="advanced-inner">
+                  <label class="field">
+                    <span>File System</span>
+                    <select id="filesystem-mode">
+                      <option value="remote">Remote Server</option>
+                      <option value="local" selected>Local Machine</option>
+                    </select>
+                  </label>
+                  <div class="autoload-group" id="autoload-watch">
+                    <label class="checkbox">
+                      <input id="autoload-watch-enabled" type="checkbox" />
+                      Watch folder
+                    </label>
+                    <div id="autoload-watch-options">
                       <label class="field">
                         <span>Poll (ms)</span>
                         <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
@@ -336,33 +352,16 @@
                         </label>
                       </div>
                     </div>
-                  </details>
-                </div>
-              </div>
-              <label class="field" id="file-field">
-                <span>Image File</span>
-                <select id="file-select"></select>
-              </label>
-              <label class="field" id="dataset-field">
-                <span>Dataset</span>
-                <select id="dataset-select"></select>
-              </label>
-              <label class="field is-hidden" id="threshold-field">
-                <span>Threshold</span>
-                <select id="threshold-select"></select>
-              </label>
-              <div class="autoload-group is-hidden" id="autoload-simplon">
-                <label class="field">
-                  <span>Base URL</span>
-                  <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
-                </label>
-                <label class="checkbox">
-                  <input id="simplon-enable" type="checkbox" checked />
-                  Enable monitor
-                </label>
-                <details class="advanced-details">
-                  <summary>Advanced monitor options</summary>
-                  <div class="advanced-inner">
+                  </div>
+                  <div class="autoload-group is-hidden" id="autoload-simplon">
+                    <label class="field">
+                      <span>Base URL</span>
+                      <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
+                    </label>
+                    <label class="checkbox">
+                      <input id="simplon-enable" type="checkbox" checked />
+                      Enable monitor
+                    </label>
                     <label class="field">
                       <span>API Version</span>
                       <input id="simplon-version" type="text" value="1.8.0" />
@@ -372,51 +371,49 @@
                       <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
                     </label>
                   </div>
-                </details>
-              </div>
-              <div class="autoload-group is-hidden" id="autoload-remote">
-                <label class="field">
-                  <span>Source ID</span>
-                  <input id="remote-source-id" type="text" value="default" placeholder="default" />
-                </label>
-                <details class="advanced-details">
-                  <summary>Advanced stream options</summary>
-                  <div class="advanced-inner">
+                  <div class="autoload-group is-hidden" id="autoload-remote">
+                    <label class="field">
+                      <span>Source ID</span>
+                      <input id="remote-source-id" type="text" value="default" placeholder="default" />
+                    </label>
                     <label class="field">
                       <span>Poll (ms)</span>
                       <input id="remote-interval" type="number" min="100" step="100" value="1000" />
                     </label>
                   </div>
-                </details>
-              </div>
-              <div class="autoload-meta">
-                <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
-                <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
-              </div>
-              <div class="simplon-meta is-hidden" id="simplon-meta">
-                <div class="meta-row"><span>Series</span><strong id="simplon-series">-</strong></div>
-                <div class="meta-row"><span>Image</span><strong id="simplon-image">-</strong></div>
-                <div class="meta-row"><span>Timestamp</span><strong id="simplon-time">-</strong></div>
-                <div class="meta-row"><span>Energy (eV)</span><strong id="simplon-energy">-</strong></div>
-                <div class="meta-row"><span>Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
-                <div class="meta-row"><span>Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
-                <div class="meta-row"><span>Distance (mm)</span><strong id="simplon-distance">-</strong></div>
-                <div class="meta-row"><span>Beam center (px)</span><strong id="simplon-center">-</strong></div>
-              </div>
-              <div class="remote-meta is-hidden" id="remote-meta">
-                <div class="meta-row"><span>Source</span><strong id="remote-source">-</strong></div>
-                <div class="meta-row"><span>Sequence</span><strong id="remote-seq">-</strong></div>
-                <div class="meta-row"><span>Series</span><strong id="remote-series">-</strong></div>
-                <div class="meta-row"><span>Image</span><strong id="remote-image">-</strong></div>
-                <div class="meta-row"><span>Timestamp</span><strong id="remote-time">-</strong></div>
-                <div class="meta-row"><span>Energy (eV)</span><strong id="remote-energy">-</strong></div>
-                <div class="meta-row"><span>Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
-                <div class="meta-row"><span>Distance (mm)</span><strong id="remote-distance">-</strong></div>
-                <div class="meta-row"><span>Beam center (px)</span><strong id="remote-center">-</strong></div>
-                <div class="meta-row"><span>Peak sets</span><strong id="remote-peak-sets">-</strong></div>
-              </div>
-            </div>
-            <section class="panel-section inspector" data-section="inspector">
+                  <div class="autoload-group advanced-status-block">
+                    <div class="advanced-status-title">Stream status</div>
+                    <div class="autoload-meta">
+                      <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
+                      <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
+                    </div>
+                    <div class="simplon-meta is-hidden" id="simplon-meta">
+                      <div class="meta-row"><span>Series</span><strong id="simplon-series">-</strong></div>
+                      <div class="meta-row"><span>Image</span><strong id="simplon-image">-</strong></div>
+                      <div class="meta-row"><span>Timestamp</span><strong id="simplon-time">-</strong></div>
+                      <div class="meta-row"><span>Energy (eV)</span><strong id="simplon-energy">-</strong></div>
+                      <div class="meta-row"><span>Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
+                      <div class="meta-row"><span>Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
+                      <div class="meta-row"><span>Distance (mm)</span><strong id="simplon-distance">-</strong></div>
+                      <div class="meta-row"><span>Beam center (px)</span><strong id="simplon-center">-</strong></div>
+                    </div>
+                    <div class="remote-meta is-hidden" id="remote-meta">
+                      <div class="meta-row"><span>Source</span><strong id="remote-source">-</strong></div>
+                      <div class="meta-row"><span>Sequence</span><strong id="remote-seq">-</strong></div>
+                      <div class="meta-row"><span>Series</span><strong id="remote-series">-</strong></div>
+                      <div class="meta-row"><span>Image</span><strong id="remote-image">-</strong></div>
+                      <div class="meta-row"><span>Timestamp</span><strong id="remote-time">-</strong></div>
+                      <div class="meta-row"><span>Energy (eV)</span><strong id="remote-energy">-</strong></div>
+                      <div class="meta-row"><span>Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
+                      <div class="meta-row"><span>Distance (mm)</span><strong id="remote-distance">-</strong></div>
+                      <div class="meta-row"><span>Beam center (px)</span><strong id="remote-center">-</strong></div>
+                      <div class="meta-row"><span>Peak sets</span><strong id="remote-peak-sets">-</strong></div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </section>
+            <section class="panel-section inspector is-collapsed" data-section="inspector">
               <button class="section-title" type="button" data-section-toggle>
                 File Inspector
                 <span class="section-chevron">▾</span>
@@ -438,7 +435,7 @@
                 <div class="inspector-preview" id="inspector-preview"></div>
               </div>
             </section>
-            <section class="panel-section image-header is-hidden" data-section="image-header" id="image-header-section">
+            <section class="panel-section image-header is-hidden is-collapsed" data-section="image-header" id="image-header-section">
               <button class="section-title" type="button" data-section-toggle>
                 Image Header
                 <span class="section-chevron">▾</span>
@@ -446,7 +443,7 @@
               <div class="image-header-empty" id="image-header-empty">No header available.</div>
               <pre class="image-header-text" id="image-header-text"></pre>
             </section>
-            <section class="panel-section" data-section="series-summing">
+            <section class="panel-section is-collapsed" data-section="series-summing">
               <button class="section-title" type="button" data-section-toggle>
                 Series Operations
                 <span class="section-chevron">▾</span>
@@ -612,7 +609,7 @@
                 </div>
               </div>
             </section>
-            <section class="panel-section" data-section="resolution-rings">
+            <section class="panel-section is-collapsed" data-section="resolution-rings">
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
                   <label class="section-switch">
@@ -663,7 +660,7 @@
                 </label>
               </div>
             </section>
-            <section class="panel-section" data-section="peak-finder">
+            <section class="panel-section is-collapsed" data-section="peak-finder">
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
                   <label class="section-switch">
