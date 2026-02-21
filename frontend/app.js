@@ -26,6 +26,9 @@ const toolbarFrameWrap = document.getElementById("toolbar-frame-wrap");
 const toolbarFrameIndexWrap = document.getElementById("toolbar-frame-index-wrap");
 const toolbarStepWrap = document.getElementById("toolbar-step-wrap");
 const toolbarFpsWrap = document.getElementById("toolbar-fps-wrap");
+const toolbarPlaybackWrap = document.getElementById("toolbar-playback-wrap");
+const toolbarPlaybackToggle = document.getElementById("toolbar-playback-toggle");
+const toolbarPlaybackPopover = document.getElementById("toolbar-playback-popover");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
@@ -588,6 +591,7 @@ function applyHelpMap() {
     "btn-play": "Play/pause playback",
     "frame-range": "Frame position",
     "frame-index": "Current frame number",
+    "toolbar-playback-toggle": "Playback options",
     "frame-step": "Frame step size",
     "fps-select": "Playback speed",
     "toolbar-threshold": "Select detector threshold",
@@ -3272,6 +3276,27 @@ function updateFpsLabel() {
   }
 }
 
+function setToolbarPlaybackPopoverOpen(open) {
+  if (!toolbarPlaybackWrap || !toolbarPlaybackToggle || !toolbarPlaybackPopover) return;
+  toolbarPlaybackWrap.classList.toggle("is-open", open);
+  toolbarPlaybackToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  toolbarPlaybackToggle.textContent = open ? "Playback ▴" : "Playback ▾";
+  toolbarPlaybackPopover.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function closeToolbarPlaybackPopover() {
+  setToolbarPlaybackPopoverOpen(false);
+}
+
+function toggleToolbarPlaybackPopover() {
+  if (!toolbarPlaybackWrap || toolbarPlaybackWrap.classList.contains("is-hidden")) return;
+  const hasStep = Boolean(toolbarStepWrap && !toolbarStepWrap.classList.contains("is-hidden"));
+  const hasFps = Boolean(toolbarFpsWrap && !toolbarFpsWrap.classList.contains("is-hidden"));
+  if (!hasStep && !hasFps) return;
+  const willOpen = !toolbarPlaybackWrap.classList.contains("is-open");
+  setToolbarPlaybackPopoverOpen(willOpen);
+}
+
 function updateThresholdOptions() {
   if (!thresholdSelect || !thresholdField) return;
   const count = Math.max(1, state.thresholdCount || 1);
@@ -3763,6 +3788,7 @@ function closeSubmenus() {
 
 function openMenu(menu, anchor) {
   if (!dropdown) return;
+  closeToolbarPlaybackPopover();
   closeSubmenus();
   dropdown.classList.add("is-open");
   dropdown.setAttribute("aria-hidden", "false");
@@ -4210,10 +4236,17 @@ function updateAutoloadUI() {
   if (fileField) fileField.classList.toggle("is-hidden", hideDatasetUi);
   if (datasetField) datasetField.classList.toggle("is-hidden", hideDatasetUi);
   if (thresholdField) thresholdField.classList.toggle("is-hidden", hideDatasetUi);
-  if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (toolbarStepWrap) toolbarStepWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
-  if (toolbarFpsWrap) toolbarFpsWrap.classList.toggle("is-hidden", state.autoload.mode !== "file");
+  const showPlaybackControls = state.autoload.mode === "file";
+  if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", !showPlaybackControls);
+  if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", !showPlaybackControls);
+  if (toolbarStepWrap) toolbarStepWrap.classList.toggle("is-hidden", !showPlaybackControls);
+  if (toolbarFpsWrap) toolbarFpsWrap.classList.toggle("is-hidden", !showPlaybackControls);
+  if (toolbarPlaybackWrap) {
+    toolbarPlaybackWrap.classList.toggle("is-hidden", !showPlaybackControls);
+    if (!showPlaybackControls) {
+      closeToolbarPlaybackPopover();
+    }
+  }
   if (autoloadStatus) {
     const meta = autoloadStatus.closest(".autoload-meta");
     if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file" && !state.autoload.watchEnabled);
@@ -8177,6 +8210,10 @@ dropdown?.addEventListener("mouseleave", scheduleClose);
 document.addEventListener("click", (event) => {
   if (!dropdown) return;
   const withinMenu = event.target.closest(".menu-bar") || event.target.closest(".menu-dropdown");
+  const withinPlayback = event.target.closest("#toolbar-playback-wrap");
+  if (!withinPlayback) {
+    closeToolbarPlaybackPopover();
+  }
   if (!withinMenu) {
     closeMenu();
   }
@@ -8184,6 +8221,7 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    closeToolbarPlaybackPopover();
     closeMenu();
     aboutModal?.classList.remove("is-open");
     settingsModal?.classList.remove("is-open");
@@ -8397,10 +8435,12 @@ frameIndex.addEventListener("change", async (event) => {
 
 frameStep?.addEventListener("change", () => {
   setFrameStep(frameStep.value);
+  closeToolbarPlaybackPopover();
 });
 
 fpsSelect?.addEventListener("change", () => {
   setFps(Number(fpsSelect.value));
+  closeToolbarPlaybackPopover();
 });
 
 autoloadMode?.addEventListener("change", () => {
@@ -9047,6 +9087,11 @@ playBtn?.addEventListener("click", () => {
   } else {
     startPlayback();
   }
+});
+
+toolbarPlaybackToggle?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleToolbarPlaybackPopover();
 });
 
 panelEdgeToggle?.addEventListener("click", () => {

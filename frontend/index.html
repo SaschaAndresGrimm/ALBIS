@@ -96,39 +96,54 @@
                 <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
                 <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
               </div>
-              <div class="toolbar-cluster toolbar-cluster-frame">
-                <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
-                  <input id="frame-range" type="range" min="1" max="1" value="1" />
+                <div class="toolbar-cluster toolbar-cluster-frame">
+                  <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
+                    <input id="frame-range" type="range" min="1" max="1" value="1" />
+                  </div>
+                  <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
+                    <input id="frame-index" type="number" min="1" value="1" />
+                  </div>
+                  <div class="toolbar-playback is-hidden" id="toolbar-playback-wrap">
+                    <button
+                      class="tool-btn toolbar-playback-btn"
+                      id="toolbar-playback-toggle"
+                      type="button"
+                      aria-label="Playback options"
+                      aria-expanded="false"
+                      aria-haspopup="true"
+                      aria-controls="toolbar-playback-popover"
+                    >
+                      Playback ▾
+                    </button>
+                    <div class="toolbar-playback-popover" id="toolbar-playback-popover" aria-hidden="true">
+                      <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
+                        <select id="frame-step" aria-label="Frame step">
+                          <option value="1" selected>Step 1</option>
+                          <option value="10">Step 10</option>
+                          <option value="100">Step 100</option>
+                          <option value="1000">Step 1000</option>
+                        </select>
+                      </div>
+                      <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
+                        <select id="fps-select" aria-label="Playback speed">
+                          <option value="1" selected>1 fps</option>
+                          <option value="2">2 fps</option>
+                          <option value="3">3 fps</option>
+                          <option value="4">4 fps</option>
+                          <option value="5">5 fps</option>
+                          <option value="6">6 fps</option>
+                          <option value="7">7 fps</option>
+                          <option value="8">8 fps</option>
+                          <option value="9">9 fps</option>
+                          <option value="10">10 fps</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
+                    <select id="toolbar-threshold" aria-label="Threshold"></select>
+                  </div>
                 </div>
-                <div class="toolbar-frame-index is-hidden" id="toolbar-frame-index-wrap">
-                  <input id="frame-index" type="number" min="1" value="1" />
-                </div>
-                <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
-                  <select id="frame-step" aria-label="Frame step">
-                    <option value="1" selected>Step 1</option>
-                    <option value="10">Step 10</option>
-                    <option value="100">Step 100</option>
-                    <option value="1000">Step 1000</option>
-                  </select>
-                </div>
-                <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
-                  <select id="fps-select" aria-label="Playback speed">
-                    <option value="1" selected>1 fps</option>
-                    <option value="2">2 fps</option>
-                    <option value="3">3 fps</option>
-                    <option value="4">4 fps</option>
-                    <option value="5">5 fps</option>
-                    <option value="6">6 fps</option>
-                    <option value="7">7 fps</option>
-                    <option value="8">8 fps</option>
-                    <option value="9">9 fps</option>
-                    <option value="10">10 fps</option>
-                  </select>
-                </div>
-                <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
-                  <select id="toolbar-threshold" aria-label="Threshold"></select>
-                </div>
-              </div>
             </div>
             <div class="toolbar-path" id="toolbar-path">No file loaded</div>
           </div>

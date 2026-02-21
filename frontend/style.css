@@ -506,6 +506,60 @@ body {
   opacity: 0.6;
 }
 
+.toolbar-playback {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-playback.is-hidden {
+  display: none;
+}
+
+.toolbar-playback-btn {
+  min-width: 92px;
+}
+
+.toolbar-playback-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 25;
+  min-width: 136px;
+  display: none;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  box-shadow: var(--shadow-soft);
+  gap: 8px;
+}
+
+.toolbar-playback.is-open .toolbar-playback-popover {
+  display: grid;
+}
+
+.toolbar-playback.is-open .toolbar-playback-btn {
+  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 1px rgba(120, 170, 255, 0.2);
+}
+
+.toolbar-playback-popover .toolbar-step,
+.toolbar-playback-popover .toolbar-fps {
+  display: flex;
+}
+
+.toolbar-playback-popover .toolbar-step.is-hidden,
+.toolbar-playback-popover .toolbar-fps.is-hidden {
+  display: none;
+}
+
+.toolbar-playback-popover .toolbar-step select,
+.toolbar-playback-popover .toolbar-fps select {
+  width: 100%;
+  min-width: 112px;
+}
+
 .tool-btn {
   background: linear-gradient(to bottom, rgba(23, 33, 49, 0.95), rgba(13, 20, 32, 0.95));
   color: #f5f9ff;
@@ -1916,6 +1970,16 @@ body {
   .toolbar-fps select {
     min-width: 64px;
     font-size: 10px;
+  }
+
+  .toolbar-playback-btn {
+    min-width: 84px;
+  }
+
+  .toolbar-playback-popover {
+    left: auto;
+    right: 0;
+    min-width: 124px;
   }
 
   .toolbar-path {
