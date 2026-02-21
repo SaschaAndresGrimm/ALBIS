@@ -916,11 +916,6 @@ body {
   justify-content: center;
 }
 
-#footer-threshold {
-  min-width: 120px;
-  justify-content: center;
-}
-
 .viewer-footer-version {
   font-size: 11px;
   font-weight: 600;
@@ -1520,7 +1515,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .image-header-empty {
-  color: #b8b8b8;
+  color: #b8c8e2;
   font-size: 11px;
   padding: 6px 4px;
 }
@@ -1528,12 +1523,14 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .image-header-text {
   max-height: 220px;
   overflow: auto;
-  background: #1b1b1b;
-  border: 1px solid #111;
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.98), rgba(10, 15, 24, 0.98));
+  border: 1px solid rgba(20, 31, 46, 0.95);
+  border-radius: var(--radius-sm);
   padding: 8px;
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   font-size: 11px;
-  line-height: 1.35;
-  color: #f0f0f0;
+  line-height: 1.38;
+  color: #dfeeff;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;

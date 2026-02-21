@@ -95,7 +95,6 @@ const splashOpenFileBtn = document.getElementById("splash-open-file");
 const viewerFooterEl = document.querySelector(".viewer-footer");
 const footerFileEl = document.getElementById("footer-file");
 const footerZoomEl = document.getElementById("footer-zoom");
-const footerThresholdEl = document.getElementById("footer-threshold");
 const footerFrontendVersionEl = document.getElementById("footer-version-frontend");
 const footerBackendVersionEl = document.getElementById("footer-version-backend");
 const resolutionOverlay = document.getElementById("resolution-overlay");
@@ -4169,12 +4168,6 @@ function updateViewerFooter() {
   }
   if (footerZoomEl) {
     footerZoomEl.textContent = `Zoom ${(state.zoom || 1).toFixed(1)}x`;
-  }
-  if (footerThresholdEl) {
-    const hasThresholds = state.autoload.mode === "file" && state.thresholdCount > 1;
-    footerThresholdEl.textContent = hasThresholds
-      ? `Threshold ${state.thresholdIndex + 1} / ${state.thresholdCount}`
-      : "Threshold -";
   }
   updateFooterVersions();
 }
