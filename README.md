@@ -281,9 +281,9 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 - [x] v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
 - [x] v0.6 server-client remote stream API (frame + metadata ingest)
 - [x] v0.7 refactoring baseline (modular frontend + stronger tests)
-- [ ] v0.8 UI facelift
+- [x] v0.8 UI facelift
 - [ ] v0.9 JUNGFRAUJOCH data ingest
-- [ ] v1.0 Documentation
+- [ ] v1.0 Bug fixes and final documentation
 - ...? =)
 
 ## Notes

@@ -782,16 +782,26 @@
     <input class="file-input" id="file-input" type="file" accept=".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf" multiple />
     <div class="modal" id="about-modal" aria-hidden="true">
       <div class="modal-backdrop"></div>
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
+      <div class="modal-card about-modal-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
         <div class="modal-header">
           <div id="about-title">About ALBIS — ALBIS WEB VIEW</div>
           <button class="modal-close" id="about-close">✕</button>
         </div>
-        <div class="modal-body">
-          <p>ALBIS WEB VIEW — ALBULA-style web viewer prototype by SasG.</p>
-          <p id="about-version">Version 0.7</p>
-          <p>Rendering: WebGL2 with LUTs (CPU fallback).</p>
-          <p>Dataset: HDF5 stacks.</p>
+        <div class="modal-body about-modal-body">
+          <img class="about-logo" src="ressources/albis.png" alt="ALBIS logo" />
+          <p class="about-lead">
+            ALBIS WEB VIEW is a canvas-first diffraction viewer for fast exploration of HDF5 stacks and detector frames.
+          </p>
+          <p id="about-version" class="about-version">Version 0.7</p>
+          <div class="about-facts">
+            <div class="about-fact"><span>Author</span><strong>Sascha Grimm</strong></div>
+            <div class="about-fact"><span>Rendering</span><strong>WebGL2 + CPU fallback</strong></div>
+            <div class="about-fact"><span>Focus</span><strong>Interactive analysis and overlays</strong></div>
+            <div class="about-fact"><span>Formats</span><strong>HDF5, TIFF, CBF, EDF</strong></div>
+          </div>
+          <a class="about-repo-link" href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">
+            Open ALBIS on GitHub
+          </a>
         </div>
       </div>
     </div>
@@ -808,85 +818,120 @@
             <div>Config file: <code id="settings-config-path">-</code></div>
             <div class="settings-hint">Some settings apply after restart.</div>
           </div>
-          <div class="settings-grid">
-            <label class="field">
-              <span>Host</span>
-              <input id="settings-server-host" type="text" />
-            </label>
-            <label class="field">
-              <span>Port</span>
-              <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
-            </label>
-            <label class="checkbox settings-check">
-              <input id="settings-server-reload" type="checkbox" />
-              Enable backend reload
-            </label>
-            <label class="field">
-              <span>Startup timeout (s)</span>
-              <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
-            </label>
-            <label class="checkbox settings-check">
-              <input id="settings-open-browser" type="checkbox" />
-              Open browser on launch
-            </label>
-            <label class="checkbox settings-check settings-span-2">
-              <input id="settings-tool-hints" type="checkbox" />
-              Enable tool hints
-            </label>
-            <label class="field">
-              <span>Pixel label min cell (px)</span>
-              <input id="settings-pixel-label-min" type="number" min="8" max="64" step="1" />
-            </label>
-            <label class="field">
-              <span>Pixel labels max/frame</span>
-              <input id="settings-pixel-label-max" type="number" min="100" max="100000" step="100" />
-            </label>
-            <label class="field">
-              <span>Pixel label format</span>
-              <select id="settings-pixel-label-format">
-                <option value="auto">Auto</option>
-                <option value="integer">Integer</option>
-                <option value="scientific">Scientific</option>
-              </select>
-            </label>
-            <label class="checkbox settings-check">
-              <input id="settings-pixel-label-drag" type="checkbox" />
-              Draw labels during pan/zoom
-            </label>
-            <label class="field settings-span-2">
-              <span>Data root</span>
-              <input id="settings-data-root" type="text" />
-            </label>
-            <label class="checkbox settings-check">
-              <input id="settings-allow-abs" type="checkbox" />
-              Allow absolute paths
-            </label>
-            <label class="field">
-              <span>Scan cache (s)</span>
-              <input id="settings-scan-cache" type="number" min="0" step="0.1" />
-            </label>
-            <label class="field">
-              <span>Max scan depth</span>
-              <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
-            </label>
-            <label class="field">
-              <span>Max upload (MB)</span>
-              <input id="settings-max-upload" type="number" min="0" step="1" />
-            </label>
-            <label class="field">
-              <span>Log level</span>
-              <select id="settings-log-level">
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARNING">WARNING</option>
-                <option value="ERROR">ERROR</option>
-                <option value="CRITICAL">CRITICAL</option>
-              </select>
-            </label>
-            <label class="field settings-span-2">
-              <span>Log directory</span>
-              <input id="settings-log-dir" type="text" />
-            </label>
+          <div class="settings-sections">
+            <section class="settings-section">
+              <div class="settings-section-head">
+                <h3>Application</h3>
+                <p>Backend endpoint and launch behavior.</p>
+              </div>
+              <div class="settings-grid">
+                <label class="field">
+                  <span>Host</span>
+                  <input id="settings-server-host" type="text" />
+                </label>
+                <label class="field">
+                  <span>Port</span>
+                  <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
+                </label>
+                <label class="field">
+                  <span>Startup timeout (s)</span>
+                  <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
+                </label>
+                <label class="checkbox settings-check">
+                  <input id="settings-server-reload" type="checkbox" />
+                  Enable backend reload
+                </label>
+                <label class="checkbox settings-check">
+                  <input id="settings-open-browser" type="checkbox" />
+                  Open browser on launch
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section-head">
+                <h3>Viewer</h3>
+                <p>Interaction hints and pixel label behavior.</p>
+              </div>
+              <div class="settings-grid">
+                <label class="checkbox settings-check settings-span-2">
+                  <input id="settings-tool-hints" type="checkbox" />
+                  Enable tool hints
+                </label>
+                <label class="field">
+                  <span>Pixel label min cell (px)</span>
+                  <input id="settings-pixel-label-min" type="number" min="8" max="64" step="1" />
+                </label>
+                <label class="field">
+                  <span>Pixel labels max/frame</span>
+                  <input id="settings-pixel-label-max" type="number" min="100" max="100000" step="100" />
+                </label>
+                <label class="field">
+                  <span>Pixel label format</span>
+                  <select id="settings-pixel-label-format">
+                    <option value="auto">Auto</option>
+                    <option value="integer">Integer</option>
+                    <option value="scientific">Scientific</option>
+                  </select>
+                </label>
+                <label class="checkbox settings-check">
+                  <input id="settings-pixel-label-drag" type="checkbox" />
+                  Draw labels during pan/zoom
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section-head">
+                <h3>Data Access</h3>
+                <p>File system permissions and scan limits.</p>
+              </div>
+              <div class="settings-grid">
+                <label class="field settings-span-2">
+                  <span>Data root</span>
+                  <input id="settings-data-root" type="text" />
+                </label>
+                <label class="checkbox settings-check">
+                  <input id="settings-allow-abs" type="checkbox" />
+                  Allow absolute paths
+                </label>
+                <label class="field">
+                  <span>Scan cache (s)</span>
+                  <input id="settings-scan-cache" type="number" min="0" step="0.1" />
+                </label>
+                <label class="field">
+                  <span>Max scan depth</span>
+                  <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
+                </label>
+                <label class="field">
+                  <span>Max upload (MB)</span>
+                  <input id="settings-max-upload" type="number" min="0" step="1" />
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section-head">
+                <h3>Logging</h3>
+                <p>Verbosity and log output location.</p>
+              </div>
+              <div class="settings-grid">
+                <label class="field">
+                  <span>Log level</span>
+                  <select id="settings-log-level">
+                    <option value="DEBUG">DEBUG</option>
+                    <option value="INFO">INFO</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="ERROR">ERROR</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                  </select>
+                </label>
+                <label class="field settings-span-2">
+                  <span>Log directory</span>
+                  <input id="settings-log-dir" type="text" />
+                </label>
+              </div>
+            </section>
           </div>
           <div class="settings-message" id="settings-message"></div>
         </div>
