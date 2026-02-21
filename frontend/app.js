@@ -14,6 +14,14 @@ import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
 
+const platformHint = String(
+  navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
+).toLowerCase();
+const isWindowsPlatform = platformHint.includes("windows") || platformHint.includes("win32") || platformHint.includes("win64");
+if (isWindowsPlatform) {
+  document.body?.classList.add("platform-windows");
+}
+
 const fileSelect = document.getElementById("file-select");
 const datasetSelect = document.getElementById("dataset-select");
 const fileField = document.getElementById("file-field");

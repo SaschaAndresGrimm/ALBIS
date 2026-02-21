@@ -2476,6 +2476,16 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   border-color: var(--border-strong);
 }
 
+body.platform-windows select option,
+body.platform-windows select optgroup {
+  background: #ffffff;
+  color: #111a27;
+}
+
+body.platform-windows select option:disabled {
+  color: #6d7483;
+}
+
 .field select:focus-visible,
 .field input[type="number"]:focus-visible,
 .field input[type="text"]:focus-visible,
