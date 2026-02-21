@@ -50,6 +50,7 @@ const metaRange = document.getElementById("meta-range");
 const metaRenderer = document.getElementById("meta-renderer");
 const toolbarPath = document.getElementById("toolbar-path");
 const backendBadge = document.getElementById("backend-badge");
+const fullscreenToggle = document.getElementById("fullscreen-toggle");
 const aboutVersion = document.getElementById("about-version");
 const autoContrastBtn = document.getElementById("auto-contrast");
 const invertToggle = document.getElementById("invert-color");
@@ -88,6 +89,10 @@ const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const splashStatus = document.getElementById("splash-status");
+const footerFileEl = document.getElementById("footer-file");
+const footerFrameEl = document.getElementById("footer-frame");
+const footerZoomEl = document.getElementById("footer-zoom");
+const footerThresholdEl = document.getElementById("footer-threshold");
 const resolutionOverlay = document.getElementById("resolution-overlay");
 const resolutionCtx = resolutionOverlay?.getContext("2d");
 const peakOverlay = document.getElementById("peak-overlay");
@@ -688,6 +693,7 @@ function applyHelpMap() {
     "simplon-enable": "Enable live monitor",
     "panel-fab": "Toggle side panel",
     "panel-resizer": "Resize side panel",
+    "fullscreen-toggle": "Toggle full screen (F)",
     "inspector-search-input": "Search the HDF5 tree",
     "inspector-search-clear": "Clear search",
     "command-input": "Search and run commands",
@@ -3358,6 +3364,7 @@ function setZoom(value) {
   if (zoomValue) {
     zoomValue.textContent = `${clamped.toFixed(1)}x`;
   }
+  updateViewerFooter();
   schedulePixelOverlay();
   scheduleRoiOverlay();
   scheduleResolutionOverlay();
@@ -3561,6 +3568,7 @@ function updateThresholdOptions() {
   if (toolbarThresholdSelect) {
     toolbarThresholdSelect.disabled = count <= 1;
   }
+  updateViewerFooter();
 }
 
 async function setThresholdIndex(nextIndex) {
@@ -3607,6 +3615,10 @@ function updatePlayButtons() {
   if (nextBtn) nextBtn.disabled = disabled;
 }
 
+function getMaxPanelWidth() {
+  return Math.max(220, Math.min(900, window.innerWidth - 24));
+}
+
 function applyPanelState() {
   if (!toolsPanel || !appLayout) return;
   
@@ -3619,10 +3631,9 @@ function applyPanelState() {
     toolsPanel.classList.toggle("is-visible", !state.panelCollapsed);
   } else {
     // Desktop/tablet: use panel width
-    const maxPanelWidth =
-      window.innerWidth < 900 ? Math.max(220, Math.floor(window.innerWidth * 0.7)) : 900;
+    const maxPanelWidth = getMaxPanelWidth();
     const targetWidth = Math.max(220, Math.min(maxPanelWidth, state.panelWidth));
-    const width = state.panelCollapsed ? 28 : targetWidth;
+    const width = state.panelCollapsed ? 34 : targetWidth;
     appLayout.style.setProperty("--panel-width", `${width}px`);
     document.documentElement.style.setProperty("--panel-width", `${width}px`);
   }
@@ -3675,8 +3686,7 @@ function setSectionState(section, collapsed, persist = true) {
 }
 
 function setPanelWidth(width) {
-  const maxPanelWidth =
-    window.innerWidth < 900 ? Math.max(220, Math.floor(window.innerWidth * 0.7)) : 900;
+  const maxPanelWidth = getMaxPanelWidth();
   const clamped = Math.max(220, Math.min(maxPanelWidth, Math.round(width)));
   state.panelWidth = clamped;
   state.panelCollapsed = false;
@@ -3969,6 +3979,49 @@ function hideSplash() {
   splash?.classList.add("is-hidden");
 }
 
+function updateFullscreenUi() {
+  const active = Boolean(document.fullscreenElement);
+  document.body.classList.toggle("is-fullscreen", active);
+  if (!fullscreenToggle) return;
+  fullscreenToggle.classList.toggle("is-active", active);
+  fullscreenToggle.textContent = active ? "🗗" : "⛶";
+  fullscreenToggle.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
+  fullscreenToggle.title = active ? "Exit full screen (F)" : "Enter full screen (F)";
+}
+
+async function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("Fullscreen unavailable");
+  }
+}
+
+function updateViewerFooter() {
+  if (footerFileEl) {
+    footerFileEl.textContent = state.file ? middleTruncate(fileLabel(state.file), 38) : "No file";
+  }
+  if (footerFrameEl) {
+    footerFrameEl.textContent = state.hasFrame
+      ? `Frame ${state.frameIndex + 1} / ${Math.max(1, state.frameCount || 1)}`
+      : "Frame - / -";
+  }
+  if (footerZoomEl) {
+    footerZoomEl.textContent = `Zoom ${(state.zoom || 1).toFixed(1)}x`;
+  }
+  if (footerThresholdEl) {
+    const hasThresholds = state.autoload.mode === "file" && state.thresholdCount > 1;
+    footerThresholdEl.textContent = hasThresholds
+      ? `Threshold ${state.thresholdIndex + 1} / ${state.thresholdCount}`
+      : "Threshold -";
+  }
+}
+
 function updateDataSourceSummary() {
   if (!dataSourceSummaryEl) return;
   const mode = (state.autoload.mode || "file").toLowerCase();
@@ -3994,6 +4047,7 @@ function updateToolbar() {
     toolbarPath.textContent = "No file loaded";
     updateSeriesSumUi();
     updateDataSourceSummary();
+    updateViewerFooter();
     return;
   }
   const maxChars = estimateToolbarChars();
@@ -4013,6 +4067,7 @@ function updateToolbar() {
   toolbarPath.textContent = `${fileText}${datasetLabel}${suffix}`;
   updateSeriesSumUi();
   updateDataSourceSummary();
+  updateViewerFooter();
 }
 
 function setActiveMenu(menu, anchor) {
@@ -5601,6 +5656,13 @@ function getCommandPaletteCommands() {
       run: () => openSeriesSumOutputTarget(),
     },
     {
+      id: "toggle-fullscreen",
+      label: document.fullscreenElement ? "View: Exit Full Screen" : "View: Enter Full Screen",
+      shortcut: "F",
+      search: "fullscreen immersive",
+      run: () => toggleFullscreen(),
+    },
+    {
       id: "panel-toggle",
       label: state.panelCollapsed ? "Panel: Open Side Panel" : "Panel: Collapse Side Panel",
       shortcut: "",
@@ -5810,6 +5872,9 @@ async function handleMenuAction(action) {
     case "command-palette":
       openCommandPalette();
       break;
+    case "toggle-fullscreen":
+      toggleFullscreen();
+      break;
     case "help-about":
       if (aboutModal) {
         aboutModal.classList.add("is-open");
@@ -5947,6 +6012,11 @@ function handleNavShortcut(event) {
     return true;
   }
   if (isFormElement(event.target)) return false;
+  if (!event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "f") {
+    event.preventDefault();
+    void toggleFullscreen();
+    return true;
+  }
   switch (event.key) {
     case "ArrowLeft":
       event.preventDefault();
@@ -9723,6 +9793,12 @@ toolbarPlaybackToggle?.addEventListener("click", (event) => {
   toggleToolbarPlaybackPopover();
 });
 
+fullscreenToggle?.addEventListener("click", () => {
+  void toggleFullscreen();
+});
+
+document.addEventListener("fullscreenchange", updateFullscreenUi);
+
 panelEdgeToggle?.addEventListener("click", () => {
   togglePanel();
 });
@@ -10662,7 +10738,7 @@ try {
   const storedWidth = Number(localStorage.getItem("albis.panelWidth"));
   const storedCollapsed = localStorage.getItem("albis.panelCollapsed");
   if (storedWidth) {
-    state.panelWidth = Math.max(220, Math.min(900, storedWidth));
+    state.panelWidth = Math.max(220, Math.min(getMaxPanelWidth(), storedWidth));
   }
   if (storedCollapsed !== null) {
     state.panelCollapsed = storedCollapsed === "true";
@@ -10675,6 +10751,8 @@ try {
 applyPanelState();
 loadAutoloadSettings();
 updatePlayButtons();
+updateViewerFooter();
+updateFullscreenUi();
 updateAboutVersion();
 initHelpTooltips();
 startBackendHeartbeat();

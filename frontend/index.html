@@ -7,7 +7,7 @@
     <link rel="icon" href="favicon.ico" />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body class="canvas-first">
     <div class="page">
       <div class="chrome">
         <div class="menu-bar">
@@ -77,6 +77,10 @@
             <button class="dropdown-item" data-action="command-palette">
               <span>Command Palette…</span>
               <span class="shortcut">⌘K</span>
+            </button>
+            <button class="dropdown-item" data-action="toggle-fullscreen">
+              <span>Toggle Full Screen</span>
+              <span class="shortcut">F</span>
             </button>
           </div>
           <div class="dropdown-panel" data-menu="help">
@@ -154,6 +158,7 @@
           <div class="toolbar-right">
             <div class="backend-badge" id="backend-badge" aria-hidden="true">SERVER</div>
             <div class="live-badge" id="live-badge" aria-hidden="true">LIVE</div>
+            <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" aria-label="Toggle full screen">⛶</button>
           </div>
         </div>
         <div class="upload-bar" id="upload-bar" aria-hidden="true">
@@ -181,12 +186,28 @@
               </div>
             </div>
             <div class="cursor-overlay" id="cursor-overlay" aria-hidden="true"></div>
-            <div class="status-overlay" id="status">Idle</div>
+            <div class="viewer-footer">
+              <div class="viewer-footer-main">
+                <span class="viewer-footer-pill viewer-footer-status" id="status">Idle</span>
+                <span class="viewer-footer-pill" id="footer-file">No file</span>
+                <span class="viewer-footer-pill" id="footer-frame">Frame - / -</span>
+                <span class="viewer-footer-pill" id="footer-zoom">Zoom 1.0x</span>
+                <span class="viewer-footer-pill" id="footer-threshold">Threshold -</span>
+              </div>
+              <a
+                class="viewer-footer-link"
+                id="footer-github"
+                href="https://github.com/SaschaAndresGrimm/ALBIS"
+                target="_blank"
+                rel="noopener noreferrer"
+                >GitHub</a
+              >
+            </div>
           </div>
         </main>
 
-        <div class="panel-resizer" id="panel-resizer" aria-hidden="true"></div>
         <aside class="panel is-collapsed" id="side-panel">
+          <div class="panel-resizer" id="panel-resizer" aria-hidden="true"></div>
           <button class="panel-fab" id="panel-fab" type="button" aria-label="Open panel">◀</button>
           <div class="panel-body">
           <div class="panel-tabs" role="tablist">
