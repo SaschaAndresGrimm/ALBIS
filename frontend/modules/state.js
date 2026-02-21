@@ -80,6 +80,8 @@ export function createAppState() {
     zoom: 1,
     renderOffsetX: 0,
     renderOffsetY: 0,
+    panOffsetX: 0,
+    panOffsetY: 0,
     dataRaw: null,
     dataFloat: null,
     histogram: null,

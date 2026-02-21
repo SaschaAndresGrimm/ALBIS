@@ -62,6 +62,7 @@ const toolsPanel = document.getElementById("side-panel");
 const panelResizer = document.getElementById("panel-resizer");
 const panelEdgeToggle = document.getElementById("panel-edge-toggle");
 const panelFab = document.getElementById("panel-fab");
+const panelBody = toolsPanel?.querySelector(".panel-body");
 const panelTabs = document.querySelectorAll(".panel-tab");
 const panelTabContents = document.querySelectorAll(".panel-tab-content");
 const appLayout = document.querySelector(".app");
@@ -89,6 +90,7 @@ const splash = document.getElementById("splash");
 const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
 const splashStatus = document.getElementById("splash-status");
+const viewerFooterEl = document.querySelector(".viewer-footer");
 const footerFileEl = document.getElementById("footer-file");
 const footerZoomEl = document.getElementById("footer-zoom");
 const footerThresholdEl = document.getElementById("footer-threshold");
@@ -300,7 +302,7 @@ let overviewResizeCenter = false;
 let histDragging = false;
 let histDragTarget = null;
 let panning = false;
-let panStart = { x: 0, y: 0, scrollLeft: 0, scrollTop: 0 };
+let panStart = { x: 0, y: 0, effectiveLeft: 0, effectiveTop: 0 };
 let pixelOverlayScheduled = false;
 let sectionStateStore = {};
 let roiOverlayScheduled = false;
@@ -431,7 +433,7 @@ window.addEventListener("unhandledrejection", (event) => {
     reason: formatClientArg(event.reason),
   });
 });
-const MIN_ZOOM = 0.1;
+const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
 const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = 18;
@@ -444,14 +446,112 @@ function getMinZoom() {
   if (!canvasWrap || !state.width || !state.height) {
     return MIN_ZOOM;
   }
-  const scale = Math.min(
+  const fitScale = Math.min(
     canvasWrap.clientWidth / state.width,
     canvasWrap.clientHeight / state.height
   );
-  if (!Number.isFinite(scale) || scale <= 0) {
+  if (!Number.isFinite(fitScale) || fitScale <= 0) {
     return MIN_ZOOM;
   }
-  return Math.min(1, scale);
+  // Allow zooming out beyond fit-to-window for better context.
+  return Math.max(MIN_ZOOM, Math.min(1, fitScale * 0.1));
+}
+
+function getEffectiveScrollLeft() {
+  if (!canvasWrap) return 0;
+  return (canvasWrap.scrollLeft || 0) - (state.panOffsetX || 0);
+}
+
+function getEffectiveScrollTop() {
+  if (!canvasWrap) return 0;
+  return (canvasWrap.scrollTop || 0) - (state.panOffsetY || 0);
+}
+
+function applyCanvasTransform() {
+  if (!canvas) return;
+  const zoom = Number.isFinite(state.zoom) ? state.zoom : 1;
+  const tx = (state.renderOffsetX || 0) + (state.panOffsetX || 0);
+  const ty = (state.renderOffsetY || 0) + (state.panOffsetY || 0);
+  canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom})`;
+}
+
+function getPanOffsetBounds() {
+  if (!canvasWrap || !state.width || !state.height) {
+    return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+  }
+  const zoom = state.zoom || 1;
+  const scaledW = state.width * zoom;
+  const scaledH = state.height * zoom;
+  const viewW = canvasWrap.clientWidth || 0;
+  const viewH = canvasWrap.clientHeight || 0;
+  const baseX = state.renderOffsetX || 0;
+  const baseY = state.renderOffsetY || 0;
+
+  const computeBounds = (scaled, view, base, leadInset = 0, trailInset = 0) => {
+    if (!(scaled > 0) || !(view > 0) || scaled >= view) {
+      return { min: 0, max: 0 };
+    }
+    const minVisible = Math.min(scaled, Math.max(48, scaled * 0.16));
+    const insetLead = Math.max(0, Number(leadInset) || 0);
+    const insetTrail = Math.max(0, Number(trailInset) || 0);
+    const min = insetLead + minVisible - (base + scaled);
+    const max = view - insetTrail - minVisible - base;
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
+      return { min: 0, max: 0 };
+    }
+    return { min, max };
+  };
+
+  const footerInset = viewerFooterEl
+    ? Math.max(0, Math.round(viewerFooterEl.getBoundingClientRect().height) + 8)
+    : 0;
+  const bx = computeBounds(scaledW, viewW, baseX, 0, 0);
+  const by = computeBounds(scaledH, viewH, baseY, 0, footerInset);
+  return { minX: bx.min, maxX: bx.max, minY: by.min, maxY: by.max };
+}
+
+function clampPanOffsetsToBounds() {
+  const bounds = getPanOffsetBounds();
+  const nextX = Math.max(bounds.minX, Math.min(bounds.maxX, Number(state.panOffsetX) || 0));
+  const nextY = Math.max(bounds.minY, Math.min(bounds.maxY, Number(state.panOffsetY) || 0));
+  const changed = nextX !== state.panOffsetX || nextY !== state.panOffsetY;
+  state.panOffsetX = nextX;
+  state.panOffsetY = nextY;
+  return changed;
+}
+
+function syncViewportOverlays() {
+  scheduleOverview();
+  schedulePixelOverlay();
+  scheduleRoiOverlay();
+  scheduleResolutionOverlay();
+  schedulePeakOverlay();
+}
+
+function setEffectiveScroll(targetX, targetY, schedule = true) {
+  if (!canvasWrap) return;
+  const desiredX = Number.isFinite(targetX) ? targetX : 0;
+  const desiredY = Number.isFinite(targetY) ? targetY : 0;
+  const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
+  const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
+  const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, desiredX));
+  const nextScrollTop = Math.max(0, Math.min(maxScrollTop, desiredY));
+  state.panOffsetX = nextScrollLeft - desiredX;
+  state.panOffsetY = nextScrollTop - desiredY;
+  clampPanOffsetsToBounds();
+  canvasWrap.scrollLeft = nextScrollLeft;
+  canvasWrap.scrollTop = nextScrollTop;
+  applyCanvasTransform();
+  if (schedule) {
+    deferPixelOverlayRedraw();
+    syncViewportOverlays();
+  }
+}
+
+function updatePanCapability() {
+  if (!canvasWrap) return;
+  const canPan = Boolean(state.hasFrame && state.width && state.height);
+  canvasWrap.classList.toggle("can-pan", canPan);
 }
 
 function setStatus(text) {
@@ -693,7 +793,7 @@ function applyHelpMap() {
     "simplon-url": "SIMPLON base URL",
     "simplon-timeout": "Monitor timeout (ms)",
     "simplon-enable": "Enable live monitor",
-    "panel-fab": "Toggle side panel",
+    "panel-fab": "Toggle side panel (M)",
     "panel-resizer": "Resize side panel",
     "fullscreen-toggle": "Toggle full screen (F)",
     "inspector-search-input": "Search the HDF5 tree",
@@ -1408,8 +1508,8 @@ function getImagePointFromEvent(event) {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const imgX = (canvasWrap.scrollLeft + x - offsetX) / zoom;
-  const imgY = (canvasWrap.scrollTop + y - offsetY) / zoom;
+  const imgX = (getEffectiveScrollLeft() + x - offsetX) / zoom;
+  const imgY = (getEffectiveScrollTop() + y - offsetY) / zoom;
   const ix = Math.max(0, Math.min(state.width - 1, Math.round(imgX)));
   const iy = Math.max(0, Math.min(state.height - 1, Math.round(imgY)));
   return { x: ix, y: iy };
@@ -1622,8 +1722,8 @@ function updateCursorOverlay(event) {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const imgX = (canvasWrap.scrollLeft + x - offsetX) / zoom;
-  const imgY = (canvasWrap.scrollTop + y - offsetY) / zoom;
+  const imgX = (getEffectiveScrollLeft() + x - offsetX) / zoom;
+  const imgY = (getEffectiveScrollTop() + y - offsetY) / zoom;
   const ix = Math.floor(imgX);
   const iy = Math.floor(imgY);
   if (ix < 0 || iy < 0 || ix >= state.width || iy >= state.height) {
@@ -1711,8 +1811,8 @@ function drawPixelOverlay() {
     state.maskShape[0] === state.height &&
     state.maskShape[1] === state.width;
 
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const viewW = canvasWrap.clientWidth / zoom;
   const viewH = canvasWrap.clientHeight / zoom;
   let startX = Math.floor(viewX);
@@ -1795,8 +1895,8 @@ function drawRoiOverlay() {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const x0 = (roiState.start.x - viewX) * zoom + offsetX;
   const y0 = (roiState.start.y - viewY) * zoom + offsetY;
   const x1 = (roiState.end.x - viewX) * zoom + offsetX;
@@ -2353,8 +2453,8 @@ function drawPeakOverlay() {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const externalSets = Array.isArray(analysisState.externalPeakSets) ? analysisState.externalPeakSets : [];
   const hasLocalPeaks = analysisState.peaksEnabled && Array.isArray(analysisState.peaks) && analysisState.peaks.length;
 
@@ -2694,8 +2794,8 @@ function drawResolutionOverlay() {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const centerX = (params.centerX - viewX) * zoom + offsetX;
   const centerY = (params.centerY - viewY) * zoom + offsetY;
   const pixelSizeMm = params.pixelSizeUm / 1000;
@@ -2778,8 +2878,8 @@ function getRoiScreenGeometry() {
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const x0 = (roiState.start.x - viewX) * zoom + offsetX;
   const y0 = (roiState.start.y - viewY) * zoom + offsetY;
   const x1 = (roiState.end.x - viewX) * zoom + offsetX;
@@ -3076,8 +3176,8 @@ function getViewRect() {
   const viewH = canvasWrap.clientHeight / scaleY;
   const viewWClamped = Math.min(viewW, imgW);
   const viewHClamped = Math.min(viewH, imgH);
-  let viewX = canvasWrap.scrollLeft / scaleX;
-  let viewY = canvasWrap.scrollTop / scaleY;
+  let viewX = getEffectiveScrollLeft() / scaleX;
+  let viewY = getEffectiveScrollTop() / scaleY;
   viewX = Math.max(0, Math.min(imgW - viewWClamped, viewX));
   viewY = Math.max(0, Math.min(imgH - viewHClamped, viewY));
   return { viewX, viewY, viewW: viewWClamped, viewH: viewHClamped, scaleX, scaleY };
@@ -3115,16 +3215,13 @@ function panToImageCenter(x, y) {
   const maxY = Math.max(0, state.height - view.viewH);
   const targetX = Math.max(0, Math.min(maxX, x - view.viewW / 2));
   const targetY = Math.max(0, Math.min(maxY, y - view.viewH / 2));
-  canvasWrap.scrollLeft = targetX * view.scaleX;
-  canvasWrap.scrollTop = targetY * view.scaleY;
-  scheduleOverview();
+  setEffectiveScroll(targetX * view.scaleX, targetY * view.scaleY);
 }
 
 function scrollToView(viewX, viewY) {
   if (!state.width || !state.height) return;
   const zoom = state.zoom || 1;
-  canvasWrap.scrollLeft = viewX * zoom;
-  canvasWrap.scrollTop = viewY * zoom;
+  setEffectiveScroll(viewX * zoom, viewY * zoom);
 }
 
 function getOverviewHandleAt(point) {
@@ -3358,7 +3455,9 @@ function setZoom(value) {
       : 0;
   state.renderOffsetX = Number.isFinite(offsetX) ? offsetX : 0;
   state.renderOffsetY = Number.isFinite(offsetY) ? offsetY : 0;
-  canvas.style.transform = `translate(${state.renderOffsetX}px, ${state.renderOffsetY}px) scale(${clamped})`;
+  clampPanOffsetsToBounds();
+  applyCanvasTransform();
+  updatePanCapability();
   if (zoomRange) {
     zoomRange.min = String(minZoom);
     zoomRange.value = String(clamped);
@@ -3384,20 +3483,17 @@ function zoomAt(clientX, clientY, nextZoom) {
   const prevZoom = state.zoom || 1;
   const prevOffsetX = state.renderOffsetX || 0;
   const prevOffsetY = state.renderOffsetY || 0;
-  const worldX = (canvasWrap.scrollLeft + x - prevOffsetX) / prevZoom;
-  const worldY = (canvasWrap.scrollTop + y - prevOffsetY) / prevZoom;
+  const worldX = (getEffectiveScrollLeft() + x - prevOffsetX) / prevZoom;
+  const worldY = (getEffectiveScrollTop() + y - prevOffsetY) / prevZoom;
 
   setZoom(nextZoom);
 
   const newOffsetX = state.renderOffsetX || 0;
   const newOffsetY = state.renderOffsetY || 0;
-  const newScrollLeft = worldX * state.zoom - x + newOffsetX;
-  const newScrollTop = worldY * state.zoom - y + newOffsetY;
-  const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
-  const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
-  canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft));
-  canvasWrap.scrollTop = Math.max(0, Math.min(maxScrollTop, newScrollTop));
-  scheduleOverview();
+  const targetEffectiveX = worldX * state.zoom - x + newOffsetX;
+  const targetEffectiveY = worldY * state.zoom - y + newOffsetY;
+  setEffectiveScroll(targetEffectiveX, targetEffectiveY, false);
+  syncViewportOverlays();
 }
 
 function normalizeWheelDelta(event) {
@@ -3468,10 +3564,9 @@ function updateTouchGesture(touches) {
   const dx = nextMid.x - touchGestureMid.x;
   const dy = nextMid.y - touchGestureMid.y;
   if (dx || dy) {
-    const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
-    const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
-    canvasWrap.scrollLeft = Math.max(0, Math.min(maxScrollLeft, canvasWrap.scrollLeft - dx));
-    canvasWrap.scrollTop = Math.max(0, Math.min(maxScrollTop, canvasWrap.scrollTop - dy));
+    const nextEffectiveX = getEffectiveScrollLeft() - dx;
+    const nextEffectiveY = getEffectiveScrollTop() - dy;
+    setEffectiveScroll(nextEffectiveX, nextEffectiveY);
   }
 
   touchGestureDistance = nextDistance;
@@ -3505,10 +3600,10 @@ function fitImageToView() {
   );
   if (!Number.isFinite(scale) || scale <= 0) return;
   setZoom(scale);
-  canvasWrap.scrollLeft = 0;
-  canvasWrap.scrollTop = 0;
-  scheduleOverview();
-  schedulePixelOverlay();
+  state.panOffsetX = 0;
+  state.panOffsetY = 0;
+  setEffectiveScroll(0, 0, false);
+  syncViewportOverlays();
 }
 
 function updateFpsLabel() {
@@ -3627,6 +3722,9 @@ function applyPanelState() {
   const isMobile = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
   
   toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
+  if (panelBody) {
+    panelBody.setAttribute("aria-hidden", state.panelCollapsed ? "true" : "false");
+  }
   
   // Mobile: show/hide panel with translation
   if (isMobile && window.innerWidth < 768) {
@@ -3646,8 +3744,13 @@ function applyPanelState() {
   }
   if (panelFab) {
     panelFab.classList.toggle("is-collapsed", state.panelCollapsed);
+    panelFab.classList.toggle("is-open", !state.panelCollapsed);
+    panelFab.dataset.state = state.panelCollapsed ? "collapsed" : "expanded";
     panelFab.textContent = state.panelCollapsed ? "Open menu ▾" : "Close menu ▴";
     panelFab.setAttribute("aria-label", state.panelCollapsed ? "Open panel" : "Collapse panel");
+    panelFab.setAttribute("aria-expanded", state.panelCollapsed ? "false" : "true");
+    panelFab.setAttribute("aria-keyshortcuts", "M");
+    panelFab.title = state.panelCollapsed ? "Open side menu (M)" : "Close side menu (M)";
   }
   scheduleOverview();
   scheduleHistogram();
@@ -4390,7 +4493,10 @@ function updateLiveBadge() {
   const liveMode = state.autoload.mode === "simplon" || state.autoload.mode === "remote";
   if (!state.autoload.running || !liveMode) {
     liveBadge.classList.remove("is-active", "is-wait");
+    liveBadge.textContent = "LIVE";
     liveBadge.setAttribute("aria-hidden", "true");
+    liveBadge.removeAttribute("aria-label");
+    liveBadge.removeAttribute("title");
     return;
   }
   liveBadge.classList.add("is-active");
@@ -4398,6 +4504,8 @@ function updateLiveBadge() {
   const wait = !state.autoload.lastUpdate || age > state.autoload.interval * 2;
   liveBadge.classList.toggle("is-wait", wait);
   liveBadge.textContent = wait ? "WAIT" : "LIVE";
+  liveBadge.setAttribute("aria-label", wait ? "Stream waiting for updates" : "Stream live");
+  liveBadge.title = wait ? "Waiting for stream updates" : "Live stream active";
   liveBadge.setAttribute("aria-hidden", "false");
 }
 
@@ -4406,6 +4514,8 @@ function updateBackendBadge() {
   backendBadge.classList.toggle("is-off", !state.backendAlive);
   backendBadge.classList.toggle("is-active", true);
   backendBadge.textContent = state.backendAlive ? "SERVER" : "OFFLINE";
+  backendBadge.setAttribute("aria-label", state.backendAlive ? "Backend server online" : "Backend server offline");
+  backendBadge.title = state.backendAlive ? "Backend server online" : "Backend server offline";
   backendBadge.setAttribute("aria-hidden", "false");
 }
 
@@ -5259,8 +5369,8 @@ function renderRegionToCanvas(region) {
 function getVisibleRegion() {
   if (!canvasWrap || !state.width || !state.height) return null;
   const zoom = state.zoom || 1;
-  const viewX = canvasWrap.scrollLeft / zoom;
-  const viewY = canvasWrap.scrollTop / zoom;
+  const viewX = getEffectiveScrollLeft() / zoom;
+  const viewY = getEffectiveScrollTop() / zoom;
   const viewW = canvasWrap.clientWidth / zoom;
   const viewH = canvasWrap.clientHeight / zoom;
   let startX = Math.floor(viewX);
@@ -6018,6 +6128,11 @@ function handleNavShortcut(event) {
     return true;
   }
   switch (event.key) {
+    case "m":
+    case "M":
+      event.preventDefault();
+      togglePanel();
+      return true;
     case "ArrowLeft":
       event.preventDefault();
       stopPlayback();
@@ -8601,6 +8716,10 @@ function closeCurrentFile() {
   state.histogram = null;
   state.stats = null;
   state.hasFrame = false;
+  state.panOffsetX = 0;
+  state.panOffsetY = 0;
+  state.renderOffsetX = 0;
+  state.renderOffsetY = 0;
   state.globalStats = null;
   analysisState.peaks = [];
   analysisState.selectedPeaks = [];
@@ -8631,6 +8750,8 @@ function closeCurrentFile() {
   if (ctx) {
     ctx.clearRect(0, 0, 1, 1);
   }
+  applyCanvasTransform();
+  updatePanCapability();
   clearHistogram();
   renderPeakList();
   schedulePeakOverlay();
@@ -8667,6 +8788,7 @@ function applyFrame(data, width, height, dtype) {
     fitImageToView();
   }
   state.hasFrame = true;
+  updatePanCapability();
   hideSplash();
   updatePlayButtons();
   scheduleOverview();
@@ -9925,8 +10047,8 @@ canvasWrap.addEventListener(
       touchDragStart = {
         x: touch.clientX,
         y: touch.clientY,
-        scrollLeft: canvasWrap.scrollLeft,
-        scrollTop: canvasWrap.scrollTop,
+        effectiveLeft: getEffectiveScrollLeft(),
+        effectiveTop: getEffectiveScrollTop(),
       };
       touchDragActive = true;
     }
@@ -9951,8 +10073,9 @@ canvasWrap.addEventListener(
       const touch = event.touches[0];
       const dx = touch.clientX - touchDragStart.x;
       const dy = touch.clientY - touchDragStart.y;
-      canvasWrap.scrollLeft = touchDragStart.scrollLeft - dx;
-      canvasWrap.scrollTop = touchDragStart.scrollTop - dy;
+      const nextEffectiveX = touchDragStart.effectiveLeft - dx;
+      const nextEffectiveY = touchDragStart.effectiveTop - dy;
+      setEffectiveScroll(nextEffectiveX, nextEffectiveY);
       event.preventDefault();
     }
   },
@@ -10030,8 +10153,8 @@ canvasWrap.addEventListener("pointerdown", (event) => {
   panStart = {
     x: event.clientX,
     y: event.clientY,
-    scrollLeft: canvasWrap.scrollLeft,
-    scrollTop: canvasWrap.scrollTop,
+    effectiveLeft: getEffectiveScrollLeft(),
+    effectiveTop: getEffectiveScrollTop(),
   };
   canvasWrap.classList.add("is-panning");
   deferPixelOverlayRedraw();
@@ -10057,10 +10180,9 @@ canvasWrap.addEventListener("pointermove", (event) => {
   if (!panning) return;
   const dx = event.clientX - panStart.x;
   const dy = event.clientY - panStart.y;
-  canvasWrap.scrollLeft = panStart.scrollLeft - dx;
-  canvasWrap.scrollTop = panStart.scrollTop - dy;
-  deferPixelOverlayRedraw();
-  scheduleOverview();
+  const nextEffectiveX = panStart.effectiveLeft - dx;
+  const nextEffectiveY = panStart.effectiveTop - dy;
+  setEffectiveScroll(nextEffectiveX, nextEffectiveY);
 });
 
 function stopPan(event) {
@@ -10749,6 +10871,8 @@ try {
   // ignore storage errors
 }
 applyPanelState();
+applyCanvasTransform();
+updatePanCapability();
 loadAutoloadSettings();
 updatePlayButtons();
 updateViewerFooter();
