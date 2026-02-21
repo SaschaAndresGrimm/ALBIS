@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ALBIS — ALBIS WEB VIEW</title>
-    <link rel="icon" href="favicon.ico" />
+    <link rel="icon" type="image/png" href="ressources/albis_512x512.png" />
+    <link rel="shortcut icon" href="ressources/albis_512x512.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body class="canvas-first">
@@ -157,6 +158,57 @@
           </div>
           <div class="toolbar-right">
             <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" aria-label="Toggle full screen">⛶</button>
+            <div class="toolbar-more" id="toolbar-more-wrap">
+              <button
+                class="tool-btn toolbar-more-toggle"
+                id="toolbar-more-toggle"
+                type="button"
+                aria-label="More controls"
+                aria-expanded="false"
+                aria-haspopup="true"
+                aria-controls="toolbar-more-popover"
+              >
+                More ▾
+              </button>
+              <div class="toolbar-more-popover" id="toolbar-more-popover" aria-hidden="true">
+                <label class="field toolbar-more-field" id="toolbar-more-step-field">
+                  <span>Step</span>
+                  <select id="toolbar-more-step" aria-label="Frame step">
+                    <option value="1" selected>Step 1</option>
+                    <option value="10">Step 10</option>
+                    <option value="100">Step 100</option>
+                    <option value="1000">Step 1000</option>
+                  </select>
+                </label>
+                <label class="field toolbar-more-field" id="toolbar-more-fps-field">
+                  <span>Playback speed</span>
+                  <select id="toolbar-more-fps" aria-label="Playback speed">
+                    <option value="1" selected>1 fps</option>
+                    <option value="2">2 fps</option>
+                    <option value="3">3 fps</option>
+                    <option value="4">4 fps</option>
+                    <option value="5">5 fps</option>
+                    <option value="6">6 fps</option>
+                    <option value="7">7 fps</option>
+                    <option value="8">8 fps</option>
+                    <option value="9">9 fps</option>
+                    <option value="10">10 fps</option>
+                  </select>
+                </label>
+                <label class="field toolbar-more-field is-hidden" id="toolbar-more-threshold-field">
+                  <span>Threshold</span>
+                  <select id="toolbar-more-threshold" aria-label="Threshold"></select>
+                </label>
+                <div class="toolbar-more-actions">
+                  <button class="tool-btn" id="toolbar-more-panel-toggle" type="button" aria-label="Open side menu">
+                    Open side menu
+                  </button>
+                  <button class="tool-btn" id="toolbar-more-fullscreen" type="button" aria-label="Toggle full screen">
+                    Full screen
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="upload-bar" id="upload-bar" aria-hidden="true">
@@ -208,7 +260,14 @@
                   href="https://github.com/SaschaAndresGrimm/ALBIS"
                   target="_blank"
                   rel="noopener noreferrer"
-                  >GitHub</a
+                  >
+                  <svg class="viewer-footer-github-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.38 7.86 10.9.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.27-5.23-5.67 0-1.25.45-2.27 1.19-3.07-.12-.29-.52-1.45.11-3.03 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.74.11 3.03.74.8 1.19 1.82 1.19 3.07 0 4.41-2.69 5.38-5.25 5.66.41.36.77 1.07.77 2.15 0 1.55-.01 2.8-.01 3.18 0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"
+                    ></path>
+                  </svg>
+                  <span>GitHub</span>
+                </a
                 >
               </div>
             </div>
@@ -216,6 +275,9 @@
         </main>
 
         <aside class="panel is-collapsed" id="side-panel">
+          <div class="panel-sheet-handle" id="panel-sheet-handle" aria-hidden="true">
+            <span class="panel-sheet-grip"></span>
+          </div>
           <div class="panel-resizer" id="panel-resizer" aria-hidden="true"></div>
           <button
             class="panel-fab"
@@ -340,6 +402,10 @@
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="data-source-state" role="status" aria-live="polite">
+                Choose an image source to begin.
+              </div>
+              <div class="section-skeleton is-hidden" id="data-source-skeleton" aria-hidden="true"></div>
               <label class="field">
                 <span>Data Source</span>
                 <select id="autoload-mode">
@@ -505,6 +571,10 @@
                 Image Header
                 <span class="section-chevron">▾</span>
               </button>
+              <div class="section-state is-empty" id="image-header-state" role="status" aria-live="polite">
+                No header available.
+              </div>
+              <div class="image-header-loading is-hidden" id="image-header-loading" aria-hidden="true"></div>
               <div class="image-header-empty" id="image-header-empty">No header available.</div>
               <pre class="image-header-text" id="image-header-text"></pre>
             </section>

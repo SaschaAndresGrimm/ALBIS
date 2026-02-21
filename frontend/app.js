@@ -29,6 +29,15 @@ const toolbarFpsWrap = document.getElementById("toolbar-fps-wrap");
 const toolbarPlaybackWrap = document.getElementById("toolbar-playback-wrap");
 const toolbarPlaybackToggle = document.getElementById("toolbar-playback-toggle");
 const toolbarPlaybackPopover = document.getElementById("toolbar-playback-popover");
+const toolbarMoreWrap = document.getElementById("toolbar-more-wrap");
+const toolbarMoreToggle = document.getElementById("toolbar-more-toggle");
+const toolbarMorePopover = document.getElementById("toolbar-more-popover");
+const toolbarMoreStep = document.getElementById("toolbar-more-step");
+const toolbarMoreFps = document.getElementById("toolbar-more-fps");
+const toolbarMoreThresholdField = document.getElementById("toolbar-more-threshold-field");
+const toolbarMoreThreshold = document.getElementById("toolbar-more-threshold");
+const toolbarMorePanelToggle = document.getElementById("toolbar-more-panel-toggle");
+const toolbarMoreFullscreen = document.getElementById("toolbar-more-fullscreen");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
@@ -59,6 +68,7 @@ const prevBtn = document.getElementById("btn-prev");
 const nextBtn = document.getElementById("btn-next");
 const playBtn = document.getElementById("btn-play");
 const toolsPanel = document.getElementById("side-panel");
+const panelSheetHandle = document.getElementById("panel-sheet-handle");
 const panelResizer = document.getElementById("panel-resizer");
 const panelEdgeToggle = document.getElementById("panel-edge-toggle");
 const panelFab = document.getElementById("panel-fab");
@@ -138,10 +148,14 @@ const remoteDistanceEl = document.getElementById("remote-distance");
 const remoteCenterEl = document.getElementById("remote-center");
 const remotePeakSetsEl = document.getElementById("remote-peak-sets");
 const dataSourceSummaryEl = document.getElementById("summary-data-source");
+const dataSourceStateEl = document.getElementById("data-source-state");
+const dataSourceSkeletonEl = document.getElementById("data-source-skeleton");
 const inspectorSection = document.querySelector(".panel-section.inspector");
 const imageHeaderSection = document.getElementById("image-header-section");
+const imageHeaderStateEl = document.getElementById("image-header-state");
 const imageHeaderText = document.getElementById("image-header-text");
 const imageHeaderEmpty = document.getElementById("image-header-empty");
+const imageHeaderLoading = document.getElementById("image-header-loading");
 const inspectorTree = document.getElementById("inspector-tree");
 const inspectorDetails = document.getElementById("inspector-details");
 const inspectorPath = document.getElementById("inspector-path");
@@ -334,6 +348,11 @@ let touchGestureDistance = 0;
 let touchGestureMid = null;
 let touchDragActive = false;
 let touchDragStart = null;
+let mobilePanelSnap = 0.6;
+let mobilePanelDragActive = false;
+let mobilePanelDragPointer = null;
+let mobilePanelDragStartY = 0;
+let mobilePanelDragStartSnap = mobilePanelSnap;
 let commandPaletteItems = [];
 let commandPaletteIndex = 0;
 let commandPaletteLastFocus = null;
@@ -438,6 +457,7 @@ const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
 const APP_FRONTEND_VERSION = "0.8.0";
 const DEFAULT_RING_COUNT = 3;
+const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
 const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = 18;
 const PIXEL_LABEL_DEFAULT_MAX_LABELS = 4000;
@@ -713,6 +733,7 @@ const HELP_SELECTORS = [
   ".panel-fab",
   ".panel-edge-toggle",
   ".panel-resizer",
+  ".panel-sheet-handle",
   ".roi-resize-handle",
 ].join(",");
 const HELP_DELAY_MS = 1000;
@@ -769,8 +790,14 @@ function applyHelpMap() {
     "frame-range": "Frame position",
     "frame-index": "Current frame number",
     "toolbar-playback-toggle": "Playback options (Step/FPS)",
+    "toolbar-more-toggle": "More controls",
+    "toolbar-more-panel-toggle": "Open or close side menu",
+    "toolbar-more-fullscreen": "Toggle full screen (F)",
     "frame-step": "Frame step size",
     "fps-select": "Playback speed",
+    "toolbar-more-step": "Frame step size",
+    "toolbar-more-fps": "Playback speed",
+    "toolbar-more-threshold": "Select detector threshold (Up/Down Arrow)",
     "toolbar-threshold": "Select detector threshold (Up/Down Arrow)",
     "zoom-range": "Zoom image",
     "reset-view": "Fit image to window",
@@ -798,6 +825,7 @@ function applyHelpMap() {
     "simplon-enable": "Enable live monitor",
     "panel-fab": "Toggle side panel (M)",
     "panel-resizer": "Resize side panel",
+    "panel-sheet-handle": "Drag up/down to resize panel",
     "fullscreen-toggle": "Toggle full screen (F)",
     "inspector-search-input": "Search the HDF5 tree",
     "inspector-search-clear": "Clear search",
@@ -1041,6 +1069,37 @@ function setSectionBadgeState(element, tone, message) {
   element.textContent = message || "";
 }
 
+function setDataSourceSectionState(tone, message, showSkeleton = false) {
+  setSectionBadgeState(dataSourceStateEl, tone, message);
+  if (!dataSourceSkeletonEl) return;
+  if (showSkeleton) {
+    renderSkeletonBlock(dataSourceSkeletonEl, 4);
+    dataSourceSkeletonEl.classList.remove("is-hidden");
+    dataSourceSkeletonEl.setAttribute("aria-hidden", "false");
+    return;
+  }
+  dataSourceSkeletonEl.classList.add("is-hidden");
+  dataSourceSkeletonEl.setAttribute("aria-hidden", "true");
+  dataSourceSkeletonEl.innerHTML = "";
+}
+
+function setImageHeaderSectionState(tone, message) {
+  setSectionBadgeState(imageHeaderStateEl, tone, message);
+}
+
+function setImageHeaderLoading(loading) {
+  if (!imageHeaderLoading) return;
+  if (loading) {
+    renderSkeletonBlock(imageHeaderLoading, 7);
+    imageHeaderLoading.classList.remove("is-hidden");
+    imageHeaderLoading.setAttribute("aria-hidden", "false");
+    return;
+  }
+  imageHeaderLoading.classList.add("is-hidden");
+  imageHeaderLoading.setAttribute("aria-hidden", "true");
+  imageHeaderLoading.innerHTML = "";
+}
+
 function setInspectorMessage(message) {
   if (!inspectorTree) return;
   inspectorSelectedRow = null;
@@ -1057,14 +1116,21 @@ function setImageHeader(text) {
   if (!imageHeaderText || !imageHeaderEmpty) return;
   const headerText = typeof text === "string" ? text.trim() : "";
   const hasText = headerText.length > 0;
+  setImageHeaderLoading(false);
   imageHeaderText.textContent = hasText ? text : "";
   imageHeaderText.classList.toggle("is-hidden", !hasText);
   imageHeaderEmpty.classList.toggle("is-hidden", hasText);
+  if (hasText) {
+    setImageHeaderSectionState("active", "Header loaded.");
+  } else {
+    setImageHeaderSectionState("empty", "No header available.");
+  }
 }
 
 function clearImageHeader() {
   state.imageHeaderFile = "";
   state.imageHeaderText = "";
+  setImageHeaderLoading(false);
   setImageHeader("");
 }
 
@@ -1077,6 +1143,15 @@ async function loadImageHeader(file) {
     setImageHeader(state.imageHeaderText);
     return;
   }
+  setImageHeaderSectionState("loading", "Loading image header…");
+  setImageHeaderLoading(true);
+  if (imageHeaderText) {
+    imageHeaderText.textContent = "";
+    imageHeaderText.classList.add("is-hidden");
+  }
+  if (imageHeaderEmpty) {
+    imageHeaderEmpty.classList.add("is-hidden");
+  }
   try {
     const data = await fetchJSON(`${API}/image/header?file=${encodeURIComponent(file)}`);
     const text = typeof data.header === "string" ? data.header : "";
@@ -1087,7 +1162,16 @@ async function loadImageHeader(file) {
     console.warn(err);
     state.imageHeaderFile = file;
     state.imageHeaderText = "";
-    setImageHeader("");
+    setImageHeaderLoading(false);
+    if (imageHeaderText) {
+      imageHeaderText.textContent = "";
+      imageHeaderText.classList.add("is-hidden");
+    }
+    if (imageHeaderEmpty) {
+      imageHeaderEmpty.classList.remove("is-hidden");
+      imageHeaderEmpty.textContent = "No header available.";
+    }
+    setImageHeaderSectionState("warning", "Header unavailable for this image.");
   }
 }
 
@@ -3615,10 +3699,16 @@ function updateFpsLabel() {
   if (fpsSelect) {
     fpsSelect.value = String(state.fps);
   }
+  if (toolbarMoreFps) {
+    toolbarMoreFps.value = String(state.fps);
+  }
 }
 
 function setToolbarPlaybackPopoverOpen(open) {
   if (!toolbarPlaybackWrap || !toolbarPlaybackToggle || !toolbarPlaybackPopover) return;
+  if (open) {
+    closeToolbarMorePopover();
+  }
   toolbarPlaybackWrap.classList.toggle("is-open", open);
   toolbarPlaybackToggle.setAttribute("aria-expanded", open ? "true" : "false");
   toolbarPlaybackToggle.textContent = open ? "Playback ▴" : "Playback ▾";
@@ -3638,6 +3728,46 @@ function toggleToolbarPlaybackPopover() {
   setToolbarPlaybackPopoverOpen(willOpen);
 }
 
+function setToolbarMorePopoverOpen(open) {
+  if (!toolbarMoreWrap || !toolbarMoreToggle || !toolbarMorePopover) return;
+  if (open) {
+    closeToolbarPlaybackPopover();
+  }
+  toolbarMoreWrap.classList.toggle("is-open", open);
+  toolbarMoreToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  toolbarMoreToggle.textContent = open ? "More ▴" : "More ▾";
+  toolbarMorePopover.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function closeToolbarMorePopover() {
+  setToolbarMorePopoverOpen(false);
+}
+
+function toggleToolbarMorePopover() {
+  if (!toolbarMoreWrap || toolbarMoreWrap.classList.contains("is-hidden")) return;
+  const willOpen = !toolbarMoreWrap.classList.contains("is-open");
+  setToolbarMorePopoverOpen(willOpen);
+}
+
+function syncToolbarMoreControls() {
+  if (toolbarMoreStep) {
+    toolbarMoreStep.value = String(state.step || FRAME_STEP_OPTIONS[0]);
+  }
+  if (toolbarMoreFps) {
+    toolbarMoreFps.value = String(state.fps || 1);
+  }
+  if (toolbarMoreThreshold) {
+    toolbarMoreThreshold.value = String(state.thresholdIndex || 0);
+  }
+  if (toolbarMorePanelToggle) {
+    toolbarMorePanelToggle.textContent = state.panelCollapsed ? "Open side menu" : "Close side menu";
+    toolbarMorePanelToggle.setAttribute("aria-label", state.panelCollapsed ? "Open side menu" : "Close side menu");
+  }
+  if (toolbarMoreFullscreen) {
+    toolbarMoreFullscreen.textContent = document.fullscreenElement ? "Exit full screen" : "Full screen";
+  }
+}
+
 function updateThresholdOptions() {
   if (!thresholdSelect || !thresholdField) return;
   const count = Math.max(1, state.thresholdCount || 1);
@@ -3650,6 +3780,9 @@ function updateThresholdOptions() {
   if (toolbarThresholdSelect) {
     toolbarThresholdSelect.innerHTML = "";
   }
+  if (toolbarMoreThreshold) {
+    toolbarMoreThreshold.innerHTML = "";
+  }
   const energies = Array.isArray(state.thresholdEnergies) ? state.thresholdEnergies : [];
   for (let i = 0; i < count; i += 1) {
     const energy = energies[i];
@@ -3659,6 +3792,9 @@ function updateThresholdOptions() {
     if (toolbarThresholdSelect) {
       toolbarThresholdSelect.appendChild(option(label, String(i)));
     }
+    if (toolbarMoreThreshold) {
+      toolbarMoreThreshold.appendChild(option(label, String(i)));
+    }
   }
   const idx = Math.max(0, Math.min(count - 1, state.thresholdIndex || 0));
   state.thresholdIndex = idx;
@@ -3666,10 +3802,18 @@ function updateThresholdOptions() {
   if (toolbarThresholdSelect) {
     toolbarThresholdSelect.value = String(idx);
   }
+  if (toolbarMoreThreshold) {
+    toolbarMoreThreshold.value = String(idx);
+    toolbarMoreThreshold.disabled = count <= 1;
+  }
+  if (toolbarMoreThresholdField) {
+    toolbarMoreThresholdField.classList.toggle("is-hidden", !show);
+  }
   thresholdSelect.disabled = count <= 1;
   if (toolbarThresholdSelect) {
     toolbarThresholdSelect.disabled = count <= 1;
   }
+  syncToolbarMoreControls();
   updateViewerFooter();
 }
 
@@ -3680,6 +3824,7 @@ async function setThresholdIndex(nextIndex) {
   state.thresholdIndex = clamped;
   if (thresholdSelect) thresholdSelect.value = String(clamped);
   if (toolbarThresholdSelect) toolbarThresholdSelect.value = String(clamped);
+  if (toolbarMoreThreshold) toolbarMoreThreshold.value = String(clamped);
   state.maskFile = "";
   await loadMask(true);
   requestFrame(state.frameIndex);
@@ -3689,6 +3834,7 @@ function setFps(value) {
   const clamped = Math.max(1, Math.min(10, Math.round(value)));
   state.fps = clamped;
   if (fpsSelect) fpsSelect.value = String(clamped);
+  if (toolbarMoreFps) toolbarMoreFps.value = String(clamped);
   updateFpsLabel();
   if (state.playing) {
     stopPlayback();
@@ -3702,6 +3848,9 @@ function setFrameStep(value) {
   state.step = next;
   if (frameStep) {
     frameStep.value = String(next);
+  }
+  if (toolbarMoreStep) {
+    toolbarMoreStep.value = String(next);
   }
 }
 
@@ -3721,28 +3870,64 @@ function getMaxPanelWidth() {
   return Math.max(220, Math.min(900, window.innerWidth - 24));
 }
 
+function isPhonePanelLayout() {
+  return Boolean(coarsePointerQuery?.matches) && window.innerWidth < 768;
+}
+
+function clampMobilePanelSnap(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return MOBILE_PANEL_SNAP_POINTS[0];
+  return Math.max(0.52, Math.min(1, numeric));
+}
+
+function nearestMobilePanelSnap(value) {
+  const clamped = clampMobilePanelSnap(value);
+  return MOBILE_PANEL_SNAP_POINTS.reduce((closest, candidate) =>
+    Math.abs(candidate - clamped) < Math.abs(closest - clamped) ? candidate : closest
+  );
+}
+
+function setMobilePanelSnap(value, snap = true, persist = false) {
+  mobilePanelSnap = snap ? nearestMobilePanelSnap(value) : clampMobilePanelSnap(value);
+  if (!toolsPanel) return;
+  const heightPct = `${Math.round(mobilePanelSnap * 100)}vh`;
+  toolsPanel.style.setProperty("--mobile-panel-height", heightPct);
+  toolsPanel.dataset.mobileSnap = mobilePanelSnap >= 0.95 ? "full" : "mid";
+  if (persist) {
+    try {
+      localStorage.setItem("albis.mobilePanelSnap", String(mobilePanelSnap));
+    } catch {
+      // ignore storage errors
+    }
+  }
+}
+
 function applyPanelState() {
   if (!toolsPanel || !appLayout) return;
-  
-  const isMobile = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
-  
+
+  const isPhone = isPhonePanelLayout();
   toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
+  toolsPanel.classList.toggle("is-mobile-sheet", isPhone);
   if (panelBody) {
     panelBody.setAttribute("aria-hidden", state.panelCollapsed ? "true" : "false");
   }
-  
-  // Mobile: show/hide panel with translation
-  if (isMobile && window.innerWidth < 768) {
+
+  if (isPhone) {
+    setMobilePanelSnap(mobilePanelSnap, false);
     toolsPanel.classList.toggle("is-visible", !state.panelCollapsed);
+    appLayout.style.removeProperty("--panel-width");
+    document.documentElement.style.removeProperty("--panel-width");
   } else {
-    // Desktop/tablet: use panel width
+    toolsPanel.classList.remove("is-visible");
+    toolsPanel.style.removeProperty("--mobile-panel-height");
+    delete toolsPanel.dataset.mobileSnap;
     const maxPanelWidth = getMaxPanelWidth();
     const targetWidth = Math.max(220, Math.min(maxPanelWidth, state.panelWidth));
     const width = state.panelCollapsed ? 34 : targetWidth;
     appLayout.style.setProperty("--panel-width", `${width}px`);
     document.documentElement.style.setProperty("--panel-width", `${width}px`);
   }
-  
+
   if (panelEdgeToggle) {
     panelEdgeToggle.textContent = state.panelCollapsed ? "◀" : "▶";
     panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand panel" : "Collapse panel");
@@ -3757,12 +3942,17 @@ function applyPanelState() {
     panelFab.setAttribute("aria-keyshortcuts", "M");
     panelFab.title = state.panelCollapsed ? "Open side menu (M)" : "Close side menu (M)";
   }
+  syncToolbarMoreControls();
   scheduleOverview();
   scheduleHistogram();
 }
 
 function togglePanel() {
+  const wasCollapsed = state.panelCollapsed;
   state.panelCollapsed = !state.panelCollapsed;
+  if (isPhonePanelLayout() && wasCollapsed && !state.panelCollapsed) {
+    setMobilePanelSnap(MOBILE_PANEL_SNAP_POINTS[0], true, true);
+  }
   applyPanelState();
   try {
     localStorage.setItem("albis.panelCollapsed", String(state.panelCollapsed));
@@ -3795,7 +3985,28 @@ function setSectionState(section, collapsed, persist = true) {
   }
 }
 
+function initializeSectionContentWrappers() {
+  const sections = document.querySelectorAll(".panel-section");
+  sections.forEach((section) => {
+    if (section.querySelector(":scope > .section-content")) {
+      return;
+    }
+    const title = section.querySelector(":scope > .section-title");
+    if (!title) return;
+    const wrapper = document.createElement("div");
+    wrapper.className = "section-content";
+    let node = title.nextSibling;
+    while (node) {
+      const next = node.nextSibling;
+      wrapper.appendChild(node);
+      node = next;
+    }
+    section.appendChild(wrapper);
+  });
+}
+
 function setPanelWidth(width) {
+  if (isPhonePanelLayout()) return;
   const maxPanelWidth = getMaxPanelWidth();
   const clamped = Math.max(220, Math.min(maxPanelWidth, Math.round(width)));
   state.panelWidth = clamped;
@@ -3806,6 +4017,59 @@ function setPanelWidth(width) {
     localStorage.setItem("albis.panelWidth", String(state.panelWidth));
   } catch {
     // ignore storage errors
+  }
+}
+
+function startMobilePanelDrag(event) {
+  if (!isPhonePanelLayout() || state.panelCollapsed || !toolsPanel) return;
+  mobilePanelDragActive = true;
+  mobilePanelDragPointer = event.pointerId;
+  mobilePanelDragStartY = event.clientY;
+  mobilePanelDragStartSnap = mobilePanelSnap;
+  toolsPanel.classList.add("is-dragging");
+  if (panelSheetHandle?.setPointerCapture && Number.isInteger(event.pointerId)) {
+    panelSheetHandle.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+}
+
+function updateMobilePanelDrag(event) {
+  if (!mobilePanelDragActive) return;
+  if (!Number.isInteger(mobilePanelDragPointer) || event.pointerId === mobilePanelDragPointer) {
+    const viewportHeight = Math.max(320, window.innerHeight || 1);
+    const delta = mobilePanelDragStartY - event.clientY;
+    const next = mobilePanelDragStartSnap + delta / viewportHeight;
+    setMobilePanelSnap(next, false);
+    event.preventDefault();
+  }
+}
+
+function stopMobilePanelDrag(event, cancelled = false) {
+  if (!mobilePanelDragActive || !toolsPanel) return;
+  if (!Number.isInteger(mobilePanelDragPointer) || event.pointerId === mobilePanelDragPointer || cancelled) {
+    const dragDown = (event.clientY || mobilePanelDragStartY) - mobilePanelDragStartY;
+    mobilePanelDragActive = false;
+    mobilePanelDragPointer = null;
+    toolsPanel.classList.remove("is-dragging");
+    if (panelSheetHandle?.releasePointerCapture && Number.isInteger(event.pointerId)) {
+      try {
+        panelSheetHandle.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore release errors
+      }
+    }
+    if (!cancelled && dragDown > 120 && mobilePanelSnap <= MOBILE_PANEL_SNAP_POINTS[0] + 0.05) {
+      state.panelCollapsed = true;
+      applyPanelState();
+      try {
+        localStorage.setItem("albis.panelCollapsed", String(state.panelCollapsed));
+      } catch {
+        // ignore storage errors
+      }
+      return;
+    }
+    setMobilePanelSnap(mobilePanelSnap, true, true);
+    applyPanelState();
   }
 }
 
@@ -4112,11 +4376,13 @@ function hideSplash() {
 function updateFullscreenUi() {
   const active = Boolean(document.fullscreenElement);
   document.body.classList.toggle("is-fullscreen", active);
-  if (!fullscreenToggle) return;
-  fullscreenToggle.classList.toggle("is-active", active);
-  fullscreenToggle.textContent = active ? "🗗" : "⛶";
-  fullscreenToggle.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
-  fullscreenToggle.title = active ? "Exit full screen (F)" : "Enter full screen (F)";
+  if (fullscreenToggle) {
+    fullscreenToggle.classList.toggle("is-active", active);
+    fullscreenToggle.textContent = active ? "🗗" : "⛶";
+    fullscreenToggle.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
+    fullscreenToggle.title = active ? "Exit full screen (F)" : "Enter full screen (F)";
+  }
+  syncToolbarMoreControls();
 }
 
 async function toggleFullscreen() {
@@ -4197,6 +4463,7 @@ function updateToolbar() {
   }
   updateSeriesSumUi();
   updateDataSourceSummary();
+  syncToolbarMoreControls();
   updateViewerFooter();
 }
 
@@ -4227,6 +4494,7 @@ function closeSubmenus() {
 function openMenu(menu, anchor) {
   if (!dropdown) return;
   closeToolbarPlaybackPopover();
+  closeToolbarMorePopover();
   closeSubmenus();
   dropdown.classList.add("is-open");
   dropdown.setAttribute("aria-hidden", "false");
@@ -4715,6 +4983,15 @@ function updateAutoloadUI() {
   updateLiveBadge();
   updateThresholdOptions();
   updateDataSourceSummary();
+  if (state.autoload.mode === "file") {
+    setDataSourceSectionState(state.file ? "active" : "empty", state.file ? "File mode ready." : "Select a file to begin.");
+  } else if (state.autoload.running) {
+    const label = state.autoload.mode === "simplon" ? "SIMPLON monitor active." : "Remote stream active.";
+    setDataSourceSectionState("active", label);
+  } else {
+    const label = state.autoload.mode === "simplon" ? "Configure SIMPLON source settings." : "Configure remote stream settings.";
+    setDataSourceSectionState("empty", label);
+  }
 }
 
 async function loadAutoloadFolders() {
@@ -5271,6 +5548,7 @@ function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = f
   metaShape.textContent = `${width} × ${height}`;
   metaDtype.textContent = dtype;
   applyFrame(data, width, height, dtype);
+  setDataSourceSectionState("active", preserveSeries ? "Series image loaded." : "Image loaded.");
   updateToolbar();
 }
 
@@ -5908,6 +6186,7 @@ function openCommandPalette(prefill = "") {
   if (!commandModal || !commandInput) return;
   closeMenu();
   closeToolbarPlaybackPopover();
+  closeToolbarMorePopover();
   if (isCommandPaletteOpen()) {
     if (typeof prefill === "string") {
       commandInput.value = prefill;
@@ -6711,42 +6990,52 @@ function initRenderer() {
 
 async function loadFiles() {
   setDataControlsForHdf5();
+  setDataSourceSectionState("loading", "Loading files…", true);
   const folder = (autoloadDir?.value || state.autoload.dir || "").trim();
   const url = folder ? `${API}/files?folder=${encodeURIComponent(folder)}` : `${API}/files`;
-  const data = await fetchJSON(url);
-  fileSelect.innerHTML = "";
-  const existingFile = state.file;
-  if (data.files.length > 0) {
-    const placeholder = option("Select file…", "");
-    placeholder.disabled = true;
-    placeholder.selected = true;
-    fileSelect.appendChild(placeholder);
-    data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
-    if (existingFile) {
-      const hasExisting = data.files.includes(existingFile);
-      if (!hasExisting) {
-        fileSelect.appendChild(option(fileLabel(existingFile), existingFile));
+  try {
+    const data = await fetchJSON(url);
+    fileSelect.innerHTML = "";
+    const existingFile = state.file;
+    if (data.files.length > 0) {
+      const placeholder = option("Select file…", "");
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      fileSelect.appendChild(placeholder);
+      data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
+      if (existingFile) {
+        const hasExisting = data.files.includes(existingFile);
+        if (!hasExisting) {
+          fileSelect.appendChild(option(fileLabel(existingFile), existingFile));
+        }
+        fileSelect.value = existingFile;
+        setDataSourceSectionState("active", "File list loaded.");
+      } else {
+        state.file = "";
+        state.dataset = "";
+        setStatus("Select a file to begin");
+        updateToolbar();
+        showSplash();
+        setSplashStatus("Ready. Open a file to begin.");
+        setLoading(false);
+        setDataSourceSectionState("empty", "Select a file to begin.");
       }
-      fileSelect.value = existingFile;
+      loadAutoloadFolders();
     } else {
-      state.file = "";
-      state.dataset = "";
-      setStatus("Select a file to begin");
-      updateToolbar();
-      showSplash();
-      setSplashStatus("Ready. Open a file to begin.");
-      setLoading(false);
+      data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
+      if (!existingFile) {
+        setStatus("No image files found");
+        showSplash();
+        setSplashStatus("No image files found. Open a file to begin.");
+        setLoading(false);
+      }
+      setDataSourceSectionState("warning", "No image files found in this folder.");
+      loadAutoloadFolders();
     }
-    loadAutoloadFolders();
-  } else {
-    data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
-    if (!existingFile) {
-      setStatus("No image files found");
-      showSplash();
-      setSplashStatus("No image files found. Open a file to begin.");
-      setLoading(false);
-    }
-    loadAutoloadFolders();
+  } catch (err) {
+    console.error(err);
+    setStatus("Failed to load files");
+    setDataSourceSectionState("warning", "Failed to load file list.");
   }
 }
 
@@ -6777,6 +7066,7 @@ async function loadDatasets() {
   showProcessingProgress("Scanning datasets…");
   setLoading(true);
   setStatus("Scanning datasets…");
+  setDataSourceSectionState("loading", "Scanning datasets…", true);
   try {
     const data = await fetchJSON(`${API}/datasets?file=${encodeURIComponent(state.file)}`);
     const candidates = data.datasets
@@ -6792,11 +7082,13 @@ async function loadDatasets() {
       state.dataset = ordered[0].path;
       datasetSelect.value = state.dataset;
       await loadMetadata();
+      setDataSourceSectionState("active", "Dataset metadata loaded.");
     } else {
       setStatus("No image datasets found");
       showSplash();
       setSplashStatus("No image datasets found. Open a different file.");
       setLoading(false);
+      setDataSourceSectionState("warning", "No image datasets found.");
     }
   } catch (err) {
     console.error(err);
@@ -6804,6 +7096,7 @@ async function loadDatasets() {
     showSplash();
     setSplashStatus("Dataset scan failed. Open a file to continue.");
     setLoading(false);
+    setDataSourceSectionState("warning", "Failed to scan datasets.");
   } finally {
     hideProcessingProgress();
   }
@@ -6813,6 +7106,7 @@ async function loadMetadata() {
   if (!state.file || !state.dataset) return;
   showProcessingProgress("Loading metadata…");
   setStatus("Loading metadata…");
+  setDataSourceSectionState("loading", "Loading dataset metadata…", true);
   try {
     state.maskAuto = true;
     const data = await fetchJSON(
@@ -6840,6 +7134,11 @@ async function loadMetadata() {
     await loadAnalysisParams();
     await loadMask(true);
     await loadFrame();
+    setDataSourceSectionState("active", "Metadata ready.");
+  } catch (err) {
+    console.error(err);
+    setDataSourceSectionState("warning", "Failed to load metadata.");
+    throw err;
   } finally {
     hideProcessingProgress();
   }
@@ -8761,6 +9060,7 @@ function closeCurrentFile() {
   clearMaskState();
   clearImageHeader();
   updateToolbar();
+  setDataSourceSectionState("empty", "No file loaded.");
   setStatus("No file loaded");
   setLoading(false);
   hideUploadProgress();
@@ -9045,13 +9345,16 @@ dropdown?.addEventListener("mouseenter", cancelClose);
 dropdown?.addEventListener("mouseleave", scheduleClose);
 
 document.addEventListener("click", (event) => {
-  if (!dropdown) return;
   const withinMenu = event.target.closest(".menu-bar") || event.target.closest(".menu-dropdown");
   const withinPlayback = event.target.closest("#toolbar-playback-wrap");
+  const withinMore = event.target.closest("#toolbar-more-wrap");
   if (!withinPlayback) {
     closeToolbarPlaybackPopover();
   }
-  if (!withinMenu) {
+  if (!withinMore) {
+    closeToolbarMorePopover();
+  }
+  if (dropdown && !withinMenu) {
     closeMenu();
   }
 });
@@ -9065,6 +9368,7 @@ document.addEventListener("keydown", (event) => {
   }
   if (event.key === "Escape") {
     closeToolbarPlaybackPopover();
+    closeToolbarMorePopover();
     closeMenu();
     aboutModal?.classList.remove("is-open");
     settingsModal?.classList.remove("is-open");
@@ -9950,6 +10254,34 @@ toolbarPlaybackToggle?.addEventListener("click", (event) => {
   toggleToolbarPlaybackPopover();
 });
 
+toolbarMoreToggle?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleToolbarMorePopover();
+});
+
+toolbarMoreStep?.addEventListener("change", () => {
+  setFrameStep(toolbarMoreStep.value);
+});
+
+toolbarMoreFps?.addEventListener("change", () => {
+  setFps(Number(toolbarMoreFps.value));
+});
+
+toolbarMoreThreshold?.addEventListener("change", async (event) => {
+  const value = Math.max(0, Number(event.target.value || 0));
+  await setThresholdIndex(value);
+});
+
+toolbarMorePanelToggle?.addEventListener("click", () => {
+  togglePanel();
+  closeToolbarMorePopover();
+});
+
+toolbarMoreFullscreen?.addEventListener("click", () => {
+  void toggleFullscreen();
+  closeToolbarMorePopover();
+});
+
 fullscreenToggle?.addEventListener("click", () => {
   void toggleFullscreen();
 });
@@ -9966,6 +10298,24 @@ panelEdgeToggle?.addEventListener("click", () => {
 panelFab?.addEventListener("click", () => {
   togglePanel();
 });
+
+panelSheetHandle?.addEventListener("pointerdown", (event) => {
+  startMobilePanelDrag(event);
+});
+
+window.addEventListener("pointermove", (event) => {
+  updateMobilePanelDrag(event);
+});
+
+window.addEventListener("pointerup", (event) => {
+  stopMobilePanelDrag(event, false);
+});
+
+window.addEventListener("pointercancel", (event) => {
+  stopMobilePanelDrag(event, true);
+});
+
+initializeSectionContentWrappers();
 
 panelTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -10891,6 +11241,7 @@ if (pixelLabelToggle) {
 try {
   const storedWidth = Number(localStorage.getItem("albis.panelWidth"));
   const storedCollapsed = localStorage.getItem("albis.panelCollapsed");
+  const storedMobileSnap = Number(localStorage.getItem("albis.mobilePanelSnap"));
   if (storedWidth) {
     state.panelWidth = Math.max(220, Math.min(getMaxPanelWidth(), storedWidth));
   }
@@ -10898,6 +11249,9 @@ try {
     state.panelCollapsed = storedCollapsed === "true";
   } else if (window.innerWidth < 900) {
     state.panelCollapsed = true;
+  }
+  if (Number.isFinite(storedMobileSnap) && storedMobileSnap > 0) {
+    mobilePanelSnap = nearestMobilePanelSnap(storedMobileSnap);
   }
 } catch {
   // ignore storage errors
@@ -10908,6 +11262,9 @@ updatePanCapability();
 loadAutoloadSettings();
 updatePlayButtons();
 updateViewerFooter();
+if (!state.file) {
+  setDataSourceSectionState("empty", "Choose an image source to begin.");
+}
 updateFullscreenUi();
 updateAboutVersion();
 initHelpTooltips();
