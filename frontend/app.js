@@ -3974,7 +3974,12 @@ function showSplash() {
 
 function setSplashStatus(text) {
   if (!splashStatus) return;
-  splashStatus.textContent = text || "";
+  const normalized = String(text || "").trim();
+  splashStatus.textContent = normalized;
+  if (!splash) return;
+  const lower = normalized.toLowerCase();
+  const busy = Boolean(normalized) && !/\b(ready|failed|error|done|complete)\b/.test(lower);
+  splash.classList.toggle("is-busy", busy);
 }
 
 function hideSplash() {
