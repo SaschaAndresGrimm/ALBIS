@@ -4718,11 +4718,18 @@ function setPanelTab(tabId, persist = true) {
     panelTabContents,
     persist,
     persistKey: "albis.panelTab",
-    onAfterChange: () => {
+    onAfterChange: (activeTabId) => {
       scheduleOverview();
       scheduleHistogram();
       schedulePixelOverlay();
       scheduleResolutionOverlay();
+      if (activeTabId === "analysis") {
+        // Defer ROI refresh so projection canvases are visible and sized after tab switch.
+        window.requestAnimationFrame(() => {
+          scheduleRoiOverlay();
+          scheduleRoiUpdate();
+        });
+      }
     },
   });
 }
