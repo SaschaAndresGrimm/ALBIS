@@ -58,7 +58,7 @@ export function createAppState() {
     imageHeaderFile: "",
     imageHeaderText: "",
     backendAlive: false,
-    backendVersion: "0.5",
+    backendVersion: "0.8.0",
     toolHintsEnabled: false,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,

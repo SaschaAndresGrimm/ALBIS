@@ -166,7 +166,7 @@ class RuntimeState:
 runtime_state = RuntimeState(config=CONFIG, config_path=CONFIG_PATH, data_dir=DATA_DIR)
 runtime_state.apply_config(CONFIG)
 
-ALBIS_VERSION = "0.7"
+ALBIS_VERSION = "0.8.0"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
