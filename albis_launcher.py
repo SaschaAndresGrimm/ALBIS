@@ -194,7 +194,7 @@ if Foundation is not None:
                 button.setTitle_("ALBIS")
                 button.setToolTip_(tooltip)
 
-        def menuWillOpen_(self, _menu):
+        def _refresh_server_status_item(self):
             status_item = getattr(self, "status_item", None)
             if status_item is None:
                 return
@@ -204,8 +204,12 @@ if Foundation is not None:
             status_item.setTitle_(label)
             self._update_status_bar()
 
+        def menuWillOpen_(self, _menu):
+            self._refresh_server_status_item()
+
         def applicationDockMenu_(self, _sender):
             _log_macos_event(self._start_ts(), "dock menu requested")
+            self._refresh_server_status_item()
             return getattr(self, "dock_menu", None)
 
         # Handle app re-open from Dock icon (e.g. user clicks the app while it is already running).
@@ -335,7 +339,7 @@ def _start_macos_menus(host: str, port: int, app_config: dict, start_ts: float |
         status_bar_item = status_bar.statusItemWithLength_(AppKit.NSVariableStatusItemLength)
         status_bar_item.setMenu_(menu)
         handler.status_bar_item = status_bar_item
-        handler._update_status_bar()
+        handler._refresh_server_status_item()
 
         _MACOS_RUNTIME["menu"] = menu
         _MACOS_RUNTIME["status_bar_item"] = status_bar_item
