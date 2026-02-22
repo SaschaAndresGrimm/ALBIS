@@ -310,6 +310,14 @@ const uploadBarText = document.getElementById("upload-bar-text");
 const commandModal = document.getElementById("command-modal");
 const commandInput = document.getElementById("command-input");
 const commandList = document.getElementById("command-list");
+const browseModal = document.getElementById("browse-modal");
+const browseBreadcrumb = document.getElementById("browse-breadcrumb");
+const browseFoldersList = document.getElementById("browse-folders-list");
+const browseFilesList = document.getElementById("browse-files-list");
+const browsePathInput = document.getElementById("browse-path-input");
+const browseSelectBtn = document.getElementById("browse-select");
+const browseCancelBtn = document.getElementById("browse-cancel");
+const browseCloseBtn = document.getElementById("browse-close");
 
 let renderer = null;
 let activeMenu = "file";
@@ -368,9 +376,18 @@ let mobilePanelDragStartY = 0;
 let mobilePanelDragStartSnap = mobilePanelSnap;
 let commandPaletteItems = [];
 let commandPaletteIndex = 0;
-let commandPaletteLastFocus = null;
 let html2canvasLoadPromise = null;
 const overlayCanvasMetrics = new WeakMap();
+const modalFocusRestore = new WeakMap();
+const modalStack = [];
+const MODAL_FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "[href]",
+  "input:not([disabled]):not([type=\"hidden\"])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex=\"-1\"])",
+].join(", ");
 
 const PLATFORM_SHORTCUTS = {
   "new-window": { mac: "⌘N", other: "Ctrl+N" },
@@ -5906,8 +5923,166 @@ function applyUiSettings(uiConfig) {
   }
 }
 
-function closeSettingsModal() {
-  settingsModal?.classList.remove("is-open");
+function isModalOpen(modalEl) {
+  return Boolean(modalEl?.classList.contains("is-open"));
+}
+
+function isVisibleElement(element) {
+  return Boolean(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
+}
+
+function trackModalOpen(modalEl) {
+  const index = modalStack.indexOf(modalEl);
+  if (index >= 0) {
+    modalStack.splice(index, 1);
+  }
+  modalStack.push(modalEl);
+}
+
+function trackModalClose(modalEl) {
+  const index = modalStack.indexOf(modalEl);
+  if (index >= 0) {
+    modalStack.splice(index, 1);
+  }
+}
+
+function getTopOpenModal() {
+  for (let idx = modalStack.length - 1; idx >= 0; idx -= 1) {
+    const modalEl = modalStack[idx];
+    if (isModalOpen(modalEl)) return modalEl;
+    modalStack.splice(idx, 1);
+  }
+  return null;
+}
+
+function getModalFocusableElements(modalEl) {
+  if (!(modalEl instanceof HTMLElement)) return [];
+  return Array.from(modalEl.querySelectorAll(MODAL_FOCUSABLE_SELECTOR)).filter((element) => {
+    if (!(element instanceof HTMLElement)) return false;
+    if (!isVisibleElement(element)) return false;
+    return !element.closest("[aria-hidden=\"true\"]");
+  });
+}
+
+function focusModal(modalEl, preferredFocus = null) {
+  if (!isModalOpen(modalEl)) return;
+  if (preferredFocus instanceof HTMLElement && modalEl.contains(preferredFocus) && isVisibleElement(preferredFocus)) {
+    preferredFocus.focus({ preventScroll: true });
+    return;
+  }
+  const focusable = getModalFocusableElements(modalEl);
+  if (focusable.length) {
+    focusable[0].focus({ preventScroll: true });
+    return;
+  }
+  const card = modalEl.querySelector(".modal-card");
+  if (card instanceof HTMLElement) {
+    card.setAttribute("tabindex", "-1");
+    card.focus({ preventScroll: true });
+  }
+}
+
+function openModal(modalEl, { focusTarget = null } = {}) {
+  if (!(modalEl instanceof HTMLElement)) return false;
+  if (!isModalOpen(modalEl)) {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && !modalEl.contains(active)) {
+      modalFocusRestore.set(modalEl, active);
+    } else {
+      modalFocusRestore.delete(modalEl);
+    }
+  }
+  modalEl.classList.add("is-open");
+  modalEl.setAttribute("aria-hidden", "false");
+  trackModalOpen(modalEl);
+  window.requestAnimationFrame(() => {
+    focusModal(modalEl, focusTarget);
+  });
+  return true;
+}
+
+function closeModal(modalEl, { restoreFocus = true } = {}) {
+  if (!(modalEl instanceof HTMLElement) || !isModalOpen(modalEl)) return false;
+  modalEl.classList.remove("is-open");
+  modalEl.setAttribute("aria-hidden", "true");
+  trackModalClose(modalEl);
+  const restoreTarget = modalFocusRestore.get(modalEl);
+  modalFocusRestore.delete(modalEl);
+  if (
+    restoreFocus &&
+    restoreTarget instanceof HTMLElement &&
+    restoreTarget.isConnected &&
+    typeof restoreTarget.focus === "function"
+  ) {
+    window.requestAnimationFrame(() => {
+      restoreTarget.focus({ preventScroll: true });
+    });
+  }
+  return true;
+}
+
+function trapModalFocus(event) {
+  if (event.key !== "Tab") return false;
+  const modalEl = getTopOpenModal();
+  if (!modalEl) return false;
+  const focusable = getModalFocusableElements(modalEl);
+  if (!focusable.length) {
+    event.preventDefault();
+    focusModal(modalEl);
+    return true;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+  if (event.shiftKey) {
+    if (!(active instanceof HTMLElement) || !modalEl.contains(active) || active === first) {
+      event.preventDefault();
+      last.focus({ preventScroll: true });
+      return true;
+    }
+    return false;
+  }
+  if (!(active instanceof HTMLElement) || !modalEl.contains(active) || active === last) {
+    event.preventDefault();
+    first.focus({ preventScroll: true });
+    return true;
+  }
+  return false;
+}
+
+function closeTopModal(options = {}) {
+  const modalEl = getTopOpenModal();
+  if (!modalEl) return false;
+  if (modalEl === commandModal) {
+    closeCommandPalette(options);
+    return true;
+  }
+  if (modalEl === browseModal) {
+    closeFileBrowser(options);
+    return true;
+  }
+  if (modalEl === settingsModal) {
+    closeSettingsModal(options);
+    return true;
+  }
+  if (modalEl === aboutModal) {
+    closeAboutModal(options);
+    return true;
+  }
+  return closeModal(modalEl, options);
+}
+
+function openAboutModal() {
+  closeMenu();
+  openModal(aboutModal, { focusTarget: aboutClose });
+}
+
+function closeAboutModal({ restoreFocus = true } = {}) {
+  closeModal(aboutModal, { restoreFocus });
+}
+
+function closeSettingsModal({ restoreFocus = true } = {}) {
+  closeModal(settingsModal, { restoreFocus });
   setSettingsMessage("");
 }
 
@@ -6013,7 +6188,7 @@ function collectSettingsForm() {
 async function openSettingsModal() {
   closeMenu();
   if (!settingsModal) return;
-  settingsModal.classList.add("is-open");
+  openModal(settingsModal, { focusTarget: settingsServerHost || settingsClose });
   setSettingsMessage("Loading settings...");
   try {
     const res = await fetch(`${API}/settings`);
@@ -6333,36 +6508,31 @@ function openCommandPalette(prefill = "") {
   closeMenu();
   closeToolbarPlaybackPopover();
   closeToolbarMorePopover();
+  const nextValue = typeof prefill === "string" ? prefill : "";
   if (isCommandPaletteOpen()) {
     if (typeof prefill === "string") {
-      commandInput.value = prefill;
+      commandInput.value = nextValue;
       commandPaletteIndex = 0;
       renderCommandPalette();
     }
-    commandInput.focus();
+    focusModal(commandModal, commandInput);
+    commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
     return;
   }
-  commandPaletteLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  commandModal.classList.add("is-open");
-  commandModal.setAttribute("aria-hidden", "false");
-  commandInput.value = prefill;
+  commandInput.value = nextValue;
   commandPaletteIndex = 0;
+  openModal(commandModal, { focusTarget: commandInput });
   renderCommandPalette();
-  commandInput.focus();
-  commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
+  window.requestAnimationFrame(() => {
+    if (!isCommandPaletteOpen()) return;
+    commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
+  });
 }
 
 function closeCommandPalette({ restoreFocus = true } = {}) {
-  if (!commandModal) return;
-  if (!isCommandPaletteOpen()) return;
-  commandModal.classList.remove("is-open");
-  commandModal.setAttribute("aria-hidden", "true");
+  if (!closeModal(commandModal, { restoreFocus })) return;
   commandPaletteItems = [];
   commandPaletteIndex = 0;
-  if (restoreFocus && commandPaletteLastFocus && typeof commandPaletteLastFocus.focus === "function") {
-    commandPaletteLastFocus.focus({ preventScroll: true });
-  }
-  commandPaletteLastFocus = null;
 }
 
 function executeCommandPalette(index = commandPaletteIndex) {
@@ -6441,9 +6611,7 @@ async function handleMenuAction(action) {
       toggleFullscreen();
       break;
     case "help-about":
-      if (aboutModal) {
-        aboutModal.classList.add("is-open");
-      }
+      openAboutModal();
       break;
     case "new-window":
       window.open(window.location.href, "_blank");
@@ -9507,6 +9675,9 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (trapModalFocus(event)) {
+    return;
+  }
   if (isCommandPaletteOpen()) {
     if (handleCommandPaletteKeydown(event)) {
       return;
@@ -9514,14 +9685,16 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (event.key === "Escape") {
+    if (closeTopModal()) {
+      event.preventDefault();
+      return;
+    }
     closeToolbarPlaybackPopover();
     closeToolbarMorePopover();
     closeMenu();
-    aboutModal?.classList.remove("is-open");
-    settingsModal?.classList.remove("is-open");
-    if (browseModal?.classList.contains("is-open")) {
-      closeFileBrowser();
-    }
+    return;
+  }
+  if (getTopOpenModal()) {
     return;
   }
   if (handleNavShortcut(event)) {
@@ -9684,10 +9857,13 @@ if (fileInput) {
 }
 
 if (aboutClose) {
-  aboutClose.addEventListener("click", () => {
-    aboutModal?.classList.remove("is-open");
-  });
+  aboutClose.addEventListener("click", closeAboutModal);
 }
+aboutModal?.addEventListener("click", (event) => {
+  if (event.target === aboutModal || event.target.classList?.contains("modal-backdrop")) {
+    closeAboutModal();
+  }
+});
 
 settingsClose?.addEventListener("click", closeSettingsModal);
 settingsCancel?.addEventListener("click", closeSettingsModal);
@@ -9697,7 +9873,11 @@ settingsSave?.addEventListener("click", () => {
 settingsSaveClose?.addEventListener("click", () => {
   void saveSettingsFromModal(true);
 });
-settingsModal?.querySelector(".modal-backdrop")?.addEventListener("click", closeSettingsModal);
+settingsModal?.addEventListener("click", (event) => {
+  if (event.target === settingsModal || event.target.classList?.contains("modal-backdrop")) {
+    closeSettingsModal();
+  }
+});
 commandInput?.addEventListener("input", () => {
   commandPaletteIndex = 0;
   renderCommandPalette();
@@ -9878,15 +10058,6 @@ function isBackendLocal() {
 
 const backendIsLocal = isBackendLocal();
 
-const browseModal = document.getElementById("browse-modal");
-const browseBreadcrumb = document.getElementById("browse-breadcrumb");
-const browseFoldersList = document.getElementById("browse-folders-list");
-const browseFilesList = document.getElementById("browse-files-list");
-const browsePathInput = document.getElementById("browse-path-input");
-const browseSelectBtn = document.getElementById("browse-select");
-const browseCancelBtn = document.getElementById("browse-cancel");
-const browseCloseBtn = document.getElementById("browse-close");
-
 async function loadBrowseDirectory(path) {
   try {
     const query = path ? `?path=${encodeURIComponent(path)}` : "";
@@ -10000,34 +10171,51 @@ async function loadAndRenderBrowser(path) {
 }
 
 let fileDialogPromise = null;
-let fileDialogResolve = null;
+
+function settleFileDialog(selection = "") {
+  if (!fileDialogPromise) return;
+  const pending = fileDialogPromise;
+  fileDialogPromise = null;
+  pending.resolve(selection);
+}
+
+function rejectFileDialog(error) {
+  if (!fileDialogPromise) return;
+  const pending = fileDialogPromise;
+  fileDialogPromise = null;
+  pending.reject(error instanceof Error ? error : new Error(String(error || "File dialog failed")));
+}
 
 function openFileBrowser(mode, inputElement) {
   fileBrowserState.mode = mode;
   fileBrowserState.inputElement = inputElement;
   fileBrowserState.currentPath = "";
   fileBrowserState.selectedPath = "";
-  browseModal.classList.add("is-open");
+  openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
   loadAndRenderBrowser("").catch((err) => console.error(err));
 }
 
 function openFileDialog() {
   return new Promise((resolve, reject) => {
+    settleFileDialog("");
     fileDialogPromise = { resolve, reject };
     fileBrowserState.mode = "file-open";
     fileBrowserState.inputElement = null;
     fileBrowserState.currentPath = "";
     fileBrowserState.selectedPath = "";
-    browseModal.classList.add("is-open");
+    openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
     loadAndRenderBrowser("").catch((err) => {
-      fileDialogPromise = null;
-      reject(err);
+      closeFileBrowser({ cancelDialog: false });
+      rejectFileDialog(err);
     });
   });
 }
 
-function closeFileBrowser() {
-  browseModal.classList.remove("is-open");
+function closeFileBrowser({ restoreFocus = true, cancelDialog = true } = {}) {
+  closeModal(browseModal, { restoreFocus });
+  if (cancelDialog && fileBrowserState.mode === "file-open") {
+    settleFileDialog("");
+  }
 }
 
 browseSelectBtn?.addEventListener("click", () => {
@@ -10035,15 +10223,8 @@ browseSelectBtn?.addEventListener("click", () => {
 
   // Handle file open dialog mode
   if (fileBrowserState.mode === "file-open") {
-    closeFileBrowser();
-    if (fileDialogPromise) {
-      if (selected) {
-        fileDialogPromise.resolve(selected);
-      } else {
-        fileDialogPromise.reject(new Error("No file selected"));
-      }
-      fileDialogPromise = null;
-    }
+    closeFileBrowser({ cancelDialog: false });
+    settleFileDialog(selected || "");
     return;
   }
 
@@ -10080,7 +10261,7 @@ browseCancelBtn?.addEventListener("click", closeFileBrowser);
 browseCloseBtn?.addEventListener("click", closeFileBrowser);
 
 browseModal?.addEventListener("click", (event) => {
-  if (event.target === browseModal) {
+  if (event.target === browseModal || event.target.classList?.contains("modal-backdrop")) {
     closeFileBrowser();
   }
 });

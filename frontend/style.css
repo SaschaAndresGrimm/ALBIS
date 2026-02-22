@@ -3598,6 +3598,12 @@ body.platform-windows select option:disabled {
   background: rgba(91, 122, 173, 0.22);
 }
 
+.modal-close:focus-visible {
+  outline: 2px solid rgba(134, 188, 255, 0.92);
+  outline-offset: 1px;
+  background: rgba(91, 122, 173, 0.3);
+}
+
 .modal-body {
   padding: 12px;
   font-size: 12px;
