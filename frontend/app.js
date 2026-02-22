@@ -4709,7 +4709,8 @@ async function openFileModal() {
       const res = await fetch(`${API}/choose-file`);
       if (res.status === 204) return;
       if (!res.ok) {
-        throw new Error(`Picker failed: ${res.status}`);
+        setStatus("File picker unavailable");
+        return;
       }
       const data = await res.json();
       const path = data?.path;
@@ -4735,6 +4736,8 @@ async function openFileModal() {
       return;
     } catch (err) {
       console.error(err);
+      setStatus("File picker unavailable");
+      return;
     }
   } else if (filesystemMode?.value === "local") {
     // Use HTML5 file input for local filesystem on remote backend
