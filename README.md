@@ -206,7 +206,8 @@ Example:
   },
   "launcher": {
     "startup_timeout_sec": 5.0,
-    "open_browser": true
+    "open_browser": true,
+    "debug_macos_events": false
   }
 }
 ```
@@ -215,12 +216,14 @@ Notes:
 - `data.root = ""` defaults to project root for source runs and `~/ALBIS-data` for packaged runs.
 - `server.host = "0.0.0.0"` enables LAN access (`http://<your-ip>:8000`).
 - `server.port` is the single port used by backend + launcher/browser startup.
+- `launcher.debug_macos_events = true` enables verbose macOS Dock/app event traces in launcher log.
 - `logging.dir = ""` writes logs to `<data.root>/logs/albis.log`.
 - Packaged installs auto-create a default user config at `~/.config/albis/config.json` on first run (if no config is found).
 
 ## Logging
 
 Log level and log directory are configured in `albis.config.json` under `logging.level` and `logging.dir`.
+Launcher startup logs are also written to `~/.config/albis/launcher.log` (with automatic rotation at ~1 MiB to `launcher.log.1`).
 
 Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
 

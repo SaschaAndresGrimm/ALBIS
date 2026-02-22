@@ -7,6 +7,8 @@ import sys
 from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
+bundle_version = (os.environ.get("ALBIS_BUNDLE_VERSION", "").strip() or "0.0.0")
+bundle_build = (os.environ.get("ALBIS_BUNDLE_BUILD", "").strip() or bundle_version)
 
 icon_path = os.environ.get("ALBIS_ICON", "").strip()
 if not icon_path:
@@ -101,4 +103,10 @@ if sys.platform == "darwin":
         name="ALBIS.app",
         icon=app_icon,
         bundle_identifier="com.saschaandresgrimm.albis",
+        info_plist={
+            "CFBundleDisplayName": "ALBIS",
+            "CFBundleName": "ALBIS",
+            "CFBundleShortVersionString": bundle_version,
+            "CFBundleVersion": bundle_build,
+        },
     )

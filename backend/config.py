@@ -23,6 +23,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "launcher": {
         "startup_timeout_sec": 5.0,
         "open_browser": True,
+        "debug_macos_events": False,
     },
     "data": {
         "root": "",
@@ -143,6 +144,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         "launcher": {
             "startup_timeout_sec": startup_timeout,
             "open_browser": get_bool(merged, ("launcher", "open_browser"), True),
+            "debug_macos_events": get_bool(merged, ("launcher", "debug_macos_events"), False),
         },
         "data": {
             "root": get_str(merged, ("data", "root"), ""),

@@ -6,7 +6,8 @@
   },
   "launcher": {
     "startup_timeout_sec": 5.0,
-    "open_browser": true
+    "open_browser": true,
+    "debug_macos_events": false
   },
   "data": {
     "root": "./data",

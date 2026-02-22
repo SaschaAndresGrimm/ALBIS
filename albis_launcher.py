@@ -23,6 +23,9 @@ except Exception:  # pragma: no cover - optional UI helper
     Foundation = None
 
 _MACOS_RUNTIME: dict[str, object] = {}
+_MACOS_EVENT_LOGS_ENABLED = False
+_LAUNCHER_LOG_MAX_BYTES = 1024 * 1024  # 1 MiB
+_LAUNCHER_LOG_BACKUP_SUFFIX = ".1"
 
 from backend.config import get_bool, get_float, get_int, get_str, load_config
 
@@ -136,7 +139,7 @@ if Foundation is not None:
             host, port = self._current_host_port()
             start_ts = self._start_ts()
             if not host or port <= 0:
-                _launcher_log(start_ts, f"macos event: {reason}: no host/port")
+                _log_macos_event(start_ts, f"{reason}: no host/port")
                 return
             try:
                 throttle_sec = float(getattr(self, "browser_open_throttle_sec", 0.8))
@@ -148,13 +151,10 @@ if Foundation is not None:
                 last_open = 0.0
             now = time.monotonic()
             if now - last_open < throttle_sec:
-                _launcher_log(start_ts, f"macos event: {reason}: throttled")
+                _log_macos_event(start_ts, f"{reason}: throttled")
                 return
             self.last_browser_open_mono = now
-            _launcher_log(
-                start_ts,
-                f"macos event: {reason}: opening browser for {_normalize_host(host)}:{port}",
-            )
+            _log_macos_event(start_ts, f"{reason}: opening browser for {_normalize_host(host)}:{port}")
             _open_browser(host, port)
 
         def openBrowser_(self, _sender):
@@ -205,13 +205,13 @@ if Foundation is not None:
             self._update_status_bar()
 
         def applicationDockMenu_(self, _sender):
-            _launcher_log(self._start_ts(), "macos event: dock menu requested")
+            _log_macos_event(self._start_ts(), "dock menu requested")
             return getattr(self, "dock_menu", None)
 
         # Handle app re-open from Dock icon (e.g. user clicks the app while it is already running).
         # Opening the viewer URL here avoids the Dock bounce-without-action behavior in windowless apps.
         def applicationShouldHandleReopen_hasVisibleWindows_(self, _app, _has_visible_windows):
-            _launcher_log(self._start_ts(), "macos event: reopen requested")
+            _log_macos_event(self._start_ts(), "reopen requested")
             self._open_browser_throttled("reopen")
             return True
 
@@ -223,9 +223,9 @@ if Foundation is not None:
             except (TypeError, ValueError):
                 grace_until = 0.0
             if time.monotonic() < grace_until:
-                _launcher_log(start_ts, "macos event: became active (startup grace)")
+                _log_macos_event(start_ts, "became active (startup grace)")
                 return
-            _launcher_log(start_ts, "macos event: became active")
+            _log_macos_event(start_ts, "became active")
             self._open_browser_throttled("activate")
 
 
@@ -377,6 +377,24 @@ def _wait_for_health(host: str, port: int, timeout: float = 5.0) -> bool:
             time.sleep(0.1)
     return False
 
+def _launcher_log_path() -> Path:
+    return Path.home() / ".config" / "albis" / "launcher.log"
+
+def _rotate_launcher_log_if_needed(log_path: Path) -> None:
+    try:
+        if not log_path.exists():
+            return
+        if log_path.stat().st_size < _LAUNCHER_LOG_MAX_BYTES:
+            return
+        backup_path = log_path.with_name(log_path.name + _LAUNCHER_LOG_BACKUP_SUFFIX)
+        try:
+            backup_path.unlink()
+        except FileNotFoundError:
+            pass
+        log_path.replace(backup_path)
+    except OSError:
+        return
+
 def _launcher_log(start: float, message: str) -> None:
     elapsed_ms = (time.perf_counter() - start) * 1000
     text = f"[ALBIS launcher +{elapsed_ms:8.1f}ms] {message}\n"
@@ -389,19 +407,28 @@ def _launcher_log(start: float, message: str) -> None:
             pass
     # Persist launcher diagnostics in user config so windowed app runs can be debugged.
     try:
-        log_path = Path.home() / ".config" / "albis" / "launcher.log"
+        log_path = _launcher_log_path()
         log_path.parent.mkdir(parents=True, exist_ok=True)
+        _rotate_launcher_log_if_needed(log_path)
         with log_path.open("a", encoding="utf-8") as fh:
             fh.write(text)
     except Exception:
         pass
 
+def _log_macos_event(start: float, message: str) -> None:
+    if _MACOS_EVENT_LOGS_ENABLED:
+        _launcher_log(start, f"macos event: {message}")
+
 def main() -> None:
+    global _MACOS_EVENT_LOGS_ENABLED
     _ensure_stdio_streams()
     start_ts = time.perf_counter()
     _launcher_log(start_ts, "starting")
     app_config, _config_path = load_config()
     _launcher_log(start_ts, f"config loaded ({_config_path})")
+    _MACOS_EVENT_LOGS_ENABLED = get_bool(app_config, ("launcher", "debug_macos_events"), False)
+    if _MACOS_EVENT_LOGS_ENABLED:
+        _launcher_log(start_ts, "macos event debug logging enabled")
 
     host = get_str(app_config, ("server", "host"), "127.0.0.1")
     # Single-port model: launcher and backend share server.port.
