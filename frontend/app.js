@@ -203,7 +203,6 @@ const roiOuterInput = document.getElementById("roi-outer-radius");
 const roiLimitsEnable = document.getElementById("roi-limits-enable");
 const roiExportCsvBtn = document.getElementById("roi-export-csv");
 const roiClearBtn = document.getElementById("roi-clear-btn");
-const roiResetZoomBtn = document.getElementById("roi-reset-zoom-btn");
 const roiStartEl = document.getElementById("roi-start");
 const roiEndEl = document.getElementById("roi-end");
 const roiSizeLabel = document.getElementById("roi-size-label");
@@ -507,7 +506,7 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
-const APP_FRONTEND_VERSION = "0.8.0";
+const APP_FRONTEND_VERSION = "0.8.1";
 const DEFAULT_RING_COUNT = 3;
 const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
@@ -862,7 +861,6 @@ function applyHelpMap() {
     "roi-log": "Log-scale ROI plots",
     "roi-limits-enable": "Autoscale ROI plots",
     "roi-clear-btn": "Clear active ROI selection",
-    "roi-reset-zoom-btn": "Reset ROI plots to autoscale",
     "roi-export-csv": "Export ROI projection data as CSV",
     "autoload-mode": "Select image source",
     "filesystem-mode": "Select filesystem source",
@@ -4956,13 +4954,13 @@ function updateBackendBadge() {
 
 function updateAboutVersion() {
   if (!aboutVersion) return;
-  aboutVersion.textContent = `Version ${state.backendVersion || "0.8.0"}`;
+  aboutVersion.textContent = `Version ${state.backendVersion || "0.8.1"}`;
   updateFooterVersions();
 }
 
 async function checkBackendHealth() {
   let alive = false;
-  let version = state.backendVersion || "0.8.0";
+  let version = state.backendVersion || "0.8.1";
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 1500);
   try {
@@ -5016,7 +5014,7 @@ async function waitForBackendReady(timeoutMs = 20000) {
     setSplashStatus(`Starting backend... (${attempts})`);
     const alive = await checkBackendHealth();
     if (alive) {
-      setSplashStatus(`Backend ready (v${state.backendVersion || "0.8.0"})`);
+      setSplashStatus(`Backend ready (v${state.backendVersion || "0.8.1"})`);
       return true;
     }
     await sleep(250);
@@ -8465,13 +8463,6 @@ function updateRoiPlotLimitsEnabled() {
   scheduleRoiUpdate();
 }
 
-function resetRoiPlotZoom() {
-  roiState.plotLimits.autoscale = true;
-  clearRoiPlotLimits();
-  syncRoiPlotLimitControls();
-  scheduleRoiUpdate();
-}
-
 function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
   if (axis !== "x" && axis !== "y") return;
   const limits = getRoiPlotLimits(plotKey);
@@ -10514,10 +10505,6 @@ roiLimitsEnable?.addEventListener("change", updateRoiPlotLimitsEnabled);
 roiClearBtn?.addEventListener("click", () => {
   clearRoi();
   setStatus("ROI cleared");
-});
-roiResetZoomBtn?.addEventListener("click", () => {
-  resetRoiPlotZoom();
-  setStatus("ROI plot zoom reset");
 });
 roiExportCsvBtn?.addEventListener("click", exportRoiCsv);
 

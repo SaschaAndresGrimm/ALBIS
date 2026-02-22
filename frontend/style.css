@@ -3451,6 +3451,11 @@ body.platform-windows select option:disabled {
   min-height: 42px;
 }
 
+#roi-box-plot-x,
+#roi-box-plot-y {
+  height: 120px;
+}
+
 .roi-plot-title {
   font-size: 11px;
   color: #dce8fb;
