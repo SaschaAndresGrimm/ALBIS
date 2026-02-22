@@ -79,7 +79,6 @@ const playBtn = document.getElementById("btn-play");
 const toolsPanel = document.getElementById("side-panel");
 const panelSheetHandle = document.getElementById("panel-sheet-handle");
 const panelResizer = document.getElementById("panel-resizer");
-const panelEdgeToggle = document.getElementById("panel-edge-toggle");
 const panelFab = document.getElementById("panel-fab");
 const panelBody = toolsPanel?.querySelector(".panel-body");
 const panelTabs = document.querySelectorAll(".panel-tab");
@@ -203,6 +202,8 @@ const roiInnerInput = document.getElementById("roi-inner-radius");
 const roiOuterInput = document.getElementById("roi-outer-radius");
 const roiLimitsEnable = document.getElementById("roi-limits-enable");
 const roiExportCsvBtn = document.getElementById("roi-export-csv");
+const roiClearBtn = document.getElementById("roi-clear-btn");
+const roiResetZoomBtn = document.getElementById("roi-reset-zoom-btn");
 const roiStartEl = document.getElementById("roi-start");
 const roiEndEl = document.getElementById("roi-end");
 const roiSizeLabel = document.getElementById("roi-size-label");
@@ -782,7 +783,6 @@ const HELP_SELECTORS = [
   ".panel-tab",
   ".section-title",
   ".panel-fab",
-  ".panel-edge-toggle",
   ".panel-resizer",
   ".panel-sheet-handle",
   ".roi-resize-handle",
@@ -861,6 +861,8 @@ function applyHelpMap() {
     "roi-mode": "Select ROI mode",
     "roi-log": "Log-scale ROI plots",
     "roi-limits-enable": "Autoscale ROI plots",
+    "roi-clear-btn": "Clear active ROI selection",
+    "roi-reset-zoom-btn": "Reset ROI plots to autoscale",
     "roi-export-csv": "Export ROI projection data as CSV",
     "autoload-mode": "Select image source",
     "filesystem-mode": "Select filesystem source",
@@ -890,7 +892,7 @@ function applyHelpMap() {
   });
   const commandMenuItem = document.querySelector('.dropdown-item[data-action="command-palette"]');
   if (commandMenuItem && !commandMenuItem.dataset.help) {
-    commandMenuItem.dataset.help = "Command Palette (Cmd/Ctrl+K)";
+    commandMenuItem.dataset.help = `Command Palette (${platformShortcutLabel("command-palette")})`;
   }
   document.querySelectorAll(".roi-resize-handle").forEach((el) => {
     if (!el.dataset.help) el.dataset.help = "Drag to resize plot";
@@ -3997,10 +3999,6 @@ function applyPanelState() {
     document.documentElement.style.setProperty("--panel-width", `${width}px`);
   }
 
-  if (panelEdgeToggle) {
-    panelEdgeToggle.textContent = state.panelCollapsed ? "◀" : "▶";
-    panelEdgeToggle.setAttribute("aria-label", state.panelCollapsed ? "Expand panel" : "Collapse panel");
-  }
   if (panelFab) {
     panelFab.classList.toggle("is-collapsed", state.panelCollapsed);
     panelFab.classList.toggle("is-open", !state.panelCollapsed);
@@ -4603,14 +4601,20 @@ function isCoarsePointerDevice() {
   return Boolean(coarsePointerQuery?.matches);
 }
 
+function platformShortcutLabel(action, fallback = "") {
+  const entry = PLATFORM_SHORTCUTS[action];
+  if (!entry) return fallback;
+  return isMacPlatform ? entry.mac : entry.other;
+}
+
 function applyPlatformShortcutLabels() {
   menuActions.forEach((item) => {
     const action = item.dataset.action || "";
-    const entry = PLATFORM_SHORTCUTS[action];
-    if (!entry) return;
     const shortcutEl = item.querySelector(".shortcut");
     if (!shortcutEl) return;
-    shortcutEl.textContent = isMacPlatform ? entry.mac : entry.other;
+    const label = platformShortcutLabel(action);
+    if (!label) return;
+    shortcutEl.textContent = label;
   });
 }
 
@@ -6283,14 +6287,14 @@ function getCommandPaletteCommands() {
     {
       id: "open-file",
       label: "File: Open…",
-      shortcut: "Cmd/Ctrl+O",
+      shortcut: platformShortcutLabel("open"),
       search: "file open load",
       run: () => openFileModal(),
     },
     {
       id: "close-file",
       label: "File: Close",
-      shortcut: "Cmd/Ctrl+W",
+      shortcut: platformShortcutLabel("close-file"),
       search: "file close",
       when: hasFile,
       run: () => closeCurrentFile(),
@@ -6298,14 +6302,14 @@ function getCommandPaletteCommands() {
     {
       id: "new-window",
       label: "File: New Window",
-      shortcut: "Cmd/Ctrl+N",
+      shortcut: platformShortcutLabel("new-window"),
       search: "file window",
       run: () => window.open(window.location.href, "_blank"),
     },
     {
       id: "preferences",
       label: "Settings: Preferences…",
-      shortcut: "Cmd/Ctrl+,",
+      shortcut: platformShortcutLabel("settings-open"),
       search: "settings preferences options",
       run: () => openSettingsModal(),
     },
@@ -6378,7 +6382,7 @@ function getCommandPaletteCommands() {
     {
       id: "export-full",
       label: "Export: Full Image",
-      shortcut: "Cmd/Ctrl+E",
+      shortcut: platformShortcutLabel("export-full"),
       search: "export save full image png",
       when: hasFrame,
       run: () => exportFullImage(),
@@ -6386,7 +6390,7 @@ function getCommandPaletteCommands() {
     {
       id: "export-visible",
       label: "Export: Visible Area",
-      shortcut: "Shift+Cmd/Ctrl+E",
+      shortcut: platformShortcutLabel("export-visible"),
       search: "export save visible area png",
       when: hasFrame,
       run: () => exportVisibleArea(),
@@ -6394,7 +6398,7 @@ function getCommandPaletteCommands() {
     {
       id: "export-window",
       label: "Export: Viewer Window",
-      shortcut: "Alt+Cmd/Ctrl+E",
+      shortcut: platformShortcutLabel("export-window"),
       search: "export save viewer window screenshot",
       when: hasFrame,
       run: () => exportViewerWindow(),
@@ -8461,6 +8465,13 @@ function updateRoiPlotLimitsEnabled() {
   scheduleRoiUpdate();
 }
 
+function resetRoiPlotZoom() {
+  roiState.plotLimits.autoscale = true;
+  clearRoiPlotLimits();
+  syncRoiPlotLimitControls();
+  scheduleRoiUpdate();
+}
+
 function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
   if (axis !== "x" && axis !== "y") return;
   const limits = getRoiPlotLimits(plotKey);
@@ -10210,9 +10221,7 @@ function renderBrowseContent(data) {
     }
   } else {
     const empty = document.createElement("div");
-    empty.style.padding = "8px";
-    empty.style.color = "#999";
-    empty.style.fontSize = "11px";
+    empty.className = "browse-empty";
     empty.textContent = "No folders";
     browseFoldersList.appendChild(empty);
   }
@@ -10240,9 +10249,7 @@ function renderBrowseContent(data) {
     }
   } else {
     const empty = document.createElement("div");
-    empty.style.padding = "8px";
-    empty.style.color = "#999";
-    empty.style.fontSize = "11px";
+    empty.className = "browse-empty";
     empty.textContent = "No image files";
     browseFilesList.appendChild(empty);
   }
@@ -10504,6 +10511,14 @@ roiLogToggle?.addEventListener("change", () => {
 });
 
 roiLimitsEnable?.addEventListener("change", updateRoiPlotLimitsEnabled);
+roiClearBtn?.addEventListener("click", () => {
+  clearRoi();
+  setStatus("ROI cleared");
+});
+roiResetZoomBtn?.addEventListener("click", () => {
+  resetRoiPlotZoom();
+  setStatus("ROI plot zoom reset");
+});
 roiExportCsvBtn?.addEventListener("click", exportRoiCsv);
 
 roiRadiusInput?.addEventListener("change", () => {
@@ -10739,9 +10754,6 @@ splashOpenFileBtn?.addEventListener("click", () => {
 
 document.addEventListener("fullscreenchange", updateFullscreenUi);
 
-panelEdgeToggle?.addEventListener("click", () => {
-  togglePanel();
-});
 panelFab?.addEventListener("click", () => {
   togglePanel();
 });

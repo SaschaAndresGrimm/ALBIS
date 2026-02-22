@@ -1386,36 +1386,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-bottom: 6px;
 }
 
-.panel-edge-toggle {
-  position: absolute;
-  left: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 80px;
-  background: linear-gradient(to bottom, #41526f, #27344a);
-  border: 1px solid rgba(14, 22, 35, 0.9);
-  border-radius: 8px;
-  color: #f7f7f7;
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 4;
-  padding: 0;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.35);
-}
-
-.panel-edge-toggle:focus {
-  outline: 1px solid rgba(120, 170, 255, 0.6);
-  outline-offset: -2px;
-}
-
-.panel-edge-toggle:hover {
-  background: linear-gradient(to bottom, #4b6388, #324361);
-}
-
 .panel.is-collapsed {
   padding: 4px;
 }
@@ -2344,6 +2314,18 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-bottom: 6px;
 }
 
+.roi-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.roi-quick-btn {
+  padding: 4px 9px;
+  font-size: 11px;
+}
+
 .roi-autoscale-toggle {
   font-size: 12px;
 }
@@ -2615,13 +2597,6 @@ body.platform-windows select option:disabled {
 
   .panel-tab-card {
     gap: 6px;
-  }
-
-  .panel-edge-toggle {
-    left: -16px;
-    width: 16px;
-    height: 96px;
-    font-size: 14px;
   }
 
   .panel-fab {
@@ -4039,6 +4014,12 @@ body.platform-windows select option:disabled {
   flex: 1;
   overflow-y: auto;
   max-height: 250px;
+}
+
+.browse-empty {
+  padding: 8px;
+  color: #93a2bc;
+  font-size: 11px;
 }
 
 .browse-item {
