@@ -39,6 +39,8 @@ if os.path.exists("albis.config.json"):
     datas.append(("albis.config.json", "."))
 binaries: list = []
 hiddenimports: list = ["backend.app", "backend.config"]
+if sys.platform == "darwin":
+    hiddenimports += ["AppKit", "Foundation", "objc", "Cocoa"]
 
 for name in ("hdf5plugin", "fabio"):
     collected_datas, collected_binaries, collected_hiddenimports = collect_all(name)

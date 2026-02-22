@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import os
 import socket
+import subprocess
 import sys
 import threading
 import time
+import traceback
 import urllib.error
 import urllib.request
 import webbrowser
@@ -18,6 +21,8 @@ try:
 except Exception:  # pragma: no cover - optional UI helper
     AppKit = None
     Foundation = None
+
+_MACOS_RUNTIME: dict[str, object] = {}
 
 from backend.config import get_bool, get_float, get_int, get_str, load_config
 
@@ -90,30 +95,36 @@ def _server_running(host: str, port: int) -> bool:
 
 def _open_browser(host: str, port: int) -> None:
     target_host = _normalize_host(host)
-    webbrowser.open(f"http://{target_host}:{port}")
+    url = f"http://{target_host}:{port}"
+    opened = False
+    try:
+        opened = bool(webbrowser.open(url, new=1, autoraise=True))
+    except Exception:
+        opened = False
+    if not opened and sys.platform == "darwin":
+        try:
+            subprocess.run(["open", url], check=False)
+        except Exception:
+            pass
 
 if Foundation is not None:
     class _DockMenuHandler(Foundation.NSObject):
-        def initWithConfig_(self, config: dict | None):
-            self = Foundation.NSObject.init(self)
-            if self is None:
-                return None
-            config = config or {}
-            self.host = str(config.get("host") or "127.0.0.1")
+        def _start_ts(self) -> float:
             try:
-                self.port = int(config.get("port") or 0)
-            except (TypeError, ValueError):
-                self.port = 0
-            self.log_dir = str(config.get("log_dir") or "")
-            self.status_item = None
-            self.status_bar_item = None
-            return self
+                return float(getattr(self, "start_ts"))
+            except (TypeError, ValueError, AttributeError):
+                return time.perf_counter()
 
         def _current_host_port(self):
+            host = str(getattr(self, "host", "127.0.0.1") or "127.0.0.1")
+            try:
+                port = int(getattr(self, "port", 0) or 0)
+            except (TypeError, ValueError):
+                port = 0
             last = _load_last_server()
             if last:
                 return last
-            return self.host, self.port
+            return host, port
 
         def _current_url(self) -> str | None:
             host, port = self._current_host_port()
@@ -121,10 +132,33 @@ if Foundation is not None:
                 return None
             return f"http://{_normalize_host(host)}:{port}"
 
+        def _open_browser_throttled(self, reason: str) -> None:
+            host, port = self._current_host_port()
+            start_ts = self._start_ts()
+            if not host or port <= 0:
+                _launcher_log(start_ts, f"macos event: {reason}: no host/port")
+                return
+            try:
+                throttle_sec = float(getattr(self, "browser_open_throttle_sec", 0.8))
+            except (TypeError, ValueError):
+                throttle_sec = 0.8
+            try:
+                last_open = float(getattr(self, "last_browser_open_mono", 0.0))
+            except (TypeError, ValueError):
+                last_open = 0.0
+            now = time.monotonic()
+            if now - last_open < throttle_sec:
+                _launcher_log(start_ts, f"macos event: {reason}: throttled")
+                return
+            self.last_browser_open_mono = now
+            _launcher_log(
+                start_ts,
+                f"macos event: {reason}: opening browser for {_normalize_host(host)}:{port}",
+            )
+            _open_browser(host, port)
+
         def openBrowser_(self, _sender):
-            url = self._current_url()
-            if url:
-                webbrowser.open(url)
+            self._open_browser_throttled("menu")
 
         def copyURL_(self, _sender):
             url = self._current_url()
@@ -138,7 +172,7 @@ if Foundation is not None:
             try:
                 import subprocess
 
-                log_path = Path(self.log_dir or "logs").expanduser().resolve()
+                log_path = Path(getattr(self, "log_dir", "") or "logs").expanduser().resolve()
                 subprocess.run(["open", str(log_path)], check=False)
             except Exception:
                 return
@@ -149,30 +183,50 @@ if Foundation is not None:
             AppKit.NSApp().terminate_(None)
 
         def _update_status_bar(self):
-            if AppKit is None or self.status_bar_item is None:
+            status_bar_item = getattr(self, "status_bar_item", None)
+            if AppKit is None or status_bar_item is None:
                 return
             host, port = self._current_host_port()
             status = "Online" if _server_running(host, port) else "Offline"
             tooltip = f"ALBIS Server: {status} ({_normalize_host(host)}:{port})"
-            button = self.status_bar_item.button()
+            button = status_bar_item.button()
             if button is not None:
                 button.setTitle_("ALBIS")
                 button.setToolTip_(tooltip)
 
         def menuWillOpen_(self, _menu):
-            if self.status_item is None:
+            status_item = getattr(self, "status_item", None)
+            if status_item is None:
                 return
             host, port = self._current_host_port()
             status = "Online" if _server_running(host, port) else "Offline"
             label = f"Server: {status} ({_normalize_host(host)}:{port})"
-            self.status_item.setTitle_(label)
+            status_item.setTitle_(label)
             self._update_status_bar()
+
+        def applicationDockMenu_(self, _sender):
+            _launcher_log(self._start_ts(), "macos event: dock menu requested")
+            return getattr(self, "dock_menu", None)
 
         # Handle app re-open from Dock icon (e.g. user clicks the app while it is already running).
         # Opening the viewer URL here avoids the Dock bounce-without-action behavior in windowless apps.
         def applicationShouldHandleReopen_hasVisibleWindows_(self, _app, _has_visible_windows):
-            self.openBrowser_(None)
+            _launcher_log(self._start_ts(), "macos event: reopen requested")
+            self._open_browser_throttled("reopen")
             return True
+
+        def applicationDidBecomeActive_(self, _notification):
+            # Fallback for cases where Dock re-open is not delivered, but app activation is.
+            start_ts = self._start_ts()
+            try:
+                grace_until = float(getattr(self, "activate_grace_until_mono", 0.0))
+            except (TypeError, ValueError):
+                grace_until = 0.0
+            if time.monotonic() < grace_until:
+                _launcher_log(start_ts, "macos event: became active (startup grace)")
+                return
+            _launcher_log(start_ts, "macos event: became active")
+            self._open_browser_throttled("activate")
 
 
 else:
@@ -190,14 +244,55 @@ def _port_available(host: str, port: int) -> bool:
     except OSError:
         return False
 
-def _start_macos_menus(host: str, port: int, app_config: dict) -> bool:
-    if AppKit is None or Foundation is None or sys.platform != "darwin" or _DockMenuHandler is None:
+def _should_start_macos_ui_loop() -> bool:
+    if sys.platform != "darwin":
+        return False
+    if not (AppKit is not None and Foundation is not None and _DockMenuHandler is not None):
+        return False
+    if getattr(sys, "frozen", False):
+        return True
+    # Source runs should remain Ctrl+C friendly unless explicitly requested.
+    flag = os.environ.get("ALBIS_ENABLE_MACOS_UI", "").strip().lower()
+    return flag in {"1", "true", "yes", "on"}
+
+def _start_macos_menus(host: str, port: int, app_config: dict, start_ts: float | None = None) -> bool:
+    if sys.platform != "darwin":
+        return False
+    if AppKit is None or Foundation is None or _DockMenuHandler is None:
+        if start_ts is not None:
+            _launcher_log(start_ts, "macos ui unavailable (missing AppKit/Foundation)")
         return False
     try:
         log_dir = get_str(app_config, ("logging", "dir"), "")
-        handler = _DockMenuHandler.alloc().initWithConfig_({"host": host, "port": port, "log_dir": log_dir})
+        handler = _DockMenuHandler.alloc().init()
         if handler is None:
             return False
+        handler.host = str(host or "127.0.0.1")
+        try:
+            handler.port = int(port or 0)
+        except (TypeError, ValueError):
+            handler.port = 0
+        handler.log_dir = log_dir
+        handler.start_ts = float(start_ts) if start_ts is not None else time.perf_counter()
+        handler.last_browser_open_mono = 0.0
+        handler.browser_open_throttle_sec = 0.8
+        handler.activate_grace_until_mono = time.monotonic() + 2.0
+        handler.status_item = None
+        handler.status_bar_item = None
+        handler.dock_menu = None
+        app = AppKit.NSApplication.sharedApplication()
+        app.setDelegate_(handler)
+        # NSApplication's delegate is not retained by Cocoa; keep a strong Python reference.
+        _MACOS_RUNTIME["app"] = app
+        _MACOS_RUNTIME["handler"] = handler
+    except Exception as exc:
+        if start_ts is not None:
+            _launcher_log(start_ts, f"dock delegate setup failed: {type(exc).__name__}: {exc}")
+            for line in traceback.format_exc().strip().splitlines():
+                _launcher_log(start_ts, f"dock delegate traceback: {line}")
+        return False
+
+    try:
         menu = AppKit.NSMenu.alloc().init()
         status_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             "Server: …", None, ""
@@ -233,6 +328,7 @@ def _start_macos_menus(host: str, port: int, app_config: dict) -> bool:
         menu.addItem_(item_quit)
 
         handler.status_item = status_item
+        handler.dock_menu = menu
         menu.setDelegate_(handler)
 
         status_bar = AppKit.NSStatusBar.systemStatusBar()
@@ -241,12 +337,14 @@ def _start_macos_menus(host: str, port: int, app_config: dict) -> bool:
         handler.status_bar_item = status_bar_item
         handler._update_status_bar()
 
-        app = AppKit.NSApplication.sharedApplication()
-        app.setDelegate_(handler)
-        app.setDockMenu_(menu)
-        return True
-    except Exception:
-        return False
+        _MACOS_RUNTIME["menu"] = menu
+        _MACOS_RUNTIME["status_bar_item"] = status_bar_item
+    except Exception as exc:
+        if start_ts is not None:
+            _launcher_log(start_ts, f"dock/menu setup failed: {type(exc).__name__}: {exc}")
+            for line in traceback.format_exc().strip().splitlines():
+                _launcher_log(start_ts, f"dock/menu traceback: {line}")
+    return True
 
 
 def _find_free_port() -> int:
@@ -283,11 +381,18 @@ def _launcher_log(start: float, message: str) -> None:
     elapsed_ms = (time.perf_counter() - start) * 1000
     text = f"[ALBIS launcher +{elapsed_ms:8.1f}ms] {message}\n"
     target = sys.stderr if sys.stderr is not None else sys.stdout
-    if target is None:
-        return
+    if target is not None:
+        try:
+            target.write(text)
+            target.flush()
+        except Exception:
+            pass
+    # Persist launcher diagnostics in user config so windowed app runs can be debugged.
     try:
-        target.write(text)
-        target.flush()
+        log_path = Path.home() / ".config" / "albis" / "launcher.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as fh:
+            fh.write(text)
     except Exception:
         pass
 
@@ -381,7 +486,7 @@ def main() -> None:
         _launcher_log(start_ts, "opening browser")
         _open_browser(host, port)
 
-    if _start_macos_menus(host, port, app_config) and AppKit is not None:
+    if _should_start_macos_ui_loop() and _start_macos_menus(host, port, app_config, start_ts=start_ts):
         _launcher_log(start_ts, "dock menu ready")
         AppKit.NSApp().run()
         return
