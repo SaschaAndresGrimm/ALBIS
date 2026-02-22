@@ -315,6 +315,7 @@ const browseBreadcrumb = document.getElementById("browse-breadcrumb");
 const browseFoldersList = document.getElementById("browse-folders-list");
 const browseFilesList = document.getElementById("browse-files-list");
 const browsePathInput = document.getElementById("browse-path-input");
+const browseStatus = document.getElementById("browse-status");
 const browseSelectBtn = document.getElementById("browse-select");
 const browseCancelBtn = document.getElementById("browse-cancel");
 const browseCloseBtn = document.getElementById("browse-close");
@@ -377,6 +378,10 @@ let mobilePanelDragStartSnap = mobilePanelSnap;
 let commandPaletteItems = [];
 let commandPaletteIndex = 0;
 let html2canvasLoadPromise = null;
+let settingsModalBusy = false;
+let settingsRequestId = 0;
+let browseModalBusy = false;
+let browseRequestId = 0;
 const overlayCanvasMetrics = new WeakMap();
 const modalFocusRestore = new WeakMap();
 const modalStack = [];
@@ -5895,10 +5900,22 @@ async function exportViewerWindow(filenameOverride) {
   }
 }
 
-function setSettingsMessage(text, isError = false) {
+function setSettingsMessage(text, isError = false, isBusy = false) {
   if (!settingsMessage) return;
   settingsMessage.textContent = text || "";
   settingsMessage.classList.toggle("is-error", Boolean(isError));
+  settingsMessage.classList.toggle("is-busy", Boolean(isBusy));
+}
+
+function setSettingsModalBusy(isBusy) {
+  settingsModalBusy = Boolean(isBusy);
+  settingsModal?.setAttribute("aria-busy", settingsModalBusy ? "true" : "false");
+  if (settingsSave) {
+    settingsSave.disabled = settingsModalBusy;
+  }
+  if (settingsSaveClose) {
+    settingsSaveClose.disabled = settingsModalBusy;
+  }
 }
 
 function applyUiSettings(uiConfig) {
@@ -6082,7 +6099,9 @@ function closeAboutModal({ restoreFocus = true } = {}) {
 }
 
 function closeSettingsModal({ restoreFocus = true } = {}) {
+  settingsRequestId += 1;
   closeModal(settingsModal, { restoreFocus });
+  setSettingsModalBusy(false);
   setSettingsMessage("");
 }
 
@@ -6188,33 +6207,38 @@ function collectSettingsForm() {
 async function openSettingsModal() {
   closeMenu();
   if (!settingsModal) return;
+  const requestId = ++settingsRequestId;
   openModal(settingsModal, { focusTarget: settingsServerHost || settingsClose });
-  setSettingsMessage("Loading settings...");
+  setSettingsModalBusy(true);
+  setSettingsMessage("Loading settings...", false, true);
   try {
     const res = await fetch(`${API}/settings`);
     if (!res.ok) {
       throw new Error(`Settings request failed: ${res.status}`);
     }
     const payload = await res.json();
+    if (requestId !== settingsRequestId) return;
     const config = payload?.config || {};
     fillSettingsForm(config, payload?.path || "");
     applyUiSettings(config?.ui);
     if (settingsToolHints) settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
     setSettingsMessage("Edit values and click Save or Save & Close.");
   } catch (err) {
+    if (requestId !== settingsRequestId) return;
     console.error(err);
     setSettingsMessage("Failed to load settings", true);
+  } finally {
+    if (requestId === settingsRequestId) {
+      setSettingsModalBusy(false);
+    }
   }
 }
 
 async function saveSettingsFromModal(closeAfter = false) {
-  if (!settingsSave) return;
+  if (!settingsSave || settingsModalBusy) return;
   const config = collectSettingsForm();
-  settingsSave.disabled = true;
-  if (settingsSaveClose) {
-    settingsSaveClose.disabled = true;
-  }
-  setSettingsMessage("Saving settings...");
+  setSettingsModalBusy(true);
+  setSettingsMessage("Saving settings...", false, true);
   try {
     const res = await fetch(`${API}/settings`, {
       method: "POST",
@@ -6237,10 +6261,7 @@ async function saveSettingsFromModal(closeAfter = false) {
     console.error(err);
     setSettingsMessage(String(err?.message || "Failed to save settings"), true);
   } finally {
-    settingsSave.disabled = false;
-    if (settingsSaveClose) {
-      settingsSaveClose.disabled = false;
-    }
+    setSettingsModalBusy(false);
   }
 }
 
@@ -10035,7 +10056,8 @@ autoloadPattern?.addEventListener("change", () => {
 let fileBrowserState = {
   currentPath: "",
   selectedPath: "",
-  mode: null, // "autoload" or "series-sum"
+  selectedType: "",
+  mode: null, // "autoload", "series-sum", or "file-open"
   inputElement: null,
   filesystemMode: "local", // "local" or "remote" (default to local)
 };
@@ -10058,6 +10080,60 @@ function isBackendLocal() {
 
 const backendIsLocal = isBackendLocal();
 
+function setBrowseStatus(text = "", { isError = false, isLoading = false } = {}) {
+  if (!browseStatus) return;
+  browseStatus.textContent = text || "";
+  browseStatus.classList.toggle("is-error", Boolean(isError));
+  browseStatus.classList.toggle("is-loading", Boolean(isLoading));
+}
+
+function canConfirmBrowseSelection() {
+  if (fileBrowserState.mode === "file-open") {
+    return fileBrowserState.selectedType === "file" && Boolean(fileBrowserState.selectedPath);
+  }
+  return true;
+}
+
+function syncBrowseSelectState() {
+  if (!browseSelectBtn) return;
+  browseSelectBtn.disabled = browseModalBusy || !canConfirmBrowseSelection();
+}
+
+function setBrowseModalBusy(isBusy, statusText = "") {
+  browseModalBusy = Boolean(isBusy);
+  browseModal?.setAttribute("aria-busy", browseModalBusy ? "true" : "false");
+  browseBreadcrumb?.classList.toggle("is-loading", browseModalBusy);
+  browseFoldersList?.classList.toggle("is-loading", browseModalBusy);
+  browseFilesList?.classList.toggle("is-loading", browseModalBusy);
+  if (statusText) {
+    setBrowseStatus(statusText, { isLoading: browseModalBusy });
+  } else if (!browseModalBusy && browseStatus?.classList.contains("is-loading")) {
+    setBrowseStatus("");
+  }
+  syncBrowseSelectState();
+}
+
+function persistFilesystemMode(mode) {
+  if (mode !== "local" && mode !== "remote") return;
+  try {
+    localStorage.setItem("albis.filesystemMode", mode);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function restoreFilesystemMode() {
+  if (!filesystemMode || backendIsLocal) return;
+  try {
+    const stored = localStorage.getItem("albis.filesystemMode");
+    if (stored === "local" || stored === "remote") {
+      filesystemMode.value = stored;
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
 async function loadBrowseDirectory(path) {
   try {
     const query = path ? `?path=${encodeURIComponent(path)}` : "";
@@ -10078,8 +10154,15 @@ function renderBrowseContent(data) {
   if (!data) return;
 
   fileBrowserState.currentPath = data.currentPath || "";
-  fileBrowserState.selectedPath = fileBrowserState.currentPath;
-  browsePathInput.value = fileBrowserState.selectedPath;
+  if (fileBrowserState.mode === "file-open") {
+    fileBrowserState.selectedPath = "";
+    fileBrowserState.selectedType = "";
+    browsePathInput.value = fileBrowserState.currentPath;
+  } else {
+    fileBrowserState.selectedPath = fileBrowserState.currentPath;
+    fileBrowserState.selectedType = "folder";
+    browsePathInput.value = fileBrowserState.selectedPath;
+  }
 
   // Update breadcrumb
   browseBreadcrumb.innerHTML = "";
@@ -10145,11 +10228,13 @@ function renderBrowseContent(data) {
         fileBrowserState.selectedPath = fileBrowserState.currentPath
           ? `${fileBrowserState.currentPath}/${file}`
           : file;
+        fileBrowserState.selectedType = "file";
         browsePathInput.value = fileBrowserState.selectedPath;
         document.querySelectorAll(".browse-item.is-selected").forEach((el) => {
           el.classList.remove("is-selected");
         });
         btn.classList.add("is-selected");
+        syncBrowseSelectState();
       });
       browseFilesList.appendChild(btn);
     }
@@ -10161,12 +10246,26 @@ function renderBrowseContent(data) {
     empty.textContent = "No image files";
     browseFilesList.appendChild(empty);
   }
+  syncBrowseSelectState();
 }
 
 async function loadAndRenderBrowser(path) {
-  const data = await loadBrowseDirectory(path);
-  if (data) {
-    renderBrowseContent(data);
+  const requestId = ++browseRequestId;
+  const label = path || "Root";
+  setBrowseModalBusy(true, `Loading ${label}...`);
+  try {
+    const data = await loadBrowseDirectory(path);
+    if (requestId !== browseRequestId) return;
+    if (data) {
+      renderBrowseContent(data);
+      setBrowseStatus("");
+    } else {
+      setBrowseStatus("Failed to load directory.", { isError: true });
+    }
+  } finally {
+    if (requestId === browseRequestId) {
+      setBrowseModalBusy(false);
+    }
   }
 }
 
@@ -10191,7 +10290,9 @@ function openFileBrowser(mode, inputElement) {
   fileBrowserState.inputElement = inputElement;
   fileBrowserState.currentPath = "";
   fileBrowserState.selectedPath = "";
+  fileBrowserState.selectedType = "";
   openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
+  setBrowseModalBusy(true, "Loading Root...");
   loadAndRenderBrowser("").catch((err) => console.error(err));
 }
 
@@ -10203,7 +10304,9 @@ function openFileDialog() {
     fileBrowserState.inputElement = null;
     fileBrowserState.currentPath = "";
     fileBrowserState.selectedPath = "";
+    fileBrowserState.selectedType = "";
     openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
+    setBrowseModalBusy(true, "Loading Root...");
     loadAndRenderBrowser("").catch((err) => {
       closeFileBrowser({ cancelDialog: false });
       rejectFileDialog(err);
@@ -10212,6 +10315,9 @@ function openFileDialog() {
 }
 
 function closeFileBrowser({ restoreFocus = true, cancelDialog = true } = {}) {
+  browseRequestId += 1;
+  setBrowseModalBusy(false);
+  setBrowseStatus("");
   closeModal(browseModal, { restoreFocus });
   if (cancelDialog && fileBrowserState.mode === "file-open") {
     settleFileDialog("");
@@ -10223,8 +10329,12 @@ browseSelectBtn?.addEventListener("click", () => {
 
   // Handle file open dialog mode
   if (fileBrowserState.mode === "file-open") {
+    if (!selected || fileBrowserState.selectedType !== "file") {
+      setStatus("Select an image file first");
+      return;
+    }
     closeFileBrowser({ cancelDialog: false });
-    settleFileDialog(selected || "");
+    settleFileDialog(selected);
     return;
   }
 
@@ -10269,6 +10379,7 @@ browseModal?.addEventListener("click", (event) => {
 // Handle filesystem mode selection
 filesystemMode?.addEventListener("change", () => {
   fileBrowserState.filesystemMode = filesystemMode.value;
+  persistFilesystemMode(fileBrowserState.filesystemMode);
 });
 
 async function handleLocalFileSelection(mode, inputElement) {
@@ -11335,6 +11446,11 @@ window.addEventListener("resize", () => {
 });
 
 initRenderer();
+
+restoreFilesystemMode();
+if (filesystemMode) {
+  fileBrowserState.filesystemMode = filesystemMode.value;
+}
 
 // Hide filesystem mode selector if backend is local
 if (backendIsLocal && filesystemMode) {
