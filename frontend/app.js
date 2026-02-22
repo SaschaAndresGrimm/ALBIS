@@ -353,6 +353,8 @@ let seriesSumPollTimer = null;
 let panelTabState = "view";
 let backendTimer = null;
 let inspectorSelectedRow = null;
+let inspectorSearchRequestId = 0;
+let sectionA11yCounter = 0;
 const coarsePointerQuery = window.matchMedia("(hover: none), (pointer: coarse)");
 let touchGestureActive = false;
 let touchGestureDistance = 0;
@@ -1256,6 +1258,8 @@ function renderInspectorResults(results, query) {
     row.className = "inspector-result";
     row.dataset.path = item.path || "";
     row.dataset.type = item.type || "";
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
     if (item.type === "link" && item.target) {
       row.dataset.target = item.target;
     }
@@ -1264,13 +1268,17 @@ function renderInspectorResults(results, query) {
     name.textContent = item.path || item.name || "";
     const meta = document.createElement("span");
     meta.className = "inspector-result-meta";
+    let metaText = "";
     if (item.type === "dataset" && item.shape && item.dtype) {
-      meta.textContent = `${item.shape.join("×")} ${item.dtype}`;
+      metaText = `${item.shape.join("×")} ${item.dtype}`;
     } else if (item.type === "link" && item.target) {
-      meta.textContent = item.target;
+      metaText = item.target;
     } else {
-      meta.textContent = item.type || "";
+      metaText = item.type || "";
     }
+    meta.textContent = metaText;
+    const resultName = String(name.textContent || "").trim();
+    row.setAttribute("aria-label", metaText ? `${resultName}, ${metaText}` : resultName);
     row.appendChild(name);
     row.appendChild(meta);
     inspectorResults.appendChild(row);
@@ -1278,6 +1286,7 @@ function renderInspectorResults(results, query) {
 }
 
 async function runInspectorSearch(query) {
+  const requestId = ++inspectorSearchRequestId;
   if (!isHdf5File(state.file)) {
     setSectionBadgeState(inspectorStateEl, "empty", "File inspector is available for HDF5 files only.");
     if (inspectorResults) {
@@ -1295,8 +1304,10 @@ async function runInspectorSearch(query) {
     const data = await fetchJSON(
       `${API}/hdf5/search?file=${encodeURIComponent(state.file)}&query=${encodeURIComponent(query)}`
     );
+    if (requestId !== inspectorSearchRequestId) return;
     renderInspectorResults(data.matches || [], query);
   } catch (err) {
+    if (requestId !== inspectorSearchRequestId) return;
     console.error(err);
     setSectionBadgeState(inspectorStateEl, "warning", "Search failed. Please try again.");
     if (inspectorResults) {
@@ -3998,6 +4009,51 @@ function togglePanel() {
   }
 }
 
+function sanitizeIdFragment(value, fallbackPrefix = "section") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (normalized) return normalized;
+  sectionA11yCounter += 1;
+  return `${fallbackPrefix}-${sectionA11yCounter}`;
+}
+
+function syncSectionA11y(section) {
+  if (!section) return;
+  const title = section.querySelector(":scope > .section-title");
+  const content = section.querySelector(":scope > .section-content");
+  if (!title || !content) return;
+  if (!content.id) {
+    const sectionId = sanitizeIdFragment(section.dataset.section, "section");
+    content.id = `section-content-${sectionId}`;
+  }
+  const collapsed = section.classList.contains("is-collapsed");
+  title.setAttribute("aria-controls", content.id);
+  title.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  content.setAttribute("aria-hidden", collapsed ? "true" : "false");
+}
+
+function initializePanelTabA11y() {
+  document.querySelector(".panel-tabs[role='tablist']")?.setAttribute("aria-orientation", "horizontal");
+  panelTabs.forEach((tab) => {
+    tab.setAttribute("role", "tab");
+    const tabId = sanitizeIdFragment(tab.dataset.panelTab, "panel-tab");
+    if (!tab.id) {
+      tab.id = `panel-tab-${tabId}`;
+    }
+    const panel = Array.from(panelTabContents).find((item) => item.dataset.panelTab === tab.dataset.panelTab);
+    if (!panel) return;
+    panel.setAttribute("role", "tabpanel");
+    if (!panel.id) {
+      panel.id = `panel-content-${tabId}`;
+    }
+    panel.setAttribute("aria-labelledby", tab.id);
+    tab.setAttribute("aria-controls", panel.id);
+  });
+}
+
 function toggleSection(event) {
   const button = event.currentTarget;
   const section = button.closest(".panel-section");
@@ -4010,6 +4066,7 @@ function toggleSection(event) {
 
 function setSectionState(section, collapsed, persist = true) {
   section.classList.toggle("is-collapsed", collapsed);
+  syncSectionA11y(section);
   const id = section.dataset.section;
   if (persist && id) {
     sectionStateStore[id] = collapsed;
@@ -4024,20 +4081,21 @@ function setSectionState(section, collapsed, persist = true) {
 function initializeSectionContentWrappers() {
   const sections = document.querySelectorAll(".panel-section");
   sections.forEach((section) => {
-    if (section.querySelector(":scope > .section-content")) {
-      return;
-    }
     const title = section.querySelector(":scope > .section-title");
     if (!title) return;
-    const wrapper = document.createElement("div");
-    wrapper.className = "section-content";
-    let node = title.nextSibling;
-    while (node) {
-      const next = node.nextSibling;
-      wrapper.appendChild(node);
-      node = next;
+    let wrapper = section.querySelector(":scope > .section-content");
+    if (!wrapper) {
+      wrapper = document.createElement("div");
+      wrapper.className = "section-content";
+      let node = title.nextSibling;
+      while (node) {
+        const next = node.nextSibling;
+        wrapper.appendChild(node);
+        node = next;
+      }
+      section.appendChild(wrapper);
     }
-    section.appendChild(wrapper);
+    syncSectionA11y(section);
   });
 }
 
@@ -9555,6 +9613,14 @@ inspectorResults?.addEventListener("click", async (event) => {
   await showInspectorNode(nodePath);
 });
 
+inspectorResults?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const row = event.target.closest(".inspector-result");
+  if (!row) return;
+  event.preventDefault();
+  row.click();
+});
+
 if (fileInput) {
   fileInput.addEventListener("change", async () => {
     const selected = Array.from(fileInput.files || []);
@@ -10405,12 +10471,35 @@ window.addEventListener("pointercancel", (event) => {
 });
 
 initializeSectionContentWrappers();
+initializePanelTabA11y();
 
 panelTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     const target = tab.dataset.panelTab;
     if (!target) return;
     setPanelTab(target);
+  });
+  tab.addEventListener("keydown", (event) => {
+    const tabs = Array.from(panelTabs);
+    const currentIndex = tabs.indexOf(tab);
+    if (currentIndex < 0) return;
+    let nextIndex = null;
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = tabs.length - 1;
+    }
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    const target = nextTab?.dataset.panelTab;
+    if (!target) return;
+    setPanelTab(target);
+    nextTab.focus();
   });
 });
 

@@ -7,10 +7,15 @@ export function applyPanelTab({
   onAfterChange = null,
 }) {
   panelTabs.forEach((tab) => {
-    tab.classList.toggle("is-active", tab.dataset.panelTab === tabId);
+    const isActive = tab.dataset.panelTab === tabId;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", isActive ? "true" : "false");
+    tab.setAttribute("tabindex", isActive ? "0" : "-1");
   });
   panelTabContents.forEach((panel) => {
-    panel.classList.toggle("is-active", panel.dataset.panelTab === tabId);
+    const isActive = panel.dataset.panelTab === tabId;
+    panel.classList.toggle("is-active", isActive);
+    panel.setAttribute("aria-hidden", isActive ? "false" : "true");
   });
   if (persist) {
     try {
