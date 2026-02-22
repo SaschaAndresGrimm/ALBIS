@@ -30,7 +30,7 @@
   --space-tight: 8px;
   --space-base: 8px;
   --space-wide: 16px;
-  --label-size: 11px;
+  --label-size: 12px;
   --section-title-size: 12px;
   --shadow-soft: 0 8px 18px rgba(6, 10, 18, 0.24);
   --motion-fast: 120ms;
@@ -310,7 +310,7 @@ body {
 
 .shortcut {
   color: #a5b6d4;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .toolbar {
@@ -447,7 +447,7 @@ body {
   border: 1px solid rgba(12, 20, 32, 0.62);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
-  font-size: 11px;
+  font-size: 12px;
   min-height: var(--toolbar-control-h);
 }
 
@@ -466,7 +466,7 @@ body {
   border: 1px solid rgba(12, 20, 32, 0.62);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
-  font-size: 11px;
+  font-size: 12px;
   min-width: 78px;
   min-height: var(--toolbar-control-h);
 }
@@ -486,7 +486,7 @@ body {
   border: 1px solid rgba(12, 20, 32, 0.62);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
-  font-size: 11px;
+  font-size: 12px;
   min-width: 66px;
   min-height: var(--toolbar-control-h);
 }
@@ -508,7 +508,7 @@ body {
   border: 1px solid rgba(12, 20, 32, 0.62);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
-  font-size: 11px;
+  font-size: 12px;
   min-width: 52px;
   min-height: var(--toolbar-control-h);
 }
@@ -591,7 +591,7 @@ body {
   color: #f5f9ff;
   border: 1px solid rgba(10, 19, 31, 0.68);
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: 12px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
@@ -1000,7 +1000,7 @@ body {
 }
 
 .viewer-footer-version {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   padding: 4px 9px;
   min-width: 68px;
@@ -1052,7 +1052,7 @@ body {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   color: #f2f2f2;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
   pointer-events: none;
   display: none;
@@ -2448,7 +2448,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .range-inline span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -2572,13 +2572,13 @@ body.platform-windows select option:disabled {
 
   .toolbar-frame-index input[type="number"] {
     width: 52px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .toolbar-step select,
   .toolbar-fps select {
     min-width: 64px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .toolbar-playback-btn {

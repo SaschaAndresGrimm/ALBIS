@@ -17,6 +17,7 @@ import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
 ).toLowerCase();
+const isMacPlatform = platformHint.includes("mac");
 const isWindowsPlatform = platformHint.includes("windows") || platformHint.includes("win32") || platformHint.includes("win64");
 if (isWindowsPlatform) {
   document.body?.classList.add("platform-windows");
@@ -324,6 +325,8 @@ let overviewAnchor = null;
 let overviewResizeCenter = false;
 let histDragging = false;
 let histDragTarget = null;
+let histDragRaf = null;
+let histDragPendingValue = null;
 let panning = false;
 let panStart = { x: 0, y: 0, effectiveLeft: 0, effectiveTop: 0 };
 let pixelOverlayScheduled = false;
@@ -364,6 +367,22 @@ let mobilePanelDragStartSnap = mobilePanelSnap;
 let commandPaletteItems = [];
 let commandPaletteIndex = 0;
 let commandPaletteLastFocus = null;
+let html2canvasLoadPromise = null;
+const overlayCanvasMetrics = new WeakMap();
+
+const PLATFORM_SHORTCUTS = {
+  "new-window": { mac: "⌘N", other: "Ctrl+N" },
+  open: { mac: "⌘O", other: "Ctrl+O" },
+  "close-file": { mac: "⌘W", other: "Ctrl+W" },
+  "save-full": { mac: "⌘S", other: "Ctrl+S" },
+  "save-visible": { mac: "⇧⌘S", other: "Shift+Ctrl+S" },
+  "save-window": { mac: "⌥⌘S", other: "Alt+Ctrl+S" },
+  "export-full": { mac: "⌘E", other: "Ctrl+E" },
+  "export-visible": { mac: "⇧⌘E", other: "Shift+Ctrl+E" },
+  "export-window": { mac: "⌥⌘E", other: "Alt+Ctrl+E" },
+  "settings-open": { mac: "⌘,", other: "Ctrl+," },
+  "command-palette": { mac: "⌘K", other: "Ctrl+K" },
+};
 
 const roiState = createRoiState();
 const analysisState = createAnalysisState();
@@ -1583,13 +1602,29 @@ function syncOverlayCanvas(overlay, ctx) {
   if (!overlay || !ctx || !canvasWrap) return null;
   const width = canvasWrap.clientWidth || 1;
   const height = canvasWrap.clientHeight || 1;
-  overlay.style.left = `${canvasWrap.offsetLeft}px`;
-  overlay.style.top = `${canvasWrap.offsetTop}px`;
-  overlay.style.width = `${width}px`;
-  overlay.style.height = `${height}px`;
+  const left = canvasWrap.offsetLeft || 0;
+  const top = canvasWrap.offsetTop || 0;
   const dpr = window.devicePixelRatio || 1;
-  overlay.width = Math.max(1, Math.floor(width * dpr));
-  overlay.height = Math.max(1, Math.floor(height * dpr));
+  const pixelWidth = Math.max(1, Math.floor(width * dpr));
+  const pixelHeight = Math.max(1, Math.floor(height * dpr));
+  const prev = overlayCanvasMetrics.get(overlay);
+  if (!prev || prev.left !== left) {
+    overlay.style.left = `${left}px`;
+  }
+  if (!prev || prev.top !== top) {
+    overlay.style.top = `${top}px`;
+  }
+  if (!prev || prev.width !== width) {
+    overlay.style.width = `${width}px`;
+  }
+  if (!prev || prev.height !== height) {
+    overlay.style.height = `${height}px`;
+  }
+  if (!prev || prev.pixelWidth !== pixelWidth || prev.pixelHeight !== pixelHeight) {
+    overlay.width = pixelWidth;
+    overlay.height = pixelHeight;
+  }
+  overlayCanvasMetrics.set(overlay, { left, top, width, height, pixelWidth, pixelHeight, dpr });
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { width, height, dpr };
 }
@@ -1878,16 +1913,9 @@ function deferPixelOverlayRedraw(delayMs = PIXEL_LABEL_INTERACTION_IDLE_MS) {
 
 function drawPixelOverlay() {
   if (!pixelOverlay || !pixelCtx || !canvasWrap) return;
-  const width = canvasWrap.clientWidth || 1;
-  const height = canvasWrap.clientHeight || 1;
-  pixelOverlay.style.left = `${canvasWrap.offsetLeft}px`;
-  pixelOverlay.style.top = `${canvasWrap.offsetTop}px`;
-  pixelOverlay.style.width = `${width}px`;
-  pixelOverlay.style.height = `${height}px`;
-  const dpr = window.devicePixelRatio || 1;
-  pixelOverlay.width = Math.max(1, Math.floor(width * dpr));
-  pixelOverlay.height = Math.max(1, Math.floor(height * dpr));
-  pixelCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const metrics = syncOverlayCanvas(pixelOverlay, pixelCtx);
+  if (!metrics) return;
+  const { width, height } = metrics;
   pixelCtx.clearRect(0, 0, width, height);
 
   if (!state.hasFrame || !state.dataRaw || !state.pixelLabels) return;
@@ -4495,6 +4523,17 @@ function isCoarsePointerDevice() {
   return Boolean(coarsePointerQuery?.matches);
 }
 
+function applyPlatformShortcutLabels() {
+  menuActions.forEach((item) => {
+    const action = item.dataset.action || "";
+    const entry = PLATFORM_SHORTCUTS[action];
+    if (!entry) return;
+    const shortcutEl = item.querySelector(".shortcut");
+    if (!shortcutEl) return;
+    shortcutEl.textContent = isMacPlatform ? entry.mac : entry.other;
+  });
+}
+
 function closeSubmenus() {
   submenuParents.forEach((parent) => parent.classList.remove("is-open"));
 }
@@ -5726,15 +5765,49 @@ function exportVisibleArea(filenameOverride) {
   downloadCanvasImage(image, name);
 }
 
+function ensureHtml2Canvas() {
+  if (typeof window.html2canvas === "function") {
+    return Promise.resolve(window.html2canvas);
+  }
+  if (html2canvasLoadPromise) {
+    return html2canvasLoadPromise;
+  }
+  html2canvasLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "vendor/html2canvas.min.js";
+    script.async = true;
+    script.onload = () => {
+      if (typeof window.html2canvas === "function") {
+        resolve(window.html2canvas);
+      } else {
+        reject(new Error("html2canvas loaded without global export"));
+      }
+    };
+    script.onerror = () => {
+      reject(new Error("Failed to load html2canvas"));
+    };
+    document.head.appendChild(script);
+  }).catch((err) => {
+    html2canvasLoadPromise = null;
+    throw err;
+  });
+  return html2canvasLoadPromise;
+}
+
 async function exportViewerWindow(filenameOverride) {
-  if (typeof window.html2canvas !== "function") {
+
+  let html2canvasFn;
+  try {
+    html2canvasFn = await ensureHtml2Canvas();
+  } catch (err) {
+    console.error(err);
     setStatus("Viewer export unavailable");
     return;
   }
   const target = document.querySelector(".page");
   if (!target) return;
   try {
-    const shot = await window.html2canvas(target, {
+    const shot = await html2canvasFn(target, {
       backgroundColor: null,
       scale: window.devicePixelRatio || 1,
       useCORS: true,
@@ -9195,9 +9268,6 @@ function redraw() {
       satMax,
     });
   }
-  if (state.histogram) {
-    drawHistogram(state.histogram);
-  }
   scheduleOverview();
   scheduleHistogram();
   schedulePixelOverlay();
@@ -9327,9 +9397,13 @@ async function loadFrame() {
   }
 }
 
+applyPlatformShortcutLabels();
+
 menuButtons.forEach((btn) => {
   btn.addEventListener("mouseenter", () => {
     cancelClose();
+    if (!dropdown?.classList.contains("is-open")) return;
+    if (isCoarsePointerDevice()) return;
     openMenu(btn.dataset.menu, btn);
   });
   btn.addEventListener("click", () => {
@@ -10644,28 +10718,6 @@ canvasWrap.addEventListener("pointercancel", (event) => {
   stopPan(event);
 });
 
-window.addEventListener("mousemove", (event) => {
-  if (roiEditing) {
-    const point = getImagePointFromEvent(event);
-    if (!point) return;
-    applyRoiEdit(point);
-    return;
-  }
-  if (!roiDragging) return;
-  const point = getImagePointFromEvent(event);
-  if (!point) return;
-  updateRoiDrag(point);
-});
-
-window.addEventListener("mouseup", (event) => {
-  if (roiEditing) {
-    stopRoiEdit(event);
-    return;
-  }
-  if (!roiDragging) return;
-  stopRoi(event);
-});
-
 canvasWrap.addEventListener("pointerleave", () => {
   stopRoi();
   hideCursorOverlay();
@@ -10868,6 +10920,51 @@ overviewCanvas?.addEventListener("pointerleave", () => {
   }
 });
 
+function applyHistogramDragValue(value) {
+  if (!state.stats) return;
+  const snapped = snapHistogramValue(value);
+  if (!Number.isFinite(snapped)) return;
+  const minVal = state.stats.min;
+  const maxVal = state.stats.max;
+  if (histDragTarget === "min") {
+    const clamped = Math.max(minVal, Math.min(snapped, state.max));
+    state.min = clamped;
+    minInput.value = formatValue(state.min);
+  } else if (histDragTarget === "max") {
+    const clamped = Math.min(maxVal, Math.max(snapped, state.min));
+    state.max = clamped;
+    maxInput.value = formatValue(state.max);
+  } else {
+    return;
+  }
+  state.autoScale = false;
+  autoScaleToggle.checked = false;
+  redraw();
+}
+
+function flushHistogramDragFrame() {
+  if (histDragRaf) {
+    window.cancelAnimationFrame(histDragRaf);
+    histDragRaf = null;
+  }
+  if (histDragPendingValue !== null) {
+    applyHistogramDragValue(histDragPendingValue);
+    histDragPendingValue = null;
+  }
+}
+
+function scheduleHistogramDragFrame(value) {
+  histDragPendingValue = value;
+  if (histDragRaf) return;
+  histDragRaf = window.requestAnimationFrame(() => {
+    histDragRaf = null;
+    if (histDragPendingValue === null) return;
+    const nextValue = histDragPendingValue;
+    histDragPendingValue = null;
+    applyHistogramDragValue(nextValue);
+  });
+}
+
 histCanvas.addEventListener("pointerdown", (event) => {
   if (!state.stats) return;
   const rect = histCanvas.getBoundingClientRect();
@@ -10913,28 +11010,14 @@ histCanvas.addEventListener("pointermove", (event) => {
     return;
   }
 
-  const value = snapHistogramValue(histogramXToValue(x, width));
-  if (!Number.isFinite(value)) return;
-  const minVal = state.stats.min;
-  const maxVal = state.stats.max;
-  if (histDragTarget === "min") {
-    const clamped = Math.max(minVal, Math.min(value, state.max));
-    state.min = clamped;
-    minInput.value = formatValue(state.min);
-  } else if (histDragTarget === "max") {
-    const clamped = Math.min(maxVal, Math.max(value, state.min));
-    state.max = clamped;
-    maxInput.value = formatValue(state.max);
-  }
-  state.autoScale = false;
-  autoScaleToggle.checked = false;
-  redraw();
-  scheduleHistogram();
+  const value = histogramXToValue(x, width);
+  scheduleHistogramDragFrame(value);
   hideHistTooltip();
   event.preventDefault();
 });
 
 function stopHistDrag(event) {
+  flushHistogramDragFrame();
   if (!histDragging) return;
   histDragging = false;
   histDragTarget = null;
