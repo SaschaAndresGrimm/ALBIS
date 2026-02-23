@@ -672,25 +672,28 @@
             <section class="panel-section" data-section="roi" id="roi-section">
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
+                  <label class="section-switch">
+                    <input id="roi-enable" type="checkbox" checked />
+                    <span class="section-switch-track" aria-hidden="true"></span>
+                  </label>
                   <span>Statistics and ROI</span>
-                  <span class="section-summary" id="summary-roi">Image stats</span>
+                  <span class="section-summary" id="summary-roi">On</span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
               <div class="section-state is-empty" id="roi-state" role="status" aria-live="polite">
                 Load a frame to use ROI tools.
               </div>
-              <label class="field">
-                <span class="sr-only">Mode</span>
-                <select id="roi-mode">
-                  <option value="none" selected>None</option>
-                  <option value="line">Line ROI</option>
-                  <option value="box">Box ROI</option>
-                  <option value="circle">Circle ROI</option>
-                  <option value="annulus">Annulus ROI</option>
-                </select>
-              </label>
-              <div class="roi-quick-actions">
+              <div class="roi-mode-row">
+                <label class="field">
+                  <span class="sr-only">Mode</span>
+                  <select id="roi-mode">
+                    <option value="line" selected>Line ROI</option>
+                    <option value="box">Box ROI</option>
+                    <option value="circle">Circle ROI</option>
+                    <option value="annulus">Annulus ROI</option>
+                  </select>
+                </label>
                 <button id="roi-clear-btn" class="btn btn-secondary roi-quick-btn" type="button">Clear ROI</button>
               </div>
               <div class="roi-help" id="roi-help">Right‑drag on the image to define the ROI.</div>

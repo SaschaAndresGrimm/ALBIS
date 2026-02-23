@@ -2421,16 +2421,22 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-bottom: 6px;
 }
 
-.roi-quick-actions {
-  display: flex;
-  align-items: center;
+.roi-mode-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   gap: 8px;
   margin-bottom: 6px;
 }
 
+.roi-mode-row > .field {
+  margin: 0;
+}
+
 .roi-quick-btn {
-  padding: 4px 9px;
+  padding: 4px 10px;
   font-size: 11px;
+  min-height: var(--control-h);
 }
 
 .roi-autoscale-toggle {

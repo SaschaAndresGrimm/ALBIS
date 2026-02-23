@@ -228,6 +228,7 @@ const roiXCanvas = document.getElementById("roi-x-canvas");
 const roiXCtx = roiXCanvas?.getContext("2d");
 const roiYCanvas = document.getElementById("roi-y-canvas");
 const roiYCtx = roiYCanvas?.getContext("2d");
+const roiEnableToggle = document.getElementById("roi-enable");
 const roiSectionStateEl = document.getElementById("roi-state");
 const roiSummaryEl = document.getElementById("summary-roi");
 const ringsToggle = document.getElementById("rings-toggle");
@@ -863,6 +864,7 @@ function applyHelpMap() {
     "mask-saturated-toggle": "Mask saturated pixels (datatype max)",
     "colormap-select": "Choose color map",
     "invert-color": "Invert color map",
+    "roi-enable": "Enable or disable ROI overlay tools",
     "rings-toggle": "Show resolution rings",
     "roi-mode": "Select ROI mode",
     "roi-log": "Log-scale ROI plots",
@@ -2054,7 +2056,7 @@ function drawRoiOverlay() {
   if (!metrics) return;
   const { width, height } = metrics;
   roiCtx.clearRect(0, 0, width, height);
-  if (!roiState.active || roiState.mode === "none" || !roiState.start || !roiState.end) return;
+  if (!roiState.enabled || !roiState.active || !roiState.start || !roiState.end) return;
   const zoom = state.zoom || 1;
   const offsetX = state.renderOffsetX || 0;
   const offsetY = state.renderOffsetY || 0;
@@ -2274,9 +2276,9 @@ function updateRoiSectionState() {
     setSummaryChip(roiSummaryEl, "No frame");
     return;
   }
-  if (roiState.mode === "none") {
-    setSectionBadgeState(roiSectionStateEl, "active", "Image statistics active. Choose an ROI mode for local stats.");
-    setSummaryChip(roiSummaryEl, "Image stats", "active");
+  if (!roiState.enabled) {
+    setSectionBadgeState(roiSectionStateEl, "empty", "ROI overlay disabled. Enable it to define and edit regions.");
+    setSummaryChip(roiSummaryEl, "Off");
     return;
   }
   const modeLabel = getRoiModeLabel(roiState.mode);
@@ -3053,7 +3055,7 @@ function getRoiScreenGeometry() {
 }
 
 function getRoiHandleAt(event) {
-  if (!roiState.active || roiState.mode === "none") return null;
+  if (!roiState.enabled || !roiState.active) return null;
   const pointer = getPointerCanvasPos(event);
   const geom = getRoiScreenGeometry();
   if (!pointer || !geom) return null;
@@ -8657,14 +8659,16 @@ function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
 }
 
 function updateRoiModeUI() {
-  const mode = roiState.mode;
-  const showPlots = mode !== "none";
+  const mode = roiState.mode || "line";
+  const enabled = Boolean(roiState.enabled);
+  const showPlots = enabled;
   if (roiParams) {
+    roiParams.classList.toggle("is-hidden", !enabled);
     roiParams.classList.toggle("is-circle", mode === "circle");
     roiParams.classList.toggle("is-annulus", mode === "annulus");
   }
   if (roiLinePlot) {
-    const showLine = mode === "line" || mode === "circle" || mode === "annulus";
+    const showLine = enabled && (mode === "line" || mode === "circle" || mode === "annulus");
     roiLinePlot.classList.toggle("is-hidden", !showLine);
     const title = roiLinePlot.querySelector(".roi-plot-title");
     if (title) {
@@ -8672,25 +8676,27 @@ function updateRoiModeUI() {
     }
   }
   if (roiBoxPlotX) {
-    roiBoxPlotX.classList.toggle("is-hidden", mode !== "box");
+    roiBoxPlotX.classList.toggle("is-hidden", !enabled || mode !== "box");
   }
   if (roiBoxPlotY) {
-    roiBoxPlotY.classList.toggle("is-hidden", mode !== "box");
+    roiBoxPlotY.classList.toggle("is-hidden", !enabled || mode !== "box");
   }
   if (roiPlotControls) {
     roiPlotControls.classList.toggle("is-hidden", !showPlots);
   }
   if (roiRadiusField) {
-    roiRadiusField.classList.toggle("is-hidden", mode !== "circle");
+    roiRadiusField.classList.toggle("is-hidden", !enabled || mode !== "circle");
   }
   if (roiCenterFields) {
-    roiCenterFields.classList.toggle("is-hidden", mode !== "circle" && mode !== "annulus");
+    roiCenterFields.classList.toggle("is-hidden", !enabled || (mode !== "circle" && mode !== "annulus"));
   }
   if (roiRingFields) {
-    roiRingFields.classList.toggle("is-hidden", mode !== "annulus");
+    roiRingFields.classList.toggle("is-hidden", !enabled || mode !== "annulus");
   }
   if (roiSizeLabel) {
-    if (mode === "line") {
+    if (!enabled) {
+      roiSizeLabel.textContent = "Image";
+    } else if (mode === "line") {
       roiSizeLabel.textContent = "Length (px)";
     } else if (mode === "box") {
       roiSizeLabel.textContent = "Size (WxH)";
@@ -8703,13 +8709,21 @@ function updateRoiModeUI() {
     }
   }
   if (roiHelp) {
-    if (mode === "annulus") {
+    if (!enabled) {
+      roiHelp.textContent = "Enable Statistics and ROI to define a region.";
+    } else if (mode === "annulus") {
       roiHelp.textContent = "Right‑drag to set outer radius. Adjust inner radius below.";
     } else if (mode === "circle") {
       roiHelp.textContent = "Right‑drag from center to set radius.";
     } else {
       roiHelp.textContent = "Right‑drag on the image to define the ROI.";
     }
+  }
+  if (roiModeSelect) {
+    roiModeSelect.disabled = !enabled;
+  }
+  if (roiClearBtn) {
+    roiClearBtn.disabled = !enabled;
   }
   updateRoiCenterInputs();
   syncRoiPlotLimitControls();
@@ -8974,7 +8988,7 @@ function updateRoiStats() {
     updateRoiSectionState();
     return;
   }
-  if (roiState.mode === "none") {
+  if (!roiState.enabled) {
     roiState.active = false;
     const stats = state.globalStats || computeGlobalStats();
     setRoiText(roiStartEl, "-");
@@ -9488,7 +9502,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
 }
 
 function exportRoiCsv() {
-  if (!roiState.active || roiState.mode === "none") {
+  if (!roiState.enabled || !roiState.active) {
     setStatus("No ROI data to export");
     return;
   }
@@ -10645,19 +10659,30 @@ autoScaleToggle.addEventListener("change", () => {
   scheduleHistogram();
 });
 
-roiModeSelect?.addEventListener("change", () => {
-  roiState.mode = roiModeSelect.value;
-  updateRoiModeUI();
-  if (roiState.mode === "none") {
-    clearRoi();
+roiEnableToggle?.addEventListener("change", () => {
+  roiState.enabled = Boolean(roiEnableToggle.checked);
+  if (!roiState.enabled) {
+    roiDragging = false;
+    roiDragPointer = null;
+    stopRoiEdit();
+    canvasWrap?.classList.remove("is-roi");
   } else {
-    if (roiState.mode === "circle") {
-      roiState.innerRadius = 0;
-    }
     roiState.active = Boolean(roiState.start && roiState.end);
-    scheduleRoiOverlay();
-    scheduleRoiUpdate();
   }
+  updateRoiModeUI();
+  scheduleRoiOverlay();
+  scheduleRoiUpdate();
+});
+
+roiModeSelect?.addEventListener("change", () => {
+  roiState.mode = roiModeSelect.value || "line";
+  updateRoiModeUI();
+  if (roiState.mode === "circle") {
+    roiState.innerRadius = 0;
+  }
+  roiState.active = Boolean(roiState.start && roiState.end);
+  scheduleRoiOverlay();
+  scheduleRoiUpdate();
 });
 
 roiLogToggle?.addEventListener("change", () => {
@@ -11138,7 +11163,7 @@ canvasWrap.addEventListener("pointerdown", (event) => {
   if (event.pointerType === "touch") return;
   const isRightClick = event.button === 2 || event.buttons === 2 || event.which === 3;
   const isCtrlClick = event.button === 0 && event.ctrlKey;
-  const roiTrigger = roiState.mode !== "none" && (isRightClick || isCtrlClick);
+  const roiTrigger = roiState.enabled && (isRightClick || isCtrlClick);
   if (roiTrigger) {
     const point = getImagePointFromEvent(event);
     if (!point) return;
@@ -11170,7 +11195,7 @@ canvasWrap.addEventListener("pointerdown", (event) => {
   }
   if (event.button !== 0) return;
   if (event.target.closest(".loading")) return;
-  if (roiState.active && roiState.mode !== "none") {
+  if (roiState.enabled && roiState.active) {
     const point = getImagePointFromEvent(event);
     if (point) {
       const handle = getRoiHandleAt(event);
@@ -11648,8 +11673,11 @@ if (histLogY) {
 if (colormapSelect) {
   colormapSelect.value = state.colormap;
 }
+if (roiEnableToggle) {
+  roiState.enabled = roiEnableToggle.checked;
+}
 if (roiModeSelect) {
-  roiState.mode = roiModeSelect.value;
+  roiState.mode = roiModeSelect.value || "line";
   roiState.active = false;
   updateRoiModeUI();
 }

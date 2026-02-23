@@ -1,7 +1,8 @@
 export function createRoiState() {
   return {
     // Active ROI geometry and derived plot configuration.
-    mode: "none",
+    enabled: true,
+    mode: "line",
     start: null,
     end: null,
     active: false,
