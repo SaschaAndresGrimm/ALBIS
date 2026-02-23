@@ -238,7 +238,7 @@
                   <button class="btn btn-primary splash-open-file" id="splash-open-file" type="button">
                     Open file
                   </button>
-                  <div class="splash-hint">Use File -> Open... to load your first dataset.</div>
+                  <div class="splash-hint">Use File -> Open... or drag and drop files onto the viewer.</div>
                 </div>
               </div>
             </div>
@@ -252,8 +252,20 @@
               <div class="viewer-footer-side">
                 <div class="backend-badge" id="backend-badge" role="status" aria-live="polite" aria-hidden="true">SERVER</div>
                 <div class="live-badge" id="live-badge" role="status" aria-live="polite" aria-hidden="true">LIVE</div>
-                <span class="viewer-footer-pill viewer-footer-version" id="footer-version-frontend">FE v-</span>
-                <span class="viewer-footer-pill viewer-footer-version" id="footer-version-backend">BE v-</span>
+                <button
+                  class="viewer-footer-pill viewer-footer-version-toggle"
+                  id="footer-version-toggle"
+                  type="button"
+                  aria-expanded="false"
+                  aria-haspopup="true"
+                  aria-controls="footer-version-popover"
+                >
+                  Versions ▾
+                </button>
+                <div class="viewer-footer-version-popover" id="footer-version-popover" aria-hidden="true">
+                  <div class="viewer-footer-version-row" id="footer-version-frontend">Frontend: v-</div>
+                  <div class="viewer-footer-version-row" id="footer-version-backend">Backend: v-</div>
+                </div>
                 <a
                   class="viewer-footer-link"
                   id="footer-github"
@@ -306,55 +318,60 @@
               <div class="thumb-view">
                 <canvas id="overview-canvas"></canvas>
               </div>
-              <div class="zoom-controls">
-                <div class="field zoom-row">
-                  <span>Zoom</span>
-                  <div class="inline">
-                    <input id="zoom-range" type="range" min="0.02" max="50" step="0.01" value="1" />
-                    <div id="zoom-value" class="pill">1.0x</div>
-                  </div>
-                </div>
-                <div class="check-grid">
-                  <label class="checkbox">
-                    <input id="pixel-label-toggle" type="checkbox" checked />
-                    Show Pixel Values
-                  </label>
-                  <label class="checkbox">
-                    <input type="checkbox" id="mask-toggle" disabled />
-                    Mask pixels
-                  </label>
-                  <label class="checkbox">
-                    <input type="checkbox" id="mask-saturated-toggle" disabled />
-                    Mask saturated
-                  </label>
-                </div>
-                <button id="reset-view" class="btn">Fit to Window</button>
-              </div>
+              <button id="reset-view" class="btn">Fit to Window</button>
               <div class="view-color-controls">
-                <label class="field">
-                  <span>Color Map</span>
-                  <div class="inline color-map-row">
-                    <select id="colormap-select">
-                      <option value="heat">Heat</option>
-                      <option value="albulaHdr" selected>ALBULA HDR</option>
-                      <option value="albisHdr">High Dynamic Range</option>
-                      <option value="gray">Grey Scale</option>
-                      <option value="viridis">Rainbow (Viridis)</option>
-                      <option value="magma">Magma</option>
-                      <option value="inferno">Inferno</option>
-                      <option value="cividis">Cividis</option>
-                      <option value="turbo">Turbo</option>
-                    </select>
-                    <label class="checkbox">
-                      <input type="checkbox" id="invert-color" />
-                      Invert Color
+                <details class="advanced-details view-advanced-controls">
+                  <summary>Advanced view controls</summary>
+                  <div class="advanced-inner">
+                    <div class="zoom-controls">
+                      <div class="field zoom-row">
+                        <span>Zoom</span>
+                        <div class="inline">
+                          <input id="zoom-range" type="range" min="0.02" max="50" step="0.01" value="1" />
+                          <div id="zoom-value" class="pill">1.0x</div>
+                        </div>
+                      </div>
+                      <div class="check-grid">
+                        <label class="checkbox">
+                          <input id="pixel-label-toggle" type="checkbox" checked />
+                          Show Pixel Values
+                        </label>
+                        <label class="checkbox">
+                          <input type="checkbox" id="mask-toggle" disabled />
+                          Mask pixels
+                        </label>
+                        <label class="checkbox">
+                          <input type="checkbox" id="mask-saturated-toggle" disabled />
+                          Mask saturated
+                        </label>
+                      </div>
+                    </div>
+                    <label class="field">
+                      <span>Color Map</span>
+                      <div class="inline color-map-row">
+                        <select id="colormap-select">
+                          <option value="heat">Heat</option>
+                          <option value="albulaHdr" selected>ALBULA HDR</option>
+                          <option value="albisHdr">High Dynamic Range</option>
+                          <option value="gray">Grey Scale</option>
+                          <option value="viridis">Rainbow (Viridis)</option>
+                          <option value="magma">Magma</option>
+                          <option value="inferno">Inferno</option>
+                          <option value="cividis">Cividis</option>
+                          <option value="turbo">Turbo</option>
+                        </select>
+                        <label class="checkbox">
+                          <input type="checkbox" id="invert-color" />
+                          Invert Color
+                        </label>
+                      </div>
                     </label>
                   </div>
-                </label>
+                </details>
               </div>
             </section>
 
-            <section class="panel-section" data-section="histogram">
+            <section class="panel-section is-collapsed" data-section="histogram">
               <button class="section-title" type="button" data-section-toggle>
                 Histogram
                 <span class="section-chevron">▾</span>
@@ -381,7 +398,7 @@
               </div>
             </section>
 
-            <section class="panel-section meta" data-section="info">
+            <section class="panel-section meta is-collapsed" data-section="info">
               <button class="section-title" type="button" data-section-toggle>
                 Info
                 <span class="section-chevron">▾</span>

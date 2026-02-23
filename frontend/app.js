@@ -113,6 +113,8 @@ const splashOpenFileBtn = document.getElementById("splash-open-file");
 const viewerFooterEl = document.querySelector(".viewer-footer");
 const footerFileEl = document.getElementById("footer-file");
 const footerZoomEl = document.getElementById("footer-zoom");
+const footerVersionToggleEl = document.getElementById("footer-version-toggle");
+const footerVersionPopoverEl = document.getElementById("footer-version-popover");
 const footerFrontendVersionEl = document.getElementById("footer-version-frontend");
 const footerBackendVersionEl = document.getElementById("footer-version-backend");
 const resolutionOverlay = document.getElementById("resolution-overlay");
@@ -382,6 +384,10 @@ let settingsModalBusy = false;
 let settingsRequestId = 0;
 let browseModalBusy = false;
 let browseRequestId = 0;
+let footerVersionPopoverOpen = false;
+let chromeIdleTimer = null;
+let chromeIdleActive = false;
+let chromeActivityTs = 0;
 const overlayCanvasMetrics = new WeakMap();
 const modalFocusRestore = new WeakMap();
 const modalStack = [];
@@ -428,6 +434,7 @@ const clientLogBuffer = [];
 let clientLogTimer = null;
 let clientLogSending = false;
 const SECTION_STATE_VARIANTS = ["is-empty", "is-loading", "is-active", "is-warning"];
+const CHROME_IDLE_DELAY_MS = 2200;
 
 function formatClientArg(arg) {
   if (arg instanceof Error) {
@@ -3975,6 +3982,7 @@ function applyPanelState() {
   if (!toolsPanel || !appLayout) return;
 
   const isPhone = isPhonePanelLayout();
+  document.body.classList.toggle("panel-collapsed", state.panelCollapsed);
   toolsPanel.classList.toggle("is-collapsed", state.panelCollapsed);
   toolsPanel.classList.toggle("is-mobile-sheet", isPhone);
   if (panelBody) {
@@ -4010,6 +4018,7 @@ function applyPanelState() {
   syncToolbarMoreControls();
   scheduleOverview();
   scheduleHistogram();
+  updateUiIdleAndAnchors();
 }
 
 function togglePanel() {
@@ -4495,6 +4504,7 @@ function updateFullscreenUi() {
     fullscreenToggle.title = active ? "Exit full screen (F)" : "Enter full screen (F)";
   }
   syncToolbarMoreControls();
+  syncOverlayAnchors();
 }
 
 async function toggleFullscreen() {
@@ -4530,24 +4540,110 @@ function buildViewerSourceText(maxChars = 72) {
 
 function updateFooterVersions() {
   if (footerFrontendVersionEl) {
-    footerFrontendVersionEl.textContent = `FE v${APP_FRONTEND_VERSION}`;
+    footerFrontendVersionEl.textContent = `Frontend: v${APP_FRONTEND_VERSION}`;
     footerFrontendVersionEl.title = `Frontend version ${APP_FRONTEND_VERSION}`;
   }
   if (footerBackendVersionEl) {
     const backendVersion = state.backendVersion || "-";
-    footerBackendVersionEl.textContent = `BE v${backendVersion}`;
+    footerBackendVersionEl.textContent = `Backend: v${backendVersion}`;
     footerBackendVersionEl.title = `Backend version ${backendVersion}`;
   }
 }
 
 function updateViewerFooter() {
   if (footerFileEl) {
-    footerFileEl.textContent = buildViewerSourceText(78);
+    const hasFile = Boolean(state.file);
+    footerFileEl.textContent = hasFile ? buildViewerSourceText(78) : "";
+    footerFileEl.classList.toggle("is-empty", !hasFile);
   }
   if (footerZoomEl) {
     footerZoomEl.textContent = `Zoom ${(state.zoom || 1).toFixed(1)}x`;
   }
   updateFooterVersions();
+  scheduleChromeIdle();
+}
+
+function setFooterVersionPopoverOpen(open) {
+  footerVersionPopoverOpen = Boolean(open);
+  if (footerVersionToggleEl) {
+    footerVersionToggleEl.setAttribute("aria-expanded", footerVersionPopoverOpen ? "true" : "false");
+    footerVersionToggleEl.textContent = footerVersionPopoverOpen ? "Versions ▴" : "Versions ▾";
+  }
+  if (footerVersionPopoverEl) {
+    footerVersionPopoverEl.classList.toggle("is-open", footerVersionPopoverOpen);
+    footerVersionPopoverEl.setAttribute("aria-hidden", footerVersionPopoverOpen ? "false" : "true");
+  }
+}
+
+function closeFooterVersionPopover() {
+  setFooterVersionPopoverOpen(false);
+}
+
+function toggleFooterVersionPopover() {
+  setFooterVersionPopoverOpen(!footerVersionPopoverOpen);
+}
+
+function shouldEnableChromeIdle() {
+  if (!document.body.classList.contains("canvas-first")) return false;
+  if (!state.hasFrame || state.isLoading) return false;
+  if (!splash?.classList.contains("is-hidden")) return false;
+  if (activeMenu && dropdown?.classList.contains("is-open")) return false;
+  if (toolbarPlaybackWrap?.classList.contains("is-open")) return false;
+  if (toolbarMoreWrap?.classList.contains("is-open")) return false;
+  if (footerVersionPopoverOpen) return false;
+  return true;
+}
+
+function setChromeIdle(active) {
+  chromeIdleActive = Boolean(active);
+  document.body.classList.toggle("chrome-idle", chromeIdleActive);
+}
+
+function clearChromeIdleTimer() {
+  if (!chromeIdleTimer) return;
+  window.clearTimeout(chromeIdleTimer);
+  chromeIdleTimer = null;
+}
+
+function scheduleChromeIdle() {
+  clearChromeIdleTimer();
+  if (!shouldEnableChromeIdle()) {
+    setChromeIdle(false);
+    return;
+  }
+  chromeIdleTimer = window.setTimeout(() => {
+    chromeIdleTimer = null;
+    if (shouldEnableChromeIdle()) {
+      setChromeIdle(true);
+    }
+  }, CHROME_IDLE_DELAY_MS);
+}
+
+function registerChromeActivity() {
+  const now = performance.now();
+  if (!chromeIdleActive && now - chromeActivityTs < 110) return;
+  chromeActivityTs = now;
+  setChromeIdle(false);
+  scheduleChromeIdle();
+}
+
+function syncOverlayAnchors() {
+  if (!document.body.classList.contains("canvas-first")) return;
+  if (isPhonePanelLayout()) return;
+  const toolbarEl = document.querySelector(".toolbar");
+  if (!toolbarEl) return;
+  const toolbarRect = toolbarEl.getBoundingClientRect();
+  if (!Number.isFinite(toolbarRect.top)) return;
+  const anchorTop = Math.max(0, Math.round(toolbarRect.top));
+  document.documentElement.style.setProperty("--overlay-anchor-top", `${anchorTop}px`);
+  const fabHeight = panelFab?.getBoundingClientRect().height || 46;
+  const triggerTop = Math.max(0, Math.round(anchorTop + Math.max(0, (toolbarRect.height - fabHeight) * 0.5)));
+  document.documentElement.style.setProperty("--overlay-panel-trigger-top", `${triggerTop}px`);
+}
+
+function updateUiIdleAndAnchors() {
+  syncOverlayAnchors();
+  scheduleChromeIdle();
 }
 
 function updateDataSourceSummary() {
@@ -4577,6 +4673,7 @@ function updateToolbar() {
   updateDataSourceSummary();
   syncToolbarMoreControls();
   updateViewerFooter();
+  syncOverlayAnchors();
 }
 
 function setActiveMenu(menu, anchor) {
@@ -4781,6 +4878,85 @@ async function openFileModal() {
     fileInput.multiple = true;
   }
   fileInput?.click();
+}
+
+function isSupportedUploadFile(fileName) {
+  const name = String(fileName || "").toLowerCase();
+  return (
+    name.endsWith(".h5") ||
+    name.endsWith(".hdf5") ||
+    name.endsWith(".tif") ||
+    name.endsWith(".tiff") ||
+    name.endsWith(".cbf") ||
+    name.endsWith(".cbf.gz") ||
+    name.endsWith(".edf")
+  );
+}
+
+async function uploadAndOpenSelectedFiles(selectedFiles) {
+  const selected = Array.isArray(selectedFiles) ? selectedFiles.filter(Boolean) : [];
+  if (!selected.length) return;
+  const files = sortFilesForSeriesUpload(selected.filter((item) => isSupportedUploadFile(item?.name)));
+  if (!files.length) {
+    setStatus("No supported image files in selection");
+    return;
+  }
+  await ensureFileMode();
+  const uploadFolder = (autoloadDir?.value || state.autoload.dir || "").trim();
+  const total = files.length;
+  setLoading(true);
+  setStatus(total > 1 ? `Preparing ${total} files…` : "Checking for existing file…");
+  try {
+    showUploadProgress();
+    const uploadUrl = uploadFolder
+      ? `${API}/upload?folder=${encodeURIComponent(uploadFolder)}`
+      : `${API}/upload`;
+    const uploadedTargets = [];
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i];
+      const existing = await findExistingFile(file.name, uploadFolder);
+      if (existing) {
+        uploadedTargets.push(existing);
+        updateUploadProgress(Math.round(((i + 1) / total) * 100));
+        continue;
+      }
+      setStatus(total > 1 ? `Uploading ${i + 1}/${total}: ${file.name}` : "Uploading file…");
+      const payload = await uploadSingleFile(file, uploadUrl, (event) => {
+        if (!event.lengthComputable) {
+          updateUploadProgress(Math.round((i / total) * 100));
+          return;
+        }
+        const part = event.total > 0 ? event.loaded / event.total : 0;
+        const overall = ((i + part) / total) * 100;
+        updateUploadProgress(Math.round(overall));
+      });
+      if (payload?.path || payload?.filename) {
+        uploadedTargets.push(payload.path || payload.filename);
+      }
+    }
+    updateUploadProgress(100);
+    await loadFiles();
+    const openTarget = uploadedTargets[0];
+    if (openTarget) {
+      setStatus(`Opening ${fileLabel(openTarget)}…`);
+      state.file = openTarget;
+      if (fileSelect) fileSelect.value = openTarget;
+      if (isHdfFile(openTarget)) {
+        await loadDatasets();
+      } else {
+        await loadImageSeries(openTarget);
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("Failed to upload selected files");
+    setLoading(false);
+  } finally {
+    hideUploadProgress();
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  }
 }
 
 function showUploadProgress() {
@@ -9689,18 +9865,25 @@ document.addEventListener("click", (event) => {
   const withinMenu = event.target.closest(".menu-bar") || event.target.closest(".menu-dropdown");
   const withinPlayback = event.target.closest("#toolbar-playback-wrap");
   const withinMore = event.target.closest("#toolbar-more-wrap");
+  const withinFooterVersions =
+    event.target.closest("#footer-version-toggle") || event.target.closest("#footer-version-popover");
   if (!withinPlayback) {
     closeToolbarPlaybackPopover();
   }
   if (!withinMore) {
     closeToolbarMorePopover();
   }
+  if (!withinFooterVersions) {
+    closeFooterVersionPopover();
+  }
   if (dropdown && !withinMenu) {
     closeMenu();
   }
+  registerChromeActivity();
 });
 
 document.addEventListener("keydown", (event) => {
+  registerChromeActivity();
   if (trapModalFocus(event)) {
     return;
   }
@@ -9717,7 +9900,9 @@ document.addEventListener("keydown", (event) => {
     }
     closeToolbarPlaybackPopover();
     closeToolbarMorePopover();
+    closeFooterVersionPopover();
     closeMenu();
+    registerChromeActivity();
     return;
   }
   if (getTopOpenModal()) {
@@ -9824,63 +10009,39 @@ if (fileInput) {
   fileInput.addEventListener("change", async () => {
     const selected = Array.from(fileInput.files || []);
     if (!selected.length) return;
-    await ensureFileMode();
-    const uploadFolder = (autoloadDir?.value || state.autoload.dir || "").trim();
-    const files = sortFilesForSeriesUpload(selected);
-    const total = files.length;
-    setLoading(true);
-    setStatus(total > 1 ? `Preparing ${total} files…` : "Checking for existing file…");
-    try {
-      showUploadProgress();
-      const uploadUrl = uploadFolder
-        ? `${API}/upload?folder=${encodeURIComponent(uploadFolder)}`
-        : `${API}/upload`;
-      const uploadedTargets = [];
-      for (let i = 0; i < files.length; i += 1) {
-        const file = files[i];
-        const existing = await findExistingFile(file.name, uploadFolder);
-        if (existing) {
-          uploadedTargets.push(existing);
-          updateUploadProgress(Math.round(((i + 1) / total) * 100));
-          continue;
-        }
-        setStatus(total > 1 ? `Uploading ${i + 1}/${total}: ${file.name}` : "Uploading file…");
-        const payload = await uploadSingleFile(file, uploadUrl, (event) => {
-          if (!event.lengthComputable) {
-            updateUploadProgress(Math.round((i / total) * 100));
-            return;
-          }
-          const part = event.total > 0 ? event.loaded / event.total : 0;
-          const overall = ((i + part) / total) * 100;
-          updateUploadProgress(Math.round(overall));
-        });
-        if (payload?.path || payload?.filename) {
-          uploadedTargets.push(payload.path || payload.filename);
-        }
-      }
-      updateUploadProgress(100);
-      await loadFiles();
-      const openTarget = uploadedTargets[0];
-      if (openTarget) {
-        setStatus(`Opening ${fileLabel(openTarget)}…`);
-        state.file = openTarget;
-        if (fileSelect) fileSelect.value = openTarget;
-        if (isHdfFile(openTarget)) {
-          await loadDatasets();
-        } else {
-          await loadImageSeries(openTarget);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setStatus("Failed to upload selected files");
-      setLoading(false);
-    } finally {
-      hideUploadProgress();
-      fileInput.value = "";
-    }
+    await uploadAndOpenSelectedFiles(selected);
   });
 }
+
+const clearDropTarget = () => {
+  canvasShell?.classList.remove("is-file-drop-target");
+};
+
+document.addEventListener("dragover", (event) => {
+  const transfer = event.dataTransfer;
+  if (!transfer || !Array.from(transfer.types || []).includes("Files")) return;
+  event.preventDefault();
+  transfer.dropEffect = "copy";
+  canvasShell?.classList.add("is-file-drop-target");
+});
+
+document.addEventListener("dragleave", (event) => {
+  if (event.relatedTarget) return;
+  clearDropTarget();
+});
+
+document.addEventListener("dragend", clearDropTarget);
+window.addEventListener("blur", clearDropTarget);
+
+document.addEventListener("drop", async (event) => {
+  const transfer = event.dataTransfer;
+  if (!transfer || !Array.from(transfer.types || []).includes("Files")) return;
+  event.preventDefault();
+  clearDropTarget();
+  const files = Array.from(transfer.files || []);
+  if (!files.length) return;
+  await uploadAndOpenSelectedFiles(files);
+});
 
 if (aboutClose) {
   aboutClose.addEventListener("click", closeAboutModal);
@@ -10742,6 +10903,12 @@ splashOpenFileBtn?.addEventListener("click", () => {
   void openFileModal();
 });
 
+footerVersionToggleEl?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleFooterVersionPopover();
+  registerChromeActivity();
+});
+
 document.addEventListener("fullscreenchange", updateFullscreenUi);
 
 panelFab?.addEventListener("click", () => {
@@ -10763,6 +10930,11 @@ window.addEventListener("pointerup", (event) => {
 window.addEventListener("pointercancel", (event) => {
   stopMobilePanelDrag(event, true);
 });
+
+window.addEventListener("pointermove", registerChromeActivity, { passive: true });
+window.addEventListener("pointerdown", registerChromeActivity, { passive: true });
+window.addEventListener("wheel", registerChromeActivity, { passive: true });
+window.addEventListener("touchstart", registerChromeActivity, { passive: true });
 
 initializeSectionContentWrappers();
 initializePanelTabA11y();
