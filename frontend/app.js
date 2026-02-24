@@ -519,7 +519,7 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
-const APP_FRONTEND_VERSION = "0.8.1";
+const APP_FRONTEND_VERSION = "0.8.2";
 const DEFAULT_RING_COUNT = 3;
 const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
@@ -5278,13 +5278,13 @@ function updateBackendBadge() {
 
 function updateAboutVersion() {
   if (!aboutVersion) return;
-  aboutVersion.textContent = `Version ${state.backendVersion || "0.8.1"}`;
+  aboutVersion.textContent = `Version ${state.backendVersion || "0.8.2"}`;
   updateFooterVersions();
 }
 
 async function checkBackendHealth() {
   let alive = false;
-  let version = state.backendVersion || "0.8.1";
+  let version = state.backendVersion || "0.8.2";
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 1500);
   try {
@@ -5338,7 +5338,7 @@ async function waitForBackendReady(timeoutMs = 20000) {
     setSplashStatus(`Starting backend... (${attempts})`);
     const alive = await checkBackendHealth();
     if (alive) {
-      setSplashStatus(`Backend ready (v${state.backendVersion || "0.8.1"})`);
+      setSplashStatus(`Backend ready (v${state.backendVersion || "0.8.2"})`);
       return true;
     }
     await sleep(250);
