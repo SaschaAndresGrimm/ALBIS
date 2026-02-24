@@ -289,7 +289,7 @@ const settingsSave = document.getElementById("settings-save");
 const settingsSaveClose = document.getElementById("settings-save-close");
 const settingsConfigPath = document.getElementById("settings-config-path");
 const settingsMessage = document.getElementById("settings-message");
-const settingsServerHost = document.getElementById("settings-server-host");
+const settingsServerExternal = document.getElementById("settings-server-external");
 const settingsServerPort = document.getElementById("settings-server-port");
 const settingsServerReload = document.getElementById("settings-server-reload");
 const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
@@ -347,6 +347,7 @@ let roiOverlayScheduled = false;
 let roiUpdateScheduled = false;
 let roiPlotResizing = null; // Track which ROI plot is being resized
 let roiPlotResizeStart = { x: 0, y: 0, height: 0, container: null };
+let roiPlotPanning = null;
 let roiDragging = false;
 let roiDragPointer = null;
 let roiEditing = false;
@@ -842,54 +843,55 @@ function getHelpText(target) {
 
 function applyHelpMap() {
   const helpMap = {
-    "btn-prev": "Previous frame (Left Arrow)",
-    "btn-next": "Next frame (Right Arrow)",
-    "btn-play": "Play/pause playback (Tab)",
-    "frame-range": "Frame position",
-    "frame-index": "Current frame number",
-    "toolbar-playback-toggle": "Playback options (Step/FPS)",
-    "toolbar-more-toggle": "More controls",
-    "toolbar-more-panel-toggle": "Open or close side menu",
-    "toolbar-more-fullscreen": "Toggle full screen (F)",
-    "frame-step": "Frame step size",
-    "fps-select": "Playback speed",
-    "toolbar-more-step": "Frame step size",
-    "toolbar-more-fps": "Playback speed",
-    "toolbar-more-threshold": "Select detector threshold (Up/Down Arrow)",
-    "toolbar-threshold": "Select detector threshold (Up/Down Arrow)",
-    "zoom-range": "Zoom image",
-    "reset-view": "Fit image to window",
-    "pixel-label-toggle": "Show pixel values at high zoom",
-    "mask-toggle": "Apply pixel mask (if available)",
-    "mask-saturated-toggle": "Mask saturated pixels (datatype max)",
-    "colormap-select": "Choose color map",
-    "invert-color": "Invert color map",
-    "roi-enable": "Enable or disable ROI overlay tools",
-    "rings-toggle": "Show resolution rings",
-    "roi-mode": "Select ROI mode",
-    "roi-log": "Log-scale ROI plots",
-    "roi-limits-enable": "Autoscale ROI plots",
-    "roi-clear-btn": "Clear active ROI selection",
-    "roi-export-csv": "Export ROI projection data as CSV",
-    "autoload-mode": "Select image source",
-    "filesystem-mode": "Select filesystem source",
-    "autoload-dir": "Folder to watch",
-    "autoload-watch-enabled": "Automatically watch selected folder for new files",
-    "autoload-browse": "Browse for a folder",
-    "autoload-pattern": "Filename filter (supports wildcards)",
-    "autoload-interval": "Polling interval (ms)",
-    "remote-source-id": "Remote stream source identifier",
-    "remote-interval": "Remote polling interval (ms)",
-    "simplon-url": "SIMPLON base URL",
-    "simplon-timeout": "Monitor timeout (ms)",
-    "simplon-enable": "Enable live monitor",
-    "panel-fab": "Toggle side panel (M)",
-    "panel-resizer": "Resize side panel",
-    "panel-sheet-handle": "Drag up/down to resize panel",
-    "fullscreen-toggle": "Toggle full screen (F)",
-    "inspector-search-input": "Search the HDF5 tree",
-    "inspector-search-clear": "Clear search",
-    "command-input": "Search and run commands",
+    "btn-prev": "Move to the previous frame in the loaded stack (Left Arrow).",
+    "btn-next": "Move to the next frame in the loaded stack (Right Arrow).",
+    "btn-play": "Start or pause frame playback using the selected FPS (Tab).",
+    "frame-range": "Drag to scrub through frames.",
+    "frame-index": "Enter an exact frame number.",
+    "toolbar-playback-toggle": "Open playback controls for frame step and FPS.",
+    "toolbar-more-toggle": "Open additional toolbar controls.",
+    "toolbar-more-panel-toggle": "Open or close the side analysis menu.",
+    "toolbar-more-fullscreen": "Enter or leave full-screen mode (F).",
+    "frame-step": "Set how many frames each step advances.",
+    "fps-select": "Set playback speed in frames per second.",
+    "toolbar-more-step": "Set how many frames each step advances.",
+    "toolbar-more-fps": "Set playback speed in frames per second.",
+    "toolbar-more-threshold": "Choose the detector threshold channel (Up/Down Arrow).",
+    "toolbar-threshold": "Choose the detector threshold channel (Up/Down Arrow).",
+    "zoom-range": "Adjust image zoom level.",
+    "reset-view": "Fit the full image into the viewport.",
+    "pixel-label-toggle": "Show pixel intensity labels at high zoom.",
+    "mask-toggle": "Apply the detector pixel mask when available.",
+    "mask-saturated-toggle": "Hide saturated pixels (datatype maximum).",
+    "colormap-select": "Change the intensity-to-color mapping.",
+    "invert-color": "Invert the active color map.",
+    "roi-enable": "Enable ROI overlays and ROI statistics.",
+    "rings-toggle": "Show or hide resolution ring overlays.",
+    "roi-mode": "Choose ROI geometry (line, box, circle, annulus).",
+    "roi-log": "Display ROI plots with logarithmic Y scale.",
+    "roi-limits-enable": "Autoscale ROI plots; disable to keep manual zoom/pan.",
+    "roi-clear-btn": "Clear the active ROI and reset ROI stats.",
+    "roi-export-csv": "Export current ROI profile/projection data as CSV.",
+    "autoload-mode": "Select where incoming images are read from.",
+    "filesystem-mode": "Choose local filesystem source mode.",
+    "autoload-dir": "Folder path to poll for new files.",
+    "autoload-watch-enabled": "Automatically poll the selected folder for updates.",
+    "autoload-browse": "Browse and select a source folder.",
+    "autoload-pattern": "Filename filter with wildcard support.",
+    "autoload-interval": "Polling interval in milliseconds.",
+    "remote-source-id": "Remote stream source identifier.",
+    "remote-interval": "Remote polling interval in milliseconds.",
+    "simplon-url": "Base URL for the SIMPLON monitor API.",
+    "simplon-timeout": "Request timeout for monitor polling (ms).",
+    "simplon-enable": "Enable or pause SIMPLON live monitoring.",
+    "settings-server-external": "Allow connections from other machines (binds to all interfaces).",
+    "panel-fab": "Toggle the side panel open or closed (M).",
+    "panel-resizer": "Drag to resize the side panel width.",
+    "panel-sheet-handle": "Drag up/down to resize the mobile panel sheet.",
+    "fullscreen-toggle": "Enter or leave full-screen mode (F).",
+    "inspector-search-input": "Search datasets and nodes in the HDF5 tree.",
+    "inspector-search-clear": "Clear the current inspector search query.",
+    "command-input": "Search available commands and run one.",
   };
   Object.entries(helpMap).forEach(([id, text]) => {
     const el = document.getElementById(id);
@@ -902,7 +904,12 @@ function applyHelpMap() {
     commandMenuItem.dataset.help = `Command Palette (${platformShortcutLabel("command-palette")})`;
   }
   document.querySelectorAll(".roi-resize-handle").forEach((el) => {
-    if (!el.dataset.help) el.dataset.help = "Drag to resize plot";
+    if (!el.dataset.help) el.dataset.help = "Drag to change ROI plot panel height.";
+  });
+  [roiLineCanvas, roiXCanvas, roiYCanvas].forEach((canvasEl) => {
+    if (canvasEl && !canvasEl.dataset.help) {
+      canvasEl.dataset.help = "Drag to pan plot axes. Use wheel on axes to zoom. Double-click to reset.";
+    }
   });
   document.querySelectorAll("[data-help]").forEach((el) => {
     if (el.hasAttribute("title")) {
@@ -3846,6 +3853,41 @@ function syncToolbarMoreControls() {
   }
 }
 
+function getThresholdDisplayOrder(count = state.thresholdCount, energies = state.thresholdEnergies) {
+  const safeCount = Math.max(1, Number(count) || 1);
+  const order = Array.from({ length: safeCount }, (_, i) => i);
+  const energyList = Array.isArray(energies) ? energies : [];
+  const hasFiniteEnergy = order.some((idx) => Number.isFinite(Number(energyList[idx])));
+  if (!hasFiniteEnergy) return order;
+  order.sort((a, b) => {
+    const energyA = Number(energyList[a]);
+    const energyB = Number(energyList[b]);
+    const aFinite = Number.isFinite(energyA);
+    const bFinite = Number.isFinite(energyB);
+    if (aFinite && bFinite) {
+      if (energyA === energyB) return a - b;
+      return energyB - energyA;
+    }
+    if (aFinite !== bFinite) return aFinite ? -1 : 1;
+    return a - b;
+  });
+  return order;
+}
+
+function getDefaultThresholdIndex() {
+  const order = getThresholdDisplayOrder();
+  return order.length ? order[order.length - 1] : 0;
+}
+
+function getThresholdIndexAtOffset(offset) {
+  const order = getThresholdDisplayOrder();
+  if (!order.length) return 0;
+  const current = order.includes(state.thresholdIndex) ? state.thresholdIndex : getDefaultThresholdIndex();
+  const currentPos = Math.max(0, order.indexOf(current));
+  const nextPos = Math.max(0, Math.min(order.length - 1, currentPos + Math.round(offset)));
+  return order[nextPos];
+}
+
 function updateThresholdOptions() {
   if (!thresholdSelect || !thresholdField) return;
   const count = Math.max(1, state.thresholdCount || 1);
@@ -3862,19 +3904,20 @@ function updateThresholdOptions() {
     toolbarMoreThreshold.innerHTML = "";
   }
   const energies = Array.isArray(state.thresholdEnergies) ? state.thresholdEnergies : [];
-  for (let i = 0; i < count; i += 1) {
-    const energy = energies[i];
+  const order = getThresholdDisplayOrder(count, energies);
+  order.forEach((thresholdIndex) => {
+    const energy = Number(energies[thresholdIndex]);
     const energyText = Number.isFinite(energy) ? ` ${formatEnergy(energy)} eV` : "";
-    const label = `Thr${i + 1}${energyText}`;
-    thresholdSelect.appendChild(option(label, String(i)));
+    const label = `Thr${thresholdIndex + 1}${energyText}`;
+    thresholdSelect.appendChild(option(label, String(thresholdIndex)));
     if (toolbarThresholdSelect) {
-      toolbarThresholdSelect.appendChild(option(label, String(i)));
+      toolbarThresholdSelect.appendChild(option(label, String(thresholdIndex)));
     }
     if (toolbarMoreThreshold) {
-      toolbarMoreThreshold.appendChild(option(label, String(i)));
+      toolbarMoreThreshold.appendChild(option(label, String(thresholdIndex)));
     }
-  }
-  const idx = Math.max(0, Math.min(count - 1, state.thresholdIndex || 0));
+  });
+  const idx = order.includes(state.thresholdIndex) ? state.thresholdIndex : getDefaultThresholdIndex();
   state.thresholdIndex = idx;
   thresholdSelect.value = String(idx);
   if (toolbarThresholdSelect) {
@@ -3897,7 +3940,9 @@ function updateThresholdOptions() {
 
 async function setThresholdIndex(nextIndex) {
   const count = Math.max(1, state.thresholdCount || 1);
-  const clamped = Math.max(0, Math.min(count - 1, Math.round(nextIndex)));
+  const parsed = Number(nextIndex);
+  if (!Number.isFinite(parsed)) return;
+  const clamped = Math.max(0, Math.min(count - 1, Math.round(parsed)));
   if (clamped === state.thresholdIndex) return;
   state.thresholdIndex = clamped;
   if (thresholdSelect) thresholdSelect.value = String(clamped);
@@ -6288,9 +6333,20 @@ function closeSettingsModal({ restoreFocus = true } = {}) {
   setSettingsMessage("");
 }
 
+function isLocalOnlyHost(hostValue) {
+  const host = String(hostValue || "")
+    .trim()
+    .toLowerCase();
+  if (!host) return true;
+  return host === "127.0.0.1" || host === "localhost" || host === "::1";
+}
+
 function fillSettingsForm(config, configPath = "") {
-  if (!config || !settingsServerHost) return;
-  settingsServerHost.value = String(config?.server?.host ?? "127.0.0.1");
+  if (!config) return;
+  if (settingsServerExternal) {
+    const host = String(config?.server?.host ?? "127.0.0.1");
+    settingsServerExternal.checked = !isLocalOnlyHost(host);
+  }
   settingsServerPort.value = String(Number(config?.server?.port ?? 8000));
   settingsServerReload.checked = Boolean(config?.server?.reload);
 
@@ -6346,7 +6402,7 @@ function collectSettingsForm() {
 
   return {
     server: {
-      host: (settingsServerHost?.value || "127.0.0.1").trim() || "127.0.0.1",
+      host: settingsServerExternal?.checked ? "0.0.0.0" : "127.0.0.1",
       port: Math.max(0, Math.min(65535, asInt(settingsServerPort?.value, 8000))),
       reload: Boolean(settingsServerReload?.checked),
     },
@@ -6391,7 +6447,7 @@ async function openSettingsModal() {
   closeMenu();
   if (!settingsModal) return;
   const requestId = ++settingsRequestId;
-  openModal(settingsModal, { focusTarget: settingsServerHost || settingsClose });
+  openModal(settingsModal, { focusTarget: settingsServerPort || settingsClose });
   setSettingsModalBusy(true);
   setSettingsMessage("Loading settings...", false, true);
   try {
@@ -6536,7 +6592,7 @@ function getCommandPaletteCommands() {
       when: hasThresholds,
       run: async () => {
         stopPlayback();
-        await setThresholdIndex(state.thresholdIndex - 1);
+        await setThresholdIndex(getThresholdIndexAtOffset(-1));
       },
     },
     {
@@ -6547,7 +6603,7 @@ function getCommandPaletteCommands() {
       when: hasThresholds,
       run: async () => {
         stopPlayback();
-        await setThresholdIndex(state.thresholdIndex + 1);
+        await setThresholdIndex(getThresholdIndexAtOffset(1));
       },
     },
     {
@@ -6939,13 +6995,13 @@ function handleNavShortcut(event) {
   }
   const hasThresholds = state.thresholdCount > 1 && state.autoload.mode !== "simplon";
   const isThresholdTarget =
-    event.target === thresholdSelect || event.target === toolbarThresholdSelect;
+    event.target === thresholdSelect || event.target === toolbarThresholdSelect || event.target === toolbarMoreThreshold;
   if (hasThresholds && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
     if (!isThresholdTarget && isFormElement(event.target)) return false;
     event.preventDefault();
     stopPlayback();
     const delta = event.key === "ArrowUp" ? -1 : 1;
-    void setThresholdIndex(state.thresholdIndex + delta);
+    void setThresholdIndex(getThresholdIndexAtOffset(delta));
     return true;
   }
   if (isFormElement(event.target)) return false;
@@ -7641,7 +7697,7 @@ async function loadMetadata() {
       state.thresholdCount = 1;
       state.thresholdEnergies = [];
     }
-    state.thresholdIndex = Math.max(0, Math.min(state.thresholdIndex, state.thresholdCount - 1));
+    state.thresholdIndex = getDefaultThresholdIndex();
     state.frameIndex = 0;
     syncSeriesSumOutputPath();
     updateFrameControls();
@@ -8658,6 +8714,30 @@ function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
   limits[maxKey] = hi;
 }
 
+function clearRoiPlotLimitsForKey(plotKey) {
+  const limits = getRoiPlotLimits(plotKey);
+  if (!limits) return;
+  limits.xMin = null;
+  limits.xMax = null;
+  limits.yMin = null;
+  limits.yMax = null;
+}
+
+function hasManualRoiPlotLimits(plotKey) {
+  const limits = getRoiPlotLimits(plotKey);
+  if (!limits) return false;
+  return (
+    Number.isFinite(limits.xMin) ||
+    Number.isFinite(limits.xMax) ||
+    Number.isFinite(limits.yMin) ||
+    Number.isFinite(limits.yMax)
+  );
+}
+
+function hasAnyManualRoiPlotLimits() {
+  return ["line", "x", "y"].some((key) => hasManualRoiPlotLimits(key));
+}
+
 function updateRoiModeUI() {
   const mode = roiState.mode || "line";
   const enabled = Boolean(roiState.enabled);
@@ -9316,10 +9396,10 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   const xStepRaw = Number(plotMeta.xStep ?? 1);
   const xStep = Number.isFinite(xStepRaw) && xStepRaw !== 0 ? xStepRaw : 1;
   let xStart = Number(plotMeta.xStart ?? 0) || 0;
+  const totalMinX = xStart;
+  const totalMaxX = xStart + (data.length - 1) * xStep;
   let visibleData = data;
   if (!autoscale && data.length > 0) {
-    const totalMinX = xStart;
-    const totalMaxX = xStart + (data.length - 1) * xStep;
     const lo = Number.isFinite(limits.xMin) ? Math.max(totalMinX, limits.xMin) : totalMinX;
     const hi = Number.isFinite(limits.xMax) ? Math.min(totalMaxX, limits.xMax) : totalMaxX;
     if (hi < lo) {
@@ -9492,6 +9572,8 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     height,
     xStart,
     xStep,
+    totalXMin: totalMinX,
+    totalXMax: totalMaxX,
     xMin: xMinActual,
     xMax: xMaxActual,
     yMin: yMinActual,
@@ -11310,10 +11392,179 @@ canvasWrap.addEventListener("dblclick", (event) => {
   zoomAt(event.clientX, event.clientY, next);
 });
 
+function isInsideRoiPlotViewport(plot, x, y) {
+  if (!plot) return false;
+  const minX = plot.padL;
+  const maxX = plot.width - plot.padR;
+  const minY = plot.padT;
+  const maxY = plot.height - plot.padB;
+  return x >= minX && x <= maxX && y >= minY && y <= maxY;
+}
+
+function updateRoiPlotPanReadyState(canvasEl, clientX, clientY) {
+  if (!canvasEl) return;
+  if (roiPlotPanning && roiPlotPanning.canvasEl === canvasEl) return;
+  const plot = canvasEl._roiPlot;
+  if (!plot) {
+    canvasEl.classList.remove("is-pan-ready");
+    return;
+  }
+  const rect = canvasEl.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  canvasEl.classList.toggle("is-pan-ready", isInsideRoiPlotViewport(plot, x, y));
+}
+
+function beginRoiPlotPan(event, canvasEl) {
+  if (!canvasEl || event.button !== 0 || roiPlotResizing) return false;
+  const plot = canvasEl._roiPlot;
+  if (!plot) return false;
+  const rect = canvasEl.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  if (!isInsideRoiPlotViewport(plot, x, y)) return false;
+
+  const plotKey = getRoiPlotKey(canvasEl);
+  const limits = getRoiPlotLimits(plotKey);
+  if (roiState.plotLimits.autoscale) {
+    roiState.plotLimits.autoscale = false;
+    if (roiLimitsEnable) roiLimitsEnable.checked = false;
+  }
+  if (!Number.isFinite(limits.xMin) || !Number.isFinite(limits.xMax)) {
+    setRoiPlotAxisLimits(plotKey, "x", plot.xMin, plot.xMax);
+  }
+  if (!Number.isFinite(limits.yMin) || !Number.isFinite(limits.yMax)) {
+    setRoiPlotAxisLimits(plotKey, "y", plot.yMin, plot.yMax);
+  }
+
+  const currentLimits = getRoiPlotLimits(plotKey);
+  roiPlotPanning = {
+    canvasEl,
+    pointerId: event.pointerId,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    xMin: Number.isFinite(currentLimits.xMin) ? currentLimits.xMin : plot.xMin,
+    xMax: Number.isFinite(currentLimits.xMax) ? currentLimits.xMax : plot.xMax,
+    yMin: Number.isFinite(currentLimits.yMin) ? currentLimits.yMin : plot.yMin,
+    yMax: Number.isFinite(currentLimits.yMax) ? currentLimits.yMax : plot.yMax,
+    domainXMin: Number.isFinite(plot.totalXMin) ? plot.totalXMin : null,
+    domainXMax: Number.isFinite(plot.totalXMax) ? plot.totalXMax : null,
+  };
+  canvasEl.classList.remove("is-pan-ready");
+  canvasEl.classList.add("is-panning");
+  if (typeof canvasEl.setPointerCapture === "function") {
+    canvasEl.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+  return true;
+}
+
+function moveRoiPlotPan(event, canvasEl) {
+  if (!roiPlotPanning || roiPlotPanning.canvasEl !== canvasEl || roiPlotPanning.pointerId !== event.pointerId) {
+    return;
+  }
+  const plot = canvasEl?._roiPlot;
+  if (!plot) return;
+  const plotKey = getRoiPlotKey(canvasEl);
+  const plotWidth = Math.max(1, plot.width - plot.padL - plot.padR);
+  const plotHeight = Math.max(1, plot.height - plot.padT - plot.padB);
+  const xRange = roiPlotPanning.xMax - roiPlotPanning.xMin;
+  const yRange = roiPlotPanning.yMax - roiPlotPanning.yMin;
+  if (!(xRange > 0) && !(yRange > 0)) return;
+
+  const dx = event.clientX - roiPlotPanning.startClientX;
+  const dy = event.clientY - roiPlotPanning.startClientY;
+  let nextXMin = roiPlotPanning.xMin - (dx / plotWidth) * xRange;
+  let nextXMax = roiPlotPanning.xMax - (dx / plotWidth) * xRange;
+  const domainXMin = roiPlotPanning.domainXMin;
+  const domainXMax = roiPlotPanning.domainXMax;
+  if (Number.isFinite(domainXMin) && Number.isFinite(domainXMax)) {
+    const domainRange = domainXMax - domainXMin;
+    if (xRange >= domainRange) {
+      nextXMin = domainXMin;
+      nextXMax = domainXMax;
+    } else {
+      if (nextXMin < domainXMin) {
+        const shift = domainXMin - nextXMin;
+        nextXMin += shift;
+        nextXMax += shift;
+      }
+      if (nextXMax > domainXMax) {
+        const shift = nextXMax - domainXMax;
+        nextXMin -= shift;
+        nextXMax -= shift;
+      }
+    }
+  }
+
+  let nextYMin = roiPlotPanning.yMin + (dy / plotHeight) * yRange;
+  let nextYMax = roiPlotPanning.yMax + (dy / plotHeight) * yRange;
+  if (nextYMin > nextYMax) {
+    [nextYMin, nextYMax] = [nextYMax, nextYMin];
+  }
+
+  setRoiPlotAxisLimits(plotKey, "x", nextXMin, nextXMax);
+  setRoiPlotAxisLimits(plotKey, "y", nextYMin, nextYMax);
+  syncRoiPlotLimitControls();
+  scheduleRoiUpdate();
+  event.preventDefault();
+}
+
+function endRoiPlotPan(event, canvasEl) {
+  if (!roiPlotPanning || roiPlotPanning.canvasEl !== canvasEl) return;
+  const pointerId = roiPlotPanning.pointerId;
+  roiPlotPanning = null;
+  canvasEl.classList.remove("is-panning");
+  if (event) {
+    updateRoiPlotPanReadyState(canvasEl, event.clientX, event.clientY);
+  } else {
+    canvasEl.classList.remove("is-pan-ready");
+  }
+  if (Number.isFinite(pointerId) && typeof canvasEl.releasePointerCapture === "function") {
+    if (canvasEl.hasPointerCapture(pointerId)) {
+      canvasEl.releasePointerCapture(pointerId);
+    }
+  }
+}
+
 [roiLineCanvas, roiXCanvas, roiYCanvas].forEach((canvasEl) => {
   if (!canvasEl) return;
-  canvasEl.addEventListener("mousemove", (event) => updateRoiTooltip(event, canvasEl));
-  canvasEl.addEventListener("mouseleave", () => hideRoiTooltip(canvasEl));
+  canvasEl.addEventListener("mousemove", (event) => {
+    updateRoiTooltip(event, canvasEl);
+    updateRoiPlotPanReadyState(canvasEl, event.clientX, event.clientY);
+  });
+  canvasEl.addEventListener("mouseleave", () => {
+    hideRoiTooltip(canvasEl);
+    if (!(roiPlotPanning && roiPlotPanning.canvasEl === canvasEl)) {
+      canvasEl.classList.remove("is-pan-ready");
+    }
+  });
+  canvasEl.addEventListener("pointerdown", (event) => {
+    beginRoiPlotPan(event, canvasEl);
+  });
+  canvasEl.addEventListener("pointermove", (event) => {
+    if (roiPlotPanning && roiPlotPanning.canvasEl === canvasEl) {
+      moveRoiPlotPan(event, canvasEl);
+      return;
+    }
+    updateRoiPlotPanReadyState(canvasEl, event.clientX, event.clientY);
+  });
+  canvasEl.addEventListener("pointerup", (event) => {
+    endRoiPlotPan(event, canvasEl);
+  });
+  canvasEl.addEventListener("pointercancel", (event) => {
+    endRoiPlotPan(event, canvasEl);
+  });
+  canvasEl.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+    const plotKey = getRoiPlotKey(canvasEl);
+    clearRoiPlotLimitsForKey(plotKey);
+    if (!hasAnyManualRoiPlotLimits()) {
+      roiState.plotLimits.autoscale = true;
+    }
+    syncRoiPlotLimitControls();
+    scheduleRoiUpdate();
+  });
   canvasEl.addEventListener(
     "wheel",
     (event) => {

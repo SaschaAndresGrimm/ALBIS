@@ -527,7 +527,6 @@
                     </label>
                   </div>
                   <div class="autoload-group advanced-status-block">
-                    <div class="advanced-status-title">Stream status</div>
                     <div class="autoload-meta">
                       <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
                       <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
@@ -917,9 +916,9 @@
                 <p>Backend endpoint and launch behavior.</p>
               </div>
               <div class="settings-grid">
-                <label class="field">
-                  <span>Host</span>
-                  <input id="settings-server-host" type="text" />
+                <label class="checkbox settings-check settings-span-2">
+                  <input id="settings-server-external" type="checkbox" />
+                  Externally accessible (allow connections from other machines)
                 </label>
                 <label class="field">
                   <span>Port</span>
