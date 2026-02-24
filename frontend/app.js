@@ -272,6 +272,7 @@ const seriesSumBrowse = document.getElementById("series-sum-browse");
 const seriesSumFormat = document.getElementById("series-sum-format");
 const seriesSumMask = document.getElementById("series-sum-mask");
 const seriesSumStart = document.getElementById("series-sum-start");
+const seriesSumCancel = document.getElementById("series-sum-cancel");
 const seriesSumProgress = document.getElementById("series-sum-progress");
 const seriesSumProgressFill = document.getElementById("series-sum-progress-fill");
 const seriesSumProgressText = document.getElementById("series-sum-progress-text");
@@ -884,6 +885,8 @@ function applyHelpMap() {
     "simplon-url": "Base URL for the SIMPLON monitor API.",
     "simplon-timeout": "Request timeout for monitor polling (ms).",
     "simplon-enable": "Enable or pause SIMPLON live monitoring.",
+    "series-sum-start": "Start the configured series operation job.",
+    "series-sum-cancel": "Cancel the currently running series operation.",
     "settings-server-external": "Allow connections from other machines (binds to all interfaces).",
     "panel-fab": "Toggle the side panel open or closed (M).",
     "panel-resizer": "Drag to resize the side panel width.",
@@ -2794,7 +2797,12 @@ function updateSeriesSumUi() {
   const ready = Boolean(state.file && (isHdfFile(state.file) ? state.dataset : true));
   if (seriesSumStart) {
     seriesSumStart.disabled = !ready || state.seriesSum.running;
-    seriesSumStart.textContent = state.seriesSum.running ? "Summing…" : "Start";
+    seriesSumStart.textContent = state.seriesSum.cancelling ? "Cancelling…" : state.seriesSum.running ? "Summing…" : "Start";
+  }
+  if (seriesSumCancel) {
+    seriesSumCancel.classList.toggle("is-hidden", !state.seriesSum.running);
+    seriesSumCancel.disabled = !state.seriesSum.running || state.seriesSum.cancelling || !state.seriesSum.jobId;
+    seriesSumCancel.textContent = state.seriesSum.cancelling ? "Cancelling…" : "Cancel";
   }
   if (seriesSumBrowse) {
     seriesSumBrowse.disabled = state.seriesSum.running || !ready;
@@ -2847,6 +2855,7 @@ function resolveSeriesOpenTarget(outputs) {
 async function pollSeriesSumStatus() {
   if (!state.seriesSum.jobId) {
     state.seriesSum.running = false;
+    state.seriesSum.cancelling = false;
     updateSeriesSumUi();
     return;
   }
@@ -2858,7 +2867,8 @@ async function pollSeriesSumStatus() {
     const progress = Number.isFinite(data.progress) ? Number(data.progress) : state.seriesSum.progress;
     const message = data.message || state.seriesSum.message || "Running…";
     const outputs = Array.isArray(data.outputs) ? data.outputs : [];
-    state.seriesSum.running = status === "queued" || status === "running";
+    state.seriesSum.running = status === "queued" || status === "running" || status === "cancelling";
+    state.seriesSum.cancelling = Boolean(data.cancel_requested) && state.seriesSum.running;
     state.seriesSum.outputs = outputs;
     state.seriesSum.openTarget = state.seriesSum.running ? "" : resolveSeriesOpenTarget(outputs);
     setSeriesSumProgress(progress, message);
@@ -2870,16 +2880,46 @@ async function pollSeriesSumStatus() {
     if (status === "done") {
       const count = state.seriesSum.outputs.length;
       setStatus(`Series summing done (${count} file${count === 1 ? "" : "s"})`);
+    } else if (status === "cancelled") {
+      setStatus("Series summing cancelled");
     } else if (status === "error") {
       setStatus(`Series summing failed`);
     }
   } catch (err) {
     console.error(err);
     state.seriesSum.running = false;
+    state.seriesSum.cancelling = false;
     state.seriesSum.openTarget = "";
     setSeriesSumProgress(1, "Failed to query status");
     updateSeriesSumUi();
     setStatus("Series summing status failed");
+  }
+}
+
+async function cancelSeriesSumming() {
+  if (!state.seriesSum.running || !state.seriesSum.jobId || state.seriesSum.cancelling) return;
+  state.seriesSum.cancelling = true;
+  setSeriesSumProgress(state.seriesSum.progress, "Cancelling…");
+  updateSeriesSumUi();
+  try {
+    const data = await fetchJSONWithInit(`${API}/analysis/series-sum/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: state.seriesSum.jobId }),
+    });
+    if (data?.accepted) {
+      setStatus("Series summing cancellation requested");
+    } else {
+      setStatus(`Series summing is already ${data?.status || "finished"}`);
+      state.seriesSum.cancelling = false;
+    }
+    stopSeriesSumPolling();
+    pollSeriesSumStatus();
+  } catch (err) {
+    console.error(err);
+    state.seriesSum.cancelling = false;
+    updateSeriesSumUi();
+    setStatus("Failed to cancel series summing");
   }
 }
 
@@ -2928,6 +2968,7 @@ async function startSeriesSumming() {
   try {
     stopSeriesSumPolling();
     state.seriesSum.running = true;
+    state.seriesSum.cancelling = false;
     state.seriesSum.jobId = "";
     state.seriesSum.outputs = [];
     state.seriesSum.openTarget = "";
@@ -2940,6 +2981,7 @@ async function startSeriesSumming() {
     });
     state.seriesSum.jobId = String(data.job_id || "");
     state.seriesSum.running = true;
+    state.seriesSum.cancelling = false;
     setSeriesSumProgress(0.01, "Queued");
     setStatus("Series summing started");
     updateSeriesSumUi();
@@ -2947,6 +2989,7 @@ async function startSeriesSumming() {
   } catch (err) {
     console.error(err);
     state.seriesSum.running = false;
+    state.seriesSum.cancelling = false;
     setSeriesSumProgress(0, "Start failed");
     updateSeriesSumUi();
     setStatus("Failed to start series summing");
@@ -6516,6 +6559,7 @@ function getCommandPaletteCommands() {
   const hasNavigableFrames = hasFrame && state.frameCount > 1 && (hasDataset || hasSeries);
   const hasThresholds = hasFile && state.autoload.mode === "file" && state.thresholdCount > 1;
   const canStartSeriesOps = hasFile && (!isHdfFile(state.file) || hasDataset) && !state.seriesSum.running;
+  const canCancelSeriesOps = state.seriesSum.running && Boolean(state.seriesSum.jobId);
   const canOpenSeriesOutput = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
   const togglePlaybackLabel = state.playing ? "Playback: Pause" : "Playback: Play";
   const commands = [
@@ -6653,6 +6697,14 @@ function getCommandPaletteCommands() {
       search: "series sum output open result",
       when: canOpenSeriesOutput,
       run: () => openSeriesSumOutputTarget(),
+    },
+    {
+      id: "series-cancel",
+      label: "Series: Cancel Operation",
+      shortcut: "",
+      search: "series cancel stop abort",
+      when: canCancelSeriesOps,
+      run: () => cancelSeriesSumming(),
     },
     {
       id: "toggle-fullscreen",
@@ -12163,6 +12215,10 @@ seriesSumProgress?.addEventListener("click", () => {
 
 seriesSumStart?.addEventListener("click", () => {
   startSeriesSumming();
+});
+
+seriesSumCancel?.addEventListener("click", () => {
+  void cancelSeriesSumming();
 });
 
 renderPeakList();

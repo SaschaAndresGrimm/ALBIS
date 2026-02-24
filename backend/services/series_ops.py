@@ -8,13 +8,13 @@ import numpy as np
 from fastapi import HTTPException
 
 
-def mask_flag_value(dtype: np.dtype) -> float:
+def mask_flag_value(dtype: np.dtype) -> float | int:
     if np.issubdtype(dtype, np.floating):
         return float("nan")
     if np.issubdtype(dtype, np.unsignedinteger):
-        return float(np.iinfo(dtype).max)
+        return int(np.iinfo(dtype).max)
     if np.issubdtype(dtype, np.integer):
-        return float(np.iinfo(dtype).min)
+        return int(np.iinfo(dtype).min)
     return float("nan")
 
 
@@ -36,6 +36,8 @@ def iter_sum_groups(
         raise HTTPException(status_code=400, detail="No frames available")
 
     mode = (mode or "chunks").lower()
+    if mode == "step":
+        mode = "chunks"
     size = max(1, int(step))
 
     groups: list[dict[str, Any]] = []

@@ -17,6 +17,16 @@ def test_iter_sum_groups_chunks() -> None:
     assert groups[2]["indices"] == [8, 9]
 
 
+def test_iter_sum_groups_step_alias() -> None:
+    groups = iter_sum_groups(
+        frame_count=10, mode="step", step=4, range_start_1=None, range_end_1=None
+    )
+    assert len(groups) == 3
+    assert groups[0]["indices"] == [0, 1, 2, 3]
+    assert groups[1]["indices"] == [4, 5, 6, 7]
+    assert groups[2]["indices"] == [8, 9]
+
+
 def test_iter_sum_groups_nth() -> None:
     groups = iter_sum_groups(
         frame_count=10, mode="nth", step=3, range_start_1=None, range_end_1=None
@@ -46,5 +56,11 @@ def test_mask_helpers() -> None:
     assert any_mask.tolist() == [[False, True, True, True, True, True]]
 
     assert np.isnan(mask_flag_value(np.dtype(np.float32)))
-    assert mask_flag_value(np.dtype(np.uint16)) == float(np.iinfo(np.uint16).max)
-    assert mask_flag_value(np.dtype(np.int16)) == float(np.iinfo(np.int16).min)
+    assert mask_flag_value(np.dtype(np.uint16)) == int(np.iinfo(np.uint16).max)
+    assert mask_flag_value(np.dtype(np.int16)) == int(np.iinfo(np.int16).min)
+
+
+def test_mask_flag_value_uint64_is_exact_integer() -> None:
+    value = mask_flag_value(np.dtype(np.uint64))
+    assert isinstance(value, int)
+    assert value == int(np.iinfo(np.uint64).max)

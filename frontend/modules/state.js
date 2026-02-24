@@ -136,6 +136,7 @@ export function createAppState() {
     },
     seriesSum: {
       running: false,
+      cancelling: false,
       jobId: "",
       progress: 0,
       message: "Idle",

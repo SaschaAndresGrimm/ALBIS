@@ -13,6 +13,10 @@ import numpy as np
 from fastapi import HTTPException
 
 
+class _SeriesSummingCancelled(Exception):
+    """Internal control-flow exception for user requested cancellation."""
+
+
 @dataclass(frozen=True)
 class SeriesSummingDeps:
     data_dir: Path
@@ -71,6 +75,7 @@ class SeriesSummingService:
             "updated_at": time.time(),
             "outputs": [],
             "error": None,
+            "cancel_requested": False,
             "config": {
                 "file": file,
                 "dataset": dataset,
@@ -117,9 +122,35 @@ class SeriesSummingService:
                 return None
             return dict(job)
 
+    def cancel_job(self, job_id: str) -> bool:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return False
+            status = str(job.get("status") or "")
+            if status in {"done", "error", "cancelled"}:
+                return False
+            job["cancel_requested"] = True
+            job["message"] = "Cancellation requested…"
+            job["updated_at"] = time.time()
+            return True
+
+    def _is_cancel_requested(self, job_id: str) -> bool:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return False
+            return bool(job.get("cancel_requested"))
+
+    def _raise_if_cancelled(self, job_id: str) -> None:
+        if self._is_cancel_requested(job_id):
+            raise _SeriesSummingCancelled("Cancelled by user")
+
     def _trim_finished_jobs(self) -> None:
         done_jobs = [
-            jid for jid, info in self._jobs.items() if info.get("status") in {"done", "error"}
+            jid
+            for jid, info in self._jobs.items()
+            if info.get("status") in {"done", "error", "cancelled"}
         ]
         if len(done_jobs) <= self._max_finished_jobs:
             return
@@ -233,6 +264,107 @@ class SeriesSummingService:
             return self._deps.read_edf(path)
         raise HTTPException(status_code=400, detail="Unsupported image format")
 
+    @staticmethod
+    def _pick_integer_dtype_for_range(
+        min_value: int,
+        max_value: int,
+        *,
+        prefer_unsigned: bool,
+        min_itemsize: int,
+    ) -> np.dtype | None:
+        unsigned_candidates = [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64)]
+        signed_candidates = [np.dtype(np.int8), np.dtype(np.int16), np.dtype(np.int32), np.dtype(np.int64)]
+        candidate_sets: list[list[np.dtype]] = []
+        if prefer_unsigned and min_value >= 0:
+            candidate_sets.append(unsigned_candidates)
+        candidate_sets.append(signed_candidates)
+        if min_value >= 0 and not prefer_unsigned:
+            candidate_sets.append(unsigned_candidates)
+        for candidates in candidate_sets:
+            for candidate in candidates:
+                if candidate.itemsize < min_itemsize:
+                    continue
+                info = np.iinfo(candidate)
+                if min_value >= int(info.min) and max_value <= int(info.max):
+                    return candidate
+        return None
+
+    @classmethod
+    def _sum_output_dtype(cls, source_dtype: np.dtype, max_group_count: int) -> np.dtype:
+        if not (
+            np.issubdtype(source_dtype, np.integer) or np.issubdtype(source_dtype, np.unsignedinteger)
+        ):
+            return source_dtype
+        info = np.iinfo(source_dtype)
+        if np.issubdtype(source_dtype, np.unsignedinteger):
+            min_possible = 0
+            max_possible = int(info.max) * int(max_group_count)
+        else:
+            min_possible = int(info.min) * int(max_group_count)
+            max_possible = int(info.max) * int(max_group_count)
+        picked = cls._pick_integer_dtype_for_range(
+            min_possible,
+            max_possible,
+            prefer_unsigned=bool(np.issubdtype(source_dtype, np.unsignedinteger)),
+            min_itemsize=source_dtype.itemsize,
+        )
+        if picked is None:
+            return np.dtype(np.float64)
+        return picked
+
+    @classmethod
+    def _select_output_dtype(
+        cls,
+        source_dtype: np.dtype,
+        operation: str,
+        normalize_frame_idx: int | None,
+        max_group_count: int,
+        result_min: float | None,
+        result_max: float | None,
+        has_fractional_values: bool,
+    ) -> np.dtype:
+        source_dtype = np.dtype(source_dtype)
+        if normalize_frame_idx is not None or operation == "mean":
+            return np.dtype(np.float32)
+
+        if operation == "sum":
+            return cls._sum_output_dtype(source_dtype, max_group_count)
+
+        if operation == "median" and (
+            np.issubdtype(source_dtype, np.integer)
+            or np.issubdtype(source_dtype, np.unsignedinteger)
+        ):
+            if has_fractional_values:
+                return np.dtype(np.float32)
+            lo = int(np.floor(result_min)) if result_min is not None else 0
+            hi = int(np.ceil(result_max)) if result_max is not None else 0
+            picked = cls._pick_integer_dtype_for_range(
+                lo,
+                hi,
+                prefer_unsigned=bool(np.issubdtype(source_dtype, np.unsignedinteger)),
+                min_itemsize=source_dtype.itemsize,
+            )
+            if picked is None:
+                return np.dtype(np.float32)
+            return picked
+
+        return source_dtype
+
+    @staticmethod
+    def _cast_result_to_dtype(arr: np.ndarray, output_dtype: np.dtype) -> np.ndarray:
+        output_dtype = np.dtype(output_dtype)
+        if np.issubdtype(output_dtype, np.integer) or np.issubdtype(output_dtype, np.unsignedinteger):
+            arr_rounded = np.rint(np.asarray(arr, dtype=np.float64))
+            info = np.iinfo(output_dtype)
+            # Avoid np.clip integer-bound conversions that can overflow on some
+            # platforms for very large unsigned dtypes (for example uint64 max).
+            arr_clipped = np.minimum(
+                np.maximum(arr_rounded, float(info.min)),
+                float(info.max),
+            )
+            return arr_clipped.astype(output_dtype, casting="unsafe")
+        return np.asarray(arr, dtype=output_dtype)
+
     def _run_job(
         self,
         job_id: str,
@@ -260,6 +392,14 @@ class SeriesSummingService:
             normalize_frame_idx = int(normalize_frame) - 1 if normalize_frame is not None else None
 
             self._update_job(job_id, status="running", message="Preparing datasets…", progress=0.01)
+            self._raise_if_cancelled(job_id)
+
+            sums: list[tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]] = []
+            mask_bits_by_thr: list[np.ndarray | None] = []
+            result_min: float | None = None
+            result_max: float | None = None
+            has_fractional_values = False
+            max_group_count = 1
 
             if ext in {".h5", ".hdf5"}:
                 self._deps.ensure_hdf5_stack()
@@ -291,8 +431,6 @@ class SeriesSummingService:
                             )
 
                         source_dtype = np.dtype(view["dtype"])
-                        flag_value = self._deps.mask_flag_value(source_dtype)
-                        mask_bits_by_thr: list[np.ndarray | None] = []
                         for thr in range(threshold_count):
                             if not apply_mask:
                                 mask_bits_by_thr.append(None)
@@ -306,13 +444,12 @@ class SeriesSummingService:
                             mask_bits_by_thr.append(np.asarray(mask_dset, dtype=np.uint32))
 
                         total_input_frames = sum(int(group["count"]) for group in groups)
+                        max_group_count = max(1, max(int(group["count"]) for group in groups))
                         total_steps = max(1, total_input_frames * threshold_count)
                         processed = 0
-                        sums: list[
-                            tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]
-                        ] = []
 
                         for thr in range(threshold_count):
+                            self._raise_if_cancelled(job_id)
                             mask_bits = mask_bits_by_thr[thr]
                             _, _, any_mask = (
                                 self._deps.mask_slices(mask_bits)
@@ -332,6 +469,7 @@ class SeriesSummingService:
                                 norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
 
                             for chunk_idx, group in enumerate(groups):
+                                self._raise_if_cancelled(job_id)
                                 start_idx = int(group["start"])
                                 end_idx = int(group["end"])
                                 frame_indices = list(group["indices"])
@@ -340,6 +478,7 @@ class SeriesSummingService:
                                     [] if operation == "median" else None
                                 )
                                 for frame_idx in frame_indices:
+                                    self._raise_if_cancelled(job_id)
                                     arr = self._deps.extract_frame(view, frame_idx, thr)
                                     arr = np.asarray(arr, dtype=np.float64)
                                     if norm_ref is not None and norm_ref_valid is not None:
@@ -372,7 +511,17 @@ class SeriesSummingService:
                                 if operation == "median":
                                     if not median_stack:
                                         continue
+                                    self._update_job(
+                                        job_id,
+                                        progress=min(0.95, processed / total_steps),
+                                        message=(
+                                            f"Reducing median threshold {thr + 1}/{threshold_count}, "
+                                            f"frames {start_idx + 1}-{end_idx + 1}"
+                                        ),
+                                    )
+                                    self._raise_if_cancelled(job_id)
                                     reduced = np.median(np.stack(median_stack, axis=0), axis=0)
+                                    self._raise_if_cancelled(job_id)
                                 else:
                                     if acc is None:
                                         continue
@@ -380,6 +529,27 @@ class SeriesSummingService:
                                         reduced = acc / float(max(1, len(frame_indices)))
                                     else:
                                         reduced = acc
+                                reduced_arr = np.asarray(reduced)
+                                if reduced_arr.size:
+                                    finite_mask = np.isfinite(reduced_arr)
+                                    if np.any(finite_mask):
+                                        chunk_min = float(np.min(reduced_arr[finite_mask]))
+                                        chunk_max = float(np.max(reduced_arr[finite_mask]))
+                                        result_min = chunk_min if result_min is None else min(result_min, chunk_min)
+                                        result_max = chunk_max if result_max is None else max(result_max, chunk_max)
+                                if (
+                                    operation == "median"
+                                    and normalize_frame_idx is None
+                                    and (
+                                        np.issubdtype(source_dtype, np.integer)
+                                        or np.issubdtype(source_dtype, np.unsignedinteger)
+                                    )
+                                    and not has_fractional_values
+                                ):
+                                    rounded = np.rint(reduced_arr)
+                                    has_fractional_values = bool(
+                                        np.any(np.abs(reduced_arr - rounded) > 1e-6)
+                                    )
                                 sums.append(
                                     (
                                         thr,
@@ -387,7 +557,7 @@ class SeriesSummingService:
                                         start_idx,
                                         end_idx,
                                         len(frame_indices),
-                                        reduced,
+                                        reduced_arr,
                                         mask_bits,
                                     )
                                 )
@@ -408,13 +578,13 @@ class SeriesSummingService:
                 groups = self._deps.iter_sum_groups(frame_count, mode, step, range_start, range_end)
                 if not groups:
                     raise HTTPException(status_code=400, detail="No frames available for summing")
+                max_group_count = max(1, max(int(group["count"]) for group in groups))
 
                 sample = self._read_non_h5_image(series_files[0])
                 image_h = int(sample.shape[-2])
                 image_w = int(sample.shape[-1])
                 shape = (int(frame_count), image_h, image_w)
                 source_dtype = np.dtype(sample.dtype)
-                flag_value = self._deps.mask_flag_value(source_dtype)
                 mask_bits = np.zeros((image_h, image_w), dtype=np.uint32) if apply_mask else None
                 mask_bits_by_thr = [mask_bits]
 
@@ -439,15 +609,16 @@ class SeriesSummingService:
                 total_input_frames = sum(int(group["count"]) for group in groups)
                 total_steps = max(1, total_input_frames)
                 processed = 0
-                sums = []
 
                 for chunk_idx, group in enumerate(groups):
+                    self._raise_if_cancelled(job_id)
                     start_idx = int(group["start"])
                     end_idx = int(group["end"])
                     frame_indices = list(group["indices"])
                     acc: np.ndarray | None = None
                     median_stack: list[np.ndarray] | None = [] if operation == "median" else None
                     for frame_idx in frame_indices:
+                        self._raise_if_cancelled(job_id)
                         arr = np.asarray(
                             self._read_non_h5_image(series_files[frame_idx]), dtype=np.float64
                         )
@@ -487,7 +658,14 @@ class SeriesSummingService:
                     if operation == "median":
                         if not median_stack:
                             continue
+                        self._update_job(
+                            job_id,
+                            progress=min(0.95, processed / total_steps),
+                            message=f"Reducing median frames {start_idx + 1}-{end_idx + 1}",
+                        )
+                        self._raise_if_cancelled(job_id)
                         reduced = np.median(np.stack(median_stack, axis=0), axis=0)
+                        self._raise_if_cancelled(job_id)
                     else:
                         if acc is None:
                             continue
@@ -495,11 +673,41 @@ class SeriesSummingService:
                             reduced = acc / float(max(1, len(frame_indices)))
                         else:
                             reduced = acc
+                    reduced_arr = np.asarray(reduced)
+                    if reduced_arr.size:
+                        finite_mask = np.isfinite(reduced_arr)
+                        if np.any(finite_mask):
+                            chunk_min = float(np.min(reduced_arr[finite_mask]))
+                            chunk_max = float(np.max(reduced_arr[finite_mask]))
+                            result_min = chunk_min if result_min is None else min(result_min, chunk_min)
+                            result_max = chunk_max if result_max is None else max(result_max, chunk_max)
+                    if (
+                        operation == "median"
+                        and normalize_frame_idx is None
+                        and (
+                            np.issubdtype(source_dtype, np.integer)
+                            or np.issubdtype(source_dtype, np.unsignedinteger)
+                        )
+                        and not has_fractional_values
+                    ):
+                        rounded = np.rint(reduced_arr)
+                        has_fractional_values = bool(np.any(np.abs(reduced_arr - rounded) > 1e-6))
                     sums.append(
-                        (0, chunk_idx, start_idx, end_idx, len(frame_indices), reduced, mask_bits)
+                        (0, chunk_idx, start_idx, end_idx, len(frame_indices), reduced_arr, mask_bits)
                     )
 
             outputs: list[str] = []
+            output_dtype = self._select_output_dtype(
+                source_dtype=source_dtype,
+                operation=operation,
+                normalize_frame_idx=normalize_frame_idx,
+                max_group_count=max_group_count,
+                result_min=result_min,
+                result_max=result_max,
+                has_fractional_values=has_fractional_values,
+            )
+            flag_value = self._deps.mask_flag_value(output_dtype)
+            self._raise_if_cancelled(job_id)
             self._update_job(job_id, progress=0.97, message="Writing outputs…")
             if output_format in {"hdf5", "h5"}:
                 self._deps.ensure_hdf5_stack()
@@ -543,7 +751,7 @@ class SeriesSummingService:
                     data_dset = data_group.create_dataset(
                         "data",
                         shape=data_shape,
-                        dtype=np.float64,
+                        dtype=output_dtype,
                         chunks=data_chunks,
                         compression="gzip",
                         compression_opts=4,
@@ -576,7 +784,8 @@ class SeriesSummingService:
                     data_group.create_dataset("sum_frame_count", data=chunk_count)
 
                     for thr, chunk_idx, _start_idx, _end_idx, _count, arr, mask_bits in sums:
-                        arr_out = np.asarray(arr, dtype=np.float64)
+                        self._raise_if_cancelled(job_id)
+                        arr_out = self._cast_result_to_dtype(arr, output_dtype)
                         if mask_bits is not None:
                             _, _, any_mask = self._deps.mask_slices(mask_bits)
                             arr_out = arr_out.copy()
@@ -614,8 +823,8 @@ class SeriesSummingService:
             elif output_format in {"tiff", "tif"}:
                 base_name = base_target.stem or base_target.name or "series_sum"
                 out_dir = base_target.parent
-                use_float_tiff = operation in {"mean", "median"} or normalize_frame_idx is not None
                 for thr, chunk_idx, start_idx, end_idx, frame_count_in_sum, arr, mask_bits in sums:
+                    self._raise_if_cancelled(job_id)
                     thr_tag = f"_thr{thr + 1:02d}" if threshold_count > 1 else ""
                     if mode == "all":
                         chunk_tag = "_all"
@@ -627,20 +836,20 @@ class SeriesSummingService:
                         )
                     out_file = out_dir / f"{base_name}{thr_tag}{chunk_tag}_{timestamp}.tiff"
                     out_file = self._next_available_path(out_file)
-                    if use_float_tiff:
-                        arr_tiff = np.asarray(arr, dtype=np.float32)
-                    else:
-                        arr_out = np.rint(np.asarray(arr, dtype=np.float64))
-                        tiff_dtype: np.dtype = np.int32
-                        max_val = float(np.nanmax(arr_out)) if arr_out.size else 0.0
-                        if max_val > float(np.iinfo(np.int32).max):
-                            tiff_dtype = np.int64
-                        arr_tiff = arr_out.astype(tiff_dtype, casting="unsafe")
+                    arr_tiff = self._cast_result_to_dtype(arr, output_dtype)
                     if mask_bits is not None:
                         gap_mask, bad_mask, _ = self._deps.mask_slices(mask_bits)
                         arr_tiff = arr_tiff.copy()
-                        arr_tiff[gap_mask] = -1
-                        arr_tiff[bad_mask] = -2
+                        if np.issubdtype(arr_tiff.dtype, np.unsignedinteger):
+                            info = np.iinfo(arr_tiff.dtype)
+                            arr_tiff[gap_mask] = info.max
+                            arr_tiff[bad_mask] = max(info.min, info.max - 1)
+                        elif np.issubdtype(arr_tiff.dtype, np.integer):
+                            arr_tiff[gap_mask] = -1
+                            arr_tiff[bad_mask] = -2
+                        else:
+                            arr_tiff[gap_mask] = -1.0
+                            arr_tiff[bad_mask] = -2.0
                     self._deps.write_tiff(out_file, np.asarray(arr_tiff))
                     outputs.append(str(out_file))
             else:
@@ -652,6 +861,16 @@ class SeriesSummingService:
                 progress=1.0,
                 message=f"Completed: wrote {len(outputs)} file(s)",
                 outputs=outputs,
+                cancel_requested=False,
+                done_at=time.time(),
+            )
+        except _SeriesSummingCancelled:
+            self._update_job(
+                job_id,
+                status="cancelled",
+                progress=1.0,
+                message="Cancelled",
+                cancel_requested=False,
                 done_at=time.time(),
             )
         except Exception as exc:
@@ -663,5 +882,6 @@ class SeriesSummingService:
                 progress=1.0,
                 message=f"Failed: {detail}",
                 error=str(detail),
+                cancel_requested=False,
                 done_at=time.time(),
             )

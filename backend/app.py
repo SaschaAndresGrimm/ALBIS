@@ -668,6 +668,7 @@ register_analysis_routes(
         read_threshold_energies=_read_threshold_energies,
         start_series_sum_job=series_summing.start_job,
         get_series_sum_job=series_summing.get_job,
+        cancel_series_sum_job=series_summing.cancel_job,
     ),
 )
 

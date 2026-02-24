@@ -22,6 +22,7 @@ class AnalysisRouteDeps:
     read_threshold_energies: Callable[[Any, int], list[float | None]]
     start_series_sum_job: Callable[..., str]
     get_series_sum_job: Callable[[str], dict[str, Any] | None]
+    cancel_series_sum_job: Callable[[str], bool]
 
 
 def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
@@ -161,6 +162,8 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         file = str(payload.get("file", "")).strip()
         dataset = str(payload.get("dataset", "")).strip()
         mode = str(payload.get("mode", "all")).strip().lower()
+        if mode == "step":
+            mode = "chunks"
         step = int(payload.get("step", 10) or 10)
         operation = str(payload.get("operation", "sum")).strip().lower()
         normalize_frame = payload.get("normalize_frame")
@@ -186,7 +189,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         ext = Path(file).suffix.lower()
         if ext in {".h5", ".hdf5"} and not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
-        if mode not in {"all", "step", "nth", "range"}:
+        if mode not in {"all", "chunks", "nth", "range"}:
             raise HTTPException(status_code=400, detail="Invalid mode")
         if operation not in {"sum", "mean", "median"}:
             raise HTTPException(status_code=400, detail="Invalid operation")
@@ -224,3 +227,22 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         return dict(job)
+
+    @app.post("/api/analysis/series-sum/cancel")
+    def analysis_series_sum_cancel(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        job_id = str(payload.get("job_id", "")).strip()
+        if not job_id:
+            raise HTTPException(status_code=400, detail="Missing job_id")
+        job = deps.get_series_sum_job(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        status = str(job.get("status") or "")
+        if status in {"done", "error", "cancelled"}:
+            return {"job_id": job_id, "status": status, "accepted": False}
+        accepted = deps.cancel_series_sum_job(job_id)
+        current = deps.get_series_sum_job(job_id) or job
+        return {
+            "job_id": job_id,
+            "status": str(current.get("status") or status or "running"),
+            "accepted": bool(accepted),
+        }
