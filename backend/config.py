@@ -47,6 +47,29 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _PIXEL_LABEL_FORMATS = {"auto", "integer", "scientific"}
+_ALLOWED_CONFIG_KEYS: dict[str, set[str]] = {
+    section: set(values.keys()) for section, values in DEFAULT_CONFIG.items()
+}
+_CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
+    ("server", "host"): (str,),
+    ("server", "port"): (int, float, str),
+    ("server", "reload"): (bool, int, float, str),
+    ("launcher", "startup_timeout_sec"): (int, float, str),
+    ("launcher", "open_browser"): (bool, int, float, str),
+    ("launcher", "debug_macos_events"): (bool, int, float, str),
+    ("data", "root"): (str,),
+    ("data", "allow_abs_paths"): (bool, int, float, str),
+    ("data", "scan_cache_sec"): (int, float, str),
+    ("data", "max_scan_depth"): (int, float, str),
+    ("data", "max_upload_mb"): (int, float, str),
+    ("logging", "level"): (str,),
+    ("logging", "dir"): (str,),
+    ("ui", "tool_hints"): (bool, int, float, str),
+    ("ui", "pixel_label_min_cell_px"): (int, float, str),
+    ("ui", "pixel_label_max_labels"): (int, float, str),
+    ("ui", "pixel_label_format"): (str,),
+    ("ui", "pixel_label_show_during_drag"): (bool, int, float, str),
+}
 
 
 def _repo_root() -> Path:
@@ -90,6 +113,37 @@ def _deep_merge(target: dict[str, Any], source: dict[str, Any]) -> dict[str, Any
     return target
 
 
+def _validate_raw_config(raw: dict[str, Any]) -> None:
+    unknown_sections = sorted(set(raw.keys()) - set(DEFAULT_CONFIG.keys()))
+    if unknown_sections:
+        joined = ", ".join(unknown_sections)
+        raise ValueError(f"Unknown config section(s): {joined}")
+
+    for section, section_value in raw.items():
+        if section_value is None:
+            continue
+        if not isinstance(section_value, dict):
+            raise ValueError(f"Config section '{section}' must be an object")
+
+        unknown_keys = sorted(set(section_value.keys()) - _ALLOWED_CONFIG_KEYS[section])
+        if unknown_keys:
+            joined = ", ".join(unknown_keys)
+            raise ValueError(f"Unknown key(s) in section '{section}': {joined}")
+
+        for key, value in section_value.items():
+            if value is None:
+                continue
+            expected_types = _CONFIG_VALUE_TYPES.get((section, key))
+            if expected_types is None:
+                continue
+            if not isinstance(value, expected_types):
+                expected_names = ", ".join(t.__name__ for t in expected_types)
+                raise ValueError(
+                    f"Invalid type for '{section}.{key}': expected {expected_names}, "
+                    f"got {type(value).__name__}"
+                )
+
+
 def _parse_config(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         raw = json.load(fh)
@@ -114,6 +168,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     """Return a fully-typed config payload merged with defaults."""
     merged = copy.deepcopy(DEFAULT_CONFIG)
     if isinstance(raw, dict):
+        _validate_raw_config(raw)
         _deep_merge(merged, raw)
 
     server_host = get_str(merged, ("server", "host"), "127.0.0.1").strip() or "127.0.0.1"

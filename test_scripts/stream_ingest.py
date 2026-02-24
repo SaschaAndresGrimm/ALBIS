@@ -2,7 +2,7 @@ import json
 import requests
 import numpy as np
 
-PORT = 8080
+PORT = 8000
 SOURCE_ID = "default"
 
 frame = (np.random.rand(512, 512) * 1000).astype("<u2")

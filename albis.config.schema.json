@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/SaschaAndresGrimm/ALBIS/blob/main/albis.config.schema.json",
+  "title": "ALBIS configuration",
+  "description": "Runtime configuration for ALBIS backend, launcher, and UI behavior.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Bind address for the backend server."
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 8000,
+          "description": "Bind port for the backend server."
+        },
+        "reload": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable auto-reload in source mode."
+        }
+      }
+    },
+    "launcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "startup_timeout_sec": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 5.0,
+          "description": "Seconds to wait for backend startup before warning."
+        },
+        "open_browser": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open the browser automatically after launch."
+        },
+        "debug_macos_events": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose macOS app-event logging in the launcher."
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "root": {
+          "type": "string",
+          "default": "",
+          "description": "Data root directory. Empty selects runtime defaults."
+        },
+        "allow_abs_paths": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow absolute file/folder paths in API calls."
+        },
+        "scan_cache_sec": {
+          "type": "number",
+          "minimum": 0,
+          "default": 2.0,
+          "description": "Folder/file scan cache lifetime in seconds."
+        },
+        "max_scan_depth": {
+          "type": "integer",
+          "minimum": -1,
+          "default": -1,
+          "description": "Maximum recursive scan depth for folder discovery. -1 means unlimited."
+        },
+        "max_upload_mb": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Upload size limit in megabytes. 0 disables explicit limit."
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO",
+          "description": "Backend log level."
+        },
+        "dir": {
+          "type": "string",
+          "default": "",
+          "description": "Log directory path. Empty resolves to <data.root>/logs."
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool_hints": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable additional tool-hint text in the UI."
+        },
+        "pixel_label_min_cell_px": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 64,
+          "default": 18,
+          "description": "Minimum on-screen cell size for rendering pixel labels."
+        },
+        "pixel_label_max_labels": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 100000,
+          "default": 4000,
+          "description": "Upper bound for rendered pixel labels per frame."
+        },
+        "pixel_label_format": {
+          "type": "string",
+          "enum": ["auto", "integer", "scientific"],
+          "default": "auto",
+          "description": "Pixel-label number format."
+        },
+        "pixel_label_show_during_drag": {
+          "type": "boolean",
+          "default": false,
+          "description": "Render pixel labels while panning/dragging."
+        }
+      }
+    }
+  },
+  "default": {
+    "server": {
+      "host": "127.0.0.1",
+      "port": 8000,
+      "reload": false
+    },
+    "launcher": {
+      "startup_timeout_sec": 5.0,
+      "open_browser": true,
+      "debug_macos_events": false
+    },
+    "data": {
+      "root": "",
+      "allow_abs_paths": true,
+      "scan_cache_sec": 2.0,
+      "max_scan_depth": -1,
+      "max_upload_mb": 0
+    },
+    "logging": {
+      "level": "INFO",
+      "dir": ""
+    },
+    "ui": {
+      "tool_hints": false,
+      "pixel_label_min_cell_px": 18,
+      "pixel_label_max_labels": 4000,
+      "pixel_label_format": "auto",
+      "pixel_label_show_during_drag": false
+    }
+  }
+}

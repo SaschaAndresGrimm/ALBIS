@@ -3,21 +3,20 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_FILE = ROOT / "backend" / "app.py"
+VERSION_FILE = ROOT / "VERSION"
 
 
 def read_version() -> str:
-    text = APP_FILE.read_text(encoding="utf-8")
-    match = re.search(r'ALBIS_VERSION\s*=\s*"([^"]+)"', text)
-    if not match:
+    try:
+        raw = VERSION_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
         return "0.0.0"
-    return match.group(1).strip() or "0.0.0"
+    return raw or "0.0.0"
 
 
 def read_commit() -> str:

@@ -24,6 +24,9 @@ npm ci
 
 - Architecture and data flow: `docs/ARCHITECTURE.md`
 - Function/file navigation map: `docs/CODE_MAP.md`
+- Configuration contract: `docs/configuration.md` and `albis.config.schema.json`
+- HTTP API contract reference: `docs/API_CONTRACTS.md`
+- Release process checklist: `docs/RELEASE_CHECKLIST.md`
 
 ## How to help
 
@@ -51,6 +54,7 @@ Use the GitHub issue forms:
 - Describe the motivation and approach.
 - Include screenshots or recordings for UI changes.
 - Update docs when behavior changes.
+- Update `CHANGELOG.md` for user-visible changes.
 - If you add/reshape major logic paths, update `docs/ARCHITECTURE.md` or `docs/CODE_MAP.md`.
 
 ## Local checks before PR
@@ -58,7 +62,7 @@ Use the GitHub issue forms:
 ```bash
 ruff check backend tests scripts test_scripts
 black --check tests scripts test_scripts
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
 npm run lint:js
 ```
 

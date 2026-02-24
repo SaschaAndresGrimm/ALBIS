@@ -8,7 +8,28 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
+
+try:
+    from ..api_models import (
+        ClientLogRequest,
+        HealthResponse,
+        OpenPathRequest,
+        PathStatusResponse,
+        SettingsPayloadResponse,
+        SettingsSaveRequest,
+        StatusResponse,
+    )
+except ImportError:  # pragma: no cover - supports `python backend/app.py`
+    from api_models import (  # type: ignore[no-redef]
+        ClientLogRequest,
+        HealthResponse,
+        OpenPathRequest,
+        PathStatusResponse,
+        SettingsPayloadResponse,
+        SettingsSaveRequest,
+        StatusResponse,
+    )
 
 
 @dataclass(frozen=True)
@@ -28,19 +49,17 @@ class SystemRouteDeps:
 
 
 def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
-    @app.get("/api/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok", "version": deps.version}
+    @app.get("/api/health", response_model=HealthResponse)
+    def health() -> HealthResponse:
+        return HealthResponse(status="ok", version=deps.version)
 
-    @app.get("/api/settings")
-    def get_settings() -> dict[str, Any]:
-        return deps.settings_payload()
+    @app.get("/api/settings", response_model=SettingsPayloadResponse)
+    def get_settings() -> SettingsPayloadResponse:
+        return SettingsPayloadResponse(**deps.settings_payload())
 
-    @app.post("/api/settings")
-    def save_settings(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-        raw = payload.get("config") if isinstance(payload, dict) else None
-        if not isinstance(raw, dict):
-            raise HTTPException(status_code=400, detail="Missing config payload")
+    @app.post("/api/settings", response_model=SettingsPayloadResponse)
+    def save_settings(payload: SettingsSaveRequest) -> SettingsPayloadResponse:
+        raw = payload.config
 
         try:
             normalized = deps.normalize_config(raw)
@@ -54,21 +73,21 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
 
         deps.apply_runtime_config(normalized)
         deps.logger.info("Config updated via UI: %s", deps.config_path)
-        return deps.settings_payload()
+        return SettingsPayloadResponse(**deps.settings_payload())
 
-    @app.post("/api/client-log")
-    def client_log(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
+    @app.post("/api/client-log", response_model=StatusResponse)
+    def client_log(payload: ClientLogRequest) -> StatusResponse:
         try:
-            level = str(payload.get("level", "info")).lower()
-            message = str(payload.get("message", "")).strip()
-            context = payload.get("context")
+            level = str(payload.level).lower()
+            message = str(payload.message).strip()
+            context = payload.context
             meta = {
-                "url": payload.get("url"),
-                "userAgent": payload.get("userAgent"),
-                "extra": payload.get("extra"),
+                "url": payload.url,
+                "userAgent": payload.userAgent,
+                "extra": payload.extra,
             }
             if not message:
-                return {"status": "ignored"}
+                return StatusResponse(status="ignored")
             if len(message) > 2000:
                 message = message[:2000] + "…"
             if isinstance(context, str) and len(context) > 4000:
@@ -94,13 +113,13 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
                 deps.logger.log(log_level, "CLIENT %s | %s | %s", message, context, meta_json)
             else:
                 deps.logger.log(log_level, "CLIENT %s | %s", message, meta_json)
-            return {"status": "ok"}
+            return StatusResponse(status="ok")
         except Exception as exc:
             deps.logger.exception("Failed to record client log: %s", exc)
             raise HTTPException(status_code=400, detail="Invalid log payload")
 
-    @app.post("/api/open-log")
-    def open_log() -> dict[str, str]:
+    @app.post("/api/open-log", response_model=PathStatusResponse)
+    def open_log() -> PathStatusResponse:
         log_path = deps.get_log_path()
         if log_path is None:
             raise HTTPException(status_code=500, detail="Log file unavailable")
@@ -120,11 +139,11 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
                 subprocess.run(["xdg-open", str(log_path)], check=False)
         except Exception as exc:
             raise HTTPException(status_code=500, detail="Failed to open log file") from exc
-        return {"status": "ok", "path": str(log_path)}
+        return PathStatusResponse(status="ok", path=str(log_path))
 
-    @app.post("/api/open-path")
-    def open_path(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
-        raw = str(payload.get("path", "")).strip()
+    @app.post("/api/open-path", response_model=PathStatusResponse)
+    def open_path(payload: OpenPathRequest) -> PathStatusResponse:
+        raw = str(payload.path).strip()
         if not raw:
             raise HTTPException(status_code=400, detail="Missing path")
 
@@ -151,4 +170,4 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
                 subprocess.run(["xdg-open", str(path)], check=False)
         except Exception as exc:
             raise HTTPException(status_code=500, detail="Failed to open path") from exc
-        return {"status": "ok", "path": str(path)}
+        return PathStatusResponse(status="ok", path=str(path))

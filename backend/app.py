@@ -75,6 +75,7 @@ try:
     from .routes.files import FileRouteDeps, register_file_routes
     from .routes.system import SystemRouteDeps, register_system_routes
     from .routes.stream import StreamRouteDeps, register_stream_routes
+    from .version import ALBIS_VERSION
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
         DEFAULT_CONFIG,
@@ -129,6 +130,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from routes.files import FileRouteDeps, register_file_routes
     from routes.system import SystemRouteDeps, register_system_routes
     from routes.stream import StreamRouteDeps, register_stream_routes
+    from version import ALBIS_VERSION
 
 CONFIG, CONFIG_PATH = load_config()
 CONFIG_BASE_DIR = CONFIG_PATH.parent
@@ -165,8 +167,6 @@ class RuntimeState:
 
 runtime_state = RuntimeState(config=CONFIG, config_path=CONFIG_PATH, data_dir=DATA_DIR)
 runtime_state.apply_config(CONFIG)
-
-ALBIS_VERSION = "0.8.2"
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
@@ -257,6 +257,7 @@ async def _log_startup_banner() -> None:
 
 @app.middleware("http")
 async def log_requests(request, call_next):
+    """Emit request/response logs with severity based on status code and latency."""
     start = time.perf_counter()
     try:
         response = await call_next(request)
@@ -284,6 +285,7 @@ async def log_requests(request, call_next):
 
 
 def _safe_rel_path(name: str) -> Path:
+    """Validate user-provided relative paths and block traversal/dot-prefix segments."""
     if not name:
         raise HTTPException(status_code=400, detail="Invalid file name")
     if name.startswith(("/", "\\")):
@@ -297,6 +299,7 @@ def _safe_rel_path(name: str) -> Path:
 
 
 def _resolve_file(name: str) -> Path:
+    """Resolve an HDF5 file from relative data-root paths or approved absolute paths."""
     raw = Path(name)
     if raw.is_absolute():
         if not runtime_state.allow_abs_paths:
@@ -315,6 +318,7 @@ def _resolve_file(name: str) -> Path:
 
 
 def _resolve_dir(name: str | None) -> Path:
+    """Resolve a browse/autoload directory with the same safety rules as file resolution."""
     if name is None:
         return runtime_state.data_dir.resolve()
     trimmed = name.strip()
@@ -338,6 +342,7 @@ def _resolve_dir(name: str | None) -> Path:
 
 
 def _resolve_image_file(name: str) -> Path:
+    """Resolve any supported image file path constrained by runtime path policy."""
     raw = Path(name)
     if raw.is_absolute():
         if not runtime_state.allow_abs_paths:
@@ -356,6 +361,7 @@ def _resolve_image_file(name: str) -> Path:
 
 
 def _is_within(path: Path, root: Path) -> bool:
+    """Return True when `path` is inside `root` after normalization."""
     try:
         path.relative_to(root)
         return True
@@ -364,6 +370,7 @@ def _is_within(path: Path, root: Path) -> bool:
 
 
 def _parse_ext_filter(exts: str | None) -> set[str]:
+    """Normalize comma-separated extension filters to the supported autoload set."""
     if not exts:
         return set(AUTOLOAD_EXTS)
     cleaned: set[str] = set()
@@ -381,6 +388,7 @@ def _parse_ext_filter(exts: str | None) -> set[str]:
 
 
 def _iter_entries(root: Path, max_depth: int | None):
+    """Depth-limited directory walk that skips hidden entries and symlink traversal."""
     stack: list[tuple[Path, int]] = [(root, 0)]
     while stack:
         base, depth = stack.pop()
@@ -403,6 +411,7 @@ def _iter_entries(root: Path, max_depth: int | None):
 
 
 def _scan_files(root: Path) -> list[str]:
+    """Collect unique relative image-file paths under `root`."""
     items: list[str] = []
     max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
     root = root.resolve()
@@ -421,6 +430,7 @@ def _scan_files(root: Path) -> list[str]:
 
 
 def _scan_folders(root: Path) -> list[str]:
+    """Collect unique relative subfolders under `root` respecting scan depth limits."""
     dirs: set[str] = set()
     max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
     stack: list[tuple[Path, int]] = [(root.resolve(), 0)]
@@ -451,6 +461,7 @@ def _scan_folders(root: Path) -> list[str]:
 
 
 def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) -> Path | None:
+    """Find the newest image file under `root` after extension/pattern filtering."""
     latest_path: Path | None = None
     latest_mtime = -1.0
     max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
@@ -539,6 +550,7 @@ series_summing = SeriesSummingService(
 
 
 def _settings_payload() -> dict[str, Any]:
+    """Build the API payload used by settings GET/POST handlers."""
     return {
         "config": runtime_state.config,
         "defaults": DEFAULT_CONFIG,
@@ -688,6 +700,7 @@ register_frame_routes(
 
 
 def _resource_root() -> Path:
+    """Resolve static asset root for both source and bundled (PyInstaller) runs."""
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS)
     return Path(__file__).resolve().parents[1]
@@ -695,6 +708,7 @@ def _resource_root() -> Path:
 
 @app.middleware("http")
 async def _no_cache_static(request: "Request", call_next):
+    """Disable browser caching for core frontend entry assets during development/updates."""
     response = await call_next(request)
     if request.method == "GET":
         path = request.url.path

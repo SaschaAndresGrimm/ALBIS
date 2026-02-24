@@ -1,5 +1,6 @@
 -r backend/requirements.txt
 pytest
+pytest-cov
 httpx
 ruff
 black==25.1.0

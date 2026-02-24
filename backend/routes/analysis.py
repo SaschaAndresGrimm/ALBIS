@@ -4,7 +4,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query
+
+try:
+    from ..api_models import (
+        AnalysisParamsResponse,
+        SeriesSumCancelRequest,
+        SeriesSumCancelResponse,
+        SeriesSumStartRequest,
+        SeriesSumStartResponse,
+    )
+except ImportError:  # pragma: no cover - supports `python backend/app.py`
+    from api_models import (  # type: ignore[no-redef]
+        AnalysisParamsResponse,
+        SeriesSumCancelRequest,
+        SeriesSumCancelResponse,
+        SeriesSumStartRequest,
+        SeriesSumStartResponse,
+    )
 
 
 @dataclass(frozen=True)
@@ -26,11 +43,11 @@ class AnalysisRouteDeps:
 
 
 def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
-    @app.get("/api/analysis/params")
+    @app.get("/api/analysis/params", response_model=AnalysisParamsResponse)
     def analysis_params(
         file: str = Query(..., min_length=1),
         dataset: str | None = Query(None),
-    ) -> dict[str, Any]:
+    ) -> AnalysisParamsResponse:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
@@ -147,42 +164,31 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             else:
                 center_y_px = center_y_val
 
-        return {
-            "distance_mm": distance_mm,
-            "pixel_size_um": pixel_size_um,
-            "energy_ev": energy_ev,
-            "center_x_px": center_x_px,
-            "center_y_px": center_y_px,
-            "shape": shape,
-        }
+        return AnalysisParamsResponse(
+            distance_mm=distance_mm,
+            pixel_size_um=pixel_size_um,
+            energy_ev=energy_ev,
+            center_x_px=center_x_px,
+            center_y_px=center_y_px,
+            shape=[int(v) for v in shape] if shape else None,
+        )
 
-    @app.post("/api/analysis/series-sum/start")
-    def analysis_series_sum_start(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    @app.post("/api/analysis/series-sum/start", response_model=SeriesSumStartResponse)
+    def analysis_series_sum_start(payload: SeriesSumStartRequest) -> SeriesSumStartResponse:
         """Start asynchronous series summing and return pollable job metadata."""
-        file = str(payload.get("file", "")).strip()
-        dataset = str(payload.get("dataset", "")).strip()
-        mode = str(payload.get("mode", "all")).strip().lower()
+        file = str(payload.file).strip()
+        dataset = str(payload.dataset).strip()
+        mode = str(payload.mode).strip().lower()
         if mode == "step":
             mode = "chunks"
-        step = int(payload.get("step", 10) or 10)
-        operation = str(payload.get("operation", "sum")).strip().lower()
-        normalize_frame = payload.get("normalize_frame")
-        normalize_frame = (
-            int(normalize_frame)
-            if normalize_frame is not None and str(normalize_frame).strip() != ""
-            else None
-        )
-        range_start = payload.get("range_start")
-        range_end = payload.get("range_end")
-        range_start = (
-            int(range_start) if range_start is not None and str(range_start).strip() != "" else None
-        )
-        range_end = (
-            int(range_end) if range_end is not None and str(range_end).strip() != "" else None
-        )
-        output_path = payload.get("output_path")
-        output_format = str(payload.get("format", "hdf5")).strip().lower()
-        apply_mask = bool(payload.get("apply_mask", True))
+        step = int(payload.step or 10)
+        operation = str(payload.operation).strip().lower()
+        normalize_frame = payload.normalize_frame
+        range_start = payload.range_start
+        range_end = payload.range_end
+        output_path = payload.output_path
+        output_format = str(payload.format or "hdf5").strip().lower()
+        apply_mask = bool(payload.apply_mask)
 
         if not file:
             raise HTTPException(status_code=400, detail="Missing file")
@@ -219,18 +225,19 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             output_format=output_format,
             apply_mask=apply_mask,
         )
-        return {"job_id": job_id, "status": "queued"}
+        return SeriesSumStartResponse(job_id=job_id, status="queued")
 
     @app.get("/api/analysis/series-sum/status")
     def analysis_series_sum_status(job_id: str = Query(..., min_length=1)) -> dict[str, Any]:
+        """Return current progress/terminal state for a series-summing background job."""
         job = deps.get_series_sum_job(job_id)
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         return dict(job)
 
-    @app.post("/api/analysis/series-sum/cancel")
-    def analysis_series_sum_cancel(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-        job_id = str(payload.get("job_id", "")).strip()
+    @app.post("/api/analysis/series-sum/cancel", response_model=SeriesSumCancelResponse)
+    def analysis_series_sum_cancel(payload: SeriesSumCancelRequest) -> SeriesSumCancelResponse:
+        job_id = str(payload.job_id).strip()
         if not job_id:
             raise HTTPException(status_code=400, detail="Missing job_id")
         job = deps.get_series_sum_job(job_id)
@@ -238,11 +245,11 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             raise HTTPException(status_code=404, detail="Job not found")
         status = str(job.get("status") or "")
         if status in {"done", "error", "cancelled"}:
-            return {"job_id": job_id, "status": status, "accepted": False}
+            return SeriesSumCancelResponse(job_id=job_id, status=status, accepted=False)
         accepted = deps.cancel_series_sum_job(job_id)
         current = deps.get_series_sum_job(job_id) or job
-        return {
-            "job_id": job_id,
-            "status": str(current.get("status") or status or "running"),
-            "accepted": bool(accepted),
-        }
+        return SeriesSumCancelResponse(
+            job_id=job_id,
+            status=str(current.get("status") or status or "running"),
+            accepted=bool(accepted),
+        )

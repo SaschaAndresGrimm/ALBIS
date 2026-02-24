@@ -11,7 +11,28 @@ from pathlib import Path
 from typing import Any, Callable
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
+
+try:
+    from ..api_models import (
+        AutoloadLatestResponse,
+        BrowseResponse,
+        FilesListResponse,
+        FoldersListResponse,
+        PathSelectionResponse,
+        SeriesInfoResponse,
+        UploadResponse,
+    )
+except ImportError:  # pragma: no cover - supports `python backend/app.py`
+    from api_models import (  # type: ignore[no-redef]
+        AutoloadLatestResponse,
+        BrowseResponse,
+        FilesListResponse,
+        FoldersListResponse,
+        PathSelectionResponse,
+        SeriesInfoResponse,
+        UploadResponse,
+    )
 
 
 @dataclass(frozen=True)
@@ -50,10 +71,12 @@ def _prefix_paths(root: Path, data_dir: Path, items: list[str]) -> list[str]:
 
 
 def _display_available() -> bool:
+    """Return True when a Linux desktop display server is available."""
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 def _run_linux_dialog(cmd: list[str]) -> str | None:
+    """Run a Linux picker command and normalize cancel/error behavior."""
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode == 0:
         picked = result.stdout.strip()
@@ -65,6 +88,7 @@ def _run_linux_dialog(cmd: list[str]) -> str | None:
 
 
 def _linux_choose_folder() -> str | None:
+    """Open a native Linux folder picker using zenity/kdialog when available."""
     if not _display_available():
         raise RuntimeError("No graphical display available")
     zenity = shutil.which("zenity")
@@ -79,6 +103,7 @@ def _linux_choose_folder() -> str | None:
 
 
 def _linux_choose_file() -> str | None:
+    """Open a native Linux image-file picker using zenity/kdialog when available."""
     if not _display_available():
         raise RuntimeError("No graphical display available")
     zenity = shutil.which("zenity")
@@ -106,6 +131,7 @@ def _linux_choose_file() -> str | None:
 
 
 def _tk_choose_folder() -> str | None:
+    """Fallback folder picker for platforms without native dialog integrations."""
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -125,6 +151,7 @@ def _tk_choose_folder() -> str | None:
 
 
 def _tk_choose_file() -> str | None:
+    """Fallback file picker for platforms without native dialog integrations."""
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -156,8 +183,8 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
     files_cache: dict[str, Any] = {"ts": 0.0, "items": []}
     folders_cache: dict[str, Any] = {"ts": 0.0, "items": []}
 
-    @app.get("/api/files")
-    def files(folder: str | None = Query(None)) -> dict[str, list[str]]:
+    @app.get("/api/files", response_model=FilesListResponse)
+    def files(folder: str | None = Query(None)) -> FilesListResponse:
         """List discoverable image files from data root or a selected subfolder."""
         trimmed = (folder or "").strip()
         use_cache = trimmed in ("", ".", "./")
@@ -165,24 +192,25 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         if use_cache:
             now = time.monotonic()
             if cache_sec > 0 and now - float(files_cache["ts"]) < cache_sec:
-                return {"files": list(files_cache["items"])}
+                return FilesListResponse(files=list(files_cache["items"]))
             items = deps.scan_files(deps.data_dir)
             files_cache["ts"] = now
             files_cache["items"] = items
-            return {"files": items}
+            return FilesListResponse(files=items)
         root = deps.resolve_dir(trimmed)
         items = deps.scan_files(root)
-        return {"files": _prefix_paths(root, deps.data_dir, items)}
+        return FilesListResponse(files=_prefix_paths(root, deps.data_dir, items))
 
-    @app.get("/api/series")
-    def series(file: str = Query(...)) -> dict[str, object]:
+    @app.get("/api/series", response_model=SeriesInfoResponse)
+    def series(file: str = Query(...)) -> SeriesInfoResponse:
+        """Resolve neighboring image files that belong to the same numbered series."""
         path = deps.resolve_image_file(file)
         ext = deps.image_ext_name(path.name)
         if ext in {".h5", ".hdf5"}:
-            return {"files": [file], "index": 0, "series": False}
+            return SeriesInfoResponse(files=[file], index=0, series=False)
         parts = deps.split_series_name(path.name)
         if not parts:
-            return {"files": [file], "index": 0, "series": False}
+            return SeriesInfoResponse(files=[file], index=0, series=False)
         prefix, _digits, suffix = parts
         entries: list[tuple[int, Path]] = []
         try:
@@ -203,9 +231,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                         continue
                     entries.append((idx, Path(entry.path)))
         except OSError:
-            return {"files": [file], "index": 0, "series": False}
+            return SeriesInfoResponse(files=[file], index=0, series=False)
         if not entries:
-            return {"files": [file], "index": 0, "series": False}
+            return SeriesInfoResponse(files=[file], index=0, series=False)
         entries.sort(key=lambda item: item[0])
         paths = [p for _, p in entries]
         is_abs = Path(file).is_absolute()
@@ -231,21 +259,23 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             index = files.index(target)
         except ValueError:
             index = 0
-        return {"files": files, "index": index, "series": len(files) > 1}
+        return SeriesInfoResponse(files=files, index=index, series=len(files) > 1)
 
-    @app.get("/api/folders")
-    def folders() -> dict[str, list[str]]:
+    @app.get("/api/folders", response_model=FoldersListResponse)
+    def folders() -> FoldersListResponse:
+        """List cached folder paths under the configured data directory."""
         now = time.monotonic()
         cache_sec = deps.get_scan_cache_sec()
         if cache_sec > 0 and now - float(folders_cache["ts"]) < cache_sec:
-            return {"folders": list(folders_cache["items"])}
+            return FoldersListResponse(folders=list(folders_cache["items"]))
         items = deps.scan_folders(deps.data_dir)
         folders_cache["ts"] = now
         folders_cache["items"] = items
-        return {"folders": items}
+        return FoldersListResponse(folders=items)
 
-    @app.get("/api/choose-folder")
+    @app.get("/api/choose-folder", response_model=PathSelectionResponse)
     def choose_folder() -> Response:
+        """Show a native folder chooser and return the selected absolute path."""
         if not deps.get_allow_abs_paths():
             raise HTTPException(status_code=403, detail="Absolute paths are disabled")
         system = platform.system()
@@ -267,7 +297,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             path = result.stdout.strip()
             if not path:
                 return Response(status_code=204)
-            return JSONResponse({"path": path})
+            return PathSelectionResponse(path=path)
 
         try:
             if system == "Linux":
@@ -286,10 +316,11 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         if not path:
             return Response(status_code=204)
         deps.logger.info("Folder picker selected: %s", path)
-        return JSONResponse({"path": path})
+        return PathSelectionResponse(path=path)
 
-    @app.get("/api/choose-file")
+    @app.get("/api/choose-file", response_model=PathSelectionResponse)
     def choose_file() -> Response:
+        """Show a native file chooser and return a validated absolute image path."""
         if not deps.get_allow_abs_paths():
             raise HTTPException(status_code=403, detail="Absolute paths are disabled")
         system = platform.system()
@@ -334,10 +365,10 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         if not picked.exists():
             raise HTTPException(status_code=404, detail="File not found")
         deps.logger.info("File picker selected: %s", picked)
-        return JSONResponse({"path": str(picked)})
+        return PathSelectionResponse(path=str(picked))
 
-    @app.get("/api/browse")
-    def browse(path: str | None = Query(None)) -> dict[str, Any]:
+    @app.get("/api/browse", response_model=BrowseResponse)
+    def browse(path: str | None = Query(None)) -> BrowseResponse:
         """List folders and image files in a directory for web-based file browser."""
         try:
             target_dir = deps.resolve_dir(path)
@@ -386,21 +417,22 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
 
         can_go_up = target_dir.resolve() != data_root.resolve()
 
-        return {
-            "folders": sorted(dirs),
-            "files": sorted(files),
-            "currentPath": current_path_display,
-            "root": str(data_root),
-            "canGoUp": can_go_up,
-            "allowAbsolutePaths": deps.get_allow_abs_paths(),
-        }
+        return BrowseResponse(
+            folders=sorted(dirs),
+            files=sorted(files),
+            currentPath=current_path_display,
+            root=str(data_root),
+            canGoUp=can_go_up,
+            allowAbsolutePaths=deps.get_allow_abs_paths(),
+        )
 
-    @app.get("/api/autoload/latest")
+    @app.get("/api/autoload/latest", response_model=AutoloadLatestResponse)
     def autoload_latest(
         folder: str | None = Query(None),
         exts: str | None = Query(None),
         pattern: str | None = Query(None),
     ) -> Response:
+        """Return metadata for the most recently modified matching image file."""
         root = deps.resolve_dir(folder)
         allowed = deps.parse_ext_filter(exts)
         latest = deps.latest_image_file(root, allowed, pattern)
@@ -419,19 +451,18 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             absolute = True
             file_label = str(latest.resolve())
         deps.logger.debug("Autoload scan: latest=%s absolute=%s", file_label, absolute)
-        return JSONResponse(
-            {
-                "file": file_label,
-                "ext": deps.image_ext_name(latest.name),
-                "mtime": latest.stat().st_mtime,
-                "absolute": absolute,
-            }
+        return AutoloadLatestResponse(
+            file=file_label,
+            ext=deps.image_ext_name(latest.name),
+            mtime=latest.stat().st_mtime,
+            absolute=absolute,
         )
 
-    @app.post("/api/upload")
+    @app.post("/api/upload", response_model=UploadResponse)
     async def upload(
         file: UploadFile = File(...), folder: str | None = Query(None)
-    ) -> dict[str, str]:
+    ) -> UploadResponse:
+        """Stream an uploaded detector file into the selected data directory."""
         if not file.filename:
             raise HTTPException(status_code=400, detail="Missing filename")
         safe_path = deps.safe_rel_path(Path(file.filename).name)
@@ -470,4 +501,4 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             open_path = resolved_rel
         except ValueError:
             open_path = str(dest)
-        return {"filename": safe, "path": open_path}
+        return UploadResponse(filename=safe, path=open_path)

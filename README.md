@@ -15,7 +15,8 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 
 - Contributions welcome: see `CONTRIBUTING.md`.
 - Security: see `SECURITY.md`.
-- Developer architecture docs: `docs/ARCHITECTURE.md` and `docs/CODE_MAP.md`.
+- Changelog: see `CHANGELOG.md`.
+- Developer docs: `docs/ARCHITECTURE.md`, `docs/CODE_MAP.md`, `docs/configuration.md`, `docs/API_CONTRACTS.md`, and `docs/RELEASE_CHECKLIST.md`.
 
 Community workflow files:
 - Issue forms: `.github/ISSUE_TEMPLATE/`
@@ -67,7 +68,7 @@ Run local checks:
 ```bash
 ruff check backend tests scripts test_scripts
 black --check tests scripts test_scripts
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
 npm run lint:js
 ```
 
@@ -124,7 +125,7 @@ import json
 import requests
 import numpy as np
 
-PORT = 8080
+PORT = 8000
 SOURCE_ID = "default"
 
 frame = (np.random.rand(512, 512) * 1000).astype("<u2")
@@ -183,42 +184,52 @@ Detailed implementation notes:
 ## Configuration (`albis.config.json`)
 
 ALBIS runtime settings are configured via `albis.config.json` (project root by default).
+JSON does not support comments, so a commented template is provided at `albis.config.example.jsonc`.
+The machine-readable schema is `albis.config.schema.json`.
 
 Example:
 
 ```json
 {
   "server": {
-    "host": "0.0.0.0",
+    "host": "127.0.0.1",
     "port": 8000,
     "reload": false
   },
+  "launcher": {
+    "startup_timeout_sec": 5.0,
+    "open_browser": true,
+    "debug_macos_events": false
+  },
   "data": {
-    "root": "/path/to/data",
+    "root": "",
     "allow_abs_paths": true,
     "scan_cache_sec": 2.0,
-    "max_scan_depth": 3,
+    "max_scan_depth": -1,
     "max_upload_mb": 0
   },
   "logging": {
     "level": "INFO",
     "dir": ""
   },
-  "launcher": {
-    "startup_timeout_sec": 5.0,
-    "open_browser": true,
-    "debug_macos_events": false
+  "ui": {
+    "tool_hints": false,
+    "pixel_label_min_cell_px": 18,
+    "pixel_label_max_labels": 4000,
+    "pixel_label_format": "auto",
+    "pixel_label_show_during_drag": false
   }
 }
 ```
 
 Notes:
 - `data.root = ""` defaults to project root for source runs and `~/ALBIS-data` for packaged runs.
-- `server.host = "0.0.0.0"` enables LAN access (`http://<your-ip>:8000`).
+- `server.host = "0.0.0.0"` enables LAN access (`http://<your-ip>:<server.port>`).
 - `server.port` is the single port used by backend + launcher/browser startup.
 - `launcher.debug_macos_events = true` enables verbose macOS Dock/app event traces in launcher log.
 - `logging.dir = ""` writes logs to `<data.root>/logs/albis.log`.
 - Packaged installs auto-create a default user config at `~/.config/albis/config.json` on first run (if no config is found).
+- Full field reference and lookup precedence: `docs/configuration.md`.
 
 ## Logging
 
@@ -238,8 +249,8 @@ ALBIS can be bundled into a **platform‑native app** (no Python required) using
 ```
 
 This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-macos-<os_version>-v0.8.2-<commit>.zip`
-- `ALBIS-macos-<os_version>-v0.8.2-<commit>.dmg`
+- `ALBIS-macos-<os_version>-v<version>-<commit>.zip`
+- `ALBIS-macos-<os_version>-v<version>-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
@@ -251,7 +262,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 ```
 
 Example output:
-- `ALBIS-linux-<distro_version>-v0.8.2-<commit>.tar.gz`
+- `ALBIS-linux-<distro_version>-v<version>-<commit>.tar.gz`
 
 ### Build (Windows)
 
@@ -260,14 +271,22 @@ Example output:
 ```
 
 Example output:
-- `ALBIS-windows-<os_version>-v0.8.2-<commit>.zip`
+- `ALBIS-windows-<os_version>-v<version>-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-windows-<os_version>-v0.8.2-<commit>.exe`
+  `ALBIS-Setup-windows-<os_version>-v<version>-<commit>.exe`
 
 ### Output
 
 The unpacked app payload is created under `dist/ALBIS/` (and on macOS additionally `dist/ALBIS.app`).
 Use `albis.config.json` to change data path, host/port, logging, and launcher behavior.
+
+## Versioning and Releases
+
+- Repository release version source of truth: `VERSION`
+- Build metadata helper: `scripts/version_info.py`
+- Human-readable release history: `CHANGELOG.md`
+- Tag format for releases: `v<version>` (for example `v1.0.0`)
+- Release execution checklist (including workflow dry-run): `docs/RELEASE_CHECKLIST.md`
 
 ## Keyboard Shortcuts
 

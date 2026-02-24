@@ -9,6 +9,39 @@ from typing import Any, Callable
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import Response
 
+try:
+    from ..api_models import (
+        HDF5DatasetsResponse,
+        HDF5NodeResponse,
+        HDF5SearchResponse,
+        HDF5TreeChild,
+        HDF5TreeResponse,
+        HDF5ValueResponse,
+    )
+except ImportError:  # pragma: no cover - supports `python backend/app.py`
+    from api_models import (  # type: ignore[no-redef]
+        HDF5DatasetsResponse,
+        HDF5NodeResponse,
+        HDF5SearchResponse,
+        HDF5TreeChild,
+        HDF5TreeResponse,
+        HDF5ValueResponse,
+    )
+
+
+HDF5_CSV_RESPONSE_DOCS: dict[int, dict[str, Any]] = {
+    200: {
+        "description": "CSV preview export for the requested HDF5 dataset.",
+        "content": {"text/csv": {"schema": {"type": "string"}}},
+        "headers": {
+            "Content-Disposition": {
+                "description": "Attachment filename for the exported CSV payload.",
+                "schema": {"type": "string"},
+            }
+        },
+    }
+}
+
 
 @dataclass(frozen=True)
 class HDF5RouteDeps:
@@ -24,8 +57,8 @@ class HDF5RouteDeps:
 
 
 def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
-    @app.get("/api/datasets")
-    def datasets(file: str = Query(..., min_length=1)) -> dict[str, Any]:
+    @app.get("/api/datasets", response_model=HDF5DatasetsResponse)
+    def datasets(file: str = Query(..., min_length=1)) -> HDF5DatasetsResponse:
         """Discover image-capable datasets, including synthetic linked stacks."""
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
@@ -43,10 +76,10 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                         handle.close()
                     except Exception:
                         pass
-        return {"datasets": deps.aggregate_linked_stack_datasets(results)}
+        return HDF5DatasetsResponse(datasets=deps.aggregate_linked_stack_datasets(results))
 
-    @app.get("/api/hdf5/tree")
-    def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> dict[str, Any]:
+    @app.get("/api/hdf5/tree", response_model=HDF5TreeResponse)
+    def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> HDF5TreeResponse:
         """Return one tree level for the file inspector."""
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
@@ -56,7 +89,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                 raise HTTPException(status_code=404, detail="Path not found")
             obj = h5[path]
             if not isinstance(obj, h5py.Group):
-                return {"path": path, "children": []}
+                return HDF5TreeResponse(path=path, children=[])
             children: list[dict[str, Any]] = []
             for name in obj.keys():
                 child_path = f"{path}/{name}" if path != "/" else f"/{name}"
@@ -110,12 +143,12 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                         }
                     )
             children.sort(key=lambda item: (item.get("type") != "group", item.get("name", "")))
-            return {"path": path, "children": children}
+            return HDF5TreeResponse(path=path, children=[HDF5TreeChild(**item) for item in children])
 
-    @app.get("/api/hdf5/node")
+    @app.get("/api/hdf5/node", response_model=HDF5NodeResponse)
     def hdf5_node(
         file: str = Query(..., min_length=1), path: str = Query(..., min_length=1)
-    ) -> dict[str, Any]:
+    ) -> HDF5NodeResponse:
         """Return node metadata and attributes for the inspector details pane."""
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
@@ -125,7 +158,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                 raise HTTPException(status_code=404, detail="Path not found")
             obj = h5[path]
             if isinstance(obj, h5py.Group):
-                return {"path": path, "type": "group", "attrs": deps.collect_h5_attrs(obj)}
+                return HDF5NodeResponse(path=path, type="group", attrs=deps.collect_h5_attrs(obj))
             if isinstance(obj, h5py.Dataset):
                 preview = None
                 try:
@@ -133,22 +166,22 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                         preview = deps.serialize_h5_value(obj[()])
                 except Exception:
                     preview = None
-                return {
-                    "path": path,
-                    "type": "dataset",
-                    "shape": tuple(int(x) for x in obj.shape),
-                    "dtype": str(obj.dtype),
-                    "attrs": deps.collect_h5_attrs(obj),
-                    "preview": preview,
-                }
+                return HDF5NodeResponse(
+                    path=path,
+                    type="dataset",
+                    shape=[int(x) for x in obj.shape],
+                    dtype=str(obj.dtype),
+                    attrs=deps.collect_h5_attrs(obj),
+                    preview=preview,
+                )
             raise HTTPException(status_code=400, detail="Unsupported node type")
 
-    @app.get("/api/hdf5/value")
+    @app.get("/api/hdf5/value", response_model=HDF5ValueResponse)
     def hdf5_value(
         file: str = Query(..., min_length=1),
         path: str = Query(..., min_length=1),
         max_cells: int = Query(2048, ge=16, le=65536),
-    ) -> dict[str, Any]:
+    ) -> HDF5ValueResponse:
         """Return value preview payload for scalar/array inspector rendering."""
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
@@ -162,28 +195,29 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             preview, preview_shape, truncated, slice_info = deps.dataset_value_preview(
                 obj, max_cells=max_cells
             )
-            return {
-                "path": path,
-                "type": "dataset",
-                "shape": tuple(int(x) for x in obj.shape),
-                "dtype": str(obj.dtype),
-                "preview": preview,
-                "preview_shape": preview_shape,
-                "truncated": truncated,
-                "slice": slice_info,
-            }
+            return HDF5ValueResponse(
+                path=path,
+                type="dataset",
+                shape=[int(x) for x in obj.shape],
+                dtype=str(obj.dtype),
+                preview=preview,
+                preview_shape=[int(x) for x in preview_shape] if preview_shape else None,
+                truncated=truncated,
+                slice=slice_info,
+            )
 
-    @app.get("/api/hdf5/search")
+    @app.get("/api/hdf5/search", response_model=HDF5SearchResponse)
     def hdf5_search(
         file: str = Query(..., min_length=1),
         query: str = Query(..., min_length=1),
         limit: int = Query(200, ge=1, le=1000),
-    ) -> dict[str, Any]:
+    ) -> HDF5SearchResponse:
+        """Depth-first search over group/dataset names and full HDF5 paths."""
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         needle = query.strip().lower()
         if not needle:
-            return {"matches": []}
+            return HDF5SearchResponse(matches=[])
         file_path = deps.resolve_file(file)
         matches: list[dict[str, Any]] = []
         with h5py.File(file_path, "r") as h5:
@@ -252,14 +286,15 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                         )
                     if len(matches) >= limit:
                         break
-        return {"matches": matches}
+        return HDF5SearchResponse(matches=[HDF5TreeChild(**item) for item in matches])
 
-    @app.get("/api/hdf5/csv")
+    @app.get("/api/hdf5/csv", responses=HDF5_CSV_RESPONSE_DOCS)
     def hdf5_csv(
         file: str = Query(..., min_length=1),
         path: str = Query(..., min_length=1),
         max_cells: int = Query(65536, ge=64, le=262144),
     ) -> Response:
+        """Export a bounded dataset preview as CSV for quick download/inspection."""
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)

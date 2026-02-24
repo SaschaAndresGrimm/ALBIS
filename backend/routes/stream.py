@@ -7,6 +7,115 @@ from typing import Any, Callable
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
 
+try:
+    from ..api_models import (
+        ImageHeaderResponse,
+        RemoteFrameIngestResponse,
+        RemoteMetaConflictResponse,
+        RemoteMetaResponse,
+        SimplonModeResponse,
+    )
+except ImportError:  # pragma: no cover - supports `python backend/app.py`
+    from api_models import (  # type: ignore[no-redef]
+        ImageHeaderResponse,
+        RemoteFrameIngestResponse,
+        RemoteMetaConflictResponse,
+        RemoteMetaResponse,
+        SimplonModeResponse,
+    )
+
+
+def _octet_stream_responses(
+    description: str,
+    headers: dict[str, str],
+    include_no_content: bool = False,
+) -> dict[int, dict[str, Any]]:
+    """Build reusable OpenAPI docs for binary endpoints with optional 204 responses."""
+    responses: dict[int, dict[str, Any]] = {
+        200: {
+            "description": description,
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            },
+            "headers": {
+                name: {"description": header_desc, "schema": {"type": "string"}}
+                for name, header_desc in headers.items()
+            },
+        }
+    }
+    if include_no_content:
+        responses[204] = {"description": "No matching frame payload available."}
+    return responses
+
+
+IMAGE_RESPONSE_DOCS = _octet_stream_responses(
+    "Raw detector image bytes in little-endian C-order layout.",
+    {
+        "X-Dtype": "NumPy dtype string for decoding the payload.",
+        "X-Shape": "Comma-separated image dimensions.",
+        "X-Frame": "0-based frame index returned by this request.",
+        "X-Image-DetectorDistance-MM": "Optional detector distance in millimeters.",
+        "X-Image-PixelSize-UM": "Optional detector pixel size in micrometers.",
+        "X-Image-Energy-Ev": "Optional beam energy in electron volts.",
+        "X-Image-Wavelength-A": "Optional wavelength in Angstrom.",
+        "X-Image-BeamCenter-X": "Optional beam center X coordinate (pixels).",
+        "X-Image-BeamCenter-Y": "Optional beam center Y coordinate (pixels).",
+    },
+)
+
+SIMPLON_MONITOR_RESPONSE_DOCS = _octet_stream_responses(
+    "Raw SIMPLON monitor frame bytes in little-endian C-order layout.",
+    {
+        "X-Dtype": "NumPy dtype string for decoding the payload.",
+        "X-Shape": "Comma-separated image dimensions.",
+        "X-Frame": "0-based frame index returned by this request.",
+        "X-Simplon-Series": "Optional SIMPLON series number.",
+        "X-Simplon-Image": "Optional SIMPLON image number.",
+        "X-Simplon-Date": "Optional SIMPLON image timestamp.",
+        "X-Simplon-Threshold-Ev": "Optional threshold energy in electron volts.",
+        "X-Simplon-Energy-Ev": "Optional beam energy in electron volts.",
+        "X-Simplon-Wavelength-A": "Optional wavelength in Angstrom.",
+        "X-Simplon-DetectorDistance-MM": "Optional detector distance in millimeters.",
+        "X-Simplon-BeamCenter-X": "Optional beam center X coordinate (pixels).",
+        "X-Simplon-BeamCenter-Y": "Optional beam center Y coordinate (pixels).",
+    },
+    include_no_content=True,
+)
+
+SIMPLON_MASK_RESPONSE_DOCS = _octet_stream_responses(
+    "Raw SIMPLON pixel-mask bytes in little-endian C-order layout.",
+    {
+        "X-Dtype": "NumPy dtype string for decoding the payload.",
+        "X-Shape": "Comma-separated mask dimensions.",
+    },
+    include_no_content=True,
+)
+
+REMOTE_LATEST_RESPONSE_DOCS = _octet_stream_responses(
+    "Raw latest remote frame bytes in little-endian C-order layout.",
+    {
+        "X-Dtype": "NumPy dtype string for decoding the payload.",
+        "X-Shape": "Comma-separated image dimensions.",
+        "X-Frame": "0-based frame index within the returned payload.",
+        "X-Remote-Source": "Normalized source identifier.",
+        "X-Remote-Seq": "Monotonic sequence number of the latest frame.",
+        "X-Remote-Display": "Human-readable display label for the frame.",
+        "X-Remote-Series": "Optional series number from metadata.",
+        "X-Remote-Image": "Optional image number from metadata.",
+        "X-Remote-Date": "Optional image timestamp from metadata.",
+        "X-Remote-DetectorDistance-MM": "Optional detector distance in millimeters.",
+        "X-Remote-PixelSize-UM": "Optional detector pixel size in micrometers.",
+        "X-Remote-Energy-Ev": "Optional beam energy in electron volts.",
+        "X-Remote-Wavelength-A": "Optional wavelength in Angstrom.",
+        "X-Remote-BeamCenter-X": "Optional beam center X coordinate (pixels).",
+        "X-Remote-BeamCenter-Y": "Optional beam center Y coordinate (pixels).",
+        "X-Remote-PeakSets": "Count of metadata peak sets attached to this frame.",
+    },
+    include_no_content=True,
+)
+
 
 @dataclass(frozen=True)
 class StreamRouteDeps:
@@ -34,11 +143,12 @@ class StreamRouteDeps:
 
 
 def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
-    @app.get("/api/image")
+    @app.get("/api/image", responses=IMAGE_RESPONSE_DOCS)
     def image(
         file: str = Query(..., min_length=1),
         index: int = Query(0, ge=0),
     ) -> Response:
+        """Read one detector image and return raw bytes plus acquisition headers."""
         path = deps.resolve_image_file(file)
         ext = deps.image_ext_name(path.name)
         meta: dict[str, Any] = {}
@@ -81,8 +191,9 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
                 headers["X-Image-BeamCenter-Y"] = str(center[1])
         return Response(content=data, media_type="application/octet-stream", headers=headers)
 
-    @app.get("/api/image/header")
-    def image_header(file: str = Query(..., min_length=1)) -> dict[str, str]:
+    @app.get("/api/image/header", response_model=ImageHeaderResponse)
+    def image_header(file: str = Query(..., min_length=1)) -> ImageHeaderResponse:
+        """Return decoded Pilatus textual header for non-HDF image formats."""
         path = deps.resolve_image_file(file)
         ext = deps.image_ext_name(path.name)
         if ext in {".h5", ".hdf5"}:
@@ -91,15 +202,16 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             )
         header_text = deps.pilatus_header_text(path)
         deps.logger.debug("Image header (%s): %d chars", path.name, len(header_text))
-        return {"header": header_text or ""}
+        return ImageHeaderResponse(header=header_text or "")
 
-    @app.get("/api/simplon/monitor")
+    @app.get("/api/simplon/monitor", responses=SIMPLON_MONITOR_RESPONSE_DOCS)
     def simplon_monitor(
         url: str = Query(..., min_length=4),
         version: str = Query("1.8.0"),
         timeout: int = Query(500, ge=0),
         enable: bool = Query(True),
     ) -> Response:
+        """Fetch one live SIMPLON monitor frame and expose parsed metadata headers."""
         base = deps.simplon_base(url, version)
         if enable:
             deps.simplon_set_mode(base, "enabled")
@@ -137,25 +249,27 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
                 headers["X-Simplon-BeamCenter-Y"] = str(center[1])
         return Response(content=data_bytes, media_type="application/octet-stream", headers=headers)
 
-    @app.post("/api/simplon/mode")
+    @app.post("/api/simplon/mode", response_model=SimplonModeResponse)
     def simplon_mode(
         url: str = Query(..., min_length=4),
         version: str = Query("1.8.0"),
         mode: str = Query("enabled"),
-    ) -> dict[str, str]:
+    ) -> SimplonModeResponse:
+        """Set SIMPLON monitor state to enabled/disabled for the target detector."""
         mode_value = mode.lower()
         if mode_value not in {"enabled", "disabled"}:
             raise HTTPException(status_code=400, detail="Invalid monitor mode")
         base = deps.simplon_base(url, version)
         deps.simplon_set_mode(base, mode_value)
         deps.logger.info("SIMPLON monitor mode: %s (url=%s)", mode_value, url)
-        return {"status": "ok", "mode": mode_value}
+        return SimplonModeResponse(status="ok", mode=mode_value)
 
-    @app.get("/api/simplon/mask")
+    @app.get("/api/simplon/mask", responses=SIMPLON_MASK_RESPONSE_DOCS)
     def simplon_mask(
         url: str = Query(..., min_length=4),
         version: str = Query("1.8.0"),
     ) -> Response:
+        """Fetch detector pixel mask from SIMPLON and return it as raw bytes."""
         arr = deps.simplon_fetch_pixel_mask(url, version)
         if arr is None:
             deps.logger.debug("SIMPLON mask: not available (url=%s)", url)
@@ -168,13 +282,14 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         }
         return Response(content=data, media_type="application/octet-stream", headers=headers)
 
-    @app.post("/api/remote/v1/frame")
+    @app.post("/api/remote/v1/frame", response_model=RemoteFrameIngestResponse)
     async def remote_frame_ingest(
         source_id: str = Query("default", min_length=1),
         seq: int | None = Query(None, ge=0),
         meta: str = Form("{}"),
         image: UploadFile = File(...),
-    ) -> dict[str, Any]:
+    ) -> RemoteFrameIngestResponse:
+        """Ingest one remotely pushed frame and store it in the in-memory snapshot cache."""
         if not image.filename:
             raise HTTPException(status_code=400, detail="Missing image filename")
         payload = await image.read()
@@ -197,13 +312,14 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             frame.dtype.str,
             len(extracted_meta.get("peak_sets") or []),
         )
-        return {"status": "ok", "source_id": safe_source, "seq": seq_value}
+        return RemoteFrameIngestResponse(status="ok", source_id=safe_source, seq=seq_value)
 
-    @app.get("/api/remote/v1/latest")
+    @app.get("/api/remote/v1/latest", responses=REMOTE_LATEST_RESPONSE_DOCS)
     def remote_frame_latest(
         source_id: str = Query("default", min_length=1),
         after_seq: int | None = Query(None, ge=0),
     ) -> Response:
+        """Return the latest cached remote frame, optionally only when newer than `after_seq`."""
         safe_source = deps.remote_safe_source_id(source_id)
         frame = deps.remote_snapshot(safe_source)
         if not frame:
@@ -216,6 +332,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         resolution = meta.get("resolution") or {}
         display_name = str(meta.get("display_name") or "").strip()
         if not display_name:
+            # Keep a stable, human-readable fallback label when upstream meta is sparse.
             parts: list[str] = [f"Remote stream ({safe_source})"]
             if meta.get("series_number") is not None:
                 parts.append(f"S{meta.get('series_number')}")
@@ -258,36 +375,43 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             headers=headers,
         )
 
-    @app.get("/api/remote/v1/meta")
+    @app.get(
+        "/api/remote/v1/meta",
+        response_model=RemoteMetaResponse,
+        responses={409: {"model": RemoteMetaConflictResponse}},
+    )
     def remote_frame_meta(
         source_id: str = Query("default", min_length=1),
         seq: int | None = Query(None, ge=0),
     ) -> Response:
+        """Return typed metadata for the latest cached remote frame."""
         safe_source = deps.remote_safe_source_id(source_id)
         frame = deps.remote_snapshot(safe_source)
         if not frame:
             return Response(status_code=204)
         current_seq = int(frame.get("seq", 0))
         if seq is not None and int(seq) != current_seq:
+            conflict = RemoteMetaConflictResponse(
+                detail="Requested sequence is no longer current",
+                current_seq=current_seq,
+            )
             return JSONResponse(
                 status_code=409,
-                content={
-                    "detail": "Requested sequence is no longer current",
-                    "current_seq": current_seq,
-                },
+                content=conflict.dict(),
             )
         meta = frame.get("meta") if isinstance(frame.get("meta"), dict) else {}
+        payload = RemoteMetaResponse(
+            source_id=safe_source,
+            seq=current_seq,
+            updated_at=frame.get("updated_at"),
+            display_name=meta.get("display_name") or "",
+            series_number=meta.get("series_number"),
+            image_number=meta.get("image_number"),
+            image_datetime=meta.get("image_datetime") or "",
+            resolution=meta.get("resolution") or {},
+            peak_sets=meta.get("peak_sets") or [],
+            extra=meta.get("extra") or {},
+        )
         return JSONResponse(
-            {
-                "source_id": safe_source,
-                "seq": current_seq,
-                "updated_at": frame.get("updated_at"),
-                "display_name": meta.get("display_name") or "",
-                "series_number": meta.get("series_number"),
-                "image_number": meta.get("image_number"),
-                "image_datetime": meta.get("image_datetime") or "",
-                "resolution": meta.get("resolution") or {},
-                "peak_sets": meta.get("peak_sets") or [],
-                "extra": meta.get("extra") or {},
-            }
+            payload.dict()
         )
