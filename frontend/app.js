@@ -7323,7 +7323,7 @@ function createWebGLRenderer() {
   }
 
   const vertexSource = `#version 300 es
-    in vec2 a_position;
+    layout(location = 0) in vec2 a_position;
     out vec2 v_tex;
     void main() {
       v_tex = a_position * 0.5 + 0.5;
@@ -7331,10 +7331,10 @@ function createWebGLRenderer() {
     }
   `;
 
-  const fragmentSource = `#version 300 es
+  const buildFragmentSource = (dataDecl, dataReadExpr) => `#version 300 es
     precision highp float;
     precision highp int;
-    uniform sampler2D u_data;
+    ${dataDecl}
     uniform sampler2D u_lut;
     uniform sampler2D u_mask;
     uniform float u_mask_enabled;
@@ -7348,7 +7348,7 @@ function createWebGLRenderer() {
     in vec2 v_tex;
     out vec4 outColor;
     void main() {
-      float value = texture(u_data, v_tex).r;
+      float value = ${dataReadExpr};
       if (u_mask_enabled > 0.5) {
         float maskClass = texture(u_mask, v_tex).r;
         if (maskClass > 0.75) {
@@ -7409,9 +7409,15 @@ function createWebGLRenderer() {
     }
   `;
 
-  let program;
+  const floatFragmentSource = buildFragmentSource("uniform sampler2D u_data;", "texture(u_data, v_tex).r");
+  const uintFragmentSource = buildFragmentSource(
+    "uniform highp usampler2D u_data;",
+    "float(texture(u_data, v_tex).r)"
+  );
+
+  let floatProgram;
   try {
-    program = createProgram(gl, vertexSource, fragmentSource);
+    floatProgram = createProgram(gl, vertexSource, floatFragmentSource);
   } catch (err) {
     console.error(err);
     setStatus("WebGL shader error");
@@ -7421,36 +7427,40 @@ function createWebGLRenderer() {
     };
   }
 
+  let uintProgram = null;
+  try {
+    uintProgram = createProgram(gl, vertexSource, uintFragmentSource);
+  } catch (err) {
+    console.warn("WebGL integer texture path unavailable; using float upload fallback.", err);
+  }
+
   const vao = gl.createVertexArray();
   gl.bindVertexArray(vao);
   const buffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-  const positionLoc = gl.getAttribLocation(program, "a_position");
-  gl.enableVertexAttribArray(positionLoc);
-  gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   gl.bindVertexArray(null);
 
-  const dataTex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, dataTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const configureTexture = (texture) => {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  };
+
+  const dataTexFloat = gl.createTexture();
+  configureTexture(dataTexFloat);
+  const dataTexUint = gl.createTexture();
+  configureTexture(dataTexUint);
 
   const lutTex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, lutTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  configureTexture(lutTex);
 
   const maskTex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, maskTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  configureTexture(maskTex);
   gl.texImage2D(
     gl.TEXTURE_2D,
     0,
@@ -7463,7 +7473,7 @@ function createWebGLRenderer() {
     new Uint8Array([0])
   );
 
-  const uniforms = {
+  const collectUniforms = (program) => ({
     data: gl.getUniformLocation(program, "u_data"),
     lut: gl.getUniformLocation(program, "u_lut"),
     mask: gl.getUniformLocation(program, "u_mask"),
@@ -7475,13 +7485,16 @@ function createWebGLRenderer() {
     invert: gl.getUniformLocation(program, "u_invert"),
     hdr: gl.getUniformLocation(program, "u_hdr"),
     lutSize: gl.getUniformLocation(program, "u_lut_size"),
-  };
+  });
+
+  const floatUniforms = collectUniforms(floatProgram);
+  const uintUniforms = uintProgram ? collectUniforms(uintProgram) : null;
 
   const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
   let maskTexWidth = 1;
   let maskTexHeight = 1;
   let lastMaskData = null;
-  let lastRawData = null;
+  let lastFrameData = null;
   let lastMaskEnabled = false;
   let lastMaskSaturatedEnabled = false;
   let lastSatMax = null;
@@ -7492,6 +7505,8 @@ function createWebGLRenderer() {
     maxTextureSize,
     render({
       floatData,
+      rawData,
+      dtype,
       width,
       height,
       min,
@@ -7506,7 +7521,10 @@ function createWebGLRenderer() {
       satMax,
       colormap,
     }) {
-      if (!floatData) return;
+      const dtypeKey = uintProgram ? getWebglUnsignedDtypeKey(dtype) : null;
+      const useUintPath = Boolean(dtypeKey && isWebglUnsignedRawCandidate(dtype, rawData));
+      const frameData = useUintPath ? rawData : floatData || (rawData ? toFloat32(rawData) : null);
+      if (!frameData) return;
       if (width > maxTextureSize || height > maxTextureSize) {
         setStatus(`Frame exceeds max texture size ${maxTextureSize}px`);
         return;
@@ -7516,15 +7534,35 @@ function createWebGLRenderer() {
         canvas.height = height;
       }
 
+      const program = useUintPath ? uintProgram : floatProgram;
+      const uniforms = useUintPath ? uintUniforms : floatUniforms;
+      if (!program || !uniforms) return;
+
       gl.viewport(0, 0, width, height);
       gl.useProgram(program);
       gl.bindVertexArray(vao);
 
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, dataTex);
+      gl.bindTexture(gl.TEXTURE_2D, useUintPath ? dataTexUint : dataTexFloat);
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, width, height, 0, gl.RED, gl.FLOAT, floatData);
+      if (useUintPath) {
+        const upload = getWebglUnsignedUploadInfo(gl, dtypeKey);
+        if (!upload) return;
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          upload.internalFormat,
+          width,
+          height,
+          0,
+          upload.format,
+          upload.type,
+          frameData
+        );
+      } else {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, width, height, 0, gl.RED, gl.FLOAT, frameData);
+      }
       gl.uniform1i(uniforms.data, 0);
 
       gl.activeTexture(gl.TEXTURE1);
@@ -7554,7 +7592,7 @@ function createWebGLRenderer() {
       const shouldUploadMask =
         useMask &&
         (mask !== lastMaskData ||
-          floatData !== lastRawData ||
+          frameData !== lastFrameData ||
           maskTexWidth !== width ||
           maskTexHeight !== height ||
           maskEnabled !== lastMaskEnabled ||
@@ -7568,7 +7606,7 @@ function createWebGLRenderer() {
           const bits = validMask ? mask[i] : 0;
           if (bits & 1) {
             maskClassData[i] = 255;
-          } else if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(floatData[i], satMax)) {
+          } else if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(frameData[i], satMax)) {
             maskClassData[i] = 160;
           } else if (bits & 0x1e) {
             maskClassData[i] = 128;
@@ -7591,7 +7629,7 @@ function createWebGLRenderer() {
         maskTexWidth = width;
         maskTexHeight = height;
         lastMaskData = mask;
-        lastRawData = floatData;
+        lastFrameData = frameData;
         lastMaskEnabled = Boolean(maskEnabled);
         lastMaskSaturatedEnabled = Boolean(maskSaturatedEnabled);
         lastSatMax = satMax;
@@ -8156,6 +8194,35 @@ function toFloat32(data) {
     out[i] = data[i];
   }
   return out;
+}
+
+function getWebglUnsignedDtypeKey(dtype) {
+  const normalized = String(dtype || "").toLowerCase();
+  if (normalized === "|u1" || normalized === "<u1" || normalized === "uint8") return "u8";
+  if (normalized === "<u2" || normalized === "uint16") return "u16";
+  if (normalized === "<u4" || normalized === "uint32") return "u32";
+  return null;
+}
+
+function isWebglUnsignedRawCandidate(dtype, data) {
+  const key = getWebglUnsignedDtypeKey(dtype);
+  if (key === "u8") return data instanceof Uint8Array;
+  if (key === "u16") return data instanceof Uint16Array;
+  if (key === "u32") return data instanceof Uint32Array;
+  return false;
+}
+
+function getWebglUnsignedUploadInfo(gl, key) {
+  if (key === "u8") {
+    return { internalFormat: gl.R8UI, format: gl.RED_INTEGER, type: gl.UNSIGNED_BYTE };
+  }
+  if (key === "u16") {
+    return { internalFormat: gl.R16UI, format: gl.RED_INTEGER, type: gl.UNSIGNED_SHORT };
+  }
+  if (key === "u32") {
+    return { internalFormat: gl.R32UI, format: gl.RED_INTEGER, type: gl.UNSIGNED_INT };
+  }
+  return null;
 }
 
 function getDtypeInfo(dtype) {
@@ -9818,7 +9885,8 @@ function closeCurrentFile() {
 
 function applyFrame(data, width, height, dtype) {
   state.dataRaw = data;
-  state.dataFloat = renderer.type === "webgl" ? toFloat32(data) : null;
+  state.dataFloat =
+    renderer.type === "webgl" && !isWebglUnsignedRawCandidate(dtype, data) ? toFloat32(data) : null;
   state.width = width;
   state.height = height;
   state.dtype = dtype;
@@ -9871,6 +9939,7 @@ function redraw() {
     renderer.render({
       floatData: state.dataFloat,
       rawData: state.dataRaw,
+      dtype: state.dtype,
       width: state.width,
       height: state.height,
       min: state.min,
