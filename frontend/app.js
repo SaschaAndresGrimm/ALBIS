@@ -360,9 +360,12 @@ let zoomWheelRaf = null;
 let zoomWheelPivot = null;
 let pixelOverlayInteractionUntil = 0;
 let pixelOverlayResumeTimer = null;
+let viewportInteractionUntil = 0;
+let viewportInteractionResumeTimer = null;
 let resolutionOverlayScheduled = false;
 let peakOverlayScheduled = false;
 let peakFinderScheduled = false;
+let activeFrameLoadController = null;
 let seriesSumPollTimer = null;
 let panelTabState = "view";
 let backendTimer = null;
@@ -524,6 +527,7 @@ const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = 18;
 const PIXEL_LABEL_DEFAULT_MAX_LABELS = 4000;
 const PIXEL_LABEL_DENSE_ZOOM_PX = 24;
 const PIXEL_LABEL_INTERACTION_IDLE_MS = 140;
+const VIEWPORT_INTERACTION_IDLE_MS = 180;
 const PEAK_BAD_MASK_BITS = 0x1f;
 
 function getMinZoom() {
@@ -610,6 +614,43 @@ function syncViewportOverlays() {
   scheduleRoiOverlay();
   scheduleResolutionOverlay();
   schedulePeakOverlay();
+}
+
+function isViewportInteractionActive() {
+  return Date.now() < viewportInteractionUntil;
+}
+
+function cancelActiveFrameLoad() {
+  if (!activeFrameLoadController) return;
+  try {
+    activeFrameLoadController.abort();
+  } catch {
+    // ignore abort errors
+  }
+}
+
+function flushViewportDeferredWork() {
+  if (state.pendingFrame !== null && !state.isLoading) {
+    const next = state.pendingFrame;
+    state.pendingFrame = null;
+    requestFrame(next);
+  }
+}
+
+function deferViewportInteraction(delayMs = VIEWPORT_INTERACTION_IDLE_MS) {
+  const delay = Math.max(60, Number(delayMs) || VIEWPORT_INTERACTION_IDLE_MS);
+  viewportInteractionUntil = Date.now() + delay;
+  deferPixelOverlayRedraw(delay);
+  if (state.playing && state.isLoading) {
+    cancelActiveFrameLoad();
+  }
+  if (viewportInteractionResumeTimer) {
+    window.clearTimeout(viewportInteractionResumeTimer);
+  }
+  viewportInteractionResumeTimer = window.setTimeout(() => {
+    viewportInteractionResumeTimer = null;
+    flushViewportDeferredWork();
+  }, delay + 12);
 }
 
 function setEffectiveScroll(targetX, targetY, schedule = true) {
@@ -3745,7 +3786,7 @@ function startTouchGesture(touches) {
   touchGestureMid = touchMidpoint(t0, t1);
   touchGestureActive = true;
   canvasWrap.classList.add("is-panning");
-  deferPixelOverlayRedraw();
+  deferViewportInteraction();
 }
 
 function stopTouchGesture() {
@@ -3764,7 +3805,7 @@ function updateTouchGesture(touches) {
   const nextDistance = touchDistance(t0, t1);
   const nextMid = touchMidpoint(t0, t1);
   if (!Number.isFinite(nextDistance) || nextDistance <= 0) return;
-  deferPixelOverlayRedraw();
+  deferViewportInteraction();
 
   if (!touchGestureActive || !touchGestureMid || touchGestureDistance <= 0) {
     touchGestureDistance = nextDistance;
@@ -4323,17 +4364,31 @@ function startPlayback() {
   }, Math.max(1000 / state.fps, 50));
 }
 
+function processPendingFrameRequest(appliedFrame) {
+  if (state.pendingFrame === null) return;
+  const next = state.pendingFrame;
+  state.pendingFrame = null;
+  if (next !== state.frameIndex || !appliedFrame) {
+    requestFrame(next);
+  }
+}
+
 function requestFrame(index) {
   const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
   if (!state.frameCount || (!state.dataset && !hasSeries) || !state.file) return;
   const clamped = Math.max(0, Math.min(state.frameCount - 1, index));
-  state.frameIndex = clamped;
-  updateFrameControls();
-  updateToolbar();
-  if (state.isLoading) {
+  if (state.playing && isViewportInteractionActive()) {
     state.pendingFrame = clamped;
     return;
   }
+  if (state.isLoading) {
+    state.pendingFrame = clamped;
+    cancelActiveFrameLoad();
+    return;
+  }
+  state.frameIndex = clamped;
+  updateFrameControls();
+  updateToolbar();
   loadFrame();
 }
 
@@ -9864,8 +9919,14 @@ async function loadSeriesFrame() {
   } else {
     setLoading(false);
   }
+  let appliedFrame = false;
+  const requestController = new AbortController();
+  activeFrameLoadController = requestController;
   try {
-    const res = await fetch(`${API}/image?file=${encodeURIComponent(file)}`);
+    const res = await fetch(`${API}/image?file=${encodeURIComponent(file)}`, {
+      signal: requestController.signal,
+      cache: "no-store",
+    });
     if (!res.ok) {
       setStatus("Failed to load image");
       if (!state.hasFrame) {
@@ -9892,25 +9953,25 @@ async function loadSeriesFrame() {
       autoMask: !reuseMask,
       maskKey: `auto:${seriesKey}`,
     });
+    appliedFrame = true;
     setStatus(currentFrameStatusText());
     updateToolbar();
   } catch (err) {
-    console.error(err);
-    setStatus("Failed to load image");
-    if (!state.hasFrame) {
-      showSplash();
+    if (err?.name !== "AbortError") {
+      console.error(err);
+      setStatus("Failed to load image");
+      if (!state.hasFrame) {
+        showSplash();
+      }
     }
   } finally {
+    if (activeFrameLoadController === requestController) {
+      activeFrameLoadController = null;
+    }
     setLoading(false);
     state.isLoading = false;
   }
-  if (state.pendingFrame !== null && state.pendingFrame !== state.frameIndex) {
-    const next = state.pendingFrame;
-    state.pendingFrame = null;
-    requestFrame(next);
-  } else {
-    state.pendingFrame = null;
-  }
+  processPendingFrameRequest(appliedFrame);
 }
 
 async function loadFrame() {
@@ -9932,8 +9993,14 @@ async function loadFrame() {
   )}&index=${state.frameIndex}${
     state.thresholdCount > 1 ? `&threshold=${state.thresholdIndex}` : ""
   }`;
+  let appliedFrame = false;
+  const requestController = new AbortController();
+  activeFrameLoadController = requestController;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      signal: requestController.signal,
+      cache: "no-store",
+    });
     if (!res.ok) {
       setStatus("Failed to load frame");
       if (!state.hasFrame) {
@@ -9952,25 +10019,25 @@ async function loadFrame() {
     metaDtype.textContent = dtype;
 
     applyFrame(data, width, height, dtype);
+    appliedFrame = true;
     setStatus(currentFrameStatusText());
     updateToolbar();
   } catch (err) {
-    console.error(err);
-    setStatus("Failed to load frame");
-    if (!state.hasFrame) {
-      showSplash();
+    if (err?.name !== "AbortError") {
+      console.error(err);
+      setStatus("Failed to load frame");
+      if (!state.hasFrame) {
+        showSplash();
+      }
     }
   } finally {
+    if (activeFrameLoadController === requestController) {
+      activeFrameLoadController = null;
+    }
     setLoading(false);
     state.isLoading = false;
   }
-  if (state.pendingFrame !== null && state.pendingFrame !== state.frameIndex) {
-    const next = state.pendingFrame;
-    state.pendingFrame = null;
-    requestFrame(next);
-  } else {
-    state.pendingFrame = null;
-  }
+  processPendingFrameRequest(appliedFrame);
 }
 
 applyPlatformShortcutLabels();
@@ -10990,6 +11057,7 @@ invertToggle.addEventListener("change", () => {
 });
 
 zoomRange.addEventListener("input", () => {
+  deferViewportInteraction();
   if (!canvasWrap) {
     setZoom(zoomRange.value);
     scheduleOverview();
@@ -11197,7 +11265,7 @@ canvasWrap.addEventListener(
   "wheel",
   (event) => {
     event.preventDefault();
-    deferPixelOverlayRedraw();
+    deferViewportInteraction();
     const delta = normalizeWheelDelta(event);
     if (!delta) return;
     const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
@@ -11213,7 +11281,7 @@ canvasWrap.addEventListener(
 );
 
 canvasWrap.addEventListener("scroll", () => {
-  deferPixelOverlayRedraw();
+  deferViewportInteraction();
   scheduleOverview();
   schedulePixelOverlay();
   scheduleRoiOverlay();
@@ -11258,10 +11326,10 @@ canvasWrap.addEventListener(
       event.preventDefault();
       return;
     }
-    
+
     if (event.touches.length === 1 && touchDragActive && touchDragStart) {
       // Single touch drag: pan the canvas
-      deferPixelOverlayRedraw();
+      deferViewportInteraction();
       const touch = event.touches[0];
       const dx = touch.clientX - touchDragStart.x;
       const dy = touch.clientY - touchDragStart.y;
@@ -11349,7 +11417,7 @@ canvasWrap.addEventListener("pointerdown", (event) => {
     effectiveTop: getEffectiveScrollTop(),
   };
   canvasWrap.classList.add("is-panning");
-  deferPixelOverlayRedraw();
+  deferViewportInteraction();
   canvasWrap.setPointerCapture(event.pointerId);
   event.preventDefault();
 });
@@ -11370,6 +11438,7 @@ canvasWrap.addEventListener("pointermove", (event) => {
     return;
   }
   if (!panning) return;
+  deferViewportInteraction();
   const dx = event.clientX - panStart.x;
   const dy = event.clientY - panStart.y;
   const nextEffectiveX = panStart.effectiveLeft - dx;
