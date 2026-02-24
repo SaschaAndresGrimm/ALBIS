@@ -80,6 +80,7 @@ const toolsPanel = document.getElementById("side-panel");
 const panelSheetHandle = document.getElementById("panel-sheet-handle");
 const panelResizer = document.getElementById("panel-resizer");
 const panelFab = document.getElementById("panel-fab");
+const panelCollapseBtn = document.getElementById("panel-collapse-btn");
 const panelBody = toolsPanel?.querySelector(".panel-body");
 const panelTabs = document.querySelectorAll(".panel-tab");
 const panelTabContents = document.querySelectorAll(".panel-tab-content");
@@ -930,6 +931,7 @@ function applyHelpMap() {
     "series-sum-cancel": "Cancel the currently running series operation.",
     "settings-server-external": "Allow connections from other machines (binds to all interfaces).",
     "panel-fab": "Toggle the side panel open or closed (M).",
+    "panel-collapse-btn": "Collapse the side panel (M).",
     "panel-resizer": "Drag to resize the side panel width.",
     "panel-sheet-handle": "Drag up/down to resize the mobile panel sheet.",
     "fullscreen-toggle": "Enter or leave full-screen mode (F).",
@@ -4145,6 +4147,11 @@ function applyPanelState() {
     panelFab.setAttribute("aria-expanded", state.panelCollapsed ? "false" : "true");
     panelFab.setAttribute("aria-keyshortcuts", "M");
     panelFab.title = state.panelCollapsed ? "Open side menu (M)" : "Close side menu (M)";
+  }
+  if (panelCollapseBtn) {
+    panelCollapseBtn.disabled = state.panelCollapsed;
+    panelCollapseBtn.setAttribute("aria-hidden", state.panelCollapsed ? "true" : "false");
+    panelCollapseBtn.tabIndex = state.panelCollapsed ? -1 : 0;
   }
   syncToolbarMoreControls();
   scheduleOverview();
@@ -11208,6 +11215,10 @@ footerVersionToggleEl?.addEventListener("click", (event) => {
 document.addEventListener("fullscreenchange", updateFullscreenUi);
 
 panelFab?.addEventListener("click", () => {
+  togglePanel();
+});
+
+panelCollapseBtn?.addEventListener("click", () => {
   togglePanel();
 });
 

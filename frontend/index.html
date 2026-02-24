@@ -303,10 +303,23 @@
             Open menu ▾
           </button>
           <div class="panel-body">
-          <div class="panel-tabs" role="tablist">
-            <button class="panel-tab is-active" data-panel-tab="view" type="button">View</button>
-            <button class="panel-tab" data-panel-tab="data" type="button">Data</button>
-            <button class="panel-tab" data-panel-tab="analysis" type="button">Overlay</button>
+          <div class="panel-topbar">
+            <div class="panel-tabs" role="tablist">
+              <button class="panel-tab is-active" data-panel-tab="view" type="button">View</button>
+              <button class="panel-tab" data-panel-tab="data" type="button">Data</button>
+              <button class="panel-tab" data-panel-tab="analysis" type="button">Overlay</button>
+            </div>
+            <button
+              class="panel-collapse-btn"
+              id="panel-collapse-btn"
+              type="button"
+              aria-label="Collapse panel"
+              aria-controls="side-panel"
+              aria-keyshortcuts="M"
+              title="Close side menu (M)"
+            >
+              ▸
+            </button>
           </div>
 
           <div class="panel-tab-content is-active" data-panel-tab="view">
