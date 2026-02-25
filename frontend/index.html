@@ -429,12 +429,17 @@
                 <span class="section-title-main">
                   <span>Data Source</span>
                   <span class="section-summary" id="summary-data-source">File · no file</span>
+                  <span
+                    class="section-summary section-summary-status is-empty"
+                    id="data-source-state"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Choose an image source to begin.
+                  </span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="section-state is-empty" id="data-source-state" role="status" aria-live="polite">
-                Choose an image source to begin.
-              </div>
               <div class="section-skeleton is-hidden" id="data-source-skeleton" aria-hidden="true"></div>
               <label class="field">
                 <span>Data Source</span>
@@ -447,7 +452,7 @@
               <div class="autoload-group" id="autoload-folder">
                 <label class="field">
                   <span>Folder</span>
-                  <div class="inline">
+                  <div class="inline autoload-folder-inline">
                     <input
                       id="autoload-dir"
                       type="text"
@@ -455,8 +460,6 @@
                       placeholder="test_data or /abs/path"
                     />
                     <button class="btn btn-secondary" id="autoload-browse" type="button">Browse…</button>
-                  </div>
-                  <div class="autoload-folder-actions">
                     <button class="btn btn-secondary" id="autoload-select-file" type="button">Select file…</button>
                   </div>
                   <datalist id="autoload-dir-list"></datalist>
