@@ -9609,6 +9609,12 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
 
   const valuesRaw = visibleData;
   const values = logScale ? valuesRaw.map((v) => Math.log10(1 + Math.max(0, v))) : valuesRaw;
+
+  // Calculate total Y domain from all data
+  const allValuesRaw = data;
+  const totalMinY = Math.min(...allValuesRaw);
+  const totalMaxY = Math.max(...allValuesRaw);
+
   let minValue = 0;
   if (!autoscale && Number.isFinite(limits.yMin)) {
     minValue = logScale ? Math.log10(1 + Math.max(0, limits.yMin)) : limits.yMin;
@@ -9759,6 +9765,8 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     xStep,
     totalXMin: totalMinX,
     totalXMax: totalMaxX,
+    totalYMin: totalMinY,
+    totalYMax: totalMaxY,
     xMin: xMinActual,
     xMax: xMaxActual,
     yMin: yMinActual,
@@ -11654,6 +11662,8 @@ function beginRoiPlotPan(event, canvasEl) {
     yMax: Number.isFinite(currentLimits.yMax) ? currentLimits.yMax : plot.yMax,
     domainXMin: Number.isFinite(plot.totalXMin) ? plot.totalXMin : null,
     domainXMax: Number.isFinite(plot.totalXMax) ? plot.totalXMax : null,
+    domainYMin: Number.isFinite(plot.totalYMin) ? plot.totalYMin : null,
+    domainYMax: Number.isFinite(plot.totalYMax) ? plot.totalYMax : null,
   };
   canvasEl.classList.remove("is-pan-ready");
   canvasEl.classList.add("is-panning");
@@ -11706,6 +11716,28 @@ function moveRoiPlotPan(event, canvasEl) {
   let nextYMax = roiPlotPanning.yMax + (dy / plotHeight) * yRange;
   if (nextYMin > nextYMax) {
     [nextYMin, nextYMax] = [nextYMax, nextYMin];
+  }
+
+  // Clamp Y-axis panning to data domain like X-axis
+  const domainYMin = roiPlotPanning.domainYMin;
+  const domainYMax = roiPlotPanning.domainYMax;
+  if (Number.isFinite(domainYMin) && Number.isFinite(domainYMax)) {
+    const domainRange = domainYMax - domainYMin;
+    if (yRange >= domainRange) {
+      nextYMin = domainYMin;
+      nextYMax = domainYMax;
+    } else {
+      if (nextYMin < domainYMin) {
+        const shift = domainYMin - nextYMin;
+        nextYMin += shift;
+        nextYMax += shift;
+      }
+      if (nextYMax > domainYMax) {
+        const shift = nextYMax - domainYMax;
+        nextYMin -= shift;
+        nextYMax -= shift;
+      }
+    }
   }
 
   setRoiPlotAxisLimits(plotKey, "x", nextXMin, nextXMax);
@@ -11781,37 +11813,62 @@ function endRoiPlotPan(event, canvasEl) {
       const y = event.clientY - rect.top;
       const inYAxis = x <= plot.padL;
       const inXAxis = y >= plot.height - plot.padB;
-      if (!inYAxis && !inXAxis) return;
+      const inPlotArea = isInsideRoiPlotViewport(plot, x, y);
+
+      // Allow zoom on axes or in plot area
+      if (!inYAxis && !inXAxis && !inPlotArea) return;
+
       const delta = normalizeWheelDelta(event);
       if (!delta) return;
       const factor = Math.exp(-delta * 0.002);
+      const plotKey = getRoiPlotKey(canvasEl);
+
+      if (roiState.plotLimits.autoscale) {
+        roiState.plotLimits.autoscale = false;
+        if (roiLimitsEnable) roiLimitsEnable.checked = false;
+      }
+
       if (inYAxis) {
+        // Zoom Y-axis only when over Y axis
         const yRange = plot.yMax - plot.yMin;
         const cursorFrac = (plot.height - plot.padB - y) / (plot.height - plot.padB - plot.padT);
         const cursorValue = plot.yMin + cursorFrac * yRange;
         const newRange = yRange / factor;
         const newMin = cursorValue - cursorFrac * newRange;
         const newMax = cursorValue + (1 - cursorFrac) * newRange;
-        if (roiState.plotLimits.autoscale) {
-          roiState.plotLimits.autoscale = false;
-          if (roiLimitsEnable) roiLimitsEnable.checked = false;
-        }
-        const plotKey = getRoiPlotKey(canvasEl);
         setRoiPlotAxisLimits(plotKey, "y", newMin, newMax);
-      } else {
+      } else if (inXAxis) {
+        // Zoom X-axis only when over X axis
         const xRange = plot.xMax - plot.xMin;
         const cursorFrac = (x - plot.padL) / (plot.width - plot.padL - plot.padR);
         const cursorValue = plot.xMin + cursorFrac * xRange;
         const newRange = xRange / factor;
         const newMin = cursorValue - cursorFrac * newRange;
         const newMax = cursorValue + (1 - cursorFrac) * newRange;
-        if (roiState.plotLimits.autoscale) {
-          roiState.plotLimits.autoscale = false;
-          if (roiLimitsEnable) roiLimitsEnable.checked = false;
-        }
-        const plotKey = getRoiPlotKey(canvasEl);
         setRoiPlotAxisLimits(plotKey, "x", newMin, newMax);
+      } else if (inPlotArea) {
+        // Zoom both axes proportionally when in plot area
+        const xRange = plot.xMax - plot.xMin;
+        const yRange = plot.yMax - plot.yMin;
+
+        // X-axis zoom centered on cursor
+        const xCursorFrac = (x - plot.padL) / (plot.width - plot.padL - plot.padR);
+        const xCursorValue = plot.xMin + xCursorFrac * xRange;
+        const newXRange = xRange / factor;
+        const newXMin = xCursorValue - xCursorFrac * newXRange;
+        const newXMax = xCursorValue + (1 - xCursorFrac) * newXRange;
+
+        // Y-axis zoom centered on cursor
+        const yCursorFrac = (plot.height - plot.padB - y) / (plot.height - plot.padB - plot.padT);
+        const yCursorValue = plot.yMin + yCursorFrac * yRange;
+        const newYRange = yRange / factor;
+        const newYMin = yCursorValue - yCursorFrac * newYRange;
+        const newYMax = yCursorValue + (1 - yCursorFrac) * newYRange;
+
+        setRoiPlotAxisLimits(plotKey, "x", newXMin, newXMax);
+        setRoiPlotAxisLimits(plotKey, "y", newYMin, newYMax);
       }
+
       syncRoiPlotLimitControls();
       scheduleRoiUpdate();
     },
