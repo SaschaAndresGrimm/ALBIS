@@ -21,6 +21,10 @@ select = [
 ]
 ignore = [
   "E501",  # line too long (handled by black)
+  "SIM115",  # use context manager for opening files (can break in some cases)
+  "SIM118",  # use .keys() removal (stylistic, not always clearer)
+  "N802",  # function name should be lowercase (some existing names)
+  "N806",  # variable should be lowercase (some existing names)
 ]
 
 [tool.pytest.ini_options]
