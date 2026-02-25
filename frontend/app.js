@@ -11638,18 +11638,6 @@ function beginRoiPlotPan(event, canvasEl) {
   if (!isInsideRoiPlotViewport(plot, x, y)) return false;
 
   const plotKey = getRoiPlotKey(canvasEl);
-  const limits = getRoiPlotLimits(plotKey);
-  if (roiState.plotLimits.autoscale) {
-    roiState.plotLimits.autoscale = false;
-    if (roiLimitsEnable) roiLimitsEnable.checked = false;
-  }
-  if (!Number.isFinite(limits.xMin) || !Number.isFinite(limits.xMax)) {
-    setRoiPlotAxisLimits(plotKey, "x", plot.xMin, plot.xMax);
-  }
-  if (!Number.isFinite(limits.yMin) || !Number.isFinite(limits.yMax)) {
-    setRoiPlotAxisLimits(plotKey, "y", plot.yMin, plot.yMax);
-  }
-
   const currentLimits = getRoiPlotLimits(plotKey);
   roiPlotPanning = {
     canvasEl,
@@ -11664,6 +11652,7 @@ function beginRoiPlotPan(event, canvasEl) {
     domainXMax: Number.isFinite(plot.totalXMax) ? plot.totalXMax : null,
     domainYMin: Number.isFinite(plot.totalYMin) ? plot.totalYMin : null,
     domainYMax: Number.isFinite(plot.totalYMax) ? plot.totalYMax : null,
+    hasMoved: false,
   };
   canvasEl.classList.remove("is-pan-ready");
   canvasEl.classList.add("is-panning");
@@ -11689,6 +11678,25 @@ function moveRoiPlotPan(event, canvasEl) {
 
   const dx = event.clientX - roiPlotPanning.startClientX;
   const dy = event.clientY - roiPlotPanning.startClientY;
+
+  // Only disable autoscale and initialize limits on first actual movement
+  if (!roiPlotPanning.hasMoved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
+    roiPlotPanning.hasMoved = true;
+    if (roiState.plotLimits.autoscale) {
+      roiState.plotLimits.autoscale = false;
+      if (roiLimitsEnable) roiLimitsEnable.checked = false;
+    }
+    const limits = getRoiPlotLimits(plotKey);
+    if (!Number.isFinite(limits.xMin) || !Number.isFinite(limits.xMax)) {
+      setRoiPlotAxisLimits(plotKey, "x", plot.xMin, plot.xMax);
+    }
+    if (!Number.isFinite(limits.yMin) || !Number.isFinite(limits.yMax)) {
+      setRoiPlotAxisLimits(plotKey, "y", plot.yMin, plot.yMax);
+    }
+  }
+
+  // Only update pan if we've actually moved
+  if (!roiPlotPanning.hasMoved) return;
   let nextXMin = roiPlotPanning.xMin - (dx / plotWidth) * xRange;
   let nextXMax = roiPlotPanning.xMax - (dx / plotWidth) * xRange;
   const domainXMin = roiPlotPanning.domainXMin;
