@@ -8,7 +8,20 @@ extend-exclude = "^(dist|build|data|logs)/"
 line-length = 100
 target-version = "py310"
 exclude = ["dist", "build", "data", "logs"]
-select = ["F"]
+select = [
+  "F",    # Pyflakes
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "I",    # isort (import sorting)
+  "N",    # pep8-naming
+  "UP",   # pyupgrade
+  "B",    # flake8-bugbear
+  "C4",   # flake8-comprehensions
+  "SIM",  # flake8-simplify
+]
+ignore = [
+  "E501",  # line too long (handled by black)
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

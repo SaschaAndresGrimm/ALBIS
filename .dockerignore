@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Data files
+*.h5
+*.hdf5
+*.cbf
+*.cbf.gz
+*.tiff
+*.tif
+*.edf
+test_data/
+data/
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Config examples
+*.example.*

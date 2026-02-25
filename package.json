@@ -1,12 +1,31 @@
 {
   "name": "albis-web-view",
   "private": true,
-  "version": "0.0.0-dev",
-  "description": "ALBIS frontend lint tooling",
+  "version": "0.8.2",
+  "description": "ALBIS - Fast image viewer for DECTRIS detectors",
+  "author": "Sascha Andres Grimm",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SaschaAndresGrimm/ALBIS.git"
+  },
+  "keywords": [
+    "dectris",
+    "image-viewer",
+    "hdf5",
+    "detector",
+    "albula",
+    "eiger",
+    "pilatus",
+    "scientific-imaging"
+  ],
   "scripts": {
     "lint:js": "eslint frontend/app.js"
   },
   "devDependencies": {
     "eslint": "^9.20.1"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

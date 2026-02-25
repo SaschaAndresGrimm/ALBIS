@@ -14,3 +14,7 @@ logs/
 *.tif
 *.edf
 test_data/
+
+# AI assistant / nanoclaw files
+ALBIS_REVIEW.md
+IMPROVEMENTS_SUMMARY.md

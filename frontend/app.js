@@ -13,6 +13,10 @@
 import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
+import { initErrorHandler, reportError } from "./modules/error_handler.js";
+
+// Initialize global error handling
+initErrorHandler();
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
