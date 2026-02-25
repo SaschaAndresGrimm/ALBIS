@@ -532,6 +532,7 @@ const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = 18;
 const PIXEL_LABEL_DEFAULT_MAX_LABELS = 4000;
 const PIXEL_LABEL_DENSE_ZOOM_PX = 24;
 const PIXEL_LABEL_INTERACTION_IDLE_MS = 140;
+const PIXEL_LABEL_HALO_MAX_LABELS = 3200;
 const VIEWPORT_INTERACTION_IDLE_MS = 180;
 const PEAK_BAD_MASK_BITS = 0x1f;
 
@@ -2063,14 +2064,20 @@ function drawPixelOverlay() {
   if (!canRenderDense && cells > maxLabels) {
     stride = Math.max(1, Math.ceil(Math.sqrt(cells / maxLabels)));
   }
+  const estimatedLabelCount = Math.ceil(cols / stride) * Math.ceil(rows / stride);
 
   const fontSize = Math.min(13, Math.max(7, zoom * 0.52));
   pixelCtx.font = `${fontSize}px "Lucida Grande", "Helvetica Neue", Arial, sans-serif`;
   pixelCtx.textAlign = "center";
   pixelCtx.textBaseline = "middle";
-  pixelCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
-  pixelCtx.shadowColor = "rgba(0, 0, 0, 0.7)";
-  pixelCtx.shadowBlur = 2;
+  pixelCtx.fillStyle = "rgba(248, 252, 255, 0.95)";
+  const useHalo = estimatedLabelCount <= PIXEL_LABEL_HALO_MAX_LABELS;
+  if (useHalo) {
+    pixelCtx.strokeStyle = "rgba(6, 10, 16, 0.9)";
+    pixelCtx.lineWidth = Math.max(1, Math.min(2, fontSize * 0.2));
+    pixelCtx.lineJoin = "round";
+    pixelCtx.miterLimit = 2;
+  }
   const formatMode = String(state.pixelLabelFormat || "auto").toLowerCase();
 
   for (let y = startY; y < endY; y += stride) {
@@ -2092,10 +2099,12 @@ function drawPixelOverlay() {
       }
       if (!text) continue;
       const screenX = (x - viewX) * zoom + zoom / 2 + offsetX;
+      if (useHalo) {
+        pixelCtx.strokeText(text, screenX, screenY);
+      }
       pixelCtx.fillText(text, screenX, screenY);
     }
   }
-  pixelCtx.shadowBlur = 0;
 }
 
 function scheduleRoiOverlay() {
