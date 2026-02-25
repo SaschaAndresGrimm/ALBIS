@@ -3303,6 +3303,12 @@ body.platform-windows select option:disabled {
   margin-bottom: 8px;
 }
 
+.autoload-folder-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
 #autoload-watch-options {
   display: grid;
   gap: 8px;
@@ -4452,6 +4458,10 @@ body.platform-windows select option:disabled {
   grid-column: 2;
 }
 
+.panel-section[data-section="data-source"] .field > .autoload-folder-actions {
+  grid-column: 2;
+}
+
 @media (max-width: 900px) {
   .panel-section[data-section="data-source"] .field,
   .panel-section[data-section="peak-finder"] .field {
@@ -4463,6 +4473,7 @@ body.platform-windows select option:disabled {
   .panel-section[data-section="data-source"] .field > input,
   .panel-section[data-section="data-source"] .field > select,
   .panel-section[data-section="data-source"] .field > .inline,
+  .panel-section[data-section="data-source"] .field > .autoload-folder-actions,
   .panel-section[data-section="peak-finder"] .field > input,
   .panel-section[data-section="peak-finder"] .field > select,
   .panel-section[data-section="data-source"] .field > .field-hint,

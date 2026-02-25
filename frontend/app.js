@@ -184,6 +184,7 @@ const inspectorSearchClear = document.getElementById("inspector-search-clear");
 const inspectorResults = document.getElementById("inspector-results");
 const inspectorStateEl = document.getElementById("inspector-state");
 const autoloadBrowse = document.getElementById("autoload-browse");
+const autoloadSelectFile = document.getElementById("autoload-select-file");
 const autoloadDirList = document.getElementById("autoload-dir-list");
 const autoloadPattern = document.getElementById("autoload-pattern");
 const autoloadTypeHdf5 = document.getElementById("autoload-type-hdf5");
@@ -925,6 +926,7 @@ function applyHelpMap() {
     "autoload-dir": "Folder path to poll for new files.",
     "autoload-watch-enabled": "Automatically poll the selected folder for updates.",
     "autoload-browse": "Browse and select a source folder.",
+    "autoload-select-file": "Open a file picker and load a specific image file.",
     "autoload-pattern": "Filename filter with wildcard support.",
     "autoload-interval": "Polling interval in milliseconds.",
     "remote-source-id": "Remote stream source identifier.",
@@ -10910,6 +10912,10 @@ autoloadBrowse?.addEventListener("click", async () => {
     // Use web browser for remote filesystem
     openFileBrowser("autoload", autoloadDir);
   }
+});
+
+autoloadSelectFile?.addEventListener("click", () => {
+  void openFileModal();
 });
 
 simplonUrl?.addEventListener("change", () => {

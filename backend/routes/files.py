@@ -114,7 +114,6 @@ def _linux_choose_file() -> str | None:
                 "--file-selection",
                 "--title=Select image file",
                 "--file-filter=Image files | *.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf",
-                "--file-filter=All files | *",
             ]
         )
     kdialog = shutil.which("kdialog")
@@ -124,7 +123,7 @@ def _linux_choose_file() -> str | None:
                 kdialog,
                 "--getopenfilename",
                 str(Path.home()),
-                "Image files (*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf) | All files (*)",
+                "Image files (*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf)",
             ]
         )
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
@@ -170,7 +169,6 @@ def _tk_choose_file() -> str | None:
                 title="Select image file",
                 filetypes=[
                     ("Image files", "*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf"),
-                    ("All files", "*.*"),
                 ],
             )
             or None
@@ -326,7 +324,10 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         system = platform.system()
         deps.logger.debug("File picker requested (os=%s)", system)
         if system == "Darwin":
-            script = 'POSIX path of (choose file with prompt "Select image file")'
+            script = (
+                'POSIX path of (choose file with prompt "Select image file" '
+                'of type {"h5", "hdf5", "tif", "tiff", "cbf", "cbf.gz", "edf"})'
+            )
             try:
                 result = subprocess.run(
                     ["osascript", "-e", script],
@@ -338,10 +339,17 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                 stderr = (exc.stderr or "").lower()
                 if "user canceled" in stderr:
                     return Response(status_code=204)
-                raise HTTPException(status_code=500, detail="File picker failed") from exc
-            path = result.stdout.strip()
-            if not path:
-                return Response(status_code=204)
+                deps.logger.warning("AppleScript file picker failed, falling back to Tk (err=%s)", stderr.strip())
+                try:
+                    path = _tk_choose_file()
+                except RuntimeError as tk_exc:
+                    raise HTTPException(status_code=500, detail="File picker failed") from tk_exc
+                if not path:
+                    return Response(status_code=204)
+            else:
+                path = result.stdout.strip()
+                if not path:
+                    return Response(status_code=204)
         else:
             try:
                 if system == "Linux":
