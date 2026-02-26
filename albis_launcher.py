@@ -27,7 +27,7 @@ _MACOS_EVENT_LOGS_ENABLED = False
 _LAUNCHER_LOG_MAX_BYTES = 1024 * 1024  # 1 MiB
 _LAUNCHER_LOG_BACKUP_SUFFIX = ".1"
 
-from backend.config import get_bool, get_float, get_int, get_str, load_config
+from backend.config import get_bool, get_float, get_int, get_str, load_config, resolve_path
 
 class _NullStream:
     """Fallback stdio stream for frozen/windowed builds without a console."""
@@ -110,6 +110,22 @@ def _open_browser(host: str, port: int) -> None:
         except Exception:
             pass
 
+
+def _resolve_data_dir(app_config: dict, config_path: Path) -> Path:
+    data_root = get_str(app_config, ("data", "root"), "").strip()
+    if data_root:
+        return resolve_path(data_root, base_dir=config_path.parent)
+    if getattr(sys, "frozen", False):
+        return (Path.home() / "ALBIS-data").resolve()
+    return Path(__file__).resolve().parent
+
+
+def _resolve_log_dir(app_config: dict, config_path: Path) -> Path:
+    log_dir_cfg = get_str(app_config, ("logging", "dir"), "").strip()
+    if log_dir_cfg:
+        return resolve_path(log_dir_cfg, base_dir=config_path.parent)
+    return (_resolve_data_dir(app_config, config_path) / "logs").resolve()
+
 if Foundation is not None:
     class _DockMenuHandler(Foundation.NSObject):
         def _start_ts(self) -> float:
@@ -169,12 +185,16 @@ if Foundation is not None:
             pasteboard.setString_forType_(url, AppKit.NSPasteboardTypeString)
 
         def openLogs_(self, _sender):
+            start_ts = self._start_ts()
             try:
-                import subprocess
-
-                log_path = Path(getattr(self, "log_dir", "") or "logs").expanduser().resolve()
-                subprocess.run(["open", str(log_path)], check=False)
-            except Exception:
+                log_path = Path(str(getattr(self, "log_dir", "") or "")).expanduser().resolve()
+                log_path.mkdir(parents=True, exist_ok=True)
+                result = subprocess.run(["open", str(log_path)], check=False, capture_output=True, text=True)
+                if int(result.returncode or 0) != 0:
+                    detail = (result.stderr or "").strip() or (result.stdout or "").strip()
+                    _log_macos_event(start_ts, f"open logs failed rc={result.returncode} ({detail})")
+            except Exception as exc:
+                _log_macos_event(start_ts, f"open logs error: {type(exc).__name__}: {exc}")
                 return
 
         def quit_(self, _sender):
@@ -259,7 +279,13 @@ def _should_start_macos_ui_loop() -> bool:
     flag = os.environ.get("ALBIS_ENABLE_MACOS_UI", "").strip().lower()
     return flag in {"1", "true", "yes", "on"}
 
-def _start_macos_menus(host: str, port: int, app_config: dict, start_ts: float | None = None) -> bool:
+def _start_macos_menus(
+    host: str,
+    port: int,
+    app_config: dict,
+    config_path: Path | None = None,
+    start_ts: float | None = None,
+) -> bool:
     if sys.platform != "darwin":
         return False
     if AppKit is None or Foundation is None or _DockMenuHandler is None:
@@ -267,7 +293,11 @@ def _start_macos_menus(host: str, port: int, app_config: dict, start_ts: float |
             _launcher_log(start_ts, "macos ui unavailable (missing AppKit/Foundation)")
         return False
     try:
-        log_dir = get_str(app_config, ("logging", "dir"), "")
+        if config_path is not None:
+            log_dir = _resolve_log_dir(app_config, config_path)
+        else:
+            raw_log_dir = get_str(app_config, ("logging", "dir"), "").strip()
+            log_dir = Path(raw_log_dir).expanduser().resolve() if raw_log_dir else (Path.home() / ".config" / "albis" / "logs")
         handler = _DockMenuHandler.alloc().init()
         if handler is None:
             return False
@@ -276,7 +306,7 @@ def _start_macos_menus(host: str, port: int, app_config: dict, start_ts: float |
             handler.port = int(port or 0)
         except (TypeError, ValueError):
             handler.port = 0
-        handler.log_dir = log_dir
+        handler.log_dir = str(log_dir)
         handler.start_ts = float(start_ts) if start_ts is not None else time.perf_counter()
         handler.last_browser_open_mono = 0.0
         handler.browser_open_throttle_sec = 0.8
@@ -517,7 +547,13 @@ def main() -> None:
         _launcher_log(start_ts, "opening browser")
         _open_browser(host, port)
 
-    if _should_start_macos_ui_loop() and _start_macos_menus(host, port, app_config, start_ts=start_ts):
+    if _should_start_macos_ui_loop() and _start_macos_menus(
+        host,
+        port,
+        app_config,
+        config_path=_config_path,
+        start_ts=start_ts,
+    ):
         _launcher_log(start_ts, "dock menu ready")
         AppKit.NSApp().run()
         return
