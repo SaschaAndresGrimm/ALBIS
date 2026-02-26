@@ -264,6 +264,20 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 Example output:
 - `ALBIS-linux-<distro_version>-v<version>-<commit>.tar.gz`
 
+Optional local desktop integration (user scope):
+
+```bash
+./scripts/install_linux.sh
+```
+
+This installs ALBIS under `~/.local` (launcher + desktop entry + icon).
+
+To remove it again:
+
+```bash
+./scripts/uninstall_linux.sh
+```
+
 ### Build (Windows)
 
 ```powershell
@@ -274,6 +288,12 @@ Example output:
 - `ALBIS-windows-<os_version>-v<version>-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
   `ALBIS-Setup-windows-<os_version>-v<version>-<commit>.exe`
+
+The Inno installer creates Start Menu entries for:
+- `ALBIS`
+- `Open Logs`
+- `Open Data Folder`
+- `Edit Config`
 
 ### Output
 
