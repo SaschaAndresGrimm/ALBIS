@@ -56,6 +56,7 @@ try:
         remote_snapshot as _remote_snapshot,
         remote_store_frame as _remote_store_frame,
     )
+    from .services.jungfraujoch_preview import JungfraujochPreviewBridge
     from .services.series_ops import (
         iter_sum_groups as _iter_sum_groups,
         mask_flag_value as _mask_flag_value,
@@ -111,6 +112,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         remote_snapshot as _remote_snapshot,
         remote_store_frame as _remote_store_frame,
     )
+    from services.jungfraujoch_preview import JungfraujochPreviewBridge
     from services.series_ops import (
         iter_sum_groups as _iter_sum_groups,
         mask_flag_value as _mask_flag_value,
@@ -253,6 +255,15 @@ async def _log_startup_banner() -> None:
     pid = os.getpid()
     logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
     logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
+
+
+@app.on_event("shutdown")
+async def _shutdown_services() -> None:
+    """Stop background service workers during API shutdown."""
+    try:
+        jfjoch_preview.stop()
+    except Exception:
+        logger.exception("Failed to stop JUNGFRAUJOCH preview bridge on shutdown")
 
 
 @app.middleware("http")
@@ -548,6 +559,11 @@ series_summing = SeriesSummingService(
     )
 )
 
+jfjoch_preview = JungfraujochPreviewBridge(
+    logger=logger,
+    remote_store_frame=_remote_store_frame,
+)
+
 
 def _settings_payload() -> dict[str, Any]:
     """Build the API payload used by settings GET/POST handlers."""
@@ -646,6 +662,9 @@ register_stream_routes(
         remote_extract_metadata=_remote_extract_metadata,
         remote_store_frame=_remote_store_frame,
         remote_snapshot=_remote_snapshot,
+        jfjoch_preview_start=jfjoch_preview.start,
+        jfjoch_preview_stop=jfjoch_preview.stop,
+        jfjoch_preview_status=jfjoch_preview.status,
     ),
 )
 

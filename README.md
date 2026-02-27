@@ -7,6 +7,7 @@ It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports *
 Image sources can be:
 - Files on disk (`.h5/.hdf5` stacks) and common detector image formats (`.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
 - The detector **SIMPLON monitor** stream for live viewing.
+- **JUNGFRAUJOCH Preview** ZeroMQ PUB stream (CBOR image messages + reflection spots).
 - The **Remote Stream API** (`/api/remote/v1/*`) for externally pushed frames + metadata.
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
@@ -30,6 +31,7 @@ Community workflow files:
 - ALBULA‑style UI with fast navigation and contrast control.
 - Full support for DECTRIS filewriter1 and filewriter2 (multi‑threshold data with selector).
 - Live SIMPLON monitor mode with mask prefetch.
+- JUNGFRAUJOCH Preview mode (ZeroMQ CBOR stream bridge with reflection overlays).
 - Remote Stream mode for live external producers (with optional ring parameters and colored peak overlays).
 - ROI tools (line, box, circle, annulus) with statistics and plots.
 - Pixel mask support (gaps and defective pixels).

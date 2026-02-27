@@ -6,4 +6,7 @@ h5py
 numpy
 tifffile
 fabio
+cbor2
+pyzmq
+dectris-compression
 pyobjc; sys_platform == "darwin"

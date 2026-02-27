@@ -10,6 +10,9 @@ from fastapi.responses import JSONResponse, Response
 try:
     from ..api_models import (
         ImageHeaderResponse,
+        JungfraujochPreviewControlResponse,
+        JungfraujochPreviewStartRequest,
+        JungfraujochPreviewStatusResponse,
         RemoteFrameIngestResponse,
         RemoteMetaConflictResponse,
         RemoteMetaResponse,
@@ -18,6 +21,9 @@ try:
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         ImageHeaderResponse,
+        JungfraujochPreviewControlResponse,
+        JungfraujochPreviewStartRequest,
+        JungfraujochPreviewStatusResponse,
         RemoteFrameIngestResponse,
         RemoteMetaConflictResponse,
         RemoteMetaResponse,
@@ -140,6 +146,9 @@ class StreamRouteDeps:
     remote_extract_metadata: Callable[[dict[str, Any]], dict[str, Any]]
     remote_store_frame: Callable[..., int]
     remote_snapshot: Callable[[str], dict[str, Any] | None]
+    jfjoch_preview_start: Callable[..., dict[str, Any]]
+    jfjoch_preview_stop: Callable[[], dict[str, Any]]
+    jfjoch_preview_status: Callable[[], dict[str, Any]]
 
 
 def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
@@ -281,6 +290,80 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             "X-Shape": ",".join(str(x) for x in arr.shape),
         }
         return Response(content=data, media_type="application/octet-stream", headers=headers)
+
+    @app.post(
+        "/api/jfjoch/preview/start",
+        response_model=JungfraujochPreviewControlResponse,
+    )
+    def jfjoch_preview_start(
+        payload: JungfraujochPreviewStartRequest,
+    ) -> JungfraujochPreviewControlResponse:
+        """Start (or reconfigure) JUNGFRAUJOCH preview bridge subscription."""
+        endpoint = str(payload.endpoint or "").strip()
+        if not endpoint:
+            raise HTTPException(status_code=400, detail="Missing preview endpoint")
+        safe_source = deps.remote_safe_source_id(payload.source_id or "jungfraujoch")
+        topic = str(payload.topic or "")
+        channel = str(payload.channel or "")
+        try:
+            status = deps.jfjoch_preview_start(
+                endpoint=endpoint,
+                source_id=safe_source,
+                topic=topic,
+                channel=channel,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        deps.logger.info(
+            "JUNGFRAUJOCH preview configured: endpoint=%s source=%s topic=%s channel=%s",
+            endpoint,
+            safe_source,
+            topic or "<all>",
+            channel or "<first>",
+        )
+        return JungfraujochPreviewControlResponse(
+            status="ok",
+            running=bool(status.get("running")),
+            source_id=str(status.get("source_id") or safe_source),
+        )
+
+    @app.post(
+        "/api/jfjoch/preview/stop",
+        response_model=JungfraujochPreviewControlResponse,
+    )
+    def jfjoch_preview_stop() -> JungfraujochPreviewControlResponse:
+        """Stop JUNGFRAUJOCH preview bridge subscription."""
+        status = deps.jfjoch_preview_stop()
+        return JungfraujochPreviewControlResponse(
+            status="ok",
+            running=bool(status.get("running")),
+            source_id=str(status.get("source_id") or "jungfraujoch"),
+        )
+
+    @app.get(
+        "/api/jfjoch/preview/status",
+        response_model=JungfraujochPreviewStatusResponse,
+    )
+    def jfjoch_preview_status() -> JungfraujochPreviewStatusResponse:
+        """Return current preview bridge status and most recent ingest state."""
+        payload = deps.jfjoch_preview_status() or {}
+        source_id = deps.remote_safe_source_id(str(payload.get("source_id") or "jungfraujoch"))
+        return JungfraujochPreviewStatusResponse(
+            running=bool(payload.get("running")),
+            endpoint=str(payload.get("endpoint") or ""),
+            source_id=source_id,
+            topic=str(payload.get("topic") or ""),
+            channel=str(payload.get("channel") or ""),
+            started_at=payload.get("started_at"),
+            last_message_at=payload.get("last_message_at"),
+            last_frame_at=payload.get("last_frame_at"),
+            last_frame_seq=int(payload.get("last_frame_seq") or 0),
+            ingested_frames=int(payload.get("ingested_frames") or 0),
+            series_number=payload.get("series_number"),
+            image_number=payload.get("image_number"),
+            display_name=str(payload.get("display_name") or ""),
+            last_error=str(payload.get("last_error") or ""),
+        )
 
     @app.post("/api/remote/v1/frame", response_model=RemoteFrameIngestResponse)
     async def remote_frame_ingest(

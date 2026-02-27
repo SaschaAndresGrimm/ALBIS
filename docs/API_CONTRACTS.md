@@ -66,6 +66,13 @@ Response:
   - returns `204` when no frame exists for source,
   - returns `409` with `RemoteMetaConflictResponse` when requested `seq` is no longer current.
 
+## JUNGFRAUJOCH Preview Bridge
+
+- `POST /api/jfjoch/preview/start`: start or reconfigure backend ZeroMQ preview subscription.
+- `POST /api/jfjoch/preview/stop`: stop active subscription worker.
+- `GET /api/jfjoch/preview/status`: return current worker state and latest ingest counters.
+- Preview frames are exposed through existing Remote Stream endpoints under configured `source_id`.
+
 ## Client Guidance
 
 - Prefer schema-driven clients from `/openapi.json` for JSON endpoints.

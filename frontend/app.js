@@ -3,7 +3,7 @@
  *
  * This file drives:
  * - UI state and interactions (menus, tabs, shortcuts, gestures)
- * - Data-source orchestration (file/monitor/remote + optional watch)
+ * - Data-source orchestration (file/monitor/remote/JUNGFRAUJOCH + optional watch)
  * - Rendering (WebGL2 primary + CPU fallback)
  * - Overlay layers (ROI, rings, peaks, pixel labels, histogram)
  *
@@ -140,6 +140,7 @@ const autoloadWatchOptions = document.getElementById("autoload-watch-options");
 const autoloadTypesRow = document.getElementById("autoload-types");
 const autoloadSimplon = document.getElementById("autoload-simplon");
 const autoloadRemote = document.getElementById("autoload-remote");
+const autoloadJfjoch = document.getElementById("autoload-jfjoch");
 const simplonMetaPanel = document.getElementById("simplon-meta");
 const simplonSeriesEl = document.getElementById("simplon-series");
 const simplonImageEl = document.getElementById("simplon-image");
@@ -162,6 +163,15 @@ const remoteWavelengthEl = document.getElementById("remote-wavelength");
 const remoteDistanceEl = document.getElementById("remote-distance");
 const remoteCenterEl = document.getElementById("remote-center");
 const remotePeakSetsEl = document.getElementById("remote-peak-sets");
+const jfjochMetaPanel = document.getElementById("jfjoch-meta");
+const jfjochSourceEl = document.getElementById("jfjoch-source");
+const jfjochSeqEl = document.getElementById("jfjoch-seq");
+const jfjochSeriesEl = document.getElementById("jfjoch-series");
+const jfjochImageEl = document.getElementById("jfjoch-image");
+const jfjochTimeEl = document.getElementById("jfjoch-time");
+const jfjochReflectionsEl = document.getElementById("jfjoch-reflections");
+const jfjochChannelMetaEl = document.getElementById("jfjoch-channel-meta");
+const jfjochBridgeStatusEl = document.getElementById("jfjoch-bridge-status");
 const dataSourceSummaryEl = document.getElementById("summary-data-source");
 const dataSourceStateEl = document.getElementById("data-source-state");
 const dataSourceSkeletonEl = document.getElementById("data-source-skeleton");
@@ -194,6 +204,11 @@ const simplonUrl = document.getElementById("simplon-url");
 const simplonVersion = document.getElementById("simplon-version");
 const simplonTimeout = document.getElementById("simplon-timeout");
 const simplonEnable = document.getElementById("simplon-enable");
+const jfjochEndpointInput = document.getElementById("jfjoch-preview-endpoint");
+const jfjochSourceInput = document.getElementById("jfjoch-source-id");
+const jfjochTopicInput = document.getElementById("jfjoch-topic");
+const jfjochChannelInput = document.getElementById("jfjoch-channel");
+const jfjochIntervalInput = document.getElementById("jfjoch-interval");
 const liveBadge = document.getElementById("live-badge");
 const roiHelp = document.getElementById("roi-help");
 const roiModeSelect = document.getElementById("roi-mode");
@@ -931,6 +946,11 @@ function applyHelpMap() {
     "autoload-interval": "Polling interval in milliseconds.",
     "remote-source-id": "Remote stream source identifier.",
     "remote-interval": "Remote polling interval in milliseconds.",
+    "jfjoch-preview-endpoint": "ZeroMQ preview PUB endpoint for JUNGFRAUJOCH (for example tcp://host:31003).",
+    "jfjoch-source-id": "ALBIS source identifier used to cache JUNGFRAUJOCH frames.",
+    "jfjoch-topic": "Optional ZeroMQ topic prefix to subscribe to.",
+    "jfjoch-channel": "Optional image channel to display from data map payload.",
+    "jfjoch-interval": "Polling interval in milliseconds for updated preview frames.",
     "simplon-url": "Base URL for the SIMPLON monitor API.",
     "simplon-timeout": "Request timeout for monitor polling (ms).",
     "simplon-enable": "Enable or pause SIMPLON live monitoring.",
@@ -2697,8 +2717,12 @@ function drawPeakOverlay() {
 
   externalSets.forEach((set) => {
     const color = typeof set?.color === "string" && set.color ? set.color : "#4aa3ff";
+    const style = typeof set?.style === "string" ? set.style : "";
+    const jfjochSet = style === "jfjoch-indexed" || style === "jfjoch-unindexed";
     const points = Array.isArray(set?.points) ? set.points : [];
-    const radius = Math.max(5, Math.min(11, 7 + Math.log2(Math.max(1, zoom)) * 0.35));
+    const radius = jfjochSet
+      ? Math.max(6, Math.min(14, 8 + Math.log2(Math.max(1, zoom)) * 0.45))
+      : Math.max(5, Math.min(11, 7 + Math.log2(Math.max(1, zoom)) * 0.35));
     points.forEach((peak) => {
       const px = Number(peak?.x);
       const py = Number(peak?.y);
@@ -2707,18 +2731,43 @@ function drawPeakOverlay() {
       const sy = (py + 0.5 - viewY) * zoom + offsetY;
       if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
 
-      peakCtx.setLineDash([4, 3]);
-      peakCtx.beginPath();
-      peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
-      peakCtx.lineWidth = 2.4;
-      peakCtx.strokeStyle = "rgba(10, 10, 10, 0.62)";
-      peakCtx.stroke();
+      if (jfjochSet) {
+        peakCtx.setLineDash([]);
+        peakCtx.beginPath();
+        peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
+        peakCtx.lineWidth = 2.8;
+        peakCtx.strokeStyle = "rgba(12, 12, 12, 0.78)";
+        peakCtx.stroke();
 
-      peakCtx.beginPath();
-      peakCtx.arc(sx, sy, Math.max(3, radius - 1.5), 0, Math.PI * 2);
-      peakCtx.lineWidth = 1.35;
-      peakCtx.strokeStyle = color;
-      peakCtx.stroke();
+        peakCtx.beginPath();
+        peakCtx.arc(sx, sy, Math.max(3, radius - 2), 0, Math.PI * 2);
+        peakCtx.lineWidth = 1.8;
+        peakCtx.strokeStyle = color;
+        peakCtx.stroke();
+
+        const cross = radius + 3;
+        peakCtx.beginPath();
+        peakCtx.moveTo(sx - cross, sy);
+        peakCtx.lineTo(sx + cross, sy);
+        peakCtx.moveTo(sx, sy - cross);
+        peakCtx.lineTo(sx, sy + cross);
+        peakCtx.lineWidth = 1.6;
+        peakCtx.strokeStyle = color;
+        peakCtx.stroke();
+      } else {
+        peakCtx.setLineDash([4, 3]);
+        peakCtx.beginPath();
+        peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
+        peakCtx.lineWidth = 2.4;
+        peakCtx.strokeStyle = "rgba(10, 10, 10, 0.62)";
+        peakCtx.stroke();
+
+        peakCtx.beginPath();
+        peakCtx.arc(sx, sy, Math.max(3, radius - 1.5), 0, Math.PI * 2);
+        peakCtx.lineWidth = 1.35;
+        peakCtx.strokeStyle = color;
+        peakCtx.stroke();
+      }
     });
   });
 
@@ -4823,7 +4872,12 @@ function updateDataSourceSummary() {
     return;
   }
 
-  const modeLabel = mode === "simplon" ? "SIMPLON" : "Remote";
+  const modeLabel =
+    mode === "simplon"
+      ? "SIMPLON"
+      : mode === "jungfraujoch"
+        ? "JFJ Preview"
+        : "Remote";
   const running = Boolean(state.autoload.running);
   const age = Date.now() - (state.autoload.lastUpdate || 0);
   const stale = running && (!state.autoload.lastUpdate || age > Math.max(1500, state.autoload.interval * 2));
@@ -5267,7 +5321,10 @@ function updateAutoloadMeta() {
 
 function updateLiveBadge() {
   if (!liveBadge) return;
-  const liveMode = state.autoload.mode === "simplon" || state.autoload.mode === "remote";
+  const liveMode =
+    state.autoload.mode === "simplon" ||
+    state.autoload.mode === "remote" ||
+    state.autoload.mode === "jungfraujoch";
   if (!state.autoload.running || !liveMode) {
     liveBadge.classList.remove("is-active", "is-wait");
     liveBadge.textContent = "LIVE";
@@ -5408,6 +5465,11 @@ function persistAutoloadSettings() {
       simplonTimeout: state.autoload.simplonTimeout,
       simplonEnable: state.autoload.simplonEnable,
       remoteSourceId: state.autoload.remoteSourceId,
+      jfjochEndpoint: state.autoload.jfjochEndpoint,
+      jfjochSourceId: state.autoload.jfjochSourceId,
+      jfjochTopic: state.autoload.jfjochTopic,
+      jfjochChannel: state.autoload.jfjochChannel,
+      jfjochInterval: state.autoload.jfjochInterval,
       autoStart: state.autoload.autoStart,
     };
     localStorage.setItem("albis.autoload", JSON.stringify(payload));
@@ -5421,7 +5483,9 @@ function updateAutoloadUI() {
   if (autoloadFolder) {
     autoloadFolder.classList.toggle(
       "is-hidden",
-      state.autoload.mode === "simplon" || state.autoload.mode === "remote"
+      state.autoload.mode === "simplon" ||
+      state.autoload.mode === "remote" ||
+      state.autoload.mode === "jungfraujoch"
     );
   }
   if (autoloadWatch) autoloadWatch.classList.toggle("is-hidden", state.autoload.mode !== "file");
@@ -5430,7 +5494,11 @@ function updateAutoloadUI() {
   if (autoloadTypesRow) autoloadTypesRow.classList.toggle("is-hidden", !state.autoload.watchEnabled);
   if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
   if (autoloadRemote) autoloadRemote.classList.toggle("is-hidden", state.autoload.mode !== "remote");
-  const hideDatasetUi = state.autoload.mode === "simplon" || state.autoload.mode === "remote";
+  if (autoloadJfjoch) autoloadJfjoch.classList.toggle("is-hidden", state.autoload.mode !== "jungfraujoch");
+  const hideDatasetUi =
+    state.autoload.mode === "simplon" ||
+    state.autoload.mode === "remote" ||
+    state.autoload.mode === "jungfraujoch";
   if (fileField) fileField.classList.toggle("is-hidden", hideDatasetUi);
   if (datasetField) datasetField.classList.toggle("is-hidden", hideDatasetUi);
   if (thresholdField) thresholdField.classList.toggle("is-hidden", hideDatasetUi);
@@ -5461,6 +5529,12 @@ function updateAutoloadUI() {
       updateRemoteMetaUI(state.autoload.remoteMeta || {});
     }
   }
+  if (jfjochMetaPanel) {
+    jfjochMetaPanel.classList.toggle("is-hidden", state.autoload.mode !== "jungfraujoch");
+    if (state.autoload.mode === "jungfraujoch") {
+      updateJfjochMetaUI(state.autoload.jfjochMeta || {}, state.autoload.jfjochStatus || {});
+    }
+  }
   updateAutoloadMeta();
   updateLiveBadge();
   updateThresholdOptions();
@@ -5468,10 +5542,20 @@ function updateAutoloadUI() {
   if (state.autoload.mode === "file") {
     setDataSourceSectionState(state.file ? "active" : "empty", state.file ? "File mode ready." : "Select a file to begin.");
   } else if (state.autoload.running) {
-    const label = state.autoload.mode === "simplon" ? "SIMPLON monitor active." : "Remote stream active.";
+    const label =
+      state.autoload.mode === "simplon"
+        ? "SIMPLON monitor active."
+        : state.autoload.mode === "jungfraujoch"
+          ? "JUNGFRAUJOCH preview active."
+          : "Remote stream active.";
     setDataSourceSectionState("active", label);
   } else {
-    const label = state.autoload.mode === "simplon" ? "Configure SIMPLON source settings." : "Configure remote stream settings.";
+    const label =
+      state.autoload.mode === "simplon"
+        ? "Configure SIMPLON source settings."
+        : state.autoload.mode === "jungfraujoch"
+          ? "Configure JUNGFRAUJOCH preview source settings."
+          : "Configure remote stream settings.";
     setDataSourceSectionState("empty", label);
   }
 }
@@ -5519,6 +5603,14 @@ function loadAutoloadSettings() {
         state.autoload.simplonEnable =
           stored.simplonEnable !== undefined ? Boolean(stored.simplonEnable) : state.autoload.simplonEnable;
         state.autoload.remoteSourceId = String(stored.remoteSourceId || state.autoload.remoteSourceId || "default");
+        state.autoload.jfjochEndpoint = String(stored.jfjochEndpoint || state.autoload.jfjochEndpoint || "");
+        state.autoload.jfjochSourceId = String(stored.jfjochSourceId || state.autoload.jfjochSourceId || "jungfraujoch");
+        state.autoload.jfjochTopic = String(stored.jfjochTopic || state.autoload.jfjochTopic || "");
+        state.autoload.jfjochChannel = String(stored.jfjochChannel || state.autoload.jfjochChannel || "");
+        state.autoload.jfjochInterval = Math.max(
+          100,
+          Number(stored.jfjochInterval || state.autoload.jfjochInterval || 250),
+        );
         state.autoload.autoStart = Boolean(stored.autoStart);
       }
     }
@@ -5539,6 +5631,11 @@ function loadAutoloadSettings() {
   if (simplonEnable) simplonEnable.checked = Boolean(state.autoload.simplonEnable);
   if (remoteSourceInput) remoteSourceInput.value = state.autoload.remoteSourceId || "default";
   if (remoteIntervalInput) remoteIntervalInput.value = String(state.autoload.interval || 1000);
+  if (jfjochEndpointInput) jfjochEndpointInput.value = state.autoload.jfjochEndpoint || "";
+  if (jfjochSourceInput) jfjochSourceInput.value = state.autoload.jfjochSourceId || "jungfraujoch";
+  if (jfjochTopicInput) jfjochTopicInput.value = state.autoload.jfjochTopic || "";
+  if (jfjochChannelInput) jfjochChannelInput.value = state.autoload.jfjochChannel || "";
+  if (jfjochIntervalInput) jfjochIntervalInput.value = String(state.autoload.jfjochInterval || 250);
   updateAutoloadUI();
   setAutoloadStatus("Idle");
   setAutoloadLatest("-");
@@ -5581,8 +5678,15 @@ async function startAutoload() {
   state.autoload.simplonTimeout = Math.max(100, Number(simplonTimeout?.value || 500));
   state.autoload.simplonEnable = simplonEnable?.checked ?? true;
   state.autoload.remoteSourceId = (remoteSourceInput?.value || state.autoload.remoteSourceId || "default").trim() || "default";
+  state.autoload.jfjochEndpoint = (jfjochEndpointInput?.value || state.autoload.jfjochEndpoint || "").trim();
+  state.autoload.jfjochSourceId = (jfjochSourceInput?.value || state.autoload.jfjochSourceId || "jungfraujoch").trim() || "jungfraujoch";
+  state.autoload.jfjochTopic = (jfjochTopicInput?.value || state.autoload.jfjochTopic || "").trim();
+  state.autoload.jfjochChannel = (jfjochChannelInput?.value || state.autoload.jfjochChannel || "").trim();
+  state.autoload.jfjochInterval = Math.max(100, Number(jfjochIntervalInput?.value || state.autoload.jfjochInterval || 250));
   if (state.autoload.mode === "remote") {
     state.autoload.interval = Math.max(100, Number(remoteIntervalInput?.value || state.autoload.interval || 1000));
+  } else if (state.autoload.mode === "jungfraujoch") {
+    state.autoload.interval = Math.max(100, Number(state.autoload.jfjochInterval || 250));
   }
   if (state.autoload.mode === "file" && !state.autoload.watchEnabled) {
     await stopAutoload({ keepMode: false });
@@ -5597,8 +5701,11 @@ async function startAutoload() {
   state.autoload.lastPoll = 0;
   state.autoload.lastMonitorSig = "";
   state.autoload.lastRemoteSeq = 0;
+  state.autoload.lastJfjochSeq = 0;
   state.autoload.remoteSeq = 0;
   state.autoload.remoteMeta = {};
+  state.autoload.jfjochMeta = {};
+  state.autoload.jfjochStatus = {};
   analysisState.externalPeakSets = [];
   updateAutoloadUI();
   updateAutoloadMeta();
@@ -5608,6 +5715,8 @@ async function startAutoload() {
         ? "Watch folder"
         : state.autoload.mode === "simplon"
           ? "SIMPLON monitor"
+          : state.autoload.mode === "jungfraujoch"
+            ? "JUNGFRAUJOCH preview"
           : "Remote stream"
     })`
   );
@@ -5617,6 +5726,8 @@ async function startAutoload() {
     await setSimplonMode(true);
     state.autoload.lastMaskAttempt = Date.now();
     await fetchSimplonMask();
+  } else if (state.autoload.mode === "jungfraujoch") {
+    setStatus("JUNGFRAUJOCH preview");
   }
   updateLiveBadge();
   autoloadTick();
@@ -5632,6 +5743,9 @@ async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
   if (state.autoload.running && state.autoload.mode === "simplon" && disableMonitor) {
     await setSimplonMode(false);
   }
+  if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
+    await stopJfjochPreviewBridge();
+  }
   state.autoload.running = false;
   state.autoload.busy = false;
   state.autoload.autoStart = keepMode ? state.autoload.autoStart : false;
@@ -5644,6 +5758,13 @@ async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
     state.autoload.remoteSeq = 0;
     analysisState.externalPeakSets = [];
     updateRemoteMetaUI({});
+    schedulePeakOverlay();
+  } else if (previousMode === "jungfraujoch") {
+    state.autoload.jfjochMeta = {};
+    state.autoload.jfjochStatus = {};
+    state.autoload.lastJfjochSeq = 0;
+    analysisState.externalPeakSets = [];
+    updateJfjochMetaUI({}, {});
     schedulePeakOverlay();
   }
   updateAutoloadUI();
@@ -5673,6 +5794,8 @@ async function autoloadTick() {
       await autoloadWatchTick();
     } else if (state.autoload.mode === "simplon") {
       await autoloadSimplonTick();
+    } else if (state.autoload.mode === "jungfraujoch") {
+      await autoloadJfjochTick();
     } else if (state.autoload.mode === "remote") {
       await autoloadRemoteTick();
     }
@@ -5800,6 +5923,65 @@ async function autoloadSimplonTick() {
   updateLiveBadge();
 }
 
+async function startJfjochPreviewBridge() {
+  const endpoint = (state.autoload.jfjochEndpoint || "").trim();
+  if (!endpoint) {
+    setAutoloadStatus("JFJ: set preview endpoint");
+    return false;
+  }
+  const sourceId = (state.autoload.jfjochSourceId || "jungfraujoch").trim() || "jungfraujoch";
+  const payload = {
+    endpoint,
+    source_id: sourceId,
+    topic: state.autoload.jfjochTopic || "",
+    channel: state.autoload.jfjochChannel || "",
+  };
+  const res = await fetch(`${API}/jfjoch/preview/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    setAutoloadStatus("JFJ: bridge start failed");
+    return false;
+  }
+  try {
+    const status = await res.json();
+    state.autoload.jfjochStatus = { ...(state.autoload.jfjochStatus || {}), ...(status || {}) };
+  } catch {
+    // ignore status payload decode errors
+  }
+  return true;
+}
+
+async function stopJfjochPreviewBridge() {
+  try {
+    const res = await fetch(`${API}/jfjoch/preview/stop`, { method: "POST" });
+    if (!res.ok) return false;
+    const payload = await res.json().catch(() => ({}));
+    state.autoload.jfjochStatus = { ...(state.autoload.jfjochStatus || {}), ...(payload || {}) };
+    return true;
+  } catch (err) {
+    console.warn(err);
+    return false;
+  }
+}
+
+async function fetchJfjochPreviewStatus() {
+  try {
+    const res = await fetch(`${API}/jfjoch/preview/status`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const payload = await res.json();
+    if (!payload || typeof payload !== "object") return null;
+    state.autoload.jfjochStatus = payload;
+    updateJfjochMetaUI(state.autoload.jfjochMeta || {}, payload);
+    return payload;
+  } catch (err) {
+    console.warn(err);
+    return null;
+  }
+}
+
 async function fetchRemoteMeta(sourceId, seq) {
   if (!sourceId) return;
   const params = new URLSearchParams({ source_id: sourceId });
@@ -5809,16 +5991,17 @@ async function fetchRemoteMeta(sourceId, seq) {
   try {
     const res = await fetch(`${API}/remote/v1/meta?${params.toString()}`, { cache: "no-store" });
     if (res.status === 204 || !res.ok) {
-      return;
+      return null;
     }
     const payload = await res.json();
-    if (!payload || typeof payload !== "object") return;
+    if (!payload || typeof payload !== "object") return null;
     const peakSets = Array.isArray(payload.peak_sets) ? payload.peak_sets : [];
     const normalized = [];
     peakSets.forEach((set, idx) => {
       if (!set || typeof set !== "object") return;
       const color = typeof set.color === "string" && set.color ? set.color : "#4aa3ff";
       const name = typeof set.name === "string" && set.name ? set.name : `Set ${idx + 1}`;
+      const style = typeof set.style === "string" && set.style ? set.style : "";
       const points = Array.isArray(set.points) ? set.points : [];
       const list = [];
       for (let i = 0; i < points.length; i += 1) {
@@ -5835,7 +6018,7 @@ async function fetchRemoteMeta(sourceId, seq) {
         });
       }
       if (list.length) {
-        normalized.push({ name, color, points: list });
+        normalized.push({ name, color, style, points: list });
       }
     });
     analysisState.externalPeakSets = normalized;
@@ -5844,9 +6027,89 @@ async function fetchRemoteMeta(sourceId, seq) {
       updateRemoteMetaUI(state.autoload.remoteMeta);
     }
     schedulePeakOverlay();
+    return { payload, normalized };
   } catch (err) {
     console.warn(err);
+    return null;
   }
+}
+
+async function autoloadJfjochTick() {
+  const endpoint = (state.autoload.jfjochEndpoint || "").trim();
+  if (!endpoint) {
+    setAutoloadStatus("JFJ: set preview endpoint");
+    updateLiveBadge();
+    return;
+  }
+  const sourceId = (state.autoload.jfjochSourceId || "jungfraujoch").trim() || "jungfraujoch";
+  const status = state.autoload.jfjochStatus || {};
+  const statusMismatch =
+    String(status.endpoint || endpoint) !== endpoint ||
+    String(status.source_id || sourceId) !== sourceId;
+  if (!status.running || statusMismatch) {
+    const started = await startJfjochPreviewBridge();
+    if (!started) {
+      updateLiveBadge();
+      return;
+    }
+  }
+
+  const params = new URLSearchParams({ source_id: sourceId });
+  if (state.autoload.lastJfjochSeq > 0) {
+    params.set("after_seq", String(state.autoload.lastJfjochSeq));
+  }
+  const res = await fetch(`${API}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
+  if (res.status === 204) {
+    await fetchJfjochPreviewStatus();
+    setAutoloadStatus("JFJ: waiting");
+    updateLiveBadge();
+    return;
+  }
+  if (!res.ok) {
+    await fetchJfjochPreviewStatus();
+    setAutoloadStatus("JFJ: error");
+    updateLiveBadge();
+    return;
+  }
+
+  const buffer = await res.arrayBuffer();
+  const dtype = parseDtype(res.headers.get("X-Dtype"));
+  const shape = parseShape(res.headers.get("X-Shape"));
+  const data = typedArrayFrom(buffer, dtype);
+  const remoteMeta = applyRemoteMeta(res.headers);
+  const seq = Number(remoteMeta.seq || 0);
+  const label =
+    remoteMeta.displayName ||
+    `JUNGFRAUJOCH preview (${sourceId})${Number.isFinite(seq) && seq > 0 ? ` #${seq}` : ""}`;
+  applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
+  if (Number.isFinite(seq) && seq > 0) {
+    if (seq !== state.autoload.lastJfjochSeq) {
+      state.autoload.lastJfjochSeq = seq;
+      const metaResult = await fetchRemoteMeta(sourceId, seq);
+      const payload = metaResult?.payload;
+      const normalized = Array.isArray(metaResult?.normalized) ? metaResult.normalized : [];
+      const totalPoints = normalized.reduce((sum, set) => sum + (set.points?.length || 0), 0);
+      const extra = payload?.extra && typeof payload.extra === "object" ? payload.extra : {};
+      state.autoload.jfjochMeta = {
+        source: sourceId,
+        seq,
+        series: payload?.series_number ?? remoteMeta.series,
+        image: payload?.image_number ?? remoteMeta.image,
+        date: payload?.image_datetime || remoteMeta.date || "",
+        reflections: totalPoints,
+        channel: typeof extra.channel === "string" ? extra.channel : "",
+      };
+    }
+  } else {
+    analysisState.externalPeakSets = [];
+    schedulePeakOverlay();
+  }
+  const latestStatus = await fetchJfjochPreviewStatus();
+  updateJfjochMetaUI(state.autoload.jfjochMeta || {}, latestStatus || state.autoload.jfjochStatus || {});
+  state.autoload.lastUpdate = Date.now();
+  updateAutoloadMeta();
+  setAutoloadStatus("JFJ: updated");
+  updateLiveBadge();
 }
 
 async function autoloadRemoteTick() {
@@ -8014,6 +8277,36 @@ function updateRemoteMetaUI(meta) {
   if (remotePeakSetsEl) {
     const count = Number(meta.peakSets || 0);
     remotePeakSetsEl.textContent = Number.isFinite(count) ? String(Math.max(0, Math.round(count))) : "-";
+  }
+}
+
+function updateJfjochMetaUI(meta, status = {}) {
+  if (!jfjochMetaPanel) return;
+  if (state.autoload.mode !== "jungfraujoch") {
+    jfjochMetaPanel.classList.add("is-hidden");
+    return;
+  }
+  jfjochMetaPanel.classList.remove("is-hidden");
+  if (jfjochSourceEl) jfjochSourceEl.textContent = formatSimplonValue(meta.source || state.autoload.jfjochSourceId);
+  if (jfjochSeqEl) jfjochSeqEl.textContent = formatSimplonValue(meta.seq);
+  if (jfjochSeriesEl) jfjochSeriesEl.textContent = formatSimplonValue(meta.series);
+  if (jfjochImageEl) jfjochImageEl.textContent = formatSimplonValue(meta.image);
+  if (jfjochTimeEl) jfjochTimeEl.textContent = formatSimplonTimestamp(meta.date) || "-";
+  if (jfjochReflectionsEl) {
+    const count = Number(meta.reflections ?? meta.peakSets ?? 0);
+    jfjochReflectionsEl.textContent = Number.isFinite(count)
+      ? String(Math.max(0, Math.round(count)))
+      : "-";
+  }
+  if (jfjochChannelMetaEl) jfjochChannelMetaEl.textContent = formatSimplonValue(meta.channel || "-");
+  if (jfjochBridgeStatusEl) {
+    if (status?.last_error) {
+      jfjochBridgeStatusEl.textContent = String(status.last_error);
+    } else if (status?.running) {
+      jfjochBridgeStatusEl.textContent = "running";
+    } else {
+      jfjochBridgeStatusEl.textContent = "stopped";
+    }
   }
 }
 
@@ -10439,10 +10732,10 @@ fpsSelect?.addEventListener("change", () => {
   closeToolbarPlaybackPopover();
 });
 
-autoloadMode?.addEventListener("change", () => {
+autoloadMode?.addEventListener("change", async () => {
   const nextMode = autoloadMode.value;
   if (state.autoload.running) {
-    stopAutoload();
+    await stopAutoload();
   }
   state.autoload.mode = nextMode;
   updateAutoloadUI();
@@ -10450,10 +10743,10 @@ autoloadMode?.addEventListener("change", () => {
   if (state.autoload.mode === "file") {
     loadFiles().catch((err) => console.error(err));
     if (state.autoload.watchEnabled) {
-      startAutoload();
+      startAutoload().catch((err) => console.error(err));
     }
   } else {
-    startAutoload();
+    startAutoload().catch((err) => console.error(err));
   }
 });
 
@@ -10496,6 +10789,14 @@ remoteIntervalInput?.addEventListener("change", () => {
   }
 });
 
+jfjochIntervalInput?.addEventListener("change", () => {
+  state.autoload.jfjochInterval = Math.max(100, Number(jfjochIntervalInput.value || 250));
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
+    startAutoload();
+  }
+});
+
 remoteSourceInput?.addEventListener("change", () => {
   state.autoload.remoteSourceId = (remoteSourceInput.value || "default").trim() || "default";
   persistAutoloadSettings();
@@ -10507,6 +10808,43 @@ remoteSourceInput?.addEventListener("change", () => {
     updateRemoteMetaUI({});
     schedulePeakOverlay();
     autoloadTick();
+  }
+});
+
+jfjochSourceInput?.addEventListener("change", () => {
+  state.autoload.jfjochSourceId = (jfjochSourceInput.value || "jungfraujoch").trim() || "jungfraujoch";
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
+    state.autoload.lastJfjochSeq = 0;
+    state.autoload.jfjochMeta = {};
+    analysisState.externalPeakSets = [];
+    updateJfjochMetaUI(state.autoload.jfjochMeta || {}, state.autoload.jfjochStatus || {});
+    schedulePeakOverlay();
+    autoloadTick();
+  }
+});
+
+jfjochEndpointInput?.addEventListener("change", () => {
+  state.autoload.jfjochEndpoint = (jfjochEndpointInput.value || "").trim();
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
+    startAutoload();
+  }
+});
+
+jfjochTopicInput?.addEventListener("change", () => {
+  state.autoload.jfjochTopic = (jfjochTopicInput.value || "").trim();
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
+    startAutoload();
+  }
+});
+
+jfjochChannelInput?.addEventListener("change", () => {
+  state.autoload.jfjochChannel = (jfjochChannelInput.value || "").trim();
+  persistAutoloadSettings();
+  if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
+    startAutoload();
   }
 });
 

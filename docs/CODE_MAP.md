@@ -32,7 +32,7 @@ This document is a practical navigation guide for contributors.
 - `backend/routes/analysis.py`:
   - Analysis and series-summing endpoints (`/api/analysis/*`).
 - `backend/routes/stream.py`:
-  - Single-image decoding, SIMPLON monitor/mask, remote stream ingest/latest/meta.
+  - Single-image decoding, SIMPLON monitor/mask, remote stream ingest/latest/meta, JUNGFRAUJOCH preview controls.
 
 ## Backend Services
 
@@ -44,6 +44,8 @@ This document is a practical navigation guide for contributors.
   - Series grouping/masking helpers used by summing workflows.
 - `backend/services/remote_stream.py`:
   - Remote frame decode, metadata normalization, in-memory stream snapshot logic.
+- `backend/services/jungfraujoch_preview.py`:
+  - ZeroMQ preview subscriber, CBOR/Stream2 decode, and mapping to remote snapshot metadata.
 - `backend/services/simplon.py`:
   - SIMPLON endpoint URL/mode helpers and monitor/mask fetch logic.
 

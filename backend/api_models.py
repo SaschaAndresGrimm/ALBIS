@@ -118,6 +118,35 @@ class RemoteMetaConflictResponse(_StrictModel):
     current_seq: int
 
 
+class JungfraujochPreviewStartRequest(_StrictModel):
+    endpoint: str
+    source_id: str = "jungfraujoch"
+    topic: str = ""
+    channel: str = ""
+
+
+class JungfraujochPreviewControlResponse(StatusResponse):
+    running: bool
+    source_id: str
+
+
+class JungfraujochPreviewStatusResponse(_StrictModel):
+    running: bool
+    endpoint: str = ""
+    source_id: str = "jungfraujoch"
+    topic: str = ""
+    channel: str = ""
+    started_at: float | None = None
+    last_message_at: float | None = None
+    last_frame_at: float | None = None
+    last_frame_seq: int = 0
+    ingested_frames: int = 0
+    series_number: int | None = None
+    image_number: int | None = None
+    display_name: str = ""
+    last_error: str = ""
+
+
 class FilesListResponse(_StrictModel):
     files: list[str]
 

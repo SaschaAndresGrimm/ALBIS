@@ -174,7 +174,13 @@ def _remote_parse_peak_sets(value: Any) -> list[dict[str, Any]]:
             color = "#4aa3ff"
         if not color.startswith("#"):
             color = f"#{color}"
-        cleaned_sets.append({"name": name, "color": color, "points": points})
+        style = str(item.get("style") or "").strip().lower()
+        if style and not re.fullmatch(r"[a-z0-9_-]{1,40}", style):
+            style = ""
+        entry: dict[str, Any] = {"name": name, "color": color, "points": points}
+        if style:
+            entry["style"] = style
+        cleaned_sets.append(entry)
     return cleaned_sets
 
 

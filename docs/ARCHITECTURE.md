@@ -22,6 +22,7 @@ Responsibilities:
 - Resolve and validate file/folder paths.
 - Read HDF5/TIFF/CBF frame data.
 - Ingest external frames through the Remote Stream API.
+- Bridge JUNGFRAUJOCH preview ZeroMQ streams into the Remote Stream cache.
 - Build dataset metadata (shape, dtype, thresholds, masks).
 - Execute analysis endpoints (ROI, rings parameters, peak finding helpers, series summing).
 - Handle monitor streaming and monitor mask fetching through SIMPLON.
@@ -42,6 +43,7 @@ Responsibilities:
 - Render overlays (ROI, peak markers, resolution rings, histogram, cursor info).
 - Manage menu interactions, keyboard shortcuts, panel behavior, and mobile gestures.
 - Poll backend endpoints and orchestrate data source modes (file, watch folder, monitor).
+- Poll backend endpoints and orchestrate data source modes (file, watch folder, monitor, JUNGFRAUJOCH preview).
 - Poll remote frame sources and apply pushed metadata/overlays (resolution + peak sets).
 
 Rendering layers:
@@ -97,6 +99,13 @@ Build scripts in `scripts/` generate platform-specific artifacts and include `ve
    - `GET /api/remote/v1/latest` for new frame bytes
    - `GET /api/remote/v1/meta` for enriched metadata (`peak_sets`, display fields)
 4. Frontend updates frame, ring parameters, remote metadata panel, and peak overlays.
+
+### JUNGFRAUJOCH preview flow
+
+1. Frontend switches mode to `JUNGFRAUJOCH Preview`.
+2. Backend starts a ZeroMQ SUB worker (`/api/jfjoch/preview/start`) and subscribes to preview PUB frames.
+3. Worker decodes CBOR image messages, maps `spots` to `peak_sets`, and stores snapshots per `source_id`.
+4. Frontend polls the existing Remote Stream endpoints (`/api/remote/v1/latest`, `/api/remote/v1/meta`) and renders frames/reflection overlays.
 
 ### Series summing flow
 
