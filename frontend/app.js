@@ -25,6 +25,7 @@ import { bindRoiControlInteractions } from "./modules/roi_controls_bindings.js";
 import { bindRoiPlotInteractions } from "./modules/roi_plot_bindings.js";
 import { bindViewportInteractions } from "./modules/viewport_bindings.js";
 import { bindHistogramDragInteractions } from "./modules/histogram_drag_bindings.js";
+import { bindOverviewInteractions } from "./modules/overview_bindings.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -357,13 +358,15 @@ let activeMenu = "file";
 let closeTimer = null;
 let overviewScheduled = false;
 let histogramScheduled = false;
-let overviewDragging = false;
-let overviewDragOffset = { x: 0, y: 0 };
 let overviewRect = null;
-let overviewDragMode = null;
-let overviewHandle = null;
-let overviewAnchor = null;
-let overviewResizeCenter = false;
+const overviewInteractionState = {
+  dragging: false,
+  dragOffset: { x: 0, y: 0 },
+  dragMode: null,
+  handle: null,
+  anchor: null,
+  resizeCenter: false,
+};
 let pixelOverlayScheduled = false;
 let sectionStateStore = {};
 let roiOverlayScheduled = false;
@@ -3572,8 +3575,8 @@ function getAnchorForHandle(view, handle, keepCenter) {
 }
 
 function resizeViewFromHandle(point, handle, keepCenter) {
-  if (!overviewAnchor || !state.width || !state.height) return;
-  const anchor = overviewAnchor;
+  if (!overviewInteractionState.anchor || !state.width || !state.height) return;
+  const anchor = overviewInteractionState.anchor;
   const aspect = canvasWrap.clientWidth / canvasWrap.clientHeight || 1;
   let width;
   let height;
@@ -10827,99 +10830,21 @@ bindRoiPlotInteractions({
   },
 });
 
-overviewCanvas?.addEventListener("pointerdown", (event) => {
-  if (!state.hasFrame) return;
-  const point = overviewEventToImage(event);
-  const overviewPoint = overviewEventToOverview(event);
-  const view = getViewRect();
-  if (!point || !overviewPoint || !view) return;
-
-  const handle = getOverviewHandleAt(overviewPoint);
-  if (handle) {
-    overviewDragMode = "resize";
-    overviewHandle = handle;
-    overviewResizeCenter = event.altKey;
-    overviewAnchor = getAnchorForHandle(view, handle, overviewResizeCenter);
-    overviewDragOffset = { x: 0, y: 0 };
-  } else {
-    overviewDragMode = "move";
-    overviewResizeCenter = false;
-    const inView =
-      point.x >= view.viewX &&
-      point.x <= view.viewX + view.viewW &&
-      point.y >= view.viewY &&
-      point.y <= view.viewY + view.viewH;
-    if (inView) {
-      const centerX = view.viewX + view.viewW / 2;
-      const centerY = view.viewY + view.viewH / 2;
-      overviewDragOffset = { x: point.x - centerX, y: point.y - centerY };
-    } else {
-      overviewDragOffset = { x: 0, y: 0 };
-    }
-  }
-
-  overviewDragging = true;
-  overviewCanvas.style.cursor = "";
-  overviewCanvas.classList.add("is-dragging");
-  overviewCanvas.setPointerCapture(event.pointerId);
-  if (overviewDragMode === "resize") {
-    resizeViewFromHandle(point, overviewHandle, overviewResizeCenter);
-  } else {
-    panToImageCenter(point.x - overviewDragOffset.x, point.y - overviewDragOffset.y);
-  }
-});
-
-overviewCanvas?.addEventListener("pointermove", (event) => {
-  if (!state.hasFrame) return;
-  if (!overviewDragging) {
-    const overviewPoint = overviewEventToOverview(event);
-    if (!overviewPoint) return;
-    const handle = getOverviewHandleAt(overviewPoint);
-    if (handle) {
-      overviewCanvas.style.cursor =
-        handle === "nw" || handle === "se" ? "nwse-resize" : "nesw-resize";
-    } else {
-      overviewCanvas.style.cursor = "";
-    }
-    return;
-  }
-  const point = overviewEventToImage(event);
-  if (!point) return;
-  if (overviewDragMode === "resize") {
-    resizeViewFromHandle(point, overviewHandle, overviewResizeCenter);
-  } else {
-    panToImageCenter(point.x - overviewDragOffset.x, point.y - overviewDragOffset.y);
-  }
-});
-
-function stopOverviewDrag(event) {
-  if (!overviewDragging) return;
-  overviewDragging = false;
-  overviewDragMode = null;
-  overviewHandle = null;
-  overviewAnchor = null;
-  overviewResizeCenter = false;
-  overviewCanvas?.classList.remove("is-dragging");
-  if (overviewCanvas) {
-    overviewCanvas.style.cursor = "";
-  }
-  if (event && overviewCanvas && overviewCanvas.hasPointerCapture(event.pointerId)) {
-    overviewCanvas.releasePointerCapture(event.pointerId);
-  }
-}
-
-overviewCanvas?.addEventListener("pointerup", (event) => {
-  stopOverviewDrag(event);
-});
-
-overviewCanvas?.addEventListener("pointercancel", (event) => {
-  stopOverviewDrag(event);
-});
-
-overviewCanvas?.addEventListener("pointerleave", () => {
-  if (!overviewDragging && overviewCanvas) {
-    overviewCanvas.style.cursor = "";
-  }
+bindOverviewInteractions({
+  state,
+  overviewState: overviewInteractionState,
+  elements: {
+    overviewCanvas,
+  },
+  callbacks: {
+    overviewEventToImage,
+    overviewEventToOverview,
+    getViewRect,
+    getOverviewHandleAt,
+    getAnchorForHandle,
+    resizeViewFromHandle,
+    panToImageCenter,
+  },
 });
 
 bindHistogramDragInteractions({
