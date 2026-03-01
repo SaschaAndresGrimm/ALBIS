@@ -39,6 +39,7 @@ import { buildCommandPaletteCommands } from "./modules/command_palette_commands.
 import { createUploadFlowController } from "./modules/upload_flow.js";
 import { createMenuActionHandler } from "./modules/menu_actions.js";
 import { createShortcutHandlers } from "./modules/shortcut_handlers.js";
+import { createFileOpenController } from "./modules/file_open_flow.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -4752,28 +4753,34 @@ async function openSeriesSumOutputTarget() {
   }
 }
 
-async function openPathInViewer(path, { refreshFileList = true } = {}) {
-  if (!path) return;
-  const folder = dirnameFromPath(path);
-  if (autoloadDir) autoloadDir.value = folder;
-  state.autoload.dir = folder;
-  state.file = path;
-  syncSeriesSumOutputPath();
-  if (refreshFileList) {
-    await loadFiles();
-  }
-  if (fileSelect) {
-    const existing = Array.from(fileSelect.options).some((opt) => opt.value === path);
-    if (!existing) {
-      fileSelect.appendChild(option(fileLabel(path), path));
-    }
-    fileSelect.value = path;
-  }
-  if (isHdfFile(path)) {
-    await loadDatasets();
-  } else {
-    await loadImageSeries(path);
-  }
+const fileOpenController = createFileOpenController({
+  apiBase: API,
+  state,
+  getBackendIsLocal: () => backendIsLocal,
+  elements: {
+    autoloadDir,
+    fileSelect,
+    fileInput,
+    filesystemMode,
+  },
+  callbacks: {
+    dirnameFromPath,
+    syncSeriesSumOutputPath,
+    loadFiles,
+    option,
+    fileLabel: (...args) => fileLabel(...args),
+    isHdfFile,
+    loadDatasets,
+    loadImageSeries,
+    closeMenu,
+    ensureFileMode,
+    setStatus,
+    openFileDialog: (...args) => openFileDialog(...args),
+  },
+});
+
+async function openPathInViewer(path, options = {}) {
+  await fileOpenController.openPathInViewer(path, options);
 }
 
 const uploadFlowController = createUploadFlowController({
@@ -4791,59 +4798,14 @@ const uploadFlowController = createUploadFlowController({
     setLoading,
     setStatus,
     loadFiles,
-    openPathInViewer,
+    openPathInViewer: (...args) => openPathInViewer(...args),
     fileLabel: (...args) => fileLabel(...args),
     fetchJSON,
   },
 });
 
 async function openFileModal() {
-  closeMenu();
-  await ensureFileMode();
-
-  // If backend is local, use native dialog
-  if (backendIsLocal) {
-    try {
-      const res = await fetch(`${API}/choose-file`);
-      if (res.status === 204) return;
-      if (!res.ok) {
-        setStatus("File picker unavailable");
-        return;
-      }
-      const data = await res.json();
-      const path = data?.path;
-      if (!path) return;
-      await openPathInViewer(path);
-      return;
-    } catch (err) {
-      console.error(err);
-      setStatus("File picker unavailable");
-      return;
-    }
-  } else if (filesystemMode?.value === "local") {
-    // Use HTML5 file input for local filesystem on remote backend
-    fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf";
-    fileInput.multiple = true;
-    fileInput.click();
-    return;
-  } else {
-    // Use web file browser for remote filesystem
-    try {
-      const selectedFile = await openFileDialog();
-      if (!selectedFile) return;
-      await openPathInViewer(selectedFile);
-      return;
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  // Fallback to HTML5 file input
-  if (fileInput) {
-    fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf";
-    fileInput.multiple = true;
-  }
-  fileInput?.click();
+  await fileOpenController.openFileModal();
 }
 
 async function uploadAndOpenSelectedFiles(selectedFiles) {
