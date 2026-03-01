@@ -287,6 +287,48 @@ export function createPostFilePickerBindingsCallbacks(callbacks) {
   };
 }
 
+export function createFileBrowserControllerContext({
+  apiBase,
+  elements,
+  callbacks,
+}) {
+  return {
+    apiBase,
+    browseModal: elements.browseModal,
+    browseBreadcrumb: elements.browseBreadcrumb,
+    browseFoldersList: elements.browseFoldersList,
+    browseFilesList: elements.browseFilesList,
+    browsePathInput: elements.browsePathInput,
+    browseStatus: elements.browseStatus,
+    browseSelectBtn: elements.browseSelectBtn,
+    browseCancelBtn: elements.browseCancelBtn,
+    browseCloseBtn: elements.browseCloseBtn,
+    filesystemModeEl: elements.filesystemMode,
+    openModal: callbacks.openModal,
+    closeModal: callbacks.closeModal,
+    setStatus: callbacks.setStatus,
+    onPathSelected: ({ mode, selectedPath }) => {
+      if (mode === "autoload") {
+        if (elements.autoloadDir) elements.autoloadDir.value = selectedPath;
+        const autoloadState = callbacks.getAutoloadState();
+        autoloadState.dir = selectedPath;
+        callbacks.persistAutoloadSettings();
+        if (autoloadState.mode === "file") {
+          callbacks.loadFiles().catch((err) => console.error(err));
+        }
+        if (autoloadState.running && autoloadState.mode === "file" && autoloadState.watchEnabled) {
+          callbacks.autoloadTick();
+        }
+      } else if (mode === "series-sum") {
+        const picked = selectedPath.replace(/[\\/]$/, "");
+        if (elements.seriesSumOutput) {
+          elements.seriesSumOutput.value = `${picked}/series_sum`;
+        }
+      }
+    },
+  };
+}
+
 export function createMainUiBindingsContext({
   state,
   elements,

@@ -61,6 +61,7 @@ import {
   createPostFilePickerBindingsElements,
   createPostFilePickerBindingsCallbacks,
   createPostFilePickerBindingsContext,
+  createFileBrowserControllerContext,
   createRuntimeBootstrapContext,
 } from "./modules/app_binding_contexts.js";
 import {
@@ -3248,46 +3249,41 @@ function initializeMainUiBindings() {
   );
 }
 
+const fileBrowserControllerContext = createFileBrowserControllerContext({
+  apiBase: API,
+  elements: {
+    browseModal,
+    browseBreadcrumb,
+    browseFoldersList,
+    browseFilesList,
+    browsePathInput,
+    browseStatus,
+    browseSelectBtn,
+    browseCancelBtn,
+    browseCloseBtn,
+    filesystemMode,
+    autoloadDir,
+    seriesSumOutput,
+  },
+  callbacks: {
+    openModal,
+    closeModal,
+    setStatus,
+    getAutoloadState: () => state.autoload,
+    persistAutoloadSettings,
+    loadFiles,
+    autoloadTick,
+  },
+});
+
 const {
   isBackendLocal: backendIsLocal,
   openFileBrowser,
   openFileDialog,
   closeFileBrowser,
   restoreFilesystemMode,
-} = createFileBrowserController({
-  apiBase: API,
-  browseModal,
-  browseBreadcrumb,
-  browseFoldersList,
-  browseFilesList,
-  browsePathInput,
-  browseStatus,
-  browseSelectBtn,
-  browseCancelBtn,
-  browseCloseBtn,
-  filesystemModeEl: filesystemMode,
-  openModal,
-  closeModal,
-  setStatus,
-  onPathSelected: ({ mode, selectedPath }) => {
-    if (mode === "autoload") {
-      if (autoloadDir) autoloadDir.value = selectedPath;
-      state.autoload.dir = selectedPath;
-      persistAutoloadSettings();
-      if (state.autoload.mode === "file") {
-        loadFiles().catch((err) => console.error(err));
-      }
-      if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-        autoloadTick();
-      }
-    } else if (mode === "series-sum") {
-      const picked = selectedPath.replace(/[\\/]$/, "");
-      if (seriesSumOutput) {
-        seriesSumOutput.value = `${picked}/series_sum`;
-      }
-    }
-  },
-});
+} = createFileBrowserController(fileBrowserControllerContext);
+
 initializeMainUiBindings();
 
 async function handleLocalFileSelection(mode) {
