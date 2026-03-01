@@ -23,7 +23,7 @@
     "lint:js": "eslint frontend/app.js frontend/modules/*.js"
   },
   "devDependencies": {
-    "eslint": "^9.20.1"
+    "eslint": "^10.0.2"
   },
   "engines": {
     "node": ">=20"
