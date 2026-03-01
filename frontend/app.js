@@ -26,6 +26,7 @@ import { bindRoiPlotInteractions } from "./modules/roi_plot_bindings.js";
 import { bindViewportInteractions } from "./modules/viewport_bindings.js";
 import { bindHistogramDragInteractions } from "./modules/histogram_drag_bindings.js";
 import { bindOverviewInteractions } from "./modules/overview_bindings.js";
+import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bindings.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -10926,48 +10927,6 @@ if (roiLogToggle) {
   roiState.log = roiLogToggle.checked;
 }
 updateRoiPlotLimitsEnabled();
-updateRingsFromInputs();
-
-function parsePositiveNumberInput(inputEl, hintEl, label) {
-  if (!inputEl) return null;
-  const raw = String(inputEl.value || "").trim();
-  if (!raw) {
-    setFieldHint(inputEl, hintEl, "");
-    return null;
-  }
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value <= 0) {
-    setFieldHint(inputEl, hintEl, `${label} must be greater than 0.`);
-    return null;
-  }
-  setFieldHint(inputEl, hintEl, "");
-  return value;
-}
-
-function validatePeaksCountInput(commit = false) {
-  if (!peaksCountInput) return null;
-  const raw = String(peaksCountInput.value || "").trim();
-  if (!raw) {
-    setFieldHint(peaksCountInput, peaksCountHint, "Enter a value from 1 to 1000.");
-    return null;
-  }
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) {
-    setFieldHint(peaksCountInput, peaksCountHint, "Enter a value from 1 to 1000.");
-    return null;
-  }
-  const rounded = Math.round(parsed);
-  const clamped = Math.max(1, Math.min(1000, rounded));
-  if (commit) {
-    peaksCountInput.value = String(clamped);
-  }
-  if ((clamped !== parsed || rounded !== parsed) && !commit) {
-    setFieldHint(peaksCountInput, peaksCountHint, "Using nearest integer in range 1-1000.");
-  } else {
-    setFieldHint(peaksCountInput, peaksCountHint, "");
-  }
-  return clamped;
-}
 
 function validateSeriesStepInput(commit = false) {
   if (!seriesSumStep) return 1;
@@ -10997,178 +10956,67 @@ function validateSeriesStepInput(commit = false) {
   }
   return normalized;
 }
-
-function updateRingsFromInputs() {
-  if (ringsToggle) {
-    analysisState.ringsEnabled = ringsToggle.checked;
-  }
-  analysisState.ringCount = Math.max(1, Math.min(DEFAULT_RING_COUNT, Math.max(1, ringInputs.length)));
-  if (ringsDistance) {
-    analysisState.distanceMm = parsePositiveNumberInput(ringsDistance, ringsDistanceHint, "Detector distance");
-  }
-  if (ringsPixel) {
-    analysisState.pixelSizeUm = parsePositiveNumberInput(ringsPixel, ringsPixelHint, "Pixel size");
-  }
-  if (ringsEnergy) {
-    analysisState.energyEv = parsePositiveNumberInput(ringsEnergy, ringsEnergyHint, "Photon energy");
-  }
-  if (ringsCenterX) {
-    const value = Number(ringsCenterX.value);
-    analysisState.centerX = Number.isFinite(value) ? value : analysisState.centerX;
-  }
-  if (ringsCenterY) {
-    const value = Number(ringsCenterY.value);
-    analysisState.centerY = Number.isFinite(value) ? value : analysisState.centerY;
-  }
-  if (ringInputs.length) {
-    analysisState.rings = ringInputs
-      .map((input, idx) => {
-        const value = Number(input.value || analysisState.rings[idx]);
-        return Number.isFinite(value) && value > 0 ? value : null;
-      })
-      .filter((value) => value !== null);
-  }
-  ringInputs.forEach((input, idx) => {
-    if (!input) return;
-    const visible = idx < analysisState.ringCount;
-    input.style.display = visible ? "" : "none";
-  });
-  updateRingsSectionState();
-  scheduleResolutionOverlay();
-}
-
-[ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ...ringInputs]
-  .filter(Boolean)
-  .forEach((input) => {
-    const eventName = input.type === "checkbox" ? "change" : "input";
-    input.addEventListener(eventName, updateRingsFromInputs);
-  });
-
-if (peaksCountInput) {
-  const initial = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || 25))));
-  analysisState.peakCount = initial;
-  peaksCountInput.value = String(initial);
-  setFieldHint(peaksCountInput, peaksCountHint, "");
-  peaksCountInput.addEventListener("input", () => {
-    validatePeaksCountInput(false);
-  });
-  peaksCountInput.addEventListener("change", () => {
-    const next = validatePeaksCountInput(true);
-    if (!Number.isFinite(next)) return;
-    analysisState.peakCount = next;
-    schedulePeakFinder();
-  });
-}
-
-if (peaksEnableToggle) {
-  analysisState.peaksEnabled = peaksEnableToggle.checked;
-  peaksEnableToggle.addEventListener("change", () => {
-    analysisState.peaksEnabled = peaksEnableToggle.checked;
-    if (!analysisState.peaksEnabled) {
-      analysisState.peakSelectionAnchor = null;
-    }
-    schedulePeakFinder();
-  });
-}
-
-peaksExportBtn?.addEventListener("click", () => {
-  exportPeakCsv();
-});
-
-if (seriesSumOutput && !seriesSumOutput.value.trim()) {
-  syncSeriesSumOutputPath(true);
-}
-
-seriesSumMode?.addEventListener("change", () => {
-  updateSeriesSumUi();
-});
-
-seriesSumOperation?.addEventListener("change", () => {
-  updateSeriesSumUi();
-});
-
-seriesSumNormalizeEnable?.addEventListener("change", () => {
-  updateSeriesSumUi();
-});
-
-seriesSumStep?.addEventListener("change", () => {
-  validateSeriesStepInput(true);
-});
-
-seriesSumStep?.addEventListener("input", () => {
-  validateSeriesStepInput(false);
-});
-
-seriesSumRangeStart?.addEventListener("change", () => {
-  const total = Math.max(1, Number(state.frameCount || 1));
-  const value = Math.max(1, Math.min(total, Math.round(Number(seriesSumRangeStart.value || 1))));
-  seriesSumRangeStart.value = String(value);
-});
-
-seriesSumRangeEnd?.addEventListener("change", () => {
-  const total = Math.max(1, Number(state.frameCount || 1));
-  const value = Math.max(1, Math.min(total, Math.round(Number(seriesSumRangeEnd.value || total))));
-  seriesSumRangeEnd.value = String(value);
-});
-
-seriesSumNormalizeFrame?.addEventListener("change", () => {
-  const total = Math.max(1, Number(state.frameCount || 1));
-  const value = Math.max(1, Math.min(total, Math.round(Number(seriesSumNormalizeFrame.value || 1))));
-  seriesSumNormalizeFrame.value = String(value);
-});
-
-seriesSumBrowse?.addEventListener("click", async () => {
-  if (state.seriesSum.running) return;
-  
-  // If backend is local, always use native dialog
-  if (backendIsLocal) {
-    try {
-      const res = await fetch(`${API}/choose-folder`);
-      if (res.status === 204) return;
-      if (!res.ok) {
-        setStatus("Series output picker unavailable");
-        return;
-      }
-      const data = await res.json();
-      if (data?.path && seriesSumOutput) {
-        const picked = String(data.path).replace(/[\\/]$/, "");
-        seriesSumOutput.value = `${picked}/series_sum`;
-      }
-    } catch (err) {
-      console.error(err);
-      setStatus("Series output picker failed");
-    }
-  } else if (filesystemMode?.value === "local") {
-    // Use HTML5 file input for local filesystem on remote backend
-    handleLocalFileSelection("series-sum");
-  } else {
-    // Use web browser for remote filesystem
-    openFileBrowser("series-sum", seriesSumOutput);
-  }
-});
-
-seriesSumProgress?.addEventListener("click", () => {
-  openSeriesSumOutputTarget();
-});
-
-seriesSumStart?.addEventListener("click", () => {
-  startSeriesSumming();
-});
-
-seriesSumCancel?.addEventListener("click", () => {
-  void cancelSeriesSumming();
+bindAnalysisControlInteractions({
+  apiBase: API,
+  state,
+  analysisState,
+  backendIsLocal,
+  constants: {
+    defaultRingCount: DEFAULT_RING_COUNT,
+  },
+  elements: {
+    ringsToggle,
+    ringsDistance,
+    ringsDistanceHint,
+    ringsPixel,
+    ringsPixelHint,
+    ringsEnergy,
+    ringsEnergyHint,
+    ringsCenterX,
+    ringsCenterY,
+    ringInputs,
+    peaksCountInput,
+    peaksCountHint,
+    peaksEnableToggle,
+    peaksExportBtn,
+    seriesSumOutput,
+    seriesSumMode,
+    seriesSumOperation,
+    seriesSumNormalizeEnable,
+    seriesSumStep,
+    seriesSumStepHint,
+    seriesSumRangeStart,
+    seriesSumRangeEnd,
+    seriesSumNormalizeFrame,
+    seriesSumBrowse,
+    filesystemMode,
+    seriesSumProgress,
+    seriesSumStart,
+    seriesSumCancel,
+    pixelLabelToggle,
+  },
+  callbacks: {
+    setFieldHint,
+    updateRingsSectionState,
+    scheduleResolutionOverlay,
+    schedulePeakFinder,
+    exportPeakCsv,
+    syncSeriesSumOutputPath,
+    updateSeriesSumUi,
+    validateSeriesStepInput,
+    setStatus,
+    handleLocalFileSelection,
+    openFileBrowser,
+    openSeriesSumOutputTarget,
+    startSeriesSumming,
+    cancelSeriesSumming,
+    schedulePixelOverlay,
+  },
 });
 
 renderPeakList();
 setSeriesSumProgress(0, "Idle");
 updateSeriesSumUi();
-if (pixelLabelToggle) {
-  state.pixelLabels = pixelLabelToggle.checked;
-  pixelLabelToggle.addEventListener("change", () => {
-    state.pixelLabels = pixelLabelToggle.checked;
-    schedulePixelOverlay();
-  });
-}
 try {
   const storedWidth = Number(localStorage.getItem("albis.panelWidth"));
   const storedCollapsed = localStorage.getItem("albis.panelCollapsed");
