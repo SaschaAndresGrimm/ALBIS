@@ -52,6 +52,7 @@ export function createRoiStatsController(ctx) {
     formatStat,
     formatRoiTick,
     PLOT_THEME,
+    setStatus,
   } = ctx;
 function setRoiText(el, value) {
   if (!el) return;
@@ -1008,6 +1009,68 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 
+function exportRoiCsv() {
+  if (!roiState.enabled || !roiState.active) {
+    setStatus("No ROI data to export");
+    return;
+  }
+  const sections = [];
+  const formatNum = (value) => (Number.isFinite(value) ? String(value) : "");
+
+  const addSection = (title, data, meta, allowEmpty = false) => {
+    if (!allowEmpty && (!data || !data.length)) return;
+    const xLabel = meta?.xLabel || "Index";
+    const yLabel = meta?.yLabel || "Value";
+    const xStart = Number.isFinite(meta?.xStart) ? meta.xStart : 0;
+    const xStep = Number.isFinite(meta?.xStep) && meta.xStep !== 0 ? meta.xStep : 1;
+    sections.push(`# ${title}`);
+    sections.push(`${xLabel},${yLabel}`);
+    if (data && data.length) data.forEach((value, idx) => {
+      const xVal = xStart + idx * xStep;
+      sections.push(`${formatNum(xVal)},${formatNum(value)}`);
+    });
+    sections.push("");
+  };
+
+  if (roiState.lineProfile && roiState.lineProfile.length) {
+    addSection(
+      roiState.mode === "line" ? "Line Profile" : "Radial Profile",
+      roiState.lineProfile,
+      roiLineCanvas?._roiPlotMeta,
+    );
+  }
+  const allowBoxEmpty = roiState.mode === "box";
+  if (roiState.xProjection && roiState.xProjection.length) {
+    addSection("X Projection", roiState.xProjection, roiXCanvas?._roiPlotMeta, allowBoxEmpty);
+  } else if (allowBoxEmpty) {
+    addSection("X Projection", roiState.xProjection || [], roiXCanvas?._roiPlotMeta, true);
+  }
+  if (roiState.yProjection && roiState.yProjection.length) {
+    addSection("Y Projection", roiState.yProjection, roiYCanvas?._roiPlotMeta, allowBoxEmpty);
+  } else if (allowBoxEmpty) {
+    addSection("Y Projection", roiState.yProjection || [], roiYCanvas?._roiPlotMeta, true);
+  }
+
+  if (!sections.length) {
+    setStatus("No ROI projection data to export");
+    return;
+  }
+
+  const base = (state.file || "roi").split("/").pop().replace(/\.[^.]+$/, "");
+  const thresholdSuffix = state.thresholdCount > 1 ? `_thr${state.thresholdIndex + 1}` : "";
+  const filename = `${base}_frame_${state.frameIndex + 1}${thresholdSuffix}_roi_${roiState.mode}.csv`;
+  const blob = new Blob([sections.join("\n")], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  setStatus(`Exported ROI CSV: ${filename}`);
+}
+
   return {
     updateRoiCenterInputs,
     applyRoiCenterFromInputs,
@@ -1029,5 +1092,6 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     updateRoiTooltip,
     updateRoiStats,
     drawRoiPlot,
+    exportRoiCsv,
   };
 }
