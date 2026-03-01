@@ -30,6 +30,8 @@ import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bin
 import { createHelpTooltipController } from "./modules/help_tooltips.js";
 import { bindChromeUiInteractions } from "./modules/chrome_bindings.js";
 import { finalizeRuntimeBootstrap, initializeUiDefaults } from "./modules/runtime_bootstrap.js";
+import { bindClientLogging } from "./modules/client_logging_bindings.js";
+import { bindWindowUiInteractions } from "./modules/window_bindings.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -513,30 +515,9 @@ async function flushClientLogs() {
   }
 }
 
-const originalConsoleError = console.error;
-const originalConsoleWarn = console.warn;
-console.error = (...args) => {
-  originalConsoleError(...args);
-  logClient("error", args.map(formatClientArg).join(" "));
-};
-console.warn = (...args) => {
-  originalConsoleWarn(...args);
-  logClient("warning", args.map(formatClientArg).join(" "));
-};
-
-window.addEventListener("error", (event) => {
-  logClient("error", event.message || "Unhandled error", {
-    source: event.filename,
-    line: event.lineno,
-    column: event.colno,
-    stack: event.error?.stack,
-  });
-});
-
-window.addEventListener("unhandledrejection", (event) => {
-  logClient("error", "Unhandled promise rejection", {
-    reason: formatClientArg(event.reason),
-  });
+bindClientLogging({
+  formatClientArg,
+  logClient,
 });
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
@@ -10602,25 +10583,26 @@ bindHistogramDragInteractions({
   },
 });
 
-exportBtn?.addEventListener("click", () => {
-  exportFullImage();
-});
-
-window.addEventListener("resize", () => {
-  if (state.hasFrame) {
-    setZoom(state.zoom);
-  }
-  updateToolbar();
-  if (state.histogram) drawHistogram(state.histogram);
-  drawSplash();
-  applyPanelState();
-  scheduleOverview();
-  scheduleHistogram();
-  schedulePixelOverlay();
-  scheduleRoiOverlay();
-  scheduleRoiUpdate();
-  scheduleResolutionOverlay();
-  schedulePeakOverlay();
+bindWindowUiInteractions({
+  state,
+  elements: {
+    exportBtn,
+  },
+  callbacks: {
+    exportFullImage,
+    setZoom,
+    updateToolbar,
+    drawHistogram,
+    drawSplash,
+    applyPanelState,
+    scheduleOverview,
+    scheduleHistogram,
+    schedulePixelOverlay,
+    scheduleRoiOverlay,
+    scheduleRoiUpdate,
+    scheduleResolutionOverlay,
+    schedulePeakOverlay,
+  },
 });
 
 initRenderer();
