@@ -43,6 +43,7 @@ import { createFileOpenController } from "./modules/file_open_flow.js";
 import { createSeriesSumController } from "./modules/series_sum_controller.js";
 import { createBackendStatusController } from "./modules/backend_status_controller.js";
 import { createJfjochBridgeController } from "./modules/jfjoch_bridge_controller.js";
+import { createRemoteStreamController } from "./modules/remote_stream_controller.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -5227,176 +5228,33 @@ async function fetchJfjochPreviewStatus() {
   return jfjochBridgeController.fetchJfjochPreviewStatus();
 }
 
-async function fetchRemoteMeta(sourceId, seq) {
-  if (!sourceId) return;
-  const params = new URLSearchParams({ source_id: sourceId });
-  if (Number.isFinite(seq) && seq > 0) {
-    params.set("seq", String(Math.round(seq)));
-  }
-  try {
-    const res = await fetch(`${API}/remote/v1/meta?${params.toString()}`, { cache: "no-store" });
-    if (res.status === 204 || !res.ok) {
-      return null;
-    }
-    const payload = await res.json();
-    if (!payload || typeof payload !== "object") return null;
-    const peakSets = Array.isArray(payload.peak_sets) ? payload.peak_sets : [];
-    const normalized = [];
-    peakSets.forEach((set, idx) => {
-      if (!set || typeof set !== "object") return;
-      const color = typeof set.color === "string" && set.color ? set.color : "#4aa3ff";
-      const name = typeof set.name === "string" && set.name ? set.name : `Set ${idx + 1}`;
-      const style = typeof set.style === "string" && set.style ? set.style : "";
-      const points = Array.isArray(set.points) ? set.points : [];
-      const list = [];
-      for (let i = 0; i < points.length; i += 1) {
-        const point = points[i];
-        if (!Array.isArray(point) || point.length < 2) continue;
-        const x = Number(point[0]);
-        const y = Number(point[1]);
-        const intensity = point.length > 2 ? Number(point[2]) : null;
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-        list.push({
-          x,
-          y,
-          intensity: Number.isFinite(intensity) ? intensity : null,
-        });
-      }
-      if (list.length) {
-        normalized.push({ name, color, style, points: list });
-      }
-    });
-    analysisState.externalPeakSets = normalized;
-    if (state.autoload.remoteMeta) {
-      state.autoload.remoteMeta.peakSets = normalized.length;
-      updateRemoteMetaUI(state.autoload.remoteMeta);
-    }
-    schedulePeakOverlay();
-    return { payload, normalized };
-  } catch (err) {
-    console.warn(err);
-    return null;
-  }
-}
+const remoteStreamController = createRemoteStreamController({
+  apiBase: API,
+  state,
+  analysisState,
+  callbacks: {
+    setAutoloadStatus,
+    updateLiveBadge,
+    updateAutoloadMeta,
+    schedulePeakOverlay,
+    updateRemoteMetaUI,
+    updateJfjochMetaUI,
+    startJfjochPreviewBridge: (...args) => startJfjochPreviewBridge(...args),
+    fetchJfjochPreviewStatus: (...args) => fetchJfjochPreviewStatus(...args),
+    parseDtype,
+    parseShape,
+    typedArrayFrom,
+    applyRemoteMeta,
+    applyExternalFrame,
+  },
+});
 
 async function autoloadJfjochTick() {
-  const endpoint = (state.autoload.jfjochEndpoint || "").trim();
-  if (!endpoint) {
-    setAutoloadStatus("JFJ: set preview endpoint");
-    updateLiveBadge();
-    return;
-  }
-  const sourceId = (state.autoload.jfjochSourceId || "jungfraujoch").trim() || "jungfraujoch";
-  const status = state.autoload.jfjochStatus || {};
-  const statusMismatch =
-    String(status.endpoint || endpoint) !== endpoint ||
-    String(status.source_id || sourceId) !== sourceId;
-  if (!status.running || statusMismatch) {
-    const started = await startJfjochPreviewBridge();
-    if (!started) {
-      updateLiveBadge();
-      return;
-    }
-  }
-
-  const params = new URLSearchParams({ source_id: sourceId });
-  if (state.autoload.lastJfjochSeq > 0) {
-    params.set("after_seq", String(state.autoload.lastJfjochSeq));
-  }
-  const res = await fetch(`${API}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
-  if (res.status === 204) {
-    await fetchJfjochPreviewStatus();
-    setAutoloadStatus("JFJ: waiting");
-    updateLiveBadge();
-    return;
-  }
-  if (!res.ok) {
-    await fetchJfjochPreviewStatus();
-    setAutoloadStatus("JFJ: error");
-    updateLiveBadge();
-    return;
-  }
-
-  const buffer = await res.arrayBuffer();
-  const dtype = parseDtype(res.headers.get("X-Dtype"));
-  const shape = parseShape(res.headers.get("X-Shape"));
-  const data = typedArrayFrom(buffer, dtype);
-  const remoteMeta = applyRemoteMeta(res.headers);
-  const seq = Number(remoteMeta.seq || 0);
-  const label =
-    remoteMeta.displayName ||
-    `JUNGFRAUJOCH preview (${sourceId})${Number.isFinite(seq) && seq > 0 ? ` #${seq}` : ""}`;
-  applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
-  if (Number.isFinite(seq) && seq > 0) {
-    if (seq !== state.autoload.lastJfjochSeq) {
-      state.autoload.lastJfjochSeq = seq;
-      const metaResult = await fetchRemoteMeta(sourceId, seq);
-      const payload = metaResult?.payload;
-      const normalized = Array.isArray(metaResult?.normalized) ? metaResult.normalized : [];
-      const totalPoints = normalized.reduce((sum, set) => sum + (set.points?.length || 0), 0);
-      const extra = payload?.extra && typeof payload.extra === "object" ? payload.extra : {};
-      state.autoload.jfjochMeta = {
-        source: sourceId,
-        seq,
-        series: payload?.series_number ?? remoteMeta.series,
-        image: payload?.image_number ?? remoteMeta.image,
-        date: payload?.image_datetime || remoteMeta.date || "",
-        reflections: totalPoints,
-        channel: typeof extra.channel === "string" ? extra.channel : "",
-      };
-    }
-  } else {
-    analysisState.externalPeakSets = [];
-    schedulePeakOverlay();
-  }
-  const latestStatus = await fetchJfjochPreviewStatus();
-  updateJfjochMetaUI(state.autoload.jfjochMeta || {}, latestStatus || state.autoload.jfjochStatus || {});
-  state.autoload.lastUpdate = Date.now();
-  updateAutoloadMeta();
-  setAutoloadStatus("JFJ: updated");
-  updateLiveBadge();
+  await remoteStreamController.autoloadJfjochTick();
 }
 
 async function autoloadRemoteTick() {
-  const sourceId = (state.autoload.remoteSourceId || "default").trim() || "default";
-  const params = new URLSearchParams({ source_id: sourceId });
-  if (state.autoload.lastRemoteSeq > 0) {
-    params.set("after_seq", String(state.autoload.lastRemoteSeq));
-  }
-  const res = await fetch(`${API}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
-  if (res.status === 204) {
-    setAutoloadStatus("Remote: waiting");
-    updateLiveBadge();
-    return;
-  }
-  if (!res.ok) {
-    setAutoloadStatus("Remote: error");
-    updateLiveBadge();
-    return;
-  }
-  const buffer = await res.arrayBuffer();
-  const dtype = parseDtype(res.headers.get("X-Dtype"));
-  const shape = parseShape(res.headers.get("X-Shape"));
-  const data = typedArrayFrom(buffer, dtype);
-  const remoteMeta = applyRemoteMeta(res.headers);
-  const seq = Number(remoteMeta.seq || 0);
-  const label =
-    remoteMeta.displayName ||
-    `Remote stream (${sourceId})${Number.isFinite(seq) && seq > 0 ? ` #${seq}` : ""}`;
-  applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
-  if (Number.isFinite(seq) && seq > 0) {
-    if (seq !== state.autoload.lastRemoteSeq) {
-      state.autoload.lastRemoteSeq = seq;
-      await fetchRemoteMeta(sourceId, seq);
-    }
-  } else {
-    analysisState.externalPeakSets = [];
-    schedulePeakOverlay();
-  }
-  state.autoload.lastUpdate = Date.now();
-  updateAutoloadMeta();
-  setAutoloadStatus("Remote: updated");
-  updateLiveBadge();
+  await remoteStreamController.autoloadRemoteTick();
 }
 
 async function loadAutoloadFile(file) {
