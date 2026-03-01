@@ -44,6 +44,8 @@ import { createOverlayRenderController } from "./modules/overlay_render_controll
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
 import { createRenderEngineController } from "./modules/render_engine_controller.js";
 import { createOverviewViewportController } from "./modules/overview_viewport_controller.js";
+import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
+import { createFrameMetadataController } from "./modules/frame_metadata_controller.js";
 import { initializePostFilePickerBindings } from "./modules/post_file_picker_bindings.js";
 import {
   getWebglUnsignedDtypeKey as getWebglUnsignedDtypeKeyUtil,
@@ -387,6 +389,8 @@ const browseCloseBtn = document.getElementById("browse-close");
 
 let renderer = null;
 let overviewViewportController = null;
+let framePlaybackController = null;
+let frameMetadataController = null;
 let activeMenu = "file";
 let closeTimer = null;
 let histogramScheduled = false;
@@ -588,9 +592,12 @@ function setStatus(text) {
 }
 
 function currentFrameStatusText() {
-  const total = Math.max(1, Number(state.frameCount) || 1);
-  const index = Math.max(0, Math.min(total - 1, Number(state.frameIndex) || 0));
-  return `Frame ${index + 1} / ${total}`;
+  if (!framePlaybackController) {
+    const total = Math.max(1, Number(state.frameCount) || 1);
+    const index = Math.max(0, Math.min(total - 1, Number(state.frameIndex) || 0));
+    return `Frame ${index + 1} / ${total}`;
+  }
+  return framePlaybackController.currentFrameStatusText();
 }
 
 function middleTruncate(text, maxChars) {
@@ -3026,70 +3033,23 @@ function stopMobilePanelDrag(event, cancelled = false) {
 }
 
 function stopPlayback() {
-  if (state.playTimer) {
-    window.clearInterval(state.playTimer);
-    state.playTimer = null;
-  }
-  state.playing = false;
-  updatePlayButtons();
+  framePlaybackController?.stopPlayback();
 }
 
 function updateFrameControls() {
-  const total = Math.max(1, state.frameCount || 1);
-  const displayValue = Math.max(1, Math.min(total, (state.frameIndex || 0) + 1));
-  if (frameRange) {
-    frameRange.min = "1";
-    frameRange.max = String(total);
-    frameRange.value = String(displayValue);
-    frameRange.disabled = total <= 1;
-  }
-  if (frameIndex) {
-    frameIndex.min = "1";
-    frameIndex.max = String(total);
-    frameIndex.value = String(displayValue);
-    frameIndex.disabled = total <= 1;
-  }
+  framePlaybackController?.updateFrameControls();
 }
 
 function startPlayback() {
-  if (state.playing || state.frameCount <= 1) return;
-  state.playing = true;
-  updatePlayButtons();
-  setLoading(false);
-  state.playTimer = window.setInterval(() => {
-    if (!state.playing) return;
-    const step = Math.max(1, state.step);
-    const next = (state.frameIndex + step) % state.frameCount;
-    requestFrame(next);
-  }, Math.max(1000 / state.fps, 50));
+  framePlaybackController?.startPlayback();
 }
 
 function processPendingFrameRequest(appliedFrame) {
-  if (state.pendingFrame === null) return;
-  const next = state.pendingFrame;
-  state.pendingFrame = null;
-  if (next !== state.frameIndex || !appliedFrame) {
-    requestFrame(next);
-  }
+  framePlaybackController?.processPendingFrameRequest(appliedFrame);
 }
 
 function requestFrame(index) {
-  const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
-  if (!state.frameCount || (!state.dataset && !hasSeries) || !state.file) return;
-  const clamped = Math.max(0, Math.min(state.frameCount - 1, index));
-  if (state.playing && isViewportInteractionActive()) {
-    state.pendingFrame = clamped;
-    return;
-  }
-  if (state.isLoading) {
-    state.pendingFrame = clamped;
-    cancelActiveFrameLoad();
-    return;
-  }
-  state.frameIndex = clamped;
-  updateFrameControls();
-  updateToolbar();
-  loadFrame();
+  framePlaybackController?.requestFrame(index);
 }
 
 function drawGlowDot(ctx, x, y, core, glow, rgb = "255,255,255") {
@@ -3841,20 +3801,7 @@ async function bootstrapApp() {
 }
 
 async function loadAutoloadFolders() {
-  if (!autoloadDirList) return;
-  try {
-    const data = await fetchJSON(`${API}/folders`);
-    const folders = Array.isArray(data.folders) ? data.folders : [];
-    const current = state.autoload.dir || autoloadDir.value || "";
-    autoloadDirList.innerHTML = "";
-    autoloadDirList.appendChild(option(".", ""));
-    folders.forEach((name) => autoloadDirList.appendChild(option(name, name)));
-    if (current && !folders.includes(current)) {
-      autoloadDirList.appendChild(option(current, current));
-    }
-  } catch (err) {
-    console.error(err);
-  }
+  await frameMetadataController?.loadAutoloadFolders();
 }
 
 const autoloadSettingsController = createAutoloadSettingsController({
@@ -4083,6 +4030,64 @@ async function autoloadJfjochTick() {
 async function autoloadRemoteTick() {
   await remoteStreamController.autoloadRemoteTick();
 }
+
+framePlaybackController = createFramePlaybackController({
+  state,
+  elements: {
+    frameRange,
+    frameIndex,
+  },
+  callbacks: {
+    updatePlayButtons,
+    setLoading,
+    isViewportInteractionActive,
+    cancelActiveFrameLoad,
+    updateToolbar,
+    loadFrame,
+  },
+});
+
+frameMetadataController = createFrameMetadataController({
+  apiBase: API,
+  state,
+  analysisState,
+  elements: {
+    autoloadDir,
+    autoloadDirList,
+    fileSelect,
+    metaShape,
+    metaDtype,
+    ringsDistance,
+    ringsPixel,
+    ringsEnergy,
+    ringsCenterX,
+    ringsCenterY,
+    ringInputs,
+  },
+  callbacks: {
+    fetchJSON,
+    option,
+    fileLabel,
+    setDataControlsForHdf5,
+    setDataSourceSectionState,
+    setStatus,
+    updateToolbar,
+    showSplash,
+    setSplashStatus,
+    setLoading,
+    showProcessingProgress,
+    hideProcessingProgress,
+    getDefaultThresholdIndex,
+    syncSeriesSumOutputPath,
+    updateFrameControls,
+    updateThresholdOptions,
+    loadMask,
+    loadFrame,
+    isHdf5File,
+    getDefaultCenter,
+    scheduleResolutionOverlay,
+  },
+});
 
 const fileDataPipelineController = createFileDataPipelineController({
   apiBase: API,
@@ -4667,54 +4672,7 @@ function initRenderer() {
 }
 
 async function loadFiles() {
-  setDataControlsForHdf5();
-  setDataSourceSectionState("loading", "Loading files…", true);
-  const folder = (autoloadDir?.value || state.autoload.dir || "").trim();
-  const url = folder ? `${API}/files?folder=${encodeURIComponent(folder)}` : `${API}/files`;
-  try {
-    const data = await fetchJSON(url);
-    fileSelect.innerHTML = "";
-    const existingFile = state.file;
-    if (data.files.length > 0) {
-      const placeholder = option("Select file…", "");
-      placeholder.disabled = true;
-      placeholder.selected = true;
-      fileSelect.appendChild(placeholder);
-      data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
-      if (existingFile) {
-        const hasExisting = data.files.includes(existingFile);
-        if (!hasExisting) {
-          fileSelect.appendChild(option(fileLabel(existingFile), existingFile));
-        }
-        fileSelect.value = existingFile;
-        setDataSourceSectionState("active", "File list loaded.");
-      } else {
-        state.file = "";
-        state.dataset = "";
-        setStatus("Select a file to begin");
-        updateToolbar();
-        showSplash();
-        setSplashStatus("Ready. Open a file to begin.");
-        setLoading(false);
-        setDataSourceSectionState("empty", "Select a file to begin.");
-      }
-      loadAutoloadFolders();
-    } else {
-      data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
-      if (!existingFile) {
-        setStatus("No image files found");
-        showSplash();
-        setSplashStatus("No image files found. Open a file to begin.");
-        setLoading(false);
-      }
-      setDataSourceSectionState("warning", "No image files found in this folder.");
-      loadAutoloadFolders();
-    }
-  } catch (err) {
-    console.error(err);
-    setStatus("Failed to load files");
-    setDataSourceSectionState("warning", "Failed to load file list.");
-  }
+  await frameMetadataController?.loadFiles();
 }
 
 async function loadDatasets() {
@@ -4722,88 +4680,7 @@ async function loadDatasets() {
 }
 
 async function loadMetadata() {
-  if (!state.file || !state.dataset) return;
-  showProcessingProgress("Loading metadata…");
-  setStatus("Loading metadata…");
-  setDataSourceSectionState("loading", "Loading dataset metadata…", true);
-  try {
-    state.maskAuto = true;
-    const data = await fetchJSON(
-      `${API}/metadata?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(state.dataset)}`
-    );
-    state.shape = data.shape;
-    state.dtype = data.dtype;
-    if (data.shape.length === 4) {
-      state.frameCount = data.shape[0];
-      state.thresholdCount = data.shape[1];
-      state.thresholdEnergies = Array.isArray(data.threshold_energies) ? data.threshold_energies : [];
-    } else {
-      state.frameCount = data.shape.length === 3 ? data.shape[0] : 1;
-      state.thresholdCount = 1;
-      state.thresholdEnergies = [];
-    }
-    state.thresholdIndex = getDefaultThresholdIndex();
-    state.frameIndex = 0;
-    syncSeriesSumOutputPath();
-    updateFrameControls();
-    updateThresholdOptions();
-    metaShape.textContent = data.shape.join(" × ");
-    metaDtype.textContent = data.dtype;
-    updateToolbar();
-    await loadAnalysisParams();
-    await loadMask(true);
-    await loadFrame();
-    setDataSourceSectionState("active", "Metadata ready.");
-  } catch (err) {
-    console.error(err);
-    setDataSourceSectionState("warning", "Failed to load metadata.");
-    throw err;
-  } finally {
-    hideProcessingProgress();
-  }
-}
-
-async function loadAnalysisParams() {
-  if (!state.file || !isHdf5File(state.file)) {
-    return;
-  }
-  try {
-    const data = await fetchJSON(
-      `${API}/analysis/params?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(
-        state.dataset || ""
-      )}`
-    );
-    if (Number.isFinite(data.distance_mm) && ringsDistance) {
-      analysisState.distanceMm = data.distance_mm;
-      ringsDistance.value = String(Math.round(data.distance_mm));
-    }
-    if (Number.isFinite(data.pixel_size_um) && ringsPixel) {
-      analysisState.pixelSizeUm = data.pixel_size_um;
-      ringsPixel.value = data.pixel_size_um.toFixed(2);
-    }
-    if (Number.isFinite(data.energy_ev) && ringsEnergy) {
-      analysisState.energyEv = data.energy_ev;
-      ringsEnergy.value = String(Math.round(data.energy_ev));
-    }
-    const fallback = getDefaultCenter();
-    const centerX = Number.isFinite(data.center_x_px) ? data.center_x_px : fallback.x;
-    const centerY = Number.isFinite(data.center_y_px) ? data.center_y_px : fallback.y;
-    analysisState.centerX = centerX;
-    analysisState.centerY = centerY;
-    if (ringsCenterX) ringsCenterX.value = Math.round(centerX).toString();
-    if (ringsCenterY) ringsCenterY.value = Math.round(centerY).toString();
-    if (ringInputs.length && ringInputs.every((input) => !input.value)) {
-      ringInputs.forEach((input, idx) => {
-        const value = analysisState.rings[idx] ?? "";
-        if (value) {
-          input.value = String(value);
-        }
-      });
-    }
-    scheduleResolutionOverlay();
-  } catch (err) {
-    console.error(err);
-  }
+  await frameMetadataController?.loadMetadata();
 }
 
 function parseShape(header) {
