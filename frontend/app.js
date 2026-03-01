@@ -51,6 +51,7 @@ import { createExportSplashController } from "./modules/export_splash_controller
 import { createChromeToolbarController } from "./modules/chrome_toolbar_controller.js";
 import { createPanelLayoutController } from "./modules/panel_layout_controller.js";
 import { createThresholdPlaybackController } from "./modules/threshold_playback_controller.js";
+import { createFileSessionController } from "./modules/file_session_controller.js";
 import { initializeMainUiBindings as initializeMainUiBindingsBootstrap } from "./modules/main_ui_bindings_bootstrap.js";
 import { initializePostFilePickerBindings } from "./modules/post_file_picker_bindings.js";
 import {
@@ -408,6 +409,7 @@ let chromeToolbarController = null;
 let panelLayoutController = null;
 let thresholdPlaybackController = null;
 let autoloadStatusController = null;
+let fileSessionController = null;
 let activeMenu = "file";
 let closeTimer = null;
 let histogramScheduled = false;
@@ -1981,6 +1983,47 @@ exportSplashController = createExportSplashController({
   },
 });
 
+fileSessionController = createFileSessionController({
+  state,
+  analysisState,
+  elements: {
+    fileSelect,
+    datasetSelect,
+    minInput,
+    maxInput,
+    metaShape,
+    metaDtype,
+    metaRange,
+    canvas,
+  },
+  callbacks: {
+    stopPlayback,
+    clearMaskState,
+    clearImageHeader,
+    updateToolbar,
+    setDataSourceSectionState,
+    setStatus,
+    setLoading,
+    hideUploadProgress,
+    hideProcessingProgress,
+    showSplash,
+    setSplashStatus,
+    updateInspectorHeaderVisibility,
+    updateFrameControls,
+    updateThresholdOptions,
+    applyCanvasTransform,
+    updatePanCapability,
+    clearHistogram,
+    renderPeakList,
+    schedulePeakOverlay,
+    syncSeriesSumOutputPath,
+    clearRoi,
+    updateRingsSectionState,
+    updatePeaksSectionState,
+    updatePlayButtons,
+  },
+});
+
 const backendStatusController = createBackendStatusController({
   apiBase: API,
   state,
@@ -3129,67 +3172,7 @@ function exportRoiCsv() {
 }
 
 function closeCurrentFile() {
-  stopPlayback();
-  state.file = "";
-  state.dataset = "";
-  state.shape = [];
-  state.dtype = "";
-  state.frameCount = 1;
-  state.frameIndex = 0;
-  state.thresholdCount = 1;
-  state.thresholdIndex = 0;
-  state.thresholdEnergies = [];
-  state.dataRaw = null;
-  state.dataFloat = null;
-  state.histogram = null;
-  state.stats = null;
-  state.hasFrame = false;
-  state.panOffsetX = 0;
-  state.panOffsetY = 0;
-  state.renderOffsetX = 0;
-  state.renderOffsetY = 0;
-  state.globalStats = null;
-  analysisState.peaks = [];
-  analysisState.selectedPeaks = [];
-  analysisState.peakSelectionAnchor = null;
-  clearMaskState();
-  clearImageHeader();
-  updateToolbar();
-  setDataSourceSectionState("empty", "No file loaded.");
-  setStatus("No file loaded");
-  setLoading(false);
-  hideUploadProgress();
-  hideProcessingProgress();
-  showSplash();
-  setSplashStatus("Ready. Open a file to begin.");
-  updateInspectorHeaderVisibility("");
-
-  fileSelect.selectedIndex = 0;
-  datasetSelect.innerHTML = "";
-  updateFrameControls();
-  updateThresholdOptions();
-  minInput.value = "";
-  maxInput.value = "";
-  metaShape.textContent = "-";
-  metaDtype.textContent = "-";
-  metaRange.textContent = "-";
-
-  canvas.width = 1;
-  canvas.height = 1;
-  const ctx = canvas.getContext("2d");
-  if (ctx) {
-    ctx.clearRect(0, 0, 1, 1);
-  }
-  applyCanvasTransform();
-  updatePanCapability();
-  clearHistogram();
-  renderPeakList();
-  schedulePeakOverlay();
-  syncSeriesSumOutputPath(true);
-  clearRoi();
-  updateRingsSectionState();
-  updatePeaksSectionState();
-  updatePlayButtons();
+  fileSessionController.closeCurrentFile();
 }
 
 function applyFrame(data, width, height, dtype) {
