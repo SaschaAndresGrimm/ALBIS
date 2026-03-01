@@ -13,10 +13,7 @@
 import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
-import { initErrorHandler, reportError } from "./modules/error_handler.js";
-
-// Initialize global error handling
-initErrorHandler();
+import { createFileBrowserController } from "./modules/file_browser.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -126,7 +123,6 @@ const resolutionOverlay = document.getElementById("resolution-overlay");
 const resolutionCtx = resolutionOverlay?.getContext("2d");
 const peakOverlay = document.getElementById("peak-overlay");
 const peakCtx = peakOverlay?.getContext("2d");
-const dataSection = document.getElementById("data-section");
 const autoloadMode = document.getElementById("autoload-mode");
 const filesystemMode = document.getElementById("filesystem-mode");
 const autoloadDir = document.getElementById("autoload-dir");
@@ -371,7 +367,6 @@ let roiPlotResizing = null; // Track which ROI plot is being resized
 let roiPlotResizeStart = { x: 0, y: 0, height: 0, container: null };
 let roiPlotPanning = null;
 let roiDragging = false;
-let roiDragPointer = null;
 let roiEditing = false;
 let roiEditHandle = null;
 let roiEditStart = null;
@@ -409,8 +404,6 @@ let commandPaletteIndex = 0;
 let html2canvasLoadPromise = null;
 let settingsModalBusy = false;
 let settingsRequestId = 0;
-let browseModalBusy = false;
-let browseRequestId = 0;
 let footerVersionPopoverOpen = false;
 let chromeIdleTimer = null;
 let chromeIdleActive = false;
@@ -5017,6 +5010,30 @@ async function openSeriesSumOutputTarget() {
   }
 }
 
+async function openPathInViewer(path, { refreshFileList = true } = {}) {
+  if (!path) return;
+  const folder = dirnameFromPath(path);
+  if (autoloadDir) autoloadDir.value = folder;
+  state.autoload.dir = folder;
+  state.file = path;
+  syncSeriesSumOutputPath();
+  if (refreshFileList) {
+    await loadFiles();
+  }
+  if (fileSelect) {
+    const existing = Array.from(fileSelect.options).some((opt) => opt.value === path);
+    if (!existing) {
+      fileSelect.appendChild(option(fileLabel(path), path));
+    }
+    fileSelect.value = path;
+  }
+  if (isHdfFile(path)) {
+    await loadDatasets();
+  } else {
+    await loadImageSeries(path);
+  }
+}
+
 async function openFileModal() {
   closeMenu();
   await ensureFileMode();
@@ -5033,24 +5050,7 @@ async function openFileModal() {
       const data = await res.json();
       const path = data?.path;
       if (!path) return;
-      const folder = dirnameFromPath(path);
-      if (autoloadDir) autoloadDir.value = folder;
-      state.autoload.dir = folder;
-      state.file = path;
-      syncSeriesSumOutputPath();
-      await loadFiles();
-      if (fileSelect) {
-        const existing = Array.from(fileSelect.options).some((opt) => opt.value === path);
-        if (!existing) {
-          fileSelect.appendChild(option(fileLabel(path), path));
-        }
-        fileSelect.value = path;
-      }
-      if (isHdfFile(path)) {
-        await loadDatasets();
-      } else {
-        await loadImageSeries(path);
-      }
+      await openPathInViewer(path);
       return;
     } catch (err) {
       console.error(err);
@@ -5068,25 +5068,7 @@ async function openFileModal() {
     try {
       const selectedFile = await openFileDialog();
       if (!selectedFile) return;
-      
-      const folder = dirnameFromPath(selectedFile);
-      if (autoloadDir) autoloadDir.value = folder;
-      state.autoload.dir = folder;
-      state.file = selectedFile;
-      syncSeriesSumOutputPath();
-      await loadFiles();
-      if (fileSelect) {
-        const existing = Array.from(fileSelect.options).some((opt) => opt.value === selectedFile);
-        if (!existing) {
-          fileSelect.appendChild(option(fileLabel(selectedFile), selectedFile));
-        }
-        fileSelect.value = selectedFile;
-      }
-      if (isHdfFile(selectedFile)) {
-        await loadDatasets();
-      } else {
-        await loadImageSeries(selectedFile);
-      }
+      await openPathInViewer(selectedFile);
       return;
     } catch (err) {
       console.error(err);
@@ -5160,13 +5142,7 @@ async function uploadAndOpenSelectedFiles(selectedFiles) {
     const openTarget = uploadedTargets[0];
     if (openTarget) {
       setStatus(`Opening ${fileLabel(openTarget)}…`);
-      state.file = openTarget;
-      if (fileSelect) fileSelect.value = openTarget;
-      if (isHdfFile(openTarget)) {
-        await loadDatasets();
-      } else {
-        await loadImageSeries(openTarget);
-      }
+      await openPathInViewer(openTarget, { refreshFileList: false });
     }
   } catch (err) {
     console.error(err);
@@ -5218,17 +5194,6 @@ function hideProcessingProgress() {
   if (!uploadBar.classList.contains("is-active")) return;
   uploadBar.classList.remove("is-active");
   uploadBar.setAttribute("aria-hidden", "true");
-}
-
-function flashDataSection() {
-  if (!dataSection) return;
-  setPanelTab("data");
-  if (dataSection.classList.contains("is-collapsed")) {
-    setSectionState(dataSection, false);
-  }
-  dataSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  dataSection.classList.add("flash");
-  window.setTimeout(() => dataSection.classList.remove("flash"), 800);
 }
 
 function setPanelTab(tabId, persist = true) {
@@ -5294,6 +5259,9 @@ function formatTimeStamp(ts) {
 }
 
 function setAutoloadStatus(text, markUpdate = false) {
+  if (text) {
+    setStatus(String(text));
+  }
   if (markUpdate) {
     state.autoload.lastUpdate = Date.now();
   }
@@ -5301,7 +5269,7 @@ function setAutoloadStatus(text, markUpdate = false) {
   updateLiveBadge();
 }
 
-function setAutoloadLatest(text) {
+function setAutoloadLatest() {
   updateAutoloadMeta();
 }
 
@@ -6157,7 +6125,6 @@ async function autoloadRemoteTick() {
 async function loadAutoloadFile(file) {
   const lower = file.toLowerCase();
   if (lower.endsWith(".h5") || lower.endsWith(".hdf5")) {
-    const wasFile = state.file;
     state.file = file;
     if (fileSelect) {
       const existing = Array.from(fileSelect.options).some((opt) => opt.value === file);
@@ -6334,18 +6301,6 @@ async function fetchSimplonMask() {
   }
 }
 
-function exportFrame(filenameOverride) {
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    const name = filenameOverride || `frame_${state.frameIndex}.png`;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-}
-
 function downloadCanvasImage(sourceCanvas, filename) {
   sourceCanvas.toBlob((blob) => {
     if (!blob) return;
@@ -6387,7 +6342,7 @@ function renderRegionToCanvas(region) {
     for (let col = 0; col < width; col += 1) {
       const imgX = x + col;
       const idx = rowOffset + imgX;
-      let v = state.dataRaw[idx];
+      const v = state.dataRaw[idx];
       if (maskReady && maskData) {
         const maskValue = maskData[idx];
         if (maskValue & 1) {
@@ -7944,7 +7899,7 @@ function createCpuRenderer() {
       const out = imageData.data;
       const maxIdx = getPaletteColorCount(palette) - 1;
       for (let i = 0; i < data.length; i += 1) {
-        let v = data[i];
+        const v = data[i];
         if (maskEnabled && mask && mask.length === data.length) {
           const maskValue = mask[i];
           if (maskValue & 1) {
@@ -8827,7 +8782,7 @@ function mapValueToNorm(value) {
   const minVal = Number.isFinite(state.min) ? state.min : 0;
   const maxVal = Number.isFinite(state.max) ? state.max : minVal + 1;
   const range = maxVal - minVal || 1;
-  let t = (value - minVal) / range;
+  const t = (value - minVal) / range;
   let norm = 0;
   if (state.colormap === "albulaHdr") {
     norm = mapAlbulaHdrToNorm(value, minVal, maxVal);
@@ -10432,7 +10387,8 @@ async function loadFrame() {
   processPendingFrameRequest(appliedFrame);
 }
 
-applyPlatformShortcutLabels();
+function initializeMainUiBindings() {
+  applyPlatformShortcutLabels();
 
 menuButtons.forEach((btn) => {
   btn.addEventListener("mouseenter", () => {
@@ -10869,334 +10825,51 @@ autoloadPattern?.addEventListener("change", () => {
     autoloadTick();
   }
 });
-
-// File browser modal state and logic
-let fileBrowserState = {
-  currentPath: "",
-  selectedPath: "",
-  selectedType: "",
-  mode: null, // "autoload", "series-sum", or "file-open"
-  inputElement: null,
-  filesystemMode: "local", // "local" or "remote" (default to local)
-};
-
-// Detect if backend and frontend are on the same machine
-function isBackendLocal() {
-  try {
-    const url = new URL(API, window.location.href);
-    const hostname = url.hostname.toLowerCase();
-    return (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "[::1]" ||
-      hostname === "::1"
-    );
-  } catch {
-    return false;
-  }
 }
 
-const backendIsLocal = isBackendLocal();
-
-function setBrowseStatus(text = "", { isError = false, isLoading = false } = {}) {
-  if (!browseStatus) return;
-  browseStatus.textContent = text || "";
-  browseStatus.classList.toggle("is-error", Boolean(isError));
-  browseStatus.classList.toggle("is-loading", Boolean(isLoading));
-}
-
-function canConfirmBrowseSelection() {
-  if (fileBrowserState.mode === "file-open") {
-    return fileBrowserState.selectedType === "file" && Boolean(fileBrowserState.selectedPath);
-  }
-  return true;
-}
-
-function syncBrowseSelectState() {
-  if (!browseSelectBtn) return;
-  browseSelectBtn.disabled = browseModalBusy || !canConfirmBrowseSelection();
-}
-
-function setBrowseModalBusy(isBusy, statusText = "") {
-  browseModalBusy = Boolean(isBusy);
-  browseModal?.setAttribute("aria-busy", browseModalBusy ? "true" : "false");
-  browseBreadcrumb?.classList.toggle("is-loading", browseModalBusy);
-  browseFoldersList?.classList.toggle("is-loading", browseModalBusy);
-  browseFilesList?.classList.toggle("is-loading", browseModalBusy);
-  if (statusText) {
-    setBrowseStatus(statusText, { isLoading: browseModalBusy });
-  } else if (!browseModalBusy && browseStatus?.classList.contains("is-loading")) {
-    setBrowseStatus("");
-  }
-  syncBrowseSelectState();
-}
-
-function persistFilesystemMode(mode) {
-  if (mode !== "local" && mode !== "remote") return;
-  try {
-    localStorage.setItem("albis.filesystemMode", mode);
-  } catch {
-    // ignore storage errors
-  }
-}
-
-function restoreFilesystemMode() {
-  if (!filesystemMode || backendIsLocal) return;
-  try {
-    const stored = localStorage.getItem("albis.filesystemMode");
-    if (stored === "local" || stored === "remote") {
-      filesystemMode.value = stored;
-    }
-  } catch {
-    // ignore storage errors
-  }
-}
-
-async function loadBrowseDirectory(path) {
-  try {
-    const query = path ? `?path=${encodeURIComponent(path)}` : "";
-    const res = await fetch(`${API}/browse${query}`);
-    if (!res.ok) {
-      console.error("Failed to browse directory:", res.status);
-      return null;
-    }
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error("Browse directory error:", err);
-    return null;
-  }
-}
-
-function renderBrowseContent(data) {
-  if (!data) return;
-
-  fileBrowserState.currentPath = data.currentPath || "";
-  if (fileBrowserState.mode === "file-open") {
-    fileBrowserState.selectedPath = "";
-    fileBrowserState.selectedType = "";
-    browsePathInput.value = fileBrowserState.currentPath;
-  } else {
-    fileBrowserState.selectedPath = fileBrowserState.currentPath;
-    fileBrowserState.selectedType = "folder";
-    browsePathInput.value = fileBrowserState.selectedPath;
-  }
-
-  // Update breadcrumb
-  browseBreadcrumb.innerHTML = "";
-  const rootBtn = document.createElement("button");
-  rootBtn.className = "breadcrumb-btn";
-  rootBtn.textContent = "Root";
-  rootBtn.dataset.path = "";
-  if (data.currentPath === "") {
-    rootBtn.classList.add("is-active");
-  }
-  rootBtn.addEventListener("click", () => loadAndRenderBrowser(""));
-  browseBreadcrumb.appendChild(rootBtn);
-
-  if (data.currentPath && data.currentPath !== "") {
-    const parts = data.currentPath.split("/");
-    let accumulated = "";
-    for (const part of parts) {
-      accumulated = accumulated ? `${accumulated}/${part}` : part;
-      const btn = document.createElement("button");
-      btn.className = "breadcrumb-btn";
-      btn.textContent = part;
-      btn.dataset.path = accumulated;
-      if (accumulated === data.currentPath) {
-        btn.classList.add("is-active");
+const {
+  isBackendLocal: backendIsLocal,
+  openFileBrowser,
+  openFileDialog,
+  closeFileBrowser,
+  restoreFilesystemMode,
+} = createFileBrowserController({
+  apiBase: API,
+  browseModal,
+  browseBreadcrumb,
+  browseFoldersList,
+  browseFilesList,
+  browsePathInput,
+  browseStatus,
+  browseSelectBtn,
+  browseCancelBtn,
+  browseCloseBtn,
+  filesystemModeEl: filesystemMode,
+  openModal,
+  closeModal,
+  setStatus,
+  onPathSelected: ({ mode, selectedPath }) => {
+    if (mode === "autoload") {
+      if (autoloadDir) autoloadDir.value = selectedPath;
+      state.autoload.dir = selectedPath;
+      persistAutoloadSettings();
+      if (state.autoload.mode === "file") {
+        loadFiles().catch((err) => console.error(err));
       }
-      btn.addEventListener("click", () => loadAndRenderBrowser(accumulated));
-      browseBreadcrumb.appendChild(btn);
+      if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
+        autoloadTick();
+      }
+    } else if (mode === "series-sum") {
+      const picked = selectedPath.replace(/[\\/]$/, "");
+      if (seriesSumOutput) {
+        seriesSumOutput.value = `${picked}/series_sum`;
+      }
     }
-  }
-
-  // Render folders
-  browseFoldersList.innerHTML = "";
-  if (data.folders && data.folders.length > 0) {
-    for (const folder of data.folders) {
-      const btn = document.createElement("button");
-      btn.className = "browse-item";
-      btn.textContent = folder;
-      btn.addEventListener("click", () => {
-        const newPath = fileBrowserState.currentPath
-          ? `${fileBrowserState.currentPath}/${folder}`
-          : folder;
-        loadAndRenderBrowser(newPath);
-      });
-      browseFoldersList.appendChild(btn);
-    }
-  } else {
-    const empty = document.createElement("div");
-    empty.className = "browse-empty";
-    empty.textContent = "No folders";
-    browseFoldersList.appendChild(empty);
-  }
-
-  // Render files
-  browseFilesList.innerHTML = "";
-  if (data.files && data.files.length > 0) {
-    for (const file of data.files) {
-      const btn = document.createElement("button");
-      btn.className = "browse-item";
-      btn.textContent = file;
-      btn.addEventListener("click", () => {
-        fileBrowserState.selectedPath = fileBrowserState.currentPath
-          ? `${fileBrowserState.currentPath}/${file}`
-          : file;
-        fileBrowserState.selectedType = "file";
-        browsePathInput.value = fileBrowserState.selectedPath;
-        document.querySelectorAll(".browse-item.is-selected").forEach((el) => {
-          el.classList.remove("is-selected");
-        });
-        btn.classList.add("is-selected");
-        syncBrowseSelectState();
-      });
-      browseFilesList.appendChild(btn);
-    }
-  } else {
-    const empty = document.createElement("div");
-    empty.className = "browse-empty";
-    empty.textContent = "No image files";
-    browseFilesList.appendChild(empty);
-  }
-  syncBrowseSelectState();
-}
-
-async function loadAndRenderBrowser(path) {
-  const requestId = ++browseRequestId;
-  const label = path || "Root";
-  setBrowseModalBusy(true, `Loading ${label}...`);
-  try {
-    const data = await loadBrowseDirectory(path);
-    if (requestId !== browseRequestId) return;
-    if (data) {
-      renderBrowseContent(data);
-      setBrowseStatus("");
-    } else {
-      setBrowseStatus("Failed to load directory.", { isError: true });
-    }
-  } finally {
-    if (requestId === browseRequestId) {
-      setBrowseModalBusy(false);
-    }
-  }
-}
-
-let fileDialogPromise = null;
-
-function settleFileDialog(selection = "") {
-  if (!fileDialogPromise) return;
-  const pending = fileDialogPromise;
-  fileDialogPromise = null;
-  pending.resolve(selection);
-}
-
-function rejectFileDialog(error) {
-  if (!fileDialogPromise) return;
-  const pending = fileDialogPromise;
-  fileDialogPromise = null;
-  pending.reject(error instanceof Error ? error : new Error(String(error || "File dialog failed")));
-}
-
-function openFileBrowser(mode, inputElement) {
-  fileBrowserState.mode = mode;
-  fileBrowserState.inputElement = inputElement;
-  fileBrowserState.currentPath = "";
-  fileBrowserState.selectedPath = "";
-  fileBrowserState.selectedType = "";
-  openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
-  setBrowseModalBusy(true, "Loading Root...");
-  loadAndRenderBrowser("").catch((err) => console.error(err));
-}
-
-function openFileDialog() {
-  return new Promise((resolve, reject) => {
-    settleFileDialog("");
-    fileDialogPromise = { resolve, reject };
-    fileBrowserState.mode = "file-open";
-    fileBrowserState.inputElement = null;
-    fileBrowserState.currentPath = "";
-    fileBrowserState.selectedPath = "";
-    fileBrowserState.selectedType = "";
-    openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
-    setBrowseModalBusy(true, "Loading Root...");
-    loadAndRenderBrowser("").catch((err) => {
-      closeFileBrowser({ cancelDialog: false });
-      rejectFileDialog(err);
-    });
-  });
-}
-
-function closeFileBrowser({ restoreFocus = true, cancelDialog = true } = {}) {
-  browseRequestId += 1;
-  setBrowseModalBusy(false);
-  setBrowseStatus("");
-  closeModal(browseModal, { restoreFocus });
-  if (cancelDialog && fileBrowserState.mode === "file-open") {
-    settleFileDialog("");
-  }
-}
-
-browseSelectBtn?.addEventListener("click", () => {
-  const selected = fileBrowserState.selectedPath;
-
-  // Handle file open dialog mode
-  if (fileBrowserState.mode === "file-open") {
-    if (!selected || fileBrowserState.selectedType !== "file") {
-      setStatus("Select an image file first");
-      return;
-    }
-    closeFileBrowser({ cancelDialog: false });
-    settleFileDialog(selected);
-    return;
-  }
-
-  // Handle folder/path selection modes
-  if (!fileBrowserState.inputElement) {
-    closeFileBrowser();
-    return;
-  }
-
-  if (!selected) {
-    setStatus("No file selected");
-    return;
-  }
-
-  if (fileBrowserState.mode === "autoload") {
-    autoloadDir.value = selected;
-    state.autoload.dir = selected;
-    persistAutoloadSettings();
-    if (state.autoload.mode === "file") {
-      loadFiles().catch((err) => console.error(err));
-    }
-    if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-      autoloadTick();
-    }
-  } else if (fileBrowserState.mode === "series-sum") {
-    const picked = selected.replace(/[\\/]$/, "");
-    seriesSumOutput.value = `${picked}/series_sum`;
-  }
-
-  closeFileBrowser();
+  },
 });
+initializeMainUiBindings();
 
-browseCancelBtn?.addEventListener("click", closeFileBrowser);
-browseCloseBtn?.addEventListener("click", closeFileBrowser);
-
-browseModal?.addEventListener("click", (event) => {
-  if (event.target === browseModal || event.target.classList?.contains("modal-backdrop")) {
-    closeFileBrowser();
-  }
-});
-
-// Handle filesystem mode selection
-filesystemMode?.addEventListener("change", () => {
-  fileBrowserState.filesystemMode = filesystemMode.value;
-  persistFilesystemMode(fileBrowserState.filesystemMode);
-});
-
-async function handleLocalFileSelection(mode, inputElement) {
+async function handleLocalFileSelection(mode) {
   fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf";
   fileInput.onchange = (event) => {
     const file = event.target.files?.[0];
@@ -11245,7 +10918,7 @@ autoloadBrowse?.addEventListener("click", async () => {
     }
   } else if (filesystemMode?.value === "local") {
     // Use HTML5 file input for local filesystem on remote backend
-    handleLocalFileSelection("autoload", autoloadDir);
+    handleLocalFileSelection("autoload");
   } else {
     // Use web browser for remote filesystem
     openFileBrowser("autoload", autoloadDir);
@@ -11305,7 +10978,6 @@ roiEnableToggle?.addEventListener("change", () => {
   roiState.enabled = Boolean(roiEnableToggle.checked);
   if (!roiState.enabled) {
     roiDragging = false;
-    roiDragPointer = null;
     stopRoiEdit();
     canvasWrap?.classList.remove("is-roi");
   } else {
@@ -11677,286 +11349,288 @@ if (storedPanelTab) {
   setPanelTab("view", false);
 }
 
-panelResizer?.addEventListener("mousedown", (event) => {
-  if (!appLayout) return;
-  if (state.panelCollapsed) {
-    state.panelCollapsed = false;
-    applyPanelState();
-  }
-  const startX = event.clientX;
-  const startWidth = toolsPanel?.getBoundingClientRect().width || state.panelWidth;
-  function onMove(e) {
-    const delta = startX - e.clientX;
-    setPanelWidth(startWidth + delta);
-    scheduleHistogram();
-  }
-  function onUp(e) {
-    const delta = startX - e.clientX;
-    const finalWidth = startWidth + delta;
-    if (finalWidth < 140) {
-      state.panelCollapsed = true;
+function initializeViewportInteractionBindings() {
+  panelResizer?.addEventListener("mousedown", (event) => {
+    if (!appLayout) return;
+    if (state.panelCollapsed) {
+      state.panelCollapsed = false;
+      applyPanelState();
     }
-    applyPanelState();
-    window.removeEventListener("mousemove", onMove);
-    window.removeEventListener("mouseup", onUp);
-    document.body.style.cursor = "";
-  }
-  document.body.style.cursor = "col-resize";
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp);
-});
-
-canvasWrap.addEventListener(
-  "wheel",
-  (event) => {
-    event.preventDefault();
-    deferViewportInteraction();
-    const delta = normalizeWheelDelta(event);
-    if (!delta) return;
-    const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
-    const factor = Math.exp(-delta * 0.002);
-    const minZoom = getMinZoom();
-    zoomWheelTarget = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
-    zoomWheelPivot = { x: event.clientX, y: event.clientY };
-    if (!zoomWheelRaf) {
-      zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
+    const startX = event.clientX;
+    const startWidth = toolsPanel?.getBoundingClientRect().width || state.panelWidth;
+    function onMove(e) {
+      const delta = startX - e.clientX;
+      setPanelWidth(startWidth + delta);
+      scheduleHistogram();
     }
-  },
-  { passive: false }
-);
-
-canvasWrap.addEventListener("scroll", () => {
-  deferViewportInteraction();
-  scheduleOverview();
-  schedulePixelOverlay();
-  scheduleRoiOverlay();
-  scheduleResolutionOverlay();
-  schedulePeakOverlay();
-});
-
-canvasWrap.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
-});
-
-canvasWrap.addEventListener(
-  "touchstart",
-  (event) => {
-    if (event.touches.length >= 2) {
-      // Multi-touch: pinch/zoom gesture
-      stopTouchDrag();
-      startTouchGesture(event.touches);
-      event.preventDefault();
-    } else if (event.touches.length === 1) {
-      // Single touch: prepare for dragging
-      const touch = event.touches[0];
-      touchDragStart = {
-        x: touch.clientX,
-        y: touch.clientY,
-        effectiveLeft: getEffectiveScrollLeft(),
-        effectiveTop: getEffectiveScrollTop(),
-      };
-      touchDragActive = true;
-    }
-  },
-  { passive: false }
-);
-
-canvasWrap.addEventListener(
-  "touchmove",
-  (event) => {
-    if (event.touches.length >= 2) {
-      // Multi-touch: continue zoom gesture
-      if (!touchGestureActive) return;
-      updateTouchGesture(event.touches);
-      event.preventDefault();
-      return;
-    }
-
-    if (event.touches.length === 1 && touchDragActive && touchDragStart) {
-      // Single touch drag: pan the canvas
-      deferViewportInteraction();
-      const touch = event.touches[0];
-      const dx = touch.clientX - touchDragStart.x;
-      const dy = touch.clientY - touchDragStart.y;
-      const nextEffectiveX = touchDragStart.effectiveLeft - dx;
-      const nextEffectiveY = touchDragStart.effectiveTop - dy;
-      setEffectiveScroll(nextEffectiveX, nextEffectiveY);
-      event.preventDefault();
-    }
-  },
-  { passive: false }
-);
-
-canvasWrap.addEventListener("touchend", (event) => {
-  if (event.touches.length >= 2) {
-    startTouchGesture(event.touches);
-    return;
-  }
-  stopTouchGesture();
-  stopTouchDrag();
-});
-
-canvasWrap.addEventListener("touchcancel", () => {
-  stopTouchGesture();
-  stopTouchDrag();
-});
-
-function stopTouchDrag() {
-  touchDragActive = false;
-  touchDragStart = null;
-}
-
-canvasWrap.addEventListener("pointerdown", (event) => {
-  if (event.pointerType === "touch") return;
-  const isRightClick = event.button === 2 || event.buttons === 2 || event.which === 3;
-  const isCtrlClick = event.button === 0 && event.ctrlKey;
-  const roiTrigger = roiState.enabled && (isRightClick || isCtrlClick);
-  if (roiTrigger) {
-    const point = getImagePointFromEvent(event);
-    if (!point) return;
-    roiDragging = true;
-    roiDragPointer = event.pointerId;
-    roiState.active = true;
-    roiState.start = point;
-    roiState.end = point;
-    if (roiState.mode === "circle" || roiState.mode === "annulus") {
-      updateRoiCenterInputs();
-      roiState.outerRadius = 0;
-      if (roiState.mode === "circle") {
-        roiState.innerRadius = 0;
-        if (roiRadiusInput) roiRadiusInput.value = "0";
-      } else {
-        if (!roiState.innerRadius) {
-          roiState.innerRadius = 0;
-        }
-        if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius || 0);
-        if (roiOuterInput) roiOuterInput.value = "0";
+    function onUp(e) {
+      const delta = startX - e.clientX;
+      const finalWidth = startWidth + delta;
+      if (finalWidth < 140) {
+        state.panelCollapsed = true;
       }
+      applyPanelState();
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
     }
-    canvasWrap.classList.add("is-roi");
-    canvasWrap.setPointerCapture(event.pointerId);
-    event.preventDefault();
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  });
+
+  canvasWrap.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      deferViewportInteraction();
+      const delta = normalizeWheelDelta(event);
+      if (!delta) return;
+      const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
+      const factor = Math.exp(-delta * 0.002);
+      const minZoom = getMinZoom();
+      zoomWheelTarget = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
+      zoomWheelPivot = { x: event.clientX, y: event.clientY };
+      if (!zoomWheelRaf) {
+        zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
+      }
+    },
+    { passive: false }
+  );
+
+  canvasWrap.addEventListener("scroll", () => {
+    deferViewportInteraction();
+    scheduleOverview();
+    schedulePixelOverlay();
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
-    return;
-  }
-  if (event.button !== 0) return;
-  if (event.target.closest(".loading")) return;
-  if (roiState.enabled && roiState.active) {
-    const point = getImagePointFromEvent(event);
-    if (point) {
-      const handle = getRoiHandleAt(event);
-      if (handle || isPointInRoi(point)) {
-        startRoiEdit(handle || "move", point);
-        canvasWrap.setPointerCapture(event.pointerId);
+    scheduleResolutionOverlay();
+    schedulePeakOverlay();
+  });
+
+  canvasWrap.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
+
+  canvasWrap.addEventListener(
+    "touchstart",
+    (event) => {
+      if (event.touches.length >= 2) {
+        // Multi-touch: pinch/zoom gesture
+        stopTouchDrag();
+        startTouchGesture(event.touches);
+        event.preventDefault();
+      } else if (event.touches.length === 1) {
+        // Single touch: prepare for dragging
+        const touch = event.touches[0];
+        touchDragStart = {
+          x: touch.clientX,
+          y: touch.clientY,
+          effectiveLeft: getEffectiveScrollLeft(),
+          effectiveTop: getEffectiveScrollTop(),
+        };
+        touchDragActive = true;
+      }
+    },
+    { passive: false }
+  );
+
+  canvasWrap.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches.length >= 2) {
+        // Multi-touch: continue zoom gesture
+        if (!touchGestureActive) return;
+        updateTouchGesture(event.touches);
         event.preventDefault();
         return;
       }
+
+      if (event.touches.length === 1 && touchDragActive && touchDragStart) {
+        // Single touch drag: pan the canvas
+        deferViewportInteraction();
+        const touch = event.touches[0];
+        const dx = touch.clientX - touchDragStart.x;
+        const dy = touch.clientY - touchDragStart.y;
+        const nextEffectiveX = touchDragStart.effectiveLeft - dx;
+        const nextEffectiveY = touchDragStart.effectiveTop - dy;
+        setEffectiveScroll(nextEffectiveX, nextEffectiveY);
+        event.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+
+  canvasWrap.addEventListener("touchend", (event) => {
+    if (event.touches.length >= 2) {
+      startTouchGesture(event.touches);
+      return;
     }
-  }
-  panning = true;
-  panStart = {
-    x: event.clientX,
-    y: event.clientY,
-    effectiveLeft: getEffectiveScrollLeft(),
-    effectiveTop: getEffectiveScrollTop(),
-  };
-  canvasWrap.classList.add("is-panning");
-  deferViewportInteraction();
-  canvasWrap.setPointerCapture(event.pointerId);
-  event.preventDefault();
-});
+    stopTouchGesture();
+    stopTouchDrag();
+  });
 
-canvasWrap.addEventListener("pointermove", (event) => {
-  if (event.pointerType === "touch") return;
-  updateCursorOverlay(event);
-  if (roiEditing) {
-    const point = getImagePointFromEvent(event);
-    if (!point) return;
-    applyRoiEdit(point);
-    return;
-  }
-  if (roiDragging) {
-    const point = getImagePointFromEvent(event);
-    if (!point) return;
-    updateRoiDrag(point);
-    return;
-  }
-  if (!panning) return;
-  deferViewportInteraction();
-  const dx = event.clientX - panStart.x;
-  const dy = event.clientY - panStart.y;
-  const nextEffectiveX = panStart.effectiveLeft - dx;
-  const nextEffectiveY = panStart.effectiveTop - dy;
-  setEffectiveScroll(nextEffectiveX, nextEffectiveY);
-});
+  canvasWrap.addEventListener("touchcancel", () => {
+    stopTouchGesture();
+    stopTouchDrag();
+  });
 
-function stopPan(event) {
-  if (!panning) return;
-  panning = false;
-  canvasWrap.classList.remove("is-panning");
-  schedulePixelOverlay();
-  if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
-    canvasWrap.releasePointerCapture(event.pointerId);
+  function stopTouchDrag() {
+    touchDragActive = false;
+    touchDragStart = null;
   }
-}
 
-function stopRoi(event) {
-  if (!roiDragging) return;
-  roiDragging = false;
-  roiDragPointer = null;
-  canvasWrap.classList.remove("is-roi");
-  if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
-    canvasWrap.releasePointerCapture(event.pointerId);
-  }
-  scheduleRoiOverlay();
-  scheduleRoiUpdate();
-}
-
-function updateRoiDrag(point) {
-  roiState.end = point;
-  if (roiState.mode === "circle" || roiState.mode === "annulus") {
-    const dx = roiState.end.x - roiState.start.x;
-    const dy = roiState.end.y - roiState.start.y;
-    const outer = Math.max(0, Math.round(Math.hypot(dx, dy)));
-    roiState.outerRadius = outer;
-    if (roiState.mode === "circle") {
-      if (roiRadiusInput) roiRadiusInput.value = String(outer);
-    } else {
-      if (roiOuterInput) roiOuterInput.value = String(outer);
-      if (!roiState.innerRadius || roiState.innerRadius >= outer) {
-        roiState.innerRadius = Math.max(0, Math.round(outer * 0.5));
-        if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
+  canvasWrap.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "touch") return;
+    const isRightClick = event.button === 2 || event.buttons === 2 || event.which === 3;
+    const isCtrlClick = event.button === 0 && event.ctrlKey;
+    const roiTrigger = roiState.enabled && (isRightClick || isCtrlClick);
+    if (roiTrigger) {
+      const point = getImagePointFromEvent(event);
+      if (!point) return;
+      roiDragging = true;
+      roiState.active = true;
+      roiState.start = point;
+      roiState.end = point;
+      if (roiState.mode === "circle" || roiState.mode === "annulus") {
+        updateRoiCenterInputs();
+        roiState.outerRadius = 0;
+        if (roiState.mode === "circle") {
+          roiState.innerRadius = 0;
+          if (roiRadiusInput) roiRadiusInput.value = "0";
+        } else {
+          if (!roiState.innerRadius) {
+            roiState.innerRadius = 0;
+          }
+          if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius || 0);
+          if (roiOuterInput) roiOuterInput.value = "0";
+        }
+      }
+      canvasWrap.classList.add("is-roi");
+      canvasWrap.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      scheduleRoiOverlay();
+      scheduleRoiUpdate();
+      return;
+    }
+    if (event.button !== 0) return;
+    if (event.target.closest(".loading")) return;
+    if (roiState.enabled && roiState.active) {
+      const point = getImagePointFromEvent(event);
+      if (point) {
+        const handle = getRoiHandleAt(event);
+        if (handle || isPointInRoi(point)) {
+          startRoiEdit(handle || "move", point);
+          canvasWrap.setPointerCapture(event.pointerId);
+          event.preventDefault();
+          return;
+        }
       }
     }
+    panning = true;
+    panStart = {
+      x: event.clientX,
+      y: event.clientY,
+      effectiveLeft: getEffectiveScrollLeft(),
+      effectiveTop: getEffectiveScrollTop(),
+    };
+    canvasWrap.classList.add("is-panning");
+    deferViewportInteraction();
+    canvasWrap.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+
+  canvasWrap.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch") return;
+    updateCursorOverlay(event);
+    if (roiEditing) {
+      const point = getImagePointFromEvent(event);
+      if (!point) return;
+      applyRoiEdit(point);
+      return;
+    }
+    if (roiDragging) {
+      const point = getImagePointFromEvent(event);
+      if (!point) return;
+      updateRoiDrag(point);
+      return;
+    }
+    if (!panning) return;
+    deferViewportInteraction();
+    const dx = event.clientX - panStart.x;
+    const dy = event.clientY - panStart.y;
+    const nextEffectiveX = panStart.effectiveLeft - dx;
+    const nextEffectiveY = panStart.effectiveTop - dy;
+    setEffectiveScroll(nextEffectiveX, nextEffectiveY);
+  });
+
+  function stopPan(event) {
+    if (!panning) return;
+    panning = false;
+    canvasWrap.classList.remove("is-panning");
+    schedulePixelOverlay();
+    if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
+      canvasWrap.releasePointerCapture(event.pointerId);
+    }
   }
-  scheduleRoiOverlay();
-  scheduleRoiUpdate();
+
+  function stopRoi(event) {
+    if (!roiDragging) return;
+    roiDragging = false;
+    canvasWrap.classList.remove("is-roi");
+    if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
+      canvasWrap.releasePointerCapture(event.pointerId);
+    }
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+  }
+
+  function updateRoiDrag(point) {
+    roiState.end = point;
+    if (roiState.mode === "circle" || roiState.mode === "annulus") {
+      const dx = roiState.end.x - roiState.start.x;
+      const dy = roiState.end.y - roiState.start.y;
+      const outer = Math.max(0, Math.round(Math.hypot(dx, dy)));
+      roiState.outerRadius = outer;
+      if (roiState.mode === "circle") {
+        if (roiRadiusInput) roiRadiusInput.value = String(outer);
+      } else {
+        if (roiOuterInput) roiOuterInput.value = String(outer);
+        if (!roiState.innerRadius || roiState.innerRadius >= outer) {
+          roiState.innerRadius = Math.max(0, Math.round(outer * 0.5));
+          if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
+        }
+      }
+    }
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+  }
+
+  canvasWrap.addEventListener("pointerup", (event) => {
+    stopRoiEdit(event);
+    stopRoi(event);
+    stopPan(event);
+  });
+
+  canvasWrap.addEventListener("pointercancel", (event) => {
+    stopRoiEdit(event);
+    stopRoi(event);
+    stopPan(event);
+  });
+
+  canvasWrap.addEventListener("pointerleave", () => {
+    stopRoi();
+    hideCursorOverlay();
+  });
+
+  canvasWrap.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+    const minZoom = getMinZoom();
+    const next = Math.min(MAX_ZOOM, Math.max(minZoom, state.zoom * 2));
+    zoomAt(event.clientX, event.clientY, next);
+  });
 }
 
-canvasWrap.addEventListener("pointerup", (event) => {
-  stopRoiEdit(event);
-  stopRoi(event);
-  stopPan(event);
-});
-
-canvasWrap.addEventListener("pointercancel", (event) => {
-  stopRoiEdit(event);
-  stopRoi(event);
-  stopPan(event);
-});
-
-canvasWrap.addEventListener("pointerleave", () => {
-  stopRoi();
-  hideCursorOverlay();
-});
-
-canvasWrap.addEventListener("dblclick", (event) => {
-  event.preventDefault();
-  const minZoom = getMinZoom();
-  const next = Math.min(MAX_ZOOM, Math.max(minZoom, state.zoom * 2));
-  zoomAt(event.clientX, event.clientY, next);
-});
+initializeViewportInteractionBindings();
 
 function isInsideRoiPlotViewport(plot, x, y) {
   if (!plot) return false;
@@ -12521,9 +12195,6 @@ window.addEventListener("resize", () => {
 initRenderer();
 
 restoreFilesystemMode();
-if (filesystemMode) {
-  fileBrowserState.filesystemMode = filesystemMode.value;
-}
 
 // Hide filesystem mode selector if backend is local
 if (backendIsLocal && filesystemMode) {
@@ -12773,7 +12444,7 @@ seriesSumBrowse?.addEventListener("click", async () => {
     }
   } else if (filesystemMode?.value === "local") {
     // Use HTML5 file input for local filesystem on remote backend
-    handleLocalFileSelection("series-sum", seriesSumOutput);
+    handleLocalFileSelection("series-sum");
   } else {
     // Use web browser for remote filesystem
     openFileBrowser("series-sum", seriesSumOutput);

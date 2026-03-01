@@ -87,8 +87,15 @@ function handleUnhandledRejection(event) {
  * Manually report an error
  */
 export function reportError(message, level = "error", details = {}) {
-  console[level](message, details);
-  logErrorToBackend(level, message, details);
+  const normalized = String(level || "error").toLowerCase();
+  if (normalized === "warn" || normalized === "warning") {
+    console.warn(message, details);
+  } else if (normalized === "info") {
+    console.info(message, details);
+  } else {
+    console.error(message, details);
+  }
+  logErrorToBackend(normalized, message, details);
 }
 
 /**
@@ -97,8 +104,6 @@ export function reportError(message, level = "error", details = {}) {
 export function initErrorHandler() {
   window.addEventListener("error", handleGlobalError);
   window.addEventListener("unhandledrejection", handleUnhandledRejection);
-  
-  console.info("Error handler initialized");
 }
 
 /**
