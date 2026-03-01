@@ -1,12 +1,14 @@
-from __future__ import annotations
-
 """HDF5 dataset discovery, metadata parsing, and frame extraction helpers."""
 
+from __future__ import annotations
+
+import contextlib
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 from fastapi import HTTPException
@@ -97,7 +99,7 @@ class HDF5StackService:
                 "preview": value.reshape(-1)[:16].tolist(),
                 "truncated": True,
             }
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, list | tuple):
             return [self.serialize_h5_value(v) for v in value]
         return value
 
@@ -543,10 +545,9 @@ class HDF5StackService:
                     raise KeyError("Path not found")
         except Exception:
             for handle in opened:
-                try:
+                with contextlib.suppress(Exception):
                     handle.close()
-                except Exception:
-                    pass
+
             raise
         return current, current_file, opened
 
@@ -701,10 +702,9 @@ class HDF5StackService:
             if stack is not None:
                 return stack, opened
         for handle in opened:
-            try:
+            with contextlib.suppress(Exception):
                 handle.close()
-            except Exception:
-                pass
+
         raise KeyError("Dataset not found")
 
     @staticmethod

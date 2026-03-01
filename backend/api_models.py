@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Pydantic request/response contracts for ALBIS HTTP APIs."""
+
+from __future__ import annotations
 
 from typing import Any
 

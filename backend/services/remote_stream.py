@@ -1,10 +1,11 @@
-from __future__ import annotations
-
 """Remote stream helper logic.
 
 This module owns parsing and in-memory frame buffering for /api/remote/v1/*.
 """
 
+from __future__ import annotations
+
+import contextlib
 import json
 import math
 import re
@@ -62,7 +63,7 @@ def remote_parse_shape(value: Any) -> tuple[int, ...] | None:
             if not token.isdigit():
                 return None
             dims.append(int(token))
-    elif isinstance(value, (list, tuple)):
+    elif isinstance(value, list | tuple):
         for item in value:
             try:
                 dims.append(int(item))
@@ -128,10 +129,9 @@ def remote_read_image_bytes(
                 return _read_cbf_gz(tmp_path)
             return _read_edf(tmp_path)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
+
 
     raise HTTPException(status_code=400, detail=f"Unsupported remote image format: {fmt}")
 
@@ -155,7 +155,7 @@ def _remote_parse_peak_sets(value: Any) -> list[dict[str, Any]]:
             continue
         points: list[list[float]] = []
         for point in raw_points[:10000]:
-            if not isinstance(point, (list, tuple)) or len(point) < 2:
+            if not isinstance(point, list | tuple) or len(point) < 2:
                 continue
             x = _first_number(point[0])
             y = _first_number(point[1])
@@ -207,7 +207,7 @@ def remote_extract_metadata(meta: dict[str, Any]) -> dict[str, Any]:
 
     beam_center = resolution.get("beam_center_px")
     center_x = center_y = None
-    if isinstance(beam_center, (list, tuple)) and len(beam_center) >= 2:
+    if isinstance(beam_center, list | tuple) and len(beam_center) >= 2:
         center_x = _first_number(beam_center[0])
         center_y = _first_number(beam_center[1])
     if center_x is None:

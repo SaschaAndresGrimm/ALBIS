@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 from fastapi import HTTPException
 
-from backend.services.series_summing import SeriesSummingDeps, SeriesSummingService
 from backend.services.series_ops import iter_sum_groups, mask_flag_value, mask_slices
+from backend.services.series_summing import SeriesSummingDeps, SeriesSummingService
 
 
 def _wait_for_job(

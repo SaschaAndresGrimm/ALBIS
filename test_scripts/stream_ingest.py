@@ -1,6 +1,7 @@
 import json
-import requests
+
 import numpy as np
+import requests
 
 PORT = 8000
 SOURCE_ID = "default"

@@ -8,6 +8,7 @@ extend-exclude = "^(dist|build|data|logs)/"
 line-length = 100
 target-version = "py310"
 exclude = ["dist", "build", "data", "logs"]
+[tool.ruff.lint]
 select = [
   "F",    # Pyflakes
   "E",    # pycodestyle errors
@@ -25,6 +26,8 @@ ignore = [
   "SIM118",  # use .keys() removal (stylistic, not always clearer)
   "N802",  # function name should be lowercase (some existing names)
   "N806",  # variable should be lowercase (some existing names)
+  "N815",  # variable in class scope mixedCase (used for JSON contracts)
+  "B008",  # do not perform function calls in argument defaults (FastAPI)
 ]
 
 [tool.pytest.ini_options]

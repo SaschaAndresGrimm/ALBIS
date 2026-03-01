@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import platform
 import re
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
@@ -139,10 +141,9 @@ def _tk_choose_folder() -> str | None:
 
     root = tk.Tk()
     root.withdraw()
-    try:
+    with contextlib.suppress(Exception):
         root.attributes("-topmost", True)
-    except Exception:
-        pass
+
     try:
         return filedialog.askdirectory(title="Select Auto Load folder") or None
     finally:
@@ -159,10 +160,9 @@ def _tk_choose_file() -> str | None:
 
     root = tk.Tk()
     root.withdraw()
-    try:
+    with contextlib.suppress(Exception):
         root.attributes("-topmost", True)
-    except Exception:
-        pass
+
     try:
         return (
             filedialog.askopenfilename(
@@ -455,7 +455,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             file_label = rel
         except ValueError:
             if not deps.get_allow_abs_paths():
-                raise HTTPException(status_code=400, detail="Invalid file location")
+                raise HTTPException(status_code=400, detail="Invalid file location") from None
             absolute = True
             file_label = str(latest.resolve())
         deps.logger.debug("Autoload scan: latest=%s absolute=%s", file_label, absolute)

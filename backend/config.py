@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """Config loading helpers shared by backend and launcher.
 
 The loader merges user config values onto `DEFAULT_CONFIG` and keeps strict,
 predictable path resolution for both source and frozen (packaged) execution.
 """
+
+from __future__ import annotations
 
 import copy
 import json
@@ -282,7 +282,7 @@ def get_bool(config: dict[str, Any], keys: tuple[str, ...], default: bool) -> bo
     value = get_nested(config, keys, default)
     if isinstance(value, bool):
         return value
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return bool(value)
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on"}
@@ -314,8 +314,5 @@ def get_str(config: dict[str, Any], keys: tuple[str, ...], default: str) -> str:
 
 def resolve_path(path_str: str, *, base_dir: Path) -> Path:
     path = Path(path_str).expanduser()
-    if not path.is_absolute():
-        path = (base_dir / path).resolve()
-    else:
-        path = path.resolve()
+    path = (base_dir / path).resolve() if not path.is_absolute() else path.resolve()
     return path

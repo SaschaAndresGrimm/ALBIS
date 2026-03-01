@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 import csv
 import io
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import Response
@@ -72,10 +74,9 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                 for cache_path, handle in file_cache.items():
                     if cache_path == path:
                         continue
-                    try:
+                    with contextlib.suppress(Exception):
                         handle.close()
-                    except Exception:
-                        pass
+
         return HDF5DatasetsResponse(datasets=deps.aggregate_linked_stack_datasets(results))
 
     @app.get("/api/hdf5/tree", response_model=HDF5TreeResponse)

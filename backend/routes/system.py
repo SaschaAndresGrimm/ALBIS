@@ -4,9 +4,10 @@ import json
 import os
 import platform
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 
@@ -96,7 +97,7 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
                 meta_json = json.dumps(meta, default=str)
             except Exception:
                 meta_json = "{}"
-            if isinstance(context, (dict, list)):
+            if isinstance(context, dict | list):
                 try:
                     context = json.dumps(context, default=str)
                 except Exception:
@@ -116,7 +117,7 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
             return StatusResponse(status="ok")
         except Exception as exc:
             deps.logger.exception("Failed to record client log: %s", exc)
-            raise HTTPException(status_code=400, detail="Invalid log payload")
+            raise HTTPException(status_code=400, detail="Invalid log payload") from exc
 
     @app.post("/api/open-log", response_model=PathStatusResponse)
     def open_log() -> PathStatusResponse:
@@ -148,10 +149,7 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
             raise HTTPException(status_code=400, detail="Missing path")
 
         path = Path(raw).expanduser()
-        if not path.is_absolute():
-            path = (deps.data_dir / path).resolve()
-        else:
-            path = path.resolve()
+        path = (deps.data_dir / path).resolve() if not path.is_absolute() else path.resolve()
 
         if not path.exists():
             raise HTTPException(status_code=404, detail="Path does not exist")

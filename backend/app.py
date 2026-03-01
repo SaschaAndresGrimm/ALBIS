@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """ALBIS backend API service.
 
 This module keeps backend runtime logic centralized for simple packaged
@@ -7,17 +5,19 @@ execution. It handles path safety, image IO, metadata extraction, analysis
 endpoints, monitor integration, and long-running series jobs.
 """
 
+from __future__ import annotations
+
 import fnmatch
+import logging
 import os
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
-import logging
-from logging.handlers import RotatingFileHandler
-import tempfile
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 
@@ -38,44 +38,64 @@ try:
         _pilatus_header_text,
         _pilatus_meta_from_fabio,
         _pilatus_meta_from_tiff,
-        _read_tiff_bytes_with_simplon_meta,
         _read_cbf,
         _read_cbf_gz,
         _read_edf,
         _read_tiff,
+        _read_tiff_bytes_with_simplon_meta,
         _resolve_series_files,
         _split_series_name,
         _strip_image_ext,
         _write_tiff,
     )
+    from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
+    from .routes.files import FileRouteDeps, register_file_routes
+    from .routes.frames import FrameRouteDeps, register_frame_routes
+    from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+    from .routes.stream import StreamRouteDeps, register_stream_routes
+    from .routes.system import SystemRouteDeps, register_system_routes
+    from .services.hdf5_stack import HDF5StackService
+    from .services.jungfraujoch_preview import JungfraujochPreviewBridge
     from .services.remote_stream import (
         remote_extract_metadata as _remote_extract_metadata,
+    )
+    from .services.remote_stream import (
         remote_parse_meta as _remote_parse_meta,
+    )
+    from .services.remote_stream import (
         remote_read_image_bytes as _remote_read_image_bytes,
+    )
+    from .services.remote_stream import (
         remote_safe_source_id as _remote_safe_source_id,
+    )
+    from .services.remote_stream import (
         remote_snapshot as _remote_snapshot,
+    )
+    from .services.remote_stream import (
         remote_store_frame as _remote_store_frame,
     )
-    from .services.jungfraujoch_preview import JungfraujochPreviewBridge
     from .services.series_ops import (
         iter_sum_groups as _iter_sum_groups,
+    )
+    from .services.series_ops import (
         mask_flag_value as _mask_flag_value,
+    )
+    from .services.series_ops import (
         mask_slices as _mask_slices,
     )
     from .services.series_summing import SeriesSummingDeps, SeriesSummingService
-    from .services.hdf5_stack import HDF5StackService
     from .services.simplon import (
         simplon_base as _simplon_base,
+    )
+    from .services.simplon import (
         simplon_fetch_monitor as _simplon_fetch_monitor,
+    )
+    from .services.simplon import (
         simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
+    )
+    from .services.simplon import (
         simplon_set_mode as _simplon_set_mode,
     )
-    from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
-    from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
-    from .routes.frames import FrameRouteDeps, register_frame_routes
-    from .routes.files import FileRouteDeps, register_file_routes
-    from .routes.system import SystemRouteDeps, register_system_routes
-    from .routes.stream import StreamRouteDeps, register_stream_routes
     from .version import ALBIS_VERSION
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
@@ -94,44 +114,64 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         _pilatus_header_text,
         _pilatus_meta_from_fabio,
         _pilatus_meta_from_tiff,
-        _read_tiff_bytes_with_simplon_meta,
         _read_cbf,
         _read_cbf_gz,
         _read_edf,
         _read_tiff,
+        _read_tiff_bytes_with_simplon_meta,
         _resolve_series_files,
         _split_series_name,
         _strip_image_ext,
         _write_tiff,
     )
+    from routes.analysis import AnalysisRouteDeps, register_analysis_routes
+    from routes.files import FileRouteDeps, register_file_routes
+    from routes.frames import FrameRouteDeps, register_frame_routes
+    from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+    from routes.stream import StreamRouteDeps, register_stream_routes
+    from routes.system import SystemRouteDeps, register_system_routes
+    from services.hdf5_stack import HDF5StackService
+    from services.jungfraujoch_preview import JungfraujochPreviewBridge
     from services.remote_stream import (
         remote_extract_metadata as _remote_extract_metadata,
+    )
+    from services.remote_stream import (
         remote_parse_meta as _remote_parse_meta,
+    )
+    from services.remote_stream import (
         remote_read_image_bytes as _remote_read_image_bytes,
+    )
+    from services.remote_stream import (
         remote_safe_source_id as _remote_safe_source_id,
+    )
+    from services.remote_stream import (
         remote_snapshot as _remote_snapshot,
+    )
+    from services.remote_stream import (
         remote_store_frame as _remote_store_frame,
     )
-    from services.jungfraujoch_preview import JungfraujochPreviewBridge
     from services.series_ops import (
         iter_sum_groups as _iter_sum_groups,
+    )
+    from services.series_ops import (
         mask_flag_value as _mask_flag_value,
+    )
+    from services.series_ops import (
         mask_slices as _mask_slices,
     )
     from services.series_summing import SeriesSummingDeps, SeriesSummingService
-    from services.hdf5_stack import HDF5StackService
     from services.simplon import (
         simplon_base as _simplon_base,
+    )
+    from services.simplon import (
         simplon_fetch_monitor as _simplon_fetch_monitor,
+    )
+    from services.simplon import (
         simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
+    )
+    from services.simplon import (
         simplon_set_mode as _simplon_set_mode,
     )
-    from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
-    from routes.analysis import AnalysisRouteDeps, register_analysis_routes
-    from routes.frames import FrameRouteDeps, register_frame_routes
-    from routes.files import FileRouteDeps, register_file_routes
-    from routes.system import SystemRouteDeps, register_system_routes
-    from routes.stream import StreamRouteDeps, register_stream_routes
     from version import ALBIS_VERSION
 
 CONFIG, CONFIG_PATH = load_config()
@@ -726,7 +766,7 @@ def _resource_root() -> Path:
 
 
 @app.middleware("http")
-async def _no_cache_static(request: "Request", call_next):
+async def _no_cache_static(request: Request, call_next):
     """Disable browser caching for core frontend entry assets during development/updates."""
     response = await call_next(request)
     if request.method == "GET":

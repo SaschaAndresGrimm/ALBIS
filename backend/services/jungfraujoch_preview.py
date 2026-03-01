@@ -1,16 +1,18 @@
-from __future__ import annotations
-
 """JUNGFRAUJOCH preview stream bridge.
 
 This module subscribes to the Jungfraujoch ZeroMQ preview PUB socket, decodes
 CBOR stream-v2 image messages and stores frames in ALBIS remote snapshot cache.
 """
 
+from __future__ import annotations
+
+import contextlib
 import math
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
@@ -109,7 +111,7 @@ def _decode_typed_array(tag: Any, dtype: str) -> np.ndarray:
         payload = payload.tobytes()
     if isinstance(payload, bytearray):
         payload = bytes(payload)
-    if not isinstance(payload, (bytes, np.ndarray)):
+    if not isinstance(payload, bytes | np.ndarray):
         raise cbor2.CBORDecodeValueError("expected bytes payload in typed array")
     if isinstance(payload, np.ndarray):
         return np.asarray(payload, dtype=np.dtype(dtype))
@@ -118,10 +120,10 @@ def _decode_typed_array(tag: Any, dtype: str) -> np.ndarray:
 
 def _decode_multi_dim_array(tag: Any, *, column_major: bool) -> np.ndarray:
     value = tag.value
-    if not isinstance(value, (list, tuple)) or len(value) != 2:
+    if not isinstance(value, list | tuple) or len(value) != 2:
         raise cbor2.CBORDecodeValueError("expected multidim array pair")
     dimensions_raw, payload = value
-    if not isinstance(dimensions_raw, (list, tuple)) or not dimensions_raw:
+    if not isinstance(dimensions_raw, list | tuple) or not dimensions_raw:
         raise cbor2.CBORDecodeValueError("invalid multidim dimensions")
     try:
         dimensions = tuple(int(v) for v in dimensions_raw)
@@ -142,7 +144,7 @@ def _decode_dectris_compression(tag: Any) -> bytes:
     value = tag.value
     if _dectris_decompress is None:
         raise RuntimeError("dectris-compression is not available")
-    if not isinstance(value, (list, tuple)) or len(value) != 3:
+    if not isinstance(value, list | tuple) or len(value) != 3:
         raise cbor2.CBORDecodeValueError("invalid DECTRIS compression payload")
     algorithm = str(value[0] or "")
     elem_size = int(value[1] or 0)
@@ -426,10 +428,9 @@ class JungfraujochPreviewBridge:
             self._set_error(f"Preview worker crashed: {exc}")
         finally:
             if socket is not None:
-                try:
+                with contextlib.suppress(Exception):
                     socket.close(0)
-                except Exception:
-                    pass
+
             with self._lock:
                 self._running = False
 

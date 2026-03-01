@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Version helpers for ALBIS runtime and packaging scripts."""
+
+from __future__ import annotations
 
 import re
 from pathlib import Path

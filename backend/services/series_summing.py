@@ -1,19 +1,21 @@
-from __future__ import annotations
-
 """Background series operations service."""
 
+from __future__ import annotations
+
+import contextlib
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 from fastapi import HTTPException
 
 
-class _SeriesSummingCancelled(Exception):
+class _SeriesSummingCancelledError(Exception):
     """Internal control-flow exception for user requested cancellation."""
 
 
@@ -144,7 +146,7 @@ class SeriesSummingService:
 
     def _raise_if_cancelled(self, job_id: str) -> None:
         if self._is_cancel_requested(job_id):
-            raise _SeriesSummingCancelled("Cancelled by user")
+            raise _SeriesSummingCancelledError("Cancelled by user")
 
     def _trim_finished_jobs(self) -> None:
         done_jobs = [
@@ -202,20 +204,18 @@ class SeriesSummingService:
         h5py = self._deps.get_h5py()
         for key, val in src_h5.attrs.items():
             if key not in dst_h5.attrs:
-                try:
+                with contextlib.suppress(Exception):
                     dst_h5.attrs[key] = val
-                except Exception:
-                    pass
+
 
         if "/entry/instrument/detector" in src_h5:
             src_detector = src_h5["/entry/instrument/detector"]
             dst_detector = dst_h5.require_group("/entry/instrument/detector")
             for key, val in src_detector.attrs.items():
                 if key not in dst_detector.attrs:
-                    try:
+                    with contextlib.suppress(Exception):
                         dst_detector.attrs[key] = val
-                    except Exception:
-                        pass
+
 
             for thr in range(threshold_count):
                 channel_path = f"threshold_{thr + 1}_channel"
@@ -224,19 +224,17 @@ class SeriesSummingService:
                     dst_channel = dst_detector.require_group(channel_path)
                     for key, val in src_channel.attrs.items():
                         if key not in dst_channel.attrs:
-                            try:
+                            with contextlib.suppress(Exception):
                                 dst_channel.attrs[key] = val
-                            except Exception:
-                                pass
+
                     for item_name in src_channel:
                         if item_name in ("pixel_mask",):
                             continue
                         src_item = src_channel[item_name]
                         if isinstance(src_item, h5py.Dataset) and item_name not in dst_channel:
-                            try:
+                            with contextlib.suppress(Exception):
                                 dst_channel.create_dataset(item_name, data=src_item[()])
-                            except Exception:
-                                pass
+
 
         for group_path in ("/entry/instrument", "/entry/sample", "/entry/data"):
             if group_path in src_h5 and group_path not in dst_h5:
@@ -245,10 +243,9 @@ class SeriesSummingService:
                     dst_group = dst_h5.require_group(group_path)
                     for key, val in src_group.attrs.items():
                         if key not in dst_group.attrs:
-                            try:
+                            with contextlib.suppress(Exception):
                                 dst_group.attrs[key] = val
-                            except Exception:
-                                pass
+
                 except Exception:
                     pass
 
@@ -563,10 +560,9 @@ class SeriesSummingService:
                                 )
                     finally:
                         for handle in extra_files:
-                            try:
+                            with contextlib.suppress(Exception):
                                 handle.close()
-                            except Exception:
-                                pass
+
             else:
                 series_files, _ = self._deps.resolve_series_files(source_path)
                 frame_count = len(series_files)
@@ -864,7 +860,7 @@ class SeriesSummingService:
                 cancel_requested=False,
                 done_at=time.time(),
             )
-        except _SeriesSummingCancelled:
+        except _SeriesSummingCancelledError:
             self._update_job(
                 job_id,
                 status="cancelled",

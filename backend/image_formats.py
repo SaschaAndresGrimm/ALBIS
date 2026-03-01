@@ -1,22 +1,22 @@
-from __future__ import annotations
-
 """Image format helpers for ALBIS backend.
 
 This module centralizes detector image file handling that is shared by
 multiple endpoints (file load, metadata/header extraction, monitor parsing).
 """
 
+from __future__ import annotations
+
+import contextlib
+import io
 import math
 import re
 import struct
 import sys
-import io
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from fastapi import HTTPException
-
 
 # Lazy-loaded optional dependencies
 _tifffile = None
@@ -136,10 +136,9 @@ def _parse_dectris_tag_value(value: Any, byteorder: str) -> dict[int, Any]:
         value = value.tobytes()
     if isinstance(value, memoryview):
         value = value.tobytes()
-    if isinstance(value, (bytes, bytearray)):
+    if isinstance(value, bytes | bytearray):
         return _parse_dectris_ifd(bytes(value), byteorder)
-    if isinstance(value, (list, tuple)):
-        if value and all(isinstance(item, tuple) and len(item) == 2 for item in value):
+    if isinstance(value, list | tuple) and value and all(isinstance(item, tuple) and len(item) == 2 for item in value):
             try:
                 return {int(k): v for k, v in value}
             except Exception:
@@ -150,7 +149,7 @@ def _parse_dectris_tag_value(value: Any, byteorder: str) -> dict[int, Any]:
 def _first_number(value: Any) -> float | None:
     if isinstance(value, np.ndarray):
         value = value.tolist()
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         if not value:
             return None
         value = value[0]
@@ -180,7 +179,7 @@ def _as_str(value: Any) -> str | None:
             return value.decode("ascii", errors="replace").strip("\x00")
         except Exception:
             return None
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         if not value:
             return None
         return _as_str(value[0])
@@ -190,7 +189,7 @@ def _as_str(value: Any) -> str | None:
 def _as_pair(value: Any) -> tuple[float, float] | None:
     if isinstance(value, np.ndarray):
         value = value.tolist()
-    if isinstance(value, (list, tuple)) and len(value) >= 2:
+    if isinstance(value, list | tuple) and len(value) >= 2:
         first = _first_number(value[0])
         second = _first_number(value[1])
         if first is None or second is None:
@@ -376,10 +375,9 @@ def _open_fabio_image(path: Path):
             try:
                 return _fabio.open(str(tmp_path))
             finally:
-                try:
+                with contextlib.suppress(Exception):
                     tmp_path.unlink(missing_ok=True)
-                except Exception:
-                    pass
+
         except Exception:
             return None
 
@@ -605,10 +603,9 @@ def _read_cbf_gz(path: Path) -> np.ndarray:
             arr = np.asarray(image.data)
             return _normalize_image_array(arr)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
+
 
 
 def _read_edf(path: Path) -> np.ndarray:
