@@ -14,17 +14,17 @@ ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small
 
 Project note: this is a private vibe‑coding project for fun and educational purposes.
 
-- Contributions welcome: see `CONTRIBUTING.md`.
-- Security: see `SECURITY.md`.
-- Changelog: see `CHANGELOG.md`.
-- Developer docs: `docs/ARCHITECTURE.md`, `docs/CODE_MAP.md`, `docs/configuration.md`, `docs/API_CONTRACTS.md`, and `docs/RELEASE_CHECKLIST.md`.
-
-Community workflow files:
-- Issue forms: `.github/ISSUE_TEMPLATE/`
-- PR template: `.github/PULL_REQUEST_TEMPLATE.md`
-- Code owners: `CODEOWNERS`
-
 ![ALBIS screenshot](frontend/ressources/albis.png)
+
+## Downloads / Installation
+
+You can download ready-to-use standalone binaries for your operating system. No Python installation is required for these.
+
+Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page for the latest `v1.0.0` packages:
+
+- **macOS**: Download the `.dmg` and drag ALBIS to your Applications folder.
+- **Windows**: Download the `ALBIS-Setup-windows-*.exe` installer.
+- **Linux**: Download the `.tar.gz` and run `scripts/install_linux.sh` for desktop integration.
 
 ## Highlights
 
@@ -38,301 +38,27 @@ Community workflow files:
 - WebGL2 rendering with CPU fallback.
 - spotfinding & resolution rings overlay
 
-## Run (backend + frontend)
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -r backend/requirements.txt
-python backend/app.py
-```
-
-Open `http://localhost:8000` (ALBIS).
-
-## Run Modes
-
-- Python/source mode:
-  Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
-- Standalone mode:
-  Use packaged artifacts created by the build scripts (no Python installation required on target machines).
-
-## Developer Quality Gates
-
-Install dev tooling:
-
-```bash
-pip install -r requirements-dev.txt
-npm ci
-```
-
-Run local checks:
-
-```bash
-ruff check backend tests scripts test_scripts
-black --check tests scripts test_scripts
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
-npm run lint:js
-```
-
-Optional pre-commit hooks:
-
-```bash
-pre-commit install
-pre-commit run --all-files
-```
-
-CI runs on GitHub Actions across Linux/macOS/Windows (Python 3.10) plus frontend lint.
-
-## Remote Stream API
-
-ALBIS can ingest externally generated frames and metadata when Data Source is set to `Remote Stream`.
-
-### Endpoints
-
-- `POST /api/remote/v1/frame`
-  - Query:
-    - `source_id` (optional, default `default`)
-    - `seq` (optional sequence number)
-  - Multipart fields:
-    - `image` (required): raw frame bytes or encoded image bytes
-    - `meta` (optional): JSON string
-- `GET /api/remote/v1/latest`
-  - Query:
-    - `source_id`
-    - `after_seq` (optional; returns `204` if no new frame)
-  - Returns frame bytes and `X-Remote-*` headers
-- `GET /api/remote/v1/meta`
-  - Query:
-    - `source_id`
-    - `seq` (optional)
-  - Returns parsed metadata including `peak_sets`
-
-### Supported `meta` keys
-
-- Decode settings:
-  - `format`: `raw`, `tiff`, `cbf`, `cbf.gz`, `edf`
-  - `dtype` and `shape` (required for `raw`)
-- Display:
-  - `display_name`, `series_number`, `image_number`, `image_datetime`
-- Resolution ring parameters:
-  - `distance_mm`, `pixel_size_um`, `energy_ev`, `wavelength_a`
-  - `beam_center_x`, `beam_center_y` or `resolution.beam_center_px: [x, y]`
-- Overlay peak lists:
-  - `peak_sets`: list of `{name, color, points}` where points are `[x, y]` or `[x, y, intensity]`
-
-### Minimal sender example
-
-```python
-import json
-import requests
-import numpy as np
-
-PORT = 8000
-SOURCE_ID = "default"
-
-frame = (np.random.rand(512, 512) * 1000).astype("<u2")
-meta = {
-    "format": "raw",
-    "dtype": "<u2",
-    "shape": [512, 512],
-    "display_name": "Remote demo frame",
-    "series_number": 1,
-    "image_number": 42,
-    "resolution": {
-        "distance_mm": 150.0,
-        "pixel_size_um": 75.0,
-        "energy_ev": 12000.0,
-        "beam_center_px": [256, 256]
-    },
-    "peak_sets": [
-        {"name": "predicted", "color": "#00ff88", "points": [[240, 250], [270, 265]]}
-    ]
-}
-
-requests.post(
-    f"http://127.0.0.1:{PORT}/api/remote/v1/frame?source_id={SOURCE_ID}",
-    data={"meta": json.dumps(meta)},
-    files={"image": ("frame.raw", frame.tobytes(), "application/octet-stream")},
-    timeout=5,
-).raise_for_status()
-```
-
-### Quick local smoke test
-
-`test_scripts/stream_ingest.py` posts one synthetic frame to the backend:
-
-```bash
-python test_scripts/stream_ingest.py
-```
-
-Important: the script `source_id` must match the UI `Remote Stream` source id (default `default`).
-
-## Architecture
-
-ALBIS uses a server-client architecture:
-
-- Backend server (FastAPI + Python):
-  Loads detector/image data, handles monitor streams, computes metadata/analysis, and exposes REST endpoints.
-- Frontend client (browser UI):
-  Runs in the browser, renders images/overlays, and interacts with the backend over HTTP.
-- Local deployment model:
-  The backend typically runs on the same machine as the user, and the UI connects to `http://localhost:<port>`.
-
-Detailed implementation notes:
-
-- System architecture and data flows: `docs/ARCHITECTURE.md`
-- Backend/frontend code navigation map: `docs/CODE_MAP.md`
-
-## Configuration (`albis.config.json`)
-
-ALBIS runtime settings are configured via `albis.config.json` (project root by default).
-JSON does not support comments, so a commented template is provided at `albis.config.example.jsonc`.
-The machine-readable schema is `albis.config.schema.json`.
-
-Example:
-
-```json
-{
-  "server": {
-    "host": "127.0.0.1",
-    "port": 8000,
-    "reload": false
-  },
-  "launcher": {
-    "startup_timeout_sec": 5.0,
-    "open_browser": true,
-    "debug_macos_events": false
-  },
-  "data": {
-    "root": "",
-    "allow_abs_paths": true,
-    "scan_cache_sec": 2.0,
-    "max_scan_depth": -1,
-    "max_upload_mb": 0
-  },
-  "logging": {
-    "level": "INFO",
-    "dir": ""
-  },
-  "ui": {
-    "tool_hints": false,
-    "pixel_label_min_cell_px": 18,
-    "pixel_label_max_labels": 4000,
-    "pixel_label_format": "auto",
-    "pixel_label_show_during_drag": false
-  }
-}
-```
-
-Notes:
-- `data.root = ""` defaults to project root for source runs and `~/ALBIS-data` for packaged runs.
-- `server.host = "0.0.0.0"` enables LAN access (`http://<your-ip>:<server.port>`).
-- `server.port` is the single port used by backend + launcher/browser startup.
-- `launcher.debug_macos_events = true` enables verbose macOS Dock/app event traces in launcher log.
-- `logging.dir = ""` writes logs to `<data.root>/logs/albis.log`.
-- Packaged installs auto-create a default user config at `~/.config/albis/config.json` on first run (if no config is found).
-- Full field reference and lookup precedence: `docs/configuration.md`.
-
-## Logging
-
-Log level and log directory are configured in `albis.config.json` under `logging.level` and `logging.dir`.
-Launcher startup logs are also written to `~/.config/albis/launcher.log` (with automatic rotation at ~1 MiB to `launcher.log.1`).
-
-Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
-
-## Packaging (PyInstaller)
-
-ALBIS can be bundled into a **platform‑native app** (no Python required) using PyInstaller.
-
-### Build (macOS)
-
-```bash
-./scripts/build_mac.sh
-```
-
-This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-macos-<os_version>-v<version>-<commit>.zip`
-- `ALBIS-macos-<os_version>-v<version>-<commit>.dmg`
-
-`build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
-DMG images include an `Applications` shortcut for drag-and-drop installation.
-
-### Build (Linux)
-
-```bash
-./scripts/build_linux.sh
-```
-
-Example output:
-- `ALBIS-linux-<distro_version>-v<version>-<commit>.tar.gz`
-
-Optional local desktop integration (user scope):
-
-```bash
-./scripts/install_linux.sh
-```
-
-This installs ALBIS under `~/.local` (launcher + desktop entry + icon).
-
-To remove it again:
-
-```bash
-./scripts/uninstall_linux.sh
-```
-
-### Build (Windows)
-
-```powershell
-.\scripts\build_windows.ps1
-```
-
-Example output:
-- `ALBIS-windows-<os_version>-v<version>-<commit>.zip`
-- Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-windows-<os_version>-v<version>-<commit>.exe`
-
-The Inno installer creates Start Menu entries for:
-- `ALBIS`
-- `Open Logs`
-- `Open Data Folder`
-- `Edit Config`
-
-### Output
-
-The unpacked app payload is created under `dist/ALBIS/` (and on macOS additionally `dist/ALBIS.app`).
-Use `albis.config.json` to change data path, host/port, logging, and launcher behavior.
-
-## Versioning and Releases
-
-- Repository release version source of truth: `VERSION`
-- Build metadata helper: `scripts/version_info.py`
-- Human-readable release history: `CHANGELOG.md`
-- Tag format for releases: `v<version>` (for example `v1.0.0`)
-- Release execution checklist (including workflow dry-run): `docs/RELEASE_CHECKLIST.md`
-
 ## Keyboard Shortcuts
 
-- `⌘O` Open
-- `⌘W` Close File
-- `⌘S` Save As
-- `⌘E` Export
+- `⌘O` / `Ctrl+O` Open File
+- `⌘W` / `Ctrl+W` Close File
+- `⌘S` / `Ctrl+S` Save As
+- `⌘E` / `Ctrl+E` Export Image
 - `F1` Documentation
 - `Tab` Play/Pause
 - `←`/`→` Previous/Next frame
 - `↑`/`↓` Jump by Step setting (or threshold change when multi‑threshold is active)
 
-## Roadmap — Next Milestones
-- [x] v0.5 multi image support (h5, cbf, cbf.gz, tiff, edf)
-- [x] v0.6 server-client remote stream API (frame + metadata ingest)
-- [x] v0.7 refactoring baseline (modular frontend + stronger tests)
-- [x] v0.8 UI facelift
-- [ ] v0.9 JUNGFRAUJOCH data ingest
-- [ ] v1.0 Bug fixes and final documentation
-- ...? =)
+## Advanced Usage & Contributing
 
-## Notes
-- current focus of the development is server and client running on the same machine.
-- there are likely many little and possibly bigger bugs hidden - feeddback, reports, and fixes are welcome
+For power users looking to configure the server, use the advanced Stream API, or run ALBIS from source:
+- [Power User Guide](docs/POWER_USER_GUIDE.md)
+
+For developers looking to build, test, and contribute:
+- [Developer Guide](docs/DEVELOPER_GUIDE.md)
+- [Contributing](CONTRIBUTING.md)
+- [Code Map](docs/CODE_MAP.md)
+- [Architecture](docs/ARCHITECTURE.md)
 
 ## Acknowledgements and Contributions
 This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set for many the benchmark.
