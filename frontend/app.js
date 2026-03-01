@@ -29,6 +29,7 @@ import { bindOverviewInteractions } from "./modules/overview_bindings.js";
 import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bindings.js";
 import { createHelpTooltipController } from "./modules/help_tooltips.js";
 import { bindChromeUiInteractions } from "./modules/chrome_bindings.js";
+import { finalizeRuntimeBootstrap, initializeUiDefaults } from "./modules/runtime_bootstrap.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -10624,42 +10625,31 @@ window.addEventListener("resize", () => {
 
 initRenderer();
 
-restoreFilesystemMode();
-
-// Hide filesystem mode selector if backend is local
-if (backendIsLocal && filesystemMode) {
-  filesystemMode.parentElement?.classList.add("is-hidden");
-}
-
-showSplash();
-drawSplash();
-if (fpsSelect) {
-  setFps(Number(fpsSelect.value));
-}
-if (frameStep) {
-  setFrameStep(frameStep.value);
-}
-if (histLogX) {
-  state.histLogX = histLogX.checked;
-}
-if (histLogY) {
-  state.histLogY = histLogY.checked;
-}
-if (colormapSelect) {
-  colormapSelect.value = state.colormap;
-}
-if (roiEnableToggle) {
-  roiState.enabled = roiEnableToggle.checked;
-}
-if (roiModeSelect) {
-  roiState.mode = roiModeSelect.value || "line";
-  roiState.active = false;
-  updateRoiModeUI();
-}
-if (roiLogToggle) {
-  roiState.log = roiLogToggle.checked;
-}
-updateRoiPlotLimitsEnabled();
+initializeUiDefaults({
+  state,
+  roiState,
+  backendIsLocal,
+  elements: {
+    filesystemMode,
+    fpsSelect,
+    frameStep,
+    histLogX,
+    histLogY,
+    colormapSelect,
+    roiEnableToggle,
+    roiModeSelect,
+    roiLogToggle,
+  },
+  callbacks: {
+    restoreFilesystemMode,
+    showSplash,
+    drawSplash,
+    setFps,
+    setFrameStep,
+    updateRoiModeUI,
+    updateRoiPlotLimitsEnabled,
+  },
+});
 
 function validateSeriesStepInput(commit = false) {
   if (!seriesSumStep) return 1;
@@ -10750,42 +10740,29 @@ bindAnalysisControlInteractions({
 renderPeakList();
 setSeriesSumProgress(0, "Idle");
 updateSeriesSumUi();
-try {
-  const storedWidth = Number(localStorage.getItem("albis.panelWidth"));
-  const storedCollapsed = localStorage.getItem("albis.panelCollapsed");
-  const storedMobileSnap = Number(localStorage.getItem("albis.mobilePanelSnap"));
-  if (storedWidth) {
-    state.panelWidth = Math.max(220, Math.min(getMaxPanelWidth(), storedWidth));
-  }
-  if (storedCollapsed !== null) {
-    state.panelCollapsed = storedCollapsed === "true";
-  } else if (window.innerWidth < 900) {
-    state.panelCollapsed = true;
-  }
-  if (Number.isFinite(storedMobileSnap) && storedMobileSnap > 0) {
-    mobilePanelSnap = nearestMobilePanelSnap(storedMobileSnap);
-  }
-} catch {
-  // ignore storage errors
-}
-applyPanelState();
-applyCanvasTransform();
-updatePanCapability();
-loadAutoloadSettings();
-updatePlayButtons();
-updateViewerFooter();
-if (!state.file) {
-  setDataSourceSectionState("empty", "Choose an image source to begin.");
-}
-updateFullscreenUi();
-updateAboutVersion();
-initHelpTooltips();
-startBackendHeartbeat();
-
-void bootstrapApp().catch((err) => {
-  console.error(err);
-  setSplashStatus("Initialization failed");
-  setStatus("Failed to initialize");
-  showSplash();
-  setLoading(false);
+finalizeRuntimeBootstrap({
+  state,
+  callbacks: {
+    getMaxPanelWidth,
+    nearestMobilePanelSnap,
+    setMobilePanelSnap: (next) => {
+      mobilePanelSnap = next;
+    },
+    applyPanelState,
+    applyCanvasTransform,
+    updatePanCapability,
+    loadAutoloadSettings,
+    updatePlayButtons,
+    updateViewerFooter,
+    setDataSourceSectionState,
+    updateFullscreenUi,
+    updateAboutVersion,
+    initHelpTooltips,
+    startBackendHeartbeat,
+    bootstrapApp,
+    setSplashStatus,
+    setStatus,
+    showSplash,
+    setLoading,
+  },
 });
