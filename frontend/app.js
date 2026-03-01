@@ -42,7 +42,21 @@ import { createFileDataPipelineController } from "./modules/file_data_pipeline_c
 import { createRoiStatsController } from "./modules/roi_stats_controller.js";
 import { createOverlayRenderController } from "./modules/overlay_render_controller.js";
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
+import { createRenderEngineController } from "./modules/render_engine_controller.js";
 import { initializePostFilePickerBindings } from "./modules/post_file_picker_bindings.js";
+import {
+  getWebglUnsignedDtypeKey as getWebglUnsignedDtypeKeyUtil,
+  isWebglUnsignedRawCandidate as isWebglUnsignedRawCandidateUtil,
+  getWebglUnsignedUploadInfo as getWebglUnsignedUploadInfoUtil,
+  getDtypeInfo as getDtypeInfoUtil,
+  chooseHistogramBins as chooseHistogramBinsUtil,
+  computeHistogram as computeHistogramUtil,
+  computeAutoLevels as computeAutoLevelsUtil,
+  computeStats as computeStatsUtil,
+  getPaletteColorCount as getPaletteColorCountUtil,
+  mapValueToNorm as mapValueToNormUtil,
+  buildPalette as buildPaletteUtil,
+} from "./modules/intensity_scale_utils.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -5169,429 +5183,10 @@ function hashBufferSample(buffer) {
   return `${len}-${hash}`;
 }
 
-function createShader(gl, type, source) {
-  const shader = gl.createShader(type);
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    const info = gl.getShaderInfoLog(shader);
-    gl.deleteShader(shader);
-    throw new Error(info || "Shader compile failed");
-  }
-  return shader;
-}
-
-function createProgram(gl, vertexSource, fragmentSource) {
-  const vs = createShader(gl, gl.VERTEX_SHADER, vertexSource);
-  const fs = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
-  const program = gl.createProgram();
-  gl.attachShader(program, vs);
-  gl.attachShader(program, fs);
-  gl.linkProgram(program);
-  gl.deleteShader(vs);
-  gl.deleteShader(fs);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    const info = gl.getProgramInfoLog(program);
-    gl.deleteProgram(program);
-    throw new Error(info || "Program link failed");
-  }
-  return program;
-}
-
-function createWebGLRenderer() {
-  // WebGL2 renderer is the primary path for large image performance.
-  // It handles contrast mapping and masking directly in the fragment shader.
-  const gl = canvas.getContext("webgl2", {
-    antialias: false,
-    preserveDrawingBuffer: true,
-  });
-  if (!gl) {
-    return null;
-  }
-
-  const vertexSource = `#version 300 es
-    layout(location = 0) in vec2 a_position;
-    out vec2 v_tex;
-    void main() {
-      v_tex = a_position * 0.5 + 0.5;
-      gl_Position = vec4(a_position, 0.0, 1.0);
-    }
-  `;
-
-  const buildFragmentSource = (dataDecl, dataReadExpr) => `#version 300 es
-    precision highp float;
-    precision highp int;
-    ${dataDecl}
-    uniform sampler2D u_lut;
-    uniform sampler2D u_mask;
-    uniform float u_mask_enabled;
-    uniform float u_mask_saturated_enabled;
-    uniform float u_sat_max;
-    uniform float u_min;
-    uniform float u_max;
-    uniform float u_invert;
-    uniform float u_hdr;
-    uniform float u_lut_size;
-    in vec2 v_tex;
-    out vec4 outColor;
-    void main() {
-      float value = ${dataReadExpr};
-      if (u_mask_enabled > 0.5) {
-        float maskClass = texture(u_mask, v_tex).r;
-        if (maskClass > 0.75) {
-          outColor = vec4(0.0, 0.0, 0.0, 1.0);
-          return;
-        } else if (maskClass > 0.55) {
-          outColor = vec4(0.0, 0.62, 0.08, 1.0);
-          return;
-        } else if (maskClass > 0.25) {
-          outColor = vec4(0.1, 0.2, 0.47, 1.0);
-          return;
-        }
-      } else if (u_mask_saturated_enabled > 0.5 && abs(value - u_sat_max) <= max(1e-9, abs(u_sat_max) * 1e-6)) {
-        outColor = vec4(0.0, 0.62, 0.08, 1.0);
-        return;
-      }
-      float norm = 0.0;
-      if (u_hdr > 0.5) {
-        const float linSize = 256.0;
-        const float logSize = 768.0;
-        float bg = u_min;
-        float fg = u_max;
-        float lfg = fg * 10000.0;
-        float idx = 0.0;
-        if (value <= bg) {
-          idx = 0.0;
-        } else if (value >= lfg) {
-          idx = linSize + logSize - 1.0;
-        } else if (value < fg && fg > bg) {
-          float linSlope = linSize / (fg - bg);
-          idx = floor((value - bg) * linSlope);
-          idx = clamp(idx, 0.0, linSize - 1.0);
-        } else if (fg > bg && lfg > fg && value > bg) {
-          float denom = log((lfg - bg) / (fg - bg));
-          if (denom > 0.0) {
-            float logSlope = (logSize - 1.0) / denom;
-            float logOffset = -log(max(fg - bg, 1e-12)) * logSlope;
-            float x = log(max(value - bg, 1e-12)) * logSlope + logOffset;
-            idx = linSize + floor(x);
-            idx = clamp(idx, linSize, linSize + logSize - 1.0);
-          } else {
-            idx = linSize;
-          }
-        }
-        norm = idx / (linSize + logSize - 1.0);
-      } else {
-        float denom = max(u_max - u_min, 1.0);
-        float t = (value - u_min) / denom;
-        norm = clamp(t, 0.0, 1.0);
-      }
-      if (u_invert > 0.5) {
-        norm = 1.0 - norm;
-      }
-      float lutSize = max(u_lut_size, 2.0);
-      float lutIndex = floor(norm * (lutSize - 1.0));
-      float lutU = (lutIndex + 0.5) / lutSize;
-      outColor = texture(u_lut, vec2(lutU, 0.5));
-    }
-  `;
-
-  const floatFragmentSource = buildFragmentSource("uniform sampler2D u_data;", "texture(u_data, v_tex).r");
-  const uintFragmentSource = buildFragmentSource(
-    "uniform highp usampler2D u_data;",
-    "float(texture(u_data, v_tex).r)"
-  );
-
-  let floatProgram;
-  try {
-    floatProgram = createProgram(gl, vertexSource, floatFragmentSource);
-  } catch (err) {
-    console.error(err);
-    setStatus("WebGL shader error");
-    return {
-      type: "webgl",
-      render: () => {},
-    };
-  }
-
-  let uintProgram = null;
-  try {
-    uintProgram = createProgram(gl, vertexSource, uintFragmentSource);
-  } catch (err) {
-    console.warn("WebGL integer texture path unavailable; using float upload fallback.", err);
-  }
-
-  const vao = gl.createVertexArray();
-  gl.bindVertexArray(vao);
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-  gl.bindVertexArray(null);
-
-  const configureTexture = (texture) => {
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  };
-
-  const dataTexFloat = gl.createTexture();
-  configureTexture(dataTexFloat);
-  const dataTexUint = gl.createTexture();
-  configureTexture(dataTexUint);
-
-  const lutTex = gl.createTexture();
-  configureTexture(lutTex);
-
-  const maskTex = gl.createTexture();
-  configureTexture(maskTex);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.R8,
-    1,
-    1,
-    0,
-    gl.RED,
-    gl.UNSIGNED_BYTE,
-    new Uint8Array([0])
-  );
-
-  const collectUniforms = (program) => ({
-    data: gl.getUniformLocation(program, "u_data"),
-    lut: gl.getUniformLocation(program, "u_lut"),
-    mask: gl.getUniformLocation(program, "u_mask"),
-    maskEnabled: gl.getUniformLocation(program, "u_mask_enabled"),
-    maskSaturatedEnabled: gl.getUniformLocation(program, "u_mask_saturated_enabled"),
-    satMax: gl.getUniformLocation(program, "u_sat_max"),
-    min: gl.getUniformLocation(program, "u_min"),
-    max: gl.getUniformLocation(program, "u_max"),
-    invert: gl.getUniformLocation(program, "u_invert"),
-    hdr: gl.getUniformLocation(program, "u_hdr"),
-    lutSize: gl.getUniformLocation(program, "u_lut_size"),
-  });
-
-  const floatUniforms = collectUniforms(floatProgram);
-  const uintUniforms = uintProgram ? collectUniforms(uintProgram) : null;
-
-  const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-  let maskTexWidth = 1;
-  let maskTexHeight = 1;
-  let lastMaskData = null;
-  let lastFrameData = null;
-  let lastMaskEnabled = false;
-  let lastMaskSaturatedEnabled = false;
-  let lastSatMax = null;
-  let maskClassData = null;
-
-  return {
-    type: "webgl",
-    maxTextureSize,
-    render({
-      floatData,
-      rawData,
-      dtype,
-      width,
-      height,
-      min,
-      max,
-      palette,
-      invert,
-      mask,
-      maskWidth,
-      maskHeight,
-      maskEnabled,
-      maskSaturatedEnabled,
-      satMax,
-      colormap,
-    }) {
-      const dtypeKey = uintProgram ? getWebglUnsignedDtypeKey(dtype) : null;
-      const useUintPath = Boolean(dtypeKey && isWebglUnsignedRawCandidate(dtype, rawData));
-      const frameData = useUintPath ? rawData : floatData || (rawData ? toFloat32(rawData) : null);
-      if (!frameData) return;
-      if (width > maxTextureSize || height > maxTextureSize) {
-        setStatus(`Frame exceeds max texture size ${maxTextureSize}px`);
-        return;
-      }
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-
-      const program = useUintPath ? uintProgram : floatProgram;
-      const uniforms = useUintPath ? uintUniforms : floatUniforms;
-      if (!program || !uniforms) return;
-
-      gl.viewport(0, 0, width, height);
-      gl.useProgram(program);
-      gl.bindVertexArray(vao);
-
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, useUintPath ? dataTexUint : dataTexFloat);
-      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      if (useUintPath) {
-        const upload = getWebglUnsignedUploadInfo(gl, dtypeKey);
-        if (!upload) return;
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          upload.internalFormat,
-          width,
-          height,
-          0,
-          upload.format,
-          upload.type,
-          frameData
-        );
-      } else {
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, width, height, 0, gl.RED, gl.FLOAT, frameData);
-      }
-      gl.uniform1i(uniforms.data, 0);
-
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, lutTex);
-      const lutSize = getPaletteColorCount(palette);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        lutSize,
-        1,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        palette
-      );
-      gl.uniform1i(uniforms.lut, 1);
-
-      const validMask = Boolean(mask && maskWidth === width && maskHeight === height && mask.length === width * height);
-      const useMask = Boolean((maskEnabled && validMask) || (maskSaturatedEnabled && Number.isFinite(satMax)));
-      gl.activeTexture(gl.TEXTURE2);
-      gl.bindTexture(gl.TEXTURE_2D, maskTex);
-      gl.uniform1i(uniforms.mask, 2);
-      gl.uniform1f(uniforms.maskEnabled, useMask ? 1.0 : 0.0);
-      gl.uniform1f(uniforms.maskSaturatedEnabled, maskSaturatedEnabled && Number.isFinite(satMax) ? 1.0 : 0.0);
-      gl.uniform1f(uniforms.satMax, Number.isFinite(satMax) ? satMax : 0.0);
-      const shouldUploadMask =
-        useMask &&
-        (mask !== lastMaskData ||
-          frameData !== lastFrameData ||
-          maskTexWidth !== width ||
-          maskTexHeight !== height ||
-          maskEnabled !== lastMaskEnabled ||
-          maskSaturatedEnabled !== lastMaskSaturatedEnabled ||
-          satMax !== lastSatMax);
-      if (shouldUploadMask) {
-        if (!maskClassData || maskClassData.length !== width * height) {
-          maskClassData = new Uint8Array(width * height);
-        }
-        for (let i = 0; i < width * height; i += 1) {
-          const bits = validMask ? mask[i] : 0;
-          if (bits & 1) {
-            maskClassData[i] = 255;
-          } else if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(frameData[i], satMax)) {
-            maskClassData[i] = 160;
-          } else if (bits & 0x1e) {
-            maskClassData[i] = 128;
-          } else {
-            maskClassData[i] = 0;
-          }
-        }
-        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          gl.R8,
-          width,
-          height,
-          0,
-          gl.RED,
-          gl.UNSIGNED_BYTE,
-          maskClassData
-        );
-        maskTexWidth = width;
-        maskTexHeight = height;
-        lastMaskData = mask;
-        lastFrameData = frameData;
-        lastMaskEnabled = Boolean(maskEnabled);
-        lastMaskSaturatedEnabled = Boolean(maskSaturatedEnabled);
-        lastSatMax = satMax;
-      }
-
-      gl.uniform1f(uniforms.min, min);
-      gl.uniform1f(uniforms.max, max);
-      gl.uniform1f(uniforms.invert, invert ? 1.0 : 0.0);
-      gl.uniform1f(uniforms.hdr, colormap === "albulaHdr" ? 1.0 : 0.0);
-      gl.uniform1f(uniforms.lutSize, lutSize);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    },
-  };
-}
-
-function createCpuRenderer() {
-  const ctx = canvas.getContext("2d");
-  return {
-    type: "cpu",
-    render({ data, width, height, palette, mask, maskEnabled, maskSaturatedEnabled, satMax }) {
-      if (!data) return;
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-      const imageData = ctx.createImageData(width, height);
-      const out = imageData.data;
-      const maxIdx = getPaletteColorCount(palette) - 1;
-      for (let i = 0; i < data.length; i += 1) {
-        const v = data[i];
-        if (maskEnabled && mask && mask.length === data.length) {
-          const maskValue = mask[i];
-          if (maskValue & 1) {
-            const j = i * 4;
-            out[j] = 0;
-            out[j + 1] = 0;
-            out[j + 2] = 0;
-            out[j + 3] = 255;
-            continue;
-          } else if (maskValue & 0x1e) {
-            const j = i * 4;
-            out[j] = 25;
-            out[j + 1] = 50;
-            out[j + 2] = 120;
-            out[j + 3] = 255;
-            continue;
-          }
-        }
-        if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(v, satMax)) {
-          const j = i * 4;
-          out[j] = 0;
-          out[j + 1] = 158;
-          out[j + 2] = 20;
-          out[j + 3] = 255;
-          continue;
-        }
-        const norm = mapValueToNorm(v);
-        const idx = Math.floor(norm * maxIdx) * 4;
-        const j = i * 4;
-        out[j] = palette[idx];
-        out[j + 1] = palette[idx + 1];
-        out[j + 2] = palette[idx + 2];
-        out[j + 3] = 255;
-      }
-      ctx.putImageData(imageData, 0, 0);
-    },
-  };
-}
+let renderEngineController = null;
 
 function initRenderer() {
-  renderer = createWebGLRenderer();
-  if (!renderer) {
-    renderer = createCpuRenderer();
-  }
-  metaRenderer.textContent = renderer.type === "webgl" ? "WebGL2" : "CPU";
+  renderEngineController.initRenderer();
 }
 
 async function loadFiles() {
@@ -6055,82 +5650,19 @@ function toFloat32(data) {
 }
 
 function getWebglUnsignedDtypeKey(dtype) {
-  const normalized = String(dtype || "").toLowerCase();
-  if (normalized === "|u1" || normalized === "<u1" || normalized === "uint8") return "u8";
-  if (normalized === "<u2" || normalized === "uint16") return "u16";
-  if (normalized === "<u4" || normalized === "uint32") return "u32";
-  return null;
+  return getWebglUnsignedDtypeKeyUtil(dtype);
 }
 
 function isWebglUnsignedRawCandidate(dtype, data) {
-  const key = getWebglUnsignedDtypeKey(dtype);
-  if (key === "u8") return data instanceof Uint8Array;
-  if (key === "u16") return data instanceof Uint16Array;
-  if (key === "u32") return data instanceof Uint32Array;
-  return false;
+  return isWebglUnsignedRawCandidateUtil(dtype, data);
 }
 
 function getWebglUnsignedUploadInfo(gl, key) {
-  if (key === "u8") {
-    return { internalFormat: gl.R8UI, format: gl.RED_INTEGER, type: gl.UNSIGNED_BYTE };
-  }
-  if (key === "u16") {
-    return { internalFormat: gl.R16UI, format: gl.RED_INTEGER, type: gl.UNSIGNED_SHORT };
-  }
-  if (key === "u32") {
-    return { internalFormat: gl.R32UI, format: gl.RED_INTEGER, type: gl.UNSIGNED_INT };
-  }
-  return null;
+  return getWebglUnsignedUploadInfoUtil(gl, key);
 }
 
 function getDtypeInfo(dtype) {
-  if (!dtype) return null;
-  if (dtype.length >= 3 && (dtype[0] === "<" || dtype[0] === ">" || dtype[0] === "|")) {
-    const kind = dtype[1];
-    const bytes = Number.parseInt(dtype.slice(2), 10);
-    if (Number.isFinite(bytes) && bytes > 0) {
-      return { kind, bits: bytes * 8 };
-    }
-    return null;
-  }
-  const lower = dtype.toLowerCase();
-  if (lower.startsWith("uint")) {
-    const bits = Number.parseInt(lower.slice(4), 10);
-    if (Number.isFinite(bits)) {
-      return { kind: "u", bits };
-    }
-  }
-  if (lower.startsWith("int")) {
-    const bits = Number.parseInt(lower.slice(3), 10);
-    if (Number.isFinite(bits)) {
-      return { kind: "i", bits };
-    }
-  }
-  if (lower.startsWith("float")) {
-    const bits = Number.parseInt(lower.slice(5), 10);
-    if (Number.isFinite(bits)) {
-      return { kind: "f", bits };
-    }
-  }
-  return null;
-}
-
-function getSaturationMax(rawMax) {
-  const info = getDtypeInfo(state.dtype);
-  if (!info || info.kind === "f") return null;
-  if (!Number.isFinite(rawMax)) return null;
-  const bits = info.bits;
-  if (!Number.isFinite(bits) || bits <= 0 || bits > 52) return null;
-  const dtypeMax = info.kind === "u" ? 2 ** bits - 1 : 2 ** (bits - 1) - 1;
-  const candidates = [4, 8, 12, 16, 32];
-  for (const candBits of candidates) {
-    if (candBits > bits) continue;
-    const candMax = 2 ** candBits - 1;
-    if (rawMax === candMax) {
-      return candMax;
-    }
-  }
-  return dtypeMax;
+  return getDtypeInfoUtil(dtype);
 }
 
 function getActiveSaturationMax() {
@@ -6144,208 +5676,32 @@ function isSaturatedValue(value, satMax) {
 }
 
 function chooseHistogramBins(count) {
-  if (!Number.isFinite(count) || count <= 0) return 256;
-  const bins = Math.round(Math.sqrt(count) * 0.5);
-  return Math.max(32, Math.min(256, bins));
+  return chooseHistogramBinsUtil(count);
 }
-
-const AUTO_CONTRAST_LOW = 0.001;
-const AUTO_CONTRAST_HIGH = 0.999;
-const AUTO_CONTRAST_BINS = 4096;
-const ALBULA_LIN_SIZE = 256;
-const ALBULA_LOG_SIZE = 768;
-const ALBULA_LUT_SIZE = ALBULA_LIN_SIZE + ALBULA_LOG_SIZE;
-const ALBULA_LOG_FOREGROUND_FACTOR = 10000;
 
 function getPaletteColorCount(palette) {
-  if (!palette || !palette.length) return 1;
-  return Math.max(1, Math.floor(palette.length / 4));
-}
-
-function mapAlbulaHdrToNorm(value, bg, fg) {
-  // Emulate ALBULA HDR transfer:
-  // linear ramp until FG, then logarithmic compression for brighter peaks.
-  if (!Number.isFinite(value) || !Number.isFinite(bg) || !Number.isFinite(fg)) {
-    return 0;
-  }
-  const lfg = fg * ALBULA_LOG_FOREGROUND_FACTOR;
-  let idx = 0;
-  if (value <= bg) {
-    idx = 0;
-  } else if (value >= lfg) {
-    idx = ALBULA_LUT_SIZE - 1;
-  } else if (value < fg && fg > bg) {
-    const linSlope = ALBULA_LIN_SIZE / (fg - bg);
-    idx = Math.floor((value - bg) * linSlope);
-    idx = Math.max(0, Math.min(ALBULA_LIN_SIZE - 1, idx));
-  } else if (fg > bg && lfg > fg && value > bg) {
-    const denom = Math.log((lfg - bg) / (fg - bg));
-    if (Number.isFinite(denom) && denom > 0) {
-      const logSlope = (ALBULA_LOG_SIZE - 1) / denom;
-      const logOffset = -Math.log(fg - bg) * logSlope;
-      const x = Math.log(Math.max(value - bg, Number.EPSILON)) * logSlope + logOffset;
-      idx = ALBULA_LIN_SIZE + Math.floor(x);
-      idx = Math.max(ALBULA_LIN_SIZE, Math.min(ALBULA_LUT_SIZE - 1, idx));
-    } else {
-      idx = ALBULA_LIN_SIZE;
-    }
-  }
-  return idx / (ALBULA_LUT_SIZE - 1);
+  return getPaletteColorCountUtil(palette);
 }
 
 function computeHistogram(data, min, max, satMax, bins, logX) {
-  const hist = new Uint32Array(bins);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || bins <= 0) {
-    return hist;
-  }
-  const range = max - min || 1;
-  let mapValue = (v) => (v - min) / range;
-  if (logX) {
-    const symlog = (v) => Math.sign(v) * Math.log10(1 + Math.abs(v));
-    const minMap = symlog(min);
-    const maxMap = symlog(max);
-    const mapRange = maxMap - minMap || 1;
-    mapValue = (v) => (symlog(v) - minMap) / mapRange;
-  }
-
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (satMax !== null && v === satMax) continue;
-    const t = mapValue(v);
-    if (!Number.isFinite(t)) continue;
-    const idx = Math.min(bins - 1, Math.max(0, Math.floor(t * (bins - 1))));
-    hist[idx] += 1;
-  }
-  return hist;
+  return computeHistogramUtil(data, min, max, satMax, bins, logX);
 }
 
 function computeAutoLevels(data, satMaxInput) {
-  let rawMax = Number.NEGATIVE_INFINITY;
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (v > rawMax) rawMax = v;
-  }
-
-  const satMax = satMaxInput ?? getSaturationMax(rawMax);
-  let minLog = Number.POSITIVE_INFINITY;
-  let maxLog = Number.NEGATIVE_INFINITY;
-  let count = 0;
-
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (satMax !== null && v === satMax) continue;
-    const lv = Math.log1p(v);
-    if (lv < minLog) minLog = lv;
-    if (lv > maxLog) maxLog = lv;
-    count += 1;
-  }
-
-  if (!Number.isFinite(minLog) || !Number.isFinite(maxLog) || count === 0) {
-    return { min: state.stats?.min ?? 0, max: state.stats?.max ?? 1 };
-  }
-
-  const bins = Math.max(256, Math.min(AUTO_CONTRAST_BINS, Math.round(Math.sqrt(count)) * 4));
-  const hist = new Uint32Array(bins);
-  const range = maxLog - minLog || 1;
-
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (satMax !== null && v === satMax) continue;
-    const lv = Math.log1p(v);
-    const idx = Math.min(bins - 1, Math.max(0, Math.floor(((lv - minLog) / range) * (bins - 1))));
-    hist[idx] += 1;
-  }
-
-  const lowTarget = count * AUTO_CONTRAST_LOW;
-  const highTarget = count * AUTO_CONTRAST_HIGH;
-  let cumulative = 0;
-  let lowBin = 0;
-  for (let i = 0; i < bins; i += 1) {
-    cumulative += hist[i];
-    if (cumulative >= lowTarget) {
-      lowBin = i;
-      break;
-    }
-  }
-  cumulative = 0;
-  let highBin = bins - 1;
-  for (let i = 0; i < bins; i += 1) {
-    cumulative += hist[i];
-    if (cumulative >= highTarget) {
-      highBin = i;
-      break;
-    }
-  }
-  if (highBin <= lowBin) {
-    highBin = Math.min(bins - 1, lowBin + 1);
-  }
-
-  const lowLog = minLog + (lowBin / (bins - 1)) * range;
-  const highLog = minLog + (highBin / (bins - 1)) * range;
-  const minVal = Math.expm1(lowLog);
-  const maxVal = Math.expm1(highLog);
-  if (!Number.isFinite(minVal) || !Number.isFinite(maxVal) || minVal >= maxVal) {
-    return { min: state.stats?.min ?? 0, max: state.stats?.max ?? 1 };
-  }
-  return { min: minVal, max: maxVal };
+  return computeAutoLevelsUtil(data, satMaxInput, state.stats, state.dtype);
 }
 
 function computeStats(data) {
-  let rawMax = Number.NEGATIVE_INFINITY;
-
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (v > rawMax) rawMax = v;
-  }
-
-  const satMax = getSaturationMax(rawMax);
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (satMax !== null && v === satMax) continue;
-    if (v < min) min = v;
-    if (v > max) max = v;
-  }
-
-  if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    return { min: 0, max: 1, hist: new Uint32Array(0), satMax, bins: 0 };
-  }
-
-  const bins = chooseHistogramBins(data.length);
-  const hist = computeHistogram(data, min, max, satMax, bins, state.histLogX);
-  return { min, max, hist, satMax, bins };
+  return computeStatsUtil(data, state.dtype, state.histLogX);
 }
 
 function mapValueToNorm(value) {
-  if (!Number.isFinite(value)) return 0;
-  const minVal = Number.isFinite(state.min) ? state.min : 0;
-  const maxVal = Number.isFinite(state.max) ? state.max : minVal + 1;
-  const range = maxVal - minVal || 1;
-  const t = (value - minVal) / range;
-  let norm = 0;
-  if (state.colormap === "albulaHdr") {
-    norm = mapAlbulaHdrToNorm(value, minVal, maxVal);
-  } else {
-    norm = Math.min(1, Math.max(0, t));
-  }
-  if (state.invert) {
-    norm = 1 - norm;
-  }
-  return Math.min(1, Math.max(0, norm));
+  return mapValueToNormUtil(value, {
+    min: state.min,
+    max: state.max,
+    colormap: state.colormap,
+    invert: state.invert,
+  });
 }
 
 function getHistTooltipPosition(canvasRect, x) {
@@ -6358,131 +5714,36 @@ function getHistTooltipPosition(canvasRect, x) {
 }
 
 function buildPalette(name) {
-  const paletteSize = name === "albulaHdr" ? ALBULA_LUT_SIZE : 256;
-  const palette = new Uint8Array(paletteSize * 4);
-  const mixStops = (stops, t) => {
-    const scaled = t * (stops.length - 1);
-    const idx = Math.floor(scaled);
-    const frac = scaled - idx;
-    const a = stops[idx];
-    const b = stops[Math.min(idx + 1, stops.length - 1)];
-    return [
-      Math.round(a[0] + (b[0] - a[0]) * frac),
-      Math.round(a[1] + (b[1] - a[1]) * frac),
-      Math.round(a[2] + (b[2] - a[2]) * frac),
-    ];
-  };
-  for (let i = 0; i < paletteSize; i += 1) {
-    const t = paletteSize > 1 ? i / (paletteSize - 1) : 0;
-    let r = 0;
-    let g = 0;
-    let b = 0;
-    if (name === "gray") {
-      r = g = b = Math.round(t * 255);
-    } else if (name === "heat") {
-      const tt = t * 3;
-      r = Math.min(255, Math.round(255 * Math.min(tt, 1)));
-      g = Math.min(255, Math.round(255 * Math.max(0, tt - 1)));
-      b = Math.min(255, Math.round(255 * Math.max(0, tt - 2)));
-    } else if (name === "viridis") {
-      [r, g, b] = mixStops(
-        [
-          [68, 1, 84],
-          [59, 82, 139],
-          [33, 145, 140],
-          [94, 201, 97],
-          [253, 231, 37],
-        ],
-        t
-      );
-    } else if (name === "magma") {
-      [r, g, b] = mixStops(
-        [
-          [0, 0, 4],
-          [53, 15, 83],
-          [132, 32, 102],
-          [196, 66, 74],
-          [251, 135, 53],
-          [252, 253, 191],
-        ],
-        t
-      );
-    } else if (name === "inferno") {
-      [r, g, b] = mixStops(
-        [
-          [0, 0, 4],
-          [51, 13, 81],
-          [120, 28, 109],
-          [190, 55, 84],
-          [249, 101, 49],
-          [252, 255, 164],
-        ],
-        t
-      );
-    } else if (name === "cividis") {
-      [r, g, b] = mixStops(
-        [
-          [0, 32, 76],
-          [40, 77, 117],
-          [92, 125, 127],
-          [147, 173, 112],
-          [207, 223, 108],
-          [253, 231, 37],
-        ],
-        t
-      );
-    } else if (name === "turbo") {
-      [r, g, b] = mixStops(
-        [
-          [48, 18, 59],
-          [50, 127, 216],
-          [63, 195, 160],
-          [189, 211, 57],
-          [249, 143, 8],
-          [179, 21, 22],
-        ],
-        t
-      );
-    } else if (name === "blueYellowRed") {
-      r = Math.round(255 * Math.min(1, Math.max(0, t * 1.2)));
-      g = Math.round(255 * Math.min(1, Math.max(0, 1.2 - Math.abs(t - 0.5) * 2)));
-      b = Math.round(255 * Math.min(1, Math.max(0, 1 - t * 1.2)));
-    } else if (name === "albisHdr") {
-      const gamma = Math.pow(t, 0.7);
-      r = Math.round(255 * Math.min(1, gamma * 1.1));
-      g = Math.round(255 * Math.min(1, gamma * 0.9 + t * 0.3));
-      b = Math.round(255 * Math.min(1, (1 - gamma) * 0.4 + t * 0.6));
-    } else if (name === "albulaHdr") {
-      if (i < ALBULA_LIN_SIZE) {
-        const v = 255 - i;
-        r = v;
-        g = v;
-        b = v;
-      } else {
-        const logIndex = i - ALBULA_LIN_SIZE;
-        if (logIndex < 256) {
-          r = logIndex;
-          g = 0;
-          b = 0;
-        } else if (logIndex < 512) {
-          r = 255;
-          g = logIndex - 256;
-          b = 0;
-        } else {
-          r = 255;
-          g = 255;
-          b = logIndex - 512;
-        }
-      }
-    }
-    const base = i * 4;
-    palette[base] = r;
-    palette[base + 1] = g;
-    palette[base + 2] = b;
-    palette[base + 3] = 255;
-  }
-  return palette;
+  return buildPaletteUtil(name);
 }
+
+renderEngineController = createRenderEngineController({
+  state,
+  elements: {
+    canvas,
+    metaRenderer,
+  },
+  callbacks: {
+    setStatus,
+    toFloat32,
+    isSaturatedValue,
+    getWebglUnsignedDtypeKey,
+    isWebglUnsignedRawCandidate,
+    getWebglUnsignedUploadInfo,
+    getPaletteColorCount,
+    mapValueToNorm,
+    buildPalette,
+    getActiveSaturationMax,
+    scheduleOverview,
+    scheduleHistogram,
+    schedulePixelOverlay,
+    schedulePeakOverlay,
+    getRenderer: () => renderer,
+    setRenderer: (nextRenderer) => {
+      renderer = nextRenderer;
+    },
+  },
+});
 
 const overlayRenderController = createOverlayRenderController({
   state,
@@ -6841,57 +6102,7 @@ function applyFrame(data, width, height, dtype) {
 }
 
 function redraw() {
-  if (!state.dataRaw) return;
-  const palette = buildPalette(state.colormap);
-  const maskReady =
-    state.maskEnabled &&
-    state.maskAvailable &&
-    state.maskRaw &&
-    state.maskShape &&
-    state.maskShape[0] === state.height &&
-    state.maskShape[1] === state.width;
-  const maskData = maskReady ? state.maskRaw : null;
-  const maskWidth = maskReady ? state.maskShape[1] : 0;
-  const maskHeight = maskReady ? state.maskShape[0] : 0;
-  const satMax = getActiveSaturationMax();
-  const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
-  if (renderer.type === "webgl") {
-    renderer.render({
-      floatData: state.dataFloat,
-      rawData: state.dataRaw,
-      dtype: state.dtype,
-      width: state.width,
-      height: state.height,
-      min: state.min,
-      max: state.max,
-      palette,
-      invert: state.invert,
-      colormap: state.colormap,
-      mask: maskData,
-      maskWidth,
-      maskHeight,
-      maskEnabled: maskReady,
-      maskSaturatedEnabled,
-      satMax,
-    });
-  } else {
-    renderer.render({
-      data: state.dataRaw,
-      width: state.width,
-      height: state.height,
-      min: state.min,
-      max: state.max,
-      palette,
-      mask: maskData,
-      maskEnabled: maskReady,
-      maskSaturatedEnabled,
-      satMax,
-    });
-  }
-  scheduleOverview();
-  scheduleHistogram();
-  schedulePixelOverlay();
-  schedulePeakOverlay();
+  renderEngineController.redraw();
 }
 
 async function loadFrame() {
