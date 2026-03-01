@@ -23,6 +23,7 @@ import { bindViewerControls } from "./modules/viewer_controls_bindings.js";
 import { bindPanelAndSectionInteractions } from "./modules/panel_tab_bindings.js";
 import { bindRoiControlInteractions } from "./modules/roi_controls_bindings.js";
 import { bindRoiPlotInteractions } from "./modules/roi_plot_bindings.js";
+import { bindViewportInteractions } from "./modules/viewport_bindings.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -366,8 +367,6 @@ let histDragging = false;
 let histDragTarget = null;
 let histDragRaf = null;
 let histDragPendingValue = null;
-let panning = false;
-let panStart = { x: 0, y: 0, effectiveLeft: 0, effectiveTop: 0 };
 let pixelOverlayScheduled = false;
 let sectionStateStore = {};
 let roiOverlayScheduled = false;
@@ -398,8 +397,6 @@ const coarsePointerQuery = window.matchMedia("(hover: none), (pointer: coarse)")
 let touchGestureActive = false;
 let touchGestureDistance = 0;
 let touchGestureMid = null;
-let touchDragActive = false;
-let touchDragStart = null;
 let mobilePanelSnap = 0.6;
 let mobilePanelDragActive = false;
 let mobilePanelDragPointer = null;
@@ -3913,6 +3910,18 @@ function stepWheelZoom() {
     return;
   }
   zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
+}
+
+function queueWheelZoom(delta, clientX, clientY) {
+  if (!delta) return;
+  const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
+  const factor = Math.exp(-delta * 0.002);
+  const minZoom = getMinZoom();
+  zoomWheelTarget = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
+  zoomWheelPivot = { x: clientX, y: clientY };
+  if (!zoomWheelRaf) {
+    zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
+  }
 }
 
 function fitImageToView() {
@@ -10742,288 +10751,59 @@ bindPanelAndSectionInteractions({
 
 initializePostFilePickerBindings();
 
-function initializeViewportInteractionBindings() {
-  panelResizer?.addEventListener("mousedown", (event) => {
-    if (!appLayout) return;
-    if (state.panelCollapsed) {
-      state.panelCollapsed = false;
-      applyPanelState();
-    }
-    const startX = event.clientX;
-    const startWidth = toolsPanel?.getBoundingClientRect().width || state.panelWidth;
-    function onMove(e) {
-      const delta = startX - e.clientX;
-      setPanelWidth(startWidth + delta);
-      scheduleHistogram();
-    }
-    function onUp(e) {
-      const delta = startX - e.clientX;
-      const finalWidth = startWidth + delta;
-      if (finalWidth < 140) {
-        state.panelCollapsed = true;
-      }
-      applyPanelState();
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      document.body.style.cursor = "";
-    }
-    document.body.style.cursor = "col-resize";
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  });
-
-  canvasWrap.addEventListener(
-    "wheel",
-    (event) => {
-      event.preventDefault();
-      deferViewportInteraction();
-      const delta = normalizeWheelDelta(event);
-      if (!delta) return;
-      const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
-      const factor = Math.exp(-delta * 0.002);
-      const minZoom = getMinZoom();
-      zoomWheelTarget = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
-      zoomWheelPivot = { x: event.clientX, y: event.clientY };
-      if (!zoomWheelRaf) {
-        zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
-      }
+bindViewportInteractions({
+  state,
+  roiState,
+  constants: {
+    MAX_ZOOM,
+  },
+  elements: {
+    panelResizer,
+    appLayout,
+    toolsPanel,
+    canvasWrap,
+    roiRadiusInput,
+    roiInnerInput,
+    roiOuterInput,
+  },
+  callbacks: {
+    applyPanelState,
+    setPanelWidth,
+    scheduleHistogram,
+    deferViewportInteraction,
+    normalizeWheelDelta,
+    queueWheelZoom,
+    scheduleOverview,
+    schedulePixelOverlay,
+    scheduleRoiOverlay,
+    scheduleResolutionOverlay,
+    schedulePeakOverlay,
+    startTouchGesture,
+    updateTouchGesture,
+    stopTouchGesture,
+    isTouchGestureActive: () => touchGestureActive,
+    getEffectiveScrollLeft,
+    getEffectiveScrollTop,
+    setEffectiveScroll,
+    getImagePointFromEvent,
+    updateRoiCenterInputs,
+    getRoiHandleAt,
+    isPointInRoi,
+    startRoiEdit,
+    updateCursorOverlay,
+    isRoiEditing: () => roiEditing,
+    applyRoiEdit,
+    stopRoiEdit,
+    hideCursorOverlay,
+    getMinZoom,
+    zoomAt,
+    getRoiDragging: () => roiDragging,
+    setRoiDragging: (next) => {
+      roiDragging = next;
     },
-    { passive: false }
-  );
-
-  canvasWrap.addEventListener("scroll", () => {
-    deferViewportInteraction();
-    scheduleOverview();
-    schedulePixelOverlay();
-    scheduleRoiOverlay();
-    scheduleResolutionOverlay();
-    schedulePeakOverlay();
-  });
-
-  canvasWrap.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
-  });
-
-  canvasWrap.addEventListener(
-    "touchstart",
-    (event) => {
-      if (event.touches.length >= 2) {
-        // Multi-touch: pinch/zoom gesture
-        stopTouchDrag();
-        startTouchGesture(event.touches);
-        event.preventDefault();
-      } else if (event.touches.length === 1) {
-        // Single touch: prepare for dragging
-        const touch = event.touches[0];
-        touchDragStart = {
-          x: touch.clientX,
-          y: touch.clientY,
-          effectiveLeft: getEffectiveScrollLeft(),
-          effectiveTop: getEffectiveScrollTop(),
-        };
-        touchDragActive = true;
-      }
-    },
-    { passive: false }
-  );
-
-  canvasWrap.addEventListener(
-    "touchmove",
-    (event) => {
-      if (event.touches.length >= 2) {
-        // Multi-touch: continue zoom gesture
-        if (!touchGestureActive) return;
-        updateTouchGesture(event.touches);
-        event.preventDefault();
-        return;
-      }
-
-      if (event.touches.length === 1 && touchDragActive && touchDragStart) {
-        // Single touch drag: pan the canvas
-        deferViewportInteraction();
-        const touch = event.touches[0];
-        const dx = touch.clientX - touchDragStart.x;
-        const dy = touch.clientY - touchDragStart.y;
-        const nextEffectiveX = touchDragStart.effectiveLeft - dx;
-        const nextEffectiveY = touchDragStart.effectiveTop - dy;
-        setEffectiveScroll(nextEffectiveX, nextEffectiveY);
-        event.preventDefault();
-      }
-    },
-    { passive: false }
-  );
-
-  canvasWrap.addEventListener("touchend", (event) => {
-    if (event.touches.length >= 2) {
-      startTouchGesture(event.touches);
-      return;
-    }
-    stopTouchGesture();
-    stopTouchDrag();
-  });
-
-  canvasWrap.addEventListener("touchcancel", () => {
-    stopTouchGesture();
-    stopTouchDrag();
-  });
-
-  function stopTouchDrag() {
-    touchDragActive = false;
-    touchDragStart = null;
-  }
-
-  canvasWrap.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "touch") return;
-    const isRightClick = event.button === 2 || event.buttons === 2 || event.which === 3;
-    const isCtrlClick = event.button === 0 && event.ctrlKey;
-    const roiTrigger = roiState.enabled && (isRightClick || isCtrlClick);
-    if (roiTrigger) {
-      const point = getImagePointFromEvent(event);
-      if (!point) return;
-      roiDragging = true;
-      roiState.active = true;
-      roiState.start = point;
-      roiState.end = point;
-      if (roiState.mode === "circle" || roiState.mode === "annulus") {
-        updateRoiCenterInputs();
-        roiState.outerRadius = 0;
-        if (roiState.mode === "circle") {
-          roiState.innerRadius = 0;
-          if (roiRadiusInput) roiRadiusInput.value = "0";
-        } else {
-          if (!roiState.innerRadius) {
-            roiState.innerRadius = 0;
-          }
-          if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius || 0);
-          if (roiOuterInput) roiOuterInput.value = "0";
-        }
-      }
-      canvasWrap.classList.add("is-roi");
-      canvasWrap.setPointerCapture(event.pointerId);
-      event.preventDefault();
-      scheduleRoiOverlay();
-      scheduleRoiUpdate();
-      return;
-    }
-    if (event.button !== 0) return;
-    if (event.target.closest(".loading")) return;
-    if (roiState.enabled && roiState.active) {
-      const point = getImagePointFromEvent(event);
-      if (point) {
-        const handle = getRoiHandleAt(event);
-        if (handle || isPointInRoi(point)) {
-          startRoiEdit(handle || "move", point);
-          canvasWrap.setPointerCapture(event.pointerId);
-          event.preventDefault();
-          return;
-        }
-      }
-    }
-    panning = true;
-    panStart = {
-      x: event.clientX,
-      y: event.clientY,
-      effectiveLeft: getEffectiveScrollLeft(),
-      effectiveTop: getEffectiveScrollTop(),
-    };
-    canvasWrap.classList.add("is-panning");
-    deferViewportInteraction();
-    canvasWrap.setPointerCapture(event.pointerId);
-    event.preventDefault();
-  });
-
-  canvasWrap.addEventListener("pointermove", (event) => {
-    if (event.pointerType === "touch") return;
-    updateCursorOverlay(event);
-    if (roiEditing) {
-      const point = getImagePointFromEvent(event);
-      if (!point) return;
-      applyRoiEdit(point);
-      return;
-    }
-    if (roiDragging) {
-      const point = getImagePointFromEvent(event);
-      if (!point) return;
-      updateRoiDrag(point);
-      return;
-    }
-    if (!panning) return;
-    deferViewportInteraction();
-    const dx = event.clientX - panStart.x;
-    const dy = event.clientY - panStart.y;
-    const nextEffectiveX = panStart.effectiveLeft - dx;
-    const nextEffectiveY = panStart.effectiveTop - dy;
-    setEffectiveScroll(nextEffectiveX, nextEffectiveY);
-  });
-
-  function stopPan(event) {
-    if (!panning) return;
-    panning = false;
-    canvasWrap.classList.remove("is-panning");
-    schedulePixelOverlay();
-    if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
-      canvasWrap.releasePointerCapture(event.pointerId);
-    }
-  }
-
-  function stopRoi(event) {
-    if (!roiDragging) return;
-    roiDragging = false;
-    canvasWrap.classList.remove("is-roi");
-    if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
-      canvasWrap.releasePointerCapture(event.pointerId);
-    }
-    scheduleRoiOverlay();
-    scheduleRoiUpdate();
-  }
-
-  function updateRoiDrag(point) {
-    roiState.end = point;
-    if (roiState.mode === "circle" || roiState.mode === "annulus") {
-      const dx = roiState.end.x - roiState.start.x;
-      const dy = roiState.end.y - roiState.start.y;
-      const outer = Math.max(0, Math.round(Math.hypot(dx, dy)));
-      roiState.outerRadius = outer;
-      if (roiState.mode === "circle") {
-        if (roiRadiusInput) roiRadiusInput.value = String(outer);
-      } else {
-        if (roiOuterInput) roiOuterInput.value = String(outer);
-        if (!roiState.innerRadius || roiState.innerRadius >= outer) {
-          roiState.innerRadius = Math.max(0, Math.round(outer * 0.5));
-          if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
-        }
-      }
-    }
-    scheduleRoiOverlay();
-    scheduleRoiUpdate();
-  }
-
-  canvasWrap.addEventListener("pointerup", (event) => {
-    stopRoiEdit(event);
-    stopRoi(event);
-    stopPan(event);
-  });
-
-  canvasWrap.addEventListener("pointercancel", (event) => {
-    stopRoiEdit(event);
-    stopRoi(event);
-    stopPan(event);
-  });
-
-  canvasWrap.addEventListener("pointerleave", () => {
-    stopRoi();
-    hideCursorOverlay();
-  });
-
-  canvasWrap.addEventListener("dblclick", (event) => {
-    event.preventDefault();
-    const minZoom = getMinZoom();
-    const next = Math.min(MAX_ZOOM, Math.max(minZoom, state.zoom * 2));
-    zoomAt(event.clientX, event.clientY, next);
-  });
-}
-
-initializeViewportInteractionBindings();
+    scheduleRoiUpdate,
+  },
+});
 
 bindRoiPlotInteractions({
   roiState,
