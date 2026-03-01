@@ -61,4 +61,4 @@ For developers looking to build, test, and contribute:
 - [Architecture](docs/ARCHITECTURE.md)
 
 ## Acknowledgements and Contributions
-This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set for many the benchmark.
+This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set the benchmark.
