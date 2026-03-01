@@ -33,6 +33,7 @@ import { createRemoteStreamController } from "./modules/remote_stream_controller
 import { createAutoloadModeController } from "./modules/autoload_mode_controller.js";
 import { createAutoloadOrchestrationController } from "./modules/autoload_orchestration_controller.js";
 import { createAutoloadSettingsController } from "./modules/autoload_settings_controller.js";
+import { createAutoloadStatusController } from "./modules/autoload_status_controller.js";
 import { createFileDataPipelineController } from "./modules/file_data_pipeline_controller.js";
 import { createRoiStatsController } from "./modules/roi_stats_controller.js";
 import { createOverlayRenderController } from "./modules/overlay_render_controller.js";
@@ -406,6 +407,7 @@ let sourceMetadataController = null;
 let chromeToolbarController = null;
 let panelLayoutController = null;
 let thresholdPlaybackController = null;
+let autoloadStatusController = null;
 let activeMenu = "file";
 let closeTimer = null;
 let histogramScheduled = false;
@@ -1770,38 +1772,40 @@ function setDataControlsForSeries() {
 }
 
 function formatTimeStamp(ts) {
-  if (!ts) return "";
-  return new Date(ts).toLocaleTimeString();
+  return autoloadStatusController?.formatTimeStamp(ts) || "";
 }
 
 function setAutoloadStatus(text, markUpdate = false) {
-  if (text) {
-    setStatus(String(text));
-  }
-  if (markUpdate) {
-    state.autoload.lastUpdate = Date.now();
-  }
-  updateAutoloadMeta();
-  updateLiveBadge();
+  autoloadStatusController?.setAutoloadStatus(text, markUpdate);
 }
 
 function setAutoloadLatest() {
-  updateAutoloadMeta();
+  autoloadStatusController?.setAutoloadLatest();
 }
 
 function updateAutoloadMeta() {
-  if (autoloadStatus) {
-    autoloadStatus.textContent = state.autoload.lastPoll
-      ? formatTimeStamp(state.autoload.lastPoll)
-      : "-";
-  }
-  if (autoloadLatest) {
-    autoloadLatest.textContent = state.autoload.lastUpdate
-      ? formatTimeStamp(state.autoload.lastUpdate)
-      : "-";
-  }
-  updateToolbar();
+  autoloadStatusController?.updateAutoloadMeta();
 }
+
+async function setSimplonMode(enabled) {
+  await autoloadStatusController?.setSimplonMode(enabled);
+}
+
+autoloadStatusController = createAutoloadStatusController({
+  apiBase: API,
+  state,
+  elements: {
+    autoloadStatus,
+    autoloadLatest,
+    simplonUrl,
+    simplonVersion,
+  },
+  callbacks: {
+    setStatus,
+    updateToolbar,
+    updateLiveBadge,
+  },
+});
 
 sourceMetadataController = createSourceMetadataController({
   state,
@@ -2105,24 +2109,6 @@ function updateAutoloadUI() {
 
 function loadAutoloadSettings() {
   autoloadSettingsController.loadAutoloadSettings();
-}
-
-async function setSimplonMode(enabled) {
-  if (!simplonUrl || !simplonVersion) return;
-  const url = simplonUrl.value.trim();
-  if (!url) return;
-  const version = simplonVersion.value.trim() || "1.8.0";
-  const mode = enabled ? "enabled" : "disabled";
-  try {
-    await fetch(
-      `${API}/simplon/mode?url=${encodeURIComponent(url)}&version=${encodeURIComponent(
-        version
-      )}&mode=${mode}`,
-      { method: "POST" }
-    );
-  } catch (err) {
-    console.error(err);
-  }
 }
 
 const autoloadOrchestrationController = createAutoloadOrchestrationController({
