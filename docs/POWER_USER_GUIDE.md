@@ -8,6 +8,8 @@ This guide is for users who want to run the ALBIS server manually, use the Remot
   Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
 - **Standalone mode**:
   Use packaged artifacts created by the build scripts (no Python installation required on target machines).
+- **Docker mode**:
+  Build and run ALBIS inside a container (`Dockerfile` provided). See [Running via Docker](#running-via-docker) for details.
 
 ## Configuration
 
@@ -67,6 +69,32 @@ Log level and log directory are configured in `albis.config.json` under `logging
 Launcher startup logs are also written to `~/.config/albis/launcher.log` (with automatic rotation at ~1 MiB to `launcher.log.1`).
 
 Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
+
+## Running via Docker
+
+ALBIS includes a `Dockerfile` for containerized deployments. By default, the image exposes port `8000` and forces the server to bind to `0.0.0.0` so it is accessible from the host network.
+
+### Build the Image
+
+```bash
+docker build -t albis:latest .
+```
+
+### Run the Container
+
+To use ALBIS properly in a container, you should mount your data directory so the server can see your HDF5 or image files. Optionally, you can also mount a custom `albis.config.json` and a `logs/` directory.
+
+Example run command:
+
+```bash
+docker run -d \
+  --name albis \
+  -p 8000:8000 \
+  -v /path/to/your/data:/app/data:ro \
+  albis:latest
+```
+
+*Note: In the example above, `/path/to/your/data` is mounted into the container at `/app/data` as read-only (`:ro`). In the default ALBIS configuration (`albis.config.json`), the `data.root` is already set to `./data`, so ALBIS will immediately see your mounted files.*
 
 ## Remote Stream API
 
