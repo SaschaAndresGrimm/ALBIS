@@ -1,0 +1,340 @@
+/**
+ * File and frame loading pipeline.
+ */
+
+export function createFileDataPipelineController({
+  apiBase,
+  state,
+  elements,
+  callbacks,
+}) {
+  const {
+    fileSelect,
+    datasetSelect,
+    metaShape,
+    metaDtype,
+  } = elements;
+
+  const {
+    fetchJSON,
+    option,
+    fileLabel,
+    isSeriesCapable,
+    isHdfFile,
+    setDataControlsForHdf5,
+    setDataControlsForSeries,
+    loadMetadata,
+    loadInspectorRoot,
+    updateFrameControls,
+    updatePlayButtons,
+    requestFrame,
+    parseDtype,
+    parseShape,
+    typedArrayFrom,
+    applyImageMeta,
+    applyExternalFrame,
+    processPendingFrameRequest,
+    currentFrameStatusText,
+    setLoading,
+    setStatus,
+    showSplash,
+    setSplashStatus,
+    setDataSourceSectionState,
+    showProcessingProgress,
+    hideProcessingProgress,
+    stopPlayback,
+    loadMask,
+    updateToolbar,
+    getActiveFrameLoadController,
+    setActiveFrameLoadController,
+  } = callbacks;
+
+  function sortDatasets(datasets) {
+    const linkedStack = datasets.find((d) => d.path === "/entry/data");
+    if (linkedStack) {
+      return [linkedStack, ...datasets.filter((d) => d !== linkedStack)];
+    }
+    const primary = datasets.find((d) => d.path.includes("/entry/data/data"));
+    if (primary) {
+      return [primary, ...datasets.filter((d) => d !== primary)];
+    }
+    return datasets;
+  }
+
+  async function loadAutoloadFile(file) {
+    const lower = file.toLowerCase();
+    if (lower.endsWith(".h5") || lower.endsWith(".hdf5")) {
+      state.file = file;
+      if (fileSelect) {
+        const existing = Array.from(fileSelect.options).some((opt) => opt.value === file);
+        if (!existing) {
+          fileSelect.appendChild(option(fileLabel(file), file));
+        }
+        fileSelect.value = file;
+      }
+      setDataControlsForHdf5();
+      await loadDatasets();
+      if (state.frameCount > 1) {
+        requestFrame(state.frameCount - 1);
+      }
+      return;
+    }
+    await loadImageSeries(file);
+  }
+
+  async function loadImageSeries(file) {
+    if (!file) return;
+    if (!isSeriesCapable(file)) {
+      state.seriesFiles = [];
+      state.seriesLabel = "";
+      await loadImageFile(file);
+      return;
+    }
+    try {
+      const data = await fetchJSON(`${apiBase}/series?file=${encodeURIComponent(file)}`);
+      const files = Array.isArray(data.files) ? data.files : [file];
+      if (data.series && files.length > 1) {
+        state.seriesFiles = files;
+        state.seriesLabel = fileLabel(file);
+        state.file = file;
+        state.dataset = "";
+        state.frameCount = files.length;
+        state.frameIndex = Math.max(0, Math.min(files.length - 1, Number(data.index || 0)));
+        state.hasFrame = false;
+        updateFrameControls();
+        updatePlayButtons();
+        setDataControlsForSeries();
+        await loadSeriesFrame();
+        return;
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+    state.seriesFiles = [];
+    state.seriesLabel = "";
+    await loadImageFile(file);
+  }
+
+  async function loadImageFile(file) {
+    stopPlayback();
+    setLoading(true);
+    setStatus("Loading image…");
+    try {
+      const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`);
+      if (!res.ok) {
+        setStatus("Failed to load image");
+        return;
+      }
+      const buffer = await res.arrayBuffer();
+      const dtype = parseDtype(res.headers.get("X-Dtype"));
+      const shape = parseShape(res.headers.get("X-Shape"));
+      const data = typedArrayFrom(buffer, dtype);
+      applyImageMeta(res.headers);
+      applyExternalFrame(data, shape, dtype, file, true, false, {
+        autoMask: true,
+        maskKey: `auto:${file}`,
+      });
+      setStatus("Frame 1 / 1");
+    } catch (err) {
+      console.error(err);
+      setStatus("Failed to load image");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadDatasets() {
+    if (!state.file) return;
+    if (!isHdfFile(state.file)) {
+      await loadImageSeries(state.file);
+      return;
+    }
+    state.hasFrame = false;
+    stopPlayback();
+    state.seriesFiles = [];
+    state.seriesLabel = "";
+    setDataControlsForHdf5();
+    await loadMask(true);
+    showProcessingProgress("Scanning datasets…");
+    setLoading(true);
+    setStatus("Scanning datasets…");
+    setDataSourceSectionState("loading", "Scanning datasets…", true);
+    try {
+      const data = await fetchJSON(`${apiBase}/datasets?file=${encodeURIComponent(state.file)}`);
+      const candidates = data.datasets
+        .filter((d) => d.image)
+        .sort((a, b) => b.size - a.size);
+
+      datasetSelect.innerHTML = "";
+      const ordered = sortDatasets(candidates);
+      ordered.forEach((d) => datasetSelect.appendChild(option(`${d.path} (${d.shape.join("x")})`, d.path)));
+      await loadInspectorRoot();
+
+      if (ordered.length > 0) {
+        state.dataset = ordered[0].path;
+        datasetSelect.value = state.dataset;
+        await loadMetadata();
+        setDataSourceSectionState("active", "Dataset metadata loaded.");
+      } else {
+        setStatus("No image datasets found");
+        showSplash();
+        setSplashStatus("No image datasets found. Open a different file.");
+        setLoading(false);
+        setDataSourceSectionState("warning", "No image datasets found.");
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("Failed to scan datasets");
+      showSplash();
+      setSplashStatus("Dataset scan failed. Open a file to continue.");
+      setLoading(false);
+      setDataSourceSectionState("warning", "Failed to scan datasets.");
+    } finally {
+      hideProcessingProgress();
+    }
+  }
+
+  async function loadSeriesFrame() {
+    const files = Array.isArray(state.seriesFiles) ? state.seriesFiles : [];
+    if (!files.length) return;
+    const file = files[state.frameIndex];
+    if (!file) return;
+    if (state.isLoading) return;
+    state.isLoading = true;
+    const showLoading = !state.playing;
+    if (showLoading) {
+      setLoading(true);
+      setStatus("Loading frame…");
+    } else {
+      setLoading(false);
+    }
+    let appliedFrame = false;
+    const requestController = new AbortController();
+    setActiveFrameLoadController(requestController);
+    try {
+      const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`, {
+        signal: requestController.signal,
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        setStatus("Failed to load image");
+        if (!state.hasFrame) {
+          showSplash();
+        }
+        return;
+      }
+      const buffer = await res.arrayBuffer();
+      const dtype = parseDtype(res.headers.get("X-Dtype"));
+      const shape = parseShape(res.headers.get("X-Shape"));
+      const data = typedArrayFrom(buffer, dtype);
+      applyImageMeta(res.headers);
+
+      const height = shape[0];
+      const width = shape[1];
+      metaShape.textContent = `${width} × ${height}`;
+      metaDtype.textContent = dtype;
+
+      const seriesKey = state.seriesLabel || state.file || file;
+      const reuseMask = Boolean(state.maskRaw && state.maskFile === `auto:${seriesKey}`);
+      applyExternalFrame(data, shape, dtype, state.file || file, false, reuseMask, {
+        preserveSeries: true,
+        keepPlaying: true,
+        autoMask: !reuseMask,
+        maskKey: `auto:${seriesKey}`,
+      });
+      appliedFrame = true;
+      setStatus(currentFrameStatusText());
+      updateToolbar();
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error(err);
+        setStatus("Failed to load image");
+        if (!state.hasFrame) {
+          showSplash();
+        }
+      }
+    } finally {
+      if (getActiveFrameLoadController() === requestController) {
+        setActiveFrameLoadController(null);
+      }
+      setLoading(false);
+      state.isLoading = false;
+    }
+    processPendingFrameRequest(appliedFrame);
+  }
+
+  async function loadFrame() {
+    if (Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0) {
+      await loadSeriesFrame();
+      return;
+    }
+    if (!state.file || !state.dataset) return;
+    if (state.isLoading) return;
+    state.isLoading = true;
+    if (!state.playing) {
+      setLoading(true);
+      setStatus("Loading frame…");
+    } else {
+      setLoading(false);
+    }
+    const url = `${apiBase}/frame?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(
+      state.dataset
+    )}&index=${state.frameIndex}${
+      state.thresholdCount > 1 ? `&threshold=${state.thresholdIndex}` : ""
+    }`;
+    let appliedFrame = false;
+    const requestController = new AbortController();
+    setActiveFrameLoadController(requestController);
+    try {
+      const res = await fetch(url, {
+        signal: requestController.signal,
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        setStatus("Failed to load frame");
+        if (!state.hasFrame) {
+          showSplash();
+        }
+        return;
+      }
+      const buffer = await res.arrayBuffer();
+      const dtype = parseDtype(res.headers.get("X-Dtype"));
+      const shape = parseShape(res.headers.get("X-Shape"));
+      const data = typedArrayFrom(buffer, dtype);
+
+      const height = shape[0];
+      const width = shape[1];
+      metaShape.textContent = `${width} × ${height}`;
+      metaDtype.textContent = dtype;
+
+      callbacks.applyFrame(data, width, height, dtype);
+      appliedFrame = true;
+      setStatus(currentFrameStatusText());
+      updateToolbar();
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error(err);
+        setStatus("Failed to load frame");
+        if (!state.hasFrame) {
+          showSplash();
+        }
+      }
+    } finally {
+      if (getActiveFrameLoadController() === requestController) {
+        setActiveFrameLoadController(null);
+      }
+      setLoading(false);
+      state.isLoading = false;
+    }
+    processPendingFrameRequest(appliedFrame);
+  }
+
+  return {
+    loadAutoloadFile,
+    loadImageSeries,
+    loadImageFile,
+    loadDatasets,
+    loadSeriesFrame,
+    loadFrame,
+  };
+}
