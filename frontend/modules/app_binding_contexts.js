@@ -2,6 +2,10 @@
  * Context factories for app-level binding/bootstrap orchestration.
  */
 
+/**
+ * Build the exact element map expected by `initializeMainUiBindings`.
+ * Keep this key set aligned with `frontend/modules/main_ui_bindings_bootstrap.js`.
+ */
 export function createMainUiBindingsElements(elements) {
   return {
     menuButtons: elements.menuButtons,
@@ -35,6 +39,11 @@ export function createMainUiBindingsElements(elements) {
   };
 }
 
+/**
+ * Build the exact callback map expected by `initializeMainUiBindings`.
+ * This factory intentionally performs explicit key mapping so missing callbacks
+ * are visible during refactors instead of being silently spread through.
+ */
 export function createMainUiBindingsCallbacks(callbacks) {
   return {
     applyPlatformShortcutLabels: callbacks.applyPlatformShortcutLabels,
@@ -85,6 +94,10 @@ export function createMainUiBindingsCallbacks(callbacks) {
   };
 }
 
+/**
+ * Build the exact element map expected by `initializePostFilePickerBindings`.
+ * Keep this key set aligned with `frontend/modules/post_file_picker_bindings.js`.
+ */
 export function createPostFilePickerBindingsElements(elements) {
   return {
     autoloadMode: elements.autoloadMode,
@@ -167,6 +180,11 @@ export function createPostFilePickerBindingsElements(elements) {
   };
 }
 
+/**
+ * Build the exact callback map expected by `initializePostFilePickerBindings`.
+ * Includes state-ref callbacks (`setRoiDragging`, section-state getters/setters)
+ * because post-picker bindings consume them as part of the callback contract.
+ */
 export function createPostFilePickerBindingsCallbacks(callbacks) {
   return {
     stopAutoload: callbacks.stopAutoload,
@@ -287,6 +305,12 @@ export function createPostFilePickerBindingsCallbacks(callbacks) {
   };
 }
 
+/**
+ * Build the argument object for `createFileBrowserController`.
+ *
+ * `onPathSelected` behavior is centralized here to keep `app.js` compact while
+ * preserving the exact autoload/series-sum side effects expected by the UI.
+ */
 export function createFileBrowserControllerContext({
   apiBase,
   elements,
@@ -329,6 +353,9 @@ export function createFileBrowserControllerContext({
   };
 }
 
+/**
+ * Compose main-ui binding context with derived helpers that depend on runtime state.
+ */
 export function createMainUiBindingsContext({
   state,
   elements,
@@ -349,6 +376,13 @@ export function createMainUiBindingsContext({
   };
 }
 
+/**
+ * Compose post-picker binding context and attach state-ref helpers.
+ *
+ * Backward compatibility:
+ * - accepts explicit `stateRefs`
+ * - falls back to state-ref callbacks already present on `callbacks`
+ */
 export function createPostFilePickerBindingsContext({
   apiBase,
   state,
@@ -394,6 +428,9 @@ export function createPostFilePickerBindingsContext({
   };
 }
 
+/**
+ * Compose runtime-bootstrap context and inject mutable state helpers.
+ */
 export function createRuntimeBootstrapContext({
   state,
   callbacks,
