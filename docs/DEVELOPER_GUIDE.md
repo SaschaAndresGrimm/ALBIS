@@ -54,8 +54,25 @@ ALBIS uses a server-client architecture:
 
 Detailed implementation notes:
 
-- System architecture and data flows: `ARCHITECTURE.md`
-- Backend/frontend code navigation map: `CODE_MAP.md`
+- System architecture and data flows: [ALBIS Architecture](#albis-architecture)
+- Backend/frontend code navigation map: [ALBIS Code Map](#albis-code-map)
+- API contract reference: [ALBIS API Contracts](#albis-api-contracts)
+
+### Frontend Composition Root (Current)
+
+Frontend code is now intentionally split by responsibility:
+
+- `frontend/app.js`:
+  - Composition root only.
+  - Wires controllers/bindings together and keeps stable wrapper function names for initialization-order safety.
+- `frontend/modules/*_controller.js`:
+  - Domain/state logic (autoload, playback, metadata, ROI, overlays, rendering, export, layout/chrome).
+- `frontend/modules/*_bindings*.js`:
+  - DOM event wiring only.
+  - Consume callback contracts from `app.js` wrappers and context factories.
+- `frontend/modules/app_binding_contexts.js`:
+  - Shapes large element/callback maps passed into binding bootstraps.
+  - Used to keep `app.js` readable and prevent accidental callback/key drift.
 
 ## Packaging (PyInstaller)
 
@@ -125,7 +142,7 @@ Use `albis.config.json` to change data path, host/port, logging, and launcher be
 - Build metadata helper: `scripts/version_info.py`
 - Human-readable release history: `CHANGELOG.md`
 - Tag format for releases: `v<version>` (for example `v1.0.0`)
-- Release execution checklist (including workflow dry-run): `RELEASE_CHECKLIST.md`
+- Release execution checklist (including workflow dry-run): `docs/RELEASE_CHECKLIST.md`
 # ALBIS Architecture
 
 This document explains how ALBIS is structured internally and how data flows through the system.
@@ -166,13 +183,11 @@ Key state:
 
 Responsibilities:
 
-- Manage app UI state (dataset/frame/threshold/visualization controls).
-- Render image via WebGL2 or CPU fallback.
-- Render overlays (ROI, peak markers, resolution rings, histogram, cursor info).
-- Manage menu interactions, keyboard shortcuts, panel behavior, and mobile gestures.
-- Poll backend endpoints and orchestrate data source modes (file, watch folder, monitor).
-- Poll backend endpoints and orchestrate data source modes (file, watch folder, monitor, JUNGFRAUJOCH preview).
-- Poll remote frame sources and apply pushed metadata/overlays (resolution + peak sets).
+- Act as the composition root for frontend modules.
+- Keep wrapper callbacks stable for bindings/controllers to avoid initialization-order regressions.
+- Instantiate and connect controller modules (autoload, file/data pipeline, playback, metadata, overlays, ROI, rendering, export, panel/chrome).
+- Instantiate binding bootstrap modules and pass context maps.
+- Coordinate startup/bootstrap sequence and top-level orchestration flow.
 
 Rendering layers:
 
@@ -265,11 +280,40 @@ This document is a practical navigation guide for contributors.
 - `backend/config.py`:
   - Config discovery, parsing, normalization, and typed getters.
 - `frontend/app.js`:
-  - Main UI controller, rendering orchestration, interaction logic.
+  - Frontend composition root and bootstrap wiring.
 - `frontend/index.html`:
   - UI structure and mount points referenced by `app.js`.
 - `frontend/style.css`:
   - Styling and responsive layout.
+
+## Frontend Module Map
+
+- `frontend/modules/app_binding_contexts.js`:
+  - Factory helpers for element/callback context objects used by binding bootstraps and file-browser bootstrap.
+- `frontend/modules/main_ui_bindings_bootstrap.js`:
+  - Main menu/chrome/data-control binding orchestration.
+- `frontend/modules/post_file_picker_bindings.js`:
+  - Post-picker interaction binding orchestration (viewer, ROI, viewport, histogram drag, overview, window).
+- `frontend/modules/file_data_pipeline_controller.js`:
+  - File, dataset, and frame loading pipeline.
+- `frontend/modules/file_session_controller.js`:
+  - Session teardown and frame application flow.
+- `frontend/modules/frame_playback_controller.js`:
+  - Frame status, controls, request queueing, and playback timing.
+- `frontend/modules/frame_metadata_controller.js`:
+  - Autoload folders/files/metadata fetch orchestration.
+- `frontend/modules/render_engine_controller.js` + `frontend/modules/intensity_scale_utils.js`:
+  - WebGL/CPU renderer setup and intensity/statistics utility stack.
+- `frontend/modules/overview_viewport_controller.js`:
+  - Pan/zoom/touch/overview interaction model and viewport transforms.
+- `frontend/modules/roi_stats_controller.js` + `frontend/modules/roi_interaction_controller.js`:
+  - ROI statistics/plots and ROI interaction overlay editing.
+- `frontend/modules/overlay_render_controller.js` + `frontend/modules/histogram_render_controller.js`:
+  - Overlay and histogram drawing/scheduling.
+- `frontend/modules/autoload_*_controller.js`:
+  - Autoload mode, settings persistence/UI sync, orchestration, and status/meta control.
+- `frontend/modules/file_browser.js`:
+  - File browser modal state and filesystem browsing interactions.
 
 ## Backend Route Modules
 
@@ -341,7 +385,8 @@ This document is a practical navigation guide for contributors.
   - Put reusable logic in `backend/services/*` instead of route handlers.
 - New frontend panel/workflow:
   - Add DOM structure in `frontend/index.html`.
-  - Add behavior in `frontend/app.js`.
+  - Implement domain behavior in the relevant `frontend/modules/*` controller/binding module.
+  - Keep `frontend/app.js` changes limited to composition wiring/wrapper callbacks/context assembly.
   - Add styles in `frontend/style.css`.
 - User-visible behavior changes:
   - Update `README.md`, `CHANGELOG.md`, and relevant docs in `docs/`.

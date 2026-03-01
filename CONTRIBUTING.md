@@ -53,6 +53,7 @@ Use the GitHub issue forms:
 - Update docs when behavior changes.
 - Update `CHANGELOG.md` for user-visible changes.
 - If you add/reshape major logic paths, update `docs/DEVELOPER_GUIDE.md`.
+- If you move frontend module boundaries or callback/context contracts, update the frontend module map in `docs/DEVELOPER_GUIDE.md`.
 
 ## Local checks before PR
 
