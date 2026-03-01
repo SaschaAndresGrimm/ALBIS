@@ -6238,8 +6238,8 @@ const settingsController = createSettingsController({
   },
   callbacks: {
     setToolHintsEnabled,
-    openModal,
-    closeModal,
+    openModal: (...args) => openModal(...args),
+    closeModal: (...args) => closeModal(...args),
     closeMenu,
     setStatus,
     schedulePixelOverlay,
