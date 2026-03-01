@@ -37,6 +37,7 @@ import { createSettingsController } from "./modules/settings_controller.js";
 import { createModalManager } from "./modules/modal_manager.js";
 import { buildCommandPaletteCommands } from "./modules/command_palette_commands.js";
 import { createUploadFlowController } from "./modules/upload_flow.js";
+import { createMenuActionHandler } from "./modules/menu_actions.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -6307,81 +6308,25 @@ function handleCommandPaletteKeydown(event) {
   return commandPaletteController.handleKeydown(event);
 }
 
+const menuActionHandler = createMenuActionHandler({
+  apiBase: API,
+  state,
+  callbacks: {
+    setStatus,
+    openSettingsModal,
+    openCommandPalette,
+    toggleFullscreen,
+    openAboutModal,
+    openFileModal,
+    closeCurrentFile,
+    exportFullImage,
+    exportVisibleArea,
+    exportViewerWindow,
+  },
+});
+
 async function handleMenuAction(action) {
-  switch (action) {
-    case "help-docs":
-      window.open("docs.html", "_blank");
-      break;
-    case "help-log":
-      try {
-        const res = await fetch(`${API}/open-log`, { method: "POST" });
-        if (!res.ok) {
-          setStatus("Failed to open log file");
-        }
-      } catch (err) {
-        console.error(err);
-        setStatus("Failed to open log file");
-      }
-      break;
-    case "settings-open":
-      openSettingsModal();
-      break;
-    case "command-palette":
-      openCommandPalette();
-      break;
-    case "toggle-fullscreen":
-      toggleFullscreen();
-      break;
-    case "help-about":
-      openAboutModal();
-      break;
-    case "new-window":
-      window.open(window.location.href, "_blank");
-      break;
-    case "open":
-      openFileModal();
-      break;
-    case "close-file":
-      closeCurrentFile();
-      break;
-    case "save-full": {
-      const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
-      const suggested = `${base}_frame_${state.frameIndex + 1}.png`;
-      const name = window.prompt("Save As (Full Image)", suggested);
-      if (name) {
-        exportFullImage(name);
-      }
-      break;
-    }
-    case "save-visible": {
-      const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
-      const suggested = `${base}_view_${state.frameIndex + 1}.png`;
-      const name = window.prompt("Save As (Visible Area)", suggested);
-      if (name) {
-        exportVisibleArea(name);
-      }
-      break;
-    }
-    case "save-window": {
-      const suggested = `albis_view_${state.frameIndex + 1}.png`;
-      const name = window.prompt("Save As (Viewer Window)", suggested);
-      if (name) {
-        exportViewerWindow(name);
-      }
-      break;
-    }
-    case "export-full":
-      exportFullImage();
-      break;
-    case "export-visible":
-      exportVisibleArea();
-      break;
-    case "export-window":
-      exportViewerWindow();
-      break;
-    default:
-      break;
-  }
+  await menuActionHandler(action);
 }
 
 function handleShortcut(event) {
