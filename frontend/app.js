@@ -16,6 +16,7 @@ import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
 import { createFileBrowserController } from "./modules/file_browser.js";
 import { bindAutoloadControls } from "./modules/autoload_controls.js";
 import { bindInspectorInteractions } from "./modules/inspector_bindings.js";
+import { bindFileIngress } from "./modules/file_ingress_bindings.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -10510,42 +10511,10 @@ bindInspectorInteractions({
   },
 });
 
-if (fileInput) {
-  fileInput.addEventListener("change", async () => {
-    const selected = Array.from(fileInput.files || []);
-    if (!selected.length) return;
-    await uploadAndOpenSelectedFiles(selected);
-  });
-}
-
-const clearDropTarget = () => {
-  canvasShell?.classList.remove("is-file-drop-target");
-};
-
-document.addEventListener("dragover", (event) => {
-  const transfer = event.dataTransfer;
-  if (!transfer || !Array.from(transfer.types || []).includes("Files")) return;
-  event.preventDefault();
-  transfer.dropEffect = "copy";
-  canvasShell?.classList.add("is-file-drop-target");
-});
-
-document.addEventListener("dragleave", (event) => {
-  if (event.relatedTarget) return;
-  clearDropTarget();
-});
-
-document.addEventListener("dragend", clearDropTarget);
-window.addEventListener("blur", clearDropTarget);
-
-document.addEventListener("drop", async (event) => {
-  const transfer = event.dataTransfer;
-  if (!transfer || !Array.from(transfer.types || []).includes("Files")) return;
-  event.preventDefault();
-  clearDropTarget();
-  const files = Array.from(transfer.files || []);
-  if (!files.length) return;
-  await uploadAndOpenSelectedFiles(files);
+bindFileIngress({
+  fileInput,
+  canvasShell,
+  onFilesSelected: uploadAndOpenSelectedFiles,
 });
 
 if (aboutClose) {
