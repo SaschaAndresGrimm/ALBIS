@@ -28,6 +28,7 @@ import { bindHistogramDragInteractions } from "./modules/histogram_drag_bindings
 import { bindOverviewInteractions } from "./modules/overview_bindings.js";
 import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bindings.js";
 import { createHelpTooltipController } from "./modules/help_tooltips.js";
+import { bindChromeUiInteractions } from "./modules/chrome_bindings.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -10198,36 +10199,28 @@ bindFileIngress({
   onFilesSelected: uploadAndOpenSelectedFiles,
 });
 
-if (aboutClose) {
-  aboutClose.addEventListener("click", closeAboutModal);
-}
-aboutModal?.addEventListener("click", (event) => {
-  if (event.target === aboutModal || event.target.classList?.contains("modal-backdrop")) {
-    closeAboutModal();
-  }
-});
-
-settingsClose?.addEventListener("click", closeSettingsModal);
-settingsCancel?.addEventListener("click", closeSettingsModal);
-settingsSave?.addEventListener("click", () => {
-  void saveSettingsFromModal();
-});
-settingsSaveClose?.addEventListener("click", () => {
-  void saveSettingsFromModal(true);
-});
-settingsModal?.addEventListener("click", (event) => {
-  if (event.target === settingsModal || event.target.classList?.contains("modal-backdrop")) {
-    closeSettingsModal();
-  }
-});
-commandInput?.addEventListener("input", () => {
-  commandPaletteIndex = 0;
-  renderCommandPalette();
-});
-commandModal?.addEventListener("click", (event) => {
-  if (event.target === commandModal || event.target.classList?.contains("modal-backdrop")) {
-    closeCommandPalette();
-  }
+bindChromeUiInteractions({
+  elements: {
+    aboutClose,
+    aboutModal,
+    settingsClose,
+    settingsCancel,
+    settingsSave,
+    settingsSaveClose,
+    settingsModal,
+    commandInput,
+    commandModal,
+  },
+  callbacks: {
+    closeAboutModal,
+    closeSettingsModal,
+    saveSettingsFromModal,
+    setCommandPaletteIndex: (next) => {
+      commandPaletteIndex = next;
+    },
+    renderCommandPalette,
+    closeCommandPalette,
+  },
 });
   bindDataControlInteractions({
     state,
