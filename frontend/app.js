@@ -49,6 +49,7 @@ import { createSourceMetadataController } from "./modules/source_metadata_contro
 import { createExportSplashController } from "./modules/export_splash_controller.js";
 import { createChromeToolbarController } from "./modules/chrome_toolbar_controller.js";
 import { createPanelLayoutController } from "./modules/panel_layout_controller.js";
+import { createThresholdPlaybackController } from "./modules/threshold_playback_controller.js";
 import { initializeMainUiBindings as initializeMainUiBindingsBootstrap } from "./modules/main_ui_bindings_bootstrap.js";
 import { initializePostFilePickerBindings } from "./modules/post_file_picker_bindings.js";
 import {
@@ -404,6 +405,7 @@ let exportSplashController = null;
 let sourceMetadataController = null;
 let chromeToolbarController = null;
 let panelLayoutController = null;
+let thresholdPlaybackController = null;
 let activeMenu = "file";
 let closeTimer = null;
 let histogramScheduled = false;
@@ -1353,140 +1355,36 @@ function syncToolbarMoreControls() {
   chromeToolbarController?.syncToolbarMoreControls();
 }
 
-function getThresholdDisplayOrder(count = state.thresholdCount, energies = state.thresholdEnergies) {
-  const safeCount = Math.max(1, Number(count) || 1);
-  const order = Array.from({ length: safeCount }, (_, i) => i);
-  const energyList = Array.isArray(energies) ? energies : [];
-  const hasFiniteEnergy = order.some((idx) => Number.isFinite(Number(energyList[idx])));
-  if (!hasFiniteEnergy) return order;
-  order.sort((a, b) => {
-    const energyA = Number(energyList[a]);
-    const energyB = Number(energyList[b]);
-    const aFinite = Number.isFinite(energyA);
-    const bFinite = Number.isFinite(energyB);
-    if (aFinite && bFinite) {
-      if (energyA === energyB) return a - b;
-      return energyB - energyA;
-    }
-    if (aFinite !== bFinite) return aFinite ? -1 : 1;
-    return a - b;
-  });
-  return order;
-}
-
 function getDefaultThresholdIndex() {
-  const order = getThresholdDisplayOrder();
-  return order.length ? order[order.length - 1] : 0;
+  return thresholdPlaybackController
+    ? thresholdPlaybackController.getDefaultThresholdIndex()
+    : 0;
 }
 
 function getThresholdIndexAtOffset(offset) {
-  const order = getThresholdDisplayOrder();
-  if (!order.length) return 0;
-  const current = order.includes(state.thresholdIndex) ? state.thresholdIndex : getDefaultThresholdIndex();
-  const currentPos = Math.max(0, order.indexOf(current));
-  const nextPos = Math.max(0, Math.min(order.length - 1, currentPos + Math.round(offset)));
-  return order[nextPos];
+  return thresholdPlaybackController
+    ? thresholdPlaybackController.getThresholdIndexAtOffset(offset)
+    : 0;
 }
 
 function updateThresholdOptions() {
-  if (!thresholdSelect || !thresholdField) return;
-  const count = Math.max(1, state.thresholdCount || 1);
-  const show = count > 1 && state.autoload.mode === "file";
-  thresholdField.classList.toggle("is-hidden", !show);
-  if (toolbarThresholdWrap) {
-    toolbarThresholdWrap.classList.toggle("is-hidden", !show);
-  }
-  thresholdSelect.innerHTML = "";
-  if (toolbarThresholdSelect) {
-    toolbarThresholdSelect.innerHTML = "";
-  }
-  if (toolbarMoreThreshold) {
-    toolbarMoreThreshold.innerHTML = "";
-  }
-  const energies = Array.isArray(state.thresholdEnergies) ? state.thresholdEnergies : [];
-  const order = getThresholdDisplayOrder(count, energies);
-  order.forEach((thresholdIndex) => {
-    const energy = Number(energies[thresholdIndex]);
-    const energyText = Number.isFinite(energy) ? ` ${formatEnergy(energy)} eV` : "";
-    const label = `Thr${thresholdIndex + 1}${energyText}`;
-    thresholdSelect.appendChild(option(label, String(thresholdIndex)));
-    if (toolbarThresholdSelect) {
-      toolbarThresholdSelect.appendChild(option(label, String(thresholdIndex)));
-    }
-    if (toolbarMoreThreshold) {
-      toolbarMoreThreshold.appendChild(option(label, String(thresholdIndex)));
-    }
-  });
-  const idx = order.includes(state.thresholdIndex) ? state.thresholdIndex : getDefaultThresholdIndex();
-  state.thresholdIndex = idx;
-  thresholdSelect.value = String(idx);
-  if (toolbarThresholdSelect) {
-    toolbarThresholdSelect.value = String(idx);
-  }
-  if (toolbarMoreThreshold) {
-    toolbarMoreThreshold.value = String(idx);
-    toolbarMoreThreshold.disabled = count <= 1;
-  }
-  if (toolbarMoreThresholdField) {
-    toolbarMoreThresholdField.classList.toggle("is-hidden", !show);
-  }
-  thresholdSelect.disabled = count <= 1;
-  if (toolbarThresholdSelect) {
-    toolbarThresholdSelect.disabled = count <= 1;
-  }
-  syncToolbarMoreControls();
-  updateViewerFooter();
+  thresholdPlaybackController?.updateThresholdOptions();
 }
 
 async function setThresholdIndex(nextIndex) {
-  const count = Math.max(1, state.thresholdCount || 1);
-  const parsed = Number(nextIndex);
-  if (!Number.isFinite(parsed)) return;
-  const clamped = Math.max(0, Math.min(count - 1, Math.round(parsed)));
-  if (clamped === state.thresholdIndex) return;
-  state.thresholdIndex = clamped;
-  if (thresholdSelect) thresholdSelect.value = String(clamped);
-  if (toolbarThresholdSelect) toolbarThresholdSelect.value = String(clamped);
-  if (toolbarMoreThreshold) toolbarMoreThreshold.value = String(clamped);
-  state.maskFile = "";
-  await loadMask(true);
-  requestFrame(state.frameIndex);
+  await thresholdPlaybackController?.setThresholdIndex(nextIndex);
 }
 
 function setFps(value) {
-  const clamped = Math.max(1, Math.min(10, Math.round(value)));
-  state.fps = clamped;
-  if (fpsSelect) fpsSelect.value = String(clamped);
-  if (toolbarMoreFps) toolbarMoreFps.value = String(clamped);
-  updateFpsLabel();
-  if (state.playing) {
-    stopPlayback();
-    startPlayback();
-  }
+  thresholdPlaybackController?.setFps(value);
 }
 
 function setFrameStep(value) {
-  const parsed = Math.round(Number(value || 1));
-  const next = FRAME_STEP_OPTIONS.includes(parsed) ? parsed : FRAME_STEP_OPTIONS[0];
-  state.step = next;
-  if (frameStep) {
-    frameStep.value = String(next);
-  }
-  if (toolbarMoreStep) {
-    toolbarMoreStep.value = String(next);
-  }
+  thresholdPlaybackController?.setFrameStep(value);
 }
 
 function updatePlayButtons() {
-  const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
-  const disabled = !state.file || (!state.dataset && !hasSeries) || state.frameCount <= 1;
-  if (playBtn) {
-    playBtn.classList.toggle("is-active", state.playing);
-    playBtn.disabled = disabled;
-    playBtn.textContent = state.playing ? "⏸" : "⏯";
-  }
-  if (prevBtn) prevBtn.disabled = disabled;
-  if (nextBtn) nextBtn.disabled = disabled;
+  thresholdPlaybackController?.updatePlayButtons();
 }
 
 function getMaxPanelWidth() {
@@ -2022,6 +1920,39 @@ chromeToolbarController = createChromeToolbarController({
     updateSeriesSumUi,
     isPhonePanelLayout,
     isMenuOpen: () => Boolean(activeMenu),
+  },
+});
+
+thresholdPlaybackController = createThresholdPlaybackController({
+  state,
+  constants: {
+    frameStepOptions: FRAME_STEP_OPTIONS,
+  },
+  elements: {
+    thresholdSelect,
+    thresholdField,
+    toolbarThresholdWrap,
+    toolbarThresholdSelect,
+    toolbarMoreThreshold,
+    toolbarMoreThresholdField,
+    fpsSelect,
+    toolbarMoreFps,
+    frameStep,
+    toolbarMoreStep,
+    playBtn,
+    prevBtn,
+    nextBtn,
+  },
+  callbacks: {
+    formatEnergy,
+    option,
+    syncToolbarMoreControls,
+    updateViewerFooter,
+    updateFpsLabel,
+    stopPlayback,
+    startPlayback,
+    loadMask,
+    requestFrame,
   },
 });
 
