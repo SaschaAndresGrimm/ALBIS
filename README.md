@@ -20,7 +20,7 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 
 You can download ready-to-use standalone binaries for your operating system. No Python installation is required for these.
 
-Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page for the latest `v1.0.0` packages:
+Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page for the latest packages:
 
 - **macOS**: Download the `.dmg` and drag ALBIS to your Applications folder.
 - **Windows**: Download the `ALBIS-Setup-windows-*.exe` installer.
@@ -57,8 +57,6 @@ For power users looking to configure the server, use the advanced Stream API, or
 For developers looking to build, test, and contribute:
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
 - [Contributing](CONTRIBUTING.md)
-- [Code Map](docs/CODE_MAP.md)
-- [Architecture](docs/ARCHITECTURE.md)
 
 ## Acknowledgements and Contributions
 This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set the benchmark.

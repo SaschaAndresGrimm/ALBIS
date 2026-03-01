@@ -22,10 +22,7 @@ npm ci
 
 ## Contributor docs
 
-- Architecture and data flow: `docs/ARCHITECTURE.md`
-- Function/file navigation map: `docs/CODE_MAP.md`
-- Configuration contract: `docs/configuration.md` and `albis.config.schema.json`
-- HTTP API contract reference: `docs/API_CONTRACTS.md`
+- Developer Guide: `docs/DEVELOPER_GUIDE.md`
 - Release process checklist: `docs/RELEASE_CHECKLIST.md`
 
 ## How to help
@@ -55,7 +52,7 @@ Use the GitHub issue forms:
 - Include screenshots or recordings for UI changes.
 - Update docs when behavior changes.
 - Update `CHANGELOG.md` for user-visible changes.
-- If you add/reshape major logic paths, update `docs/ARCHITECTURE.md` or `docs/CODE_MAP.md`.
+- If you add/reshape major logic paths, update `docs/DEVELOPER_GUIDE.md`.
 
 ## Local checks before PR
 
