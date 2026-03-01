@@ -2021,6 +2021,28 @@ fileSessionController = createFileSessionController({
     updateRingsSectionState,
     updatePeaksSectionState,
     updatePlayButtons,
+    option,
+    setDataControlsForImage,
+    setDataControlsForSeries,
+    buildNegativeMask,
+    updateMaskUI,
+    getRenderer: () => renderer,
+    isWebglUnsignedRawCandidate,
+    toFloat32,
+    computeStats,
+    updateGlobalStats,
+    computeAutoLevels,
+    formatValue,
+    alignMaskToFrame,
+    syncMaskAvailability,
+    redraw,
+    fitImageToView,
+    hideSplash,
+    scheduleOverview,
+    scheduleRoiUpdate,
+    schedulePixelOverlay,
+    scheduleResolutionOverlay,
+    schedulePeakFinder,
   },
 });
 
@@ -2407,63 +2429,7 @@ async function loadImageSeries(file) {
 }
 
 function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false, options = {}) {
-  if (!Array.isArray(shape) || shape.length < 2) return;
-  const keepPlaying = Boolean(options.keepPlaying);
-  if (!(keepPlaying && state.playing)) {
-    stopPlayback();
-  }
-  const preserveSeries = Boolean(options.preserveSeries);
-  if (fitView) {
-    state.hasFrame = false;
-  }
-  if (!preserveSeries) {
-    state.file = label;
-    state.dataset = "";
-    state.seriesFiles = [];
-    state.seriesLabel = "";
-    state.frameCount = 1;
-    state.frameIndex = 0;
-    state.thresholdCount = 1;
-    state.thresholdIndex = 0;
-    state.thresholdEnergies = [];
-    updateFrameControls();
-    updateThresholdOptions();
-    datasetSelect.innerHTML = "";
-    datasetSelect.appendChild(option("Single image", ""));
-    datasetSelect.value = "";
-    setDataControlsForImage();
-  } else {
-    state.dataset = "";
-    state.thresholdCount = 1;
-    state.thresholdIndex = 0;
-    state.thresholdEnergies = [];
-    updateFrameControls();
-    updateThresholdOptions();
-    datasetSelect.innerHTML = "";
-    datasetSelect.appendChild(option("Series image", ""));
-    datasetSelect.value = "";
-    setDataControlsForSeries();
-  }
-  const height = shape[0];
-  const width = shape[1];
-  if (!preserveMask) {
-    clearMaskState();
-  }
-  if (options.autoMask) {
-    const autoMask = buildNegativeMask(data);
-    if (autoMask) {
-      state.maskRaw = autoMask;
-      state.maskShape = [height, width];
-      state.maskAuto = true;
-      state.maskFile = options.maskKey || `auto:${label}`;
-      updateMaskUI();
-    }
-  }
-  metaShape.textContent = `${width} × ${height}`;
-  metaDtype.textContent = dtype;
-  applyFrame(data, width, height, dtype);
-  setDataSourceSectionState("active", preserveSeries ? "Series image loaded." : "Image loaded.");
-  updateToolbar();
+  fileSessionController.applyExternalFrame(data, shape, dtype, label, fitView, preserveMask, options);
 }
 
 async function fetchSimplonMask() {
@@ -3176,40 +3142,7 @@ function closeCurrentFile() {
 }
 
 function applyFrame(data, width, height, dtype) {
-  state.dataRaw = data;
-  state.dataFloat =
-    renderer.type === "webgl" && !isWebglUnsignedRawCandidate(dtype, data) ? toFloat32(data) : null;
-  state.width = width;
-  state.height = height;
-  state.dtype = dtype;
-  state.stats = computeStats(data);
-  state.histogram = state.stats.hist;
-  updateGlobalStats();
-
-  if (state.autoScale) {
-    const levels = computeAutoLevels(data, state.stats.satMax ?? null);
-    state.min = levels.min;
-    state.max = levels.max;
-    minInput.value = formatValue(state.min);
-    maxInput.value = formatValue(state.max);
-  }
-
-  metaRange.textContent = `${formatValue(state.stats.min)} → ${formatValue(state.stats.max)}`;
-  alignMaskToFrame();
-  syncMaskAvailability(false);
-  redraw();
-  if (!state.hasFrame) {
-    fitImageToView();
-  }
-  state.hasFrame = true;
-  updatePanCapability();
-  hideSplash();
-  updatePlayButtons();
-  scheduleOverview();
-  scheduleRoiUpdate();
-  schedulePixelOverlay();
-  scheduleResolutionOverlay();
-  schedulePeakFinder();
+  fileSessionController.applyFrame(data, width, height, dtype);
 }
 
 function redraw() {
