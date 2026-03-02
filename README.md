@@ -1,4 +1,5 @@
 # ALBIS (ALBIS WEB VIEW)
+![ALBIS screenshot](frontend/ressources/albis.png)
 
 ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stacks and other common DECTRIS camera formats. It is platform‑independent, free, and open source.
 
@@ -14,17 +15,6 @@ ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small
 
 Project note: this is a private vibe‑coding project for fun and educational purposes.
 
-![ALBIS screenshot](frontend/ressources/albis.png)
-
-## Downloads / Installation
-
-You can download ready-to-use standalone binaries for your operating system. No Python installation is required for these.
-
-Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page for the latest packages:
-
-- **macOS**: Download the `.dmg` and drag ALBIS to your Applications folder.
-- **Windows**: Download the `ALBIS-Setup-windows-*.exe` installer.
-- **Linux**: Download the `.tar.gz` and run `scripts/install_linux.sh` for desktop integration.
 
 ## Highlights
 
@@ -37,6 +27,18 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 - Pixel mask support (gaps and defective pixels).
 - WebGL2 rendering with CPU fallback.
 - spotfinding & resolution rings overlay
+
+## Downloads / Installation
+
+You can download ready-to-use standalone binaries for your operating system. No Python installation is required for these.
+
+Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page for the latest packages:
+
+- **macOS**: Download the `.dmg` and drag ALBIS to your Applications folder.
+- **Windows**: Download the `ALBIS-Setup-windows-*.exe` installer.
+- **Linux**: Download the `.tar.gz` and run `scripts/install_linux.sh` for desktop integration.
+
+ALBIS also runs directly in python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 
 ## Keyboard Shortcuts
 

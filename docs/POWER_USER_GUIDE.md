@@ -6,6 +6,19 @@ This guide is for users who want to run the ALBIS server manually, use the Remot
 
 - **Python/source mode**:
   Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
+
+## Run (backend + frontend)
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r backend/requirements.txt
+python backend/app.py
+```
+
+Open `http://localhost:8000` (ALBIS).
+
+
 - **Standalone mode**:
   Use packaged artifacts created by the build scripts (no Python installation required on target machines).
 - **Docker mode**:
