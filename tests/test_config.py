@@ -11,6 +11,11 @@ def test_normalize_config_accepts_partial_payload() -> None:
     assert config["logging"]["level"] == "DEBUG"
 
 
+def test_normalize_config_defaults_to_random_port() -> None:
+    config = normalize_config(None)
+    assert config["server"]["port"] == 0
+
+
 def test_normalize_config_rejects_unknown_section() -> None:
     with pytest.raises(ValueError, match="Unknown config section"):
         normalize_config({"network": {"port": 8080}})

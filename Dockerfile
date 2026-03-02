@@ -17,15 +17,25 @@ COPY frontend/ frontend/
 COPY albis.config.json .
 COPY VERSION .
 
+# Force container-friendly bind config independent of host defaults.
+RUN python - <<'PY'
+import json
+from pathlib import Path
+
+config_path = Path("albis.config.json")
+payload = json.loads(config_path.read_text(encoding="utf-8"))
+server = payload.setdefault("server", {})
+server["host"] = "0.0.0.0"
+server["port"] = 8000
+config_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+PY
+
 # Expose the application port
 EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" || exit 1
-
-# Override host configuration to allow external access
-ENV ALBIS_SERVER__HOST=0.0.0.0
 
 # Run the application
 CMD ["python", "backend/app.py"]

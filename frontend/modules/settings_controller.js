@@ -84,7 +84,7 @@ export function createSettingsController({
       const host = String(config?.server?.host ?? "127.0.0.1");
       settingsServerExternal.checked = !isLocalOnlyHost(host);
     }
-    settingsServerPort.value = String(Number(config?.server?.port ?? 8000));
+    settingsServerPort.value = String(Number(config?.server?.port ?? 0));
     settingsServerReload.checked = Boolean(config?.server?.reload);
 
     settingsStartupTimeout.value = String(Number(config?.launcher?.startup_timeout_sec ?? 5.0));
@@ -140,7 +140,7 @@ export function createSettingsController({
     return {
       server: {
         host: settingsServerExternal?.checked ? "0.0.0.0" : "127.0.0.1",
-        port: Math.max(0, Math.min(65535, asInt(settingsServerPort?.value, 8000))),
+        port: Math.max(0, Math.min(65535, asInt(settingsServerPort?.value, 0))),
         reload: Boolean(settingsServerReload?.checked),
       },
       launcher: {

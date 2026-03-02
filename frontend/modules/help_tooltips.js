@@ -122,6 +122,7 @@ export function createHelpTooltipController({
       "series-sum-start": "Start the configured series operation job.",
       "series-sum-cancel": "Cancel the currently running series operation.",
       "settings-server-external": "Allow connections from other machines (binds to all interfaces).",
+      "settings-server-port": "Backend server port. Use 0 to auto-select a free port at startup.",
       "panel-fab": "Toggle the side panel open or closed (M).",
       "panel-collapse-btn": "Collapse the side panel (M).",
       "panel-resizer": "Drag to resize the side panel width.",

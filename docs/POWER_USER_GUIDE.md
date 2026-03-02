@@ -16,7 +16,9 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-Open `http://localhost:8000` (ALBIS).
+By default `server.port` is `0`, so ALBIS auto-selects a free port at startup.
+For `python backend/app.py`, read the startup URL printed by Uvicorn (for example `http://127.0.0.1:51243`) and open that URL.
+For `python albis_launcher.py` or packaged app runs, ALBIS opens the browser automatically.
 
 
 - **Standalone mode**:
@@ -50,7 +52,7 @@ In packaged mode, if no config exists, ALBIS writes defaults to `~/.config/albis
 
 #### `server`
 - `host` (`string`, default `127.0.0.1`): Set to `"0.0.0.0"` to enable LAN access.
-- `port` (`integer`, default `8000`, clamped `0..65535`): Single port used by backend + launcher.
+- `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
 - `reload` (`boolean`, default `false`)
 
 #### `launcher`
@@ -80,6 +82,7 @@ In packaged mode, if no config exists, ALBIS writes defaults to `~/.config/albis
 
 Log level and log directory are configured in `albis.config.json` under `logging.level` and `logging.dir`.
 Launcher startup logs are also written to `~/.config/albis/launcher.log` (with automatic rotation at ~1 MiB to `launcher.log.1`).
+Launcher host/port status is persisted in `~/.config/albis/server.json`.
 
 Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
 

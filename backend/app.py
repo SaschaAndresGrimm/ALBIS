@@ -784,6 +784,6 @@ if __name__ == "__main__":
     import uvicorn
 
     host = get_str(runtime_state.config, ("server", "host"), "127.0.0.1")
-    port = max(1, get_int(runtime_state.config, ("server", "port"), 8000))
+    port = max(0, min(65535, get_int(runtime_state.config, ("server", "port"), 0)))
     reload = get_bool(runtime_state.config, ("server", "reload"), False)
     uvicorn.run("app:app", host=host, port=port, reload=reload)

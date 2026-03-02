@@ -19,8 +19,8 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 65535,
-          "default": 8000,
-          "description": "Bind port for the backend server."
+          "default": 0,
+          "description": "Bind port for the backend server. Set 0 to auto-select a free port at startup."
         },
         "reload": {
           "type": "boolean",
@@ -142,7 +142,7 @@
   "default": {
     "server": {
       "host": "127.0.0.1",
-      "port": 8000,
+      "port": 0,
       "reload": false
     },
     "launcher": {

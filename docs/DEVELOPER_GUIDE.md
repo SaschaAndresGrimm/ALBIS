@@ -12,7 +12,7 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-Open `http://localhost:8000` (ALBIS).
+Default config uses `server.port: 0` (random free port). Open the URL printed by Uvicorn at startup.
 
 ## Developer Quality Gates
 

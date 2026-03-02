@@ -11,7 +11,7 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-Open `http://localhost:8000`.
+Default config uses `server.port: 0` (random free port). Open the startup URL printed by Uvicorn.
 
 Install contributor tooling:
 
