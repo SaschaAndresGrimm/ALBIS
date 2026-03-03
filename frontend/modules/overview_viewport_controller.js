@@ -516,7 +516,12 @@ export function createOverviewViewportController({
       zoomRange.value = String(clamped);
     }
     if (zoomValue) {
-      zoomValue.textContent = `${clamped.toFixed(1)}x`;
+      const zoomLabel = `${clamped.toFixed(1)}x`;
+      if ("value" in zoomValue) {
+        zoomValue.value = zoomLabel;
+      } else {
+        zoomValue.textContent = zoomLabel;
+      }
     }
     updateViewerFooter();
     schedulePixelOverlay();

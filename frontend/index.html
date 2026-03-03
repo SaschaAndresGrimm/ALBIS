@@ -331,33 +331,28 @@
               <div class="thumb-view">
                 <canvas id="overview-canvas"></canvas>
               </div>
-              <button id="reset-view" class="btn">Fit to Window</button>
+              <div class="view-zoom-row">
+                <button id="reset-view" class="btn">Fit to Window</button>
+                <input id="zoom-range" type="range" min="0.02" max="50" step="0.01" value="1" aria-label="Zoom" />
+                <input id="zoom-value" class="zoom-value-input" type="text" inputmode="decimal" value="1.0x" aria-label="Zoom factor" />
+              </div>
               <div class="view-color-controls">
                 <details class="advanced-details view-advanced-controls">
                   <summary>Advanced view controls</summary>
                   <div class="advanced-inner">
-                    <div class="zoom-controls">
-                      <div class="field zoom-row">
-                        <span>Zoom</span>
-                        <div class="inline">
-                          <input id="zoom-range" type="range" min="0.02" max="50" step="0.01" value="1" />
-                          <div id="zoom-value" class="pill">1.0x</div>
-                        </div>
-                      </div>
-                      <div class="check-grid">
-                        <label class="checkbox">
-                          <input id="pixel-label-toggle" type="checkbox" checked />
-                          Show Pixel Values
-                        </label>
-                        <label class="checkbox">
-                          <input type="checkbox" id="mask-toggle" disabled />
-                          Mask pixels
-                        </label>
-                        <label class="checkbox">
-                          <input type="checkbox" id="mask-saturated-toggle" disabled />
-                          Mask saturated
-                        </label>
-                      </div>
+                    <div class="check-row view-check-row">
+                      <label class="checkbox">
+                        <input id="pixel-label-toggle" type="checkbox" checked />
+                        Pixel values
+                      </label>
+                      <label class="checkbox">
+                        <input type="checkbox" id="mask-toggle" disabled />
+                        Apply mask
+                      </label>
+                      <label class="checkbox">
+                        <input type="checkbox" id="mask-saturated-toggle" disabled />
+                        Mask saturated
+                      </label>
                     </div>
                     <label class="field">
                       <span>Color Map</span>

@@ -3347,6 +3347,7 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   histLogX,
   histLogY,
   zoomRange,
+  zoomValue,
   resetView,
   prevBtn,
   nextBtn,

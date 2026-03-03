@@ -133,6 +133,7 @@ export function createPostFilePickerBindingsElements(elements) {
     histLogX: elements.histLogX,
     histLogY: elements.histLogY,
     zoomRange: elements.zoomRange,
+    zoomValue: elements.zoomValue,
     resetView: elements.resetView,
     prevBtn: elements.prevBtn,
     nextBtn: elements.nextBtn,

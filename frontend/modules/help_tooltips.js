@@ -88,6 +88,7 @@ export function createHelpTooltipController({
       "toolbar-more-threshold": "Choose the detector threshold channel (Up/Down Arrow).",
       "toolbar-threshold": "Choose the detector threshold channel (Up/Down Arrow).",
       "zoom-range": "Adjust image zoom level.",
+      "zoom-value": "Type a zoom factor (for example 1.5x or 150%) and press Enter.",
       "reset-view": "Fit the full image into the viewport.",
       "canvas-wrap":
         "Wheel: zoom at cursor. Left-drag: pan. Shift+left-drag: contrast/brightness (horizontal/vertical). Right-drag: ROI.",

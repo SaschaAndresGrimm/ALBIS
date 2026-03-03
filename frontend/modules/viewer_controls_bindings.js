@@ -21,6 +21,7 @@ export function bindViewerControls({
     histLogX,
     histLogY,
     zoomRange,
+    zoomValue,
     resetView,
     prevBtn,
     nextBtn,
@@ -191,6 +192,47 @@ export function bindViewerControls({
     }
     const rect = canvasWrap.getBoundingClientRect();
     zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, Number(zoomRange.value));
+  });
+
+  const parseZoomValue = (rawValue) => {
+    if (typeof rawValue !== "string") return Number.NaN;
+    const trimmed = rawValue.trim();
+    if (!trimmed) return Number.NaN;
+    const normalized = trimmed.replace(",", ".");
+    if (normalized.endsWith("%")) {
+      const percent = Number(normalized.slice(0, -1).trim());
+      return Number.isFinite(percent) ? percent / 100 : Number.NaN;
+    }
+    const zoomText = normalized.endsWith("x") || normalized.endsWith("X")
+      ? normalized.slice(0, -1).trim()
+      : normalized;
+    const zoom = Number(zoomText);
+    return Number.isFinite(zoom) ? zoom : Number.NaN;
+  };
+
+  const applyManualZoom = () => {
+    if (!zoomValue) return;
+    const parsedZoom = parseZoomValue(zoomValue.value);
+    if (!Number.isFinite(parsedZoom) || parsedZoom <= 0) {
+      setZoom(state.zoom || 1);
+      return;
+    }
+    deferViewportInteraction();
+    if (!canvasWrap) {
+      setZoom(parsedZoom);
+      scheduleOverview();
+      return;
+    }
+    const rect = canvasWrap.getBoundingClientRect();
+    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, parsedZoom);
+  };
+
+  zoomValue?.addEventListener("change", applyManualZoom);
+  zoomValue?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    applyManualZoom();
+    zoomValue.blur();
   });
 
   resetView.addEventListener("click", () => {

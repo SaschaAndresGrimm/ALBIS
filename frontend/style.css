@@ -2099,15 +2099,40 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding: 6px;
 }
 
-.zoom-controls {
+.view-zoom-row {
   margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .panel-section[data-section="view"] #reset-view {
-  margin-top: 8px;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.view-zoom-row #zoom-range {
+  width: 100%;
+  min-width: 0;
+}
+
+.zoom-value-input {
+  width: 64px;
+  min-width: 64px;
+  min-height: var(--control-h);
+  padding: 0 8px;
+  text-align: right;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(90, 140, 200, 0.35);
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(9, 14, 22, 0.95));
+  color: #eaf2ff;
+}
+
+.zoom-value-input:focus-visible {
+  outline: none;
+  border-color: rgba(110, 181, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(110, 181, 255, 0.18);
 }
 
 .view-color-controls {
@@ -2125,8 +2150,15 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   font-size: 11px;
 }
 
-.view-advanced-controls .zoom-controls {
+.view-check-row {
   margin-top: 0;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.view-check-row .checkbox {
+  white-space: nowrap;
+  min-height: 24px;
 }
 
 .color-map-row {
