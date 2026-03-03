@@ -56,7 +56,7 @@ jobs:
         run: black --check tests scripts test_scripts
 
       - name: Pytest
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
 
       - name: ESLint
         run: npm run lint:js
