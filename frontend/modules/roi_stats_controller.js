@@ -266,7 +266,7 @@ function clearRoi() {
 function applyMaskToValue(value, maskValue, satMax = getActiveSaturationMax()) {
   if (Number.isFinite(maskValue)) {
     if (maskValue & 1) {
-      return { value: 0, skip: false };
+      return { value: 0, skip: true };
     }
     if (maskValue & 0x1e) {
       return { value: 0, skip: true };
@@ -303,9 +303,15 @@ function sampleValue(ix, iy) {
   const useMasking = (state.maskEnabled && hasMask) || state.maskSaturatedEnabled;
   if (useMasking) {
     const masked = applyMaskToValue(raw, maskValue, satMax);
-    return { value: masked.value, skip: masked.skip, raw, maskValue };
+    return { value: masked.value, skip: masked.skip, raw, maskValue, maskingApplied: true };
   }
-  return { value: raw, skip: false, raw, maskValue };
+  return { value: raw, skip: false, raw, maskValue, maskingApplied: false };
+}
+
+function isGapMaskedSample(sampled) {
+  if (!sampled?.maskingApplied) return false;
+  const flags = getMaskFlags(sampled.maskValue);
+  return flags.gap;
 }
 
 function computeGlobalStats() {
@@ -442,7 +448,8 @@ function updateRoiTooltip(event, canvasEl) {
   const idx = Math.max(0, Math.min(plot.data.length - 1, Math.round(t * (plot.data.length - 1))));
   const xValue = plot.xStart + idx * plot.xStep;
   const value = plot.data[idx];
-  const label = `${plot.xLabel} ${xValue}  Value ${formatStat(value)}`;
+  const xText = plot.xTickMode === "integer" ? `${Math.round(xValue)}` : formatRoiTick(xValue);
+  const label = `${plot.xLabel} ${xText}  Value ${formatStat(value)}`;
   showRoiTooltip(canvasEl, label, event.clientX, event.clientY);
 }
 
@@ -585,7 +592,8 @@ function updateRoiStats() {
       if (!sampled) continue;
       accumulateRoiPixelCounters(pixelCounters, sampled, satMax);
       const v = sampled.value;
-      values.push(Number.isFinite(v) ? v : 0);
+      const hideInPlot = sampled.skip || !Number.isFinite(v) || isGapMaskedSample(sampled);
+      values.push(hideInPlot ? Number.NaN : v);
       if (sampled.skip || !Number.isFinite(v)) {
         continue;
       }
@@ -614,10 +622,11 @@ function updateRoiStats() {
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
-        xLabel: "Sample",
+        xLabel: "Pixels",
         yLabel: "Intensity",
         xStart: 0,
         xStep: 1,
+        xTickMode: "integer",
       };
     }
     drawRoiPlot(roiLineCanvas, roiLineCtx, values, roiState.log);
@@ -643,7 +652,8 @@ function updateRoiStats() {
         if (!sampled) continue;
         accumulateRoiPixelCounters(pixelCounters, sampled, satMax);
         const v = sampled.value;
-        if (!sampled.skip && Number.isFinite(v)) {
+        const validForStats = !sampled.skip && Number.isFinite(v);
+        if (validForStats) {
           statsValues.push(v);
           count += 1;
           sum += v;
@@ -652,6 +662,9 @@ function updateRoiStats() {
           const delta = v - mean;
           mean += delta / count;
           m2 += delta * (v - mean);
+          if (isGapMaskedSample(sampled)) {
+            continue;
+          }
           xProj[colIndex] += v;
           yProj[rowIndex] += v;
           xCounts[colIndex] += 1;
@@ -660,10 +673,10 @@ function updateRoiStats() {
       }
     }
     for (let i = 0; i < xProj.length; i += 1) {
-      xProj[i] = xCounts[i] > 0 ? xProj[i] / xCounts[i] : 0;
+      xProj[i] = xCounts[i] > 0 ? xProj[i] / xCounts[i] : Number.NaN;
     }
     for (let i = 0; i < yProj.length; i += 1) {
-      yProj[i] = yCounts[i] > 0 ? yProj[i] / yCounts[i] : 0;
+      yProj[i] = yCounts[i] > 0 ? yProj[i] / yCounts[i] : Number.NaN;
     }
     roiState.xProjection = Array.from(xProj);
     roiState.yProjection = Array.from(yProj);
@@ -685,6 +698,7 @@ function updateRoiStats() {
         yLabel: "Mean",
         xStart: left,
         xStep: 1,
+        xTickMode: "integer",
       };
     }
     if (roiYCanvas) {
@@ -693,6 +707,7 @@ function updateRoiStats() {
         yLabel: "Mean",
         xStart: top,
         xStep: 1,
+        xTickMode: "integer",
       };
     }
     drawRoiPlot(roiXCanvas, roiXCtx, roiState.xProjection, roiState.log);
@@ -735,7 +750,8 @@ function updateRoiStats() {
         if (!sampled) continue;
         accumulateRoiPixelCounters(pixelCounters, sampled, satMax);
         const v = sampled.value;
-        if (!sampled.skip && Number.isFinite(v)) {
+        const validForStats = !sampled.skip && Number.isFinite(v);
+        if (validForStats) {
           statsValues.push(v);
           count += 1;
           sum += v;
@@ -744,6 +760,9 @@ function updateRoiStats() {
           const delta = v - mean;
           mean += delta / count;
           m2 += delta * (v - mean);
+          if (isGapMaskedSample(sampled)) {
+            continue;
+          }
           const r = Math.min(outerRadius, Math.floor(Math.sqrt(r2)));
           radialSum[r] += v;
           radialCount[r] += 1;
@@ -751,7 +770,7 @@ function updateRoiStats() {
       }
     }
 
-    const profile = Array.from(radialSum, (v, i) => (radialCount[i] ? v / radialCount[i] : 0));
+    const profile = Array.from(radialSum, (v, i) => (radialCount[i] ? v / radialCount[i] : Number.NaN));
     let displayProfile = profile;
     let displayStart = 0;
     if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
@@ -781,6 +800,7 @@ function updateRoiStats() {
         yLabel: "Intensity",
         xStart: displayStart,
         xStep: 1,
+        xTickMode: "integer",
       };
     }
     drawRoiPlot(roiLineCanvas, roiLineCtx, displayProfile, roiState.log);
@@ -811,6 +831,12 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   const plotKey = getRoiPlotKey(canvasEl);
   const limits = getRoiPlotLimits(plotKey);
   const autoscale = roiState.plotLimits.autoscale;
+  const xTickMode = plotMeta.xTickMode || "";
+  const formatXAxisTick = (value) => {
+    if (!Number.isFinite(value)) return "-";
+    if (xTickMode === "integer") return `${Math.round(value)}`;
+    return formatRoiTick(value);
+  };
   const xStepRaw = Number(plotMeta.xStep ?? 1);
   const xStep = Number.isFinite(xStepRaw) && xStepRaw !== 0 ? xStepRaw : 1;
   let xStart = Number(plotMeta.xStart ?? 0) || 0;
@@ -841,18 +867,22 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   }
 
   const valuesRaw = visibleData;
-  const values = logScale ? valuesRaw.map((v) => Math.log10(1 + Math.max(0, v))) : valuesRaw;
+  const values = valuesRaw.map((v) => {
+    if (!Number.isFinite(v)) return Number.NaN;
+    return logScale ? Math.log10(1 + Math.max(0, v)) : v;
+  });
+  const finiteValues = values.filter((v) => Number.isFinite(v));
 
   // Calculate total Y domain from all data
-  const allValuesRaw = data;
-  const totalMinY = Math.min(...allValuesRaw);
-  const totalMaxY = Math.max(...allValuesRaw);
+  const allValuesRaw = data.filter((v) => Number.isFinite(v));
+  const totalMinY = allValuesRaw.length ? Math.min(...allValuesRaw) : 0;
+  const totalMaxY = allValuesRaw.length ? Math.max(...allValuesRaw) : 0;
 
   let minValue = 0;
   if (!autoscale && Number.isFinite(limits.yMin)) {
     minValue = logScale ? Math.log10(1 + Math.max(0, limits.yMin)) : limits.yMin;
   }
-  let maxValue = Math.max(...values);
+  let maxValue = finiteValues.length ? Math.max(...finiteValues) : minValue + 1;
   if (!autoscale && Number.isFinite(limits.yMax)) {
     maxValue = logScale ? Math.log10(1 + Math.max(0, limits.yMax)) : limits.yMax;
   }
@@ -887,7 +917,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     for (let i = 0; i <= xTickCount; i += 1) {
       const t = i / xTickCount;
       const xValue = xStart + t * (values.length - 1) * xStep;
-      labels.push(formatRoiTick(xValue));
+      labels.push(formatXAxisTick(xValue));
     }
     const maxLabel = measureMaxLabel(labels);
     const spacing = drawableWidth / xTickCount;
@@ -911,7 +941,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.lineTo(x, padT + drawableHeight + 4);
     ctx.stroke();
     const xValue = xStart + t * (values.length - 1) * xStep;
-    ctx.fillText(formatRoiTick(xValue), x, padT + drawableHeight + 6);
+    ctx.fillText(formatXAxisTick(xValue), x, padT + drawableHeight + 6);
   }
 
   let yTickCount = Math.max(2, Math.min(4, Math.floor(drawableHeight / 50)));
@@ -954,12 +984,18 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.shadowColor = PLOT_THEME.lineGlow;
   ctx.shadowBlur = 2;
   ctx.beginPath();
+  let hasSegment = false;
   values.forEach((v, i) => {
+    if (!Number.isFinite(v)) {
+      hasSegment = false;
+      return;
+    }
     const x = padL + (i / Math.max(1, values.length - 1)) * drawableWidth;
     const yNorm = yRange ? (v - minValue) / yRange : 0;
     const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
-    if (i === 0) {
+    if (!hasSegment) {
       ctx.moveTo(x, y);
+      hasSegment = true;
     } else {
       ctx.lineTo(x, y);
     }
@@ -996,6 +1032,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     height,
     xStart,
     xStep,
+    xTickMode,
     totalXMin: totalMinX,
     totalXMax: totalMaxX,
     totalYMin: totalMinY,
