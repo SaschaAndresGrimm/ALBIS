@@ -901,6 +901,10 @@ body {
   cursor: crosshair;
 }
 
+.canvas-wrap.is-windowing {
+  cursor: crosshair;
+}
+
 #pixel-overlay {
   position: absolute;
   pointer-events: none;

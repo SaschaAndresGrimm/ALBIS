@@ -15,6 +15,9 @@ export function bindViewportInteractions({
     appLayout,
     toolsPanel,
     canvasWrap,
+    autoScaleToggle,
+    minInput,
+    maxInput,
     roiRadiusInput,
     roiInnerInput,
     roiOuterInput,
@@ -23,6 +26,7 @@ export function bindViewportInteractions({
   const {
     applyPanelState,
     setPanelWidth,
+    redraw,
     scheduleHistogram,
     deferViewportInteraction,
     normalizeWheelDelta,
@@ -54,12 +58,16 @@ export function bindViewportInteractions({
     getRoiDragging,
     setRoiDragging,
     scheduleRoiUpdate,
+    formatValue,
+    snapHistogramValue,
   } = callbacks;
 
   let panning = false;
   let panStart = { x: 0, y: 0, effectiveLeft: 0, effectiveTop: 0 };
   let touchDragActive = false;
   let touchDragStart = null;
+  let windowing = false;
+  let windowingStart = null;
 
   function stopTouchDrag() {
     touchDragActive = false;
@@ -74,6 +82,99 @@ export function bindViewportInteractions({
     if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
       canvasWrap.releasePointerCapture(event.pointerId);
     }
+  }
+
+  function stopWindowing(event) {
+    if (!windowing) return;
+    const pointerId = event?.pointerId ?? windowingStart?.pointerId;
+    windowing = false;
+    windowingStart = null;
+    canvasWrap.classList.remove("is-windowing");
+    if (Number.isInteger(pointerId) && canvasWrap.hasPointerCapture(pointerId)) {
+      canvasWrap.releasePointerCapture(pointerId);
+    }
+    scheduleHistogram();
+  }
+
+  function startWindowing(event) {
+    const statsMin = Number.isFinite(state.stats?.min) ? state.stats.min : Math.min(state.min, state.max);
+    const statsMax = Number.isFinite(state.stats?.max) ? state.stats.max : Math.max(state.min, state.max);
+    const statsRange = statsMax - statsMin;
+    if (!Number.isFinite(statsRange) || statsRange <= 0) return false;
+
+    const startMin = Number.isFinite(state.min) ? state.min : statsMin;
+    const startMax = Number.isFinite(state.max) ? state.max : statsMax;
+    const currentWidth = Math.max(Number.EPSILON, Math.abs(startMax - startMin));
+    const minWidth = Math.max(statsRange / 4096, Number.EPSILON);
+    const width = Math.max(minWidth, Math.min(statsRange, currentWidth));
+    const level = (startMin + startMax) * 0.5;
+
+    // Use current window width as the sensitivity reference so
+    // high-dynamic-range diffraction data remains controllable.
+    const viewportSpan = Math.max(
+      240,
+      Math.min(960, Math.max(canvasWrap.clientWidth || 0, canvasWrap.clientHeight || 0))
+    );
+    const referenceWidth = Math.max(width, statsRange * 0.02);
+    const widthPerPx = Math.max(minWidth, referenceWidth / viewportSpan);
+    const levelPerPx = Math.max(minWidth * 0.5, referenceWidth / (viewportSpan * 1.35));
+
+    windowingStart = {
+      x: event.clientX,
+      y: event.clientY,
+      pointerId: event.pointerId,
+      level,
+      width,
+      statsMin,
+      statsMax,
+      statsRange,
+      minWidth,
+      widthPerPx,
+      levelPerPx,
+    };
+    windowing = true;
+    state.autoScale = false;
+    if (autoScaleToggle) autoScaleToggle.checked = false;
+    canvasWrap.classList.add("is-windowing");
+    canvasWrap.setPointerCapture(event.pointerId);
+    hideCursorOverlay();
+    event.preventDefault();
+    return true;
+  }
+
+  function applyWindowing(event) {
+    if (!windowing || !windowingStart) return;
+    const dx = event.clientX - windowingStart.x;
+    const dy = event.clientY - windowingStart.y;
+
+    const width = Math.max(
+      windowingStart.minWidth,
+      Math.min(windowingStart.statsRange, windowingStart.width + dx * windowingStart.widthPerPx)
+    );
+    const half = width * 0.5;
+    const minLevel = windowingStart.statsMin + half;
+    const maxLevel = windowingStart.statsMax - half;
+    let level = windowingStart.level - dy * windowingStart.levelPerPx;
+    if (minLevel <= maxLevel) {
+      level = Math.max(minLevel, Math.min(maxLevel, level));
+    } else {
+      level = (windowingStart.statsMin + windowingStart.statsMax) * 0.5;
+    }
+
+    let nextMin = level - half;
+    let nextMax = level + half;
+    nextMin = snapHistogramValue(nextMin);
+    nextMax = snapHistogramValue(nextMax);
+    if (!Number.isFinite(nextMin) || !Number.isFinite(nextMax) || nextMax <= nextMin) return;
+
+    state.min = nextMin;
+    state.max = nextMax;
+    state.autoScale = false;
+    if (autoScaleToggle) autoScaleToggle.checked = false;
+    if (minInput) minInput.value = formatValue(state.min);
+    if (maxInput) maxInput.value = formatValue(state.max);
+    redraw();
+    scheduleHistogram();
   }
 
   function stopRoi(event) {
@@ -225,6 +326,15 @@ export function bindViewportInteractions({
 
   canvasWrap.addEventListener("pointerdown", (event) => {
     if (event.pointerType === "touch") return;
+    const isWindowingTrigger =
+      event.button === 0 && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
+    if (isWindowingTrigger) {
+      if (event.target.closest(".loading")) return;
+      if (startWindowing(event)) {
+        return;
+      }
+    }
+
     const isRightClick = event.button === 2 || event.buttons === 2 || event.which === 3;
     const isCtrlClick = event.button === 0 && event.ctrlKey;
     const roiTrigger = roiState.enabled && (isRightClick || isCtrlClick);
@@ -288,6 +398,13 @@ export function bindViewportInteractions({
 
   canvasWrap.addEventListener("pointermove", (event) => {
     if (event.pointerType === "touch") return;
+    if (windowing) {
+      deferViewportInteraction();
+      hideCursorOverlay();
+      applyWindowing(event);
+      event.preventDefault();
+      return;
+    }
     updateCursorOverlay(event);
 
     if (isRoiEditing()) {
@@ -315,18 +432,21 @@ export function bindViewportInteractions({
   });
 
   canvasWrap.addEventListener("pointerup", (event) => {
+    stopWindowing(event);
     stopRoiEdit(event);
     stopRoi(event);
     stopPan(event);
   });
 
   canvasWrap.addEventListener("pointercancel", (event) => {
+    stopWindowing(event);
     stopRoiEdit(event);
     stopRoi(event);
     stopPan(event);
   });
 
   canvasWrap.addEventListener("pointerleave", () => {
+    stopWindowing();
     stopRoi();
     hideCursorOverlay();
   });

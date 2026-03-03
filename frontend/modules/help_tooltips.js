@@ -89,6 +89,8 @@ export function createHelpTooltipController({
       "toolbar-threshold": "Choose the detector threshold channel (Up/Down Arrow).",
       "zoom-range": "Adjust image zoom level.",
       "reset-view": "Fit the full image into the viewport.",
+      "canvas-wrap":
+        "Wheel: zoom at cursor. Left-drag: pan. Shift+left-drag: contrast/brightness (horizontal/vertical). Right-drag: ROI.",
       "pixel-label-toggle": "Show pixel intensity labels at high zoom.",
       "mask-toggle": "Apply the detector pixel mask when available.",
       "mask-saturated-toggle": "Hide saturated pixels (datatype maximum).",

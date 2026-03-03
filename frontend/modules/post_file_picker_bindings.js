@@ -397,6 +397,9 @@ export function initializePostFilePickerBindings({
       appLayout,
       toolsPanel,
       canvasWrap,
+      autoScaleToggle,
+      minInput,
+      maxInput,
       roiRadiusInput,
       roiInnerInput,
       roiOuterInput,
@@ -404,6 +407,7 @@ export function initializePostFilePickerBindings({
     callbacks: {
       applyPanelState,
       setPanelWidth,
+      redraw,
       scheduleHistogram,
       deferViewportInteraction,
       normalizeWheelDelta,
@@ -435,6 +439,8 @@ export function initializePostFilePickerBindings({
       getRoiDragging,
       setRoiDragging,
       scheduleRoiUpdate,
+      formatValue,
+      snapHistogramValue,
     },
   });
 
