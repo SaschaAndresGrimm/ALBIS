@@ -97,7 +97,7 @@ export function createAppState() {
     maskShape: null,
     maskAvailable: false,
     maskEnabled: false,
-    maskSaturatedEnabled: false,
+    maskSaturatedEnabled: true,
     maskAuto: true,
     maskFile: "",
     maskPath: "",
