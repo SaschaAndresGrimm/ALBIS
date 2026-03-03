@@ -100,6 +100,7 @@ export function createHelpTooltipController({
       "rings-toggle": "Show or hide resolution ring overlays.",
       "roi-mode": "Choose ROI geometry (line, box, circle, annulus).",
       "roi-log": "Display ROI plots with logarithmic Y scale.",
+      "roi-histogram": "Show an additional histogram plot of intensity distribution inside the active ROI.",
       "roi-limits-enable": "Autoscale ROI plots; disable to keep manual zoom/pan.",
       "roi-clear-btn": "Clear the active ROI and reset ROI stats.",
       "roi-export-csv": "Export current ROI profile/projection data as CSV.",

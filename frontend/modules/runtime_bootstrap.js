@@ -19,6 +19,7 @@ export function initializeUiDefaults({
     roiEnableToggle,
     roiModeSelect,
     roiLogToggle,
+    roiHistogramToggle,
   } = elements;
 
   const {
@@ -61,11 +62,14 @@ export function initializeUiDefaults({
   if (roiModeSelect) {
     roiState.mode = roiModeSelect.value || "line";
     roiState.active = false;
-    updateRoiModeUI();
   }
   if (roiLogToggle) {
     roiState.log = roiLogToggle.checked;
   }
+  if (roiHistogramToggle) {
+    roiState.histogramEnabled = roiHistogramToggle.checked;
+  }
+  updateRoiModeUI();
 
   updateRoiPlotLimitsEnabled();
 }

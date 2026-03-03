@@ -20,9 +20,11 @@ export function bindRoiPlotInteractions({
     roiLineCanvas,
     roiXCanvas,
     roiYCanvas,
+    roiHistCanvas,
     roiLinePlot,
     roiBoxPlotX,
     roiBoxPlotY,
+    roiHistogramPlot,
     roiLimitsEnable,
   } = elements;
 
@@ -201,7 +203,7 @@ export function bindRoiPlotInteractions({
     }
   }
 
-  [roiLineCanvas, roiXCanvas, roiYCanvas].forEach((canvasEl) => {
+  [roiLineCanvas, roiXCanvas, roiYCanvas, roiHistCanvas].forEach((canvasEl) => {
     if (!canvasEl) return;
 
     canvasEl.addEventListener("mousemove", (event) => {
@@ -314,7 +316,7 @@ export function bindRoiPlotInteractions({
     );
   });
 
-  [roiLinePlot, roiBoxPlotX, roiBoxPlotY].forEach((plotContainer) => {
+  [roiLinePlot, roiBoxPlotX, roiBoxPlotY, roiHistogramPlot].forEach((plotContainer) => {
     if (!plotContainer) return;
     const resizeHandle = plotContainer.querySelector(".roi-resize-handle");
     if (!resizeHandle) return;

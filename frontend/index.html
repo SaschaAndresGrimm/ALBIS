@@ -872,6 +872,10 @@
                   <input id="roi-log" type="checkbox" />
                   Log plot
                 </label>
+                <label class="checkbox roi-histogram-toggle">
+                  <input id="roi-histogram" type="checkbox" />
+                  Histogram
+                </label>
                 <label class="checkbox roi-autoscale-toggle">
                   <input id="roi-limits-enable" type="checkbox" checked />
                   Autoscale
@@ -894,6 +898,12 @@
                 <div class="roi-plot" id="roi-box-plot-y">
                   <div class="roi-plot-title">Profile along Y</div>
                   <canvas id="roi-y-canvas"></canvas>
+                  <div class="roi-tooltip" aria-hidden="true"></div>
+                  <div class="roi-resize-handle"></div>
+                </div>
+                <div class="roi-plot is-hidden" id="roi-hist-plot">
+                  <div class="roi-plot-title">ROI Histogram</div>
+                  <canvas id="roi-hist-canvas"></canvas>
                   <div class="roi-tooltip" aria-hidden="true"></div>
                   <div class="roi-resize-handle"></div>
                 </div>

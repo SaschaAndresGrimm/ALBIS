@@ -13,6 +13,7 @@ export function createRoiStatsController(ctx) {
     roiLinePlot,
     roiBoxPlotX,
     roiBoxPlotY,
+    roiHistogramPlot,
     roiPlotControls,
     roiRadiusField,
     roiCenterFields,
@@ -43,6 +44,9 @@ export function createRoiStatsController(ctx) {
     roiXCtx,
     roiYCanvas,
     roiYCtx,
+    roiHistCanvas,
+    roiHistCtx,
+    roiHistogramToggle,
     scheduleRoiUpdate,
     updateRoiSectionState,
     drawRoiOverlay,
@@ -85,6 +89,7 @@ function getRoiPlotKey(canvasEl) {
   if (id === "roi-line-canvas") return "line";
   if (id === "roi-x-canvas") return "x";
   if (id === "roi-y-canvas") return "y";
+  if (id === "roi-hist-canvas") return "hist";
   return "line";
 }
 
@@ -93,7 +98,7 @@ function getRoiPlotLimits(plotKey) {
 }
 
 function clearRoiPlotLimits() {
-  ["line", "x", "y"].forEach((key) => {
+  ["line", "x", "y", "hist"].forEach((key) => {
     const limits = roiState.plotLimits[key];
     if (!limits) return;
     limits.xMin = null;
@@ -153,7 +158,7 @@ function hasManualRoiPlotLimits(plotKey) {
 }
 
 function hasAnyManualRoiPlotLimits() {
-  return ["line", "x", "y"].some((key) => hasManualRoiPlotLimits(key));
+  return ["line", "x", "y", "hist"].some((key) => hasManualRoiPlotLimits(key));
 }
 
 function updateRoiModeUI() {
@@ -178,6 +183,10 @@ function updateRoiModeUI() {
   }
   if (roiBoxPlotY) {
     roiBoxPlotY.classList.toggle("is-hidden", !enabled || mode !== "box");
+  }
+  if (roiHistogramPlot) {
+    const showHistogram = enabled && Boolean(roiState.histogramEnabled);
+    roiHistogramPlot.classList.toggle("is-hidden", !showHistogram);
   }
   if (roiPlotControls) {
     roiPlotControls.classList.toggle("is-hidden", !showPlots);
@@ -223,6 +232,10 @@ function updateRoiModeUI() {
   if (roiClearBtn) {
     roiClearBtn.disabled = !enabled;
   }
+  if (roiHistogramToggle) {
+    roiHistogramToggle.checked = Boolean(roiState.histogramEnabled);
+    roiHistogramToggle.disabled = !enabled;
+  }
   updateRoiCenterInputs();
   syncRoiPlotLimitControls();
   updateRoiSectionState();
@@ -236,6 +249,7 @@ function clearRoi() {
   roiState.lineProfile = null;
   roiState.xProjection = null;
   roiState.yProjection = null;
+  roiState.histogramDistribution = null;
   roiState.innerRadius = 0;
   roiState.outerRadius = 0;
   if (roiRadiusInput) roiRadiusInput.value = "";
@@ -259,6 +273,7 @@ function clearRoi() {
   drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
   drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
   drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+  drawRoiPlot(roiHistCanvas, roiHistCtx, null, roiState.log);
   drawRoiOverlay();
   updateRoiSectionState();
 }
@@ -483,6 +498,97 @@ function updateRoiPixelCounterFields(counters) {
   setRoiText(roiSaturatedEl, counters ? `${counters.saturated}` : "-");
 }
 
+function buildRoiHistogram(values) {
+  const finite = [];
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let isIntegerSeries = true;
+  (values || []).forEach((v) => {
+    if (!Number.isFinite(v)) return;
+    finite.push(v);
+    if (v < min) min = v;
+    if (v > max) max = v;
+    if (isIntegerSeries && Math.abs(v - Math.round(v)) >= 1e-9) {
+      isIntegerSeries = false;
+    }
+  });
+  if (!finite.length || !Number.isFinite(min) || !Number.isFinite(max)) return null;
+
+  if (isIntegerSeries) {
+    const iMin = Math.floor(min);
+    const iMax = Math.ceil(max);
+    const intSpan = iMax - iMin + 1;
+    if (intSpan > 0 && intSpan <= 512) {
+      const counts = new Float64Array(intSpan);
+      finite.forEach((v) => {
+        const idx = Math.max(0, Math.min(intSpan - 1, Math.round(v) - iMin));
+        counts[idx] += 1;
+      });
+      return {
+        data: Array.from(counts),
+        xStart: iMin,
+        xStep: 1,
+        xTickMode: "integer",
+      };
+    }
+  }
+
+  const binCount = Math.max(16, Math.min(192, Math.round(Math.sqrt(finite.length) * 1.5)));
+  if (!(max > min)) {
+    return {
+      data: [finite.length],
+      xStart: min,
+      xStep: 1,
+      xTickMode: isIntegerSeries ? "integer" : "",
+    };
+  }
+
+  const step = (max - min) / binCount;
+  const counts = new Float64Array(binCount);
+  finite.forEach((v) => {
+    const t = (v - min) / step;
+    const idx = Math.max(0, Math.min(binCount - 1, Math.floor(t)));
+    counts[idx] += 1;
+  });
+  return {
+    data: Array.from(counts),
+    xStart: min + step * 0.5,
+    xStep: step,
+    xTickMode: "",
+  };
+}
+
+function updateRoiHistogramPlot(values) {
+  if (!roiHistCanvas || !roiHistCtx || !roiHistogramPlot) return;
+  const enabled = Boolean(roiState.enabled && roiState.histogramEnabled);
+  roiHistogramPlot.classList.toggle("is-hidden", !enabled);
+  if (!enabled) {
+    roiState.histogramDistribution = null;
+    roiHistCanvas._roiPlotMeta = null;
+    drawRoiPlot(roiHistCanvas, roiHistCtx, null, roiState.log);
+    return;
+  }
+
+  const histogram = buildRoiHistogram(values);
+  if (!histogram || !histogram.data?.length) {
+    roiState.histogramDistribution = null;
+    roiHistCanvas._roiPlotMeta = null;
+    drawRoiPlot(roiHistCanvas, roiHistCtx, null, roiState.log);
+    return;
+  }
+
+  roiState.histogramDistribution = histogram.data;
+  roiHistCanvas._roiPlotMeta = {
+    xLabel: "Intensity",
+    yLabel: "Count",
+    xStart: histogram.xStart,
+    xStep: histogram.xStep,
+    xTickMode: histogram.xTickMode,
+    seriesType: "histogram",
+  };
+  drawRoiPlot(roiHistCanvas, roiHistCtx, roiState.histogramDistribution, roiState.log);
+}
+
 function updateRoiStats() {
   // This function is intentionally central: it computes ROI statistics and
   // updates all derived plots/labels in one pass to keep UI state consistent.
@@ -490,6 +596,7 @@ function updateRoiStats() {
     if (roiState.active) {
       clearRoi();
     }
+    updateRoiHistogramPlot([]);
     updateRoiSectionState();
     return;
   }
@@ -527,9 +634,13 @@ function updateRoiStats() {
     if (roiYCanvas) {
       roiYCanvas._roiPlotMeta = null;
     }
+    if (roiHistCanvas) {
+      roiHistCanvas._roiPlotMeta = null;
+    }
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+    updateRoiHistogramPlot([]);
     drawRoiOverlay();
     updateRoiSectionState();
     return;
@@ -558,6 +669,7 @@ function updateRoiStats() {
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+    updateRoiHistogramPlot([]);
     drawRoiOverlay();
     updateRoiSectionState();
     return;
@@ -807,6 +919,7 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
   }
+  updateRoiHistogramPlot(statsValues);
   drawRoiOverlay();
   updateRoiSectionState();
 }
@@ -872,6 +985,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     return logScale ? Math.log10(1 + Math.max(0, v)) : v;
   });
   const finiteValues = values.filter((v) => Number.isFinite(v));
+  const seriesType = plotMeta.seriesType || "line";
 
   // Calculate total Y domain from all data
   const allValuesRaw = data.filter((v) => Number.isFinite(v));
@@ -998,29 +1112,43 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.fillText(yLabelText, padL - 8, y);
   }
 
-  ctx.strokeStyle = PLOT_THEME.line;
-  ctx.lineWidth = 1;
-  ctx.shadowColor = PLOT_THEME.lineGlow;
-  ctx.shadowBlur = 2;
-  ctx.beginPath();
-  let hasSegment = false;
-  values.forEach((v, i) => {
-    if (!Number.isFinite(v)) {
-      hasSegment = false;
-      return;
-    }
-    const x = padL + (i / Math.max(1, values.length - 1)) * drawableWidth;
-    const yNorm = yRange ? (v - minValue) / yRange : 0;
-    const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
-    if (!hasSegment) {
-      ctx.moveTo(x, y);
-      hasSegment = true;
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
-  ctx.stroke();
-  ctx.shadowBlur = 0;
+  if (seriesType === "histogram") {
+    const barWidth = drawableWidth / Math.max(1, values.length);
+    ctx.fillStyle = "rgba(198, 220, 255, 0.88)";
+    values.forEach((v, i) => {
+      if (!Number.isFinite(v)) return;
+      const yNorm = yRange ? (v - minValue) / yRange : 0;
+      const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
+      const x = padL + i * barWidth;
+      const w = Math.max(1, barWidth - 1);
+      const h = Math.max(1, padT + drawableHeight - y);
+      ctx.fillRect(x + 0.5, y, w, h);
+    });
+  } else {
+    ctx.strokeStyle = PLOT_THEME.line;
+    ctx.lineWidth = 1;
+    ctx.shadowColor = PLOT_THEME.lineGlow;
+    ctx.shadowBlur = 2;
+    ctx.beginPath();
+    let hasSegment = false;
+    values.forEach((v, i) => {
+      if (!Number.isFinite(v)) {
+        hasSegment = false;
+        return;
+      }
+      const x = padL + (i / Math.max(1, values.length - 1)) * drawableWidth;
+      const yNorm = yRange ? (v - minValue) / yRange : 0;
+      const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
+      if (!hasSegment) {
+        ctx.moveTo(x, y);
+        hasSegment = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
 
   const xLabel = plotMeta.xLabel || "Index";
   const yLabel = plotMeta.yLabel || "Value";
@@ -1105,6 +1233,9 @@ function exportRoiCsv() {
     addSection("Y Projection", roiState.yProjection, roiYCanvas?._roiPlotMeta, allowBoxEmpty);
   } else if (allowBoxEmpty) {
     addSection("Y Projection", roiState.yProjection || [], roiYCanvas?._roiPlotMeta, true);
+  }
+  if (roiState.histogramDistribution && roiState.histogramDistribution.length) {
+    addSection("ROI Histogram", roiState.histogramDistribution, roiHistCanvas?._roiPlotMeta);
   }
 
   if (!sections.length) {

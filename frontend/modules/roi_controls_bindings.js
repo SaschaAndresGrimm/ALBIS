@@ -12,6 +12,7 @@ export function bindRoiControlInteractions({
     roiEnableToggle,
     roiModeSelect,
     roiLogToggle,
+    roiHistogramToggle,
     roiLimitsEnable,
     roiClearBtn,
     roiExportCsvBtn,
@@ -64,6 +65,12 @@ export function bindRoiControlInteractions({
 
   roiLogToggle?.addEventListener("change", () => {
     roiState.log = roiLogToggle.checked;
+    scheduleRoiUpdate();
+  });
+
+  roiHistogramToggle?.addEventListener("change", () => {
+    roiState.histogramEnabled = Boolean(roiHistogramToggle.checked);
+    updateRoiModeUI();
     scheduleRoiUpdate();
   });
 

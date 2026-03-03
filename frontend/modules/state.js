@@ -7,10 +7,12 @@ export function createRoiState() {
     end: null,
     active: false,
     log: false,
+    histogramEnabled: false,
     stats: null,
     lineProfile: null,
     xProjection: null,
     yProjection: null,
+    histogramDistribution: null,
     innerRadius: 0,
     outerRadius: 0,
     plotLimits: {
@@ -18,6 +20,7 @@ export function createRoiState() {
       line: { xMin: null, xMax: null, yMin: null, yMax: null },
       x: { xMin: null, xMax: null, yMin: null, yMax: null },
       y: { xMin: null, xMax: null, yMin: null, yMax: null },
+      hist: { xMin: null, xMax: null, yMin: null, yMax: null },
     },
   };
 }

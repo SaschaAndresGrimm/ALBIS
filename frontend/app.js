@@ -272,6 +272,7 @@ const liveBadge = document.getElementById("live-badge");
 const roiHelp = document.getElementById("roi-help");
 const roiModeSelect = document.getElementById("roi-mode");
 const roiLogToggle = document.getElementById("roi-log");
+const roiHistogramToggle = document.getElementById("roi-histogram");
 const roiPlotControls = document.getElementById("roi-plot-controls");
 const roiParams = document.getElementById("roi-params");
 const roiRadiusField = document.getElementById("roi-radius-field");
@@ -302,12 +303,15 @@ const roiStdEl = document.getElementById("roi-std");
 const roiLinePlot = document.getElementById("roi-line-plot");
 const roiBoxPlotX = document.getElementById("roi-box-plot-x");
 const roiBoxPlotY = document.getElementById("roi-box-plot-y");
+const roiHistPlot = document.getElementById("roi-hist-plot");
 const roiLineCanvas = document.getElementById("roi-line-canvas");
 const roiLineCtx = roiLineCanvas?.getContext("2d");
 const roiXCanvas = document.getElementById("roi-x-canvas");
 const roiXCtx = roiXCanvas?.getContext("2d");
 const roiYCanvas = document.getElementById("roi-y-canvas");
 const roiYCtx = roiYCanvas?.getContext("2d");
+const roiHistCanvas = document.getElementById("roi-hist-canvas");
+const roiHistCtx = roiHistCanvas?.getContext("2d");
 const roiEnableToggle = document.getElementById("roi-enable");
 const roiSectionStateEl = document.getElementById("roi-state");
 const roiSummaryEl = document.getElementById("summary-roi");
@@ -3036,6 +3040,7 @@ const roiStatsController = createRoiStatsController({
   roiLinePlot,
   roiBoxPlotX,
   roiBoxPlotY,
+  roiHistogramPlot: roiHistPlot,
   roiPlotControls,
   roiRadiusField,
   roiCenterFields,
@@ -3066,6 +3071,9 @@ const roiStatsController = createRoiStatsController({
   roiXCtx,
   roiYCanvas,
   roiYCtx,
+  roiHistCanvas,
+  roiHistCtx,
+  roiHistogramToggle,
   scheduleRoiUpdate: (...args) => scheduleRoiUpdate(...args),
   updateRoiSectionState,
   drawRoiOverlay: (...args) => drawRoiOverlay(...args),
@@ -3360,6 +3368,7 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   roiEnableToggle,
   roiModeSelect,
   roiLogToggle,
+  roiHistogramToggle,
   roiLimitsEnable,
   roiClearBtn,
   roiExportCsvBtn,
@@ -3377,9 +3386,11 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   roiLineCanvas,
   roiXCanvas,
   roiYCanvas,
+  roiHistCanvas,
   roiLinePlot,
   roiBoxPlotX,
   roiBoxPlotY,
+  roiHistogramPlot: roiHistPlot,
   overviewCanvas,
   histCanvas,
   exportBtn,
@@ -3537,6 +3548,7 @@ initializeUiDefaults({
     roiEnableToggle,
     roiModeSelect,
     roiLogToggle,
+    roiHistogramToggle,
   },
   callbacks: {
     restoreFilesystemMode,
