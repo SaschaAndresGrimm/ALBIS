@@ -87,7 +87,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum * > SHA256SUMS.txt
+          find . -maxdepth 1 -type f ! -name "SHA256SUMS.txt" -exec sha256sum {} + | sort > SHA256SUMS.txt
 
       - name: Upload release assets
         uses: actions/upload-artifact@v4
