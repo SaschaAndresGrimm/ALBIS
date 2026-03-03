@@ -64,6 +64,16 @@ export function createRoiInteractionController({
     };
   }
 
+  function getLineScreenEndpoints(x0, y0, x1, y1, zoom) {
+    const centerOffset = zoom * 0.5;
+    return {
+      xStart: x0 + centerOffset,
+      yStart: y0 + centerOffset,
+      xEnd: x1 + centerOffset,
+      yEnd: y1 + centerOffset,
+    };
+  }
+
   function getRoiHandleAt(event) {
     if (!roiState.enabled || !roiState.active) return null;
     const pointer = getPointerCanvasPos(event);
@@ -73,8 +83,9 @@ export function createRoiInteractionController({
     const hit = (x, y) => Math.abs(pointer.x - x) <= 6 && Math.abs(pointer.y - y) <= 6;
 
     if (roiState.mode === "line") {
-      if (hit(x0, y0)) return "line-start";
-      if (hit(x1, y1)) return "line-end";
+      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom);
+      if (hit(lineGeom.xStart, lineGeom.yStart)) return "line-start";
+      if (hit(lineGeom.xEnd, lineGeom.yEnd)) return "line-end";
       return null;
     }
     if (roiState.mode === "box") {
@@ -299,8 +310,9 @@ export function createRoiInteractionController({
     };
 
     if (roiState.mode === "line") {
-      drawHandle(x0, y0);
-      drawHandle(x1, y1);
+      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom);
+      drawHandle(lineGeom.xStart, lineGeom.yStart);
+      drawHandle(lineGeom.xEnd, lineGeom.yEnd);
     } else if (roiState.mode === "box") {
       const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom);
       drawHandle(left, top);
@@ -352,9 +364,10 @@ export function createRoiInteractionController({
       roiCtx.stroke();
     };
     if (roiState.mode === "line") {
+      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom);
       roiCtx.beginPath();
-      roiCtx.moveTo(x0, y0);
-      roiCtx.lineTo(x1, y1);
+      roiCtx.moveTo(lineGeom.xStart, lineGeom.yStart);
+      roiCtx.lineTo(lineGeom.xEnd, lineGeom.yEnd);
       strokeWithHalo();
     } else if (roiState.mode === "box") {
       const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom);
