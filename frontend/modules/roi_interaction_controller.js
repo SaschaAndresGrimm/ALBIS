@@ -52,6 +52,18 @@ export function createRoiInteractionController({
     return { x0, y0, x1, y1, zoom };
   }
 
+  function getBoxScreenBounds(x0, y0, x1, y1, zoom) {
+    // x0/y0/x1/y1 are pixel-cell origins in screen space (top-left corners).
+    // Box ROI is inclusive in pixel indices, so the visual boundary must extend
+    // one full pixel beyond the max index.
+    return {
+      left: Math.min(x0, x1),
+      top: Math.min(y0, y1),
+      right: Math.max(x0, x1) + zoom,
+      bottom: Math.max(y0, y1) + zoom,
+    };
+  }
+
   function getRoiHandleAt(event) {
     if (!roiState.enabled || !roiState.active) return null;
     const pointer = getPointerCanvasPos(event);
@@ -66,10 +78,11 @@ export function createRoiInteractionController({
       return null;
     }
     if (roiState.mode === "box") {
-      if (hit(x0, y0)) return "box-nw";
-      if (hit(x1, y0)) return "box-ne";
-      if (hit(x1, y1)) return "box-se";
-      if (hit(x0, y1)) return "box-sw";
+      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom);
+      if (hit(left, top)) return "box-nw";
+      if (hit(right, top)) return "box-ne";
+      if (hit(right, bottom)) return "box-se";
+      if (hit(left, bottom)) return "box-sw";
       return null;
     }
     if (roiState.mode === "circle" || roiState.mode === "annulus") {
@@ -289,10 +302,11 @@ export function createRoiInteractionController({
       drawHandle(x0, y0);
       drawHandle(x1, y1);
     } else if (roiState.mode === "box") {
-      drawHandle(x0, y0);
-      drawHandle(x1, y0);
-      drawHandle(x1, y1);
-      drawHandle(x0, y1);
+      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom);
+      drawHandle(left, top);
+      drawHandle(right, top);
+      drawHandle(right, bottom);
+      drawHandle(left, bottom);
     } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
       drawCross(x0, y0);
       const dx = x1 - x0;
@@ -343,10 +357,9 @@ export function createRoiInteractionController({
       roiCtx.lineTo(x1, y1);
       strokeWithHalo();
     } else if (roiState.mode === "box") {
-      const left = Math.min(x0, x1);
-      const top = Math.min(y0, y1);
-      const w = Math.abs(x1 - x0);
-      const h = Math.abs(y1 - y0);
+      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom);
+      const w = Math.max(0, right - left);
+      const h = Math.max(0, bottom - top);
       if (w > 0 && h > 0) {
         roiCtx.save();
         roiCtx.setLineDash([]);

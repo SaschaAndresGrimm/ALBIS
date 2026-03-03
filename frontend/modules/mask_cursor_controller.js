@@ -48,8 +48,12 @@ export function createMaskCursorController({
     const offsetY = state.renderOffsetY || 0;
     const imgX = (getEffectiveScrollLeft() + x - offsetX) / zoom;
     const imgY = (getEffectiveScrollTop() + y - offsetY) / zoom;
-    const ix = Math.max(0, Math.min(state.width - 1, Math.round(imgX)));
-    const iy = Math.max(0, Math.min(state.height - 1, Math.round(imgY)));
+    // ROI selection should use pixel-cell containment (same convention as cursor readout),
+    // not nearest-center rounding.
+    const clampedX = Math.max(0, Math.min(state.width - Number.EPSILON, imgX));
+    const clampedY = Math.max(0, Math.min(state.height - Number.EPSILON, imgY));
+    const ix = Math.floor(clampedX);
+    const iy = Math.floor(clampedY);
     return { x: ix, y: iy };
   }
 
