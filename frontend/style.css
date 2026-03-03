@@ -2338,24 +2338,53 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   max-width: none;
 }
 
-.series-sum-options {
+.series-sum-layout {
+  display: grid;
+  gap: 8px;
+}
+
+.series-sum-card {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(78, 100, 137, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(12, 18, 27, 0.45);
+}
+
+.series-sum-card-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a9bfdc;
+}
+
+.series-sum-core {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 8px;
+  align-items: end;
+}
+
+.series-sum-dynamic {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px 8px;
   align-items: end;
 }
 
-.series-sum-options .field {
+.series-sum-core .field,
+.series-sum-dynamic .field {
   margin: 0;
   min-width: 0;
 }
 
 #series-sum-mode-field {
-  grid-column: span 2;
+  grid-column: span 1;
 }
 
 #series-sum-operation-field,
-#series-sum-format-field,
 #series-sum-step-field,
 #series-sum-range-start-field,
 #series-sum-range-end-field,
@@ -2363,20 +2392,15 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   grid-column: span 1;
 }
 
+.series-sum-toggles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+}
+
 .series-sum-normalize-option,
 .series-sum-mask-option {
-  margin: 0 0 4px;
-  white-space: nowrap;
-  align-self: end;
-  justify-self: start;
-}
-
-.series-sum-normalize-option {
-  grid-column: span 2;
-}
-
-.series-sum-mask-option {
-  grid-column: span 2;
+  margin: 0;
 }
 
 #series-sum-normalize-frame {
@@ -2394,15 +2418,20 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   width: 100%;
 }
 
+.series-sum-browse-btn {
+  width: var(--control-h);
+  min-width: var(--control-h);
+}
+
 .series-sum-progress {
   position: relative;
-  height: 22px;
+  height: 20px;
   border: 1px solid rgba(78, 100, 137, 0.3);
   border-radius: var(--radius-sm);
   background: rgba(13, 19, 28, 0.92);
   overflow: hidden;
-  flex: 1 1 auto;
-  min-width: 180px;
+  min-width: 0;
+  width: 100%;
 }
 
 .series-sum-progress.is-loading::before {
@@ -2424,11 +2453,11 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .series-sum-start-row .btn {
-  min-width: 88px;
+  min-width: 96px;
 }
 
 .series-sum-progress.is-clickable {
@@ -2827,22 +2856,31 @@ body.platform-windows select option:disabled {
     right: var(--overlay-panel-right);
   }
 
-  .series-sum-options {
+  .series-sum-core {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #series-sum-mode-field,
-  .series-sum-normalize-option,
-  .series-sum-mask-option {
+  #series-sum-mode-field {
     grid-column: span 2;
   }
 
+  .series-sum-dynamic {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .series-sum-toggles {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
   .series-sum-start-row {
+    display: flex;
     flex-wrap: wrap;
   }
 
   .series-sum-start-row .btn {
     width: 100%;
+    min-width: 0;
   }
 
   .range-actions-compact {
