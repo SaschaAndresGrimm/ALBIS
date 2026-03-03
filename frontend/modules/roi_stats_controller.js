@@ -878,7 +878,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   const totalMinY = allValuesRaw.length ? Math.min(...allValuesRaw) : 0;
   const totalMaxY = allValuesRaw.length ? Math.max(...allValuesRaw) : 0;
 
-  let minValue = 0;
+  let minValue = finiteValues.length ? Math.min(...finiteValues) : 0;
   if (!autoscale && Number.isFinite(limits.yMin)) {
     minValue = logScale ? Math.log10(1 + Math.max(0, limits.yMin)) : limits.yMin;
   }
@@ -887,29 +887,56 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     maxValue = logScale ? Math.log10(1 + Math.max(0, limits.yMax)) : limits.yMax;
   }
   if (!Number.isFinite(minValue)) minValue = 0;
+  if (autoscale && Number.isFinite(minValue) && Number.isFinite(maxValue)) {
+    const baseRange = maxValue - minValue;
+    if (baseRange > 0) {
+      const pad = baseRange * 0.03;
+      minValue -= pad;
+      maxValue += pad;
+      if (logScale) {
+        minValue = Math.max(0, minValue);
+      }
+    }
+  }
   if (!Number.isFinite(maxValue) || maxValue <= minValue) {
     maxValue = minValue + 1;
   }
   const yRange = maxValue - minValue;
-  const padL = 40;
   const padR = 8;
   const padT = 8;
   const padB = 30;
   const drawableHeight = Math.max(4, height - padT - padB);
-  const drawableWidth = Math.max(4, width - padL - padR);
-  ctx.strokeStyle = PLOT_THEME.axis;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(padL, padT);
-  ctx.lineTo(padL, padT + drawableHeight);
-  ctx.lineTo(padL + drawableWidth, padT + drawableHeight);
-  ctx.stroke();
 
   ctx.fillStyle = PLOT_THEME.text;
   ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
 
   const measureMaxLabel = (labels) =>
     labels.reduce((max, label) => Math.max(max, ctx.measureText(label).width), 0);
+
+  let yTickCount = Math.max(2, Math.min(4, Math.floor(drawableHeight / 50)));
+  while (yTickCount > 1) {
+    const labels = [];
+    for (let i = 0; i <= yTickCount; i += 1) {
+      const t = i / yTickCount;
+      const displayVal = minValue + t * yRange;
+      const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
+      labels.push(formatRoiTick(actualVal));
+    }
+    const maxLabel = measureMaxLabel(labels);
+    const spacing = drawableHeight / yTickCount;
+    if (maxLabel + 6 <= spacing) break;
+    yTickCount -= 1;
+  }
+  const yTickLabels = [];
+  for (let i = 0; i <= yTickCount; i += 1) {
+    const t = i / yTickCount;
+    const displayVal = minValue + t * yRange;
+    const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
+    yTickLabels.push(formatRoiTick(actualVal));
+  }
+  const maxYLabelWidth = measureMaxLabel(yTickLabels);
+  const padL = Math.max(40, Math.ceil(maxYLabelWidth + 24));
+  const drawableWidth = Math.max(4, width - padL - padR);
 
   let xTickCount = Math.max(2, Math.min(4, Math.floor(drawableWidth / 90)));
   while (xTickCount > 1) {
@@ -924,6 +951,14 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     if (maxLabel + 6 <= spacing) break;
     xTickCount -= 1;
   }
+
+  ctx.strokeStyle = PLOT_THEME.axis;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, padT + drawableHeight);
+  ctx.lineTo(padL + drawableWidth, padT + drawableHeight);
+  ctx.stroke();
 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -944,21 +979,6 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.fillText(formatXAxisTick(xValue), x, padT + drawableHeight + 6);
   }
 
-  let yTickCount = Math.max(2, Math.min(4, Math.floor(drawableHeight / 50)));
-  while (yTickCount > 1) {
-    const labels = [];
-    for (let i = 0; i <= yTickCount; i += 1) {
-      const t = i / yTickCount;
-      const displayVal = minValue + t * yRange;
-      const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
-      labels.push(formatRoiTick(actualVal));
-    }
-    const maxLabel = measureMaxLabel(labels);
-    const spacing = drawableHeight / yTickCount;
-    if (maxLabel + 6 <= spacing) break;
-    yTickCount -= 1;
-  }
-
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   for (let i = 0; i <= yTickCount; i += 1) {
@@ -974,9 +994,8 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
     ctx.moveTo(padL - 4, y);
     ctx.lineTo(padL, y);
     ctx.stroke();
-    const displayVal = minValue + t * yRange;
-    const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
-    ctx.fillText(formatRoiTick(actualVal), padL - 8, y);
+    const yLabelText = yTickLabels[i] || "";
+    ctx.fillText(yLabelText, padL - 8, y);
   }
 
   ctx.strokeStyle = PLOT_THEME.line;
@@ -1014,7 +1033,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   ctx.textAlign = "center";
   ctx.fillText(xLabel, padL + drawableWidth / 2, height - 4);
   ctx.save();
-  ctx.translate(Math.max(12, padL - 26), padT + drawableHeight / 2);
+  ctx.translate(Math.max(8, padL - maxYLabelWidth - 16), padT + drawableHeight / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.fillText(yLabel, 0, 0);
   ctx.restore();
