@@ -3343,14 +3343,30 @@ body.platform-windows select option:disabled {
   margin-bottom: 8px;
 }
 
-.autoload-folder-inline {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+.autoload-source-inline {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
 }
 
-.autoload-folder-inline > .btn {
-  min-width: 88px;
-  padding-inline: 9px;
-  white-space: nowrap;
+.autoload-source-inline > input,
+.autoload-source-inline > select {
+  min-width: 0;
+  width: 100%;
+}
+
+.autoload-action-btn {
+  width: var(--control-h);
+  min-width: var(--control-h);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.autoload-action-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
 }
 
 #autoload-watch-options {
@@ -4546,11 +4562,11 @@ body.platform-windows select option:disabled {
     grid-column: 1;
   }
 
-  .autoload-folder-inline {
+  .autoload-source-inline {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .autoload-folder-inline > .btn {
+  .autoload-source-inline > .btn {
     width: 100%;
   }
 }

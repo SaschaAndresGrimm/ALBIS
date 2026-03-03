@@ -183,11 +183,13 @@ export function createOverviewViewportController({
     const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
     const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, desiredX));
     const nextScrollTop = Math.max(0, Math.min(maxScrollTop, desiredY));
-    state.panOffsetX = nextScrollLeft - desiredX;
-    state.panOffsetY = nextScrollTop - desiredY;
-    clampPanOffsetsToBounds();
     canvasWrap.scrollLeft = nextScrollLeft;
     canvasWrap.scrollTop = nextScrollTop;
+    const appliedScrollLeft = canvasWrap.scrollLeft || 0;
+    const appliedScrollTop = canvasWrap.scrollTop || 0;
+    state.panOffsetX = appliedScrollLeft - desiredX;
+    state.panOffsetY = appliedScrollTop - desiredY;
+    clampPanOffsetsToBounds();
     applyCanvasTransform();
     if (schedule) {
       deferPixelOverlayRedraw();
@@ -529,20 +531,42 @@ export function createOverviewViewportController({
       return;
     }
     const rect = canvasWrap.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+    const x = Math.max(0, Math.min(rect.width || 0, clientX - rect.left));
+    const y = Math.max(0, Math.min(rect.height || 0, clientY - rect.top));
     const prevZoom = state.zoom || 1;
     const prevOffsetX = state.renderOffsetX || 0;
     const prevOffsetY = state.renderOffsetY || 0;
-    const worldX = (getEffectiveScrollLeft() + x - prevOffsetX) / prevZoom;
-    const worldY = (getEffectiveScrollTop() + y - prevOffsetY) / prevZoom;
+    const prevEffectiveLeft = getEffectiveScrollLeft();
+    const prevEffectiveTop = getEffectiveScrollTop();
+    const prevScaledW = (state.width || 0) * prevZoom;
+    const prevScaledH = (state.height || 0) * prevZoom;
+    const imageLeft = prevOffsetX - prevEffectiveLeft;
+    const imageTop = prevOffsetY - prevEffectiveTop;
+    const imageRight = imageLeft + prevScaledW;
+    const imageBottom = imageTop + prevScaledH;
+    const pointerInsideImage =
+      x >= imageLeft &&
+      x <= imageRight &&
+      y >= imageTop &&
+      y <= imageBottom;
+    const imageFitsViewport = prevScaledW <= (rect.width || 0) || prevScaledH <= (rect.height || 0);
+    const focusX = imageFitsViewport && !pointerInsideImage ? imageLeft + prevScaledW * 0.5 : x;
+    const focusY = imageFitsViewport && !pointerInsideImage ? imageTop + prevScaledH * 0.5 : y;
+    const rawWorldX = (prevEffectiveLeft + focusX - prevOffsetX) / prevZoom;
+    const rawWorldY = (prevEffectiveTop + focusY - prevOffsetY) / prevZoom;
+    const worldX = Number.isFinite(state.width)
+      ? Math.max(0, Math.min(state.width, rawWorldX))
+      : rawWorldX;
+    const worldY = Number.isFinite(state.height)
+      ? Math.max(0, Math.min(state.height, rawWorldY))
+      : rawWorldY;
 
     setZoom(nextZoom);
 
     const newOffsetX = state.renderOffsetX || 0;
     const newOffsetY = state.renderOffsetY || 0;
-    const targetEffectiveX = worldX * state.zoom - x + newOffsetX;
-    const targetEffectiveY = worldY * state.zoom - y + newOffsetY;
+    const targetEffectiveX = worldX * state.zoom - focusX + newOffsetX;
+    const targetEffectiveY = worldY * state.zoom - focusY + newOffsetY;
     setEffectiveScroll(targetEffectiveX, targetEffectiveY, false);
     syncViewportOverlays();
   }
