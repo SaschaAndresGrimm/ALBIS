@@ -89,6 +89,18 @@ def _run_linux_dialog(cmd: list[str]) -> str | None:
     raise RuntimeError(stderr)
 
 
+def _is_applescript_cancel(stderr: str | None) -> bool:
+    """Return True when osascript failed because the user canceled the dialog."""
+    text = (stderr or "").lower()
+    return (
+        "user canceled" in text
+        or "user cancelled" in text
+        or "error: user canceled" in text
+        or "error: user cancelled" in text
+        or "(-128)" in text
+    )
+
+
 def _linux_choose_folder() -> str | None:
     """Open a native Linux folder picker using zenity/kdialog when available."""
     if not _display_available():
@@ -288,8 +300,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                     check=True,
                 )
             except subprocess.CalledProcessError as exc:
-                stderr = (exc.stderr or "").lower()
-                if "user canceled" in stderr:
+                if _is_applescript_cancel(exc.stderr):
                     return Response(status_code=204)
                 raise HTTPException(status_code=500, detail="Folder picker failed") from exc
             path = result.stdout.strip()
@@ -336,16 +347,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                     check=True,
                 )
             except subprocess.CalledProcessError as exc:
-                stderr = (exc.stderr or "").lower()
-                if "user canceled" in stderr:
+                if _is_applescript_cancel(exc.stderr):
                     return Response(status_code=204)
-                deps.logger.warning("AppleScript file picker failed, falling back to Tk (err=%s)", stderr.strip())
-                try:
-                    path = _tk_choose_file()
-                except RuntimeError as tk_exc:
-                    raise HTTPException(status_code=500, detail="File picker failed") from tk_exc
-                if not path:
-                    return Response(status_code=204)
+                raise HTTPException(status_code=500, detail="File picker failed") from exc
             else:
                 path = result.stdout.strip()
                 if not path:
