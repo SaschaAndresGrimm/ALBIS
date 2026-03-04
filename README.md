@@ -6,7 +6,7 @@ ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stac
 It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
-- Files on disk (`.h5/.hdf5` stacks) and common detector image formats (`.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
+- Files on disk (`.h5/.hdf5` stacks and common detector image formats `.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
 - The detector **SIMPLON monitor** stream for live viewing.
 - **JUNGFRAUJOCH Preview** ZeroMQ PUB stream (CBOR image messages + reflection spots).
 - The **Remote Stream API** (`/api/remote/v1/*`) for externally pushed frames + metadata.
@@ -62,3 +62,5 @@ For developers looking to build, test, and contribute:
 
 ## Acknowledgements and Contributions
 This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set the benchmark.
+Thanks to Tilman Donath and Nicolas Pilet for testing, breaking, and giving useful feedback for improvements.
+
