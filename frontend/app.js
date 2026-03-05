@@ -3679,3 +3679,81 @@ finalizeRuntimeBootstrap(createRuntimeBootstrapContext({
     },
   },
 }));
+
+let handoffLastId = Number(localStorage.getItem("albis.handoff.lastId") || "0");
+let handoffPollBusy = false;
+let handoffPollTimer = null;
+
+async function applyHandoffJob(job) {
+  const targetPath = String(job?.open_path || "").trim();
+  if (!targetPath) {
+    setStatus(`Handoff #${job?.id || "?"} received without open target.`);
+    return;
+  }
+
+  await openPathInViewer(targetPath, { refreshFileList: true });
+
+  const targetDataset = String(job?.dataset || "").trim();
+  if (targetDataset && isHdfFile(targetPath)) {
+    try {
+      if (datasetSelect) {
+        const exists = Array.from(datasetSelect.options).some((opt) => opt.value === targetDataset);
+        if (exists) {
+          state.dataset = targetDataset;
+          datasetSelect.value = targetDataset;
+          await loadMetadata();
+        }
+      }
+    } catch (err) {
+      console.warn("Failed applying handoff dataset", err);
+    }
+  }
+
+  const runId = String(job?.run_id || "").trim();
+  if (runId) {
+    setStatus(`RUSLER handoff opened ${runId}: ${targetPath}`);
+  } else {
+    setStatus(`RUSLER handoff opened: ${targetPath}`);
+  }
+}
+
+async function pollHandoffJobs() {
+  if (handoffPollBusy) return;
+  handoffPollBusy = true;
+  try {
+    const res = await fetch(`${API}/handoff/v1/jobs/latest?after_id=${encodeURIComponent(String(handoffLastId))}`, {
+      cache: "no-store",
+    });
+    if (res.status === 204) {
+      return;
+    }
+    if (!res.ok) {
+      return;
+    }
+    const job = await res.json();
+    const id = Number(job?.id || 0);
+    if (!Number.isFinite(id) || id <= handoffLastId) {
+      return;
+    }
+    handoffLastId = id;
+    localStorage.setItem("albis.handoff.lastId", String(handoffLastId));
+    await applyHandoffJob(job);
+  } catch (err) {
+    // Keep handoff polling non-blocking and quiet during normal UI use.
+    console.warn("Handoff polling error", err);
+  } finally {
+    handoffPollBusy = false;
+  }
+}
+
+function startHandoffPolling() {
+  if (handoffPollTimer) {
+    window.clearInterval(handoffPollTimer);
+  }
+  handoffPollTimer = window.setInterval(() => {
+    pollHandoffJobs();
+  }, 1000);
+  pollHandoffJobs();
+}
+
+startHandoffPolling();

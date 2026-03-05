@@ -49,6 +49,18 @@ class OpenPathRequest(_StrictModel):
     path: str
 
 
+class HandoffJobCreateRequest(_StrictModel):
+    manifest_path: str
+
+
+class HandoffJobResponse(_StrictModel):
+    id: int
+    manifest_path: str
+    open_path: str = ""
+    dataset: str = ""
+    run_id: str = ""
+
+
 class AnalysisParamsResponse(_StrictModel):
     distance_mm: float | None = None
     pixel_size_um: float | None = None

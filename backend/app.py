@@ -51,6 +51,7 @@ try:
     from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
     from .routes.files import FileRouteDeps, register_file_routes
     from .routes.frames import FrameRouteDeps, register_frame_routes
+    from .routes.handoff import HandoffRouteDeps, register_handoff_routes
     from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
     from .routes.stream import StreamRouteDeps, register_stream_routes
     from .routes.system import SystemRouteDeps, register_system_routes
@@ -127,6 +128,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from routes.analysis import AnalysisRouteDeps, register_analysis_routes
     from routes.files import FileRouteDeps, register_file_routes
     from routes.frames import FrameRouteDeps, register_frame_routes
+    from routes.handoff import HandoffRouteDeps, register_handoff_routes
     from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
     from routes.stream import StreamRouteDeps, register_stream_routes
     from routes.system import SystemRouteDeps, register_system_routes
@@ -279,6 +281,8 @@ def _init_logging() -> logging.Logger:
 
 logger = _init_logging()
 _startup_banner_logged = False
+_handoff_jobs: list[dict[str, Any]] = []
+_handoff_next_id = 1
 
 
 @app.on_event("startup")
@@ -635,6 +639,27 @@ def _get_max_upload_bytes() -> int:
     return runtime_state.max_upload_bytes
 
 
+def _handoff_queue_job(payload: dict[str, str]) -> dict[str, str | int]:
+    global _handoff_next_id
+    item: dict[str, str | int] = {
+        "id": int(_handoff_next_id),
+        "manifest_path": str(payload.get("manifest_path") or ""),
+        "open_path": str(payload.get("open_path") or ""),
+        "dataset": str(payload.get("dataset") or ""),
+        "run_id": str(payload.get("run_id") or ""),
+    }
+    _handoff_jobs.append(item)
+    _handoff_next_id += 1
+    return item
+
+
+def _handoff_latest_job(after_id: int) -> dict[str, str | int] | None:
+    for job in reversed(_handoff_jobs):
+        if int(job["id"]) > int(after_id):
+            return job
+    return None
+
+
 register_system_routes(
     app,
     SystemRouteDeps(
@@ -650,6 +675,15 @@ register_system_routes(
         data_dir=runtime_state.data_dir,
         get_allow_abs_paths=_get_allow_abs_paths,
         is_within=_is_within,
+    ),
+)
+
+register_handoff_routes(
+    app,
+    HandoffRouteDeps(
+        logger=logger,
+        queue_job=_handoff_queue_job,
+        latest_job=_handoff_latest_job,
     ),
 )
 
