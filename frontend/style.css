@@ -2738,6 +2738,22 @@ body.platform-linux {
   color-scheme: dark;
 }
 
+body.platform-linux select {
+  color-scheme: dark;
+}
+
+body.platform-linux select option,
+body.platform-linux select optgroup {
+  background: #111a27;
+  color: #e8f0ff;
+  -webkit-text-fill-color: #e8f0ff;
+}
+
+body.platform-linux select option:disabled {
+  color: #8896ad;
+  -webkit-text-fill-color: #8896ad;
+}
+
 body.platform-windows select option,
 body.platform-windows select optgroup {
   background: #ffffff;
