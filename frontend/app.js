@@ -83,8 +83,11 @@ const platformHint = String(
 ).toLowerCase();
 const isMacPlatform = platformHint.includes("mac");
 const isWindowsPlatform = platformHint.includes("windows") || platformHint.includes("win32") || platformHint.includes("win64");
+const isLinuxPlatform = platformHint.includes("linux");
 if (isWindowsPlatform) {
   document.body?.classList.add("platform-windows");
+} else if (isLinuxPlatform) {
+  document.body?.classList.add("platform-linux");
 }
 
 const fileSelect = document.getElementById("file-select");

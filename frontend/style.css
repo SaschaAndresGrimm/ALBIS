@@ -2735,12 +2735,15 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 body.platform-windows select option,
-body.platform-windows select optgroup {
+body.platform-linux select option,
+body.platform-windows select optgroup,
+body.platform-linux select optgroup {
   background: #ffffff;
   color: #111a27;
 }
 
-body.platform-windows select option:disabled {
+body.platform-windows select option:disabled,
+body.platform-linux select option:disabled {
   color: #6d7483;
 }
 
