@@ -34,3 +34,14 @@ def test_normalize_config_rejects_non_object_section() -> None:
 def test_normalize_config_rejects_invalid_value_type() -> None:
     with pytest.raises(ValueError, match="Invalid type for 'server.port'"):
         normalize_config({"server": {"port": [8080]}})
+
+
+def test_normalize_config_accepts_legacy_launcher_port() -> None:
+    config = normalize_config({"launcher": {"port": "8081"}})
+    assert config["server"]["port"] == 8081
+    assert "port" not in config["launcher"]
+
+
+def test_normalize_config_prefers_server_port_over_legacy_launcher_port() -> None:
+    config = normalize_config({"server": {"port": 8080}, "launcher": {"port": 9090}})
+    assert config["server"]["port"] == 8080

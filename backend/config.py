@@ -144,6 +144,21 @@ def _validate_raw_config(raw: dict[str, Any]) -> None:
                 )
 
 
+def _apply_legacy_config_compat(raw: dict[str, Any]) -> dict[str, Any]:
+    """Migrate known legacy keys before strict validation."""
+    migrated = copy.deepcopy(raw)
+    launcher = migrated.get("launcher")
+    if isinstance(launcher, dict) and "port" in launcher:
+        legacy_port = launcher.pop("port")
+        server = migrated.get("server")
+        if server is None:
+            server = {}
+            migrated["server"] = server
+        if isinstance(server, dict) and "port" not in server:
+            server["port"] = legacy_port
+    return migrated
+
+
 def _parse_config(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         raw = json.load(fh)
@@ -168,8 +183,9 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     """Return a fully-typed config payload merged with defaults."""
     merged = copy.deepcopy(DEFAULT_CONFIG)
     if isinstance(raw, dict):
-        _validate_raw_config(raw)
-        _deep_merge(merged, raw)
+        compatible_raw = _apply_legacy_config_compat(raw)
+        _validate_raw_config(compatible_raw)
+        _deep_merge(merged, compatible_raw)
 
     server_host = get_str(merged, ("server", "host"), "127.0.0.1").strip() or "127.0.0.1"
     server_port = max(0, min(65535, get_int(merged, ("server", "port"), 0)))
@@ -182,8 +198,12 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     log_level = get_str(merged, ("logging", "level"), "INFO").upper()
     if log_level not in _LOG_LEVELS:
         log_level = "INFO"
-    pixel_label_min_cell_px = max(8, min(64, get_int(merged, ("ui", "pixel_label_min_cell_px"), 18)))
-    pixel_label_max_labels = max(100, min(100000, get_int(merged, ("ui", "pixel_label_max_labels"), 4000)))
+    pixel_label_min_cell_px = max(
+        8, min(64, get_int(merged, ("ui", "pixel_label_min_cell_px"), 18))
+    )
+    pixel_label_max_labels = max(
+        100, min(100000, get_int(merged, ("ui", "pixel_label_max_labels"), 4000))
+    )
     pixel_label_format = (
         get_str(merged, ("ui", "pixel_label_format"), "auto").strip().lower() or "auto"
     )
