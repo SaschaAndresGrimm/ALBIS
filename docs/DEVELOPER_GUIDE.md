@@ -100,6 +100,8 @@ Frontend code is now intentionally split by responsibility:
 
 ALBIS can be bundled into a **platform‑native app** (no Python required) using PyInstaller.
 
+Build scripts for Linux/Windows now use an **isolated build venv by default** (`.build-venv-linux` / `.build-venv-windows`) to keep artifacts reproducible and avoid accidental dependency bloat from the host Python environment.
+
 ### Build (macOS)
 
 ```bash
@@ -121,6 +123,11 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 
 Example output:
 - `ALBIS-linux-<distro_version>-v<version>-<commit>.tar.gz`
+
+Optional build env controls:
+- `ALBIS_BUILD_ISOLATED=0` uses your current Python environment instead of the build venv.
+- `ALBIS_BUILD_CLEAN_VENV=0` reuses an existing build venv.
+- `ALBIS_BUILD_VENV=/custom/path` overrides the build venv location.
 
 Optional local desktop integration (user scope):
 
@@ -146,6 +153,11 @@ Example output:
 - `ALBIS-windows-<os_version>-v<version>-<commit>.zip`
 - Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
   `ALBIS-Setup-windows-<os_version>-v<version>-<commit>.exe`
+
+Optional build env controls:
+- `$env:ALBIS_BUILD_ISOLATED = "0"` uses your current Python environment.
+- `$env:ALBIS_BUILD_CLEAN_VENV = "0"` reuses an existing build venv.
+- `$env:ALBIS_BUILD_VENV = "C:\\path\\to\\venv"` overrides the build venv location.
 
 The Inno installer creates Start Menu entries for:
 - `ALBIS`

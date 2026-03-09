@@ -4,7 +4,22 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+BOOTSTRAP_PYTHON="${PYTHON_BIN:-python3}"
+ISOLATED_BUILD="${ALBIS_BUILD_ISOLATED:-1}"
+BUILD_VENV="${ALBIS_BUILD_VENV:-$ROOT/.build-venv-linux}"
+
+if [ "$ISOLATED_BUILD" = "1" ]; then
+  if [ "${ALBIS_BUILD_CLEAN_VENV:-1}" = "1" ]; then
+    rm -rf "$BUILD_VENV"
+  fi
+  if [ ! -x "$BUILD_VENV/bin/python" ]; then
+    "$BOOTSTRAP_PYTHON" -m venv "$BUILD_VENV"
+  fi
+  PYTHON_BIN="$BUILD_VENV/bin/python"
+else
+  PYTHON_BIN="$BOOTSTRAP_PYTHON"
+fi
+
 VERSION_INFO="$("$PYTHON_BIN" scripts/version_info.py --shell)"
 eval "$VERSION_INFO"
 
@@ -22,6 +37,10 @@ else
 fi
 OS_TAG="$(printf '%s_%s' "$LINUX_ID" "$LINUX_VER" | tr '.-' '_' | tr -cd '[:alnum:]_')"
 
+"$PYTHON_BIN" -m pip install --upgrade pip
+if [ "$ISOLATED_BUILD" = "1" ]; then
+  "$PYTHON_BIN" -m pip install -r backend/requirements.txt
+fi
 "$PYTHON_BIN" -m pip install --upgrade pyinstaller
 
 # Prefer curated ALBIS icon assets when available.

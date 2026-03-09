@@ -9,6 +9,7 @@ from PyInstaller.utils.hooks import collect_all
 block_cipher = None
 bundle_version = (os.environ.get("ALBIS_BUNDLE_VERSION", "").strip() or "0.0.0")
 bundle_build = (os.environ.get("ALBIS_BUNDLE_BUILD", "").strip() or bundle_version)
+is_linux = sys.platform.startswith("linux")
 
 icon_path = os.environ.get("ALBIS_ICON", "").strip()
 if not icon_path:
@@ -41,14 +42,24 @@ if os.path.exists("albis.config.json"):
     datas.append(("albis.config.json", "."))
 binaries: list = []
 hiddenimports: list = ["backend.app", "backend.config"]
+hiddenimports += [
+    "fabio.cbfimage",
+    "fabio.edfimage",
+    "fabio.tifimage",
+    "fabio.fabioimage",
+    "fabio.fabioutils",
+    "fabio.fabioformats",
+    "fabio.compression",
+    "fabio.compression.compression",
+    "fabio.ext._cif",
+]
 if sys.platform == "darwin":
     hiddenimports += ["AppKit", "Foundation", "objc", "Cocoa"]
 
-for name in ("hdf5plugin", "fabio"):
-    collected_datas, collected_binaries, collected_hiddenimports = collect_all(name)
-    datas += collected_datas
-    binaries += collected_binaries
-    hiddenimports += collected_hiddenimports
+collected_datas, collected_binaries, collected_hiddenimports = collect_all("hdf5plugin")
+datas += collected_datas
+binaries += collected_binaries
+hiddenimports += collected_hiddenimports
 
 a = Analysis(
     ["albis_launcher.py"],
@@ -65,6 +76,23 @@ a = Analysis(
         "PySide6",
         "shiboken2",
         "shiboken6",
+        "torch",
+        "torchvision",
+        "torchaudio",
+        "pyarrow",
+        "pandas",
+        "scipy",
+        "sklearn",
+        "matplotlib",
+        "bokeh",
+        "dask",
+        "distributed",
+        "numba",
+        "sphinx",
+        "pyFAI",
+        "silx",
+        "IPython",
+        "jupyter",
     ],
     noarchive=False,
 )
@@ -79,7 +107,7 @@ exe = EXE(
     name="ALBIS",
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    strip=is_linux,
     upx=True,
     console=False,
     disable_windowed_traceback=False,
@@ -91,7 +119,7 @@ coll = COLLECT(
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=False,
+    strip=is_linux,
     upx=True,
     name="ALBIS",
 )

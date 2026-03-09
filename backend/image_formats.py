@@ -20,7 +20,9 @@ from fastapi import HTTPException
 
 # Lazy-loaded optional dependencies
 _tifffile = None
-_fabio = None
+_fabio_cbf_image_cls = None
+_fabio_edf_image_cls = None
+_fabio_tif_image_cls = None
 
 
 _DECTRIS_TIFF_TAG = 0xC7F8
@@ -46,12 +48,23 @@ def _ensure_tifffile() -> None:
         _tifffile = tifffile_module
 
 
-def _ensure_fabio() -> None:
-    global _fabio
-    if _fabio is None:
-        import fabio as fabio_module  # type: ignore[import-not-found]
+def _ensure_fabio_readers() -> None:
+    global _fabio_cbf_image_cls
+    global _fabio_edf_image_cls
+    global _fabio_tif_image_cls
 
-        _fabio = fabio_module
+    if _fabio_cbf_image_cls is None:
+        from fabio.cbfimage import CbfImage  # type: ignore[import-not-found]
+
+        _fabio_cbf_image_cls = CbfImage
+    if _fabio_edf_image_cls is None:
+        from fabio.edfimage import EdfImage  # type: ignore[import-not-found]
+
+        _fabio_edf_image_cls = EdfImage
+    if _fabio_tif_image_cls is None:
+        from fabio.tifimage import TifImage  # type: ignore[import-not-found]
+
+        _fabio_tif_image_cls = TifImage
 
 
 def _decode_tiff_values(type_code: int, count: int, data: bytes, byteorder: str) -> Any:
@@ -138,11 +151,15 @@ def _parse_dectris_tag_value(value: Any, byteorder: str) -> dict[int, Any]:
         value = value.tobytes()
     if isinstance(value, bytes | bytearray):
         return _parse_dectris_ifd(bytes(value), byteorder)
-    if isinstance(value, list | tuple) and value and all(isinstance(item, tuple) and len(item) == 2 for item in value):
-            try:
-                return {int(k): v for k, v in value}
-            except Exception:
-                return {}
+    if (
+        isinstance(value, list | tuple)
+        and value
+        and all(isinstance(item, tuple) and len(item) == 2 for item in value)
+    ):
+        try:
+            return {int(k): v for k, v in value}
+        except Exception:
+            return {}
     return {}
 
 
@@ -356,30 +373,50 @@ def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
     return meta
 
 
-def _open_fabio_image(path: Path):
-    _ensure_fabio()
+def _open_fabio_cbf_image(path: Path):
+    _ensure_fabio_readers()
     try:
-        return _fabio.open(str(path))
+        return _fabio_cbf_image_cls().read(str(path))
     except Exception:
         if path.suffix.lower() != ".gz":
-            return None
+            raise
+        import gzip
+        import tempfile
+
+        with gzip.open(path, "rb") as gz:
+            data = gz.read()
+        with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
+            tmp.write(data)
+            tmp_path = Path(tmp.name)
         try:
-            import gzip
-            import tempfile
+            return _fabio_cbf_image_cls().read(str(tmp_path))
+        finally:
+            with contextlib.suppress(Exception):
+                tmp_path.unlink(missing_ok=True)
 
-            with gzip.open(path, "rb") as gz:
-                data = gz.read()
-            with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
-                tmp.write(data)
-                tmp_path = Path(tmp.name)
-            try:
-                return _fabio.open(str(tmp_path))
-            finally:
-                with contextlib.suppress(Exception):
-                    tmp_path.unlink(missing_ok=True)
 
-        except Exception:
-            return None
+def _open_fabio_edf_image(path: Path):
+    _ensure_fabio_readers()
+    return _fabio_edf_image_cls().read(str(path))
+
+
+def _open_fabio_tiff_image(path: Path):
+    _ensure_fabio_readers()
+    return _fabio_tif_image_cls().read(str(path))
+
+
+def _open_fabio_image(path: Path):
+    ext = _image_ext_name(path.name)
+    try:
+        if ext in {".cbf", ".cbf.gz"}:
+            return _open_fabio_cbf_image(path)
+        if ext == ".edf":
+            return _open_fabio_edf_image(path)
+        if ext in {".tif", ".tiff"}:
+            return _open_fabio_tiff_image(path)
+        return None
+    except Exception:
+        return None
 
 
 def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
@@ -577,39 +614,18 @@ def _write_tiff(path: Path, arr: np.ndarray) -> None:
 
 
 def _read_cbf(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    image = _fabio.open(str(path))
+    image = _open_fabio_cbf_image(path)
     arr = np.asarray(image.data)
     return _normalize_image_array(arr)
 
 
 def _read_cbf_gz(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    try:
-        image = _fabio.open(str(path))
-        arr = np.asarray(image.data)
-        return _normalize_image_array(arr)
-    except Exception:
-        import gzip
-        import tempfile
-
-        with gzip.open(path, "rb") as gz:
-            data = gz.read()
-        with tempfile.NamedTemporaryFile(suffix=".cbf", delete=False) as tmp:
-            tmp.write(data)
-            tmp_path = Path(tmp.name)
-        try:
-            image = _fabio.open(str(tmp_path))
-            arr = np.asarray(image.data)
-            return _normalize_image_array(arr)
-        finally:
-            with contextlib.suppress(Exception):
-                tmp_path.unlink(missing_ok=True)
-
+    image = _open_fabio_cbf_image(path)
+    arr = np.asarray(image.data)
+    return _normalize_image_array(arr)
 
 
 def _read_edf(path: Path) -> np.ndarray:
-    _ensure_fabio()
-    image = _fabio.open(str(path))
+    image = _open_fabio_edf_image(path)
     arr = np.asarray(image.data)
     return _normalize_image_array(arr)
