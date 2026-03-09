@@ -92,6 +92,12 @@ jobs:
       - name: Build AppImage package
         run: ./scripts/package_linux_appimage.sh
 
+      - name: Bundle Linux helper scripts
+        run: |
+          cp scripts/install_linux_appimage.sh dist/install_linux_appimage.sh
+          cp scripts/uninstall_linux.sh dist/uninstall_linux.sh
+          chmod +x dist/install_linux_appimage.sh dist/uninstall_linux.sh
+
       - name: Generate checksums
         run: |
           cd dist
@@ -104,6 +110,8 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/*.AppImage
+            dist/install_linux_appimage.sh
+            dist/uninstall_linux.sh
             dist/SHA256SUMS.txt
           retention-days: 14
 

@@ -29,6 +29,7 @@ Use this to verify packaging and checks before tagging:
 2. Verify `verify`, `build_linux`, `build_windows`, and `build_macos` jobs pass.
 3. Download workflow artifacts and inspect:
    - Linux contains both `ALBIS-linux-*.tar.gz` and `ALBIS-linux-*.AppImage`.
+   - Linux also contains `install_linux_appimage.sh` and `uninstall_linux.sh`.
    - Windows contains both `ALBIS-windows-*.zip` and `ALBIS-Setup-windows-*.exe`.
    - macOS contains `ALBIS-macos-*.zip` and `ALBIS-macos-*.dmg`.
    - Bundle naming includes `v<version>-<commit>`.
@@ -42,7 +43,7 @@ Use the `Build Artifacts` workflow for branch testing without creating a tag/rel
 1. Open GitHub Actions and run `Build Artifacts` on your target branch.
 2. Optionally enable `run_verify` to execute quality gates before packaging.
 3. Download artifacts (`artifacts-linux-*`, `artifacts-windows-*`, `artifacts-macos-*`) and inspect:
-   - Linux includes `.tar.gz`, `.AppImage`, and `SHA256SUMS.txt`.
+   - Linux includes `.tar.gz`, `.AppImage`, `install_linux_appimage.sh`, `uninstall_linux.sh`, and `SHA256SUMS.txt`.
    - Windows includes `.zip`, setup `.exe`, and `SHA256SUMS.txt`.
    - macOS includes `.zip`, `.dmg`, and `SHA256SUMS.txt`.
    - Local install/run behavior is still correct.
@@ -62,6 +63,7 @@ Expected result:
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
 - GitHub Release is published with:
   - Linux: `.tar.gz` and `.AppImage`
+  - Linux helpers: `install_linux_appimage.sh` and `uninstall_linux.sh`
   - Windows: `.zip` and setup `.exe`
   - macOS: `.zip` and `.dmg`
   - `SHA256SUMS.txt`

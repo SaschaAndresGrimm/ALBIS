@@ -97,6 +97,12 @@ jobs:
       - name: Build AppImage package
         run: ./scripts/package_linux_appimage.sh
 
+      - name: Bundle Linux helper scripts
+        run: |
+          cp scripts/install_linux_appimage.sh dist/install_linux_appimage.sh
+          cp scripts/uninstall_linux.sh dist/uninstall_linux.sh
+          chmod +x dist/install_linux_appimage.sh dist/uninstall_linux.sh
+
       - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
@@ -104,6 +110,8 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/*.AppImage
+            dist/install_linux_appimage.sh
+            dist/uninstall_linux.sh
 
   build_windows:
     name: Build Windows Artifact
@@ -195,6 +203,8 @@ jobs:
           required_patterns=(
             "ALBIS-linux-*.tar.gz"
             "ALBIS-linux-*.AppImage"
+            "install_linux_appimage.sh"
+            "uninstall_linux.sh"
             "ALBIS-windows-*.zip"
             "ALBIS-Setup-windows-*.exe"
             "ALBIS-macos-*.zip"

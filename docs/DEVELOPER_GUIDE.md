@@ -125,6 +125,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 Example output:
 - `ALBIS-linux-<distro_version>-v<version>-<commit>.tar.gz`
 - `ALBIS-linux-<distro_version>-v<version>-<commit>.AppImage`
+- `install_linux_appimage.sh` and `uninstall_linux.sh` (included in CI/release Linux assets)
 
 Optional build env controls:
 - `ALBIS_BUILD_ISOLATED=0` uses your current Python environment instead of the build venv.
