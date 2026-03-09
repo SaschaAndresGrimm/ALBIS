@@ -32,6 +32,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - CI and release verification now enforce backend coverage with `pytest-cov` and `--cov-fail-under=20`.
 - `docs/CODE_MAP.md` now reflects modular route/service architecture and contribution touchpoints.
 
+## [0.8.9] - 2026-03-09
+
+### Added
+
+- Linux release assets now include `install_linux_appimage.sh` and `uninstall_linux.sh` so AppImage distribution is self-contained.
+
+### Changed
+
+- Windows installer now defaults to per-user install (`%LOCALAPPDATA%\Programs\ALBIS`) and runs without admin elevation.
+- Linux AppImage packaging now includes the full PyInstaller runtime payload (including `_internal`), fixing missing `libpython3.10.so.1.0` at runtime.
+- Artifact/release workflows now build and validate both Linux `.tar.gz` + `.AppImage` and Windows `.zip` + installer `.exe`.
+- Release publish workflow now performs stronger asset checks and multi-step retry backoff for transient GitHub rate limits.
+
+### Notes
+
+- This release is called: "No more scavenger hunts for missing runtime files."
+
 ## [0.8.2] - 2026-02-24
 
 ### Added
@@ -42,5 +59,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.9...HEAD
+[0.8.9]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.9
 [0.8.2]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.2
