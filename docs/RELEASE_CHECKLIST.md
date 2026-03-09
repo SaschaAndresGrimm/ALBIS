@@ -25,9 +25,9 @@ npm run lint:js
 Use this to verify packaging and checks before tagging:
 
 1. Open GitHub Actions and run the `Release` workflow manually (`workflow_dispatch`) on `main`.
-2. Verify the `verify` and `build_linux` jobs pass.
+2. Verify `verify`, `build_linux`, `build_windows`, and `build_macos` jobs pass.
 3. Download workflow artifacts and inspect:
-   - Linux bundle naming includes `v<version>-<commit>`.
+   - Linux/Windows/macOS bundle naming includes `v<version>-<commit>`.
    - `SHA256SUMS.txt` exists and contains hashes for all uploaded artifacts.
 
 Note: on manual dispatch from a branch, the `publish` job is intentionally skipped.
@@ -45,11 +45,10 @@ Expected result:
 
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
-- GitHub Release is published with build artifacts and generated release notes.
+- GitHub Release is published with Linux, Windows, macOS artifacts plus `SHA256SUMS.txt`.
 
 ## 5. Post-Release Verification
 
 - Confirm release page includes expected assets and `SHA256SUMS.txt`.
-- Validate download/install path on at least one Linux machine.
-- If packaging was produced separately for macOS/Windows, attach those artifacts and checksums to the same release.
+- Validate download/install path on at least one machine per supported platform.
 - Move next development cycle notes into `Unreleased` in `CHANGELOG.md`.
