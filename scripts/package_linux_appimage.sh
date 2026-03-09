@@ -36,7 +36,8 @@ APPDIR="dist/AppDir"
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin"
 
-cp "dist/ALBIS/ALBIS" "$APPDIR/usr/bin/ALBIS"
+# Include the full PyInstaller one-folder payload (binary + _internal runtime).
+cp -a "dist/ALBIS/." "$APPDIR/usr/bin/"
 
 cat > "$APPDIR/ALBIS.desktop" <<'EOF'
 [Desktop Entry]
