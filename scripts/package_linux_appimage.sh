@@ -57,8 +57,8 @@ chmod +x "$APPDIR/AppRun"
 
 if [ -f "albis_assets/albis_512x512.png" ]; then
   cp "albis_assets/albis_512x512.png" "$APPDIR/ALBIS.png"
-elif [ -f "frontend/ressources/image.png" ]; then
-  cp "frontend/ressources/image.png" "$APPDIR/ALBIS.png"
+elif [ -f "frontend/ressources/icon.png" ]; then
+  cp "frontend/ressources/icon.png" "$APPDIR/ALBIS.png"
 fi
 
 OUT="dist/ALBIS-linux-${OS_TAG}-${TAG}.AppImage"

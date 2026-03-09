@@ -61,6 +61,9 @@ jobs:
       - name: ESLint
         run: npm run lint:js
 
+      - name: Vitest
+        run: npm run test:js
+
   build_linux:
     name: Build Linux Artifact
     runs-on: ubuntu-latest
@@ -76,8 +79,23 @@ jobs:
             backend/requirements.txt
             scripts/build_linux.sh
 
-      - name: Build package
+      - name: Install appimagetool
+        run: |
+          curl -L -o /tmp/appimagetool.AppImage \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool.AppImage
+          sudo mv /tmp/appimagetool.AppImage /usr/local/bin/appimagetool.AppImage
+          cat <<'EOF' | sudo tee /usr/local/bin/appimagetool >/dev/null
+          #!/usr/bin/env bash
+          APPIMAGE_EXTRACT_AND_RUN=1 /usr/local/bin/appimagetool.AppImage "$@"
+          EOF
+          sudo chmod +x /usr/local/bin/appimagetool
+
+      - name: Build tarball package
         run: ./scripts/build_linux.sh
+
+      - name: Build AppImage package
+        run: ./scripts/package_linux_appimage.sh
 
       - name: Upload release assets
         uses: actions/upload-artifact@v4
@@ -102,8 +120,15 @@ jobs:
             backend/requirements.txt
             scripts/build_windows.ps1
 
-      - name: Build package
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build portable package
         run: .\scripts\build_windows.ps1
+
+      - name: Build installer package
+        run: .\scripts\package_windows_innosetup.ps1
 
       - name: Upload release assets
         uses: actions/upload-artifact@v4
@@ -164,8 +189,27 @@ jobs:
           cd release-dist
           sha256sum * | sort > SHA256SUMS.txt
 
+      - name: Verify expected release assets
+        run: |
+          ls -1 release-dist
+          required_patterns=(
+            "ALBIS-linux-*.tar.gz"
+            "ALBIS-linux-*.AppImage"
+            "ALBIS-windows-*.zip"
+            "ALBIS-Setup-windows-*.exe"
+            "ALBIS-macos-*.zip"
+            "ALBIS-macos-*.dmg"
+            "SHA256SUMS.txt"
+          )
+          for pattern in "${required_patterns[@]}"; do
+            if ! compgen -G "release-dist/${pattern}" >/dev/null; then
+              echo "Missing expected release asset pattern: ${pattern}"
+              exit 1
+            fi
+          done
+
       - name: Publish release (attempt 1)
-        id: publish_release
+        id: publish_release_attempt1
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
@@ -174,14 +218,31 @@ jobs:
           fail_on_unmatched_files: true
           overwrite_files: true
 
-      - name: Cooldown before retry
-        if: steps.publish_release.outcome == 'failure'
+      - name: Cooldown before retry 2
+        if: steps.publish_release_attempt1.outcome == 'failure'
         run: |
           echo "Release publish attempt failed; sleeping 180s before retry (possible secondary rate limit)."
           sleep 180
 
-      - name: Publish release (retry)
-        if: steps.publish_release.outcome == 'failure'
+      - name: Publish release (attempt 2)
+        id: publish_release_attempt2
+        if: steps.publish_release_attempt1.outcome == 'failure'
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          files: release-dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          overwrite_files: true
+
+      - name: Cooldown before retry 3
+        if: steps.publish_release_attempt2.outcome == 'failure'
+        run: |
+          echo "Second release publish attempt failed; sleeping 300s before final retry."
+          sleep 300
+
+      - name: Publish release (attempt 3)
+        if: steps.publish_release_attempt2.outcome == 'failure'
         uses: softprops/action-gh-release@v2
         with:
           files: release-dist/*

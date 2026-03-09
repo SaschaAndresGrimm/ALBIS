@@ -55,6 +55,9 @@ jobs:
       - name: ESLint
         run: npm run lint:js
 
+      - name: Vitest
+        run: npm run test:js
+
   build_linux:
     name: Build Linux Artifact
     if: ${{ always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
@@ -71,8 +74,23 @@ jobs:
             backend/requirements.txt
             scripts/build_linux.sh
 
-      - name: Build package
+      - name: Install appimagetool
+        run: |
+          curl -L -o /tmp/appimagetool.AppImage \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool.AppImage
+          sudo mv /tmp/appimagetool.AppImage /usr/local/bin/appimagetool.AppImage
+          cat <<'EOF' | sudo tee /usr/local/bin/appimagetool >/dev/null
+          #!/usr/bin/env bash
+          APPIMAGE_EXTRACT_AND_RUN=1 /usr/local/bin/appimagetool.AppImage "$@"
+          EOF
+          sudo chmod +x /usr/local/bin/appimagetool
+
+      - name: Build tarball package
         run: ./scripts/build_linux.sh
+
+      - name: Build AppImage package
+        run: ./scripts/package_linux_appimage.sh
 
       - name: Generate checksums
         run: |
@@ -105,8 +123,15 @@ jobs:
             backend/requirements.txt
             scripts/build_windows.ps1
 
-      - name: Build package
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build portable package
         run: .\scripts\build_windows.ps1
+
+      - name: Build installer package
+        run: .\scripts\package_windows_innosetup.ps1
 
       - name: Generate checksums
         shell: pwsh

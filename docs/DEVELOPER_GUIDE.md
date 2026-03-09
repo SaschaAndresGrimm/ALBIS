@@ -119,40 +119,56 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 
 ```bash
 ./scripts/build_linux.sh
+./scripts/package_linux_appimage.sh
 ```
 
 Example output:
 - `ALBIS-linux-<distro_version>-v<version>-<commit>.tar.gz`
+- `ALBIS-linux-<distro_version>-v<version>-<commit>.AppImage`
 
 Optional build env controls:
 - `ALBIS_BUILD_ISOLATED=0` uses your current Python environment instead of the build venv.
 - `ALBIS_BUILD_CLEAN_VENV=0` reuses an existing build venv.
 - `ALBIS_BUILD_VENV=/custom/path` overrides the build venv location.
 
-Optional local desktop integration (user scope):
+`scripts/package_linux_appimage.sh` requires `appimagetool` on `PATH`.
+
+Recommended local desktop integration (user scope, AppImage):
+
+```bash
+./scripts/install_linux_appimage.sh dist/ALBIS-linux-<distro_version>-v<version>-<commit>.AppImage
+```
+
+Manual tarball integration (user scope):
 
 ```bash
 ./scripts/install_linux.sh
 ```
 
-This installs ALBIS under `~/.local` (launcher + desktop entry + icon).
+Both installation scripts integrate ALBIS under `~/.local` (launcher + desktop entry + icon).
 
-To remove it again:
+To remove it again (default keeps user data/config):
 
 ```bash
 ./scripts/uninstall_linux.sh
+```
+
+To also remove `~/ALBIS-data` and `~/.config/albis`:
+
+```bash
+./scripts/uninstall_linux.sh --purge-user-data
 ```
 
 ### Build (Windows)
 
 ```powershell
 .\scripts\build_windows.ps1
+.\scripts\package_windows_innosetup.ps1
 ```
 
 Example output:
 - `ALBIS-windows-<os_version>-v<version>-<commit>.zip`
-- Inno Setup installer (via `.\scripts\package_windows_innosetup.ps1`):
-  `ALBIS-Setup-windows-<os_version>-v<version>-<commit>.exe`
+- `ALBIS-Setup-windows-<os_version>-v<version>-<commit>.exe`
 
 Optional build env controls:
 - `$env:ALBIS_BUILD_ISOLATED = "0"` uses your current Python environment.
@@ -164,6 +180,11 @@ The Inno installer creates Start Menu entries for:
 - `Open Logs`
 - `Open Data Folder`
 - `Edit Config`
+
+Installer defaults:
+- Per-user install scope under `%LOCALAPPDATA%\Programs\ALBIS`.
+- No admin rights required (`PrivilegesRequired=lowest`).
+- `.zip` artifact remains available as the portable fallback.
 
 ### Output
 
@@ -247,7 +268,7 @@ If no config exists:
 Build scripts in `scripts/` generate platform-specific artifacts and include `version + short commit` in names.
 
 - macOS: zip + DMG, app bundle support, icon conversion.
-- Linux: tarball + AppImage helper.
+- Linux: tarball + AppImage.
 - Windows: zip + Inno Setup installer.
 
 ## Main Data Flows

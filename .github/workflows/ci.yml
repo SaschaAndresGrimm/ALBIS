@@ -63,3 +63,6 @@ jobs:
 
       - name: ESLint
         run: npm run lint:js
+
+      - name: Vitest
+        run: npm run test:js
