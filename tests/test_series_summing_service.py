@@ -271,8 +271,7 @@ def test_series_summing_service_cancel_job(tmp_path: Path) -> None:
 def test_series_summing_service_nth_mode_sum(tmp_path: Path) -> None:
     series_files = [tmp_path / f"img_{idx:04d}.tiff" for idx in range(1, 6)]
     frames = {
-        path: np.full((2, 2), idx, dtype=np.int16)
-        for idx, path in enumerate(series_files, start=1)
+        path: np.full((2, 2), idx, dtype=np.int16) for idx, path in enumerate(series_files, start=1)
     }
     written: list[tuple[Path, np.ndarray]] = []
 
@@ -323,8 +322,7 @@ def test_series_summing_service_nth_mode_sum(tmp_path: Path) -> None:
 def test_series_summing_service_range_mode_emits_multiple_chunks(tmp_path: Path) -> None:
     series_files = [tmp_path / f"img_{idx:04d}.tiff" for idx in range(1, 7)]
     frames = {
-        path: np.full((2, 2), idx, dtype=np.int16)
-        for idx, path in enumerate(series_files, start=1)
+        path: np.full((2, 2), idx, dtype=np.int16) for idx, path in enumerate(series_files, start=1)
     }
     written: list[np.ndarray] = []
 
