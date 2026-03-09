@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
-import platform
-import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +18,7 @@ try:
         SettingsSaveRequest,
         StatusResponse,
     )
+    from ..services.os_actions import open_in_system
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         ClientLogRequest,
@@ -31,6 +29,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         SettingsSaveRequest,
         StatusResponse,
     )
+    from services.os_actions import open_in_system  # type: ignore[no-redef]
 
 
 @dataclass(frozen=True)
@@ -130,14 +129,8 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
         except OSError as exc:
             raise HTTPException(status_code=500, detail="Failed to access log file") from exc
 
-        system = platform.system()
         try:
-            if system == "Windows":
-                os.startfile(str(log_path))  # type: ignore[attr-defined]
-            elif system == "Darwin":
-                subprocess.run(["open", str(log_path)], check=False)
-            else:
-                subprocess.run(["xdg-open", str(log_path)], check=False)
+            open_in_system(log_path)
         except Exception as exc:
             raise HTTPException(status_code=500, detail="Failed to open log file") from exc
         return PathStatusResponse(status="ok", path=str(log_path))
@@ -158,14 +151,8 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
         if not deps.get_allow_abs_paths() and not deps.is_within(path, allowed_root):
             raise HTTPException(status_code=400, detail="Path is outside data directory")
 
-        system = platform.system()
         try:
-            if system == "Windows":
-                os.startfile(str(path))  # type: ignore[attr-defined]
-            elif system == "Darwin":
-                subprocess.run(["open", str(path)], check=False)
-            else:
-                subprocess.run(["xdg-open", str(path)], check=False)
+            open_in_system(path)
         except Exception as exc:
             raise HTTPException(status_code=500, detail="Failed to open path") from exc
         return PathStatusResponse(status="ok", path=str(path))

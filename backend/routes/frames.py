@@ -12,32 +12,21 @@ from fastapi.responses import Response
 
 try:
     from ..api_models import FrameMetadataResponse
+    from .binary_response_utils import (
+        add_optional_header,
+        build_binary_headers,
+        octet_stream_responses,
+    )
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import FrameMetadataResponse  # type: ignore[no-redef]
+    from binary_response_utils import (  # type: ignore[no-redef]
+        add_optional_header,
+        build_binary_headers,
+        octet_stream_responses,
+    )
 
 
-def _octet_stream_response(
-    description: str,
-    headers: dict[str, str],
-) -> dict[int, dict[str, Any]]:
-    """Build reusable OpenAPI docs for raw binary payload endpoints."""
-    return {
-        200: {
-            "description": description,
-            "content": {
-                "application/octet-stream": {
-                    "schema": {"type": "string", "format": "binary"}
-                }
-            },
-            "headers": {
-                name: {"description": header_desc, "schema": {"type": "string"}}
-                for name, header_desc in headers.items()
-            },
-        }
-    }
-
-
-FRAME_RESPONSE_DOCS = _octet_stream_response(
+FRAME_RESPONSE_DOCS = octet_stream_responses(
     "Raw frame bytes in little-endian C-order layout.",
     {
         "X-Dtype": "NumPy dtype string for decoding the payload.",
@@ -46,7 +35,7 @@ FRAME_RESPONSE_DOCS = _octet_stream_response(
     },
 )
 
-PREVIEW_RESPONSE_DOCS = _octet_stream_response(
+PREVIEW_RESPONSE_DOCS = octet_stream_responses(
     "Downsampled raw frame bytes in little-endian C-order layout.",
     {
         "X-Dtype": "NumPy dtype string for decoding the payload.",
@@ -56,7 +45,7 @@ PREVIEW_RESPONSE_DOCS = _octet_stream_response(
     },
 )
 
-MASK_RESPONSE_DOCS = _octet_stream_response(
+MASK_RESPONSE_DOCS = octet_stream_responses(
     "Raw pixel-mask bytes in little-endian C-order layout.",
     {
         "X-Dtype": "NumPy dtype string for decoding the payload.",
@@ -140,11 +129,7 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
 
             arr = _to_little_endian(np.asarray(frame_data))
             data = arr.tobytes(order="C")
-            headers = {
-                "X-Dtype": arr.dtype.str,
-                "X-Shape": ",".join(str(x) for x in arr.shape),
-                "X-Frame": str(index),
-            }
+            headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape, frame=index)
             return Response(content=data, media_type="application/octet-stream", headers=headers)
 
     @app.get("/api/preview", responses=PREVIEW_RESPONSE_DOCS)
@@ -179,12 +164,12 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
 
             arr = _to_little_endian(arr)
             data = arr.tobytes(order="C")
-            headers = {
-                "X-Dtype": arr.dtype.str,
-                "X-Shape": ",".join(str(x) for x in arr.shape),
-                "X-Frame": str(index),
-                "X-Preview": "1",
-            }
+            headers = build_binary_headers(
+                dtype=arr.dtype.str,
+                shape=arr.shape,
+                frame=index,
+                extra={"X-Preview": "1"},
+            )
             return Response(content=data, media_type="application/octet-stream", headers=headers)
 
     @app.get("/api/mask", responses=MASK_RESPONSE_DOCS)
@@ -204,9 +189,6 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
                 raise HTTPException(status_code=400, detail="Pixel mask has invalid shape")
             arr = _to_little_endian(np.asarray(dset))
             data = arr.tobytes(order="C")
-            headers = {
-                "X-Dtype": arr.dtype.str,
-                "X-Shape": ",".join(str(x) for x in arr.shape),
-                "X-Mask-Path": dset.name,
-            }
+            headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape)
+            add_optional_header(headers, "X-Mask-Path", dset.name)
             return Response(content=data, media_type="application/octet-stream", headers=headers)

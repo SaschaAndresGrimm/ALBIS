@@ -19,6 +19,11 @@ try:
         RemoteMetaResponse,
         SimplonModeResponse,
     )
+    from .binary_response_utils import (
+        add_optional_header,
+        build_binary_headers,
+        octet_stream_responses,
+    )
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         ImageHeaderResponse,
@@ -30,34 +35,14 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         RemoteMetaResponse,
         SimplonModeResponse,
     )
+    from binary_response_utils import (  # type: ignore[no-redef]
+        add_optional_header,
+        build_binary_headers,
+        octet_stream_responses,
+    )
 
 
-def _octet_stream_responses(
-    description: str,
-    headers: dict[str, str],
-    include_no_content: bool = False,
-) -> dict[int, dict[str, Any]]:
-    """Build reusable OpenAPI docs for binary endpoints with optional 204 responses."""
-    responses: dict[int, dict[str, Any]] = {
-        200: {
-            "description": description,
-            "content": {
-                "application/octet-stream": {
-                    "schema": {"type": "string", "format": "binary"}
-                }
-            },
-            "headers": {
-                name: {"description": header_desc, "schema": {"type": "string"}}
-                for name, header_desc in headers.items()
-            },
-        }
-    }
-    if include_no_content:
-        responses[204] = {"description": "No matching frame payload available."}
-    return responses
-
-
-IMAGE_RESPONSE_DOCS = _octet_stream_responses(
+IMAGE_RESPONSE_DOCS = octet_stream_responses(
     "Raw detector image bytes in little-endian C-order layout.",
     {
         "X-Dtype": "NumPy dtype string for decoding the payload.",
@@ -72,7 +57,7 @@ IMAGE_RESPONSE_DOCS = _octet_stream_responses(
     },
 )
 
-SIMPLON_MONITOR_RESPONSE_DOCS = _octet_stream_responses(
+SIMPLON_MONITOR_RESPONSE_DOCS = octet_stream_responses(
     "Raw SIMPLON monitor frame bytes in little-endian C-order layout.",
     {
         "X-Dtype": "NumPy dtype string for decoding the payload.",
@@ -91,7 +76,7 @@ SIMPLON_MONITOR_RESPONSE_DOCS = _octet_stream_responses(
     include_no_content=True,
 )
 
-SIMPLON_MASK_RESPONSE_DOCS = _octet_stream_responses(
+SIMPLON_MASK_RESPONSE_DOCS = octet_stream_responses(
     "Raw SIMPLON pixel-mask bytes in little-endian C-order layout.",
     {
         "X-Dtype": "NumPy dtype string for decoding the payload.",
@@ -100,7 +85,7 @@ SIMPLON_MASK_RESPONSE_DOCS = _octet_stream_responses(
     include_no_content=True,
 )
 
-REMOTE_LATEST_RESPONSE_DOCS = _octet_stream_responses(
+REMOTE_LATEST_RESPONSE_DOCS = octet_stream_responses(
     "Raw latest remote frame bytes in little-endian C-order layout.",
     {
         "X-Dtype": "NumPy dtype string for decoding the payload.",
@@ -180,25 +165,17 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             raise HTTPException(status_code=400, detail="Unsupported image format")
 
         data = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-            "X-Frame": "0",
-        }
+        headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape, frame=0)
         if meta:
             deps.logger.debug("Image meta (%s): %s", path.name, meta)
-            if meta.get("distance_mm") is not None:
-                headers["X-Image-DetectorDistance-MM"] = str(meta["distance_mm"])
-            if meta.get("pixel_size_um") is not None:
-                headers["X-Image-PixelSize-UM"] = str(meta["pixel_size_um"])
-            if meta.get("energy_ev") is not None:
-                headers["X-Image-Energy-Ev"] = str(meta["energy_ev"])
-            if meta.get("wavelength_a") is not None:
-                headers["X-Image-Wavelength-A"] = str(meta["wavelength_a"])
+            add_optional_header(headers, "X-Image-DetectorDistance-MM", meta.get("distance_mm"))
+            add_optional_header(headers, "X-Image-PixelSize-UM", meta.get("pixel_size_um"))
+            add_optional_header(headers, "X-Image-Energy-Ev", meta.get("energy_ev"))
+            add_optional_header(headers, "X-Image-Wavelength-A", meta.get("wavelength_a"))
             if meta.get("beam_center_px"):
                 center = meta["beam_center_px"]
-                headers["X-Image-BeamCenter-X"] = str(center[0])
-                headers["X-Image-BeamCenter-Y"] = str(center[1])
+                add_optional_header(headers, "X-Image-BeamCenter-X", center[0])
+                add_optional_header(headers, "X-Image-BeamCenter-Y", center[1])
         return Response(content=data, media_type="application/octet-stream", headers=headers)
 
     @app.get("/api/image/header", response_model=ImageHeaderResponse)
@@ -233,30 +210,19 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         if meta:
             deps.logger.debug("SIMPLON meta (url=%s): %s", url, meta)
         data_bytes = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-            "X-Frame": "0",
-        }
+        headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape, frame=0)
         if meta:
-            if meta.get("series_number") is not None:
-                headers["X-Simplon-Series"] = str(meta["series_number"])
-            if meta.get("image_number") is not None:
-                headers["X-Simplon-Image"] = str(meta["image_number"])
-            if meta.get("image_datetime"):
-                headers["X-Simplon-Date"] = str(meta["image_datetime"])
-            if meta.get("threshold_energy_ev") is not None:
-                headers["X-Simplon-Threshold-Ev"] = str(meta["threshold_energy_ev"])
-            if meta.get("energy_ev") is not None:
-                headers["X-Simplon-Energy-Ev"] = str(meta["energy_ev"])
-            if meta.get("wavelength_a") is not None:
-                headers["X-Simplon-Wavelength-A"] = str(meta["wavelength_a"])
-            if meta.get("distance_mm") is not None:
-                headers["X-Simplon-DetectorDistance-MM"] = str(meta["distance_mm"])
+            add_optional_header(headers, "X-Simplon-Series", meta.get("series_number"))
+            add_optional_header(headers, "X-Simplon-Image", meta.get("image_number"))
+            add_optional_header(headers, "X-Simplon-Date", meta.get("image_datetime"))
+            add_optional_header(headers, "X-Simplon-Threshold-Ev", meta.get("threshold_energy_ev"))
+            add_optional_header(headers, "X-Simplon-Energy-Ev", meta.get("energy_ev"))
+            add_optional_header(headers, "X-Simplon-Wavelength-A", meta.get("wavelength_a"))
+            add_optional_header(headers, "X-Simplon-DetectorDistance-MM", meta.get("distance_mm"))
             if meta.get("beam_center_px"):
                 center = meta["beam_center_px"]
-                headers["X-Simplon-BeamCenter-X"] = str(center[0])
-                headers["X-Simplon-BeamCenter-Y"] = str(center[1])
+                add_optional_header(headers, "X-Simplon-BeamCenter-X", center[0])
+                add_optional_header(headers, "X-Simplon-BeamCenter-Y", center[1])
         return Response(content=data_bytes, media_type="application/octet-stream", headers=headers)
 
     @app.post("/api/simplon/mode", response_model=SimplonModeResponse)
@@ -286,10 +252,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             return Response(status_code=204)
         deps.logger.info("SIMPLON mask fetched (url=%s)", url)
         data = arr.tobytes(order="C")
-        headers = {
-            "X-Dtype": arr.dtype.str,
-            "X-Shape": ",".join(str(x) for x in arr.shape),
-        }
+        headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape)
         return Response(content=data, media_type="application/octet-stream", headers=headers)
 
     @app.post(
@@ -425,32 +388,27 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             if meta.get("image_datetime"):
                 parts.append(str(meta.get("image_datetime")))
             display_name = " ".join(parts)
-        headers = {
-            "X-Dtype": str(frame.get("dtype") or ""),
-            "X-Shape": ",".join(str(v) for v in frame.get("shape") or ()),
-            "X-Frame": "0",
-            "X-Remote-Source": safe_source,
-            "X-Remote-Seq": str(seq),
-            "X-Remote-Display": display_name,
-        }
-        if meta.get("series_number") is not None:
-            headers["X-Remote-Series"] = str(meta.get("series_number"))
-        if meta.get("image_number") is not None:
-            headers["X-Remote-Image"] = str(meta.get("image_number"))
-        if meta.get("image_datetime"):
-            headers["X-Remote-Date"] = str(meta.get("image_datetime"))
-        if resolution.get("distance_mm") is not None:
-            headers["X-Remote-DetectorDistance-MM"] = str(resolution.get("distance_mm"))
-        if resolution.get("pixel_size_um") is not None:
-            headers["X-Remote-PixelSize-UM"] = str(resolution.get("pixel_size_um"))
-        if resolution.get("energy_ev") is not None:
-            headers["X-Remote-Energy-Ev"] = str(resolution.get("energy_ev"))
-        if resolution.get("wavelength_a") is not None:
-            headers["X-Remote-Wavelength-A"] = str(resolution.get("wavelength_a"))
+        headers = build_binary_headers(
+            dtype=str(frame.get("dtype") or ""),
+            shape=frame.get("shape") or (),
+            frame=0,
+            extra={
+                "X-Remote-Source": safe_source,
+                "X-Remote-Seq": seq,
+                "X-Remote-Display": display_name,
+            },
+        )
+        add_optional_header(headers, "X-Remote-Series", meta.get("series_number"))
+        add_optional_header(headers, "X-Remote-Image", meta.get("image_number"))
+        add_optional_header(headers, "X-Remote-Date", meta.get("image_datetime"))
+        add_optional_header(headers, "X-Remote-DetectorDistance-MM", resolution.get("distance_mm"))
+        add_optional_header(headers, "X-Remote-PixelSize-UM", resolution.get("pixel_size_um"))
+        add_optional_header(headers, "X-Remote-Energy-Ev", resolution.get("energy_ev"))
+        add_optional_header(headers, "X-Remote-Wavelength-A", resolution.get("wavelength_a"))
         center = resolution.get("beam_center_px")
         if isinstance(center, list) and len(center) >= 2:
-            headers["X-Remote-BeamCenter-X"] = str(center[0])
-            headers["X-Remote-BeamCenter-Y"] = str(center[1])
+            add_optional_header(headers, "X-Remote-BeamCenter-X", center[0])
+            add_optional_header(headers, "X-Remote-BeamCenter-Y", center[1])
         peak_sets = meta.get("peak_sets") if isinstance(meta, dict) else []
         headers["X-Remote-PeakSets"] = str(len(peak_sets) if isinstance(peak_sets, list) else 0)
         return Response(
@@ -481,7 +439,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             )
             return JSONResponse(
                 status_code=409,
-                content=conflict.dict(),
+                content=conflict.model_dump(),
             )
         meta = frame.get("meta") if isinstance(frame.get("meta"), dict) else {}
         payload = RemoteMetaResponse(
@@ -496,6 +454,4 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             peak_sets=meta.get("peak_sets") or [],
             extra=meta.get("extra") or {},
         )
-        return JSONResponse(
-            payload.dict()
-        )
+        return JSONResponse(payload.model_dump())

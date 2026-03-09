@@ -77,6 +77,12 @@ import {
   mapValueToNorm as mapValueToNormUtil,
   buildPalette as buildPaletteUtil,
 } from "./modules/intensity_scale_utils.js";
+import {
+  isHdf5File as isHdf5FileUtil,
+  isHdfFile as isHdfFileUtil,
+  isHeaderCapableFile as isHeaderCapableFileUtil,
+  isSeriesCapableFile as isSeriesCapableFileUtil,
+} from "./modules/file_type_utils.js";
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -802,19 +808,11 @@ function formatEnergy(value) {
 }
 
 function isHdf5File(path) {
-  return typeof path === "string" && (path.toLowerCase().endsWith(".h5") || path.toLowerCase().endsWith(".hdf5"));
+  return isHdf5FileUtil(path);
 }
 
 function isHeaderCapableFile(path) {
-  if (typeof path !== "string") return false;
-  const lower = path.toLowerCase();
-  return (
-    lower.endsWith(".cbf") ||
-    lower.endsWith(".cbf.gz") ||
-    lower.endsWith(".edf") ||
-    lower.endsWith(".tif") ||
-    lower.endsWith(".tiff")
-  );
+  return isHeaderCapableFileUtil(path);
 }
 
 function formatInspectorValue(value) {
@@ -2681,22 +2679,11 @@ function option(label, value) {
 }
 
 function isHdfFile(path) {
-  if (!path) return false;
-  const lower = String(path).toLowerCase();
-  return lower.endsWith(".h5") || lower.endsWith(".hdf5");
+  return isHdfFileUtil(path);
 }
 
 function isSeriesCapable(path) {
-  if (!path) return false;
-  const lower = String(path).toLowerCase();
-  if (isHdfFile(lower)) return false;
-  return (
-    lower.endsWith(".cbf") ||
-    lower.endsWith(".cbf.gz") ||
-    lower.endsWith(".edf") ||
-    lower.endsWith(".tif") ||
-    lower.endsWith(".tiff")
-  );
+  return isSeriesCapableFileUtil(path);
 }
 
 function fileLabel(path) {

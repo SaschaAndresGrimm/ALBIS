@@ -30,7 +30,10 @@ ruff check backend tests scripts test_scripts
 black --check tests scripts test_scripts
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
 npm run lint:js
+npm run test:js
 ```
+
+`npm run test:js` executes Vitest in `jsdom`. The repository requires Node `>=20`; the script currently enforces this via `node@20` to keep local runs reproducible.
 
 Optional pre-commit hooks:
 
@@ -73,6 +76,25 @@ Frontend code is now intentionally split by responsibility:
 - `frontend/modules/app_binding_contexts.js`:
   - Shapes large element/callback maps passed into binding bootstraps.
   - Used to keep `app.js` readable and prevent accidental callback/key drift.
+
+### Refactor Boundaries (SOLID/DRY)
+
+- Backend shared services:
+  - `backend/services/path_policy.py`: shared path resolution and extension filtering policy.
+  - `backend/services/os_actions.py`: shared open-path and native file/folder picker helpers.
+  - `backend/routes/binary_response_utils.py`: reusable OpenAPI binary response docs + header builders.
+- HDF5 service:
+  - `backend/services/hdf5_stack.py` now uses a shared traversal resolver for dataset/node resolution.
+  - Unit/scalar conversion logic is extracted into `backend/services/hdf5_units.py`.
+- Series summing:
+  - `backend/services/series_summing.py` keeps orchestration/state in service methods and uses shared internal reduction steps for HDF5 and image-series flows.
+- Frontend ROI split:
+  - `frontend/modules/roi_stats_engine.js`: pure ROI stats/histogram/mask logic.
+  - `frontend/modules/roi_plot_renderer.js`: ROI plot rendering.
+  - `frontend/modules/roi_csv_export.js`: ROI CSV payload construction.
+  - `frontend/modules/roi_stats_controller.js` remains the wiring/orchestration layer.
+- Frontend file-type DRY utilities:
+  - `frontend/modules/file_type_utils.js` centralizes HDF5/header/series capability checks used from `frontend/app.js`.
 
 ## Packaging (PyInstaller)
 
@@ -307,7 +329,11 @@ This document is a practical navigation guide for contributors.
 - `frontend/modules/overview_viewport_controller.js`:
   - Pan/zoom/touch/overview interaction model and viewport transforms.
 - `frontend/modules/roi_stats_controller.js` + `frontend/modules/roi_interaction_controller.js`:
-  - ROI statistics/plots and ROI interaction overlay editing.
+  - ROI wiring/orchestration and ROI interaction overlay editing.
+- `frontend/modules/roi_stats_engine.js` + `frontend/modules/roi_plot_renderer.js` + `frontend/modules/roi_csv_export.js`:
+  - Pure ROI compute helpers, ROI plot rendering, and CSV payload generation.
+- `frontend/modules/file_type_utils.js`:
+  - Shared HDF5/header/series capability checks used across controllers.
 - `frontend/modules/overlay_render_controller.js` + `frontend/modules/histogram_render_controller.js`:
   - Overlay and histogram drawing/scheduling.
 - `frontend/modules/autoload_*_controller.js`:
@@ -334,6 +360,8 @@ This document is a practical navigation guide for contributors.
 
 - `backend/services/hdf5_stack.py`:
   - HDF5 dataset discovery, metadata extraction, path resolution, frame extraction.
+- `backend/services/hdf5_units.py`:
+  - Pure scalar coercion/unit conversion helpers for detector metadata extraction.
 - `backend/services/series_summing.py`:
   - Background job manager for series aggregation operations.
 - `backend/services/series_ops.py`:
@@ -344,6 +372,10 @@ This document is a practical navigation guide for contributors.
   - ZeroMQ preview subscriber, CBOR/Stream2 decode, and mapping to remote snapshot metadata.
 - `backend/services/simplon.py`:
   - SIMPLON endpoint URL/mode helpers and monitor/mask fetch logic.
+- `backend/services/path_policy.py`:
+  - Shared path safety policy and extension filtering helpers.
+- `backend/services/os_actions.py`:
+  - Shared desktop open actions and native picker integrations.
 
 ## Format and Detector Parsers
 
@@ -362,6 +394,10 @@ This document is a practical navigation guide for contributors.
   - Series detection and job-level behavior tests.
 - `tests/test_remote_stream_helpers.py`:
   - Remote stream metadata and decode helper tests.
+- `tests/test_path_policy.py`, `tests/test_binary_response_utils.py`, `tests/test_hdf5_units.py`, `tests/test_os_actions_helpers.py`:
+  - Focused utility-level regression coverage for extracted shared modules.
+- `tests/test_openapi_key_contract_baseline.py`:
+  - Key OpenAPI contract snapshot parity check for compatibility-sensitive endpoints.
 
 ## Packaging and Release
 

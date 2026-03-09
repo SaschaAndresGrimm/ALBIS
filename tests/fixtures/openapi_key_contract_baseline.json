@@ -1,0 +1,643 @@
+{
+  "GET /api/analysis/series-sum/status": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "job_id",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "title": "Job Id",
+          "type": "string"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Successful Response",
+        "header_names": []
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/files": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "folder",
+        "required": false,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Folder"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Successful Response",
+        "header_names": []
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/frame": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "file",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "dataset",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "title": "Dataset",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "index",
+        "required": false,
+        "schema": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        }
+      },
+      {
+        "in": "query",
+        "name": "threshold",
+        "required": false,
+        "schema": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Threshold",
+          "type": "integer"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json",
+          "application/octet-stream"
+        ],
+        "description": "Raw frame bytes in little-endian C-order layout.",
+        "header_names": [
+          "X-Dtype",
+          "X-Frame",
+          "X-Shape"
+        ]
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/hdf5/tree": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "file",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "path",
+        "required": false,
+        "schema": {
+          "default": "/",
+          "title": "Path",
+          "type": "string"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Successful Response",
+        "header_names": []
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/image": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "file",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "index",
+        "required": false,
+        "schema": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json",
+          "application/octet-stream"
+        ],
+        "description": "Raw detector image bytes in little-endian C-order layout.",
+        "header_names": [
+          "X-Dtype",
+          "X-Frame",
+          "X-Image-BeamCenter-X",
+          "X-Image-BeamCenter-Y",
+          "X-Image-DetectorDistance-MM",
+          "X-Image-Energy-Ev",
+          "X-Image-PixelSize-UM",
+          "X-Image-Wavelength-A",
+          "X-Shape"
+        ]
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/mask": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "file",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "threshold",
+        "required": false,
+        "schema": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Threshold"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json",
+          "application/octet-stream"
+        ],
+        "description": "Raw pixel-mask bytes in little-endian C-order layout.",
+        "header_names": [
+          "X-Dtype",
+          "X-Mask-Path",
+          "X-Shape"
+        ]
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/preview": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "file",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "dataset",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "title": "Dataset",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "index",
+        "required": false,
+        "schema": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        }
+      },
+      {
+        "in": "query",
+        "name": "max_size",
+        "required": false,
+        "schema": {
+          "default": 1024,
+          "maximum": 4096,
+          "minimum": 64,
+          "title": "Max Size",
+          "type": "integer"
+        }
+      },
+      {
+        "in": "query",
+        "name": "threshold",
+        "required": false,
+        "schema": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Threshold",
+          "type": "integer"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json",
+          "application/octet-stream"
+        ],
+        "description": "Downsampled raw frame bytes in little-endian C-order layout.",
+        "header_names": [
+          "X-Dtype",
+          "X-Frame",
+          "X-Preview",
+          "X-Shape"
+        ]
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/remote/v1/latest": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "source_id",
+        "required": false,
+        "schema": {
+          "default": "default",
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "after_seq",
+        "required": false,
+        "schema": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "After Seq"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json",
+          "application/octet-stream"
+        ],
+        "description": "Raw latest remote frame bytes in little-endian C-order layout.",
+        "header_names": [
+          "X-Dtype",
+          "X-Frame",
+          "X-Remote-BeamCenter-X",
+          "X-Remote-BeamCenter-Y",
+          "X-Remote-Date",
+          "X-Remote-DetectorDistance-MM",
+          "X-Remote-Display",
+          "X-Remote-Energy-Ev",
+          "X-Remote-Image",
+          "X-Remote-PeakSets",
+          "X-Remote-PixelSize-UM",
+          "X-Remote-Seq",
+          "X-Remote-Series",
+          "X-Remote-Source",
+          "X-Remote-Wavelength-A",
+          "X-Shape"
+        ]
+      },
+      "204": {
+        "content_types": [],
+        "description": "No matching frame payload available.",
+        "header_names": []
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/remote/v1/meta": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "source_id",
+        "required": false,
+        "schema": {
+          "default": "default",
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "seq",
+        "required": false,
+        "schema": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Seq"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Successful Response",
+        "header_names": []
+      },
+      "409": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Conflict",
+        "header_names": []
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/simplon/mask": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "url",
+        "required": true,
+        "schema": {
+          "minLength": 4,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "version",
+        "required": false,
+        "schema": {
+          "default": "1.8.0",
+          "title": "Version",
+          "type": "string"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json",
+          "application/octet-stream"
+        ],
+        "description": "Raw SIMPLON pixel-mask bytes in little-endian C-order layout.",
+        "header_names": [
+          "X-Dtype",
+          "X-Shape"
+        ]
+      },
+      "204": {
+        "content_types": [],
+        "description": "No matching frame payload available.",
+        "header_names": []
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "GET /api/simplon/monitor": {
+    "parameters": [
+      {
+        "in": "query",
+        "name": "url",
+        "required": true,
+        "schema": {
+          "minLength": 4,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "version",
+        "required": false,
+        "schema": {
+          "default": "1.8.0",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      {
+        "in": "query",
+        "name": "timeout",
+        "required": false,
+        "schema": {
+          "default": 500,
+          "minimum": 0,
+          "title": "Timeout",
+          "type": "integer"
+        }
+      },
+      {
+        "in": "query",
+        "name": "enable",
+        "required": false,
+        "schema": {
+          "default": true,
+          "title": "Enable",
+          "type": "boolean"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json",
+          "application/octet-stream"
+        ],
+        "description": "Raw SIMPLON monitor frame bytes in little-endian C-order layout.",
+        "header_names": [
+          "X-Dtype",
+          "X-Frame",
+          "X-Shape",
+          "X-Simplon-BeamCenter-X",
+          "X-Simplon-BeamCenter-Y",
+          "X-Simplon-Date",
+          "X-Simplon-DetectorDistance-MM",
+          "X-Simplon-Energy-Ev",
+          "X-Simplon-Image",
+          "X-Simplon-Series",
+          "X-Simplon-Threshold-Ev",
+          "X-Simplon-Wavelength-A"
+        ]
+      },
+      "204": {
+        "content_types": [],
+        "description": "No matching frame payload available.",
+        "header_names": []
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  },
+  "POST /api/analysis/series-sum/start": {
+    "parameters": [],
+    "requestBody": {
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/SeriesSumStartRequest"
+          }
+        }
+      },
+      "required": true
+    },
+    "responses": {
+      "200": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Successful Response",
+        "header_names": []
+      },
+      "422": {
+        "content_types": [
+          "application/json"
+        ],
+        "description": "Validation Error",
+        "header_names": []
+      }
+    }
+  }
+}

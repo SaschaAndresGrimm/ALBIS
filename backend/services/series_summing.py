@@ -362,6 +362,89 @@ class SeriesSummingService:
             return arr_clipped.astype(output_dtype, casting="unsafe")
         return np.asarray(arr, dtype=output_dtype)
 
+    def _reduce_group_values(
+        self,
+        *,
+        job_id: str,
+        frame_indices: list[int],
+        operation: str,
+        load_frame: Callable[[int], np.ndarray],
+        processed_ref: list[int],
+        total_steps: int,
+        progress_message: Callable[[int], str],
+        reduce_message: Callable[[], str],
+        normalize_ref: np.ndarray | None = None,
+        normalize_ref_valid: np.ndarray | None = None,
+        any_mask: np.ndarray | None = None,
+        preprocess_frame: Callable[[np.ndarray, int], np.ndarray] | None = None,
+    ) -> np.ndarray | None:
+        acc: np.ndarray | None = None
+        median_stack: list[np.ndarray] | None = [] if operation == "median" else None
+
+        for frame_idx in frame_indices:
+            self._raise_if_cancelled(job_id)
+            arr = np.asarray(load_frame(frame_idx), dtype=np.float64)
+            if preprocess_frame is not None:
+                arr = np.asarray(preprocess_frame(arr, frame_idx), dtype=np.float64)
+            if normalize_ref is not None and normalize_ref_valid is not None:
+                arr = np.divide(
+                    arr,
+                    normalize_ref,
+                    out=np.zeros_like(arr, dtype=np.float64),
+                    where=normalize_ref_valid,
+                )
+            if any_mask is not None:
+                arr = arr.copy()
+                arr[any_mask] = 0.0
+
+            if operation == "median":
+                if median_stack is not None:
+                    median_stack.append(arr)
+            else:
+                if acc is None:
+                    acc = np.zeros_like(arr, dtype=np.float64)
+                acc += arr
+
+            processed_ref[0] += 1
+            progress = min(0.95, processed_ref[0] / total_steps)
+            self._update_job(job_id, progress=progress, message=progress_message(frame_idx))
+
+        if operation == "median":
+            if not median_stack:
+                return None
+            self._update_job(
+                job_id,
+                progress=min(0.95, processed_ref[0] / total_steps),
+                message=reduce_message(),
+            )
+            self._raise_if_cancelled(job_id)
+            reduced = np.median(np.stack(median_stack, axis=0), axis=0)
+            self._raise_if_cancelled(job_id)
+            return np.asarray(reduced)
+
+        if acc is None:
+            return None
+        if operation == "mean":
+            return np.asarray(acc / float(max(1, len(frame_indices))))
+        return np.asarray(acc)
+
+    @staticmethod
+    def _update_result_range(
+        arr: np.ndarray,
+        result_min: float | None,
+        result_max: float | None,
+    ) -> tuple[float | None, float | None]:
+        if not arr.size:
+            return result_min, result_max
+        finite_mask = np.isfinite(arr)
+        if not np.any(finite_mask):
+            return result_min, result_max
+        chunk_min = float(np.min(arr[finite_mask]))
+        chunk_max = float(np.max(arr[finite_mask]))
+        next_min = chunk_min if result_min is None else min(result_min, chunk_min)
+        next_max = chunk_max if result_max is None else max(result_max, chunk_max)
+        return next_min, next_max
+
     def _run_job(
         self,
         job_id: str,
@@ -443,7 +526,7 @@ class SeriesSummingService:
                         total_input_frames = sum(int(group["count"]) for group in groups)
                         max_group_count = max(1, max(int(group["count"]) for group in groups))
                         total_steps = max(1, total_input_frames * threshold_count)
-                        processed = 0
+                        processed_ref = [0]
 
                         for thr in range(threshold_count):
                             self._raise_if_cancelled(job_id)
@@ -470,70 +553,36 @@ class SeriesSummingService:
                                 start_idx = int(group["start"])
                                 end_idx = int(group["end"])
                                 frame_indices = list(group["indices"])
-                                acc: np.ndarray | None = None
-                                median_stack: list[np.ndarray] | None = (
-                                    [] if operation == "median" else None
-                                )
-                                for frame_idx in frame_indices:
-                                    self._raise_if_cancelled(job_id)
-                                    arr = self._deps.extract_frame(view, frame_idx, thr)
-                                    arr = np.asarray(arr, dtype=np.float64)
-                                    if norm_ref is not None and norm_ref_valid is not None:
-                                        arr = np.divide(
-                                            arr,
-                                            norm_ref,
-                                            out=np.zeros_like(arr, dtype=np.float64),
-                                            where=norm_ref_valid,
-                                        )
-                                    if any_mask is not None:
-                                        arr = arr.copy()
-                                        arr[any_mask] = 0.0
-                                    if operation == "median":
-                                        if median_stack is not None:
-                                            median_stack.append(arr)
-                                    else:
-                                        if acc is None:
-                                            acc = np.zeros_like(arr, dtype=np.float64)
-                                        acc += arr
-                                    processed += 1
-                                    progress = min(0.95, processed / total_steps)
-                                    self._update_job(
-                                        job_id,
-                                        progress=progress,
-                                        message=(
-                                            f"{operation.capitalize()} threshold {thr + 1}/{threshold_count}, "
+                                reduced_arr = self._reduce_group_values(
+                                    job_id=job_id,
+                                    frame_indices=frame_indices,
+                                    operation=operation,
+                                    load_frame=lambda frame_idx, thr_idx=thr: self._deps.extract_frame(
+                                        view, frame_idx, thr_idx
+                                    ),
+                                    processed_ref=processed_ref,
+                                    total_steps=total_steps,
+                                    progress_message=(
+                                        lambda frame_idx, thr_idx=thr: (
+                                            f"{operation.capitalize()} threshold {thr_idx + 1}/{threshold_count}, "
                                             f"frame {frame_idx + 1}/{frame_count}"
-                                        ),
-                                    )
-                                if operation == "median":
-                                    if not median_stack:
-                                        continue
-                                    self._update_job(
-                                        job_id,
-                                        progress=min(0.95, processed / total_steps),
-                                        message=(
-                                            f"Reducing median threshold {thr + 1}/{threshold_count}, "
-                                            f"frames {start_idx + 1}-{end_idx + 1}"
-                                        ),
-                                    )
-                                    self._raise_if_cancelled(job_id)
-                                    reduced = np.median(np.stack(median_stack, axis=0), axis=0)
-                                    self._raise_if_cancelled(job_id)
-                                else:
-                                    if acc is None:
-                                        continue
-                                    if operation == "mean":
-                                        reduced = acc / float(max(1, len(frame_indices)))
-                                    else:
-                                        reduced = acc
-                                reduced_arr = np.asarray(reduced)
-                                if reduced_arr.size:
-                                    finite_mask = np.isfinite(reduced_arr)
-                                    if np.any(finite_mask):
-                                        chunk_min = float(np.min(reduced_arr[finite_mask]))
-                                        chunk_max = float(np.max(reduced_arr[finite_mask]))
-                                        result_min = chunk_min if result_min is None else min(result_min, chunk_min)
-                                        result_max = chunk_max if result_max is None else max(result_max, chunk_max)
+                                        )
+                                    ),
+                                    reduce_message=(
+                                        lambda thr_idx=thr, start=start_idx, end=end_idx: (
+                                            f"Reducing median threshold {thr_idx + 1}/{threshold_count}, "
+                                            f"frames {start + 1}-{end + 1}"
+                                        )
+                                    ),
+                                    normalize_ref=norm_ref,
+                                    normalize_ref_valid=norm_ref_valid,
+                                    any_mask=any_mask,
+                                )
+                                if reduced_arr is None:
+                                    continue
+                                result_min, result_max = self._update_result_range(
+                                    reduced_arr, result_min, result_max
+                                )
                                 if (
                                     operation == "median"
                                     and normalize_frame_idx is None
@@ -604,79 +653,55 @@ class SeriesSummingService:
 
                 total_input_frames = sum(int(group["count"]) for group in groups)
                 total_steps = max(1, total_input_frames)
-                processed = 0
+                processed_ref = [0]
 
                 for chunk_idx, group in enumerate(groups):
                     self._raise_if_cancelled(job_id)
                     start_idx = int(group["start"])
                     end_idx = int(group["end"])
                     frame_indices = list(group["indices"])
-                    acc: np.ndarray | None = None
-                    median_stack: list[np.ndarray] | None = [] if operation == "median" else None
-                    for frame_idx in frame_indices:
-                        self._raise_if_cancelled(job_id)
-                        arr = np.asarray(
-                            self._read_non_h5_image(series_files[frame_idx]), dtype=np.float64
-                        )
-                        if apply_mask:
-                            neg = arr < 0
-                            if neg.any():
-                                gaps = arr == -1
-                                if mask_bits is not None:
-                                    mask_bits[gaps] |= 1
-                                    mask_bits[neg & ~gaps] |= 0x1E
-                                arr = arr.copy()
-                                arr[neg] = 0.0
-                            if mask_bits is not None and np.any(mask_bits):
-                                arr = arr.copy()
-                                arr[mask_bits != 0] = 0.0
-                        if norm_ref is not None and norm_ref_valid is not None:
-                            arr = np.divide(
-                                arr,
-                                norm_ref,
-                                out=np.zeros_like(arr, dtype=np.float64),
-                                where=norm_ref_valid,
+                    def _preprocess_non_h5_frame(
+                        arr: np.ndarray, _frame_idx: int
+                    ) -> np.ndarray:
+                        if not apply_mask:
+                            return arr
+                        neg = arr < 0
+                        if neg.any():
+                            gaps = arr == -1
+                            if mask_bits is not None:
+                                mask_bits[gaps] |= 1
+                                mask_bits[neg & ~gaps] |= 0x1E
+                            arr = arr.copy()
+                            arr[neg] = 0.0
+                        if mask_bits is not None and np.any(mask_bits):
+                            arr = arr.copy()
+                            arr[mask_bits != 0] = 0.0
+                        return arr
+
+                    reduced_arr = self._reduce_group_values(
+                        job_id=job_id,
+                        frame_indices=frame_indices,
+                        operation=operation,
+                        load_frame=lambda frame_idx: self._read_non_h5_image(series_files[frame_idx]),
+                        processed_ref=processed_ref,
+                        total_steps=total_steps,
+                        progress_message=(
+                            lambda frame_idx: f"{operation.capitalize()} frame {frame_idx + 1}/{frame_count}"
+                        ),
+                        reduce_message=(
+                            lambda start=start_idx, end=end_idx: (
+                                f"Reducing median frames {start + 1}-{end + 1}"
                             )
-                        if operation == "median":
-                            if median_stack is not None:
-                                median_stack.append(arr)
-                        else:
-                            if acc is None:
-                                acc = np.zeros_like(arr, dtype=np.float64)
-                            acc += arr
-                        processed += 1
-                        progress = min(0.95, processed / total_steps)
-                        self._update_job(
-                            job_id,
-                            progress=progress,
-                            message=f"{operation.capitalize()} frame {frame_idx + 1}/{frame_count}",
-                        )
-                    if operation == "median":
-                        if not median_stack:
-                            continue
-                        self._update_job(
-                            job_id,
-                            progress=min(0.95, processed / total_steps),
-                            message=f"Reducing median frames {start_idx + 1}-{end_idx + 1}",
-                        )
-                        self._raise_if_cancelled(job_id)
-                        reduced = np.median(np.stack(median_stack, axis=0), axis=0)
-                        self._raise_if_cancelled(job_id)
-                    else:
-                        if acc is None:
-                            continue
-                        if operation == "mean":
-                            reduced = acc / float(max(1, len(frame_indices)))
-                        else:
-                            reduced = acc
-                    reduced_arr = np.asarray(reduced)
-                    if reduced_arr.size:
-                        finite_mask = np.isfinite(reduced_arr)
-                        if np.any(finite_mask):
-                            chunk_min = float(np.min(reduced_arr[finite_mask]))
-                            chunk_max = float(np.max(reduced_arr[finite_mask]))
-                            result_min = chunk_min if result_min is None else min(result_min, chunk_min)
-                            result_max = chunk_max if result_max is None else max(result_max, chunk_max)
+                        ),
+                        normalize_ref=norm_ref,
+                        normalize_ref_valid=norm_ref_valid,
+                        preprocess_frame=_preprocess_non_h5_frame,
+                    )
+                    if reduced_arr is None:
+                        continue
+                    result_min, result_max = self._update_result_range(
+                        reduced_arr, result_min, result_max
+                    )
                     if (
                         operation == "median"
                         and normalize_frame_idx is None

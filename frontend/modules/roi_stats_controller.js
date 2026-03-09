@@ -2,6 +2,17 @@
  * ROI statistics, plots, and ROI plot interaction helpers.
  */
 
+import {
+  applyMaskToValue as applyMaskToValueEngine,
+  accumulateRoiPixelCounters as accumulateRoiPixelCountersEngine,
+  buildRoiHistogram as buildRoiHistogramEngine,
+  computeGlobalStats as computeGlobalStatsEngine,
+  createRoiPixelCounters as createRoiPixelCountersEngine,
+  getMaskFlags as getMaskFlagsEngine,
+} from "./roi_stats_engine.js";
+import { renderRoiPlot } from "./roi_plot_renderer.js";
+import { buildRoiCsvExportPayload } from "./roi_csv_export.js";
+
 export function createRoiStatsController(ctx) {
   const {
     state,
@@ -279,28 +290,15 @@ function clearRoi() {
 }
 
 function applyMaskToValue(value, maskValue, satMax = getActiveSaturationMax()) {
-  if (Number.isFinite(maskValue)) {
-    if (maskValue & 1) {
-      return { value: 0, skip: true };
-    }
-    if (maskValue & 0x1e) {
-      return { value: 0, skip: true };
-    }
-  }
-  if (state.maskSaturatedEnabled && isSaturatedValue(value, satMax)) {
-    return { value: 0, skip: true };
-  }
-  return { value, skip: false };
+  return applyMaskToValueEngine(value, maskValue, {
+    satMax,
+    maskSaturatedEnabled: state.maskSaturatedEnabled,
+    isSaturatedValue,
+  });
 }
 
 function getMaskFlags(maskValue) {
-  if (!Number.isFinite(maskValue)) {
-    return { gap: false, defective: false };
-  }
-  return {
-    gap: Boolean(maskValue & 1),
-    defective: Boolean(maskValue & 0x1e),
-  };
+  return getMaskFlagsEngine(maskValue);
 }
 
 function sampleValue(ix, iy) {
@@ -330,84 +328,19 @@ function isGapMaskedSample(sampled) {
 }
 
 function computeGlobalStats() {
-  if (!state.dataRaw) return null;
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  let sum = 0;
-  let count = 0;
-  let mean = 0;
-  let m2 = 0;
-  let gapPixels = 0;
-  let defectivePixels = 0;
-  let saturatedPixels = 0;
-  const samples = [];
-  const satMax = getActiveSaturationMax();
-  const hasMask =
-    state.maskAvailable &&
-    state.maskRaw &&
-    state.maskShape &&
-    state.maskShape[0] === state.height &&
-    state.maskShape[1] === state.width;
-  const useMasking = (state.maskEnabled && hasMask) || state.maskSaturatedEnabled;
-
-  for (let i = 0; i < state.dataRaw.length; i += 1) {
-    let v = state.dataRaw[i];
-    const maskValue = hasMask ? state.maskRaw[i] : null;
-    const flags = getMaskFlags(maskValue);
-    if (flags.gap) {
-      gapPixels += 1;
-    } else if (flags.defective) {
-      defectivePixels += 1;
-    }
-    if (satMax !== null && isSaturatedValue(v, satMax) && !flags.gap && !flags.defective) {
-      saturatedPixels += 1;
-    }
-    if (!Number.isFinite(v)) continue;
-    if (useMasking) {
-      const masked = applyMaskToValue(v, maskValue, satMax);
-      if (masked.skip) continue;
-      v = masked.value;
-    }
-    count += 1;
-    sum += v;
-    samples.push(v);
-    min = Math.min(min, v);
-    max = Math.max(max, v);
-    const delta = v - mean;
-    mean += delta / count;
-    m2 += delta * (v - mean);
-  }
-
-  if (count === 0) {
-    return {
-      count: 0,
-      sum: 0,
-      mean: 0,
-      median: 0,
-      min: 0,
-      max: 0,
-      std: 0,
-      totalPixels: state.dataRaw.length,
-      gapPixels,
-      defectivePixels,
-      saturatedPixels,
-    };
-  }
-  const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
-  const median = samples.length ? computeMedian(samples) : 0;
-  return {
-    count,
-    sum,
-    mean,
-    median,
-    min,
-    max,
-    std,
-    totalPixels: state.dataRaw.length,
-    gapPixels,
-    defectivePixels,
-    saturatedPixels,
-  };
+  return computeGlobalStatsEngine({
+    dataRaw: state.dataRaw,
+    width: state.width,
+    height: state.height,
+    maskAvailable: state.maskAvailable,
+    maskRaw: state.maskRaw,
+    maskShape: state.maskShape,
+    maskEnabled: state.maskEnabled,
+    maskSaturatedEnabled: state.maskSaturatedEnabled,
+    satMax: getActiveSaturationMax(),
+    isSaturatedValue,
+    computeMedian,
+  });
 }
 
 function updateGlobalStats() {
@@ -469,26 +402,11 @@ function updateRoiTooltip(event, canvasEl) {
 }
 
 function createRoiPixelCounters() {
-  return { total: 0, gap: 0, defective: 0, saturated: 0 };
+  return createRoiPixelCountersEngine();
 }
 
 function accumulateRoiPixelCounters(counters, sampled, satMax) {
-  if (!counters || !sampled) return;
-  counters.total += 1;
-  const flags = getMaskFlags(sampled.maskValue);
-  if (flags.gap) {
-    counters.gap += 1;
-  } else if (flags.defective) {
-    counters.defective += 1;
-  }
-  if (
-    satMax !== null &&
-    isSaturatedValue(sampled.raw, satMax) &&
-    !flags.gap &&
-    !flags.defective
-  ) {
-    counters.saturated += 1;
-  }
+  accumulateRoiPixelCountersEngine(counters, sampled, satMax, isSaturatedValue);
 }
 
 function updateRoiPixelCounterFields(counters) {
@@ -499,63 +417,7 @@ function updateRoiPixelCounterFields(counters) {
 }
 
 function buildRoiHistogram(values) {
-  const finite = [];
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  let isIntegerSeries = true;
-  (values || []).forEach((v) => {
-    if (!Number.isFinite(v)) return;
-    finite.push(v);
-    if (v < min) min = v;
-    if (v > max) max = v;
-    if (isIntegerSeries && Math.abs(v - Math.round(v)) >= 1e-9) {
-      isIntegerSeries = false;
-    }
-  });
-  if (!finite.length || !Number.isFinite(min) || !Number.isFinite(max)) return null;
-
-  if (isIntegerSeries) {
-    const iMin = Math.floor(min);
-    const iMax = Math.ceil(max);
-    const intSpan = iMax - iMin + 1;
-    if (intSpan > 0 && intSpan <= 512) {
-      const counts = new Float64Array(intSpan);
-      finite.forEach((v) => {
-        const idx = Math.max(0, Math.min(intSpan - 1, Math.round(v) - iMin));
-        counts[idx] += 1;
-      });
-      return {
-        data: Array.from(counts),
-        xStart: iMin,
-        xStep: 1,
-        xTickMode: "integer",
-      };
-    }
-  }
-
-  const binCount = Math.max(16, Math.min(192, Math.round(Math.sqrt(finite.length) * 1.5)));
-  if (!(max > min)) {
-    return {
-      data: [finite.length],
-      xStart: min,
-      xStep: 1,
-      xTickMode: isIntegerSeries ? "integer" : "",
-    };
-  }
-
-  const step = (max - min) / binCount;
-  const counts = new Float64Array(binCount);
-  finite.forEach((v) => {
-    const t = (v - min) / step;
-    const idx = Math.max(0, Math.min(binCount - 1, Math.floor(t)));
-    counts[idx] += 1;
-  });
-  return {
-    data: Array.from(counts),
-    xStart: min + step * 0.5,
-    xStep: step,
-    xTickMode: "",
-  };
+  return buildRoiHistogramEngine(values);
 }
 
 function updateRoiHistogramPlot(values) {
@@ -925,272 +787,17 @@ function updateRoiStats() {
 }
 
 function drawRoiPlot(canvasEl, ctx, data, logScale) {
-  if (!canvasEl || !ctx) return;
-  const width = canvasEl.clientWidth || 1;
-  const height = canvasEl.clientHeight || 1;
-  canvasEl.width = Math.max(1, Math.floor(width * window.devicePixelRatio));
-  canvasEl.height = Math.max(1, Math.floor(height * window.devicePixelRatio));
-  ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = PLOT_THEME.bg;
-  ctx.fillRect(0, 0, width, height);
-  if (!data || data.length === 0) {
-    canvasEl._roiPlot = null;
-    ctx.strokeStyle = PLOT_THEME.frame;
-    ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-    return;
-  }
-  const plotMeta = canvasEl._roiPlotMeta || {};
-  const plotKey = getRoiPlotKey(canvasEl);
-  const limits = getRoiPlotLimits(plotKey);
-  const autoscale = roiState.plotLimits.autoscale;
-  const xTickMode = plotMeta.xTickMode || "";
-  const formatXAxisTick = (value) => {
-    if (!Number.isFinite(value)) return "-";
-    if (xTickMode === "integer") return `${Math.round(value)}`;
-    return formatRoiTick(value);
-  };
-  const xStepRaw = Number(plotMeta.xStep ?? 1);
-  const xStep = Number.isFinite(xStepRaw) && xStepRaw !== 0 ? xStepRaw : 1;
-  let xStart = Number(plotMeta.xStart ?? 0) || 0;
-  const totalMinX = xStart;
-  const totalMaxX = xStart + (data.length - 1) * xStep;
-  let visibleData = data;
-  if (!autoscale && data.length > 0) {
-    const lo = Number.isFinite(limits.xMin) ? Math.max(totalMinX, limits.xMin) : totalMinX;
-    const hi = Number.isFinite(limits.xMax) ? Math.min(totalMaxX, limits.xMax) : totalMaxX;
-    if (hi < lo) {
-      visibleData = [];
-    } else {
-      const firstIdx = Math.max(0, Math.ceil((lo - xStart) / xStep));
-      const lastIdx = Math.min(data.length - 1, Math.floor((hi - xStart) / xStep));
-      if (lastIdx >= firstIdx) {
-        visibleData = data.slice(firstIdx, lastIdx + 1);
-        xStart += firstIdx * xStep;
-      } else {
-        visibleData = [];
-      }
-    }
-  }
-  if (!visibleData || visibleData.length === 0) {
-    canvasEl._roiPlot = null;
-    ctx.strokeStyle = PLOT_THEME.frame;
-    ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-    return;
-  }
-
-  const valuesRaw = visibleData;
-  const values = valuesRaw.map((v) => {
-    if (!Number.isFinite(v)) return Number.NaN;
-    return logScale ? Math.log10(1 + Math.max(0, v)) : v;
+  renderRoiPlot({
+    canvasEl,
+    ctx,
+    data,
+    logScale,
+    plotTheme: PLOT_THEME,
+    getRoiPlotKey,
+    getRoiPlotLimits,
+    autoscale: Boolean(roiState.plotLimits.autoscale),
+    formatRoiTick,
   });
-  const finiteValues = values.filter((v) => Number.isFinite(v));
-  const seriesType = plotMeta.seriesType || "line";
-
-  // Calculate total Y domain from all data
-  const allValuesRaw = data.filter((v) => Number.isFinite(v));
-  const totalMinY = allValuesRaw.length ? Math.min(...allValuesRaw) : 0;
-  const totalMaxY = allValuesRaw.length ? Math.max(...allValuesRaw) : 0;
-
-  let minValue = finiteValues.length ? Math.min(...finiteValues) : 0;
-  if (!autoscale && Number.isFinite(limits.yMin)) {
-    minValue = logScale ? Math.log10(1 + Math.max(0, limits.yMin)) : limits.yMin;
-  }
-  let maxValue = finiteValues.length ? Math.max(...finiteValues) : minValue + 1;
-  if (!autoscale && Number.isFinite(limits.yMax)) {
-    maxValue = logScale ? Math.log10(1 + Math.max(0, limits.yMax)) : limits.yMax;
-  }
-  if (!Number.isFinite(minValue)) minValue = 0;
-  if (autoscale && Number.isFinite(minValue) && Number.isFinite(maxValue)) {
-    const baseRange = maxValue - minValue;
-    if (baseRange > 0) {
-      const pad = baseRange * 0.03;
-      minValue -= pad;
-      maxValue += pad;
-      if (logScale) {
-        minValue = Math.max(0, minValue);
-      }
-    }
-  }
-  if (!Number.isFinite(maxValue) || maxValue <= minValue) {
-    maxValue = minValue + 1;
-  }
-  const yRange = maxValue - minValue;
-  const padR = 8;
-  const padT = 8;
-  const padB = 30;
-  const drawableHeight = Math.max(4, height - padT - padB);
-
-  ctx.fillStyle = PLOT_THEME.text;
-  ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
-
-  const measureMaxLabel = (labels) =>
-    labels.reduce((max, label) => Math.max(max, ctx.measureText(label).width), 0);
-
-  let yTickCount = Math.max(2, Math.min(4, Math.floor(drawableHeight / 50)));
-  while (yTickCount > 1) {
-    const labels = [];
-    for (let i = 0; i <= yTickCount; i += 1) {
-      const t = i / yTickCount;
-      const displayVal = minValue + t * yRange;
-      const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
-      labels.push(formatRoiTick(actualVal));
-    }
-    const maxLabel = measureMaxLabel(labels);
-    const spacing = drawableHeight / yTickCount;
-    if (maxLabel + 6 <= spacing) break;
-    yTickCount -= 1;
-  }
-  const yTickLabels = [];
-  for (let i = 0; i <= yTickCount; i += 1) {
-    const t = i / yTickCount;
-    const displayVal = minValue + t * yRange;
-    const actualVal = logScale ? Math.pow(10, displayVal) - 1 : displayVal;
-    yTickLabels.push(formatRoiTick(actualVal));
-  }
-  const maxYLabelWidth = measureMaxLabel(yTickLabels);
-  const padL = Math.max(40, Math.ceil(maxYLabelWidth + 24));
-  const drawableWidth = Math.max(4, width - padL - padR);
-
-  let xTickCount = Math.max(2, Math.min(4, Math.floor(drawableWidth / 90)));
-  while (xTickCount > 1) {
-    const labels = [];
-    for (let i = 0; i <= xTickCount; i += 1) {
-      const t = i / xTickCount;
-      const xValue = xStart + t * (values.length - 1) * xStep;
-      labels.push(formatXAxisTick(xValue));
-    }
-    const maxLabel = measureMaxLabel(labels);
-    const spacing = drawableWidth / xTickCount;
-    if (maxLabel + 6 <= spacing) break;
-    xTickCount -= 1;
-  }
-
-  ctx.strokeStyle = PLOT_THEME.axis;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(padL, padT);
-  ctx.lineTo(padL, padT + drawableHeight);
-  ctx.lineTo(padL + drawableWidth, padT + drawableHeight);
-  ctx.stroke();
-
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  for (let i = 0; i <= xTickCount; i += 1) {
-    const t = i / xTickCount;
-    const x = padL + t * drawableWidth;
-    ctx.strokeStyle = PLOT_THEME.grid;
-    ctx.beginPath();
-    ctx.moveTo(x, padT);
-    ctx.lineTo(x, padT + drawableHeight);
-    ctx.stroke();
-    ctx.strokeStyle = PLOT_THEME.axis;
-    ctx.beginPath();
-    ctx.moveTo(x, padT + drawableHeight);
-    ctx.lineTo(x, padT + drawableHeight + 4);
-    ctx.stroke();
-    const xValue = xStart + t * (values.length - 1) * xStep;
-    ctx.fillText(formatXAxisTick(xValue), x, padT + drawableHeight + 6);
-  }
-
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
-  for (let i = 0; i <= yTickCount; i += 1) {
-    const t = i / yTickCount;
-    const y = padT + drawableHeight - t * drawableHeight;
-    ctx.strokeStyle = PLOT_THEME.grid;
-    ctx.beginPath();
-    ctx.moveTo(padL, y);
-    ctx.lineTo(padL + drawableWidth, y);
-    ctx.stroke();
-    ctx.strokeStyle = PLOT_THEME.axis;
-    ctx.beginPath();
-    ctx.moveTo(padL - 4, y);
-    ctx.lineTo(padL, y);
-    ctx.stroke();
-    const yLabelText = yTickLabels[i] || "";
-    ctx.fillText(yLabelText, padL - 8, y);
-  }
-
-  if (seriesType === "histogram") {
-    const barWidth = drawableWidth / Math.max(1, values.length);
-    ctx.fillStyle = "rgba(198, 220, 255, 0.88)";
-    values.forEach((v, i) => {
-      if (!Number.isFinite(v)) return;
-      const yNorm = yRange ? (v - minValue) / yRange : 0;
-      const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
-      const x = padL + i * barWidth;
-      const w = Math.max(1, barWidth - 1);
-      const h = Math.max(1, padT + drawableHeight - y);
-      ctx.fillRect(x + 0.5, y, w, h);
-    });
-  } else {
-    ctx.strokeStyle = PLOT_THEME.line;
-    ctx.lineWidth = 1;
-    ctx.shadowColor = PLOT_THEME.lineGlow;
-    ctx.shadowBlur = 2;
-    ctx.beginPath();
-    let hasSegment = false;
-    values.forEach((v, i) => {
-      if (!Number.isFinite(v)) {
-        hasSegment = false;
-        return;
-      }
-      const x = padL + (i / Math.max(1, values.length - 1)) * drawableWidth;
-      const yNorm = yRange ? (v - minValue) / yRange : 0;
-      const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
-      if (!hasSegment) {
-        ctx.moveTo(x, y);
-        hasSegment = true;
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  }
-
-  const xLabel = plotMeta.xLabel || "Index";
-  const yLabel = plotMeta.yLabel || "Value";
-  const xMinActual = xStart;
-  const xMaxActual = xStart + (values.length - 1) * xStep;
-  const yMinActual = logScale ? Math.max(0, Math.pow(10, minValue) - 1) : minValue;
-  const yMaxActual = logScale ? Math.max(0, Math.pow(10, maxValue) - 1) : maxValue;
-  ctx.fillStyle = PLOT_THEME.text;
-  ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
-  ctx.textAlign = "center";
-  ctx.fillText(xLabel, padL + drawableWidth / 2, height - 4);
-  ctx.save();
-  ctx.translate(Math.max(8, padL - maxYLabelWidth - 16), padT + drawableHeight / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.fillText(yLabel, 0, 0);
-  ctx.restore();
-
-  canvasEl._roiPlot = {
-    data: visibleData,
-    log: logScale,
-    xLabel,
-    yLabel,
-    padL,
-    padR,
-    padT,
-    padB,
-    width,
-    height,
-    xStart,
-    xStep,
-    xTickMode,
-    totalXMin: totalMinX,
-    totalXMax: totalMaxX,
-    totalYMin: totalMinY,
-    totalYMax: totalMaxY,
-    xMin: xMinActual,
-    xMax: xMaxActual,
-    yMin: yMinActual,
-    yMax: yMaxActual,
-  };
-  ctx.strokeStyle = PLOT_THEME.frame;
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 }
 
 function exportRoiCsv() {
@@ -1198,64 +805,29 @@ function exportRoiCsv() {
     setStatus("No ROI data to export");
     return;
   }
-  const sections = [];
-  const formatNum = (value) => (Number.isFinite(value) ? String(value) : "");
-
-  const addSection = (title, data, meta, allowEmpty = false) => {
-    if (!allowEmpty && (!data || !data.length)) return;
-    const xLabel = meta?.xLabel || "Index";
-    const yLabel = meta?.yLabel || "Value";
-    const xStart = Number.isFinite(meta?.xStart) ? meta.xStart : 0;
-    const xStep = Number.isFinite(meta?.xStep) && meta.xStep !== 0 ? meta.xStep : 1;
-    sections.push(`# ${title}`);
-    sections.push(`${xLabel},${yLabel}`);
-    if (data && data.length) data.forEach((value, idx) => {
-      const xVal = xStart + idx * xStep;
-      sections.push(`${formatNum(xVal)},${formatNum(value)}`);
-    });
-    sections.push("");
-  };
-
-  if (roiState.lineProfile && roiState.lineProfile.length) {
-    addSection(
-      roiState.mode === "line" ? "Line Profile" : "Radial Profile",
-      roiState.lineProfile,
-      roiLineCanvas?._roiPlotMeta,
-    );
-  }
-  const allowBoxEmpty = roiState.mode === "box";
-  if (roiState.xProjection && roiState.xProjection.length) {
-    addSection("X Projection", roiState.xProjection, roiXCanvas?._roiPlotMeta, allowBoxEmpty);
-  } else if (allowBoxEmpty) {
-    addSection("X Projection", roiState.xProjection || [], roiXCanvas?._roiPlotMeta, true);
-  }
-  if (roiState.yProjection && roiState.yProjection.length) {
-    addSection("Y Projection", roiState.yProjection, roiYCanvas?._roiPlotMeta, allowBoxEmpty);
-  } else if (allowBoxEmpty) {
-    addSection("Y Projection", roiState.yProjection || [], roiYCanvas?._roiPlotMeta, true);
-  }
-  if (roiState.histogramDistribution && roiState.histogramDistribution.length) {
-    addSection("ROI Histogram", roiState.histogramDistribution, roiHistCanvas?._roiPlotMeta);
-  }
-
-  if (!sections.length) {
+  const payload = buildRoiCsvExportPayload({
+    state,
+    roiState,
+    lineMeta: roiLineCanvas?._roiPlotMeta,
+    xMeta: roiXCanvas?._roiPlotMeta,
+    yMeta: roiYCanvas?._roiPlotMeta,
+    histMeta: roiHistCanvas?._roiPlotMeta,
+  });
+  if (!payload) {
     setStatus("No ROI projection data to export");
     return;
   }
 
-  const base = (state.file || "roi").split("/").pop().replace(/\.[^.]+$/, "");
-  const thresholdSuffix = state.thresholdCount > 1 ? `_thr${state.thresholdIndex + 1}` : "";
-  const filename = `${base}_frame_${state.frameIndex + 1}${thresholdSuffix}_roi_${roiState.mode}.csv`;
-  const blob = new Blob([sections.join("\n")], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob([payload.content], { type: "text/csv;charset=utf-8" });
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
   link.href = url;
-  link.download = filename;
+  link.download = payload.filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  setStatus(`Exported ROI CSV: ${filename}`);
+  setStatus(`Exported ROI CSV: ${payload.filename}`);
 }
 
   return {

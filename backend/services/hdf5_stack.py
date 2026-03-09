@@ -13,6 +13,28 @@ from typing import Any
 import numpy as np
 from fastapi import HTTPException
 
+from .hdf5_units import (
+    coerce_scalar as _coerce_scalar,
+)
+from .hdf5_units import (
+    get_units as _get_units,
+)
+from .hdf5_units import (
+    norm_unit as _norm_unit,
+)
+from .hdf5_units import (
+    to_ev as _to_ev,
+)
+from .hdf5_units import (
+    to_mm as _to_mm,
+)
+from .hdf5_units import (
+    to_um as _to_um,
+)
+from .hdf5_units import (
+    wavelength_to_ev as _wavelength_to_ev,
+)
+
 MASK_PATHS = (
     "/entry/instrument/detector/detectorSpecific/pixel_mask",
     "/entry/instrument/detector/pixel_mask",
@@ -210,32 +232,11 @@ class HDF5StackService:
 
     @staticmethod
     def coerce_scalar(value: Any) -> float | None:
-        try:
-            if isinstance(value, np.ndarray):
-                if value.size == 0:
-                    return None
-                value = value.reshape(-1)[0]
-            if isinstance(value, np.generic):
-                value = value.item()
-            return float(value)
-        except Exception:
-            return None
+        return _coerce_scalar(value)
 
     @staticmethod
     def get_units(obj: Any) -> str | None:
-        try:
-            units = obj.attrs.get("units") or obj.attrs.get("unit")
-            if isinstance(units, bytes):
-                return units.decode("utf-8", "replace")
-            if isinstance(units, np.ndarray) and units.size == 1:
-                units = units.reshape(-1)[0]
-            if isinstance(units, np.generic):
-                units = units.item()
-            if isinstance(units, bytes):
-                return units.decode("utf-8", "replace")
-            return str(units) if units is not None else None
-        except Exception:
-            return None
+        return _get_units(obj)
 
     def read_scalar(self, h5: Any, paths: list[str]) -> tuple[float | None, str | None]:
         h5py = self.get_h5py()
@@ -255,68 +256,19 @@ class HDF5StackService:
 
     @staticmethod
     def norm_unit(unit: str | None) -> str:
-        return (unit or "").strip().lower().replace("µ", "u")
+        return _norm_unit(unit)
 
     def to_mm(self, value: float, unit: str | None) -> float:
-        u = self.norm_unit(unit)
-        if u in {"m", "meter", "metre", "meters", "metres"}:
-            return value * 1000
-        if u in {"cm", "centimeter", "centimetre", "centimeters", "centimetres"}:
-            return value * 10
-        if u in {"mm", "millimeter", "millimetre", "millimeters", "millimetres"}:
-            return value
-        if u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
-            return value / 1000
-        if u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
-            return value / 1e6
-        if value < 0.5:
-            return value * 1000
-        return value
+        return _to_mm(value, unit)
 
     def to_um(self, value: float, unit: str | None) -> float:
-        u = self.norm_unit(unit)
-        if u in {"m", "meter", "metre", "meters", "metres"}:
-            return value * 1e6
-        if u in {"cm", "centimeter", "centimetre", "centimeters", "centimetres"}:
-            return value * 1e4
-        if u in {"mm", "millimeter", "millimetre", "millimeters", "millimetres"}:
-            return value * 1000
-        if u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
-            return value
-        if u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
-            return value / 1000
-        if value < 1e-2:
-            return value * 1e6
-        if value < 1:
-            return value * 1000
-        return value
+        return _to_um(value, unit)
 
     def to_ev(self, value: float, unit: str | None) -> float:
-        u = self.norm_unit(unit)
-        if u in {"kev", "kiloelectronvolt", "kiloelectronvolts"}:
-            return value * 1000
-        if u in {"ev", "electronvolt", "electronvolts"}:
-            return value
-        if value < 1000:
-            return value * 1000
-        return value
+        return _to_ev(value, unit)
 
     def wavelength_to_ev(self, value: float, unit: str | None) -> float | None:
-        u = self.norm_unit(unit)
-        wavelength_m = None
-        if u in {"m", "meter", "metre", "meters", "metres"}:
-            wavelength_m = value
-        elif u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
-            wavelength_m = value * 1e-9
-        elif u in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
-            wavelength_m = value * 1e-6
-        elif u in {"a", "ang", "angstrom", "angstroms"}:
-            wavelength_m = value * 1e-10
-        elif value < 1e-6:
-            wavelength_m = value
-        if wavelength_m is None or wavelength_m <= 0:
-            return None
-        return 12398.4193 / (wavelength_m * 1e10)
+        return _wavelength_to_ev(value, unit)
 
     @staticmethod
     def read_threshold_energies(h5: Any, count: int) -> list[float | None]:
@@ -501,7 +453,7 @@ class HDF5StackService:
         filtered.extend(synthetic)
         return filtered
 
-    def resolve_node(self, h5: Any, base_file: Path, path: str) -> tuple[Any, Path, list[Any]]:
+    def _resolve_path_node(self, h5: Any, base_file: Path, path: str) -> tuple[Any, Path, list[Any]]:
         h5py = self.get_h5py()
         parts = [p for p in path.strip("/").split("/") if p]
         if not parts:
@@ -550,6 +502,9 @@ class HDF5StackService:
 
             raise
         return current, current_file, opened
+
+    def resolve_node(self, h5: Any, base_file: Path, path: str) -> tuple[Any, Path, list[Any]]:
+        return self._resolve_path_node(h5, base_file, path)
 
     def resolve_group_linked_stack(
         self,
@@ -635,50 +590,13 @@ class HDF5StackService:
 
     def resolve_dataset(self, h5: Any, base_file: Path, dataset: str) -> tuple[Any, list[Any]]:
         h5py = self.get_h5py()
-        parts = [p for p in dataset.strip("/").split("/") if p]
-        if not parts:
+        node, _current_file, opened = self._resolve_path_node(h5, base_file, dataset)
+        if not isinstance(node, h5py.Dataset):
+            for handle in opened:
+                with contextlib.suppress(Exception):
+                    handle.close()
             raise KeyError("Dataset not found")
-        current: Any = h5["/"]
-        current_file = base_file
-        opened: list[Any] = []
-
-        for idx, part in enumerate(parts):
-            if not isinstance(current, h5py.Group):
-                raise KeyError("Dataset not found")
-            link = current.get(part, getlink=True)
-            if link is None:
-                raise KeyError("Dataset not found")
-            if isinstance(link, h5py.ExternalLink):
-                target_path = self.resolve_external_path(current_file, link.filename)
-                if not target_path:
-                    raise KeyError("Dataset not found")
-                try:
-                    target_file = h5py.File(target_path, "r")
-                except OSError as exc:
-                    raise KeyError("Dataset not found") from exc
-                opened.append(target_file)
-                current_file = target_path
-                try:
-                    current = target_file[link.path]
-                except Exception as exc:
-                    raise KeyError("Dataset not found") from exc
-            elif isinstance(link, h5py.SoftLink):
-                try:
-                    current = current[link.path]
-                except Exception as exc:
-                    raise KeyError("Dataset not found") from exc
-            else:
-                try:
-                    current = current[part]
-                except Exception as exc:
-                    raise KeyError("Dataset not found") from exc
-
-            if idx < len(parts) - 1 and isinstance(current, h5py.Dataset):
-                raise KeyError("Dataset not found")
-
-        if not isinstance(current, h5py.Dataset):
-            raise KeyError("Dataset not found")
-        return current, opened
+        return node, opened
 
     def resolve_dataset_view(
         self, h5: Any, base_file: Path, dataset: str

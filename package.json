@@ -1,7 +1,7 @@
 {
   "name": "albis-web-view",
   "private": true,
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "ALBIS - Fast image viewer for DECTRIS detectors",
   "author": "Sascha Andres Grimm",
   "license": "SEE LICENSE IN LICENSE",
@@ -20,10 +20,13 @@
     "scientific-imaging"
   ],
   "scripts": {
-    "lint:js": "eslint frontend/app.js frontend/modules/*.js"
+    "lint:js": "eslint frontend/app.js frontend/modules/*.js",
+    "test:js": "npx -y node@20 ./node_modules/vitest/vitest.mjs run"
   },
   "devDependencies": {
-    "eslint": "^9.20.1"
+    "eslint": "^9.20.1",
+    "jsdom": "^24.1.3",
+    "vitest": "^0.17.1"
   },
   "engines": {
     "node": ">=20"

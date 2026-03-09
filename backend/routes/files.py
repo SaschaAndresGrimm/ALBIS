@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import contextlib
 import os
 import platform
 import re
-import shutil
 import subprocess
 import time
 from collections.abc import Callable
@@ -25,6 +23,15 @@ try:
         SeriesInfoResponse,
         UploadResponse,
     )
+    from ..services.os_actions import (
+        choose_file as _choose_file,
+    )
+    from ..services.os_actions import (
+        choose_folder as _choose_folder,
+    )
+    from ..services.os_actions import (
+        is_applescript_cancel as _is_applescript_cancel,
+    )
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         AutoloadLatestResponse,
@@ -34,6 +41,15 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         PathSelectionResponse,
         SeriesInfoResponse,
         UploadResponse,
+    )
+    from services.os_actions import (  # type: ignore[no-redef]
+        choose_file as _choose_file,
+    )
+    from services.os_actions import (
+        choose_folder as _choose_folder,
+    )
+    from services.os_actions import (
+        is_applescript_cancel as _is_applescript_cancel,
     )
 
 
@@ -70,123 +86,6 @@ def _prefix_paths(root: Path, data_dir: Path, items: list[str]) -> list[str]:
     if prefix in ("", "."):
         return items
     return [f"{prefix}/{item}" for item in items]
-
-
-def _display_available() -> bool:
-    """Return True when a Linux desktop display server is available."""
-    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-
-
-def _run_linux_dialog(cmd: list[str]) -> str | None:
-    """Run a Linux picker command and normalize cancel/error behavior."""
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode == 0:
-        picked = result.stdout.strip()
-        return picked or None
-    if result.returncode in {1, 255}:
-        return None
-    stderr = (result.stderr or "").strip() or "Unknown dialog error"
-    raise RuntimeError(stderr)
-
-
-def _is_applescript_cancel(stderr: str | None) -> bool:
-    """Return True when osascript failed because the user canceled the dialog."""
-    text = (stderr or "").lower()
-    return (
-        "user canceled" in text
-        or "user cancelled" in text
-        or "error: user canceled" in text
-        or "error: user cancelled" in text
-        or "(-128)" in text
-    )
-
-
-def _linux_choose_folder() -> str | None:
-    """Open a native Linux folder picker using zenity/kdialog when available."""
-    if not _display_available():
-        raise RuntimeError("No graphical display available")
-    zenity = shutil.which("zenity")
-    if zenity:
-        return _run_linux_dialog(
-            [zenity, "--file-selection", "--directory", "--title=Select folder"]
-        )
-    kdialog = shutil.which("kdialog")
-    if kdialog:
-        return _run_linux_dialog([kdialog, "--getexistingdirectory", str(Path.home())])
-    raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
-
-
-def _linux_choose_file() -> str | None:
-    """Open a native Linux image-file picker using zenity/kdialog when available."""
-    if not _display_available():
-        raise RuntimeError("No graphical display available")
-    zenity = shutil.which("zenity")
-    if zenity:
-        return _run_linux_dialog(
-            [
-                zenity,
-                "--file-selection",
-                "--title=Select image file",
-                "--file-filter=Image files | *.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf",
-            ]
-        )
-    kdialog = shutil.which("kdialog")
-    if kdialog:
-        return _run_linux_dialog(
-            [
-                kdialog,
-                "--getopenfilename",
-                str(Path.home()),
-                "Image files (*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf)",
-            ]
-        )
-    raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
-
-
-def _tk_choose_folder() -> str | None:
-    """Fallback folder picker for platforms without native dialog integrations."""
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except Exception as exc:
-        raise RuntimeError("Tk folder picker unavailable") from exc
-
-    root = tk.Tk()
-    root.withdraw()
-    with contextlib.suppress(Exception):
-        root.attributes("-topmost", True)
-
-    try:
-        return filedialog.askdirectory(title="Select Auto Load folder") or None
-    finally:
-        root.destroy()
-
-
-def _tk_choose_file() -> str | None:
-    """Fallback file picker for platforms without native dialog integrations."""
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except Exception as exc:
-        raise RuntimeError("Tk file picker unavailable") from exc
-
-    root = tk.Tk()
-    root.withdraw()
-    with contextlib.suppress(Exception):
-        root.attributes("-topmost", True)
-
-    try:
-        return (
-            filedialog.askopenfilename(
-                title="Select image file",
-                filetypes=[
-                    ("Image files", "*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf"),
-                ],
-            )
-            or None
-        )
-    finally:
-        root.destroy()
 
 
 def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
@@ -290,32 +189,12 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             raise HTTPException(status_code=403, detail="Absolute paths are disabled")
         system = platform.system()
         deps.logger.debug("Folder picker requested (os=%s)", system)
-        if system == "Darwin":
-            script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
-            try:
-                result = subprocess.run(
-                    ["osascript", "-e", script],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-            except subprocess.CalledProcessError as exc:
-                if _is_applescript_cancel(exc.stderr):
-                    return Response(status_code=204)
-                raise HTTPException(status_code=500, detail="Folder picker failed") from exc
-            path = result.stdout.strip()
-            if not path:
-                return Response(status_code=204)
-            return PathSelectionResponse(path=path)
-
         try:
-            if system == "Linux":
-                try:
-                    path = _linux_choose_folder()
-                except RuntimeError:
-                    path = _tk_choose_folder()
-            else:
-                path = _tk_choose_folder()
+            path = _choose_folder()
+        except subprocess.CalledProcessError as exc:
+            if _is_applescript_cancel(exc.stderr):
+                return Response(status_code=204)
+            raise HTTPException(status_code=500, detail="Folder picker failed") from exc
         except RuntimeError as exc:
             deps.logger.warning("Folder picker failed (os=%s): %s", system, exc)
             raise HTTPException(
@@ -334,43 +213,20 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             raise HTTPException(status_code=403, detail="Absolute paths are disabled")
         system = platform.system()
         deps.logger.debug("File picker requested (os=%s)", system)
-        if system == "Darwin":
-            script = (
-                'POSIX path of (choose file with prompt "Select image file" '
-                'of type {"h5", "hdf5", "tif", "tiff", "cbf", "cbf.gz", "edf"})'
-            )
-            try:
-                result = subprocess.run(
-                    ["osascript", "-e", script],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-            except subprocess.CalledProcessError as exc:
-                if _is_applescript_cancel(exc.stderr):
-                    return Response(status_code=204)
-                raise HTTPException(status_code=500, detail="File picker failed") from exc
-            else:
-                path = result.stdout.strip()
-                if not path:
-                    return Response(status_code=204)
-        else:
-            try:
-                if system == "Linux":
-                    try:
-                        path = _linux_choose_file()
-                    except RuntimeError:
-                        path = _tk_choose_file()
-                else:
-                    path = _tk_choose_file()
-            except RuntimeError as exc:
-                deps.logger.warning("File picker failed (os=%s): %s", system, exc)
-                raise HTTPException(
-                    status_code=500, detail=f"File picker unavailable: {exc}"
-                ) from exc
-
-            if not path:
+        try:
+            path = _choose_file()
+        except subprocess.CalledProcessError as exc:
+            if _is_applescript_cancel(exc.stderr):
                 return Response(status_code=204)
+            raise HTTPException(status_code=500, detail="File picker failed") from exc
+        except RuntimeError as exc:
+            deps.logger.warning("File picker failed (os=%s): %s", system, exc)
+            raise HTTPException(
+                status_code=500, detail=f"File picker unavailable: {exc}"
+            ) from exc
+
+        if not path:
+            return Response(status_code=204)
         picked = Path(path).expanduser().resolve()
         if deps.image_ext_name(picked.name) not in deps.autoload_exts:
             raise HTTPException(status_code=400, detail="Unsupported file type")

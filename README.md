@@ -38,7 +38,7 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 - **Windows**: Download the `ALBIS-Setup-windows-*.exe` installer.
 - **Linux**: Download the `.tar.gz` and run `scripts/install_linux.sh` for desktop integration.
 
-ALBIS also runs directly in python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
+ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 
 ## Keyboard Shortcuts
 
@@ -61,6 +61,5 @@ For developers looking to build, test, and contribute:
 - [Contributing](CONTRIBUTING.md)
 
 ## Acknowledgements and Contributions
-This projects stand on the shoulder of a giant: ALBULA. Thanks a lot to Volker Pilipp for creating such an intuitive image viewer which set the benchmark.
+This project stands on the shoulders of a giant: ALBULA. Thanks to Volker Pilipp for creating such an intuitive image viewer that set the benchmark.
 Thanks to Tilman Donath and Nicolas Pilet for testing, breaking, and giving useful feedback for improvements.
-

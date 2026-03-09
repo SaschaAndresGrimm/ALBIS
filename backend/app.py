@@ -13,12 +13,13 @@ import os
 import sys
 import tempfile
 import time
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 try:
@@ -57,6 +58,7 @@ try:
     from .routes.system import SystemRouteDeps, register_system_routes
     from .services.hdf5_stack import HDF5StackService
     from .services.jungfraujoch_preview import JungfraujochPreviewBridge
+    from .services.path_policy import PathPolicy
     from .services.remote_stream import (
         remote_extract_metadata as _remote_extract_metadata,
     )
@@ -134,6 +136,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from routes.system import SystemRouteDeps, register_system_routes
     from services.hdf5_stack import HDF5StackService
     from services.jungfraujoch_preview import JungfraujochPreviewBridge
+    from services.path_policy import PathPolicy
     from services.remote_stream import (
         remote_extract_metadata as _remote_extract_metadata,
     )
@@ -285,29 +288,25 @@ _handoff_jobs: list[dict[str, Any]] = []
 _handoff_next_id = 1
 
 
-@app.on_event("startup")
-async def _log_startup_banner() -> None:
-    """Log startup paths once per serving process.
-
-    Keep this out of module import time so uvicorn reload supervisors do not
-    spam repeated startup lines.
-    """
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Log startup details and cleanly stop background workers on shutdown."""
     global _startup_banner_logged
-    if _startup_banner_logged:
-        return
-    _startup_banner_logged = True
-    pid = os.getpid()
-    logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
-    logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
-
-
-@app.on_event("shutdown")
-async def _shutdown_services() -> None:
-    """Stop background service workers during API shutdown."""
+    if not _startup_banner_logged:
+        _startup_banner_logged = True
+        pid = os.getpid()
+        logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
+        logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
     try:
-        jfjoch_preview.stop()
-    except Exception:
-        logger.exception("Failed to stop JUNGFRAUJOCH preview bridge on shutdown")
+        yield
+    finally:
+        try:
+            jfjoch_preview.stop()
+        except Exception:
+            logger.exception("Failed to stop JUNGFRAUJOCH preview bridge on shutdown")
+
+
+app.router.lifespan_context = _lifespan
 
 
 @app.middleware("http")
@@ -339,107 +338,42 @@ async def log_requests(request, call_next):
     return response
 
 
+path_policy = PathPolicy(
+    data_dir=runtime_state.data_dir,
+    autoload_exts=AUTOLOAD_EXTS,
+    image_ext_name=_image_ext_name,
+    allow_abs_paths=lambda: runtime_state.allow_abs_paths,
+)
+
+
 def _safe_rel_path(name: str) -> Path:
     """Validate user-provided relative paths and block traversal/dot-prefix segments."""
-    if not name:
-        raise HTTPException(status_code=400, detail="Invalid file name")
-    if name.startswith(("/", "\\")):
-        raise HTTPException(status_code=400, detail="Invalid file name")
-    raw = Path(name)
-    if raw.is_absolute():
-        raise HTTPException(status_code=400, detail="Invalid file name")
-    if any(part == ".." or part.startswith(".") for part in raw.parts):
-        raise HTTPException(status_code=400, detail="Invalid file name")
-    return raw
+    return path_policy.safe_rel_path(name)
 
 
 def _resolve_file(name: str) -> Path:
     """Resolve an HDF5 file from relative data-root paths or approved absolute paths."""
-    raw = Path(name)
-    if raw.is_absolute():
-        if not runtime_state.allow_abs_paths:
-            raise HTTPException(status_code=400, detail="Absolute paths are disabled")
-        path = raw.expanduser().resolve()
-        if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
-            raise HTTPException(status_code=404, detail="File not found")
-        return path
-    safe = _safe_rel_path(name)
-    path = (runtime_state.data_dir / safe).resolve()
-    if not _is_within(path, runtime_state.data_dir.resolve()):
-        raise HTTPException(status_code=400, detail="Invalid file name")
-    if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
-        raise HTTPException(status_code=404, detail="File not found")
-    return path
+    return path_policy.resolve_hdf5_file(name)
 
 
 def _resolve_dir(name: str | None) -> Path:
     """Resolve a browse/autoload directory with the same safety rules as file resolution."""
-    if name is None:
-        return runtime_state.data_dir.resolve()
-    trimmed = name.strip()
-    if trimmed in ("", ".", "./"):
-        return runtime_state.data_dir.resolve()
-    raw = Path(trimmed)
-    if raw.is_absolute():
-        if not runtime_state.allow_abs_paths:
-            raise HTTPException(status_code=400, detail="Absolute paths are disabled")
-        path = raw.expanduser().resolve()
-        if not path.exists() or not path.is_dir():
-            raise HTTPException(status_code=404, detail="Directory not found")
-        return path
-    safe = _safe_rel_path(trimmed)
-    path = (runtime_state.data_dir / safe).resolve()
-    if not _is_within(path, runtime_state.data_dir.resolve()):
-        raise HTTPException(status_code=400, detail="Invalid directory")
-    if not path.exists() or not path.is_dir():
-        raise HTTPException(status_code=404, detail="Directory not found")
-    return path
+    return path_policy.resolve_dir(name)
 
 
 def _resolve_image_file(name: str) -> Path:
     """Resolve any supported image file path constrained by runtime path policy."""
-    raw = Path(name)
-    if raw.is_absolute():
-        if not runtime_state.allow_abs_paths:
-            raise HTTPException(status_code=400, detail="Absolute paths are disabled")
-        path = raw.expanduser().resolve()
-        if not path.exists() or _image_ext_name(path.name) not in AUTOLOAD_EXTS:
-            raise HTTPException(status_code=404, detail="File not found")
-        return path
-    safe = _safe_rel_path(name)
-    path = (runtime_state.data_dir / safe).resolve()
-    if not _is_within(path, runtime_state.data_dir.resolve()):
-        raise HTTPException(status_code=400, detail="Invalid file name")
-    if not path.exists() or _image_ext_name(path.name) not in AUTOLOAD_EXTS:
-        raise HTTPException(status_code=404, detail="File not found")
-    return path
+    return path_policy.resolve_image_file(name)
 
 
 def _is_within(path: Path, root: Path) -> bool:
     """Return True when `path` is inside `root` after normalization."""
-    try:
-        path.relative_to(root)
-        return True
-    except ValueError:
-        return False
+    return PathPolicy.is_within(path, root)
 
 
 def _parse_ext_filter(exts: str | None) -> set[str]:
     """Normalize comma-separated extension filters to the supported autoload set."""
-    if not exts:
-        return set(AUTOLOAD_EXTS)
-    cleaned: set[str] = set()
-    for raw in exts.split(","):
-        token = raw.strip().lower()
-        if not token:
-            continue
-        if not token.startswith("."):
-            token = f".{token}"
-        cleaned.add(token)
-        if token == ".cbf":
-            cleaned.add(".cbf.gz")
-    allowed = cleaned.intersection(AUTOLOAD_EXTS)
-    return allowed or set(AUTOLOAD_EXTS)
+    return path_policy.parse_ext_filter(exts)
 
 
 def _iter_entries(root: Path, max_depth: int | None):
