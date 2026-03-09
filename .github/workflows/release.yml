@@ -79,16 +79,13 @@ jobs:
       - name: Build package
         run: ./scripts/build_linux.sh
 
-      - name: Generate checksums
-        run: |
-          cd dist
-          find . -maxdepth 1 -type f ! -name "SHA256SUMS.txt" -exec sha256sum {} + | sort > SHA256SUMS.txt
-
       - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
           name: release-assets-linux
-          path: dist/*
+          path: |
+            dist/*.tar.gz
+            dist/*.AppImage
 
   build_windows:
     name: Build Windows Artifact
@@ -108,23 +105,13 @@ jobs:
       - name: Build package
         run: .\scripts\build_windows.ps1
 
-      - name: Generate checksums
-        shell: pwsh
-        run: |
-          $lines = Get-ChildItem dist -File |
-            Where-Object { $_.Name -ne "SHA256SUMS.txt" } |
-            Sort-Object Name |
-            ForEach-Object {
-              $h = Get-FileHash $_.FullName -Algorithm SHA256
-              "{0}  {1}" -f $h.Hash.ToLowerInvariant(), $_.Name
-            }
-          Set-Content -Path dist\SHA256SUMS.txt -Value $lines -Encoding ascii
-
       - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
           name: release-assets-windows
-          path: dist/*
+          path: |
+            dist/*.zip
+            dist/*.exe
 
   build_macos:
     name: Build macOS Artifact
@@ -149,20 +136,13 @@ jobs:
       - name: Build package
         run: ./scripts/build_mac.sh
 
-      - name: Generate checksums
-        run: |
-          cd dist
-          for f in *; do
-            if [ -f "$f" ] && [ "$f" != "SHA256SUMS.txt" ]; then
-              shasum -a 256 "$f"
-            fi
-          done | sort > SHA256SUMS.txt
-
       - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
           name: release-assets-macos
-          path: dist/*
+          path: |
+            dist/*.zip
+            dist/*.dmg
 
   publish:
     name: Publish GitHub Release
@@ -170,34 +150,41 @@ jobs:
     needs: [build_linux, build_windows, build_macos]
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - name: Download Linux assets
+      - name: Download release assets
         uses: actions/download-artifact@v4
         with:
-          name: release-assets-linux
-          path: dist/linux
-
-      - name: Download Windows assets
-        uses: actions/download-artifact@v4
-        with:
-          name: release-assets-windows
-          path: dist/windows
-
-      - name: Download macOS assets
-        uses: actions/download-artifact@v4
-        with:
-          name: release-assets-macos
-          path: dist/macos
+          pattern: release-assets-*
+          path: dist
+          merge-multiple: true
 
       - name: Prepare release bundle
         run: |
           mkdir -p release-dist
-          find dist -type f ! -name "SHA256SUMS.txt" -exec cp {} release-dist/ \;
+          find dist -maxdepth 1 -type f -exec cp {} release-dist/ \;
           cd release-dist
           sha256sum * | sort > SHA256SUMS.txt
 
-      - name: Publish release
+      - name: Publish release (attempt 1)
+        id: publish_release
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          files: release-dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          overwrite_files: true
+
+      - name: Cooldown before retry
+        if: steps.publish_release.outcome == 'failure'
+        run: |
+          echo "Release publish attempt failed; sleeping 180s before retry (possible secondary rate limit)."
+          sleep 180
+
+      - name: Publish release (retry)
+        if: steps.publish_release.outcome == 'failure'
         uses: softprops/action-gh-release@v2
         with:
           files: release-dist/*
           generate_release_notes: true
           fail_on_unmatched_files: true
+          overwrite_files: true

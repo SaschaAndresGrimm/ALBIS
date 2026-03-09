@@ -83,7 +83,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-linux-${{ github.run_id }}
-          path: dist/*
+          path: |
+            dist/*.tar.gz
+            dist/*.AppImage
+            dist/SHA256SUMS.txt
           retention-days: 14
 
   build_windows:
@@ -121,7 +124,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-windows-${{ github.run_id }}
-          path: dist/*
+          path: |
+            dist/*.zip
+            dist/*.exe
+            dist/SHA256SUMS.txt
           retention-days: 14
 
   build_macos:
@@ -161,5 +167,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-macos-${{ github.run_id }}
-          path: dist/*
+          path: |
+            dist/*.zip
+            dist/*.dmg
+            dist/SHA256SUMS.txt
           retention-days: 14
