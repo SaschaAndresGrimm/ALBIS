@@ -32,6 +32,14 @@ Use this to verify packaging and checks before tagging:
 
 Note: on manual dispatch from a branch, the `publish` job is intentionally skipped.
 
+### Optional: Artifacts-Only Branch Build
+
+Use the `Build Artifacts` workflow for branch testing without creating a tag/release.
+
+1. Open GitHub Actions and run `Build Artifacts` on your target branch.
+2. Optionally enable `run_verify` to execute quality gates before packaging.
+3. Download artifacts (`artifacts-linux-*`, `artifacts-windows-*`, `artifacts-macos-*`) and inspect local install/run behavior.
+
 ## 4. Create and Publish Release Tag
 
 ```bash
