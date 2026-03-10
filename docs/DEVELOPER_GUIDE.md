@@ -109,8 +109,8 @@ Build scripts for Linux/Windows now use an **isolated build venv by default** (`
 ```
 
 This produces versioned artifacts in `dist/`, e.g.:
-- `ALBIS-macos-<os_version>-v<version>-<commit>.zip`
-- `ALBIS-macos-<os_version>-v<version>-<commit>.dmg`
+- `ALBIS-macos-<arch>-v<version>-<commit>.zip`
+- `ALBIS-macos-<arch>-v<version>-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
@@ -123,8 +123,8 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 ```
 
 Example output:
-- `ALBIS-linux-<distro_version>-v<version>-<commit>.tar.gz`
-- `ALBIS-linux-<distro_version>-v<version>-<commit>.AppImage`
+- `ALBIS-linux-<arch>-v<version>-<commit>.tar.gz`
+- `ALBIS-linux-<arch>-v<version>-<commit>.AppImage`
 - `install_linux_appimage.sh` and `uninstall_linux.sh` (kept in `scripts/`; release workflow bundles them with the AppImage)
 
 Optional build env controls:
@@ -135,13 +135,14 @@ Optional build env controls:
 `scripts/package_linux_appimage.sh` requires `appimagetool` on `PATH`.
 
 Public GitHub Releases publish a Linux bundle:
-- `ALBIS-linux-<distro_version>-v<version>-<commit>-appimage-bundle.tar.gz`
+- `ALBIS-linux-<arch>-v<version>-<commit>-appimage-bundle.tar.gz`
   - includes `.AppImage`, `install_linux_appimage.sh`, and `uninstall_linux.sh`
+  - release also includes standalone `ALBIS-linux-<arch>-v<version>-<commit>.AppImage` and `.tar.gz` assets
 
 Recommended local desktop integration (user scope, AppImage):
 
 ```bash
-./scripts/install_linux_appimage.sh dist/ALBIS-linux-<distro_version>-v<version>-<commit>.AppImage
+./scripts/install_linux_appimage.sh dist/ALBIS-linux-<arch>-v<version>-<commit>.AppImage
 ```
 
 Manual tarball integration (user scope):
@@ -172,13 +173,21 @@ To also remove `~/ALBIS-data` and `~/.config/albis`:
 ```
 
 Example output:
-- `ALBIS-windows-<os_version>-v<version>-<commit>.zip`
-- `ALBIS-Setup-windows-<os_version>-v<version>-<commit>.exe`
+- `ALBIS-windows-<arch>-v<version>-<commit>.zip`
+- `ALBIS-Setup-windows-<arch>-v<version>-<commit>.exe`
 
 Optional build env controls:
 - `$env:ALBIS_BUILD_ISOLATED = "0"` uses your current Python environment.
 - `$env:ALBIS_BUILD_CLEAN_VENV = "0"` reuses an existing build venv.
 - `$env:ALBIS_BUILD_VENV = "C:\\path\\to\\venv"` overrides the build venv location.
+
+Cross-target naming controls (all platforms):
+- `ALBIS_TARGET_OS=<linux|windows|macos>` overrides normalized target OS tag.
+- `ALBIS_TARGET_ARCH=<x64|arm64|...>` overrides normalized target architecture tag.
+
+Optional signing/notarization environment variables used by CI:
+- macOS: `MACOS_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`
+- Windows: `WINDOWS_SIGN_CERT_B64`, `WINDOWS_SIGN_CERT_PASSWORD`, `WINDOWS_SIGN_TIMESTAMP_URL`
 
 The Inno installer creates Start Menu entries for:
 - `ALBIS`
@@ -190,6 +199,11 @@ Installer defaults:
 - Per-user install scope under `%LOCALAPPDATA%\Programs\ALBIS`.
 - No admin rights required (`PrivilegesRequired=lowest`).
 - Portable `.zip` remains available from local builds and the `Build Artifacts` workflow.
+
+Public GitHub Releases publish architecture-specific install + portable assets:
+- macOS: `ALBIS-macos-arm64-*` and `ALBIS-macos-x64-*` (`.dmg` + `.zip`)
+- Windows: `ALBIS-Setup-windows-x64-*` + `ALBIS-windows-x64-*.zip`
+- Linux: `ALBIS-linux-x64-*` (`.tar.gz` + `.AppImage` + appimage bundle tarball)
 
 ### Output
 

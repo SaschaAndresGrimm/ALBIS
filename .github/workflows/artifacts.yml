@@ -59,10 +59,21 @@ jobs:
         run: npm run test:js
 
   build_linux:
-    name: Build Linux Artifact
+    name: Build Linux Artifact (${{ matrix.target }})
     if: ${{ always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
     runs-on: ubuntu-latest
     needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target_os: linux
+            target_arch: x64
+            target: linux-x64
+            expected_uname: x86_64
+    env:
+      ALBIS_TARGET_OS: ${{ matrix.target_os }}
+      ALBIS_TARGET_ARCH: ${{ matrix.target_arch }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,6 +84,15 @@ jobs:
           cache-dependency-path: |
             backend/requirements.txt
             scripts/build_linux.sh
+            scripts/package_linux_appimage.sh
+
+      - name: Assert runner architecture
+        run: |
+          actual="$(uname -m)"
+          if [ "$actual" != "${{ matrix.expected_uname }}" ]; then
+            echo "Unexpected runner architecture: $actual (expected ${{ matrix.expected_uname }})"
+            exit 1
+          fi
 
       - name: Install appimagetool
         run: |
@@ -92,34 +112,85 @@ jobs:
       - name: Build AppImage package
         run: ./scripts/package_linux_appimage.sh
 
+      - name: Smoke test packaged binary
+        run: python scripts/smoke_packaged_binary.py --binary dist/ALBIS/ALBIS --startup-timeout 60
+
+      - name: Build Linux AppImage installer bundle
+        run: |
+          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1)"
+          if [ -z "$appimage" ]; then
+            echo "No AppImage produced in dist/"
+            exit 1
+          fi
+          base="$(basename "$appimage" .AppImage)"
+          bundle_dir="dist/${base}-bundle"
+          rm -rf "$bundle_dir"
+          mkdir -p "$bundle_dir"
+          cp "$appimage" "$bundle_dir/"
+          cp scripts/install_linux_appimage.sh "$bundle_dir/install_linux_appimage.sh"
+          cp scripts/uninstall_linux.sh "$bundle_dir/uninstall_linux.sh"
+          chmod +x "$bundle_dir/install_linux_appimage.sh" "$bundle_dir/uninstall_linux.sh"
+          tar -czf "dist/${base}-appimage-bundle.tar.gz" -C "$bundle_dir" .
+
       - name: Bundle Linux helper scripts
         run: |
           cp scripts/install_linux_appimage.sh dist/install_linux_appimage.sh
           cp scripts/uninstall_linux.sh dist/uninstall_linux.sh
           chmod +x dist/install_linux_appimage.sh dist/uninstall_linux.sh
 
+      - name: Verify package integrity
+        run: |
+          set -euo pipefail
+          tarball="$(ls dist/ALBIS-${{ matrix.target }}-*.tar.gz | grep -v 'appimage-bundle' | head -n1 || true)"
+          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1 || true)"
+          bundle="$(ls dist/ALBIS-${{ matrix.target }}-*-appimage-bundle.tar.gz | head -n1 || true)"
+
+          [ -n "$tarball" ] || { echo "Missing Linux tarball"; exit 1; }
+          [ -n "$appimage" ] || { echo "Missing Linux AppImage"; exit 1; }
+          [ -n "$bundle" ] || { echo "Missing Linux AppImage bundle"; exit 1; }
+
+          tar -tzf "$tarball" >/dev/null
+          tar -tzf "$bundle" >/dev/null
+          test -x "$appimage"
+          file "$appimage"
+
       - name: Generate checksums
         run: |
           cd dist
-          find . -maxdepth 1 -type f ! -name "SHA256SUMS.txt" -exec sha256sum {} + | sort > SHA256SUMS.txt
+          find . -maxdepth 1 -type f \( -name "ALBIS-${{ matrix.target }}-*" -o -name "install_linux_appimage.sh" -o -name "uninstall_linux.sh" \) \
+            -exec sha256sum {} + | sort > SHA256SUMS.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-linux-${{ github.run_id }}
+          name: artifacts-${{ matrix.target }}-${{ github.run_id }}
           path: |
-            dist/*.tar.gz
-            dist/*.AppImage
+            dist/ALBIS-${{ matrix.target }}-*.tar.gz
+            dist/ALBIS-${{ matrix.target }}-*.AppImage
             dist/install_linux_appimage.sh
             dist/uninstall_linux.sh
             dist/SHA256SUMS.txt
           retention-days: 14
 
   build_windows:
-    name: Build Windows Artifact
+    name: Build Windows Artifact (${{ matrix.target }})
     if: ${{ always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
     runs-on: windows-latest
     needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target_os: windows
+            target_arch: x64
+            target: windows-x64
+            expected_arch: AMD64
+    env:
+      ALBIS_TARGET_OS: ${{ matrix.target_os }}
+      ALBIS_TARGET_ARCH: ${{ matrix.target_arch }}
+      WINDOWS_SIGN_CERT_B64: ${{ secrets.WINDOWS_SIGN_CERT_B64 }}
+      WINDOWS_SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_CERT_PASSWORD }}
+      WINDOWS_SIGN_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGN_TIMESTAMP_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -130,22 +201,84 @@ jobs:
           cache-dependency-path: |
             backend/requirements.txt
             scripts/build_windows.ps1
+            scripts/package_windows_innosetup.ps1
+
+      - name: Assert runner architecture
+        shell: pwsh
+        run: |
+          if ($env:PROCESSOR_ARCHITECTURE -ne "${{ matrix.expected_arch }}") {
+            throw "Unexpected runner architecture: $env:PROCESSOR_ARCHITECTURE (expected ${{ matrix.expected_arch }})"
+          }
 
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup --no-progress -y
 
       - name: Build portable package
+        shell: pwsh
         run: .\scripts\build_windows.ps1
 
+      - name: Smoke test packaged binary
+        shell: pwsh
+        run: python .\scripts\smoke_packaged_binary.py --binary .\dist\ALBIS\ALBIS.exe --startup-timeout 60
+
+      - name: Sign application payload (optional)
+        shell: pwsh
+        run: .\scripts\sign_windows.ps1 -Files @("dist\\ALBIS\\ALBIS.exe")
+
+      - name: Rebuild portable zip
+        shell: pwsh
+        run: |
+          $versionInfo = python .\scripts\version_info.py --json | ConvertFrom-Json
+          $zip = "dist\\ALBIS-$($versionInfo.target)-$($versionInfo.tag).zip"
+          if (Test-Path $zip) {
+            Remove-Item $zip -Force
+          }
+          Compress-Archive -Path dist\ALBIS -DestinationPath $zip -Force
+
       - name: Build installer package
+        shell: pwsh
         run: .\scripts\package_windows_innosetup.ps1
+
+      - name: Sign installer (optional)
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist -File -Filter "ALBIS-Setup-${{ matrix.target }}-*.exe" | Select-Object -First 1
+          if (-not $installer) {
+            throw "Missing installer for ${{ matrix.target }}"
+          }
+          .\scripts\sign_windows.ps1 -Files @($installer.FullName)
+
+      - name: Verify package integrity
+        shell: pwsh
+        run: |
+          $portable = Get-ChildItem dist -File -Filter "ALBIS-${{ matrix.target }}-*.zip" | Select-Object -First 1
+          $installer = Get-ChildItem dist -File -Filter "ALBIS-Setup-${{ matrix.target }}-*.exe" | Select-Object -First 1
+          if (-not $portable) { throw "Missing portable zip" }
+          if (-not $installer) { throw "Missing installer exe" }
+
+          $extractDir = Join-Path $env:RUNNER_TEMP "albis-zip-check"
+          if (Test-Path $extractDir) {
+            Remove-Item $extractDir -Recurse -Force
+          }
+          Expand-Archive -Path $portable.FullName -DestinationPath $extractDir -Force
+
+          $payloadExe = Join-Path $extractDir "ALBIS\ALBIS.exe"
+          if (-not (Test-Path $payloadExe)) {
+            throw "Portable zip does not contain ALBIS\\ALBIS.exe"
+          }
+
+          $installerSig = Get-AuthenticodeSignature $installer.FullName
+          Write-Host "Installer signature status: $($installerSig.Status)"
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64) -and $installerSig.Status -ne 'Valid') {
+            throw "Expected signed installer, got status $($installerSig.Status)"
+          }
 
       - name: Generate checksums
         shell: pwsh
         run: |
           $lines = Get-ChildItem dist -File |
-            Where-Object { $_.Name -ne "SHA256SUMS.txt" } |
+            Where-Object { $_.Name -like "ALBIS-${{ matrix.target }}-*" -or $_.Name -like "ALBIS-Setup-${{ matrix.target }}-*" } |
             Sort-Object Name |
             ForEach-Object {
               $h = Get-FileHash $_.FullName -Algorithm SHA256
@@ -156,18 +289,39 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-windows-${{ github.run_id }}
+          name: artifacts-${{ matrix.target }}-${{ github.run_id }}
           path: |
-            dist/*.zip
-            dist/*.exe
+            dist/ALBIS-${{ matrix.target }}-*.zip
+            dist/ALBIS-Setup-${{ matrix.target }}-*.exe
             dist/SHA256SUMS.txt
           retention-days: 14
 
   build_macos:
-    name: Build macOS Artifact
+    name: Build macOS Artifact (${{ matrix.target }})
     if: ${{ always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
-    runs-on: macos-latest
+    runs-on: ${{ matrix.runner }}
     needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            target_os: macos
+            target_arch: arm64
+            target: macos-arm64
+            expected_uname: arm64
+          - runner: macos-13
+            target_os: macos
+            target_arch: x64
+            target: macos-x64
+            expected_uname: x86_64
+    env:
+      ALBIS_TARGET_OS: ${{ matrix.target_os }}
+      ALBIS_TARGET_ARCH: ${{ matrix.target_arch }}
+      MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -179,6 +333,14 @@ jobs:
             backend/requirements.txt
             scripts/build_mac.sh
 
+      - name: Assert runner architecture
+        run: |
+          actual="$(uname -m)"
+          if [ "$actual" != "${{ matrix.expected_uname }}" ]; then
+            echo "Unexpected runner architecture: $actual (expected ${{ matrix.expected_uname }})"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -187,21 +349,39 @@ jobs:
       - name: Build package
         run: ./scripts/build_mac.sh
 
+      - name: Smoke test packaged binary
+        run: |
+          binary="dist/ALBIS/ALBIS"
+          if [ -x "dist/ALBIS.app/Contents/MacOS/ALBIS" ]; then
+            binary="dist/ALBIS.app/Contents/MacOS/ALBIS"
+          fi
+          python scripts/smoke_packaged_binary.py --binary "$binary" --startup-timeout 60
+
+      - name: Sign and notarize (optional)
+        run: ./scripts/sign_macos.sh dist/ALBIS.app
+
+      - name: Verify package integrity
+        run: |
+          set -euo pipefail
+          zip_file="$(ls dist/ALBIS-${{ matrix.target }}-*.zip | head -n1 || true)"
+          dmg_file="$(ls dist/ALBIS-${{ matrix.target }}-*.dmg | head -n1 || true)"
+          [ -n "$zip_file" ] || { echo "Missing macOS zip"; exit 1; }
+          [ -n "$dmg_file" ] || { echo "Missing macOS dmg"; exit 1; }
+
+          unzip -tq "$zip_file" >/dev/null
+          hdiutil verify "$dmg_file" >/dev/null
+
       - name: Generate checksums
         run: |
           cd dist
-          for f in *; do
-            if [ -f "$f" ] && [ "$f" != "SHA256SUMS.txt" ]; then
-              shasum -a 256 "$f"
-            fi
-          done | sort > SHA256SUMS.txt
+          find . -maxdepth 1 -type f -name "ALBIS-${{ matrix.target }}-*" -exec shasum -a 256 {} + | sort > SHA256SUMS.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-macos-${{ github.run_id }}
+          name: artifacts-${{ matrix.target }}-${{ github.run_id }}
           path: |
-            dist/*.zip
-            dist/*.dmg
+            dist/ALBIS-${{ matrix.target }}-*.zip
+            dist/ALBIS-${{ matrix.target }}-*.dmg
             dist/SHA256SUMS.txt
           retention-days: 14

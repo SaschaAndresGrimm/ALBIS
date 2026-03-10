@@ -34,9 +34,10 @@ You can download ready-to-use standalone binaries for your operating system. No 
 
 Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page for the latest packages:
 
-- **macOS**: Download the `.dmg` and drag ALBIS to your Applications folder.
-- **Windows**: Download the `ALBIS-Setup-windows-*.exe` installer.
-- **Linux**: Download `ALBIS-linux-*-appimage-bundle.tar.gz`, extract it, then either run the included `.AppImage` directly or use the included `install_linux_appimage.sh` for desktop integration.
+- **macOS Apple Silicon (arm64)**: `ALBIS-macos-arm64-v<version>-<commit>.dmg` (installer) or `.zip` (portable).
+- **macOS Intel (x64)**: `ALBIS-macos-x64-v<version>-<commit>.dmg` (installer) or `.zip` (portable).
+- **Windows x64**: `ALBIS-Setup-windows-x64-v<version>-<commit>.exe` (installer) or `ALBIS-windows-x64-v<version>-<commit>.zip` (portable).
+- **Linux x64**: `ALBIS-linux-x64-v<version>-<commit>-appimage-bundle.tar.gz` (AppImage + install/uninstall scripts), plus standalone `.AppImage` and `.tar.gz` artifacts.
 
 ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 

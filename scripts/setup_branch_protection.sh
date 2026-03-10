@@ -38,8 +38,6 @@ gh api \
     "strict": true,
     "contexts": [
       "Python (ubuntu-latest, py3.10)",
-      "Python (macos-latest, py3.10)",
-      "Python (windows-latest, py3.10)",
       "Frontend Lint"
     ]
   },

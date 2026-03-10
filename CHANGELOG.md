@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.10] - 2026-03-10
+
 ### Added
 
 - `VERSION` as repository version source of truth.
@@ -44,10 +46,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Linux AppImage packaging now includes the full PyInstaller runtime payload (including `_internal`), fixing missing `libpython3.10.so.1.0` at runtime.
 - Artifact/release workflows now build and validate both Linux `.tar.gz` + `.AppImage` and Windows `.zip` + installer `.exe`.
 - Release publish workflow now performs stronger asset checks and multi-step retry backoff for transient GitHub rate limits.
+- Distribution variants now ship as architecture-explicit assets (`linux-x64`, `windows-x64`, `macos-arm64`, `macos-x64`) with stable target naming.
+- Release and artifacts workflows now publish both installer and portable variants per supported OS.
+- Packaging pipeline now includes per-artifact integrity checks, cross-platform packaged-binary smoke tests, and optional signing/notarization hooks.
 
 ### Notes
 
 - This release is called: "No more scavenger hunts for missing runtime files."
+- This release is called: "Now with fewer mysteries and more binaries."
 
 ## [0.8.2] - 2026-02-24
 
@@ -59,6 +65,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.9...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.10...HEAD
+[0.8.10]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.10
 [0.8.9]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.9
 [0.8.2]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.2

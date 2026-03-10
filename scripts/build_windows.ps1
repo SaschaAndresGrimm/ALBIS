@@ -23,13 +23,6 @@ if ($isolatedBuild) {
 $versionInfo = & $pythonExe .\scripts\version_info.py --json | ConvertFrom-Json
 $tag = $versionInfo.tag
 
-try {
-  $osVersion = (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).Version
-} catch {
-  $osVersion = [System.Environment]::OSVersion.Version.ToString()
-}
-$osTag = "windows-" + (($osVersion -replace '[^0-9\.]', '') -replace '\.', '_')
-
 & $pythonExe -m pip install --upgrade pip
 if ($isolatedBuild) {
   & $pythonExe -m pip install -r .\backend\requirements.txt
@@ -48,7 +41,7 @@ if (Test-Path $assetIcon) {
 # Non-interactive build: never prompt to remove existing output directories.
 & $pythonExe -m PyInstaller --noconfirm --clean ALBIS.spec
 
-$zip = Join-Path $root ("dist\\ALBIS-" + $osTag + "-" + $tag + ".zip")
+$zip = Join-Path $root ("dist\\ALBIS-" + $versionInfo.target + "-" + $tag + ".zip")
 if (Test-Path $zip) {
   Remove-Item $zip
 }

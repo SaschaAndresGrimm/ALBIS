@@ -28,9 +28,19 @@ Use this to verify packaging and checks before tagging:
 1. Open GitHub Actions and run the `Release` workflow manually (`workflow_dispatch`) on `main`.
 2. Verify `verify`, `build_linux`, `build_windows`, and `build_macos` jobs pass.
 3. Download workflow artifacts and inspect:
-   - Linux contains `ALBIS-linux-*-appimage-bundle.tar.gz` (includes `.AppImage`, `install_linux_appimage.sh`, and `uninstall_linux.sh`).
-   - Windows contains `ALBIS-Setup-windows-*.exe`.
-   - macOS contains `ALBIS-macos-*.dmg`.
+   - Linux x64 contains:
+     - `ALBIS-linux-x64-v<version>-<commit>.tar.gz`
+     - `ALBIS-linux-x64-v<version>-<commit>.AppImage`
+     - `ALBIS-linux-x64-v<version>-<commit>-appimage-bundle.tar.gz`
+   - Windows x64 contains:
+     - `ALBIS-windows-x64-v<version>-<commit>.zip`
+     - `ALBIS-Setup-windows-x64-v<version>-<commit>.exe`
+   - macOS arm64 contains:
+     - `ALBIS-macos-arm64-v<version>-<commit>.zip`
+     - `ALBIS-macos-arm64-v<version>-<commit>.dmg`
+   - macOS x64 contains:
+     - `ALBIS-macos-x64-v<version>-<commit>.zip`
+     - `ALBIS-macos-x64-v<version>-<commit>.dmg`
    - Bundle naming includes `v<version>-<commit>`.
 
 Note: on manual dispatch from a branch, the `publish` job is intentionally skipped.
@@ -41,10 +51,10 @@ Use the `Build Artifacts` workflow for branch testing without creating a tag/rel
 
 1. Open GitHub Actions and run `Build Artifacts` on your target branch.
 2. Optionally enable `run_verify` to execute quality gates before packaging.
-3. Download artifacts (`artifacts-linux-*`, `artifacts-windows-*`, `artifacts-macos-*`) and inspect:
-   - Linux includes `.tar.gz`, `.AppImage`, `install_linux_appimage.sh`, `uninstall_linux.sh`, and `SHA256SUMS.txt`.
-   - Windows includes `.zip`, setup `.exe`, and `SHA256SUMS.txt`.
-   - macOS includes `.zip`, `.dmg`, and `SHA256SUMS.txt`.
+3. Download artifacts (`artifacts-linux-x64-*`, `artifacts-windows-x64-*`, `artifacts-macos-arm64-*`, `artifacts-macos-x64-*`) and inspect:
+   - Linux x64 includes `.tar.gz`, `.AppImage`, appimage bundle `.tar.gz`, `install_linux_appimage.sh`, `uninstall_linux.sh`, and `SHA256SUMS.txt`.
+   - Windows x64 includes `.zip`, setup `.exe`, and `SHA256SUMS.txt`.
+   - macOS arm64/x64 each include `.zip`, `.dmg`, and `SHA256SUMS.txt`.
    - Local install/run behavior is still correct.
 
 ## 4. Create and Publish Release Tag
@@ -61,9 +71,9 @@ Expected result:
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
 - GitHub Release is published with:
-  - Linux: `ALBIS-linux-*-appimage-bundle.tar.gz`
-  - Windows: setup `.exe`
-  - macOS: `.dmg`
+  - Linux x64: tarball + `.AppImage` + appimage bundle
+  - Windows x64: setup `.exe` + portable `.zip`
+  - macOS arm64 and x64: `.dmg` + portable `.zip`
   - `SHA256SUMS.txt`
 
 ## 5. Post-Release Verification
