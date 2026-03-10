@@ -33,7 +33,9 @@
   // Backend log routing.
   "logging": {
     "level": "INFO",
-    // Empty string resolves to <data.root>/logs.
+    // Empty string resolves to:
+    // - source runs: <data.root>/logs
+    // - packaged runs: ~/.config/albis/logs
     "dir": ""
   },
 

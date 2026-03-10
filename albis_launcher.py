@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 import os
 import socket
 import subprocess
@@ -10,10 +12,21 @@ import traceback
 import urllib.error
 import urllib.request
 import webbrowser
+from contextlib import suppress
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
-import json
 
 import uvicorn
+
+from backend.config import (
+    get_bool,
+    get_float,
+    get_int,
+    get_str,
+    load_config,
+    resolve_data_dir,
+    resolve_log_dir,
+)
 
 try:
     import AppKit
@@ -25,9 +38,9 @@ except Exception:  # pragma: no cover - optional UI helper
 _MACOS_RUNTIME: dict[str, object] = {}
 _MACOS_EVENT_LOGS_ENABLED = False
 _LAUNCHER_LOG_MAX_BYTES = 1024 * 1024  # 1 MiB
-_LAUNCHER_LOG_BACKUP_SUFFIX = ".1"
-
-from backend.config import get_bool, get_float, get_int, get_str, load_config, resolve_path
+_LAUNCHER_LOG_BACKUP_COUNT = 1
+_LAUNCHER_LOGGER: logging.Logger | None = None
+_LAUNCHER_LOG_PATH: Path | None = None
 
 class _NullStream:
     """Fallback stdio stream for frozen/windowed builds without a console."""
@@ -105,32 +118,15 @@ def _open_browser(host: str, port: int) -> None:
     except Exception:
         opened = False
     if not opened and sys.platform == "darwin":
-        try:
+        with suppress(Exception):
             subprocess.run(["open", url], check=False)
-        except Exception:
-            pass
 
-
-def _resolve_data_dir(app_config: dict, config_path: Path) -> Path:
-    data_root = get_str(app_config, ("data", "root"), "").strip()
-    if data_root:
-        return resolve_path(data_root, base_dir=config_path.parent)
-    if getattr(sys, "frozen", False):
-        return (Path.home() / "ALBIS-data").resolve()
-    return Path(__file__).resolve().parent
-
-
-def _resolve_log_dir(app_config: dict, config_path: Path) -> Path:
-    log_dir_cfg = get_str(app_config, ("logging", "dir"), "").strip()
-    if log_dir_cfg:
-        return resolve_path(log_dir_cfg, base_dir=config_path.parent)
-    return (_resolve_data_dir(app_config, config_path) / "logs").resolve()
 
 if Foundation is not None:
     class _DockMenuHandler(Foundation.NSObject):
         def _start_ts(self) -> float:
             try:
-                return float(getattr(self, "start_ts"))
+                return float(self.start_ts)  # type: ignore[attr-defined]
             except (TypeError, ValueError, AttributeError):
                 return time.perf_counter()
 
@@ -294,10 +290,14 @@ def _start_macos_menus(
         return False
     try:
         if config_path is not None:
-            log_dir = _resolve_log_dir(app_config, config_path)
+            log_dir = resolve_log_dir(app_config, config_path)
         else:
             raw_log_dir = get_str(app_config, ("logging", "dir"), "").strip()
-            log_dir = Path(raw_log_dir).expanduser().resolve() if raw_log_dir else (Path.home() / ".config" / "albis" / "logs")
+            log_dir = (
+                Path(raw_log_dir).expanduser().resolve()
+                if raw_log_dir
+                else (Path.home() / ".config" / "albis" / "logs").resolve()
+            )
         handler = _DockMenuHandler.alloc().init()
         if handler is None:
             return False
@@ -411,43 +411,68 @@ def _wait_for_health(host: str, port: int, timeout: float = 5.0) -> bool:
             time.sleep(0.1)
     return False
 
-def _launcher_log_path() -> Path:
-    return Path.home() / ".config" / "albis" / "launcher.log"
+def _default_launcher_log_path() -> Path:
+    return (Path.home() / ".config" / "albis" / "logs" / "launcher.log").resolve()
 
-def _rotate_launcher_log_if_needed(log_path: Path) -> None:
-    try:
-        if not log_path.exists():
-            return
-        if log_path.stat().st_size < _LAUNCHER_LOG_MAX_BYTES:
-            return
-        backup_path = log_path.with_name(log_path.name + _LAUNCHER_LOG_BACKUP_SUFFIX)
-        try:
-            backup_path.unlink()
-        except FileNotFoundError:
-            pass
-        log_path.replace(backup_path)
-    except OSError:
+
+def _configure_launcher_logger(log_path: Path) -> None:
+    global _LAUNCHER_LOGGER, _LAUNCHER_LOG_PATH
+    logger = _LAUNCHER_LOGGER
+    if logger is None:
+        logger = logging.getLogger("albis.launcher")
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+        _LAUNCHER_LOGGER = logger
+
+    if not any(getattr(handler, "_albis_launcher_stream", False) for handler in logger.handlers):
+        stream = logging.StreamHandler(sys.stderr if sys.stderr is not None else sys.stdout)
+        stream.setFormatter(logging.Formatter("%(message)s"))
+        stream._albis_launcher_stream = True  # type: ignore[attr-defined]
+        logger.addHandler(stream)
+
+    resolved_log_path = log_path.expanduser().resolve()
+    if resolved_log_path == _LAUNCHER_LOG_PATH:
         return
+
+    for handler in list(logger.handlers):
+        if getattr(handler, "_albis_launcher_file", False):
+            logger.removeHandler(handler)
+            with suppress(Exception):
+                handler.close()
+
+    try:
+        resolved_log_path.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = RotatingFileHandler(
+            resolved_log_path,
+            maxBytes=_LAUNCHER_LOG_MAX_BYTES,
+            backupCount=_LAUNCHER_LOG_BACKUP_COUNT,
+            encoding="utf-8",
+        )
+        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        file_handler._albis_launcher_file = True  # type: ignore[attr-defined]
+        logger.addHandler(file_handler)
+        _LAUNCHER_LOG_PATH = resolved_log_path
+    except OSError:
+        _LAUNCHER_LOG_PATH = None
 
 def _launcher_log(start: float, message: str) -> None:
     elapsed_ms = (time.perf_counter() - start) * 1000
-    text = f"[ALBIS launcher +{elapsed_ms:8.1f}ms] {message}\n"
+    text = f"[ALBIS launcher +{elapsed_ms:8.1f}ms] {message}"
+    try:
+        if _LAUNCHER_LOGGER is None:
+            _configure_launcher_logger(_default_launcher_log_path())
+        if _LAUNCHER_LOGGER is not None:
+            _LAUNCHER_LOGGER.info(text)
+            return
+    except Exception:
+        pass
     target = sys.stderr if sys.stderr is not None else sys.stdout
     if target is not None:
         try:
-            target.write(text)
+            target.write(text + "\n")
             target.flush()
         except Exception:
             pass
-    # Persist launcher diagnostics in user config so windowed app runs can be debugged.
-    try:
-        log_path = _launcher_log_path()
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        _rotate_launcher_log_if_needed(log_path)
-        with log_path.open("a", encoding="utf-8") as fh:
-            fh.write(text)
-    except Exception:
-        pass
 
 def _log_macos_event(start: float, message: str) -> None:
     if _MACOS_EVENT_LOGS_ENABLED:
@@ -457,8 +482,9 @@ def main() -> None:
     global _MACOS_EVENT_LOGS_ENABLED
     _ensure_stdio_streams()
     start_ts = time.perf_counter()
-    _launcher_log(start_ts, "starting")
     app_config, _config_path = load_config()
+    _configure_launcher_logger(resolve_log_dir(app_config, _config_path) / "launcher.log")
+    _launcher_log(start_ts, "starting")
     _launcher_log(start_ts, f"config loaded ({_config_path})")
     _MACOS_EVENT_LOGS_ENABLED = get_bool(app_config, ("launcher", "debug_macos_events"), False)
     if _MACOS_EVENT_LOGS_ENABLED:
@@ -495,9 +521,7 @@ def main() -> None:
 
     data_root = get_str(app_config, ("data", "root"), "").strip()
     if data_root:
-        root_path = Path(data_root).expanduser()
-        if not root_path.is_absolute():
-            root_path = (_config_path.parent / root_path).resolve()
+        root_path = resolve_data_dir(app_config, _config_path)
         try:
             root_path.mkdir(parents=True, exist_ok=True)
         except OSError as exc:

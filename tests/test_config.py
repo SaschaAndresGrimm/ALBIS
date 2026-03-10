@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
 
-from backend.config import normalize_config
+from backend.config import normalize_config, resolve_data_dir, resolve_log_dir
 
 
 def test_normalize_config_accepts_partial_payload() -> None:
@@ -45,3 +48,40 @@ def test_normalize_config_accepts_legacy_launcher_port() -> None:
 def test_normalize_config_prefers_server_port_over_legacy_launcher_port() -> None:
     config = normalize_config({"server": {"port": 8080}, "launcher": {"port": 9090}})
     assert config["server"]["port"] == 8080
+
+
+def test_resolve_log_dir_uses_relative_logging_dir(tmp_path: Path) -> None:
+    config = normalize_config({"logging": {"dir": "./custom-logs"}})
+    config_path = tmp_path / "albis.config.json"
+    assert resolve_log_dir(config, config_path) == (tmp_path / "custom-logs").resolve()
+
+
+def test_resolve_log_dir_uses_absolute_logging_dir(tmp_path: Path) -> None:
+    absolute_log_dir = (tmp_path / "abs-logs").resolve()
+    config = normalize_config({"logging": {"dir": str(absolute_log_dir)}})
+    config_path = tmp_path / "albis.config.json"
+    assert resolve_log_dir(config, config_path) == absolute_log_dir
+
+
+def test_resolve_log_dir_defaults_to_user_config_logs_for_frozen(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    config = normalize_config({"logging": {"dir": ""}})
+    config_path = tmp_path / "albis.config.json"
+    assert resolve_log_dir(config, config_path) == (home / ".config" / "albis" / "logs").resolve()
+
+
+def test_resolve_log_dir_defaults_to_data_root_for_source(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    config = normalize_config({"data": {"root": "./data-root"}, "logging": {"dir": ""}})
+    config_path = tmp_path / "albis.config.json"
+    assert resolve_data_dir(config, config_path) == (tmp_path / "data-root").resolve()
+    assert resolve_log_dir(config, config_path) == (tmp_path / "data-root" / "logs").resolve()

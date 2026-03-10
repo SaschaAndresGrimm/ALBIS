@@ -98,7 +98,7 @@
         "dir": {
           "type": "string",
           "default": "",
-          "description": "Log directory path. Empty resolves to <data.root>/logs."
+          "description": "Log directory path. Empty resolves to <data.root>/logs in source mode and ~/.config/albis/logs in packaged mode."
         }
       }
     },

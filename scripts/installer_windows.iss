@@ -21,7 +21,7 @@ Source: "..\dist\ALBIS\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubd
 
 [Icons]
 Name: "{group}\ALBIS"; Filename: "{app}\ALBIS.exe"
-Name: "{group}\Open Logs"; Filename: "explorer.exe"; Parameters: """{%USERPROFILE}\ALBIS-data\logs"""
+Name: "{group}\Open Logs"; Filename: "explorer.exe"; Parameters: """{%USERPROFILE}\.config\albis\logs"""
 Name: "{group}\Open Data Folder"; Filename: "explorer.exe"; Parameters: """{%USERPROFILE}\ALBIS-data"""
 Name: "{group}\Edit Config"; Filename: "{cmd}"; Parameters: "/C if not exist ""{%USERPROFILE}\.config\albis"" mkdir ""{%USERPROFILE}\.config\albis"" & notepad ""{%USERPROFILE}\.config\albis\config.json"""
 Name: "{autodesktop}\ALBIS"; Filename: "{app}\ALBIS.exe"; Tasks: desktopicon

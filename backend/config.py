@@ -82,8 +82,12 @@ def _default_config_path() -> Path:
     return _repo_root() / CONFIG_FILE_NAME
 
 
+def _user_config_dir() -> Path:
+    return Path.home() / ".config" / "albis"
+
+
 def _user_config_path() -> Path:
-    return Path.home() / ".config" / "albis" / "config.json"
+    return _user_config_dir() / "config.json"
 
 
 def _candidate_paths() -> list[Path]:
@@ -287,6 +291,26 @@ def load_config() -> tuple[dict[str, Any], Path]:
                 except OSError:
                     pass
     return normalize_config(_parse_config(config_path)), config_path
+
+
+def resolve_data_dir(config: dict[str, Any], config_path: Path) -> Path:
+    """Resolve runtime data directory for source and frozen execution."""
+    data_root = get_str(config, ("data", "root"), "").strip()
+    if data_root:
+        return resolve_path(data_root, base_dir=config_path.parent)
+    if getattr(sys, "frozen", False):
+        return (Path.home() / "ALBIS-data").resolve()
+    return _repo_root()
+
+
+def resolve_log_dir(config: dict[str, Any], config_path: Path) -> Path:
+    """Resolve runtime log directory for backend and launcher diagnostics."""
+    log_dir_cfg = get_str(config, ("logging", "dir"), "").strip()
+    if log_dir_cfg:
+        return resolve_path(log_dir_cfg, base_dir=config_path.parent)
+    if getattr(sys, "frozen", False):
+        return (_user_config_dir() / "logs").resolve()
+    return (resolve_data_dir(config, config_path) / "logs").resolve()
 
 
 def get_nested(config: dict[str, Any], keys: tuple[str, ...], default: Any) -> Any:

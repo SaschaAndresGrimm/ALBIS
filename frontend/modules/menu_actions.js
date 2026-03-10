@@ -29,11 +29,11 @@ export function createMenuActionHandler({
         try {
           const res = await fetch(`${apiBase}/open-log`, { method: "POST" });
           if (!res.ok) {
-            setStatus("Failed to open log file");
+            setStatus("Failed to open backend log file");
           }
         } catch (err) {
           console.error(err);
-          setStatus("Failed to open log file");
+          setStatus("Failed to open backend log file");
         }
         break;
       case "settings-open":

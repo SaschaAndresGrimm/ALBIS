@@ -31,7 +31,8 @@ try:
         get_str,
         load_config,
         normalize_config,
-        resolve_path,
+        resolve_data_dir,
+        resolve_log_dir,
         save_config,
     )
     from .image_formats import (
@@ -109,7 +110,8 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         get_str,
         load_config,
         normalize_config,
-        resolve_path,
+        resolve_data_dir,
+        resolve_log_dir,
         save_config,
     )
     from image_formats import (
@@ -180,16 +182,8 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from version import ALBIS_VERSION
 
 CONFIG, CONFIG_PATH = load_config()
-CONFIG_BASE_DIR = CONFIG_PATH.parent
 
-data_root_cfg = get_str(CONFIG, ("data", "root"), "").strip()
-if data_root_cfg:
-    DATA_DIR = resolve_path(data_root_cfg, base_dir=CONFIG_BASE_DIR)
-else:
-    if getattr(sys, "frozen", False):
-        DATA_DIR = Path.home() / "ALBIS-data"
-    else:
-        DATA_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = resolve_data_dir(CONFIG, CONFIG_PATH)
 
 
 @dataclass
@@ -256,12 +250,7 @@ def _init_logging() -> logging.Logger:
     stream.setFormatter(formatter)
     logger.addHandler(stream)
 
-    log_dir_cfg = get_str(runtime_state.config, ("logging", "dir"), "").strip()
-    log_dir = (
-        resolve_path(log_dir_cfg, base_dir=CONFIG_BASE_DIR)
-        if log_dir_cfg
-        else (runtime_state.data_dir / "logs")
-    )
+    log_dir = resolve_log_dir(runtime_state.config, runtime_state.config_path)
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError:

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import uuid
+from pathlib import Path
 
 import numpy as np
 from fastapi.testclient import TestClient
 
-from backend.app import ALBIS_VERSION, app
+from backend.app import ALBIS_VERSION, LOG_PATH, app
 
 
 def test_health_endpoint() -> None:
@@ -16,6 +17,19 @@ def test_health_endpoint() -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["version"] == ALBIS_VERSION
+
+
+def test_open_log_endpoint_returns_backend_log_path() -> None:
+    client = TestClient(app)
+    response = client.post("/api/open-log")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert LOG_PATH is not None
+    returned_path = Path(payload["path"]).resolve()
+    assert returned_path == LOG_PATH.resolve()
+    assert returned_path.exists()
+    assert returned_path.name == "albis.log"
 
 
 def test_remote_latest_returns_204_for_missing_source() -> None:

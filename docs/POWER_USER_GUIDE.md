@@ -69,7 +69,9 @@ In packaged mode, if no config exists, ALBIS writes defaults to `~/.config/albis
 
 #### `logging`
 - `level` (`DEBUG|INFO|WARNING|ERROR|CRITICAL`, default `INFO`)
-- `dir` (`string`, default `""`): Writes logs to `<data.root>/logs/albis.log` when empty.
+- `dir` (`string`, default `""`):
+  - source mode default: `<data.root>/logs`
+  - packaged/standalone default: `~/.config/albis/logs`
 
 #### `ui`
 - `tool_hints` (`boolean`, default `false`)
@@ -81,7 +83,14 @@ In packaged mode, if no config exists, ALBIS writes defaults to `~/.config/albis
 ## Logging
 
 Log level and log directory are configured in `albis.config.json` under `logging.level` and `logging.dir`.
-Launcher startup logs are also written to `~/.config/albis/launcher.log` (with automatic rotation at ~1 MiB to `launcher.log.1`).
+ALBIS writes:
+- Backend log: `<resolved log dir>/albis.log`
+- Launcher log: `<resolved log dir>/launcher.log` (automatic rotation at ~1 MiB to `launcher.log.1`)
+
+When `logging.dir` is empty:
+- source mode uses `<data.root>/logs`
+- packaged/standalone mode uses `~/.config/albis/logs`
+
 Launcher host/port status is persisted in `~/.config/albis/server.json`.
 
 Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
