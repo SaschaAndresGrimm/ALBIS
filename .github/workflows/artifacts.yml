@@ -310,7 +310,7 @@ jobs:
             target_arch: arm64
             target: macos-arm64
             expected_uname: arm64
-          - runner: macos-13
+          - runner: macos-15-intel
             target_os: macos
             target_arch: x64
             target: macos-x64
