@@ -36,8 +36,7 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 
 - **macOS**: Download the `.dmg` and drag ALBIS to your Applications folder.
 - **Windows**: Download the `ALBIS-Setup-windows-*.exe` installer.
-- **Linux (recommended)**: Download the `.AppImage`, make it executable, and run it directly. Release assets also include `install_linux_appimage.sh` for launcher/desktop integration without cloning the repo.
-- **Linux (advanced/manual)**: Download the `.tar.gz`, extract it, and use `scripts/install_linux.sh` for local desktop integration.
+- **Linux**: Download `ALBIS-linux-*-appimage-bundle.tar.gz`, extract it, then either run the included `.AppImage` directly or use the included `install_linux_appimage.sh` for desktop integration.
 
 ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 

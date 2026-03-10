@@ -97,21 +97,29 @@ jobs:
       - name: Build AppImage package
         run: ./scripts/package_linux_appimage.sh
 
-      - name: Bundle Linux helper scripts
+      - name: Build Linux AppImage installer bundle
         run: |
-          cp scripts/install_linux_appimage.sh dist/install_linux_appimage.sh
-          cp scripts/uninstall_linux.sh dist/uninstall_linux.sh
-          chmod +x dist/install_linux_appimage.sh dist/uninstall_linux.sh
+          appimage="$(ls dist/*.AppImage | head -n1)"
+          if [ -z "$appimage" ]; then
+            echo "No AppImage produced in dist/"
+            exit 1
+          fi
+          base="$(basename "$appimage" .AppImage)"
+          bundle_dir="dist/${base}-bundle"
+          rm -rf "$bundle_dir"
+          mkdir -p "$bundle_dir"
+          cp "$appimage" "$bundle_dir/"
+          cp scripts/install_linux_appimage.sh "$bundle_dir/install_linux_appimage.sh"
+          cp scripts/uninstall_linux.sh "$bundle_dir/uninstall_linux.sh"
+          chmod +x "$bundle_dir/install_linux_appimage.sh" "$bundle_dir/uninstall_linux.sh"
+          tar -czf "dist/${base}-appimage-bundle.tar.gz" -C "$bundle_dir" .
 
       - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
           name: release-assets-linux
           path: |
-            dist/*.tar.gz
-            dist/*.AppImage
-            dist/install_linux_appimage.sh
-            dist/uninstall_linux.sh
+            dist/*-appimage-bundle.tar.gz
 
   build_windows:
     name: Build Windows Artifact
@@ -143,7 +151,6 @@ jobs:
         with:
           name: release-assets-windows
           path: |
-            dist/*.zip
             dist/*.exe
 
   build_macos:
@@ -174,7 +181,6 @@ jobs:
         with:
           name: release-assets-macos
           path: |
-            dist/*.zip
             dist/*.dmg
 
   publish:
@@ -201,13 +207,8 @@ jobs:
         run: |
           ls -1 release-dist
           required_patterns=(
-            "ALBIS-linux-*.tar.gz"
-            "ALBIS-linux-*.AppImage"
-            "install_linux_appimage.sh"
-            "uninstall_linux.sh"
-            "ALBIS-windows-*.zip"
+            "ALBIS-linux-*-appimage-bundle.tar.gz"
             "ALBIS-Setup-windows-*.exe"
-            "ALBIS-macos-*.zip"
             "ALBIS-macos-*.dmg"
             "SHA256SUMS.txt"
           )

@@ -28,10 +28,9 @@ Use this to verify packaging and checks before tagging:
 1. Open GitHub Actions and run the `Release` workflow manually (`workflow_dispatch`) on `main`.
 2. Verify `verify`, `build_linux`, `build_windows`, and `build_macos` jobs pass.
 3. Download workflow artifacts and inspect:
-   - Linux contains both `ALBIS-linux-*.tar.gz` and `ALBIS-linux-*.AppImage`.
-   - Linux also contains `install_linux_appimage.sh` and `uninstall_linux.sh`.
-   - Windows contains both `ALBIS-windows-*.zip` and `ALBIS-Setup-windows-*.exe`.
-   - macOS contains `ALBIS-macos-*.zip` and `ALBIS-macos-*.dmg`.
+   - Linux contains `ALBIS-linux-*-appimage-bundle.tar.gz` (includes `.AppImage`, `install_linux_appimage.sh`, and `uninstall_linux.sh`).
+   - Windows contains `ALBIS-Setup-windows-*.exe`.
+   - macOS contains `ALBIS-macos-*.dmg`.
    - Bundle naming includes `v<version>-<commit>`.
 
 Note: on manual dispatch from a branch, the `publish` job is intentionally skipped.
@@ -62,10 +61,9 @@ Expected result:
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
 - GitHub Release is published with:
-  - Linux: `.tar.gz` and `.AppImage`
-  - Linux helpers: `install_linux_appimage.sh` and `uninstall_linux.sh`
-  - Windows: `.zip` and setup `.exe`
-  - macOS: `.zip` and `.dmg`
+  - Linux: `ALBIS-linux-*-appimage-bundle.tar.gz`
+  - Windows: setup `.exe`
+  - macOS: `.dmg`
   - `SHA256SUMS.txt`
 
 ## 5. Post-Release Verification

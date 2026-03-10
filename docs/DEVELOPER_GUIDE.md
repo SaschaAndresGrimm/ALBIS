@@ -125,7 +125,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 Example output:
 - `ALBIS-linux-<distro_version>-v<version>-<commit>.tar.gz`
 - `ALBIS-linux-<distro_version>-v<version>-<commit>.AppImage`
-- `install_linux_appimage.sh` and `uninstall_linux.sh` (included in CI/release Linux assets)
+- `install_linux_appimage.sh` and `uninstall_linux.sh` (kept in `scripts/`; release workflow bundles them with the AppImage)
 
 Optional build env controls:
 - `ALBIS_BUILD_ISOLATED=0` uses your current Python environment instead of the build venv.
@@ -133,6 +133,10 @@ Optional build env controls:
 - `ALBIS_BUILD_VENV=/custom/path` overrides the build venv location.
 
 `scripts/package_linux_appimage.sh` requires `appimagetool` on `PATH`.
+
+Public GitHub Releases publish a Linux bundle:
+- `ALBIS-linux-<distro_version>-v<version>-<commit>-appimage-bundle.tar.gz`
+  - includes `.AppImage`, `install_linux_appimage.sh`, and `uninstall_linux.sh`
 
 Recommended local desktop integration (user scope, AppImage):
 
@@ -185,7 +189,7 @@ The Inno installer creates Start Menu entries for:
 Installer defaults:
 - Per-user install scope under `%LOCALAPPDATA%\Programs\ALBIS`.
 - No admin rights required (`PrivilegesRequired=lowest`).
-- `.zip` artifact remains available as the portable fallback.
+- Portable `.zip` remains available from local builds and the `Build Artifacts` workflow.
 
 ### Output
 
