@@ -153,8 +153,8 @@ jobs:
           test -x "$appimage"
           file "$appimage"
 
-          tar -tzf "$bundle" | grep -Eq '(^|\\./)install_linux_appimage\\.sh$'
-          tar -tzf "$bundle" | grep -Eq '(^|\\./)uninstall_linux\\.sh$'
+          tar -tzf "$bundle" | sed 's#^\./##' | grep -Fxq 'install_linux_appimage.sh'
+          tar -tzf "$bundle" | sed 's#^\./##' | grep -Fxq 'uninstall_linux.sh'
 
       - name: Upload release assets
         uses: actions/upload-artifact@v4
