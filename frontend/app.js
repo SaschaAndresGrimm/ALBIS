@@ -2053,6 +2053,7 @@ fileSessionController = createFileSessionController({
     schedulePixelOverlay,
     scheduleResolutionOverlay,
     schedulePeakFinder,
+    scheduleHistogram,
   },
 });
 
@@ -2928,7 +2929,6 @@ renderEngineController = createRenderEngineController({
     buildPalette,
     getActiveSaturationMax,
     scheduleOverview,
-    scheduleHistogram,
     schedulePixelOverlay,
     schedulePeakOverlay,
     getRenderer: () => renderer,

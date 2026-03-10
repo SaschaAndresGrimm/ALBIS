@@ -24,7 +24,6 @@ export function createRenderEngineController({
     buildPalette,
     getActiveSaturationMax,
     scheduleOverview,
-    scheduleHistogram,
     schedulePixelOverlay,
     schedulePeakOverlay,
     getRenderer,
@@ -103,14 +102,12 @@ export function createRenderEngineController({
           if (maskClass > 0.75) {
             outColor = vec4(0.0, 0.0, 0.0, 1.0);
             return;
-          } else if (maskClass > 0.55) {
-            outColor = vec4(0.0, 0.62, 0.08, 1.0);
-            return;
           } else if (maskClass > 0.25) {
             outColor = vec4(0.1, 0.2, 0.47, 1.0);
             return;
           }
-        } else if (u_mask_saturated_enabled > 0.5 && abs(value - u_sat_max) <= max(1e-9, abs(u_sat_max) * 1e-6)) {
+        }
+        if (u_mask_saturated_enabled > 0.5 && abs(value - u_sat_max) <= max(1e-9, abs(u_sat_max) * 1e-6)) {
           outColor = vec4(0.0, 0.62, 0.08, 1.0);
           return;
         }
@@ -243,10 +240,7 @@ export function createRenderEngineController({
     let maskTexWidth = 1;
     let maskTexHeight = 1;
     let lastMaskData = null;
-    let lastFrameData = null;
     let lastMaskEnabled = false;
-    let lastMaskSaturatedEnabled = false;
-    let lastSatMax = null;
     let maskClassData = null;
 
     return {
@@ -331,32 +325,28 @@ export function createRenderEngineController({
         gl.uniform1i(uniforms.lut, 1);
 
         const validMask = Boolean(mask && maskWidth === width && maskHeight === height && mask.length === width * height);
-        const useMask = Boolean((maskEnabled && validMask) || (maskSaturatedEnabled && Number.isFinite(satMax)));
+        const useMask = Boolean(maskEnabled && validMask);
+        const useSaturationMask = Boolean(maskSaturatedEnabled && Number.isFinite(satMax));
         gl.activeTexture(gl.TEXTURE2);
         gl.bindTexture(gl.TEXTURE_2D, maskTex);
         gl.uniform1i(uniforms.mask, 2);
         gl.uniform1f(uniforms.maskEnabled, useMask ? 1.0 : 0.0);
-        gl.uniform1f(uniforms.maskSaturatedEnabled, maskSaturatedEnabled && Number.isFinite(satMax) ? 1.0 : 0.0);
-        gl.uniform1f(uniforms.satMax, Number.isFinite(satMax) ? satMax : 0.0);
+        gl.uniform1f(uniforms.maskSaturatedEnabled, useSaturationMask ? 1.0 : 0.0);
+        gl.uniform1f(uniforms.satMax, useSaturationMask ? satMax : 0.0);
         const shouldUploadMask =
           useMask &&
           (mask !== lastMaskData ||
-            frameData !== lastFrameData ||
             maskTexWidth !== width ||
             maskTexHeight !== height ||
-            maskEnabled !== lastMaskEnabled ||
-            maskSaturatedEnabled !== lastMaskSaturatedEnabled ||
-            satMax !== lastSatMax);
+            maskEnabled !== lastMaskEnabled);
         if (shouldUploadMask) {
           if (!maskClassData || maskClassData.length !== width * height) {
             maskClassData = new Uint8Array(width * height);
           }
           for (let i = 0; i < width * height; i += 1) {
-            const bits = validMask ? mask[i] : 0;
+            const bits = mask[i];
             if (bits & 1) {
               maskClassData[i] = 255;
-            } else if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(frameData[i], satMax)) {
-              maskClassData[i] = 160;
             } else if (bits & 0x1e) {
               maskClassData[i] = 128;
             } else {
@@ -378,10 +368,7 @@ export function createRenderEngineController({
           maskTexWidth = width;
           maskTexHeight = height;
           lastMaskData = mask;
-          lastFrameData = frameData;
           lastMaskEnabled = Boolean(maskEnabled);
-          lastMaskSaturatedEnabled = Boolean(maskSaturatedEnabled);
-          lastSatMax = satMax;
         }
 
         gl.uniform1f(uniforms.min, min);
@@ -508,7 +495,6 @@ export function createRenderEngineController({
       });
     }
     scheduleOverview();
-    scheduleHistogram();
     schedulePixelOverlay();
     schedulePeakOverlay();
   }

@@ -66,7 +66,11 @@ export function createFileSessionController({
     schedulePixelOverlay,
     scheduleResolutionOverlay,
     schedulePeakFinder,
+    scheduleHistogram,
   } = callbacks;
+
+  const PLAYBACK_STATS_REFRESH_MS = 220;
+  let lastStatsRefreshAt = 0;
 
   function closeCurrentFile() {
     stopPlayback();
@@ -146,11 +150,23 @@ export function createFileSessionController({
     state.width = width;
     state.height = height;
     state.dtype = dtype;
-    state.stats = computeStats(data);
-    state.histogram = state.stats.hist;
-    updateGlobalStats();
+    const now = typeof performance !== "undefined" && typeof performance.now === "function"
+      ? performance.now()
+      : Date.now();
+    const refreshStats =
+      !state.playing ||
+      !state.hasFrame ||
+      !state.stats ||
+      now - lastStatsRefreshAt >= PLAYBACK_STATS_REFRESH_MS;
+    if (refreshStats) {
+      state.stats = computeStats(data);
+      state.histogram = state.stats.hist;
+      updateGlobalStats();
+      lastStatsRefreshAt = now;
+      scheduleHistogram();
+    }
 
-    if (state.autoScale) {
+    if (state.autoScale && state.stats && refreshStats) {
       const levels = computeAutoLevels(data, state.stats.satMax ?? null);
       state.min = levels.min;
       state.max = levels.max;
@@ -158,7 +174,7 @@ export function createFileSessionController({
       if (maxInput) maxInput.value = formatValue(state.max);
     }
 
-    if (metaRange) {
+    if (metaRange && state.stats) {
       metaRange.textContent = `${formatValue(state.stats.min)} → ${formatValue(state.stats.max)}`;
     }
     alignMaskToFrame();
