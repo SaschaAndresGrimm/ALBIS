@@ -273,6 +273,7 @@ def _init_logging() -> logging.Logger:
 
 logger = _init_logging()
 _startup_banner_logged = False
+_handoff_queue_max = 1024
 _handoff_jobs: list[dict[str, Any]] = []
 _handoff_next_id = 1
 
@@ -572,6 +573,8 @@ def _handoff_queue_job(payload: dict[str, str]) -> dict[str, str | int]:
         "run_id": str(payload.get("run_id") or ""),
     }
     _handoff_jobs.append(item)
+    if len(_handoff_jobs) > _handoff_queue_max:
+        del _handoff_jobs[: len(_handoff_jobs) - _handoff_queue_max]
     _handoff_next_id += 1
     return item
 
@@ -595,9 +598,6 @@ register_system_routes(
         save_config=save_config,
         apply_runtime_config=_apply_runtime_config,
         get_log_path=_get_log_path,
-        data_dir=runtime_state.data_dir,
-        get_allow_abs_paths=_get_allow_abs_paths,
-        is_within=_is_within,
     ),
 )
 

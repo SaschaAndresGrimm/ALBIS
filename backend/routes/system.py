@@ -12,7 +12,6 @@ try:
     from ..api_models import (
         ClientLogRequest,
         HealthResponse,
-        OpenPathRequest,
         PathStatusResponse,
         SettingsPayloadResponse,
         SettingsSaveRequest,
@@ -23,7 +22,6 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         ClientLogRequest,
         HealthResponse,
-        OpenPathRequest,
         PathStatusResponse,
         SettingsPayloadResponse,
         SettingsSaveRequest,
@@ -43,9 +41,6 @@ class SystemRouteDeps:
     save_config: Callable[[dict[str, Any], Path], None]
     apply_runtime_config: Callable[[dict[str, Any]], None]
     get_log_path: Callable[[], Path | None]
-    data_dir: Path
-    get_allow_abs_paths: Callable[[], bool]
-    is_within: Callable[[Path, Path], bool]
 
 
 def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
@@ -134,25 +129,3 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
         except Exception as exc:
             raise HTTPException(status_code=500, detail="Failed to open log file") from exc
         return PathStatusResponse(status="ok", path=str(log_path))
-
-    @app.post("/api/open-path", response_model=PathStatusResponse)
-    def open_path(payload: OpenPathRequest) -> PathStatusResponse:
-        raw = str(payload.path).strip()
-        if not raw:
-            raise HTTPException(status_code=400, detail="Missing path")
-
-        path = Path(raw).expanduser()
-        path = (deps.data_dir / path).resolve() if not path.is_absolute() else path.resolve()
-
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="Path does not exist")
-
-        allowed_root = deps.data_dir.resolve()
-        if not deps.get_allow_abs_paths() and not deps.is_within(path, allowed_root):
-            raise HTTPException(status_code=400, detail="Path is outside data directory")
-
-        try:
-            open_in_system(path)
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail="Failed to open path") from exc
-        return PathStatusResponse(status="ok", path=str(path))

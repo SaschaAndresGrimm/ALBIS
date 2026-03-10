@@ -17,9 +17,12 @@ def test_client_log_request_rejects_unknown_fields() -> None:
     assert response.status_code == 422
 
 
-def test_open_path_request_requires_path_field() -> None:
+def test_handoff_job_request_rejects_unknown_fields() -> None:
     client = TestClient(app)
-    response = client.post("/api/open-path", json={})
+    response = client.post(
+        "/api/handoff/v1/jobs",
+        json={"manifest_path": "manifest.json", "unexpected": True},
+    )
     assert response.status_code == 422
 
 
@@ -62,7 +65,6 @@ def test_openapi_documents_binary_payload_headers() -> None:
 
     endpoint_contracts = [
         ("/api/frame", {"X-Dtype", "X-Shape", "X-Frame"}, False),
-        ("/api/preview", {"X-Dtype", "X-Shape", "X-Frame", "X-Preview"}, False),
         ("/api/mask", {"X-Dtype", "X-Shape", "X-Mask-Path"}, False),
         ("/api/image", {"X-Dtype", "X-Shape", "X-Frame"}, False),
         ("/api/simplon/monitor", {"X-Dtype", "X-Shape", "X-Frame"}, True),

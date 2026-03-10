@@ -13,11 +13,12 @@ BASELINE_PATH = Path(__file__).resolve().parent / "fixtures" / "openapi_key_cont
 KEY_ENDPOINTS: dict[str, str] = {
     "/api/files": "get",
     "/api/frame": "get",
-    "/api/preview": "get",
     "/api/mask": "get",
     "/api/image": "get",
     "/api/simplon/monitor": "get",
     "/api/simplon/mask": "get",
+    "/api/handoff/v1/jobs": "post",
+    "/api/handoff/v1/jobs/latest": "get",
     "/api/remote/v1/latest": "get",
     "/api/remote/v1/meta": "get",
     "/api/analysis/series-sum/start": "post",

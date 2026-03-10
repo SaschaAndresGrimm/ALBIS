@@ -45,10 +45,6 @@ class PathStatusResponse(StatusResponse):
     path: str
 
 
-class OpenPathRequest(_StrictModel):
-    path: str
-
-
 class HandoffJobCreateRequest(_StrictModel):
     manifest_path: str
 

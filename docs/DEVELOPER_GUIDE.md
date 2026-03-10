@@ -310,6 +310,12 @@ Build scripts in `scripts/` generate platform-specific artifacts and include `ve
 3. Worker decodes CBOR image messages, maps `spots` to `peak_sets`, and stores snapshots per `source_id`.
 4. Frontend polls the existing Remote Stream endpoints (`/api/remote/v1/latest`, `/api/remote/v1/meta`) and renders frames/reflection overlays.
 
+### Handoff flow
+
+1. External producer posts manifest path to `POST /api/handoff/v1/jobs`.
+2. Backend resolves manifest output target (`open_path`, optional `dataset`, optional `run_id`) and enqueues a handoff job.
+3. Frontend polls `GET /api/handoff/v1/jobs/latest?after_id=...` and applies new jobs by opening the target path/dataset.
+
 ### Series summing flow
 
 1. Frontend posts job config to `/api/analysis/series-sum/start`.
@@ -386,7 +392,9 @@ This document is a practical navigation guide for contributors.
 - `backend/routes/files.py`:
   - File/folder discovery, native pickers, browse, autoload latest, uploads.
 - `backend/routes/frames.py`:
-  - HDF5 frame binary endpoints (`/api/frame`, `/api/preview`, `/api/mask`) and metadata.
+  - HDF5 frame binary endpoints (`/api/frame`, `/api/mask`) and metadata.
+- `backend/routes/handoff.py`:
+  - Handoff queue ingest and polling endpoints (`/api/handoff/v1/jobs*`).
 - `backend/routes/hdf5.py`:
   - HDF5 inspector endpoints (`/api/datasets`, `/api/hdf5/tree|node|value|search|csv`).
 - `backend/routes/analysis.py`:
@@ -426,6 +434,8 @@ This document is a practical navigation guide for contributors.
   - API schema/contract assertions (request strictness and OpenAPI response docs).
 - `tests/test_api_smoke.py`:
   - End-to-end HTTP smoke tests (health + remote stream flow).
+- `tests/test_handoff_api.py`:
+  - Handoff route contract and queue-cap behavior checks.
 - `tests/test_config.py`:
   - Config normalization and validation edge cases.
 - `tests/test_series_helpers.py` and `tests/test_series_summing_service.py`:
@@ -492,7 +502,6 @@ Code source of truth:
 ### Frame and image payloads
 
 - `GET /api/frame`
-- `GET /api/preview`
 - `GET /api/mask`
 - `GET /api/image`
 - `GET /api/simplon/monitor`
@@ -507,7 +516,6 @@ Common headers:
 
 Endpoint-specific headers are documented in OpenAPI for each route:
 
-- `X-Preview` for preview payloads.
 - `X-Mask-Path` for HDF5 pixel-mask source.
 - `X-Simplon-*` for SIMPLON metadata.
 - `X-Remote-*` for remote stream metadata and sequence control.
@@ -531,6 +539,17 @@ Response:
   - returns `200` with `RemoteMetaResponse`,
   - returns `204` when no frame exists for source,
   - returns `409` with `RemoteMetaConflictResponse` when requested `seq` is no longer current.
+
+## Handoff Semantics
+
+- `POST /api/handoff/v1/jobs`: ingest one handoff manifest path and enqueue a typed job payload.
+- `GET /api/handoff/v1/jobs/latest`:
+  - returns `200` with `HandoffJobResponse` when a newer job than `after_id` exists,
+  - returns `204` when no newer handoff job exists.
+- Queue behavior:
+  - bounded in-memory queue (max 1024 jobs),
+  - oldest entries are evicted when full,
+  - job IDs remain monotonic.
 
 ## JUNGFRAUJOCH Preview Bridge
 

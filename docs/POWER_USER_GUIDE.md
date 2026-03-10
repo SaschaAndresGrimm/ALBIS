@@ -204,3 +204,32 @@ python test_scripts/stream_ingest.py
 ```
 
 Important: the script `source_id` must match the UI `Remote Stream` source id (default `default`).
+
+## Handoff API
+
+ALBIS can accept external handoff jobs (for example from upstream processing orchestration) and auto-open resulting files in the frontend.
+
+### Endpoints
+
+- `POST /api/handoff/v1/jobs`
+  - JSON body:
+    - `manifest_path` (required): path to a manifest `.json` readable by the backend host
+  - Returns `HandoffJobResponse` with parsed `open_path`, `dataset`, and `run_id`
+- `GET /api/handoff/v1/jobs/latest`
+  - Query:
+    - `after_id` (optional, default `0`)
+  - Returns `200` with newest job where `id > after_id`
+  - Returns `204` when no newer job exists
+
+### Manifest parsing notes
+
+- ALBIS reads `run_id` and `outputs` from the provided JSON file.
+- Preferred target is the first output with `kind == "master_h5"`.
+- If no `master_h5` exists, ALBIS falls back to the first output entry.
+- Dataset defaults to `/entry/data/data` when omitted for `master_h5`.
+
+### Queue behavior
+
+- Jobs are stored in an in-memory bounded queue (max `1024`).
+- When full, oldest jobs are evicted.
+- Job IDs stay monotonic.
