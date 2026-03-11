@@ -72,7 +72,10 @@ class SeriesSumStartRequest(_StrictModel):
     mode: str = "all"
     step: int = 10
     operation: str = "sum"
+    normalize_method: str = "none"
     normalize_frame: int | None = None
+    normalize_scalar: float | None = None
+    normalize_image: str | None = None
     range_start: int | None = None
     range_end: int | None = None
     output_path: str | None = None

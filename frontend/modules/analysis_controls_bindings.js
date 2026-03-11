@@ -37,12 +37,15 @@ export function bindAnalysisControlInteractions({
     seriesSumOutput,
     seriesSumMode,
     seriesSumOperation,
-    seriesSumNormalizeEnable,
+    seriesSumNormalizeMethod,
     seriesSumStep,
     seriesSumStepHint,
     seriesSumRangeStart,
     seriesSumRangeEnd,
     seriesSumNormalizeFrame,
+    seriesSumNormalizeScalar,
+    seriesSumNormalizeImage,
+    seriesSumNormalizeImageBrowse,
     seriesSumBrowse,
     filesystemMode,
     seriesSumProgress,
@@ -63,11 +66,17 @@ export function bindAnalysisControlInteractions({
     setStatus,
     handleLocalFileSelection,
     openFileBrowser,
+    openFileDialog,
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,
     schedulePixelOverlay,
   } = callbacks;
+
+  function isTiffPath(path) {
+    const lower = String(path || "").toLowerCase();
+    return lower.endsWith(".tif") || lower.endsWith(".tiff");
+  }
 
   function parsePositiveNumberInput(inputEl, hintEl, label) {
     if (!inputEl) return null;
@@ -198,19 +207,22 @@ export function bindAnalysisControlInteractions({
   });
 
   seriesSumOperation?.addEventListener("change", () => {
+    syncSeriesSumOutputPath();
     updateSeriesSumUi();
   });
 
-  seriesSumNormalizeEnable?.addEventListener("change", () => {
+  seriesSumNormalizeMethod?.addEventListener("change", () => {
     updateSeriesSumUi();
   });
 
   seriesSumStep?.addEventListener("change", () => {
     validateSeriesStepInput(true);
+    updateSeriesSumUi();
   });
 
   seriesSumStep?.addEventListener("input", () => {
     validateSeriesStepInput(false);
+    updateSeriesSumUi();
   });
 
   seriesSumRangeStart?.addEventListener("change", () => {
@@ -218,6 +230,7 @@ export function bindAnalysisControlInteractions({
     const fallback = clampFrameIndex(seriesSumRangeStart.value || 1, total, 1);
     const value = clampFrameIndex(seriesSumRangeStart.value || 1, total, fallback);
     seriesSumRangeStart.value = String(value);
+    updateSeriesSumUi();
   });
 
   seriesSumRangeEnd?.addEventListener("change", () => {
@@ -225,12 +238,71 @@ export function bindAnalysisControlInteractions({
     const fallback = total;
     const value = clampFrameIndex(seriesSumRangeEnd.value || total, total, fallback);
     seriesSumRangeEnd.value = String(value);
+    updateSeriesSumUi();
   });
 
   seriesSumNormalizeFrame?.addEventListener("change", () => {
     const total = Math.max(1, Number(state.frameCount || 1));
     const value = clampFrameIndex(seriesSumNormalizeFrame.value || 1, total, 1);
     seriesSumNormalizeFrame.value = String(value);
+  });
+
+  seriesSumNormalizeScalar?.addEventListener("change", () => {
+    const parsed = Number(seriesSumNormalizeScalar.value || "1");
+    if (!Number.isFinite(parsed)) {
+      seriesSumNormalizeScalar.value = "1";
+      return;
+    }
+    seriesSumNormalizeScalar.value = String(parsed);
+  });
+
+  seriesSumNormalizeImageBrowse?.addEventListener("click", async () => {
+    if (state.seriesSum.running) return;
+
+    if (backendIsLocal) {
+      try {
+        const res = await fetch(`${apiBase}/choose-file`);
+        if (res.status === 204) return;
+        if (!res.ok) {
+          setStatus("Normalization image picker unavailable");
+          return;
+        }
+        const data = await res.json();
+        const pickedPath = String(data?.path || "");
+        if (!pickedPath) return;
+        if (!isTiffPath(pickedPath)) {
+          setStatus("Normalization image must be a TIFF file");
+          return;
+        }
+        if (seriesSumNormalizeImage) {
+          seriesSumNormalizeImage.value = pickedPath;
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus("Normalization image picker failed");
+      }
+      return;
+    }
+
+    if (filesystemMode?.value === "local") {
+      setStatus("Normalization image picker is unavailable in local browser mode");
+      return;
+    }
+
+    try {
+      const selectedPath = await openFileDialog();
+      if (!selectedPath) return;
+      if (!isTiffPath(selectedPath)) {
+        setStatus("Normalization image must be a TIFF file");
+        return;
+      }
+      if (seriesSumNormalizeImage) {
+        seriesSumNormalizeImage.value = String(selectedPath);
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("Normalization image picker failed");
+    }
   });
 
   seriesSumBrowse?.addEventListener("click", async () => {

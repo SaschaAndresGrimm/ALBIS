@@ -718,6 +718,15 @@
                         <option value="tiff">TIFF</option>
                       </select>
                     </label>
+                    <label class="field" id="series-sum-normalize-method-field">
+                      <span>Normalization</span>
+                      <select id="series-sum-normalize-method">
+                        <option value="none">None</option>
+                        <option value="frame">Frame</option>
+                        <option value="scalar">Scalar</option>
+                        <option value="image">Image (TIFF)</option>
+                      </select>
+                    </label>
                   </div>
                   <div class="series-sum-dynamic">
                     <label class="field" id="series-sum-step-field">
@@ -737,17 +746,27 @@
                       <span>Norm frame</span>
                       <input id="series-sum-normalize-frame" type="number" min="1" step="1" value="1" />
                     </label>
+                    <label class="field is-hidden" id="series-sum-normalize-scalar-field">
+                      <span>Norm scalar</span>
+                      <input id="series-sum-normalize-scalar" type="number" step="any" value="1" />
+                    </label>
+                    <label class="field is-hidden" id="series-sum-normalize-image-field">
+                      <span>Norm image (TIFF)</span>
+                      <div class="inline series-sum-output-row">
+                        <input id="series-sum-normalize-image" type="text" placeholder="path/to/reference.tiff" />
+                        <button id="series-sum-normalize-image-browse" class="btn btn-secondary" type="button">
+                          Browse
+                        </button>
+                      </div>
+                    </label>
                   </div>
                   <div class="series-sum-toggles">
-                    <label class="checkbox series-sum-normalize-option">
-                      <input id="series-sum-normalize-enable" type="checkbox" />
-                      Normalize by frame
-                    </label>
                     <label class="checkbox series-sum-mask-option">
                       <input id="series-sum-mask" type="checkbox" checked />
                       Apply mask
                     </label>
                   </div>
+                  <div class="field-hint is-hidden" id="series-sum-median-estimate"></div>
                 </div>
                 <div class="series-sum-card series-sum-card-output">
                   <div class="series-sum-card-title">Output</div>

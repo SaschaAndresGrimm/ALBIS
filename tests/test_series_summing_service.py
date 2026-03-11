@@ -424,3 +424,174 @@ def test_series_summing_service_normalize_and_mask_non_h5(tmp_path: Path) -> Non
     assert out[1, 0] == pytest.approx((1.0 + (8 / 6)) / 2, abs=1e-4)
     assert out[0, 1] == pytest.approx(-1.0)
     assert out[1, 1] == pytest.approx(-2.0)
+
+
+def test_series_summing_service_normalize_scalar_non_h5(tmp_path: Path) -> None:
+    series_files = [tmp_path / "img_0001.tiff", tmp_path / "img_0002.tiff"]
+    frames = {
+        series_files[0]: np.array([[2, 4], [6, 8]], dtype=np.int16),
+        series_files[1]: np.array([[4, 8], [10, 12]], dtype=np.int16),
+    }
+    written: list[np.ndarray] = []
+
+    def resolve_image_file(name: str) -> Path:
+        return Path(name)
+
+    def resolve_series_files(_source: Path) -> tuple[list[Path], int]:
+        return list(series_files), 0
+
+    def read_tiff(path: Path, index: int) -> np.ndarray:
+        assert index == 0
+        return np.asarray(frames[path])
+
+    def write_tiff(_path: Path, arr: np.ndarray) -> None:
+        written.append(np.asarray(arr))
+
+    service = SeriesSummingService(
+        _make_deps(
+            tmp_path,
+            resolve_image_file=resolve_image_file,
+            resolve_series_files=resolve_series_files,
+            read_tiff=read_tiff,
+            write_tiff=write_tiff,
+        )
+    )
+
+    job_id = service.start_job(
+        file=str(series_files[0]),
+        dataset="",
+        mode="all",
+        step=1,
+        operation="sum",
+        normalize_method="scalar",
+        normalize_frame=None,
+        normalize_scalar=2.0,
+        normalize_image=None,
+        range_start=None,
+        range_end=None,
+        output_path=str(tmp_path / "norm_scalar_out"),
+        output_format="tiff",
+        apply_mask=False,
+    )
+    job = _wait_for_job(service, job_id)
+
+    assert job["status"] == "done"
+    assert len(written) == 1
+    out = written[0]
+    assert out.dtype == np.float32
+    np.testing.assert_allclose(out, np.array([[3.0, 6.0], [8.0, 10.0]], dtype=np.float32))
+
+
+def test_series_summing_service_normalize_image_masks_invalid_ref_non_h5(tmp_path: Path) -> None:
+    series_files = [tmp_path / "img_0001.tiff", tmp_path / "img_0002.tiff"]
+    norm_file = tmp_path / "norm_ref.tiff"
+    frames = {
+        series_files[0]: np.array([[2, 4], [6, 8]], dtype=np.int16),
+        series_files[1]: np.array([[4, 8], [12, 16]], dtype=np.int16),
+        norm_file: np.array([[2.0, 0.0], [np.nan, 4.0]], dtype=np.float32),
+    }
+    written: list[np.ndarray] = []
+
+    def resolve_image_file(name: str) -> Path:
+        return Path(name)
+
+    def resolve_series_files(_source: Path) -> tuple[list[Path], int]:
+        return list(series_files), 0
+
+    def read_tiff(path: Path, index: int) -> np.ndarray:
+        assert index == 0
+        return np.asarray(frames[path])
+
+    def write_tiff(_path: Path, arr: np.ndarray) -> None:
+        written.append(np.asarray(arr))
+
+    service = SeriesSummingService(
+        _make_deps(
+            tmp_path,
+            resolve_image_file=resolve_image_file,
+            resolve_series_files=resolve_series_files,
+            read_tiff=read_tiff,
+            write_tiff=write_tiff,
+        )
+    )
+
+    job_id = service.start_job(
+        file=str(series_files[0]),
+        dataset="",
+        mode="all",
+        step=1,
+        operation="mean",
+        normalize_method="image",
+        normalize_frame=None,
+        normalize_scalar=None,
+        normalize_image=str(norm_file),
+        range_start=None,
+        range_end=None,
+        output_path=str(tmp_path / "norm_image_out"),
+        output_format="tiff",
+        apply_mask=True,
+    )
+    job = _wait_for_job(service, job_id)
+
+    assert job["status"] == "done"
+    assert len(written) == 1
+    out = written[0]
+    assert out.dtype == np.float32
+    assert out[0, 0] == pytest.approx(1.5, abs=1e-4)
+    assert out[1, 1] == pytest.approx(3.0, abs=1e-4)
+    assert out[0, 1] == pytest.approx(-2.0, abs=1e-4)
+    assert out[1, 0] == pytest.approx(-2.0, abs=1e-4)
+
+
+def test_series_summing_service_tiff_filename_reflects_operation(tmp_path: Path) -> None:
+    series_files = [tmp_path / "img_0001.tiff", tmp_path / "img_0002.tiff"]
+    frames = {
+        series_files[0]: np.array([[1, 2], [3, 4]], dtype=np.int16),
+        series_files[1]: np.array([[5, 6], [7, 8]], dtype=np.int16),
+    }
+    written_paths: list[Path] = []
+
+    def resolve_image_file(name: str) -> Path:
+        return Path(name)
+
+    def resolve_series_files(_source: Path) -> tuple[list[Path], int]:
+        return list(series_files), 0
+
+    def read_tiff(path: Path, index: int) -> np.ndarray:
+        assert index == 0
+        return np.asarray(frames[path])
+
+    def write_tiff(path: Path, _arr: np.ndarray) -> None:
+        written_paths.append(Path(path))
+
+    service = SeriesSummingService(
+        _make_deps(
+            tmp_path,
+            resolve_image_file=resolve_image_file,
+            resolve_series_files=resolve_series_files,
+            read_tiff=read_tiff,
+            write_tiff=write_tiff,
+        )
+    )
+
+    job_id = service.start_job(
+        file=str(series_files[0]),
+        dataset="",
+        mode="all",
+        step=1,
+        operation="mean",
+        normalize_method="none",
+        normalize_frame=None,
+        normalize_scalar=None,
+        normalize_image=None,
+        range_start=None,
+        range_end=None,
+        output_path=str(tmp_path / "series_sum"),
+        output_format="tiff",
+        apply_mask=False,
+    )
+    job = _wait_for_job(service, job_id)
+
+    assert job["status"] == "done"
+    assert len(written_paths) == 1
+    assert "_mean_" in written_paths[0].name

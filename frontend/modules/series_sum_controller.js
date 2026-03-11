@@ -18,9 +18,15 @@ export function createSeriesSumController({
     seriesSumRangeEndField,
     seriesSumRangeStart,
     seriesSumRangeEnd,
-    seriesSumNormalizeEnable,
+    seriesSumNormalizeMethod,
     seriesSumNormalizeFrameField,
     seriesSumNormalizeFrame,
+    seriesSumNormalizeScalarField,
+    seriesSumNormalizeScalar,
+    seriesSumNormalizeImageField,
+    seriesSumNormalizeImage,
+    seriesSumNormalizeImageBrowse,
+    seriesSumMedianEstimate,
     seriesSumOutput,
     seriesSumBrowse,
     seriesSumFormat,
@@ -43,14 +49,107 @@ export function createSeriesSumController({
   } = callbacks;
 
   let pollTimer = null;
+  const GIB = 1024 ** 3;
+
+  function isTiffPath(path) {
+    const lower = String(path || "").toLowerCase();
+    return lower.endsWith(".tif") || lower.endsWith(".tiff");
+  }
 
   function defaultSeriesSumOutputPath(filePath) {
-    if (!filePath) return "output/series_sum";
+    const operation = (seriesSumOperation?.value || "sum").toLowerCase();
+    if (!filePath) return `output/series_${operation}`;
     const normalized = String(filePath).replace(/\\/g, "/");
     const lastSlash = normalized.lastIndexOf("/");
     const lastDot = normalized.lastIndexOf(".");
     const base = lastDot > lastSlash ? normalized.slice(0, lastDot) : normalized;
-    return `${base}_series_sum`;
+    return `${base}_series_${operation}`;
+  }
+
+  function formatGiB(bytes) {
+    const gib = Number(bytes) / GIB;
+    if (!Number.isFinite(gib) || gib <= 0) return "0 GiB";
+    if (gib >= 100) return `${Math.round(gib)} GiB`;
+    if (gib >= 10) return `${gib.toFixed(1)} GiB`;
+    return `${gib.toFixed(2)} GiB`;
+  }
+
+  function parsePositiveInt(rawValue, fallback = 1) {
+    const parsed = Math.round(Number(rawValue));
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+    return parsed;
+  }
+
+  function resolveImageShape() {
+    const shape = Array.isArray(state.shape) ? state.shape : [];
+    if (shape.length >= 2) {
+      const h = parsePositiveInt(shape[shape.length - 2], 0);
+      const w = parsePositiveInt(shape[shape.length - 1], 0);
+      if (h > 0 && w > 0) return { height: h, width: w };
+    }
+    const h = parsePositiveInt(state.height || 0, 0);
+    const w = parsePositiveInt(state.width || 0, 0);
+    if (h > 0 && w > 0) return { height: h, width: w };
+    return null;
+  }
+
+  function maxFramesPerMedianGroup({ mode, totalFrames, step, rangeStart, rangeEnd }) {
+    if (mode === "all") return totalFrames;
+    if (mode === "nth") return Math.floor((totalFrames - 1) / step) + 1;
+    if (mode === "range") {
+      const start = Math.max(1, Math.min(totalFrames, rangeStart));
+      const end = Math.max(1, Math.min(totalFrames, rangeEnd));
+      if (start > end) return 0;
+      const span = end - start + 1;
+      return Math.min(step, span);
+    }
+    return Math.min(step, totalFrames);
+  }
+
+  function buildMedianEstimate() {
+    const operation = (seriesSumOperation?.value || "sum").toLowerCase();
+    if (operation !== "median") return null;
+    const dims = resolveImageShape();
+    if (!dims) return null;
+    const totalFrames = Math.max(1, parsePositiveInt(state.frameCount || 1, 1));
+    const mode = (seriesSumMode?.value || "all").toLowerCase();
+    const step = parsePositiveInt(seriesSumStep?.value || 1, 1);
+    const rangeStart = parsePositiveInt(seriesSumRangeStart?.value || 1, 1);
+    const rangeEnd = parsePositiveInt(seriesSumRangeEnd?.value || totalFrames, totalFrames);
+    const groupFrames = maxFramesPerMedianGroup({
+      mode,
+      totalFrames,
+      step,
+      rangeStart,
+      rangeEnd,
+    });
+    if (groupFrames <= 0) return null;
+    const pixelCount = Number(dims.height) * Number(dims.width);
+    if (!Number.isFinite(pixelCount) || pixelCount <= 0) return null;
+    const rawBytes = pixelCount * groupFrames * 8;
+    const peakLowBytes = rawBytes * 2;
+    const peakHighBytes = rawBytes * 3;
+    const severe = peakHighBytes >= 16 * GIB;
+    const warning = peakHighBytes >= 8 * GIB;
+    const caution = peakHighBytes >= 4 * GIB;
+    const tonePrefix = severe ? "High memory risk." : warning ? "Warning." : caution ? "Notice." : "";
+    const thresholdCount = Math.max(1, parsePositiveInt(state.thresholdCount || 1, 1));
+    const perThresholdNote = thresholdCount > 1 ? " (per threshold)" : "";
+    const message = [
+      tonePrefix,
+      `Median RAM estimate${perThresholdNote}: raw stack ~${formatGiB(rawBytes)}`,
+      `(${groupFrames} frame${groupFrames === 1 ? "" : "s"} x ${dims.width}x${dims.height})`,
+      `peak often ~${formatGiB(peakLowBytes)}-${formatGiB(peakHighBytes)}.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return {
+      message,
+      requiresConfirm: warning || severe,
+      rawBytes,
+      peakLowBytes,
+      peakHighBytes,
+    };
   }
 
   function syncSeriesSumOutputPath(force = false) {
@@ -103,7 +202,10 @@ export function createSeriesSumController({
     const mode = (seriesSumMode?.value || "all").toLowerCase();
     const isNth = mode === "nth";
     const isRange = mode === "range";
-    const normalizeEnabled = Boolean(seriesSumNormalizeEnable?.checked);
+    const normalizeMethod = (seriesSumNormalizeMethod?.value || "none").toLowerCase();
+    const isFrameNorm = normalizeMethod === "frame";
+    const isScalarNorm = normalizeMethod === "scalar";
+    const isImageNorm = normalizeMethod === "image";
     if (seriesSumStepField) {
       seriesSumStepField.classList.toggle("is-hidden", mode === "all");
     }
@@ -117,7 +219,21 @@ export function createSeriesSumController({
       seriesSumRangeEndField.classList.toggle("is-hidden", !isRange);
     }
     if (seriesSumNormalizeFrameField) {
-      seriesSumNormalizeFrameField.classList.toggle("is-hidden", !normalizeEnabled);
+      seriesSumNormalizeFrameField.classList.toggle("is-hidden", !isFrameNorm);
+    }
+    if (seriesSumNormalizeScalarField) {
+      seriesSumNormalizeScalarField.classList.toggle("is-hidden", !isScalarNorm);
+    }
+    if (seriesSumNormalizeImageField) {
+      seriesSumNormalizeImageField.classList.toggle("is-hidden", !isImageNorm);
+    }
+    if (
+      isImageNorm
+      && seriesSumNormalizeImage
+      && !String(seriesSumNormalizeImage.value || "").trim()
+      && isTiffPath(state.seriesSum.openTarget)
+    ) {
+      seriesSumNormalizeImage.value = String(state.seriesSum.openTarget);
     }
     const totalFrames = Math.max(1, Number(state.frameCount || 1));
     if (seriesSumRangeStart) {
@@ -166,11 +282,20 @@ export function createSeriesSumController({
     if (seriesSumRangeEnd) {
       seriesSumRangeEnd.disabled = state.seriesSum.running || !isRange || !ready;
     }
-    if (seriesSumNormalizeEnable) {
-      seriesSumNormalizeEnable.disabled = state.seriesSum.running || !ready;
+    if (seriesSumNormalizeMethod) {
+      seriesSumNormalizeMethod.disabled = state.seriesSum.running || !ready;
     }
     if (seriesSumNormalizeFrame) {
-      seriesSumNormalizeFrame.disabled = state.seriesSum.running || !normalizeEnabled || !ready;
+      seriesSumNormalizeFrame.disabled = state.seriesSum.running || !isFrameNorm || !ready;
+    }
+    if (seriesSumNormalizeScalar) {
+      seriesSumNormalizeScalar.disabled = state.seriesSum.running || !isScalarNorm || !ready;
+    }
+    if (seriesSumNormalizeImage) {
+      seriesSumNormalizeImage.disabled = state.seriesSum.running || !isImageNorm || !ready;
+    }
+    if (seriesSumNormalizeImageBrowse) {
+      seriesSumNormalizeImageBrowse.disabled = state.seriesSum.running || !isImageNorm || !ready;
     }
     if (seriesSumOutput) {
       seriesSumOutput.disabled = state.seriesSum.running || !ready;
@@ -180,6 +305,16 @@ export function createSeriesSumController({
     }
     if (seriesSumMask) {
       seriesSumMask.disabled = state.seriesSum.running || !ready;
+    }
+    if (seriesSumMedianEstimate) {
+      const estimate = buildMedianEstimate();
+      if (estimate) {
+        seriesSumMedianEstimate.textContent = estimate.message;
+        seriesSumMedianEstimate.classList.remove("is-hidden");
+      } else {
+        seriesSumMedianEstimate.textContent = "";
+        seriesSumMedianEstimate.classList.add("is-hidden");
+      }
     }
     validateSeriesStepInput(false);
   }
@@ -271,7 +406,7 @@ export function createSeriesSumController({
     if (!state.file || (isHdfFile(state.file) && !state.dataset) || state.seriesSum.running) return;
     const mode = (seriesSumMode?.value || "all").toLowerCase();
     const operation = (seriesSumOperation?.value || "sum").toLowerCase();
-    const normalizeEnabled = Boolean(seriesSumNormalizeEnable?.checked);
+    const normalizeMethod = (seriesSumNormalizeMethod?.value || "none").toLowerCase();
     const totalFrames = Math.max(1, Math.round(Number(state.frameCount || 1)));
 
     const parsedStep = validateSeriesStepInput(true);
@@ -289,10 +424,32 @@ export function createSeriesSumController({
     }
 
     let normalizeFrame = null;
-    if (normalizeEnabled) {
+    let normalizeScalar = null;
+    let normalizeImage = "";
+    if (normalizeMethod === "frame") {
       normalizeFrame = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumNormalizeFrame?.value || 1))));
       if (seriesSumNormalizeFrame) {
         seriesSumNormalizeFrame.value = String(normalizeFrame);
+      }
+    } else if (normalizeMethod === "scalar") {
+      const parsedScalar = Number(seriesSumNormalizeScalar?.value || "1");
+      if (!Number.isFinite(parsedScalar) || Math.abs(parsedScalar) <= 1e-12) {
+        setStatus("Normalization scalar must be a non-zero number");
+        return;
+      }
+      normalizeScalar = parsedScalar;
+      if (seriesSumNormalizeScalar) {
+        seriesSumNormalizeScalar.value = String(parsedScalar);
+      }
+    } else if (normalizeMethod === "image") {
+      normalizeImage = String(seriesSumNormalizeImage?.value || "").trim();
+      if (!normalizeImage) {
+        setStatus("Select a normalization image (TIFF)");
+        return;
+      }
+      if (!isTiffPath(normalizeImage)) {
+        setStatus("Normalization image must be a TIFF file");
+        return;
       }
     }
 
@@ -302,13 +459,31 @@ export function createSeriesSumController({
       mode,
       step,
       operation,
+      normalize_method: normalizeMethod,
       normalize_frame: normalizeFrame,
+      normalize_scalar: normalizeScalar,
+      normalize_image: normalizeImage || null,
       range_start: mode === "range" ? rangeStart : null,
       range_end: mode === "range" ? rangeEnd : null,
       output_path: (seriesSumOutput?.value || "").trim(),
       format: (seriesSumFormat?.value || "hdf5").toLowerCase(),
       apply_mask: Boolean(seriesSumMask?.checked),
     };
+    const medianEstimate = buildMedianEstimate();
+    if (medianEstimate?.requiresConfirm) {
+      const proceed = window.confirm(
+        [
+          "Median can require substantial memory.",
+          medianEstimate.message,
+          "",
+          "Continue anyway?",
+        ].join("\n")
+      );
+      if (!proceed) {
+        setStatus("Series summing cancelled before start");
+        return;
+      }
+    }
     try {
       stopSeriesSumPolling();
       state.seriesSum.running = true;

@@ -60,7 +60,10 @@ class SeriesSummingService:
         mode: str,
         step: int,
         operation: str,
-        normalize_frame: int | None,
+        normalize_method: str = "none",
+        normalize_frame: int | None = None,
+        normalize_scalar: float | None = None,
+        normalize_image: str | None = None,
         range_start: int | None,
         range_end: int | None,
         output_path: str | None,
@@ -84,7 +87,10 @@ class SeriesSummingService:
                 "mode": mode,
                 "step": step,
                 "operation": operation,
+                "normalize_method": normalize_method,
                 "normalize_frame": normalize_frame,
+                "normalize_scalar": normalize_scalar,
+                "normalize_image": normalize_image,
                 "range_start": range_start,
                 "range_end": range_end,
                 "format": output_format,
@@ -105,7 +111,10 @@ class SeriesSummingService:
                 "mode": mode,
                 "step": step,
                 "operation": operation,
+                "normalize_method": normalize_method,
                 "normalize_frame": normalize_frame,
+                "normalize_scalar": normalize_scalar,
+                "normalize_image": normalize_image,
                 "range_start": range_start,
                 "range_end": range_end,
                 "output_path": str(output_path or ""),
@@ -199,6 +208,27 @@ class SeriesSummingService:
             if not candidate.exists():
                 return candidate
         raise HTTPException(status_code=500, detail="Unable to allocate output file name")
+
+    @staticmethod
+    def _operation_base_name(base_name: str, operation: str) -> str:
+        name = str(base_name or "").strip() or "series_sum"
+        op = str(operation or "sum").lower()
+        if op not in {"sum", "mean", "median"}:
+            op = "sum"
+
+        series_suffixes = ("_series_sum", "_series_mean", "_series_median")
+        for suffix in series_suffixes:
+            if name.lower().endswith(suffix):
+                return f"{name[: -len(suffix)]}_series_{op}"
+
+        direct_suffixes = ("_sum", "_mean", "_median")
+        for suffix in direct_suffixes:
+            if name.lower().endswith(suffix):
+                return f"{name[: -len(suffix)]}_{op}"
+
+        if name.lower().endswith(f"_{op}"):
+            return name
+        return f"{name}_{op}"
 
     def _copy_h5_metadata(self, src_h5: Any, dst_h5: Any, threshold_count: int) -> None:
         h5py = self._deps.get_h5py()
@@ -314,14 +344,14 @@ class SeriesSummingService:
         cls,
         source_dtype: np.dtype,
         operation: str,
-        normalize_frame_idx: int | None,
+        normalize_enabled: bool,
         max_group_count: int,
         result_min: float | None,
         result_max: float | None,
         has_fractional_values: bool,
     ) -> np.dtype:
         source_dtype = np.dtype(source_dtype)
-        if normalize_frame_idx is not None or operation == "mean":
+        if normalize_enabled or operation == "mean":
             return np.dtype(np.float32)
 
         if operation == "sum":
@@ -373,6 +403,7 @@ class SeriesSummingService:
         total_steps: int,
         progress_message: Callable[[int], str],
         reduce_message: Callable[[], str],
+        normalize_scalar: float | None = None,
         normalize_ref: np.ndarray | None = None,
         normalize_ref_valid: np.ndarray | None = None,
         any_mask: np.ndarray | None = None,
@@ -386,11 +417,13 @@ class SeriesSummingService:
             arr = np.asarray(load_frame(frame_idx), dtype=np.float64)
             if preprocess_frame is not None:
                 arr = np.asarray(preprocess_frame(arr, frame_idx), dtype=np.float64)
+            if normalize_scalar is not None:
+                arr = arr / float(normalize_scalar)
             if normalize_ref is not None and normalize_ref_valid is not None:
                 arr = np.divide(
                     arr,
                     normalize_ref,
-                    out=np.zeros_like(arr, dtype=np.float64),
+                    out=np.full_like(arr, np.nan, dtype=np.float64),
                     where=normalize_ref_valid,
                 )
             if any_mask is not None:
@@ -453,7 +486,10 @@ class SeriesSummingService:
         mode: str,
         step: int,
         operation: str,
+        normalize_method: str,
         normalize_frame: int | None,
+        normalize_scalar: float | None,
+        normalize_image: str | None,
         range_start: int | None,
         range_end: int | None,
         output_path: str | None,
@@ -469,10 +505,45 @@ class SeriesSummingService:
             mode = mode.lower()
             operation = operation.lower()
             step = max(1, int(step))
+            normalize_method = str(normalize_method or "none").strip().lower()
+            if normalize_method == "none" and normalize_frame is not None:
+                normalize_method = "frame"
             normalize_frame_idx = int(normalize_frame) - 1 if normalize_frame is not None else None
+            normalize_scalar_value = (
+                float(normalize_scalar) if normalize_scalar is not None else None
+            )
+            normalize_image_path = str(normalize_image or "").strip()
+            if normalize_method not in {"none", "frame", "scalar", "image"}:
+                raise HTTPException(status_code=400, detail="Invalid normalization method")
+            if normalize_method == "frame" and normalize_frame_idx is None:
+                raise HTTPException(status_code=400, detail="Normalize frame is required")
+            if normalize_method == "scalar":
+                if normalize_scalar_value is None:
+                    raise HTTPException(status_code=400, detail="Normalize scalar is required")
+                if not np.isfinite(normalize_scalar_value) or abs(normalize_scalar_value) <= 1e-12:
+                    raise HTTPException(status_code=400, detail="Normalize scalar must be non-zero")
+            if normalize_method == "image" and not normalize_image_path:
+                raise HTTPException(status_code=400, detail="Normalize image is required")
 
             self._update_job(job_id, status="running", message="Preparing datasets…", progress=0.01)
             self._raise_if_cancelled(job_id)
+
+            normalize_image_ref: np.ndarray | None = None
+            normalize_image_source: Path | None = None
+            if normalize_method == "image":
+                normalize_image_source = self._deps.resolve_image_file(normalize_image_path)
+                normalize_image_ext = self._deps.image_ext_name(normalize_image_source.name)
+                if normalize_image_ext not in {".tif", ".tiff"}:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Normalize image must be a TIFF file in v1",
+                    )
+                normalize_image_ref = np.asarray(
+                    self._read_non_h5_image(normalize_image_source),
+                    dtype=np.float64,
+                )
+                if normalize_image_ref.ndim != 2:
+                    raise HTTPException(status_code=400, detail="Normalize image must be 2D")
 
             sums: list[tuple[int, int, int, int, int, np.ndarray, np.ndarray | None]] = []
             mask_bits_by_thr: list[np.ndarray | None] = []
@@ -496,11 +567,20 @@ class SeriesSummingService:
                             )
                         frame_count = int(shape[0])
                         threshold_count = int(shape[1]) if ndim == 4 else 1
-                        if normalize_frame_idx is not None and (
+                        if normalize_method == "frame" and normalize_frame_idx is not None and (
                             normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
                         ):
                             raise HTTPException(
                                 status_code=400, detail="Normalize frame is out of range"
+                            )
+                        if normalize_image_ref is not None and normalize_image_ref.shape != shape[-2:]:
+                            raise HTTPException(
+                                status_code=400,
+                                detail=(
+                                    "Normalize image shape mismatch: expected "
+                                    f"{shape[-2]}x{shape[-1]}, got "
+                                    f"{normalize_image_ref.shape[0]}x{normalize_image_ref.shape[1]}"
+                                ),
                             )
                         groups = self._deps.iter_sum_groups(
                             frame_count, mode, step, range_start, range_end
@@ -538,15 +618,34 @@ class SeriesSummingService:
                             )
                             norm_ref: np.ndarray | None = None
                             norm_ref_valid: np.ndarray | None = None
-                            if normalize_frame_idx is not None:
+                            if normalize_method == "frame" and normalize_frame_idx is not None:
                                 norm_ref = np.asarray(
                                     self._deps.extract_frame(view, normalize_frame_idx, thr),
                                     dtype=np.float64,
                                 )
+                            elif normalize_method == "image" and normalize_image_ref is not None:
+                                norm_ref = np.asarray(normalize_image_ref, dtype=np.float64)
+
+                            if norm_ref is not None:
+                                norm_ref = norm_ref.copy()
+                                existing_mask = any_mask.copy() if any_mask is not None else None
                                 if any_mask is not None:
-                                    norm_ref = norm_ref.copy()
                                     norm_ref[any_mask] = np.nan
                                 norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
+                                if apply_mask:
+                                    invalid_ref = ~norm_ref_valid
+                                    if existing_mask is not None:
+                                        invalid_ref = invalid_ref & ~existing_mask
+                                    if np.any(invalid_ref):
+                                        if mask_bits is None:
+                                            mask_bits = np.zeros(norm_ref.shape, dtype=np.uint32)
+                                            mask_bits_by_thr[thr] = mask_bits
+                                        mask_bits[invalid_ref] |= np.uint32(0x1E)
+                                        _, _, any_mask = self._deps.mask_slices(mask_bits)
+                                        norm_ref[any_mask] = np.nan
+                                        norm_ref_valid = np.isfinite(norm_ref) & (
+                                            np.abs(norm_ref) > 1e-12
+                                        )
 
                             for chunk_idx, group in enumerate(groups):
                                 self._raise_if_cancelled(job_id)
@@ -574,6 +673,9 @@ class SeriesSummingService:
                                             f"frames {start + 1}-{end + 1}"
                                         )
                                     ),
+                                    normalize_scalar=(
+                                        normalize_scalar_value if normalize_method == "scalar" else None
+                                    ),
                                     normalize_ref=norm_ref,
                                     normalize_ref_valid=norm_ref_valid,
                                     any_mask=any_mask,
@@ -585,7 +687,7 @@ class SeriesSummingService:
                                 )
                                 if (
                                     operation == "median"
-                                    and normalize_frame_idx is None
+                                    and normalize_method == "none"
                                     and (
                                         np.issubdtype(source_dtype, np.integer)
                                         or np.issubdtype(source_dtype, np.unsignedinteger)
@@ -616,7 +718,7 @@ class SeriesSummingService:
                 series_files, _ = self._deps.resolve_series_files(source_path)
                 frame_count = len(series_files)
                 threshold_count = 1
-                if normalize_frame_idx is not None and (
+                if normalize_method == "frame" and normalize_frame_idx is not None and (
                     normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
                 ):
                     raise HTTPException(status_code=400, detail="Normalize frame is out of range")
@@ -632,13 +734,31 @@ class SeriesSummingService:
                 source_dtype = np.dtype(sample.dtype)
                 mask_bits = np.zeros((image_h, image_w), dtype=np.uint32) if apply_mask else None
                 mask_bits_by_thr = [mask_bits]
+                if normalize_image_ref is not None and normalize_image_ref.shape != (image_h, image_w):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "Normalize image shape mismatch: expected "
+                            f"{image_h}x{image_w}, got "
+                            f"{normalize_image_ref.shape[0]}x{normalize_image_ref.shape[1]}"
+                        ),
+                    )
 
                 norm_ref: np.ndarray | None = None
                 norm_ref_valid: np.ndarray | None = None
-                if normalize_frame_idx is not None:
+                if normalize_method == "frame" and normalize_frame_idx is not None:
                     ref_arr = np.asarray(
-                        self._read_non_h5_image(series_files[normalize_frame_idx]), dtype=np.float64
+                        self._read_non_h5_image(series_files[normalize_frame_idx]),
+                        dtype=np.float64,
                     )
+                elif normalize_method == "image" and normalize_image_ref is not None:
+                    ref_arr = np.asarray(normalize_image_ref, dtype=np.float64)
+                else:
+                    ref_arr = None
+
+                if ref_arr is not None:
+                    ref_arr = ref_arr.copy()
+                    existing_mask = (mask_bits != 0) if mask_bits is not None else None
                     if apply_mask:
                         neg = ref_arr < 0
                         if neg.any():
@@ -646,8 +766,13 @@ class SeriesSummingService:
                             if mask_bits is not None:
                                 mask_bits[gaps] |= 1
                                 mask_bits[neg & ~gaps] |= 0x1E
-                            ref_arr = ref_arr.copy()
                             ref_arr[neg] = np.nan
+                        invalid_ref = ~np.isfinite(ref_arr) | (np.abs(ref_arr) <= 1e-12)
+                        if existing_mask is not None:
+                            invalid_ref = invalid_ref & ~existing_mask
+                        if invalid_ref.any() and mask_bits is not None:
+                            mask_bits[invalid_ref] |= 0x1E
+                            ref_arr[invalid_ref] = np.nan
                     norm_ref = ref_arr
                     norm_ref_valid = np.isfinite(norm_ref) & (np.abs(norm_ref) > 1e-12)
 
@@ -693,6 +818,9 @@ class SeriesSummingService:
                                 f"Reducing median frames {start + 1}-{end + 1}"
                             )
                         ),
+                        normalize_scalar=(
+                            normalize_scalar_value if normalize_method == "scalar" else None
+                        ),
                         normalize_ref=norm_ref,
                         normalize_ref_valid=norm_ref_valid,
                         preprocess_frame=_preprocess_non_h5_frame,
@@ -704,7 +832,7 @@ class SeriesSummingService:
                     )
                     if (
                         operation == "median"
-                        and normalize_frame_idx is None
+                        and normalize_method == "none"
                         and (
                             np.issubdtype(source_dtype, np.integer)
                             or np.issubdtype(source_dtype, np.unsignedinteger)
@@ -721,7 +849,7 @@ class SeriesSummingService:
             output_dtype = self._select_output_dtype(
                 source_dtype=source_dtype,
                 operation=operation,
-                normalize_frame_idx=normalize_frame_idx,
+                normalize_enabled=normalize_method != "none",
                 max_group_count=max_group_count,
                 result_min=result_min,
                 result_max=result_max,
@@ -730,13 +858,17 @@ class SeriesSummingService:
             flag_value = self._deps.mask_flag_value(output_dtype)
             self._raise_if_cancelled(job_id)
             self._update_job(job_id, progress=0.97, message="Writing outputs…")
+            operation_base_name = self._operation_base_name(
+                base_target.stem or base_target.name or "series_sum",
+                operation,
+            )
             if output_format in {"hdf5", "h5"}:
                 self._deps.ensure_hdf5_stack()
                 h5py = self._deps.get_h5py()
                 if base_target.suffix.lower() in {".h5", ".hdf5"}:
                     out_file = base_target
                 else:
-                    out_file = base_target.parent / f"{base_target.name}_{timestamp}.h5"
+                    out_file = base_target.parent / f"{operation_base_name}_{timestamp}.h5"
                 out_file = self._next_available_path(out_file)
                 with h5py.File(out_file, "w") as out_h5:
                     out_h5.attrs["source_file"] = str(source_path)
@@ -746,8 +878,13 @@ class SeriesSummingService:
                     out_h5.attrs["frame_count"] = int(frame_count)
                     out_h5.attrs["threshold_count"] = int(threshold_count)
                     out_h5.attrs["mask_applied"] = bool(apply_mask)
-                    if normalize_frame is not None:
+                    out_h5.attrs["normalize_method"] = normalize_method
+                    if normalize_method == "frame" and normalize_frame is not None:
                         out_h5.attrs["normalize_frame"] = int(normalize_frame)
+                    if normalize_method == "scalar" and normalize_scalar_value is not None:
+                        out_h5.attrs["normalize_scalar"] = float(normalize_scalar_value)
+                    if normalize_method == "image" and normalize_image_source is not None:
+                        out_h5.attrs["normalize_image"] = str(normalize_image_source)
 
                     out_frame_count = len(groups)
                     image_h = int(shape[-2])
@@ -785,8 +922,13 @@ class SeriesSummingService:
                         data_dset.attrs["sum_range_start"] = int(range_start)
                     if range_end is not None:
                         data_dset.attrs["sum_range_end"] = int(range_end)
-                    if normalize_frame is not None:
+                    data_dset.attrs["sum_normalize_method"] = normalize_method
+                    if normalize_method == "frame" and normalize_frame is not None:
                         data_dset.attrs["sum_normalize_frame"] = int(normalize_frame)
+                    if normalize_method == "scalar" and normalize_scalar_value is not None:
+                        data_dset.attrs["sum_normalize_scalar"] = float(normalize_scalar_value)
+                    if normalize_method == "image" and normalize_image_source is not None:
+                        data_dset.attrs["sum_normalize_image"] = str(normalize_image_source)
                     data_dset.attrs["source_dataset"] = str(dataset)
                     data_dset.attrs["frame_count_in"] = int(frame_count)
                     data_dset.attrs["frame_count_out"] = int(out_frame_count)
@@ -842,7 +984,7 @@ class SeriesSummingService:
                                 )
                     outputs.append(str(out_file))
             elif output_format in {"tiff", "tif"}:
-                base_name = base_target.stem or base_target.name or "series_sum"
+                base_name = operation_base_name
                 out_dir = base_target.parent
                 for thr, chunk_idx, start_idx, end_idx, frame_count_in_sum, arr, mask_bits in sums:
                     self._raise_if_cancelled(job_id)

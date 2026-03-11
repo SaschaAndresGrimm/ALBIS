@@ -357,9 +357,15 @@ const seriesSumRangeStartField = document.getElementById("series-sum-range-start
 const seriesSumRangeEndField = document.getElementById("series-sum-range-end-field");
 const seriesSumRangeStart = document.getElementById("series-sum-range-start");
 const seriesSumRangeEnd = document.getElementById("series-sum-range-end");
-const seriesSumNormalizeEnable = document.getElementById("series-sum-normalize-enable");
+const seriesSumNormalizeMethod = document.getElementById("series-sum-normalize-method");
 const seriesSumNormalizeFrameField = document.getElementById("series-sum-normalize-frame-field");
 const seriesSumNormalizeFrame = document.getElementById("series-sum-normalize-frame");
+const seriesSumNormalizeScalarField = document.getElementById("series-sum-normalize-scalar-field");
+const seriesSumNormalizeScalar = document.getElementById("series-sum-normalize-scalar");
+const seriesSumNormalizeImageField = document.getElementById("series-sum-normalize-image-field");
+const seriesSumNormalizeImage = document.getElementById("series-sum-normalize-image");
+const seriesSumNormalizeImageBrowse = document.getElementById("series-sum-normalize-image-browse");
+const seriesSumMedianEstimate = document.getElementById("series-sum-median-estimate");
 const seriesSumOutput = document.getElementById("series-sum-output");
 const seriesSumBrowse = document.getElementById("series-sum-browse");
 const seriesSumFormat = document.getElementById("series-sum-format");
@@ -1182,9 +1188,15 @@ const seriesSumController = createSeriesSumController({
     seriesSumRangeEndField,
     seriesSumRangeStart,
     seriesSumRangeEnd,
-    seriesSumNormalizeEnable,
+    seriesSumNormalizeMethod,
     seriesSumNormalizeFrameField,
     seriesSumNormalizeFrame,
+    seriesSumNormalizeScalarField,
+    seriesSumNormalizeScalar,
+    seriesSumNormalizeImageField,
+    seriesSumNormalizeImage,
+    seriesSumNormalizeImageBrowse,
+    seriesSumMedianEstimate,
     seriesSumOutput,
     seriesSumBrowse,
     seriesSumFormat,
@@ -3606,12 +3618,15 @@ bindAnalysisControlInteractions({
     seriesSumOutput,
     seriesSumMode,
     seriesSumOperation,
-    seriesSumNormalizeEnable,
+    seriesSumNormalizeMethod,
     seriesSumStep,
     seriesSumStepHint,
     seriesSumRangeStart,
     seriesSumRangeEnd,
     seriesSumNormalizeFrame,
+    seriesSumNormalizeScalar,
+    seriesSumNormalizeImage,
+    seriesSumNormalizeImageBrowse,
     seriesSumBrowse,
     filesystemMode,
     seriesSumProgress,
@@ -3631,6 +3646,7 @@ bindAnalysisControlInteractions({
     setStatus,
     handleLocalFileSelection,
     openFileBrowser,
+    openFileDialog,
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,

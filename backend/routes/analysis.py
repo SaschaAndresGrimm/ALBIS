@@ -184,7 +184,10 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             mode = "chunks"
         step = int(payload.step or 10)
         operation = str(payload.operation).strip().lower()
+        normalize_method = str(payload.normalize_method or "none").strip().lower()
         normalize_frame = payload.normalize_frame
+        normalize_scalar = payload.normalize_scalar
+        normalize_image = str(payload.normalize_image or "").strip()
         range_start = payload.range_start
         range_end = payload.range_end
         output_path = payload.output_path
@@ -200,6 +203,8 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             raise HTTPException(status_code=400, detail="Invalid mode")
         if operation not in {"sum", "mean", "median"}:
             raise HTTPException(status_code=400, detail="Invalid operation")
+        if normalize_method not in {"none", "frame", "scalar", "image"}:
+            raise HTTPException(status_code=400, detail="Invalid normalization method")
         if output_format not in {"hdf5", "h5", "tiff", "tif"}:
             raise HTTPException(status_code=400, detail="Invalid format")
         if step < 1:
@@ -210,8 +215,23 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             raise HTTPException(status_code=400, detail="Range end must be >= 1")
         if range_start is not None and range_end is not None and range_start > range_end:
             raise HTTPException(status_code=400, detail="Range start must be <= range end")
-        if normalize_frame is not None and normalize_frame < 1:
-            raise HTTPException(status_code=400, detail="Normalize frame must be >= 1")
+        if normalize_method == "none" and normalize_frame is not None:
+            # Backward compatibility for older clients that only send normalize_frame.
+            normalize_method = "frame"
+        if normalize_method == "frame":
+            if normalize_frame is None:
+                raise HTTPException(status_code=400, detail="Normalize frame is required")
+            if normalize_frame < 1:
+                raise HTTPException(status_code=400, detail="Normalize frame must be >= 1")
+        if normalize_method == "scalar":
+            if normalize_scalar is None:
+                raise HTTPException(status_code=400, detail="Normalize scalar is required")
+            if not isinstance(normalize_scalar, (int, float)):
+                raise HTTPException(status_code=400, detail="Normalize scalar must be numeric")
+            if abs(float(normalize_scalar)) <= 1e-12:
+                raise HTTPException(status_code=400, detail="Normalize scalar must be non-zero")
+        if normalize_method == "image" and not normalize_image:
+            raise HTTPException(status_code=400, detail="Normalize image is required")
 
         job_id = deps.start_series_sum_job(
             file=file,
@@ -219,7 +239,10 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             mode=mode,
             step=step,
             operation=operation,
+            normalize_method=normalize_method,
             normalize_frame=normalize_frame,
+            normalize_scalar=normalize_scalar,
+            normalize_image=normalize_image,
             range_start=range_start,
             range_end=range_end,
             output_path=str(output_path or ""),
