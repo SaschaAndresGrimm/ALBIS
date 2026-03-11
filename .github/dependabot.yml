@@ -6,6 +6,18 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      python-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+      python-major:
+        update-types:
+          - "major"
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "python"
@@ -16,6 +28,18 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      node-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+      node-major:
+        update-types:
+          - "major"
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "javascript"
@@ -26,6 +50,18 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+      actions-major:
+        update-types:
+          - "major"
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "ci"
