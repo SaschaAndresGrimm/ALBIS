@@ -18,6 +18,7 @@ export function bindHistogramDragInteractions({
     snapHistogramValue,
     formatValue,
     redraw,
+    scheduleHistogram,
     histogramValueToX,
     histogramXToValue,
     getHistTooltipPosition,
@@ -50,6 +51,7 @@ export function bindHistogramDragInteractions({
     state.autoScale = false;
     autoScaleToggle.checked = false;
     redraw();
+    scheduleHistogram();
   }
 
   function flushHistogramDragFrame() {

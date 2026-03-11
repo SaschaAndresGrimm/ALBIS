@@ -506,6 +506,7 @@ export function initializePostFilePickerBindings({
       snapHistogramValue,
       formatValue,
       redraw,
+      scheduleHistogram,
       histogramValueToX,
       histogramXToValue,
       getHistTooltipPosition,
