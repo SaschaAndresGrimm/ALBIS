@@ -24,7 +24,7 @@
     "test:js": "npx -y node@20 ./node_modules/vitest/vitest.mjs run"
   },
   "devDependencies": {
-    "eslint": "^9.20.1",
+    "eslint": "^10.0.3",
     "jsdom": "^28.1.0",
     "vitest": "^4.0.18"
   },
