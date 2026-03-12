@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.15] - 2026-03-12
+
+### Fixed
+
+- Docker GHCR publish no longer fails on Trivy setup/runtime drift.
+- Trivy release gate now ignores unfixed vulnerabilities while still failing on fixable `HIGH/CRITICAL` findings.
+- Docker image build now upgrades `setuptools`, `wheel`, and `jaraco.context` to patched versions required by the Trivy gate.
+
+### Notes
+
+- This release is called: "Now scanning, still shipping."
+- This release is called: "Red gate, green build."
+
 ## [0.8.14] - 2026-03-12
 
 ### Fixed
@@ -117,7 +130,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.14...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.15...HEAD
+[0.8.15]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.15
 [0.8.14]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.14
 [0.8.13]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.13
 [0.8.12]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.12

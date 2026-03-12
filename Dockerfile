@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
 # Copy and install Python dependencies
 COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir --upgrade "setuptools>=82.0.1" "wheel>=0.46.2" "jaraco.context>=6.1.0"
 
 # Copy application files
 COPY backend/ backend/

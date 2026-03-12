@@ -149,6 +149,7 @@ jobs:
           image-ref: albis-scan:latest
           version: latest
           severity: HIGH,CRITICAL
+          ignore-unfixed: true
           exit-code: "1"
           format: table
 

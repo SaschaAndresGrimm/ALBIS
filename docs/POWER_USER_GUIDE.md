@@ -119,7 +119,7 @@ Examples:
 
 ```bash
 docker pull ghcr.io/saschaandresgrimm/albis:latest
-docker pull ghcr.io/saschaandresgrimm/albis:v0.8.14
+docker pull ghcr.io/saschaandresgrimm/albis:v0.8.15
 ```
 
 ### Published Tags and Architectures
