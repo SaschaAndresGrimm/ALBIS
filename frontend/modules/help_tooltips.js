@@ -2,6 +2,8 @@
  * Contextual help tooltip controller.
  */
 
+import { t } from "./i18n.js";
+
 const HELP_SELECTORS = [
   "button",
   "input",
@@ -47,7 +49,7 @@ function getHelpText(target) {
   if (title) return title;
   if (target.classList?.contains("menu-item")) {
     const text = (target.textContent || "").replace(/\s+/g, " ").trim();
-    if (text) return `Open ${text} menu`;
+    if (text) return t("hint.menu.open", { menu: text });
   }
   if (target.classList?.contains("dropdown-item")) {
     const text = target.querySelector("span")?.textContent?.trim() || "";
@@ -70,95 +72,98 @@ export function createHelpTooltipController({
   let helpTarget = null;
   let helpLastEvent = null;
 
+  function setManagedHelp(element, text) {
+    if (!element) return;
+    element.dataset.help = text;
+    element.dataset.helpManaged = "true";
+  }
+
   function applyHelpMap() {
     const helpMap = {
-      "btn-prev": "Move to the previous frame in the loaded stack (Left Arrow).",
-      "btn-next": "Move to the next frame in the loaded stack (Right Arrow).",
-      "btn-play": "Start or pause frame playback using the selected FPS (Tab).",
-      "frame-range": "Drag to scrub through frames.",
-      "frame-index": "Enter an exact frame number.",
-      "toolbar-playback-toggle": "Open playback controls for frame step and FPS.",
-      "toolbar-more-toggle": "Open additional toolbar controls.",
-      "toolbar-more-panel-toggle": "Open or close the side analysis menu.",
-      "toolbar-more-fullscreen": "Enter or leave full-screen mode (F).",
-      "frame-step": "Set how many frames each step advances.",
-      "fps-select": "Set playback speed in frames per second.",
-      "toolbar-more-step": "Set how many frames each step advances.",
-      "toolbar-more-fps": "Set playback speed in frames per second.",
-      "toolbar-more-threshold": "Choose the detector threshold channel (Up/Down Arrow).",
-      "toolbar-threshold": "Choose the detector threshold channel (Up/Down Arrow).",
-      "zoom-range": "Adjust image zoom level.",
-      "zoom-value": "Type a zoom factor (for example 1.5x or 150%) and press Enter.",
-      "reset-view": "Fit the full image into the viewport.",
-      "canvas-wrap":
-        "Wheel: zoom at cursor. Left-drag: pan. Shift+left-drag: contrast/brightness (horizontal/vertical). Right-drag: ROI.",
-      "pixel-label-toggle": "Show pixel intensity labels at high zoom.",
-      "mask-toggle": "Apply the detector pixel mask when available.",
-      "mask-saturated-toggle": "Hide saturated pixels (datatype maximum).",
-      "colormap-select": "Change the intensity-to-color mapping.",
-      "invert-color": "Invert the active color map.",
-      "roi-enable": "Enable ROI overlays and ROI statistics.",
-      "rings-toggle": "Show or hide resolution ring overlays.",
-      "roi-mode": "Choose ROI geometry (line, box, circle, annulus).",
-      "roi-log": "Display ROI plots with logarithmic Y scale.",
-      "roi-histogram": "Show an additional histogram plot of intensity distribution inside the active ROI.",
-      "roi-limits-enable": "Autoscale ROI plots; disable to keep manual zoom/pan.",
-      "roi-clear-btn": "Clear the active ROI and reset ROI stats.",
-      "roi-export-csv": "Export current ROI profile/projection data as CSV.",
-      "autoload-mode": "Select where incoming images are read from.",
-      "filesystem-mode": "Choose local filesystem source mode.",
-      "autoload-dir": "Folder path to poll for new files.",
-      "autoload-watch-enabled": "Automatically poll the selected folder for updates.",
-      "autoload-browse": "Browse and select a source folder.",
-      "autoload-select-file": "Open a file picker and load a specific image file.",
-      "autoload-pattern": "Filename filter with wildcard support.",
-      "autoload-interval": "Polling interval in milliseconds.",
-      "remote-source-id": "Remote stream source identifier.",
-      "remote-interval": "Remote polling interval in milliseconds.",
-      "jfjoch-preview-endpoint": "ZeroMQ preview PUB endpoint for JUNGFRAUJOCH (for example tcp://host:31003).",
-      "jfjoch-source-id": "ALBIS source identifier used to cache JUNGFRAUJOCH frames.",
-      "jfjoch-topic": "Optional ZeroMQ topic prefix to subscribe to.",
-      "jfjoch-channel": "Optional image channel to display from data map payload.",
-      "jfjoch-interval": "Polling interval in milliseconds for updated preview frames.",
-      "simplon-url": "Base URL for the SIMPLON monitor API.",
-      "simplon-timeout": "Request timeout for monitor polling (ms).",
-      "simplon-enable": "Enable or pause SIMPLON live monitoring.",
-      "series-sum-start": "Start the configured series operation job.",
-      "series-sum-cancel": "Cancel the currently running series operation.",
-      "settings-server-external": "Allow connections from other machines (binds to all interfaces).",
-      "settings-server-port": "Backend server port. Use 0 to auto-select a free port at startup.",
-      "panel-fab": "Toggle the side panel open or closed (M).",
-      "panel-collapse-btn": "Collapse the side panel (M).",
-      "panel-resizer": "Drag to resize the side panel width.",
-      "panel-sheet-handle": "Drag up/down to resize the mobile panel sheet.",
-      "fullscreen-toggle": "Enter or leave full-screen mode (F).",
-      "inspector-search-input": "Search datasets and nodes in the HDF5 tree.",
-      "inspector-search-clear": "Clear the current inspector search query.",
-      "command-input": "Search available commands and run one.",
+      "btn-prev": "hint.frame.previous",
+      "btn-next": "hint.frame.next",
+      "btn-play": "hint.frame.play_pause",
+      "frame-range": "hint.frame.scrub",
+      "frame-index": "hint.frame.exact_number",
+      "toolbar-playback-toggle": "hint.toolbar.playback_controls",
+      "toolbar-more-toggle": "hint.toolbar.more_controls",
+      "toolbar-more-panel-toggle": "hint.toolbar.toggle_side_menu",
+      "toolbar-more-fullscreen": "hint.toolbar.fullscreen",
+      "frame-step": "hint.frame.step",
+      "fps-select": "hint.frame.fps",
+      "toolbar-more-step": "hint.frame.step",
+      "toolbar-more-fps": "hint.frame.fps",
+      "toolbar-more-threshold": "hint.frame.threshold_channel",
+      "toolbar-threshold": "hint.frame.threshold_channel",
+      "zoom-range": "hint.view.zoom_slider",
+      "zoom-value": "hint.view.zoom_input",
+      "reset-view": "hint.view.fit",
+      "canvas-wrap": "hint.canvas.controls",
+      "pixel-label-toggle": "hint.overlay.pixel_labels",
+      "mask-toggle": "hint.overlay.mask",
+      "mask-saturated-toggle": "hint.overlay.mask_saturated",
+      "colormap-select": "hint.overlay.colormap",
+      "invert-color": "hint.overlay.invert",
+      "roi-enable": "hint.roi.enable",
+      "rings-toggle": "hint.rings.toggle",
+      "roi-mode": "hint.roi.mode",
+      "roi-log": "hint.roi.log",
+      "roi-histogram": "hint.roi.histogram",
+      "roi-limits-enable": "hint.roi.autoscale",
+      "roi-clear-btn": "hint.roi.clear",
+      "roi-export-csv": "hint.roi.export_csv",
+      "autoload-mode": "hint.autoload.mode",
+      "filesystem-mode": "hint.autoload.filesystem_mode",
+      "autoload-dir": "hint.autoload.directory",
+      "autoload-watch-enabled": "hint.autoload.watch_enabled",
+      "autoload-browse": "hint.autoload.browse",
+      "autoload-select-file": "hint.autoload.select_file",
+      "autoload-pattern": "hint.autoload.pattern",
+      "autoload-interval": "hint.autoload.interval",
+      "remote-source-id": "hint.remote.source_id",
+      "remote-interval": "hint.remote.interval",
+      "jfjoch-preview-endpoint": "hint.jfjoch.endpoint",
+      "jfjoch-source-id": "hint.jfjoch.source_id",
+      "jfjoch-topic": "hint.jfjoch.topic",
+      "jfjoch-channel": "hint.jfjoch.channel",
+      "jfjoch-interval": "hint.jfjoch.interval",
+      "simplon-url": "hint.simplon.url",
+      "simplon-timeout": "hint.simplon.timeout",
+      "simplon-enable": "hint.simplon.enable",
+      "series-sum-start": "hint.series.start",
+      "series-sum-cancel": "hint.series.cancel",
+      "settings-server-external": "hint.settings.server_external",
+      "settings-server-port": "hint.settings.server_port",
+      "panel-fab": "hint.panel.toggle",
+      "panel-collapse-btn": "hint.panel.collapse",
+      "panel-resizer": "hint.panel.resizer",
+      "panel-sheet-handle": "hint.panel.sheet_handle",
+      "fullscreen-toggle": "hint.toolbar.fullscreen",
+      "inspector-search-input": "hint.inspector.search",
+      "inspector-search-clear": "hint.inspector.clear",
+      "command-input": "hint.command.search",
     };
 
-    Object.entries(helpMap).forEach(([id, text]) => {
+    Object.entries(helpMap).forEach(([id, key]) => {
       const el = document.getElementById(id);
-      if (el && !el.dataset.help) {
-        el.dataset.help = text;
-      }
+      setManagedHelp(el, t(key));
     });
 
     const commandMenuItem = document.querySelector('.dropdown-item[data-action="command-palette"]');
-    if (commandMenuItem && !commandMenuItem.dataset.help) {
-      commandMenuItem.dataset.help = `Command Palette (${platformShortcutLabel("command-palette")})`;
+    if (commandMenuItem) {
+      const shortcut = platformShortcutLabel("command-palette");
+      setManagedHelp(
+        commandMenuItem,
+        shortcut ? t("hint.command.palette_shortcut", { shortcut }) : t("hint.command.palette"),
+      );
     }
 
     document.querySelectorAll(".roi-resize-handle").forEach((el) => {
-      if (!el.dataset.help) {
-        el.dataset.help = "Drag to change ROI plot panel height.";
-      }
+      setManagedHelp(el, t("hint.roi.resize_panel"));
     });
 
     roiCanvases.forEach((canvasEl) => {
-      if (canvasEl && !canvasEl.dataset.help) {
-        canvasEl.dataset.help = "Drag to pan plot axes. Use wheel on axes to zoom. Double-click to reset.";
-      }
+      setManagedHelp(canvasEl, t("hint.roi.plot_canvas_controls"));
     });
 
     document.querySelectorAll("[data-help]").forEach((el) => {
@@ -166,6 +171,15 @@ export function createHelpTooltipController({
         el.removeAttribute("title");
       }
     });
+  }
+
+  function refreshHelpTooltips() {
+    applyHelpMap();
+    if (!helpTooltip || !helpTooltip.classList.contains("is-visible") || !helpTarget) return;
+    const text = getHelpText(helpTarget);
+    if (!text) return;
+    helpTooltip.textContent = text;
+    positionHelpTooltip(helpLastEvent);
   }
 
   function positionHelpTooltip(event) {
@@ -229,7 +243,7 @@ export function createHelpTooltipController({
     helpTooltip.className = "help-tooltip";
     helpTooltip.setAttribute("role", "tooltip");
     document.body.appendChild(helpTooltip);
-    applyHelpMap();
+    refreshHelpTooltips();
 
     document.addEventListener(
       "pointerover",
@@ -308,6 +322,7 @@ export function createHelpTooltipController({
 
   return {
     initHelpTooltips,
+    refreshHelpTooltips,
     setToolHintsEnabled,
   };
 }

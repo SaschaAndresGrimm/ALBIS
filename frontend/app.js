@@ -797,6 +797,7 @@ function formatRoiTick(value) {
 const {
   setToolHintsEnabled,
   initHelpTooltips,
+  refreshHelpTooltips,
 } = createHelpTooltipController({
   state,
   platformShortcutLabel,
@@ -1319,6 +1320,7 @@ function setLoading(show) {
 
 function refreshLocalizedUi() {
   applyI18nToDom(document);
+  refreshHelpTooltips();
   applyPanelState();
   updateToolbar();
   updateViewerFooter();

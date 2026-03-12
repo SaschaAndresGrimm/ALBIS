@@ -2,6 +2,8 @@
  * Histogram min/max drag and hover tooltip bindings.
  */
 
+import { t } from "./i18n.js";
+
 export function bindHistogramDragInteractions({
   state,
   elements,
@@ -129,7 +131,7 @@ export function bindHistogramDragInteractions({
       const value = snapHistogramValue(histogramXToValue(x, width));
       if (Number.isFinite(value)) {
         const { left, top } = getHistTooltipPosition(rect, x);
-        showHistTooltip(`Value ${formatValue(value)}`, left, top);
+        showHistTooltip(t("histogram.tooltip.value", { value: formatValue(value) }), left, top);
       } else {
         hideHistTooltip();
       }

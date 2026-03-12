@@ -202,7 +202,14 @@
                   <select id="toolbar-more-threshold" aria-label="Threshold" data-i18n-aria-label="toolbar.threshold"></select>
                 </label>
                 <div class="toolbar-more-actions">
-                  <button class="tool-btn" id="toolbar-more-panel-toggle" type="button" aria-label="Open side menu" data-i18n-aria-label="toolbar.side_menu.open">
+                  <button
+                    class="tool-btn"
+                    id="toolbar-more-panel-toggle"
+                    type="button"
+                    aria-label="Open side menu"
+                    data-i18n-aria-label="toolbar.side_menu.open"
+                    data-i18n="toolbar.side_menu.open"
+                  >
                     Open side menu
                   </button>
                   <button class="tool-btn" id="toolbar-more-fullscreen" type="button" aria-label="Toggle full screen" data-i18n-aria-label="toolbar.fullscreen.enter">
@@ -700,69 +707,74 @@
               </button>
               <div class="series-sum-layout">
                 <div class="series-sum-card series-sum-card-config">
-                  <div class="series-sum-card-title">Compute</div>
+                  <div class="series-sum-card-title" data-i18n="series.ui.compute_title">Compute</div>
                   <div class="series-sum-core">
                     <label class="field" id="series-sum-mode-field">
-                      <span>Mode</span>
+                      <span data-i18n="series.ui.mode_label">Mode</span>
                       <select id="series-sum-mode">
-                        <option value="all">All frames</option>
-                        <option value="step">Chunks of N frames</option>
-                        <option value="nth">Every Nth frame</option>
-                        <option value="range">Range (start-end in chunks)</option>
+                        <option value="all" data-i18n="series.ui.mode.all">All frames</option>
+                        <option value="step" data-i18n="series.ui.mode.step">Chunks of N frames</option>
+                        <option value="nth" data-i18n="series.ui.mode.nth">Every Nth frame</option>
+                        <option value="range" data-i18n="series.ui.mode.range">Range (start-end in chunks)</option>
                       </select>
                     </label>
                     <label class="field" id="series-sum-operation-field">
-                      <span>Operation</span>
+                      <span data-i18n="series.ui.operation_label">Operation</span>
                       <select id="series-sum-operation">
-                        <option value="sum">Sum</option>
-                        <option value="mean">Mean</option>
-                        <option value="median">Median</option>
+                        <option value="sum" data-i18n="series.ui.operation.sum">Sum</option>
+                        <option value="mean" data-i18n="series.ui.operation.mean">Mean</option>
+                        <option value="median" data-i18n="series.ui.operation.median">Median</option>
                       </select>
                     </label>
                     <label class="field" id="series-sum-format-field">
-                      <span>Format</span>
+                      <span data-i18n="series.ui.format_label">Format</span>
                       <select id="series-sum-format">
                         <option value="hdf5">HDF5</option>
                         <option value="tiff">TIFF</option>
                       </select>
                     </label>
                     <label class="field" id="series-sum-normalize-method-field">
-                      <span>Normalization</span>
+                      <span data-i18n="series.ui.normalization_label">Normalization</span>
                       <select id="series-sum-normalize-method">
-                        <option value="none">None</option>
-                        <option value="frame">Frame</option>
-                        <option value="scalar">Scalar</option>
-                        <option value="image">Image (TIFF)</option>
+                        <option value="none" data-i18n="series.ui.normalize.none">None</option>
+                        <option value="frame" data-i18n="series.ui.normalize.frame">Frame</option>
+                        <option value="scalar" data-i18n="series.ui.normalize.scalar">Scalar</option>
+                        <option value="image" data-i18n="series.ui.normalize.image">Image (TIFF)</option>
                       </select>
                     </label>
                   </div>
                   <div class="series-sum-dynamic">
                     <label class="field" id="series-sum-step-field">
-                      <span id="series-sum-step-label">Chunk size (N)</span>
+                      <span id="series-sum-step-label" data-i18n="series.step_label.chunk">Chunk size (N)</span>
                       <input id="series-sum-step" type="number" min="1" step="1" value="10" />
                       <div class="field-hint is-hidden" id="series-sum-step-hint"></div>
                     </label>
                     <label class="field is-hidden" id="series-sum-range-start-field">
-                      <span>Start frame</span>
+                      <span data-i18n="series.ui.range_start_label">Start frame</span>
                       <input id="series-sum-range-start" type="number" min="1" step="1" value="1" />
                     </label>
                     <label class="field is-hidden" id="series-sum-range-end-field">
-                      <span>End frame</span>
+                      <span data-i18n="series.ui.range_end_label">End frame</span>
                       <input id="series-sum-range-end" type="number" min="1" step="1" value="1" />
                     </label>
                     <label class="field is-hidden" id="series-sum-normalize-frame-field">
-                      <span>Norm frame</span>
+                      <span data-i18n="series.ui.norm_frame_label">Norm frame</span>
                       <input id="series-sum-normalize-frame" type="number" min="1" step="1" value="1" />
                     </label>
                     <label class="field is-hidden" id="series-sum-normalize-scalar-field">
-                      <span>Norm scalar</span>
+                      <span data-i18n="series.ui.norm_scalar_label">Norm scalar</span>
                       <input id="series-sum-normalize-scalar" type="number" step="any" value="1" />
                     </label>
                     <label class="field is-hidden" id="series-sum-normalize-image-field">
-                      <span>Norm image (TIFF)</span>
+                      <span data-i18n="series.ui.norm_image_label">Norm image (TIFF)</span>
                       <div class="inline series-sum-output-row">
-                        <input id="series-sum-normalize-image" type="text" placeholder="path/to/reference.tiff" />
-                        <button id="series-sum-normalize-image-browse" class="btn btn-secondary" type="button">
+                        <input
+                          id="series-sum-normalize-image"
+                          type="text"
+                          placeholder="path/to/reference.tiff"
+                          data-i18n-placeholder="series.ui.norm_image_placeholder"
+                        />
+                        <button id="series-sum-normalize-image-browse" class="btn btn-secondary" type="button" data-i18n="series.ui.browse">
                           Browse
                         </button>
                       </div>
@@ -771,23 +783,30 @@
                   <div class="series-sum-toggles">
                     <label class="checkbox series-sum-mask-option">
                       <input id="series-sum-mask" type="checkbox" checked />
-                      Apply mask
+                      <span data-i18n="series.ui.apply_mask">Apply mask</span>
                     </label>
                   </div>
                   <div class="field-hint is-hidden" id="series-sum-median-estimate"></div>
                 </div>
                 <div class="series-sum-card series-sum-card-output">
-                  <div class="series-sum-card-title">Output</div>
+                  <div class="series-sum-card-title" data-i18n="series.ui.output_title">Output</div>
                   <label class="field series-sum-output-field">
-                    <span>Output path</span>
+                    <span data-i18n="series.ui.output_path_label">Output path</span>
                     <div class="inline series-sum-output-row">
-                      <input id="series-sum-output" type="text" placeholder="output/series_sum" />
+                      <input
+                        id="series-sum-output"
+                        type="text"
+                        placeholder="output/series_sum"
+                        data-i18n-placeholder="series.ui.output_placeholder"
+                      />
                       <button
                         id="series-sum-browse"
                         class="btn btn-secondary autoload-action-btn series-sum-browse-btn"
                         type="button"
                         aria-label="Browse output path"
                         title="Browse output path"
+                        data-i18n-aria-label="series.ui.browse_output_path"
+                        data-i18n-title="series.ui.browse_output_path"
                       >
                         <svg class="autoload-action-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                           <path
@@ -803,12 +822,12 @@
                     </div>
                   </label>
                   <div class="series-sum-start-row">
-                    <button id="series-sum-start" class="btn btn-primary" type="button">Start</button>
-                    <button id="series-sum-cancel" class="btn btn-secondary is-hidden" type="button">Cancel</button>
+                    <button id="series-sum-start" class="btn btn-primary" type="button" data-i18n="series.button.start">Start</button>
+                    <button id="series-sum-cancel" class="btn btn-secondary is-hidden" type="button" data-i18n="series.button.cancel">Cancel</button>
                   </div>
                   <div class="series-sum-progress" id="series-sum-progress">
                     <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
-                    <div class="series-sum-progress-text" id="series-sum-progress-text">Idle</div>
+                    <div class="series-sum-progress-text" id="series-sum-progress-text" data-i18n="series.progress.idle">Idle</div>
                   </div>
                 </div>
               </div>
@@ -823,27 +842,35 @@
                     <input id="roi-enable" type="checkbox" checked />
                     <span class="section-switch-track" aria-hidden="true"></span>
                   </label>
-                  <span>Statistics and ROI</span>
-                  <span class="section-summary" id="summary-roi">On</span>
+                  <span data-i18n="analysis.roi.section_title">Statistics and ROI</span>
+                  <span class="section-summary" id="summary-roi" data-i18n="summary.active">On</span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="section-state is-empty" id="roi-state" role="status" aria-live="polite">
+              <div
+                class="section-state is-empty"
+                id="roi-state"
+                role="status"
+                aria-live="polite"
+                data-i18n="roi.section.load_frame"
+              >
                 Load a frame to use ROI tools.
               </div>
               <div class="roi-mode-row">
                 <label class="field">
-                  <span class="sr-only">Mode</span>
+                  <span class="sr-only" data-i18n="analysis.roi.mode_label">Mode</span>
                   <select id="roi-mode">
-                    <option value="line" selected>Line ROI</option>
-                    <option value="box">Box ROI</option>
-                    <option value="circle">Circle ROI</option>
-                    <option value="annulus">Annulus ROI</option>
+                    <option value="line" selected data-i18n="roi.mode.line">Line ROI</option>
+                    <option value="box" data-i18n="roi.mode.box">Box ROI</option>
+                    <option value="circle" data-i18n="roi.mode.circle">Circle ROI</option>
+                    <option value="annulus" data-i18n="roi.mode.annulus">Annulus ROI</option>
                   </select>
                 </label>
-                <button id="roi-clear-btn" class="btn btn-secondary roi-quick-btn" type="button">Clear ROI</button>
+                <button id="roi-clear-btn" class="btn btn-secondary roi-quick-btn" type="button" data-i18n="analysis.roi.clear">
+                  Clear ROI
+                </button>
               </div>
-              <div class="roi-help" id="roi-help">Right‑drag on the image to define the ROI.</div>
+              <div class="roi-help" id="roi-help" data-i18n="roi.help.default">Right‑drag on the image to define the ROI.</div>
               <div class="roi-params" id="roi-params">
                 <div class="roi-center-fields is-hidden" id="roi-center-fields">
                   <label class="roi-mini-field">
@@ -872,59 +899,61 @@
               </div>
               <div class="roi-stats roi-stats-grid">
                 <div class="roi-stats-col">
-                  <div class="meta-row"><span>Start (X,Y)</span><strong id="roi-start">-</strong></div>
-                  <div class="meta-row"><span>End (X,Y)</span><strong id="roi-end">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.start_xy">Start (X,Y)</span><strong id="roi-start">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.end_xy">End (X,Y)</span><strong id="roi-end">-</strong></div>
                   <div class="meta-row"><span id="roi-size-label">Size</span><strong id="roi-size">-</strong></div>
-                  <div class="meta-row"><span>Total pixels</span><strong id="roi-total">-</strong></div>
-                  <div class="meta-row"><span>Gap pixels</span><strong id="roi-gap">-</strong></div>
-                  <div class="meta-row"><span>Defective pixels</span><strong id="roi-defective">-</strong></div>
-                  <div class="meta-row"><span>Saturated pixels</span><strong id="roi-saturated">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.total_pixels">Total pixels</span><strong id="roi-total">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.gap_pixels">Gap pixels</span><strong id="roi-gap">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.defective_pixels">Defective pixels</span><strong id="roi-defective">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.saturated_pixels">Saturated pixels</span><strong id="roi-saturated">-</strong></div>
                 </div>
                 <div class="roi-stats-col">
-                  <div class="meta-row"><span>Min</span><strong id="roi-min">-</strong></div>
-                  <div class="meta-row"><span>Max</span><strong id="roi-max">-</strong></div>
-                  <div class="meta-row"><span>Sum</span><strong id="roi-sum">-</strong></div>
-                  <div class="meta-row"><span>Median</span><strong id="roi-median">-</strong></div>
-                  <div class="meta-row"><span>Mean</span><strong id="roi-mean">-</strong></div>
-                  <div class="meta-row"><span>Std</span><strong id="roi-std">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.min">Min</span><strong id="roi-min">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.max">Max</span><strong id="roi-max">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.sum">Sum</span><strong id="roi-sum">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.median">Median</span><strong id="roi-median">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.mean">Mean</span><strong id="roi-mean">-</strong></div>
+                  <div class="meta-row"><span data-i18n="analysis.roi.stats.std">Std</span><strong id="roi-std">-</strong></div>
                 </div>
               </div>
               <div class="roi-plot-controls" id="roi-plot-controls">
                 <label class="checkbox roi-log-toggle">
                   <input id="roi-log" type="checkbox" />
-                  Log plot
+                  <span data-i18n="analysis.roi.log_plot">Log plot</span>
                 </label>
                 <label class="checkbox roi-histogram-toggle">
                   <input id="roi-histogram" type="checkbox" />
-                  Histogram
+                  <span data-i18n="analysis.roi.histogram">Histogram</span>
                 </label>
                 <label class="checkbox roi-autoscale-toggle">
                   <input id="roi-limits-enable" type="checkbox" checked />
-                  Autoscale
+                  <span data-i18n="analysis.roi.autoscale">Autoscale</span>
                 </label>
-                <button id="roi-export-csv" class="btn btn-secondary roi-export-btn" type="button">Export CSV</button>
+                <button id="roi-export-csv" class="btn btn-secondary roi-export-btn" type="button" data-i18n="analysis.roi.export_csv">
+                  Export CSV
+                </button>
               </div>
               <div class="roi-plots">
                 <div class="roi-plot" id="roi-line-plot">
-                  <div class="roi-plot-title">Line Profile</div>
+                  <div class="roi-plot-title" data-i18n="roi.plot.line_profile">Line Profile</div>
                   <canvas id="roi-line-canvas"></canvas>
                   <div class="roi-tooltip" aria-hidden="true"></div>
                   <div class="roi-resize-handle"></div>
                 </div>
                 <div class="roi-plot" id="roi-box-plot-x">
-                  <div class="roi-plot-title">Profile along X</div>
+                  <div class="roi-plot-title" data-i18n="analysis.roi.plot.profile_x">Profile along X</div>
                   <canvas id="roi-x-canvas"></canvas>
                   <div class="roi-tooltip" aria-hidden="true"></div>
                   <div class="roi-resize-handle"></div>
                 </div>
                 <div class="roi-plot" id="roi-box-plot-y">
-                  <div class="roi-plot-title">Profile along Y</div>
+                  <div class="roi-plot-title" data-i18n="analysis.roi.plot.profile_y">Profile along Y</div>
                   <canvas id="roi-y-canvas"></canvas>
                   <div class="roi-tooltip" aria-hidden="true"></div>
                   <div class="roi-resize-handle"></div>
                 </div>
                 <div class="roi-plot is-hidden" id="roi-hist-plot">
-                  <div class="roi-plot-title">ROI Histogram</div>
+                  <div class="roi-plot-title" data-i18n="analysis.roi.plot.histogram">ROI Histogram</div>
                   <canvas id="roi-hist-canvas"></canvas>
                   <div class="roi-tooltip" aria-hidden="true"></div>
                   <div class="roi-resize-handle"></div>
@@ -938,44 +967,65 @@
                     <input id="rings-toggle" type="checkbox" />
                     <span class="section-switch-track" aria-hidden="true"></span>
                   </label>
-                  <span>Resolution Rings</span>
-                  <span class="section-summary" id="summary-rings">Off</span>
+                  <span data-i18n="analysis.rings.section_title">Resolution Rings</span>
+                  <span class="section-summary" id="summary-rings" data-i18n="summary.off">Off</span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="section-state is-empty" id="rings-state" role="status" aria-live="polite">
+              <div class="section-state is-empty" id="rings-state" role="status" aria-live="polite" data-i18n="rings.state.enable_hint">
                 Enable rings to show resolution guides.
               </div>
               <details class="advanced-details rings-advanced">
-                <summary>Geometry inputs</summary>
+                <summary data-i18n="analysis.rings.geometry_inputs">Geometry inputs</summary>
                 <div class="advanced-inner rings-grid rings-grid-top">
                   <label class="field">
-                    <span>Detector distance (mm)</span>
-                    <input id="rings-distance" type="number" min="0" step="1" placeholder="e.g. 250" />
+                    <span data-i18n="analysis.rings.detector_distance">Detector distance (mm)</span>
+                    <input
+                      id="rings-distance"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="e.g. 250"
+                      data-i18n-placeholder="analysis.rings.placeholder.distance"
+                    />
                     <div class="field-hint is-hidden" id="rings-distance-hint"></div>
                   </label>
                   <label class="field">
-                    <span>Pixel size (µm)</span>
-                    <input id="rings-pixel" type="number" min="0" step="0.1" placeholder="e.g. 75" />
+                    <span data-i18n="analysis.rings.pixel_size">Pixel size (µm)</span>
+                    <input
+                      id="rings-pixel"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="e.g. 75"
+                      data-i18n-placeholder="analysis.rings.placeholder.pixel_size"
+                    />
                     <div class="field-hint is-hidden" id="rings-pixel-hint"></div>
                   </label>
                   <label class="field">
-                    <span>Photon energy (eV)</span>
-                    <input id="rings-energy" type="number" min="0" step="1" placeholder="e.g. 12000" />
+                    <span data-i18n="analysis.rings.photon_energy">Photon energy (eV)</span>
+                    <input
+                      id="rings-energy"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="e.g. 12000"
+                      data-i18n-placeholder="analysis.rings.placeholder.photon_energy"
+                    />
                     <div class="field-hint is-hidden" id="rings-energy-hint"></div>
                   </label>
                   <label class="field">
-                    <span>Beam center (px)</span>
+                    <span data-i18n="analysis.rings.beam_center">Beam center (px)</span>
                     <div class="ring-center">
-                      <input id="rings-center-x" type="number" step="1" placeholder="X" />
-                      <input id="rings-center-y" type="number" step="1" placeholder="Y" />
+                      <input id="rings-center-x" type="number" step="1" placeholder="X" data-i18n-placeholder="analysis.rings.placeholder.center_x" />
+                      <input id="rings-center-y" type="number" step="1" placeholder="Y" data-i18n-placeholder="analysis.rings.placeholder.center_y" />
                     </div>
                   </label>
                 </div>
               </details>
               <div class="rings-grid rings-grid-bottom">
                 <label class="field rings-values-field">
-                  <span>Rings (Å)</span>
+                  <span data-i18n="analysis.rings.values">Rings (Å)</span>
                   <div class="ring-values">
                     <input id="ring-r1" type="number" min="0" step="0.1" value="1.0" />
                     <input id="ring-r2" type="number" min="0" step="0.1" value="2.0" />
@@ -991,31 +1041,31 @@
                     <input id="peaks-enable" type="checkbox" />
                     <span class="section-switch-track" aria-hidden="true"></span>
                   </label>
-                  <span>Peak Finder</span>
-                  <span class="section-summary" id="summary-peaks">Off</span>
+                  <span data-i18n="analysis.peaks.section_title">Peak Finder</span>
+                  <span class="section-summary" id="summary-peaks" data-i18n="summary.off">Off</span>
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="section-state is-empty" id="peaks-state" role="status" aria-live="polite">
+              <div class="section-state is-empty" id="peaks-state" role="status" aria-live="polite" data-i18n="peaks.state.enable_hint">
                 Enable Peak Finder to detect peaks.
               </div>
               <div class="peaks-controls">
                 <label class="field peaks-count-field">
-                  <span>Peaks to find</span>
+                  <span data-i18n="analysis.peaks.count_label">Peaks to find</span>
                   <input id="peaks-count" type="number" min="1" max="1000" step="1" value="100" />
                   <div class="field-hint is-hidden" id="peaks-count-hint"></div>
                 </label>
-                <button id="peaks-export" class="btn btn-secondary" type="button">Export CSV</button>
+                <button id="peaks-export" class="btn btn-secondary" type="button" data-i18n="analysis.peaks.export_csv">Export CSV</button>
               </div>
               <div class="peaks-list" id="peaks-list">
                 <div class="peaks-head">
                   <span>#</span>
                   <span>X</span>
                   <span>Y</span>
-                  <span>Intensity</span>
+                  <span data-i18n="roi.plot.intensity">Intensity</span>
                 </div>
                 <div class="peaks-body" id="peaks-body">
-                  <div class="peaks-empty">Load a frame to detect peaks.</div>
+                  <div class="peaks-empty" data-i18n="analysis.peaks.load_frame">Load a frame to detect peaks.</div>
                 </div>
               </div>
             </section>

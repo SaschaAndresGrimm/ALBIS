@@ -1,3 +1,20 @@
+import { vi } from "vitest";
+
+vi.mock("../modules/i18n.js", () => ({
+  t: (key) => {
+    const labels = {
+      "analysis.roi.plot.histogram": "ROI Histogram",
+      "csv.axis.index": "Index",
+      "csv.axis.value": "Value",
+      "csv.section.x_projection": "X Projection",
+      "csv.section.y_projection": "Y Projection",
+      "roi.plot.line_profile": "Line Profile",
+      "roi.plot.radial_profile": "Radial Profile",
+    };
+    return labels[key] || key;
+  },
+}));
+
 import { buildRoiCsvExportPayload } from "../modules/roi_csv_export.js";
 
 describe("roi_csv_export", () => {

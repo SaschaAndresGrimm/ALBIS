@@ -80,7 +80,7 @@ export function bindAnalysisControlInteractions({
     return lower.endsWith(".tif") || lower.endsWith(".tiff");
   }
 
-  function parsePositiveNumberInput(inputEl, hintEl, label) {
+  function parsePositiveNumberInput(inputEl, hintEl, messageKey) {
     if (!inputEl) return null;
     const raw = String(inputEl.value || "").trim();
     if (!raw) {
@@ -89,7 +89,7 @@ export function bindAnalysisControlInteractions({
     }
     const value = Number(raw);
     if (!Number.isFinite(value) || value <= 0) {
-      setFieldHint(inputEl, hintEl, `${label} must be greater than 0.`);
+      setFieldHint(inputEl, hintEl, t(messageKey));
       return null;
     }
     setFieldHint(inputEl, hintEl, "");
@@ -102,13 +102,25 @@ export function bindAnalysisControlInteractions({
     }
     analysisState.ringCount = Math.max(1, Math.min(defaultRingCount, Math.max(1, ringInputs.length)));
     if (ringsDistance) {
-      analysisState.distanceMm = parsePositiveNumberInput(ringsDistance, ringsDistanceHint, "Detector distance");
+      analysisState.distanceMm = parsePositiveNumberInput(
+        ringsDistance,
+        ringsDistanceHint,
+        "validation.rings.distance_positive",
+      );
     }
     if (ringsPixel) {
-      analysisState.pixelSizeUm = parsePositiveNumberInput(ringsPixel, ringsPixelHint, "Pixel size");
+      analysisState.pixelSizeUm = parsePositiveNumberInput(
+        ringsPixel,
+        ringsPixelHint,
+        "validation.rings.pixel_size_positive",
+      );
     }
     if (ringsEnergy) {
-      analysisState.energyEv = parsePositiveNumberInput(ringsEnergy, ringsEnergyHint, "Photon energy");
+      analysisState.energyEv = parsePositiveNumberInput(
+        ringsEnergy,
+        ringsEnergyHint,
+        "validation.rings.photon_energy_positive",
+      );
     }
     if (ringsCenterX) {
       const value = Number(ringsCenterX.value);
@@ -139,12 +151,12 @@ export function bindAnalysisControlInteractions({
     if (!peaksCountInput) return null;
     const raw = String(peaksCountInput.value || "").trim();
     if (!raw) {
-      setFieldHint(peaksCountInput, peaksCountHint, "Enter a value from 1 to 1000.");
+      setFieldHint(peaksCountInput, peaksCountHint, t("validation.peaks.count_range"));
       return null;
     }
     const parsed = Number(raw);
     if (!Number.isFinite(parsed)) {
-      setFieldHint(peaksCountInput, peaksCountHint, "Enter a value from 1 to 1000.");
+      setFieldHint(peaksCountInput, peaksCountHint, t("validation.peaks.count_range"));
       return null;
     }
     const rounded = Math.round(parsed);
@@ -153,7 +165,7 @@ export function bindAnalysisControlInteractions({
       peaksCountInput.value = String(clamped);
     }
     if ((clamped !== parsed || rounded !== parsed) && !commit) {
-      setFieldHint(peaksCountInput, peaksCountHint, "Using nearest integer in range 1-1000.");
+      setFieldHint(peaksCountInput, peaksCountHint, t("validation.peaks.using_nearest"));
     } else {
       setFieldHint(peaksCountInput, peaksCountHint, "");
     }
