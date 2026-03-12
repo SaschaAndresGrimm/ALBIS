@@ -143,10 +143,11 @@ jobs:
           cache-to: type=gha,mode=max,scope=albis-docker-publish
 
       - name: Run Trivy vulnerability scan (HIGH,CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: image
           image-ref: albis-scan:latest
+          version: latest
           severity: HIGH,CRITICAL
           exit-code: "1"
           format: table
