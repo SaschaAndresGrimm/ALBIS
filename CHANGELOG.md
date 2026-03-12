@@ -7,6 +7,33 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.12] - 2026-03-12
+
+### Added
+
+- Dedicated Docker CI/release workflow (`.github/workflows/docker.yml`) with:
+  - PR/branch validation build for `linux/amd64`.
+  - Container smoke checks for `/api/health` and `/api/files` against mounted test data.
+  - Tag-triggered GHCR publish pipeline for multi-arch images (`linux/amd64`, `linux/arm64`).
+  - Release-blocking Trivy vulnerability gate for `HIGH,CRITICAL` findings.
+- Docker documentation updates covering GHCR pull/run usage and published image tags.
+
+### Fixed
+
+- Docker backend-log UX now works in browser:
+  - Help -> backend log keeps desktop open behavior when available.
+  - Container/headless environments now fall back to opening `/api/log-file` in a new tab.
+
+### Changed
+
+- Docker image startup now runs via `uvicorn backend.app:app`, fixing package import issues in containers.
+- Docker build dependencies now include native compiler toolchain support required for `dectris-compression` builds on ARM.
+
+### Notes
+
+- This release is called: "Container? Consider it contained."
+- This release is called: "From 'it builds on my machine' to 'it builds in every machine-shaped box.'"
+
 ## [0.8.10] - 2026-03-10
 
 ### Added
@@ -65,7 +92,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.10...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.12...HEAD
+[0.8.12]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.12
+[0.8.11]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.11
 [0.8.10]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.10
 [0.8.9]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.9
 [0.8.2]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.2
