@@ -12,6 +12,15 @@
 
 import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
+import {
+  applyI18nToDom,
+  getLanguage,
+  hasStoredLanguagePreference,
+  initializeI18n,
+  onLanguageChange,
+  setLanguage,
+  t,
+} from "./modules/i18n.js";
 import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
 import { createFileBrowserController } from "./modules/file_browser.js";
 import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bindings.js";
@@ -83,6 +92,8 @@ import {
   isHeaderCapableFile as isHeaderCapableFileUtil,
   isSeriesCapableFile as isSeriesCapableFileUtil,
 } from "./modules/file_type_utils.js";
+
+await initializeI18n();
 
 const platformHint = String(
   navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || "",
@@ -395,6 +406,7 @@ const settingsServerReload = document.getElementById("settings-server-reload");
 const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
 const settingsOpenBrowser = document.getElementById("settings-open-browser");
 const settingsToolHints = document.getElementById("settings-tool-hints");
+const settingsLanguage = document.getElementById("settings-language");
 const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
 const settingsPixelLabelMax = document.getElementById("settings-pixel-label-max");
 const settingsPixelLabelFormat = document.getElementById("settings-pixel-label-format");
@@ -479,6 +491,7 @@ const PLATFORM_SHORTCUTS = {
 const roiState = createRoiState();
 const analysisState = createAnalysisState();
 const state = createAppState();
+state.language = getLanguage();
 
 const PLOT_THEME = {
   bg: "rgba(12, 18, 27, 0.96)",
@@ -565,6 +578,19 @@ const PIXEL_LABEL_INTERACTION_IDLE_MS = 140;
 const PIXEL_LABEL_HALO_MAX_LABELS = 3200;
 const VIEWPORT_INTERACTION_IDLE_MS = 180;
 const PEAK_BAD_MASK_BITS = 0x1f;
+const TRANSIENT_LOADING_STATUS_KEYS = [
+  "status.data.loading_image",
+  "status.data.loading_frame",
+  "status.frame.loading_metadata",
+  "status.data.loading_dataset_metadata",
+  "status.files.loading",
+];
+
+function isTransientLoadingStatus(text) {
+  const normalized = String(text || "").trim();
+  if (!normalized) return false;
+  return TRANSIENT_LOADING_STATUS_KEYS.some((key) => normalized === t(key));
+}
 
 function getMinZoom() {
   return overviewViewportController ? overviewViewportController.getMinZoom() : MIN_ZOOM;
@@ -607,10 +633,25 @@ function updatePanCapability() {
   overviewViewportController?.updatePanCapability();
 }
 
-function setStatus(text) {
+function applyLanguagePreference(language, options = {}) {
+  const { source = "user" } = options;
+  if (source === "config" && hasStoredLanguagePreference()) {
+    return getLanguage();
+  }
+  const next = setLanguage(language, { persist: true, applyDom: true });
+  state.language = next;
+  return next;
+}
+
+function setStatus(text, options = {}) {
+  const { frameStatus = false } = options;
   if (!statusEl) return;
   const normalized = String(text || "").trim();
-  statusEl.textContent = /^Frame\s+\d+\s*\/\s*\d+$/i.test(normalized) ? "Ready" : normalized || "Idle";
+  if (frameStatus) {
+    statusEl.textContent = t("common.ready");
+  } else {
+    statusEl.textContent = normalized || t("common.idle");
+  }
   updateViewerFooter();
 }
 
@@ -618,7 +659,7 @@ function currentFrameStatusText() {
   if (!framePlaybackController) {
     const total = Math.max(1, Number(state.frameCount) || 1);
     const index = Math.max(0, Math.min(total - 1, Number(state.frameIndex) || 0));
-    return `Frame ${index + 1} / ${total}`;
+    return t("status.frame.position", { current: index + 1, total });
   }
   return framePlaybackController.currentFrameStatusText();
 }
@@ -1122,23 +1163,23 @@ function getResolutionAtPixel(ix, iy, params = getRingParams()) {
 }
 
 function getRoiModeLabel(mode) {
-  if (mode === "line") return "Line ROI";
-  if (mode === "box") return "Box ROI";
-  if (mode === "circle") return "Circle ROI";
-  if (mode === "annulus") return "Annulus ROI";
-  return "ROI";
+  if (mode === "line") return t("roi.mode.line");
+  if (mode === "box") return t("roi.mode.box");
+  if (mode === "circle") return t("roi.mode.circle");
+  if (mode === "annulus") return t("roi.mode.annulus");
+  return t("roi.mode.default");
 }
 
 function updateRoiSectionState() {
   if (!roiSectionStateEl) return;
   if (!state.hasFrame) {
-    setSectionBadgeState(roiSectionStateEl, "empty", "Load a frame to use ROI tools.");
-    setSummaryChip(roiSummaryEl, "No frame");
+    setSectionBadgeState(roiSectionStateEl, "empty", t("roi.section.load_frame"));
+    setSummaryChip(roiSummaryEl, t("roi.summary.no_frame"));
     return;
   }
   if (!roiState.enabled) {
-    setSectionBadgeState(roiSectionStateEl, "empty", "ROI overlay disabled. Enable it to define and edit regions.");
-    setSummaryChip(roiSummaryEl, "Off");
+    setSectionBadgeState(roiSectionStateEl, "empty", t("roi.section.disabled"));
+    setSummaryChip(roiSummaryEl, t("summary.off"));
     return;
   }
   const modeLabel = getRoiModeLabel(roiState.mode);
@@ -1146,13 +1187,13 @@ function updateRoiSectionState() {
     setSectionBadgeState(
       roiSectionStateEl,
       "empty",
-      `${modeLabel} ready. Right-drag on the image to define the region.`
+      t("roi.section.mode_ready", { mode: modeLabel }),
     );
-    setSummaryChip(roiSummaryEl, `${modeLabel} ready`);
+    setSummaryChip(roiSummaryEl, t("roi.summary.mode_ready", { mode: modeLabel }));
     return;
   }
-  setSectionBadgeState(roiSectionStateEl, "active", `${modeLabel} active.`);
-  setSummaryChip(roiSummaryEl, `${modeLabel} active`, "active");
+  setSectionBadgeState(roiSectionStateEl, "active", t("roi.section.mode_active", { mode: modeLabel }));
+  setSummaryChip(roiSummaryEl, t("roi.summary.mode_active", { mode: modeLabel }), "active");
 }
 
 function updateRingsSectionState() {
@@ -1270,9 +1311,27 @@ function setLoading(show) {
   updatePeaksSectionState();
   if (!show && statusEl && state.hasFrame) {
     const status = (statusEl.textContent || "").trim();
-    if (/^Loading (image|frame|metadata|datasets)(…|\.{3})$/i.test(status)) {
-      setStatus(currentFrameStatusText());
+    if (isTransientLoadingStatus(status)) {
+      setStatus(currentFrameStatusText(), { frameStatus: true });
     }
+  }
+}
+
+function refreshLocalizedUi() {
+  applyI18nToDom(document);
+  applyPanelState();
+  updateToolbar();
+  updateViewerFooter();
+  updateLiveBadge();
+  updateAboutVersion();
+  updateDataSourceSummary();
+  updateRoiSectionState();
+  updateRingsSectionState();
+  updatePeaksSectionState();
+  updateSeriesSumUi();
+  validateSeriesStepInput(false);
+  if (commandPaletteController?.isOpen()) {
+    commandPaletteController.render();
   }
 }
 
@@ -1515,8 +1574,9 @@ function updateFullscreenUi() {
   if (fullscreenToggle) {
     fullscreenToggle.classList.toggle("is-active", active);
     fullscreenToggle.textContent = active ? "🗗" : "⛶";
-    fullscreenToggle.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
-    fullscreenToggle.title = active ? "Exit full screen (F)" : "Enter full screen (F)";
+    const ariaLabel = active ? t("toolbar.fullscreen.exit") : t("toolbar.fullscreen.enter");
+    fullscreenToggle.setAttribute("aria-label", ariaLabel);
+    fullscreenToggle.title = `${ariaLabel} (F)`;
   }
   syncToolbarMoreControls();
   syncOverlayAnchors();
@@ -1531,7 +1591,7 @@ async function toggleFullscreen() {
     }
   } catch (err) {
     console.error(err);
-    setStatus("Fullscreen unavailable");
+    setStatus(t("status.fullscreen_unavailable"));
   }
 }
 
@@ -2105,7 +2165,7 @@ async function fetchSettingsConfig() {
   try {
     const payload = await fetchJSON(`${API}/settings`);
     const config = payload?.config || {};
-    applyUiSettings(config?.ui);
+    applyUiSettings(config?.ui, { source: "config" });
     schedulePixelOverlay();
   } catch (err) {
     console.warn("Settings fetch failed", err);
@@ -2115,14 +2175,14 @@ async function fetchSettingsConfig() {
 async function bootstrapApp() {
   showSplash();
   drawSplash();
-  setSplashStatus("Starting backend...");
+  setSplashStatus(t("splash.status.starting_backend"));
   await waitForBackendReady();
-  setSplashStatus("Loading settings...");
+  setSplashStatus(t("splash.status.loading_settings"));
   await fetchSettingsConfig();
-  setSplashStatus("Loading file list...");
+  setSplashStatus(t("splash.status.loading_file_list"));
   await loadAutoloadFolders();
   await loadFiles();
-  setSplashStatus("Ready. Open a file to begin.");
+  setSplashStatus(t("splash.status.ready_open_file"));
 }
 
 async function loadAutoloadFolders() {
@@ -2491,6 +2551,7 @@ const settingsController = createSettingsController({
     settingsStartupTimeout,
     settingsOpenBrowser,
     settingsToolHints,
+    settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
     settingsPixelLabelFormat,
@@ -2510,11 +2571,12 @@ const settingsController = createSettingsController({
     closeMenu,
     setStatus,
     schedulePixelOverlay,
+    applyLanguagePreference,
   },
 });
 
-function applyUiSettings(uiConfig) {
-  settingsController.applyUiSettings(uiConfig);
+function applyUiSettings(uiConfig, options = {}) {
+  settingsController.applyUiSettings(uiConfig, options);
 }
 
 const {
@@ -3573,12 +3635,12 @@ function validateSeriesStepInput(commit = false) {
   }
   const raw = String(seriesSumStep.value || "").trim();
   if (!raw) {
-    setFieldHint(seriesSumStep, seriesSumStepHint, "Enter an integer greater than or equal to 1.");
+    setFieldHint(seriesSumStep, seriesSumStepHint, t("series.step_hint.integer_required"));
     return null;
   }
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) {
-    setFieldHint(seriesSumStep, seriesSumStepHint, "Enter an integer greater than or equal to 1.");
+    setFieldHint(seriesSumStep, seriesSumStepHint, t("series.step_hint.integer_required"));
     return null;
   }
   const normalized = Math.max(1, Math.round(parsed));
@@ -3586,7 +3648,7 @@ function validateSeriesStepInput(commit = false) {
     seriesSumStep.value = String(normalized);
   }
   if (normalized !== parsed && !commit) {
-    setFieldHint(seriesSumStep, seriesSumStepHint, "Using nearest integer greater than or equal to 1.");
+    setFieldHint(seriesSumStep, seriesSumStepHint, t("series.step_hint.using_nearest"));
   } else {
     setFieldHint(seriesSumStep, seriesSumStepHint, "");
   }
@@ -3655,8 +3717,12 @@ bindAnalysisControlInteractions({
 });
 
 renderPeakList();
-setSeriesSumProgress(0, "Idle");
+setSeriesSumProgress(0, t("series.progress.idle"));
 updateSeriesSumUi();
+onLanguageChange(() => {
+  refreshLocalizedUi();
+});
+refreshLocalizedUi();
 finalizeRuntimeBootstrap(createRuntimeBootstrapContext({
   state,
   callbacks: {
@@ -3693,7 +3759,7 @@ let handoffPollTimer = null;
 async function applyHandoffJob(job) {
   const targetPath = String(job?.open_path || "").trim();
   if (!targetPath) {
-    setStatus(`Handoff #${job?.id || "?"} received without open target.`);
+    setStatus(t("status.handoff.no_target", { id: job?.id || "?" }));
     return;
   }
 
@@ -3717,9 +3783,9 @@ async function applyHandoffJob(job) {
 
   const runId = String(job?.run_id || "").trim();
   if (runId) {
-    setStatus(`RUSLER handoff opened ${runId}: ${targetPath}`);
+    setStatus(t("status.handoff.opened_with_run", { runId, targetPath }));
   } else {
-    setStatus(`RUSLER handoff opened: ${targetPath}`);
+    setStatus(t("status.handoff.opened", { targetPath }));
   }
 }
 

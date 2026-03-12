@@ -2,6 +2,8 @@
  * File and frame loading pipeline.
  */
 
+import { t } from "./i18n.js";
+
 export function createFileDataPipelineController({
   apiBase,
   state,
@@ -118,11 +120,11 @@ export function createFileDataPipelineController({
   async function loadImageFile(file) {
     stopPlayback();
     setLoading(true);
-    setStatus("Loading image…");
+    setStatus(t("status.data.loading_image"));
     try {
       const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`);
       if (!res.ok) {
-        setStatus("Failed to load image");
+        setStatus(t("status.data.failed_load_image"));
         return;
       }
       const buffer = await res.arrayBuffer();
@@ -134,10 +136,10 @@ export function createFileDataPipelineController({
         autoMask: true,
         maskKey: `auto:${file}`,
       });
-      setStatus("Frame 1 / 1");
+      setStatus(t("status.frame.position", { current: 1, total: 1 }), { frameStatus: true });
     } catch (err) {
       console.error(err);
-      setStatus("Failed to load image");
+      setStatus(t("status.data.failed_load_image"));
     } finally {
       setLoading(false);
     }
@@ -155,10 +157,10 @@ export function createFileDataPipelineController({
     state.seriesLabel = "";
     setDataControlsForHdf5();
     await loadMask(true);
-    showProcessingProgress("Scanning datasets…");
+    showProcessingProgress(t("status.data.scanning_datasets"));
     setLoading(true);
-    setStatus("Scanning datasets…");
-    setDataSourceSectionState("loading", "Scanning datasets…", true);
+    setStatus(t("status.data.scanning_datasets"));
+    setDataSourceSectionState("loading", t("status.data.scanning_datasets"), true);
     try {
       const data = await fetchJSON(`${apiBase}/datasets?file=${encodeURIComponent(state.file)}`);
       const candidates = data.datasets
@@ -174,21 +176,21 @@ export function createFileDataPipelineController({
         state.dataset = ordered[0].path;
         datasetSelect.value = state.dataset;
         await loadMetadata();
-        setDataSourceSectionState("active", "Dataset metadata loaded.");
+        setDataSourceSectionState("active", t("status.data.dataset_metadata_loaded"));
       } else {
-        setStatus("No image datasets found");
+        setStatus(t("status.data.no_image_datasets"));
         showSplash();
-        setSplashStatus("No image datasets found. Open a different file.");
+        setSplashStatus(t("splash.status.no_image_datasets"));
         setLoading(false);
-        setDataSourceSectionState("warning", "No image datasets found.");
+        setDataSourceSectionState("warning", t("status.data.no_image_datasets"));
       }
     } catch (err) {
       console.error(err);
-      setStatus("Failed to scan datasets");
+      setStatus(t("status.data.failed_scan_datasets"));
       showSplash();
-      setSplashStatus("Dataset scan failed. Open a file to continue.");
+      setSplashStatus(t("splash.status.dataset_scan_failed"));
       setLoading(false);
-      setDataSourceSectionState("warning", "Failed to scan datasets.");
+      setDataSourceSectionState("warning", t("status.data.failed_scan_datasets"));
     } finally {
       hideProcessingProgress();
     }
@@ -204,7 +206,7 @@ export function createFileDataPipelineController({
     const showLoading = !state.playing;
     if (showLoading) {
       setLoading(true);
-      setStatus("Loading frame…");
+      setStatus(t("status.data.loading_frame"));
     } else {
       setLoading(false);
     }
@@ -217,7 +219,7 @@ export function createFileDataPipelineController({
         cache: "no-store",
       });
       if (!res.ok) {
-        setStatus("Failed to load image");
+        setStatus(t("status.data.failed_load_image"));
         if (!state.hasFrame) {
           showSplash();
         }
@@ -243,12 +245,12 @@ export function createFileDataPipelineController({
         maskKey: `auto:${seriesKey}`,
       });
       appliedFrame = true;
-      setStatus(currentFrameStatusText());
+      setStatus(currentFrameStatusText(), { frameStatus: true });
       updateToolbar();
     } catch (err) {
       if (err?.name !== "AbortError") {
         console.error(err);
-        setStatus("Failed to load image");
+        setStatus(t("status.data.failed_load_image"));
         if (!state.hasFrame) {
           showSplash();
         }
@@ -273,7 +275,7 @@ export function createFileDataPipelineController({
     state.isLoading = true;
     if (!state.playing) {
       setLoading(true);
-      setStatus("Loading frame…");
+      setStatus(t("status.data.loading_frame"));
     } else {
       setLoading(false);
     }
@@ -291,7 +293,7 @@ export function createFileDataPipelineController({
         cache: "no-store",
       });
       if (!res.ok) {
-        setStatus("Failed to load frame");
+        setStatus(t("status.data.failed_load_frame"));
         if (!state.hasFrame) {
           showSplash();
         }
@@ -309,12 +311,12 @@ export function createFileDataPipelineController({
 
       callbacks.applyFrame(data, width, height, dtype);
       appliedFrame = true;
-      setStatus(currentFrameStatusText());
+      setStatus(currentFrameStatusText(), { frameStatus: true });
       updateToolbar();
     } catch (err) {
       if (err?.name !== "AbortError") {
         console.error(err);
-        setStatus("Failed to load frame");
+        setStatus(t("status.data.failed_load_frame"));
         if (!state.hasFrame) {
           showSplash();
         }

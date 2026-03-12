@@ -2,6 +2,8 @@
  * Settings modal controller.
  */
 
+import { t } from "./i18n.js";
+
 export function createSettingsController({
   apiBase,
   state,
@@ -27,6 +29,7 @@ export function createSettingsController({
     settingsStartupTimeout,
     settingsOpenBrowser,
     settingsToolHints,
+    settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
     settingsPixelLabelFormat,
@@ -47,6 +50,7 @@ export function createSettingsController({
     closeMenu,
     setStatus,
     schedulePixelOverlay,
+    applyLanguagePreference,
   } = callbacks;
 
   let settingsModalBusy = false;
@@ -67,6 +71,9 @@ export function createSettingsController({
     }
     if (settingsSaveClose) {
       settingsSaveClose.disabled = settingsModalBusy;
+    }
+    if (settingsLanguage) {
+      settingsLanguage.disabled = settingsModalBusy;
     }
   }
 
@@ -92,6 +99,9 @@ export function createSettingsController({
     if (settingsToolHints) {
       const toolHints = config?.ui?.tool_hints;
       settingsToolHints.checked = Boolean(toolHints ?? state.toolHintsEnabled);
+    }
+    if (settingsLanguage) {
+      settingsLanguage.value = String(config?.ui?.language ?? state.language ?? "en");
     }
     if (settingsPixelLabelMin) {
       settingsPixelLabelMin.value = String(
@@ -173,11 +183,13 @@ export function createSettingsController({
           return format === "integer" || format === "scientific" ? format : "auto";
         })(),
         pixel_label_show_during_drag: Boolean(settingsPixelLabelDrag?.checked),
+        language: String(settingsLanguage?.value || state.language || "en"),
       },
     };
   }
 
-  function applyUiSettings(uiConfig) {
+  function applyUiSettings(uiConfig, options = {}) {
+    const { source = "config" } = options;
     const cfg = uiConfig && typeof uiConfig === "object" ? uiConfig : {};
     if (typeof cfg.tool_hints !== "undefined") {
       setToolHintsEnabled(Boolean(cfg.tool_hints));
@@ -197,6 +209,12 @@ export function createSettingsController({
     if (typeof cfg.pixel_label_show_during_drag !== "undefined") {
       state.pixelLabelShowDuringDrag = Boolean(cfg.pixel_label_show_during_drag);
     }
+    if (typeof cfg.language !== "undefined") {
+      const applied = applyLanguagePreference?.(String(cfg.language || "en"), { source });
+      if (typeof applied === "string" && applied) {
+        state.language = applied;
+      }
+    }
   }
 
   function closeSettingsModal({ restoreFocus = true } = {}) {
@@ -212,7 +230,7 @@ export function createSettingsController({
     const requestId = ++settingsRequestId;
     openModal(settingsModal, { focusTarget: settingsServerPort || settingsClose });
     setSettingsModalBusy(true);
-    setSettingsMessage("Loading settings...", false, true);
+    setSettingsMessage(t("settings.message.loading"), false, true);
     try {
       const res = await fetch(`${apiBase}/settings`);
       if (!res.ok) {
@@ -222,15 +240,15 @@ export function createSettingsController({
       if (requestId !== settingsRequestId) return;
       const config = payload?.config || {};
       fillSettingsForm(config, payload?.path || "");
-      applyUiSettings(config?.ui);
+      applyUiSettings(config?.ui, { source: "config" });
       if (settingsToolHints) {
         settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
       }
-      setSettingsMessage("Edit values and click Save or Save & Close.");
+      setSettingsMessage(t("settings.message.edit_hint"));
     } catch (err) {
       if (requestId !== settingsRequestId) return;
       console.error(err);
-      setSettingsMessage("Failed to load settings", true);
+      setSettingsMessage(t("settings.message.load_failed"), true);
     } finally {
       if (requestId === settingsRequestId) {
         setSettingsModalBusy(false);
@@ -242,7 +260,7 @@ export function createSettingsController({
     if (!settingsSave || settingsModalBusy) return;
     const config = collectSettingsForm();
     setSettingsModalBusy(true);
-    setSettingsMessage("Saving settings...", false, true);
+    setSettingsMessage(t("settings.message.saving"), false, true);
     try {
       const res = await fetch(`${apiBase}/settings`, {
         method: "POST",
@@ -254,16 +272,17 @@ export function createSettingsController({
         throw new Error(data?.detail || `Save failed (${res.status})`);
       }
       fillSettingsForm(data?.config || config, data?.path || "");
-      applyUiSettings(data?.config?.ui || config?.ui);
+      applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
       schedulePixelOverlay();
-      setSettingsMessage("Saved. Restart ALBIS to apply all settings.");
-      setStatus("Settings saved. Restart ALBIS to apply all settings.");
+      setSettingsMessage(t("settings.message.saved_restart"));
+      setStatus(t("status.settings.saved"));
       if (closeAfter) {
         closeSettingsModal();
       }
     } catch (err) {
       console.error(err);
-      setSettingsMessage(String(err?.message || "Failed to save settings"), true);
+      const detail = String(err?.message || "").trim();
+      setSettingsMessage(detail || t("settings.message.save_failed"), true);
     } finally {
       setSettingsModalBusy(false);
     }

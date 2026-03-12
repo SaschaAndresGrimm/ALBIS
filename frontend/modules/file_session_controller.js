@@ -2,6 +2,8 @@
  * File/session teardown helpers.
  */
 
+import { t } from "./i18n.js";
+
 export function createFileSessionController({
   state,
   analysisState,
@@ -99,13 +101,13 @@ export function createFileSessionController({
     clearMaskState();
     clearImageHeader();
     updateToolbar();
-    setDataSourceSectionState("empty", "No file loaded.");
-    setStatus("No file loaded");
+    setDataSourceSectionState("empty", t("status.file.no_file_loaded"));
+    setStatus(t("status.file.no_file_loaded"));
     setLoading(false);
     hideUploadProgress();
     hideProcessingProgress();
     showSplash();
-    setSplashStatus("Ready. Open a file to begin.");
+    setSplashStatus(t("splash.status.ready_open_file"));
     updateInspectorHeaderVisibility("");
 
     if (fileSelect) {
@@ -218,7 +220,7 @@ export function createFileSessionController({
       updateThresholdOptions();
       if (datasetSelect) {
         datasetSelect.innerHTML = "";
-        datasetSelect.appendChild(option("Single image", ""));
+        datasetSelect.appendChild(option(t("data.single_image"), ""));
         datasetSelect.value = "";
       }
       setDataControlsForImage();
@@ -231,7 +233,7 @@ export function createFileSessionController({
       updateThresholdOptions();
       if (datasetSelect) {
         datasetSelect.innerHTML = "";
-        datasetSelect.appendChild(option("Series image", ""));
+        datasetSelect.appendChild(option(t("data.series_image"), ""));
         datasetSelect.value = "";
       }
       setDataControlsForSeries();
@@ -254,7 +256,7 @@ export function createFileSessionController({
     if (metaShape) metaShape.textContent = `${width} × ${height}`;
     if (metaDtype) metaDtype.textContent = dtype;
     applyFrame(data, width, height, dtype);
-    setDataSourceSectionState("active", preserveSeries ? "Series image loaded." : "Image loaded.");
+    setDataSourceSectionState("active", preserveSeries ? t("status.data.series_image_loaded") : t("status.data.image_loaded"));
     updateToolbar();
   }
 

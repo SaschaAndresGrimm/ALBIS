@@ -2,6 +2,8 @@
  * Frame playback and navigation orchestration.
  */
 
+import { t } from "./i18n.js";
+
 export function createFramePlaybackController({
   state,
   elements,
@@ -24,7 +26,7 @@ export function createFramePlaybackController({
   function currentFrameStatusText() {
     const total = Math.max(1, Number(state.frameCount) || 1);
     const index = Math.max(0, Math.min(total - 1, Number(state.frameIndex) || 0));
-    return `Frame ${index + 1} / ${total}`;
+    return t("status.frame.position", { current: index + 1, total });
   }
 
   function updateFrameControls() {

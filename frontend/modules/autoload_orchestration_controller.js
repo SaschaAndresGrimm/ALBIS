@@ -2,6 +2,8 @@
  * Autoload runtime orchestration: start/stop/tick state machine.
  */
 
+import { t } from "./i18n.js";
+
 export function createAutoloadOrchestrationController({
   state,
   analysisState,
@@ -143,25 +145,25 @@ export function createAutoloadOrchestrationController({
     updateAutoloadUI();
     updateAutoloadMeta();
     setAutoloadStatus(
-      `Running (${
+      `${t("autoload.running")} (${
         state.autoload.mode === "file" && state.autoload.watchEnabled
-          ? "Watch folder"
+          ? t("autoload.mode.watch_folder")
           : state.autoload.mode === "simplon"
-            ? "SIMPLON monitor"
+            ? t("autoload.mode.simplon_monitor")
             : state.autoload.mode === "jungfraujoch"
-              ? "JUNGFRAUJOCH preview"
-              : "Remote stream"
+              ? t("autoload.mode.jfjoch_preview")
+              : t("autoload.mode.remote_stream")
       })`
     );
     persistAutoloadSettings();
 
     if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
-      setStatus("SIMPLON monitor");
+      setStatus(t("status.autoload.simplon_monitor"));
       await setSimplonMode(true);
       state.autoload.lastMaskAttempt = Date.now();
       await fetchSimplonMask();
     } else if (state.autoload.mode === "jungfraujoch") {
-      setStatus("JUNGFRAUJOCH preview");
+      setStatus(t("status.autoload.jfjoch_preview"));
     }
 
     updateLiveBadge();

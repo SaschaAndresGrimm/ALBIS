@@ -2,6 +2,8 @@
  * Menu action dispatcher.
  */
 
+import { t } from "./i18n.js";
+
 export function createMenuActionHandler({
   apiBase,
   state,
@@ -33,7 +35,7 @@ export function createMenuActionHandler({
             if (res.ok) {
               const payload = await res.json().catch(() => ({}));
               if (payload?.opened !== false) {
-                setStatus("Opened backend log file");
+                setStatus(t("status.log.opened_file"));
                 break;
               }
             }
@@ -43,9 +45,9 @@ export function createMenuActionHandler({
 
           const opened = window.open(fallbackUrl, "_blank", "noopener");
           if (opened) {
-            setStatus("Opened backend log in browser");
+            setStatus(t("status.log.opened_browser"));
           } else {
-            setStatus("Failed to open backend log file");
+            setStatus(t("status.log.open_failed"));
           }
         }
         break;
@@ -73,7 +75,7 @@ export function createMenuActionHandler({
       case "save-full": {
         const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
         const suggested = `${base}_frame_${state.frameIndex + 1}.png`;
-        const name = window.prompt("Save As (Full Image)", suggested);
+        const name = window.prompt(t("menu.prompt.save_as_full"), suggested);
         if (name) {
           exportFullImage(name);
         }
@@ -82,7 +84,7 @@ export function createMenuActionHandler({
       case "save-visible": {
         const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
         const suggested = `${base}_view_${state.frameIndex + 1}.png`;
-        const name = window.prompt("Save As (Visible Area)", suggested);
+        const name = window.prompt(t("menu.prompt.save_as_visible"), suggested);
         if (name) {
           exportVisibleArea(name);
         }
@@ -90,7 +92,7 @@ export function createMenuActionHandler({
       }
       case "save-window": {
         const suggested = `albis_view_${state.frameIndex + 1}.png`;
-        const name = window.prompt("Save As (Viewer Window)", suggested);
+        const name = window.prompt(t("menu.prompt.save_as_window"), suggested);
         if (name) {
           exportViewerWindow(name);
         }

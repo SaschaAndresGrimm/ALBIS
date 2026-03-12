@@ -2,6 +2,8 @@
  * Backend health and live badge status.
  */
 
+import { t } from "./i18n.js";
+
 export function createBackendStatusController({
   apiBase,
   state,
@@ -30,7 +32,7 @@ export function createBackendStatusController({
       state.autoload.mode === "jungfraujoch";
     if (!state.autoload.running || !liveMode) {
       liveBadge.classList.remove("is-active", "is-wait");
-      liveBadge.textContent = "LIVE";
+      liveBadge.textContent = t("backend.live.live");
       liveBadge.setAttribute("aria-hidden", "true");
       liveBadge.removeAttribute("aria-label");
       liveBadge.removeAttribute("title");
@@ -40,9 +42,9 @@ export function createBackendStatusController({
     const age = Date.now() - (state.autoload.lastUpdate || 0);
     const wait = !state.autoload.lastUpdate || age > state.autoload.interval * 2;
     liveBadge.classList.toggle("is-wait", wait);
-    liveBadge.textContent = wait ? "WAIT" : "LIVE";
-    liveBadge.setAttribute("aria-label", wait ? "Stream waiting for updates" : "Stream live");
-    liveBadge.title = wait ? "Waiting for stream updates" : "Live stream active";
+    liveBadge.textContent = wait ? t("backend.live.wait") : t("backend.live.live");
+    liveBadge.setAttribute("aria-label", wait ? t("backend.live.aria.wait") : t("backend.live.aria.live"));
+    liveBadge.title = wait ? t("backend.live.title.wait") : t("backend.live.title.live");
     liveBadge.setAttribute("aria-hidden", "false");
   }
 
@@ -50,9 +52,9 @@ export function createBackendStatusController({
     if (!backendBadge) return;
     backendBadge.classList.toggle("is-off", !state.backendAlive);
     backendBadge.classList.toggle("is-active", true);
-    backendBadge.textContent = state.backendAlive ? "SERVER" : "OFFLINE";
-    backendBadge.setAttribute("aria-label", state.backendAlive ? "Backend server online" : "Backend server offline");
-    backendBadge.title = state.backendAlive ? "Backend server online" : "Backend server offline";
+    backendBadge.textContent = state.backendAlive ? t("backend.server.online") : t("backend.server.offline");
+    backendBadge.setAttribute("aria-label", state.backendAlive ? t("backend.server.aria.online") : t("backend.server.aria.offline"));
+    backendBadge.title = state.backendAlive ? t("backend.server.title.online") : t("backend.server.title.offline");
     backendBadge.setAttribute("aria-hidden", "false");
     updateFooterVersions();
     updateSplashCallToAction();
@@ -60,7 +62,7 @@ export function createBackendStatusController({
 
   function updateAboutVersion() {
     if (!aboutVersion) return;
-    aboutVersion.textContent = `Version ${state.backendVersion || "-"}`;
+    aboutVersion.textContent = t("about.version", { version: state.backendVersion || "-" });
     updateFooterVersions();
   }
 
@@ -117,15 +119,15 @@ export function createBackendStatusController({
     let attempts = 0;
     while (Date.now() < deadline) {
       attempts += 1;
-      setSplashStatus(`Starting backend... (${attempts})`);
+      setSplashStatus(t("backend.splash.starting", { attempts }));
       const alive = await checkBackendHealth();
       if (alive) {
-        setSplashStatus(`Backend ready (v${state.backendVersion || "-"})`);
+        setSplashStatus(t("backend.splash.ready", { version: state.backendVersion || "-" }));
         return true;
       }
       await sleep(250);
     }
-    setSplashStatus("Backend startup is taking longer than expected...");
+    setSplashStatus(t("backend.splash.slow_start"));
     return false;
   }
 

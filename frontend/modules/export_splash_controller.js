@@ -2,6 +2,8 @@
  * Viewer export utilities and splash rendering.
  */
 
+import { t } from "./i18n.js";
+
 export function createExportSplashController({
   state,
   elements,
@@ -173,7 +175,7 @@ export function createExportSplashController({
       html2canvasFn = await ensureHtml2Canvas();
     } catch (err) {
       console.error(err);
-      setStatus("Viewer export unavailable");
+      setStatus(t("status.export.viewer_unavailable"));
       return;
     }
     const target = document.querySelector(".page");
@@ -188,7 +190,7 @@ export function createExportSplashController({
       downloadCanvasImage(shot, name);
     } catch (err) {
       console.error(err);
-      setStatus("Viewer export failed");
+      setStatus(t("status.export.viewer_failed"));
     }
   }
 

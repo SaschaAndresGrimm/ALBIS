@@ -2,6 +2,8 @@
  * Command palette command list construction.
  */
 
+import { t } from "./i18n.js";
+
 export function buildCommandPaletteCommands({
   state,
   panelTabState,
@@ -40,19 +42,19 @@ export function buildCommandPaletteCommands({
   const canStartSeriesOps = hasFile && (!isHdfFile(state.file) || hasDataset) && !state.seriesSum.running;
   const canCancelSeriesOps = state.seriesSum.running && Boolean(state.seriesSum.jobId);
   const canOpenSeriesOutput = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
-  const togglePlaybackLabel = state.playing ? "Playback: Pause" : "Playback: Play";
+  const togglePlaybackLabel = state.playing ? t("command.label.playback_pause") : t("command.label.playback_play");
 
   const commands = [
     {
       id: "open-file",
-      label: "File: Open…",
+      label: t("command.label.file_open"),
       shortcut: platformShortcutLabel("open"),
       search: "file open load",
       run: () => openFileModal(),
     },
     {
       id: "close-file",
-      label: "File: Close",
+      label: t("command.label.file_close"),
       shortcut: platformShortcutLabel("close-file"),
       search: "file close",
       when: hasFile,
@@ -60,14 +62,14 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "new-window",
-      label: "File: New Window",
+      label: t("command.label.file_new_window"),
       shortcut: platformShortcutLabel("new-window"),
       search: "file window",
       run: () => window.open(window.location.href, "_blank"),
     },
     {
       id: "preferences",
-      label: "Settings: Preferences…",
+      label: t("command.label.settings_preferences"),
       shortcut: platformShortcutLabel("settings-open"),
       search: "settings preferences options",
       run: () => openSettingsModal(),
@@ -88,7 +90,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "frame-prev",
-      label: "Frame: Previous",
+      label: t("command.label.frame_previous"),
       shortcut: "Left Arrow",
       search: "frame previous left",
       when: hasNavigableFrames,
@@ -99,7 +101,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "frame-next",
-      label: "Frame: Next",
+      label: t("command.label.frame_next"),
       shortcut: "Right Arrow",
       search: "frame next right",
       when: hasNavigableFrames,
@@ -110,7 +112,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "threshold-prev",
-      label: "Threshold: Previous",
+      label: t("command.label.threshold_previous"),
       shortcut: "Up Arrow",
       search: "threshold detector previous",
       when: hasThresholds,
@@ -121,7 +123,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "threshold-next",
-      label: "Threshold: Next",
+      label: t("command.label.threshold_next"),
       shortcut: "Down Arrow",
       search: "threshold detector next",
       when: hasThresholds,
@@ -132,7 +134,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "fit-view",
-      label: "View: Fit Image",
+      label: t("command.label.view_fit"),
       shortcut: "",
       search: "fit reset zoom view",
       when: hasFrame,
@@ -140,7 +142,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "export-full",
-      label: "Export: Full Image",
+      label: t("command.label.export_full"),
       shortcut: platformShortcutLabel("export-full"),
       search: "export save full image png",
       when: hasFrame,
@@ -148,7 +150,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "export-visible",
-      label: "Export: Visible Area",
+      label: t("command.label.export_visible"),
       shortcut: platformShortcutLabel("export-visible"),
       search: "export save visible area png",
       when: hasFrame,
@@ -156,7 +158,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "export-window",
-      label: "Export: Viewer Window",
+      label: t("command.label.export_window"),
       shortcut: platformShortcutLabel("export-window"),
       search: "export save viewer window screenshot",
       when: hasFrame,
@@ -164,7 +166,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "series-start",
-      label: "Series: Start Operation",
+      label: t("command.label.series_start"),
       shortcut: "",
       search: "series sum mean median start analysis",
       when: canStartSeriesOps,
@@ -172,7 +174,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "series-open-output",
-      label: "Series: Open Latest Output",
+      label: t("command.label.series_open_output"),
       shortcut: "",
       search: "series sum output open result",
       when: canOpenSeriesOutput,
@@ -180,7 +182,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "series-cancel",
-      label: "Series: Cancel Operation",
+      label: t("command.label.series_cancel"),
       shortcut: "",
       search: "series cancel stop abort",
       when: canCancelSeriesOps,
@@ -188,21 +190,21 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "toggle-fullscreen",
-      label: document.fullscreenElement ? "View: Exit Full Screen" : "View: Enter Full Screen",
+      label: document.fullscreenElement ? t("command.label.view_exit_fullscreen") : t("command.label.view_enter_fullscreen"),
       shortcut: "F",
       search: "fullscreen immersive",
       run: () => toggleFullscreen(),
     },
     {
       id: "panel-toggle",
-      label: state.panelCollapsed ? "Panel: Open Side Panel" : "Panel: Collapse Side Panel",
+      label: state.panelCollapsed ? t("command.label.panel_open") : t("command.label.panel_collapse"),
       shortcut: "",
       search: "panel side toggle collapse",
       run: () => togglePanel(),
     },
     {
       id: "tab-view",
-      label: "Panel: View Tab",
+      label: t("command.label.tab_view"),
       shortcut: "",
       search: "panel tab view",
       when: panelTabState !== "view",
@@ -210,7 +212,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "tab-data",
-      label: "Panel: Data Tab",
+      label: t("command.label.tab_data"),
       shortcut: "",
       search: "panel tab data",
       when: panelTabState !== "data",
@@ -218,7 +220,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "tab-overlay",
-      label: "Panel: Overlay Tab",
+      label: t("command.label.tab_overlay"),
       shortcut: "",
       search: "panel tab overlay analysis",
       when: panelTabState !== "analysis",
@@ -226,7 +228,7 @@ export function buildCommandPaletteCommands({
     },
     {
       id: "help-docs",
-      label: "Help: Documentation",
+      label: t("command.label.help_docs"),
       shortcut: "F1",
       search: "help docs documentation",
       run: () => handleMenuAction("help-docs"),

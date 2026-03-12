@@ -5,6 +5,8 @@
  * app.js can treat it as a small integration surface.
  */
 
+import { t } from "./i18n.js";
+
 function detectBackendLocal(apiBase) {
   try {
     const url = new URL(apiBase, window.location.href);
@@ -137,7 +139,7 @@ export function createFileBrowserController({
     browseBreadcrumb.innerHTML = "";
     const rootBtn = document.createElement("button");
     rootBtn.className = "breadcrumb-btn";
-    rootBtn.textContent = "Root";
+    rootBtn.textContent = t("file_browser.root");
     rootBtn.dataset.path = "";
     if (data.currentPath === "") {
       rootBtn.classList.add("is-active");
@@ -177,7 +179,7 @@ export function createFileBrowserController({
     } else {
       const empty = document.createElement("div");
       empty.className = "browse-empty";
-      empty.textContent = "No folders";
+      empty.textContent = t("file_browser.no_folders");
       browseFoldersList.appendChild(empty);
     }
 
@@ -215,7 +217,7 @@ export function createFileBrowserController({
     } else {
       const empty = document.createElement("div");
       empty.className = "browse-empty";
-      empty.textContent = "No image files";
+      empty.textContent = t("file_browser.no_images");
       browseFilesList.appendChild(empty);
     }
 
@@ -224,8 +226,8 @@ export function createFileBrowserController({
 
   async function loadAndRenderBrowser(path) {
     const requestId = ++browseRequestId;
-    const label = path || "Root";
-    setBrowseModalBusy(true, `Loading ${label}...`);
+    const label = path || t("file_browser.root");
+    setBrowseModalBusy(true, t("file_browser.loading", { label }));
     try {
       const data = await loadBrowseDirectory(path);
       if (requestId !== browseRequestId) return;
@@ -233,7 +235,7 @@ export function createFileBrowserController({
         renderBrowseContent(data);
         setBrowseStatus("");
       } else {
-        setBrowseStatus("Failed to load directory.", { isError: true });
+        setBrowseStatus(t("file_browser.failed_load"), { isError: true });
       }
     } finally {
       if (requestId === browseRequestId) {
@@ -263,7 +265,7 @@ export function createFileBrowserController({
     state.selectedPath = "";
     state.selectedType = "";
     openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
-    setBrowseModalBusy(true, "Loading Root...");
+    setBrowseModalBusy(true, t("file_browser.loading", { label: t("file_browser.root") }));
     loadAndRenderBrowser("").catch((err) => console.error(err));
   }
 
@@ -277,7 +279,7 @@ export function createFileBrowserController({
       state.selectedPath = "";
       state.selectedType = "";
       openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
-      setBrowseModalBusy(true, "Loading Root...");
+      setBrowseModalBusy(true, t("file_browser.loading", { label: t("file_browser.root") }));
       loadAndRenderBrowser("").catch((err) => {
         closeFileBrowser({ cancelDialog: false });
         rejectFileDialog(err);
@@ -300,7 +302,7 @@ export function createFileBrowserController({
 
     if (state.mode === "file-open") {
       if (!selected || state.selectedType !== "file") {
-        setStatus("Select an image file first");
+        setStatus(t("status.file.select_image_first"));
         return false;
       }
       closeFileBrowser({ cancelDialog: false });
@@ -314,7 +316,7 @@ export function createFileBrowserController({
     }
 
     if (!selected) {
-      setStatus("No file selected");
+      setStatus(t("status.file.no_selection"));
       return false;
     }
 

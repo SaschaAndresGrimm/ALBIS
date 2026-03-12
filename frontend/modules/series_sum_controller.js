@@ -2,6 +2,8 @@
  * Series summing workflow and UI state.
  */
 
+import { t } from "./i18n.js";
+
 export function createSeriesSumController({
   apiBase,
   state,
@@ -132,14 +134,28 @@ export function createSeriesSumController({
     const severe = peakHighBytes >= 16 * GIB;
     const warning = peakHighBytes >= 8 * GIB;
     const caution = peakHighBytes >= 4 * GIB;
-    const tonePrefix = severe ? "High memory risk." : warning ? "Warning." : caution ? "Notice." : "";
+    const tonePrefix = severe
+      ? t("series.median.prefix.high_risk")
+      : warning
+        ? t("series.median.prefix.warning")
+        : caution
+          ? t("series.median.prefix.notice")
+          : "";
     const thresholdCount = Math.max(1, parsePositiveInt(state.thresholdCount || 1, 1));
-    const perThresholdNote = thresholdCount > 1 ? " (per threshold)" : "";
+    const perThresholdNote = thresholdCount > 1 ? t("series.median.per_threshold") : "";
     const message = [
       tonePrefix,
-      `Median RAM estimate${perThresholdNote}: raw stack ~${formatGiB(rawBytes)}`,
-      `(${groupFrames} frame${groupFrames === 1 ? "" : "s"} x ${dims.width}x${dims.height})`,
-      `peak often ~${formatGiB(peakLowBytes)}-${formatGiB(peakHighBytes)}.`,
+      t("series.median.raw_stack", {
+        perThresholdNote,
+        rawBytes: formatGiB(rawBytes),
+        groupFrames,
+        width: dims.width,
+        height: dims.height,
+      }),
+      t("series.median.peak_range", {
+        low: formatGiB(peakLowBytes),
+        high: formatGiB(peakHighBytes),
+      }),
     ]
       .filter(Boolean)
       .join(" ");
@@ -169,13 +185,13 @@ export function createSeriesSumController({
     if (!seriesSumProgress) return;
     const canOpen = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
     seriesSumProgress.classList.toggle("is-clickable", canOpen);
-    seriesSumProgress.title = canOpen ? "Click to open output" : "";
+    seriesSumProgress.title = canOpen ? t("series.progress.click_to_open") : "";
   }
 
   function setSeriesSumProgress(progress, text) {
     const value = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
     state.seriesSum.progress = value;
-    state.seriesSum.message = text || state.seriesSum.message || "Idle";
+    state.seriesSum.message = text || state.seriesSum.message || t("series.progress.idle");
     if (seriesSumProgress) {
       seriesSumProgress.classList.toggle("is-loading", Boolean(state.seriesSum.running));
     }
@@ -186,11 +202,12 @@ export function createSeriesSumController({
     if (seriesSumProgressText) {
       if (state.seriesSum.running) {
         const pct = `${Math.round(value * 100)}%`;
-        seriesSumProgressText.textContent = `${pct}  ${state.seriesSum.message || "Running…"}`;
+        seriesSumProgressText.textContent = `${pct}  ${state.seriesSum.message || t("series.progress.running")}`;
       } else {
-        let message = state.seriesSum.message || "Idle";
-        if (canOpen && !/click to open/i.test(message)) {
-          message = `${message} — click to open`;
+        let message = state.seriesSum.message || t("series.progress.idle");
+        const openHint = t("series.progress.click_to_open_inline");
+        if (canOpen && !message.includes(openHint)) {
+          message = `${message} — ${openHint}`;
         }
         seriesSumProgressText.textContent = message;
       }
@@ -210,7 +227,7 @@ export function createSeriesSumController({
       seriesSumStepField.classList.toggle("is-hidden", mode === "all");
     }
     if (seriesSumStepLabel) {
-      seriesSumStepLabel.textContent = isNth ? "Nth interval (N)" : "Chunk size (N)";
+      seriesSumStepLabel.textContent = isNth ? t("series.step_label.nth") : t("series.step_label.chunk");
     }
     if (seriesSumRangeStartField) {
       seriesSumRangeStartField.classList.toggle("is-hidden", !isRange);
@@ -257,12 +274,16 @@ export function createSeriesSumController({
     const ready = Boolean(state.file && (isHdfFile(state.file) ? state.dataset : true));
     if (seriesSumStart) {
       seriesSumStart.disabled = !ready || state.seriesSum.running;
-      seriesSumStart.textContent = state.seriesSum.cancelling ? "Cancelling…" : state.seriesSum.running ? "Summing…" : "Start";
+      seriesSumStart.textContent = state.seriesSum.cancelling
+        ? t("series.button.cancelling")
+        : state.seriesSum.running
+          ? t("series.button.summing")
+          : t("series.button.start");
     }
     if (seriesSumCancel) {
       seriesSumCancel.classList.toggle("is-hidden", !state.seriesSum.running);
       seriesSumCancel.disabled = !state.seriesSum.running || state.seriesSum.cancelling || !state.seriesSum.jobId;
-      seriesSumCancel.textContent = state.seriesSum.cancelling ? "Cancelling…" : "Cancel";
+      seriesSumCancel.textContent = state.seriesSum.cancelling ? t("series.button.cancelling") : t("series.button.cancel");
     }
     if (seriesSumBrowse) {
       seriesSumBrowse.disabled = state.seriesSum.running || !ready;
@@ -344,7 +365,7 @@ export function createSeriesSumController({
       );
       const status = data.status || "running";
       const progress = Number.isFinite(data.progress) ? Number(data.progress) : state.seriesSum.progress;
-      const message = data.message || state.seriesSum.message || "Running…";
+      const message = data.message || state.seriesSum.message || t("series.progress.running");
       const outputs = Array.isArray(data.outputs) ? data.outputs : [];
       state.seriesSum.running = status === "queued" || status === "running" || status === "cancelling";
       state.seriesSum.cancelling = Boolean(data.cancel_requested) && state.seriesSum.running;
@@ -358,27 +379,27 @@ export function createSeriesSumController({
       }
       if (status === "done") {
         const count = state.seriesSum.outputs.length;
-        setStatus(`Series summing done (${count} file${count === 1 ? "" : "s"})`);
+        setStatus(t("status.series.done", { count }));
       } else if (status === "cancelled") {
-        setStatus("Series summing cancelled");
+        setStatus(t("status.series.cancelled"));
       } else if (status === "error") {
-        setStatus("Series summing failed");
+        setStatus(t("status.series.failed"));
       }
     } catch (err) {
       console.error(err);
       state.seriesSum.running = false;
       state.seriesSum.cancelling = false;
       state.seriesSum.openTarget = "";
-      setSeriesSumProgress(1, "Failed to query status");
+      setSeriesSumProgress(1, t("status.series.status_query_failed"));
       updateSeriesSumUi();
-      setStatus("Series summing status failed");
+      setStatus(t("status.series.status_failed"));
     }
   }
 
   async function cancelSeriesSumming() {
     if (!state.seriesSum.running || !state.seriesSum.jobId || state.seriesSum.cancelling) return;
     state.seriesSum.cancelling = true;
-    setSeriesSumProgress(state.seriesSum.progress, "Cancelling…");
+    setSeriesSumProgress(state.seriesSum.progress, t("series.button.cancelling"));
     updateSeriesSumUi();
     try {
       const data = await fetchJSONWithInit(`${apiBase}/analysis/series-sum/cancel`, {
@@ -387,9 +408,9 @@ export function createSeriesSumController({
         body: JSON.stringify({ job_id: state.seriesSum.jobId }),
       });
       if (data?.accepted) {
-        setStatus("Series summing cancellation requested");
+        setStatus(t("status.series.cancel_requested"));
       } else {
-        setStatus(`Series summing is already ${data?.status || "finished"}`);
+        setStatus(t("status.series.already", { status: data?.status || "finished" }));
         state.seriesSum.cancelling = false;
       }
       stopSeriesSumPolling();
@@ -398,7 +419,7 @@ export function createSeriesSumController({
       console.error(err);
       state.seriesSum.cancelling = false;
       updateSeriesSumUi();
-      setStatus("Failed to cancel series summing");
+      setStatus(t("status.series.cancel_failed"));
     }
   }
 
@@ -411,7 +432,7 @@ export function createSeriesSumController({
 
     const parsedStep = validateSeriesStepInput(true);
     if (!Number.isFinite(parsedStep) && mode !== "all") {
-      setStatus("Step must be an integer greater than or equal to 1");
+      setStatus(t("status.series.step_invalid"));
       return;
     }
     const step = Number.isFinite(parsedStep) ? parsedStep : 1;
@@ -419,7 +440,7 @@ export function createSeriesSumController({
     const rangeStart = Math.max(1, Math.round(Number(seriesSumRangeStart?.value || 1)));
     const rangeEnd = Math.max(1, Math.round(Number(seriesSumRangeEnd?.value || totalFrames)));
     if (mode === "range" && rangeStart > rangeEnd) {
-      setStatus("Range start must be <= range end");
+      setStatus(t("status.series.range_invalid"));
       return;
     }
 
@@ -434,7 +455,7 @@ export function createSeriesSumController({
     } else if (normalizeMethod === "scalar") {
       const parsedScalar = Number(seriesSumNormalizeScalar?.value || "1");
       if (!Number.isFinite(parsedScalar) || Math.abs(parsedScalar) <= 1e-12) {
-        setStatus("Normalization scalar must be a non-zero number");
+        setStatus(t("status.series.scalar_invalid"));
         return;
       }
       normalizeScalar = parsedScalar;
@@ -444,11 +465,11 @@ export function createSeriesSumController({
     } else if (normalizeMethod === "image") {
       normalizeImage = String(seriesSumNormalizeImage?.value || "").trim();
       if (!normalizeImage) {
-        setStatus("Select a normalization image (TIFF)");
+        setStatus(t("status.series.select_norm_image"));
         return;
       }
       if (!isTiffPath(normalizeImage)) {
-        setStatus("Normalization image must be a TIFF file");
+        setStatus(t("status.series.norm_image_invalid"));
         return;
       }
     }
@@ -473,14 +494,14 @@ export function createSeriesSumController({
     if (medianEstimate?.requiresConfirm) {
       const proceed = window.confirm(
         [
-          "Median can require substantial memory.",
+          t("series.confirm.memory_title"),
           medianEstimate.message,
           "",
-          "Continue anyway?",
+          t("series.confirm.continue"),
         ].join("\n")
       );
       if (!proceed) {
-        setStatus("Series summing cancelled before start");
+        setStatus(t("status.series.cancelled_before_start"));
         return;
       }
     }
@@ -491,7 +512,7 @@ export function createSeriesSumController({
       state.seriesSum.jobId = "";
       state.seriesSum.outputs = [];
       state.seriesSum.openTarget = "";
-      setSeriesSumProgress(0, "Submitting job…");
+      setSeriesSumProgress(0, t("series.progress.submitting"));
       updateSeriesSumUi();
       const data = await fetchJSONWithInit(`${apiBase}/analysis/series-sum/start`, {
         method: "POST",
@@ -501,17 +522,17 @@ export function createSeriesSumController({
       state.seriesSum.jobId = String(data.job_id || "");
       state.seriesSum.running = true;
       state.seriesSum.cancelling = false;
-      setSeriesSumProgress(0.01, "Queued");
-      setStatus("Series summing started");
+      setSeriesSumProgress(0.01, t("series.progress.queued"));
+      setStatus(t("status.series.started"));
       updateSeriesSumUi();
       pollSeriesSumStatus();
     } catch (err) {
       console.error(err);
       state.seriesSum.running = false;
       state.seriesSum.cancelling = false;
-      setSeriesSumProgress(0, "Start failed");
+      setSeriesSumProgress(0, t("series.progress.start_failed"));
       updateSeriesSumUi();
-      setStatus("Failed to start series summing");
+      setStatus(t("status.series.start_failed"));
     }
   }
 
@@ -520,10 +541,10 @@ export function createSeriesSumController({
     try {
       await ensureFileMode();
       await loadAutoloadFile(state.seriesSum.openTarget);
-      setStatus("Opened series output in ALBIS");
+      setStatus(t("status.series.output_opened"));
     } catch (err) {
       console.error(err);
-      setStatus("Failed to open series output");
+      setStatus(t("status.series.output_open_failed"));
     }
   }
 

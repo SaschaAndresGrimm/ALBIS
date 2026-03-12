@@ -2,6 +2,8 @@
  * File list and frame metadata orchestration.
  */
 
+import { t } from "./i18n.js";
+
 export function createFrameMetadataController({
   apiBase,
   state,
@@ -66,7 +68,7 @@ export function createFrameMetadataController({
 
   async function loadFiles() {
     setDataControlsForHdf5();
-    setDataSourceSectionState("loading", "Loading files…", true);
+    setDataSourceSectionState("loading", t("status.files.loading"), true);
     const folder = (autoloadDir?.value || state.autoload.dir || "").trim();
     const url = folder ? `${apiBase}/files?folder=${encodeURIComponent(folder)}` : `${apiBase}/files`;
     try {
@@ -74,7 +76,7 @@ export function createFrameMetadataController({
       fileSelect.innerHTML = "";
       const existingFile = state.file;
       if (data.files.length > 0) {
-        const placeholder = option("Select file…", "");
+        const placeholder = option(t("files.select_placeholder"), "");
         placeholder.disabled = true;
         placeholder.selected = true;
         fileSelect.appendChild(placeholder);
@@ -85,41 +87,41 @@ export function createFrameMetadataController({
             fileSelect.appendChild(option(fileLabel(existingFile), existingFile));
           }
           fileSelect.value = existingFile;
-          setDataSourceSectionState("active", "File list loaded.");
+          setDataSourceSectionState("active", t("status.files.list_loaded"));
         } else {
           state.file = "";
           state.dataset = "";
-          setStatus("Select a file to begin");
+          setStatus(t("status.frame.select_file_to_begin"));
           updateToolbar();
           showSplash();
-          setSplashStatus("Ready. Open a file to begin.");
+          setSplashStatus(t("splash.status.ready_open_file"));
           setLoading(false);
-          setDataSourceSectionState("empty", "Select a file to begin.");
+          setDataSourceSectionState("empty", t("status.frame.select_file_to_begin"));
         }
         loadAutoloadFolders();
       } else {
         data.files.forEach((name) => fileSelect.appendChild(option(fileLabel(name), name)));
         if (!existingFile) {
-          setStatus("No image files found");
+          setStatus(t("status.frame.no_image_files"));
           showSplash();
-          setSplashStatus("No image files found. Open a file to begin.");
+          setSplashStatus(t("splash.status.no_image_files_found"));
           setLoading(false);
         }
-        setDataSourceSectionState("warning", "No image files found in this folder.");
+        setDataSourceSectionState("warning", t("status.files.none_in_folder"));
         loadAutoloadFolders();
       }
     } catch (err) {
       console.error(err);
-      setStatus("Failed to load files");
-      setDataSourceSectionState("warning", "Failed to load file list.");
+      setStatus(t("status.frame.load_files_failed"));
+      setDataSourceSectionState("warning", t("status.files.load_failed"));
     }
   }
 
   async function loadMetadata() {
     if (!state.file || !state.dataset) return;
-    showProcessingProgress("Loading metadata…");
-    setStatus("Loading metadata…");
-    setDataSourceSectionState("loading", "Loading dataset metadata…", true);
+    showProcessingProgress(t("status.frame.loading_metadata"));
+    setStatus(t("status.frame.loading_metadata"));
+    setDataSourceSectionState("loading", t("status.data.loading_dataset_metadata"), true);
     try {
       state.maskAuto = true;
       const data = await fetchJSON(
@@ -147,10 +149,10 @@ export function createFrameMetadataController({
       await loadAnalysisParams();
       await loadMask(true);
       await loadFrame();
-      setDataSourceSectionState("active", "Metadata ready.");
+      setDataSourceSectionState("active", t("status.data.metadata_ready"));
     } catch (err) {
       console.error(err);
-      setDataSourceSectionState("warning", "Failed to load metadata.");
+      setDataSourceSectionState("warning", t("status.data.failed_load_metadata"));
       throw err;
     } finally {
       hideProcessingProgress();

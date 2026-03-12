@@ -2,6 +2,8 @@
  * File open/select flow.
  */
 
+import { t } from "./i18n.js";
+
 export function createFileOpenController({
   apiBase,
   state,
@@ -82,7 +84,7 @@ export function createFileOpenController({
         return;
       } catch (err) {
         console.error(err);
-        setStatus("File picker unavailable");
+        setStatus(t("status.file_picker.unavailable"));
         return;
       }
     } else if (filesystemMode?.value === "local") {

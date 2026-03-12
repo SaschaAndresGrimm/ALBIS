@@ -63,6 +63,7 @@ export function createAppState() {
     imageHeaderText: "",
     backendAlive: false,
     backendVersion: "",
+    language: "en",
     toolHintsEnabled: false,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,

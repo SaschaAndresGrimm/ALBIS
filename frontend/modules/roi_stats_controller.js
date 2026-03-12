@@ -12,6 +12,7 @@ import {
 } from "./roi_stats_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
 import { buildRoiCsvExportPayload } from "./roi_csv_export.js";
+import { t } from "./i18n.js";
 
 export function createRoiStatsController(ctx) {
   const {
@@ -186,7 +187,7 @@ function updateRoiModeUI() {
     roiLinePlot.classList.toggle("is-hidden", !showLine);
     const title = roiLinePlot.querySelector(".roi-plot-title");
     if (title) {
-      title.textContent = mode === "line" ? "Line Profile" : "Radial Profile";
+      title.textContent = mode === "line" ? t("roi.plot.line_profile") : t("roi.plot.radial_profile");
     }
   }
   if (roiBoxPlotX) {
@@ -213,28 +214,28 @@ function updateRoiModeUI() {
   }
   if (roiSizeLabel) {
     if (!enabled) {
-      roiSizeLabel.textContent = "Image";
+      roiSizeLabel.textContent = t("roi.size.image");
     } else if (mode === "line") {
-      roiSizeLabel.textContent = "Length (px)";
+      roiSizeLabel.textContent = t("roi.size.length_px");
     } else if (mode === "box") {
-      roiSizeLabel.textContent = "Size (WxH)";
+      roiSizeLabel.textContent = t("roi.size.width_height");
     } else if (mode === "circle") {
-      roiSizeLabel.textContent = "Radius (px)";
+      roiSizeLabel.textContent = t("roi.size.radius_px");
     } else if (mode === "annulus") {
-      roiSizeLabel.textContent = "Rin → Rout";
+      roiSizeLabel.textContent = t("roi.size.rin_rout");
     } else {
-      roiSizeLabel.textContent = "Image";
+      roiSizeLabel.textContent = t("roi.size.image");
     }
   }
   if (roiHelp) {
     if (!enabled) {
-      roiHelp.textContent = "Enable Statistics and ROI to define a region.";
+      roiHelp.textContent = t("roi.help.enable");
     } else if (mode === "annulus") {
-      roiHelp.textContent = "Right‑drag to set outer radius. Adjust inner radius below.";
+      roiHelp.textContent = t("roi.help.annulus");
     } else if (mode === "circle") {
-      roiHelp.textContent = "Right‑drag from center to set radius.";
+      roiHelp.textContent = t("roi.help.circle");
     } else {
-      roiHelp.textContent = "Right‑drag on the image to define the ROI.";
+      roiHelp.textContent = t("roi.help.default");
     }
   }
   if (roiModeSelect) {
@@ -397,7 +398,7 @@ function updateRoiTooltip(event, canvasEl) {
   const xValue = plot.xStart + idx * plot.xStep;
   const value = plot.data[idx];
   const xText = plot.xTickMode === "integer" ? `${Math.round(xValue)}` : formatRoiTick(xValue);
-  const label = `${plot.xLabel} ${xText}  Value ${formatStat(value)}`;
+  const label = `${plot.xLabel} ${xText}  ${t("roi.tooltip.value")} ${formatStat(value)}`;
   showRoiTooltip(canvasEl, label, event.clientX, event.clientY);
 }
 
@@ -441,8 +442,8 @@ function updateRoiHistogramPlot(values) {
 
   roiState.histogramDistribution = histogram.data;
   roiHistCanvas._roiPlotMeta = {
-    xLabel: "Intensity",
-    yLabel: "Count",
+    xLabel: t("roi.plot.intensity"),
+    yLabel: t("roi.plot.count"),
     xStart: histogram.xStart,
     xStep: histogram.xStep,
     xTickMode: histogram.xTickMode,
@@ -468,7 +469,7 @@ function updateRoiStats() {
     setRoiText(roiStartEl, "-");
     setRoiText(roiEndEl, "-");
     if (roiSizeLabel) {
-      roiSizeLabel.textContent = "Image";
+      roiSizeLabel.textContent = t("roi.size.image");
     }
     setRoiText(roiSizeEl, state.width && state.height ? `${state.width} × ${state.height}` : "-");
     updateRoiPixelCounterFields(
@@ -596,8 +597,8 @@ function updateRoiStats() {
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
-        xLabel: "Pixels",
-        yLabel: "Intensity",
+        xLabel: t("roi.plot.pixels"),
+        yLabel: t("roi.plot.intensity"),
         xStart: 0,
         xStep: 1,
         xTickMode: "integer",
@@ -668,8 +669,8 @@ function updateRoiStats() {
     drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
     if (roiXCanvas) {
       roiXCanvas._roiPlotMeta = {
-        xLabel: "X Pixel",
-        yLabel: "Mean",
+        xLabel: t("roi.plot.x_pixel"),
+        yLabel: t("roi.plot.mean"),
         xStart: left,
         xStep: 1,
         xTickMode: "integer",
@@ -677,8 +678,8 @@ function updateRoiStats() {
     }
     if (roiYCanvas) {
       roiYCanvas._roiPlotMeta = {
-        xLabel: "Y Pixel",
-        yLabel: "Mean",
+        xLabel: t("roi.plot.y_pixel"),
+        yLabel: t("roi.plot.mean"),
         xStart: top,
         xStep: 1,
         xTickMode: "integer",
@@ -770,8 +771,8 @@ function updateRoiStats() {
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
-        xLabel: "Radius (px)",
-        yLabel: "Intensity",
+        xLabel: t("roi.size.radius_px"),
+        yLabel: t("roi.plot.intensity"),
         xStart: displayStart,
         xStep: 1,
         xTickMode: "integer",
@@ -802,7 +803,7 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
 
 function exportRoiCsv() {
   if (!roiState.enabled || !roiState.active) {
-    setStatus("No ROI data to export");
+    setStatus(t("status.roi.no_data"));
     return;
   }
   const payload = buildRoiCsvExportPayload({
@@ -814,7 +815,7 @@ function exportRoiCsv() {
     histMeta: roiHistCanvas?._roiPlotMeta,
   });
   if (!payload) {
-    setStatus("No ROI projection data to export");
+    setStatus(t("status.roi.no_projection_data"));
     return;
   }
 
@@ -827,7 +828,7 @@ function exportRoiCsv() {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  setStatus(`Exported ROI CSV: ${payload.filename}`);
+  setStatus(t("status.roi.exported_csv", { filename: payload.filename }));
 }
 
   return {

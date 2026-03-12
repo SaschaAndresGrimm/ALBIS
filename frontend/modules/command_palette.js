@@ -2,6 +2,8 @@
  * Command palette controller.
  */
 
+import { t } from "./i18n.js";
+
 export function createCommandPaletteController({
   elements,
   callbacks,
@@ -77,7 +79,7 @@ export function createCommandPaletteController({
     if (!commandPaletteItems.length) {
       const empty = document.createElement("div");
       empty.className = "command-empty";
-      empty.textContent = "No commands found.";
+      empty.textContent = t("command.empty");
       commandList.appendChild(empty);
       return;
     }

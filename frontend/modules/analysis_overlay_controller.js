@@ -2,6 +2,8 @@
  * Rings and peak analysis orchestration.
  */
 
+import { t } from "./i18n.js";
+
 export function createAnalysisOverlayController({
   state,
   analysisState,
@@ -117,13 +119,13 @@ export function createAnalysisOverlayController({
   function updateRingsSectionState() {
     if (!ringsSectionStateEl) return;
     if (!analysisState.ringsEnabled) {
-      setSectionBadgeState(ringsSectionStateEl, "empty", "Enable rings to show resolution guides.");
-      setSummaryChip(ringsSummaryEl, "Off");
+      setSectionBadgeState(ringsSectionStateEl, "empty", t("rings.state.enable_hint"));
+      setSummaryChip(ringsSummaryEl, t("summary.off"));
       return;
     }
     if (!state.hasFrame) {
-      setSectionBadgeState(ringsSectionStateEl, "loading", "Load a frame to render rings.");
-      setSummaryChip(ringsSummaryEl, "Waiting frame");
+      setSectionBadgeState(ringsSectionStateEl, "loading", t("rings.state.load_frame"));
+      setSummaryChip(ringsSummaryEl, t("summary.waiting_frame"));
       return;
     }
     const params = getRingParams();
@@ -131,54 +133,54 @@ export function createAnalysisOverlayController({
       setSectionBadgeState(
         ringsSectionStateEl,
         "empty",
-        "Provide detector distance, pixel size, and photon energy to compute rings.",
+        t("rings.state.missing_geometry"),
       );
-      setSummaryChip(ringsSummaryEl, "Missing geometry", "warning");
+      setSummaryChip(ringsSummaryEl, t("rings.summary.missing_geometry"), "warning");
       return;
     }
     if (!params.rings.length) {
-      setSectionBadgeState(ringsSectionStateEl, "empty", "Add at least one ring value.");
-      setSummaryChip(ringsSummaryEl, "No rings", "warning");
+      setSectionBadgeState(ringsSectionStateEl, "empty", t("rings.state.no_rings"));
+      setSummaryChip(ringsSummaryEl, t("rings.summary.no_rings"), "warning");
       return;
     }
     setSectionBadgeState(
       ringsSectionStateEl,
       "active",
-      `Showing ${params.rings.length} ring${params.rings.length === 1 ? "" : "s"}.`,
+      t("rings.state.showing_count", { count: params.rings.length }),
     );
-    setSummaryChip(ringsSummaryEl, `${params.rings.length} ring${params.rings.length === 1 ? "" : "s"}`, "active");
+    setSummaryChip(ringsSummaryEl, t("rings.summary.count", { count: params.rings.length }), "active");
   }
 
   function updatePeaksSectionState() {
     if (!peaksSectionStateEl) return;
     if (!analysisState.peaksEnabled) {
-      setSectionBadgeState(peaksSectionStateEl, "empty", "Enable Peak Finder to detect peaks.");
-      setSummaryChip(peaksSummaryEl, "Off");
+      setSectionBadgeState(peaksSectionStateEl, "empty", t("peaks.state.enable_hint"));
+      setSummaryChip(peaksSummaryEl, t("summary.off"));
       return;
     }
     if (!state.hasFrame) {
-      setSectionBadgeState(peaksSectionStateEl, "loading", "Load a frame to detect peaks.");
-      setSummaryChip(peaksSummaryEl, "Waiting frame");
+      setSectionBadgeState(peaksSectionStateEl, "loading", t("peaks.state.load_frame"));
+      setSummaryChip(peaksSummaryEl, t("summary.waiting_frame"));
       return;
     }
     if (state.playing || state.isLoading || peakFinderScheduled) {
-      setSectionBadgeState(peaksSectionStateEl, "active", "Peak Finder active. Updating in the background.");
-      setSummaryChip(peaksSummaryEl, "Active", "active");
+      setSectionBadgeState(peaksSectionStateEl, "active", t("peaks.state.active_updating"));
+      setSummaryChip(peaksSummaryEl, t("summary.active"), "active");
       return;
     }
     if (!analysisState.peaks.length) {
-      setSectionBadgeState(peaksSectionStateEl, "empty", "No peaks detected on this frame.");
-      setSummaryChip(peaksSummaryEl, "No peaks");
+      setSectionBadgeState(peaksSectionStateEl, "empty", t("peaks.state.none_on_frame"));
+      setSummaryChip(peaksSummaryEl, t("peaks.summary.none"));
       return;
     }
     setSectionBadgeState(
       peaksSectionStateEl,
       "active",
-      `Detected ${analysisState.peaks.length} peak${analysisState.peaks.length === 1 ? "" : "s"}.`,
+      t("peaks.state.detected_count", { count: analysisState.peaks.length }),
     );
     setSummaryChip(
       peaksSummaryEl,
-      `${analysisState.peaks.length} peak${analysisState.peaks.length === 1 ? "" : "s"}`,
+      t("peaks.summary.count", { count: analysisState.peaks.length }),
       "active",
     );
   }
@@ -199,7 +201,7 @@ export function createAnalysisOverlayController({
     if (!analysisState.peaksEnabled) {
       const empty = document.createElement("div");
       empty.className = "peaks-empty";
-      empty.textContent = 'Enable "Find peaks" to detect diffraction peaks.';
+      empty.textContent = t("analysis.peaks.enable_hint");
       peaksBody.appendChild(empty);
       updatePeaksSectionState();
       return;
@@ -207,7 +209,7 @@ export function createAnalysisOverlayController({
     if (!analysisState.peaks.length) {
       const empty = document.createElement("div");
       empty.className = "peaks-empty";
-      empty.textContent = state.hasFrame ? "No peaks detected." : "Load a frame to detect peaks.";
+      empty.textContent = state.hasFrame ? t("analysis.peaks.none_detected") : t("analysis.peaks.load_frame");
       peaksBody.appendChild(empty);
       updatePeaksSectionState();
       return;

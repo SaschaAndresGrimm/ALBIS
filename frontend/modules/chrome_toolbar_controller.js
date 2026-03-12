@@ -2,6 +2,8 @@
  * Toolbar, footer, and chrome-idle UI state controller.
  */
 
+import { t } from "./i18n.js";
+
 export function createChromeToolbarController({
   state,
   constants,
@@ -74,7 +76,7 @@ export function createChromeToolbarController({
     }
     toolbarPlaybackWrap.classList.toggle("is-open", open);
     toolbarPlaybackToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    toolbarPlaybackToggle.textContent = open ? "Playback ▴" : "Playback ▾";
+    toolbarPlaybackToggle.textContent = open ? t("toolbar.playback.open") : t("toolbar.playback.closed");
     toolbarPlaybackPopover.setAttribute("aria-hidden", open ? "false" : "true");
   }
 
@@ -98,7 +100,7 @@ export function createChromeToolbarController({
     }
     toolbarMoreWrap.classList.toggle("is-open", open);
     toolbarMoreToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    toolbarMoreToggle.textContent = open ? "More ▴" : "More ▾";
+    toolbarMoreToggle.textContent = open ? t("toolbar.more.open") : t("toolbar.more.closed");
     toolbarMorePopover.setAttribute("aria-hidden", open ? "false" : "true");
   }
 
@@ -123,16 +125,17 @@ export function createChromeToolbarController({
       toolbarMoreThreshold.value = String(state.thresholdIndex || 0);
     }
     if (toolbarMorePanelToggle) {
-      toolbarMorePanelToggle.textContent = state.panelCollapsed ? "Open side menu" : "Close side menu";
-      toolbarMorePanelToggle.setAttribute("aria-label", state.panelCollapsed ? "Open side menu" : "Close side menu");
+      const label = state.panelCollapsed ? t("toolbar.side_menu.open") : t("toolbar.side_menu.close");
+      toolbarMorePanelToggle.textContent = label;
+      toolbarMorePanelToggle.setAttribute("aria-label", label);
     }
     if (toolbarMoreFullscreen) {
-      toolbarMoreFullscreen.textContent = document.fullscreenElement ? "Exit full screen" : "Full screen";
+      toolbarMoreFullscreen.textContent = document.fullscreenElement ? t("toolbar.fullscreen.exit") : t("toolbar.fullscreen.enter");
     }
   }
 
   function buildViewerSourceText(maxChars = 72) {
-    if (!state.file) return "No file loaded";
+    if (!state.file) return t("toolbar.source.no_file");
     const fileName = fileLabel(state.file);
     let frameLabel = "";
     if (state.frameCount > 1) {
@@ -151,13 +154,13 @@ export function createChromeToolbarController({
 
   function updateFooterVersions() {
     if (footerFrontendVersionEl) {
-      footerFrontendVersionEl.textContent = `Frontend: ${appFrontendBuild}`;
-      footerFrontendVersionEl.title = `Frontend build ${appFrontendBuild}`;
+      footerFrontendVersionEl.textContent = t("toolbar.footer.frontend", { version: appFrontendBuild });
+      footerFrontendVersionEl.title = t("toolbar.footer.frontend.title", { version: appFrontendBuild });
     }
     if (footerBackendVersionEl) {
       const backendVersion = state.backendVersion || "-";
-      footerBackendVersionEl.textContent = `Backend: v${backendVersion}`;
-      footerBackendVersionEl.title = `Backend version ${backendVersion}`;
+      footerBackendVersionEl.textContent = t("toolbar.footer.backend", { version: backendVersion });
+      footerBackendVersionEl.title = t("toolbar.footer.backend.title", { version: backendVersion });
     }
   }
 
@@ -168,7 +171,7 @@ export function createChromeToolbarController({
       footerFileEl.classList.toggle("is-empty", !hasFile);
     }
     if (footerZoomEl) {
-      footerZoomEl.textContent = `Zoom ${(state.zoom || 1).toFixed(1)}x`;
+      footerZoomEl.textContent = t("toolbar.footer.zoom", { zoom: (state.zoom || 1).toFixed(1) });
     }
     updateFooterVersions();
     scheduleChromeIdle();
@@ -178,7 +181,7 @@ export function createChromeToolbarController({
     footerVersionPopoverOpen = Boolean(open);
     if (footerVersionToggleEl) {
       footerVersionToggleEl.setAttribute("aria-expanded", footerVersionPopoverOpen ? "true" : "false");
-      footerVersionToggleEl.textContent = footerVersionPopoverOpen ? "Versions ▴" : "Versions ▾";
+      footerVersionToggleEl.textContent = footerVersionPopoverOpen ? t("toolbar.footer.versions.open") : t("toolbar.footer.versions.closed");
     }
     if (footerVersionPopoverEl) {
       footerVersionPopoverEl.classList.toggle("is-open", footerVersionPopoverOpen);
@@ -262,21 +265,25 @@ export function createChromeToolbarController({
     const mode = (state.autoload.mode || "file").toLowerCase();
     if (mode === "file") {
       const hasFile = Boolean(state.file);
-      const fileText = hasFile ? middleTruncate(fileLabel(state.file), 24) : "no file";
-      setSummaryChip(dataSourceSummaryEl, `File · ${fileText}`, hasFile ? "active" : "default");
+      const fileText = hasFile ? middleTruncate(fileLabel(state.file), 24) : t("toolbar.datasource.no_file");
+      setSummaryChip(dataSourceSummaryEl, `${t("toolbar.datasource.file")} · ${fileText}`, hasFile ? "active" : "default");
       return;
     }
 
     const modeLabel =
       mode === "simplon"
-        ? "SIMPLON"
+        ? t("toolbar.datasource.simplon")
         : mode === "jungfraujoch"
-          ? "JFJ Preview"
-          : "Remote";
+          ? t("toolbar.datasource.jfjoch")
+          : t("toolbar.datasource.remote");
     const running = Boolean(state.autoload.running);
     const age = Date.now() - (state.autoload.lastUpdate || 0);
     const stale = running && (!state.autoload.lastUpdate || age > Math.max(1500, state.autoload.interval * 2));
-    const streamState = !running ? "idle" : stale ? "waiting" : "live";
+    const streamState = !running
+      ? t("toolbar.datasource.state.idle")
+      : stale
+        ? t("toolbar.datasource.state.waiting")
+        : t("toolbar.datasource.state.live");
     const tone = stale ? "warning" : running ? "active" : "default";
     setSummaryChip(dataSourceSummaryEl, `${modeLabel} · ${streamState}`, tone);
   }

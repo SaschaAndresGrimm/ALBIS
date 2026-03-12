@@ -2,6 +2,8 @@
  * ROI control input bindings.
  */
 
+import { t } from "./i18n.js";
+
 export function bindRoiControlInteractions({
   state,
   roiState,
@@ -78,7 +80,7 @@ export function bindRoiControlInteractions({
 
   roiClearBtn?.addEventListener("click", () => {
     clearRoi();
-    setStatus("ROI cleared");
+    setStatus(t("status.roi.cleared"));
   });
 
   roiExportCsvBtn?.addEventListener("click", exportRoiCsv);

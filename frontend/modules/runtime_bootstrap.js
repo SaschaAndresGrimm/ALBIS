@@ -2,6 +2,8 @@
  * Runtime bootstrap helpers for initial UI defaults and startup sequencing.
  */
 
+import { t } from "./i18n.js";
+
 export function initializeUiDefaults({
   state,
   roiState,
@@ -126,7 +128,7 @@ export function finalizeRuntimeBootstrap({
   updatePlayButtons();
   updateViewerFooter();
   if (!state.file) {
-    setDataSourceSectionState("empty", "Choose an image source to begin.");
+    setDataSourceSectionState("empty", t("data_source.choose_to_begin"));
   }
   updateFullscreenUi();
   updateAboutVersion();
@@ -135,8 +137,8 @@ export function finalizeRuntimeBootstrap({
 
   void bootstrapApp().catch((err) => {
     console.error(err);
-    setSplashStatus("Initialization failed");
-    setStatus("Failed to initialize");
+    setSplashStatus(t("splash.status.initialization_failed"));
+    setStatus(t("status.app.initialization_failed"));
     showSplash();
     setLoading(false);
   });

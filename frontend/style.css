@@ -40,6 +40,8 @@
   --motion-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
   --overlay-anchor-top: 62px;
   --overlay-gutter: 12px;
+  --font-ui: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans", "Yu Gothic UI",
+    "Microsoft YaHei UI", "Noto Sans CJK SC", "Noto Sans CJK JP", "Helvetica Neue", Arial, sans-serif;
 }
 
 * {
@@ -139,7 +141,7 @@ body {
   margin: 0;
   background: radial-gradient(circle at 12% 0%, #273346 0%, #1a2130 38%, #121721 100%);
   color: var(--text);
-  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-ui);
   font-size: 13px;
 }
 
@@ -1839,7 +1841,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   border: 1px solid rgba(20, 31, 46, 0.95);
   border-radius: var(--radius-sm);
   padding: 8px;
-  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-ui);
   font-size: 11px;
   line-height: 1.38;
   color: #dfeeff;

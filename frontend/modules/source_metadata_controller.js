@@ -2,6 +2,8 @@
  * Source metadata parsing and UI synchronization.
  */
 
+import { t } from "./i18n.js";
+
 export function createSourceMetadataController({
   state,
   analysisState,
@@ -154,9 +156,9 @@ export function createSourceMetadataController({
       if (status?.last_error) {
         jfjochBridgeStatusEl.textContent = String(status.last_error);
       } else if (status?.running) {
-        jfjochBridgeStatusEl.textContent = "running";
+        jfjochBridgeStatusEl.textContent = t("source.bridge.running");
       } else {
-        jfjochBridgeStatusEl.textContent = "stopped";
+        jfjochBridgeStatusEl.textContent = t("source.bridge.stopped");
       }
     }
   }

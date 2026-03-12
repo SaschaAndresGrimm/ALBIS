@@ -19,6 +19,23 @@ def test_normalize_config_defaults_to_random_port() -> None:
     assert config["server"]["port"] == 0
 
 
+def test_normalize_config_defaults_to_english_ui_language() -> None:
+    config = normalize_config(None)
+    assert config["ui"]["language"] == "en"
+
+
+def test_normalize_config_normalizes_ui_language_aliases() -> None:
+    config = normalize_config({"ui": {"language": "zh"}})
+    assert config["ui"]["language"] == "zh-CN"
+    config = normalize_config({"ui": {"language": "ja-JP"}})
+    assert config["ui"]["language"] == "ja"
+
+
+def test_normalize_config_falls_back_to_english_for_invalid_language() -> None:
+    config = normalize_config({"ui": {"language": "de"}})
+    assert config["ui"]["language"] == "en"
+
+
 def test_normalize_config_rejects_unknown_section() -> None:
     with pytest.raises(ValueError, match="Unknown config section"):
         normalize_config({"network": {"port": 8080}})

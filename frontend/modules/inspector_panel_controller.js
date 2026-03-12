@@ -2,6 +2,8 @@
  * Inspector tree/search and image-header panel orchestration.
  */
 
+import { t } from "./i18n.js";
+
 export function createInspectorPanelController({
   apiBase,
   state,
@@ -79,9 +81,9 @@ export function createInspectorPanelController({
     imageHeaderText.classList.toggle("is-hidden", !hasText);
     imageHeaderEmpty.classList.toggle("is-hidden", hasText);
     if (hasText) {
-      setImageHeaderSectionState("active", "Header loaded.");
+      setImageHeaderSectionState("active", t("inspector.header.loaded"));
     } else {
-      setImageHeaderSectionState("empty", "No header available.");
+      setImageHeaderSectionState("empty", t("inspector.no_header"));
     }
   }
 
@@ -101,7 +103,7 @@ export function createInspectorPanelController({
       setImageHeader(state.imageHeaderText);
       return;
     }
-    setImageHeaderSectionState("loading", "Loading image header…");
+    setImageHeaderSectionState("loading", t("inspector.header.loading"));
     setImageHeaderLoading(true);
     if (imageHeaderText) {
       imageHeaderText.textContent = "";
@@ -127,9 +129,9 @@ export function createInspectorPanelController({
       }
       if (imageHeaderEmpty) {
         imageHeaderEmpty.classList.remove("is-hidden");
-        imageHeaderEmpty.textContent = "No header available.";
+        imageHeaderEmpty.textContent = t("inspector.no_header");
       }
-      setImageHeaderSectionState("warning", "Header unavailable for this image.");
+      setImageHeaderSectionState("warning", t("inspector.header.unavailable"));
     }
   }
 
@@ -142,10 +144,10 @@ export function createInspectorPanelController({
     if (showInspector) {
       clearImageHeader();
       if (!inspectorTree || !inspectorTree.children.length) {
-        setInspectorMessage("Select an HDF5 file to browse metadata.");
+        setInspectorMessage(t("inspector.select_hdf5"));
       }
     } else {
-      if (inspectorSection) setInspectorMessage("File inspector is available for HDF5 files only.");
+      if (inspectorSection) setInspectorMessage(t("inspector.hdf5_only"));
       if (showHeader) {
         loadImageHeader(target);
       } else {
@@ -167,19 +169,19 @@ export function createInspectorPanelController({
     if (!query) {
       inspectorResults.innerHTML = "";
       inspectorResults.classList.add("is-hidden");
-      setSectionBadgeState(inspectorStateEl, "active", "Metadata browser ready.");
+      setSectionBadgeState(inspectorStateEl, "active", t("inspector.browser_ready"));
       return;
     }
     inspectorResults.classList.remove("is-hidden");
     if (!Array.isArray(results) || results.length === 0) {
-      inspectorResults.innerHTML = `<div class="inspector-empty">No matches.</div>`;
-      setSectionBadgeState(inspectorStateEl, "empty", `No matches for "${query}".`);
+      inspectorResults.innerHTML = `<div class=\"inspector-empty\">${t("inspector.search.no_matches")}</div>`;
+      setSectionBadgeState(inspectorStateEl, "empty", t("inspector.search.no_matches_for", { query }));
       return;
     }
     setSectionBadgeState(
       inspectorStateEl,
       "active",
-      `Found ${results.length} match${results.length === 1 ? "" : "es"} for "${query}".`,
+      t("inspector.search.found_count", { count: results.length, query }),
     );
     inspectorResults.innerHTML = "";
     results.forEach((item) => {
@@ -217,7 +219,7 @@ export function createInspectorPanelController({
   async function runInspectorSearch(query) {
     const requestId = ++inspectorSearchRequestId;
     if (!isHdf5File(state.file)) {
-      setSectionBadgeState(inspectorStateEl, "empty", "File inspector is available for HDF5 files only.");
+      setSectionBadgeState(inspectorStateEl, "empty", t("inspector.hdf5_only"));
       if (inspectorResults) {
         inspectorResults.innerHTML = "";
         inspectorResults.classList.add("is-hidden");
@@ -228,7 +230,7 @@ export function createInspectorPanelController({
       renderInspectorResults([], "");
       return;
     }
-    setSectionBadgeState(inspectorStateEl, "loading", `Searching metadata for "${query}"…`);
+    setSectionBadgeState(inspectorStateEl, "loading", t("inspector.search.loading_for", { query }));
     try {
       const data = await fetchJSON(
         `${apiBase}/hdf5/search?file=${encodeURIComponent(state.file)}&query=${encodeURIComponent(query)}`,
@@ -238,17 +240,17 @@ export function createInspectorPanelController({
     } catch (err) {
       if (requestId !== inspectorSearchRequestId) return;
       console.error(err);
-      setSectionBadgeState(inspectorStateEl, "warning", "Search failed. Please try again.");
+      setSectionBadgeState(inspectorStateEl, "warning", t("inspector.search.failed"));
       if (inspectorResults) {
         inspectorResults.classList.remove("is-hidden");
-        inspectorResults.innerHTML = `<div class="inspector-empty">Search failed.</div>`;
+        inspectorResults.innerHTML = `<div class=\"inspector-empty\">${t("inspector.search.failed_short")}</div>`;
       }
     }
   }
 
   function renderInspectorLink(path, target) {
     if (inspectorPath) inspectorPath.textContent = path || "-";
-    if (inspectorType) inspectorType.textContent = "link";
+    if (inspectorType) inspectorType.textContent = t("inspector.type.link");
     if (inspectorShape) inspectorShape.textContent = "-";
     if (inspectorDtype) inspectorDtype.textContent = "-";
     if (inspectorAttrs) {
@@ -256,7 +258,7 @@ export function createInspectorPanelController({
       const attrRow = document.createElement("div");
       attrRow.className = "inspector-attr-row";
       const name = document.createElement("span");
-      name.textContent = "Target";
+      name.textContent = t("inspector.target");
       const value = document.createElement("span");
       value.textContent = target || "-";
       attrRow.appendChild(name);
@@ -264,7 +266,7 @@ export function createInspectorPanelController({
       inspectorAttrs.appendChild(attrRow);
     }
     if (inspectorPreview) inspectorPreview.innerHTML = "";
-    setSectionBadgeState(inspectorStateEl, "active", "Link target loaded.");
+    setSectionBadgeState(inspectorStateEl, "active", t("inspector.link_loaded"));
   }
 
   function formatInspectorCell(value) {
@@ -349,14 +351,14 @@ export function createInspectorPanelController({
     )}&max_cells=65536`;
     link.target = "_blank";
     link.rel = "noopener";
-    link.textContent = "Open in new tab";
+    link.textContent = t("inspector.open_new_tab");
     actions.appendChild(link);
     if (Array.isArray(data.shape) && data.shape.length > 0) {
       const csvLink = document.createElement("a");
       csvLink.href = `${apiBase}/hdf5/csv?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(
         data.path || "",
       )}&max_cells=65536`;
-      csvLink.textContent = "Download CSV";
+      csvLink.textContent = t("inspector.download_csv");
       actions.appendChild(csvLink);
     }
     inspectorPreview.appendChild(actions);
@@ -375,9 +377,12 @@ export function createInspectorPanelController({
       const note = document.createElement("div");
       note.className = "inspector-preview-note";
       const shapeText = data.preview_shape.join("×");
-      note.textContent = `Preview ${shapeText}${data.truncated ? " (truncated)" : ""}`;
+      note.textContent = t("inspector.preview", {
+        shapeText,
+        suffix: data.truncated ? t("inspector.preview.truncated_suffix") : "",
+      });
       if (data.slice && Array.isArray(data.slice.lead) && data.slice.lead.length) {
-        note.textContent += ` • Slice [${data.slice.lead.join(", ")}]`;
+        note.textContent += ` • ${t("inspector.preview.slice")} [${data.slice.lead.join(", ")}]`;
       }
       inspectorPreview.appendChild(note);
     }
@@ -413,7 +418,7 @@ export function createInspectorPanelController({
     } else if (node.type === "link" && node.target) {
       meta.textContent = node.target;
     } else if (node.type === "group") {
-      meta.textContent = "Group";
+      meta.textContent = t("common.group");
     } else {
       meta.textContent = node.type || "";
     }
@@ -459,10 +464,10 @@ export function createInspectorPanelController({
     if (!inspectorTree) return;
     clearInspectorSearch();
     if (!isHdf5File(state.file)) {
-      setInspectorMessage("File inspector is available for HDF5 files only.");
+      setInspectorMessage(t("inspector.hdf5_only"));
       return;
     }
-    setSectionBadgeState(inspectorStateEl, "loading", "Loading metadata tree…");
+    setSectionBadgeState(inspectorStateEl, "loading", t("inspector.tree.loading"));
     renderSkeletonBlock(inspectorTree, 7);
     resetInspectorDetails();
     try {
@@ -471,13 +476,13 @@ export function createInspectorPanelController({
       inspectorSelectedRow = null;
       resetInspectorDetails();
       if (children.length) {
-        setSectionBadgeState(inspectorStateEl, "active", "Metadata tree loaded.");
+        setSectionBadgeState(inspectorStateEl, "active", t("inspector.tree.loaded"));
       } else {
-        setSectionBadgeState(inspectorStateEl, "empty", "No metadata nodes found.");
+        setSectionBadgeState(inspectorStateEl, "empty", t("inspector.tree.no_nodes"));
       }
     } catch (err) {
       console.error(err);
-      setInspectorMessage("Failed to load HDF5 tree.");
+      setInspectorMessage(t("inspector.tree.failed"));
     }
   }
 
@@ -493,7 +498,7 @@ export function createInspectorPanelController({
 
   async function showInspectorNode(path) {
     if (!inspectorDetails) return;
-    setSectionBadgeState(inspectorStateEl, "loading", "Loading node details…");
+    setSectionBadgeState(inspectorStateEl, "loading", t("inspector.node.loading"));
     try {
       const data = await fetchJSON(
         `${apiBase}/hdf5/node?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`,
@@ -531,10 +536,10 @@ export function createInspectorPanelController({
       } else if (inspectorPreview) {
         inspectorPreview.innerHTML = "";
       }
-      setSectionBadgeState(inspectorStateEl, "active", `Loaded ${data.type || "node"} details.`);
+      setSectionBadgeState(inspectorStateEl, "active", t("inspector.node.loaded", { type: data.type || t("inspector.node.default_type") }));
     } catch (err) {
       console.error(err);
-      setInspectorMessage("Failed to load node details.");
+      setInspectorMessage(t("inspector.node.failed"));
     }
   }
 

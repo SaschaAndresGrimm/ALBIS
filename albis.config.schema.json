@@ -135,6 +135,12 @@
           "type": "boolean",
           "default": false,
           "description": "Render pixel labels while panning/dragging."
+        },
+        "language": {
+          "type": "string",
+          "enum": ["en", "zh-CN", "ja"],
+          "default": "en",
+          "description": "UI language for frontend labels and messages."
         }
       }
     }
@@ -166,7 +172,8 @@
       "pixel_label_min_cell_px": 18,
       "pixel_label_max_labels": 4000,
       "pixel_label_format": "auto",
-      "pixel_label_show_during_drag": false
+      "pixel_label_show_during_drag": false,
+      "language": "en"
     }
   }
 }

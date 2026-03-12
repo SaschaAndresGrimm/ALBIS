@@ -2,6 +2,8 @@
  * Side-panel layout, section state, and mobile drag interactions.
  */
 
+import { t } from "./i18n.js";
+
 export function createPanelLayoutController({
   state,
   constants,
@@ -109,11 +111,11 @@ export function createPanelLayoutController({
       panelFab.classList.toggle("is-collapsed", state.panelCollapsed);
       panelFab.classList.toggle("is-open", !state.panelCollapsed);
       panelFab.dataset.state = state.panelCollapsed ? "collapsed" : "expanded";
-      panelFab.textContent = state.panelCollapsed ? "Open menu ▾" : "Close menu ▴";
-      panelFab.setAttribute("aria-label", state.panelCollapsed ? "Open panel" : "Collapse panel");
+      panelFab.textContent = state.panelCollapsed ? t("panel.fab.open_menu") : t("panel.fab.close_menu");
+      panelFab.setAttribute("aria-label", state.panelCollapsed ? t("panel.fab.aria.open_panel") : t("panel.fab.aria.collapse_panel"));
       panelFab.setAttribute("aria-expanded", state.panelCollapsed ? "false" : "true");
       panelFab.setAttribute("aria-keyshortcuts", "M");
-      panelFab.title = state.panelCollapsed ? "Open side menu (M)" : "Close side menu (M)";
+      panelFab.title = state.panelCollapsed ? t("panel.fab.title.open_side_menu") : t("panel.fab.title.close_side_menu");
     }
     if (panelCollapseBtn) {
       panelCollapseBtn.disabled = state.panelCollapsed;

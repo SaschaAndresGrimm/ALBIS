@@ -13,58 +13,58 @@
       <div class="chrome">
         <div class="menu-bar">
           <div class="menu-left">
-            <button class="menu-item is-active" data-menu="file">File</button>
-            <button class="menu-item" data-menu="settings">Settings</button>
-            <button class="menu-item" data-menu="help">Help</button>
+            <button class="menu-item is-active" data-menu="file" data-i18n="menu.file">File</button>
+            <button class="menu-item" data-menu="settings" data-i18n="menu.settings">Settings</button>
+            <button class="menu-item" data-menu="help" data-i18n="menu.help">Help</button>
           </div>
           <div class="menu-right">ALBIS</div>
         </div>
         <div class="menu-dropdown" id="menu-dropdown" aria-hidden="true">
           <div class="dropdown-panel" data-menu="file">
             <button class="dropdown-item" data-action="new-window">
-              <span>New Window</span>
+              <span data-i18n="menu.file.new_window">New Window</span>
               <span class="shortcut">⌘N</span>
             </button>
             <button class="dropdown-item" data-action="open">
-              <span>Open…</span>
+              <span data-i18n="menu.file.open">Open…</span>
               <span class="shortcut">⌘O</span>
             </button>
             <button class="dropdown-item" data-action="close-file">
-              <span>Close File</span>
+              <span data-i18n="menu.file.close_file">Close File</span>
               <span class="shortcut">⌘W</span>
             </button>
             <div class="dropdown-item dropdown-submenu-parent">
-              <span>Save As…</span>
+              <span data-i18n="menu.file.save_as">Save As…</span>
               <span class="submenu-caret">▶</span>
               <div class="dropdown-submenu">
                 <button class="dropdown-item" data-action="save-full">
-                  <span>Full Image</span>
+                  <span data-i18n="menu.file.full_image">Full Image</span>
                   <span class="shortcut">⌘S</span>
                 </button>
                 <button class="dropdown-item" data-action="save-visible">
-                  <span>Visible Area</span>
+                  <span data-i18n="menu.file.visible_area">Visible Area</span>
                   <span class="shortcut">⇧⌘S</span>
                 </button>
                 <button class="dropdown-item" data-action="save-window">
-                  <span>Viewer Window</span>
+                  <span data-i18n="menu.file.viewer_window">Viewer Window</span>
                   <span class="shortcut">⌥⌘S</span>
                 </button>
               </div>
             </div>
             <div class="dropdown-item dropdown-submenu-parent">
-              <span>Export</span>
+              <span data-i18n="menu.file.export">Export</span>
               <span class="submenu-caret">▶</span>
               <div class="dropdown-submenu">
                 <button class="dropdown-item" data-action="export-full">
-                  <span>Full Image</span>
+                  <span data-i18n="menu.file.full_image">Full Image</span>
                   <span class="shortcut">⌘E</span>
                 </button>
                 <button class="dropdown-item" data-action="export-visible">
-                  <span>Visible Area</span>
+                  <span data-i18n="menu.file.visible_area">Visible Area</span>
                   <span class="shortcut">⇧⌘E</span>
                 </button>
                 <button class="dropdown-item" data-action="export-window">
-                  <span>Viewer Window</span>
+                  <span data-i18n="menu.file.viewer_window">Viewer Window</span>
                   <span class="shortcut">⌥⌘E</span>
                 </button>
               </div>
@@ -72,28 +72,28 @@
           </div>
           <div class="dropdown-panel" data-menu="settings">
             <button class="dropdown-item" data-action="settings-open">
-              <span>Preferences…</span>
+              <span data-i18n="menu.settings.preferences">Preferences…</span>
               <span class="shortcut">⌘,</span>
             </button>
             <button class="dropdown-item" data-action="command-palette">
-              <span>Command Palette…</span>
+              <span data-i18n="menu.settings.command_palette">Command Palette…</span>
               <span class="shortcut">⌘K</span>
             </button>
             <button class="dropdown-item" data-action="toggle-fullscreen">
-              <span>Toggle Full Screen</span>
+              <span data-i18n="menu.settings.toggle_fullscreen">Toggle Full Screen</span>
               <span class="shortcut">F</span>
             </button>
           </div>
           <div class="dropdown-panel" data-menu="help">
             <button class="dropdown-item" data-action="help-docs">
-              <span>Documentation</span>
+              <span data-i18n="menu.help.documentation">Documentation</span>
               <span class="shortcut">F1</span>
             </button>
             <button class="dropdown-item" data-action="help-log">
-              <span>Open Backend Log File</span>
+              <span data-i18n="menu.help.open_log">Open Backend Log File</span>
             </button>
             <button class="dropdown-item" data-action="help-about">
-              <span>About</span>
+              <span data-i18n="menu.help.about">About</span>
             </button>
           </div>
         </div>
@@ -101,9 +101,9 @@
           <div class="toolbar-main">
             <div class="toolbar-buttons">
               <div class="toolbar-cluster toolbar-cluster-transport">
-                <button class="tool-btn" id="btn-prev" aria-label="Previous frame">◀</button>
-                <button class="tool-btn" id="btn-next" aria-label="Next frame">▶</button>
-                <button class="tool-btn" id="btn-play" aria-label="Play">⏯</button>
+                <button class="tool-btn" id="btn-prev" data-i18n-aria-label="toolbar.frame.previous" aria-label="Previous frame">◀</button>
+                <button class="tool-btn" id="btn-next" data-i18n-aria-label="toolbar.frame.next" aria-label="Next frame">▶</button>
+                <button class="tool-btn" id="btn-play" data-i18n-aria-label="toolbar.play.toggle" aria-label="Play">⏯</button>
               </div>
                 <div class="toolbar-cluster toolbar-cluster-frame">
                   <div class="toolbar-frame is-hidden" id="toolbar-frame-wrap">
@@ -118,6 +118,7 @@
                       id="toolbar-playback-toggle"
                       type="button"
                       aria-label="Playback options"
+                      data-i18n-aria-label="toolbar.playback.options"
                       aria-expanded="false"
                       aria-haspopup="true"
                       aria-controls="toolbar-playback-popover"
@@ -126,7 +127,7 @@
                     </button>
                     <div class="toolbar-playback-popover" id="toolbar-playback-popover" aria-hidden="true">
                       <div class="toolbar-step is-hidden" id="toolbar-step-wrap">
-                        <select id="frame-step" aria-label="Frame step">
+                        <select id="frame-step" aria-label="Frame step" data-i18n-aria-label="toolbar.step">
                           <option value="1" selected>Step 1</option>
                           <option value="10">Step 10</option>
                           <option value="100">Step 100</option>
@@ -134,7 +135,7 @@
                         </select>
                       </div>
                       <div class="toolbar-fps is-hidden" id="toolbar-fps-wrap">
-                        <select id="fps-select" aria-label="Playback speed">
+                        <select id="fps-select" aria-label="Playback speed" data-i18n-aria-label="toolbar.playback.speed">
                           <option value="1" selected>1 fps</option>
                           <option value="2">2 fps</option>
                           <option value="3">3 fps</option>
@@ -150,30 +151,31 @@
                     </div>
                   </div>
                   <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
-                    <select id="toolbar-threshold" aria-label="Threshold"></select>
+                    <select id="toolbar-threshold" aria-label="Threshold" data-i18n-aria-label="toolbar.threshold"></select>
                   </div>
                 </div>
             </div>
-            <div class="toolbar-path" id="toolbar-path">No file loaded</div>
+            <div class="toolbar-path" id="toolbar-path" data-i18n="toolbar.source.no_file">No file loaded</div>
           </div>
           <div class="toolbar-right">
-            <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" aria-label="Toggle full screen">⛶</button>
+            <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" data-i18n-aria-label="toolbar.fullscreen.enter" aria-label="Toggle full screen">⛶</button>
             <div class="toolbar-more" id="toolbar-more-wrap">
               <button
                 class="tool-btn toolbar-more-toggle"
                 id="toolbar-more-toggle"
                 type="button"
                 aria-label="More controls"
+                data-i18n-aria-label="toolbar.more.controls"
                 aria-expanded="false"
                 aria-haspopup="true"
                 aria-controls="toolbar-more-popover"
               >
-                More ▾
+                <span data-i18n="toolbar.more.closed">More ▾</span>
               </button>
               <div class="toolbar-more-popover" id="toolbar-more-popover" aria-hidden="true">
                 <label class="field toolbar-more-field" id="toolbar-more-step-field">
-                  <span>Step</span>
-                  <select id="toolbar-more-step" aria-label="Frame step">
+                  <span data-i18n="toolbar.step">Step</span>
+                  <select id="toolbar-more-step" aria-label="Frame step" data-i18n-aria-label="toolbar.step">
                     <option value="1" selected>Step 1</option>
                     <option value="10">Step 10</option>
                     <option value="100">Step 100</option>
@@ -181,8 +183,8 @@
                   </select>
                 </label>
                 <label class="field toolbar-more-field" id="toolbar-more-fps-field">
-                  <span>Playback speed</span>
-                  <select id="toolbar-more-fps" aria-label="Playback speed">
+                  <span data-i18n="toolbar.playback.speed">Playback speed</span>
+                  <select id="toolbar-more-fps" aria-label="Playback speed" data-i18n-aria-label="toolbar.playback.speed">
                     <option value="1" selected>1 fps</option>
                     <option value="2">2 fps</option>
                     <option value="3">3 fps</option>
@@ -196,14 +198,14 @@
                   </select>
                 </label>
                 <label class="field toolbar-more-field is-hidden" id="toolbar-more-threshold-field">
-                  <span>Threshold</span>
-                  <select id="toolbar-more-threshold" aria-label="Threshold"></select>
+                  <span data-i18n="toolbar.threshold">Threshold</span>
+                  <select id="toolbar-more-threshold" aria-label="Threshold" data-i18n-aria-label="toolbar.threshold"></select>
                 </label>
                 <div class="toolbar-more-actions">
-                  <button class="tool-btn" id="toolbar-more-panel-toggle" type="button" aria-label="Open side menu">
+                  <button class="tool-btn" id="toolbar-more-panel-toggle" type="button" aria-label="Open side menu" data-i18n-aria-label="toolbar.side_menu.open">
                     Open side menu
                   </button>
-                  <button class="tool-btn" id="toolbar-more-fullscreen" type="button" aria-label="Toggle full screen">
+                  <button class="tool-btn" id="toolbar-more-fullscreen" type="button" aria-label="Toggle full screen" data-i18n-aria-label="toolbar.fullscreen.enter">
                     Full screen
                   </button>
                 </div>
@@ -213,7 +215,7 @@
         </div>
         <div class="upload-bar" id="upload-bar" aria-hidden="true">
           <div class="upload-bar-fill" id="upload-bar-fill"></div>
-          <div class="upload-bar-text" id="upload-bar-text">Uploading 0%</div>
+          <div class="upload-bar-text" id="upload-bar-text" data-i18n="upload.progress" data-i18n-vars='{"value":0}'>Uploading 0%</div>
         </div>
       </div>
 
@@ -222,7 +224,7 @@
           <div class="canvas-shell">
             <div class="canvas-wrap" id="canvas-wrap">
               <canvas id="image-canvas"></canvas>
-              <div class="loading" id="loading">Loading frame…</div>
+              <div class="loading" id="loading" data-i18n="loading.frame">Loading frame…</div>
             </div>
             <canvas id="resolution-overlay"></canvas>
             <canvas id="peak-overlay"></canvas>
@@ -233,25 +235,25 @@
               <div class="splash-art" aria-hidden="true"></div>
               <div class="splash-label">
                 <div class="splash-title">ALBIS</div>
-                <div class="splash-sub" id="splash-status">Starting backend...</div>
+                <div class="splash-sub" id="splash-status" data-i18n="splash.status.starting_backend">Starting backend...</div>
                 <div class="splash-actions">
-                  <button class="btn btn-primary splash-open-file" id="splash-open-file" type="button">
+                  <button class="btn btn-primary splash-open-file" id="splash-open-file" type="button" data-i18n="splash.action.open_file">
                     Open file
                   </button>
-                  <div class="splash-hint">Use File -> Open... or drag and drop files onto the viewer.</div>
+                  <div class="splash-hint" data-i18n="splash.hint.open_or_drop">Use File -> Open... or drag and drop files onto the viewer.</div>
                 </div>
               </div>
             </div>
             <div class="cursor-overlay" id="cursor-overlay" aria-hidden="true"></div>
             <div class="viewer-footer">
               <div class="viewer-footer-main">
-                <span class="viewer-footer-pill viewer-footer-status" id="status" role="status" aria-live="polite">Idle</span>
-                <span class="viewer-footer-pill" id="footer-file">No file</span>
-                <span class="viewer-footer-pill" id="footer-zoom">Zoom 1.0x</span>
+                <span class="viewer-footer-pill viewer-footer-status" id="status" role="status" aria-live="polite" data-i18n="common.idle">Idle</span>
+                <span class="viewer-footer-pill" id="footer-file" data-i18n="viewer.footer.file.empty">No file</span>
+                <span class="viewer-footer-pill" id="footer-zoom" data-i18n="toolbar.footer.zoom" data-i18n-vars='{"zoom":"1.0"}'>Zoom 1.0x</span>
               </div>
               <div class="viewer-footer-side">
-                <div class="backend-badge" id="backend-badge" role="status" aria-live="polite" aria-hidden="true">SERVER</div>
-                <div class="live-badge" id="live-badge" role="status" aria-live="polite" aria-hidden="true">LIVE</div>
+                <div class="backend-badge" id="backend-badge" role="status" aria-live="polite" aria-hidden="true" data-i18n="backend.server.online">SERVER</div>
+                <div class="live-badge" id="live-badge" role="status" aria-live="polite" aria-hidden="true" data-i18n="backend.live.live">LIVE</div>
                 <button
                   class="viewer-footer-pill viewer-footer-version-toggle"
                   id="footer-version-toggle"
@@ -259,6 +261,7 @@
                   aria-expanded="false"
                   aria-haspopup="true"
                   aria-controls="footer-version-popover"
+                  data-i18n="toolbar.footer.versions.closed"
                 >
                   Versions ▾
                 </button>
@@ -296,27 +299,32 @@
             id="panel-fab"
             type="button"
             aria-label="Open panel"
+            data-i18n-aria-label="panel.fab.aria.open_panel"
             aria-expanded="false"
             aria-controls="side-panel"
             title="Open side menu (M)"
+            data-i18n-title="panel.fab.title.open_side_menu"
+            data-i18n="panel.fab.open_menu"
           >
             Open menu ▾
           </button>
           <div class="panel-body">
           <div class="panel-topbar">
             <div class="panel-tabs" role="tablist">
-              <button class="panel-tab is-active" data-panel-tab="view" type="button">View</button>
-              <button class="panel-tab" data-panel-tab="data" type="button">Data</button>
-              <button class="panel-tab" data-panel-tab="analysis" type="button">Overlay</button>
+              <button class="panel-tab is-active" data-panel-tab="view" type="button" data-i18n="panel.tab.view">View</button>
+              <button class="panel-tab" data-panel-tab="data" type="button" data-i18n="panel.tab.data">Data</button>
+              <button class="panel-tab" data-panel-tab="analysis" type="button" data-i18n="panel.tab.overlay">Overlay</button>
             </div>
             <button
               class="panel-collapse-btn"
               id="panel-collapse-btn"
               type="button"
               aria-label="Collapse panel"
+              data-i18n-aria-label="panel.fab.aria.collapse_panel"
               aria-controls="side-panel"
               aria-keyshortcuts="M"
               title="Close side menu (M)"
+              data-i18n-title="panel.fab.title.close_side_menu"
             >
               ▸
             </button>
@@ -325,37 +333,37 @@
           <div class="panel-tab-content is-active" data-panel-tab="view">
             <section class="panel-section" data-section="view">
               <button class="section-title" type="button" data-section-toggle>
-                View
+                <span data-i18n="panel.tab.view">View</span>
                 <span class="section-chevron">▾</span>
               </button>
               <div class="thumb-view">
                 <canvas id="overview-canvas"></canvas>
               </div>
               <div class="view-zoom-row">
-                <button id="reset-view" class="btn">Fit to Window</button>
-                <input id="zoom-range" type="range" min="0.02" max="50" step="0.01" value="1" aria-label="Zoom" />
-                <input id="zoom-value" class="zoom-value-input" type="text" inputmode="decimal" value="1.0x" aria-label="Zoom factor" />
+                <button id="reset-view" class="btn" data-i18n="view.fit_to_window">Fit to Window</button>
+                <input id="zoom-range" type="range" min="0.02" max="50" step="0.01" value="1" aria-label="Zoom" data-i18n-aria-label="view.zoom" />
+                <input id="zoom-value" class="zoom-value-input" type="text" inputmode="decimal" value="1.0x" aria-label="Zoom factor" data-i18n-aria-label="view.zoom_factor" />
               </div>
               <div class="view-color-controls">
                 <details class="advanced-details view-advanced-controls">
-                  <summary>Advanced view controls</summary>
+                  <summary data-i18n="view.advanced_controls">Advanced view controls</summary>
                   <div class="advanced-inner">
                     <div class="check-row view-check-row">
                       <label class="checkbox">
                         <input id="pixel-label-toggle" type="checkbox" checked />
-                        Pixel values
+                        <span data-i18n="view.pixel_values">Pixel values</span>
                       </label>
                       <label class="checkbox">
                         <input type="checkbox" id="mask-toggle" disabled />
-                        Apply mask
+                        <span data-i18n="view.apply_mask">Apply mask</span>
                       </label>
                       <label class="checkbox">
                         <input type="checkbox" id="mask-saturated-toggle" checked disabled />
-                        Mask saturated
+                        <span data-i18n="view.mask_saturated">Mask saturated</span>
                       </label>
                     </div>
                     <label class="field">
-                      <span>Color Map</span>
+                      <span data-i18n="view.color_map">Color Map</span>
                       <div class="inline color-map-row">
                         <select id="colormap-select">
                           <option value="heat">Heat</option>
@@ -370,7 +378,7 @@
                         </select>
                         <label class="checkbox">
                           <input type="checkbox" id="invert-color" />
-                          Invert Color
+                          <span data-i18n="view.invert_color">Invert Color</span>
                         </label>
                       </div>
                     </label>
@@ -381,7 +389,7 @@
 
             <section class="panel-section is-collapsed" data-section="histogram">
               <button class="section-title" type="button" data-section-toggle>
-                Histogram
+                <span data-i18n="panel.section.histogram">Histogram</span>
                 <span class="section-chevron">▾</span>
               </button>
               <div class="histogram">
@@ -390,10 +398,10 @@
                 <div class="hist-tooltip" id="hist-tooltip" aria-hidden="true"></div>
               </div>
               <div class="range-actions range-actions-compact">
-                <button id="auto-contrast" class="btn">Auto Contrast</button>
+                <button id="auto-contrast" class="btn" data-i18n="histogram.auto_contrast">Auto Contrast</button>
                 <label class="checkbox">
                   <input id="auto-scale" type="checkbox" checked />
-                  Auto
+                  <span data-i18n="common.auto">Auto</span>
                 </label>
                 <label class="range-inline compact">
                   <span>BG</span>
@@ -408,7 +416,7 @@
 
             <section class="panel-section meta is-collapsed" data-section="info">
               <button class="section-title" type="button" data-section-toggle>
-                Info
+                <span data-i18n="panel.section.info">Info</span>
                 <span class="section-chevron">▾</span>
               </button>
               <div class="meta-row"><span>Renderer</span><strong id="meta-renderer">-</strong></div>
@@ -422,7 +430,7 @@
             <section class="panel-section" data-section="data-source" id="data-section">
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
-                  <span>Data Source</span>
+                  <span data-i18n="data_source.title">Data Source</span>
                   <span class="section-summary" id="summary-data-source">File · no file</span>
                   <span
                     class="section-summary section-summary-status is-empty"
@@ -1051,101 +1059,109 @@
       <div class="modal-backdrop"></div>
       <div class="modal-card settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <div class="modal-header">
-          <div id="settings-title">Settings</div>
-          <button class="modal-close" id="settings-close">✕</button>
+          <div id="settings-title" data-i18n="settings.title">Settings</div>
+          <button class="modal-close" id="settings-close" data-i18n-aria-label="common.close" aria-label="Close">✕</button>
         </div>
         <div class="modal-body settings-modal-body">
           <div class="settings-meta">
-            <div>Config file: <code id="settings-config-path">-</code></div>
-            <div class="settings-hint">Some settings apply after restart.</div>
+            <div><span data-i18n="settings.config_file">Config file:</span> <code id="settings-config-path">-</code></div>
+            <div class="settings-hint" data-i18n="settings.restart_hint">Some settings apply after restart.</div>
           </div>
           <div class="settings-sections">
             <section class="settings-section">
               <div class="settings-section-head">
-                <h3>Application</h3>
-                <p>Backend endpoint and launch behavior.</p>
+                <h3 data-i18n="settings.section.application">Application</h3>
+                <p data-i18n="settings.section.application.description">Backend endpoint and launch behavior.</p>
               </div>
               <div class="settings-grid">
                 <label class="checkbox settings-check settings-span-2">
                   <input id="settings-server-external" type="checkbox" />
-                  Externally accessible (allow connections from other machines)
+                  <span data-i18n="settings.server.external_access">Externally accessible (allow connections from other machines)</span>
                 </label>
                 <label class="field">
-                  <span>Port</span>
+                  <span data-i18n="settings.server.port">Port</span>
                   <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
                 </label>
                 <label class="field">
-                  <span>Startup timeout (s)</span>
+                  <span data-i18n="settings.server.startup_timeout">Startup timeout (s)</span>
                   <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
                 </label>
                 <label class="checkbox settings-check">
                   <input id="settings-server-reload" type="checkbox" />
-                  Enable backend reload
+                  <span data-i18n="settings.server.enable_reload">Enable backend reload</span>
                 </label>
                 <label class="checkbox settings-check">
                   <input id="settings-open-browser" type="checkbox" />
-                  Open browser on launch
+                  <span data-i18n="settings.server.open_browser">Open browser on launch</span>
                 </label>
               </div>
             </section>
 
             <section class="settings-section">
               <div class="settings-section-head">
-                <h3>Viewer</h3>
-                <p>Interaction hints and pixel label behavior.</p>
+                <h3 data-i18n="settings.section.viewer">Viewer</h3>
+                <p data-i18n="settings.section.viewer.description">Interaction hints and pixel label behavior.</p>
               </div>
               <div class="settings-grid">
+                <label class="field">
+                  <span data-i18n="settings.field.language">Language</span>
+                  <select id="settings-language">
+                    <option value="en" data-i18n="settings.language.en">English</option>
+                    <option value="zh-CN" data-i18n="settings.language.zh_cn">Chinese (Simplified)</option>
+                    <option value="ja" data-i18n="settings.language.ja">Japanese</option>
+                  </select>
+                </label>
                 <label class="checkbox settings-check settings-span-2">
                   <input id="settings-tool-hints" type="checkbox" />
-                  Enable tool hints
+                  <span data-i18n="settings.viewer.tool_hints">Enable tool hints</span>
                 </label>
                 <label class="field">
-                  <span>Pixel label min cell (px)</span>
+                  <span data-i18n="settings.viewer.pixel_label_min">Pixel label min cell (px)</span>
                   <input id="settings-pixel-label-min" type="number" min="8" max="64" step="1" />
                 </label>
                 <label class="field">
-                  <span>Pixel labels max/frame</span>
+                  <span data-i18n="settings.viewer.pixel_label_max">Pixel labels max/frame</span>
                   <input id="settings-pixel-label-max" type="number" min="100" max="100000" step="100" />
                 </label>
                 <label class="field">
-                  <span>Pixel label format</span>
+                  <span data-i18n="settings.viewer.pixel_label_format">Pixel label format</span>
                   <select id="settings-pixel-label-format">
-                    <option value="auto">Auto</option>
-                    <option value="integer">Integer</option>
-                    <option value="scientific">Scientific</option>
+                    <option value="auto" data-i18n="settings.viewer.pixel_label_format.auto">Auto</option>
+                    <option value="integer" data-i18n="settings.viewer.pixel_label_format.integer">Integer</option>
+                    <option value="scientific" data-i18n="settings.viewer.pixel_label_format.scientific">Scientific</option>
                   </select>
                 </label>
                 <label class="checkbox settings-check">
                   <input id="settings-pixel-label-drag" type="checkbox" />
-                  Draw labels during pan/zoom
+                  <span data-i18n="settings.viewer.pixel_label_drag">Draw labels during pan/zoom</span>
                 </label>
               </div>
             </section>
 
             <section class="settings-section">
               <div class="settings-section-head">
-                <h3>Data Access</h3>
-                <p>File system permissions and scan limits.</p>
+                <h3 data-i18n="settings.section.data_access">Data Access</h3>
+                <p data-i18n="settings.section.data_access.description">File system permissions and scan limits.</p>
               </div>
               <div class="settings-grid">
                 <label class="field settings-span-2">
-                  <span>Data root</span>
+                  <span data-i18n="settings.data.root">Data root</span>
                   <input id="settings-data-root" type="text" />
                 </label>
                 <label class="checkbox settings-check">
                   <input id="settings-allow-abs" type="checkbox" />
-                  Allow absolute paths
+                  <span data-i18n="settings.data.allow_absolute_paths">Allow absolute paths</span>
                 </label>
                 <label class="field">
-                  <span>Scan cache (s)</span>
+                  <span data-i18n="settings.data.scan_cache">Scan cache (s)</span>
                   <input id="settings-scan-cache" type="number" min="0" step="0.1" />
                 </label>
                 <label class="field">
-                  <span>Max scan depth</span>
+                  <span data-i18n="settings.data.max_scan_depth">Max scan depth</span>
                   <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
                 </label>
                 <label class="field">
-                  <span>Max upload (MB)</span>
+                  <span data-i18n="settings.data.max_upload">Max upload (MB)</span>
                   <input id="settings-max-upload" type="number" min="0" step="1" />
                 </label>
               </div>
@@ -1153,12 +1169,12 @@
 
             <section class="settings-section">
               <div class="settings-section-head">
-                <h3>Logging</h3>
-                <p>Verbosity and log output location.</p>
+                <h3 data-i18n="settings.section.logging">Logging</h3>
+                <p data-i18n="settings.section.logging.description">Verbosity and log output location.</p>
               </div>
               <div class="settings-grid">
                 <label class="field">
-                  <span>Log level</span>
+                  <span data-i18n="settings.logging.level">Log level</span>
                   <select id="settings-log-level">
                     <option value="DEBUG">DEBUG</option>
                     <option value="INFO">INFO</option>
@@ -1168,7 +1184,7 @@
                   </select>
                 </label>
                 <label class="field settings-span-2">
-                  <span>Log directory</span>
+                  <span data-i18n="settings.logging.directory">Log directory</span>
                   <input id="settings-log-dir" type="text" />
                 </label>
               </div>
@@ -1177,45 +1193,45 @@
           <div class="settings-message" id="settings-message"></div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" id="settings-cancel">Cancel</button>
-          <button class="btn btn-primary" id="settings-save">Save</button>
-          <button class="btn btn-primary" id="settings-save-close">Save &amp; Close</button>
+          <button class="btn btn-secondary" id="settings-cancel" data-i18n="common.cancel">Cancel</button>
+          <button class="btn btn-primary" id="settings-save" data-i18n="common.save">Save</button>
+          <button class="btn btn-primary" id="settings-save-close" data-i18n="settings.actions.save_close">Save &amp; Close</button>
         </div>
       </div>
     </div>
 
     <div class="modal" id="browse-modal" aria-hidden="true">
       <div class="modal-backdrop"></div>
-      <div class="modal-card browse-modal-card" role="dialog" aria-modal="true" aria-labelledby="browse-title">
+        <div class="modal-card browse-modal-card" role="dialog" aria-modal="true" aria-labelledby="browse-title">
         <div class="modal-header">
-          <div id="browse-title">Select Folder</div>
-          <button class="modal-close" id="browse-close">✕</button>
+          <div id="browse-title" data-i18n="browse.title.select_folder">Select Folder</div>
+          <button class="modal-close" id="browse-close" data-i18n-aria-label="common.close" aria-label="Close">✕</button>
         </div>
         <div class="modal-body browse-modal-body">
           <div class="browse-breadcrumb" id="browse-breadcrumb">
-            <button class="breadcrumb-btn" data-path="">Root</button>
+            <button class="breadcrumb-btn" data-path="" data-i18n="file_browser.root">Root</button>
           </div>
           <div class="browse-content">
             <div class="browse-folders">
-              <div class="browse-section-title">Folders</div>
+              <div class="browse-section-title" data-i18n="browse.section.folders">Folders</div>
               <div class="browse-list" id="browse-folders-list"></div>
             </div>
             <div class="browse-files">
-              <div class="browse-section-title">Image Files</div>
+              <div class="browse-section-title" data-i18n="browse.section.image_files">Image Files</div>
               <div class="browse-list" id="browse-files-list"></div>
             </div>
           </div>
           <div class="browse-path">
             <label>
-              <span>Path:</span>
+              <span data-i18n="browse.path">Path:</span>
               <input id="browse-path-input" type="text" readonly />
             </label>
           </div>
           <div class="browse-status" id="browse-status" aria-live="polite"></div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" id="browse-cancel">Cancel</button>
-          <button class="btn btn-primary" id="browse-select">Select</button>
+          <button class="btn btn-secondary" id="browse-cancel" data-i18n="common.cancel">Cancel</button>
+          <button class="btn btn-primary" id="browse-select" data-i18n="browse.action.select">Select</button>
         </div>
       </div>
     </div>
@@ -1224,11 +1240,11 @@
       <div class="modal-backdrop"></div>
       <div class="modal-card command-modal-card" role="dialog" aria-modal="true" aria-labelledby="command-title">
         <div class="command-header">
-          <div id="command-title">Command Palette</div>
-          <div class="command-hint">Enter to run • Esc to close</div>
+          <div id="command-title" data-i18n="command.title">Command Palette</div>
+          <div class="command-hint" data-i18n="command.hint">Enter to run • Esc to close</div>
         </div>
         <div class="command-search">
-          <input id="command-input" type="search" placeholder="Type a command or shortcut…" autocomplete="off" />
+          <input id="command-input" type="search" placeholder="Type a command or shortcut…" data-i18n-placeholder="command.search.open" autocomplete="off" />
         </div>
         <div class="command-list" id="command-list"></div>
       </div>

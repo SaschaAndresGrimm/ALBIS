@@ -2,6 +2,8 @@
  * File upload and open flow.
  */
 
+import { t } from "./i18n.js";
+
 function isSupportedUploadFile(fileName) {
   const name = String(fileName || "").toLowerCase();
   return (
@@ -112,14 +114,14 @@ export function createUploadFlowController({
     uploadBar.classList.remove("is-processing");
     uploadBar.setAttribute("aria-hidden", "false");
     if (uploadBarFill) uploadBarFill.style.width = "0%";
-    if (uploadBarText) uploadBarText.textContent = "Uploading 0%";
+    if (uploadBarText) uploadBarText.textContent = t("upload.progress", { value: 0 });
   }
 
   function updateUploadProgress(percent) {
     if (!uploadBar) return;
     const value = Math.max(0, Math.min(100, percent));
     if (uploadBarFill) uploadBarFill.style.width = `${value}%`;
-    if (uploadBarText) uploadBarText.textContent = `Uploading ${value}%`;
+    if (uploadBarText) uploadBarText.textContent = t("upload.progress", { value });
   }
 
   function hideUploadProgress() {
@@ -151,7 +153,7 @@ export function createUploadFlowController({
     if (!selected.length) return;
     const files = sortFilesForSeriesUpload(selected.filter((item) => isSupportedUploadFile(item?.name)));
     if (!files.length) {
-      setStatus("No supported image files in selection");
+      setStatus(t("status.upload.none_supported"));
       return;
     }
 
@@ -159,7 +161,9 @@ export function createUploadFlowController({
     const uploadFolder = (autoloadDir?.value || state.autoload.dir || "").trim();
     const total = files.length;
     setLoading(true);
-    setStatus(total > 1 ? `Preparing ${total} files…` : "Checking for existing file…");
+    setStatus(total > 1
+      ? t("status.upload.preparing_many", { total })
+      : t("status.upload.checking_existing"));
 
     try {
       showUploadProgress();
@@ -176,7 +180,9 @@ export function createUploadFlowController({
           continue;
         }
 
-        setStatus(total > 1 ? `Uploading ${i + 1}/${total}: ${file.name}` : "Uploading file…");
+        setStatus(total > 1
+          ? t("status.upload.uploading_many", { index: i + 1, total, name: file.name })
+          : t("status.upload.uploading_single"));
         const payload = await uploadSingleFile(file, uploadUrl, (event) => {
           if (!event.lengthComputable) {
             updateUploadProgress(Math.round((i / total) * 100));
@@ -196,12 +202,12 @@ export function createUploadFlowController({
       await loadFiles();
       const openTarget = uploadedTargets[0];
       if (openTarget) {
-        setStatus(`Opening ${fileLabel(openTarget)}…`);
+        setStatus(t("status.upload.opening", { target: fileLabel(openTarget) }));
         await openPathInViewer(openTarget, { refreshFileList: false });
       }
     } catch (err) {
       console.error(err);
-      setStatus("Failed to upload selected files");
+      setStatus(t("status.upload.failed"));
       setLoading(false);
     } finally {
       hideUploadProgress();

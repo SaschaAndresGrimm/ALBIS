@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import errno
 import json
 import tempfile
@@ -127,3 +128,33 @@ def test_remote_stream_roundtrip_raw_frame() -> None:
     assert meta_payload["series_number"] == 7
     assert meta_payload["image_number"] == 11
     assert len(meta_payload["peak_sets"]) == 1
+
+
+def test_settings_language_roundtrip_persists() -> None:
+    client = TestClient(app)
+    initial = client.get("/api/settings")
+    assert initial.status_code == 200
+    initial_payload = initial.json()
+    original_config = copy.deepcopy(initial_payload["config"])
+    original_language = str(original_config.get("ui", {}).get("language", "en"))
+    target_language = next(
+        (lang for lang in ("en", "zh-CN", "ja") if lang != original_language),
+        "en",
+    )
+
+    updated_config = copy.deepcopy(original_config)
+    updated_config.setdefault("ui", {})["language"] = target_language
+
+    try:
+        save_response = client.post("/api/settings", json={"config": updated_config})
+        assert save_response.status_code == 200
+        save_payload = save_response.json()
+        assert save_payload["config"]["ui"]["language"] == target_language
+
+        reload_response = client.get("/api/settings")
+        assert reload_response.status_code == 200
+        reload_payload = reload_response.json()
+        assert reload_payload["config"]["ui"]["language"] == target_language
+    finally:
+        restore_response = client.post("/api/settings", json={"config": original_config})
+        assert restore_response.status_code == 200

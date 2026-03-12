@@ -2,6 +2,8 @@
  * Base frame rendering orchestration (WebGL2 primary, CPU fallback).
  */
 
+import { t } from "./i18n.js";
+
 export function createRenderEngineController({
   state,
   elements,
@@ -166,7 +168,7 @@ export function createRenderEngineController({
       floatProgram = createProgram(gl, vertexSource, floatFragmentSource);
     } catch (err) {
       console.error(err);
-      setStatus("WebGL shader error");
+      setStatus(t("status.render.webgl_shader_error"));
       return {
         type: "webgl",
         render: () => {},
@@ -269,7 +271,7 @@ export function createRenderEngineController({
         const frameData = useUintPath ? rawData : floatData || (rawData ? toFloat32(rawData) : null);
         if (!frameData) return;
         if (width > maxTextureSize || height > maxTextureSize) {
-          setStatus(`Frame exceeds max texture size ${maxTextureSize}px`);
+          setStatus(t("status.render.texture_too_large", { maxTextureSize }));
           return;
         }
         if (canvas.width !== width || canvas.height !== height) {

@@ -2,6 +2,8 @@
  * Analysis controls bindings (rings, peaks, series-sum, pixel labels).
  */
 
+import { t } from "./i18n.js";
+
 function clampFrameIndex(rawValue, total, fallback) {
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed)) return fallback;
@@ -268,7 +270,7 @@ export function bindAnalysisControlInteractions({
           const pickedPath = String(data?.path || "");
           if (!pickedPath) return;
           if (!isTiffPath(pickedPath)) {
-            setStatus("Normalization image must be a TIFF file");
+            setStatus(t("status.analysis.normalization_tiff_required"));
             return;
           }
           if (seriesSumNormalizeImage) {
@@ -283,7 +285,7 @@ export function bindAnalysisControlInteractions({
         const selectedPath = await openFileDialog();
         if (!selectedPath) return;
         if (!isTiffPath(selectedPath)) {
-          setStatus("Normalization image must be a TIFF file");
+          setStatus(t("status.analysis.normalization_tiff_required"));
           return;
         }
         if (seriesSumNormalizeImage) {
@@ -291,13 +293,13 @@ export function bindAnalysisControlInteractions({
         }
       } catch (err) {
         console.error(err);
-        setStatus("Normalization image picker failed");
+        setStatus(t("status.analysis.normalization_picker_failed"));
       }
       return;
     }
 
     if (filesystemMode?.value === "local") {
-      setStatus("Normalization image picker is unavailable in local browser mode");
+      setStatus(t("status.analysis.normalization_picker_unavailable"));
       return;
     }
 
@@ -305,7 +307,7 @@ export function bindAnalysisControlInteractions({
       const selectedPath = await openFileDialog();
       if (!selectedPath) return;
       if (!isTiffPath(selectedPath)) {
-        setStatus("Normalization image must be a TIFF file");
+        setStatus(t("status.analysis.normalization_tiff_required"));
         return;
       }
       if (seriesSumNormalizeImage) {
@@ -313,7 +315,7 @@ export function bindAnalysisControlInteractions({
       }
     } catch (err) {
       console.error(err);
-      setStatus("Normalization image picker failed");
+      setStatus(t("status.analysis.normalization_picker_failed"));
     }
   });
 
