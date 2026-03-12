@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.14] - 2026-03-12
+
+### Fixed
+
+- Docker release publishing no longer fails in the Trivy setup phase due to stale Trivy binary resolution.
+- Updated Docker publish scanning to use current `aquasecurity/trivy-action` with `version: latest`.
+
+### Notes
+
+- This release is called: "Scan me maybe."
+- This release is called: "No more tripping before the Trivy starts."
+
 ## [0.8.13] - 2026-03-12
 
 ### Fixed
@@ -105,7 +117,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.13...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.14...HEAD
+[0.8.14]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.14
 [0.8.13]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.13
 [0.8.12]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.12
 [0.8.11]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.11
