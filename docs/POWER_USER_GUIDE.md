@@ -99,11 +99,43 @@ Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
 
 ALBIS includes a `Dockerfile` for containerized deployments. By default, the image exposes port `8000` and forces the server to bind to `0.0.0.0` so it is accessible from the host network.
 
-### Build the Image
+### Build a Local Image (development/local changes)
 
 ```bash
 docker build -t albis:latest .
 ```
+
+Local `docker build` remains fully supported and is recommended when you want to test uncommitted or branch-local changes.
+
+### Pull a Published GHCR Image
+
+Published container images are available at:
+
+- `ghcr.io/<owner>/albis`
+
+For this repository, `<owner>` is the lowercase GitHub owner name (currently `saschaandresgrimm`).
+
+Examples:
+
+```bash
+docker pull ghcr.io/saschaandresgrimm/albis:latest
+docker pull ghcr.io/saschaandresgrimm/albis:v0.8.11
+```
+
+### Published Tags and Architectures
+
+Release publishing provides these tags:
+
+- `vX.Y.Z`
+- `vX.Y`
+- `vX`
+- `latest`
+- `sha-<shortsha>`
+
+Published images are multi-arch:
+
+- `linux/amd64`
+- `linux/arm64`
 
 ### Run the Container
 
@@ -116,8 +148,10 @@ docker run -d \
   --name albis \
   -p 8000:8000 \
   -v /path/to/your/data:/app/data:ro \
-  albis:latest
+  ghcr.io/saschaandresgrimm/albis:latest
 ```
+
+If you built locally instead of pulling from GHCR, replace the image reference with `albis:latest`.
 
 *Note: In the example above, `/path/to/your/data` is mounted into the container at `/app/data` as read-only (`:ro`). In the default ALBIS configuration (`albis.config.json`), the `data.root` is already set to `./data`, so ALBIS will immediately see your mounted files.*
 

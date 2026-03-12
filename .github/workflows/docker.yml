@@ -1,0 +1,164 @@
+name: Docker
+
+on:
+  push:
+    branches: ["main", "dev"]
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker_validate:
+    name: Docker Validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: albis-ci:validate
+          cache-from: type=gha,scope=albis-docker-validate
+          cache-to: type=gha,mode=max,scope=albis-docker-validate
+
+      - name: Start container with mounted test data
+        run: |
+          docker run -d \
+            --name albis-ci \
+            -p 18000:8000 \
+            -v "${{ github.workspace }}/testdata:/app/data:ro" \
+            albis-ci:validate
+
+      - name: Smoke test /api/health
+        run: |
+          set -euo pipefail
+
+          healthy=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS "http://localhost:18000/api/health" > /tmp/albis-health.json; then
+              if python -c "import json,sys; d=json.load(open('/tmp/albis-health.json', encoding='utf-8')); sys.exit(0 if d.get('status')=='ok' else 1)"; then
+                healthy=1
+                break
+              fi
+            fi
+
+            container_status="$(docker inspect -f '{{.State.Status}}' albis-ci 2>/dev/null || echo missing)"
+            if [ "$container_status" != "running" ]; then
+              echo "Container is not running (status=$container_status)"
+              docker logs albis-ci || true
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          if [ "$healthy" -ne 1 ]; then
+            echo "Health endpoint did not report status=ok"
+            docker logs albis-ci || true
+            exit 1
+          fi
+
+      - name: Smoke test /api/files returns mounted image files
+        run: |
+          set -euo pipefail
+
+          curl -fsS "http://localhost:18000/api/files" > /tmp/albis-files.json
+          python -c "import json,sys; d=json.load(open('/tmp/albis-files.json', encoding='utf-8')); f=d.get('files'); ok=isinstance(f,list) and len(f)>0; print(('Found %d files; first=%s' % (len(f), f[0])) if ok else ('Invalid /api/files response shape' if not isinstance(f,list) else 'No image files discovered from mounted testdata')); sys.exit(0 if ok else 1)"
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs albis-ci || true
+
+      - name: Cleanup container
+        if: always()
+        run: docker rm -f albis-ci || true
+
+  docker_publish:
+    name: Docker Publish (GHCR)
+    runs-on: ubuntu-latest
+    needs: docker_validate
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute image name
+        id: image
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "name=ghcr.io/${owner}/albis" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=semver,pattern=v{{major}}
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build scan image (linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: albis-scan:latest
+          cache-from: type=gha,scope=albis-docker-publish
+          cache-to: type=gha,mode=max,scope=albis-docker-publish
+
+      - name: Run Trivy vulnerability scan (HIGH,CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: albis-scan:latest
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          format: table
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=albis-docker-publish
+          cache-to: type=gha,mode=max,scope=albis-docker-publish
