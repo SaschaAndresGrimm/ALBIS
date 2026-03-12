@@ -65,14 +65,20 @@ export function createFileOpenController({
       try {
         const res = await fetch(`${apiBase}/choose-file`);
         if (res.status === 204) return;
-        if (!res.ok) {
-          setStatus("File picker unavailable");
+        if (res.ok) {
+          const data = await res.json();
+          const path = data?.path;
+          if (!path) return;
+          await openPathInViewer(path);
           return;
         }
-        const data = await res.json();
-        const path = data?.path;
-        if (!path) return;
-        await openPathInViewer(path);
+      } catch (err) {
+        console.error(err);
+      }
+      try {
+        const selectedFile = await openFileDialog();
+        if (!selectedFile) return;
+        await openPathInViewer(selectedFile);
         return;
       } catch (err) {
         console.error(err);

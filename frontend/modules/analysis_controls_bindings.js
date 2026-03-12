@@ -263,19 +263,31 @@ export function bindAnalysisControlInteractions({
       try {
         const res = await fetch(`${apiBase}/choose-file`);
         if (res.status === 204) return;
-        if (!res.ok) {
-          setStatus("Normalization image picker unavailable");
+        if (res.ok) {
+          const data = await res.json();
+          const pickedPath = String(data?.path || "");
+          if (!pickedPath) return;
+          if (!isTiffPath(pickedPath)) {
+            setStatus("Normalization image must be a TIFF file");
+            return;
+          }
+          if (seriesSumNormalizeImage) {
+            seriesSumNormalizeImage.value = pickedPath;
+          }
           return;
         }
-        const data = await res.json();
-        const pickedPath = String(data?.path || "");
-        if (!pickedPath) return;
-        if (!isTiffPath(pickedPath)) {
+      } catch (err) {
+        console.error(err);
+      }
+      try {
+        const selectedPath = await openFileDialog();
+        if (!selectedPath) return;
+        if (!isTiffPath(selectedPath)) {
           setStatus("Normalization image must be a TIFF file");
           return;
         }
         if (seriesSumNormalizeImage) {
-          seriesSumNormalizeImage.value = pickedPath;
+          seriesSumNormalizeImage.value = String(selectedPath);
         }
       } catch (err) {
         console.error(err);
@@ -312,19 +324,19 @@ export function bindAnalysisControlInteractions({
       try {
         const res = await fetch(`${apiBase}/choose-folder`);
         if (res.status === 204) return;
-        if (!res.ok) {
-          setStatus("Series output picker unavailable");
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.path && seriesSumOutput) {
+            const picked = String(data.path).replace(/[\\/]$/, "");
+            seriesSumOutput.value = `${picked}/series_sum`;
+          }
           return;
-        }
-        const data = await res.json();
-        if (data?.path && seriesSumOutput) {
-          const picked = String(data.path).replace(/[\\/]$/, "");
-          seriesSumOutput.value = `${picked}/series_sum`;
         }
       } catch (err) {
         console.error(err);
-        setStatus("Series output picker failed");
       }
+      openFileBrowser("series-sum", seriesSumOutput);
+      return;
     } else if (filesystemMode?.value === "local") {
       handleLocalFileSelection("series-sum");
     } else {

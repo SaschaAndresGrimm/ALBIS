@@ -48,7 +48,6 @@ export function bindAutoloadControls({
     updateJfjochMetaUI,
     schedulePeakOverlay,
     setSimplonMode,
-    setAutoloadStatus,
     openFileBrowser,
     openFileModal,
     handleLocalFileSelection,
@@ -199,26 +198,26 @@ export function bindAutoloadControls({
         if (res.status === 204) {
           return;
         }
-        if (!res.ok) {
-          setAutoloadStatus("Folder picker unavailable");
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.path && autoloadDir) {
+            autoloadDir.value = data.path;
+            state.autoload.dir = data.path;
+            persistAutoloadSettings();
+            if (state.autoload.mode === "file") {
+              loadFiles().catch((err) => console.error(err));
+            }
+            if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
+              autoloadTick();
+            }
+          }
           return;
-        }
-        const data = await res.json();
-        if (data?.path && autoloadDir) {
-          autoloadDir.value = data.path;
-          state.autoload.dir = data.path;
-          persistAutoloadSettings();
-          if (state.autoload.mode === "file") {
-            loadFiles().catch((err) => console.error(err));
-          }
-          if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-            autoloadTick();
-          }
         }
       } catch (err) {
         console.error(err);
-        setAutoloadStatus("Folder picker failed");
       }
+      openFileBrowser("autoload", autoloadDir);
+      return;
     } else if (filesystemMode?.value === "local") {
       handleLocalFileSelection("autoload");
     } else {
