@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-KEY_B64="${LINUX_GPG_PRIVATE_KEY_B64:-}"
-if [ -z "$KEY_B64" ]; then
+KEY_INPUT="${LINUX_GPG_PRIVATE_KEY_B64:-}"
+if [ -z "$KEY_INPUT" ]; then
   echo "[sign_linux] LINUX_GPG_PRIVATE_KEY_B64 not set; skipping signing."
   exit 0
 fi
@@ -27,10 +27,20 @@ mkdir -p "$GNUPGHOME"
 chmod 700 "$GNUPGHOME"
 
 KEY_FILE="$TMP_DIR/signing.key"
-if ! printf '%s' "$KEY_B64" | base64 --decode >"$KEY_FILE" 2>/dev/null; then
-  if ! printf '%s' "$KEY_B64" | base64 -d >"$KEY_FILE" 2>/dev/null; then
-    echo "[sign_linux] Failed to decode LINUX_GPG_PRIVATE_KEY_B64."
-    exit 1
+
+# Support either:
+# 1) Base64-encoded private key payload (recommended for GitHub Secrets), or
+# 2) Raw ASCII-armored private key block pasted directly into the secret.
+if printf '%s' "$KEY_INPUT" | grep -q "BEGIN PGP PRIVATE KEY BLOCK"; then
+  printf '%s\n' "$KEY_INPUT" >"$KEY_FILE"
+else
+  KEY_COMPACT="$(printf '%s' "$KEY_INPUT" | tr -d '[:space:]')"
+  if ! printf '%s' "$KEY_COMPACT" | base64 --decode >"$KEY_FILE" 2>/dev/null; then
+    if ! printf '%s' "$KEY_COMPACT" | base64 -d >"$KEY_FILE" 2>/dev/null; then
+      echo "[sign_linux] Failed to decode LINUX_GPG_PRIVATE_KEY_B64."
+      echo "[sign_linux] Provide base64-encoded key data or an ASCII-armored private key block."
+      exit 1
+    fi
   fi
 fi
 
