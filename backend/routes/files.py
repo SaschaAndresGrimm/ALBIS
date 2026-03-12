@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import errno
 import os
 import platform
 import re
 import subprocess
+import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -72,6 +74,41 @@ class FileRouteDeps:
     image_ext_name: Callable[[str], str]
     split_series_name: Callable[[str], tuple[str, int, str] | None]
     strip_image_ext: Callable[[str, str], str]
+
+
+def _upload_fallback_root() -> Path:
+    """Writable fallback location used when configured upload root is read-only."""
+    return (Path(tempfile.gettempdir()) / "albis-uploads").resolve()
+
+
+def _is_readonly_upload_error(exc: OSError) -> bool:
+    return exc.errno in {errno.EROFS, errno.EACCES, errno.EPERM}
+
+
+def _cleanup_partial_upload(path: Path) -> None:
+    try:
+        if path.exists():
+            path.unlink()
+    except OSError:
+        pass
+
+
+def _stream_upload_to_path(
+    file: UploadFile, dest: Path, get_max_upload_bytes: Callable[[], int], chunk_size: int
+) -> int:
+    written = 0
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with dest.open("wb") as fh:
+        while True:
+            chunk = file.file.read(chunk_size)
+            if not chunk:
+                break
+            written += len(chunk)
+            max_upload_bytes = get_max_upload_bytes()
+            if max_upload_bytes and written > max_upload_bytes:
+                raise HTTPException(status_code=413, detail="Upload too large")
+            fh.write(chunk)
+    return written
 
 
 def _prefix_paths(root: Path, data_dir: Path, items: list[str]) -> list[str]:
@@ -221,9 +258,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             raise HTTPException(status_code=500, detail="File picker failed") from exc
         except RuntimeError as exc:
             deps.logger.warning("File picker failed (os=%s): %s", system, exc)
-            raise HTTPException(
-                status_code=500, detail=f"File picker unavailable: {exc}"
-            ) from exc
+            raise HTTPException(status_code=500, detail=f"File picker unavailable: {exc}") from exc
 
         if not path:
             return Response(status_code=204)
@@ -342,31 +377,48 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         dest = (root / safe).resolve()
         if not deps.is_within(dest, root):
             raise HTTPException(status_code=400, detail="Invalid file name")
+
         deps.logger.info("Upload start: %s -> %s", safe, dest)
-        written = 0
         chunk_size = 1024 * 1024 * 4
+        resolved_dest = dest
         try:
-            with dest.open("wb") as fh:
-                while True:
-                    chunk = file.file.read(chunk_size)
-                    if not chunk:
-                        break
-                    written += len(chunk)
-                    max_upload_bytes = deps.get_max_upload_bytes()
-                    if max_upload_bytes and written > max_upload_bytes:
-                        raise HTTPException(status_code=413, detail="Upload too large")
-                    fh.write(chunk)
+            written = _stream_upload_to_path(file, dest, deps.get_max_upload_bytes, chunk_size)
         except HTTPException:
-            try:
-                if dest.exists():
-                    dest.unlink()
-            except OSError:
-                pass
+            _cleanup_partial_upload(dest)
             raise
-        deps.logger.info("Upload complete: %s (%d bytes)", dest, written)
+        except OSError as exc:
+            _cleanup_partial_upload(dest)
+            if not (_is_readonly_upload_error(exc) and deps.get_allow_abs_paths()):
+                raise
+            try:
+                file.file.seek(0)
+            except OSError:
+                raise HTTPException(status_code=500, detail="Upload failed") from exc
+
+            fallback_root = _upload_fallback_root()
+            fallback_dest = (fallback_root / safe).resolve()
+            if not deps.is_within(fallback_dest, fallback_root):
+                raise HTTPException(status_code=400, detail="Invalid file name") from None
+            deps.logger.warning(
+                "Upload target is read-only (%s). Falling back to %s",
+                dest.parent,
+                fallback_root,
+            )
+            try:
+                written = _stream_upload_to_path(
+                    file, fallback_dest, deps.get_max_upload_bytes, chunk_size
+                )
+            except HTTPException:
+                _cleanup_partial_upload(fallback_dest)
+                raise
+            except OSError as fallback_exc:
+                _cleanup_partial_upload(fallback_dest)
+                raise HTTPException(status_code=500, detail="Upload failed") from fallback_exc
+            resolved_dest = fallback_dest
+        deps.logger.info("Upload complete: %s (%d bytes)", resolved_dest, written)
         try:
-            resolved_rel = dest.relative_to(deps.data_dir.resolve()).as_posix()
+            resolved_rel = resolved_dest.relative_to(deps.data_dir.resolve()).as_posix()
             open_path = resolved_rel
         except ValueError:
-            open_path = str(dest)
+            open_path = str(resolved_dest)
         return UploadResponse(filename=safe, path=open_path)

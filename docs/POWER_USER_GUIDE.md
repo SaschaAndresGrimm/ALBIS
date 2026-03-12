@@ -155,6 +155,8 @@ If you built locally instead of pulling from GHCR, replace the image reference w
 
 *Note: In the example above, `/path/to/your/data` is mounted into the container at `/app/data` as read-only (`:ro`). In the default ALBIS configuration (`albis.config.json`), the `data.root` is already set to `./data`, so ALBIS will immediately see your mounted files.*
 
+When the data mount is read-only, drag-and-drop uploads are written to a temporary container directory (`/tmp/albis-uploads`) and opened from there.
+
 ## Remote Stream API
 
 ALBIS can ingest externally generated frames and metadata when Data Source is set to `Remote Stream`.

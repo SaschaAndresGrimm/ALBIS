@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import errno
 import json
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -30,6 +32,39 @@ def test_open_log_endpoint_returns_backend_log_path() -> None:
     assert returned_path == LOG_PATH.resolve()
     assert returned_path.exists()
     assert returned_path.name == "albis.log"
+
+
+def test_upload_falls_back_when_target_is_read_only(monkeypatch) -> None:
+    client = TestClient(app)
+    file_name = f"pytest-upload-{uuid.uuid4().hex[:8]}.tif"
+    payload = b"albis-upload-payload"
+
+    with tempfile.TemporaryDirectory() as temp_root:
+        upload_root = Path(temp_root).resolve()
+        primary_dest = (upload_root / file_name).resolve()
+        real_path_open = Path.open
+
+        def patched_open(self, mode="r", *args, **kwargs):
+            if self.resolve() == primary_dest and "w" in mode:
+                raise OSError(errno.EROFS, "Read-only file system")
+            return real_path_open(self, mode, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", patched_open)
+
+        response = client.post(
+            "/api/upload",
+            params={"folder": str(upload_root)},
+            files={"file": (file_name, payload, "image/tiff")},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    resolved = Path(body["path"]).resolve()
+    assert resolved.is_absolute()
+    assert resolved.name == file_name
+    assert resolved.exists()
+    assert resolved.read_bytes() == payload
+    resolved.unlink(missing_ok=True)
 
 
 def test_remote_latest_returns_204_for_missing_source() -> None:
