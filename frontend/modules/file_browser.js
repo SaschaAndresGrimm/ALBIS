@@ -197,6 +197,19 @@ export function createFileBrowserController({
           btn.classList.add("is-selected");
           syncBrowseSelectState();
         });
+        btn.addEventListener("dblclick", () => {
+          state.selectedPath = state.currentPath ? `${state.currentPath}/${file}` : file;
+          state.selectedType = "file";
+          browsePathInput.value = state.selectedPath;
+          document.querySelectorAll(".browse-item.is-selected").forEach((el) => {
+            el.classList.remove("is-selected");
+          });
+          btn.classList.add("is-selected");
+          syncBrowseSelectState();
+          if (state.mode === "file-open") {
+            confirmBrowseSelection();
+          }
+        });
         browseFilesList.appendChild(btn);
       }
     } else {
@@ -282,27 +295,27 @@ export function createFileBrowserController({
     }
   }
 
-  browseSelectBtn?.addEventListener("click", () => {
+  function confirmBrowseSelection() {
     const selected = state.selectedPath;
 
     if (state.mode === "file-open") {
       if (!selected || state.selectedType !== "file") {
         setStatus("Select an image file first");
-        return;
+        return false;
       }
       closeFileBrowser({ cancelDialog: false });
       settleFileDialog(selected);
-      return;
+      return true;
     }
 
     if (!state.inputElement) {
       closeFileBrowser();
-      return;
+      return true;
     }
 
     if (!selected) {
       setStatus("No file selected");
-      return;
+      return false;
     }
 
     if (typeof onPathSelected === "function") {
@@ -314,6 +327,11 @@ export function createFileBrowserController({
     }
 
     closeFileBrowser();
+    return true;
+  }
+
+  browseSelectBtn?.addEventListener("click", () => {
+    confirmBrowseSelection();
   });
 
   browseCancelBtn?.addEventListener("click", () => closeFileBrowser());
