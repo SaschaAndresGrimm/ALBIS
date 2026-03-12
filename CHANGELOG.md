@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.13] - 2026-03-12
+
+### Fixed
+
+- Docker drag-and-drop now works even when data is mounted read-only (`:ro`).
+- Upload handling now falls back to a writable container temp path (`/tmp/albis-uploads`) when `/app/data` cannot be written.
+- Added regression coverage for read-only upload targets to prevent future Docker regressions.
+
+### Notes
+
+- This release is called: "Drop it like it's docked."
+- This release is called: "Read-only mount, write-capable mood."
+
 ## [0.8.12] - 2026-03-12
 
 ### Added
@@ -92,7 +105,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.12...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.13...HEAD
+[0.8.13]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.13
 [0.8.12]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.12
 [0.8.11]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.11
 [0.8.10]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.10
