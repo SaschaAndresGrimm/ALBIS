@@ -43,6 +43,7 @@ class StatusResponse(_StrictModel):
 
 class PathStatusResponse(StatusResponse):
     path: str
+    opened: bool = True
 
 
 class HandoffJobCreateRequest(_StrictModel):

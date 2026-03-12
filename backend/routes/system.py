@@ -128,19 +128,14 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
     @app.post("/api/open-log", response_model=PathStatusResponse)
     def open_log() -> PathStatusResponse:
         log_path = _ensure_log_file()
+        opened = False
 
         try:
             opened = open_in_system(log_path)
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail="Failed to open log file") from exc
+        except Exception:
+            opened = False
 
-        if not opened:
-            raise HTTPException(
-                status_code=503,
-                detail="Log file cannot be opened in this environment",
-            )
-
-        return PathStatusResponse(status="ok", path=str(log_path))
+        return PathStatusResponse(status="ok", path=str(log_path), opened=opened)
 
     @app.get("/api/log-file")
     def log_file() -> FileResponse:
