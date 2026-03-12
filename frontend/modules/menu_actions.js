@@ -26,14 +26,24 @@ export function createMenuActionHandler({
         window.open("docs.html", "_blank");
         break;
       case "help-log":
+        {
+          const fallbackUrl = `${apiBase}/log-file`;
         try {
           const res = await fetch(`${apiBase}/open-log`, { method: "POST" });
-          if (!res.ok) {
-            setStatus("Failed to open backend log file");
+          if (res.ok) {
+            setStatus("Opened backend log file");
+            break;
           }
         } catch (err) {
           console.error(err);
-          setStatus("Failed to open backend log file");
+        }
+
+          const opened = window.open(fallbackUrl, "_blank", "noopener");
+          if (opened) {
+            setStatus("Opened backend log in browser");
+          } else {
+            setStatus("Failed to open backend log file");
+          }
         }
         break;
       case "settings-open":

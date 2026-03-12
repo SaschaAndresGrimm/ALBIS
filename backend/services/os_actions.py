@@ -10,15 +10,20 @@ import subprocess
 from pathlib import Path
 
 
-def open_in_system(path: Path) -> None:
-    """Open a local path in the platform default handler."""
+def open_in_system(path: Path) -> bool:
+    """Open a local path in the platform default handler.
+
+    Returns True when the platform opener reports success.
+    """
     system = platform.system()
     if system == "Windows":
         os.startfile(str(path))  # type: ignore[attr-defined]
-    elif system == "Darwin":
-        subprocess.run(["open", str(path)], check=False)
-    else:
-        subprocess.run(["xdg-open", str(path)], check=False)
+        return True
+    if system == "Darwin":
+        result = subprocess.run(["open", str(path)], check=False)
+        return result.returncode == 0
+    result = subprocess.run(["xdg-open", str(path)], check=False)
+    return result.returncode == 0
 
 
 def is_applescript_cancel(stderr: str | None) -> bool:

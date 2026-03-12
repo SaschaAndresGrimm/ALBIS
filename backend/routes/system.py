@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 
 try:
     from ..api_models import (
@@ -44,6 +45,17 @@ class SystemRouteDeps:
 
 
 def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
+    def _ensure_log_file() -> Path:
+        log_path = deps.get_log_path()
+        if log_path is None:
+            raise HTTPException(status_code=500, detail="Log file unavailable")
+        try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.touch(exist_ok=True)
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail="Failed to access log file") from exc
+        return log_path
+
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         return HealthResponse(status="ok", version=deps.version)
@@ -115,17 +127,26 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
 
     @app.post("/api/open-log", response_model=PathStatusResponse)
     def open_log() -> PathStatusResponse:
-        log_path = deps.get_log_path()
-        if log_path is None:
-            raise HTTPException(status_code=500, detail="Log file unavailable")
-        try:
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            log_path.touch(exist_ok=True)
-        except OSError as exc:
-            raise HTTPException(status_code=500, detail="Failed to access log file") from exc
+        log_path = _ensure_log_file()
 
         try:
-            open_in_system(log_path)
+            opened = open_in_system(log_path)
         except Exception as exc:
             raise HTTPException(status_code=500, detail="Failed to open log file") from exc
+
+        if not opened:
+            raise HTTPException(
+                status_code=503,
+                detail="Log file cannot be opened in this environment",
+            )
+
         return PathStatusResponse(status="ok", path=str(log_path))
+
+    @app.get("/api/log-file")
+    def log_file() -> FileResponse:
+        log_path = _ensure_log_file()
+        return FileResponse(
+            path=log_path,
+            media_type="text/plain; charset=utf-8",
+            filename=log_path.name,
+        )
