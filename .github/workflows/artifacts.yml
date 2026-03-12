@@ -74,6 +74,9 @@ jobs:
     env:
       ALBIS_TARGET_OS: ${{ matrix.target_os }}
       ALBIS_TARGET_ARCH: ${{ matrix.target_arch }}
+      LINUX_GPG_PRIVATE_KEY_B64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_B64 }}
+      LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+      LINUX_GPG_KEY_ID: ${{ secrets.LINUX_GPG_KEY_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -154,6 +157,14 @@ jobs:
           test -x "$appimage"
           file "$appimage"
 
+      - name: Sign Linux artifacts (optional)
+        run: |
+          set -euo pipefail
+          tarball="$(ls dist/ALBIS-${{ matrix.target }}-*.tar.gz | grep -v 'appimage-bundle' | head -n1 || true)"
+          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1 || true)"
+          bundle="$(ls dist/ALBIS-${{ matrix.target }}-*-appimage-bundle.tar.gz | head -n1 || true)"
+          ./scripts/sign_linux.sh "$tarball" "$appimage" "$bundle"
+
       - name: Generate checksums
         run: |
           cd dist
@@ -167,6 +178,7 @@ jobs:
           path: |
             dist/ALBIS-${{ matrix.target }}-*.tar.gz
             dist/ALBIS-${{ matrix.target }}-*.AppImage
+            dist/ALBIS-${{ matrix.target }}-*.sig
             dist/install_linux_appimage.sh
             dist/uninstall_linux.sh
             dist/SHA256SUMS.txt

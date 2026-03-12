@@ -188,6 +188,7 @@ Cross-target naming controls (all platforms):
 Optional signing/notarization environment variables used by CI:
 - macOS: `MACOS_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`
 - Windows: `WINDOWS_SIGN_CERT_B64`, `WINDOWS_SIGN_CERT_PASSWORD`, `WINDOWS_SIGN_TIMESTAMP_URL`
+- Linux (optional GPG detached signatures): `LINUX_GPG_PRIVATE_KEY_B64`, `LINUX_GPG_PASSPHRASE`, `LINUX_GPG_KEY_ID`
 
 The Inno installer creates Start Menu entries for:
 - `ALBIS`

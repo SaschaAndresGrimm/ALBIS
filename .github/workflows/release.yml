@@ -79,6 +79,9 @@ jobs:
     env:
       ALBIS_TARGET_OS: ${{ matrix.target_os }}
       ALBIS_TARGET_ARCH: ${{ matrix.target_arch }}
+      LINUX_GPG_PRIVATE_KEY_B64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_B64 }}
+      LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+      LINUX_GPG_KEY_ID: ${{ secrets.LINUX_GPG_KEY_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -156,6 +159,14 @@ jobs:
           tar -tzf "$bundle" | sed 's#^\./##' | grep -Fxq 'install_linux_appimage.sh'
           tar -tzf "$bundle" | sed 's#^\./##' | grep -Fxq 'uninstall_linux.sh'
 
+      - name: Sign Linux artifacts (optional)
+        run: |
+          set -euo pipefail
+          tarball="$(ls dist/ALBIS-${{ matrix.target }}-*.tar.gz | grep -v 'appimage-bundle' | head -n1 || true)"
+          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1 || true)"
+          bundle="$(ls dist/ALBIS-${{ matrix.target }}-*-appimage-bundle.tar.gz | head -n1 || true)"
+          ./scripts/sign_linux.sh "$tarball" "$appimage" "$bundle"
+
       - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
@@ -163,6 +174,7 @@ jobs:
           path: |
             dist/ALBIS-${{ matrix.target }}-*.tar.gz
             dist/ALBIS-${{ matrix.target }}-*.AppImage
+            dist/ALBIS-${{ matrix.target }}-*.sig
 
   build_windows:
     name: Build Windows Artifact (${{ matrix.target }})
@@ -368,6 +380,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build_linux, build_windows, build_macos]
     if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      LINUX_GPG_PRIVATE_KEY_B64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_B64 }}
     steps:
       - name: Download release assets
         uses: actions/download-artifact@v4
@@ -401,6 +415,13 @@ jobs:
           [ -n "$linux_tarball" ] || { echo "Missing Linux tarball"; exit 1; }
           [ -n "$linux_bundle" ] || { echo "Missing Linux AppImage bundle"; exit 1; }
           [ -n "$linux_appimage" ] || { echo "Missing Linux AppImage"; exit 1; }
+
+          if [ -n "${LINUX_GPG_PRIVATE_KEY_B64:-}" ]; then
+            [ -f "${linux_tarball}.sig" ] || { echo "Missing Linux tarball signature"; exit 1; }
+            [ -f "${linux_bundle}.sig" ] || { echo "Missing Linux AppImage bundle signature"; exit 1; }
+            [ -f "${linux_appimage}.sig" ] || { echo "Missing Linux AppImage signature"; exit 1; }
+          fi
+
           [ -n "$windows_zip" ] || { echo "Missing Windows zip"; exit 1; }
           [ -n "$windows_setup" ] || { echo "Missing Windows setup exe"; exit 1; }
           [ -n "$mac_arm_zip" ] || { echo "Missing macOS arm64 zip"; exit 1; }

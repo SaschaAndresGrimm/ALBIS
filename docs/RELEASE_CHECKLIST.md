@@ -32,6 +32,7 @@ Use this to verify packaging and checks before tagging:
      - `ALBIS-linux-x64-v<version>-<commit>.tar.gz`
      - `ALBIS-linux-x64-v<version>-<commit>.AppImage`
      - `ALBIS-linux-x64-v<version>-<commit>-appimage-bundle.tar.gz`
+     - when `LINUX_GPG_PRIVATE_KEY_B64` is configured: matching `.sig` files for each Linux artifact
    - Windows x64 contains:
      - `ALBIS-windows-x64-v<version>-<commit>.zip`
      - `ALBIS-Setup-windows-x64-v<version>-<commit>.exe`
@@ -72,6 +73,7 @@ Expected result:
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
 - GitHub Release is published with:
   - Linux x64: tarball + `.AppImage` + appimage bundle
+  - Linux x64 signatures (`.sig`) when Linux GPG signing secrets are configured
   - Windows x64: setup `.exe` + portable `.zip`
   - macOS arm64 and x64: `.dmg` + portable `.zip`
   - `SHA256SUMS.txt`
@@ -79,5 +81,6 @@ Expected result:
 ## 5. Post-Release Verification
 
 - Confirm release page includes expected assets and `SHA256SUMS.txt`.
+- If Linux signing is enabled, confirm each Linux artifact has a sibling `.sig` asset.
 - Validate download/install path on at least one machine per supported platform.
 - Move next development cycle notes into `Unreleased` in `CHANGELOG.md`.
