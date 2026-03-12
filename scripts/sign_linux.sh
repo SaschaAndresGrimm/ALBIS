@@ -31,16 +31,65 @@ KEY_FILE="$TMP_DIR/signing.key"
 # Support either:
 # 1) Base64-encoded private key payload (recommended for GitHub Secrets), or
 # 2) Raw ASCII-armored private key block pasted directly into the secret.
-if printf '%s' "$KEY_INPUT" | grep -q "BEGIN PGP PRIVATE KEY BLOCK"; then
-  printf '%s\n' "$KEY_INPUT" >"$KEY_FILE"
+#
+# Also tolerate:
+# - values wrapped in quotes
+# - escaped newlines ("\n") in armored blocks
+# - URL-safe base64 payloads (with missing padding)
+KEY_NORMALIZED="$KEY_INPUT"
+if [ "${#KEY_NORMALIZED}" -ge 2 ]; then
+  if [ "${KEY_NORMALIZED:0:1}" = '"' ] && [ "${KEY_NORMALIZED: -1}" = '"' ]; then
+    KEY_NORMALIZED="${KEY_NORMALIZED:1:${#KEY_NORMALIZED}-2}"
+  elif [ "${KEY_NORMALIZED:0:1}" = "'" ] && [ "${KEY_NORMALIZED: -1}" = "'" ]; then
+    KEY_NORMALIZED="${KEY_NORMALIZED:1:${#KEY_NORMALIZED}-2}"
+  fi
+fi
+
+KEY_ARMORED="${KEY_NORMALIZED//\\n/$'\n'}"
+KEY_ARMORED="${KEY_ARMORED//$'\r'/}"
+if printf '%s' "$KEY_ARMORED" | grep -q "BEGIN PGP PRIVATE KEY BLOCK"; then
+  printf '%s\n' "$KEY_ARMORED" >"$KEY_FILE"
 else
-  KEY_COMPACT="$(printf '%s' "$KEY_INPUT" | tr -d '[:space:]')"
-  if ! printf '%s' "$KEY_COMPACT" | base64 --decode >"$KEY_FILE" 2>/dev/null; then
-    if ! printf '%s' "$KEY_COMPACT" | base64 -d >"$KEY_FILE" 2>/dev/null; then
-      echo "[sign_linux] Failed to decode LINUX_GPG_PRIVATE_KEY_B64."
-      echo "[sign_linux] Provide base64-encoded key data or an ASCII-armored private key block."
-      exit 1
+  KEY_COMPACT="$(printf '%s' "$KEY_NORMALIZED" | tr -d '[:space:]')"
+  decoded=0
+  if printf '%s' "$KEY_COMPACT" | base64 --decode >"$KEY_FILE" 2>/dev/null; then
+    decoded=1
+  elif printf '%s' "$KEY_COMPACT" | base64 -d >"$KEY_FILE" 2>/dev/null; then
+    decoded=1
+  elif command -v python3 >/dev/null 2>&1; then
+    if python3 - "$KEY_COMPACT" "$KEY_FILE" <<'PY'
+import base64
+import binascii
+import sys
+
+data = sys.argv[1].strip()
+out_path = sys.argv[2]
+candidates = [data, data.replace("-", "+").replace("_", "/")]
+
+for candidate in candidates:
+    if not candidate:
+        continue
+    padded = candidate + ("=" * ((4 - (len(candidate) % 4)) % 4))
+    for payload in (candidate, padded):
+        try:
+            raw = base64.b64decode(payload, validate=False)
+        except (ValueError, binascii.Error):
+            continue
+        if raw:
+            with open(out_path, "wb") as handle:
+                handle.write(raw)
+            raise SystemExit(0)
+
+raise SystemExit(1)
+PY
+    then
+      decoded=1
     fi
+  fi
+  if [ "$decoded" -ne 1 ]; then
+    echo "[sign_linux] Failed to decode LINUX_GPG_PRIVATE_KEY_B64."
+    echo "[sign_linux] Provide base64 key data, an ASCII-armored private key block, or escaped armored block with \\n."
+    exit 1
   fi
 fi
 
