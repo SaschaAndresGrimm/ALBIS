@@ -30,10 +30,7 @@ def test_appimage_metainfo_template_is_well_formed() -> None:
     assert component.findtext("name") == "ALBIS"
     assert component.findtext("launchable") == "ALBIS.desktop"
 
-    urls = {
-        url.attrib["type"]: (url.text or "").strip()
-        for url in component.findall("url")
-    }
+    urls = {url.attrib["type"]: (url.text or "").strip() for url in component.findall("url")}
     assert urls["homepage"] == "https://github.com/SaschaAndresGrimm/ALBIS"
     assert urls["bugtracker"] == "https://github.com/SaschaAndresGrimm/ALBIS/issues"
 
