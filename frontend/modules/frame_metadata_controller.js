@@ -77,6 +77,7 @@ export function createFrameMetadataController({
       const existingFile = state.file;
       if (data.files.length > 0) {
         const placeholder = option(t("files.select_placeholder"), "");
+        placeholder.dataset.i18n = "files.select_placeholder";
         placeholder.disabled = true;
         placeholder.selected = true;
         fileSelect.appendChild(placeholder);

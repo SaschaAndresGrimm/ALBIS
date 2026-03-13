@@ -138,7 +138,7 @@ def test_settings_language_roundtrip_persists() -> None:
     original_config = copy.deepcopy(initial_payload["config"])
     original_language = str(original_config.get("ui", {}).get("language", "en"))
     target_language = next(
-        (lang for lang in ("fr", "es", "it", "pt", "en", "zh-CN", "ja") if lang != original_language),
+        (lang for lang in ("rm", "fr", "es", "it", "pt", "en", "zh-CN", "ja") if lang != original_language),
         "en",
     )
 

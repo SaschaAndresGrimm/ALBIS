@@ -9,7 +9,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
-- Frontend locale coverage now includes `en`, `zh-CN`, `ja`, `fr`, `es`, `it`, and `pt`.
+- Frontend locale coverage now includes `en`, `zh-CN`, `ja`, `fr`, `es`, `it`, `pt`, and `rm`.
 
 ## [0.8.16] - 2026-03-13
 

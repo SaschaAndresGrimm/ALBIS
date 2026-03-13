@@ -220,7 +220,9 @@ export function createFileSessionController({
       updateThresholdOptions();
       if (datasetSelect) {
         datasetSelect.innerHTML = "";
-        datasetSelect.appendChild(option(t("data.single_image"), ""));
+        const singleImageOption = option(t("data.single_image"), "");
+        singleImageOption.dataset.i18n = "data.single_image";
+        datasetSelect.appendChild(singleImageOption);
         datasetSelect.value = "";
       }
       setDataControlsForImage();
@@ -233,7 +235,9 @@ export function createFileSessionController({
       updateThresholdOptions();
       if (datasetSelect) {
         datasetSelect.innerHTML = "";
-        datasetSelect.appendChild(option(t("data.series_image"), ""));
+        const seriesImageOption = option(t("data.series_image"), "");
+        seriesImageOption.dataset.i18n = "data.series_image";
+        datasetSelect.appendChild(seriesImageOption);
         datasetSelect.value = "";
       }
       setDataControlsForSeries();
