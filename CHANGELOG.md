@@ -7,6 +7,27 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-03-13
+
+### Added
+
+- Added a translation review workflow with glossary, allowlist, technical-domain reporting, and CI visibility for locale QA.
+- Added committed desktop icon assets for Linux, Windows, and macOS packaging, including prebuilt `.ico` and `.icns` bundles.
+
+### Changed
+
+- Refined technical terminology and UI wording across German, Swiss German, Swedish, Danish, French, Spanish, Italian, Portuguese, Japanese, and Simplified Chinese locales.
+- Updated desktop packaging and runtime asset wiring to use the new icon set consistently across app builds and frontend-served assets.
+
+### Fixed
+
+- macOS x64 release packaging now retries DMG creation when `hdiutil` hits a transient `Resource busy` failure on GitHub runners.
+
+### Notes
+
+- This release is called: "Icons aligned, translations sharpened."
+- This release is called: "From workflow dry-run to release-ready."
+
 ## [0.8.17] - 2026-03-13
 
 ### Added
@@ -171,7 +192,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.17...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.0
 [0.8.17]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.17
 [0.8.16]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.16
 [0.8.15]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.15
