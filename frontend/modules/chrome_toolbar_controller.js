@@ -69,15 +69,21 @@ export function createChromeToolbarController({
     }
   }
 
+  function syncToolbarPlaybackToggle() {
+    if (!toolbarPlaybackWrap || !toolbarPlaybackToggle || !toolbarPlaybackPopover) return;
+    const open = toolbarPlaybackWrap.classList.contains("is-open");
+    toolbarPlaybackToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toolbarPlaybackToggle.textContent = open ? t("toolbar.playback.open") : t("toolbar.playback.closed");
+    toolbarPlaybackPopover.setAttribute("aria-hidden", open ? "false" : "true");
+  }
+
   function setToolbarPlaybackPopoverOpen(open) {
     if (!toolbarPlaybackWrap || !toolbarPlaybackToggle || !toolbarPlaybackPopover) return;
     if (open) {
       closeToolbarMorePopover();
     }
     toolbarPlaybackWrap.classList.toggle("is-open", open);
-    toolbarPlaybackToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    toolbarPlaybackToggle.textContent = open ? t("toolbar.playback.open") : t("toolbar.playback.closed");
-    toolbarPlaybackPopover.setAttribute("aria-hidden", open ? "false" : "true");
+    syncToolbarPlaybackToggle();
   }
 
   function closeToolbarPlaybackPopover() {
@@ -289,6 +295,7 @@ export function createChromeToolbarController({
   }
 
   function updateToolbar() {
+    syncToolbarPlaybackToggle();
     if (toolbarPath) {
       toolbarPath.textContent = buildViewerSourceText(estimateToolbarChars());
     }

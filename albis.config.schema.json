@@ -138,7 +138,7 @@
         },
         "language": {
           "type": "string",
-          "enum": ["en", "zh-CN", "ja"],
+          "enum": ["en", "zh-CN", "ja", "fr", "es", "it", "pt"],
           "default": "en",
           "description": "UI language for frontend labels and messages."
         }

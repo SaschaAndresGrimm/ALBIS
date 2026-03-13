@@ -2,7 +2,7 @@
  * Lightweight runtime i18n helper for ALBIS frontend.
  */
 
-const SUPPORTED_LANGUAGES = ["en", "zh-CN", "ja"];
+const SUPPORTED_LANGUAGES = ["en", "zh-CN", "ja", "fr", "es", "it", "pt"];
 const FALLBACK_LANGUAGE = "en";
 const STORAGE_KEY = "albis.ui.language";
 
@@ -41,6 +41,10 @@ export function normalizeLanguage(language) {
   const lower = raw.toLowerCase();
   if (lower.startsWith("zh")) return "zh-CN";
   if (lower.startsWith("ja")) return "ja";
+  if (lower.startsWith("fr")) return "fr";
+  if (lower.startsWith("es")) return "es";
+  if (lower.startsWith("it")) return "it";
+  if (lower.startsWith("pt")) return "pt";
   if (lower.startsWith("en")) return "en";
   return FALLBACK_LANGUAGE;
 }
@@ -244,6 +248,7 @@ export async function initializeI18n(options = {}) {
   }
   await preloadPromise;
   const initialLanguage = resolveInitialLanguage(options.backendLanguage || "");
-  setLanguage(initialLanguage, { persist: true, applyDom: true, notify: false });
+  // Keep inferred startup language ephemeral until a user or config preference is applied.
+  setLanguage(initialLanguage, { persist: false, applyDom: true, notify: false });
   initialized = true;
 }

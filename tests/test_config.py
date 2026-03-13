@@ -29,6 +29,14 @@ def test_normalize_config_normalizes_ui_language_aliases() -> None:
     assert config["ui"]["language"] == "zh-CN"
     config = normalize_config({"ui": {"language": "ja-JP"}})
     assert config["ui"]["language"] == "ja"
+    config = normalize_config({"ui": {"language": "fr-FR"}})
+    assert config["ui"]["language"] == "fr"
+    config = normalize_config({"ui": {"language": "es-ES"}})
+    assert config["ui"]["language"] == "es"
+    config = normalize_config({"ui": {"language": "it-IT"}})
+    assert config["ui"]["language"] == "it"
+    config = normalize_config({"ui": {"language": "pt-BR"}})
+    assert config["ui"]["language"] == "pt"
 
 
 def test_normalize_config_falls_back_to_english_for_invalid_language() -> None:

@@ -15,7 +15,6 @@ import { createAnalysisState, createAppState, createRoiState } from "./modules/s
 import {
   applyI18nToDom,
   getLanguage,
-  hasStoredLanguagePreference,
   initializeI18n,
   onLanguageChange,
   setLanguage,
@@ -635,11 +634,11 @@ function updatePanCapability() {
 
 function applyLanguagePreference(language, options = {}) {
   const { source = "user" } = options;
-  if (source === "config" && hasStoredLanguagePreference()) {
-    return getLanguage();
-  }
-  const next = setLanguage(language, { persist: true, applyDom: true });
+  const next = setLanguage(language, { persist: source !== "runtime", applyDom: true });
   state.language = next;
+  if (settingsLanguage) {
+    settingsLanguage.value = next;
+  }
   return next;
 }
 

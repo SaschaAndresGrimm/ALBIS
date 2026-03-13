@@ -46,6 +46,24 @@ describe("i18n runtime", () => {
     expect(mod.t("count.items", { count: 3 })).toBe("3 items");
   });
 
+  it("normalizes supported language aliases to canonical codes", async () => {
+    const mod = await loadI18nModule({
+      en: {},
+      "zh-CN": {},
+      ja: {},
+      fr: {},
+      es: {},
+      it: {},
+      pt: {},
+    });
+
+    expect(mod.normalizeLanguage("fr-FR")).toBe("fr");
+    expect(mod.normalizeLanguage("es-ES")).toBe("es");
+    expect(mod.normalizeLanguage("it-IT")).toBe("it");
+    expect(mod.normalizeLanguage("pt-BR")).toBe("pt");
+    expect(mod.normalizeLanguage("pt-PT")).toBe("pt");
+  });
+
   it("uses fallback chain and warns once for missing keys", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const mod = await loadI18nModule({
@@ -121,5 +139,23 @@ describe("i18n runtime", () => {
     await mod.initializeI18n({ backendLanguage: "en" });
 
     expect(mod.getLanguage()).toBe("zh-CN");
+  });
+
+  it("does not persist inferred startup language before an explicit preference exists", async () => {
+    const mod = await loadI18nModule({
+      en: {},
+      "zh-CN": {},
+      ja: {},
+      fr: {},
+      es: {},
+      it: {},
+      pt: {},
+    });
+
+    await mod.initializeI18n();
+
+    expect(mod.getLanguage()).toBe("en");
+    expect(localStorage.getItem("albis.ui.language")).toBeNull();
+    expect(mod.hasStoredLanguagePreference()).toBe(false);
   });
 });
