@@ -57,7 +57,9 @@ def _linux_choose_folder() -> str | None:
         raise RuntimeError("No graphical display available")
     zenity = shutil.which("zenity")
     if zenity:
-        return _run_linux_dialog([zenity, "--file-selection", "--directory", "--title=Select folder"])
+        return _run_linux_dialog(
+            [zenity, "--file-selection", "--directory", "--title=Select folder"]
+        )
     kdialog = shutil.which("kdialog")
     if kdialog:
         return _run_linux_dialog([kdialog, "--getexistingdirectory", str(Path.home())])
@@ -134,13 +136,17 @@ def choose_folder() -> str | None:
     system = platform.system()
     if system == "Darwin":
         script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
-        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            ["osascript", "-e", script], capture_output=True, text=True, check=True
+        )
         picked = result.stdout.strip()
         return picked or None
     if system == "Linux":
         try:
             return _linux_choose_folder()
         except RuntimeError:
+            if not _display_available():
+                raise
             return _tk_choose_folder()
     return _tk_choose_folder()
 
@@ -152,12 +158,16 @@ def choose_file() -> str | None:
             'POSIX path of (choose file with prompt "Select image file" '
             'of type {"h5", "hdf5", "tif", "tiff", "cbf", "cbf.gz", "edf"})'
         )
-        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            ["osascript", "-e", script], capture_output=True, text=True, check=True
+        )
         picked = result.stdout.strip()
         return picked or None
     if system == "Linux":
         try:
             return _linux_choose_file()
         except RuntimeError:
+            if not _display_available():
+                raise
             return _tk_choose_file()
     return _tk_choose_file()

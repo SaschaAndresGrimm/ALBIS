@@ -93,6 +93,22 @@ def _cleanup_partial_upload(path: Path) -> None:
         pass
 
 
+def _picker_unavailable_status(exc: RuntimeError) -> int:
+    """Map missing native picker capabilities to a handled client-visible response."""
+    text = str(exc).strip().lower()
+    if not text:
+        return 409
+    unavailable_markers = (
+        "no graphical display available",
+        "no supported linux file dialog found",
+        "tk folder picker unavailable",
+        "tk file picker unavailable",
+    )
+    if any(marker in text for marker in unavailable_markers):
+        return 409
+    return 500
+
+
 def _stream_upload_to_path(
     file: UploadFile, dest: Path, get_max_upload_bytes: Callable[[], int], chunk_size: int
 ) -> int:
@@ -235,7 +251,8 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         except RuntimeError as exc:
             deps.logger.warning("Folder picker failed (os=%s): %s", system, exc)
             raise HTTPException(
-                status_code=500, detail=f"Folder picker unavailable: {exc}"
+                status_code=_picker_unavailable_status(exc),
+                detail=f"Folder picker unavailable: {exc}",
             ) from exc
 
         if not path:
@@ -258,7 +275,10 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             raise HTTPException(status_code=500, detail="File picker failed") from exc
         except RuntimeError as exc:
             deps.logger.warning("File picker failed (os=%s): %s", system, exc)
-            raise HTTPException(status_code=500, detail=f"File picker unavailable: {exc}") from exc
+            raise HTTPException(
+                status_code=_picker_unavailable_status(exc),
+                detail=f"File picker unavailable: {exc}",
+            ) from exc
 
         if not path:
             return Response(status_code=204)

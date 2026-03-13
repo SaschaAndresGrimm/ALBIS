@@ -25,16 +25,19 @@ FROM python:3.10.16-slim-bookworm@sha256:f9fd9a142c9e3bc54d906053b756eb7e7e386ee
 WORKDIR /app
 
 ENV HOME=/home/albis \
+    HDF5_PLUGIN_PATH=/usr/local/lib/python3.10/site-packages/hdf5plugin/plugins \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libhdf5-103-1 \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /install /usr/local
 
+COPY albis_assets/ albis_assets/
 COPY backend/ backend/
 COPY frontend/ frontend/
 COPY albis.config.json .

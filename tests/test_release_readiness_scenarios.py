@@ -315,3 +315,24 @@ server.serve_forever()
     server.chmod(0o755)
 
     module.run_smoke(server, startup_timeout_sec=5.0, stop_timeout_sec=2.0)
+
+
+def test_native_pickers_return_conflict_when_unavailable(monkeypatch) -> None:
+    client = TestClient(app)
+
+    def _raise_no_display() -> None:
+        raise RuntimeError("No graphical display available")
+
+    monkeypatch.setattr("backend.routes.files._choose_file", _raise_no_display)
+    monkeypatch.setattr("backend.routes.files._choose_folder", _raise_no_display)
+
+    choose_file = client.get("/api/choose-file")
+    assert choose_file.status_code == 409
+    assert choose_file.json()["detail"] == "File picker unavailable: No graphical display available"
+
+    choose_folder = client.get("/api/choose-folder")
+    assert choose_folder.status_code == 409
+    assert (
+        choose_folder.json()["detail"]
+        == "Folder picker unavailable: No graphical display available"
+    )
