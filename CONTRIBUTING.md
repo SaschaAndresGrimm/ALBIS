@@ -24,6 +24,7 @@ npm ci
 
 - Developer Guide: `docs/DEVELOPER_GUIDE.md`
 - Release process checklist: `docs/RELEASE_CHECKLIST.md`
+- Translation review guide: `docs/I18N_REVIEW_GUIDE.md`
 
 ## How to help
 
@@ -62,6 +63,8 @@ ruff check backend tests scripts test_scripts
 black --check tests scripts test_scripts
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
 npm run lint:js
+npm run test:js
+npm run review:i18n
 ```
 
 Optional:

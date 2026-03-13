@@ -21,6 +21,7 @@
   ],
   "scripts": {
     "lint:js": "eslint frontend/app.js frontend/modules/*.js",
+    "review:i18n": "npx -y node@20 ./scripts/review_i18n.mjs",
     "test:js": "npx -y node@20 ./node_modules/vitest/vitest.mjs run"
   },
   "devDependencies": {

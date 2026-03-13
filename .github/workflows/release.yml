@@ -64,6 +64,9 @@ jobs:
       - name: Vitest
         run: npm run test:js
 
+      - name: Translation review report
+        run: npm run review:i18n
+
   build_linux:
     name: Build Linux Artifact (${{ matrix.target }})
     runs-on: ubuntu-latest

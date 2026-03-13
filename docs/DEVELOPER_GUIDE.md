@@ -31,9 +31,16 @@ black --check tests scripts test_scripts
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
 npm run lint:js
 npm run test:js
+npm run review:i18n
 ```
 
 `npm run test:js` executes Vitest in `jsdom`. The repository requires Node `>=20`; the script currently enforces this via `node@20` to keep local runs reproducible.
+
+Translation review workflow:
+
+- Guide: `docs/I18N_REVIEW_GUIDE.md`
+- Shared glossary: `docs/I18N_GLOSSARY.csv`
+- Audit command: `npm run review:i18n`
 
 Optional pre-commit hooks:
 
