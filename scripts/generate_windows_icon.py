@@ -17,7 +17,9 @@ DEFAULT_ICON_NAMES = (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate a Windows .ico from ALBIS PNG icon assets.")
+    parser = argparse.ArgumentParser(
+        description="Generate a Windows .ico from ALBIS PNG icon assets."
+    )
     parser.add_argument("--output", required=True, help="Output .ico path")
     parser.add_argument(
         "--source-dir",
