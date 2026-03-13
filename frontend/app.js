@@ -1318,8 +1318,34 @@ function setLoading(show) {
   }
 }
 
+function localizePlaybackOptionLabels() {
+  const localizeStepSelect = (selectEl) => {
+    if (!selectEl) return;
+    Array.from(selectEl.options).forEach((option) => {
+      const value = String(option.value || "").trim();
+      if (!value) return;
+      option.textContent = t("toolbar.step.option", { value });
+    });
+  };
+
+  const localizeFpsSelect = (selectEl) => {
+    if (!selectEl) return;
+    Array.from(selectEl.options).forEach((option) => {
+      const value = String(option.value || "").trim();
+      if (!value) return;
+      option.textContent = t("toolbar.playback.fps_option", { value });
+    });
+  };
+
+  localizeStepSelect(frameStep);
+  localizeStepSelect(toolbarMoreStep);
+  localizeFpsSelect(fpsSelect);
+  localizeFpsSelect(toolbarMoreFps);
+}
+
 function refreshLocalizedUi() {
   applyI18nToDom(document);
+  localizePlaybackOptionLabels();
   refreshHelpTooltips();
   applyPanelState();
   updateToolbar();
