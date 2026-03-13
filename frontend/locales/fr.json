@@ -451,6 +451,8 @@
   "settings.language.pt": "Portugais",
   "settings.language.rm": "Rumantsch Grischun",
   "settings.language.de": "Allemand",
+  "settings.language.sv": "Suédois",
+  "settings.language.da": "Danois",
   "settings.language.zh_cn": "Chinois (simplifié)",
   "settings.logging.directory": "Répertoire des journaux",
   "settings.logging.level": "Niveau de journalisation",

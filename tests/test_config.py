@@ -41,6 +41,10 @@ def test_normalize_config_normalizes_ui_language_aliases() -> None:
     assert config["ui"]["language"] == "rm"
     config = normalize_config({"ui": {"language": "de-DE"}})
     assert config["ui"]["language"] == "de"
+    config = normalize_config({"ui": {"language": "sv-SE"}})
+    assert config["ui"]["language"] == "sv"
+    config = normalize_config({"ui": {"language": "da-DK"}})
+    assert config["ui"]["language"] == "da"
 
 
 def test_normalize_config_falls_back_to_english_for_invalid_language() -> None:

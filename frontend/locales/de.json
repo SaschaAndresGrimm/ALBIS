@@ -451,6 +451,8 @@
   "settings.language.pt": "Portugiesisch",
   "settings.language.rm": "Rumantsch Grischun",
   "settings.language.de": "Deutsch",
+  "settings.language.sv": "Schwedisch",
+  "settings.language.da": "Dänisch",
   "settings.language.zh_cn": "Chinesisch (vereinfacht)",
   "settings.logging.directory": "Protokollverzeichnis",
   "settings.logging.level": "Protokollebene",

@@ -451,6 +451,8 @@
   "settings.language.pt": "Portugués",
   "settings.language.rm": "Rumantsch Grischun",
   "settings.language.de": "Alemán",
+  "settings.language.sv": "Sueco",
+  "settings.language.da": "Danés",
   "settings.language.zh_cn": "Chino (simplificado)",
   "settings.logging.directory": "Directorio de registro",
   "settings.logging.level": "Nivel de registro",

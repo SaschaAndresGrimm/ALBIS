@@ -451,6 +451,8 @@
   "settings.language.pt": "葡萄牙语",
   "settings.language.rm": "罗曼什语（Rumantsch Grischun）",
   "settings.language.de": "德语",
+  "settings.language.sv": "瑞典语",
+  "settings.language.da": "丹麦语",
   "settings.language.zh_cn": "中文（简体）",
   "settings.logging.directory": "日志目录",
   "settings.logging.level": "日志级别",
