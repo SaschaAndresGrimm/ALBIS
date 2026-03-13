@@ -6,6 +6,9 @@ AppName=ALBIS
 AppVersion={#AppVersion}
 DefaultDirName={localappdata}\Programs\ALBIS
 DefaultGroupName=ALBIS
+#ifexist "..\dist\ALBIS.ico"
+SetupIconFile=..\dist\ALBIS.ico
+#endif
 OutputDir=..\dist
 #ifndef OutputBaseFilename
 #define OutputBaseFilename "ALBIS-Setup"

@@ -15,19 +15,19 @@ icon_path = os.environ.get("ALBIS_ICON", "").strip()
 if not icon_path:
     if sys.platform == "darwin":
         candidates = (
-            os.path.abspath("albis_assets/albis_macos.icns"),
+            os.path.abspath("albis_assets/icon.icns"),
             os.path.abspath("frontend/ressources/icon.icns"),
-            os.path.abspath("albis_assets/albis_1024x1024.png"),
+            os.path.abspath("albis_assets/icon_1024x1024.png"),
             os.path.abspath("frontend/ressources/icon.png"),
         )
     elif sys.platform == "win32":
         candidates = (
-            os.path.abspath("albis_assets/albis_256x256.png"),
-            os.path.abspath("frontend/ressources/icon.png"),
+            os.path.abspath("albis_assets/icon.ico"),
+            os.path.abspath("frontend/ressources/icon.ico"),
         )
     else:
         candidates = (
-            os.path.abspath("albis_assets/albis_512x512.png"),
+            os.path.abspath("albis_assets/icon_512x512.png"),
             os.path.abspath("frontend/ressources/icon.png"),
         )
     for candidate in candidates:
@@ -38,6 +38,24 @@ if icon_path and not os.path.exists(icon_path):
     icon_path = ""
 
 datas = [("frontend", "frontend")]
+for asset_name in (
+    "albis_splash_1920x1080.png",
+    "albis_splash_3840x2160.png",
+    "icon.ico",
+    "icon.icns",
+    "icon_16x16.png",
+    "icon_16x16@2x.png",
+    "icon_32x32.png",
+    "icon_32x32@2x.png",
+    "icon_64x64.png",
+    "icon_128x128.png",
+    "icon_256x256.png",
+    "icon_512x512.png",
+    "icon_1024x1024.png",
+):
+    asset_path = os.path.abspath(os.path.join("albis_assets", asset_name))
+    if os.path.exists(asset_path):
+        datas.append((asset_path, "albis_assets"))
 binaries: list = []
 hiddenimports: list = ["backend.app", "backend.config"]
 hiddenimports += [

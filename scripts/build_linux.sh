@@ -30,8 +30,10 @@ fi
 "$PYTHON_BIN" -m pip install --upgrade pyinstaller
 
 # Prefer curated ALBIS icon assets when available.
-if [ -f "albis_assets/albis_512x512.png" ]; then
-  export ALBIS_ICON="$(pwd)/albis_assets/albis_512x512.png"
+if [ -f "albis_assets/icon_512x512.png" ]; then
+  export ALBIS_ICON="$(pwd)/albis_assets/icon_512x512.png"
+elif [ -f "albis_assets/icon_256x256.png" ]; then
+  export ALBIS_ICON="$(pwd)/albis_assets/icon_256x256.png"
 elif [ -f "frontend/ressources/icon.png" ]; then
   export ALBIS_ICON="$(pwd)/frontend/ressources/icon.png"
 fi

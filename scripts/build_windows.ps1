@@ -30,9 +30,20 @@ if ($isolatedBuild) {
 & $pythonExe -m pip install --upgrade pyinstaller
 
 # Prefer curated ALBIS icon assets when available.
-$assetIcon = Join-Path $root "albis_assets\\albis_256x256.png"
-$fallbackIcon = Join-Path $root "frontend\\ressources\\icon.png"
-if (Test-Path $assetIcon) {
+$distDir = Join-Path $root "dist"
+New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+$generatedIcon = Join-Path $distDir "ALBIS.ico"
+$assetIcon = Join-Path $root "albis_assets\\icon.ico"
+$fallbackIcon = Join-Path $root "frontend\\ressources\\icon.ico"
+$iconGenerator = Join-Path $root "scripts\\generate_windows_icon.py"
+
+if (Test-Path $iconGenerator) {
+  & $pythonExe $iconGenerator --output $generatedIcon
+}
+
+if (Test-Path $generatedIcon) {
+  $env:ALBIS_ICON = $generatedIcon
+} elseif (Test-Path $assetIcon) {
   $env:ALBIS_ICON = $assetIcon
 } elseif (Test-Path $fallbackIcon) {
   $env:ALBIS_ICON = $fallbackIcon

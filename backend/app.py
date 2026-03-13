@@ -734,6 +734,9 @@ async def _no_cache_static(request: Request, call_next):
 
 
 STATIC_DIR = _resource_root() / "frontend"
+ASSET_DIR = _resource_root() / "albis_assets"
+if ASSET_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=ASSET_DIR), name="assets")
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 

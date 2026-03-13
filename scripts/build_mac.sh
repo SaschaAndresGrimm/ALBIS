@@ -21,8 +21,8 @@ TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Prefer curated ALBIS icon assets when available.
-ICON_ICNS_ASSET="albis_assets/albis_macos.icns"
-ICON_PNG="albis_assets/albis_1024x1024.png"
+ICON_ICNS_ASSET="albis_assets/icon.icns"
+ICON_PNG="albis_assets/icon_1024x1024.png"
 if [ ! -f "$ICON_PNG" ]; then
   ICON_PNG="frontend/ressources/icon.png"
 fi
@@ -32,11 +32,31 @@ if [ -f "$ICON_ICNS_ASSET" ]; then
 elif [ -f "$ICON_PNG" ] && command -v sips >/dev/null 2>&1 && command -v iconutil >/dev/null 2>&1; then
   ICONSET_DIR="$TEMP_DIR/ALBIS.iconset"
   mkdir -p "$ICONSET_DIR"
-  for size in 16 32 128 256 512; do
-    sips -z "$size" "$size" "$ICON_PNG" --out "$ICONSET_DIR/icon_${size}x${size}.png" >/dev/null
-    double_size=$((size * 2))
-    sips -z "$double_size" "$double_size" "$ICON_PNG" --out "$ICONSET_DIR/icon_${size}x${size}@2x.png" >/dev/null
-  done
+
+  add_icon() {
+    local target="$1"
+    local size="$2"
+    shift 2
+    for candidate in "$@"; do
+      if [ -f "$candidate" ]; then
+        cp "$candidate" "$ICONSET_DIR/$target"
+        return
+      fi
+    done
+    sips -z "$size" "$size" "$ICON_PNG" --out "$ICONSET_DIR/$target" >/dev/null
+  }
+
+  add_icon "icon_16x16.png" 16 "albis_assets/icon_16x16.png"
+  add_icon "icon_16x16@2x.png" 32 "albis_assets/icon_16x16@2x.png" "albis_assets/icon_32x32.png"
+  add_icon "icon_32x32.png" 32 "albis_assets/icon_32x32.png" "albis_assets/icon_16x16@2x.png"
+  add_icon "icon_32x32@2x.png" 64 "albis_assets/icon_32x32@2x.png" "albis_assets/icon_64x64.png"
+  add_icon "icon_128x128.png" 128 "albis_assets/icon_128x128.png"
+  add_icon "icon_128x128@2x.png" 256 "albis_assets/icon_256x256.png"
+  add_icon "icon_256x256.png" 256 "albis_assets/icon_256x256.png"
+  add_icon "icon_256x256@2x.png" 512 "albis_assets/icon_512x512.png"
+  add_icon "icon_512x512.png" 512 "albis_assets/icon_512x512.png"
+  add_icon "icon_512x512@2x.png" 1024 "albis_assets/icon_1024x1024.png"
+
   iconutil -c icns "$ICONSET_DIR" -o "$ICON_ICNS"
   export ALBIS_ICON="$ICON_ICNS"
 fi

@@ -42,8 +42,10 @@ exec "$HERE/usr/bin/ALBIS" "$@"
 EOF
 chmod +x "$APPDIR/AppRun"
 
-if [ -f "albis_assets/albis_512x512.png" ]; then
-  cp "albis_assets/albis_512x512.png" "$APPDIR/ALBIS.png"
+if [ -f "albis_assets/icon_512x512.png" ]; then
+  cp "albis_assets/icon_512x512.png" "$APPDIR/ALBIS.png"
+elif [ -f "albis_assets/icon_256x256.png" ]; then
+  cp "albis_assets/icon_256x256.png" "$APPDIR/ALBIS.png"
 elif [ -f "frontend/ressources/icon.png" ]; then
   cp "frontend/ressources/icon.png" "$APPDIR/ALBIS.png"
 fi
