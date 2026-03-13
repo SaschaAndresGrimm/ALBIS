@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
+import path from "node:path";
 
 function readLocale(language) {
-  const url = new URL(`../locales/${language}.json`, import.meta.url);
-  return JSON.parse(fs.readFileSync(url, "utf8"));
+  const filePath = path.join(process.cwd(), "frontend", "locales", `${language}.json`);
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
 function buildFetchMock(dictionaries) {
