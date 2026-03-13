@@ -1347,13 +1347,14 @@ function refreshLocalizedUi() {
   applyI18nToDom(document);
   localizePlaybackOptionLabels();
   refreshHelpTooltips();
+  updateRoiModeUI();
+  scheduleRoiUpdate();
   applyPanelState();
   updateToolbar();
   updateViewerFooter();
   updateLiveBadge();
   updateAboutVersion();
   updateDataSourceSummary();
-  updateRoiSectionState();
   updateRingsSectionState();
   updatePeaksSectionState();
   updateSeriesSumUi();
