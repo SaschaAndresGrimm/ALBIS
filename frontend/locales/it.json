@@ -453,6 +453,8 @@
   "settings.language.de": "Tedesco",
   "settings.language.sv": "Svedese",
   "settings.language.da": "Danese",
+  "settings.language.mi": "Maori",
+  "settings.language.gsw": "Tedesco svizzero (Basilea)",
   "settings.language.zh_cn": "Cinese (semplificato)",
   "settings.logging.directory": "Directory di registro",
   "settings.logging.level": "Livello di registro",

@@ -453,6 +453,8 @@
   "settings.language.de": "German",
   "settings.language.sv": "Swedish",
   "settings.language.da": "Danish",
+  "settings.language.mi": "Māori",
+  "settings.language.gsw": "Swiss German (Basel)",
   "settings.language.zh_cn": "Chinese (Simplified)",
   "settings.logging.directory": "Log directory",
   "settings.logging.level": "Log level",

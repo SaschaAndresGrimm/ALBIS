@@ -453,6 +453,8 @@
   "settings.language.de": "Tysk",
   "settings.language.sv": "Svensk",
   "settings.language.da": "Dansk",
+  "settings.language.mi": "Maori",
+  "settings.language.gsw": "Schweizertysk (Basel)",
   "settings.language.zh_cn": "Kinesisk (forenklet)",
   "settings.logging.directory": "Log bibliotek",
   "settings.logging.level": "Log niveau",

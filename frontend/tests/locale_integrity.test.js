@@ -43,7 +43,7 @@ describe("locale integrity", () => {
     const baseLocale = readLocale("en.json");
     const baseKeys = Object.keys(baseLocale).sort();
 
-    expect(baseKeys).toHaveLength(642);
+    expect(baseKeys).toHaveLength(644);
 
     localeFiles.forEach((fileName) => {
       const locale = readLocale(fileName);

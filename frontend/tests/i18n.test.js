@@ -59,6 +59,8 @@ describe("i18n runtime", () => {
       de: {},
       sv: {},
       da: {},
+      mi: {},
+      gsw: {},
     });
 
     expect(mod.normalizeLanguage("fr-FR")).toBe("fr");
@@ -70,6 +72,8 @@ describe("i18n runtime", () => {
     expect(mod.normalizeLanguage("de-DE")).toBe("de");
     expect(mod.normalizeLanguage("sv-SE")).toBe("sv");
     expect(mod.normalizeLanguage("da-DK")).toBe("da");
+    expect(mod.normalizeLanguage("mi-NZ")).toBe("mi");
+    expect(mod.normalizeLanguage("gsw-CH")).toBe("gsw");
   });
 
   it("uses fallback chain and warns once for missing keys", async () => {
@@ -162,6 +166,8 @@ describe("i18n runtime", () => {
       de: {},
       sv: {},
       da: {},
+      mi: {},
+      gsw: {},
     });
 
     await mod.initializeI18n();

@@ -453,6 +453,8 @@
   "settings.language.de": "德语",
   "settings.language.sv": "瑞典语",
   "settings.language.da": "丹麦语",
+  "settings.language.mi": "毛利语",
+  "settings.language.gsw": "瑞士德语（巴塞尔）",
   "settings.language.zh_cn": "中文（简体）",
   "settings.logging.directory": "日志目录",
   "settings.logging.level": "日志级别",
