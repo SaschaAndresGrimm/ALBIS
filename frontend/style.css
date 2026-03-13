@@ -40,8 +40,18 @@
   --motion-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
   --overlay-anchor-top: 62px;
   --overlay-gutter: 12px;
-  --font-ui: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans", "Yu Gothic UI",
-    "Microsoft YaHei UI", "Noto Sans CJK SC", "Noto Sans CJK JP", "Helvetica Neue", Arial, sans-serif;
+  --font-ui: "Avenir Next", "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "PingFang SC",
+    "Microsoft YaHei UI", "Noto Sans CJK JP", "Noto Sans CJK SC", "Helvetica Neue", Arial, sans-serif;
+}
+
+:root:lang(ja) {
+  --font-ui: "Hiragino Sans", "Yu Gothic UI", Meiryo, "Noto Sans CJK JP", "Avenir Next",
+    "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+:root:lang(zh-CN) {
+  --font-ui: "PingFang SC", "Microsoft YaHei UI", "Noto Sans CJK SC", "Hiragino Sans",
+    "Yu Gothic UI", "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 * {
