@@ -18,13 +18,28 @@ if (Test-Path $installDir) {
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 
 $installerLog = Join-Path $env:RUNNER_TEMP "albis-installer-smoke.log"
-& $resolvedInstaller "/VERYSILENT" "/SUPPRESSMSGBOXES" "/NORESTART" "/DIR=$installDir" "/LOG=$installerLog"
-if ($LASTEXITCODE -ne 0) {
-  throw "Installer exited with code $LASTEXITCODE"
+$installerArgs = @(
+  "/VERYSILENT"
+  "/SUPPRESSMSGBOXES"
+  "/NORESTART"
+  "/DIR=$installDir"
+  "/LOG=$installerLog"
+)
+$installerProcess = Start-Process -FilePath $resolvedInstaller -ArgumentList $installerArgs -Wait -PassThru
+if ($installerProcess.ExitCode -ne 0) {
+  if (Test-Path $installerLog) {
+    Write-Host "Installer log:"
+    Get-Content $installerLog
+  }
+  throw "Installer exited with code $($installerProcess.ExitCode)"
 }
 
 $exePath = Join-Path $installDir "ALBIS.exe"
 if (-not (Test-Path $exePath)) {
+  if (Test-Path $installerLog) {
+    Write-Host "Installer log:"
+    Get-Content $installerLog
+  }
   throw "Installed executable not found: $exePath"
 }
 
@@ -35,9 +50,13 @@ if (-not $uninstaller) {
   throw "Uninstaller not found in $installDir"
 }
 
-& $uninstaller.FullName "/VERYSILENT" "/SUPPRESSMSGBOXES" "/NORESTART"
-if ($LASTEXITCODE -ne 0) {
-  throw "Uninstaller exited with code $LASTEXITCODE"
+$uninstallProcess = Start-Process -FilePath $uninstaller.FullName -ArgumentList @(
+  "/VERYSILENT"
+  "/SUPPRESSMSGBOXES"
+  "/NORESTART"
+) -Wait -PassThru
+if ($uninstallProcess.ExitCode -ne 0) {
+  throw "Uninstaller exited with code $($uninstallProcess.ExitCode)"
 }
 
 for ($attempt = 0; $attempt -lt 20; $attempt++) {
