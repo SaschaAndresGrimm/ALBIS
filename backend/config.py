@@ -48,7 +48,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _PIXEL_LABEL_FORMATS = {"auto", "integer", "scientific"}
-_UI_LANGUAGES = {"en", "zh-CN", "ja", "fr", "es", "it", "pt", "rm"}
+_UI_LANGUAGES = {"en", "zh-CN", "ja", "fr", "es", "it", "pt", "rm", "de"}
 _ALLOWED_CONFIG_KEYS: dict[str, set[str]] = {
     section: set(values.keys()) for section, values in DEFAULT_CONFIG.items()
 }
@@ -94,6 +94,8 @@ def _normalize_ui_language(value: Any) -> str:
         return "pt"
     if lower.startswith("rm"):
         return "rm"
+    if lower.startswith("de"):
+        return "de"
     if lower.startswith("en"):
         return "en"
     return "en"

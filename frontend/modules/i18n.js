@@ -2,7 +2,7 @@
  * Lightweight runtime i18n helper for ALBIS frontend.
  */
 
-const SUPPORTED_LANGUAGES = ["en", "zh-CN", "ja", "fr", "es", "it", "pt", "rm"];
+const SUPPORTED_LANGUAGES = ["en", "zh-CN", "ja", "fr", "es", "it", "pt", "rm", "de"];
 const FALLBACK_LANGUAGE = "en";
 const STORAGE_KEY = "albis.ui.language";
 
@@ -46,6 +46,7 @@ export function normalizeLanguage(language) {
   if (lower.startsWith("it")) return "it";
   if (lower.startsWith("pt")) return "pt";
   if (lower.startsWith("rm")) return "rm";
+  if (lower.startsWith("de")) return "de";
   if (lower.startsWith("en")) return "en";
   return FALLBACK_LANGUAGE;
 }
