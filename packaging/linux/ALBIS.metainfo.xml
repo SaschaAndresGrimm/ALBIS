@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>ALBIS</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>ALBIS</name>
+  <summary>Local-first diffraction image viewer for DECTRIS detectors</summary>
+  <developer_name>Sascha Andres Grimm</developer_name>
+  <description>
+    <p>ALBIS is an ALBULA-style, browser-based desktop viewer for large HDF5 stacks and common DECTRIS detector image formats.</p>
+    <p>It supports local files, live detector streams, ROI tools, overlays, and workstation-focused review workflows for beamline and lab use.</p>
+  </description>
+  <launchable type="desktop-id">ALBIS.desktop</launchable>
+  <provides>
+    <binary>ALBIS</binary>
+  </provides>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/SaschaAndresGrimm/ALBIS/main/frontend/ressources/albis.png</image>
+      <caption>ALBIS viewing a detector frame with analysis controls.</caption>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/SaschaAndresGrimm/ALBIS</url>
+  <url type="bugtracker">https://github.com/SaschaAndresGrimm/ALBIS/issues</url>
+  <url type="vcs-browser">https://github.com/SaschaAndresGrimm/ALBIS</url>
+  <content_rating type="oars-1.1"/>
+</component>

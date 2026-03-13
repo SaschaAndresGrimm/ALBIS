@@ -114,9 +114,11 @@ jobs:
 
       - name: Build Linux AppImage installer bundle
         run: |
-          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1)"
-          if [ -z "$appimage" ]; then
-            echo "No AppImage produced in dist/"
+          VERSION_INFO="$(python scripts/version_info.py --shell)"
+          eval "$VERSION_INFO"
+          appimage="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
+          if [ ! -f "$appimage" ]; then
+            echo "No AppImage produced at $appimage"
             exit 1
           fi
           base="$(basename "$appimage" .AppImage)"
@@ -138,13 +140,15 @@ jobs:
       - name: Verify package integrity
         run: |
           set -euo pipefail
-          tarball="$(ls dist/ALBIS-${{ matrix.target }}-*.tar.gz | grep -v 'appimage-bundle' | head -n1 || true)"
-          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1 || true)"
-          bundle="$(ls dist/ALBIS-${{ matrix.target }}-*-appimage-bundle.tar.gz | head -n1 || true)"
+          VERSION_INFO="$(python scripts/version_info.py --shell)"
+          eval "$VERSION_INFO"
+          tarball="dist/ALBIS-${TARGET}-${TAG}.tar.gz"
+          appimage="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
+          bundle="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}-appimage-bundle.tar.gz"
 
-          [ -n "$tarball" ] || { echo "Missing Linux tarball"; exit 1; }
-          [ -n "$appimage" ] || { echo "Missing Linux AppImage"; exit 1; }
-          [ -n "$bundle" ] || { echo "Missing Linux AppImage bundle"; exit 1; }
+          [ -f "$tarball" ] || { echo "Missing Linux tarball"; exit 1; }
+          [ -f "$appimage" ] || { echo "Missing Linux AppImage"; exit 1; }
+          [ -f "$bundle" ] || { echo "Missing Linux AppImage bundle"; exit 1; }
 
           tar -tzf "$tarball" >/dev/null
           tar -tzf "$bundle" >/dev/null
@@ -154,15 +158,17 @@ jobs:
       - name: Sign Linux artifacts (optional)
         run: |
           set -euo pipefail
-          tarball="$(ls dist/ALBIS-${{ matrix.target }}-*.tar.gz | grep -v 'appimage-bundle' | head -n1 || true)"
-          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1 || true)"
-          bundle="$(ls dist/ALBIS-${{ matrix.target }}-*-appimage-bundle.tar.gz | head -n1 || true)"
+          VERSION_INFO="$(python scripts/version_info.py --shell)"
+          eval "$VERSION_INFO"
+          tarball="dist/ALBIS-${TARGET}-${TAG}.tar.gz"
+          appimage="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
+          bundle="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}-appimage-bundle.tar.gz"
           ./scripts/sign_linux.sh "$tarball" "$appimage" "$bundle"
 
       - name: Generate checksums
         run: |
           cd dist
-          find . -maxdepth 1 -type f \( -name "ALBIS-${{ matrix.target }}-*" -o -name "install_linux_appimage.sh" -o -name "uninstall_linux.sh" \) \
+          find . -maxdepth 1 -type f \( -name "ALBIS-${{ matrix.target }}-*.tar.gz" -o -name "ALBIS-*.AppImage" -o -name "ALBIS-*-appimage-bundle.tar.gz" -o -name "install_linux_appimage.sh" -o -name "uninstall_linux.sh" \) \
             -exec sha256sum {} + | sort > SHA256SUMS.txt
 
       - name: Upload build artifacts
@@ -171,8 +177,11 @@ jobs:
           name: artifacts-${{ matrix.target }}-${{ github.run_id }}
           path: |
             dist/ALBIS-${{ matrix.target }}-*.tar.gz
-            dist/ALBIS-${{ matrix.target }}-*.AppImage
-            dist/ALBIS-${{ matrix.target }}-*.sig
+            dist/ALBIS-${{ matrix.target }}-*.tar.gz.sig
+            dist/ALBIS-*.AppImage
+            dist/ALBIS-*.AppImage.sig
+            dist/ALBIS-*-appimage-bundle.tar.gz
+            dist/ALBIS-*-appimage-bundle.tar.gz.sig
             dist/install_linux_appimage.sh
             dist/uninstall_linux.sh
             dist/SHA256SUMS.txt

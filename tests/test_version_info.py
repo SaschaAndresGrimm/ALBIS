@@ -28,6 +28,7 @@ def test_version_info_json_includes_target_fields() -> None:
     assert payload["target_os"]
     assert payload["target_arch"]
     assert payload["target"] == f"{payload['target_os']}-{payload['target_arch']}"
+    assert payload["appimage_arch"]
 
 
 def test_version_info_target_can_be_overridden_via_env() -> None:
@@ -38,9 +39,18 @@ def test_version_info_target_can_be_overridden_via_env() -> None:
     assert payload["target_os"] == "macos"
     assert payload["target_arch"] == "x64"
     assert payload["target"] == "macos-x64"
+    assert payload["appimage_arch"] == "x86_64"
 
 
 def test_version_info_shell_output_contains_target_lines() -> None:
     lines = _run_version_info("--shell").splitlines()
     prefixes = {line.split("=", 1)[0] for line in lines if "=" in line}
-    assert {"VERSION", "COMMIT", "TAG", "TARGET_OS", "TARGET_ARCH", "TARGET"}.issubset(prefixes)
+    assert {
+        "VERSION",
+        "COMMIT",
+        "TAG",
+        "TARGET_OS",
+        "TARGET_ARCH",
+        "TARGET",
+        "APPIMAGE_ARCH",
+    }.issubset(prefixes)

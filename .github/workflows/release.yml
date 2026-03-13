@@ -161,9 +161,11 @@ jobs:
 
       - name: Build Linux AppImage installer bundle
         run: |
-          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1)"
-          if [ -z "$appimage" ]; then
-            echo "No AppImage produced in dist/"
+          VERSION_INFO="$(python scripts/version_info.py --shell)"
+          eval "$VERSION_INFO"
+          appimage="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
+          if [ ! -f "$appimage" ]; then
+            echo "No AppImage produced at $appimage"
             exit 1
           fi
           base="$(basename "$appimage" .AppImage)"
@@ -179,13 +181,15 @@ jobs:
       - name: Verify package integrity
         run: |
           set -euo pipefail
-          tarball="$(ls dist/ALBIS-${{ matrix.target }}-*.tar.gz | grep -v 'appimage-bundle' | head -n1 || true)"
-          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1 || true)"
-          bundle="$(ls dist/ALBIS-${{ matrix.target }}-*-appimage-bundle.tar.gz | head -n1 || true)"
+          VERSION_INFO="$(python scripts/version_info.py --shell)"
+          eval "$VERSION_INFO"
+          tarball="dist/ALBIS-${TARGET}-${TAG}.tar.gz"
+          appimage="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
+          bundle="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}-appimage-bundle.tar.gz"
 
-          [ -n "$tarball" ] || { echo "Missing Linux tarball"; exit 1; }
-          [ -n "$appimage" ] || { echo "Missing Linux AppImage"; exit 1; }
-          [ -n "$bundle" ] || { echo "Missing Linux AppImage bundle"; exit 1; }
+          [ -f "$tarball" ] || { echo "Missing Linux tarball"; exit 1; }
+          [ -f "$appimage" ] || { echo "Missing Linux AppImage"; exit 1; }
+          [ -f "$bundle" ] || { echo "Missing Linux AppImage bundle"; exit 1; }
 
           tar -tzf "$tarball" >/dev/null
           tar -tzf "$bundle" >/dev/null
@@ -198,9 +202,11 @@ jobs:
       - name: Sign Linux artifacts
         run: |
           set -euo pipefail
-          tarball="$(ls dist/ALBIS-${{ matrix.target }}-*.tar.gz | grep -v 'appimage-bundle' | head -n1 || true)"
-          appimage="$(ls dist/ALBIS-${{ matrix.target }}-*.AppImage | head -n1 || true)"
-          bundle="$(ls dist/ALBIS-${{ matrix.target }}-*-appimage-bundle.tar.gz | head -n1 || true)"
+          VERSION_INFO="$(python scripts/version_info.py --shell)"
+          eval "$VERSION_INFO"
+          tarball="dist/ALBIS-${TARGET}-${TAG}.tar.gz"
+          appimage="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
+          bundle="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}-appimage-bundle.tar.gz"
           ./scripts/sign_linux.sh "$tarball" "$appimage" "$bundle"
 
       - name: Upload release assets
@@ -209,8 +215,11 @@ jobs:
           name: release-assets-${{ matrix.target }}
           path: |
             dist/ALBIS-${{ matrix.target }}-*.tar.gz
-            dist/ALBIS-${{ matrix.target }}-*.AppImage
-            dist/ALBIS-${{ matrix.target }}-*.sig
+            dist/ALBIS-${{ matrix.target }}-*.tar.gz.sig
+            dist/ALBIS-*.AppImage
+            dist/ALBIS-*.AppImage.sig
+            dist/ALBIS-*-appimage-bundle.tar.gz
+            dist/ALBIS-*-appimage-bundle.tar.gz.sig
 
   build_windows:
     name: Build Windows Artifact (${{ matrix.target }})
@@ -455,9 +464,9 @@ jobs:
           set -euo pipefail
           ls -1 release-dist
 
-          linux_tarball="$(ls release-dist/ALBIS-linux-x64-v*-*.tar.gz | grep -v 'appimage-bundle' | head -n1 || true)"
-          linux_bundle="$(ls release-dist/ALBIS-linux-x64-v*-*-appimage-bundle.tar.gz | head -n1 || true)"
-          linux_appimage="$(ls release-dist/ALBIS-linux-x64-v*-*.AppImage | head -n1 || true)"
+          linux_tarball="$(find release-dist -maxdepth 1 -type f -name 'ALBIS-linux-x64-v*-*.tar.gz' ! -name '*appimage-bundle*' | sort | head -n1 || true)"
+          linux_bundle="$(find release-dist -maxdepth 1 -type f -name 'ALBIS-*-x86_64-appimage-bundle.tar.gz' | sort | head -n1 || true)"
+          linux_appimage="$(find release-dist -maxdepth 1 -type f -name 'ALBIS-*-x86_64.AppImage' | sort | head -n1 || true)"
           windows_zip="$(ls release-dist/ALBIS-windows-x64-v*-*.zip | head -n1 || true)"
           windows_setup="$(ls release-dist/ALBIS-Setup-windows-x64-v*-*.exe | head -n1 || true)"
           mac_arm_zip="$(ls release-dist/ALBIS-macos-arm64-v*-*.zip | head -n1 || true)"

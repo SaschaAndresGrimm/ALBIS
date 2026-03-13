@@ -20,20 +20,24 @@ fi
 
 APPDIR="dist/AppDir"
 rm -rf "$APPDIR"
-mkdir -p "$APPDIR/usr/bin"
+mkdir -p \
+  "$APPDIR/usr/bin" \
+  "$APPDIR/usr/share/applications" \
+  "$APPDIR/usr/share/metainfo"
 
 # Include the full PyInstaller one-folder payload (binary + _internal runtime).
 cp -a "dist/ALBIS/." "$APPDIR/usr/bin/"
 
-cat > "$APPDIR/ALBIS.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=ALBIS
-Exec=ALBIS
-Icon=ALBIS
-Categories=Science;
-Terminal=false
-EOF
+for metadata in "packaging/linux/ALBIS.desktop" "packaging/linux/ALBIS.metainfo.xml"; do
+  if [ ! -f "$metadata" ]; then
+    echo "Missing packaging metadata file: $metadata"
+    exit 1
+  fi
+done
+
+cp "packaging/linux/ALBIS.desktop" "$APPDIR/ALBIS.desktop"
+cp "packaging/linux/ALBIS.desktop" "$APPDIR/usr/share/applications/ALBIS.desktop"
+cp "packaging/linux/ALBIS.metainfo.xml" "$APPDIR/usr/share/metainfo/ALBIS.metainfo.xml"
 
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
@@ -43,14 +47,23 @@ EOF
 chmod +x "$APPDIR/AppRun"
 
 if [ -f "albis_assets/icon_512x512.png" ]; then
-  cp "albis_assets/icon_512x512.png" "$APPDIR/ALBIS.png"
+  ICON_SRC="albis_assets/icon_512x512.png"
+  ICON_SIZE="512x512"
 elif [ -f "albis_assets/icon_256x256.png" ]; then
-  cp "albis_assets/icon_256x256.png" "$APPDIR/ALBIS.png"
+  ICON_SRC="albis_assets/icon_256x256.png"
+  ICON_SIZE="256x256"
 elif [ -f "frontend/ressources/icon.png" ]; then
-  cp "frontend/ressources/icon.png" "$APPDIR/ALBIS.png"
+  ICON_SRC="frontend/ressources/icon.png"
+  ICON_SIZE="1024x1024"
 fi
 
-OUT="dist/ALBIS-${TARGET}-${TAG}.AppImage"
+if [ -n "${ICON_SRC:-}" ]; then
+  mkdir -p "$APPDIR/usr/share/icons/hicolor/${ICON_SIZE}/apps"
+  cp "$ICON_SRC" "$APPDIR/ALBIS.png"
+  cp "$ICON_SRC" "$APPDIR/usr/share/icons/hicolor/${ICON_SIZE}/apps/ALBIS.png"
+fi
+
+OUT="dist/ALBIS-${VERSION}-${APPIMAGE_ARCH}.AppImage"
 rm -f "$OUT"
 appimagetool "$APPDIR" "$OUT"
 echo "Output: $OUT"

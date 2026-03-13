@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ALBIS
+Comment=Local-first diffraction image viewer for DECTRIS detectors
+Exec=ALBIS
+Icon=ALBIS
+Categories=Graphics;Science;
+Keywords=diffraction;detector;image;viewer;HDF5;DECTRIS;
+Terminal=false
+StartupNotify=false

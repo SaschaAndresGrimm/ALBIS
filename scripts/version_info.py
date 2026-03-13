@@ -62,6 +62,18 @@ def _normalize_target_arch(raw: str) -> str:
     return cleaned or "unknown"
 
 
+def _appimage_arch_for_target_arch(target_arch: str) -> str:
+    if target_arch == "x64":
+        return "x86_64"
+    if target_arch == "arm64":
+        return "aarch64"
+    if target_arch == "x86":
+        return "i686"
+    if target_arch in {"armv6", "armv7"}:
+        return "armhf"
+    return target_arch
+
+
 def detect_target() -> tuple[str, str, str]:
     raw_os = os.environ.get("ALBIS_TARGET_OS", "") or platform.system()
     raw_arch = os.environ.get("ALBIS_TARGET_ARCH", "") or platform.machine()
@@ -83,6 +95,7 @@ def main() -> int:
     commit = read_commit()
     tag = f"v{version}-{commit}"
     target_os, target_arch, target = detect_target()
+    appimage_arch = _appimage_arch_for_target_arch(target_arch)
     payload = {
         "version": version,
         "commit": commit,
@@ -90,6 +103,7 @@ def main() -> int:
         "target_os": target_os,
         "target_arch": target_arch,
         "target": target,
+        "appimage_arch": appimage_arch,
     }
 
     if args.json:
@@ -103,6 +117,7 @@ def main() -> int:
         print(f"TARGET_OS={target_os}")
         print(f"TARGET_ARCH={target_arch}")
         print(f"TARGET={target}")
+        print(f"APPIMAGE_ARCH={appimage_arch}")
         return 0
 
     print(tag)

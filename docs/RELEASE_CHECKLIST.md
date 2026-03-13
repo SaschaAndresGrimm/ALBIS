@@ -34,8 +34,8 @@ Use this to verify packaging and checks before tagging:
 3. Download workflow artifacts and inspect:
    - Linux x64 contains:
      - `ALBIS-linux-x64-v<version>-<commit>.tar.gz`
-     - `ALBIS-linux-x64-v<version>-<commit>.AppImage`
-     - `ALBIS-linux-x64-v<version>-<commit>-appimage-bundle.tar.gz`
+     - `ALBIS-<version>-x86_64.AppImage`
+     - `ALBIS-<version>-x86_64-appimage-bundle.tar.gz`
      - when `LINUX_GPG_PRIVATE_KEY_B64` is configured: matching `.sig` files for each Linux artifact
    - Windows x64 contains:
      - `ALBIS-windows-x64-v<version>-<commit>.zip`
@@ -46,7 +46,7 @@ Use this to verify packaging and checks before tagging:
    - macOS x64 contains:
      - `ALBIS-macos-x64-v<version>-<commit>.zip`
      - `ALBIS-macos-x64-v<version>-<commit>.dmg`
-   - Bundle naming includes `v<version>-<commit>`.
+   - Linux tarballs include `v<version>-<commit>`; AppImage assets use the standard `ALBIS-<version>-x86_64*.AppImage` naming expected by AppImageHub.
 4. Confirm install-path smoke checks passed:
    - Windows installer silent install -> launch -> uninstall
    - macOS mounted DMG app launch smoke
@@ -80,7 +80,7 @@ Expected result:
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
 - Signing/notarization secrets are present for Linux, Windows, and macOS before tagging.
 - GitHub Release is published with:
-  - Linux x64: tarball + `.AppImage` + appimage bundle
+  - Linux x64: `ALBIS-linux-x64-v<version>-<commit>.tar.gz` + `ALBIS-<version>-x86_64.AppImage` + `ALBIS-<version>-x86_64-appimage-bundle.tar.gz`
   - Linux x64 signatures (`.sig`) when Linux GPG signing secrets are configured
   - Windows x64: setup `.exe` + portable `.zip`
   - macOS arm64 and x64: `.dmg` + portable `.zip`
@@ -100,3 +100,9 @@ Expected result:
   - uninstall
   - note any Gatekeeper/SmartScreen/signature prompts
 - Move next development cycle notes into `Unreleased` in `CHANGELOG.md`.
+
+## 6. Refresh AppImageHub Listing
+
+- For the first AppImage release, or when AppStream metadata changes materially, open a PR against `AppImage/appimage.github.io`.
+- Add or update a file under `data/` that contains only `https://github.com/SaschaAndresGrimm/ALBIS`.
+- Wait for the AppImageHub catalog checks to pass before merging.

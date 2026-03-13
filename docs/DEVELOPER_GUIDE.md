@@ -131,8 +131,10 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 
 Example output:
 - `ALBIS-linux-<arch>-v<version>-<commit>.tar.gz`
-- `ALBIS-linux-<arch>-v<version>-<commit>.AppImage`
+- `ALBIS-<version>-<appimage-arch>.AppImage`
 - `install_linux_appimage.sh` and `uninstall_linux.sh` (kept in `scripts/`; release workflow bundles them with the AppImage)
+
+AppImage assets use AppImage-standard architecture tags such as `x86_64`.
 
 Optional build env controls:
 - `ALBIS_BUILD_ISOLATED=0` uses your current Python environment instead of the build venv.
@@ -142,14 +144,14 @@ Optional build env controls:
 `scripts/package_linux_appimage.sh` requires `appimagetool` on `PATH`.
 
 Public GitHub Releases publish a Linux bundle:
-- `ALBIS-linux-<arch>-v<version>-<commit>-appimage-bundle.tar.gz`
+- `ALBIS-<version>-<appimage-arch>-appimage-bundle.tar.gz`
   - includes `.AppImage`, `install_linux_appimage.sh`, and `uninstall_linux.sh`
-  - release also includes standalone `ALBIS-linux-<arch>-v<version>-<commit>.AppImage` and `.tar.gz` assets
+  - release also includes standalone `ALBIS-<version>-<appimage-arch>.AppImage` and `ALBIS-linux-<arch>-v<version>-<commit>.tar.gz`
 
 Recommended local desktop integration (user scope, AppImage):
 
 ```bash
-./scripts/install_linux_appimage.sh dist/ALBIS-linux-<arch>-v<version>-<commit>.AppImage
+./scripts/install_linux_appimage.sh dist/ALBIS-<version>-<appimage-arch>.AppImage
 ```
 
 Manual tarball integration (user scope):
@@ -212,7 +214,7 @@ Installer defaults:
 Public GitHub Releases publish architecture-specific install + portable assets:
 - macOS: `ALBIS-macos-arm64-*` and `ALBIS-macos-x64-*` (`.dmg` + `.zip`)
 - Windows: `ALBIS-Setup-windows-x64-*` + `ALBIS-windows-x64-*.zip`
-- Linux: `ALBIS-linux-x64-*` (`.tar.gz` + `.AppImage` + appimage bundle tarball)
+- Linux: `ALBIS-linux-x64-*.tar.gz`, `ALBIS-*-x86_64.AppImage`, and `ALBIS-*-x86_64-appimage-bundle.tar.gz`
 
 Public release inputs are pinned:
 - runtime dependencies in `backend/requirements.txt`

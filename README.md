@@ -45,7 +45,7 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 - **macOS Apple Silicon (arm64)**: `ALBIS-macos-arm64-v<version>-<commit>.dmg` (installer) or `.zip` (portable).
 - **macOS Intel (x64)**: `ALBIS-macos-x64-v<version>-<commit>.dmg` (installer) or `.zip` (portable).
 - **Windows x64**: `ALBIS-Setup-windows-x64-v<version>-<commit>.exe` (installer) or `ALBIS-windows-x64-v<version>-<commit>.zip` (portable).
-- **Linux x64**: `ALBIS-linux-x64-v<version>-<commit>-appimage-bundle.tar.gz` (AppImage + install/uninstall scripts), plus standalone `.AppImage` and `.tar.gz` artifacts.
+- **Linux x64**: `ALBIS-<version>-x86_64.AppImage`, `ALBIS-<version>-x86_64-appimage-bundle.tar.gz` (AppImage + install/uninstall scripts), and `ALBIS-linux-x64-v<version>-<commit>.tar.gz`.
 
 ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 
