@@ -1,22 +1,22 @@
 term_id,domain,english_term,definition,do_not_translate,de,fr,es,it,pt,rm,sv,da,mi,gsw,ja,zh-CN,notes
-diffraction_peak,analysis,Diffraction peak,Localized intensity maximum associated with a diffraction spot,false,Beugungspeak,,,,,,,diffraktionstopp,,diffraktionstop,,,Review together with reflection and peak finding terminology.
-reflection,analysis,Reflection,Diffraction spot or indexed reflection represented in overlays and metadata,false,Reflexion,,,,,,,reflexion,,refleksion,,,Keep consistent with beamline and crystallography usage.
-peak_finding,analysis,Peak finding,Detection workflow that identifies candidate diffraction peaks,false,Peaksuche,,,,,,,toppsökning,,peaksøgning,,,Must stay distinct from generic search wording.
-resolution_ring,analysis,Resolution ring,Overlay ring corresponding to a constant d-spacing on the detector,false,Auflösungsring,,,,,,,upplösningsring,,opløsningsring,,,Prefer terminology used by diffraction users in each language.
-beam_center,geometry,Beam center,Detector pixel position of the direct beam center,false,Strahlmitte,,,,,,,strålens mitt,,strålecenter,,,Keep units in px.
-detector_distance,geometry,Detector distance,Sample-to-detector distance used for geometry and ring calculations,false,Detektorabstand,,,,,,,detektoravstånd,,detektorafstand,,,Keep units in mm.
-photon_energy,geometry,Photon energy,Incident beam photon energy used for wavelength and ring calculations,false,Photonenenergie,,,,,,,fotonenergi,,fotonenergi,,,Keep units in eV.
-pixel_size,geometry,Pixel size,Detector pixel pitch used for geometry calculations,false,Pixelgröße,,,,,,,pixelstorlek,,pixelstørrelse,,,Keep units in um.
-wavelength,geometry,Wavelength,Beam wavelength used in diffraction geometry,false,Wellenlänge,,,,,,,våglängd,,bølgelængde,,,Keep Angstrom notation.
-threshold_channel,detector,Threshold channel,Detector threshold or energy channel selection for multi-threshold data,false,Schwellenwertkanal,,,,,,,detektortröskelkanal,,detektortærskelkanal,,,Should not sound like a generic UI channel selector.
-normalization,analysis,Normalization,Scaling or reference correction applied before series reduction,false,Normalisierung,,,,,,,normalisering,,normalisering,,,Keep distinct from standardization/calibration if those mean something else locally.
-mean,statistics,Mean,Arithmetic average of pixel or frame values,false,Mittelwert,,,,,,,medelvärde,,middelværdi,,,Statistical term.
-median,statistics,Median,Middle value of an ordered numeric distribution,false,Median,,,,,,,median,,median,,,Statistical term; review carefully in every locale.
-sum,statistics,Sum,Arithmetic total of pixel or frame values,false,Summe,,,,,,,summa,,sum,,,Statistical term.
-roi,analysis,ROI,Region of interest used for measurements and plots,true,ROI,,,,,,,ROI,,ROI,,,Keep acronym if that is the domain norm for the locale.
-annulus,analysis,Annulus,Ring-shaped region of interest bounded by inner and outer radius,false,Ring,,,,,,,ring,,ring,,,Coordinate with ROI wording.
-frame,data,Frame,Single detector image within a stack or live stream,false,Frame,,,,,,,bildruta,,ramme,,,Keep distinct from generic picture or video frame when necessary.
-series,data,Series,Ordered set of frames processed as one reduction job,false,Serie,,,,,,,serie,,serie,,,Should align with series operations UI.
-mask,detector,Mask,Per-pixel detector mask hiding invalid or excluded pixels,false,Maske,,,,,,,mask,,maske,,,Distinguish from overlay or selection mask if needed.
-saturated_pixel,detector,Saturated pixel,Pixel whose intensity has reached the datatype or detector maximum,false,gesättigtes Pixel,,,,,,,mättad pixel,,mættet pixel,,,Must stay distinct from defective pixel.
-defective_pixel,detector,Defective pixel,Pixel known to be invalid because of detector defects,false,defektes Pixel,,,,,,,defekt pixel,,defekt pixel,,,Must stay distinct from saturated or gap pixels.
+diffraction_peak,analysis,Diffraction peak,Localized intensity maximum associated with a diffraction spot,false,Beugungspeak,,,,,,,diffraktionstopp,,diffraktionstop,,Beugungspeak,,Review together with reflection and peak finding terminology.
+reflection,analysis,Reflection,Diffraction spot or indexed reflection represented in overlays and metadata,false,Reflexion,,,,,,,reflexion,,refleksion,,Reflexion,,Keep consistent with beamline and crystallography usage.
+peak_finding,analysis,Peak finding,Detection workflow that identifies candidate diffraction peaks,false,Peaksuche,,,,,,,toppsökning,,peaksøgning,,Peaksuche,,Must stay distinct from generic search wording.
+resolution_ring,analysis,Resolution ring,Overlay ring corresponding to a constant d-spacing on the detector,false,Auflösungsring,,,,,,,upplösningsring,,opløsningsring,,Uflösigsring,,Prefer terminology used by diffraction users in each language.
+beam_center,geometry,Beam center,Detector pixel position of the direct beam center,false,Strahlmitte,,,,,,,strålens mitt,,strålecenter,,Strahlmitte,,Keep units in px.
+detector_distance,geometry,Detector distance,Sample-to-detector distance used for geometry and ring calculations,false,Detektorabstand,,,,,,,detektoravstånd,,detektorafstand,,Detektorabstand,,Keep units in mm.
+photon_energy,geometry,Photon energy,Incident beam photon energy used for wavelength and ring calculations,false,Photonenenergie,,,,,,,fotonenergi,,fotonenergi,,Photone-Energie,,Keep units in eV.
+pixel_size,geometry,Pixel size,Detector pixel pitch used for geometry calculations,false,Pixelgröße,,,,,,,pixelstorlek,,pixelstørrelse,,Pixelgröössi,,Keep units in um.
+wavelength,geometry,Wavelength,Beam wavelength used in diffraction geometry,false,Wellenlänge,,,,,,,våglängd,,bølgelængde,,Wellenlängi,,Keep Angstrom notation.
+threshold_channel,detector,Threshold channel,Detector threshold or energy channel selection for multi-threshold data,false,Schwellenwertkanal,,,,,,,detektortröskelkanal,,detektortærskelkanal,,Schwellenwertkanal,,Should not sound like a generic UI channel selector.
+normalization,analysis,Normalization,Scaling or reference correction applied before series reduction,false,Normalisierung,,,,,,,normalisering,,normalisering,,Normalisierig,,Keep distinct from standardization/calibration if those mean something else locally.
+mean,statistics,Mean,Arithmetic average of pixel or frame values,false,Mittelwert,,,,,,,medelvärde,,middelværdi,,Mittelwärt,,Statistical term.
+median,statistics,Median,Middle value of an ordered numeric distribution,false,Median,,,,,,,median,,median,,Median,,Statistical term; review carefully in every locale.
+sum,statistics,Sum,Arithmetic total of pixel or frame values,false,Summe,,,,,,,summa,,sum,,Summ,,Statistical term.
+roi,analysis,ROI,Region of interest used for measurements and plots,true,ROI,,,,,,,ROI,,ROI,,ROI,,Keep acronym if that is the domain norm for the locale.
+annulus,analysis,Annulus,Ring-shaped region of interest bounded by inner and outer radius,false,Ring,,,,,,,ring,,ring,,Ring,,Coordinate with ROI wording.
+frame,data,Frame,Single detector image within a stack or live stream,false,Frame,,,,,,,bildruta,,ramme,,Frame,,Keep distinct from generic picture or video frame when necessary.
+series,data,Series,Ordered set of frames processed as one reduction job,false,Serie,,,,,,,serie,,serie,,Serie,,Should align with series operations UI.
+mask,detector,Mask,Per-pixel detector mask hiding invalid or excluded pixels,false,Maske,,,,,,,mask,,maske,,Maske,,Distinguish from overlay or selection mask if needed.
+saturated_pixel,detector,Saturated pixel,Pixel whose intensity has reached the datatype or detector maximum,false,gesättigtes Pixel,,,,,,,mättad pixel,,mættet pixel,,gsättigts Pixel,,Must stay distinct from defective pixel.
+defective_pixel,detector,Defective pixel,Pixel known to be invalid because of detector defects,false,defektes Pixel,,,,,,,defekt pixel,,defekt pixel,,defekts Pixel,,Must stay distinct from saturated or gap pixels.
