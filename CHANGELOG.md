@@ -7,6 +7,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.16] - 2026-03-13
+
+### Added
+
+- Multilingual UI support across key viewer surfaces with `en`, `zh-CN`, and `ja` locales.
+- Expanded localization for menus, tooltips, inspector/data panels, playback dropdowns, ROI overlays, and cursor readouts.
+
+### Fixed
+
+- Language switching now refreshes dynamic ROI labels immediately (no follow-up click required).
+- Locale test fixture path resolution is now CI-safe across environments.
+- Locale-specific CJK font fallback order now prefers Japanese glyph forms under `ja`.
+
+### Notes
+
+- This release is called: "Konnichiwa, Ni Hao, and welcome to ALBIS."
+- This release is called: "One viewer, three languages, zero passport control."
+
 ## [0.8.15] - 2026-03-12
 
 ### Fixed
@@ -130,7 +148,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.15...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.16...HEAD
+[0.8.16]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.16
 [0.8.15]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.15
 [0.8.14]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.14
 [0.8.13]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.13
