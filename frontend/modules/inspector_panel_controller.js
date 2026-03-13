@@ -43,6 +43,19 @@ export function createInspectorPanelController({
   let inspectorSelectedRow = null;
   let inspectorSearchRequestId = 0;
 
+  function normalizeInspectorType(type) {
+    return String(type || "").trim().toLowerCase();
+  }
+
+  function localizeInspectorType(type) {
+    const normalized = normalizeInspectorType(type);
+    if (normalized === "group") return t("inspector.type.group");
+    if (normalized === "dataset") return t("inspector.type.dataset");
+    if (normalized === "link") return t("inspector.type.link");
+    if (!normalized) return t("inspector.node.default_type");
+    return String(type);
+  }
+
   function setImageHeaderSectionState(tone, message) {
     setSectionBadgeState(imageHeaderStateEl, tone, message);
   }
@@ -60,12 +73,12 @@ export function createInspectorPanelController({
     imageHeaderLoading.innerHTML = "";
   }
 
-  function setInspectorMessage(message) {
+  function setInspectorMessage(message, tone = "empty") {
     if (!inspectorTree) return;
     inspectorSelectedRow = null;
     inspectorTree.innerHTML = `<div class="inspector-empty">${message}</div>`;
     resetInspectorDetails();
-    setSectionBadgeState(inspectorStateEl, /fail|error/i.test(message) ? "warning" : "empty", message);
+    setSectionBadgeState(inspectorStateEl, tone, message);
     if (inspectorResults) {
       inspectorResults.innerHTML = "";
       inspectorResults.classList.add("is-hidden");
@@ -144,10 +157,10 @@ export function createInspectorPanelController({
     if (showInspector) {
       clearImageHeader();
       if (!inspectorTree || !inspectorTree.children.length) {
-        setInspectorMessage(t("inspector.select_hdf5"));
+        setInspectorMessage(t("inspector.select_hdf5"), "empty");
       }
     } else {
-      if (inspectorSection) setInspectorMessage(t("inspector.hdf5_only"));
+      if (inspectorSection) setInspectorMessage(t("inspector.hdf5_only"), "empty");
       if (showHeader) {
         loadImageHeader(target);
       } else {
@@ -191,7 +204,8 @@ export function createInspectorPanelController({
       row.dataset.type = item.type || "";
       row.tabIndex = 0;
       row.setAttribute("role", "button");
-      if (item.type === "link" && item.target) {
+      const itemType = normalizeInspectorType(item.type);
+      if (itemType === "link" && item.target) {
         row.dataset.target = item.target;
       }
       const name = document.createElement("span");
@@ -200,12 +214,12 @@ export function createInspectorPanelController({
       const meta = document.createElement("span");
       meta.className = "inspector-result-meta";
       let metaText = "";
-      if (item.type === "dataset" && item.shape && item.dtype) {
+      if (itemType === "dataset" && item.shape && item.dtype) {
         metaText = `${item.shape.join("×")} ${item.dtype}`;
-      } else if (item.type === "link" && item.target) {
+      } else if (itemType === "link" && item.target) {
         metaText = item.target;
       } else {
-        metaText = item.type || "";
+        metaText = localizeInspectorType(item.type);
       }
       meta.textContent = metaText;
       const resultName = String(name.textContent || "").trim();
@@ -282,7 +296,7 @@ export function createInspectorPanelController({
     table.className = "inspector-table";
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
-    ["Index", "Value"].forEach((label) => {
+    [t("inspector.table.index"), t("inspector.table.value")].forEach((label) => {
       const th = document.createElement("th");
       th.textContent = label;
       headRow.appendChild(th);
@@ -393,7 +407,8 @@ export function createInspectorPanelController({
     li.className = "inspector-node";
     li.dataset.path = node.path || "";
     li.dataset.type = node.type || "";
-    if (node.type === "link" && node.target) {
+    const nodeType = normalizeInspectorType(node.type);
+    if (nodeType === "link" && node.target) {
       li.dataset.target = node.target;
     }
     const row = document.createElement("div");
@@ -401,7 +416,7 @@ export function createInspectorPanelController({
 
     const toggle = document.createElement("button");
     toggle.className = "inspector-toggle";
-    if (node.type === "group" && node.hasChildren) {
+    if (nodeType === "group" && node.hasChildren) {
       toggle.textContent = "▸";
     } else {
       toggle.textContent = "";
@@ -413,14 +428,12 @@ export function createInspectorPanelController({
 
     const meta = document.createElement("span");
     meta.className = "inspector-meta";
-    if (node.type === "dataset" && node.shape && node.dtype) {
+    if (nodeType === "dataset" && node.shape && node.dtype) {
       meta.textContent = `${node.shape.join("×")} ${node.dtype}`;
-    } else if (node.type === "link" && node.target) {
+    } else if (nodeType === "link" && node.target) {
       meta.textContent = node.target;
-    } else if (node.type === "group") {
-      meta.textContent = t("common.group");
     } else {
-      meta.textContent = node.type || "";
+      meta.textContent = localizeInspectorType(node.type);
     }
 
     row.appendChild(toggle);
@@ -428,7 +441,7 @@ export function createInspectorPanelController({
     row.appendChild(meta);
     li.appendChild(row);
 
-    if (node.type === "group") {
+    if (nodeType === "group") {
       const children = document.createElement("ul");
       children.className = "inspector-children";
       li.appendChild(children);
@@ -464,7 +477,7 @@ export function createInspectorPanelController({
     if (!inspectorTree) return;
     clearInspectorSearch();
     if (!isHdf5File(state.file)) {
-      setInspectorMessage(t("inspector.hdf5_only"));
+      setInspectorMessage(t("inspector.hdf5_only"), "empty");
       return;
     }
     setSectionBadgeState(inspectorStateEl, "loading", t("inspector.tree.loading"));
@@ -482,7 +495,7 @@ export function createInspectorPanelController({
       }
     } catch (err) {
       console.error(err);
-      setInspectorMessage(t("inspector.tree.failed"));
+      setInspectorMessage(t("inspector.tree.failed"), "warning");
     }
   }
 
@@ -504,7 +517,7 @@ export function createInspectorPanelController({
         `${apiBase}/hdf5/node?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`,
       );
       if (inspectorPath) inspectorPath.textContent = data.path || path;
-      if (inspectorType) inspectorType.textContent = data.type || "-";
+      if (inspectorType) inspectorType.textContent = localizeInspectorType(data.type);
       if (inspectorShape) inspectorShape.textContent = data.shape ? data.shape.join("×") : "-";
       if (inspectorDtype) inspectorDtype.textContent = data.dtype || "-";
       if (inspectorAttrs) {
@@ -523,7 +536,8 @@ export function createInspectorPanelController({
           });
         }
       }
-      if (data.type === "dataset") {
+      const nodeType = normalizeInspectorType(data.type);
+      if (nodeType === "dataset") {
         try {
           const valueData = await fetchJSON(
             `${apiBase}/hdf5/value?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`,
@@ -536,10 +550,10 @@ export function createInspectorPanelController({
       } else if (inspectorPreview) {
         inspectorPreview.innerHTML = "";
       }
-      setSectionBadgeState(inspectorStateEl, "active", t("inspector.node.loaded", { type: data.type || t("inspector.node.default_type") }));
+      setSectionBadgeState(inspectorStateEl, "active", t("inspector.node.loaded", { type: localizeInspectorType(data.type) }));
     } catch (err) {
       console.error(err);
-      setInspectorMessage(t("inspector.node.failed"));
+      setInspectorMessage(t("inspector.node.failed"), "warning");
     }
   }
 

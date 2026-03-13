@@ -2,6 +2,8 @@
  * Mask lifecycle, histogram tooltip, and cursor probe interactions.
  */
 
+import { t } from "./i18n.js";
+
 export function createMaskCursorController({
   apiBase,
   state,
@@ -294,8 +296,15 @@ export function createMaskCursorController({
       labelValue = "S";
     }
     const resolutionValue = getResolutionAtPixel(ix, iy);
-    const resolutionText = Number.isFinite(resolutionValue) ? `  d ${resolutionValue.toFixed(1)} Å` : "";
-    const label = `X ${ix}  Y ${iy}  Value ${labelValue}${resolutionText}`;
+    const resolutionText = Number.isFinite(resolutionValue)
+      ? t("cursor.resolution", { value: resolutionValue.toFixed(1) })
+      : "";
+    const label = t("cursor.readout", {
+      x: ix,
+      y: iy,
+      value: labelValue,
+      resolutionText,
+    });
     showCursorOverlay(label, event.clientX, event.clientY);
   }
 
@@ -312,7 +321,7 @@ export function createMaskCursorController({
         return;
       }
       if (!res.ok) {
-        setAutoloadStatus("SIMPLON: mask unavailable");
+        setAutoloadStatus(t("status.autoload.simplon_mask_unavailable"));
         return;
       }
       const buffer = await res.arrayBuffer();
@@ -332,7 +341,7 @@ export function createMaskCursorController({
       }
     } catch (err) {
       console.error(err);
-      setAutoloadStatus("SIMPLON: mask failed");
+      setAutoloadStatus(t("status.autoload.simplon_mask_failed"));
     }
   }
 

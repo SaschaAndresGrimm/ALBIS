@@ -2,6 +2,8 @@
  * JUNGFRAUJOCH preview bridge lifecycle.
  */
 
+import { t } from "./i18n.js";
+
 export function createJfjochBridgeController({
   apiBase,
   state,
@@ -15,7 +17,7 @@ export function createJfjochBridgeController({
   async function startJfjochPreviewBridge() {
     const endpoint = (state.autoload.jfjochEndpoint || "").trim();
     if (!endpoint) {
-      setAutoloadStatus("JFJ: set preview endpoint");
+      setAutoloadStatus(t("autoload.status.jfjoch.set_preview_endpoint"));
       return false;
     }
     const sourceId = (state.autoload.jfjochSourceId || "jungfraujoch").trim() || "jungfraujoch";
@@ -31,7 +33,7 @@ export function createJfjochBridgeController({
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      setAutoloadStatus("JFJ: bridge start failed");
+      setAutoloadStatus(t("autoload.status.jfjoch.bridge_start_failed"));
       return false;
     }
     try {

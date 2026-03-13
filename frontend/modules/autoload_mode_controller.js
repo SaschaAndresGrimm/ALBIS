@@ -2,6 +2,8 @@
  * File-watch and SIMPLON autoload runtime.
  */
 
+import { t } from "./i18n.js";
+
 export function createAutoloadModeController({
   apiBase,
   state,
@@ -32,7 +34,7 @@ export function createAutoloadModeController({
     if (state.autoload.types.cbf) exts.push("cbf", "cbf.gz");
     if (state.autoload.types.edf) exts.push("edf");
     if (exts.length === 0) {
-      setAutoloadStatus("Watch: no types selected");
+      setAutoloadStatus(t("autoload.status.watch.no_types_selected"));
       return;
     }
     const pattern = state.autoload.pattern || "";
@@ -41,17 +43,17 @@ export function createAutoloadModeController({
     )}&pattern=${encodeURIComponent(pattern)}`;
     const res = await fetch(url);
     if (res.status === 204) {
-      setAutoloadStatus("Watch: no files");
+      setAutoloadStatus(t("autoload.status.watch.no_files"));
       setAutoloadLatest("-");
       return;
     }
     if (!res.ok) {
-      setAutoloadStatus("Watch: error");
+      setAutoloadStatus(t("autoload.status.watch.error"));
       return;
     }
     const payload = await res.json();
     if (!payload?.file) {
-      setAutoloadStatus("Watch: no files");
+      setAutoloadStatus(t("autoload.status.watch.no_files"));
       return;
     }
     const mtime = Number(payload.mtime || 0);
@@ -68,13 +70,15 @@ export function createAutoloadModeController({
       state.autoload.lastUpdate = Date.now();
       updateAutoloadMeta();
     }
-    setAutoloadStatus(payload.file === previousFile ? "Watch: updated" : "Watch: loaded");
+    setAutoloadStatus(
+      payload.file === previousFile ? t("autoload.status.watch.updated") : t("autoload.status.watch.loaded"),
+    );
   }
 
   async function autoloadSimplonTick() {
     const baseUrl = state.autoload.simplonUrl || "";
     if (!baseUrl) {
-      setAutoloadStatus("SIMPLON: set base URL");
+      setAutoloadStatus(t("autoload.status.simplon.set_base_url"));
       return;
     }
     if (!state.maskAvailable) {
@@ -93,12 +97,12 @@ export function createAutoloadModeController({
     )}&timeout=${encodeURIComponent(timeout)}&enable=${enable}`;
     const res = await fetch(url);
     if (res.status === 204) {
-      setAutoloadStatus("SIMPLON: no frame");
+      setAutoloadStatus(t("autoload.status.simplon.no_frame"));
       updateLiveBadge();
       return;
     }
     if (!res.ok) {
-      setAutoloadStatus("SIMPLON: error");
+      setAutoloadStatus(t("autoload.status.simplon.error"));
       updateLiveBadge();
       return;
     }
@@ -120,7 +124,7 @@ export function createAutoloadModeController({
         headers: Object.fromEntries(res.headers.entries()),
       });
     }
-    let label = "SIMPLON monitor";
+    let label = t("source.label.simplon_monitor");
     let hostLabel = "";
     try {
       hostLabel = new URL(baseUrl).host;
@@ -139,7 +143,7 @@ export function createAutoloadModeController({
       label = `${label} ${detailParts.join(" ")}`;
     }
     applyExternalFrame(data, shape, dtype, label, false, true);
-    setAutoloadStatus("SIMPLON: updated");
+    setAutoloadStatus(t("autoload.status.simplon.updated"));
     updateLiveBadge();
   }
 

@@ -85,7 +85,7 @@ export function createAutoloadOrchestrationController({
       schedulePeakOverlay();
     }
     updateAutoloadUI();
-    setAutoloadStatus(state.autoload.mode === "file" ? "Idle" : "Stopped");
+    setAutoloadStatus(state.autoload.mode === "file" ? t("autoload.status.idle") : t("autoload.status.stopped"));
     updateLiveBadge();
     persistAutoloadSettings();
   }

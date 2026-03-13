@@ -2,6 +2,8 @@
  * Remote and JUNGFRAUJOCH stream autoload runtime.
  */
 
+import { t } from "./i18n.js";
+
 export function createRemoteStreamController({
   apiBase,
   state,
@@ -79,7 +81,7 @@ export function createRemoteStreamController({
   async function autoloadJfjochTick() {
     const endpoint = (state.autoload.jfjochEndpoint || "").trim();
     if (!endpoint) {
-      setAutoloadStatus("JFJ: set preview endpoint");
+      setAutoloadStatus(t("autoload.status.jfjoch.set_preview_endpoint"));
       updateLiveBadge();
       return;
     }
@@ -103,13 +105,13 @@ export function createRemoteStreamController({
     const res = await fetch(`${apiBase}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
     if (res.status === 204) {
       await fetchJfjochPreviewStatus();
-      setAutoloadStatus("JFJ: waiting");
+      setAutoloadStatus(t("autoload.status.jfjoch.waiting"));
       updateLiveBadge();
       return;
     }
     if (!res.ok) {
       await fetchJfjochPreviewStatus();
-      setAutoloadStatus("JFJ: error");
+      setAutoloadStatus(t("autoload.status.jfjoch.error"));
       updateLiveBadge();
       return;
     }
@@ -122,7 +124,10 @@ export function createRemoteStreamController({
     const seq = Number(remoteMeta.seq || 0);
     const label =
       remoteMeta.displayName ||
-      `JUNGFRAUJOCH preview (${sourceId})${Number.isFinite(seq) && seq > 0 ? ` #${seq}` : ""}`;
+      t("source.label.jfjoch_preview_with_seq", {
+        sourceId,
+        seqSuffix: Number.isFinite(seq) && seq > 0 ? ` #${seq}` : "",
+      });
     applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
     if (Number.isFinite(seq) && seq > 0) {
       if (seq !== state.autoload.lastJfjochSeq) {
@@ -150,7 +155,7 @@ export function createRemoteStreamController({
     updateJfjochMetaUI(state.autoload.jfjochMeta || {}, latestStatus || state.autoload.jfjochStatus || {});
     state.autoload.lastUpdate = Date.now();
     updateAutoloadMeta();
-    setAutoloadStatus("JFJ: updated");
+    setAutoloadStatus(t("autoload.status.jfjoch.updated"));
     updateLiveBadge();
   }
 
@@ -162,12 +167,12 @@ export function createRemoteStreamController({
     }
     const res = await fetch(`${apiBase}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
     if (res.status === 204) {
-      setAutoloadStatus("Remote: waiting");
+      setAutoloadStatus(t("autoload.status.remote.waiting"));
       updateLiveBadge();
       return;
     }
     if (!res.ok) {
-      setAutoloadStatus("Remote: error");
+      setAutoloadStatus(t("autoload.status.remote.error"));
       updateLiveBadge();
       return;
     }
@@ -179,7 +184,10 @@ export function createRemoteStreamController({
     const seq = Number(remoteMeta.seq || 0);
     const label =
       remoteMeta.displayName ||
-      `Remote stream (${sourceId})${Number.isFinite(seq) && seq > 0 ? ` #${seq}` : ""}`;
+      t("source.label.remote_stream_with_seq", {
+        sourceId,
+        seqSuffix: Number.isFinite(seq) && seq > 0 ? ` #${seq}` : "",
+      });
     applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
     if (Number.isFinite(seq) && seq > 0) {
       if (seq !== state.autoload.lastRemoteSeq) {
@@ -192,7 +200,7 @@ export function createRemoteStreamController({
     }
     state.autoload.lastUpdate = Date.now();
     updateAutoloadMeta();
-    setAutoloadStatus("Remote: updated");
+    setAutoloadStatus(t("autoload.status.remote.updated"));
     updateLiveBadge();
   }
 

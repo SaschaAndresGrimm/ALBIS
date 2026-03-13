@@ -3373,7 +3373,7 @@ async function handleLocalFileSelection(mode) {
       state.autoload.dir = file.name;
       persistAutoloadSettings();
       // Note: actual file loading from user's machine would require additional upload endpoint
-      setAutoloadStatus("Local file selected (upload endpoint needed for full support)");
+      setAutoloadStatus(t("autoload.status.local_file_selected_upload_needed"));
     }
   };
   fileInput.click();
@@ -3723,6 +3723,9 @@ setSeriesSumProgress(0, t("series.progress.idle"));
 updateSeriesSumUi();
 onLanguageChange(() => {
   refreshLocalizedUi();
+  if (isHdf5File(state.file)) {
+    void loadInspectorRoot();
+  }
 });
 refreshLocalizedUi();
 finalizeRuntimeBootstrap(createRuntimeBootstrapContext({

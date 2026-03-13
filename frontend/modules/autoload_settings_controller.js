@@ -2,6 +2,8 @@
  * Autoload settings persistence and UI synchronization.
  */
 
+import { t } from "./i18n.js";
+
 export function createAutoloadSettingsController({
   state,
   elements,
@@ -152,22 +154,25 @@ export function createAutoloadSettingsController({
     updateThresholdOptions();
     updateDataSourceSummary();
     if (state.autoload.mode === "file") {
-      setDataSourceSectionState(state.file ? "active" : "empty", state.file ? "File mode ready." : "Select a file to begin.");
+      setDataSourceSectionState(
+        state.file ? "active" : "empty",
+        state.file ? t("data_source.state.file_mode_ready") : t("data_source.state.select_file_to_begin"),
+      );
     } else if (state.autoload.running) {
       const label =
         state.autoload.mode === "simplon"
-          ? "SIMPLON monitor active."
+          ? t("data_source.state.simplon_active")
           : state.autoload.mode === "jungfraujoch"
-            ? "JUNGFRAUJOCH preview active."
-            : "Remote stream active.";
+            ? t("data_source.state.jfjoch_active")
+            : t("data_source.state.remote_active");
       setDataSourceSectionState("active", label);
     } else {
       const label =
         state.autoload.mode === "simplon"
-          ? "Configure SIMPLON source settings."
+          ? t("data_source.state.configure_simplon")
           : state.autoload.mode === "jungfraujoch"
-            ? "Configure JUNGFRAUJOCH preview source settings."
-            : "Configure remote stream settings.";
+            ? t("data_source.state.configure_jfjoch")
+            : t("data_source.state.configure_remote");
       setDataSourceSectionState("empty", label);
     }
   }
@@ -232,7 +237,7 @@ export function createAutoloadSettingsController({
     if (jfjochChannelInput) jfjochChannelInput.value = state.autoload.jfjochChannel || "";
     if (jfjochIntervalInput) jfjochIntervalInput.value = String(state.autoload.jfjochInterval || 250);
     updateAutoloadUI();
-    setAutoloadStatus("Idle");
+    setAutoloadStatus(t("autoload.status.idle"));
     setAutoloadLatest("-");
     if (state.autoload.mode !== "file" || state.autoload.watchEnabled) {
       startAutoload();

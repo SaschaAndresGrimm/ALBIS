@@ -2,6 +2,8 @@
  * Inspector tree + search interaction bindings.
  */
 
+import { t } from "./i18n.js";
+
 export function bindInspectorInteractions({
   inspectorTree,
   inspectorSearchInput,
@@ -27,7 +29,7 @@ export function bindInspectorInteractions({
     if (!row) return;
     const node = row.parentElement;
     if (!node) return;
-    const nodeType = node.dataset.type || "";
+    const nodeType = String(node.dataset.type || "").toLowerCase();
     const nodePath = node.dataset.path || "";
     selectInspectorRow(row);
     if (nodeType === "link") {
@@ -43,7 +45,7 @@ export function bindInspectorInteractions({
       }
       if (willOpen && node.dataset.loaded !== "true") {
         try {
-          setSectionBadgeState(inspectorStateEl, "loading", "Loading child nodes…");
+          setSectionBadgeState(inspectorStateEl, "loading", t("inspector.tree.loading_children"));
           const container = node.querySelector(".inspector-children");
           renderSkeletonBlock(container, 4);
           const children = await fetchInspectorTree(nodePath);
@@ -51,10 +53,10 @@ export function bindInspectorInteractions({
             renderInspectorTree(children, container);
           }
           node.dataset.loaded = "true";
-          setSectionBadgeState(inspectorStateEl, "active", "Metadata tree loaded.");
+          setSectionBadgeState(inspectorStateEl, "active", t("inspector.tree.loaded"));
         } catch (err) {
           console.error(err);
-          setSectionBadgeState(inspectorStateEl, "warning", "Failed to load child nodes.");
+          setSectionBadgeState(inspectorStateEl, "warning", t("inspector.tree.failed_children"));
         }
       }
     }
@@ -83,7 +85,7 @@ export function bindInspectorInteractions({
     const row = event.target.closest(".inspector-result");
     if (!row) return;
     const nodePath = row.dataset.path || "";
-    const nodeType = row.dataset.type || "";
+    const nodeType = String(row.dataset.type || "").toLowerCase();
     if (!nodePath) return;
     if (nodeType === "link") {
       renderInspectorLink(nodePath, row.dataset.target || "-");

@@ -426,10 +426,10 @@
                 <span data-i18n="panel.section.info">Info</span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="meta-row"><span>Renderer</span><strong id="meta-renderer">-</strong></div>
-              <div class="meta-row"><span>Shape</span><strong id="meta-shape">-</strong></div>
-              <div class="meta-row"><span>DType</span><strong id="meta-dtype">-</strong></div>
-              <div class="meta-row"><span>Range</span><strong id="meta-range">-</strong></div>
+              <div class="meta-row"><span data-i18n="info.renderer">Renderer</span><strong id="meta-renderer">-</strong></div>
+              <div class="meta-row"><span data-i18n="info.shape">Shape</span><strong id="meta-shape">-</strong></div>
+              <div class="meta-row"><span data-i18n="info.dtype">DType</span><strong id="meta-dtype">-</strong></div>
+              <div class="meta-row"><span data-i18n="info.range">Range</span><strong id="meta-range">-</strong></div>
             </section>
           </div>
 
@@ -444,6 +444,7 @@
                     id="data-source-state"
                     role="status"
                     aria-live="polite"
+                    data-i18n="data_source.choose_image_source_to_begin"
                   >
                     Choose an image source to begin.
                   </span>
@@ -452,30 +453,33 @@
               </button>
               <div class="section-skeleton is-hidden" id="data-source-skeleton" aria-hidden="true"></div>
               <label class="field">
-                <span>Data Source</span>
+                <span data-i18n="data_source.field.source">Data Source</span>
                 <select id="autoload-mode">
-                  <option value="file">File</option>
-                  <option value="simplon">SIMPLON Monitor</option>
-                  <option value="remote">Remote Stream</option>
-                  <option value="jungfraujoch">JUNGFRAUJOCH Preview</option>
+                  <option value="file" data-i18n="data_source.option.file">File</option>
+                  <option value="simplon" data-i18n="data_source.option.simplon_monitor">SIMPLON Monitor</option>
+                  <option value="remote" data-i18n="data_source.option.remote_stream">Remote Stream</option>
+                  <option value="jungfraujoch" data-i18n="data_source.option.jungfraujoch_preview">JUNGFRAUJOCH Preview</option>
                 </select>
               </label>
               <div class="autoload-group" id="autoload-folder">
                 <label class="field">
-                  <span>Folder</span>
+                  <span data-i18n="data_source.field.folder">Folder</span>
                   <div class="inline autoload-source-inline">
                     <input
                       id="autoload-dir"
                       type="text"
                       list="autoload-dir-list"
                       placeholder="test_data or /abs/path"
+                      data-i18n-placeholder="data_source.placeholder.folder"
                     />
                     <button
                       class="btn btn-secondary autoload-action-btn"
                       id="autoload-browse"
                       type="button"
                       aria-label="Browse folder"
+                      data-i18n-aria-label="data_source.action.browse_folder"
                       title="Browse folder"
+                      data-i18n-title="data_source.action.browse_folder"
                     >
                       <svg class="autoload-action-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                         <path
@@ -493,7 +497,7 @@
                 </label>
               </div>
               <label class="field" id="file-field">
-                <span>Image File</span>
+                <span data-i18n="data_source.field.image_file">Image File</span>
                 <div class="inline autoload-source-inline">
                   <select id="file-select"></select>
                   <button
@@ -501,7 +505,9 @@
                     id="autoload-select-file"
                     type="button"
                     aria-label="Select image file"
+                    data-i18n-aria-label="data_source.action.select_image_file"
                     title="Select image file"
+                    data-i18n-title="data_source.action.select_image_file"
                   >
                     <svg class="autoload-action-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                       <path
@@ -525,36 +531,36 @@
                 </div>
               </label>
               <label class="field" id="dataset-field">
-                <span>Dataset</span>
+                <span data-i18n="data_source.field.dataset">Dataset</span>
                 <select id="dataset-select"></select>
               </label>
               <label class="field is-hidden" id="threshold-field">
-                <span>Threshold</span>
+                <span data-i18n="data_source.field.threshold">Threshold</span>
                 <select id="threshold-select"></select>
               </label>
               <details class="advanced-details">
-                <summary>Advanced source settings</summary>
+                <summary data-i18n="data_source.advanced.title">Advanced source settings</summary>
                 <div class="advanced-inner">
                   <label class="field">
-                    <span>File System</span>
+                    <span data-i18n="data_source.field.file_system">File System</span>
                     <select id="filesystem-mode">
-                      <option value="remote">Remote Server</option>
-                      <option value="local" selected>Local Machine</option>
+                      <option value="remote" data-i18n="data_source.option.remote_server">Remote Server</option>
+                      <option value="local" selected data-i18n="data_source.option.local_machine">Local Machine</option>
                     </select>
                   </label>
                   <div class="autoload-group" id="autoload-watch">
                     <label class="checkbox">
                       <input id="autoload-watch-enabled" type="checkbox" />
-                      Watch folder
+                      <span data-i18n="data_source.watch.folder">Watch folder</span>
                     </label>
                     <div id="autoload-watch-options">
                       <label class="field">
-                        <span>Poll (ms)</span>
+                        <span data-i18n="data_source.field.poll_ms">Poll (ms)</span>
                         <input id="autoload-interval" type="number" min="200" step="100" value="1000" />
                       </label>
                       <label class="field">
-                        <span>Filename pattern</span>
-                        <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" />
+                        <span data-i18n="data_source.field.filename_pattern">Filename pattern</span>
+                        <input id="autoload-pattern" type="text" placeholder="*.h5 or *master*" data-i18n-placeholder="data_source.placeholder.pattern" />
                       </label>
                       <div class="check-row" id="autoload-types">
                         <label class="checkbox">
@@ -574,90 +580,90 @@
                   </div>
                   <div class="autoload-group is-hidden" id="autoload-simplon">
                     <label class="field">
-                      <span>Base URL</span>
+                      <span data-i18n="data_source.field.base_url">Base URL</span>
                       <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
                     </label>
                     <label class="checkbox">
                       <input id="simplon-enable" type="checkbox" checked />
-                      Enable monitor
+                      <span data-i18n="data_source.monitor.enable">Enable monitor</span>
                     </label>
                     <label class="field">
-                      <span>API Version</span>
+                      <span data-i18n="data_source.field.api_version">API Version</span>
                       <input id="simplon-version" type="text" value="1.8.0" />
                     </label>
                     <label class="field">
-                      <span>Timeout (ms)</span>
+                      <span data-i18n="data_source.field.timeout_ms">Timeout (ms)</span>
                       <input id="simplon-timeout" type="number" min="100" step="100" value="500" />
                     </label>
                   </div>
                   <div class="autoload-group is-hidden" id="autoload-remote">
                     <label class="field">
-                      <span>Source ID</span>
+                      <span data-i18n="data_source.field.source_id">Source ID</span>
                       <input id="remote-source-id" type="text" value="default" placeholder="default" />
                     </label>
                     <label class="field">
-                      <span>Poll (ms)</span>
+                      <span data-i18n="data_source.field.poll_ms">Poll (ms)</span>
                       <input id="remote-interval" type="number" min="100" step="100" value="1000" />
                     </label>
                   </div>
                   <div class="autoload-group is-hidden" id="autoload-jfjoch">
                     <label class="field">
-                      <span>Preview Endpoint</span>
+                      <span data-i18n="data_source.field.preview_endpoint">Preview Endpoint</span>
                       <input id="jfjoch-preview-endpoint" type="text" placeholder="tcp://127.0.0.1:31003" />
                     </label>
                     <label class="field">
-                      <span>Source ID</span>
+                      <span data-i18n="data_source.field.source_id">Source ID</span>
                       <input id="jfjoch-source-id" type="text" value="jungfraujoch" placeholder="jungfraujoch" />
                     </label>
                     <label class="field">
-                      <span>Topic (optional)</span>
+                      <span data-i18n="data_source.field.topic_optional">Topic (optional)</span>
                       <input id="jfjoch-topic" type="text" placeholder="empty = all topics" />
                     </label>
                     <label class="field">
-                      <span>Channel (optional)</span>
+                      <span data-i18n="data_source.field.channel_optional">Channel (optional)</span>
                       <input id="jfjoch-channel" type="text" placeholder="empty = first channel" />
                     </label>
                     <label class="field">
-                      <span>Poll (ms)</span>
+                      <span data-i18n="data_source.field.poll_ms">Poll (ms)</span>
                       <input id="jfjoch-interval" type="number" min="100" step="100" value="250" />
                     </label>
                   </div>
                   <div class="autoload-group advanced-status-block">
                     <div class="autoload-meta">
-                      <div class="meta-row"><span>Last poll</span><strong id="autoload-status">-</strong></div>
-                      <div class="meta-row"><span>Last image</span><strong id="autoload-latest">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.last_poll">Last poll</span><strong id="autoload-status">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.last_image">Last image</span><strong id="autoload-latest">-</strong></div>
                     </div>
                     <div class="simplon-meta is-hidden" id="simplon-meta">
-                      <div class="meta-row"><span>Series</span><strong id="simplon-series">-</strong></div>
-                      <div class="meta-row"><span>Image</span><strong id="simplon-image">-</strong></div>
-                      <div class="meta-row"><span>Timestamp</span><strong id="simplon-time">-</strong></div>
-                      <div class="meta-row"><span>Energy (eV)</span><strong id="simplon-energy">-</strong></div>
-                      <div class="meta-row"><span>Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
-                      <div class="meta-row"><span>Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
-                      <div class="meta-row"><span>Distance (mm)</span><strong id="simplon-distance">-</strong></div>
-                      <div class="meta-row"><span>Beam center (px)</span><strong id="simplon-center">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="simplon-series">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="simplon-image">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="simplon-time">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="simplon-energy">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.threshold_ev">Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="simplon-distance">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="simplon-center">-</strong></div>
                     </div>
                     <div class="remote-meta is-hidden" id="remote-meta">
-                      <div class="meta-row"><span>Source</span><strong id="remote-source">-</strong></div>
-                      <div class="meta-row"><span>Sequence</span><strong id="remote-seq">-</strong></div>
-                      <div class="meta-row"><span>Series</span><strong id="remote-series">-</strong></div>
-                      <div class="meta-row"><span>Image</span><strong id="remote-image">-</strong></div>
-                      <div class="meta-row"><span>Timestamp</span><strong id="remote-time">-</strong></div>
-                      <div class="meta-row"><span>Energy (eV)</span><strong id="remote-energy">-</strong></div>
-                      <div class="meta-row"><span>Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
-                      <div class="meta-row"><span>Distance (mm)</span><strong id="remote-distance">-</strong></div>
-                      <div class="meta-row"><span>Beam center (px)</span><strong id="remote-center">-</strong></div>
-                      <div class="meta-row"><span>Peak sets</span><strong id="remote-peak-sets">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="remote-source">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="remote-seq">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="remote-series">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="remote-image">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="remote-time">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="remote-energy">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="remote-distance">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="remote-center">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.peak_sets">Peak sets</span><strong id="remote-peak-sets">-</strong></div>
                     </div>
                     <div class="remote-meta is-hidden" id="jfjoch-meta">
-                      <div class="meta-row"><span>Source</span><strong id="jfjoch-source">-</strong></div>
-                      <div class="meta-row"><span>Sequence</span><strong id="jfjoch-seq">-</strong></div>
-                      <div class="meta-row"><span>Series</span><strong id="jfjoch-series">-</strong></div>
-                      <div class="meta-row"><span>Image</span><strong id="jfjoch-image">-</strong></div>
-                      <div class="meta-row"><span>Timestamp</span><strong id="jfjoch-time">-</strong></div>
-                      <div class="meta-row"><span>Reflections</span><strong id="jfjoch-reflections">-</strong></div>
-                      <div class="meta-row"><span>Channel</span><strong id="jfjoch-channel-meta">-</strong></div>
-                      <div class="meta-row"><span>Bridge status</span><strong id="jfjoch-bridge-status">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="jfjoch-source">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="jfjoch-seq">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="jfjoch-series">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="jfjoch-image">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="jfjoch-time">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.reflections">Reflections</span><strong id="jfjoch-reflections">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.channel">Channel</span><strong id="jfjoch-channel-meta">-</strong></div>
+                      <div class="meta-row"><span data-i18n="data_source.meta.bridge_status">Bridge status</span><strong id="jfjoch-bridge-status">-</strong></div>
                     </div>
                   </div>
                 </div>
@@ -665,44 +671,49 @@
             </section>
             <section class="panel-section inspector is-collapsed" data-section="inspector">
               <button class="section-title" type="button" data-section-toggle>
-                File Inspector
+                <span data-i18n="inspector.title">File Inspector</span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="section-state is-empty" id="inspector-state" role="status" aria-live="polite">
+              <div class="section-state is-empty" id="inspector-state" role="status" aria-live="polite" data-i18n="inspector.select_hdf5">
                 Select an HDF5 file to browse metadata.
               </div>
               <div class="inspector-search">
-                <input id="inspector-search-input" type="search" placeholder="Search paths…" />
-                <button type="button" id="inspector-search-clear">Clear</button>
+                <input
+                  id="inspector-search-input"
+                  type="search"
+                  placeholder="Search paths…"
+                  data-i18n-placeholder="inspector.search.placeholder"
+                />
+                <button type="button" id="inspector-search-clear" data-i18n="inspector.search.clear">Clear</button>
               </div>
               <div class="inspector-results is-hidden" id="inspector-results"></div>
               <div class="inspector-tree" id="inspector-tree">
-                <div class="inspector-empty">Select an HDF5 file to browse metadata.</div>
+                <div class="inspector-empty" data-i18n="inspector.select_hdf5">Select an HDF5 file to browse metadata.</div>
               </div>
               <div class="inspector-details" id="inspector-details">
-                <div class="meta-row"><span>Path</span><strong id="inspector-path">-</strong></div>
-                <div class="meta-row"><span>Type</span><strong id="inspector-type">-</strong></div>
-                <div class="meta-row"><span>Shape</span><strong id="inspector-shape">-</strong></div>
-                <div class="meta-row"><span>DType</span><strong id="inspector-dtype">-</strong></div>
+                <div class="meta-row"><span data-i18n="inspector.label.path">Path</span><strong id="inspector-path">-</strong></div>
+                <div class="meta-row"><span data-i18n="inspector.label.type">Type</span><strong id="inspector-type">-</strong></div>
+                <div class="meta-row"><span data-i18n="inspector.label.shape">Shape</span><strong id="inspector-shape">-</strong></div>
+                <div class="meta-row"><span data-i18n="inspector.label.dtype">DType</span><strong id="inspector-dtype">-</strong></div>
                 <div class="inspector-attrs" id="inspector-attrs"></div>
                 <div class="inspector-preview" id="inspector-preview"></div>
               </div>
             </section>
             <section class="panel-section image-header is-hidden is-collapsed" data-section="image-header" id="image-header-section">
               <button class="section-title" type="button" data-section-toggle>
-                Image Header
+                <span data-i18n="inspector.header.title">Image Header</span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div class="section-state is-empty" id="image-header-state" role="status" aria-live="polite">
+              <div class="section-state is-empty" id="image-header-state" role="status" aria-live="polite" data-i18n="inspector.no_header">
                 No header available.
               </div>
               <div class="image-header-loading is-hidden" id="image-header-loading" aria-hidden="true"></div>
-              <div class="image-header-empty" id="image-header-empty">No header available.</div>
+              <div class="image-header-empty" id="image-header-empty" data-i18n="inspector.no_header">No header available.</div>
               <pre class="image-header-text" id="image-header-text"></pre>
             </section>
             <section class="panel-section is-collapsed" data-section="series-summing">
               <button class="section-title" type="button" data-section-toggle>
-                Series Operations
+                <span data-i18n="series.ui.section_title">Series Operations</span>
                 <span class="section-chevron">▾</span>
               </button>
               <div class="series-sum-layout">
