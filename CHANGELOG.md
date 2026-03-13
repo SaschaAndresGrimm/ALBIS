@@ -7,9 +7,28 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.17] - 2026-03-13
+
 ### Added
 
 - Frontend locale coverage now includes `en`, `zh-CN`, `ja`, `fr`, `es`, `it`, `pt`, `rm`, `de`, `sv`, `da`, `mi`, and `gsw`.
+- Added first-pass UI translations for French, Spanish, Italian, Portuguese, Romansh, German, Swedish, Danish, Māori, and Swiss German.
+
+### Changed
+
+- Swiss German (`gsw`) copy now reads more consistently in Basel-style wording across the splash screen, menus, and series workflow.
+- German locale wording now uses informal phrasing throughout the UI.
+
+### Fixed
+
+- Startup language selection now respects persisted backend preferences instead of sticking to an inferred browser fallback.
+- Language switching now refreshes playback controls, splash-screen status text, and dynamic file/dataset placeholders immediately.
+- Added locale integrity coverage for key parity, placeholder-token parity, and expanded alias normalization across all shipped locales.
+
+### Notes
+
+- This release is called: "One beamline, thirteen tongues."
+- This release is called: "Kia ora, Grüezi, bonjour, and please mind the diffraction peaks."
 
 ## [0.8.16] - 2026-03-13
 
@@ -152,7 +171,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.16...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.8.17...HEAD
+[0.8.17]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.17
 [0.8.16]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.16
 [0.8.15]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.15
 [0.8.14]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.14
