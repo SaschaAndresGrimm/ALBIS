@@ -94,7 +94,7 @@ export function createFrameMetadataController({
           setStatus(t("status.frame.select_file_to_begin"));
           updateToolbar();
           showSplash();
-          setSplashStatus(t("splash.status.ready_open_file"));
+          setSplashStatus("splash.status.ready_open_file");
           setLoading(false);
           setDataSourceSectionState("empty", t("status.frame.select_file_to_begin"));
         }
@@ -104,7 +104,7 @@ export function createFrameMetadataController({
         if (!existingFile) {
           setStatus(t("status.frame.no_image_files"));
           showSplash();
-          setSplashStatus(t("splash.status.no_image_files_found"));
+          setSplashStatus("splash.status.no_image_files_found");
           setLoading(false);
         }
         setDataSourceSectionState("warning", t("status.files.none_in_folder"));

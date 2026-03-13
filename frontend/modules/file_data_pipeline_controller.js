@@ -180,7 +180,7 @@ export function createFileDataPipelineController({
       } else {
         setStatus(t("status.data.no_image_datasets"));
         showSplash();
-        setSplashStatus(t("splash.status.no_image_datasets"));
+        setSplashStatus("splash.status.no_image_datasets");
         setLoading(false);
         setDataSourceSectionState("warning", t("status.data.no_image_datasets"));
       }
@@ -188,7 +188,7 @@ export function createFileDataPipelineController({
       console.error(err);
       setStatus(t("status.data.failed_scan_datasets"));
       showSplash();
-      setSplashStatus(t("splash.status.dataset_scan_failed"));
+      setSplashStatus("splash.status.dataset_scan_failed");
       setLoading(false);
       setDataSourceSectionState("warning", t("status.data.failed_scan_datasets"));
     } finally {

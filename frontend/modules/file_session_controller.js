@@ -107,7 +107,7 @@ export function createFileSessionController({
     hideUploadProgress();
     hideProcessingProgress();
     showSplash();
-    setSplashStatus(t("splash.status.ready_open_file"));
+    setSplashStatus("splash.status.ready_open_file");
     updateInspectorHeaderVisibility("");
 
     if (fileSelect) {

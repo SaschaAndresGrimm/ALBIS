@@ -4,6 +4,15 @@
 
 import { t } from "./i18n.js";
 
+const SPLASH_STATUS_TERMINAL_KEYS = new Set([
+  "backend.splash.ready",
+  "splash.status.dataset_scan_failed",
+  "splash.status.initialization_failed",
+  "splash.status.no_image_datasets",
+  "splash.status.no_image_files_found",
+  "splash.status.ready_open_file",
+]);
+
 export function createExportSplashController({
   state,
   elements,
@@ -425,13 +434,34 @@ export function createExportSplashController({
     updateSplashCallToAction();
   }
 
-  function setSplashStatus(text) {
+  function isI18nKey(value) {
+    const normalized = String(value || "").trim();
+    return normalized.includes(".") && /^[a-z0-9_.-]+$/i.test(normalized);
+  }
+
+  function setSplashStatus(status, vars = {}) {
     if (!splashStatus) return;
-    const normalized = String(text || "").trim();
-    splashStatus.textContent = normalized;
+    const normalized = String(status || "").trim();
+    const normalizedVars = vars && typeof vars === "object" ? vars : {};
+    const useI18nKey = isI18nKey(normalized);
+    const text = useI18nKey ? t(normalized, normalizedVars) : normalized;
+    if (useI18nKey) {
+      splashStatus.dataset.i18n = normalized;
+      if (Object.keys(normalizedVars).length > 0) {
+        splashStatus.dataset.i18nVars = JSON.stringify(normalizedVars);
+      } else {
+        delete splashStatus.dataset.i18nVars;
+      }
+    } else {
+      delete splashStatus.dataset.i18n;
+      delete splashStatus.dataset.i18nVars;
+    }
+    splashStatus.textContent = text;
     if (!splash) return;
-    const lower = normalized.toLowerCase();
-    const busy = Boolean(normalized) && !/\b(ready|failed|error|done|complete)\b/.test(lower);
+    const lower = text.toLowerCase();
+    const busy = useI18nKey
+      ? !SPLASH_STATUS_TERMINAL_KEYS.has(normalized)
+      : Boolean(text) && !/\b(ready|failed|error|done|complete)\b/.test(lower);
     splash.classList.toggle("is-busy", busy);
     updateSplashCallToAction();
   }

@@ -1588,8 +1588,8 @@ function showSplash() {
   exportSplashController?.showSplash();
 }
 
-function setSplashStatus(text) {
-  exportSplashController?.setSplashStatus(text);
+function setSplashStatus(status, vars) {
+  exportSplashController?.setSplashStatus(status, vars);
 }
 
 function hideSplash() {
@@ -2203,14 +2203,14 @@ async function fetchSettingsConfig() {
 async function bootstrapApp() {
   showSplash();
   drawSplash();
-  setSplashStatus(t("splash.status.starting_backend"));
+  setSplashStatus("splash.status.starting_backend");
   await waitForBackendReady();
-  setSplashStatus(t("splash.status.loading_settings"));
+  setSplashStatus("splash.status.loading_settings");
   await fetchSettingsConfig();
-  setSplashStatus(t("splash.status.loading_file_list"));
+  setSplashStatus("splash.status.loading_file_list");
   await loadAutoloadFolders();
   await loadFiles();
-  setSplashStatus(t("splash.status.ready_open_file"));
+  setSplashStatus("splash.status.ready_open_file");
 }
 
 async function loadAutoloadFolders() {

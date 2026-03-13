@@ -119,15 +119,15 @@ export function createBackendStatusController({
     let attempts = 0;
     while (Date.now() < deadline) {
       attempts += 1;
-      setSplashStatus(t("backend.splash.starting", { attempts }));
+      setSplashStatus("backend.splash.starting", { attempts });
       const alive = await checkBackendHealth();
       if (alive) {
-        setSplashStatus(t("backend.splash.ready", { version: state.backendVersion || "-" }));
+        setSplashStatus("backend.splash.ready", { version: state.backendVersion || "-" });
         return true;
       }
       await sleep(250);
     }
-    setSplashStatus(t("backend.splash.slow_start"));
+    setSplashStatus("backend.splash.slow_start");
     return false;
   }
 
