@@ -7,6 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Added installer-path smoke coverage for Windows installers and mounted macOS DMGs in artifact/release workflows.
+- Added pinned AppImage installation tooling with checksum verification for Linux packaging workflows.
+
+### Changed
+
+- Raised enforced backend coverage gates from `20%` to `50%` across CI, artifact validation, release verification, and contributor docs.
+- Pinned backend runtime dependencies and PyInstaller build inputs for more reproducible source, packaging, and Docker builds.
+- Refactored the Docker image to a pinned multi-stage build that runs as a dedicated non-root user.
+- Updated README, release docs, and the power-user guide to position ALBIS `1.0` as a local-first desktop app for localhost and trusted lab/LAN use.
+
+### Security
+
+- Security reporting now points to GitHub private vulnerability reporting instead of public issues, with supported-version and response-target guidance.
+
 ## [0.9.0] - 2026-03-13
 
 ### Added

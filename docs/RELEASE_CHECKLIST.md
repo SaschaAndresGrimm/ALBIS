@@ -10,13 +10,17 @@ This checklist is intended for production releases, including `v1.0.0`.
   - Move release items from `Unreleased` into a dated version section.
   - Update compare/release links at the bottom.
 - Confirm README examples and artifact naming use `<version>` placeholders or current values.
+- Confirm runtime/build input bumps are explicit and reviewed:
+  - `backend/requirements.txt`
+  - pinned Docker base image digest
+  - pinned AppImage tool version/checksum
 
 ## 2. Run Local Quality Gates
 
 ```bash
 ruff check backend tests scripts test_scripts
 black --check tests scripts test_scripts
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50
 npm run lint:js
 npm run test:js
 ```
@@ -43,6 +47,9 @@ Use this to verify packaging and checks before tagging:
      - `ALBIS-macos-x64-v<version>-<commit>.zip`
      - `ALBIS-macos-x64-v<version>-<commit>.dmg`
    - Bundle naming includes `v<version>-<commit>`.
+4. Confirm install-path smoke checks passed:
+   - Windows installer silent install -> launch -> uninstall
+   - macOS mounted DMG app launch smoke
 
 Note: on manual dispatch from a branch, the `publish` job is intentionally skipped.
 
@@ -71,6 +78,7 @@ Expected result:
 
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
+- Signing/notarization secrets are present for Linux, Windows, and macOS before tagging.
 - GitHub Release is published with:
   - Linux x64: tarball + `.AppImage` + appimage bundle
   - Linux x64 signatures (`.sig`) when Linux GPG signing secrets are configured
@@ -81,6 +89,14 @@ Expected result:
 ## 5. Post-Release Verification
 
 - Confirm release page includes expected assets and `SHA256SUMS.txt`.
-- If Linux signing is enabled, confirm each Linux artifact has a sibling `.sig` asset.
-- Validate download/install path on at least one machine per supported platform.
+- Confirm each Linux artifact has a sibling `.sig` asset.
+- Complete and attach the manual release sign-off matrix for each supported desktop platform:
+  - download artifact
+  - verify checksum/signature
+  - install
+  - first launch
+  - open sample data
+  - close/relaunch
+  - uninstall
+  - note any Gatekeeper/SmartScreen/signature prompts
 - Move next development cycle notes into `Unreleased` in `CHANGELOG.md`.

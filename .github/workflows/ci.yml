@@ -37,7 +37,7 @@ jobs:
         run: black --check tests scripts test_scripts
 
       - name: Pytest
-        run: pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
+        run: pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
 

@@ -28,7 +28,7 @@ Run local checks:
 ```bash
 ruff check backend tests scripts test_scripts
 black --check tests scripts test_scripts
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50
 npm run lint:js
 npm run test:js
 npm run review:i18n
@@ -192,10 +192,10 @@ Cross-target naming controls (all platforms):
 - `ALBIS_TARGET_OS=<linux|windows|macos>` overrides normalized target OS tag.
 - `ALBIS_TARGET_ARCH=<x64|arm64|...>` overrides normalized target architecture tag.
 
-Optional signing/notarization environment variables used by CI:
+Public tag releases require the following signing/notarization environment variables in CI:
 - macOS: `MACOS_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`
 - Windows: `WINDOWS_SIGN_CERT_B64`, `WINDOWS_SIGN_CERT_PASSWORD`, `WINDOWS_SIGN_TIMESTAMP_URL`
-- Linux (optional GPG detached signatures): `LINUX_GPG_PRIVATE_KEY_B64`, `LINUX_GPG_PASSPHRASE`, `LINUX_GPG_KEY_ID`
+- Linux (GPG detached signatures): `LINUX_GPG_PRIVATE_KEY_B64`, `LINUX_GPG_PASSPHRASE`, `LINUX_GPG_KEY_ID`
   - `LINUX_GPG_PRIVATE_KEY_B64` accepts base64-encoded private key data (recommended), a raw ASCII-armored private key block, or an escaped armored block using `\n`.
 
 The Inno installer creates Start Menu entries for:
@@ -213,6 +213,12 @@ Public GitHub Releases publish architecture-specific install + portable assets:
 - macOS: `ALBIS-macos-arm64-*` and `ALBIS-macos-x64-*` (`.dmg` + `.zip`)
 - Windows: `ALBIS-Setup-windows-x64-*` + `ALBIS-windows-x64-*.zip`
 - Linux: `ALBIS-linux-x64-*` (`.tar.gz` + `.AppImage` + appimage bundle tarball)
+
+Public release inputs are pinned:
+- runtime dependencies in `backend/requirements.txt`
+- PyInstaller via the build scripts
+- Docker base image by digest
+- AppImage tooling by explicit version + checksum in CI
 
 ### Output
 

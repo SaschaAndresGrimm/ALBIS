@@ -7,6 +7,7 @@ $bootstrapPython = if ($env:PYTHON_BIN) { $env:PYTHON_BIN } else { "python" }
 $isolatedBuild = if ($env:ALBIS_BUILD_ISOLATED -eq "0") { $false } else { $true }
 $buildVenv = if ($env:ALBIS_BUILD_VENV) { $env:ALBIS_BUILD_VENV } else { Join-Path $root ".build-venv-windows" }
 $pythonExe = $bootstrapPython
+$pyInstallerVersion = if ($env:ALBIS_PYINSTALLER_VERSION) { $env:ALBIS_PYINSTALLER_VERSION } else { "6.19.0" }
 
 if ($isolatedBuild) {
   $cleanVenv = if ($env:ALBIS_BUILD_CLEAN_VENV -eq "0") { $false } else { $true }
@@ -27,7 +28,7 @@ $tag = $versionInfo.tag
 if ($isolatedBuild) {
   & $pythonExe -m pip install -r .\backend\requirements.txt
 }
-& $pythonExe -m pip install --upgrade pyinstaller
+& $pythonExe -m pip install --upgrade ("pyinstaller==" + $pyInstallerVersion)
 
 # Prefer curated ALBIS icon assets when available.
 $distDir = Join-Path $root "dist"

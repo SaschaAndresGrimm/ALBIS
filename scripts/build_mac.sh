@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 PYTHON_BIN="${PYTHON_BIN:-python3}"
+PYINSTALLER_VERSION="${ALBIS_PYINSTALLER_VERSION:-6.19.0}"
 VERSION_INFO="$("$PYTHON_BIN" scripts/version_info.py --shell)"
 eval "$VERSION_INFO"
 export ALBIS_BUNDLE_VERSION="$VERSION"
@@ -12,10 +13,8 @@ export ALBIS_BUNDLE_BUILD="$VERSION"
 ZIP_OUT="dist/ALBIS-${TARGET}-${TAG}.zip"
 DMG_OUT="dist/ALBIS-${TARGET}-${TAG}.dmg"
 
-if ! "$PYTHON_BIN" -m PyInstaller --version >/dev/null 2>&1; then
-  echo "PyInstaller not found for ${PYTHON_BIN}; installing to user site..."
-  "$PYTHON_BIN" -m pip install --upgrade --user pyinstaller
-fi
+echo "Installing pinned PyInstaller ${PYINSTALLER_VERSION} for ${PYTHON_BIN}..."
+"$PYTHON_BIN" -m pip install --upgrade --user "pyinstaller==${PYINSTALLER_VERSION}"
 
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT

@@ -50,7 +50,7 @@ jobs:
         run: black --check tests scripts test_scripts
 
       - name: Pytest
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=20
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50
 
       - name: ESLint
         run: npm run lint:js
@@ -101,16 +101,7 @@ jobs:
           fi
 
       - name: Install appimagetool
-        run: |
-          curl -L -o /tmp/appimagetool.AppImage \
-            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x /tmp/appimagetool.AppImage
-          sudo mv /tmp/appimagetool.AppImage /usr/local/bin/appimagetool.AppImage
-          cat <<'EOF' | sudo tee /usr/local/bin/appimagetool >/dev/null
-          #!/usr/bin/env bash
-          APPIMAGE_EXTRACT_AND_RUN=1 /usr/local/bin/appimagetool.AppImage "$@"
-          EOF
-          sudo chmod +x /usr/local/bin/appimagetool
+        run: sudo bash ./scripts/install_appimagetool.sh
 
       - name: Build tarball package
         run: ./scripts/build_linux.sh
@@ -264,6 +255,15 @@ jobs:
           }
           .\scripts\sign_windows.ps1 -Files @($installer.FullName)
 
+      - name: Smoke test installer-installed binary
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist -File -Filter "ALBIS-Setup-${{ matrix.target }}-*.exe" | Select-Object -First 1
+          if (-not $installer) {
+            throw "Missing installer for ${{ matrix.target }}"
+          }
+          .\scripts\smoke_windows_installer.ps1 -InstallerPath $installer.FullName -StartupTimeout 60
+
       - name: Verify package integrity
         shell: pwsh
         run: |
@@ -374,6 +374,12 @@ jobs:
 
       - name: Sign and notarize (optional)
         run: ./scripts/sign_macos.sh dist/ALBIS.app
+
+      - name: Smoke test mounted DMG app
+        run: |
+          dmg_file="$(ls dist/ALBIS-${{ matrix.target }}-*.dmg | head -n1 || true)"
+          [ -n "$dmg_file" ] || { echo "Missing macOS dmg"; exit 1; }
+          ./scripts/smoke_macos_dmg.sh "$dmg_file" 60
 
       - name: Verify package integrity
         run: |

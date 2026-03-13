@@ -13,7 +13,14 @@ Image sources can be:
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
 
-Project note: this is a private vibe‑coding project for fun and educational purposes.
+ALBIS `1.0` is a **local-first desktop viewer** for workstation and beamline use.
+Official public support covers:
+- **Windows x64**
+- **macOS arm64 / x64**
+- **Linux x64**
+
+Docker images are published for **local and trusted lab deployments** on `linux/amd64` and `linux/arm64`.
+Public internet exposure is **not** a supported deployment mode for `1.0`.
 
 
 ## Highlights
@@ -25,12 +32,13 @@ Project note: this is a private vibe‑coding project for fun and educational pu
 - Remote Stream mode for live external producers (with optional ring parameters and colored peak overlays).
 - ROI tools (line, box, circle, annulus) with statistics and plots.
 - Pixel mask support (gaps and defective pixels).
-- WebGL2 rendering with CPU fallback.
 - spotfinding & resolution rings overlay
+- multi language support
 
 ## Downloads / Installation
 
 You can download ready-to-use standalone binaries for your operating system. No Python installation is required for these.
+Public releases include signed desktop artifacts where the platform supports them, plus `SHA256SUMS.txt` for download verification.
 
 Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page for the latest packages:
 

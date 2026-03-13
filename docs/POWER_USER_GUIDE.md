@@ -97,7 +97,8 @@ Frontend warnings/errors are forwarded to the backend log via `/api/client-log`.
 
 ## Running via Docker
 
-ALBIS includes a `Dockerfile` for containerized deployments. By default, the image exposes port `8000` and forces the server to bind to `0.0.0.0` so it is accessible from the host network.
+ALBIS includes a `Dockerfile` for containerized deployments. The container binds to `0.0.0.0` internally so the host can publish the port, but the supported `1.0` posture is still local-first and trusted-network use only.
+Public internet exposure is **not** a supported deployment mode for `1.0`.
 
 ### Build a Local Image (development/local changes)
 
@@ -141,12 +142,12 @@ Published images are multi-arch:
 
 To use ALBIS properly in a container, you should mount your data directory so the server can see your HDF5 or image files. Optionally, you can also mount a custom `albis.config.json` and a `logs/` directory.
 
-Example run command:
+Example run command (localhost publish):
 
 ```bash
 docker run -d \
   --name albis \
-  -p 8000:8000 \
+  -p 127.0.0.1:8000:8000 \
   -v /path/to/your/data:/app/data:ro \
   ghcr.io/saschaandresgrimm/albis:latest
 ```
@@ -154,6 +155,8 @@ docker run -d \
 If you built locally instead of pulling from GHCR, replace the image reference with `albis:latest`.
 
 *Note: In the example above, `/path/to/your/data` is mounted into the container at `/app/data` as read-only (`:ro`). In the default ALBIS configuration (`albis.config.json`), the `data.root` is already set to `./data`, so ALBIS will immediately see your mounted files.*
+
+If you intentionally expose the container on a trusted LAN, do it behind your own network controls and treat it as a lab-managed deployment rather than a public service.
 
 When the data mount is read-only, drag-and-drop uploads are written to a temporary container directory (`/tmp/albis-uploads`) and opened from there.
 
