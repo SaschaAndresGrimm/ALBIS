@@ -18,7 +18,7 @@ jobs:
     name: Verify Release Inputs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate tag matches VERSION
         if: startsWith(github.ref, 'refs/tags/v')
@@ -30,7 +30,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip
@@ -38,7 +38,7 @@ jobs:
             backend/requirements.txt
             requirements-dev.txt
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: npm
@@ -86,9 +86,9 @@ jobs:
       LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
       LINUX_GPG_KEY_ID: ${{ secrets.LINUX_GPG_KEY_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip
@@ -171,7 +171,7 @@ jobs:
           ./scripts/sign_linux.sh "$tarball" "$appimage" "$bundle"
 
       - name: Upload release assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-${{ matrix.target }}
           path: |
@@ -198,9 +198,9 @@ jobs:
       WINDOWS_SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_CERT_PASSWORD }}
       WINDOWS_SIGN_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGN_TIMESTAMP_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip
@@ -289,7 +289,7 @@ jobs:
           }
 
       - name: Upload release assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-${{ matrix.target }}
           path: |
@@ -322,9 +322,9 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip
@@ -371,7 +371,7 @@ jobs:
           hdiutil verify "$dmg_file" >/dev/null
 
       - name: Upload release assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-${{ matrix.target }}
           path: |
@@ -387,7 +387,7 @@ jobs:
       LINUX_GPG_PRIVATE_KEY_B64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_B64 }}
     steps:
       - name: Download release assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: release-assets-*
           path: dist
@@ -433,44 +433,49 @@ jobs:
           [ -n "$mac_x64_dmg" ] || { echo "Missing macOS x64 dmg"; exit 1; }
           [ -f release-dist/SHA256SUMS.txt ] || { echo "Missing SHA256SUMS.txt"; exit 1; }
 
-      - name: Publish release (attempt 1)
-        id: publish_release_attempt1
-        uses: softprops/action-gh-release@v2
-        continue-on-error: true
-        with:
-          files: release-dist/*
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-          overwrite_files: true
-
-      - name: Cooldown before retry 2
-        if: steps.publish_release_attempt1.outcome == 'failure'
+      - name: Publish release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Release publish attempt failed; sleeping 180s before retry (possible secondary rate limit)."
-          sleep 180
+          set -euo pipefail
 
-      - name: Publish release (attempt 2)
-        id: publish_release_attempt2
-        if: steps.publish_release_attempt1.outcome == 'failure'
-        uses: softprops/action-gh-release@v2
-        continue-on-error: true
-        with:
-          files: release-dist/*
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-          overwrite_files: true
+          shopt -s nullglob
+          assets=(release-dist/*)
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No release assets found in release-dist/"
+            exit 1
+          fi
 
-      - name: Cooldown before retry 3
-        if: steps.publish_release_attempt2.outcome == 'failure'
-        run: |
-          echo "Second release publish attempt failed; sleeping 300s before final retry."
-          sleep 300
+          tag="${GITHUB_REF_NAME}"
 
-      - name: Publish release (attempt 3)
-        if: steps.publish_release_attempt2.outcome == 'failure'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release-dist/*
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-          overwrite_files: true
+          publish_release() {
+            if gh release view "$tag" >/dev/null 2>&1; then
+              gh release upload "$tag" "${assets[@]}" --clobber
+            else
+              gh release create "$tag" "${assets[@]}" --generate-notes --verify-tag
+            fi
+          }
+
+          backoffs=(0 180 300)
+          for index in "${!backoffs[@]}"; do
+            attempt=$((index + 1))
+            delay="${backoffs[$index]}"
+
+            if [ "$delay" -gt 0 ]; then
+              echo "Release publish attempt ${attempt} starting after ${delay}s cooldown."
+              sleep "$delay"
+            else
+              echo "Starting release publish attempt ${attempt}."
+            fi
+
+            if publish_release; then
+              echo "Release publish succeeded on attempt ${attempt}."
+              exit 0
+            fi
+
+            echo "Release publish attempt ${attempt} failed."
+          done
+
+          echo "Release publish failed after 3 attempts."
+          exit 1
