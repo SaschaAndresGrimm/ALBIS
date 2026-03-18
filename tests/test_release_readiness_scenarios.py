@@ -179,8 +179,10 @@ def test_mask_route_falls_back_to_single_threshold_filewriter2_mask(tmp_path: Pa
     with h5py.File(main_file, "w") as h5:
         entry = h5.require_group("entry")
         entry.require_group("data").create_dataset("data", data=frames)
-        threshold_group = entry.require_group("instrument").require_group("detector").require_group(
-            "threshold_1_channel"
+        threshold_group = (
+            entry.require_group("instrument")
+            .require_group("detector")
+            .require_group("threshold_1_channel")
         )
         threshold_group.create_dataset("pixel_mask", data=mask)
 
