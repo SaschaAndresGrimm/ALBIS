@@ -122,6 +122,22 @@ This produces versioned artifacts in `dist/`, e.g.:
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
 
+To sign on build, set your Developer ID certificate and password before running the build:
+
+```bash
+export MACOS_SIGN_CERT_PATH="/Users/sascha.grimm/Documents/albis-dev-id.p12"
+export MACOS_SIGN_CERT_PASSWORD="<p12-password>"
+export MACOS_SIGNING_IDENTITY="Developer ID Application: Your Name Or Company (TEAMID)"  # optional if the p12 contains a single signing identity
+./scripts/build_mac.sh
+```
+
+Optional notarization env vars:
+- `APPLE_ID`
+- `APPLE_TEAM_ID`
+- `APPLE_APP_SPECIFIC_PASSWORD`
+
+If the signing env vars are set, `build_mac.sh` now signs the `.app`, rebuilds the `.zip`, creates a signed `.dmg`, and notarizes/staples the macOS artifacts when Apple credentials are present.
+
 ### Build (Linux)
 
 ```bash
@@ -195,7 +211,9 @@ Cross-target naming controls (all platforms):
 - `ALBIS_TARGET_ARCH=<x64|arm64|...>` overrides normalized target architecture tag.
 
 Public tag releases require the following signing/notarization environment variables in CI:
-- macOS: `MACOS_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`
+- macOS: `MACOS_SIGN_CERT_B64`, `MACOS_SIGN_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`
+  - optional: `MACOS_SIGNING_IDENTITY` to force a specific imported identity; otherwise the first Developer ID identity from the `.p12` is used
+  - `MACOS_SIGN_CERT_B64` should contain the base64-encoded `.p12` payload
 - Windows: `WINDOWS_SIGN_CERT_B64`, `WINDOWS_SIGN_CERT_PASSWORD`, `WINDOWS_SIGN_TIMESTAMP_URL`
 - Linux (GPG detached signatures): `LINUX_GPG_PRIVATE_KEY_B64`, `LINUX_GPG_PASSPHRASE`, `LINUX_GPG_KEY_ID`
   - `LINUX_GPG_PRIVATE_KEY_B64` accepts base64-encoded private key data (recommended), a raw ASCII-armored private key block, or an escaped armored block using `\n`.
