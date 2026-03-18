@@ -50,6 +50,7 @@ Use this to verify packaging and checks before tagging:
 4. Confirm install-path smoke checks passed:
    - Windows installer silent install -> launch -> uninstall
    - macOS mounted DMG app launch smoke
+5. If macOS signing secrets were configured, confirm the workflow logs show `.app` signing, `.dmg` signing, and notarization/stapling.
 
 Note: on manual dispatch from a branch, the `publish` job is intentionally skipped.
 
@@ -79,6 +80,7 @@ Expected result:
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
 - Signing/notarization secrets are present for Linux, Windows, and macOS before tagging.
+  - macOS requires the base64-encoded `.p12` (`MACOS_SIGN_CERT_B64`) and its password (`MACOS_SIGN_CERT_PASSWORD`), plus notarization credentials.
 - GitHub Release is published with:
   - Linux x64: `ALBIS-linux-x64-v<version>-<commit>.tar.gz` + `ALBIS-<version>-x86_64.AppImage` + `ALBIS-<version>-x86_64-appimage-bundle.tar.gz`
   - Linux x64 signatures (`.sig`) when Linux GPG signing secrets are configured
