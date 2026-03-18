@@ -170,6 +170,37 @@ def test_hdf5_routes_cover_linked_stack_traversal_and_frames(tmp_path: Path) -> 
     assert missing.status_code == 404
 
 
+def test_mask_route_falls_back_to_single_threshold_filewriter2_mask(tmp_path: Path) -> None:
+    client = TestClient(app)
+    main_file = tmp_path / "filewriter2_single_threshold.h5"
+    frames = np.arange(6, dtype=np.uint32).reshape(1, 1, 2, 3)
+    mask = np.array([[0, 1, 0], [2, 0, 4]], dtype=np.uint32)
+
+    with h5py.File(main_file, "w") as h5:
+        entry = h5.require_group("entry")
+        entry.require_group("data").create_dataset("data", data=frames)
+        threshold_group = (
+            entry.require_group("instrument")
+            .require_group("detector")
+            .require_group("threshold_1_channel")
+        )
+        threshold_group.create_dataset("pixel_mask", data=mask)
+
+    metadata = client.get(
+        "/api/metadata", params={"file": str(main_file), "dataset": "/entry/data/data"}
+    )
+    assert metadata.status_code == 200
+    assert metadata.json()["shape"] == [1, 1, 2, 3]
+
+    mask_response = client.get("/api/mask", params={"file": str(main_file)})
+    assert mask_response.status_code == 200
+    assert (
+        mask_response.headers["x-mask-path"]
+        == "/entry/instrument/detector/threshold_1_channel/pixel_mask"
+    )
+    np.testing.assert_array_equal(_decode_frame(mask_response, np.dtype("<u4"), (2, 3)), mask)
+
+
 def test_remote_stream_roundtrip_for_encoded_payloads(tmp_path: Path) -> None:
     client = TestClient(app)
     arr = (np.arange(12, dtype=np.uint16) + 10).reshape(3, 4)

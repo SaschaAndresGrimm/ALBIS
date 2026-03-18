@@ -45,6 +45,7 @@ MASK_PATHS = (
 )
 
 _LINKED_DATA_NAME_RE = re.compile(r"^data(?:[_-]?(\d+))?$")
+_THRESHOLD_GROUP_NAME_RE = re.compile(r"^threshold_(\d+)_channel$")
 
 
 @dataclass
@@ -215,6 +216,31 @@ class HDF5StackService:
         except Exception:
             return None, False, None
 
+    def find_threshold_pixel_masks(self, h5: Any) -> list[Any]:
+        h5py = self.get_h5py()
+        detector = h5.get("/entry/instrument/detector")
+        if not isinstance(detector, h5py.Group):
+            return []
+        matches: list[tuple[int, Any]] = []
+        for name in detector.keys():
+            match = _THRESHOLD_GROUP_NAME_RE.match(str(name))
+            if not match:
+                continue
+            try:
+                group = detector[name]
+            except Exception:
+                continue
+            if not isinstance(group, h5py.Group):
+                continue
+            try:
+                dset = group.get("pixel_mask")
+            except Exception:
+                dset = None
+            if isinstance(dset, h5py.Dataset) and dset.ndim == 2:
+                matches.append((int(match.group(1)), dset))
+        matches.sort(key=lambda item: item[0])
+        return [dset for _idx, dset in matches]
+
     def find_pixel_mask(self, h5: Any, threshold: int | None = None) -> Any | None:
         h5py = self.get_h5py()
         if threshold is not None:
@@ -228,6 +254,9 @@ class HDF5StackService:
                 obj = h5[path]
                 if isinstance(obj, h5py.Dataset) and obj.ndim == 2:
                     return obj
+        threshold_masks = self.find_threshold_pixel_masks(h5)
+        if threshold is None and len(threshold_masks) == 1:
+            return threshold_masks[0]
         return None
 
     @staticmethod

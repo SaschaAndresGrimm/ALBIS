@@ -68,37 +68,41 @@ if [ -d "dist/ALBIS.app" ]; then
   MAC_SRC="dist/ALBIS.app"
 fi
 
-if command -v ditto >/dev/null 2>&1; then
-  rm -f "$ZIP_OUT"
-  ditto -c -k --sequesterRsrc --keepParent "$MAC_SRC" "$ZIP_OUT"
+if [[ "$MAC_SRC" == *.app ]] && { [ -n "${MACOS_SIGNING_IDENTITY:-}" ] || [ -n "${MACOS_SIGN_CERT_PATH:-}" ] || [ -n "${MACOS_SIGN_CERT_B64:-}" ]; }; then
+  ./scripts/sign_macos.sh "$MAC_SRC"
 else
-  rm -f "$ZIP_OUT"
-  (cd dist && zip -r "$(basename "$ZIP_OUT")" "$(basename "$MAC_SRC")")
-fi
-
-if command -v hdiutil >/dev/null 2>&1; then
-  rm -f "$DMG_OUT"
-  DMG_SRC="$MAC_SRC"
-  if [[ "$MAC_SRC" == *.app ]]; then
-    DMG_STAGE="$TEMP_DIR/dmg-stage"
-    mkdir -p "$DMG_STAGE"
-    cp -R "$MAC_SRC" "$DMG_STAGE/$(basename "$MAC_SRC")"
-    ln -s "/Applications" "$DMG_STAGE/Applications"
-    DMG_SRC="$DMG_STAGE"
+  if command -v ditto >/dev/null 2>&1; then
+    rm -f "$ZIP_OUT"
+    ditto -c -k --sequesterRsrc --keepParent "$MAC_SRC" "$ZIP_OUT"
+  else
+    rm -f "$ZIP_OUT"
+    (cd dist && zip -r "$(basename "$ZIP_OUT")" "$(basename "$MAC_SRC")")
   fi
-  for attempt in 1 2 3; do
-    hdi_log="$TEMP_DIR/hdiutil-create-${attempt}.log"
-    if hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$DMG_SRC" -ov -format UDZO "$DMG_OUT" >"$hdi_log" 2>&1; then
-      break
+
+  if command -v hdiutil >/dev/null 2>&1; then
+    rm -f "$DMG_OUT"
+    DMG_SRC="$MAC_SRC"
+    if [[ "$MAC_SRC" == *.app ]]; then
+      DMG_STAGE="$TEMP_DIR/dmg-stage"
+      mkdir -p "$DMG_STAGE"
+      cp -R "$MAC_SRC" "$DMG_STAGE/$(basename "$MAC_SRC")"
+      ln -s "/Applications" "$DMG_STAGE/Applications"
+      DMG_SRC="$DMG_STAGE"
     fi
-    if grep -q "Resource busy" "$hdi_log" && [ "$attempt" -lt 3 ]; then
-      sleep $((attempt * 5))
-      rm -f "$DMG_OUT"
-      continue
-    fi
-    cat "$hdi_log"
-    exit 1
-  done
+    for attempt in 1 2 3; do
+      hdi_log="$TEMP_DIR/hdiutil-create-${attempt}.log"
+      if hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$DMG_SRC" -ov -format UDZO "$DMG_OUT" >"$hdi_log" 2>&1; then
+        break
+      fi
+      if grep -q "Resource busy" "$hdi_log" && [ "$attempt" -lt 3 ]; then
+        sleep $((attempt * 5))
+        rm -f "$DMG_OUT"
+        continue
+      fi
+      cat "$hdi_log"
+      exit 1
+    done
+  fi
 fi
 
 echo "Output:"

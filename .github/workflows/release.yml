@@ -45,6 +45,8 @@ jobs:
           WINDOWS_SIGN_CERT_B64: ${{ secrets.WINDOWS_SIGN_CERT_B64 }}
           WINDOWS_SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_CERT_PASSWORD }}
           WINDOWS_SIGN_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGN_TIMESTAMP_URL }}
+          MACOS_SIGN_CERT_B64: ${{ secrets.MACOS_SIGN_CERT_B64 }}
+          MACOS_SIGN_CERT_PASSWORD: ${{ secrets.MACOS_SIGN_CERT_PASSWORD }}
           MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -58,7 +60,8 @@ jobs:
             WINDOWS_SIGN_CERT_B64 \
             WINDOWS_SIGN_CERT_PASSWORD \
             WINDOWS_SIGN_TIMESTAMP_URL \
-            MACOS_SIGNING_IDENTITY \
+            MACOS_SIGN_CERT_B64 \
+            MACOS_SIGN_CERT_PASSWORD \
             APPLE_ID \
             APPLE_TEAM_ID \
             APPLE_APP_SPECIFIC_PASSWORD
@@ -368,6 +371,8 @@ jobs:
     env:
       ALBIS_TARGET_OS: ${{ matrix.target_os }}
       ALBIS_TARGET_ARCH: ${{ matrix.target_arch }}
+      MACOS_SIGN_CERT_B64: ${{ secrets.MACOS_SIGN_CERT_B64 }}
+      MACOS_SIGN_CERT_PASSWORD: ${{ secrets.MACOS_SIGN_CERT_PASSWORD }}
       MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -406,9 +411,6 @@ jobs:
             binary="dist/ALBIS.app/Contents/MacOS/ALBIS"
           fi
           python scripts/smoke_packaged_binary.py --binary "$binary" --startup-timeout 60
-
-      - name: Sign and notarize
-        run: ./scripts/sign_macos.sh dist/ALBIS.app
 
       - name: Smoke test mounted DMG app
         run: |
