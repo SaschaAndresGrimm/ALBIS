@@ -156,8 +156,9 @@ export function createMaskCursorController({
       clearMaskState();
       return;
     }
+    const hasThresholdDimension = Array.isArray(state.shape) && state.shape.length === 4;
     const maskKey =
-      state.thresholdCount > 1 ? `${state.file}#${state.thresholdIndex}` : state.file;
+      hasThresholdDimension ? `${state.file}#${state.thresholdIndex}` : state.file;
     if (state.maskFile === maskKey && state.maskRaw) {
       syncMaskAvailability(forceEnable);
       return;
@@ -171,8 +172,7 @@ export function createMaskCursorController({
     }
     updateMaskUI();
     try {
-      const thresholdParam =
-        state.thresholdCount > 1 ? `&threshold=${state.thresholdIndex}` : "";
+      const thresholdParam = hasThresholdDimension ? `&threshold=${state.thresholdIndex}` : "";
       const res = await fetch(`${apiBase}/mask?file=${encodeURIComponent(state.file)}${thresholdParam}`);
       if (!res.ok) {
         state.maskEnabled = false;
