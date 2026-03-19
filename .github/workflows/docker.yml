@@ -174,15 +174,27 @@ jobs:
             --format table \
             albis-scan:latest
 
+      - name: Validate arm64 image build
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_publish_validation == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/arm64
+          push: false
+          tags: albis-validate:arm64
+          cache-from: type=gha,scope=albis-docker-publish
+
       - name: Build and push multi-arch image
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
-          tags: ${{ steps.meta_release.outputs.tags || steps.meta_validation.outputs.tags }}
-          labels: ${{ steps.meta_release.outputs.labels || steps.meta_validation.outputs.labels }}
+          push: true
+          tags: ${{ steps.meta_release.outputs.tags }}
+          labels: ${{ steps.meta_release.outputs.labels }}
           cache-from: type=gha,scope=albis-docker-publish
           cache-to: type=gha,mode=max,scope=albis-docker-publish
 
