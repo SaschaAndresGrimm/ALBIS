@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -101,6 +101,23 @@ class SeriesSumCancelResponse(_StrictModel):
 
 class ImageHeaderResponse(_StrictModel):
     header: str
+
+
+class ImageGeometryPanelResponse(_StrictModel):
+    name: str
+    origin_mm: list[float] = Field(default_factory=list)
+    fast_axis: list[float] = Field(default_factory=list)
+    slow_axis: list[float] = Field(default_factory=list)
+    pixel_size_mm: list[float] = Field(default_factory=list)
+    image_size_px: list[int] = Field(default_factory=list)
+    raw_offset_px: list[int] = Field(default_factory=list)
+
+
+class ImageGeometryResponse(_StrictModel):
+    mode: Literal["planar", "geometry"] = "planar"
+    detector: str = ""
+    source: str = ""
+    panels: list[ImageGeometryPanelResponse] = Field(default_factory=list)
 
 
 class SimplonModeResponse(StatusResponse):

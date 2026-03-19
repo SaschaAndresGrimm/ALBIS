@@ -642,5 +642,6 @@
   "viewer.footer.badge.live": "LIVE",
   "viewer.footer.badge.server": "SERVER",
   "viewer.footer.file.empty": "ファイルなし",
-  "viewer.footer.status.idle": "待機"
+  "viewer.footer.status.idle": "待機",
+  "rings.geometry.status": "Geometry-aware rings from {{source}}."
 }

@@ -642,5 +642,6 @@
   "viewer.footer.badge.live": "VIVI",
   "viewer.footer.badge.server": "SERVER",
   "viewer.footer.file.empty": "Nessun fascicolo",
-  "viewer.footer.status.idle": "Inattivo"
+  "viewer.footer.status.idle": "Inattivo",
+  "rings.geometry.status": "Geometry-aware rings from {{source}}."
 }

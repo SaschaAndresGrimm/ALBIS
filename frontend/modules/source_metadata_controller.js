@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { getGeometryReferencePose, prepareRingGeometry } from "./ring_geometry_utils.js";
 
 export function createSourceMetadataController({
   state,
@@ -45,9 +46,41 @@ export function createSourceMetadataController({
     ringsEnergy,
     ringsCenterX,
     ringsCenterY,
+    ringsGeometryStatusEl,
   } = elements;
 
   const { scheduleResolutionOverlay } = callbacks;
+
+  function formatNumberInput(value, digits = 2) {
+    if (!Number.isFinite(value)) return "";
+    const rounded = Number(value.toFixed(digits));
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+  }
+
+  function hasGeometryManualOverride(flagName) {
+    const activeKey = String(analysisState.ringGeometryKey || "");
+    const manualKey = String(analysisState.geometryManualKey || "");
+    return Boolean(analysisState[flagName] && activeKey && manualKey && activeKey === manualKey);
+  }
+
+  function setDistanceInputValue(value) {
+    if (ringsDistance && Number.isFinite(value)) {
+      ringsDistance.value = formatNumberInput(value, 2);
+    }
+  }
+
+  function setCenterInputValue(inputEl, value) {
+    if (inputEl && Number.isFinite(value)) {
+      inputEl.value = formatNumberInput(value, 2);
+    }
+  }
+
+  function clearGeometryManualOverrides() {
+    analysisState.geometryManualKey = "";
+    analysisState.geometryDistanceManual = false;
+    analysisState.geometryCenterXManual = false;
+    analysisState.geometryCenterYManual = false;
+  }
 
   function parseHeaderFloat(headers, key) {
     if (!headers) return null;
@@ -80,6 +113,37 @@ export function createSourceMetadataController({
       return value.toFixed(digits);
     }
     return String(value);
+  }
+
+  function formatGeometrySource(raw) {
+    const text = String(raw || "").trim();
+    if (!text) return "";
+    const normalized = text.replace(/\\/g, "/");
+    const parts = normalized.split("/").filter(Boolean);
+    if (parts.length <= 2) return parts.join("/");
+    return parts.slice(-2).join("/");
+  }
+
+  function updateGeometryUi() {
+    const geometryActive = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
+    if (ringsPixel) {
+      ringsPixel.disabled = Boolean(geometryActive);
+    }
+    if (!ringsGeometryStatusEl) return;
+    if (!geometryActive) {
+      ringsGeometryStatusEl.classList.add("is-hidden");
+      ringsGeometryStatusEl.textContent = "";
+      ringsGeometryStatusEl.removeAttribute("title");
+      return;
+    }
+    const source = formatGeometrySource(analysisState.ringGeometrySource) || t("common.ready");
+    ringsGeometryStatusEl.textContent = t("rings.geometry.status", { source });
+    if (analysisState.ringGeometrySource) {
+      ringsGeometryStatusEl.title = analysisState.ringGeometrySource;
+    } else {
+      ringsGeometryStatusEl.removeAttribute("title");
+    }
+    ringsGeometryStatusEl.classList.remove("is-hidden");
   }
 
   function updateSimplonMetaUI(meta) {
@@ -165,9 +229,9 @@ export function createSourceMetadataController({
 
   function applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY }) {
     let updated = false;
-    if (Number.isFinite(distanceMm) && ringsDistance) {
+    if (Number.isFinite(distanceMm) && ringsDistance && !hasGeometryManualOverride("geometryDistanceManual")) {
       analysisState.distanceMm = distanceMm;
-      ringsDistance.value = String(Math.round(distanceMm));
+      setDistanceInputValue(distanceMm);
       updated = true;
     }
     if (Number.isFinite(pixelSizeUm) && ringsPixel) {
@@ -180,19 +244,67 @@ export function createSourceMetadataController({
       ringsEnergy.value = String(Math.round(energyEv));
       updated = true;
     }
-    if (Number.isFinite(centerX) && ringsCenterX) {
+    if (Number.isFinite(centerX) && ringsCenterX && !hasGeometryManualOverride("geometryCenterXManual")) {
       analysisState.centerX = centerX;
-      ringsCenterX.value = Math.round(centerX).toString();
+      setCenterInputValue(ringsCenterX, centerX);
       updated = true;
     }
-    if (Number.isFinite(centerY) && ringsCenterY) {
+    if (Number.isFinite(centerY) && ringsCenterY && !hasGeometryManualOverride("geometryCenterYManual")) {
       analysisState.centerY = centerY;
-      ringsCenterY.value = Math.round(centerY).toString();
+      setCenterInputValue(ringsCenterY, centerY);
       updated = true;
     }
     if (updated) {
       scheduleResolutionOverlay();
     }
+  }
+
+  function clearImageGeometry({ clearKey = true } = {}) {
+    analysisState.ringMode = "planar";
+    analysisState.ringGeometry = null;
+    analysisState.ringGeometrySource = "";
+    clearGeometryManualOverrides();
+    if (clearKey) {
+      analysisState.ringGeometryKey = "";
+    }
+    updateGeometryUi();
+    scheduleResolutionOverlay();
+  }
+
+  function applyImageGeometry(payload, cacheKey = "") {
+    analysisState.ringGeometryKey = cacheKey ? String(cacheKey) : "";
+    const prepared = prepareRingGeometry(payload);
+    if (!prepared) {
+      analysisState.ringMode = "planar";
+      analysisState.ringGeometry = null;
+      analysisState.ringGeometrySource = "";
+      clearGeometryManualOverrides();
+      updateGeometryUi();
+      scheduleResolutionOverlay();
+      return;
+    }
+    const reference = getGeometryReferencePose(prepared);
+    analysisState.ringMode = "geometry";
+    analysisState.ringGeometry = prepared;
+    analysisState.ringGeometrySource = String(prepared.source || "");
+    if (
+      reference &&
+      !hasGeometryManualOverride("geometryDistanceManual") &&
+      (!Number.isFinite(analysisState.distanceMm) || analysisState.distanceMm <= 0)
+    ) {
+      analysisState.distanceMm = reference.distanceMm;
+      setDistanceInputValue(reference.distanceMm);
+    }
+    if (reference && !hasGeometryManualOverride("geometryCenterXManual") && !Number.isFinite(analysisState.centerX)) {
+      analysisState.centerX = reference.centerX;
+      setCenterInputValue(ringsCenterX, reference.centerX);
+    }
+    if (reference && !hasGeometryManualOverride("geometryCenterYManual") && !Number.isFinite(analysisState.centerY)) {
+      analysisState.centerY = reference.centerY;
+      setCenterInputValue(ringsCenterY, reference.centerY);
+    }
+    updateGeometryUi();
+    scheduleResolutionOverlay();
   }
 
   function applyImageMeta(headers) {
@@ -276,8 +388,11 @@ export function createSourceMetadataController({
     updateSimplonMetaUI,
     updateRemoteMetaUI,
     updateJfjochMetaUI,
+    updateGeometryUi,
+    applyImageGeometry,
     applyImageMeta,
     applySimplonMeta,
     applyRemoteMeta,
+    clearImageGeometry,
   };
 }

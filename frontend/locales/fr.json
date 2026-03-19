@@ -642,5 +642,6 @@
   "viewer.footer.badge.live": "EN DIRECT",
   "viewer.footer.badge.server": "SERVEUR",
   "viewer.footer.file.empty": "Aucun fichier",
-  "viewer.footer.status.idle": "Inactif"
+  "viewer.footer.status.idle": "Inactif",
+  "rings.geometry.status": "Geometry-aware rings from {{source}}."
 }

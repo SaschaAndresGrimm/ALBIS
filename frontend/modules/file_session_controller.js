@@ -23,6 +23,7 @@ export function createFileSessionController({
 
   const {
     stopPlayback,
+    clearImageGeometry,
     clearMaskState,
     clearImageHeader,
     updateToolbar,
@@ -98,6 +99,15 @@ export function createFileSessionController({
     analysisState.peaks = [];
     analysisState.selectedPeaks = [];
     analysisState.peakSelectionAnchor = null;
+    analysisState.ringMode = "planar";
+    analysisState.ringGeometry = null;
+    analysisState.ringGeometrySource = "";
+    analysisState.ringGeometryKey = "";
+    analysisState.geometryManualKey = "";
+    analysisState.geometryDistanceManual = false;
+    analysisState.geometryCenterXManual = false;
+    analysisState.geometryCenterYManual = false;
+    clearImageGeometry();
     clearMaskState();
     clearImageHeader();
     updateToolbar();

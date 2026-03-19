@@ -46,6 +46,7 @@ export function createFrameMetadataController({
     loadFrame,
     isHdf5File,
     getDefaultCenter,
+    clearImageGeometry,
     scheduleResolutionOverlay,
   } = callbacks;
 
@@ -164,6 +165,7 @@ export function createFrameMetadataController({
     if (!state.file || !isHdf5File(state.file)) {
       return;
     }
+    clearImageGeometry();
     try {
       const data = await fetchJSON(
         `${apiBase}/analysis/params?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(

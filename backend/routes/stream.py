@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, Response
 
 try:
     from ..api_models import (
+        ImageGeometryResponse,
         ImageHeaderResponse,
         JungfraujochPreviewControlResponse,
         JungfraujochPreviewStartRequest,
@@ -26,6 +27,7 @@ try:
     )
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
+        ImageGeometryResponse,
         ImageHeaderResponse,
         JungfraujochPreviewControlResponse,
         JungfraujochPreviewStartRequest,
@@ -121,6 +123,7 @@ class StreamRouteDeps:
     pilatus_meta_from_tiff: Callable[[Path], dict[str, Any]]
     pilatus_meta_from_fabio: Callable[[Path], dict[str, Any]]
     pilatus_header_text: Callable[[Path], str]
+    pilatus_image_geometry: Callable[[Path], dict[str, Any]]
     simplon_base: Callable[[str, str], str]
     simplon_set_mode: Callable[[str, str], None]
     simplon_fetch_monitor: Callable[[str, int], bytes | None]
@@ -190,6 +193,19 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         header_text = deps.pilatus_header_text(path)
         deps.logger.debug("Image header (%s): %d chars", path.name, len(header_text))
         return ImageHeaderResponse(header=header_text or "")
+
+    @app.get("/api/image/geometry", response_model=ImageGeometryResponse)
+    def image_geometry(file: str = Query(..., min_length=1)) -> ImageGeometryResponse:
+        """Resolve optional detector geometry metadata for supported image files."""
+        path = deps.resolve_image_file(file)
+        ext = deps.image_ext_name(path.name)
+        if ext in {".h5", ".hdf5"}:
+            raise HTTPException(
+                status_code=400, detail="Geometry endpoint is only available for non-HDF images"
+            )
+        payload = deps.pilatus_image_geometry(path)
+        deps.logger.debug("Image geometry (%s): %s", path.name, payload.get("mode"))
+        return ImageGeometryResponse(**payload)
 
     @app.get("/api/simplon/monitor", responses=SIMPLON_MONITOR_RESPONSE_DOCS)
     def simplon_monitor(

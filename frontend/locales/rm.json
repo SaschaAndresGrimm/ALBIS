@@ -642,5 +642,6 @@
   "viewer.footer.badge.live": "LIVE",
   "viewer.footer.badge.server": "SERVER",
   "viewer.footer.file.empty": "Nagina datoteca",
-  "viewer.footer.status.idle": "Inactiv"
+  "viewer.footer.status.idle": "Inactiv",
+  "rings.geometry.status": "Geometry-aware rings from {{source}}."
 }

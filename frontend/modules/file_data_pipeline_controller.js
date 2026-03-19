@@ -26,6 +26,7 @@ export function createFileDataPipelineController({
     setDataControlsForHdf5,
     setDataControlsForSeries,
     loadMetadata,
+    loadImageGeometry,
     loadInspectorRoot,
     updateFrameControls,
     updatePlayButtons,
@@ -121,6 +122,7 @@ export function createFileDataPipelineController({
     stopPlayback();
     setLoading(true);
     setStatus(t("status.data.loading_image"));
+    const geometryPromise = loadImageGeometry(file, file);
     try {
       const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`);
       if (!res.ok) {
@@ -132,6 +134,7 @@ export function createFileDataPipelineController({
       const shape = parseShape(res.headers.get("X-Shape"));
       const data = typedArrayFrom(buffer, dtype);
       applyImageMeta(res.headers);
+      await geometryPromise;
       applyExternalFrame(data, shape, dtype, file, true, false, {
         autoMask: true,
         maskKey: `auto:${file}`,
@@ -213,6 +216,8 @@ export function createFileDataPipelineController({
     let appliedFrame = false;
     const requestController = new AbortController();
     setActiveFrameLoadController(requestController);
+    const geometryKey = state.file || state.seriesLabel || file;
+    const geometryPromise = loadImageGeometry(state.file || file, geometryKey);
     try {
       const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`, {
         signal: requestController.signal,
@@ -230,6 +235,7 @@ export function createFileDataPipelineController({
       const shape = parseShape(res.headers.get("X-Shape"));
       const data = typedArrayFrom(buffer, dtype);
       applyImageMeta(res.headers);
+      await geometryPromise;
 
       const height = shape[0];
       const width = shape[1];

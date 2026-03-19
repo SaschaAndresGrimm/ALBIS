@@ -642,5 +642,6 @@
   "viewer.footer.badge.live": "__LEVENDE__",
   "viewer.footer.badge.server": "SERVER",
   "viewer.footer.file.empty": "Ingen fil",
-  "viewer.footer.status.idle": "Ledig"
+  "viewer.footer.status.idle": "Ledig",
+  "rings.geometry.status": "Geometry-aware rings from {{source}}."
 }

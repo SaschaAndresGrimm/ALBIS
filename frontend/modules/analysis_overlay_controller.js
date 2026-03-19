@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { applyGeometryOverrides, getGeometryResolutionAtPixel } from "./ring_geometry_utils.js";
 
 export function createAnalysisOverlayController({
   state,
@@ -45,6 +46,14 @@ export function createAnalysisOverlayController({
 
   let peakFinderScheduled = false;
 
+  function parseNumericInputValue(inputEl) {
+    if (!inputEl) return null;
+    const raw = String(inputEl.value ?? "").trim();
+    if (!raw) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  }
+
   function getDefaultCenter() {
     if (Array.isArray(state.shape) && state.shape.length >= 2) {
       const width = state.shape[state.shape.length - 1];
@@ -60,11 +69,15 @@ export function createAnalysisOverlayController({
   }
 
   function getRingParams() {
-    const distanceMm = Number(ringsDistance?.value || analysisState.distanceMm);
-    const pixelSizeUm = Number(ringsPixel?.value || analysisState.pixelSizeUm);
-    const energyEv = Number(ringsEnergy?.value || analysisState.energyEv);
-    const centerX = Number(ringsCenterX?.value);
-    const centerY = Number(ringsCenterY?.value);
+    const geometryActive = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
+    const distanceInput = parseNumericInputValue(ringsDistance);
+    const pixelInput = parseNumericInputValue(ringsPixel);
+    const energyInput = parseNumericInputValue(ringsEnergy);
+    const centerX = parseNumericInputValue(ringsCenterX);
+    const centerY = parseNumericInputValue(ringsCenterY);
+    const distanceMm = Number.isFinite(distanceInput) ? distanceInput : analysisState.distanceMm;
+    const pixelSizeUm = Number.isFinite(pixelInput) ? pixelInput : analysisState.pixelSizeUm;
+    const energyEv = Number.isFinite(energyInput) ? energyInput : analysisState.energyEv;
     const centerKnown =
       Number.isFinite(centerX) ||
       Number.isFinite(centerY) ||
@@ -87,9 +100,12 @@ export function createAnalysisOverlayController({
       .filter((value) => value !== null)
       .slice(0, ringLimit);
     return {
-      distanceMm: Number.isFinite(distanceMm) ? distanceMm : null,
-      pixelSizeUm: Number.isFinite(pixelSizeUm) ? pixelSizeUm : null,
-      energyEv: Number.isFinite(energyEv) ? energyEv : null,
+      mode: geometryActive ? "geometry" : "planar",
+      geometry: geometryActive ? analysisState.ringGeometry : null,
+      geometrySource: geometryActive ? String(analysisState.ringGeometrySource || "") : "",
+      distanceMm: Number.isFinite(distanceMm) && distanceMm > 0 ? distanceMm : null,
+      pixelSizeUm: Number.isFinite(pixelSizeUm) && pixelSizeUm > 0 ? pixelSizeUm : null,
+      energyEv: Number.isFinite(energyEv) && energyEv > 0 ? energyEv : null,
       centerX: center.x,
       centerY: center.y,
       centerKnown,
@@ -99,7 +115,16 @@ export function createAnalysisOverlayController({
 
   function getResolutionAtPixel(ix, iy, params = getRingParams()) {
     if (!Number.isFinite(ix) || !Number.isFinite(iy)) return null;
-    if (!params || !params.distanceMm || !params.pixelSizeUm || !params.energyEv) return null;
+    if (!params) return null;
+    if (params.mode === "geometry" && params.geometry) {
+      const geometry = applyGeometryOverrides(params.geometry, {
+        centerX: params.centerX,
+        centerY: params.centerY,
+        distanceMm: params.distanceMm,
+      });
+      return getGeometryResolutionAtPixel(ix, iy, geometry, params.energyEv);
+    }
+    if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) return null;
     const lambda = 12398.4193 / params.energyEv;
     if (!Number.isFinite(lambda) || lambda <= 0) return null;
     const pixelSizeMm = params.pixelSizeUm / 1000;
@@ -129,7 +154,9 @@ export function createAnalysisOverlayController({
       return;
     }
     const params = getRingParams();
-    if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) {
+    const planarMissing = !params.distanceMm || !params.pixelSizeUm || !params.energyEv;
+    const geometryMissing = params.mode === "geometry" && !params.energyEv;
+    if ((params.mode === "geometry" && geometryMissing) || (params.mode !== "geometry" && planarMissing)) {
       setSectionBadgeState(
         ringsSectionStateEl,
         "empty",

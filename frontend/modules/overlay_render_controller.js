@@ -2,6 +2,12 @@
  * Overlay rendering for pixel labels, peak markers, and resolution rings.
  */
 
+import {
+  applyGeometryOverrides,
+  buildGeometryRingSegments,
+  pickGeometryRingLabelPoint,
+} from "./ring_geometry_utils.js";
+
 export function createOverlayRenderController({
   state,
   analysisState,
@@ -43,6 +49,8 @@ export function createOverlayRenderController({
   let pixelOverlayResumeTimer = null;
   let peakOverlayScheduled = false;
   let resolutionOverlayScheduled = false;
+  let geometryRingCacheKey = "";
+  let geometryRingCache = new Map();
 
   function clearPixelOverlay() {
     if (!pixelOverlay || !pixelCtx) return;
@@ -336,6 +344,103 @@ export function createOverlayRenderController({
     });
   }
 
+  function getGeometryCacheKey(params) {
+    if (!params || params.mode !== "geometry" || !params.geometry) return "";
+    return [
+      String(params.geometrySource || params.geometry?.source || ""),
+      String(params.energyEv || ""),
+      Number.isFinite(params.distanceMm) ? Number(params.distanceMm).toFixed(4) : "",
+      Number.isFinite(params.centerX) ? Number(params.centerX).toFixed(4) : "",
+      Number.isFinite(params.centerY) ? Number(params.centerY).toFixed(4) : "",
+      params.rings.map((value) => Number(value).toFixed(6)).join(","),
+    ].join("|");
+  }
+
+  function getGeometryRingCache(params) {
+    const cacheKey = getGeometryCacheKey(params);
+    if (!cacheKey) {
+      geometryRingCacheKey = "";
+      geometryRingCache = new Map();
+      return geometryRingCache;
+    }
+    if (cacheKey === geometryRingCacheKey) {
+      return geometryRingCache;
+    }
+    geometryRingCacheKey = cacheKey;
+    geometryRingCache = new Map();
+    const adjustedGeometry = applyGeometryOverrides(params.geometry, {
+      centerX: params.centerX,
+      centerY: params.centerY,
+      distanceMm: params.distanceMm,
+    });
+    params.rings.forEach((dSpacing) => {
+      const segments = buildGeometryRingSegments({
+        geometry: adjustedGeometry,
+        energyEv: params.energyEv,
+        dSpacing,
+      });
+      geometryRingCache.set(dSpacing, {
+        segments,
+        labelPoint: pickGeometryRingLabelPoint(segments),
+      });
+    });
+    return geometryRingCache;
+  }
+
+  function drawRingLabel(screenPoint, label) {
+    if (!screenPoint || !label) return;
+    const fontSize = 14;
+    const textX = screenPoint.x + 8;
+    const textY = screenPoint.y;
+    const textWidth = resolutionCtx.measureText(label).width;
+    const padX = 6;
+    const padY = 3;
+    resolutionCtx.fillStyle = "rgba(10, 20, 40, 0.55)";
+    resolutionCtx.fillRect(textX - padX, textY - fontSize / 2 - padY, textWidth + padX * 2, fontSize + padY * 2);
+    resolutionCtx.lineWidth = 3;
+    resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+    resolutionCtx.strokeText(label, textX, textY);
+    resolutionCtx.fillStyle = "rgba(230, 240, 255, 0.98)";
+    resolutionCtx.fillText(label, textX, textY);
+  }
+
+  function strokeRingPath(points) {
+    if (!Array.isArray(points) || points.length < 2) return;
+    resolutionCtx.beginPath();
+    resolutionCtx.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) {
+      resolutionCtx.lineTo(points[index].x, points[index].y);
+    }
+    resolutionCtx.lineWidth = 3.5;
+    resolutionCtx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+    resolutionCtx.stroke();
+    resolutionCtx.lineWidth = 2;
+    resolutionCtx.strokeStyle = "rgba(20, 80, 170, 0.95)";
+    resolutionCtx.stroke();
+  }
+
+  function drawBeamCenterMarker(centerX, centerY, zoom) {
+    if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return;
+    const arm = Math.max(10, Math.min(22, 10 + Math.log2(Math.max(1, zoom)) * 4));
+    resolutionCtx.setLineDash([]);
+    resolutionCtx.beginPath();
+    resolutionCtx.moveTo(centerX - arm, centerY);
+    resolutionCtx.lineTo(centerX + arm, centerY);
+    resolutionCtx.moveTo(centerX, centerY - arm);
+    resolutionCtx.lineTo(centerX, centerY + arm);
+    resolutionCtx.lineWidth = 4;
+    resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.72)";
+    resolutionCtx.stroke();
+    resolutionCtx.beginPath();
+    resolutionCtx.moveTo(centerX - arm, centerY);
+    resolutionCtx.lineTo(centerX + arm, centerY);
+    resolutionCtx.moveTo(centerX, centerY - arm);
+    resolutionCtx.lineTo(centerX, centerY + arm);
+    resolutionCtx.lineWidth = 2.2;
+    resolutionCtx.strokeStyle = "rgba(255, 65, 65, 0.96)";
+    resolutionCtx.stroke();
+  }
+
   function drawResolutionOverlay() {
     if (!resolutionOverlay || !resolutionCtx || !canvasWrap) return;
     const metrics = syncOverlayCanvas(resolutionOverlay, resolutionCtx);
@@ -345,7 +450,8 @@ export function createOverlayRenderController({
     updateRingsSectionState();
     if (!analysisState.ringsEnabled || !state.hasFrame) return;
     const params = getRingParams();
-    if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) return;
+    if (!params.energyEv) return;
+    if (params.mode !== "geometry" && (!params.distanceMm || !params.pixelSizeUm)) return;
     const lambda = 12398.4193 / params.energyEv;
     if (!Number.isFinite(lambda) || lambda <= 0) return;
     const zoom = state.zoom || 1;
@@ -356,7 +462,6 @@ export function createOverlayRenderController({
     const centerX = (params.centerX - viewX) * zoom + offsetX;
     const centerY = (params.centerY - viewY) * zoom + offsetY;
     const pixelSizeMm = params.pixelSizeUm / 1000;
-    if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) return;
 
     resolutionCtx.save();
     resolutionCtx.setLineDash([6, 6]);
@@ -366,6 +471,37 @@ export function createOverlayRenderController({
     resolutionCtx.font = `${fontSize}px 'Avenir', 'Segoe UI', sans-serif`;
     resolutionCtx.textBaseline = "middle";
     const labelAngle = -Math.PI / 6;
+    if (params.mode === "geometry" && params.geometry) {
+      const geometryCache = getGeometryRingCache(params);
+      params.rings.forEach((d) => {
+        const entry = geometryCache.get(d);
+        if (!entry || !Array.isArray(entry.segments) || !entry.segments.length) return;
+        entry.segments.forEach((segment) => {
+          const screenPoints = segment.map((point) => ({
+            x: (point.x - viewX) * zoom + offsetX,
+            y: (point.y - viewY) * zoom + offsetY,
+          }));
+          strokeRingPath(screenPoints);
+        });
+        const labelPoint = entry.labelPoint
+          ? {
+              x: (entry.labelPoint.x - viewX) * zoom + offsetX,
+              y: (entry.labelPoint.y - viewY) * zoom + offsetY,
+            }
+          : null;
+        const label = Number.isFinite(d) ? `${d.toFixed(2).replace(/\.00$/, "")} \u00C5` : "\u00C5";
+        drawRingLabel(labelPoint, label);
+      });
+      if (params.centerKnown) {
+        drawBeamCenterMarker(centerX, centerY, zoom);
+      }
+      resolutionCtx.restore();
+      return;
+    }
+    if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) {
+      resolutionCtx.restore();
+      return;
+    }
     params.rings.forEach((d) => {
       const sinArg = lambda / (2 * d);
       if (!Number.isFinite(sinArg) || sinArg <= 0 || sinArg >= 1) return;
@@ -387,39 +523,11 @@ export function createOverlayRenderController({
       const labelX = centerX + Math.cos(labelAngle) * screenRadius;
       const labelY = centerY + Math.sin(labelAngle) * screenRadius;
       const label = Number.isFinite(d) ? `${d.toFixed(2).replace(/\.00$/, "")} \u00C5` : "\u00C5";
-      const textX = labelX + 8;
-      const textY = labelY;
-      const textWidth = resolutionCtx.measureText(label).width;
-      const padX = 6;
-      const padY = 3;
-      resolutionCtx.fillStyle = "rgba(10, 20, 40, 0.55)";
-      resolutionCtx.fillRect(textX - padX, textY - fontSize / 2 - padY, textWidth + padX * 2, fontSize + padY * 2);
-      resolutionCtx.lineWidth = 3;
-      resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.7)";
-      resolutionCtx.strokeText(label, textX, textY);
-      resolutionCtx.fillStyle = "rgba(230, 240, 255, 0.98)";
-      resolutionCtx.fillText(label, textX, textY);
+      drawRingLabel({ x: labelX, y: labelY }, label);
     });
 
     if (params.centerKnown) {
-      const arm = Math.max(10, Math.min(22, 10 + Math.log2(Math.max(1, zoom)) * 4));
-      resolutionCtx.setLineDash([]);
-      resolutionCtx.beginPath();
-      resolutionCtx.moveTo(centerX - arm, centerY);
-      resolutionCtx.lineTo(centerX + arm, centerY);
-      resolutionCtx.moveTo(centerX, centerY - arm);
-      resolutionCtx.lineTo(centerX, centerY + arm);
-      resolutionCtx.lineWidth = 4;
-      resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.72)";
-      resolutionCtx.stroke();
-      resolutionCtx.beginPath();
-      resolutionCtx.moveTo(centerX - arm, centerY);
-      resolutionCtx.lineTo(centerX + arm, centerY);
-      resolutionCtx.moveTo(centerX, centerY - arm);
-      resolutionCtx.lineTo(centerX, centerY + arm);
-      resolutionCtx.lineWidth = 2.2;
-      resolutionCtx.strokeStyle = "rgba(255, 65, 65, 0.96)";
-      resolutionCtx.stroke();
+      drawBeamCenterMarker(centerX, centerY, zoom);
     }
     resolutionCtx.restore();
   }

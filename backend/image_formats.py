@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import math
 import re
 import struct
@@ -484,6 +485,122 @@ def _pilatus_header_text(path: Path) -> str:
         return "\n".join(f"{k} {v}" for k, v in header.items())
     except Exception:
         return ""
+
+
+def _pilatus_is_12m_header_text(text: str) -> bool:
+    upper = str(text or "").upper()
+    return "PILATUS 12M" in upper and "S/N 120-0100" in upper
+
+
+def _coerce_float_vector(value: Any, size: int) -> list[float] | None:
+    if not isinstance(value, list | tuple) or len(value) != size:
+        return None
+    out: list[float] = []
+    for item in value:
+        number = _first_number(item)
+        if number is None or not math.isfinite(number):
+            return None
+        out.append(float(number))
+    return out
+
+
+def _coerce_int_vector(value: Any, size: int) -> list[int] | None:
+    if not isinstance(value, list | tuple) or len(value) != size:
+        return None
+    out: list[int] = []
+    for item in value:
+        number = _as_int(item)
+        if number is None:
+            return None
+        out.append(int(number))
+    return out
+
+
+def _normalize_geometry_panel(payload: Any) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    name = str(payload.get("name") or "").strip()
+    origin = _coerce_float_vector(payload.get("origin"), 3)
+    fast_axis = _coerce_float_vector(payload.get("fast_axis"), 3)
+    slow_axis = _coerce_float_vector(payload.get("slow_axis"), 3)
+    pixel_size = _coerce_float_vector(payload.get("pixel_size"), 2)
+    image_size = _coerce_int_vector(payload.get("image_size"), 2)
+    raw_offset = _coerce_int_vector(payload.get("raw_image_offset"), 2)
+    if not (
+        name
+        and origin
+        and fast_axis
+        and slow_axis
+        and pixel_size
+        and image_size
+        and raw_offset
+    ):
+        return None
+    if any(v <= 0 for v in pixel_size) or any(v <= 0 for v in image_size):
+        return None
+    return {
+        "name": name,
+        "origin_mm": origin,
+        "fast_axis": fast_axis,
+        "slow_axis": slow_axis,
+        "pixel_size_mm": pixel_size,
+        "image_size_px": image_size,
+        "raw_offset_px": raw_offset,
+    }
+
+
+def _load_dials_expt_geometry(path: Path) -> list[dict[str, Any]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return []
+    detectors = payload.get("detector")
+    if not isinstance(detectors, list) or not detectors:
+        return []
+    detector = detectors[0]
+    if not isinstance(detector, dict):
+        return []
+    panels = detector.get("panels")
+    if not isinstance(panels, list):
+        return []
+    normalized = []
+    for panel in panels:
+        item = _normalize_geometry_panel(panel)
+        if item is not None:
+            normalized.append(item)
+    return normalized
+
+
+def _resolve_pilatus_12m_geometry_file(image_path: Path) -> Path | None:
+    candidates = [
+        image_path.parent / "imported.expt",
+        image_path.parent / "P12M_geometry" / "imported.expt",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _pilatus_image_geometry(path: Path) -> dict[str, Any]:
+    geometry = {"mode": "planar", "detector": "", "source": "", "panels": []}
+    if _image_ext_name(path.name) not in {".cbf", ".cbf.gz"}:
+        return geometry
+    header_text = _pilatus_header_text(path)
+    if not _pilatus_is_12m_header_text(header_text):
+        return geometry
+    geometry_path = _resolve_pilatus_12m_geometry_file(path)
+    if geometry_path is None:
+        return geometry
+    panels = _load_dials_expt_geometry(geometry_path)
+    if not panels:
+        return geometry
+    return {
+        "mode": "geometry",
+        "detector": "pilatus-12m-dls-cshape",
+        "source": str(geometry_path),
+        "panels": panels,
+    }
 
 
 def _image_ext_name(name: str) -> str:

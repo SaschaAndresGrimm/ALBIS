@@ -642,5 +642,6 @@
   "viewer.footer.badge.live": "__ORA__",
   "viewer.footer.badge.server": "__TUNGA__",
   "viewer.footer.file.empty": "Karekau he konae",
-  "viewer.footer.status.idle": "Karekau"
+  "viewer.footer.status.idle": "Karekau",
+  "rings.geometry.status": "Geometry-aware rings from {{source}}."
 }

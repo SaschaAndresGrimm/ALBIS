@@ -38,6 +38,7 @@ try:
     from .image_formats import (
         _image_ext_name,
         _pilatus_header_text,
+        _pilatus_image_geometry,
         _pilatus_meta_from_fabio,
         _pilatus_meta_from_tiff,
         _read_cbf,
@@ -117,6 +118,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from image_formats import (
         _image_ext_name,
         _pilatus_header_text,
+        _pilatus_image_geometry,
         _pilatus_meta_from_fabio,
         _pilatus_meta_from_tiff,
         _read_cbf,
@@ -648,6 +650,7 @@ register_stream_routes(
         pilatus_meta_from_tiff=_pilatus_meta_from_tiff,
         pilatus_meta_from_fabio=_pilatus_meta_from_fabio,
         pilatus_header_text=_pilatus_header_text,
+        pilatus_image_geometry=_pilatus_image_geometry,
         simplon_base=_simplon_base,
         simplon_set_mode=_simplon_set_mode,
         simplon_fetch_monitor=_simplon_fetch_monitor,

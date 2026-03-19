@@ -2243,6 +2243,10 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   align-items: end;
 }
 
+.rings-geometry-status {
+  margin-top: 4px;
+}
+
 .ring-center {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

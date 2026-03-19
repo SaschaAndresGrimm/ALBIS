@@ -97,18 +97,30 @@ export function bindAnalysisControlInteractions({
   }
 
   function updateRingsFromInputs() {
+    const geometryDriven = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
     if (ringsToggle) {
       analysisState.ringsEnabled = ringsToggle.checked;
     }
     analysisState.ringCount = Math.max(1, Math.min(defaultRingCount, Math.max(1, ringInputs.length)));
     if (ringsDistance) {
-      analysisState.distanceMm = parsePositiveNumberInput(
+      const parsedDistance = parsePositiveNumberInput(
         ringsDistance,
         ringsDistanceHint,
         "validation.rings.distance_positive",
       );
+      if (geometryDriven) {
+        if (Number.isFinite(parsedDistance)) {
+          analysisState.distanceMm = parsedDistance;
+          analysisState.geometryDistanceManual = true;
+          analysisState.geometryManualKey = String(
+            analysisState.ringGeometryKey || analysisState.ringGeometrySource || "",
+          );
+        }
+      } else {
+        analysisState.distanceMm = parsedDistance;
+      }
     }
-    if (ringsPixel) {
+    if (ringsPixel && !geometryDriven) {
       analysisState.pixelSizeUm = parsePositiveNumberInput(
         ringsPixel,
         ringsPixelHint,
@@ -123,12 +135,34 @@ export function bindAnalysisControlInteractions({
       );
     }
     if (ringsCenterX) {
-      const value = Number(ringsCenterX.value);
-      analysisState.centerX = Number.isFinite(value) ? value : analysisState.centerX;
+      const raw = String(ringsCenterX.value ?? "").trim();
+      const value = raw ? Number(raw) : null;
+      if (geometryDriven) {
+        if (Number.isFinite(value)) {
+          analysisState.centerX = value;
+          analysisState.geometryCenterXManual = true;
+          analysisState.geometryManualKey = String(
+            analysisState.ringGeometryKey || analysisState.ringGeometrySource || "",
+          );
+        }
+      } else {
+        analysisState.centerX = Number.isFinite(value) ? value : analysisState.centerX;
+      }
     }
     if (ringsCenterY) {
-      const value = Number(ringsCenterY.value);
-      analysisState.centerY = Number.isFinite(value) ? value : analysisState.centerY;
+      const raw = String(ringsCenterY.value ?? "").trim();
+      const value = raw ? Number(raw) : null;
+      if (geometryDriven) {
+        if (Number.isFinite(value)) {
+          analysisState.centerY = value;
+          analysisState.geometryCenterYManual = true;
+          analysisState.geometryManualKey = String(
+            analysisState.ringGeometryKey || analysisState.ringGeometrySource || "",
+          );
+        }
+      } else {
+        analysisState.centerY = Number.isFinite(value) ? value : analysisState.centerY;
+      }
     }
     if (ringInputs.length) {
       analysisState.rings = ringInputs

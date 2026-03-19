@@ -343,6 +343,7 @@ const ringsEnergy = document.getElementById("rings-energy");
 const ringsEnergyHint = document.getElementById("rings-energy-hint");
 const ringsCenterX = document.getElementById("rings-center-x");
 const ringsCenterY = document.getElementById("rings-center-y");
+const ringsGeometryStatusEl = document.getElementById("rings-geometry-status");
 const ringsSectionStateEl = document.getElementById("rings-state");
 const ringsSummaryEl = document.getElementById("summary-rings");
 const ringInputs = [
@@ -1957,11 +1958,13 @@ sourceMetadataController = createSourceMetadataController({
     ringsEnergy,
     ringsCenterX,
     ringsCenterY,
+    ringsGeometryStatusEl,
   },
   callbacks: {
     scheduleResolutionOverlay,
   },
 });
+sourceMetadataController.updateGeometryUi();
 
 panelLayoutController = createPanelLayoutController({
   state,
@@ -2108,6 +2111,7 @@ fileSessionController = createFileSessionController({
   },
   callbacks: {
     stopPlayback,
+    clearImageGeometry,
     clearMaskState,
     clearImageHeader,
     updateToolbar,
@@ -2480,6 +2484,7 @@ frameMetadataController = createFrameMetadataController({
     loadFrame,
     isHdf5File,
     getDefaultCenter,
+    clearImageGeometry,
     scheduleResolutionOverlay,
   },
 });
@@ -2502,6 +2507,7 @@ const fileDataPipelineController = createFileDataPipelineController({
     setDataControlsForHdf5,
     setDataControlsForSeries,
     loadMetadata: (...args) => loadMetadata(...args),
+    loadImageGeometry,
     loadInspectorRoot,
     updateFrameControls,
     updatePlayButtons,
@@ -2852,6 +2858,35 @@ function updateJfjochMetaUI(meta, status = {}) {
 
 function applyImageMeta(headers) {
   sourceMetadataController?.applyImageMeta(headers);
+}
+
+function applyImageGeometry(payload, cacheKey = "") {
+  sourceMetadataController?.applyImageGeometry(payload, cacheKey);
+}
+
+function clearImageGeometry() {
+  sourceMetadataController?.clearImageGeometry();
+}
+
+async function loadImageGeometry(file, cacheKey = file) {
+  const key = String(cacheKey || file || "");
+  if (!file) {
+    applyImageGeometry({ mode: "planar", panels: [] }, key);
+    return;
+  }
+  if (analysisState.ringGeometryKey && analysisState.ringGeometryKey === key) {
+    return;
+  }
+  analysisState.ringGeometryKey = key;
+  try {
+    const payload = await fetchJSON(`${API}/image/geometry?file=${encodeURIComponent(file)}`);
+    if (analysisState.ringGeometryKey !== key) return;
+    applyImageGeometry(payload, key);
+  } catch (err) {
+    console.error(err);
+    if (analysisState.ringGeometryKey !== key) return;
+    applyImageGeometry({ mode: "planar", panels: [] }, key);
+  }
 }
 
 function applySimplonMeta(headers) {
