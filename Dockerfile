@@ -12,7 +12,7 @@ COPY backend/requirements.txt backend/requirements.txt
 RUN python -m pip install --no-cache-dir --upgrade \
     "pip==26.0.1" \
     "setuptools==80.9.0" \
-    "wheel==0.46.2" \
+    "wheel==0.43.0" \
     "py-cpuinfo==8.0.0" \
     "jaraco.context==6.1.1" \
     && pip install --no-cache-dir --no-build-isolation --no-deps --prefix=/install "hdf5plugin==4.1.3" \
