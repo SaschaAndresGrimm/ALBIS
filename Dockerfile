@@ -35,12 +35,12 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python -m pip install --no-cache-dir --upgrade \
-    "pip==26.0.1" \
-    "setuptools==80.9.0" \
-    "wheel==0.46.2"
+RUN python -m pip install --no-cache-dir --upgrade "pip==26.0.1"
 
 COPY --from=builder /install /usr/local
+
+# Keep build-only packaging helpers out of the runtime image.
+RUN python -m pip uninstall -y setuptools wheel
 
 COPY albis_assets/ albis_assets/
 COPY backend/ backend/
