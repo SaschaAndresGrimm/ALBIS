@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Refreshed the pinned Docker Python base image and runtime package/toolchain upgrades so the GHCR publish scan no longer fails on stale Debian, `setuptools`, and `wheel` CVEs.
+
 ## [0.9.1] - 2026-03-19
 
 ### Added
