@@ -53,9 +53,9 @@ def test_openapi_uses_typed_models_for_files_hdf5_and_frames() -> None:
     metadata_ref = spec["paths"]["/api/metadata"]["get"]["responses"]["200"]["content"][
         "application/json"
     ]["schema"]["$ref"]
-    image_geometry_ref = spec["paths"]["/api/image/geometry"]["get"]["responses"]["200"][
-        "content"
-    ]["application/json"]["schema"]["$ref"]
+    image_geometry_ref = spec["paths"]["/api/image/geometry"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]["$ref"]
 
     assert files_ref.endswith("/FilesListResponse")
     assert tree_ref.endswith("/HDF5TreeResponse")

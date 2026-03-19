@@ -7,21 +7,36 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-03-19
+
 ### Added
 
+- Added geometry-aware resolution rings for Dectris Pilatus 12M CBF images, using DIALS `imported.expt` detector geometry for the C-shaped vacuum detector layout.
 - Added installer-path smoke coverage for Windows installers and mounted macOS DMGs in artifact/release workflows.
 - Added pinned AppImage installation tooling with checksum verification for Linux packaging workflows.
 
 ### Changed
 
+- Pilatus 12M geometry mode now supports manual beam-center and detector-distance adjustments, and default rings now use `1.0`, `3.67`, and `11.01 Å`.
 - Raised enforced backend coverage gates from `20%` to `50%` across CI, artifact validation, release verification, and contributor docs.
 - Pinned backend runtime dependencies and PyInstaller build inputs for more reproducible source, packaging, and Docker builds.
 - Refactored the Docker image to a pinned multi-stage build that runs as a dedicated non-root user.
 - Updated README, release docs, and the power-user guide to position ALBIS `1.0` as a local-first desktop app for localhost and trusted lab/LAN use.
+- Tag releases now require Linux signing credentials, while Windows code signing and macOS signing/notarization remain optional unless configured.
+
+### Fixed
+
+- Fixed FileWriter2 pixel mask loading.
+- Fixed Docker runtime file access when mounted data is read-only.
 
 ### Security
 
 - Security reporting now points to GitHub private vulnerability reporting instead of public issues, with supported-version and response-target guidance.
+
+### Notes
+
+- This release is called: "Bent detector, straight rings."
+- This release is called: "Curved hardware, less curved release math."
 
 ## [0.9.0] - 2026-03-13
 
@@ -208,7 +223,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.1
 [0.9.0]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.0
 [0.8.17]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.17
 [0.8.16]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.16

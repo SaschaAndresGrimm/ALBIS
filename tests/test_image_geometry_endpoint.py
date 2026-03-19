@@ -97,7 +97,9 @@ def test_image_geometry_endpoint_falls_back_to_planar_without_geometry_file(tmp_
     }
 
 
-def test_image_geometry_endpoint_ignores_non_12m_images_even_with_geometry_file(tmp_path: Path) -> None:
+def test_image_geometry_endpoint_ignores_non_12m_images_even_with_geometry_file(
+    tmp_path: Path,
+) -> None:
     client = TestClient(app)
     image_path = tmp_path / "scan_0001.cbf"
     _write_cbf(image_path, PLANAR_HEADER)

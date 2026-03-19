@@ -79,8 +79,10 @@ Expected result:
 
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
-- Signing/notarization secrets are present for Linux, Windows, and macOS before tagging.
-  - macOS requires the base64-encoded `.p12` (`MACOS_SIGN_CERT_B64`) and its password (`MACOS_SIGN_CERT_PASSWORD`), plus notarization credentials.
+- Linux signing secrets are present before tagging.
+- Windows code-signing and macOS signing/notarization secrets are optional:
+  - when configured, the release workflow signs Windows artifacts and signs/notarizes macOS artifacts
+  - macOS requires the base64-encoded `.p12` (`MACOS_SIGN_CERT_B64`) and its password (`MACOS_SIGN_CERT_PASSWORD`), plus notarization credentials
 - GitHub Release is published with:
   - Linux x64: `ALBIS-linux-x64-v<version>-<commit>.tar.gz` + `ALBIS-<version>-x86_64.AppImage` + `ALBIS-<version>-x86_64-appimage-bundle.tar.gz`
   - Linux x64 signatures (`.sig`) when Linux GPG signing secrets are configured
