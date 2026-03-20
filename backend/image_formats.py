@@ -457,6 +457,13 @@ def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
         return {}
 
 
+def _pilatus_meta_from_image(path: Path) -> dict[str, Any]:
+    ext = _image_ext_name(path.name)
+    if ext in {".tif", ".tiff"}:
+        return _pilatus_meta_from_tiff(path)
+    return _pilatus_meta_from_fabio(path)
+
+
 def _pilatus_header_text(path: Path) -> str:
     ext = _image_ext_name(path.name)
     if ext in {".tif", ".tiff"}:

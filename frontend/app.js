@@ -2924,6 +2924,10 @@ async function applyGeometryOverridePath(path) {
   analysisState.geometryOverrideActive = false;
   sourceMetadataController?.updateGeometryUi();
   if (state.file) {
+    if (isHdf5File(state.file)) {
+      await frameMetadataController?.loadAnalysisParams();
+      return;
+    }
     await loadImageGeometry(state.file, scopeKey);
   }
 }
