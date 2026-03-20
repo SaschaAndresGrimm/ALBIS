@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { getGeometryScopeKey } from "./geometry_override_utils.js";
 
 export function createFrameMetadataController({
   apiBase,
@@ -46,7 +47,7 @@ export function createFrameMetadataController({
     loadFrame,
     isHdf5File,
     getDefaultCenter,
-    clearImageGeometry,
+    loadImageGeometry,
     scheduleResolutionOverlay,
   } = callbacks;
 
@@ -165,7 +166,6 @@ export function createFrameMetadataController({
     if (!state.file || !isHdf5File(state.file)) {
       return;
     }
-    clearImageGeometry();
     try {
       const data = await fetchJSON(
         `${apiBase}/analysis/params?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(
@@ -200,6 +200,7 @@ export function createFrameMetadataController({
         });
       }
       scheduleResolutionOverlay();
+      await loadImageGeometry(state.file, getGeometryScopeKey(state, state.file));
     } catch (err) {
       console.error(err);
     }

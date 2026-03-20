@@ -103,6 +103,9 @@ export function createFileSessionController({
     analysisState.ringGeometry = null;
     analysisState.ringGeometrySource = "";
     analysisState.ringGeometryKey = "";
+    analysisState.geometryOverridePath = "";
+    analysisState.geometryOverrideScopeKey = "";
+    analysisState.geometryOverrideActive = false;
     analysisState.geometryManualKey = "";
     analysisState.geometryDistanceManual = false;
     analysisState.geometryCenterXManual = false;

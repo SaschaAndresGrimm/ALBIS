@@ -66,17 +66,47 @@ def _linux_choose_folder() -> str | None:
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
 
 
-def _linux_choose_file() -> str | None:
+def _normalize_picker_exts(exts: tuple[str, ...] | list[str] | None) -> tuple[str, ...]:
+    if not exts:
+        return (".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf")
+    normalized: list[str] = []
+    for raw in exts:
+        token = str(raw or "").strip().lower()
+        if not token:
+            continue
+        if not token.startswith("."):
+            token = f".{token}"
+        if token not in normalized:
+            normalized.append(token)
+    return tuple(normalized)
+
+
+def _picker_patterns(exts: tuple[str, ...]) -> tuple[str, str]:
+    suffixes = []
+    labels = []
+    for ext in exts:
+        label = ext.lstrip(".")
+        if ext == ".cbf.gz":
+            suffixes.append("*.cbf.gz")
+        else:
+            suffixes.append(f"*{ext}")
+        labels.append(label)
+    label_text = ", ".join(labels) if labels else "files"
+    return " ".join(suffixes), label_text
+
+
+def _linux_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
     if not _display_available():
         raise RuntimeError("No graphical display available")
+    pattern_text, label_text = _picker_patterns(exts)
     zenity = shutil.which("zenity")
     if zenity:
         return _run_linux_dialog(
             [
                 zenity,
                 "--file-selection",
-                "--title=Select image file",
-                "--file-filter=Image files | *.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf",
+                f"--title={prompt}",
+                f"--file-filter={label_text} | {pattern_text}",
             ]
         )
     kdialog = shutil.which("kdialog")
@@ -86,7 +116,7 @@ def _linux_choose_file() -> str | None:
                 kdialog,
                 "--getopenfilename",
                 str(Path.home()),
-                "Image files (*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf)",
+                f"{label_text} ({pattern_text})",
             ]
         )
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
@@ -109,7 +139,7 @@ def _tk_choose_folder() -> str | None:
         root.destroy()
 
 
-def _tk_choose_file() -> str | None:
+def _tk_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -120,11 +150,12 @@ def _tk_choose_file() -> str | None:
     root.withdraw()
     with contextlib.suppress(Exception):
         root.attributes("-topmost", True)
+    pattern_text, label_text = _picker_patterns(exts)
     try:
         return (
             filedialog.askopenfilename(
-                title="Select image file",
-                filetypes=[("Image files", "*.h5 *.hdf5 *.tif *.tiff *.cbf *.cbf.gz *.edf")],
+                title=prompt,
+                filetypes=[(label_text, pattern_text)],
             )
             or None
         )
@@ -151,13 +182,22 @@ def choose_folder() -> str | None:
     return _tk_choose_folder()
 
 
-def choose_file() -> str | None:
+def choose_file(
+    exts: tuple[str, ...] | list[str] | None = None,
+    prompt: str = "Select image file",
+) -> str | None:
+    normalized_exts = _normalize_picker_exts(exts)
     system = platform.system()
     if system == "Darwin":
-        script = (
-            'POSIX path of (choose file with prompt "Select image file" '
-            'of type {"h5", "hdf5", "tif", "tiff", "cbf", "cbf.gz", "edf"})'
-        )
+        escaped_prompt = prompt.replace('"', '\\"')
+        if normalized_exts == (".expt",):
+            script = f'POSIX path of (choose file with prompt "{escaped_prompt}")'
+        else:
+            apple_types = ", ".join(f'"{ext.lstrip(".")}"' for ext in normalized_exts)
+            script = (
+                f'POSIX path of (choose file with prompt "{escaped_prompt}" '
+                f"of type {{{apple_types}}})"
+            )
         result = subprocess.run(
             ["osascript", "-e", script], capture_output=True, text=True, check=True
         )
@@ -165,9 +205,9 @@ def choose_file() -> str | None:
         return picked or None
     if system == "Linux":
         try:
-            return _linux_choose_file()
+            return _linux_choose_file(normalized_exts, prompt)
         except RuntimeError:
             if not _display_available():
                 raise
-            return _tk_choose_file()
-    return _tk_choose_file()
+            return _tk_choose_file(normalized_exts, prompt)
+    return _tk_choose_file(normalized_exts, prompt)

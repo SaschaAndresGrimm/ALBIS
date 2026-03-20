@@ -46,6 +46,7 @@ export function createFileBrowserController({
     selectedType: "",
     mode: null,
     inputElement: null,
+    exts: "",
   };
 
   let browseModalBusy = false;
@@ -109,7 +110,14 @@ export function createFileBrowserController({
 
   async function loadBrowseDirectory(path) {
     try {
-      const query = path ? `?path=${encodeURIComponent(path)}` : "";
+      const params = new URLSearchParams();
+      if (path) {
+        params.set("path", path);
+      }
+      if (state.exts) {
+        params.set("exts", state.exts);
+      }
+      const query = params.toString() ? `?${params.toString()}` : "";
       const res = await fetch(`${apiBase}/browse${query}`);
       if (!res.ok) {
         console.error("Failed to browse directory:", res.status);
@@ -264,12 +272,14 @@ export function createFileBrowserController({
     state.currentPath = "";
     state.selectedPath = "";
     state.selectedType = "";
+    state.exts = "";
     openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
     setBrowseModalBusy(true, t("file_browser.loading", { label: t("file_browser.root") }));
     loadAndRenderBrowser("").catch((err) => console.error(err));
   }
 
-  function openFileDialog() {
+  function openFileDialog(options = {}) {
+    const exts = typeof options === "object" && options !== null ? String(options.exts || "") : "";
     return new Promise((resolve, reject) => {
       settleFileDialog("");
       fileDialogPromise = { resolve, reject };
@@ -278,6 +288,7 @@ export function createFileBrowserController({
       state.currentPath = "";
       state.selectedPath = "";
       state.selectedType = "";
+      state.exts = exts;
       openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
       setBrowseModalBusy(true, t("file_browser.loading", { label: t("file_browser.root") }));
       loadAndRenderBrowser("").catch((err) => {
@@ -289,6 +300,7 @@ export function createFileBrowserController({
 
   function closeFileBrowser({ restoreFocus = true, cancelDialog = true } = {}) {
     browseRequestId += 1;
+    state.exts = "";
     setBrowseModalBusy(false);
     setBrowseStatus("");
     closeModal(browseModal, { restoreFocus });

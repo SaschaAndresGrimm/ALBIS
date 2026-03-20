@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { getActiveGeometryOverridePath, getGeometryScopeKey } from "./geometry_override_utils.js";
 import { getGeometryReferencePose, prepareRingGeometry } from "./ring_geometry_utils.js";
 
 export function createSourceMetadataController({
@@ -46,6 +47,10 @@ export function createSourceMetadataController({
     ringsEnergy,
     ringsCenterX,
     ringsCenterY,
+    ringsGeometryFile,
+    ringsGeometryFileHint,
+    ringsGeometryBrowse,
+    ringsGeometryClear,
     ringsGeometryStatusEl,
   } = elements;
 
@@ -124,10 +129,33 @@ export function createSourceMetadataController({
     return parts.slice(-2).join("/");
   }
 
+  function currentGeometryScopeKey() {
+    return getGeometryScopeKey(state, state.file || "");
+  }
+
+  function visibleGeometryOverridePath() {
+    return getActiveGeometryOverridePath(analysisState, currentGeometryScopeKey());
+  }
+
   function updateGeometryUi() {
     const geometryActive = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
+    const scopeKey = currentGeometryScopeKey();
+    const overridePath = visibleGeometryOverridePath();
     if (ringsPixel) {
       ringsPixel.disabled = Boolean(geometryActive);
+    }
+    if (ringsGeometryFile) {
+      ringsGeometryFile.value = overridePath;
+    }
+    if (ringsGeometryFileHint && !overridePath) {
+      ringsGeometryFileHint.classList.add("is-hidden");
+      ringsGeometryFileHint.textContent = "";
+    }
+    if (ringsGeometryBrowse) {
+      ringsGeometryBrowse.disabled = !scopeKey;
+    }
+    if (ringsGeometryClear) {
+      ringsGeometryClear.disabled = !overridePath;
     }
     if (!ringsGeometryStatusEl) return;
     if (!geometryActive) {
@@ -137,7 +165,10 @@ export function createSourceMetadataController({
       return;
     }
     const source = formatGeometrySource(analysisState.ringGeometrySource) || t("common.ready");
-    ringsGeometryStatusEl.textContent = t("rings.geometry.status", { source });
+    const statusKey = analysisState.geometryOverrideActive
+      ? "rings.geometry.status_manual"
+      : "rings.geometry.status_auto";
+    ringsGeometryStatusEl.textContent = t(statusKey, { source });
     if (analysisState.ringGeometrySource) {
       ringsGeometryStatusEl.title = analysisState.ringGeometrySource;
     } else {
@@ -263,6 +294,7 @@ export function createSourceMetadataController({
     analysisState.ringMode = "planar";
     analysisState.ringGeometry = null;
     analysisState.ringGeometrySource = "";
+    analysisState.geometryOverrideActive = false;
     clearGeometryManualOverrides();
     if (clearKey) {
       analysisState.ringGeometryKey = "";
@@ -271,13 +303,14 @@ export function createSourceMetadataController({
     scheduleResolutionOverlay();
   }
 
-  function applyImageGeometry(payload, cacheKey = "") {
+  function applyImageGeometry(payload, cacheKey = "", { overrideActive = false } = {}) {
     analysisState.ringGeometryKey = cacheKey ? String(cacheKey) : "";
     const prepared = prepareRingGeometry(payload);
     if (!prepared) {
       analysisState.ringMode = "planar";
       analysisState.ringGeometry = null;
       analysisState.ringGeometrySource = "";
+      analysisState.geometryOverrideActive = false;
       clearGeometryManualOverrides();
       updateGeometryUi();
       scheduleResolutionOverlay();
@@ -287,19 +320,29 @@ export function createSourceMetadataController({
     analysisState.ringMode = "geometry";
     analysisState.ringGeometry = prepared;
     analysisState.ringGeometrySource = String(prepared.source || "");
+    analysisState.geometryOverrideActive = Boolean(overrideActive);
+    const shouldSeedFromManualOverride = Boolean(overrideActive);
     if (
       reference &&
       !hasGeometryManualOverride("geometryDistanceManual") &&
-      (!Number.isFinite(analysisState.distanceMm) || analysisState.distanceMm <= 0)
+      (shouldSeedFromManualOverride || !Number.isFinite(analysisState.distanceMm) || analysisState.distanceMm <= 0)
     ) {
       analysisState.distanceMm = reference.distanceMm;
       setDistanceInputValue(reference.distanceMm);
     }
-    if (reference && !hasGeometryManualOverride("geometryCenterXManual") && !Number.isFinite(analysisState.centerX)) {
+    if (
+      reference &&
+      !hasGeometryManualOverride("geometryCenterXManual") &&
+      (shouldSeedFromManualOverride || !Number.isFinite(analysisState.centerX))
+    ) {
       analysisState.centerX = reference.centerX;
       setCenterInputValue(ringsCenterX, reference.centerX);
     }
-    if (reference && !hasGeometryManualOverride("geometryCenterYManual") && !Number.isFinite(analysisState.centerY)) {
+    if (
+      reference &&
+      !hasGeometryManualOverride("geometryCenterYManual") &&
+      (shouldSeedFromManualOverride || !Number.isFinite(analysisState.centerY))
+    ) {
       analysisState.centerY = reference.centerY;
       setCenterInputValue(ringsCenterY, reference.centerY);
     }

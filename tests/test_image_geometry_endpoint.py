@@ -61,6 +61,10 @@ def _write_geometry(path: Path) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _touch(path: Path) -> None:
+    path.write_bytes(b"test")
+
+
 def test_image_geometry_endpoint_returns_geometry_for_pilatus_12m_cbf(tmp_path: Path) -> None:
     client = TestClient(app)
     image_path = tmp_path / "scan_0001.cbf"
@@ -110,3 +114,78 @@ def test_image_geometry_endpoint_ignores_non_12m_images_even_with_geometry_file(
     assert response.status_code == 200
     assert response.json()["mode"] == "planar"
     assert response.json()["panels"] == []
+
+
+def test_image_geometry_endpoint_allows_manual_override_for_tiff(tmp_path: Path) -> None:
+    client = TestClient(app)
+    image_path = tmp_path / "sum_0001.tiff"
+    geometry_path = tmp_path / "imported.expt"
+    _touch(image_path)
+    _write_geometry(geometry_path)
+
+    response = client.get(
+        "/api/image/geometry",
+        params={"file": str(image_path), "geometry_file": str(geometry_path)},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "geometry"
+    assert payload["source"].endswith("imported.expt")
+    assert len(payload["panels"]) == 2
+
+
+def test_image_geometry_endpoint_allows_manual_override_for_hdf5(tmp_path: Path) -> None:
+    client = TestClient(app)
+    image_path = tmp_path / "sum_0001.h5"
+    geometry_path = tmp_path / "imported.expt"
+    _touch(image_path)
+    _write_geometry(geometry_path)
+
+    response = client.get(
+        "/api/image/geometry",
+        params={"file": str(image_path), "geometry_file": str(geometry_path)},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "geometry"
+    assert payload["source"].endswith("imported.expt")
+    assert len(payload["panels"]) == 2
+
+
+def test_image_geometry_endpoint_falls_back_to_planar_for_missing_manual_override(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(app)
+    image_path = tmp_path / "sum_0001.h5"
+    _touch(image_path)
+
+    response = client.get(
+        "/api/image/geometry",
+        params={"file": str(image_path), "geometry_file": "missing/imported.expt"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "mode": "planar",
+        "detector": "",
+        "source": "",
+        "panels": [],
+    }
+
+
+def test_image_geometry_endpoint_rejects_non_expt_override_files(tmp_path: Path) -> None:
+    client = TestClient(app)
+    image_path = tmp_path / "sum_0001.tiff"
+    geometry_path = tmp_path / "geometry.txt"
+    _touch(image_path)
+    geometry_path.write_text("not-an-experiment", encoding="utf-8")
+
+    response = client.get(
+        "/api/image/geometry",
+        params={"file": str(image_path), "geometry_file": str(geometry_path)},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Geometry override must be a DIALS .expt file"

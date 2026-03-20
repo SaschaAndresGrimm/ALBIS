@@ -141,6 +141,29 @@ def _prefix_paths(root: Path, data_dir: Path, items: list[str]) -> list[str]:
     return [f"{prefix}/{item}" for item in items]
 
 
+def _parse_requested_picker_exts(
+    exts: str | None, autoload_exts: set[str]
+) -> tuple[set[str], bool]:
+    if not exts:
+        return set(autoload_exts), False
+    allowed: set[str] = set()
+    allow_expt = False
+    for raw in exts.split(","):
+        token = raw.strip().lower()
+        if not token:
+            continue
+        if not token.startswith("."):
+            token = f".{token}"
+        if token == ".expt":
+            allow_expt = True
+            continue
+        if token == ".cbf":
+            allowed.add(".cbf.gz")
+        if token in autoload_exts:
+            allowed.add(token)
+    return allowed, allow_expt
+
+
 def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
     files_cache: dict[str, Any] = {"ts": 0.0, "items": []}
     folders_cache: dict[str, Any] = {"ts": 0.0, "items": []}
@@ -261,14 +284,19 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         return PathSelectionResponse(path=path)
 
     @app.get("/api/choose-file", response_model=PathSelectionResponse)
-    def choose_file() -> Response:
-        """Show a native file chooser and return a validated absolute image path."""
+    def choose_file(exts: str | None = Query(None)) -> Response:
+        """Show a native file chooser and return a validated absolute file path."""
         if not deps.get_allow_abs_paths():
             raise HTTPException(status_code=403, detail="Absolute paths are disabled")
         system = platform.system()
         deps.logger.debug("File picker requested (os=%s)", system)
+        allowed, allow_expt = _parse_requested_picker_exts(exts, deps.autoload_exts)
+        picker_exts = sorted(allowed)
+        if allow_expt:
+            picker_exts.append(".expt")
+        prompt = "Select geometry file" if allow_expt and not allowed else "Select image file"
         try:
-            path = _choose_file()
+            path = _choose_file(exts=picker_exts, prompt=prompt)
         except subprocess.CalledProcessError as exc:
             if _is_applescript_cancel(exc.stderr):
                 return Response(status_code=204)
@@ -283,7 +311,8 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         if not path:
             return Response(status_code=204)
         picked = Path(path).expanduser().resolve()
-        if deps.image_ext_name(picked.name) not in deps.autoload_exts:
+        picked_ext = deps.image_ext_name(picked.name)
+        if picked_ext not in allowed and not (allow_expt and picked.suffix.lower() == ".expt"):
             raise HTTPException(status_code=400, detail="Unsupported file type")
         if not picked.exists():
             raise HTTPException(status_code=404, detail="File not found")
@@ -291,7 +320,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         return PathSelectionResponse(path=str(picked))
 
     @app.get("/api/browse", response_model=BrowseResponse)
-    def browse(path: str | None = Query(None)) -> BrowseResponse:
+    def browse(path: str | None = Query(None), exts: str | None = Query(None)) -> BrowseResponse:
         """List folders and image files in a directory for web-based file browser."""
         try:
             target_dir = deps.resolve_dir(path)
@@ -300,6 +329,8 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                 target_dir = deps.data_dir.resolve()
             else:
                 raise
+
+        allowed, allow_expt = _parse_requested_picker_exts(exts, deps.autoload_exts)
 
         dirs: set[str] = set()
         try:
@@ -324,7 +355,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                     try:
                         if entry.is_file(follow_symlinks=False):
                             ext = deps.image_ext_name(entry.name)
-                            if ext in deps.autoload_exts:
+                            if ext in allowed or (
+                                allow_expt and Path(entry.name).suffix.lower() == ".expt"
+                            ):
                                 files.add(entry.name)
                     except OSError:
                         continue

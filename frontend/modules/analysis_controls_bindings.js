@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { getGeometryScopeKey, isExptPath } from "./geometry_override_utils.js";
 
 function clampFrameIndex(rawValue, total, fallback) {
   const parsed = Number(rawValue);
@@ -31,6 +32,10 @@ export function bindAnalysisControlInteractions({
     ringsEnergyHint,
     ringsCenterX,
     ringsCenterY,
+    ringsGeometryFile,
+    ringsGeometryFileHint,
+    ringsGeometryBrowse,
+    ringsGeometryClear,
     ringInputs,
     peaksCountInput,
     peaksCountHint,
@@ -69,6 +74,8 @@ export function bindAnalysisControlInteractions({
     handleLocalFileSelection,
     openFileBrowser,
     openFileDialog,
+    applyGeometryOverridePath,
+    clearGeometryOverridePath,
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,
@@ -78,6 +85,10 @@ export function bindAnalysisControlInteractions({
   function isTiffPath(path) {
     const lower = String(path || "").toLowerCase();
     return lower.endsWith(".tif") || lower.endsWith(".tiff");
+  }
+
+  function currentGeometryScopeKey() {
+    return getGeometryScopeKey(state, state.file || "");
   }
 
   function parsePositiveNumberInput(inputEl, hintEl, messageKey) {
@@ -214,6 +225,99 @@ export function bindAnalysisControlInteractions({
       const eventName = input.type === "checkbox" ? "change" : "input";
       input.addEventListener(eventName, updateRingsFromInputs);
     });
+
+  ringsGeometryFile?.addEventListener("change", async () => {
+    const raw = String(ringsGeometryFile.value || "").trim();
+    if (!raw) {
+      setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
+      await clearGeometryOverridePath();
+      return;
+    }
+    if (!currentGeometryScopeKey()) {
+      setStatus(t("status.file.no_file_loaded"));
+      return;
+    }
+    if (!isExptPath(raw)) {
+      setFieldHint(
+        ringsGeometryFile,
+        ringsGeometryFileHint,
+        t("validation.rings.geometry_expt_required"),
+      );
+      return;
+    }
+    setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
+    await applyGeometryOverridePath(raw);
+  });
+
+  ringsGeometryBrowse?.addEventListener("click", async () => {
+    if (!currentGeometryScopeKey()) {
+      setStatus(t("status.file.no_file_loaded"));
+      return;
+    }
+    if (backendIsLocal) {
+      try {
+        const res = await fetch(`${apiBase}/choose-file?exts=.expt`);
+        if (res.status === 204) return;
+        if (!res.ok) {
+          setStatus(
+            res.status === 409
+              ? t("status.file_picker.unavailable")
+              : t("status.analysis.geometry_picker_failed"),
+          );
+          return;
+        }
+        const data = await res.json();
+        const pickedPath = String(data?.path || "");
+        if (!pickedPath) return;
+        if (!isExptPath(pickedPath)) {
+          setFieldHint(
+            ringsGeometryFile,
+            ringsGeometryFileHint,
+            t("validation.rings.geometry_expt_required"),
+          );
+          return;
+        }
+        if (ringsGeometryFile) {
+          ringsGeometryFile.value = pickedPath;
+        }
+        setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
+        await applyGeometryOverridePath(pickedPath);
+        return;
+      } catch (err) {
+        console.error(err);
+        setStatus(t("status.analysis.geometry_picker_failed"));
+        return;
+      }
+    }
+    try {
+      const selectedPath = await openFileDialog({ exts: ".expt" });
+      if (!selectedPath) return;
+      if (!isExptPath(selectedPath)) {
+        setFieldHint(
+          ringsGeometryFile,
+          ringsGeometryFileHint,
+          t("validation.rings.geometry_expt_required"),
+        );
+        return;
+      }
+      if (ringsGeometryFile) {
+        ringsGeometryFile.value = String(selectedPath);
+      }
+      setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
+      await applyGeometryOverridePath(String(selectedPath));
+    } catch (err) {
+      console.error(err);
+      setStatus(t("status.analysis.geometry_picker_failed"));
+    }
+  });
+
+  ringsGeometryClear?.addEventListener("click", async () => {
+    if (ringsGeometryFile) {
+      ringsGeometryFile.value = "";
+    }
+    setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
+    await clearGeometryOverridePath();
+  });
 
   if (peaksCountInput) {
     const initial = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || 25))));

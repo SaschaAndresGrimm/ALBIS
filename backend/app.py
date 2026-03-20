@@ -19,7 +19,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 
 try:
@@ -353,6 +353,21 @@ def _resolve_dir(name: str | None) -> Path:
     return path_policy.resolve_dir(name)
 
 
+def _resolve_optional_path(name: str) -> Path:
+    """Resolve a relative data-root path or approved absolute path without requiring it to exist."""
+    raw = Path(name)
+    if raw.is_absolute():
+        if not runtime_state.allow_abs_paths:
+            raise HTTPException(status_code=400, detail="Absolute paths are disabled")
+        return raw.expanduser().resolve()
+    safe = path_policy.safe_rel_path(name)
+    root = runtime_state.data_dir.resolve()
+    path = (runtime_state.data_dir / safe).resolve()
+    if not path_policy.is_within(path, root):
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    return path
+
+
 def _resolve_image_file(name: str) -> Path:
     """Resolve any supported image file path constrained by runtime path policy."""
     return path_policy.resolve_image_file(name)
@@ -642,6 +657,7 @@ register_stream_routes(
     StreamRouteDeps(
         logger=logger,
         resolve_image_file=_resolve_image_file,
+        resolve_optional_path=_resolve_optional_path,
         image_ext_name=_image_ext_name,
         read_tiff=_read_tiff,
         read_cbf=_read_cbf,

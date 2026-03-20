@@ -60,6 +60,11 @@ import { createChromeToolbarController } from "./modules/chrome_toolbar_controll
 import { createPanelLayoutController } from "./modules/panel_layout_controller.js";
 import { createThresholdPlaybackController } from "./modules/threshold_playback_controller.js";
 import { createFileSessionController } from "./modules/file_session_controller.js";
+import {
+  buildGeometryRequestKey,
+  getActiveGeometryOverridePath,
+  getGeometryScopeKey,
+} from "./modules/geometry_override_utils.js";
 import { initializeMainUiBindings as initializeMainUiBindingsBootstrap } from "./modules/main_ui_bindings_bootstrap.js";
 import { initializePostFilePickerBindings } from "./modules/post_file_picker_bindings.js";
 import {
@@ -343,6 +348,10 @@ const ringsEnergy = document.getElementById("rings-energy");
 const ringsEnergyHint = document.getElementById("rings-energy-hint");
 const ringsCenterX = document.getElementById("rings-center-x");
 const ringsCenterY = document.getElementById("rings-center-y");
+const ringsGeometryFile = document.getElementById("rings-geometry-file");
+const ringsGeometryFileHint = document.getElementById("rings-geometry-file-hint");
+const ringsGeometryBrowse = document.getElementById("rings-geometry-browse");
+const ringsGeometryClear = document.getElementById("rings-geometry-clear");
 const ringsGeometryStatusEl = document.getElementById("rings-geometry-status");
 const ringsSectionStateEl = document.getElementById("rings-state");
 const ringsSummaryEl = document.getElementById("summary-rings");
@@ -1958,6 +1967,10 @@ sourceMetadataController = createSourceMetadataController({
     ringsEnergy,
     ringsCenterX,
     ringsCenterY,
+    ringsGeometryFile,
+    ringsGeometryFileHint,
+    ringsGeometryBrowse,
+    ringsGeometryClear,
     ringsGeometryStatusEl,
   },
   callbacks: {
@@ -2484,7 +2497,7 @@ frameMetadataController = createFrameMetadataController({
     loadFrame,
     isHdf5File,
     getDefaultCenter,
-    clearImageGeometry,
+    loadImageGeometry,
     scheduleResolutionOverlay,
   },
 });
@@ -2860,32 +2873,68 @@ function applyImageMeta(headers) {
   sourceMetadataController?.applyImageMeta(headers);
 }
 
-function applyImageGeometry(payload, cacheKey = "") {
-  sourceMetadataController?.applyImageGeometry(payload, cacheKey);
+function applyImageGeometry(payload, cacheKey = "", options = {}) {
+  sourceMetadataController?.applyImageGeometry(payload, cacheKey, options);
 }
 
-function clearImageGeometry() {
-  sourceMetadataController?.clearImageGeometry();
+function clearImageGeometry(options = {}) {
+  sourceMetadataController?.clearImageGeometry(options);
 }
 
-async function loadImageGeometry(file, cacheKey = file) {
-  const key = String(cacheKey || file || "");
+async function loadImageGeometry(file, scopeKey = getGeometryScopeKey(state, file)) {
+  const key = String(scopeKey || getGeometryScopeKey(state, file) || "");
+  const overridePath = getActiveGeometryOverridePath(analysisState, key);
+  const requestKey = buildGeometryRequestKey(key || file || "", overridePath);
   if (!file) {
-    applyImageGeometry({ mode: "planar", panels: [] }, key);
+    applyImageGeometry({ mode: "planar", panels: [] }, requestKey);
     return;
   }
-  if (analysisState.ringGeometryKey && analysisState.ringGeometryKey === key) {
+  if (
+    analysisState.ringGeometryKey &&
+    analysisState.ringGeometryKey === requestKey &&
+    (!overridePath || analysisState.ringMode === "geometry")
+  ) {
     return;
   }
-  analysisState.ringGeometryKey = key;
+  analysisState.ringGeometryKey = requestKey;
+  analysisState.geometryOverrideActive = false;
+  const params = new URLSearchParams({ file: String(file) });
+  if (overridePath) {
+    params.set("geometry_file", overridePath);
+  }
   try {
-    const payload = await fetchJSON(`${API}/image/geometry?file=${encodeURIComponent(file)}`);
-    if (analysisState.ringGeometryKey !== key) return;
-    applyImageGeometry(payload, key);
+    const payload = await fetchJSON(`${API}/image/geometry?${params.toString()}`);
+    if (analysisState.ringGeometryKey !== requestKey) return;
+    applyImageGeometry(payload, requestKey, { overrideActive: Boolean(overridePath) });
   } catch (err) {
     console.error(err);
-    if (analysisState.ringGeometryKey !== key) return;
-    applyImageGeometry({ mode: "planar", panels: [] }, key);
+    if (analysisState.ringGeometryKey !== requestKey) return;
+    applyImageGeometry({ mode: "planar", panels: [] }, requestKey);
+  }
+}
+
+async function applyGeometryOverridePath(path) {
+  const scopeKey = getGeometryScopeKey(state, state.file || "");
+  if (!scopeKey) {
+    setStatus(t("status.file.no_file_loaded"));
+    return;
+  }
+  analysisState.geometryOverridePath = String(path || "").trim();
+  analysisState.geometryOverrideScopeKey = scopeKey;
+  analysisState.geometryOverrideActive = false;
+  sourceMetadataController?.updateGeometryUi();
+  if (state.file) {
+    await loadImageGeometry(state.file, scopeKey);
+  }
+}
+
+async function clearGeometryOverridePath() {
+  analysisState.geometryOverridePath = "";
+  analysisState.geometryOverrideScopeKey = "";
+  analysisState.geometryOverrideActive = false;
+  sourceMetadataController?.updateGeometryUi();
+  if (state.file) {
+    await loadImageGeometry(state.file, getGeometryScopeKey(state, state.file));
   }
 }
 
@@ -3735,6 +3784,10 @@ bindAnalysisControlInteractions({
     ringsEnergyHint,
     ringsCenterX,
     ringsCenterY,
+    ringsGeometryFile,
+    ringsGeometryFileHint,
+    ringsGeometryBrowse,
+    ringsGeometryClear,
     ringInputs,
     peaksCountInput,
     peaksCountHint,
@@ -3772,6 +3825,8 @@ bindAnalysisControlInteractions({
     handleLocalFileSelection,
     openFileBrowser,
     openFileDialog,
+    applyGeometryOverridePath,
+    clearGeometryOverridePath,
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,

@@ -527,13 +527,7 @@ def _normalize_geometry_panel(payload: Any) -> dict[str, Any] | None:
     image_size = _coerce_int_vector(payload.get("image_size"), 2)
     raw_offset = _coerce_int_vector(payload.get("raw_image_offset"), 2)
     if not (
-        name
-        and origin
-        and fast_axis
-        and slow_axis
-        and pixel_size
-        and image_size
-        and raw_offset
+        name and origin and fast_axis and slow_axis and pixel_size and image_size and raw_offset
     ):
         return None
     if any(v <= 0 for v in pixel_size) or any(v <= 0 for v in image_size):
@@ -582,8 +576,18 @@ def _resolve_pilatus_12m_geometry_file(image_path: Path) -> Path | None:
     return None
 
 
-def _pilatus_image_geometry(path: Path) -> dict[str, Any]:
+def _pilatus_image_geometry(path: Path, geometry_path: Path | None = None) -> dict[str, Any]:
     geometry = {"mode": "planar", "detector": "", "source": "", "panels": []}
+    if geometry_path is not None:
+        panels = _load_dials_expt_geometry(geometry_path)
+        if not panels:
+            return geometry
+        return {
+            "mode": "geometry",
+            "detector": "pilatus-12m-dls-cshape",
+            "source": str(geometry_path),
+            "panels": panels,
+        }
     if _image_ext_name(path.name) not in {".cbf", ".cbf.gz"}:
         return geometry
     header_text = _pilatus_header_text(path)

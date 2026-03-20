@@ -643,5 +643,12 @@
   "viewer.footer.badge.server": "SERVER",
   "viewer.footer.file.empty": "Keine Datei",
   "viewer.footer.status.idle": "Leerlauf",
-  "rings.geometry.status": "Geometry-aware rings from {{source}}."
+  "rings.geometry.status": "Geometry-aware rings from {{source}}.",
+  "analysis.rings.geometry_file": "Geometry file",
+  "analysis.rings.placeholder.geometry_file": "path/to/imported.expt",
+  "analysis.rings.geometry_clear": "Clear",
+  "validation.rings.geometry_expt_required": "Geometry override must be a DIALS .expt file.",
+  "status.analysis.geometry_picker_failed": "Geometry file picker failed",
+  "rings.geometry.status_auto": "Auto geometry: {{source}}.",
+  "rings.geometry.status_manual": "Manual geometry: {{source}}."
 }

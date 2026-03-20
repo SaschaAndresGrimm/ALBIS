@@ -351,7 +351,7 @@ server.serve_forever()
 def test_native_pickers_return_conflict_when_unavailable(monkeypatch) -> None:
     client = TestClient(app)
 
-    def _raise_no_display() -> None:
+    def _raise_no_display(*_args, **_kwargs) -> None:
         raise RuntimeError("No graphical display available")
 
     monkeypatch.setattr("backend.routes.files._choose_file", _raise_no_display)

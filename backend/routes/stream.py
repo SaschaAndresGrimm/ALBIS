@@ -115,6 +115,7 @@ REMOTE_LATEST_RESPONSE_DOCS = octet_stream_responses(
 class StreamRouteDeps:
     logger: Any
     resolve_image_file: Callable[[str], Path]
+    resolve_optional_path: Callable[[str], Path]
     image_ext_name: Callable[[str], str]
     read_tiff: Callable[[Path, int], Any]
     read_cbf: Callable[[Path], Any]
@@ -123,7 +124,7 @@ class StreamRouteDeps:
     pilatus_meta_from_tiff: Callable[[Path], dict[str, Any]]
     pilatus_meta_from_fabio: Callable[[Path], dict[str, Any]]
     pilatus_header_text: Callable[[Path], str]
-    pilatus_image_geometry: Callable[[Path], dict[str, Any]]
+    pilatus_image_geometry: Callable[[Path, Path | None], dict[str, Any]]
     simplon_base: Callable[[str, str], str]
     simplon_set_mode: Callable[[str, str], None]
     simplon_fetch_monitor: Callable[[str, int], bytes | None]
@@ -195,15 +196,20 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         return ImageHeaderResponse(header=header_text or "")
 
     @app.get("/api/image/geometry", response_model=ImageGeometryResponse)
-    def image_geometry(file: str = Query(..., min_length=1)) -> ImageGeometryResponse:
+    def image_geometry(
+        file: str = Query(..., min_length=1),
+        geometry_file: str | None = Query(None),
+    ) -> ImageGeometryResponse:
         """Resolve optional detector geometry metadata for supported image files."""
         path = deps.resolve_image_file(file)
-        ext = deps.image_ext_name(path.name)
-        if ext in {".h5", ".hdf5"}:
-            raise HTTPException(
-                status_code=400, detail="Geometry endpoint is only available for non-HDF images"
-            )
-        payload = deps.pilatus_image_geometry(path)
+        geometry_path = None
+        if geometry_file:
+            geometry_path = deps.resolve_optional_path(geometry_file)
+            if geometry_path.suffix.lower() != ".expt":
+                raise HTTPException(
+                    status_code=400, detail="Geometry override must be a DIALS .expt file"
+                )
+        payload = deps.pilatus_image_geometry(path, geometry_path)
         deps.logger.debug("Image geometry (%s): %s", path.name, payload.get("mode"))
         return ImageGeometryResponse(**payload)
 

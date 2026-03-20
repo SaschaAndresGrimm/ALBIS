@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { getGeometryScopeKey } from "./geometry_override_utils.js";
 
 export function createFileDataPipelineController({
   apiBase,
@@ -122,7 +123,7 @@ export function createFileDataPipelineController({
     stopPlayback();
     setLoading(true);
     setStatus(t("status.data.loading_image"));
-    const geometryPromise = loadImageGeometry(file, file);
+    const geometryPromise = loadImageGeometry(file, getGeometryScopeKey(state, file));
     try {
       const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`);
       if (!res.ok) {
@@ -216,8 +217,8 @@ export function createFileDataPipelineController({
     let appliedFrame = false;
     const requestController = new AbortController();
     setActiveFrameLoadController(requestController);
-    const geometryKey = state.file || state.seriesLabel || file;
-    const geometryPromise = loadImageGeometry(state.file || file, geometryKey);
+    const geometryScopeKey = getGeometryScopeKey(state, file);
+    const geometryPromise = loadImageGeometry(state.file || file, geometryScopeKey);
     try {
       const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`, {
         signal: requestController.signal,

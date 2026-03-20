@@ -2239,6 +2239,35 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-top: 1px;
 }
 
+.rings-geometry-file-field {
+  grid-column: span 2;
+}
+
+.rings-geometry-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--control-h) auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.rings-geometry-file-row input {
+  min-width: 0;
+}
+
+.rings-geometry-icon-btn {
+  padding: 0;
+  width: var(--control-h);
+  min-width: var(--control-h);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.rings-geometry-clear-btn {
+  padding: 6px 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .rings-grid-bottom {
   align-items: end;
 }

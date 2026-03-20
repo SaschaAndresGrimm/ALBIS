@@ -125,7 +125,17 @@ function ringRay(twoTheta, azimuth) {
   ];
 }
 
-function intersectRayWithPanel(ray, panel) {
+function distanceToPanelBoundsPx(imageX, imageY, panel) {
+  const minX = -0.5;
+  const minY = -0.5;
+  const maxX = panel.image_size_px[0] - 0.5;
+  const maxY = panel.image_size_px[1] - 0.5;
+  const clampedX = Math.max(minX, Math.min(maxX, imageX));
+  const clampedY = Math.max(minY, Math.min(maxY, imageY));
+  return Math.hypot(imageX - clampedX, imageY - clampedY);
+}
+
+function intersectRayWithPanel(ray, panel, { allowOutside = false } = {}) {
   const denom = dot(ray, panel.normal);
   if (!Number.isFinite(denom) || Math.abs(denom) <= EPSILON) return null;
   const t = dot(panel.origin_mm, panel.normal) / denom;
@@ -136,12 +146,8 @@ function intersectRayWithPanel(ray, panel) {
   const localSlowMm = dot(rel, panel.slow_axis);
   const imageX = localFastMm / panel.pixel_size_mm[0] - 0.5;
   const imageY = localSlowMm / panel.pixel_size_mm[1] - 0.5;
-  if (
-    imageX < -0.5 - EPSILON ||
-    imageY < -0.5 - EPSILON ||
-    imageX > panel.image_size_px[0] - 0.5 + EPSILON ||
-    imageY > panel.image_size_px[1] - 0.5 + EPSILON
-  ) {
+  const outOfBoundsDistancePx = distanceToPanelBoundsPx(imageX, imageY, panel);
+  if (!allowOutside && outOfBoundsDistancePx > EPSILON) {
     return null;
   }
   return {
@@ -149,16 +155,24 @@ function intersectRayWithPanel(ray, panel) {
     distance: t,
     imageX: panel.raw_offset_px[0] + imageX,
     imageY: panel.raw_offset_px[1] + imageY,
+    outOfBoundsDistancePx,
   };
 }
 
-function findPanelRayHit(ray, geometry) {
+function findPanelRayHit(ray, geometry, { allowOutside = false } = {}) {
   if (!geometry || !Array.isArray(geometry.panels)) return null;
   let best = null;
   geometry.panels.forEach((panel) => {
-    const hit = intersectRayWithPanel(ray, panel);
+    const hit = intersectRayWithPanel(ray, panel, { allowOutside });
     if (!hit) return;
-    if (!best || hit.distance < best.distance) {
+    if (
+      !best ||
+      hit.outOfBoundsDistancePx < best.outOfBoundsDistancePx - EPSILON ||
+      (
+        Math.abs(hit.outOfBoundsDistancePx - best.outOfBoundsDistancePx) <= EPSILON &&
+        hit.distance < best.distance
+      )
+    ) {
       best = hit;
     }
   });
@@ -179,11 +193,12 @@ export function getGeometryReferencePose(geometry) {
     };
   }
   const hit = findPanelRayHit(INCIDENT_BEAM, geometry);
-  if (!hit) return null;
+  const fallbackHit = hit || findPanelRayHit(INCIDENT_BEAM, geometry, { allowOutside: true });
+  if (!fallbackHit) return null;
   return {
-    centerX: hit.imageX,
-    centerY: hit.imageY,
-    distanceMm: hit.distance,
+    centerX: fallbackHit.imageX,
+    centerY: fallbackHit.imageY,
+    distanceMm: fallbackHit.distance,
   };
 }
 
