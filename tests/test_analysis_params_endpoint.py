@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 
 from backend.app import app
 
-
 PILATUS_HEADER = """# Detector: PILATUS 12M, S/N 120-0100
 # Pixel_size 172e-6 m x 172e-6 m
 # Photon_energy 7118 eV
