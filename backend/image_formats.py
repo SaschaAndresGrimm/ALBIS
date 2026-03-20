@@ -583,7 +583,120 @@ def _resolve_pilatus_12m_geometry_file(image_path: Path) -> Path | None:
     return None
 
 
-def _pilatus_image_geometry(path: Path, geometry_path: Path | None = None) -> dict[str, Any]:
+def _read_hdf5_embedded_geometry(path: Path) -> dict[str, Any] | None:
+    try:
+        import h5py  # type: ignore[import-not-found]
+    except Exception:
+        return None
+    try:
+        with h5py.File(path, "r") as h5:
+            if "/entry/albis/geometry/json" not in h5:
+                return None
+            dataset = h5["/entry/albis/geometry/json"]
+            try:
+                raw = dataset[()]
+            except Exception:
+                return None
+    except Exception:
+        return None
+    if isinstance(raw, np.ndarray):
+        if raw.size != 1:
+            return None
+        raw = raw.reshape(-1)[0]
+    if isinstance(raw, bytes):
+        text = raw.decode("utf-8", errors="ignore")
+    elif isinstance(raw, np.bytes_):
+        text = raw.tobytes().decode("utf-8", errors="ignore")
+    elif hasattr(raw, "item"):
+        item = raw.item()
+        if isinstance(item, bytes):
+            text = item.decode("utf-8", errors="ignore")
+        else:
+            text = str(item)
+    else:
+        text = str(raw)
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    panels = []
+    for panel in payload.get("panels", []):
+        if not isinstance(panel, dict):
+            return None
+        item = {
+            "name": str(panel.get("name") or "").strip(),
+            "origin_mm": _coerce_float_vector(panel.get("origin_mm"), 3),
+            "fast_axis": _coerce_float_vector(panel.get("fast_axis"), 3),
+            "slow_axis": _coerce_float_vector(panel.get("slow_axis"), 3),
+            "pixel_size_mm": _coerce_float_vector(panel.get("pixel_size_mm"), 2),
+            "image_size_px": _coerce_int_vector(panel.get("image_size_px"), 2),
+            "raw_offset_px": _coerce_float_vector(panel.get("raw_offset_px"), 2),
+        }
+        if not (
+            item["name"]
+            and item["origin_mm"]
+            and item["fast_axis"]
+            and item["slow_axis"]
+            and item["pixel_size_mm"]
+            and item["image_size_px"]
+            and item["raw_offset_px"]
+        ):
+            return None
+        panels.append(item)
+    if not panels:
+        return None
+    source = str(payload.get("source") or "").strip()
+    if source.startswith("embedded HDF5 geometry"):
+        source_label = source
+    elif source:
+        source_label = f"embedded HDF5 geometry (from {Path(source).name})"
+    else:
+        source_label = "embedded HDF5 geometry"
+    return {
+        "mode": "geometry",
+        "detector": str(payload.get("detector") or ""),
+        "source": source_label,
+        "panels": panels,
+    }
+
+
+def _resolve_hdf5_source_file(path: Path) -> Path | None:
+    try:
+        import h5py  # type: ignore[import-not-found]
+    except Exception:
+        return None
+    try:
+        with h5py.File(path, "r") as h5:
+            raw = h5.attrs.get("source_file")
+    except Exception:
+        return None
+    if isinstance(raw, bytes):
+        text = raw.decode("utf-8", errors="ignore").strip()
+    elif hasattr(raw, "item"):
+        item = raw.item()
+        if isinstance(item, bytes):
+            text = item.decode("utf-8", errors="ignore").strip()
+        else:
+            text = str(item).strip()
+    else:
+        text = str(raw or "").strip()
+    if not text:
+        return None
+    source_path = Path(text).expanduser()
+    if not source_path.is_absolute():
+        source_path = (path.parent / source_path).resolve()
+    else:
+        source_path = source_path.resolve()
+    return source_path
+
+
+def _pilatus_image_geometry_internal(
+    path: Path,
+    geometry_path: Path | None,
+    visited: set[Path],
+) -> dict[str, Any]:
     geometry = {"mode": "planar", "detector": "", "source": "", "panels": []}
     if geometry_path is not None:
         panels = _load_dials_expt_geometry(geometry_path)
@@ -595,7 +708,23 @@ def _pilatus_image_geometry(path: Path, geometry_path: Path | None = None) -> di
             "source": str(geometry_path),
             "panels": panels,
         }
-    if _image_ext_name(path.name) not in {".cbf", ".cbf.gz"}:
+    try:
+        resolved = path.resolve()
+    except OSError:
+        resolved = path
+    if resolved in visited:
+        return geometry
+    visited.add(resolved)
+    ext = _image_ext_name(path.name)
+    if ext in {".h5", ".hdf5"}:
+        embedded = _read_hdf5_embedded_geometry(path)
+        if embedded:
+            return embedded
+        source_path = _resolve_hdf5_source_file(path)
+        if source_path and source_path.exists():
+            return _pilatus_image_geometry_internal(source_path, None, visited)
+        return geometry
+    if ext not in {".cbf", ".cbf.gz"}:
         return geometry
     header_text = _pilatus_header_text(path)
     if not _pilatus_is_12m_header_text(header_text):
@@ -612,6 +741,10 @@ def _pilatus_image_geometry(path: Path, geometry_path: Path | None = None) -> di
         "source": str(geometry_path),
         "panels": panels,
     }
+
+
+def _pilatus_image_geometry(path: Path, geometry_path: Path | None = None) -> dict[str, Any]:
+    return _pilatus_image_geometry_internal(path, geometry_path, set())
 
 
 def _image_ext_name(name: str) -> str:

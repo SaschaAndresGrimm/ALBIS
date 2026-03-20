@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 from typing import Any
 
+import h5py
 import numpy as np
 import pytest
 from fastapi import HTTPException
@@ -32,6 +34,8 @@ def _make_deps(
     resolve_series_files,
     read_tiff,
     write_tiff,
+    ensure_hdf5_stack=lambda: None,
+    get_h5py=lambda: None,
 ) -> SeriesSummingDeps:
     def _unsupported(*_args, **_kwargs):
         raise AssertionError("unsupported dependency was called in this test")
@@ -41,8 +45,8 @@ def _make_deps(
         get_allow_abs_paths=lambda: True,
         is_within=lambda p, root: p.resolve().is_relative_to(root.resolve()),
         logger=type("L", (), {"exception": lambda *_args, **_kwargs: None})(),
-        ensure_hdf5_stack=lambda: None,
-        get_h5py=lambda: None,
+        ensure_hdf5_stack=ensure_hdf5_stack,
+        get_h5py=get_h5py,
         resolve_image_file=resolve_image_file,
         image_ext_name=lambda name: ".tiff" if name.lower().endswith((".tif", ".tiff")) else "",
         resolve_series_files=resolve_series_files,
@@ -595,3 +599,90 @@ def test_series_summing_service_tiff_filename_reflects_operation(tmp_path: Path)
     assert job["status"] == "done"
     assert len(written_paths) == 1
     assert "_mean_" in written_paths[0].name
+
+
+def test_series_summing_service_embeds_effective_geometry_in_hdf5_output(tmp_path: Path) -> None:
+    series_files = [tmp_path / "img_0001.tiff", tmp_path / "img_0002.tiff"]
+    frames = {
+        series_files[0]: np.array([[1, 2], [3, 4]], dtype=np.int16),
+        series_files[1]: np.array([[5, 6], [7, 8]], dtype=np.int16),
+    }
+    geometry = {
+        "mode": "geometry",
+        "detector": "pilatus-12m-dls-cshape",
+        "source": "P12M_geometry/imported.expt",
+        "panels": [
+            {
+                "name": "row-00",
+                "origin_mm": [-184.9, -245.0, 250.13],
+                "fast_axis": [1.0, 0.0, 0.0],
+                "slow_axis": [0.0, 0.0, 1.0],
+                "pixel_size_mm": [0.172, 0.172],
+                "image_size_px": [2463, 195],
+                "raw_offset_px": [3.4, -5.2],
+            }
+        ],
+    }
+
+    def resolve_image_file(name: str) -> Path:
+        return Path(name)
+
+    def resolve_series_files(_source: Path) -> tuple[list[Path], int]:
+        return list(series_files), 0
+
+    def read_tiff(path: Path, index: int) -> np.ndarray:
+        assert index == 0
+        return np.asarray(frames[path])
+
+    service = SeriesSummingService(
+        _make_deps(
+            tmp_path,
+            resolve_image_file=resolve_image_file,
+            resolve_series_files=resolve_series_files,
+            read_tiff=read_tiff,
+            write_tiff=lambda _path, _arr: None,
+            ensure_hdf5_stack=lambda: None,
+            get_h5py=lambda: h5py,
+        )
+    )
+
+    job_id = service.start_job(
+        file=str(series_files[0]),
+        dataset="",
+        mode="all",
+        step=1,
+        operation="sum",
+        normalize_method="none",
+        normalize_frame=None,
+        normalize_scalar=None,
+        normalize_image=None,
+        range_start=None,
+        range_end=None,
+        output_path=str(tmp_path / "sum_out"),
+        output_format="hdf5",
+        apply_mask=False,
+        geometry=geometry,
+        distance_mm=250.13,
+        pixel_size_um=172.0,
+        energy_ev=7118.0,
+        center_x_px=1083.9,
+        center_y_px=2593.48,
+    )
+    job = _wait_for_job(service, job_id)
+
+    assert job["status"] == "done"
+    assert len(job["outputs"]) == 1
+
+    out_file = Path(job["outputs"][0])
+    with h5py.File(out_file, "r") as h5:
+        assert bool(h5.attrs["albis_geometry_embedded"]) is True
+        embedded = json.loads(h5["/entry/albis/geometry/json"][()].decode("utf-8"))
+        assert embedded["mode"] == "geometry"
+        assert embedded["source"] == "P12M_geometry/imported.expt"
+        assert embedded["panels"][0]["raw_offset_px"] == pytest.approx([3.4, -5.2])
+        assert h5["/entry/instrument/detector/detector_distance"][()] == pytest.approx(250.13)
+        assert h5["/entry/instrument/detector/detector_distance"].attrs["units"] == "mm"
+        assert h5["/entry/instrument/detector/x_pixel_size"][()] == pytest.approx(172.0)
+        assert h5["/entry/instrument/detector/beam_center_x"][()] == pytest.approx(1083.9)
+        assert h5["/entry/instrument/detector/beam_center_y"][()] == pytest.approx(2593.48)
+        assert h5["/entry/instrument/beam/incident_energy"][()] == pytest.approx(7118.0)

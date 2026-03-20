@@ -82,6 +82,12 @@ class SeriesSumStartRequest(_StrictModel):
     output_path: str | None = None
     format: str = "hdf5"
     apply_mask: bool = True
+    geometry: ImageGeometryResponse | None = None
+    distance_mm: float | None = None
+    pixel_size_um: float | None = None
+    energy_ev: float | None = None
+    center_x_px: float | None = None
+    center_y_px: float | None = None
 
 
 class SeriesSumStartResponse(_StrictModel):
@@ -110,7 +116,7 @@ class ImageGeometryPanelResponse(_StrictModel):
     slow_axis: list[float] = Field(default_factory=list)
     pixel_size_mm: list[float] = Field(default_factory=list)
     image_size_px: list[int] = Field(default_factory=list)
-    raw_offset_px: list[int] = Field(default_factory=list)
+    raw_offset_px: list[float] = Field(default_factory=list)
 
 
 class ImageGeometryResponse(_StrictModel):

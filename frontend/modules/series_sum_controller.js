@@ -48,6 +48,7 @@ export function createSeriesSumController({
     loadAutoloadFile,
     fetchJSON,
     fetchJSONWithInit,
+    getSeriesSumGeometryContext,
   } = callbacks;
 
   let pollTimer = null;
@@ -490,6 +491,17 @@ export function createSeriesSumController({
       format: (seriesSumFormat?.value || "hdf5").toLowerCase(),
       apply_mask: Boolean(seriesSumMask?.checked),
     };
+    const geometryContext = typeof getSeriesSumGeometryContext === "function"
+      ? getSeriesSumGeometryContext()
+      : null;
+    if (geometryContext?.geometry) {
+      payload.geometry = geometryContext.geometry;
+      payload.distance_mm = geometryContext.distanceMm ?? null;
+      payload.pixel_size_um = geometryContext.pixelSizeUm ?? null;
+      payload.energy_ev = geometryContext.energyEv ?? null;
+      payload.center_x_px = geometryContext.centerX ?? null;
+      payload.center_y_px = geometryContext.centerY ?? null;
+    }
     const medianEstimate = buildMedianEstimate();
     if (medianEstimate?.requiresConfirm) {
       const proceed = window.confirm(

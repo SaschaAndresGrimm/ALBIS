@@ -65,6 +65,7 @@ import {
   getActiveGeometryOverridePath,
   getGeometryScopeKey,
 } from "./modules/geometry_override_utils.js";
+import { applyGeometryOverrides, serializeGeometryPayload } from "./modules/ring_geometry_utils.js";
 import { initializeMainUiBindings as initializeMainUiBindingsBootstrap } from "./modules/main_ui_bindings_bootstrap.js";
 import { initializePostFilePickerBindings } from "./modules/post_file_picker_bindings.js";
 import {
@@ -1226,6 +1227,29 @@ function exportPeakCsv() {
   analysisOverlayController.exportPeakCsv();
 }
 
+function getSeriesSumGeometryContext() {
+  if (analysisState.ringMode !== "geometry" || !analysisState.ringGeometry) {
+    return null;
+  }
+  const effectiveGeometry = applyGeometryOverrides(analysisState.ringGeometry, {
+    centerX: analysisState.centerX,
+    centerY: analysisState.centerY,
+    distanceMm: analysisState.distanceMm,
+  });
+  const geometry = serializeGeometryPayload(effectiveGeometry);
+  if (!geometry) {
+    return null;
+  }
+  return {
+    geometry,
+    distanceMm: Number.isFinite(analysisState.distanceMm) ? analysisState.distanceMm : null,
+    pixelSizeUm: Number.isFinite(analysisState.pixelSizeUm) ? analysisState.pixelSizeUm : null,
+    energyEv: Number.isFinite(analysisState.energyEv) ? analysisState.energyEv : null,
+    centerX: Number.isFinite(analysisState.centerX) ? analysisState.centerX : null,
+    centerY: Number.isFinite(analysisState.centerY) ? analysisState.centerY : null,
+  };
+}
+
 const seriesSumController = createSeriesSumController({
   apiBase: API,
   state,
@@ -1266,6 +1290,7 @@ const seriesSumController = createSeriesSumController({
     loadAutoloadFile,
     fetchJSON,
     fetchJSONWithInit,
+    getSeriesSumGeometryContext,
   },
 });
 

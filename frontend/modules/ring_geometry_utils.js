@@ -62,7 +62,7 @@ function preparePanel(panel) {
   const slow = normalize(toFiniteVector(panel.slow_axis, 3) || []);
   const pixelSize = toPositiveSize(panel.pixel_size_mm);
   const imageSize = toIntVector(panel.image_size_px);
-  const rawOffset = toIntVector(panel.raw_offset_px);
+  const rawOffset = toFiniteVector(panel.raw_offset_px, 2);
   if (!origin || !fast || !slow || !pixelSize || !imageSize || !rawOffset) return null;
   const normal = normalize(cross(fast, slow));
   if (!normal) return null;
@@ -97,6 +97,54 @@ export function prepareRingGeometry(payload) {
     reference_center_x_px: reference?.centerX ?? null,
     reference_center_y_px: reference?.centerY ?? null,
     reference_distance_mm: reference?.distanceMm ?? null,
+  };
+}
+
+export function serializeGeometryPayload(geometry) {
+  if (!geometry || !Array.isArray(geometry.panels) || !geometry.panels.length) return null;
+  const panels = geometry.panels
+    .map((panel) => {
+      if (!panel || typeof panel !== "object") return null;
+      return {
+        name: String(panel.name || ""),
+        origin_mm: Array.isArray(panel.origin_mm) ? panel.origin_mm.map((item) => Number(item)) : [],
+        fast_axis: Array.isArray(panel.fast_axis) ? panel.fast_axis.map((item) => Number(item)) : [],
+        slow_axis: Array.isArray(panel.slow_axis) ? panel.slow_axis.map((item) => Number(item)) : [],
+        pixel_size_mm: Array.isArray(panel.pixel_size_mm)
+          ? panel.pixel_size_mm.map((item) => Number(item))
+          : [],
+        image_size_px: Array.isArray(panel.image_size_px)
+          ? panel.image_size_px.map((item) => Math.round(Number(item)))
+          : [],
+        raw_offset_px: Array.isArray(panel.raw_offset_px)
+          ? panel.raw_offset_px.map((item) => Number(item))
+          : [],
+      };
+    })
+    .filter((panel) => {
+      if (!panel) return false;
+      return (
+        panel.name &&
+        panel.origin_mm.length === 3 &&
+        panel.fast_axis.length === 3 &&
+        panel.slow_axis.length === 3 &&
+        panel.pixel_size_mm.length === 2 &&
+        panel.image_size_px.length === 2 &&
+        panel.raw_offset_px.length === 2 &&
+        panel.origin_mm.every((item) => Number.isFinite(item)) &&
+        panel.fast_axis.every((item) => Number.isFinite(item)) &&
+        panel.slow_axis.every((item) => Number.isFinite(item)) &&
+        panel.pixel_size_mm.every((item) => Number.isFinite(item) && item > 0) &&
+        panel.image_size_px.every((item) => Number.isFinite(item) && item > 0) &&
+        panel.raw_offset_px.every((item) => Number.isFinite(item))
+      );
+    });
+  if (!panels.length) return null;
+  return {
+    mode: "geometry",
+    detector: String(geometry.detector || ""),
+    source: String(geometry.source || ""),
+    panels,
   };
 }
 

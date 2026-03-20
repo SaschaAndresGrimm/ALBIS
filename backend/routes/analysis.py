@@ -258,6 +258,12 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         output_path = payload.output_path
         output_format = str(payload.format or "hdf5").strip().lower()
         apply_mask = bool(payload.apply_mask)
+        geometry = payload.geometry.model_dump() if payload.geometry else None
+        distance_mm = payload.distance_mm
+        pixel_size_um = payload.pixel_size_um
+        energy_ev = payload.energy_ev
+        center_x_px = payload.center_x_px
+        center_y_px = payload.center_y_px
 
         if not file:
             raise HTTPException(status_code=400, detail="Missing file")
@@ -313,6 +319,12 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             output_path=str(output_path or ""),
             output_format=output_format,
             apply_mask=apply_mask,
+            geometry=geometry,
+            distance_mm=distance_mm,
+            pixel_size_um=pixel_size_um,
+            energy_ev=energy_ev,
+            center_x_px=center_x_px,
+            center_y_px=center_y_px,
         )
         return SeriesSumStartResponse(job_id=job_id, status="queued")
 

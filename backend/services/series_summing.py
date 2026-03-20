@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import threading
 import time
 import uuid
@@ -69,6 +70,12 @@ class SeriesSummingService:
         output_path: str | None,
         output_format: str,
         apply_mask: bool,
+        geometry: dict[str, Any] | None = None,
+        distance_mm: float | None = None,
+        pixel_size_um: float | None = None,
+        energy_ev: float | None = None,
+        center_x_px: float | None = None,
+        center_y_px: float | None = None,
     ) -> str:
         job_id = uuid.uuid4().hex
         job_data = {
@@ -96,6 +103,7 @@ class SeriesSummingService:
                 "format": output_format,
                 "apply_mask": apply_mask,
                 "output_path": output_path,
+                "geometry_embedded": bool(geometry and geometry.get("mode") == "geometry"),
             },
         }
         with self._lock:
@@ -120,6 +128,12 @@ class SeriesSummingService:
                 "output_path": str(output_path or ""),
                 "output_format": output_format,
                 "apply_mask": apply_mask,
+                "geometry": geometry,
+                "distance_mm": distance_mm,
+                "pixel_size_um": pixel_size_um,
+                "energy_ev": energy_ev,
+                "center_x_px": center_x_px,
+                "center_y_px": center_y_px,
             },
             daemon=True,
         )
@@ -278,6 +292,141 @@ class SeriesSummingService:
 
                 except Exception:
                     pass
+
+    @staticmethod
+    def _finite_float(value: Any) -> float | None:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return number if np.isfinite(number) else None
+
+    @classmethod
+    def _normalize_geometry_payload(cls, payload: Any) -> dict[str, Any] | None:
+        if not isinstance(payload, dict):
+            return None
+        if str(payload.get("mode") or "") != "geometry":
+            return None
+        panels = payload.get("panels")
+        if not isinstance(panels, list) or not panels:
+            return None
+        normalized_panels: list[dict[str, Any]] = []
+        for panel in panels:
+            if not isinstance(panel, dict):
+                return None
+            name = str(panel.get("name") or "").strip()
+            origin = panel.get("origin_mm")
+            fast = panel.get("fast_axis")
+            slow = panel.get("slow_axis")
+            pixel_size = panel.get("pixel_size_mm")
+            image_size = panel.get("image_size_px")
+            raw_offset = panel.get("raw_offset_px")
+            if not (
+                name
+                and isinstance(origin, list)
+                and isinstance(fast, list)
+                and isinstance(slow, list)
+                and isinstance(pixel_size, list)
+                and isinstance(image_size, list)
+                and isinstance(raw_offset, list)
+                and len(origin) == 3
+                and len(fast) == 3
+                and len(slow) == 3
+                and len(pixel_size) == 2
+                and len(image_size) == 2
+                and len(raw_offset) == 2
+            ):
+                return None
+            normalized_panel = {
+                "name": name,
+                "origin_mm": [float(item) for item in origin],
+                "fast_axis": [float(item) for item in fast],
+                "slow_axis": [float(item) for item in slow],
+                "pixel_size_mm": [float(item) for item in pixel_size],
+                "image_size_px": [int(item) for item in image_size],
+                "raw_offset_px": [float(item) for item in raw_offset],
+            }
+            if not (
+                all(np.isfinite(item) for item in normalized_panel["origin_mm"])
+                and all(np.isfinite(item) for item in normalized_panel["fast_axis"])
+                and all(np.isfinite(item) for item in normalized_panel["slow_axis"])
+                and all(np.isfinite(item) and item > 0 for item in normalized_panel["pixel_size_mm"])
+                and all(item > 0 for item in normalized_panel["image_size_px"])
+                and all(np.isfinite(item) for item in normalized_panel["raw_offset_px"])
+            ):
+                return None
+            normalized_panels.append(normalized_panel)
+        return {
+            "mode": "geometry",
+            "detector": str(payload.get("detector") or ""),
+            "source": str(payload.get("source") or ""),
+            "panels": normalized_panels,
+        }
+
+    @classmethod
+    def _geometry_pixel_size_um(cls, geometry: dict[str, Any] | None) -> float | None:
+        if not geometry:
+            return None
+        panels = geometry.get("panels")
+        if not isinstance(panels, list) or not panels:
+            return None
+        panel = panels[0]
+        if not isinstance(panel, dict):
+            return None
+        pixel_size = panel.get("pixel_size_mm")
+        if not isinstance(pixel_size, list) or len(pixel_size) != 2:
+            return None
+        x = cls._finite_float(pixel_size[0])
+        y = cls._finite_float(pixel_size[1])
+        if x is None or y is None or x <= 0 or y <= 0:
+            return None
+        return ((x + y) / 2.0) * 1000.0
+
+    def _write_scalar_dataset(self, group: Any, name: str, value: float | None, units: str) -> None:
+        number = self._finite_float(value)
+        if number is None:
+            return
+        if name in group:
+            with contextlib.suppress(Exception):
+                del group[name]
+        dset = group.create_dataset(name, data=np.asarray(number, dtype=np.float64))
+        dset.attrs["units"] = units
+
+    def _write_embedded_geometry(self, out_h5: Any, geometry: dict[str, Any] | None) -> bool:
+        payload = self._normalize_geometry_payload(geometry)
+        if not payload:
+            return False
+        h5py = self._deps.get_h5py()
+        geom_group = out_h5.require_group("/entry/albis/geometry")
+        if "json" in geom_group:
+            with contextlib.suppress(Exception):
+                del geom_group["json"]
+        geom_group.attrs["schema_version"] = 1
+        geom_group.create_dataset(
+            "json",
+            data=json.dumps(payload),
+            dtype=h5py.string_dtype(encoding="utf-8"),
+        )
+        return True
+
+    def _write_analysis_geometry_metadata(
+        self,
+        out_h5: Any,
+        *,
+        distance_mm: float | None,
+        pixel_size_um: float | None,
+        energy_ev: float | None,
+        center_x_px: float | None,
+        center_y_px: float | None,
+    ) -> None:
+        detector_group = out_h5.require_group("/entry/instrument/detector")
+        beam_group = out_h5.require_group("/entry/instrument/beam")
+        self._write_scalar_dataset(detector_group, "detector_distance", distance_mm, "mm")
+        self._write_scalar_dataset(detector_group, "x_pixel_size", pixel_size_um, "um")
+        self._write_scalar_dataset(detector_group, "y_pixel_size", pixel_size_um, "um")
+        self._write_scalar_dataset(detector_group, "beam_center_x", center_x_px, "pixel")
+        self._write_scalar_dataset(detector_group, "beam_center_y", center_y_px, "pixel")
+        self._write_scalar_dataset(beam_group, "incident_energy", energy_ev, "eV")
 
     def _read_non_h5_image(self, path: Path) -> np.ndarray:
         ext_name = self._deps.image_ext_name(path.name)
@@ -495,6 +644,12 @@ class SeriesSummingService:
         output_path: str | None,
         output_format: str,
         apply_mask: bool,
+        geometry: dict[str, Any] | None,
+        distance_mm: float | None,
+        pixel_size_um: float | None,
+        energy_ev: float | None,
+        center_x_px: float | None,
+        center_y_px: float | None,
     ) -> None:
         try:
             source_path = self._deps.resolve_image_file(file)
@@ -512,6 +667,14 @@ class SeriesSummingService:
             normalize_scalar_value = (
                 float(normalize_scalar) if normalize_scalar is not None else None
             )
+            geometry_payload = self._normalize_geometry_payload(geometry)
+            distance_mm_value = self._finite_float(distance_mm)
+            pixel_size_um_value = self._finite_float(pixel_size_um)
+            energy_ev_value = self._finite_float(energy_ev)
+            center_x_px_value = self._finite_float(center_x_px)
+            center_y_px_value = self._finite_float(center_y_px)
+            if pixel_size_um_value is None:
+                pixel_size_um_value = self._geometry_pixel_size_um(geometry_payload)
             normalize_image_path = str(normalize_image or "").strip()
             if normalize_method not in {"none", "frame", "scalar", "image"}:
                 raise HTTPException(status_code=400, detail="Invalid normalization method")
@@ -905,6 +1068,17 @@ class SeriesSummingService:
                                 self._copy_h5_metadata(src_h5, out_h5, threshold_count)
                         except Exception:
                             pass
+                    embedded_geometry = self._write_embedded_geometry(out_h5, geometry_payload)
+                    self._write_analysis_geometry_metadata(
+                        out_h5,
+                        distance_mm=distance_mm_value,
+                        pixel_size_um=pixel_size_um_value,
+                        energy_ev=energy_ev_value,
+                        center_x_px=center_x_px_value,
+                        center_y_px=center_y_px_value,
+                    )
+                    if embedded_geometry:
+                        out_h5.attrs["albis_geometry_embedded"] = True
 
                     data_dset = data_group.create_dataset(
                         "data",
