@@ -609,10 +609,7 @@ def _read_hdf5_embedded_geometry(path: Path) -> dict[str, Any] | None:
         text = raw.tobytes().decode("utf-8", errors="ignore")
     elif hasattr(raw, "item"):
         item = raw.item()
-        if isinstance(item, bytes):
-            text = item.decode("utf-8", errors="ignore")
-        else:
-            text = str(item)
+        text = item.decode("utf-8", errors="ignore") if isinstance(item, bytes) else str(item)
     else:
         text = str(raw)
     try:
