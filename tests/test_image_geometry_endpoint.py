@@ -79,7 +79,11 @@ def _write_h5_embedded_geometry(
         geometry_group.attrs["schema_version"] = 1
         geometry_group.create_dataset(
             "json",
-            data=json.dumps(geometry_payload) if isinstance(geometry_payload, dict) else str(geometry_payload),
+            data=(
+                json.dumps(geometry_payload)
+                if isinstance(geometry_payload, dict)
+                else str(geometry_payload)
+            ),
             dtype=h5py.string_dtype(encoding="utf-8"),
         )
         if source_file is not None:
