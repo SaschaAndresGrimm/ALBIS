@@ -643,12 +643,12 @@
   "viewer.footer.badge.server": "服务器",
   "viewer.footer.file.empty": "无文件",
   "viewer.footer.status.idle": "空闲",
-  "rings.geometry.status": "Geometry-aware rings from {{source}}.",
-  "analysis.rings.geometry_file": "Geometry file",
-  "analysis.rings.placeholder.geometry_file": "path/to/imported.expt",
-  "analysis.rings.geometry_clear": "Clear",
-  "validation.rings.geometry_expt_required": "Geometry override must be a DIALS .expt file.",
-  "status.analysis.geometry_picker_failed": "Geometry file picker failed",
-  "rings.geometry.status_auto": "Auto geometry: {{source}}.",
-  "rings.geometry.status_manual": "Manual geometry: {{source}}."
+  "rings.geometry.status": "来自 {{source}} 的几何感知环。",
+  "analysis.rings.geometry_file": "几何文件",
+  "analysis.rings.placeholder.geometry_file": "路径/到/imported.expt",
+  "analysis.rings.geometry_clear": "清除",
+  "validation.rings.geometry_expt_required": "几何覆盖必须是 DIALS 的 .expt 文件。",
+  "status.analysis.geometry_picker_failed": "选择几何文件失败",
+  "rings.geometry.status_auto": "自动几何: {{source}}。",
+  "rings.geometry.status_manual": "手动几何: {{source}}。"
 }

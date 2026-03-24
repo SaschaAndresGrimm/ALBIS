@@ -70,7 +70,7 @@
   "backend.live.live": "LIVE",
   "backend.live.title.live": "ライブストリームが有効",
   "backend.live.title.wait": "ストリーム更新を待機中",
-  "backend.live.wait": "WAIT",
+  "backend.live.wait": "待機",
   "backend.server.aria.offline": "バックエンドサーバーはオフラインです",
   "backend.server.aria.online": "バックエンドサーバーはオンラインです",
   "backend.server.offline": "OFFLINE",
@@ -643,12 +643,12 @@
   "viewer.footer.badge.server": "SERVER",
   "viewer.footer.file.empty": "ファイルなし",
   "viewer.footer.status.idle": "待機",
-  "rings.geometry.status": "Geometry-aware rings from {{source}}.",
-  "analysis.rings.geometry_file": "Geometry file",
+  "rings.geometry.status": "{{source}} の幾何情報に基づくリング。",
+  "analysis.rings.geometry_file": "幾何情報ファイル",
   "analysis.rings.placeholder.geometry_file": "path/to/imported.expt",
-  "analysis.rings.geometry_clear": "Clear",
-  "validation.rings.geometry_expt_required": "Geometry override must be a DIALS .expt file.",
-  "status.analysis.geometry_picker_failed": "Geometry file picker failed",
-  "rings.geometry.status_auto": "Auto geometry: {{source}}.",
-  "rings.geometry.status_manual": "Manual geometry: {{source}}."
+  "analysis.rings.geometry_clear": "クリア",
+  "validation.rings.geometry_expt_required": "幾何オーバーライドには DIALS の .expt ファイルが必要です。",
+  "status.analysis.geometry_picker_failed": "幾何情報ファイルの選択に失敗しました",
+  "rings.geometry.status_auto": "自動幾何情報: {{source}}。",
+  "rings.geometry.status_manual": "手動幾何情報: {{source}}。"
 }

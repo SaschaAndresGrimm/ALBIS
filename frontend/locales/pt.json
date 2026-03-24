@@ -643,12 +643,12 @@
   "viewer.footer.badge.server": "SERVIDOR",
   "viewer.footer.file.empty": "Nenhum arquivo",
   "viewer.footer.status.idle": "Inativo",
-  "rings.geometry.status": "Geometry-aware rings from {{source}}.",
-  "analysis.rings.geometry_file": "Geometry file",
-  "analysis.rings.placeholder.geometry_file": "path/to/imported.expt",
-  "analysis.rings.geometry_clear": "Clear",
-  "validation.rings.geometry_expt_required": "Geometry override must be a DIALS .expt file.",
-  "status.analysis.geometry_picker_failed": "Geometry file picker failed",
-  "rings.geometry.status_auto": "Auto geometry: {{source}}.",
-  "rings.geometry.status_manual": "Manual geometry: {{source}}."
+  "rings.geometry.status": "Anéis baseados na geometria de {{source}}.",
+  "analysis.rings.geometry_file": "Arquivo de geometria",
+  "analysis.rings.placeholder.geometry_file": "caminho/para/imported.expt",
+  "analysis.rings.geometry_clear": "Limpar",
+  "validation.rings.geometry_expt_required": "A substituição de geometria deve ser um arquivo .expt do DIALS.",
+  "status.analysis.geometry_picker_failed": "Falha ao selecionar o arquivo de geometria",
+  "rings.geometry.status_auto": "Geometria automática: {{source}}.",
+  "rings.geometry.status_manual": "Geometria manual: {{source}}."
 }
