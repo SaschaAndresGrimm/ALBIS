@@ -32,8 +32,10 @@ export function createExportSplashController({
     buildPalette,
     getPaletteColorCount,
     mapValueToNorm,
+    getActiveSaturationMax,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
+    isSaturatedValue,
     setStatus,
   } = callbacks;
 
@@ -64,6 +66,8 @@ export function createExportSplashController({
     const out = imageData.data;
     const palette = buildPalette(state.colormap);
     const maxIdx = getPaletteColorCount(palette) - 1;
+    const satMax = getActiveSaturationMax();
+    const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
     const maskReady =
       state.maskEnabled &&
       state.maskAvailable &&
@@ -98,6 +102,14 @@ export function createExportSplashController({
             out[j + 3] = 255;
             continue;
           }
+        }
+        if (maskSaturatedEnabled && isSaturatedValue(v, satMax)) {
+          const j = outOffset + col * 4;
+          out[j] = 0;
+          out[j + 1] = 158;
+          out[j + 2] = 20;
+          out[j + 3] = 255;
+          continue;
         }
         const norm = mapValueToNorm(v);
         const p = Math.floor(norm * maxIdx) * 4;

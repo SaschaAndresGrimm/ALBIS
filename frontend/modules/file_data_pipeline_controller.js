@@ -77,22 +77,21 @@ export function createFileDataPipelineController({
         fileSelect.value = file;
       }
       setDataControlsForHdf5();
-      await loadDatasets();
-      if (state.frameCount > 1) {
+      const loaded = await loadDatasets();
+      if (loaded && state.frameCount > 1) {
         requestFrame(state.frameCount - 1);
       }
-      return;
+      return loaded;
     }
-    await loadImageSeries(file);
+    return loadImageSeries(file);
   }
 
   async function loadImageSeries(file) {
-    if (!file) return;
+    if (!file) return false;
     if (!isSeriesCapable(file)) {
       state.seriesFiles = [];
       state.seriesLabel = "";
-      await loadImageFile(file);
-      return;
+      return loadImageFile(file);
     }
     try {
       const data = await fetchJSON(`${apiBase}/series?file=${encodeURIComponent(file)}`);
@@ -108,18 +107,18 @@ export function createFileDataPipelineController({
         updateFrameControls();
         updatePlayButtons();
         setDataControlsForSeries();
-        await loadSeriesFrame();
-        return;
+        return loadSeriesFrame();
       }
     } catch (err) {
       console.warn(err);
     }
     state.seriesFiles = [];
     state.seriesLabel = "";
-    await loadImageFile(file);
+    return loadImageFile(file);
   }
 
   async function loadImageFile(file) {
+    let loaded = false;
     stopPlayback();
     setLoading(true);
     setStatus(t("status.data.loading_image"));
@@ -128,7 +127,7 @@ export function createFileDataPipelineController({
       const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`);
       if (!res.ok) {
         setStatus(t("status.data.failed_load_image"));
-        return;
+        return false;
       }
       const buffer = await res.arrayBuffer();
       const dtype = parseDtype(res.headers.get("X-Dtype"));
@@ -140,6 +139,7 @@ export function createFileDataPipelineController({
         autoMask: true,
         maskKey: `auto:${file}`,
       });
+      loaded = true;
       setStatus(t("status.frame.position", { current: 1, total: 1 }), { frameStatus: true });
     } catch (err) {
       console.error(err);
@@ -147,13 +147,13 @@ export function createFileDataPipelineController({
     } finally {
       setLoading(false);
     }
+    return loaded;
   }
 
   async function loadDatasets() {
-    if (!state.file) return;
+    if (!state.file) return false;
     if (!isHdfFile(state.file)) {
-      await loadImageSeries(state.file);
-      return;
+      return loadImageSeries(state.file);
     }
     state.hasFrame = false;
     stopPlayback();
@@ -179,14 +179,18 @@ export function createFileDataPipelineController({
       if (ordered.length > 0) {
         state.dataset = ordered[0].path;
         datasetSelect.value = state.dataset;
-        await loadMetadata();
-        setDataSourceSectionState("active", t("status.data.dataset_metadata_loaded"));
+        const loaded = await loadMetadata();
+        if (loaded) {
+          setDataSourceSectionState("active", t("status.data.dataset_metadata_loaded"));
+        }
+        return loaded;
       } else {
         setStatus(t("status.data.no_image_datasets"));
         showSplash();
         setSplashStatus("splash.status.no_image_datasets");
         setLoading(false);
         setDataSourceSectionState("warning", t("status.data.no_image_datasets"));
+        return false;
       }
     } catch (err) {
       console.error(err);
@@ -195,6 +199,7 @@ export function createFileDataPipelineController({
       setSplashStatus("splash.status.dataset_scan_failed");
       setLoading(false);
       setDataSourceSectionState("warning", t("status.data.failed_scan_datasets"));
+      return false;
     } finally {
       hideProcessingProgress();
     }
@@ -202,10 +207,10 @@ export function createFileDataPipelineController({
 
   async function loadSeriesFrame() {
     const files = Array.isArray(state.seriesFiles) ? state.seriesFiles : [];
-    if (!files.length) return;
+    if (!files.length) return false;
     const file = files[state.frameIndex];
-    if (!file) return;
-    if (state.isLoading) return;
+    if (!file) return false;
+    if (state.isLoading) return false;
     state.isLoading = true;
     const showLoading = !state.playing;
     if (showLoading) {
@@ -229,7 +234,7 @@ export function createFileDataPipelineController({
         if (!state.hasFrame) {
           showSplash();
         }
-        return;
+        return false;
       }
       const buffer = await res.arrayBuffer();
       const dtype = parseDtype(res.headers.get("X-Dtype"));
@@ -270,15 +275,15 @@ export function createFileDataPipelineController({
       state.isLoading = false;
     }
     processPendingFrameRequest(appliedFrame);
+    return appliedFrame;
   }
 
   async function loadFrame() {
     if (Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0) {
-      await loadSeriesFrame();
-      return;
+      return loadSeriesFrame();
     }
-    if (!state.file || !state.dataset) return;
-    if (state.isLoading) return;
+    if (!state.file || !state.dataset) return false;
+    if (state.isLoading) return false;
     state.isLoading = true;
     if (!state.playing) {
       setLoading(true);
@@ -304,7 +309,7 @@ export function createFileDataPipelineController({
         if (!state.hasFrame) {
           showSplash();
         }
-        return;
+        return false;
       }
       const buffer = await res.arrayBuffer();
       const dtype = parseDtype(res.headers.get("X-Dtype"));
@@ -336,6 +341,7 @@ export function createFileDataPipelineController({
       state.isLoading = false;
     }
     processPendingFrameRequest(appliedFrame);
+    return appliedFrame;
   }
 
   return {

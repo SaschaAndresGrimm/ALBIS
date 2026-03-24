@@ -2128,8 +2128,10 @@ exportSplashController = createExportSplashController({
     buildPalette,
     getPaletteColorCount,
     mapValueToNorm,
+    getActiveSaturationMax,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
+    isSaturatedValue,
     setStatus,
   },
 });
@@ -2576,11 +2578,11 @@ const fileDataPipelineController = createFileDataPipelineController({
 });
 
 async function loadAutoloadFile(file) {
-  await fileDataPipelineController.loadAutoloadFile(file);
+  return fileDataPipelineController.loadAutoloadFile(file);
 }
 
 async function loadImageSeries(file) {
-  await fileDataPipelineController.loadImageSeries(file);
+  return fileDataPipelineController.loadImageSeries(file);
 }
 
 function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false, options = {}) {
@@ -2864,11 +2866,11 @@ async function loadFiles() {
 }
 
 async function loadDatasets() {
-  await fileDataPipelineController.loadDatasets();
+  return fileDataPipelineController.loadDatasets();
 }
 
 async function loadMetadata() {
-  await frameMetadataController?.loadMetadata();
+  return frameMetadataController?.loadMetadata();
 }
 
 function parseShape(header) {

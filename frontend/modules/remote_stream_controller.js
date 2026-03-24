@@ -26,15 +26,24 @@ export function createRemoteStreamController({
     applyExternalFrame,
   } = callbacks;
 
+  function clearExternalPeakSets() {
+    analysisState.externalPeakSets = [];
+    schedulePeakOverlay();
+  }
+
   async function fetchRemoteMeta(sourceId, seq) {
-    if (!sourceId) return null;
+    if (!sourceId) {
+      clearExternalPeakSets();
+      return null;
+    }
     const params = new URLSearchParams({ source_id: sourceId });
     if (Number.isFinite(seq) && seq > 0) {
       params.set("seq", String(Math.round(seq)));
     }
     try {
       const res = await fetch(`${apiBase}/remote/v1/meta?${params.toString()}`, { cache: "no-store" });
-      if (res.status === 204 || !res.ok) {
+      if (res.status === 204 || res.status === 409 || !res.ok) {
+        clearExternalPeakSets();
         return null;
       }
       const payload = await res.json();
@@ -74,6 +83,7 @@ export function createRemoteStreamController({
       return { payload, normalized };
     } catch (err) {
       console.warn(err);
+      clearExternalPeakSets();
       return null;
     }
   }
@@ -122,6 +132,7 @@ export function createRemoteStreamController({
     const data = typedArrayFrom(buffer, dtype);
     const remoteMeta = applyRemoteMeta(res.headers);
     const seq = Number(remoteMeta.seq || 0);
+    const seqChanged = Number.isFinite(seq) && seq > 0 && seq !== state.autoload.lastJfjochSeq;
     const label =
       remoteMeta.displayName ||
       t("source.label.jfjoch_preview_with_seq", {
@@ -129,27 +140,36 @@ export function createRemoteStreamController({
         seqSuffix: Number.isFinite(seq) && seq > 0 ? ` #${seq}` : "",
       });
     applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
-    if (Number.isFinite(seq) && seq > 0) {
-      if (seq !== state.autoload.lastJfjochSeq) {
-        state.autoload.lastJfjochSeq = seq;
-        const metaResult = await fetchRemoteMeta(sourceId, seq);
-        const payload = metaResult?.payload;
-        const normalized = Array.isArray(metaResult?.normalized) ? metaResult.normalized : [];
-        const totalPoints = normalized.reduce((sum, set) => sum + (set.points?.length || 0), 0);
-        const extra = payload?.extra && typeof payload.extra === "object" ? payload.extra : {};
-        state.autoload.jfjochMeta = {
-          source: sourceId,
-          seq,
-          series: payload?.series_number ?? remoteMeta.series,
-          image: payload?.image_number ?? remoteMeta.image,
-          date: payload?.image_datetime || remoteMeta.date || "",
-          reflections: totalPoints,
-          channel: typeof extra.channel === "string" ? extra.channel : "",
-        };
-      }
+    if (seqChanged) {
+      clearExternalPeakSets();
+      state.autoload.lastJfjochSeq = seq;
+      state.autoload.jfjochMeta = {
+        source: sourceId,
+        seq,
+        series: remoteMeta.series,
+        image: remoteMeta.image,
+        date: remoteMeta.date || "",
+        reflections: 0,
+        channel: "",
+      };
+      const metaResult = await fetchRemoteMeta(sourceId, seq);
+      const payload = metaResult?.payload;
+      const normalized = Array.isArray(metaResult?.normalized) ? metaResult.normalized : [];
+      const totalPoints = normalized.reduce((sum, set) => sum + (set.points?.length || 0), 0);
+      const extra = payload?.extra && typeof payload.extra === "object" ? payload.extra : {};
+      state.autoload.jfjochMeta = {
+        source: sourceId,
+        seq,
+        series: payload?.series_number ?? remoteMeta.series,
+        image: payload?.image_number ?? remoteMeta.image,
+        date: payload?.image_datetime || remoteMeta.date || "",
+        reflections: totalPoints,
+        channel: typeof extra.channel === "string" ? extra.channel : "",
+      };
     } else {
-      analysisState.externalPeakSets = [];
-      schedulePeakOverlay();
+      if (!(Number.isFinite(seq) && seq > 0)) {
+        clearExternalPeakSets();
+      }
     }
     const latestStatus = await fetchJfjochPreviewStatus();
     updateJfjochMetaUI(state.autoload.jfjochMeta || {}, latestStatus || state.autoload.jfjochStatus || {});
@@ -182,6 +202,7 @@ export function createRemoteStreamController({
     const data = typedArrayFrom(buffer, dtype);
     const remoteMeta = applyRemoteMeta(res.headers);
     const seq = Number(remoteMeta.seq || 0);
+    const seqChanged = Number.isFinite(seq) && seq > 0 && seq !== state.autoload.lastRemoteSeq;
     const label =
       remoteMeta.displayName ||
       t("source.label.remote_stream_with_seq", {
@@ -189,14 +210,14 @@ export function createRemoteStreamController({
         seqSuffix: Number.isFinite(seq) && seq > 0 ? ` #${seq}` : "",
       });
     applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
-    if (Number.isFinite(seq) && seq > 0) {
-      if (seq !== state.autoload.lastRemoteSeq) {
-        state.autoload.lastRemoteSeq = seq;
-        await fetchRemoteMeta(sourceId, seq);
-      }
+    if (seqChanged) {
+      clearExternalPeakSets();
+      state.autoload.lastRemoteSeq = seq;
+      await fetchRemoteMeta(sourceId, seq);
     } else {
-      analysisState.externalPeakSets = [];
-      schedulePeakOverlay();
+      if (!(Number.isFinite(seq) && seq > 0)) {
+        clearExternalPeakSets();
+      }
     }
     state.autoload.lastUpdate = Date.now();
     updateAutoloadMeta();

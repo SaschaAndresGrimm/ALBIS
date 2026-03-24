@@ -121,7 +121,7 @@ export function createFrameMetadataController({
   }
 
   async function loadMetadata() {
-    if (!state.file || !state.dataset) return;
+    if (!state.file || !state.dataset) return false;
     showProcessingProgress(t("status.frame.loading_metadata"));
     setStatus(t("status.frame.loading_metadata"));
     setDataSourceSectionState("loading", t("status.data.loading_dataset_metadata"), true);
@@ -151,8 +151,13 @@ export function createFrameMetadataController({
       updateToolbar();
       await loadAnalysisParams();
       await loadMask(true);
-      await loadFrame();
+      const loadedFrame = await loadFrame();
+      if (!loadedFrame) {
+        setDataSourceSectionState("warning", t("status.data.failed_load_frame"));
+        return false;
+      }
       setDataSourceSectionState("active", t("status.data.metadata_ready"));
+      return true;
     } catch (err) {
       console.error(err);
       setDataSourceSectionState("warning", t("status.data.failed_load_metadata"));

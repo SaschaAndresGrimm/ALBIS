@@ -61,10 +61,20 @@ export function createAutoloadModeController({
       return;
     }
     const previousFile = state.autoload.lastFile;
-    state.autoload.lastFile = payload.file;
     const previousMtime = state.autoload.lastMtime;
+    let loaded = false;
+    try {
+      loaded = await loadAutoloadFile(payload.file);
+    } catch (err) {
+      console.error(err);
+      loaded = false;
+    }
+    if (!loaded) {
+      setAutoloadStatus(t("autoload.status.watch.error"));
+      return;
+    }
+    state.autoload.lastFile = payload.file;
     state.autoload.lastMtime = mtime;
-    await loadAutoloadFile(payload.file);
     const changed = payload.file !== previousFile || mtime > previousMtime;
     if (changed) {
       state.autoload.lastUpdate = Date.now();
