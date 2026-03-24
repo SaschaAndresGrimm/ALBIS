@@ -35,15 +35,26 @@ export function bindRoiPlotInteractions({
     getRoiPlotLimits,
     setRoiPlotAxisLimits,
     syncRoiPlotLimitControls,
-    scheduleRoiUpdate,
+    redrawRoiPlots,
     clearRoiPlotLimitsForKey,
     hasAnyManualRoiPlotLimits,
     normalizeWheelDelta,
   } = callbacks;
 
+  const roiPlotCanvases = [roiLineCanvas, roiXCanvas, roiYCanvas, roiHistCanvas].filter(Boolean);
   let roiPlotResizing = null;
   let roiPlotResizeStart = { x: 0, y: 0, height: 0, container: null };
   let roiPlotPanning = null;
+  let roiPlotRedrawScheduled = false;
+
+  function scheduleRoiPlotRedraw() {
+    if (roiPlotRedrawScheduled) return;
+    roiPlotRedrawScheduled = true;
+    window.requestAnimationFrame(() => {
+      roiPlotRedrawScheduled = false;
+      redrawRoiPlots();
+    });
+  }
 
   function updateRoiPlotPanReadyState(canvasEl, clientX, clientY) {
     if (!canvasEl) return;
@@ -182,7 +193,7 @@ export function bindRoiPlotInteractions({
     setRoiPlotAxisLimits(plotKey, "x", nextXMin, nextXMax);
     setRoiPlotAxisLimits(plotKey, "y", nextYMin, nextYMax);
     syncRoiPlotLimitControls();
-    scheduleRoiUpdate();
+    scheduleRoiPlotRedraw();
     event.preventDefault();
   }
 
@@ -203,7 +214,7 @@ export function bindRoiPlotInteractions({
     }
   }
 
-  [roiLineCanvas, roiXCanvas, roiYCanvas, roiHistCanvas].forEach((canvasEl) => {
+  roiPlotCanvases.forEach((canvasEl) => {
     if (!canvasEl) return;
 
     canvasEl.addEventListener("mousemove", (event) => {
@@ -246,7 +257,7 @@ export function bindRoiPlotInteractions({
         roiState.plotLimits.autoscale = true;
       }
       syncRoiPlotLimitControls();
-      scheduleRoiUpdate();
+      scheduleRoiPlotRedraw();
     });
 
     canvasEl.addEventListener(
@@ -310,11 +321,21 @@ export function bindRoiPlotInteractions({
         }
 
         syncRoiPlotLimitControls();
-        scheduleRoiUpdate();
+        scheduleRoiPlotRedraw();
       },
       { passive: false }
     );
   });
+
+  if (typeof window.ResizeObserver === "function" && roiPlotCanvases.length) {
+    const roiPlotResizeObserver = new window.ResizeObserver((entries) => {
+      if (!entries?.length) return;
+      scheduleRoiPlotRedraw();
+    });
+    roiPlotCanvases.forEach((canvasEl) => {
+      roiPlotResizeObserver.observe(canvasEl);
+    });
+  }
 
   [roiLinePlot, roiBoxPlotX, roiBoxPlotY, roiHistogramPlot].forEach((plotContainer) => {
     if (!plotContainer) return;
@@ -348,7 +369,7 @@ export function bindRoiPlotInteractions({
     if (roiPlotResizing) {
       const canvas = roiPlotResizing.querySelector("canvas");
       if (canvas) {
-        scheduleRoiUpdate();
+        scheduleRoiPlotRedraw();
       }
     }
     roiPlotResizing = null;

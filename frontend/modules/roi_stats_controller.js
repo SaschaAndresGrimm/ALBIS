@@ -801,6 +801,30 @@ function drawRoiPlot(canvasEl, ctx, data, logScale) {
   });
 }
 
+function redrawRoiPlots() {
+  const hasActiveRoi = Boolean(roiState.enabled && roiState.active && roiState.start && roiState.end);
+  const showsLineProfile =
+    hasActiveRoi &&
+    (roiState.mode === "line" || roiState.mode === "circle" || roiState.mode === "annulus");
+  const showsBoxProfiles = hasActiveRoi && roiState.mode === "box";
+  const showsHistogram = Boolean(
+    roiState.enabled &&
+    roiState.histogramEnabled &&
+    roiState.histogramDistribution &&
+    roiState.histogramDistribution.length > 0
+  );
+
+  drawRoiPlot(roiLineCanvas, roiLineCtx, showsLineProfile ? roiState.lineProfile : null, roiState.log);
+  drawRoiPlot(roiXCanvas, roiXCtx, showsBoxProfiles ? roiState.xProjection : null, roiState.log);
+  drawRoiPlot(roiYCanvas, roiYCtx, showsBoxProfiles ? roiState.yProjection : null, roiState.log);
+  drawRoiPlot(
+    roiHistCanvas,
+    roiHistCtx,
+    showsHistogram ? roiState.histogramDistribution : null,
+    roiState.log
+  );
+}
+
 function exportRoiCsv() {
   if (!roiState.enabled || !roiState.active) {
     setStatus(t("status.roi.no_data"));
@@ -851,6 +875,7 @@ function exportRoiCsv() {
     hideRoiTooltip,
     updateRoiTooltip,
     updateRoiStats,
+    redrawRoiPlots,
     drawRoiPlot,
     exportRoiCsv,
   };

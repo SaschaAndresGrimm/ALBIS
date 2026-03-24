@@ -3351,6 +3351,10 @@ function updateRoiStats() {
   roiStatsController.updateRoiStats();
 }
 
+function redrawRoiPlots() {
+  roiStatsController.redrawRoiPlots();
+}
+
 function exportRoiCsv() {
   roiStatsController.exportRoiCsv();
 }
@@ -3623,6 +3627,7 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   formatValue,
   updateGlobalStats,
   scheduleRoiUpdate,
+  redrawRoiPlots,
   schedulePeakFinder,
   chooseHistogramBins,
   computeHistogram,

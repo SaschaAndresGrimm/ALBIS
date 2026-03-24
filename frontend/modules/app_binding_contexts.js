@@ -211,6 +211,7 @@ export function createPostFilePickerBindingsCallbacks(callbacks) {
     formatValue: callbacks.formatValue,
     updateGlobalStats: callbacks.updateGlobalStats,
     scheduleRoiUpdate: callbacks.scheduleRoiUpdate,
+    redrawRoiPlots: callbacks.redrawRoiPlots,
     schedulePeakFinder: callbacks.schedulePeakFinder,
     chooseHistogramBins: callbacks.chooseHistogramBins,
     computeHistogram: callbacks.computeHistogram,
