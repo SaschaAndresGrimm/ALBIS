@@ -89,6 +89,9 @@
               <span data-i18n="menu.help.documentation">Documentation</span>
               <span class="shortcut">F1</span>
             </button>
+            <button class="dropdown-item" data-action="help-check-updates">
+              <span data-i18n="menu.help.check_updates">Check for Updates</span>
+            </button>
             <button class="dropdown-item" data-action="help-log">
               <span data-i18n="menu.help.open_log">Open Backend Log File</span>
             </button>
@@ -1144,6 +1147,41 @@
           <a class="about-repo-link" href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">
             Open ALBIS on GitHub
           </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="update-check-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card update-check-modal-card" role="dialog" aria-modal="true" aria-labelledby="update-check-title">
+        <div class="modal-header">
+          <div id="update-check-title" data-i18n="menu.help.check_updates">Check for Updates</div>
+          <button
+            class="modal-close"
+            id="update-check-close-icon"
+            data-i18n-aria-label="common.close"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body update-check-modal-body">
+          <div class="update-check-message" id="update-check-message" aria-live="polite"></div>
+          <div class="update-check-detail" id="update-check-detail" hidden></div>
+          <div class="update-check-version-grid">
+            <div class="update-check-version-row">
+              <span data-i18n="update_check.current_version_label">Current version</span>
+              <strong id="update-check-current-version"></strong>
+            </div>
+            <div class="update-check-version-row" id="update-check-latest-row">
+              <span data-i18n="update_check.latest_version_label">Latest version</span>
+              <strong id="update-check-latest-version"></strong>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="update-check-close" data-i18n="common.close">Close</button>
+          <button class="btn btn-primary" id="update-check-action" hidden></button>
         </div>
       </div>
     </div>

@@ -102,6 +102,7 @@ try:
     from .services.simplon import (
         simplon_set_mode as _simplon_set_mode,
     )
+    from .services.update_check import ReleaseCheckService
     from .version import ALBIS_VERSION
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
@@ -183,6 +184,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from services.simplon import (
         simplon_set_mode as _simplon_set_mode,
     )
+    from services.update_check import ReleaseCheckService
     from version import ALBIS_VERSION
 
 CONFIG, CONFIG_PATH = load_config()
@@ -276,6 +278,7 @@ def _init_logging() -> logging.Logger:
 
 
 logger = _init_logging()
+update_check_service = ReleaseCheckService(current_version=ALBIS_VERSION, logger=logger)
 _startup_banner_logged = False
 _handoff_queue_max = 1024
 _handoff_jobs: list[dict[str, Any]] = []
@@ -570,6 +573,10 @@ def _get_log_path() -> Path | None:
     return LOG_PATH
 
 
+def _check_update():
+    return update_check_service.check_for_update()
+
+
 def _get_allow_abs_paths() -> bool:
     return runtime_state.allow_abs_paths
 
@@ -617,6 +624,7 @@ register_system_routes(
         save_config=save_config,
         apply_runtime_config=_apply_runtime_config,
         get_log_path=_get_log_path,
+        check_update=_check_update,
     ),
 )
 
