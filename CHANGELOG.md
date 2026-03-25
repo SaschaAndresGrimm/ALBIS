@@ -7,9 +7,29 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-03-25
+
+### Added
+
+- Added manual Pilatus 12M geometry overrides for detector-center and distance workflows.
+- Summed HDF5 outputs now embed the effective geometry used for downstream ring analysis.
+
+### Changed
+
+- Pixel-value overlays now format float datasets more sensibly and reduce label density when text would spill across cell boundaries.
+- Refined non-English UI copy further, including broader translation cleanups and Swiss German polish.
+
 ### Fixed
 
 - Refreshed the pinned Docker Python base image and runtime package/toolchain upgrades so the GHCR publish scan no longer fails on stale Debian, `setuptools`, and `wheel` CVEs.
+- Fixed HDF5 manual geometry ring loading for ring overlays and metadata-driven geometry workflows.
+- Fixed ROI plot redraw behavior after panel resizes.
+- Fixed export overlay and autoload regression handling.
+
+### Notes
+
+- This release is called: "Sharper labels, steadier rings."
+- This release is called: "Now with fewer overlapping numbers and fewer reasons to squint."
 
 ## [0.9.1] - 2026-03-19
 
@@ -227,7 +247,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.2
 [0.9.1]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.1
 [0.9.0]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.0
 [0.8.17]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.8.17

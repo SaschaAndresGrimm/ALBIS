@@ -29,6 +29,7 @@ import { bindClientLogging } from "./modules/client_logging_bindings.js";
 import { createCommandPaletteController } from "./modules/command_palette.js";
 import { createSettingsController } from "./modules/settings_controller.js";
 import { createModalManager } from "./modules/modal_manager.js";
+import { createUpdateCheckController } from "./modules/update_check_controller.js";
 import { buildCommandPaletteCommands } from "./modules/command_palette_commands.js";
 import { createUploadFlowController } from "./modules/upload_flow.js";
 import { createMenuActionHandler } from "./modules/menu_actions.js";
@@ -83,6 +84,7 @@ import {
   isWebglUnsignedRawCandidate as isWebglUnsignedRawCandidateUtil,
   getWebglUnsignedUploadInfo as getWebglUnsignedUploadInfoUtil,
   getDtypeInfo as getDtypeInfoUtil,
+  formatPixelLabelValue as formatPixelLabelValueUtil,
   chooseHistogramBins as chooseHistogramBinsUtil,
   computeHistogram as computeHistogramUtil,
   computeAutoLevels as computeAutoLevelsUtil,
@@ -403,6 +405,15 @@ const submenuParents = document.querySelectorAll(".dropdown-submenu-parent");
 const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
 const aboutModal = document.getElementById("about-modal");
 const aboutClose = document.getElementById("about-close");
+const updateCheckModal = document.getElementById("update-check-modal");
+const updateCheckCloseIcon = document.getElementById("update-check-close-icon");
+const updateCheckMessage = document.getElementById("update-check-message");
+const updateCheckDetail = document.getElementById("update-check-detail");
+const updateCheckCurrentVersionValue = document.getElementById("update-check-current-version");
+const updateCheckLatestRow = document.getElementById("update-check-latest-row");
+const updateCheckLatestVersionValue = document.getElementById("update-check-latest-version");
+const updateCheckAction = document.getElementById("update-check-action");
+const updateCheckClose = document.getElementById("update-check-close");
 const settingsModal = document.getElementById("settings-modal");
 const settingsClose = document.getElementById("settings-close");
 const settingsCancel = document.getElementById("settings-cancel");
@@ -456,6 +467,7 @@ let panelLayoutController = null;
 let thresholdPlaybackController = null;
 let autoloadStatusController = null;
 let fileSessionController = null;
+let updateCheckController = null;
 let activeMenu = "file";
 let closeTimer = null;
 let histogramScheduled = false;
@@ -745,37 +757,8 @@ function formatValue(value) {
   return Math.round(value).toString();
 }
 
-function compactCount(value) {
-  if (!Number.isFinite(value)) return "";
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(abs >= 1e10 ? 0 : 1).replace(/\.0$/, "")}G`;
-  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(abs >= 1e7 ? 0 : 1).replace(/\.0$/, "")}M`;
-  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1).replace(/\.0$/, "")}k`;
-  return `${Math.round(value)}`;
-}
-
 function formatPixelLabelValue(value, cellPx, mode = "auto") {
-  if (!Number.isFinite(value)) return "";
-  const pixelWidth = Math.max(8, Number(cellPx) || 0);
-  const maxChars = Math.max(1, Math.floor((pixelWidth - 2) / 5.6));
-  const rounded = Math.round(value);
-  const scientific = Number(value).toExponential(1).replace("+", "");
-  const compact = compactCount(rounded);
-  const integer = String(rounded);
-
-  if (mode === "integer") {
-    return integer.length <= maxChars ? integer : compact.length <= maxChars ? compact : "";
-  }
-  if (mode === "scientific") {
-    return scientific.length <= maxChars ? scientific : "";
-  }
-
-  // Auto: prioritize readability and fit.
-  if (integer.length <= maxChars) return integer;
-  if (compact.length <= maxChars) return compact;
-  if (scientific.length <= maxChars) return scientific;
-  return "";
+  return formatPixelLabelValueUtil(value, cellPx, mode, state.dtype);
 }
 
 function formatStat(value) {
@@ -1392,6 +1375,7 @@ function refreshLocalizedUi() {
   updateRingsSectionState();
   updatePeaksSectionState();
   updateSeriesSumUi();
+  updateCheckController?.refreshUi();
   validateSeriesStepInput(false);
   if (commandPaletteController?.isOpen()) {
     commandPaletteController.render();
@@ -2665,6 +2649,26 @@ const {
   focusableSelector: MODAL_FOCUSABLE_SELECTOR,
 });
 
+updateCheckController = createUpdateCheckController({
+  apiBase: API,
+  state,
+  elements: {
+    updateCheckModal,
+    updateCheckCloseIcon,
+    updateCheckMessage,
+    updateCheckDetail,
+    updateCheckCurrentVersionValue,
+    updateCheckLatestRow,
+    updateCheckLatestVersionValue,
+    updateCheckAction,
+    updateCheckClose,
+  },
+  callbacks: {
+    openModal: (...args) => openModal(...args),
+    closeModal: (...args) => closeModal(...args),
+  },
+});
+
 function closeTopModal(options = {}) {
   const modalEl = getTopOpenModal();
   if (!modalEl) return false;
@@ -2678,6 +2682,10 @@ function closeTopModal(options = {}) {
   }
   if (modalEl === settingsModal) {
     closeSettingsModal(options);
+    return true;
+  }
+  if (modalEl === updateCheckModal) {
+    closeUpdateCheckModal(options);
     return true;
   }
   if (modalEl === aboutModal) {
@@ -2694,6 +2702,14 @@ function openAboutModal() {
 
 function closeAboutModal({ restoreFocus = true } = {}) {
   closeModal(aboutModal, { restoreFocus });
+}
+
+function closeUpdateCheckModal({ restoreFocus = true } = {}) {
+  updateCheckController?.close({ restoreFocus });
+}
+
+async function checkForUpdates() {
+  await updateCheckController?.openAndCheck();
 }
 
 function closeSettingsModal({ restoreFocus = true } = {}) {
@@ -2781,6 +2797,7 @@ const menuActionHandler = createMenuActionHandler({
   callbacks: {
     setStatus,
     openSettingsModal,
+    checkForUpdates,
     openCommandPalette,
     toggleFullscreen,
     openAboutModal,

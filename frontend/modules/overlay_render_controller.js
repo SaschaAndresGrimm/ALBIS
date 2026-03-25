@@ -62,6 +62,11 @@ export function createOverlayRenderController({
     return Date.now() < pixelOverlayInteractionUntil;
   }
 
+  function isFloatPixelLabelDtype(dtype) {
+    const normalized = String(dtype || "").toLowerCase();
+    return normalized.startsWith("float") || /^[<>|]f\d+$/.test(normalized);
+  }
+
   function deferPixelOverlayRedraw(delayMs = pixelLabelInteractionIdleMs) {
     if (state.pixelLabelShowDuringDrag) return;
     const delay = Math.max(0, Number(delayMs) || pixelLabelInteractionIdleMs);
@@ -118,50 +123,79 @@ export function createOverlayRenderController({
     if (cells === 0) {
       return;
     }
+    const formatMode = String(state.pixelLabelFormat || "auto").toLowerCase();
+    const isFloatLabelMode = isFloatPixelLabelDtype(state.dtype) && formatMode !== "integer";
+    const fontSize = isFloatLabelMode
+      ? Math.min(11.5, Math.max(6.5, zoom * 0.44))
+      : Math.min(13, Math.max(7, zoom * 0.52));
+    pixelCtx.font = `${fontSize}px "Lucida Grande", "Helvetica Neue", Arial, sans-serif`;
+    pixelCtx.textAlign = "center";
+    pixelCtx.textBaseline = "middle";
+    pixelCtx.fillStyle = "rgba(248, 252, 255, 0.95)";
     const maxLabels = Math.max(
       100,
       Number.isFinite(state.pixelLabelMaxLabels) ? Number(state.pixelLabelMaxLabels) : pixelLabelDefaultMaxLabels,
     );
     const denseZoomPx = Math.max(minCellPx + 4, pixelLabelDenseZoomPx);
     const denseLabelBudget = Math.max(maxLabels, 16000);
-    let stride = 1;
     const canRenderDense = zoom >= denseZoomPx && cells <= denseLabelBudget;
     if (!canRenderDense && cells > maxLabels) {
-      stride = Math.max(1, Math.ceil(Math.sqrt(cells / maxLabels)));
+      return;
     }
-    const estimatedLabelCount = Math.ceil(cols / stride) * Math.ceil(rows / stride);
 
-    const fontSize = Math.min(13, Math.max(7, zoom * 0.52));
-    pixelCtx.font = `${fontSize}px "Lucida Grande", "Helvetica Neue", Arial, sans-serif`;
-    pixelCtx.textAlign = "center";
-    pixelCtx.textBaseline = "middle";
-    pixelCtx.fillStyle = "rgba(248, 252, 255, 0.95)";
-    const useHalo = estimatedLabelCount <= pixelLabelHaloMaxLabels;
+    function resolvePixelLabelText(idx) {
+      let text = formatPixelLabelValue(state.dataRaw[idx], zoom, formatMode);
+      if (maskReady && state.maskRaw) {
+        const maskValue = state.maskRaw[idx];
+        if (maskValue & 1) {
+          text = "G";
+        } else if (maskValue & 0x1e) {
+          text = "D";
+        }
+      }
+      if (state.maskSaturatedEnabled && text !== "G" && text !== "D" && isSaturatedValue(state.dataRaw[idx], satMax)) {
+        text = "S";
+      }
+      return text;
+    }
+
+    if (isFloatLabelMode) {
+      const sampleCols = Math.min(6, Math.max(1, cols));
+      const sampleRows = Math.min(4, Math.max(1, rows));
+      const stepX = Math.max(1, Math.ceil(cols / sampleCols));
+      const stepY = Math.max(1, Math.ceil(rows / sampleRows));
+      const widthBudget = Math.max(1, zoom * 0.82);
+      let maxTextWidth = 0;
+      let sampleCount = 0;
+      for (let y = startY; y < endY && sampleCount < 24; y += stepY) {
+        const rowOffset = y * state.width;
+        for (let x = startX; x < endX && sampleCount < 24; x += stepX) {
+          const idx = rowOffset + x;
+          const text = resolvePixelLabelText(idx);
+          if (!text) continue;
+          maxTextWidth = Math.max(maxTextWidth, pixelCtx.measureText(text).width);
+          sampleCount += 1;
+        }
+      }
+      if (maxTextWidth > widthBudget) {
+        return;
+      }
+    }
+
+    const useHalo = cells <= pixelLabelHaloMaxLabels;
     if (useHalo) {
-      pixelCtx.strokeStyle = "rgba(6, 10, 16, 0.9)";
-      pixelCtx.lineWidth = Math.max(1, Math.min(2, fontSize * 0.2));
+      pixelCtx.strokeStyle = isFloatLabelMode ? "rgba(4, 8, 14, 0.96)" : "rgba(6, 10, 16, 0.9)";
+      pixelCtx.lineWidth = Math.max(1, Math.min(isFloatLabelMode ? 2.4 : 2, fontSize * (isFloatLabelMode ? 0.28 : 0.2)));
       pixelCtx.lineJoin = "round";
       pixelCtx.miterLimit = 2;
     }
-    const formatMode = String(state.pixelLabelFormat || "auto").toLowerCase();
 
-    for (let y = startY; y < endY; y += stride) {
+    for (let y = startY; y < endY; y += 1) {
       const rowOffset = y * state.width;
       const screenY = (y - viewY) * zoom + zoom / 2 + offsetY;
-      for (let x = startX; x < endX; x += stride) {
+      for (let x = startX; x < endX; x += 1) {
         const idx = rowOffset + x;
-        let text = formatPixelLabelValue(state.dataRaw[idx], zoom, formatMode);
-        if (maskReady && state.maskRaw) {
-          const maskValue = state.maskRaw[idx];
-          if (maskValue & 1) {
-            text = "G";
-          } else if (maskValue & 0x1e) {
-            text = "D";
-          }
-        }
-        if (state.maskSaturatedEnabled && text !== "G" && text !== "D" && isSaturatedValue(state.dataRaw[idx], satMax)) {
-          text = "S";
-        }
+        const text = resolvePixelLabelText(idx);
         if (!text) continue;
         const screenX = (x - viewX) * zoom + zoom / 2 + offsetX;
         if (useHalo) {

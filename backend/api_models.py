@@ -17,6 +17,14 @@ class HealthResponse(_StrictModel):
     version: str
 
 
+class UpdateCheckResponse(_StrictModel):
+    status: Literal["update_available", "up_to_date", "unavailable"]
+    current_version: str
+    latest_version: str
+    release_url: str
+    message: str = ""
+
+
 class SettingsPayloadResponse(_StrictModel):
     config: dict[str, Any]
     defaults: dict[str, Any]

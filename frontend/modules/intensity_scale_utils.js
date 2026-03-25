@@ -71,6 +71,105 @@ export function getDtypeInfo(dtype) {
   return null;
 }
 
+function normalizeSignedZero(text) {
+  return text === "-0" ? "0" : text;
+}
+
+function trimFixedLabel(text) {
+  return normalizeSignedZero(text.replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.0+$/, ""));
+}
+
+function trimScientificLabel(text) {
+  const [mantissa, exponent] = String(text).replace("+", "").split("e");
+  if (!exponent) return normalizeSignedZero(mantissa);
+  return `${trimFixedLabel(mantissa)}e${exponent}`;
+}
+
+function getPixelLabelMaxChars(cellPx) {
+  const pixelWidth = Math.max(8, Number(cellPx) || 0);
+  return Math.max(1, Math.floor((pixelWidth - 2) / 5.6));
+}
+
+function compactIntegerLabel(value) {
+  if (!Number.isFinite(value)) return "";
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(abs >= 1e10 ? 0 : 1).replace(/\.0$/, "")}G`;
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(abs >= 1e7 ? 0 : 1).replace(/\.0$/, "")}M`;
+  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1).replace(/\.0$/, "")}k`;
+  return `${Math.round(value)}`;
+}
+
+function formatScientificPixelLabel(value, maxChars) {
+  for (let digits = 4; digits >= 0; digits -= 1) {
+    const candidate = trimScientificLabel(Number(value).toExponential(digits));
+    if (candidate.length <= maxChars) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
+function formatIntegerPixelLabel(value, maxChars, { allowScientificFallback = false } = {}) {
+  const rounded = Math.round(value);
+  const integer = String(rounded);
+  const compact = compactIntegerLabel(rounded);
+  if (integer.length <= maxChars) return integer;
+  if (compact.length <= maxChars) return compact;
+  return allowScientificFallback ? formatScientificPixelLabel(value, maxChars) : "";
+}
+
+function getFloatAutoDecimalBudget(cellPx) {
+  if (cellPx >= 56) return 4;
+  if (cellPx >= 36) return 3;
+  return 2;
+}
+
+function getFloatAutoFixedDecimals(value, cellPx) {
+  const abs = Math.abs(value);
+  const base = getFloatAutoDecimalBudget(cellPx);
+  if (abs === 0) return 0;
+  if (abs >= 1000 || abs < 1e-3) return null;
+  if (abs >= 100) return 1;
+  if (abs >= 10) return Math.min(2, base);
+  if (abs >= 0.1) return base;
+  if (abs >= 0.01) return base + 1;
+  return base + 2;
+}
+
+function formatFloatAutoPixelLabel(value, cellPx, maxChars) {
+  const fixedDecimals = getFloatAutoFixedDecimals(value, cellPx);
+  if (Number.isFinite(fixedDecimals)) {
+    for (let digits = fixedDecimals; digits >= 0; digits -= 1) {
+      const candidate = normalizeSignedZero(Number(value).toFixed(digits));
+      if (candidate.length <= maxChars) {
+        return candidate;
+      }
+    }
+  }
+  return formatScientificPixelLabel(value, maxChars);
+}
+
+export function formatPixelLabelValue(value, cellPx, mode = "auto", dtype = "") {
+  if (!Number.isFinite(value)) return "";
+  const maxChars = getPixelLabelMaxChars(cellPx);
+  const info = getDtypeInfo(dtype);
+  const isFloat = info?.kind === "f";
+
+  if (mode === "integer") {
+    return formatIntegerPixelLabel(value, maxChars);
+  }
+  if (mode === "scientific") {
+    return formatScientificPixelLabel(value, maxChars);
+  }
+
+  if (isFloat && !Number.isInteger(value)) {
+    return formatFloatAutoPixelLabel(value, cellPx, maxChars);
+  }
+
+  return formatIntegerPixelLabel(value, maxChars, { allowScientificFallback: true });
+}
+
 export function getSaturationMax(dtype, rawMax) {
   const info = getDtypeInfo(dtype);
   if (!info || info.kind === "f") return null;

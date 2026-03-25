@@ -17,6 +17,7 @@ try:
         SettingsPayloadResponse,
         SettingsSaveRequest,
         StatusResponse,
+        UpdateCheckResponse,
     )
     from ..services.os_actions import open_in_system
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
@@ -27,6 +28,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         SettingsPayloadResponse,
         SettingsSaveRequest,
         StatusResponse,
+        UpdateCheckResponse,
     )
     from services.os_actions import open_in_system  # type: ignore[no-redef]
 
@@ -42,6 +44,7 @@ class SystemRouteDeps:
     save_config: Callable[[dict[str, Any], Path], None]
     apply_runtime_config: Callable[[dict[str, Any]], None]
     get_log_path: Callable[[], Path | None]
+    check_update: Callable[[], UpdateCheckResponse]
 
 
 def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
@@ -59,6 +62,10 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         return HealthResponse(status="ok", version=deps.version)
+
+    @app.get("/api/update-check", response_model=UpdateCheckResponse)
+    def update_check() -> UpdateCheckResponse:
+        return deps.check_update()
 
     @app.get("/api/settings", response_model=SettingsPayloadResponse)
     def get_settings() -> SettingsPayloadResponse:
