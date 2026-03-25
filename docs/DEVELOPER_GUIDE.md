@@ -218,6 +218,16 @@ Public tag releases require the following signing/notarization environment varia
 - Linux (GPG detached signatures): `LINUX_GPG_PRIVATE_KEY_B64`, `LINUX_GPG_PASSPHRASE`, `LINUX_GPG_KEY_ID`
   - `LINUX_GPG_PRIVATE_KEY_B64` accepts base64-encoded private key data (recommended), a raw ASCII-armored private key block, or an escaped armored block using `\n`.
 
+On a local Mac, you can bootstrap the macOS GitHub secrets in one step:
+
+```bash
+./scripts/bootstrap_macos_signing_ci.sh
+```
+
+The bootstrap script auto-detects `~/Documents/albis-dev-id.p12` when present, validates the certificate by importing it into a temporary keychain, infers `MACOS_SIGNING_IDENTITY`, and uploads the macOS signing secrets to the current GitHub repository via `gh`.
+
+If `APPLE_ID`, `APPLE_TEAM_ID`, and `APPLE_APP_SPECIFIC_PASSWORD` are available from command-line flags, the current shell, or recent shell history, it uploads those too; otherwise GitHub CI still signs macOS artifacts and skips notarization.
+
 The Inno installer creates Start Menu entries for:
 - `ALBIS`
 - `Open Logs`
