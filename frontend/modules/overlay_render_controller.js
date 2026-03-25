@@ -138,10 +138,9 @@ export function createOverlayRenderController({
     );
     const denseZoomPx = Math.max(minCellPx + 4, pixelLabelDenseZoomPx);
     const denseLabelBudget = Math.max(maxLabels, 16000);
-    let stride = 1;
     const canRenderDense = zoom >= denseZoomPx && cells <= denseLabelBudget;
     if (!canRenderDense && cells > maxLabels) {
-      stride = Math.max(1, Math.ceil(Math.sqrt(cells / maxLabels)));
+      return;
     }
 
     function resolvePixelLabelText(idx) {
@@ -163,8 +162,8 @@ export function createOverlayRenderController({
     if (isFloatLabelMode) {
       const sampleCols = Math.min(6, Math.max(1, cols));
       const sampleRows = Math.min(4, Math.max(1, rows));
-      const stepX = Math.max(stride, Math.ceil(cols / sampleCols));
-      const stepY = Math.max(stride, Math.ceil(rows / sampleRows));
+      const stepX = Math.max(1, Math.ceil(cols / sampleCols));
+      const stepY = Math.max(1, Math.ceil(rows / sampleRows));
       const widthBudget = Math.max(1, zoom * 0.82);
       let maxTextWidth = 0;
       let sampleCount = 0;
@@ -179,12 +178,11 @@ export function createOverlayRenderController({
         }
       }
       if (maxTextWidth > widthBudget) {
-        stride = Math.max(stride, Math.min(4, Math.ceil(maxTextWidth / widthBudget)));
+        return;
       }
     }
 
-    const estimatedLabelCount = Math.ceil(cols / stride) * Math.ceil(rows / stride);
-    const useHalo = estimatedLabelCount <= pixelLabelHaloMaxLabels;
+    const useHalo = cells <= pixelLabelHaloMaxLabels;
     if (useHalo) {
       pixelCtx.strokeStyle = isFloatLabelMode ? "rgba(4, 8, 14, 0.96)" : "rgba(6, 10, 16, 0.9)";
       pixelCtx.lineWidth = Math.max(1, Math.min(isFloatLabelMode ? 2.4 : 2, fontSize * (isFloatLabelMode ? 0.28 : 0.2)));
@@ -192,10 +190,10 @@ export function createOverlayRenderController({
       pixelCtx.miterLimit = 2;
     }
 
-    for (let y = startY; y < endY; y += stride) {
+    for (let y = startY; y < endY; y += 1) {
       const rowOffset = y * state.width;
       const screenY = (y - viewY) * zoom + zoom / 2 + offsetY;
-      for (let x = startX; x < endX; x += stride) {
+      for (let x = startX; x < endX; x += 1) {
         const idx = rowOffset + x;
         const text = resolvePixelLabelText(idx);
         if (!text) continue;
