@@ -48,7 +48,9 @@ def test_update_check_endpoint_reports_up_to_date_for_equal_release(monkeypatch)
     assert payload["latest_version"] == "0.9.2"
 
 
-def test_update_check_endpoint_reports_up_to_date_when_current_version_is_ahead(monkeypatch) -> None:
+def test_update_check_endpoint_reports_up_to_date_when_current_version_is_ahead(
+    monkeypatch,
+) -> None:
     update_check_service.clear_cache()
     monkeypatch.setattr(update_check_service, "current_version", "1.0.1")
     monkeypatch.setattr(
@@ -64,7 +66,9 @@ def test_update_check_endpoint_reports_up_to_date_when_current_version_is_ahead(
     assert payload["latest_version"] == "1.0.0"
 
 
-def test_update_check_endpoint_treats_stable_release_as_newer_than_matching_prerelease(monkeypatch) -> None:
+def test_update_check_endpoint_treats_stable_release_as_newer_than_matching_prerelease(
+    monkeypatch,
+) -> None:
     update_check_service.clear_cache()
     monkeypatch.setattr(update_check_service, "current_version", "1.0.0-rc.1")
     monkeypatch.setattr(
@@ -80,7 +84,9 @@ def test_update_check_endpoint_treats_stable_release_as_newer_than_matching_prer
     assert payload["latest_version"] == "1.0.0"
 
 
-def test_update_check_endpoint_returns_unavailable_for_timeout_or_malformed_response(monkeypatch) -> None:
+def test_update_check_endpoint_returns_unavailable_for_timeout_or_malformed_response(
+    monkeypatch,
+) -> None:
     for failure in (TimeoutError("timed out"), ValueError("bad payload")):
         update_check_service.clear_cache()
         monkeypatch.setattr(update_check_service, "current_version", "0.9.2")
