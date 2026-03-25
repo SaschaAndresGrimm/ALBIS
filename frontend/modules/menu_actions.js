@@ -12,6 +12,7 @@ export function createMenuActionHandler({
   const {
     setStatus,
     openSettingsModal,
+    checkForUpdates,
     openCommandPalette,
     toggleFullscreen,
     openAboutModal,
@@ -26,6 +27,9 @@ export function createMenuActionHandler({
     switch (action) {
       case "help-docs":
         window.open("docs.html", "_blank");
+        break;
+      case "help-check-updates":
+        await checkForUpdates();
         break;
       case "help-log":
         {

@@ -4058,6 +4058,70 @@ body.platform-windows select option:disabled {
   background: linear-gradient(to bottom, rgba(58, 94, 152, 0.82), rgba(35, 65, 108, 0.82));
 }
 
+.update-check-modal-card {
+  width: min(420px, 92vw);
+}
+
+.update-check-modal-body {
+  display: grid;
+  gap: 10px;
+}
+
+.update-check-message {
+  min-height: 16px;
+  color: #dce8ff;
+  line-height: 1.45;
+}
+
+.update-check-message.is-loading::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+  border: 2px solid rgba(150, 176, 220, 0.45);
+  border-top-color: rgba(224, 236, 255, 0.95);
+  animation: splash-spin 0.8s linear infinite;
+  vertical-align: -1px;
+}
+
+.update-check-message.is-error {
+  color: #ffadad;
+}
+
+.update-check-detail {
+  font-size: 11px;
+  color: #9fb8df;
+  line-height: 1.45;
+}
+
+.update-check-version-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.update-check-version-row {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(81, 104, 142, 0.42);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 34, 0.72);
+  padding: 8px 9px;
+}
+
+.update-check-version-row > span {
+  font-size: 10px;
+  color: #9fb8df;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.update-check-version-row > strong {
+  font-size: 13px;
+  color: #edf4ff;
+}
+
 .settings-modal-card {
   width: min(720px, 92vw);
   max-height: 82vh;
@@ -4214,6 +4278,10 @@ body.platform-windows select option:disabled {
 
   .about-facts {
     grid-template-columns: 1fr;
+  }
+
+  .update-check-modal-card {
+    width: min(92vw, 420px);
   }
 }
 
