@@ -14,7 +14,27 @@ def _request_update_check() -> dict[str, str]:
 
 def test_update_check_endpoint_reports_newer_release(monkeypatch) -> None:
     update_check_service.clear_cache()
-    monkeypatch.setattr(update_check_service, "current_version", "0.9.2")
+    monkeypatch.setattr(update_check_service, "current_version", "0.9.3")
+    monkeypatch.setattr(
+        update_check_service,
+        "_fetch_latest_release",
+        lambda: ReleaseMetadata("0.9.4", "https://example.invalid/releases/v0.9.4"),
+    )
+
+    payload = _request_update_check()
+
+    assert payload == {
+        "status": "update_available",
+        "current_version": "0.9.3",
+        "latest_version": "0.9.4",
+        "release_url": "https://example.invalid/releases/v0.9.4",
+        "message": "",
+    }
+
+
+def test_update_check_endpoint_reports_up_to_date_for_equal_release(monkeypatch) -> None:
+    update_check_service.clear_cache()
+    monkeypatch.setattr(update_check_service, "current_version", "0.9.3")
     monkeypatch.setattr(
         update_check_service,
         "_fetch_latest_release",
@@ -23,29 +43,9 @@ def test_update_check_endpoint_reports_newer_release(monkeypatch) -> None:
 
     payload = _request_update_check()
 
-    assert payload == {
-        "status": "update_available",
-        "current_version": "0.9.2",
-        "latest_version": "0.9.3",
-        "release_url": "https://example.invalid/releases/v0.9.3",
-        "message": "",
-    }
-
-
-def test_update_check_endpoint_reports_up_to_date_for_equal_release(monkeypatch) -> None:
-    update_check_service.clear_cache()
-    monkeypatch.setattr(update_check_service, "current_version", "0.9.2")
-    monkeypatch.setattr(
-        update_check_service,
-        "_fetch_latest_release",
-        lambda: ReleaseMetadata("0.9.2", "https://example.invalid/releases/v0.9.2"),
-    )
-
-    payload = _request_update_check()
-
     assert payload["status"] == "up_to_date"
-    assert payload["current_version"] == "0.9.2"
-    assert payload["latest_version"] == "0.9.2"
+    assert payload["current_version"] == "0.9.3"
+    assert payload["latest_version"] == "0.9.3"
 
 
 def test_update_check_endpoint_reports_up_to_date_when_current_version_is_ahead(
@@ -89,7 +89,7 @@ def test_update_check_endpoint_returns_unavailable_for_timeout_or_malformed_resp
 ) -> None:
     for failure in (TimeoutError("timed out"), ValueError("bad payload")):
         update_check_service.clear_cache()
-        monkeypatch.setattr(update_check_service, "current_version", "0.9.2")
+        monkeypatch.setattr(update_check_service, "current_version", "0.9.3")
         monkeypatch.setattr(
             update_check_service,
             "_fetch_latest_release",
@@ -99,7 +99,7 @@ def test_update_check_endpoint_returns_unavailable_for_timeout_or_malformed_resp
         payload = _request_update_check()
 
         assert payload["status"] == "unavailable"
-        assert payload["current_version"] == "0.9.2"
+        assert payload["current_version"] == "0.9.3"
         assert payload["latest_version"] == ""
         assert payload["release_url"] == RELEASES_PAGE_URL
         assert payload["message"]

@@ -7,6 +7,27 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-03-25
+
+### Added
+
+- Added a manual in-app release check that queries GitHub for the latest ALBIS release and links directly to the release page.
+- Added `scripts/bootstrap_macos_signing_ci.sh` plus developer-guide coverage for one-step macOS signing and optional notarization secret bootstrap via `gh`.
+
+### Changed
+
+- Pixel-value overlays now render labels all-or-none when cells are too cramped, avoiding half-visible numbers across detector tiles.
+- Refreshed backend and frontend dependency pins, including `fastapi`, `cbor2`, `pyzmq`, `eslint`, `jsdom`, and `vitest`.
+
+### Fixed
+
+- Manual update checks now fall back cleanly when GitHub release metadata is missing, invalid, or times out.
+
+### Notes
+
+- This release is called: "Check Yourself Before You Tag Yourself."
+- This release is called: "Fresh deps, tidy labels, and a slightly smug updater."
+
 ## [0.9.2] - 2026-03-25
 
 ### Added
@@ -247,7 +268,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.3...HEAD
+[0.9.3]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.3
 [0.9.2]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.2
 [0.9.1]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.1
 [0.9.0]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.0
