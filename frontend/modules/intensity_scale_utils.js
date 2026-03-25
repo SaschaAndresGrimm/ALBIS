@@ -119,15 +119,35 @@ function formatIntegerPixelLabel(value, maxChars, { allowScientificFallback = fa
   return allowScientificFallback ? formatScientificPixelLabel(value, maxChars) : "";
 }
 
-function formatFloatFixedPixelLabel(value, maxChars) {
-  for (let digits = 6; digits >= 1; digits -= 1) {
-    const candidate = trimFixedLabel(Number(value).toFixed(digits));
-    if (!candidate || !candidate.includes(".")) continue;
-    if (candidate.length <= maxChars) {
-      return candidate;
+function getFloatAutoDecimalBudget(cellPx) {
+  if (cellPx >= 56) return 4;
+  if (cellPx >= 36) return 3;
+  return 2;
+}
+
+function getFloatAutoFixedDecimals(value, cellPx) {
+  const abs = Math.abs(value);
+  const base = getFloatAutoDecimalBudget(cellPx);
+  if (abs === 0) return 0;
+  if (abs >= 1000 || abs < 1e-3) return null;
+  if (abs >= 100) return 1;
+  if (abs >= 10) return Math.min(2, base);
+  if (abs >= 0.1) return base;
+  if (abs >= 0.01) return base + 1;
+  return base + 2;
+}
+
+function formatFloatAutoPixelLabel(value, cellPx, maxChars) {
+  const fixedDecimals = getFloatAutoFixedDecimals(value, cellPx);
+  if (Number.isFinite(fixedDecimals)) {
+    for (let digits = fixedDecimals; digits >= 0; digits -= 1) {
+      const candidate = normalizeSignedZero(Number(value).toFixed(digits));
+      if (candidate.length <= maxChars) {
+        return candidate;
+      }
     }
   }
-  return "";
+  return formatScientificPixelLabel(value, maxChars);
 }
 
 export function formatPixelLabelValue(value, cellPx, mode = "auto", dtype = "") {
@@ -144,9 +164,7 @@ export function formatPixelLabelValue(value, cellPx, mode = "auto", dtype = "") 
   }
 
   if (isFloat && !Number.isInteger(value)) {
-    const decimal = formatFloatFixedPixelLabel(value, maxChars);
-    if (decimal) return decimal;
-    return formatScientificPixelLabel(value, maxChars);
+    return formatFloatAutoPixelLabel(value, cellPx, maxChars);
   }
 
   return formatIntegerPixelLabel(value, maxChars, { allowScientificFallback: true });

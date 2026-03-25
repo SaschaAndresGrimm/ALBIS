@@ -114,4 +114,66 @@ describe("overlay_render_controller", () => {
     expect(resolutionCtx.operations.some(([name]) => name === "lineTo")).toBe(true);
     expect(resolutionCtx.operations.some(([name]) => name === "strokeText")).toBe(true);
   });
+
+  it("reduces float pixel-label density when labels exceed the cell width", () => {
+    const pixelCtx = createResolutionContext();
+    pixelCtx.measureText = (text) => ({ width: String(text).length * 7 });
+    const controller = createOverlayRenderController({
+      state: {
+        hasFrame: true,
+        pixelLabels: true,
+        pixelLabelFormat: "auto",
+        pixelLabelMinCellPx: 12,
+        pixelLabelMaxLabels: 1000,
+        pixelLabelShowDuringDrag: false,
+        zoom: 20,
+        renderOffsetX: 0,
+        renderOffsetY: 0,
+        width: 4,
+        height: 1,
+        dtype: "float32",
+        dataRaw: new Float32Array([1, 1, 1, 1]),
+        maskEnabled: false,
+        maskAvailable: false,
+        maskRaw: null,
+        maskShape: null,
+        maskSaturatedEnabled: false,
+      },
+      analysisState: {
+        ringsEnabled: false,
+      },
+      elements: {
+        canvasWrap: { clientWidth: 80, clientHeight: 20 },
+        pixelOverlay: { width: 80, height: 20 },
+        pixelCtx,
+        peakOverlay: null,
+        peakCtx: null,
+        resolutionOverlay: null,
+        resolutionCtx: null,
+      },
+      constants: {
+        pixelLabelDefaultMinCellPx: 12,
+        pixelLabelDefaultMaxLabels: 1000,
+        pixelLabelDenseZoomPx: 18,
+        pixelLabelInteractionIdleMs: 120,
+        pixelLabelHaloMaxLabels: 2000,
+      },
+      callbacks: {
+        syncOverlayCanvas: () => ({ width: 80, height: 20 }),
+        getActiveSaturationMax: () => null,
+        getEffectiveScrollLeft: () => 0,
+        getEffectiveScrollTop: () => 0,
+        formatPixelLabelValue: () => "1.000",
+        isSaturatedValue: () => false,
+        getRingParams: () => null,
+        updateRingsSectionState: () => {},
+      },
+    });
+
+    controller.drawPixelOverlay();
+
+    const fillOps = pixelCtx.operations.filter(([name]) => name === "fillText");
+    expect(fillOps).toHaveLength(2);
+    expect(Number.parseFloat(pixelCtx.font)).toBeLessThan(13);
+  });
 });
