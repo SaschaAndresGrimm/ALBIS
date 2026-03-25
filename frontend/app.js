@@ -83,6 +83,7 @@ import {
   isWebglUnsignedRawCandidate as isWebglUnsignedRawCandidateUtil,
   getWebglUnsignedUploadInfo as getWebglUnsignedUploadInfoUtil,
   getDtypeInfo as getDtypeInfoUtil,
+  formatPixelLabelValue as formatPixelLabelValueUtil,
   chooseHistogramBins as chooseHistogramBinsUtil,
   computeHistogram as computeHistogramUtil,
   computeAutoLevels as computeAutoLevelsUtil,
@@ -745,37 +746,8 @@ function formatValue(value) {
   return Math.round(value).toString();
 }
 
-function compactCount(value) {
-  if (!Number.isFinite(value)) return "";
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(abs >= 1e10 ? 0 : 1).replace(/\.0$/, "")}G`;
-  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(abs >= 1e7 ? 0 : 1).replace(/\.0$/, "")}M`;
-  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1).replace(/\.0$/, "")}k`;
-  return `${Math.round(value)}`;
-}
-
 function formatPixelLabelValue(value, cellPx, mode = "auto") {
-  if (!Number.isFinite(value)) return "";
-  const pixelWidth = Math.max(8, Number(cellPx) || 0);
-  const maxChars = Math.max(1, Math.floor((pixelWidth - 2) / 5.6));
-  const rounded = Math.round(value);
-  const scientific = Number(value).toExponential(1).replace("+", "");
-  const compact = compactCount(rounded);
-  const integer = String(rounded);
-
-  if (mode === "integer") {
-    return integer.length <= maxChars ? integer : compact.length <= maxChars ? compact : "";
-  }
-  if (mode === "scientific") {
-    return scientific.length <= maxChars ? scientific : "";
-  }
-
-  // Auto: prioritize readability and fit.
-  if (integer.length <= maxChars) return integer;
-  if (compact.length <= maxChars) return compact;
-  if (scientific.length <= maxChars) return scientific;
-  return "";
+  return formatPixelLabelValueUtil(value, cellPx, mode, state.dtype);
 }
 
 function formatStat(value) {

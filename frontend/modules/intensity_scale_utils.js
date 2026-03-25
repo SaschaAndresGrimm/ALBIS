@@ -71,6 +71,87 @@ export function getDtypeInfo(dtype) {
   return null;
 }
 
+function normalizeSignedZero(text) {
+  return text === "-0" ? "0" : text;
+}
+
+function trimFixedLabel(text) {
+  return normalizeSignedZero(text.replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.0+$/, ""));
+}
+
+function trimScientificLabel(text) {
+  const [mantissa, exponent] = String(text).replace("+", "").split("e");
+  if (!exponent) return normalizeSignedZero(mantissa);
+  return `${trimFixedLabel(mantissa)}e${exponent}`;
+}
+
+function getPixelLabelMaxChars(cellPx) {
+  const pixelWidth = Math.max(8, Number(cellPx) || 0);
+  return Math.max(1, Math.floor((pixelWidth - 2) / 5.6));
+}
+
+function compactIntegerLabel(value) {
+  if (!Number.isFinite(value)) return "";
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(abs >= 1e10 ? 0 : 1).replace(/\.0$/, "")}G`;
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(abs >= 1e7 ? 0 : 1).replace(/\.0$/, "")}M`;
+  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1).replace(/\.0$/, "")}k`;
+  return `${Math.round(value)}`;
+}
+
+function formatScientificPixelLabel(value, maxChars) {
+  for (let digits = 4; digits >= 0; digits -= 1) {
+    const candidate = trimScientificLabel(Number(value).toExponential(digits));
+    if (candidate.length <= maxChars) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
+function formatIntegerPixelLabel(value, maxChars, { allowScientificFallback = false } = {}) {
+  const rounded = Math.round(value);
+  const integer = String(rounded);
+  const compact = compactIntegerLabel(rounded);
+  if (integer.length <= maxChars) return integer;
+  if (compact.length <= maxChars) return compact;
+  return allowScientificFallback ? formatScientificPixelLabel(value, maxChars) : "";
+}
+
+function formatFloatFixedPixelLabel(value, maxChars) {
+  for (let digits = 6; digits >= 1; digits -= 1) {
+    const candidate = trimFixedLabel(Number(value).toFixed(digits));
+    if (!candidate || !candidate.includes(".")) continue;
+    if (candidate.length <= maxChars) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
+export function formatPixelLabelValue(value, cellPx, mode = "auto", dtype = "") {
+  if (!Number.isFinite(value)) return "";
+  const maxChars = getPixelLabelMaxChars(cellPx);
+  const info = getDtypeInfo(dtype);
+  const isFloat = info?.kind === "f";
+
+  if (mode === "integer") {
+    return formatIntegerPixelLabel(value, maxChars);
+  }
+  if (mode === "scientific") {
+    return formatScientificPixelLabel(value, maxChars);
+  }
+
+  if (isFloat && !Number.isInteger(value)) {
+    const decimal = formatFloatFixedPixelLabel(value, maxChars);
+    if (decimal) return decimal;
+    return formatScientificPixelLabel(value, maxChars);
+  }
+
+  return formatIntegerPixelLabel(value, maxChars, { allowScientificFallback: true });
+}
+
 export function getSaturationMax(dtype, rawMax) {
   const info = getDtypeInfo(dtype);
   if (!info || info.kind === "f") return null;
