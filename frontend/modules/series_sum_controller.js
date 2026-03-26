@@ -552,7 +552,11 @@ export function createSeriesSumController({
     if (state.seriesSum.running || !state.seriesSum.openTarget) return;
     try {
       await ensureFileMode();
-      await loadAutoloadFile(state.seriesSum.openTarget);
+      const loaded = await loadAutoloadFile(state.seriesSum.openTarget);
+      if (!loaded) {
+        setStatus(t("status.series.output_open_failed"));
+        return;
+      }
       setStatus(t("status.series.output_opened"));
     } catch (err) {
       console.error(err);

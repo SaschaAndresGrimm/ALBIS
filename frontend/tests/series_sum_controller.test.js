@@ -15,6 +15,8 @@ function buildFetchMock() {
       "series.button.start": "Start",
       "status.series.started": "Started",
       "status.series.done": "Done",
+      "status.series.output_opened": "Opened output",
+      "status.series.output_open_failed": "Failed to open output",
     }),
   }));
 }
@@ -162,5 +164,30 @@ describe("series_sum_controller", () => {
     expect(payloads).toHaveLength(1);
     expect("geometry" in payloads[0]).toBe(false);
     expect("distance_mm" in payloads[0]).toBe(false);
+  });
+
+  it("does not report success when opening the generated output fails", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createSeriesSumController } = await import("../modules/series_sum_controller.js");
+
+    const { state, elements, callbacks } = createController();
+    state.seriesSum.openTarget = "output/series_sum.h5";
+    callbacks.loadAutoloadFile = vi.fn(async () => false);
+
+    const controller = createSeriesSumController({
+      apiBase: "/api",
+      state,
+      elements,
+      callbacks,
+    });
+
+    await controller.openSeriesSumOutputTarget();
+
+    expect(callbacks.loadAutoloadFile).toHaveBeenCalledWith("output/series_sum.h5");
+    expect(callbacks.setStatus).toHaveBeenCalledWith("Failed to open output");
+    expect(callbacks.setStatus).not.toHaveBeenCalledWith("Opened output");
   });
 });

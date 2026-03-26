@@ -53,6 +53,20 @@ export function createFileDataPipelineController({
     setActiveFrameLoadController,
   } = callbacks;
 
+  function resetFrameLoadState() {
+    state.pendingFrame = null;
+    const activeController = getActiveFrameLoadController();
+    if (activeController) {
+      try {
+        activeController.abort();
+      } catch {
+        // Ignore abort errors when switching data sources.
+      }
+      setActiveFrameLoadController(null);
+    }
+    state.isLoading = false;
+  }
+
   function sortDatasets(datasets) {
     const linkedStack = datasets.find((d) => d.path === "/entry/data");
     if (linkedStack) {
@@ -88,6 +102,7 @@ export function createFileDataPipelineController({
 
   async function loadImageSeries(file) {
     if (!file) return false;
+    resetFrameLoadState();
     if (!isSeriesCapable(file)) {
       state.seriesFiles = [];
       state.seriesLabel = "";
@@ -118,6 +133,7 @@ export function createFileDataPipelineController({
   }
 
   async function loadImageFile(file) {
+    resetFrameLoadState();
     let loaded = false;
     stopPlayback();
     setLoading(true);
@@ -152,6 +168,7 @@ export function createFileDataPipelineController({
 
   async function loadDatasets() {
     if (!state.file) return false;
+    resetFrameLoadState();
     if (!isHdfFile(state.file)) {
       return loadImageSeries(state.file);
     }
