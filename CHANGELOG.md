@@ -7,6 +7,27 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-03-26
+
+### Changed
+
+- Startup now keeps its bound socket alive before handing control to Uvicorn, closing the race that could make launches fail on a just-claimed port.
+- Startup timing now uses separate socket-ready and health-check budgets, so a slow import chain is less likely to consume the entire boot window.
+- Series summing now estimates required disk space before writing HDF5 or TIFF outputs and aborts early when free space is too tight.
+- Remote metadata parsing now rejects payloads larger than `1 MB` before JSON decode.
+- Frontend loading and autoload polling now guard against stale-request and overlapping-tick races.
+
+### Fixed
+
+- Uploads to a read-only destination now fail explicitly with `HTTP 503` instead of silently redirecting files into temporary storage.
+- HDF5 linked-stack traversal now logs skipped nodes and broken links instead of swallowing those failures invisibly.
+- Logging fallback no longer crashes startup if its temporary-directory fallback cannot be created.
+
+### Notes
+
+- This release is called: "No More Ghost Writes."
+- This release is called: "Start Fast, Fail Loud, Keep Your Data."
+
 ## [0.9.3] - 2026-03-25
 
 ### Added
@@ -268,7 +289,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.4...HEAD
+[0.9.4]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.4
 [0.9.3]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.3
 [0.9.2]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.2
 [0.9.1]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.1

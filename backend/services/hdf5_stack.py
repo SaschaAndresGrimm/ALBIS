@@ -11,8 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-_log = logging.getLogger("albis.hdf5_stack")
-
 import numpy as np
 from fastapi import HTTPException
 
@@ -37,6 +35,8 @@ from .hdf5_units import (
 from .hdf5_units import (
     wavelength_to_ev as _wavelength_to_ev,
 )
+
+_log = logging.getLogger("albis.hdf5_stack")
 
 MASK_PATHS = (
     "/entry/instrument/detector/detectorSpecific/pixel_mask",

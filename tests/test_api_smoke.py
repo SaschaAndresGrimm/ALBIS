@@ -35,7 +35,7 @@ def test_open_log_endpoint_returns_backend_log_path() -> None:
     assert returned_path.name == "albis.log"
 
 
-def test_upload_falls_back_when_target_is_read_only(monkeypatch) -> None:
+def test_upload_returns_503_when_target_is_read_only(monkeypatch) -> None:
     client = TestClient(app)
     file_name = f"pytest-upload-{uuid.uuid4().hex[:8]}.tif"
     payload = b"albis-upload-payload"
@@ -58,14 +58,11 @@ def test_upload_falls_back_when_target_is_read_only(monkeypatch) -> None:
             files={"file": (file_name, payload, "image/tiff")},
         )
 
-    assert response.status_code == 200
+    assert response.status_code == 503
     body = response.json()
-    resolved = Path(body["path"]).resolve()
-    assert resolved.is_absolute()
-    assert resolved.name == file_name
-    assert resolved.exists()
-    assert resolved.read_bytes() == payload
-    resolved.unlink(missing_ok=True)
+    assert "not writable" in body["detail"]
+    assert str(upload_root) in body["detail"]
+    assert not primary_dest.exists()
 
 
 def test_remote_latest_returns_204_for_missing_source() -> None:
