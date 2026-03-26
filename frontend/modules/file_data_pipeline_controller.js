@@ -270,9 +270,9 @@ export function createFileDataPipelineController({
     } finally {
       if (getActiveFrameLoadController() === requestController) {
         setActiveFrameLoadController(null);
+        setLoading(false);
+        state.isLoading = false;
       }
-      setLoading(false);
-      state.isLoading = false;
     }
     processPendingFrameRequest(appliedFrame);
     return appliedFrame;
@@ -336,9 +336,9 @@ export function createFileDataPipelineController({
     } finally {
       if (getActiveFrameLoadController() === requestController) {
         setActiveFrameLoadController(null);
+        setLoading(false);
+        state.isLoading = false;
       }
-      setLoading(false);
-      state.isLoading = false;
     }
     processPendingFrameRequest(appliedFrame);
     return appliedFrame;

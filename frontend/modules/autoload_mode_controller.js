@@ -26,7 +26,20 @@ export function createAutoloadModeController({
     updateLiveBadge,
   } = callbacks;
 
+  let _watchTickInFlight = false;
+  let _simplonTickInFlight = false;
+
   async function autoloadWatchTick() {
+    if (_watchTickInFlight) return;
+    _watchTickInFlight = true;
+    try {
+      await _autoloadWatchTickImpl();
+    } finally {
+      _watchTickInFlight = false;
+    }
+  }
+
+  async function _autoloadWatchTickImpl() {
     const folder = state.autoload.dir || "";
     const exts = [];
     if (state.autoload.types.hdf5) exts.push("h5", "hdf5");
@@ -86,6 +99,16 @@ export function createAutoloadModeController({
   }
 
   async function autoloadSimplonTick() {
+    if (_simplonTickInFlight) return;
+    _simplonTickInFlight = true;
+    try {
+      await _autoloadSimplonTickImpl();
+    } finally {
+      _simplonTickInFlight = false;
+    }
+  }
+
+  async function _autoloadSimplonTickImpl() {
     const baseUrl = state.autoload.simplonUrl || "";
     if (!baseUrl) {
       setAutoloadStatus(t("autoload.status.simplon.set_base_url"));

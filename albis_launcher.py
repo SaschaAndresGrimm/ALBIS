@@ -381,11 +381,14 @@ def _start_macos_menus(
     return True
 
 
-def _find_free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("", 0))
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return int(sock.getsockname()[1])
+def _create_bound_socket(host: str, port: int = 0) -> socket.socket:
+    """Bind a socket and return it live so the port cannot be claimed before uvicorn starts."""
+    family = socket.AF_INET6 if (":" in host and host != "0.0.0.0") else socket.AF_INET
+    bind_host = "" if host in {"0.0.0.0", "::"} else host
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((bind_host, port))
+    return sock
 
 def _wait_for_server(host: str, port: int, timeout: float = 5.0) -> bool:
     deadline = time.time() + timeout
@@ -503,6 +506,7 @@ def main() -> None:
         _update_server_status(host, port, "running", health=True, source="existing")
         _open_browser(host, port)
         return
+    bound_sock: socket.socket | None = None
     if port <= 0:
         last = _load_last_server()
         if last:
@@ -512,11 +516,15 @@ def main() -> None:
                 _update_server_status(last_host, last_port, "running", health=True, source="existing")
                 _open_browser(last_host, last_port)
                 return
-        port = _find_free_port()
+        bound_sock = _create_bound_socket(host, 0)
+        port = int(bound_sock.getsockname()[1])
     else:
-        if not _port_available(host, port):
+        try:
+            bound_sock = _create_bound_socket(host, port)
+        except OSError:
             _launcher_log(start_ts, f"port {port} unavailable, choosing free port")
-            port = _find_free_port()
+            bound_sock = _create_bound_socket(host, 0)
+            port = int(bound_sock.getsockname()[1])
     _launcher_log(start_ts, f"using {host}:{port}")
 
     data_root = get_str(app_config, ("data", "root"), "").strip()
@@ -541,17 +549,19 @@ def main() -> None:
 
     uvicorn_config = uvicorn.Config(asgi_app, host=host, port=port, log_level="info")
     server = uvicorn.Server(uvicorn_config)
-    thread = threading.Thread(target=server.run, daemon=True)
+    _sockets = [bound_sock] if bound_sock is not None else []
+    thread = threading.Thread(target=server.run, kwargs={"sockets": _sockets}, daemon=True)
     thread.start()
     _launcher_log(start_ts, "server thread started")
     _update_server_status(host, port, "starting")
 
-    startup_timeout = max(0.5, get_float(app_config, ("launcher", "startup_timeout_sec"), 5.0))
+    startup_timeout = max(0.5, get_float(app_config, ("launcher", "startup_timeout_sec"), 10.0))
+    startup_health_timeout = max(0.5, get_float(app_config, ("launcher", "startup_health_timeout_sec"), 15.0))
     if _wait_for_server(host, port, timeout=startup_timeout):
         _launcher_log(start_ts, "socket ready")
     else:
         _launcher_log(start_ts, "socket wait timed out")
-    if _wait_for_health(host, port, timeout=startup_timeout):
+    if _wait_for_health(host, port, timeout=startup_health_timeout):
         _launcher_log(start_ts, "health endpoint ready")
         _update_server_status(host, port, "running", health=True)
     else:

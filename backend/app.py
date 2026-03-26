@@ -260,8 +260,12 @@ def _init_logging() -> logging.Logger:
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError:
-        log_dir = Path(tempfile.gettempdir()) / "albis-logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            log_dir = Path(tempfile.gettempdir()) / "albis-logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            print("WARNING: Could not create log directory; file logging disabled", file=sys.stderr)
+            return logger
     LOG_DIR = log_dir
     LOG_PATH = log_dir / "albis.log"
     try:

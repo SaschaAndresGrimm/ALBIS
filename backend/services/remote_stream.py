@@ -43,9 +43,14 @@ def remote_safe_source_id(source_id: str | None) -> str:
     return source
 
 
+_META_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
+
+
 def remote_parse_meta(meta_raw: str | None) -> dict[str, Any]:
     if not meta_raw:
         return {}
+    if len(meta_raw) > _META_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="Meta payload too large (limit: 1 MB)")
     try:
         payload = json.loads(meta_raw)
     except Exception as exc:

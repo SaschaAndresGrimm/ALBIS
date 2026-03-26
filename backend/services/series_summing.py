@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import shutil
 import threading
 import time
 import uuid
@@ -222,6 +223,21 @@ class SeriesSummingService:
             if not candidate.exists():
                 return candidate
         raise HTTPException(status_code=500, detail="Unable to allocate output file name")
+
+    @staticmethod
+    def _check_disk_space(out_dir: Path, estimated_bytes: int, margin: float = 1.5) -> None:
+        """Raise RuntimeError if free disk space is insufficient for the output."""
+        try:
+            free = shutil.disk_usage(out_dir).free
+        except OSError:
+            return  # can't determine — proceed and let the write fail naturally
+        required = int(estimated_bytes * margin)
+        if free < required:
+            free_mb = free // (1024 * 1024)
+            req_mb = required // (1024 * 1024)
+            raise RuntimeError(
+                f"Insufficient disk space: {free_mb} MB free, ~{req_mb} MB required for output"
+            )
 
     @staticmethod
     def _operation_base_name(base_name: str, operation: str) -> str:
@@ -1025,6 +1041,12 @@ class SeriesSummingService:
                 base_target.stem or base_target.name or "series_sum",
                 operation,
             )
+            _out_frames = len(groups)
+            _out_h = int(shape[-2])
+            _out_w = int(shape[-1])
+            _bytes_per_elem = int(np.dtype(output_dtype).itemsize)
+            _estimated_bytes = _out_frames * threshold_count * _out_h * _out_w * _bytes_per_elem
+            self._check_disk_space(base_target.parent, _estimated_bytes)
             if output_format in {"hdf5", "h5"}:
                 self._deps.ensure_hdf5_stack()
                 h5py = self._deps.get_h5py()

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+_log = logging.getLogger("albis.hdf5_stack")
 
 import numpy as np
 from fastapi import HTTPException
@@ -343,7 +346,8 @@ class HDF5StackService:
         for name in obj.keys():
             try:
                 link = obj.get(name, getlink=True)
-            except Exception:
+            except Exception as _exc:
+                _log.warning("Skipping node %s in %s: cannot read link: %s", name, file_path, _exc)
                 continue
             child_path = f"{base_path}/{name}" if base_path != "/" else f"/{name}"
             if isinstance(link, h5py.ExternalLink):
@@ -354,12 +358,14 @@ class HDF5StackService:
                 if target_file is None:
                     try:
                         target_file = h5py.File(target_path, "r")
-                    except OSError:
+                    except OSError as _exc:
+                        _log.warning("Skipping external link %s: cannot open %s: %s", child_path, link.filename, _exc)
                         continue
                     file_cache[target_path] = target_file
                 try:
                     target_obj = target_file[link.path]
-                except Exception:
+                except Exception as _exc:
+                    _log.warning("Skipping external link %s: path %s not found: %s", child_path, link.path, _exc)
                     continue
                 self.walk_datasets(
                     target_obj,
@@ -373,7 +379,8 @@ class HDF5StackService:
             if isinstance(link, h5py.SoftLink):
                 try:
                     target_obj = obj[link.path]
-                except Exception:
+                except Exception as _exc:
+                    _log.warning("Skipping soft link %s -> %s: %s", child_path, link.path, _exc)
                     continue
                 self.walk_datasets(
                     target_obj,
@@ -386,7 +393,8 @@ class HDF5StackService:
                 continue
             try:
                 target_obj = obj[name]
-            except Exception:
+            except Exception as _exc:
+                _log.warning("Skipping node %s in %s: %s", child_path, file_path, _exc)
                 continue
             self.walk_datasets(
                 target_obj,
@@ -553,7 +561,8 @@ class HDF5StackService:
                 continue
             try:
                 link = group.get(name, getlink=True)
-            except Exception:
+            except Exception as _exc:
+                _log.warning("Skipping linked member %s in %s: cannot read link: %s", name, group_file, _exc)
                 continue
             if isinstance(link, h5py.ExternalLink):
                 target_path = self.resolve_external_path(group_file, link.filename)
@@ -561,22 +570,26 @@ class HDF5StackService:
                     continue
                 try:
                     target_file = h5py.File(target_path, "r")
-                except OSError:
+                except OSError as _exc:
+                    _log.warning("Skipping linked member %s: cannot open %s: %s", name, link.filename, _exc)
                     continue
                 opened.append(target_file)
                 try:
                     child = target_file[link.path]
-                except Exception:
+                except Exception as _exc:
+                    _log.warning("Skipping linked member %s: path %s not found: %s", name, link.path, _exc)
                     continue
             elif isinstance(link, h5py.SoftLink):
                 try:
                     child = group[link.path]
-                except Exception:
+                except Exception as _exc:
+                    _log.warning("Skipping soft-linked member %s -> %s: %s", name, link.path, _exc)
                     continue
             else:
                 try:
                     child = group[name]
-                except Exception:
+                except Exception as _exc:
+                    _log.warning("Skipping member %s in %s: %s", name, group_file, _exc)
                     continue
             if not isinstance(child, h5py.Dataset):
                 continue

@@ -5,7 +5,6 @@ import os
 import platform
 import re
 import subprocess
-import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -75,10 +74,6 @@ class FileRouteDeps:
     split_series_name: Callable[[str], tuple[str, int, str] | None]
     strip_image_ext: Callable[[str, str], str]
 
-
-def _upload_fallback_root() -> Path:
-    """Writable fallback location used when configured upload root is read-only."""
-    return (Path(tempfile.gettempdir()) / "albis-uploads").resolve()
 
 
 def _is_readonly_upload_error(exc: OSError) -> bool:
@@ -441,33 +436,15 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             raise
         except OSError as exc:
             _cleanup_partial_upload(dest)
-            if not (_is_readonly_upload_error(exc) and deps.get_allow_abs_paths()):
-                raise
-            try:
-                file.file.seek(0)
-            except OSError:
-                raise HTTPException(status_code=500, detail="Upload failed") from exc
-
-            fallback_root = _upload_fallback_root()
-            fallback_dest = (fallback_root / safe).resolve()
-            if not deps.is_within(fallback_dest, fallback_root):
-                raise HTTPException(status_code=400, detail="Invalid file name") from None
-            deps.logger.warning(
-                "Upload target is read-only (%s). Falling back to %s",
-                dest.parent,
-                fallback_root,
-            )
-            try:
-                written = _stream_upload_to_path(
-                    file, fallback_dest, deps.get_max_upload_bytes, chunk_size
-                )
-            except HTTPException:
-                _cleanup_partial_upload(fallback_dest)
-                raise
-            except OSError as fallback_exc:
-                _cleanup_partial_upload(fallback_dest)
-                raise HTTPException(status_code=500, detail="Upload failed") from fallback_exc
-            resolved_dest = fallback_dest
+            if _is_readonly_upload_error(exc):
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        f"Upload directory is not writable: {dest.parent}. "
+                        "Check permissions or configure a writable upload root."
+                    ),
+                ) from exc
+            raise
         deps.logger.info("Upload complete: %s (%d bytes)", resolved_dest, written)
         try:
             resolved_rel = resolved_dest.relative_to(deps.data_dir.resolve()).as_posix()
