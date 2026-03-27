@@ -12,17 +12,14 @@ from backend.app import app
 
 @pytest.fixture(autouse=True)
 def _isolate_handoff_state():
-    original_jobs = list(backend_app_module._handoff_jobs)
-    original_next_id = int(backend_app_module._handoff_next_id)
-    original_queue_max = int(backend_app_module._handoff_queue_max)
-    backend_app_module._handoff_jobs = []
-    backend_app_module._handoff_next_id = 1
+    queue = backend_app_module.handoff_queue
+    queue.clear()
+    queue.set_max_jobs(1024)
     try:
         yield
     finally:
-        backend_app_module._handoff_jobs = original_jobs
-        backend_app_module._handoff_next_id = original_next_id
-        backend_app_module._handoff_queue_max = original_queue_max
+        queue.clear()
+        queue.set_max_jobs(1024)
 
 
 def _write_manifest(
@@ -83,7 +80,7 @@ def test_handoff_latest_returns_204_when_no_matching_job() -> None:
 
 def test_handoff_queue_cap_evicts_oldest_jobs(tmp_path: Path) -> None:
     client = TestClient(app)
-    backend_app_module._handoff_queue_max = 3
+    backend_app_module.handoff_queue.set_max_jobs(3)
 
     for idx in range(1, 6):
         manifest = tmp_path / f"handoff-{idx}.json"
@@ -95,9 +92,9 @@ def test_handoff_queue_cap_evicts_oldest_jobs(tmp_path: Path) -> None:
         created = client.post("/api/handoff/v1/jobs", json={"manifest_path": str(manifest)})
         assert created.status_code == 200
 
-    ids = [int(item["id"]) for item in backend_app_module._handoff_jobs]
+    ids = [int(item["id"]) for item in backend_app_module.handoff_queue.snapshot()]
     assert ids == [3, 4, 5]
-    assert len(backend_app_module._handoff_jobs) == 3
+    assert len(backend_app_module.handoff_queue.snapshot()) == 3
 
     latest = client.get("/api/handoff/v1/jobs/latest", params={"after_id": 0})
     assert latest.status_code == 200

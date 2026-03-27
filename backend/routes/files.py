@@ -5,7 +5,6 @@ import os
 import platform
 import re
 import subprocess
-import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -67,13 +66,14 @@ class FileRouteDeps:
     is_within: Callable[[Path, Path], bool]
     parse_ext_filter: Callable[[str | None], set[str]]
     latest_image_file: Callable[[Path, set[str], str | None], Path | None]
+    get_cached_root_files: Callable[[float, Callable[[], list[str]]], list[str]]
+    get_cached_root_folders: Callable[[float, Callable[[], list[str]]], list[str]]
     safe_rel_path: Callable[[str], Path]
     scan_files: Callable[[Path], list[str]]
     scan_folders: Callable[[Path], list[str]]
     image_ext_name: Callable[[str], str]
     split_series_name: Callable[[str], tuple[str, int, str] | None]
     strip_image_ext: Callable[[str, str], str]
-
 
 
 def _is_readonly_upload_error(exc: OSError) -> bool:
@@ -160,9 +160,6 @@ def _parse_requested_picker_exts(
 
 
 def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
-    files_cache: dict[str, Any] = {"ts": 0.0, "items": []}
-    folders_cache: dict[str, Any] = {"ts": 0.0, "items": []}
-
     @app.get("/api/files", response_model=FilesListResponse)
     def files(folder: str | None = Query(None)) -> FilesListResponse:
         """List discoverable image files from data root or a selected subfolder."""
@@ -170,12 +167,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         use_cache = trimmed in ("", ".", "./")
         cache_sec = deps.get_scan_cache_sec()
         if use_cache:
-            now = time.monotonic()
-            if cache_sec > 0 and now - float(files_cache["ts"]) < cache_sec:
-                return FilesListResponse(files=list(files_cache["items"]))
-            items = deps.scan_files(deps.data_dir)
-            files_cache["ts"] = now
-            files_cache["items"] = items
+            items = deps.get_cached_root_files(cache_sec, lambda: deps.scan_files(deps.data_dir))
             return FilesListResponse(files=items)
         root = deps.resolve_dir(trimmed)
         items = deps.scan_files(root)
@@ -244,13 +236,8 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
     @app.get("/api/folders", response_model=FoldersListResponse)
     def folders() -> FoldersListResponse:
         """List cached folder paths under the configured data directory."""
-        now = time.monotonic()
         cache_sec = deps.get_scan_cache_sec()
-        if cache_sec > 0 and now - float(folders_cache["ts"]) < cache_sec:
-            return FoldersListResponse(folders=list(folders_cache["items"]))
-        items = deps.scan_folders(deps.data_dir)
-        folders_cache["ts"] = now
-        folders_cache["items"] = items
+        items = deps.get_cached_root_folders(cache_sec, lambda: deps.scan_folders(deps.data_dir))
         return FoldersListResponse(folders=items)
 
     @app.get("/api/choose-folder", response_model=PathSelectionResponse)

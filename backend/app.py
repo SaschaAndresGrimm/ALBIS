@@ -59,6 +59,7 @@ try:
     from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
     from .routes.stream import StreamRouteDeps, register_stream_routes
     from .routes.system import SystemRouteDeps, register_system_routes
+    from .services.handoff_queue import HandoffQueueService
     from .services.hdf5_stack import HDF5StackService
     from .services.jungfraujoch_preview import JungfraujochPreviewBridge
     from .services.path_policy import PathPolicy
@@ -80,6 +81,7 @@ try:
     from .services.remote_stream import (
         remote_store_frame as _remote_store_frame,
     )
+    from .services.root_scan_cache import RootScanCacheService
     from .services.series_ops import (
         iter_sum_groups as _iter_sum_groups,
     )
@@ -141,6 +143,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
     from routes.stream import StreamRouteDeps, register_stream_routes
     from routes.system import SystemRouteDeps, register_system_routes
+    from services.handoff_queue import HandoffQueueService
     from services.hdf5_stack import HDF5StackService
     from services.jungfraujoch_preview import JungfraujochPreviewBridge
     from services.path_policy import PathPolicy
@@ -162,6 +165,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from services.remote_stream import (
         remote_store_frame as _remote_store_frame,
     )
+    from services.root_scan_cache import RootScanCacheService
     from services.series_ops import (
         iter_sum_groups as _iter_sum_groups,
     )
@@ -284,9 +288,8 @@ def _init_logging() -> logging.Logger:
 logger = _init_logging()
 update_check_service = ReleaseCheckService(current_version=ALBIS_VERSION, logger=logger)
 _startup_banner_logged = False
-_handoff_queue_max = 1024
-_handoff_jobs: list[dict[str, Any]] = []
-_handoff_next_id = 1
+handoff_queue = HandoffQueueService(max_jobs=1024)
+root_scan_cache = RootScanCacheService()
 
 
 @asynccontextmanager
@@ -593,29 +596,6 @@ def _get_max_upload_bytes() -> int:
     return runtime_state.max_upload_bytes
 
 
-def _handoff_queue_job(payload: dict[str, str]) -> dict[str, str | int]:
-    global _handoff_next_id
-    item: dict[str, str | int] = {
-        "id": int(_handoff_next_id),
-        "manifest_path": str(payload.get("manifest_path") or ""),
-        "open_path": str(payload.get("open_path") or ""),
-        "dataset": str(payload.get("dataset") or ""),
-        "run_id": str(payload.get("run_id") or ""),
-    }
-    _handoff_jobs.append(item)
-    if len(_handoff_jobs) > _handoff_queue_max:
-        del _handoff_jobs[: len(_handoff_jobs) - _handoff_queue_max]
-    _handoff_next_id += 1
-    return item
-
-
-def _handoff_latest_job(after_id: int) -> dict[str, str | int] | None:
-    for job in reversed(_handoff_jobs):
-        if int(job["id"]) > int(after_id):
-            return job
-    return None
-
-
 register_system_routes(
     app,
     SystemRouteDeps(
@@ -636,8 +616,8 @@ register_handoff_routes(
     app,
     HandoffRouteDeps(
         logger=logger,
-        queue_job=_handoff_queue_job,
-        latest_job=_handoff_latest_job,
+        queue_job=handoff_queue.queue_job,
+        latest_job=handoff_queue.latest_job,
     ),
 )
 
@@ -656,6 +636,8 @@ register_file_routes(
         is_within=_is_within,
         parse_ext_filter=_parse_ext_filter,
         latest_image_file=_latest_image_file,
+        get_cached_root_files=root_scan_cache.get_root_files,
+        get_cached_root_folders=root_scan_cache.get_root_folders,
         safe_rel_path=_safe_rel_path,
         scan_files=_scan_files,
         scan_folders=_scan_folders,
