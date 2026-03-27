@@ -2,7 +2,7 @@
  * Settings modal controller.
  */
 
-import { t } from "./i18n.js";
+import { onLanguageChange, t } from "./i18n.js";
 
 export function createSettingsController({
   apiBase,
@@ -24,6 +24,8 @@ export function createSettingsController({
     settingsConfigPath,
     settingsMessage,
     settingsServerExternal,
+    settingsServerExternalLabel,
+    settingsServerExternalWarning,
     settingsServerPort,
     settingsServerReload,
     settingsStartupTimeout,
@@ -55,6 +57,7 @@ export function createSettingsController({
 
   let settingsModalBusy = false;
   let settingsRequestId = 0;
+  let syncingExternalAccessUi = false;
 
   function setSettingsMessage(text, isError = false, isBusy = false) {
     if (!settingsMessage) return;
@@ -85,11 +88,45 @@ export function createSettingsController({
     return host === "127.0.0.1" || host === "localhost" || host === "::1";
   }
 
+  function updateExternalAccessUi() {
+    const enabled = Boolean(settingsServerExternal?.checked);
+    if (settingsServerExternalLabel) {
+      settingsServerExternalLabel.textContent = enabled
+        ? t("settings.server.external_access_enabled")
+        : t("settings.server.external_access");
+    }
+    if (settingsServerExternalWarning) {
+      settingsServerExternalWarning.textContent = t("settings.server.external_warning");
+      settingsServerExternalWarning.classList.toggle("is-hidden", !enabled);
+      settingsServerExternalWarning.setAttribute("aria-hidden", enabled ? "false" : "true");
+    }
+  }
+
+  function setExternalAccessChecked(checked) {
+    if (!settingsServerExternal) return;
+    syncingExternalAccessUi = true;
+    settingsServerExternal.checked = Boolean(checked);
+    syncingExternalAccessUi = false;
+    updateExternalAccessUi();
+  }
+
+  function handleExternalAccessToggle() {
+    if (!settingsServerExternal) return;
+    if (!syncingExternalAccessUi && settingsServerExternal.checked) {
+      const confirmed = window.confirm(t("settings.server.external_confirm"));
+      if (!confirmed) {
+        setExternalAccessChecked(false);
+        return;
+      }
+    }
+    updateExternalAccessUi();
+  }
+
   function fillSettingsForm(config, configPath = "") {
     if (!config) return;
     if (settingsServerExternal) {
       const host = String(config?.server?.host ?? "127.0.0.1");
-      settingsServerExternal.checked = !isLocalOnlyHost(host);
+      setExternalAccessChecked(!isLocalOnlyHost(host));
     }
     settingsServerPort.value = String(Number(config?.server?.port ?? 0));
     settingsServerReload.checked = Boolean(config?.server?.reload);
@@ -133,6 +170,7 @@ export function createSettingsController({
     if (settingsConfigPath) {
       settingsConfigPath.textContent = configPath || "-";
     }
+    updateExternalAccessUi();
   }
 
   function collectSettingsForm() {
@@ -244,6 +282,7 @@ export function createSettingsController({
       if (settingsToolHints) {
         settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
       }
+      updateExternalAccessUi();
       setSettingsMessage(t("settings.message.edit_hint"));
     } catch (err) {
       if (requestId !== settingsRequestId) return;
@@ -274,6 +313,7 @@ export function createSettingsController({
       fillSettingsForm(data?.config || config, data?.path || "");
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
       schedulePixelOverlay();
+      updateExternalAccessUi();
       setSettingsMessage(t("settings.message.saved_restart"));
       setStatus(t("status.settings.saved"));
       if (closeAfter) {
@@ -287,6 +327,12 @@ export function createSettingsController({
       setSettingsModalBusy(false);
     }
   }
+
+  settingsServerExternal?.addEventListener("change", handleExternalAccessToggle);
+  onLanguageChange(() => {
+    updateExternalAccessUi();
+  });
+  updateExternalAccessUi();
 
   return {
     applyUiSettings,

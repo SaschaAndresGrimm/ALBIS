@@ -1207,8 +1207,17 @@
               <div class="settings-grid">
                 <label class="checkbox settings-check settings-span-2">
                   <input id="settings-server-external" type="checkbox" />
-                  <span data-i18n="settings.server.external_access">Externally accessible (allow connections from other machines)</span>
+                  <span id="settings-server-external-label" data-i18n="settings.server.external_access">Allow external connections from other machines</span>
                 </label>
+                <div
+                  class="settings-inline-warning settings-span-2 is-hidden"
+                  id="settings-server-external-warning"
+                  data-i18n="settings.server.external_warning"
+                  aria-live="polite"
+                  aria-hidden="true"
+                >
+                  Other devices on your network can reach this ALBIS instance while this is enabled.
+                </div>
                 <label class="field">
                   <span data-i18n="settings.server.port">Port</span>
                   <input id="settings-server-port" type="number" min="0" max="65535" step="1" />

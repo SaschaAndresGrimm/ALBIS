@@ -4230,6 +4230,16 @@ body.platform-windows select option:disabled {
   grid-column: span 2;
 }
 
+.settings-inline-warning {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(224, 93, 93, 0.45);
+  background: rgba(67, 24, 24, 0.34);
+  color: #f0b6b6;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .settings-message {
   min-height: 16px;
   font-size: 12px;
