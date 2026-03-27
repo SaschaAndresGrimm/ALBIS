@@ -4,6 +4,7 @@
 
 import { t } from "./i18n.js";
 import { getGeometryScopeKey } from "./geometry_override_utils.js";
+import { createTransientFrameLoadState } from "./transient_frame_load_state.js";
 
 export function createFileDataPipelineController({
   apiBase,
@@ -49,22 +50,51 @@ export function createFileDataPipelineController({
     stopPlayback,
     loadMask,
     updateToolbar,
-    getActiveFrameLoadController,
-    setActiveFrameLoadController,
   } = callbacks;
 
+  const transientFrameLoadState = createTransientFrameLoadState(state);
+  let activeFrameLoadController = null;
+
+  function cancelActiveLoad() {
+    if (!activeFrameLoadController) return;
+    try {
+      activeFrameLoadController.abort();
+    } catch {
+      // Ignore abort errors while a replacement request takes over.
+    }
+  }
+
   function resetFrameLoadState() {
-    state.pendingFrame = null;
-    const activeController = getActiveFrameLoadController();
-    if (activeController) {
+    stopPlayback();
+    if (activeFrameLoadController) {
       try {
-        activeController.abort();
+        activeFrameLoadController.abort();
       } catch {
         // Ignore abort errors when switching data sources.
       }
-      setActiveFrameLoadController(null);
+      activeFrameLoadController = null;
     }
-    state.isLoading = false;
+    transientFrameLoadState.resetTransientFrameLoadState();
+    setLoading(false);
+  }
+
+  function startFrameLoad() {
+    return transientFrameLoadState.startFrameLoad();
+  }
+
+  function finishFrameLoad(requestController) {
+    if (activeFrameLoadController !== requestController) {
+      return false;
+    }
+    activeFrameLoadController = null;
+    transientFrameLoadState.finishFrameLoad();
+    setLoading(false);
+    return true;
+  }
+
+  function resetSeriesState() {
+    state.seriesFiles = [];
+    state.seriesLabel = "";
   }
 
   function sortDatasets(datasets) {
@@ -100,13 +130,14 @@ export function createFileDataPipelineController({
     return loadImageSeries(file);
   }
 
-  async function loadImageSeries(file) {
+  async function loadImageSeries(file, { skipSourceSwitchPrep = false } = {}) {
     if (!file) return false;
-    resetFrameLoadState();
+    if (!skipSourceSwitchPrep) {
+      resetFrameLoadState();
+    }
     if (!isSeriesCapable(file)) {
-      state.seriesFiles = [];
-      state.seriesLabel = "";
-      return loadImageFile(file);
+      resetSeriesState();
+      return loadImageFile(file, { skipSourceSwitchPrep: true });
     }
     try {
       const data = await fetchJSON(`${apiBase}/series?file=${encodeURIComponent(file)}`);
@@ -127,15 +158,15 @@ export function createFileDataPipelineController({
     } catch (err) {
       console.warn(err);
     }
-    state.seriesFiles = [];
-    state.seriesLabel = "";
-    return loadImageFile(file);
+    resetSeriesState();
+    return loadImageFile(file, { skipSourceSwitchPrep: true });
   }
 
-  async function loadImageFile(file) {
-    resetFrameLoadState();
+  async function loadImageFile(file, { skipSourceSwitchPrep = false } = {}) {
+    if (!skipSourceSwitchPrep) {
+      resetFrameLoadState();
+    }
     let loaded = false;
-    stopPlayback();
     setLoading(true);
     setStatus(t("status.data.loading_image"));
     const geometryPromise = loadImageGeometry(file, getGeometryScopeKey(state, file));
@@ -170,12 +201,10 @@ export function createFileDataPipelineController({
     if (!state.file) return false;
     resetFrameLoadState();
     if (!isHdfFile(state.file)) {
-      return loadImageSeries(state.file);
+      return loadImageSeries(state.file, { skipSourceSwitchPrep: true });
     }
     state.hasFrame = false;
-    stopPlayback();
-    state.seriesFiles = [];
-    state.seriesLabel = "";
+    resetSeriesState();
     setDataControlsForHdf5();
     await loadMask(true);
     showProcessingProgress(t("status.data.scanning_datasets"));
@@ -227,8 +256,7 @@ export function createFileDataPipelineController({
     if (!files.length) return false;
     const file = files[state.frameIndex];
     if (!file) return false;
-    if (state.isLoading) return false;
-    state.isLoading = true;
+    if (!startFrameLoad()) return false;
     const showLoading = !state.playing;
     if (showLoading) {
       setLoading(true);
@@ -238,7 +266,7 @@ export function createFileDataPipelineController({
     }
     let appliedFrame = false;
     const requestController = new AbortController();
-    setActiveFrameLoadController(requestController);
+    activeFrameLoadController = requestController;
     const geometryScopeKey = getGeometryScopeKey(state, file);
     const geometryPromise = loadImageGeometry(state.file || file, geometryScopeKey);
     try {
@@ -285,11 +313,7 @@ export function createFileDataPipelineController({
         }
       }
     } finally {
-      if (getActiveFrameLoadController() === requestController) {
-        setActiveFrameLoadController(null);
-        setLoading(false);
-        state.isLoading = false;
-      }
+      finishFrameLoad(requestController);
     }
     processPendingFrameRequest(appliedFrame);
     return appliedFrame;
@@ -300,8 +324,7 @@ export function createFileDataPipelineController({
       return loadSeriesFrame();
     }
     if (!state.file || !state.dataset) return false;
-    if (state.isLoading) return false;
-    state.isLoading = true;
+    if (!startFrameLoad()) return false;
     if (!state.playing) {
       setLoading(true);
       setStatus(t("status.data.loading_frame"));
@@ -315,7 +338,7 @@ export function createFileDataPipelineController({
     }`;
     let appliedFrame = false;
     const requestController = new AbortController();
-    setActiveFrameLoadController(requestController);
+    activeFrameLoadController = requestController;
     try {
       const res = await fetch(url, {
         signal: requestController.signal,
@@ -351,17 +374,19 @@ export function createFileDataPipelineController({
         }
       }
     } finally {
-      if (getActiveFrameLoadController() === requestController) {
-        setActiveFrameLoadController(null);
-        setLoading(false);
-        state.isLoading = false;
-      }
+      finishFrameLoad(requestController);
     }
     processPendingFrameRequest(appliedFrame);
     return appliedFrame;
   }
 
   return {
+    cancelActiveLoad,
+    resetTransientLoadState: resetFrameLoadState,
+    queuePendingFrame: transientFrameLoadState.queuePendingFrame,
+    hasPendingFrameRequest: transientFrameLoadState.hasPendingFrameRequest,
+    consumePendingFrameRequest: transientFrameLoadState.consumePendingFrameRequest,
+    isFrameLoading: transientFrameLoadState.isFrameLoading,
     loadAutoloadFile,
     loadImageSeries,
     loadImageFile,

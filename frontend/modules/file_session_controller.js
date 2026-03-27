@@ -23,6 +23,7 @@ export function createFileSessionController({
 
   const {
     stopPlayback,
+    resetTransientFrameLoadState,
     clearImageGeometry,
     clearMaskState,
     clearImageHeader,
@@ -77,6 +78,12 @@ export function createFileSessionController({
 
   function closeCurrentFile() {
     stopPlayback();
+    if (resetTransientFrameLoadState) {
+      resetTransientFrameLoadState();
+    } else {
+      state.pendingFrame = null;
+      state.isLoading = false;
+    }
     state.file = "";
     state.dataset = "";
     state.shape = [];

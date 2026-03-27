@@ -56,9 +56,8 @@ export function createAnalysisState() {
   };
 }
 
-export function createAppState() {
+function createSourceState() {
   return {
-    // Global view/data state used across renderer + UI controls.
     file: "",
     dataset: "",
     shape: [],
@@ -72,6 +71,11 @@ export function createAppState() {
     seriesLabel: "",
     imageHeaderFile: "",
     imageHeaderText: "",
+  };
+}
+
+function createUiPreferencesState() {
+  return {
     backendAlive: false,
     backendVersion: "",
     language: "en",
@@ -80,14 +84,24 @@ export function createAppState() {
     pixelLabelMaxLabels: 4000,
     pixelLabelFormat: "auto",
     pixelLabelShowDuringDrag: false,
+    panelWidth: 640,
+    panelCollapsed: true,
+  };
+}
+
+function createTransientFrameLoadState() {
+  return {
     isLoading: false,
     pendingFrame: null,
     playing: false,
     playTimer: null,
     fps: 1,
     step: 1,
-    panelWidth: 640,
-    panelCollapsed: true,
+  };
+}
+
+function createViewportState() {
+  return {
     autoScale: true,
     min: 0,
     max: 1,
@@ -98,6 +112,11 @@ export function createAppState() {
     renderOffsetY: 0,
     panOffsetX: 0,
     panOffsetY: 0,
+  };
+}
+
+function createFrameDataState() {
+  return {
     dataRaw: null,
     dataFloat: null,
     histogram: null,
@@ -105,6 +124,15 @@ export function createAppState() {
     histLogX: true,
     histLogY: true,
     pixelLabels: true,
+    hasFrame: false,
+    width: 0,
+    height: 0,
+    globalStats: null,
+  };
+}
+
+function createMaskState() {
+  return {
     maskRaw: null,
     maskShape: null,
     maskAvailable: false,
@@ -113,59 +141,75 @@ export function createAppState() {
     maskAuto: true,
     maskFile: "",
     maskPath: "",
-    hasFrame: false,
-    width: 0,
-    height: 0,
-    globalStats: null,
-    autoload: {
-      mode: "file",
-      watchEnabled: false,
-      dir: "",
-      interval: 1000,
-      types: {
-        hdf5: true,
-        tiff: true,
-        cbf: true,
-        edf: true,
-      },
-      pattern: "",
-      simplonUrl: "",
-      simplonVersion: "1.8.0",
-      simplonTimeout: 500,
-      simplonEnable: true,
-      remoteSourceId: "default",
-      jfjochEndpoint: "",
-      jfjochSourceId: "jungfraujoch",
-      jfjochTopic: "",
-      jfjochChannel: "",
-      jfjochInterval: 250,
-      remoteSeq: 0,
-      remoteMeta: {},
-      jfjochMeta: {},
-      jfjochStatus: {},
-      autoStart: false,
-      running: false,
-      timer: null,
-      busy: false,
-      lastFile: "",
-      lastMtime: 0,
-      lastUpdate: 0,
-      lastPoll: 0,
-      lastMonitorSig: "",
-      lastRemoteSeq: 0,
-      lastJfjochSeq: 0,
-      lastMaskAttempt: 0,
-      simplonMeta: {},
+  };
+}
+
+function createAutoloadState() {
+  return {
+    mode: "file",
+    watchEnabled: false,
+    dir: "",
+    interval: 1000,
+    types: {
+      hdf5: true,
+      tiff: true,
+      cbf: true,
+      edf: true,
     },
-    seriesSum: {
-      running: false,
-      cancelling: false,
-      jobId: "",
-      progress: 0,
-      message: "Idle",
-      outputs: [],
-      openTarget: "",
-      autoOutputPath: "",
-    },
+    pattern: "",
+    simplonUrl: "",
+    simplonVersion: "1.8.0",
+    simplonTimeout: 500,
+    simplonEnable: true,
+    remoteSourceId: "default",
+    jfjochEndpoint: "",
+    jfjochSourceId: "jungfraujoch",
+    jfjochTopic: "",
+    jfjochChannel: "",
+    jfjochInterval: 250,
+    remoteSeq: 0,
+    remoteMeta: {},
+    jfjochMeta: {},
+    jfjochStatus: {},
+    autoStart: false,
+    running: false,
+    timer: null,
+    busy: false,
+    lastFile: "",
+    lastMtime: 0,
+    lastUpdate: 0,
+    lastPoll: 0,
+    lastMonitorSig: "",
+    lastRemoteSeq: 0,
+    lastJfjochSeq: 0,
+    lastMaskAttempt: 0,
+    simplonMeta: {},
+  };
+}
+
+function createSeriesSumState() {
+  return {
+    running: false,
+    cancelling: false,
+    jobId: "",
+    progress: 0,
+    message: "Idle",
+    outputs: [],
+    openTarget: "",
+    autoOutputPath: "",
+  };
+}
+
+export function createAppState() {
+  return {
+    // Global view/data state used across renderer + UI controls.
+    ...createSourceState(),
+    ...createUiPreferencesState(),
+    ...createTransientFrameLoadState(),
+    ...createViewportState(),
+    ...createFrameDataState(),
+    ...createMaskState(),
+    autoload: createAutoloadState(),
+    seriesSum: createSeriesSumState(),
   };
 }

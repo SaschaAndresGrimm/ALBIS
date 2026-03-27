@@ -21,7 +21,35 @@ export function createFramePlaybackController({
     cancelActiveFrameLoad,
     updateToolbar,
     loadFrame,
+    queuePendingFrameRequest: queuePendingFrameRequestCallback,
+    consumePendingFrameRequest: consumePendingFrameRequestCallback,
+    isFrameLoading: isFrameLoadingCallback,
   } = callbacks;
+
+  function queuePendingFrameRequest(index) {
+    if (queuePendingFrameRequestCallback) {
+      queuePendingFrameRequestCallback(index);
+      return;
+    }
+    state.pendingFrame = index;
+  }
+
+  function consumePendingFrameRequest() {
+    if (consumePendingFrameRequestCallback) {
+      return consumePendingFrameRequestCallback();
+    }
+    if (state.pendingFrame === null) return null;
+    const next = state.pendingFrame;
+    state.pendingFrame = null;
+    return next;
+  }
+
+  function isFrameLoading() {
+    if (isFrameLoadingCallback) {
+      return isFrameLoadingCallback();
+    }
+    return Boolean(state.isLoading);
+  }
 
   function currentFrameStatusText() {
     const total = Math.max(1, Number(state.frameCount) || 1);
@@ -60,11 +88,11 @@ export function createFramePlaybackController({
     if (!state.frameCount || (!state.dataset && !hasSeries) || !state.file) return;
     const clamped = Math.max(0, Math.min(state.frameCount - 1, index));
     if (state.playing && isViewportInteractionActive()) {
-      state.pendingFrame = clamped;
+      queuePendingFrameRequest(clamped);
       return;
     }
-    if (state.isLoading) {
-      state.pendingFrame = clamped;
+    if (isFrameLoading()) {
+      queuePendingFrameRequest(clamped);
       cancelActiveFrameLoad();
       return;
     }
@@ -88,9 +116,8 @@ export function createFramePlaybackController({
   }
 
   function processPendingFrameRequest(appliedFrame) {
-    if (state.pendingFrame === null) return;
-    const next = state.pendingFrame;
-    state.pendingFrame = null;
+    const next = consumePendingFrameRequest();
+    if (next === null) return;
     if (next !== state.frameIndex || !appliedFrame) {
       requestFrame(next);
     }

@@ -1,17 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-function buildFetchMock(dictionaries) {
-  return vi.fn(async (url) => {
+function buildFetchMock(dictionaries, handlers = {}) {
+  return vi.fn((url, init = {}) => {
     const text = String(url);
     const match = text.match(/locales\/([^/]+)\.json/);
-    if (!match) {
-      throw new Error(`Unexpected fetch: ${text}`);
+    if (match) {
+      const language = decodeURIComponent(match[1]);
+      return Promise.resolve({
+        ok: true,
+        json: async () => dictionaries[language] || {},
+      });
     }
-    const language = decodeURIComponent(match[1]);
-    return {
-      ok: true,
-      json: async () => dictionaries[language] || {},
-    };
+    if (handlers.frame && text.includes("/frame?")) {
+      return handlers.frame(url, init);
+    }
+    throw new Error(`Unexpected fetch: ${text}`);
   });
 }
 
@@ -25,13 +28,23 @@ describe("file_data_pipeline_controller", () => {
     delete global.fetch;
   });
 
-  it("clears stale pending frame state before opening a new hdf5 file", async () => {
+  it("aborts in-flight frame loads and clears stale pending state before opening a new hdf5 file", async () => {
     vi.resetModules();
     global.fetch = buildFetchMock({
       en: {
         "status.data.scanning_datasets": "Scanning datasets",
         "status.data.dataset_metadata_loaded": "Dataset metadata loaded",
+        "status.data.loading_frame": "Loading frame",
       },
+    }, {
+      frame: (_, init) =>
+        new Promise((resolve, reject) => {
+          init.signal?.addEventListener("abort", () => {
+            const abortError = new Error("Aborted");
+            abortError.name = "AbortError";
+            reject(abortError);
+          });
+        }),
     });
     const i18n = await import("../modules/i18n.js");
     await i18n.initializeI18n({ backendLanguage: "en" });
@@ -49,9 +62,9 @@ describe("file_data_pipeline_controller", () => {
       seriesFiles: [],
       seriesLabel: "",
       hasFrame: true,
-      isLoading: true,
+      isLoading: false,
       playing: false,
-      pendingFrame: 11,
+      pendingFrame: null,
       maskRaw: null,
       maskFile: "",
     };
@@ -59,10 +72,6 @@ describe("file_data_pipeline_controller", () => {
     const datasetSelect = document.createElement("select");
     const metaShape = document.createElement("div");
     const metaDtype = document.createElement("div");
-    const activeController = {
-      abort: vi.fn(),
-    };
-    let currentController = activeController;
     const loadMetadata = vi.fn(async () => {
       expect(state.pendingFrame).toBeNull();
       expect(state.isLoading).toBe(false);
@@ -124,20 +133,20 @@ describe("file_data_pipeline_controller", () => {
         stopPlayback: vi.fn(),
         loadMask: vi.fn(async () => {}),
         updateToolbar: vi.fn(),
-        getActiveFrameLoadController: () => currentController,
-        setActiveFrameLoadController: (controller) => {
-          currentController = controller;
-        },
       },
     });
 
+    const inFlightLoad = controller.loadFrame();
+    expect(controller.isFrameLoading()).toBe(true);
+    controller.queuePendingFrame(11);
     const loaded = await controller.loadAutoloadFile("sum_output.h5");
 
     expect(loaded).toBe(true);
-    expect(activeController.abort).toHaveBeenCalledTimes(1);
-    expect(currentController).toBeNull();
+    await expect(inFlightLoad).resolves.toBe(false);
     expect(loadMetadata).toHaveBeenCalledTimes(1);
     expect(state.file).toBe("sum_output.h5");
     expect(state.dataset).toBe("/entry/data/data");
+    expect(state.pendingFrame).toBeNull();
+    expect(controller.isFrameLoading()).toBe(false);
   });
 });

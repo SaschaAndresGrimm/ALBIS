@@ -38,8 +38,35 @@ export function createOverviewViewportController({
     schedulePeakOverlay,
     requestFrame,
     cancelActiveFrameLoad,
+    hasPendingFrameRequest: hasPendingFrameRequestCallback,
+    consumePendingFrameRequest: consumePendingFrameRequestCallback,
+    isFrameLoading: isFrameLoadingCallback,
     updateViewerFooter,
   } = callbacks;
+
+  function hasPendingFrameRequest() {
+    if (hasPendingFrameRequestCallback) {
+      return hasPendingFrameRequestCallback();
+    }
+    return state.pendingFrame !== null;
+  }
+
+  function consumePendingFrameRequest() {
+    if (consumePendingFrameRequestCallback) {
+      return consumePendingFrameRequestCallback();
+    }
+    if (state.pendingFrame === null) return null;
+    const next = state.pendingFrame;
+    state.pendingFrame = null;
+    return next;
+  }
+
+  function isFrameLoading() {
+    if (isFrameLoadingCallback) {
+      return isFrameLoadingCallback();
+    }
+    return Boolean(state.isLoading);
+  }
 
   let overviewScheduled = false;
   let overviewRect = null;
@@ -152,9 +179,9 @@ export function createOverviewViewportController({
   }
 
   function flushViewportDeferredWork() {
-    if (state.pendingFrame !== null && !state.isLoading) {
-      const next = state.pendingFrame;
-      state.pendingFrame = null;
+    if (!hasPendingFrameRequest() || isFrameLoading()) return;
+    const next = consumePendingFrameRequest();
+    if (next !== null) {
       requestFrame(next);
     }
   }
@@ -163,7 +190,7 @@ export function createOverviewViewportController({
     const delay = Math.max(60, Number(delayMs) || VIEWPORT_INTERACTION_IDLE_MS);
     viewportInteractionUntil = Date.now() + delay;
     deferPixelOverlayRedraw(delay);
-    if (state.playing && state.isLoading) {
+    if (state.playing && isFrameLoading()) {
       cancelActiveFrameLoad();
     }
     if (viewportInteractionResumeTimer) {

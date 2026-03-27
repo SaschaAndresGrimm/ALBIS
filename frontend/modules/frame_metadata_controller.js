@@ -33,6 +33,7 @@ export function createFrameMetadataController({
     setDataControlsForHdf5,
     setDataSourceSectionState,
     setStatus,
+    stopPlayback,
     updateToolbar,
     showSplash,
     setSplashStatus,
@@ -48,6 +49,7 @@ export function createFrameMetadataController({
     isHdf5File,
     getDefaultCenter,
     loadImageGeometry,
+    resetTransientFrameLoadState,
     scheduleResolutionOverlay,
   } = callbacks;
 
@@ -122,8 +124,23 @@ export function createFrameMetadataController({
 
   async function loadMetadata() {
     if (!state.file || !state.dataset) return false;
+    const shouldResetTransientLoadState =
+      Boolean(state.hasFrame)
+      || state.pendingFrame !== null
+      || Boolean(state.isLoading)
+      || Boolean(state.playing);
+    if (shouldResetTransientLoadState) {
+      stopPlayback();
+      if (resetTransientFrameLoadState) {
+        resetTransientFrameLoadState();
+      } else {
+        state.pendingFrame = null;
+        state.isLoading = false;
+      }
+    }
     showProcessingProgress(t("status.frame.loading_metadata"));
     setStatus(t("status.frame.loading_metadata"));
+    setLoading(true);
     setDataSourceSectionState("loading", t("status.data.loading_dataset_metadata"), true);
     try {
       state.maskAuto = true;

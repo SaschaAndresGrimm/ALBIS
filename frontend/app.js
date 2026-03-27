@@ -469,6 +469,7 @@ let panelLayoutController = null;
 let thresholdPlaybackController = null;
 let autoloadStatusController = null;
 let fileSessionController = null;
+let fileDataPipelineController = null;
 let updateCheckController = null;
 let activeMenu = "file";
 let closeTimer = null;
@@ -483,7 +484,6 @@ const overviewInteractionState = {
 };
 let sectionStateStore = {};
 let roiDragging = false;
-let activeFrameLoadController = null;
 let panelTabState = "view";
 const coarsePointerQuery = window.matchMedia("(hover: none), (pointer: coarse)");
 const overlayCanvasMetrics = new WeakMap();
@@ -637,12 +637,37 @@ function isViewportInteractionActive() {
 }
 
 function cancelActiveFrameLoad() {
-  if (!activeFrameLoadController) return;
-  try {
-    activeFrameLoadController.abort();
-  } catch {
-    // ignore abort errors
+  fileDataPipelineController?.cancelActiveLoad();
+}
+
+function resetTransientFrameLoadState() {
+  fileDataPipelineController?.resetTransientLoadState();
+}
+
+function queuePendingFrameRequest(index) {
+  if (fileDataPipelineController) {
+    fileDataPipelineController.queuePendingFrame(index);
+    return;
   }
+  state.pendingFrame = index;
+}
+
+function hasPendingFrameRequest() {
+  return fileDataPipelineController ? fileDataPipelineController.hasPendingFrameRequest() : state.pendingFrame !== null;
+}
+
+function consumePendingFrameRequest() {
+  if (fileDataPipelineController) {
+    return fileDataPipelineController.consumePendingFrameRequest();
+  }
+  if (state.pendingFrame === null) return null;
+  const next = state.pendingFrame;
+  state.pendingFrame = null;
+  return next;
+}
+
+function isFrameLoading() {
+  return fileDataPipelineController ? fileDataPipelineController.isFrameLoading() : Boolean(state.isLoading);
 }
 
 function deferViewportInteraction(delayMs = VIEWPORT_INTERACTION_IDLE_MS) {
@@ -2137,6 +2162,7 @@ fileSessionController = createFileSessionController({
   },
   callbacks: {
     stopPlayback,
+    resetTransientFrameLoadState,
     clearImageGeometry,
     clearMaskState,
     clearImageHeader,
@@ -2467,6 +2493,9 @@ framePlaybackController = createFramePlaybackController({
     setLoading,
     isViewportInteractionActive,
     cancelActiveFrameLoad,
+    queuePendingFrameRequest,
+    consumePendingFrameRequest,
+    isFrameLoading,
     updateToolbar,
     loadFrame,
   },
@@ -2496,6 +2525,7 @@ frameMetadataController = createFrameMetadataController({
     setDataControlsForHdf5,
     setDataSourceSectionState,
     setStatus,
+    stopPlayback,
     updateToolbar,
     showSplash,
     setSplashStatus,
@@ -2511,11 +2541,12 @@ frameMetadataController = createFrameMetadataController({
     isHdf5File,
     getDefaultCenter,
     loadImageGeometry,
+    resetTransientFrameLoadState,
     scheduleResolutionOverlay,
   },
 });
 
-const fileDataPipelineController = createFileDataPipelineController({
+fileDataPipelineController = createFileDataPipelineController({
   apiBase: API,
   state,
   elements: {
@@ -2556,10 +2587,6 @@ const fileDataPipelineController = createFileDataPipelineController({
     stopPlayback,
     loadMask,
     updateToolbar,
-    getActiveFrameLoadController: () => activeFrameLoadController,
-    setActiveFrameLoadController: (controller) => {
-      activeFrameLoadController = controller;
-    },
   },
 });
 
@@ -3145,6 +3172,9 @@ overviewViewportController = createOverviewViewportController({
     schedulePeakOverlay,
     requestFrame,
     cancelActiveFrameLoad,
+    hasPendingFrameRequest,
+    consumePendingFrameRequest,
+    isFrameLoading,
     updateViewerFooter,
   },
 });
@@ -3395,7 +3425,7 @@ function redraw() {
 }
 
 async function loadFrame() {
-  await fileDataPipelineController.loadFrame();
+  return fileDataPipelineController.loadFrame();
 }
 
 const mainUiBindingsElements = createMainUiBindingsElements({
