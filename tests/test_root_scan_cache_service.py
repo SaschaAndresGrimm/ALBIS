@@ -1,6 +1,26 @@
 from __future__ import annotations
 
+from backend.services import root_scan_cache as root_scan_cache_module
 from backend.services.root_scan_cache import RootScanCacheService
+
+
+def test_root_scan_cache_first_read_ignores_empty_cache_even_with_low_monotonic(
+    monkeypatch,
+) -> None:
+    cache = RootScanCacheService()
+    calls = {"files": 0}
+    monotonic_values = iter((10.0, 10.1))
+
+    def load_files() -> list[str]:
+        calls["files"] += 1
+        return ["boot/a.h5"]
+
+    monkeypatch.setattr(root_scan_cache_module.time, "monotonic", lambda: next(monotonic_values))
+
+    first = cache.get_root_files(60.0, load_files)
+
+    assert first == ["boot/a.h5"]
+    assert calls["files"] == 1
 
 
 def test_root_scan_cache_hits_within_ttl() -> None:
