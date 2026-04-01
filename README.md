@@ -47,6 +47,10 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 - **Windows x64**: `ALBIS-Setup-windows-x64-v<version>-<commit>.exe` (installer) or `ALBIS-windows-x64-v<version>-<commit>.zip` (portable).
 - **Linux x64**: `ALBIS-<version>-x86_64.AppImage`, `ALBIS-<version>-x86_64-appimage-bundle.tar.gz` (AppImage + install/uninstall scripts), and `ALBIS-linux-x64-v<version>-<commit>.tar.gz`.
 
+macOS release binaries are supported on macOS 14+ on Apple Silicon and macOS 15+ on Intel Macs. Use the native `arm64` build on Apple Silicon and the native `x64` build on Intel Macs.
+Windows release binaries are supported on Windows 10 x64 and Windows 11 x64. Windows 8.1 x64 may work but is not part of the supported/tested release matrix; Windows 7, Windows 8.0, 32-bit Windows, and Windows ARM are not supported.
+Linux desktop release binaries are currently published for `x86_64` only. The AppImage and tarball are intended for newer `x86_64` distributions with `glibc 2.38+`; for broader Linux compatibility, use the published Docker images on `linux/amd64` or `linux/arm64`.
+
 ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 
 ## Keyboard Shortcuts
