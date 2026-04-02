@@ -61,6 +61,7 @@ import { createChromeToolbarController } from "./modules/chrome_toolbar_controll
 import { createPanelLayoutController } from "./modules/panel_layout_controller.js";
 import { createThresholdPlaybackController } from "./modules/threshold_playback_controller.js";
 import { createFileSessionController } from "./modules/file_session_controller.js";
+import { createLiveHistoryController } from "./modules/live_history_controller.js";
 import {
   buildGeometryRequestKey,
   getActiveGeometryOverridePath,
@@ -134,6 +135,8 @@ const toolbarMoreToggle = document.getElementById("toolbar-more-toggle");
 const toolbarMorePopover = document.getElementById("toolbar-more-popover");
 const toolbarMoreStep = document.getElementById("toolbar-more-step");
 const toolbarMoreFps = document.getElementById("toolbar-more-fps");
+const toolbarMoreStepField = document.getElementById("toolbar-more-step-field");
+const toolbarMoreFpsField = document.getElementById("toolbar-more-fps-field");
 const toolbarMoreThresholdField = document.getElementById("toolbar-more-threshold-field");
 const toolbarMoreThreshold = document.getElementById("toolbar-more-threshold");
 const toolbarMorePanelToggle = document.getElementById("toolbar-more-panel-toggle");
@@ -470,6 +473,7 @@ let thresholdPlaybackController = null;
 let autoloadStatusController = null;
 let fileSessionController = null;
 let fileDataPipelineController = null;
+let liveHistoryController = null;
 let updateCheckController = null;
 let activeMenu = "file";
 let closeTimer = null;
@@ -1396,6 +1400,7 @@ function refreshLocalizedUi() {
   applyPanelState();
   updateToolbar();
   updateViewerFooter();
+  updatePlayButtons();
   updateLiveBadge();
   updateAboutVersion();
   updateDataSourceSummary();
@@ -1611,6 +1616,15 @@ function updateFrameControls() {
 }
 
 function startPlayback() {
+  if (liveHistoryController?.isLiveHistoryActive()) {
+    if (state.autoload.livePaused) {
+      liveHistoryController.goLive();
+      void autoloadTick();
+    } else {
+      liveHistoryController.pauseLive();
+    }
+    return;
+  }
   framePlaybackController?.startPlayback();
 }
 
@@ -1619,6 +1633,10 @@ function processPendingFrameRequest(appliedFrame) {
 }
 
 function requestFrame(index) {
+  if (liveHistoryController?.isLiveHistoryActive()) {
+    liveHistoryController.showLiveHistoryFrame(index);
+    return;
+  }
   framePlaybackController?.requestFrame(index);
 }
 
@@ -2011,6 +2029,7 @@ sourceMetadataController = createSourceMetadataController({
   },
   callbacks: {
     scheduleResolutionOverlay,
+    schedulePeakOverlay,
   },
 });
 sourceMetadataController.updateGeometryUi();
@@ -2213,6 +2232,19 @@ fileSessionController = createFileSessionController({
   },
 });
 
+liveHistoryController = createLiveHistoryController({
+  state,
+  callbacks: {
+    applyExternalFrame,
+    applyLiveSourceSnapshot,
+    updateFrameControls,
+    updatePlayButtons,
+    updateToolbar,
+    updateAutoloadUI,
+    setStatus,
+  },
+});
+
 const backendStatusController = createBackendStatusController({
   apiBase: API,
   state,
@@ -2293,6 +2325,8 @@ const autoloadSettingsController = createAutoloadSettingsController({
     toolbarStepWrap,
     toolbarFpsWrap,
     toolbarPlaybackWrap,
+    toolbarMoreStepField,
+    toolbarMoreFpsField,
     autoloadStatus,
     simplonMetaPanel,
     remoteMetaPanel,
@@ -2327,6 +2361,7 @@ const autoloadSettingsController = createAutoloadSettingsController({
     setDataSourceSectionState,
     setAutoloadStatus,
     setAutoloadLatest,
+    updatePlayButtons,
     startAutoload: (...args) => startAutoload(...args),
   },
 });
@@ -2373,6 +2408,7 @@ const autoloadOrchestrationController = createAutoloadOrchestrationController({
     setAutoloadStatus,
     setStatus,
     persistAutoloadSettings,
+    resetLiveHistory: () => resetLiveHistory(),
     setSimplonMode,
     fetchSimplonMask,
     updateLiveBadge,
@@ -2416,10 +2452,11 @@ const autoloadModeController = createAutoloadModeController({
     parseShape,
     typedArrayFrom,
     hashBufferSample,
-    applySimplonMeta,
+    parseSimplonMeta,
+    createLiveSourceSnapshot,
+    appendLiveFrame,
     logClient,
     formatSimplonTimestamp,
-    applyExternalFrame,
     updateLiveBadge,
   },
 });
@@ -2456,20 +2493,21 @@ async function fetchJfjochPreviewStatus() {
 const remoteStreamController = createRemoteStreamController({
   apiBase: API,
   state,
-  analysisState,
   callbacks: {
     setAutoloadStatus,
     updateLiveBadge,
     updateAutoloadMeta,
-    schedulePeakOverlay,
-    updateRemoteMetaUI,
-    updateJfjochMetaUI,
     startJfjochPreviewBridge: (...args) => startJfjochPreviewBridge(...args),
     fetchJfjochPreviewStatus: (...args) => fetchJfjochPreviewStatus(...args),
     parseDtype,
     parseShape,
     typedArrayFrom,
-    applyRemoteMeta,
+    parseRemoteMeta,
+    createLiveSourceSnapshot,
+    applyLiveSourceSnapshot,
+    appendLiveFrame,
+    updateLiveHistoryEntry,
+    resetLiveHistory,
     applyExternalFrame,
   },
 });
@@ -2591,10 +2629,12 @@ fileDataPipelineController = createFileDataPipelineController({
 });
 
 async function loadAutoloadFile(file) {
+  resetLiveHistory();
   return fileDataPipelineController.loadAutoloadFile(file);
 }
 
 async function loadImageSeries(file) {
+  resetLiveHistory();
   return fileDataPipelineController.loadImageSeries(file);
 }
 
@@ -2914,6 +2954,7 @@ async function loadFiles() {
 }
 
 async function loadDatasets() {
+  resetLiveHistory();
   return fileDataPipelineController.loadDatasets();
 }
 
@@ -3017,12 +3058,34 @@ async function clearGeometryOverridePath() {
   }
 }
 
-function applySimplonMeta(headers) {
-  return sourceMetadataController ? sourceMetadataController.applySimplonMeta(headers) : {};
+function parseSimplonMeta(headers) {
+  return sourceMetadataController ? sourceMetadataController.parseSimplonMeta(headers) : { analysis: {}, meta: {} };
 }
 
-function applyRemoteMeta(headers) {
-  return sourceMetadataController ? sourceMetadataController.applyRemoteMeta(headers) : {};
+function parseRemoteMeta(headers) {
+  return sourceMetadataController ? sourceMetadataController.parseRemoteMeta(headers) : { analysis: {}, meta: {} };
+}
+
+function createLiveSourceSnapshot(payload) {
+  return sourceMetadataController ? sourceMetadataController.createLiveSourceSnapshot(payload) : payload;
+}
+
+function applyLiveSourceSnapshot(snapshot) {
+  sourceMetadataController?.applyLiveSourceSnapshot(snapshot);
+}
+
+function appendLiveFrame(entry) {
+  return liveHistoryController
+    ? liveHistoryController.appendLiveFrame(entry)
+    : { appended: false, rendered: false };
+}
+
+function updateLiveHistoryEntry(dedupeKey, patch) {
+  return liveHistoryController ? liveHistoryController.updateLiveHistoryEntry(dedupeKey, patch) : false;
+}
+
+function resetLiveHistory() {
+  liveHistoryController?.resetLiveHistory();
 }
 
 function parseDtype(header) {
@@ -3413,6 +3476,7 @@ function exportRoiCsv() {
 }
 
 function closeCurrentFile() {
+  resetLiveHistory();
   fileSessionController.closeCurrentFile();
 }
 

@@ -19,10 +19,11 @@ export function createAutoloadModeController({
     parseShape,
     typedArrayFrom,
     hashBufferSample,
-    applySimplonMeta,
+    parseSimplonMeta,
+    createLiveSourceSnapshot,
+    appendLiveFrame,
     logClient,
     formatSimplonTimestamp,
-    applyExternalFrame,
     updateLiveBadge,
   } = callbacks;
 
@@ -144,13 +145,9 @@ export function createAutoloadModeController({
     const shape = parseShape(res.headers.get("X-Shape"));
     const data = typedArrayFrom(buffer, dtype);
     const sig = hashBufferSample(buffer);
-    const changed = sig && sig !== state.autoload.lastMonitorSig;
-    if (changed) {
-      state.autoload.lastMonitorSig = sig;
-      state.autoload.lastUpdate = Date.now();
-      updateAutoloadMeta();
-    }
-    const simplonMeta = applySimplonMeta(res.headers);
+    const changed = Boolean(sig) && sig !== state.autoload.lastMonitorSig;
+    const parsed = parseSimplonMeta(res.headers);
+    const simplonMeta = parsed.meta || {};
     if (!state.autoload.loggedSimplonHeaders) {
       state.autoload.loggedSimplonHeaders = true;
       logClient("info", "SIMPLON response headers", {
@@ -175,8 +172,34 @@ export function createAutoloadModeController({
     if (detailParts.length) {
       label = `${label} ${detailParts.join(" ")}`;
     }
-    applyExternalFrame(data, shape, dtype, label, false, true);
-    setAutoloadStatus(t("autoload.status.simplon.updated"));
+    if (state.autoload.livePaused) {
+      updateLiveBadge();
+      return;
+    }
+    if (!changed) {
+      updateLiveBadge();
+      return;
+    }
+    state.autoload.lastMonitorSig = sig;
+    state.autoload.lastUpdate = Date.now();
+    updateAutoloadMeta();
+    const result = appendLiveFrame({
+      sourceKey: `simplon:${baseUrl}`,
+      sourceKind: "simplon",
+      dedupeKey: sig,
+      label,
+      data,
+      shape,
+      dtype,
+      snapshot: createLiveSourceSnapshot({
+        sourceKind: "simplon",
+        analysis: parsed.analysis,
+        simplonMeta,
+      }),
+    });
+    if (result.rendered) {
+      setAutoloadStatus(t("autoload.status.simplon.updated"));
+    }
     updateLiveBadge();
   }
 

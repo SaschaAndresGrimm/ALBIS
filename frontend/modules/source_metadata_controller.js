@@ -54,7 +54,7 @@ export function createSourceMetadataController({
     ringsGeometryStatusEl,
   } = elements;
 
-  const { scheduleResolutionOverlay } = callbacks;
+  const { scheduleResolutionOverlay, schedulePeakOverlay } = callbacks;
 
   function formatNumberInput(value, digits = 2) {
     if (!Number.isFinite(value)) return "";
@@ -93,6 +93,33 @@ export function createSourceMetadataController({
     if (raw === null || raw === undefined || raw === "") return null;
     const value = Number(raw);
     return Number.isFinite(value) ? value : null;
+  }
+
+  function cloneMetaObject(value) {
+    return value && typeof value === "object" ? { ...value } : {};
+  }
+
+  function clonePeakSets(peakSets) {
+    if (!Array.isArray(peakSets)) return [];
+    return peakSets.map((set) => ({
+      ...cloneMetaObject(set),
+      points: Array.isArray(set?.points)
+        ? set.points.map((point) => ({
+            ...cloneMetaObject(point),
+          }))
+        : [],
+    }));
+  }
+
+  function normalizeAnalysis(analysis) {
+    const source = analysis && typeof analysis === "object" ? analysis : {};
+    return {
+      distanceMm: Number.isFinite(Number(source.distanceMm)) ? Number(source.distanceMm) : null,
+      pixelSizeUm: Number.isFinite(Number(source.pixelSizeUm)) ? Number(source.pixelSizeUm) : null,
+      energyEv: Number.isFinite(Number(source.energyEv)) ? Number(source.energyEv) : null,
+      centerX: Number.isFinite(Number(source.centerX)) ? Number(source.centerX) : null,
+      centerY: Number.isFinite(Number(source.centerY)) ? Number(source.centerY) : null,
+    };
   }
 
   function parseSimplonTimestamp(raw) {
@@ -290,6 +317,120 @@ export function createSourceMetadataController({
     }
   }
 
+  function parseSimplonMeta(headers) {
+    if (!headers) {
+      return {
+        analysis: normalizeAnalysis({}),
+        meta: {},
+      };
+    }
+    const distanceMm = parseHeaderFloat(headers, "X-Simplon-DetectorDistance-MM");
+    const energyEv = parseHeaderFloat(headers, "X-Simplon-Energy-Ev");
+    const thresholdEv = parseHeaderFloat(headers, "X-Simplon-Threshold-Ev");
+    const wavelengthA = parseHeaderFloat(headers, "X-Simplon-Wavelength-A");
+    const centerX = parseHeaderFloat(headers, "X-Simplon-BeamCenter-X");
+    const centerY = parseHeaderFloat(headers, "X-Simplon-BeamCenter-Y");
+
+    return {
+      analysis: normalizeAnalysis({ distanceMm, pixelSizeUm: null, energyEv, centerX, centerY }),
+      meta: {
+        series: headers.get("X-Simplon-Series") || "",
+        image: headers.get("X-Simplon-Image") || "",
+        date: headers.get("X-Simplon-Date") || "",
+        energyEv,
+        thresholdEv,
+        wavelengthA,
+        distanceMm,
+        centerX,
+        centerY,
+      },
+    };
+  }
+
+  function parseRemoteMeta(headers) {
+    if (!headers) {
+      return {
+        analysis: normalizeAnalysis({}),
+        meta: {},
+      };
+    }
+    const distanceMm = parseHeaderFloat(headers, "X-Remote-DetectorDistance-MM");
+    const pixelSizeUm = parseHeaderFloat(headers, "X-Remote-PixelSize-UM");
+    let energyEv = parseHeaderFloat(headers, "X-Remote-Energy-Ev");
+    const wavelengthA = parseHeaderFloat(headers, "X-Remote-Wavelength-A");
+    const centerX = parseHeaderFloat(headers, "X-Remote-BeamCenter-X");
+    const centerY = parseHeaderFloat(headers, "X-Remote-BeamCenter-Y");
+    if (!Number.isFinite(energyEv) && Number.isFinite(wavelengthA) && wavelengthA > 0) {
+      energyEv = 12398.4193 / wavelengthA;
+    }
+
+    return {
+      analysis: normalizeAnalysis({ distanceMm, pixelSizeUm, energyEv, centerX, centerY }),
+      meta: {
+        source: headers.get("X-Remote-Source") || state.autoload.remoteSourceId || "",
+        seq: Number(headers.get("X-Remote-Seq") || 0),
+        displayName: headers.get("X-Remote-Display") || "",
+        series: headers.get("X-Remote-Series") || "",
+        image: headers.get("X-Remote-Image") || "",
+        date: headers.get("X-Remote-Date") || "",
+        energyEv,
+        wavelengthA,
+        distanceMm,
+        centerX,
+        centerY,
+        peakSets: Number(headers.get("X-Remote-PeakSets") || 0),
+      },
+    };
+  }
+
+  function createLiveSourceSnapshot({
+    sourceKind,
+    analysis = {},
+    simplonMeta = {},
+    remoteMeta = {},
+    jfjochMeta = {},
+    jfjochStatus = {},
+    externalPeakSets = [],
+  } = {}) {
+    return {
+      sourceKind: String(sourceKind || ""),
+      analysis: normalizeAnalysis(analysis),
+      simplonMeta: cloneMetaObject(simplonMeta),
+      remoteMeta: cloneMetaObject(remoteMeta),
+      jfjochMeta: cloneMetaObject(jfjochMeta),
+      jfjochStatus: cloneMetaObject(jfjochStatus),
+      externalPeakSets: clonePeakSets(externalPeakSets),
+    };
+  }
+
+  function applyLiveSourceSnapshot(snapshot) {
+    const source = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const sourceKind = String(source.sourceKind || "");
+    applyAnalysisMeta(normalizeAnalysis(source.analysis));
+
+    if (sourceKind === "simplon") {
+      const meta = cloneMetaObject(source.simplonMeta);
+      state.autoload.simplonMeta = meta;
+      updateSimplonMetaUI(meta);
+    } else if (sourceKind === "remote") {
+      const meta = cloneMetaObject(source.remoteMeta);
+      state.autoload.remoteMeta = meta;
+      if (Number.isFinite(Number(meta.seq))) {
+        state.autoload.remoteSeq = Number(meta.seq);
+      }
+      updateRemoteMetaUI(meta);
+    } else if (sourceKind === "jungfraujoch") {
+      const meta = cloneMetaObject(source.jfjochMeta);
+      const status = cloneMetaObject(source.jfjochStatus);
+      state.autoload.jfjochMeta = meta;
+      state.autoload.jfjochStatus = status;
+      updateJfjochMetaUI(meta, status);
+    }
+
+    analysisState.externalPeakSets = clonePeakSets(source.externalPeakSets);
+    schedulePeakOverlay?.();
+  }
+
   function clearImageGeometry({ clearKey = true } = {}) {
     analysisState.ringMode = "planar";
     analysisState.ringGeometry = null;
@@ -365,64 +506,28 @@ export function createSourceMetadataController({
   }
 
   function applySimplonMeta(headers) {
-    if (!headers) return {};
-    const distanceMm = parseHeaderFloat(headers, "X-Simplon-DetectorDistance-MM");
-    const energyEv = parseHeaderFloat(headers, "X-Simplon-Energy-Ev");
-    const thresholdEv = parseHeaderFloat(headers, "X-Simplon-Threshold-Ev");
-    const wavelengthA = parseHeaderFloat(headers, "X-Simplon-Wavelength-A");
-    const centerX = parseHeaderFloat(headers, "X-Simplon-BeamCenter-X");
-    const centerY = parseHeaderFloat(headers, "X-Simplon-BeamCenter-Y");
-
-    applyAnalysisMeta({ distanceMm, pixelSizeUm: null, energyEv, centerX, centerY });
-
-    const meta = {
-      series: headers.get("X-Simplon-Series") || "",
-      image: headers.get("X-Simplon-Image") || "",
-      date: headers.get("X-Simplon-Date") || "",
-      energyEv,
-      thresholdEv,
-      wavelengthA,
-      distanceMm,
-      centerX,
-      centerY,
-    };
-    state.autoload.simplonMeta = meta;
-    updateSimplonMetaUI(meta);
-    return meta;
+    const parsed = parseSimplonMeta(headers);
+    applyLiveSourceSnapshot(
+      createLiveSourceSnapshot({
+        sourceKind: "simplon",
+        analysis: parsed.analysis,
+        simplonMeta: parsed.meta,
+      }),
+    );
+    return parsed.meta;
   }
 
   function applyRemoteMeta(headers) {
-    if (!headers) return {};
-    const distanceMm = parseHeaderFloat(headers, "X-Remote-DetectorDistance-MM");
-    const pixelSizeUm = parseHeaderFloat(headers, "X-Remote-PixelSize-UM");
-    let energyEv = parseHeaderFloat(headers, "X-Remote-Energy-Ev");
-    const wavelengthA = parseHeaderFloat(headers, "X-Remote-Wavelength-A");
-    const centerX = parseHeaderFloat(headers, "X-Remote-BeamCenter-X");
-    const centerY = parseHeaderFloat(headers, "X-Remote-BeamCenter-Y");
-    if (!Number.isFinite(energyEv) && Number.isFinite(wavelengthA) && wavelengthA > 0) {
-      energyEv = 12398.4193 / wavelengthA;
-    }
-
-    applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY });
-
-    const meta = {
-      source: headers.get("X-Remote-Source") || state.autoload.remoteSourceId || "",
-      seq: Number(headers.get("X-Remote-Seq") || 0),
-      displayName: headers.get("X-Remote-Display") || "",
-      series: headers.get("X-Remote-Series") || "",
-      image: headers.get("X-Remote-Image") || "",
-      date: headers.get("X-Remote-Date") || "",
-      energyEv,
-      wavelengthA,
-      distanceMm,
-      centerX,
-      centerY,
-      peakSets: Number(headers.get("X-Remote-PeakSets") || 0),
-    };
-    state.autoload.remoteMeta = meta;
-    state.autoload.remoteSeq = Number.isFinite(meta.seq) ? meta.seq : state.autoload.remoteSeq;
-    updateRemoteMetaUI(meta);
-    return meta;
+    const parsed = parseRemoteMeta(headers);
+    applyLiveSourceSnapshot(
+      createLiveSourceSnapshot({
+        sourceKind: "remote",
+        analysis: parsed.analysis,
+        remoteMeta: parsed.meta,
+        externalPeakSets: analysisState.externalPeakSets,
+      }),
+    );
+    return parsed.meta;
   }
 
   return {
@@ -432,6 +537,10 @@ export function createSourceMetadataController({
     updateRemoteMetaUI,
     updateJfjochMetaUI,
     updateGeometryUi,
+    parseSimplonMeta,
+    parseRemoteMeta,
+    createLiveSourceSnapshot,
+    applyLiveSourceSnapshot,
     applyImageGeometry,
     applyImageMeta,
     applySimplonMeta,

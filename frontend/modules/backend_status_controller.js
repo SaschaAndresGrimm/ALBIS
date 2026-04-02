@@ -31,20 +31,37 @@ export function createBackendStatusController({
       state.autoload.mode === "remote" ||
       state.autoload.mode === "jungfraujoch";
     if (!state.autoload.running || !liveMode) {
-      liveBadge.classList.remove("is-active", "is-wait");
+      liveBadge.classList.remove("is-active", "is-wait", "is-paused");
       liveBadge.textContent = t("backend.live.live");
       liveBadge.setAttribute("aria-hidden", "true");
       liveBadge.removeAttribute("aria-label");
       liveBadge.removeAttribute("title");
       return;
     }
+    const paused = state.autoload.livePaused === true;
     liveBadge.classList.add("is-active");
     const age = Date.now() - (state.autoload.lastUpdate || 0);
-    const wait = !state.autoload.lastUpdate || age > state.autoload.interval * 2;
+    const wait = !paused && (!state.autoload.lastUpdate || age > state.autoload.interval * 2);
     liveBadge.classList.toggle("is-wait", wait);
-    liveBadge.textContent = wait ? t("backend.live.wait") : t("backend.live.live");
-    liveBadge.setAttribute("aria-label", wait ? t("backend.live.aria.wait") : t("backend.live.aria.live"));
-    liveBadge.title = wait ? t("backend.live.title.wait") : t("backend.live.title.live");
+    liveBadge.classList.toggle("is-paused", paused);
+    liveBadge.textContent = paused
+      ? t("backend.live.paused")
+      : wait
+        ? t("backend.live.wait")
+        : t("backend.live.live");
+    liveBadge.setAttribute(
+      "aria-label",
+      paused
+        ? t("backend.live.aria.paused")
+        : wait
+          ? t("backend.live.aria.wait")
+          : t("backend.live.aria.live"),
+    );
+    liveBadge.title = paused
+      ? t("backend.live.title.paused")
+      : wait
+        ? t("backend.live.title.wait")
+        : t("backend.live.title.live");
     liveBadge.setAttribute("aria-hidden", "false");
   }
 

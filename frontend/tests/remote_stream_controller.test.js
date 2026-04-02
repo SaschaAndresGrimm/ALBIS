@@ -36,7 +36,7 @@ describe("remote_stream_controller", () => {
     delete global.fetch;
   });
 
-  it("clears stale peak overlays when remote metadata conflicts with a newer sequence", async () => {
+  it("appends a new remote sequence to live history and patches metadata", async () => {
     vi.resetModules();
     global.fetch = buildFetchMock(
       {
@@ -61,9 +61,18 @@ describe("remote_stream_controller", () => {
         }
         if (url.includes("/remote/v1/meta")) {
           return {
-            ok: false,
-            status: 409,
-            json: async () => ({ detail: "Requested sequence is no longer current", current_seq: 3 }),
+            ok: true,
+            status: 200,
+            json: async () => ({
+              peak_sets: [
+                {
+                  name: "set-1",
+                  color: "#4aa3ff",
+                  style: "",
+                  points: [[1, 2, 3]],
+                },
+              ],
+            }),
           };
         }
         throw new Error(`Unexpected fetch: ${url}`);
@@ -73,54 +82,134 @@ describe("remote_stream_controller", () => {
     await i18n.initializeI18n({ backendLanguage: "en" });
     const { createRemoteStreamController } = await import("../modules/remote_stream_controller.js");
 
-    const schedulePeakOverlay = vi.fn();
+    const appendLiveFrame = vi.fn(() => ({ appended: true, rendered: true }));
+    const updateLiveHistoryEntry = vi.fn();
     const applyExternalFrame = vi.fn();
-    const analysisState = {
-      externalPeakSets: [
-        { name: "stale", color: "#4aa3ff", style: "", points: [{ x: 1, y: 2, intensity: 3 }] },
-      ],
-    };
     const state = {
       autoload: {
         remoteSourceId: "default",
         lastRemoteSeq: 1,
         remoteMeta: {},
+        livePaused: false,
         lastUpdate: 0,
       },
     };
     const controller = createRemoteStreamController({
       apiBase: "/api",
       state,
-      analysisState,
       callbacks: {
         setAutoloadStatus: vi.fn(),
         updateLiveBadge: vi.fn(),
         updateAutoloadMeta: vi.fn(),
-        schedulePeakOverlay,
-        updateRemoteMetaUI: vi.fn(),
-        updateJfjochMetaUI: vi.fn(),
         startJfjochPreviewBridge: vi.fn(),
         fetchJfjochPreviewStatus: vi.fn(),
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint16Array(buffer),
-        applyRemoteMeta: () => ({
-          seq: 2,
-          displayName: "",
-          series: "12",
-          image: "34",
-          date: "2026-03-24T12:00:00Z",
+        parseRemoteMeta: () => ({
+          analysis: {},
+          meta: {
+            seq: 2,
+            displayName: "",
+            series: "12",
+            image: "34",
+            date: "2026-03-24T12:00:00Z",
+          },
         }),
+        createLiveSourceSnapshot: vi.fn((value) => value),
+        applyLiveSourceSnapshot: vi.fn(),
+        appendLiveFrame,
+        updateLiveHistoryEntry,
+        resetLiveHistory: vi.fn(),
         applyExternalFrame,
       },
     });
 
     await controller.autoloadRemoteTick();
 
-    expect(applyExternalFrame).toHaveBeenCalledTimes(1);
-    expect(analysisState.externalPeakSets).toEqual([]);
+    expect(appendLiveFrame).toHaveBeenCalledTimes(1);
+    expect(applyExternalFrame).not.toHaveBeenCalled();
     expect(state.autoload.lastRemoteSeq).toBe(2);
-    expect(schedulePeakOverlay).toHaveBeenCalled();
+    expect(updateLiveHistoryEntry).toHaveBeenCalledTimes(1);
     expect(controller).toBeTruthy();
+  });
+
+  it("drops an in-flight remote frame when live browsing is paused", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock(
+      {
+        en: {
+          "autoload.status.remote.updated": "Updated",
+          "autoload.status.remote.waiting": "Waiting",
+          "autoload.status.remote.error": "Error",
+          "source.label.remote_stream_with_seq": "Remote {{sourceId}}{{seqSuffix}}",
+        },
+      },
+      async (url) => {
+        if (url.includes("/remote/v1/latest")) {
+          return {
+            ok: true,
+            status: 200,
+            headers: createHeaders({
+              "X-Dtype": "<u2",
+              "X-Shape": "1,1",
+            }),
+            arrayBuffer: async () => new Uint16Array([9]).buffer,
+          };
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      },
+    );
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createRemoteStreamController } = await import("../modules/remote_stream_controller.js");
+
+    const appendLiveFrame = vi.fn(() => ({ appended: true, rendered: true }));
+    const updateLiveBadge = vi.fn();
+    const state = {
+      autoload: {
+        remoteSourceId: "default",
+        lastRemoteSeq: 1,
+        remoteMeta: {},
+        livePaused: true,
+        lastUpdate: 0,
+      },
+    };
+    const controller = createRemoteStreamController({
+      apiBase: "/api",
+      state,
+      callbacks: {
+        setAutoloadStatus: vi.fn(),
+        updateLiveBadge,
+        updateAutoloadMeta: vi.fn(),
+        startJfjochPreviewBridge: vi.fn(),
+        fetchJfjochPreviewStatus: vi.fn(),
+        parseDtype: (value) => value,
+        parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
+        typedArrayFrom: (buffer) => new Uint16Array(buffer),
+        parseRemoteMeta: () => ({
+          analysis: {},
+          meta: {
+            seq: 2,
+            displayName: "",
+            series: "12",
+            image: "34",
+            date: "2026-03-24T12:00:00Z",
+          },
+        }),
+        createLiveSourceSnapshot: vi.fn((value) => value),
+        applyLiveSourceSnapshot: vi.fn(),
+        appendLiveFrame,
+        updateLiveHistoryEntry: vi.fn(),
+        resetLiveHistory: vi.fn(),
+        applyExternalFrame: vi.fn(),
+      },
+    });
+
+    await controller.autoloadRemoteTick();
+
+    expect(appendLiveFrame).not.toHaveBeenCalled();
+    expect(state.autoload.lastRemoteSeq).toBe(1);
+    expect(updateLiveBadge).toHaveBeenCalledTimes(1);
   });
 });

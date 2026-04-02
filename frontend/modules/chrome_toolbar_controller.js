@@ -284,13 +284,16 @@ export function createChromeToolbarController({
           : t("toolbar.datasource.remote");
     const running = Boolean(state.autoload.running);
     const age = Date.now() - (state.autoload.lastUpdate || 0);
-    const stale = running && (!state.autoload.lastUpdate || age > Math.max(1500, state.autoload.interval * 2));
+    const paused = running && state.autoload.livePaused === true;
+    const stale = !paused && running && (!state.autoload.lastUpdate || age > Math.max(1500, state.autoload.interval * 2));
     const streamState = !running
       ? t("toolbar.datasource.state.idle")
+      : paused
+        ? t("toolbar.datasource.state.paused")
       : stale
         ? t("toolbar.datasource.state.waiting")
         : t("toolbar.datasource.state.live");
-    const tone = stale ? "warning" : running ? "active" : "default";
+    const tone = stale || paused ? "warning" : running ? "active" : "default";
     setSummaryChip(dataSourceSummaryEl, `${modeLabel} · ${streamState}`, tone);
   }
 

@@ -38,6 +38,7 @@ export function createAutoloadOrchestrationController({
     setAutoloadStatus,
     setStatus,
     persistAutoloadSettings,
+    resetLiveHistory,
     setSimplonMode,
     fetchSimplonMask,
     updateLiveBadge,
@@ -66,9 +67,11 @@ export function createAutoloadOrchestrationController({
     state.autoload.running = false;
     state.autoload.busy = false;
     state.autoload.autoStart = keepMode ? state.autoload.autoStart : false;
+    state.autoload.livePaused = false;
     if (!keepMode) {
       state.autoload.mode = "file";
     }
+    resetLiveHistory?.();
     if (previousMode === "remote") {
       state.autoload.remoteMeta = {};
       state.autoload.lastRemoteSeq = 0;
@@ -141,7 +144,9 @@ export function createAutoloadOrchestrationController({
     state.autoload.remoteMeta = {};
     state.autoload.jfjochMeta = {};
     state.autoload.jfjochStatus = {};
+    state.autoload.livePaused = false;
     analysisState.externalPeakSets = [];
+    resetLiveHistory?.();
     updateAutoloadUI();
     updateAutoloadMeta();
     setAutoloadStatus(
@@ -183,6 +188,7 @@ export function createAutoloadOrchestrationController({
 
   async function autoloadTick() {
     if (!state.autoload.running || state.autoload.busy) return;
+    if (state.autoload.livePaused) return;
     if (state.isLoading) return;
     state.autoload.busy = true;
     state.autoload.lastPoll = Date.now();

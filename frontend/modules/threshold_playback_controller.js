@@ -2,6 +2,8 @@
  * Threshold selector and playback-control UI state.
  */
 
+import { t } from "./i18n.js";
+
 export function createThresholdPlaybackController({
   state,
   constants,
@@ -163,12 +165,43 @@ export function createThresholdPlaybackController({
   }
 
   function updatePlayButtons() {
+    const liveMode =
+      state.autoload.mode === "simplon" ||
+      state.autoload.mode === "remote" ||
+      state.autoload.mode === "jungfraujoch";
+    const liveHistoryLength = Array.isArray(state.autoload.historyEntries) ? state.autoload.historyEntries.length : 0;
+    const liveHistoryActive = liveMode && liveHistoryLength > 0;
+    if (liveHistoryActive) {
+      const livePaused = state.autoload.livePaused === true;
+      const currentIndex = Math.max(0, Math.min(liveHistoryLength - 1, Number(state.frameIndex) || 0));
+      if (playBtn) {
+        playBtn.classList.toggle("is-active", !livePaused);
+        playBtn.disabled = false;
+        if (!livePaused) {
+          playBtn.textContent = t("backend.live.stop");
+          playBtn.setAttribute("aria-label", t("toolbar.play.stop_live_aria"));
+          playBtn.title = t("toolbar.play.stop_live_title");
+          playBtn.dataset.help = t("hint.frame.stop_live");
+        } else {
+          playBtn.textContent = t("backend.live.live");
+          playBtn.setAttribute("aria-label", t("toolbar.play.go_live_aria"));
+          playBtn.title = t("toolbar.play.go_live_title");
+          playBtn.dataset.help = t("hint.frame.go_live");
+        }
+      }
+      if (prevBtn) prevBtn.disabled = liveHistoryLength <= 1 || currentIndex <= 0;
+      if (nextBtn) nextBtn.disabled = liveHistoryLength <= 1 || currentIndex >= liveHistoryLength - 1;
+      return;
+    }
     const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
     const disabled = !state.file || (!state.dataset && !hasSeries) || state.frameCount <= 1;
     if (playBtn) {
       playBtn.classList.toggle("is-active", state.playing);
       playBtn.disabled = disabled;
       playBtn.textContent = state.playing ? "⏸" : "⏯";
+      playBtn.setAttribute("aria-label", t("toolbar.play.toggle"));
+      playBtn.title = "";
+      playBtn.dataset.help = t("hint.frame.play_pause");
     }
     if (prevBtn) prevBtn.disabled = disabled;
     if (nextBtn) nextBtn.disabled = disabled;

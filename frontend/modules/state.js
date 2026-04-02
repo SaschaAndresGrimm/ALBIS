@@ -184,6 +184,12 @@ function createAutoloadState() {
     lastJfjochSeq: 0,
     lastMaskAttempt: 0,
     simplonMeta: {},
+    historyEntries: [],
+    historyCapacity: 8,
+    historyCursor: 0,
+    followingLatest: true,
+    livePaused: false,
+    pendingNewFrames: 0,
   };
 }
 

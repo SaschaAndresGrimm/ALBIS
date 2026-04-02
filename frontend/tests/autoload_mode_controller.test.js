@@ -85,10 +85,11 @@ describe("autoload_mode_controller", () => {
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
         hashBufferSample: vi.fn(),
-        applySimplonMeta: vi.fn(),
+        parseSimplonMeta: vi.fn(() => ({ analysis: {}, meta: {} })),
+        createLiveSourceSnapshot: vi.fn((value) => value),
+        appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
         logClient: vi.fn(),
         formatSimplonTimestamp: vi.fn(),
-        applyExternalFrame: vi.fn(),
         updateLiveBadge: vi.fn(),
       },
     });
@@ -99,5 +100,191 @@ describe("autoload_mode_controller", () => {
     expect(state.autoload.lastMtime).toBe(100);
     expect(updateAutoloadMeta).not.toHaveBeenCalled();
     expect(setAutoloadStatus).toHaveBeenCalledWith("Watch error");
+  });
+
+  it("does not append duplicate SIMPLON frames when the monitor hash stays the same", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock(
+      {
+        en: {
+          "autoload.status.simplon.updated": "Updated",
+          "autoload.status.simplon.no_frame": "No frame",
+          "autoload.status.simplon.error": "Error",
+          "autoload.status.simplon.set_base_url": "Set URL",
+          "source.label.simplon_monitor": "SIMPLON monitor",
+        },
+      },
+      async (url) => {
+        if (url.includes("/simplon/monitor")) {
+          return {
+            ok: true,
+            status: 200,
+            headers: {
+              get(name) {
+                const values = {
+                  "X-Dtype": "<u2",
+                  "X-Shape": "1,1",
+                  "X-Simplon-Series": "7",
+                  "X-Simplon-Image": "8",
+                  "X-Simplon-Date": "2026-04-02T12:00:00Z",
+                };
+                return values[name] ?? null;
+              },
+              entries() {
+                return [
+                  ["X-Dtype", "<u2"],
+                  ["X-Shape", "1,1"],
+                ][Symbol.iterator]();
+              },
+            },
+            arrayBuffer: async () => new Uint16Array([5]).buffer,
+          };
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      },
+    );
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAutoloadModeController } = await import("../modules/autoload_mode_controller.js");
+
+    const appendLiveFrame = vi.fn(() => ({ appended: true, rendered: true }));
+    const updateAutoloadMeta = vi.fn();
+    const state = {
+      maskAvailable: true,
+      autoload: {
+        simplonUrl: "http://simplon.example",
+        simplonVersion: "1.8.0",
+        simplonTimeout: 500,
+        simplonEnable: true,
+        livePaused: false,
+        lastMaskAttempt: 0,
+        lastMonitorSig: "",
+        lastUpdate: 0,
+      },
+    };
+    const controller = createAutoloadModeController({
+      apiBase: "/api",
+      state,
+      callbacks: {
+        setAutoloadStatus: vi.fn(),
+        setAutoloadLatest: vi.fn(),
+        updateAutoloadMeta,
+        loadAutoloadFile: vi.fn(),
+        fetchSimplonMask: vi.fn(),
+        parseDtype: (value) => value,
+        parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
+        typedArrayFrom: (buffer) => new Uint16Array(buffer),
+        hashBufferSample: vi.fn(() => "same-hash"),
+        parseSimplonMeta: vi.fn(() => ({
+          analysis: {},
+          meta: { series: "7", image: "8", date: "2026-04-02T12:00:00Z" },
+        })),
+        createLiveSourceSnapshot: vi.fn((value) => value),
+        appendLiveFrame,
+        logClient: vi.fn(),
+        formatSimplonTimestamp: vi.fn(() => "12:00"),
+        updateLiveBadge: vi.fn(),
+      },
+    });
+
+    await controller.autoloadSimplonTick();
+    await controller.autoloadSimplonTick();
+
+    expect(appendLiveFrame).toHaveBeenCalledTimes(1);
+    expect(updateAutoloadMeta).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops an in-flight SIMPLON frame when live browsing is paused", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock(
+      {
+        en: {
+          "autoload.status.simplon.updated": "Updated",
+          "autoload.status.simplon.no_frame": "No frame",
+          "autoload.status.simplon.error": "Error",
+          "autoload.status.simplon.set_base_url": "Set URL",
+          "source.label.simplon_monitor": "SIMPLON monitor",
+        },
+      },
+      async (url) => {
+        if (url.includes("/simplon/monitor")) {
+          return {
+            ok: true,
+            status: 200,
+            headers: {
+              get(name) {
+                const values = {
+                  "X-Dtype": "<u2",
+                  "X-Shape": "1,1",
+                  "X-Simplon-Series": "7",
+                  "X-Simplon-Image": "8",
+                  "X-Simplon-Date": "2026-04-02T12:00:00Z",
+                };
+                return values[name] ?? null;
+              },
+              entries() {
+                return [
+                  ["X-Dtype", "<u2"],
+                  ["X-Shape", "1,1"],
+                ][Symbol.iterator]();
+              },
+            },
+            arrayBuffer: async () => new Uint16Array([5]).buffer,
+          };
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      },
+    );
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAutoloadModeController } = await import("../modules/autoload_mode_controller.js");
+
+    const appendLiveFrame = vi.fn(() => ({ appended: true, rendered: true }));
+    const updateAutoloadMeta = vi.fn();
+    const updateLiveBadge = vi.fn();
+    const state = {
+      maskAvailable: true,
+      autoload: {
+        simplonUrl: "http://simplon.example",
+        simplonVersion: "1.8.0",
+        simplonTimeout: 500,
+        simplonEnable: true,
+        livePaused: true,
+        lastMaskAttempt: 0,
+        lastMonitorSig: "",
+        lastUpdate: 0,
+      },
+    };
+    const controller = createAutoloadModeController({
+      apiBase: "/api",
+      state,
+      callbacks: {
+        setAutoloadStatus: vi.fn(),
+        setAutoloadLatest: vi.fn(),
+        updateAutoloadMeta,
+        loadAutoloadFile: vi.fn(),
+        fetchSimplonMask: vi.fn(),
+        parseDtype: (value) => value,
+        parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
+        typedArrayFrom: (buffer) => new Uint16Array(buffer),
+        hashBufferSample: vi.fn(() => "new-hash"),
+        parseSimplonMeta: vi.fn(() => ({
+          analysis: {},
+          meta: { series: "7", image: "8", date: "2026-04-02T12:00:00Z" },
+        })),
+        createLiveSourceSnapshot: vi.fn((value) => value),
+        appendLiveFrame,
+        logClient: vi.fn(),
+        formatSimplonTimestamp: vi.fn(() => "12:00"),
+        updateLiveBadge,
+      },
+    });
+
+    await controller.autoloadSimplonTick();
+
+    expect(appendLiveFrame).not.toHaveBeenCalled();
+    expect(updateAutoloadMeta).not.toHaveBeenCalled();
+    expect(state.autoload.lastMonitorSig).toBe("");
+    expect(updateLiveBadge).toHaveBeenCalledTimes(1);
   });
 });

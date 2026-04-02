@@ -27,6 +27,8 @@ export function createAutoloadSettingsController({
     toolbarStepWrap,
     toolbarFpsWrap,
     toolbarPlaybackWrap,
+    toolbarMoreStepField,
+    toolbarMoreFpsField,
     autoloadStatus,
     simplonMetaPanel,
     remoteMetaPanel,
@@ -62,6 +64,7 @@ export function createAutoloadSettingsController({
     setDataSourceSectionState,
     setAutoloadStatus,
     setAutoloadLatest,
+    updatePlayButtons,
     startAutoload,
   } = callbacks;
 
@@ -116,9 +119,11 @@ export function createAutoloadSettingsController({
     if (fileField) fileField.classList.toggle("is-hidden", hideDatasetUi);
     if (datasetField) datasetField.classList.toggle("is-hidden", hideDatasetUi);
     if (thresholdField) thresholdField.classList.toggle("is-hidden", hideDatasetUi);
+    const liveHistoryLength = Array.isArray(state.autoload.historyEntries) ? state.autoload.historyEntries.length : 0;
+    const showFrameControls = state.autoload.mode === "file" || liveHistoryLength > 1;
     const showPlaybackControls = state.autoload.mode === "file";
-    if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", !showPlaybackControls);
-    if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", !showPlaybackControls);
+    if (toolbarFrameWrap) toolbarFrameWrap.classList.toggle("is-hidden", !showFrameControls);
+    if (toolbarFrameIndexWrap) toolbarFrameIndexWrap.classList.toggle("is-hidden", !showFrameControls);
     if (toolbarStepWrap) toolbarStepWrap.classList.toggle("is-hidden", !showPlaybackControls);
     if (toolbarFpsWrap) toolbarFpsWrap.classList.toggle("is-hidden", !showPlaybackControls);
     if (toolbarPlaybackWrap) {
@@ -127,6 +132,8 @@ export function createAutoloadSettingsController({
         closeToolbarPlaybackPopover();
       }
     }
+    if (toolbarMoreStepField) toolbarMoreStepField.classList.toggle("is-hidden", !showPlaybackControls);
+    if (toolbarMoreFpsField) toolbarMoreFpsField.classList.toggle("is-hidden", !showPlaybackControls);
     if (autoloadStatus) {
       const meta = autoloadStatus.closest(".autoload-meta");
       if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file" && !state.autoload.watchEnabled);
@@ -152,6 +159,7 @@ export function createAutoloadSettingsController({
     updateAutoloadMeta();
     updateLiveBadge();
     updateThresholdOptions();
+    updatePlayButtons();
     updateDataSourceSummary();
     if (state.autoload.mode === "file") {
       setDataSourceSectionState(

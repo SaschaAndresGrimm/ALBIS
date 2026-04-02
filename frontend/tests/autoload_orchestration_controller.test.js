@@ -14,6 +14,7 @@ describe("autoload_orchestration_controller", () => {
         busy: false,
         mode: "file",
         watchEnabled: true,
+        livePaused: false,
         lastPoll: 0,
       },
     };
@@ -29,6 +30,7 @@ describe("autoload_orchestration_controller", () => {
         setAutoloadStatus: vi.fn(),
         setStatus: vi.fn(),
         persistAutoloadSettings: vi.fn(),
+        resetLiveHistory: vi.fn(),
         setSimplonMode: vi.fn(async () => {}),
         fetchSimplonMask: vi.fn(async () => {}),
         updateLiveBadge: vi.fn(),
@@ -46,6 +48,57 @@ describe("autoload_orchestration_controller", () => {
     await controller.autoloadTick();
 
     expect(autoloadWatchTick).not.toHaveBeenCalled();
+    expect(state.autoload.busy).toBe(false);
+    expect(state.autoload.lastPoll).toBe(0);
+  });
+
+  it("does not poll live sources while live browsing is paused", async () => {
+    const { createAutoloadOrchestrationController } = await import(
+      "../modules/autoload_orchestration_controller.js"
+    );
+
+    const autoloadRemoteTick = vi.fn(async () => {});
+    const state = {
+      isLoading: false,
+      autoload: {
+        running: true,
+        busy: false,
+        mode: "remote",
+        watchEnabled: false,
+        livePaused: true,
+        lastPoll: 0,
+      },
+    };
+    const controller = createAutoloadOrchestrationController({
+      state,
+      analysisState: {
+        externalPeakSets: [],
+      },
+      elements: {},
+      callbacks: {
+        updateAutoloadUI: vi.fn(),
+        updateAutoloadMeta: vi.fn(),
+        setAutoloadStatus: vi.fn(),
+        setStatus: vi.fn(),
+        persistAutoloadSettings: vi.fn(),
+        resetLiveHistory: vi.fn(),
+        setSimplonMode: vi.fn(async () => {}),
+        fetchSimplonMask: vi.fn(async () => {}),
+        updateLiveBadge: vi.fn(),
+        stopJfjochPreviewBridge: vi.fn(async () => {}),
+        updateRemoteMetaUI: vi.fn(),
+        updateJfjochMetaUI: vi.fn(),
+        schedulePeakOverlay: vi.fn(),
+        autoloadWatchTick: vi.fn(async () => {}),
+        autoloadSimplonTick: vi.fn(async () => {}),
+        autoloadJfjochTick: vi.fn(async () => {}),
+        autoloadRemoteTick,
+      },
+    });
+
+    await controller.autoloadTick();
+
+    expect(autoloadRemoteTick).not.toHaveBeenCalled();
     expect(state.autoload.busy).toBe(false);
     expect(state.autoload.lastPoll).toBe(0);
   });

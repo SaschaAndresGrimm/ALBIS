@@ -835,6 +835,15 @@ body {
   box-shadow: 0 0 6px rgba(224, 178, 74, 0.7);
 }
 
+.live-badge.is-paused {
+  color: #d7e1ef;
+}
+
+.live-badge.is-paused::before {
+  background: #9fb0c9;
+  box-shadow: 0 0 6px rgba(159, 176, 201, 0.55);
+}
+
 .live-badge[aria-hidden="true"] {
   display: none;
 }
