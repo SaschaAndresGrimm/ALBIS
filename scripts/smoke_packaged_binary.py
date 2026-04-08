@@ -36,6 +36,22 @@ def _wait_for_health(url: str, timeout_sec: float) -> None:
     raise TimeoutError(f"Timed out waiting for {url}.{detail}")
 
 
+def _assert_http_asset(
+    url: str, *, expected_content_type_substring: str, timeout_sec: float
+) -> None:
+    with urllib.request.urlopen(url, timeout=timeout_sec) as response:
+        if response.status != 200:
+            raise RuntimeError(f"Unexpected HTTP status {response.status} for {url}")
+        content_type = response.headers.get("Content-Type", "")
+        if expected_content_type_substring not in content_type:
+            raise RuntimeError(
+                f"Unexpected Content-Type for {url}: {content_type!r};"
+                f" expected substring {expected_content_type_substring!r}"
+            )
+        if not response.read(256):
+            raise RuntimeError(f"Empty response body for {url}")
+
+
 def _terminate_process(proc: subprocess.Popen[str], timeout_sec: float) -> None:
     if proc.poll() is not None:
         return
@@ -93,6 +109,16 @@ def run_smoke(binary_path: Path, startup_timeout_sec: float, stop_timeout_sec: f
             if proc.poll() is not None:
                 raise RuntimeError(f"Process exited early with code {proc.returncode}.")
             _wait_for_health(f"http://127.0.0.1:{port}/api/health", startup_timeout_sec)
+            _assert_http_asset(
+                f"http://127.0.0.1:{port}/",
+                expected_content_type_substring="text/html",
+                timeout_sec=1.5,
+            )
+            _assert_http_asset(
+                f"http://127.0.0.1:{port}/app.js",
+                expected_content_type_substring="javascript",
+                timeout_sec=1.5,
+            )
         finally:
             _terminate_process(proc, stop_timeout_sec)
 

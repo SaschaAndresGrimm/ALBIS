@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import errno
 import json
+import mimetypes
 import tempfile
 import uuid
 from pathlib import Path
@@ -10,7 +11,7 @@ from pathlib import Path
 import numpy as np
 from fastapi.testclient import TestClient
 
-from backend.app import ALBIS_VERSION, LOG_PATH, app
+from backend.app import ALBIS_VERSION, LOG_PATH, _register_static_mime_types, app
 
 
 def test_health_endpoint() -> None:
@@ -20,6 +21,19 @@ def test_health_endpoint() -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["version"] == ALBIS_VERSION
+
+
+def test_frontend_module_entrypoint_is_served_as_javascript() -> None:
+    mimetypes.add_type("text/plain", ".js", strict=True)
+    _register_static_mime_types()
+
+    client = TestClient(app)
+    response = client.get("/app.js")
+
+    assert response.status_code == 200
+    assert "javascript" in response.headers["content-type"]
+    assert response.headers["cache-control"] == "no-store"
+    assert 'from "./modules/http.js"' in response.text
 
 
 def test_open_log_endpoint_returns_backend_log_path() -> None:

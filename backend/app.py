@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import fnmatch
 import logging
+import mimetypes
 import os
 import sys
 import tempfile
@@ -219,6 +220,16 @@ class RuntimeState:
 runtime_state = RuntimeState(config=CONFIG, config_path=CONFIG_PATH, data_dir=DATA_DIR)
 runtime_state.apply_config(CONFIG)
 
+
+def _register_static_mime_types() -> None:
+    """Pin frontend MIME types so static serving stays stable across platforms."""
+    mimetypes.add_type("application/javascript", ".js", strict=True)
+    mimetypes.add_type("application/javascript", ".mjs", strict=True)
+    mimetypes.add_type("text/css", ".css", strict=True)
+
+
+_register_static_mime_types()
+
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
 AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}
@@ -301,6 +312,14 @@ async def _lifespan(_app: FastAPI):
         pid = os.getpid()
         logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
         logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
+        logger.info(
+            "ALBIS frontend root (pid=%s): %s [index=%s app.js=%s js-mime=%s]",
+            pid,
+            STATIC_DIR,
+            (STATIC_DIR / "index.html").exists(),
+            (STATIC_DIR / "app.js").exists(),
+            mimetypes.guess_type("app.js")[0],
+        )
     try:
         yield
     finally:
