@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-04-08
+
+### Fixed
+
+- Fixed Windows native file picking in packaged builds by switching the local picker path from Tk to a PowerShell/WinForms dialog that does not fail in FastAPI worker threads.
+- Fixed repeated Open File clicks from launching overlapping picker requests while the first picker is still active.
+
+### Notes
+
+- This release is called: "Pick Me, Maybe."
+- This release is called: "Less fallback browser, more actual file picker."
+
 ## [0.9.5] - 2026-04-08
 
 ### Added
@@ -314,7 +326,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.5...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.6...HEAD
+[0.9.6]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.6
 [0.9.5]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.5
 [0.9.4]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.4
 [0.9.3]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.3

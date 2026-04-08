@@ -33,6 +33,8 @@ export function createFileOpenController({
     openFileDialog,
   } = callbacks;
 
+  let openFileModalPromise = null;
+
   async function openPathInViewer(path, { refreshFileList = true } = {}) {
     if (!path) return;
     const folder = dirnameFromPath(path);
@@ -59,7 +61,7 @@ export function createFileOpenController({
     }
   }
 
-  async function openFileModal() {
+  async function runOpenFileModal() {
     closeMenu();
     await ensureFileMode();
 
@@ -108,6 +110,20 @@ export function createFileOpenController({
       fileInput.multiple = true;
     }
     fileInput?.click();
+  }
+
+  async function openFileModal() {
+    if (openFileModalPromise) {
+      return openFileModalPromise;
+    }
+    openFileModalPromise = (async () => {
+      try {
+        await runOpenFileModal();
+      } finally {
+        openFileModalPromise = null;
+      }
+    })();
+    return openFileModalPromise;
   }
 
   return {

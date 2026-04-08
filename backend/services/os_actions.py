@@ -95,6 +95,80 @@ def _picker_patterns(exts: tuple[str, ...]) -> tuple[str, str]:
     return " ".join(suffixes), label_text
 
 
+def _powershell_single_quote(text: str) -> str:
+    return text.replace("'", "''")
+
+
+def _windows_dialog_runner(script: str) -> str | None:
+    shell = shutil.which("powershell") or shutil.which("pwsh")
+    if not shell:
+        raise RuntimeError("No supported Windows file dialog found (PowerShell unavailable)")
+    result = subprocess.run(
+        [shell, "-NoProfile", "-NonInteractive", "-STA", "-Command", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    if result.returncode == 0:
+        picked = result.stdout.strip()
+        return picked or None
+    detail = (result.stderr or "").strip() or (result.stdout or "").strip() or "Windows dialog failed"
+    raise RuntimeError(detail)
+
+
+def _windows_picker_filter(exts: tuple[str, ...]) -> str:
+    patterns = []
+    labels = []
+    for ext in exts:
+        if ext == ".cbf.gz":
+            patterns.append("*.cbf.gz")
+        else:
+            patterns.append(f"*{ext}")
+        labels.append(ext.lstrip("."))
+    pattern_text = ";".join(patterns) if patterns else "*.*"
+    label_text = ", ".join(labels) if labels else "files"
+    return f"{label_text} ({pattern_text})|{pattern_text}|All files (*.*)|*.*"
+
+
+def _windows_choose_folder() -> str | None:
+    script = """
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.Application]::EnableVisualStyles()
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = 'Select Auto Load folder'
+$dialog.ShowNewFolderButton = $false
+$result = $dialog.ShowDialog()
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+  [Console]::Write($dialog.SelectedPath)
+}
+""".strip()
+    return _windows_dialog_runner(script)
+
+
+def _windows_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
+    escaped_prompt = _powershell_single_quote(prompt)
+    escaped_filter = _powershell_single_quote(_windows_picker_filter(exts))
+    script = f"""
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.Application]::EnableVisualStyles()
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = '{escaped_prompt}'
+$dialog.Filter = '{escaped_filter}'
+$dialog.FilterIndex = 1
+$dialog.Multiselect = $false
+$dialog.CheckFileExists = $true
+$dialog.RestoreDirectory = $true
+$result = $dialog.ShowDialog()
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
+  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+  [Console]::Write($dialog.FileName)
+}}
+""".strip()
+    return _windows_dialog_runner(script)
+
+
 def _linux_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
     if not _display_available():
         raise RuntimeError("No graphical display available")
@@ -165,6 +239,8 @@ def _tk_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
 
 def choose_folder() -> str | None:
     system = platform.system()
+    if system == "Windows":
+        return _windows_choose_folder()
     if system == "Darwin":
         script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
         result = subprocess.run(
@@ -188,6 +264,8 @@ def choose_file(
 ) -> str | None:
     normalized_exts = _normalize_picker_exts(exts)
     system = platform.system()
+    if system == "Windows":
+        return _windows_choose_file(normalized_exts, prompt)
     if system == "Darwin":
         escaped_prompt = prompt.replace('"', '\\"')
         if normalized_exts == (".expt",):
