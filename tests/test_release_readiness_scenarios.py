@@ -326,6 +326,18 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"{\\"status\\": \\"ok\\"}")
             return
+        if self.path == "/":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"<!doctype html><html><body>dummy</body></html>")
+            return
+        if self.path == "/app.js":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"console.log('dummy albis');")
+            return
         self.send_response(404)
         self.end_headers()
 

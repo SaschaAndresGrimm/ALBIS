@@ -7,6 +7,31 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-04-08
+
+### Added
+
+- Added pauseable live history for live sources so recent frames can be inspected without immediately snapping back to the newest image.
+- Added a confirmation step before enabling external access from the settings dialog.
+- Added packaged-binary smoke coverage that verifies the frontend module entrypoint is served as JavaScript.
+
+### Changed
+
+- Hardened backend shared-state services and root-scan cache startup behavior for more predictable runtime state.
+- Tightened live-frame loading, playback, and autoload orchestration for live sources.
+- Updated Vitest to `4.1.2` and refreshed desktop platform support documentation.
+
+### Fixed
+
+- Fixed Windows packaged builds that could open the browser window but leave the UI inert because `app.js` was served with the wrong MIME type.
+- Fixed summed-output frame status handling and root scan cache warm-start behavior.
+- Fixed the release checklist coverage command so the documented pytest invocation matches the enforced CI gate.
+
+### Notes
+
+- This release is called: "Pause, Breathe, Keep Scrolling."
+- This release is called: "Same live stream, fewer mysteries, zero dead buttons."
+
 ## [0.9.4] - 2026-03-26
 
 ### Changed
@@ -289,7 +314,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.4...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.5...HEAD
+[0.9.5]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.5
 [0.9.4]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.4
 [0.9.3]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.3
 [0.9.2]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.2
