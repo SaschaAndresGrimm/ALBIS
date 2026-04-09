@@ -50,6 +50,14 @@ if (-not $uninstaller) {
   throw "Uninstaller not found in $installDir"
 }
 
+if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64)) {
+  $uninstallerSig = Get-AuthenticodeSignature $uninstaller.FullName
+  Write-Host "Uninstaller signature status: $($uninstallerSig.Status)"
+  if ($uninstallerSig.Status -ne "Valid") {
+    throw "Expected signed uninstaller, got status $($uninstallerSig.Status)"
+  }
+}
+
 $uninstallProcess = Start-Process -FilePath $uninstaller.FullName -ArgumentList @(
   "/VERYSILENT"
   "/SUPPRESSMSGBOXES"

@@ -1,5 +1,10 @@
 [Setup]
 AppName=ALBIS
+AppId=ALBIS
+AppPublisher=Sascha Grimm
+AppPublisherURL=https://github.com/SaschaAndresGrimm/ALBIS
+AppSupportURL=https://github.com/SaschaAndresGrimm/ALBIS/issues
+AppUpdatesURL=https://github.com/SaschaAndresGrimm/ALBIS/releases
 #ifndef AppVersion
 #define AppVersion "0.0.0"
 #endif
@@ -12,6 +17,7 @@ DisableDirPage=no
 #ifexist "..\dist\ALBIS.ico"
 SetupIconFile=..\dist\ALBIS.ico
 #endif
+UninstallDisplayIcon={app}\ALBIS.exe
 OutputDir=..\dist
 #ifndef OutputBaseFilename
 #define OutputBaseFilename "ALBIS-Setup"
@@ -21,6 +27,10 @@ Compression=lzma
 SolidCompression=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+#ifdef WindowsSigningEnabled
+SignTool=albis_sign
+SignedUninstaller=yes
+#endif
 
 [Files]
 Source: "..\dist\ALBIS\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs

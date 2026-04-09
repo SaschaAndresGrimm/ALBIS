@@ -215,6 +215,7 @@ Public tag releases require the following signing/notarization environment varia
   - optional: `MACOS_SIGNING_IDENTITY` to force a specific imported identity; otherwise the first Developer ID identity from the `.p12` is used
   - `MACOS_SIGN_CERT_B64` should contain the base64-encoded `.p12` payload
 - Windows: `WINDOWS_SIGN_CERT_B64`, `WINDOWS_SIGN_CERT_PASSWORD`, `WINDOWS_SIGN_TIMESTAMP_URL`
+  - when configured, the Windows pipeline signs `dist/ALBIS/ALBIS.exe`, the setup `.exe`, and the generated `unins*.exe`
 - Linux (GPG detached signatures): `LINUX_GPG_PRIVATE_KEY_B64`, `LINUX_GPG_PASSPHRASE`, `LINUX_GPG_KEY_ID`
   - `LINUX_GPG_PRIVATE_KEY_B64` accepts base64-encoded private key data (recommended), a raw ASCII-armored private key block, or an escaped armored block using `\n`.
 
@@ -237,6 +238,7 @@ The Inno installer creates Start Menu entries for:
 Installer defaults:
 - Per-user install scope under `%LOCALAPPDATA%\Programs\ALBIS`.
 - Interactive installs show the standard Inno Setup destination page, so users can choose a custom install directory.
+- Windows Add/Remove Programs uses the stable `AppId=ALBIS`, shows the ALBIS icon, and links support/updates to the GitHub project.
 - No admin rights required (`PrivilegesRequired=lowest`).
 - Portable `.zip` remains available from local builds and the `Build Artifacts` workflow.
 

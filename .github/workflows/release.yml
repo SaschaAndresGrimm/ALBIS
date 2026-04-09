@@ -270,15 +270,6 @@ jobs:
         shell: pwsh
         run: .\scripts\package_windows_innosetup.ps1
 
-      - name: Sign installer
-        shell: pwsh
-        run: |
-          $installer = Get-ChildItem dist -File -Filter "ALBIS-Setup-${{ matrix.target }}-*.exe" | Select-Object -First 1
-          if (-not $installer) {
-            throw "Missing installer for ${{ matrix.target }}"
-          }
-          .\scripts\sign_windows.ps1 -Files @($installer.FullName)
-
       - name: Smoke test installer-installed binary
         shell: pwsh
         run: |
