@@ -236,6 +236,7 @@ The Inno installer creates Start Menu entries for:
 
 Installer defaults:
 - Per-user install scope under `%LOCALAPPDATA%\Programs\ALBIS`.
+- Interactive installs show the standard Inno Setup destination page, so users can choose a custom install directory.
 - No admin rights required (`PrivilegesRequired=lowest`).
 - Portable `.zip` remains available from local builds and the `Build Artifacts` workflow.
 

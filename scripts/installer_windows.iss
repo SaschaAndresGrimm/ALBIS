@@ -6,6 +6,9 @@ AppName=ALBIS
 AppVersion={#AppVersion}
 DefaultDirName={localappdata}\Programs\ALBIS
 DefaultGroupName=ALBIS
+; Always show the standard destination page so users can override the
+; per-user default path without adding custom wizard code.
+DisableDirPage=no
 #ifexist "..\dist\ALBIS.ico"
 SetupIconFile=..\dist\ALBIS.ico
 #endif
