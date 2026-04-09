@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-04-09
+
+### Changed
+
+- Windows interactive installs now always show the destination page while keeping the default per-user install path.
+- Windows installer metadata now uses a stable `AppId=ALBIS`, adds publisher/support/update links, and shows the ALBIS icon in Add/Remove Programs.
+- Windows packaging now signs the generated Inno uninstaller when signing secrets are configured, and installer smoke coverage verifies that signature before uninstall.
+
 ## [0.9.6] - 2026-04-08
 
 ### Fixed
@@ -326,7 +334,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.6...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.7...HEAD
+[0.9.7]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.7
 [0.9.6]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.6
 [0.9.5]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.5
 [0.9.4]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.4
