@@ -12,7 +12,9 @@ import traceback
 import urllib.error
 import urllib.request
 import webbrowser
+from collections.abc import Callable
 from contextlib import suppress
+from ctypes import wintypes
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -41,6 +43,29 @@ _LAUNCHER_LOG_MAX_BYTES = 1024 * 1024  # 1 MiB
 _LAUNCHER_LOG_BACKUP_COUNT = 1
 _LAUNCHER_LOGGER: logging.Logger | None = None
 _LAUNCHER_LOG_PATH: Path | None = None
+_WINDOWS_APP_MUTEX_NAME = "ALBISAppMutex"
+_WINDOWS_SHUTDOWN_EVENT_NAME = "ALBISShutdownEvent"
+_WINDOWS_WAIT_OBJECT_0 = 0
+_WINDOWS_INFINITE = 0xFFFFFFFF
+_WINDOWS_RUNTIME_HANDLES: list[int] = []
+
+if sys.platform == "win32":
+    import ctypes
+
+    _WINDOWS_KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _WINDOWS_KERNEL32.CreateEventW.argtypes = [
+        wintypes.LPVOID,
+        wintypes.BOOL,
+        wintypes.BOOL,
+        wintypes.LPCWSTR,
+    ]
+    _WINDOWS_KERNEL32.CreateEventW.restype = wintypes.HANDLE
+    _WINDOWS_KERNEL32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+    _WINDOWS_KERNEL32.CreateMutexW.restype = wintypes.HANDLE
+    _WINDOWS_KERNEL32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    _WINDOWS_KERNEL32.WaitForSingleObject.restype = wintypes.DWORD
+else:
+    _WINDOWS_KERNEL32 = None
 
 class _NullStream:
     """Fallback stdio stream for frozen/windowed builds without a console."""
@@ -481,6 +506,41 @@ def _log_macos_event(start: float, message: str) -> None:
     if _MACOS_EVENT_LOGS_ENABLED:
         _launcher_log(start, f"macos event: {message}")
 
+
+def _install_windows_shutdown_listener(start: float, request_shutdown: Callable[[], None]) -> None:
+    if _WINDOWS_KERNEL32 is None:
+        return
+
+    mutex_handle = _WINDOWS_KERNEL32.CreateMutexW(None, False, _WINDOWS_APP_MUTEX_NAME)
+    if not mutex_handle:
+        _launcher_log(start, "failed to create Windows app mutex")
+        return
+    _WINDOWS_RUNTIME_HANDLES.append(int(mutex_handle))
+
+    event_handle = _WINDOWS_KERNEL32.CreateEventW(None, False, False, _WINDOWS_SHUTDOWN_EVENT_NAME)
+    if not event_handle:
+        _launcher_log(start, "failed to create Windows shutdown event")
+        return
+    _WINDOWS_RUNTIME_HANDLES.append(int(event_handle))
+
+    def _wait_for_shutdown_event() -> None:
+        wait_result = _WINDOWS_KERNEL32.WaitForSingleObject(event_handle, _WINDOWS_INFINITE)
+        if wait_result != _WINDOWS_WAIT_OBJECT_0:
+            _launcher_log(start, f"Windows shutdown wait failed: {wait_result}")
+            return
+        _launcher_log(start, "Windows shutdown event received")
+        try:
+            request_shutdown()
+        except Exception as exc:
+            _launcher_log(start, f"Windows shutdown callback failed: {type(exc).__name__}: {exc}")
+
+    listener = threading.Thread(
+        target=_wait_for_shutdown_event,
+        name="albis-windows-shutdown",
+        daemon=True,
+    )
+    listener.start()
+
 def main() -> None:
     global _MACOS_EVENT_LOGS_ENABLED
     _ensure_stdio_streams()
@@ -549,6 +609,15 @@ def main() -> None:
 
     uvicorn_config = uvicorn.Config(asgi_app, host=host, port=port, log_level="info")
     server = uvicorn.Server(uvicorn_config)
+
+    def _request_windows_shutdown() -> None:
+        _update_server_status(host, port, "stopping", source="windows-installer")
+        server.should_exit = True
+
+    _install_windows_shutdown_listener(
+        start_ts,
+        _request_windows_shutdown,
+    )
     _sockets = [bound_sock] if bound_sock is not None else []
     thread = threading.Thread(target=server.run, kwargs={"sockets": _sockets}, daemon=True)
     thread.start()

@@ -14,6 +14,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Windows interactive installs now always show the destination page while keeping the default per-user install path.
 - Windows installer metadata now uses a stable `AppId=ALBIS`, adds publisher/support/update links, and shows the ALBIS icon in Add/Remove Programs.
 - Windows packaging now signs the generated Inno uninstaller when signing secrets are configured, and installer smoke coverage verifies that signature before uninstall.
+- Windows installer and uninstaller now detect running `ALBIS.exe` instances, request a graceful shutdown first, and fall back to `taskkill` so upgrades and uninstall are less likely to fail on the background process.
 
 ## [0.9.6] - 2026-04-08
 

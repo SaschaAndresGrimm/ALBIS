@@ -239,6 +239,7 @@ Installer defaults:
 - Per-user install scope under `%LOCALAPPDATA%\Programs\ALBIS`.
 - Interactive installs show the standard Inno Setup destination page, so users can choose a custom install directory.
 - Windows Add/Remove Programs uses the stable `AppId=ALBIS`, shows the ALBIS icon, and links support/updates to the GitHub project.
+- Installer and uninstaller try to stop a running `ALBIS.exe` gracefully before falling back to forced termination, so upgrades and removals work better for the background-process model.
 - No admin rights required (`PrivilegesRequired=lowest`).
 - Portable `.zip` remains available from local builds and the `Build Artifacts` workflow.
 

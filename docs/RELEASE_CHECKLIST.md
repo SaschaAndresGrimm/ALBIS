@@ -48,7 +48,7 @@ Use this to verify packaging and checks before tagging:
      - `ALBIS-macos-x64-v<version>-<commit>.dmg`
    - Linux tarballs include `v<version>-<commit>`; AppImage assets use the standard `ALBIS-<version>-x86_64*.AppImage` naming expected by AppImageHub.
 4. Confirm install-path smoke checks passed:
-   - Windows installer silent install -> launch -> verify signed uninstaller when Windows signing is configured -> uninstall
+   - Windows installer silent install -> launch -> reinstall while `ALBIS.exe` is running -> verify signed uninstaller when Windows signing is configured -> uninstall while `ALBIS.exe` is running
    - macOS mounted DMG app launch smoke
 5. If macOS signing secrets were configured, confirm the workflow logs show `.app` signing, `.dmg` signing, and notarization/stapling.
 
