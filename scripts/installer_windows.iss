@@ -90,17 +90,25 @@ end;
 
 function WaitForAlbisExit(TimeoutMs: Integer): Boolean;
 var
-  StartTick: Cardinal;
+  PollCount: Integer;
+  PollIndex: Integer;
 begin
-  StartTick := GetTickCount();
-  repeat
+  PollCount := TimeoutMs div AlbisShutdownPollIntervalMs;
+  if (TimeoutMs mod AlbisShutdownPollIntervalMs) <> 0 then
+    PollCount := PollCount + 1;
+  if PollCount < 1 then
+    PollCount := 1;
+
+  for PollIndex := 0 to PollCount - 1 do
+  begin
     if (not CheckForMutexes(AlbisAppMutexName)) and (not IsAlbisProcessRunning()) then
     begin
       Result := True;
       Exit;
     end;
-    Sleep(AlbisShutdownPollIntervalMs);
-  until (GetTickCount() - StartTick) >= Cardinal(TimeoutMs);
+    if PollIndex < (PollCount - 1) then
+      Sleep(AlbisShutdownPollIntervalMs);
+  end;
   Result := (not CheckForMutexes(AlbisAppMutexName)) and (not IsAlbisProcessRunning());
 end;
 
