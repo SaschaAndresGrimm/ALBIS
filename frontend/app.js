@@ -30,6 +30,7 @@ import { createCommandPaletteController } from "./modules/command_palette.js";
 import { createSettingsController } from "./modules/settings_controller.js";
 import { createModalManager } from "./modules/modal_manager.js";
 import { createUpdateCheckController } from "./modules/update_check_controller.js";
+import { createBackendLogViewerController } from "./modules/backend_log_viewer_controller.js";
 import { buildCommandPaletteCommands } from "./modules/command_palette_commands.js";
 import { createUploadFlowController } from "./modules/upload_flow.js";
 import { createMenuActionHandler } from "./modules/menu_actions.js";
@@ -417,6 +418,18 @@ const updateCheckLatestRow = document.getElementById("update-check-latest-row");
 const updateCheckLatestVersionValue = document.getElementById("update-check-latest-version");
 const updateCheckAction = document.getElementById("update-check-action");
 const updateCheckClose = document.getElementById("update-check-close");
+const logViewerModal = document.getElementById("log-viewer-modal");
+const logViewerCloseIcon = document.getElementById("log-viewer-close-icon");
+const logViewerPathValue = document.getElementById("log-viewer-path-value");
+const logViewerUpdatedValue = document.getElementById("log-viewer-updated-value");
+const logViewerMessage = document.getElementById("log-viewer-message");
+const logViewerLineCount = document.getElementById("log-viewer-line-count");
+const logViewerRefresh = document.getElementById("log-viewer-refresh");
+const logViewerFollow = document.getElementById("log-viewer-follow");
+const logViewerContent = document.getElementById("log-viewer-content");
+const logViewerOpenHost = document.getElementById("log-viewer-open-host");
+const logViewerDownload = document.getElementById("log-viewer-download");
+const logViewerClose = document.getElementById("log-viewer-close");
 const settingsModal = document.getElementById("settings-modal");
 const settingsClose = document.getElementById("settings-close");
 const settingsCancel = document.getElementById("settings-cancel");
@@ -475,6 +488,7 @@ let fileSessionController = null;
 let fileDataPipelineController = null;
 let liveHistoryController = null;
 let updateCheckController = null;
+let backendLogViewerController = null;
 let activeMenu = "file";
 let closeTimer = null;
 let histogramScheduled = false;
@@ -1408,6 +1422,7 @@ function refreshLocalizedUi() {
   updatePeaksSectionState();
   updateSeriesSumUi();
   updateCheckController?.refreshUi();
+  backendLogViewerController?.refreshUi();
   validateSeriesStepInput(false);
   if (commandPaletteController?.isOpen()) {
     commandPaletteController.render();
@@ -2759,6 +2774,10 @@ function closeTopModal(options = {}) {
     closeUpdateCheckModal(options);
     return true;
   }
+  if (modalEl === logViewerModal) {
+    closeBackendLogViewer(options);
+    return true;
+  }
   if (modalEl === aboutModal) {
     closeAboutModal(options);
     return true;
@@ -2777,6 +2796,14 @@ function closeAboutModal({ restoreFocus = true } = {}) {
 
 function closeUpdateCheckModal({ restoreFocus = true } = {}) {
   updateCheckController?.close({ restoreFocus });
+}
+
+function openBackendLogViewer() {
+  backendLogViewerController?.open();
+}
+
+function closeBackendLogViewer({ restoreFocus = true } = {}) {
+  backendLogViewerController?.close({ restoreFocus });
 }
 
 async function checkForUpdates() {
@@ -2863,13 +2890,12 @@ function handleCommandPaletteKeydown(event) {
 }
 
 const menuActionHandler = createMenuActionHandler({
-  apiBase: API,
   state,
   callbacks: {
-    setStatus,
     openSettingsModal,
     checkForUpdates,
     openCommandPalette,
+    openBackendLogViewer,
     toggleFullscreen,
     openAboutModal,
     openFileModal,
@@ -3617,6 +3643,30 @@ const {
   closeFileBrowser,
   restoreFilesystemMode,
 } = createFileBrowserController(fileBrowserControllerContext);
+
+backendLogViewerController = createBackendLogViewerController({
+  apiBase: API,
+  backendIsLocal,
+  elements: {
+    logViewerModal,
+    logViewerCloseIcon,
+    logViewerPathValue,
+    logViewerUpdatedValue,
+    logViewerMessage,
+    logViewerLineCount,
+    logViewerRefresh,
+    logViewerFollow,
+    logViewerContent,
+    logViewerOpenHost,
+    logViewerDownload,
+    logViewerClose,
+  },
+  callbacks: {
+    openModal: (...args) => openModal(...args),
+    closeModal: (...args) => closeModal(...args),
+    setStatus,
+  },
+});
 
 initializeMainUiBindings();
 

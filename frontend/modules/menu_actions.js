@@ -5,15 +5,14 @@
 import { t } from "./i18n.js";
 
 export function createMenuActionHandler({
-  apiBase,
   state,
   callbacks,
 }) {
   const {
-    setStatus,
     openSettingsModal,
     checkForUpdates,
     openCommandPalette,
+    openBackendLogViewer,
     toggleFullscreen,
     openAboutModal,
     openFileModal,
@@ -32,28 +31,7 @@ export function createMenuActionHandler({
         await checkForUpdates();
         break;
       case "help-log":
-        {
-          const fallbackUrl = `${apiBase}/log-file`;
-          try {
-            const res = await fetch(`${apiBase}/open-log`, { method: "POST" });
-            if (res.ok) {
-              const payload = await res.json().catch(() => ({}));
-              if (payload?.opened !== false) {
-                setStatus(t("status.log.opened_file"));
-                break;
-              }
-            }
-          } catch (err) {
-            console.error(err);
-          }
-
-          const opened = window.open(fallbackUrl, "_blank", "noopener");
-          if (opened) {
-            setStatus(t("status.log.opened_browser"));
-          } else {
-            setStatus(t("status.log.open_failed"));
-          }
-        }
+        openBackendLogViewer();
         break;
       case "settings-open":
         openSettingsModal();

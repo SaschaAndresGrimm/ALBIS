@@ -233,6 +233,13 @@ export function buildCommandPaletteCommands({
       search: "help docs documentation",
       run: () => handleMenuAction("help-docs"),
     },
+    {
+      id: "help-log",
+      label: t("command.label.help_log"),
+      shortcut: "",
+      search: "help backend log diagnostics",
+      run: () => handleMenuAction("help-log"),
+    },
   ];
 
   return commands.filter((command) => command.when !== false);

@@ -61,6 +61,7 @@ describe("command palette re-localization", () => {
         "command.label.tab_data": "Panel: Data Tab",
         "command.label.tab_overlay": "Panel: Overlay Tab",
         "command.label.help_docs": "Help: Documentation",
+        "command.label.help_log": "Help: Backend Log",
       },
       "zh-CN": {
         "command.empty": "未找到命令。",
@@ -89,6 +90,7 @@ describe("command palette re-localization", () => {
         "command.label.tab_data": "面板：数据标签",
         "command.label.tab_overlay": "面板：叠加标签",
         "command.label.help_docs": "帮助：文档",
+        "command.label.help_log": "帮助：后端日志",
       },
       ja: {},
     };
@@ -166,11 +168,13 @@ describe("command palette re-localization", () => {
     controller.render();
     let labels = Array.from(document.querySelectorAll(".command-label")).map((el) => el.textContent);
     expect(labels[0]).toBe("File: Open…");
+    expect(labels).toContain("Help: Backend Log");
 
     i18n.setLanguage("zh-CN", { persist: false, applyDom: false });
     controller.render();
 
     labels = Array.from(document.querySelectorAll(".command-label")).map((el) => el.textContent);
     expect(labels[0]).toBe("文件：打开…");
+    expect(labels).toContain("帮助：后端日志");
   });
 });

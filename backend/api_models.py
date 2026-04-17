@@ -54,6 +54,16 @@ class PathStatusResponse(StatusResponse):
     opened: bool = True
 
 
+class LogTailResponse(_StrictModel):
+    path: str
+    text: str = ""
+    requested_lines: int
+    returned_lines: int
+    truncated: bool = False
+    size_bytes: int = 0
+    modified_at: float | None = None
+
+
 class HandoffJobCreateRequest(_StrictModel):
     manifest_path: str
 

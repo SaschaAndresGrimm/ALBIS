@@ -13,23 +13,27 @@ try:
     from ..api_models import (
         ClientLogRequest,
         HealthResponse,
+        LogTailResponse,
         PathStatusResponse,
         SettingsPayloadResponse,
         SettingsSaveRequest,
         StatusResponse,
         UpdateCheckResponse,
     )
+    from ..services.log_tail import read_log_tail
     from ..services.os_actions import open_in_system
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         ClientLogRequest,
         HealthResponse,
+        LogTailResponse,
         PathStatusResponse,
         SettingsPayloadResponse,
         SettingsSaveRequest,
         StatusResponse,
         UpdateCheckResponse,
     )
+    from services.log_tail import read_log_tail  # type: ignore[no-redef]
     from services.os_actions import open_in_system  # type: ignore[no-redef]
 
 
@@ -143,6 +147,23 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
             opened = False
 
         return PathStatusResponse(status="ok", path=str(log_path), opened=opened)
+
+    @app.get("/api/log-tail", response_model=LogTailResponse)
+    def log_tail(lines: int = 500) -> LogTailResponse:
+        log_path = _ensure_log_file()
+        try:
+            payload = read_log_tail(log_path, lines)
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail="Failed to read log file") from exc
+        return LogTailResponse(
+            path=payload.path,
+            text=payload.text,
+            requested_lines=payload.requested_lines,
+            returned_lines=payload.returned_lines,
+            truncated=payload.truncated,
+            size_bytes=payload.size_bytes,
+            modified_at=payload.modified_at,
+        )
 
     @app.get("/api/log-file")
     def log_file() -> FileResponse:

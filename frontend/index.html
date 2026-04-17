@@ -93,7 +93,7 @@
               <span data-i18n="menu.help.check_updates">Check for Updates</span>
             </button>
             <button class="dropdown-item" data-action="help-log">
-              <span data-i18n="menu.help.open_log">Open Backend Log File</span>
+              <span data-i18n="menu.help.open_log">View Backend Log</span>
             </button>
             <button class="dropdown-item" data-action="help-about">
               <span data-i18n="menu.help.about">About</span>
@@ -1182,6 +1182,67 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" id="update-check-close" data-i18n="common.close">Close</button>
           <button class="btn btn-primary" id="update-check-action" hidden></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="log-viewer-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card log-viewer-modal-card" role="dialog" aria-modal="true" aria-labelledby="log-viewer-title">
+        <div class="modal-header">
+          <div id="log-viewer-title" data-i18n="log_viewer.title">Backend Log</div>
+          <button
+            class="modal-close"
+            id="log-viewer-close-icon"
+            data-i18n-aria-label="common.close"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body log-viewer-modal-body">
+          <div class="log-viewer-message" id="log-viewer-message" aria-live="polite" hidden></div>
+          <div class="log-viewer-controls">
+            <label class="field log-viewer-lines-field" for="log-viewer-line-count">
+              <span data-i18n="log_viewer.lines_label">Lines</span>
+              <select id="log-viewer-line-count">
+                <option value="200">200</option>
+                <option value="500" selected>500</option>
+                <option value="1000">1000</option>
+              </select>
+            </label>
+            <button class="btn btn-secondary" id="log-viewer-refresh" type="button" data-i18n="log_viewer.refresh">Refresh</button>
+            <label class="checkbox log-viewer-follow-toggle" for="log-viewer-follow">
+              <input id="log-viewer-follow" type="checkbox" checked />
+              <span data-i18n="log_viewer.follow">Follow</span>
+            </label>
+          </div>
+          <div class="log-viewer-meta">
+            <div class="log-viewer-meta-row">
+              <span data-i18n="log_viewer.path_label">Path</span>
+              <code id="log-viewer-path-value">-</code>
+            </div>
+            <div class="log-viewer-meta-row">
+              <span data-i18n="log_viewer.updated_label">Last Updated</span>
+              <strong id="log-viewer-updated-value">-</strong>
+            </div>
+          </div>
+          <pre class="log-viewer-content" id="log-viewer-content"></pre>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="log-viewer-open-host" type="button" data-i18n="log_viewer.open_host" hidden>Open On Server Host</button>
+          <a
+            class="btn btn-secondary log-viewer-download"
+            id="log-viewer-download"
+            href="/api/log-file"
+            target="_blank"
+            rel="noopener"
+            download
+            data-i18n="log_viewer.download_raw"
+          >
+            Download Raw Log
+          </a>
+          <button class="btn btn-primary" id="log-viewer-close" type="button" data-i18n="common.close">Close</button>
         </div>
       </div>
     </div>
