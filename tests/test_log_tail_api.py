@@ -32,7 +32,9 @@ def test_log_tail_returns_recent_lines_and_metadata(monkeypatch, tmp_path: Path)
     assert payload["truncated"] is True
     assert payload["size_bytes"] == log_path.stat().st_size
     assert isinstance(payload["modified_at"], float)
-    assert payload["text"] == "".join(f"line {idx:03d} " + ("x" * 240) + "\n" for idx in range(61, 121))
+    assert payload["text"] == "".join(
+        f"line {idx:03d} " + ("x" * 240) + "\n" for idx in range(61, 121)
+    )
 
 
 def test_log_tail_empty_file_returns_empty_payload(monkeypatch, tmp_path: Path) -> None:
@@ -72,7 +74,9 @@ def test_log_tail_clamps_requested_line_count(monkeypatch, tmp_path: Path) -> No
 
 
 def test_log_tail_does_not_use_full_file_convenience_reads(monkeypatch, tmp_path: Path) -> None:
-    _configure_log_path(monkeypatch, tmp_path, "\n".join(f"entry {idx}" for idx in range(256)) + "\n")
+    _configure_log_path(
+        monkeypatch, tmp_path, "\n".join(f"entry {idx}" for idx in range(256)) + "\n"
+    )
 
     def _raise(*_args, **_kwargs):
         raise AssertionError("full-file convenience read should not be used")
