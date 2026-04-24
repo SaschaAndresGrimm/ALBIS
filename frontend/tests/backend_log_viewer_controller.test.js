@@ -261,13 +261,19 @@ describe("backend_log_viewer_controller", () => {
     });
 
     controller.open();
-    await flushAsyncWork();
+    await vi.waitFor(() => {
+      expect(globalThis.fetch.mock.calls.filter(([url]) => String(url).includes("/api/log-tail")).length).toBe(1);
+      expect(document.getElementById("log-viewer-refresh")?.disabled).toBe(false);
+    });
 
     document.getElementById("log-viewer-refresh")?.click();
-    await flushAsyncWork();
+    await vi.waitFor(() => {
+      expect(globalThis.fetch.mock.calls.filter(([url]) => String(url).includes("/api/log-tail")).length).toBe(2);
+      expect(document.getElementById("log-viewer-message")?.textContent).toContain("Failed to load backend log");
+      expect(document.getElementById("log-viewer-content")?.textContent).toBe("stable log\n");
+      expect(document.getElementById("log-viewer-refresh")?.disabled).toBe(false);
+    });
 
     expect(document.getElementById("log-viewer-modal")?.classList.contains("is-open")).toBe(true);
-    expect(document.getElementById("log-viewer-message")?.textContent).toContain("Failed to load backend log");
-    expect(document.getElementById("log-viewer-content")?.textContent).toBe("stable log\n");
   });
 });
