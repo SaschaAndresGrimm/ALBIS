@@ -2,6 +2,8 @@
  * Canvas viewport and gesture interaction bindings.
  */
 
+import { applyCircularRoiGeometry, clampCircularRoiInnerRadius } from "./roi_geometry_utils.js";
+
 export function bindViewportInteractions({
   state,
   roiState,
@@ -194,13 +196,13 @@ export function bindViewportInteractions({
       const dx = roiState.end.x - roiState.start.x;
       const dy = roiState.end.y - roiState.start.y;
       const outer = Math.max(0, Math.round(Math.hypot(dx, dy)));
-      roiState.outerRadius = outer;
+      applyCircularRoiGeometry(roiState, roiState.start, outer, { x: dx, y: dy });
       if (roiState.mode === "circle") {
         if (roiRadiusInput) roiRadiusInput.value = String(outer);
       } else {
         if (roiOuterInput) roiOuterInput.value = String(outer);
         if (!roiState.innerRadius || roiState.innerRadius >= outer) {
-          roiState.innerRadius = Math.max(0, Math.round(outer * 0.5));
+          roiState.innerRadius = clampCircularRoiInnerRadius(Math.round(outer * 0.5), outer);
           if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
         }
       }
@@ -338,8 +340,9 @@ export function bindViewportInteractions({
     const isRightClick = event.button === 2 || event.buttons === 2 || event.which === 3;
     const isCtrlClick = event.button === 0 && event.ctrlKey;
     const roiTrigger = roiState.enabled && (isRightClick || isCtrlClick);
+    const allowCircularOutside = roiState.mode === "circle" || roiState.mode === "annulus";
     if (roiTrigger) {
-      const point = getImagePointFromEvent(event);
+      const point = getImagePointFromEvent(event, { allowOutside: allowCircularOutside });
       if (!point) return;
       setRoiDragging(true);
       roiState.active = true;
@@ -371,7 +374,7 @@ export function bindViewportInteractions({
     if (event.target.closest(".loading")) return;
 
     if (roiState.enabled && roiState.active) {
-      const point = getImagePointFromEvent(event);
+      const point = getImagePointFromEvent(event, { allowOutside: allowCircularOutside });
       if (point) {
         const handle = getRoiHandleAt(event);
         if (handle || isPointInRoi(point)) {
@@ -408,14 +411,22 @@ export function bindViewportInteractions({
     updateCursorOverlay(event);
 
     if (isRoiEditing()) {
-      const point = getImagePointFromEvent(event);
+      const allowOutside = roiState.mode === "circle" || roiState.mode === "annulus";
+      const point = getImagePointFromEvent(event, {
+        allowOutside,
+        allowOutsideViewport: allowOutside,
+      });
       if (!point) return;
       applyRoiEdit(point);
       return;
     }
 
     if (getRoiDragging()) {
-      const point = getImagePointFromEvent(event);
+      const allowOutside = roiState.mode === "circle" || roiState.mode === "annulus";
+      const point = getImagePointFromEvent(event, {
+        allowOutside,
+        allowOutsideViewport: allowOutside,
+      });
       if (!point) return;
       updateRoiDrag(point);
       return;
@@ -445,9 +456,15 @@ export function bindViewportInteractions({
     stopPan(event);
   });
 
-  canvasWrap.addEventListener("pointerleave", () => {
-    stopWindowing();
-    stopRoi();
+  canvasWrap.addEventListener("pointerleave", (event) => {
+    const hasCapture =
+      Number.isInteger(event.pointerId) &&
+      typeof canvasWrap.hasPointerCapture === "function" &&
+      canvasWrap.hasPointerCapture(event.pointerId);
+    if (!hasCapture) {
+      stopWindowing(event);
+      stopRoi(event);
+    }
     hideCursorOverlay();
   });
 

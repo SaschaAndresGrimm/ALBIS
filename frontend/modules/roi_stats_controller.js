@@ -13,6 +13,7 @@ import {
 import { renderRoiPlot } from "./roi_plot_renderer.js";
 import { buildRoiCsvExportPayload } from "./roi_csv_export.js";
 import { t } from "./i18n.js";
+import { clampCircularRoiInnerRadius, getCircularRoiOuterRadius } from "./roi_geometry_utils.js";
 
 export function createRoiStatsController(ctx) {
   const {
@@ -91,9 +92,7 @@ function applyRoiCenterFromInputs() {
   const xVal = Number(roiCenterXInput.value);
   const yVal = Number(roiCenterYInput.value);
   if (!Number.isFinite(xVal) || !Number.isFinite(yVal)) return null;
-  const x = Math.max(0, Math.min(state.width - 1, Math.round(xVal)));
-  const y = Math.max(0, Math.min(state.height - 1, Math.round(yVal)));
-  return { x, y };
+  return { x: Math.round(xVal), y: Math.round(yVal) };
 }
 
 function getRoiPlotKey(canvasEl) {
@@ -537,10 +536,19 @@ function updateRoiStats() {
     updateRoiSectionState();
     return;
   }
-  const x0 = Math.max(0, Math.min(state.width - 1, roiState.start.x));
-  const y0 = Math.max(0, Math.min(state.height - 1, roiState.start.y));
-  const x1 = Math.max(0, Math.min(state.width - 1, roiState.end.x));
-  const y1 = Math.max(0, Math.min(state.height - 1, roiState.end.y));
+  const circularMode = roiState.mode === "circle" || roiState.mode === "annulus";
+  const x0 = circularMode
+    ? Math.round(roiState.start.x)
+    : Math.max(0, Math.min(state.width - 1, Math.round(roiState.start.x)));
+  const y0 = circularMode
+    ? Math.round(roiState.start.y)
+    : Math.max(0, Math.min(state.height - 1, Math.round(roiState.start.y)));
+  const x1 = circularMode
+    ? Math.round(roiState.end.x)
+    : Math.max(0, Math.min(state.width - 1, Math.round(roiState.end.x)));
+  const y1 = circularMode
+    ? Math.round(roiState.end.y)
+    : Math.max(0, Math.min(state.height - 1, Math.round(roiState.end.y)));
   setRoiText(roiStartEl, `${x0}, ${y0}`);
   setRoiText(roiEndEl, `${x1}, ${y1}`);
 
@@ -688,19 +696,14 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, roiState.xProjection, roiState.log);
     drawRoiPlot(roiYCanvas, roiYCtx, roiState.yProjection, roiState.log);
   } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const outerRadius = Math.max(1, Math.round(Math.hypot(dx, dy)));
+    const outerRadius = getCircularRoiOuterRadius(roiState);
     if (roiState.mode === "circle") {
       roiState.innerRadius = 0;
       roiState.outerRadius = outerRadius;
       if (roiRadiusInput) roiRadiusInput.value = String(outerRadius);
     } else {
       roiState.outerRadius = outerRadius;
-      let inner = Math.max(0, Math.round(roiState.innerRadius || 0));
-      if (!inner || inner >= outerRadius) {
-        inner = Math.max(0, Math.round(outerRadius * 0.5));
-      }
+      const inner = clampCircularRoiInnerRadius(roiState.innerRadius, outerRadius);
       roiState.innerRadius = inner;
       if (roiInnerInput) roiInnerInput.value = String(inner);
       if (roiOuterInput) roiOuterInput.value = String(outerRadius);

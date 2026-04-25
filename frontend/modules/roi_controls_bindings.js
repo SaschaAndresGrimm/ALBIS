@@ -3,9 +3,14 @@
  */
 
 import { t } from "./i18n.js";
+import {
+  applyCircularRoiGeometry,
+  clampCircularRoiInnerRadius,
+  getCircularRoiDirection,
+  getCircularRoiOuterRadius,
+} from "./roi_geometry_utils.js";
 
 export function bindRoiControlInteractions({
-  state,
   roiState,
   elements,
   callbacks,
@@ -96,8 +101,12 @@ export function bindRoiControlInteractions({
     }
     if (!roiState.start) return;
     const radius = Math.max(0, Math.round(Number(roiRadiusInput.value || 0)));
-    roiState.outerRadius = radius;
-    roiState.end = { x: Math.min(state.width - 1, roiState.start.x + radius), y: roiState.start.y };
+    applyCircularRoiGeometry(
+      roiState,
+      roiState.start,
+      radius,
+      getCircularRoiDirection(roiState.start, roiState.end),
+    );
     roiState.active = true;
     updateRoiCenterInputs();
     scheduleRoiOverlay();
@@ -114,8 +123,12 @@ export function bindRoiControlInteractions({
       }
     }
     if (!roiState.start) return;
-    const inner = Math.max(0, Math.round(Number(roiInnerInput.value || 0)));
+    const inner = clampCircularRoiInnerRadius(
+      Number(roiInnerInput.value || 0),
+      getCircularRoiOuterRadius(roiState),
+    );
     roiState.innerRadius = inner;
+    if (roiInnerInput) roiInnerInput.value = String(inner);
     roiState.active = true;
     updateRoiCenterInputs();
     scheduleRoiOverlay();
@@ -133,8 +146,14 @@ export function bindRoiControlInteractions({
     }
     if (!roiState.start) return;
     const outer = Math.max(0, Math.round(Number(roiOuterInput.value || 0)));
-    roiState.outerRadius = outer;
-    roiState.end = { x: Math.min(state.width - 1, roiState.start.x + outer), y: roiState.start.y };
+    applyCircularRoiGeometry(
+      roiState,
+      roiState.start,
+      outer,
+      getCircularRoiDirection(roiState.start, roiState.end),
+    );
+    roiState.innerRadius = clampCircularRoiInnerRadius(roiState.innerRadius, outer);
+    if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
     roiState.active = true;
     updateRoiCenterInputs();
     scheduleRoiOverlay();
@@ -146,13 +165,21 @@ export function bindRoiControlInteractions({
       if (roiState.mode !== "circle" && roiState.mode !== "annulus") return;
       const center = applyRoiCenterFromInputs();
       if (!center) return;
-      roiState.start = center;
+      const direction = getCircularRoiDirection(roiState.start, roiState.end);
       const outer =
         roiState.mode === "circle"
-          ? Math.max(0, Math.round(Number(roiRadiusInput?.value || roiState.outerRadius || 0)))
-          : Math.max(0, Math.round(Number(roiOuterInput?.value || roiState.outerRadius || 0)));
-      roiState.outerRadius = outer;
-      roiState.end = { x: Math.min(state.width - 1, center.x + outer), y: center.y };
+          ? Math.max(0, Math.round(Number(roiRadiusInput?.value || getCircularRoiOuterRadius(roiState))))
+          : Math.max(0, Math.round(Number(roiOuterInput?.value || getCircularRoiOuterRadius(roiState))));
+      applyCircularRoiGeometry(
+        roiState,
+        center,
+        outer,
+        direction,
+      );
+      if (roiState.mode === "annulus") {
+        roiState.innerRadius = clampCircularRoiInnerRadius(roiState.innerRadius, outer);
+        if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
+      }
       roiState.active = true;
       updateRoiCenterInputs();
       scheduleRoiOverlay();

@@ -1079,8 +1079,8 @@ const maskCursorController = createMaskCursorController({
   },
 });
 
-function getImagePointFromEvent(event) {
-  return maskCursorController.getImagePointFromEvent(event);
+function getImagePointFromEvent(event, options) {
+  return maskCursorController.getImagePointFromEvent(event, options);
 }
 
 function buildNegativeMask(data) {

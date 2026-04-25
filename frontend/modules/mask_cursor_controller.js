@@ -39,17 +39,21 @@ export function createMaskCursorController({
     setAutoloadStatus,
   } = callbacks;
 
-  function getImagePointFromEvent(event) {
+  function getImagePointFromEvent(event, options = {}) {
     if (!state.hasFrame || !canvasWrap) return null;
+    const { allowOutside = false, allowOutsideViewport = false } = options;
     const rect = canvasWrap.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+    if (!allowOutsideViewport && (x < 0 || y < 0 || x > rect.width || y > rect.height)) return null;
     const zoom = state.zoom || 1;
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const imgX = (getEffectiveScrollLeft() + x - offsetX) / zoom;
     const imgY = (getEffectiveScrollTop() + y - offsetY) / zoom;
+    if (allowOutside) {
+      return { x: Math.floor(imgX), y: Math.floor(imgY) };
+    }
     // ROI selection should use pixel-cell containment (same convention as cursor readout),
     // not nearest-center rounding.
     const clampedX = Math.max(0, Math.min(state.width - Number.EPSILON, imgX));

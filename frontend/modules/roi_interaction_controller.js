@@ -2,6 +2,15 @@
  * ROI edit interactions and overlay rendering.
  */
 
+import {
+  applyCircularRoiGeometry,
+  clampCircularRoiCenterDelta,
+  clampCircularRoiInnerRadius,
+  getCircularRoiDirection,
+  getCircularRoiOuterRadius,
+  getVisibleCircularHandlePoint,
+} from "./roi_geometry_utils.js";
+
 export function createRoiInteractionController({
   state,
   roiState,
@@ -52,6 +61,27 @@ export function createRoiInteractionController({
     return { x0, y0, x1, y1, zoom };
   }
 
+  function getVisibleImageScreenRect(canvasWidth, canvasHeight) {
+    if (!canvasWrap || !state.width || !state.height) return null;
+    const zoom = state.zoom || 1;
+    const offsetX = state.renderOffsetX || 0;
+    const offsetY = state.renderOffsetY || 0;
+    const viewX = getEffectiveScrollLeft() / zoom;
+    const viewY = getEffectiveScrollTop() / zoom;
+    const imageLeft = (-viewX) * zoom + offsetX;
+    const imageTop = (-viewY) * zoom + offsetY;
+    const imageRight = imageLeft + state.width * zoom;
+    const imageBottom = imageTop + state.height * zoom;
+    const rect = {
+      left: Math.max(0, imageLeft),
+      top: Math.max(0, imageTop),
+      right: Math.min(canvasWidth, imageRight),
+      bottom: Math.min(canvasHeight, imageBottom),
+    };
+    if (rect.left > rect.right || rect.top > rect.bottom) return null;
+    return rect;
+  }
+
   function getBoxScreenBounds(x0, y0, x1, y1, zoom) {
     // x0/y0/x1/y1 are pixel-cell origins in screen space (top-left corners).
     // Box ROI is inclusive in pixel indices, so the visual boundary must extend
@@ -74,12 +104,34 @@ export function createRoiInteractionController({
     };
   }
 
+  function getCircularHandleScreenPoints(x0, y0, x1, y1, zoom, canvasWidth, canvasHeight) {
+    const visibleRect = getVisibleImageScreenRect(canvasWidth, canvasHeight);
+    const direction = { x: x1 - x0, y: y1 - y0 };
+    const outerRadius = Math.hypot(direction.x, direction.y);
+    const outer =
+      getVisibleCircularHandlePoint({ x: x0, y: y0 }, outerRadius, direction, visibleRect) ||
+      { x: x1, y: y1 };
+    let inner = null;
+    if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
+      inner =
+        getVisibleCircularHandlePoint(
+          { x: x0, y: y0 },
+          roiState.innerRadius * zoom,
+          direction,
+          visibleRect,
+        ) ||
+        null;
+    }
+    return { outer, inner };
+  }
+
   function getRoiHandleAt(event) {
     if (!roiState.enabled || !roiState.active) return null;
     const pointer = getPointerCanvasPos(event);
     const geom = getRoiScreenGeometry();
     if (!pointer || !geom) return null;
     const { x0, y0, x1, y1, zoom } = geom;
+    const rect = canvasWrap.getBoundingClientRect();
     const hit = (x, y) => Math.abs(pointer.x - x) <= 6 && Math.abs(pointer.y - y) <= 6;
 
     if (roiState.mode === "line") {
@@ -98,14 +150,10 @@ export function createRoiInteractionController({
     }
     if (roiState.mode === "circle" || roiState.mode === "annulus") {
       if (hit(x0, y0)) return "center";
-      const dx = x1 - x0;
-      const dy = y1 - y0;
-      const outer = Math.hypot(dx, dy);
-      const ux = outer > 0 ? dx / outer : 1;
-      const uy = outer > 0 ? dy / outer : 0;
-      if (hit(x1, y1)) return "outer";
-      if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
-        if (hit(x0 + roiState.innerRadius * zoom * ux, y0 + roiState.innerRadius * zoom * uy)) {
+      const handles = getCircularHandleScreenPoints(x0, y0, x1, y1, zoom, rect.width, rect.height);
+      if (handles.outer && hit(handles.outer.x, handles.outer.y)) return "outer";
+      if (roiState.mode === "annulus" && handles.inner) {
+        if (hit(handles.inner.x, handles.inner.y)) {
           return "inner";
         }
       }
@@ -157,23 +205,17 @@ export function createRoiInteractionController({
     return false;
   }
 
-  function clampRoiDelta(dx, dy, baseStart = roiState.start, baseEnd = roiState.end, baseOuter = roiState.outerRadius) {
+  function clampRoiDelta(dx, dy, baseStart = roiState.start, baseEnd = roiState.end) {
     if (!baseStart || !baseEnd || !state.width || !state.height) {
       return { dx, dy };
     }
-    let minX = Math.min(baseStart.x, baseEnd.x);
-    let maxX = Math.max(baseStart.x, baseEnd.x);
-    let minY = Math.min(baseStart.y, baseEnd.y);
-    let maxY = Math.max(baseStart.y, baseEnd.y);
     if (roiState.mode === "circle" || roiState.mode === "annulus") {
-      const r =
-        baseOuter ||
-        Math.hypot(baseEnd.x - baseStart.x, baseEnd.y - baseStart.y);
-      minX = baseStart.x - r;
-      maxX = baseStart.x + r;
-      minY = baseStart.y - r;
-      maxY = baseStart.y + r;
+      return clampCircularRoiCenterDelta(dx, dy, baseStart, state.width, state.height);
     }
+    const minX = Math.min(baseStart.x, baseEnd.x);
+    const maxX = Math.max(baseStart.x, baseEnd.x);
+    const minY = Math.min(baseStart.y, baseEnd.y);
+    const maxY = Math.max(baseStart.y, baseEnd.y);
     if (minX + dx < 0) dx = -minX;
     if (maxX + dx > state.width - 1) dx = (state.width - 1) - maxX;
     if (minY + dy < 0) dy = -minY;
@@ -206,14 +248,23 @@ export function createRoiInteractionController({
         dyRaw,
         snap.start,
         snap.end,
-        snap.outerRadius,
       );
       const dx = clamped.dx;
       const dy = clamped.dy;
-      roiState.start = { x: snap.start.x + dx, y: snap.start.y + dy };
-      roiState.end = { x: snap.end.x + dx, y: snap.end.y + dy };
-      roiState.innerRadius = snap.innerRadius;
-      roiState.outerRadius = snap.outerRadius;
+      if (roiState.mode === "circle" || roiState.mode === "annulus") {
+        applyCircularRoiGeometry(
+          roiState,
+          { x: snap.start.x + dx, y: snap.start.y + dy },
+          snap.outerRadius,
+          getCircularRoiDirection(snap.start, snap.end),
+        );
+        roiState.innerRadius = clampCircularRoiInnerRadius(snap.innerRadius, snap.outerRadius);
+      } else {
+        roiState.start = { x: snap.start.x + dx, y: snap.start.y + dy };
+        roiState.end = { x: snap.end.x + dx, y: snap.end.y + dy };
+        roiState.innerRadius = snap.innerRadius;
+        roiState.outerRadius = snap.outerRadius;
+      }
       updateRoiCenterInputs();
     } else if (roiState.mode === "box") {
       const anchor = snap;
@@ -240,24 +291,33 @@ export function createRoiInteractionController({
       }
     } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
       if (roiEditHandle === "outer") {
-        roiState.start = { ...snap.start };
-        roiState.end = { x: point.x, y: point.y };
         const outer = Math.max(0, Math.round(Math.hypot(point.x - snap.start.x, point.y - snap.start.y)));
-        roiState.outerRadius = outer;
+        applyCircularRoiGeometry(
+          roiState,
+          snap.start,
+          outer,
+          { x: point.x - snap.start.x, y: point.y - snap.start.y },
+        );
         if (roiState.mode === "circle") {
           roiState.innerRadius = 0;
           if (roiRadiusInput) roiRadiusInput.value = String(outer);
         } else {
-          roiState.innerRadius = Math.min(snap.innerRadius, outer);
+          roiState.innerRadius = clampCircularRoiInnerRadius(snap.innerRadius, outer);
           if (roiOuterInput) roiOuterInput.value = String(outer);
           if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
         }
       } else if (roiEditHandle === "inner" && roiState.mode === "annulus") {
-        roiState.start = { ...snap.start };
-        roiState.end = { ...snap.end };
-        const outer = snap.outerRadius || Math.hypot(snap.end.x - snap.start.x, snap.end.y - snap.start.y);
-        const inner = Math.max(0, Math.min(Math.round(Math.hypot(point.x - snap.start.x, point.y - snap.start.y)), outer));
-        roiState.outerRadius = outer;
+        const outer = getCircularRoiOuterRadius(snap);
+        const inner = clampCircularRoiInnerRadius(
+          Math.round(Math.hypot(point.x - snap.start.x, point.y - snap.start.y)),
+          outer,
+        );
+        applyCircularRoiGeometry(
+          roiState,
+          snap.start,
+          outer,
+          getCircularRoiDirection(snap.start, snap.end),
+        );
         roiState.innerRadius = inner;
         if (roiInnerInput) roiInnerInput.value = String(inner);
         if (roiOuterInput) roiOuterInput.value = String(Math.round(outer));
@@ -283,7 +343,7 @@ export function createRoiInteractionController({
     scheduleRoiUpdate();
   }
 
-  function drawRoiHandles(ctx, x0, y0, x1, y1, zoom) {
+  function drawRoiHandles(ctx, x0, y0, x1, y1, zoom, canvasWidth, canvasHeight) {
     const handleSize = 8;
     const half = handleSize / 2;
     ctx.save();
@@ -321,14 +381,12 @@ export function createRoiInteractionController({
       drawHandle(left, bottom);
     } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
       drawCross(x0, y0);
-      const dx = x1 - x0;
-      const dy = y1 - y0;
-      const outer = Math.hypot(dx, dy);
-      const ux = outer > 0 ? dx / outer : 1;
-      const uy = outer > 0 ? dy / outer : 0;
-      drawHandle(x1, y1);
-      if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
-        drawHandle(x0 + roiState.innerRadius * zoom * ux, y0 + roiState.innerRadius * zoom * uy);
+      const handles = getCircularHandleScreenPoints(x0, y0, x1, y1, zoom, canvasWidth, canvasHeight);
+      if (handles.outer) {
+        drawHandle(handles.outer.x, handles.outer.y);
+      }
+      if (handles.inner) {
+        drawHandle(handles.inner.x, handles.inner.y);
       }
     }
     ctx.restore();
@@ -416,7 +474,7 @@ export function createRoiInteractionController({
     }
     roiCtx.restore();
 
-    drawRoiHandles(roiCtx, x0, y0, x1, y1, zoom);
+    drawRoiHandles(roiCtx, x0, y0, x1, y1, zoom, width, height);
   }
 
   function scheduleRoiOverlay() {
