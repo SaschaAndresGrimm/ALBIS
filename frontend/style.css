@@ -4539,8 +4539,8 @@ body.platform-windows select option:disabled {
   }
 }
 .browse-modal-card {
-  width: 500px;
-  max-height: 70vh;
+  width: min(800px, calc(100vw - 32px));
+  max-height: 78vh;
   display: flex;
   flex-direction: column;
 }
@@ -4548,10 +4548,10 @@ body.platform-windows select option:disabled {
 .browse-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   overflow-y: auto;
   flex: 1;
-  max-height: 300px;
+  max-height: min(560px, calc(78vh - 96px));
 }
 
 .browse-breadcrumb {
@@ -4565,6 +4565,47 @@ body.platform-windows select option:disabled {
 .browse-breadcrumb.is-loading {
   opacity: 0.75;
   pointer-events: none;
+}
+
+.browse-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.browse-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 124px;
+  flex: 1 1 140px;
+}
+
+.browse-control span {
+  color: #aebad1;
+  font-size: 11px;
+}
+
+.browse-control select {
+  width: 100%;
+  min-height: 32px;
+  background: rgba(12, 18, 27, 0.96);
+  border: 1px solid rgba(48, 64, 89, 0.92);
+  color: #eaf3ff;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.browse-control select:disabled,
+.browse-up-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.browse-up-btn {
+  min-height: 32px;
 }
 
 .breadcrumb-btn {
@@ -4646,6 +4687,11 @@ body.platform-windows select option:disabled {
   text-overflow: ellipsis;
 }
 
+.browse-item:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(164, 205, 255, 0.72);
+}
+
 .browse-item:hover {
   background: rgba(91, 143, 221, 0.26);
 }
@@ -4653,6 +4699,32 @@ body.platform-windows select option:disabled {
 .browse-item.is-selected {
   background: rgba(91, 143, 221, 0.45);
   color: #fff;
+}
+
+.browse-item-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.browse-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browse-item-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(123, 174, 245, 0.48);
+  background: rgba(61, 102, 161, 0.28);
+  color: #d3e8ff;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .browse-path {
@@ -4711,6 +4783,16 @@ body.platform-windows select option:disabled {
 
 .browse-status.is-error {
   color: #ff9a9a;
+}
+
+@media (max-width: 760px) {
+  .browse-content {
+    grid-template-columns: 1fr;
+  }
+
+  .browse-control {
+    min-width: 0;
+  }
 }
 
 .modal-footer {

@@ -1422,6 +1422,30 @@
           <div class="browse-breadcrumb" id="browse-breadcrumb">
             <button class="breadcrumb-btn" data-path="" data-i18n="file_browser.root">Root</button>
           </div>
+          <div class="browse-toolbar">
+            <button id="browse-up" class="btn btn-secondary browse-up-btn" type="button" data-i18n="browse.action.up">Up</button>
+            <label class="browse-control" id="browse-format-field">
+              <span data-i18n="browse.filter.format">Format</span>
+              <select id="browse-format" aria-label="Format"></select>
+            </label>
+            <label class="browse-control" id="browse-sort-field">
+              <span data-i18n="browse.sort.label">Sort</span>
+              <select id="browse-sort" aria-label="Sort">
+                <option value="name_asc" data-i18n="browse.sort.option.name_asc">Name A-Z</option>
+                <option value="name_desc" data-i18n="browse.sort.option.name_desc">Name Z-A</option>
+                <option value="mtime_desc" data-i18n="browse.sort.option.mtime_desc">Newest first</option>
+                <option value="mtime_asc" data-i18n="browse.sort.option.mtime_asc">Oldest first</option>
+                <option value="type_asc" data-i18n="browse.sort.option.type_asc">Type</option>
+              </select>
+            </label>
+            <label class="browse-control" id="browse-series-field">
+              <span data-i18n="browse.series.label">Series</span>
+              <select id="browse-series-mode" aria-label="Series view">
+                <option value="all" data-i18n="browse.series.option.all">All files</option>
+                <option value="first_only" data-i18n="browse.series.option.first_only">First image only</option>
+              </select>
+            </label>
+          </div>
           <div class="browse-content">
             <div class="browse-folders">
               <div class="browse-section-title" data-i18n="browse.section.folders">Folders</div>

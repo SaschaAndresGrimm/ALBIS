@@ -465,7 +465,13 @@ const commandModal = document.getElementById("command-modal");
 const commandInput = document.getElementById("command-input");
 const commandList = document.getElementById("command-list");
 const browseModal = document.getElementById("browse-modal");
+const browseTitle = document.getElementById("browse-title");
 const browseBreadcrumb = document.getElementById("browse-breadcrumb");
+const browseUp = document.getElementById("browse-up");
+const browseFormatField = document.getElementById("browse-format-field");
+const browseFormat = document.getElementById("browse-format");
+const browseSort = document.getElementById("browse-sort");
+const browseSeriesMode = document.getElementById("browse-series-mode");
 const browseFoldersList = document.getElementById("browse-folders-list");
 const browseFilesList = document.getElementById("browse-files-list");
 const browsePathInput = document.getElementById("browse-path-input");
@@ -3613,7 +3619,13 @@ const fileBrowserControllerContext = createFileBrowserControllerContext({
   apiBase: API,
   elements: {
     browseModal,
+    browseTitle,
     browseBreadcrumb,
+    browseUp,
+    browseFormatField,
+    browseFormat,
+    browseSort,
+    browseSeriesMode,
     browseFoldersList,
     browseFilesList,
     browsePathInput,

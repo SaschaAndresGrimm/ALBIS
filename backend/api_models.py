@@ -218,10 +218,22 @@ class PathSelectionResponse(_StrictModel):
     path: str
 
 
+class BrowseFileItem(_StrictModel):
+    name: str
+    path: str
+    ext: str
+    mtime: float
+    sizeBytes: int = 0
+    isSeriesLead: bool = False
+    seriesCount: int = 1
+
+
 class BrowseResponse(_StrictModel):
     folders: list[str]
     files: list[str]
+    fileItems: list[BrowseFileItem] = Field(default_factory=list)
     currentPath: str
+    parentPath: str = ""
     root: str
     canGoUp: bool
     allowAbsolutePaths: bool

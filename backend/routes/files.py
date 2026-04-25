@@ -8,7 +8,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
@@ -16,6 +16,7 @@ from fastapi.responses import Response
 try:
     from ..api_models import (
         AutoloadLatestResponse,
+        BrowseFileItem,
         BrowseResponse,
         FilesListResponse,
         FoldersListResponse,
@@ -35,6 +36,7 @@ try:
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         AutoloadLatestResponse,
+        BrowseFileItem,
         BrowseResponse,
         FilesListResponse,
         FoldersListResponse,
@@ -157,6 +159,108 @@ def _parse_requested_picker_exts(
         if token in autoload_exts:
             allowed.add(token)
     return allowed, allow_expt
+
+
+_BROWSE_SERIES_EXTS = {".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}
+_NATURAL_SPLIT_RE = re.compile(r"(\d+)")
+
+
+def _natural_sort_key(value: str) -> tuple[tuple[int, Any], ...]:
+    parts = _NATURAL_SPLIT_RE.split(str(value).casefold())
+    return tuple((1, int(part)) if part.isdigit() else (0, part) for part in parts)
+
+
+def _display_browse_path(path: Path, data_root: Path, allow_absolute_paths: bool) -> str:
+    resolved = path.resolve()
+    try:
+        rel = resolved.relative_to(data_root)
+        return rel.as_posix() if rel != Path(".") else ""
+    except ValueError:
+        return str(resolved) if allow_absolute_paths else ""
+
+
+def _browse_parent_path(
+    target_dir: Path, data_root: Path, allow_absolute_paths: bool, is_within: Callable[[Path, Path], bool]
+) -> str:
+    resolved = target_dir.resolve()
+    if is_within(resolved, data_root):
+        if resolved == data_root:
+            return ""
+        return _display_browse_path(resolved.parent, data_root, allow_absolute_paths)
+    parent = resolved.parent
+    if parent == resolved:
+        return ""
+    return _display_browse_path(parent, data_root, allow_absolute_paths)
+
+
+def _browse_file_path(name: str, target_dir: Path, data_root: Path, allow_absolute_paths: bool) -> str:
+    return _display_browse_path(target_dir / name, data_root, allow_absolute_paths) or name
+
+
+def _sort_browse_items(items: list[dict[str, Any]], sort: str) -> list[dict[str, Any]]:
+    if sort == "name_desc":
+        return sorted(items, key=lambda item: _natural_sort_key(item["name"]), reverse=True)
+    if sort == "mtime_desc":
+        return sorted(
+            items,
+            key=lambda item: (float(item.get("mtime", 0.0)), _natural_sort_key(item["name"])),
+            reverse=True,
+        )
+    if sort == "mtime_asc":
+        return sorted(items, key=lambda item: (float(item.get("mtime", 0.0)), _natural_sort_key(item["name"])))
+    if sort == "type_asc":
+        return sorted(items, key=lambda item: (_natural_sort_key(item["ext"]), _natural_sort_key(item["name"])))
+    return sorted(items, key=lambda item: _natural_sort_key(item["name"]))
+
+
+def _aggregate_browse_series(
+    files: list[dict[str, Any]],
+    split_series_name: Callable[[str], tuple[str, str, str] | None],
+) -> list[dict[str, Any]]:
+    singles: list[dict[str, Any]] = []
+    groups: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for item in files:
+        ext = str(item.get("ext") or "").lower()
+        if ext not in _BROWSE_SERIES_EXTS:
+            singles.append(item)
+            continue
+        parts = split_series_name(str(item.get("name") or ""))
+        if not parts:
+            singles.append(item)
+            continue
+        prefix, digits, suffix = parts
+        try:
+            index = int(digits)
+        except ValueError:
+            singles.append(item)
+            continue
+        key = (prefix, suffix, ext)
+        current = groups.get(key)
+        if current is None:
+            groups[key] = {
+                **item,
+                "_lead_index": index,
+                "mtime": float(item.get("mtime", 0.0)),
+                "seriesCount": 1,
+            }
+            continue
+        current["seriesCount"] = int(current.get("seriesCount", 1)) + 1
+        current["mtime"] = max(float(current.get("mtime", 0.0)), float(item.get("mtime", 0.0)))
+        if index < int(current.get("_lead_index", index)):
+            current.update(
+                {
+                    "name": item["name"],
+                    "path": item["path"],
+                    "ext": item["ext"],
+                    "sizeBytes": item["sizeBytes"],
+                    "_lead_index": index,
+                }
+            )
+    merged = singles + list(groups.values())
+    for item in merged:
+        item["isSeriesLead"] = int(item.get("seriesCount", 1)) > 1
+        item.pop("_lead_index", None)
+    return merged
 
 
 def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
@@ -302,7 +406,14 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         return PathSelectionResponse(path=str(picked))
 
     @app.get("/api/browse", response_model=BrowseResponse)
-    def browse(path: str | None = Query(None), exts: str | None = Query(None)) -> BrowseResponse:
+    def browse(
+        path: str | None = Query(None),
+        exts: str | None = Query(None),
+        sort: Literal["name_asc", "name_desc", "mtime_desc", "mtime_asc", "type_asc"] = Query(
+            "name_asc"
+        ),
+        series_mode: Literal["all", "first_only"] = Query("all"),
+    ) -> BrowseResponse:
         """List folders and image files in a directory for web-based file browser."""
         try:
             target_dir = deps.resolve_dir(path)
@@ -313,6 +424,8 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                 raise
 
         allowed, allow_expt = _parse_requested_picker_exts(exts, deps.autoload_exts)
+        allow_absolute_paths = deps.get_allow_abs_paths()
+        data_root = deps.data_dir.resolve()
 
         dirs: set[str] = set()
         try:
@@ -328,7 +441,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         except OSError:
             pass
 
-        files: set[str] = set()
+        file_items: list[dict[str, Any]] = []
         try:
             with os.scandir(target_dir) as it:
                 for entry in it:
@@ -337,31 +450,53 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                     try:
                         if entry.is_file(follow_symlinks=False):
                             ext = deps.image_ext_name(entry.name)
-                            if ext in allowed or (
-                                allow_expt and Path(entry.name).suffix.lower() == ".expt"
-                            ):
-                                files.add(entry.name)
+                            is_expt = Path(entry.name).suffix.lower() == ".expt"
+                            if ext not in allowed and not (allow_expt and is_expt):
+                                continue
+                            stat = entry.stat(follow_symlinks=False)
+                            file_items.append(
+                                {
+                                    "name": entry.name,
+                                    "path": _browse_file_path(
+                                        entry.name, target_dir, data_root, allow_absolute_paths
+                                    ),
+                                    "ext": ".expt" if is_expt and ext not in allowed else ext,
+                                    "mtime": stat.st_mtime,
+                                    "sizeBytes": stat.st_size,
+                                    "isSeriesLead": False,
+                                    "seriesCount": 1,
+                                }
+                            )
                     except OSError:
                         continue
         except OSError:
             pass
 
-        data_root = deps.data_dir.resolve()
-        try:
-            rel_path = target_dir.relative_to(data_root)
-            current_path_display = rel_path.as_posix() if rel_path != Path(".") else ""
-        except ValueError:
-            current_path_display = str(target_dir) if deps.get_allow_abs_paths() else ""
+        if series_mode == "first_only":
+            file_items = _aggregate_browse_series(file_items, deps.split_series_name)
+        file_items = _sort_browse_items(file_items, sort)
+        typed_file_items = [BrowseFileItem(**item) for item in file_items]
 
-        can_go_up = target_dir.resolve() != data_root.resolve()
+        current_path_display = _display_browse_path(target_dir, data_root, allow_absolute_paths)
+        parent_path_display = _browse_parent_path(
+            target_dir, data_root, allow_absolute_paths, deps.is_within
+        )
+        resolved_target = target_dir.resolve()
+        can_go_up = (
+            resolved_target != data_root
+            if deps.is_within(resolved_target, data_root)
+            else bool(parent_path_display)
+        )
 
         return BrowseResponse(
-            folders=sorted(dirs),
-            files=sorted(files),
+            folders=sorted(dirs, key=_natural_sort_key),
+            files=[item.name for item in typed_file_items],
+            fileItems=typed_file_items,
             currentPath=current_path_display,
+            parentPath=parent_path_display,
             root=str(data_root),
             canGoUp=can_go_up,
-            allowAbsolutePaths=deps.get_allow_abs_paths(),
+            allowAbsolutePaths=allow_absolute_paths,
         )
 
     @app.get("/api/autoload/latest", response_model=AutoloadLatestResponse)

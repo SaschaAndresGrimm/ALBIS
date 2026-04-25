@@ -2,8 +2,11 @@
  * Shared file-type classification helpers used across frontend controllers.
  */
 
-const HDF_EXTS = [".h5", ".hdf5"];
-const SERIES_IMAGE_EXTS = [".cbf", ".cbf.gz", ".edf", ".tif", ".tiff"];
+export const HDF_EXTS = [".h5", ".hdf5"];
+export const TIFF_EXTS = [".tif", ".tiff"];
+export const CBF_EXTS = [".cbf", ".cbf.gz"];
+export const EDF_EXTS = [".edf"];
+export const SERIES_IMAGE_EXTS = [...CBF_EXTS, ...EDF_EXTS, ...TIFF_EXTS];
 
 function normalizePath(path) {
   return typeof path === "string" ? path.toLowerCase() : "";

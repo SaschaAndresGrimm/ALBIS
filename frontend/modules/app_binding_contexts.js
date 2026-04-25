@@ -324,7 +324,13 @@ export function createFileBrowserControllerContext({
   return {
     apiBase,
     browseModal: elements.browseModal,
+    browseTitle: elements.browseTitle,
     browseBreadcrumb: elements.browseBreadcrumb,
+    browseUpBtn: elements.browseUp,
+    browseFormatField: elements.browseFormatField,
+    browseFormatSelect: elements.browseFormat,
+    browseSortSelect: elements.browseSort,
+    browseSeriesModeSelect: elements.browseSeriesMode,
     browseFoldersList: elements.browseFoldersList,
     browseFilesList: elements.browseFilesList,
     browsePathInput: elements.browsePathInput,
@@ -351,7 +357,7 @@ export function createFileBrowserControllerContext({
       } else if (mode === "series-sum") {
         const picked = selectedPath.replace(/[\\/]$/, "");
         if (elements.seriesSumOutput) {
-          elements.seriesSumOutput.value = `${picked}/series_sum`;
+          elements.seriesSumOutput.value = picked ? `${picked}/series_sum` : "series_sum";
         }
       }
     },
