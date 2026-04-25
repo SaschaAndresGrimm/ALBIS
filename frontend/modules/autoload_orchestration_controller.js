@@ -177,8 +177,15 @@ export function createAutoloadOrchestrationController({
   }
 
   async function ensureFileMode() {
+    if (state.autoload.watchEnabled) {
+      state.autoload.watchEnabled = false;
+    }
     if (state.autoload.running || state.autoload.mode !== "file") {
       await stopAutoload({ keepMode: false, disableMonitor: true });
+    } else {
+      updateAutoloadUI();
+      setAutoloadStatus(t("autoload.status.idle"));
+      persistAutoloadSettings();
     }
     if (analysisState.externalPeakSets.length) {
       analysisState.externalPeakSets = [];
