@@ -214,13 +214,16 @@ export function createAnalysisOverlayController({
 
   function renderPeakList() {
     if (!peaksBody) return;
-    const isBusy = analysisState.peaksEnabled && state.hasFrame && (state.isLoading || peakFinderScheduled);
-    if (isBusy && peaksBody.childElementCount > 0) {
+    // Playback can start loading the next frame before the deferred peak-finder
+    // repaint runs for the current one. Keep the table blocked only while a
+    // fresh peak-detection pass is still pending.
+    const peakResultsPending = analysisState.peaksEnabled && state.hasFrame && peakFinderScheduled;
+    if (peakResultsPending && peaksBody.childElementCount > 0) {
       updatePeaksSectionState();
       return;
     }
     peaksBody.innerHTML = "";
-    if (isBusy) {
+    if (peakResultsPending) {
       peaksBody.appendChild(buildSkeletonList(6));
       updatePeaksSectionState();
       return;
