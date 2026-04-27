@@ -47,7 +47,7 @@ describe("export_splash_controller", () => {
     delete global.fetch;
   });
 
-  it("exports saturated pixels with the same green overlay used by the viewer", async () => {
+  it("exports saturated pixels with the same overlay color used by the viewer", async () => {
     vi.resetModules();
     global.fetch = buildFetchMock({
       en: {},
@@ -109,6 +109,6 @@ describe("export_splash_controller", () => {
     controller.exportFullImage("frame.png");
 
     expect(canvases).toHaveLength(1);
-    expect(Array.from(canvases[0]._ctx.lastImageData.data)).toEqual([0, 158, 20, 255]);
+    expect(Array.from(canvases[0]._ctx.lastImageData.data)).toEqual([88, 183, 198, 255]);
   });
 });

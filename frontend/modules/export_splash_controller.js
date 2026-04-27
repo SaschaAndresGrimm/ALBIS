@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
 
 const SPLASH_STATUS_TERMINAL_KEYS = new Set([
   "backend.splash.ready",
@@ -105,10 +106,10 @@ export function createExportSplashController({
         }
         if (maskSaturatedEnabled && isSaturatedValue(v, satMax)) {
           const j = outOffset + col * 4;
-          out[j] = 0;
-          out[j + 1] = 158;
-          out[j + 2] = 20;
-          out[j + 3] = 255;
+          out[j] = SATURATED_PIXEL_RGBA.byte[0];
+          out[j + 1] = SATURATED_PIXEL_RGBA.byte[1];
+          out[j + 2] = SATURATED_PIXEL_RGBA.byte[2];
+          out[j + 3] = SATURATED_PIXEL_RGBA.byte[3];
           continue;
         }
         const norm = mapValueToNorm(v);

@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
 
 export function getWebglRenderCompatibility(userAgent = "") {
   const ua = String(
@@ -122,7 +123,7 @@ export function createRenderEngineController({
           }
         }
         if (u_mask_saturated_enabled > 0.5 && abs(value - u_sat_max) <= max(1e-9, abs(u_sat_max) * 1e-6)) {
-          outColor = vec4(0.0, 0.62, 0.08, 1.0);
+          outColor = vec4(${SATURATED_PIXEL_RGBA.float.join(", ")});
           return;
         }
         float norm = 0.0;
@@ -435,10 +436,10 @@ export function createRenderEngineController({
           }
           if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(v, satMax)) {
             const j = i * 4;
-            out[j] = 0;
-            out[j + 1] = 158;
-            out[j + 2] = 20;
-            out[j + 3] = 255;
+            out[j] = SATURATED_PIXEL_RGBA.byte[0];
+            out[j + 1] = SATURATED_PIXEL_RGBA.byte[1];
+            out[j + 2] = SATURATED_PIXEL_RGBA.byte[2];
+            out[j + 3] = SATURATED_PIXEL_RGBA.byte[3];
             continue;
           }
           const norm = mapValueToNorm(v);
