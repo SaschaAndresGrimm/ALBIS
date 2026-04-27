@@ -3294,6 +3294,7 @@ renderEngineController = createRenderEngineController({
     scheduleOverview,
     schedulePixelOverlay,
     schedulePeakOverlay,
+    getUserAgent: () => navigator.userAgent,
     getRenderer: () => renderer,
     setRenderer: (nextRenderer) => {
       renderer = nextRenderer;

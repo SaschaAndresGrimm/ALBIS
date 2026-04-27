@@ -4,6 +4,16 @@
 
 import { t } from "./i18n.js";
 
+export function getWebglRenderCompatibility(userAgent = "") {
+  const ua = String(
+    userAgent || (typeof navigator !== "undefined" ? navigator.userAgent || "" : ""),
+  ).toLowerCase();
+  const isFirefox = ua.includes("firefox/");
+  return {
+    disableUnsignedIntegerTextures: isFirefox,
+  };
+}
+
 export function createRenderEngineController({
   state,
   elements,
@@ -28,6 +38,7 @@ export function createRenderEngineController({
     scheduleOverview,
     schedulePixelOverlay,
     schedulePeakOverlay,
+    getUserAgent,
     getRenderer,
     setRenderer,
   } = callbacks;
@@ -71,6 +82,7 @@ export function createRenderEngineController({
     if (!gl) {
       return null;
     }
+    const renderCompatibility = getWebglRenderCompatibility(getUserAgent?.());
 
     const vertexSource = `#version 300 es
       layout(location = 0) in vec2 a_position;
@@ -176,10 +188,14 @@ export function createRenderEngineController({
     }
 
     let uintProgram = null;
-    try {
-      uintProgram = createProgram(gl, vertexSource, uintFragmentSource);
-    } catch (err) {
-      console.warn("WebGL integer texture path unavailable; using float upload fallback.", err);
+    if (!renderCompatibility.disableUnsignedIntegerTextures) {
+      try {
+        uintProgram = createProgram(gl, vertexSource, uintFragmentSource);
+      } catch (err) {
+        console.warn("WebGL integer texture path unavailable; using float upload fallback.", err);
+      }
+    } else {
+      console.warn("Firefox WebGL compatibility mode enabled; using float texture uploads.");
     }
 
     const vao = gl.createVertexArray();
@@ -248,6 +264,7 @@ export function createRenderEngineController({
     return {
       type: "webgl",
       maxTextureSize,
+      supportsUnsignedTextures: Boolean(uintProgram),
       render({
         floatData,
         rawData,

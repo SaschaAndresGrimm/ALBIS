@@ -167,8 +167,12 @@ export function createFileSessionController({
   function applyFrame(data, width, height, dtype) {
     state.dataRaw = data;
     const activeRenderer = getRenderer();
+    const canUseUnsignedWebglTextures =
+      activeRenderer?.type === "webgl" &&
+      activeRenderer?.supportsUnsignedTextures &&
+      isWebglUnsignedRawCandidate(dtype, data);
     state.dataFloat =
-      activeRenderer?.type === "webgl" && !isWebglUnsignedRawCandidate(dtype, data) ? toFloat32(data) : null;
+      activeRenderer?.type === "webgl" && !canUseUnsignedWebglTextures ? toFloat32(data) : null;
     state.width = width;
     state.height = height;
     state.dtype = dtype;
