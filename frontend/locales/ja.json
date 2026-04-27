@@ -720,5 +720,8 @@
   "browse.details.header.name": "名前",
   "browse.details.header.type": "種類",
   "browse.details.header.modified": "更新日時",
-  "browse.details.header.size": "サイズ"
+  "browse.details.header.size": "サイズ",
+  "command.label.debug_picker_file": "デバッグ: ALBISファイルピッカーを開く",
+  "command.label.debug_picker_folder": "デバッグ: ALBISフォルダーピッカーを開く",
+  "command.label.debug_picker_geometry": "デバッグ: ALBISジオメトリピッカーを開く"
 }

@@ -720,5 +720,8 @@
   "browse.details.header.name": "Ingoa",
   "browse.details.header.type": "Momo",
   "browse.details.header.modified": "I whakarerekētia",
-  "browse.details.header.size": "Rahi"
+  "browse.details.header.size": "Rahi",
+  "command.label.debug_picker_file": "Patuiro: Whakatuwhera i te kōwhiri kōnae ALBIS",
+  "command.label.debug_picker_folder": "Patuiro: Whakatuwhera i te kōwhiri kōpaki ALBIS",
+  "command.label.debug_picker_geometry": "Patuiro: Whakatuwhera i te kōwhiri āhuahanga ALBIS"
 }

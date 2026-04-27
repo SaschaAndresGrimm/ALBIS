@@ -20,14 +20,14 @@ describe("command palette re-localization", () => {
       <div id="command-list"></div>
     `;
     localStorage.clear();
-    if (!Element.prototype.scrollIntoView) {
-      Element.prototype.scrollIntoView = () => {};
+    if (!window.Element.prototype.scrollIntoView) {
+      window.Element.prototype.scrollIntoView = () => {};
     }
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete global.fetch;
+    delete globalThis.fetch;
   });
 
   it("rebuilds command labels when language changes", async () => {
@@ -40,6 +40,9 @@ describe("command palette re-localization", () => {
         "command.label.file_close": "File: Close",
         "command.label.file_new_window": "File: New Window",
         "command.label.settings_preferences": "Settings: Preferences…",
+        "command.label.debug_picker_file": "Debug: Open ALBIS File Picker",
+        "command.label.debug_picker_folder": "Debug: Open ALBIS Folder Picker",
+        "command.label.debug_picker_geometry": "Debug: Open ALBIS Geometry Picker",
         "command.label.playback_pause": "Playback: Pause",
         "command.label.playback_play": "Playback: Play",
         "command.label.frame_previous": "Frame: Previous",
@@ -69,6 +72,9 @@ describe("command palette re-localization", () => {
         "command.label.file_close": "文件：关闭",
         "command.label.file_new_window": "文件：新建窗口",
         "command.label.settings_preferences": "设置：偏好设置…",
+        "command.label.debug_picker_file": "调试：打开 ALBIS 文件选择器",
+        "command.label.debug_picker_folder": "调试：打开 ALBIS 文件夹选择器",
+        "command.label.debug_picker_geometry": "调试：打开 ALBIS 几何文件选择器",
         "command.label.playback_pause": "播放：暂停",
         "command.label.playback_play": "播放：开始",
         "command.label.frame_previous": "帧：上一帧",
@@ -95,7 +101,7 @@ describe("command palette re-localization", () => {
       ja: {},
     };
 
-    global.fetch = buildFetchMock(dictionaries);
+    globalThis.fetch = buildFetchMock(dictionaries);
 
     const i18n = await import("../modules/i18n.js");
     await i18n.initializeI18n({ backendLanguage: "en" });
@@ -142,6 +148,7 @@ describe("command palette re-localization", () => {
     const getCommands = () => buildCommandPaletteCommands({
       state,
       panelTabState: "view",
+      backendIsLocal: true,
       platformShortcutLabel: () => "",
       isHdfFile: () => false,
       getThresholdIndexAtOffset: () => 0,
@@ -168,6 +175,7 @@ describe("command palette re-localization", () => {
     controller.render();
     let labels = Array.from(document.querySelectorAll(".command-label")).map((el) => el.textContent);
     expect(labels[0]).toBe("File: Open…");
+    expect(labels).toContain("Debug: Open ALBIS File Picker");
     expect(labels).toContain("Help: Backend Log");
 
     i18n.setLanguage("zh-CN", { persist: false, applyDom: false });
@@ -175,6 +183,7 @@ describe("command palette re-localization", () => {
 
     labels = Array.from(document.querySelectorAll(".command-label")).map((el) => el.textContent);
     expect(labels[0]).toBe("文件：打开…");
+    expect(labels).toContain("调试：打开 ALBIS 文件选择器");
     expect(labels).toContain("帮助：后端日志");
   });
 });

@@ -720,5 +720,8 @@
   "browse.details.header.name": "Namn",
   "browse.details.header.type": "Typ",
   "browse.details.header.modified": "Ändrad",
-  "browse.details.header.size": "Storlek"
+  "browse.details.header.size": "Storlek",
+  "command.label.debug_picker_file": "Debug: Öppna ALBIS filväljare",
+  "command.label.debug_picker_folder": "Debug: Öppna ALBIS mappväljare",
+  "command.label.debug_picker_geometry": "Debug: Öppna ALBIS geometriväljare"
 }

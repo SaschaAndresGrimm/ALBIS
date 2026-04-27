@@ -2841,6 +2841,7 @@ function getCommandPaletteCommands() {
   return buildCommandPaletteCommands({
     state,
     panelTabState,
+    backendIsLocal,
     platformShortcutLabel,
     isHdfFile,
     getThresholdIndexAtOffset,
@@ -2863,6 +2864,9 @@ function getCommandPaletteCommands() {
       togglePanel,
       setPanelTab,
       handleMenuAction,
+      openDebugFilePicker: () => openFileDialog(),
+      openDebugFolderPicker: () => openFileBrowser("debug-folder", null),
+      openDebugGeometryPicker: () => openFileDialog({ exts: ".expt" }),
     },
   });
 }

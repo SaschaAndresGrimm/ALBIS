@@ -720,5 +720,8 @@
   "browse.details.header.name": "Num",
   "browse.details.header.type": "Tip",
   "browse.details.header.modified": "Midà",
-  "browse.details.header.size": "Grondezza"
+  "browse.details.header.size": "Grondezza",
+  "command.label.debug_picker_file": "Debug: Avrir il selecziunader da datotecas ALBIS",
+  "command.label.debug_picker_folder": "Debug: Avrir il selecziunader d’ordinaturs ALBIS",
+  "command.label.debug_picker_geometry": "Debug: Avrir il selecziunader da geometria ALBIS"
 }

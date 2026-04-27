@@ -7,6 +7,7 @@ import { t } from "./i18n.js";
 export function buildCommandPaletteCommands({
   state,
   panelTabState,
+  backendIsLocal = false,
   platformShortcutLabel,
   isHdfFile,
   getThresholdIndexAtOffset,
@@ -31,6 +32,9 @@ export function buildCommandPaletteCommands({
     togglePanel,
     setPanelTab,
     handleMenuAction,
+    openDebugFilePicker,
+    openDebugFolderPicker,
+    openDebugGeometryPicker,
   } = actions;
 
   const hasFile = Boolean(state.file);
@@ -73,6 +77,30 @@ export function buildCommandPaletteCommands({
       shortcut: platformShortcutLabel("settings-open"),
       search: "settings preferences options",
       run: () => openSettingsModal(),
+    },
+    {
+      id: "debug-picker-file",
+      label: t("command.label.debug_picker_file"),
+      shortcut: "",
+      search: "debug picker albis web file local",
+      when: backendIsLocal,
+      run: () => openDebugFilePicker(),
+    },
+    {
+      id: "debug-picker-folder",
+      label: t("command.label.debug_picker_folder"),
+      shortcut: "",
+      search: "debug picker albis web folder local",
+      when: backendIsLocal,
+      run: () => openDebugFolderPicker(),
+    },
+    {
+      id: "debug-picker-geometry",
+      label: t("command.label.debug_picker_geometry"),
+      shortcut: "",
+      search: "debug picker albis web geometry expt local",
+      when: backendIsLocal,
+      run: () => openDebugGeometryPicker(),
     },
     {
       id: "toggle-playback",

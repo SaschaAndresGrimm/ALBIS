@@ -720,5 +720,8 @@
   "browse.details.header.name": "Nome",
   "browse.details.header.type": "Tipo",
   "browse.details.header.modified": "Modificado",
-  "browse.details.header.size": "Tamanho"
+  "browse.details.header.size": "Tamanho",
+  "command.label.debug_picker_file": "Depuração: Abrir seletor de arquivos do ALBIS",
+  "command.label.debug_picker_folder": "Depuração: Abrir seletor de pastas do ALBIS",
+  "command.label.debug_picker_geometry": "Depuração: Abrir seletor de geometria do ALBIS"
 }
