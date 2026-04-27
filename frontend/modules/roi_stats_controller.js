@@ -392,8 +392,8 @@ function updateRoiTooltip(event, canvasEl) {
     hideRoiTooltip(canvasEl);
     return;
   }
-  const t = plotW ? plotX / plotW : 0;
-  const idx = Math.max(0, Math.min(plot.data.length - 1, Math.round(t * (plot.data.length - 1))));
+  const xFraction = plotW ? plotX / plotW : 0;
+  const idx = Math.max(0, Math.min(plot.data.length - 1, Math.round(xFraction * (plot.data.length - 1))));
   const xValue = plot.xStart + idx * plot.xStep;
   const value = plot.data[idx];
   const xText = plot.xTickMode === "integer" ? `${Math.round(xValue)}` : formatRoiTick(xValue);
