@@ -12,6 +12,10 @@ function buildFetchMock(handler) {
     const text = String(url);
     if (text.includes("locales/")) {
       return jsonResponse({
+        "browse.details.header.modified": "Modified",
+        "browse.details.header.name": "Name",
+        "browse.details.header.size": "Size",
+        "browse.details.header.type": "Type",
         "browse.action.up": "Up",
         "browse.filter.option.all": "All",
         "browse.filter.option.hdf5": "HDF5",
@@ -19,8 +23,14 @@ function buildFetchMock(handler) {
         "browse.filter.option.cbf": "CBF",
         "browse.filter.option.edf": "EDF",
         "browse.filter.option.geometry": "Geometry (.expt)",
+        "browse.search.clear": "Clear",
+        "browse.search.label": "Search",
+        "browse.search.placeholder": "Search files and folders",
         "browse.title.select_file": "Select File",
         "browse.title.select_folder": "Select Folder",
+        "browse.view.label": "View",
+        "browse.view.option.details": "Details",
+        "browse.view.option.list": "List",
         "file_browser.failed_load": "Failed to load folder contents",
         "file_browser.loading": "Loading {{label}}",
         "file_browser.no_folders": "No folders",
@@ -47,6 +57,8 @@ function buildBrowseDom() {
       <div id="browse-title"></div>
       <div id="browse-breadcrumb"></div>
       <button id="browse-up"></button>
+      <input id="browse-search-input" type="search" />
+      <button id="browse-search-clear"></button>
       <label id="browse-format-field"><select id="browse-format"></select></label>
       <label id="browse-sort-field"><select id="browse-sort">
         <option value="name_asc">Name A-Z</option>
@@ -59,8 +71,15 @@ function buildBrowseDom() {
         <option value="all">All files</option>
         <option value="first_only">First image only</option>
       </select></label>
-      <div id="browse-folders-list"></div>
-      <div id="browse-files-list"></div>
+      <label id="browse-view-field"><select id="browse-view-mode">
+        <option value="list">List</option>
+        <option value="details">Details</option>
+      </select></label>
+      <div id="browse-content" class="browse-content">
+        <div class="browse-folders"><div id="browse-folders-list"></div></div>
+        <div id="browse-splitter"></div>
+        <div class="browse-files"><div id="browse-files-list"></div></div>
+      </div>
       <input id="browse-path-input" />
       <div id="browse-status"></div>
       <button id="browse-select"></button>
@@ -69,6 +88,18 @@ function buildBrowseDom() {
       <select id="filesystem-mode"><option value="remote">remote</option></select>
     </div>
   `;
+  const browseContent = document.getElementById("browse-content");
+  browseContent.getBoundingClientRect = () => ({
+    width: 920,
+    height: 320,
+    top: 0,
+    right: 920,
+    bottom: 320,
+    left: 0,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
 }
 
 async function createController({ fetchHandler, onPathSelected = vi.fn() } = {}) {
@@ -84,10 +115,15 @@ async function createController({ fetchHandler, onPathSelected = vi.fn() } = {})
     browseTitle: document.getElementById("browse-title"),
     browseBreadcrumb: document.getElementById("browse-breadcrumb"),
     browseUpBtn: document.getElementById("browse-up"),
+    browseSearchInput: document.getElementById("browse-search-input"),
+    browseSearchClearBtn: document.getElementById("browse-search-clear"),
     browseFormatField: document.getElementById("browse-format-field"),
     browseFormatSelect: document.getElementById("browse-format"),
     browseSortSelect: document.getElementById("browse-sort"),
     browseSeriesModeSelect: document.getElementById("browse-series-mode"),
+    browseViewModeSelect: document.getElementById("browse-view-mode"),
+    browseContent: document.getElementById("browse-content"),
+    browseSplitter: document.getElementById("browse-splitter"),
     browseFoldersList: document.getElementById("browse-folders-list"),
     browseFilesList: document.getElementById("browse-files-list"),
     browsePathInput: document.getElementById("browse-path-input"),
@@ -120,6 +156,9 @@ describe("file_browser", () => {
   });
 
   it("passes requested extensions through the web file dialog and hides irrelevant controls for expt-only browsing", async () => {
+    localStorage.setItem("albis.browseFormat", "tiff");
+    localStorage.setItem("albis.browseSeriesMode", "first_only");
+    localStorage.setItem("albis.browseViewMode", "details");
     const controller = await createController({
       fetchHandler: () =>
         jsonResponse({
@@ -151,6 +190,7 @@ describe("file_browser", () => {
     expect(document.getElementById("browse-title").textContent).toBe("Select File");
     expect(document.getElementById("browse-format-field").classList.contains("is-hidden")).toBe(true);
     expect(document.getElementById("browse-series-mode").disabled).toBe(true);
+    expect(document.getElementById("browse-view-mode").value).toBe("details");
 
     const fileButton = document.querySelector("#browse-files-list .browse-item");
     fileButton.click();
@@ -340,6 +380,210 @@ describe("file_browser", () => {
     modal.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     await expect(selectionPromise).resolves.toBe("frame_0001.cbf");
+  });
+
+  it("filters the current directory locally, supports search shortcuts, and clears search on navigation and reopen", async () => {
+    const controller = await createController({
+      fetchHandler: (url) => {
+        const parsed = new URL(url, "http://localhost");
+        const path = parsed.searchParams.get("path") || "";
+        if (path === "raw") {
+          return jsonResponse({
+            folders: [],
+            files: ["frame_0001.cbf"],
+            fileItems: [
+              {
+                name: "frame_0001.cbf",
+                path: "raw/frame_0001.cbf",
+                ext: ".cbf",
+                mtime: 10,
+                sizeBytes: 2048,
+                isSeriesLead: false,
+                seriesCount: 1,
+              },
+            ],
+            currentPath: "raw",
+            parentPath: "",
+            root: "/tmp",
+            canGoUp: true,
+            allowAbsolutePaths: true,
+          });
+        }
+        return jsonResponse({
+          folders: ["raw", "processed"],
+          files: ["raw_scan_0001.h5", "series_0001.tiff"],
+          fileItems: [
+            {
+              name: "raw_scan_0001.h5",
+              path: "raw_scan_0001.h5",
+              ext: ".h5",
+              mtime: 1,
+              sizeBytes: 5,
+              isSeriesLead: false,
+              seriesCount: 1,
+            },
+            {
+              name: "series_0001.tiff",
+              path: "series_0001.tiff",
+              ext: ".tiff",
+              mtime: 2,
+              sizeBytes: 5,
+              isSeriesLead: false,
+              seriesCount: 1,
+            },
+          ],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        });
+      },
+    });
+
+    controller.openFileBrowser("autoload", document.createElement("input"));
+    await flushAsyncWork();
+
+    const modal = document.getElementById("browse-modal");
+    const searchInput = document.getElementById("browse-search-input");
+    modal.dispatchEvent(new window.KeyboardEvent("keydown", { key: "/", bubbles: true }));
+    expect(document.activeElement).toBe(searchInput);
+
+    const initialRequests = browseRequests().length;
+    searchInput.value = "raw";
+    searchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+    await flushAsyncWork();
+
+    expect(browseRequests()).toHaveLength(initialRequests);
+    expect(Array.from(document.querySelectorAll("#browse-folders-list .browse-item")).map((item) => item.textContent)).toEqual(["raw"]);
+    expect(Array.from(document.querySelectorAll("#browse-files-list .browse-item")).map((item) => item.textContent)).toEqual(["raw_scan_0001.h5"]);
+
+    searchInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushAsyncWork();
+    expect(searchInput.value).toBe("");
+
+    searchInput.value = "raw";
+    searchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+    await flushAsyncWork();
+    document.querySelector("#browse-folders-list .browse-item").dispatchEvent(
+      new window.MouseEvent("dblclick", { bubbles: true }),
+    );
+    await flushAsyncWork();
+
+    expect(browseRequests().at(-1)).toBe("/api/browse?path=raw&sort=name_asc&series_mode=all");
+    expect(searchInput.value).toBe("");
+
+    controller.closeFileBrowser();
+    controller.openFileBrowser("autoload", document.createElement("input"));
+    await flushAsyncWork();
+    expect(searchInput.value).toBe("");
+  });
+
+  it("persists pane width, restores stored preferences, and renders details view", async () => {
+    localStorage.setItem("albis.browsePaneWidth", "396");
+    localStorage.setItem("albis.browseSort", "name_desc");
+    localStorage.setItem("albis.browseSeriesMode", "first_only");
+    localStorage.setItem("albis.browseFormat", "tiff");
+    localStorage.setItem("albis.browseViewMode", "details");
+
+    const controller = await createController({
+      fetchHandler: (url) => {
+        const parsed = new URL(url, "http://localhost");
+        const exts = parsed.searchParams.get("exts") || "";
+        const sort = parsed.searchParams.get("sort") || "";
+        const seriesMode = parsed.searchParams.get("series_mode") || "";
+        if (exts === ".tif,.tiff" && sort === "name_desc" && seriesMode === "first_only") {
+          return jsonResponse({
+            folders: [],
+            files: ["series_0001.tiff"],
+            fileItems: [
+              {
+                name: "series_0001.tiff",
+                path: "series_0001.tiff",
+                ext: ".tiff",
+                mtime: 60,
+                sizeBytes: 2048,
+                isSeriesLead: true,
+                seriesCount: 12,
+              },
+            ],
+            currentPath: "",
+            parentPath: "",
+            root: "/tmp",
+            canGoUp: false,
+            allowAbsolutePaths: true,
+          });
+        }
+        return jsonResponse({
+          folders: [],
+          files: [],
+          fileItems: [],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        });
+      },
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    expect(browseRequests()[0]).toBe("/api/browse?exts=.tif%2C.tiff&sort=name_desc&series_mode=first_only");
+    expect(document.getElementById("browse-view-mode").value).toBe("details");
+    expect(document.getElementById("browse-content").style.getPropertyValue("--browse-folder-pane-width")).toBe("396px");
+    expect(document.querySelector(".browse-details-header").textContent).toContain("Modified");
+    expect(document.querySelector("#browse-files-list .browse-item").title).toBe("series_0001.tiff");
+    expect(document.querySelector(".browse-item-badge").textContent).toContain("12");
+    expect(document.querySelector("#browse-files-list .browse-item").textContent).toContain("TIFF");
+    expect(document.querySelector("#browse-files-list .browse-item").textContent).toContain("2 KB");
+  });
+
+  it("updates pane width by dragging the splitter and disables splitter behavior in stacked layout", async () => {
+    const controller = await createController({
+      fetchHandler: () =>
+        jsonResponse({
+          folders: ["raw"],
+          files: ["frame_0001.cbf"],
+          fileItems: [
+            {
+              name: "frame_0001.cbf",
+              path: "frame_0001.cbf",
+              ext: ".cbf",
+              mtime: 10,
+              sizeBytes: 100,
+              isSeriesLead: false,
+              seriesCount: 1,
+            },
+          ],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        }),
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const content = document.getElementById("browse-content");
+    const splitter = document.getElementById("browse-splitter");
+    splitter.dispatchEvent(new window.MouseEvent("mousedown", { clientX: 200, bubbles: true }));
+    window.dispatchEvent(new window.MouseEvent("mousemove", { clientX: 280, bubbles: true }));
+    window.dispatchEvent(new window.MouseEvent("mouseup", { clientX: 280, bubbles: true }));
+
+    expect(content.style.getPropertyValue("--browse-folder-pane-width")).toBe("400px");
+    expect(localStorage.getItem("albis.browsePaneWidth")).toBe("400");
+
+    const originalWidth = window.innerWidth;
+    window.innerWidth = 700;
+    window.dispatchEvent(new window.Event("resize"));
+    expect(content.classList.contains("is-stacked")).toBe(true);
+    expect(splitter.classList.contains("is-disabled")).toBe(true);
+    window.innerWidth = originalWidth;
+    window.dispatchEvent(new window.Event("resize"));
   });
 
   it("keeps the format list populated and derives parent navigation for legacy browse responses", async () => {

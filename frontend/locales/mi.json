@@ -710,5 +710,15 @@
   "hint.frame.stop_live": "Freeze the current live frame and stop following incoming images (Tab).",
   "toolbar.play.stop_live_aria": "Stop following the live stream",
   "toolbar.play.stop_live_title": "Stop following the live stream",
-  "toolbar.datasource.state.paused": "paused"
+  "toolbar.datasource.state.paused": "paused",
+  "browse.search.label": "Rapu",
+  "browse.search.placeholder": "Rapu kōnae me ngā kōpaki",
+  "browse.search.clear": "Ūkui",
+  "browse.view.label": "Tirohanga",
+  "browse.view.option.list": "Rārangi",
+  "browse.view.option.details": "Taipitopito",
+  "browse.details.header.name": "Ingoa",
+  "browse.details.header.type": "Momo",
+  "browse.details.header.modified": "I whakarerekētia",
+  "browse.details.header.size": "Rahi"
 }

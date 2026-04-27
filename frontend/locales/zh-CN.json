@@ -710,5 +710,15 @@
   "hint.frame.stop_live": "Freeze the current live frame and stop following incoming images (Tab).",
   "toolbar.play.stop_live_aria": "Stop following the live stream",
   "toolbar.play.stop_live_title": "Stop following the live stream",
-  "toolbar.datasource.state.paused": "paused"
+  "toolbar.datasource.state.paused": "paused",
+  "browse.search.label": "搜索",
+  "browse.search.placeholder": "搜索文件和文件夹",
+  "browse.search.clear": "清除",
+  "browse.view.label": "视图",
+  "browse.view.option.list": "列表",
+  "browse.view.option.details": "详细信息",
+  "browse.details.header.name": "名称",
+  "browse.details.header.type": "类型",
+  "browse.details.header.modified": "修改时间",
+  "browse.details.header.size": "大小"
 }

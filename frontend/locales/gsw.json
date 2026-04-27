@@ -710,5 +710,15 @@
   "hint.frame.stop_live": "Freeze the current live frame and stop following incoming images (Tab).",
   "toolbar.play.stop_live_aria": "Stop following the live stream",
   "toolbar.play.stop_live_title": "Stop following the live stream",
-  "toolbar.datasource.state.paused": "paused"
+  "toolbar.datasource.state.paused": "paused",
+  "browse.search.label": "Sueche",
+  "browse.search.placeholder": "Dateie und Ordner sueche",
+  "browse.search.clear": "Leere",
+  "browse.view.label": "Aasicht",
+  "browse.view.option.list": "Liste",
+  "browse.view.option.details": "Detail",
+  "browse.details.header.name": "Name",
+  "browse.details.header.type": "Typ",
+  "browse.details.header.modified": "Gänderet",
+  "browse.details.header.size": "Gröössi"
 }

@@ -710,5 +710,15 @@
   "hint.frame.stop_live": "Freeze the current live frame and stop following incoming images (Tab).",
   "toolbar.play.stop_live_aria": "Stop following the live stream",
   "toolbar.play.stop_live_title": "Stop following the live stream",
-  "toolbar.datasource.state.paused": "paused"
+  "toolbar.datasource.state.paused": "paused",
+  "browse.search.label": "Buscar",
+  "browse.search.placeholder": "Buscar archivos y carpetas",
+  "browse.search.clear": "Limpiar",
+  "browse.view.label": "Vista",
+  "browse.view.option.list": "Lista",
+  "browse.view.option.details": "Detalles",
+  "browse.details.header.name": "Nombre",
+  "browse.details.header.type": "Tipo",
+  "browse.details.header.modified": "Modificado",
+  "browse.details.header.size": "Tamaño"
 }

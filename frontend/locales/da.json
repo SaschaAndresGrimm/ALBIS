@@ -710,5 +710,15 @@
   "hint.frame.stop_live": "Freeze the current live frame and stop following incoming images (Tab).",
   "toolbar.play.stop_live_aria": "Stop following the live stream",
   "toolbar.play.stop_live_title": "Stop following the live stream",
-  "toolbar.datasource.state.paused": "paused"
+  "toolbar.datasource.state.paused": "paused",
+  "browse.search.label": "Søg",
+  "browse.search.placeholder": "Søg i filer og mapper",
+  "browse.search.clear": "Ryd",
+  "browse.view.label": "Visning",
+  "browse.view.option.list": "Liste",
+  "browse.view.option.details": "Detaljer",
+  "browse.details.header.name": "Navn",
+  "browse.details.header.type": "Type",
+  "browse.details.header.modified": "Ændret",
+  "browse.details.header.size": "Størrelse"
 }

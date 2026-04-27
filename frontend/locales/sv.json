@@ -710,5 +710,15 @@
   "hint.frame.stop_live": "Freeze the current live frame and stop following incoming images (Tab).",
   "toolbar.play.stop_live_aria": "Stop following the live stream",
   "toolbar.play.stop_live_title": "Stop following the live stream",
-  "toolbar.datasource.state.paused": "paused"
+  "toolbar.datasource.state.paused": "paused",
+  "browse.search.label": "Sök",
+  "browse.search.placeholder": "Sök filer och mappar",
+  "browse.search.clear": "Rensa",
+  "browse.view.label": "Vy",
+  "browse.view.option.list": "Lista",
+  "browse.view.option.details": "Detaljer",
+  "browse.details.header.name": "Namn",
+  "browse.details.header.type": "Typ",
+  "browse.details.header.modified": "Ändrad",
+  "browse.details.header.size": "Storlek"
 }

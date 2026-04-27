@@ -1424,6 +1424,19 @@
           </div>
           <div class="browse-toolbar">
             <button id="browse-up" class="btn btn-secondary browse-up-btn" type="button" data-i18n="browse.action.up">Up</button>
+            <div class="browse-control browse-search-control" id="browse-search-field">
+              <span data-i18n="browse.search.label">Search</span>
+              <div class="browse-search-row">
+                <input
+                  id="browse-search-input"
+                  type="search"
+                  placeholder="Search files and folders"
+                  data-i18n-placeholder="browse.search.placeholder"
+                  autocomplete="off"
+                />
+                <button id="browse-search-clear" class="btn btn-secondary browse-search-clear" type="button" data-i18n="browse.search.clear">Clear</button>
+              </div>
+            </div>
             <label class="browse-control" id="browse-format-field">
               <span data-i18n="browse.filter.format">Format</span>
               <select id="browse-format" aria-label="Format"></select>
@@ -1445,12 +1458,20 @@
                 <option value="first_only" data-i18n="browse.series.option.first_only">First image only</option>
               </select>
             </label>
+            <label class="browse-control" id="browse-view-field">
+              <span data-i18n="browse.view.label">View</span>
+              <select id="browse-view-mode" aria-label="View mode">
+                <option value="list" data-i18n="browse.view.option.list">List</option>
+                <option value="details" data-i18n="browse.view.option.details">Details</option>
+              </select>
+            </label>
           </div>
-          <div class="browse-content">
+          <div class="browse-content" id="browse-content">
             <div class="browse-folders">
               <div class="browse-section-title" data-i18n="browse.section.folders">Folders</div>
               <div class="browse-list" id="browse-folders-list"></div>
             </div>
+            <div class="browse-splitter" id="browse-splitter" aria-hidden="true"></div>
             <div class="browse-files">
               <div class="browse-section-title" data-i18n="browse.section.image_files">Image Files</div>
               <div class="browse-list" id="browse-files-list"></div>
