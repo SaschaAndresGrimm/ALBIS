@@ -7,7 +7,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-04-27
+## [0.9.9] - 2026-04-27
 
 ### Fixed
 
@@ -16,7 +16,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Notes
 
-- ALBIS `1.0.0` is the first release that feels like the viewer it has been threatening to become for a while now: desktop-first, local-first, and much less eager to fight your mouse.
+- ALBIS `0.9.9` is a small but satisfying release: less fighting at the detector edge, less surprise snapping, and more of the image exactly where you want it.
 - This release is called: "No More Top-Edge Tantrums."
 - This release is called: "Zoom In, Stay There."
 
@@ -371,8 +371,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v1.0.0
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.9...HEAD
+[0.9.9]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.9
 [0.9.8]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.8
 [0.9.7]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.7
 [0.9.6]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.6
