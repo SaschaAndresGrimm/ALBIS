@@ -486,12 +486,20 @@ jobs:
           fi
 
           tag="${GITHUB_REF_NAME}"
+          notes_file="release-notes/${tag}.md"
 
           publish_release() {
             if gh release view "$tag" >/dev/null 2>&1; then
+              if [ -f "$notes_file" ]; then
+                gh release edit "$tag" --notes-file "$notes_file"
+              fi
               gh release upload "$tag" "${assets[@]}" --clobber
             else
-              gh release create "$tag" "${assets[@]}" --generate-notes --verify-tag
+              if [ -f "$notes_file" ]; then
+                gh release create "$tag" "${assets[@]}" --notes-file "$notes_file" --verify-tag
+              else
+                gh release create "$tag" "${assets[@]}" --generate-notes --verify-tag
+              fi
             fi
           }
 

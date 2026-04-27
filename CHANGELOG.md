@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-27
+
+### Fixed
+
+- Fixed viewport pan bounds so zoomed detector images no longer snap back toward the edge when you try to center the top or side rows.
+- Fixed the high-zoom visibility guard so it keeps only a small sliver of the image reachable instead of forcing a large fraction of the frame to remain on screen.
+
+### Notes
+
+- ALBIS `1.0.0` is the first release that feels like the viewer it has been threatening to become for a while now: desktop-first, local-first, and much less eager to fight your mouse.
+- This release is called: "No More Top-Edge Tantrums."
+- This release is called: "Zoom In, Stay There."
+
 ## [0.9.8] - 2026-04-27
 
 ### Added
@@ -358,7 +371,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.8...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v1.0.0
 [0.9.8]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.8
 [0.9.7]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.7
 [0.9.6]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.6
