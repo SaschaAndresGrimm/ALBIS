@@ -39,6 +39,15 @@ export function createMaskCursorController({
     setAutoloadStatus,
   } = callbacks;
 
+  function formatCursorValue(value) {
+    if (!Number.isFinite(value)) return "";
+    const dtypeInfo = getDtypeInfo(state.dtype || "");
+    if (dtypeInfo?.kind === "f" && Number.isInteger(value)) {
+      return String(value);
+    }
+    return formatValue(value);
+  }
+
   function getImagePointFromEvent(event, options = {}) {
     if (!state.hasFrame || !canvasWrap) return null;
     const { allowOutside = false, allowOutsideViewport = false } = options;
@@ -279,7 +288,7 @@ export function createMaskCursorController({
       return;
     }
     const idx = iy * state.width + ix;
-    let labelValue = formatValue(state.dataRaw[idx]);
+    let labelValue = formatCursorValue(state.dataRaw[idx]);
     const satMax = getActiveSaturationMax();
     if (
       state.maskEnabled &&
