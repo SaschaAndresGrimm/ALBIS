@@ -95,6 +95,19 @@ def _picker_patterns(exts: tuple[str, ...]) -> tuple[str, str]:
     return " ".join(suffixes), label_text
 
 
+def _darwin_picker_types(exts: tuple[str, ...]) -> tuple[str, ...]:
+    tokens: list[str] = []
+    for ext in exts:
+        token = ext.lstrip(".")
+        if "." in token:
+            # AppleScript `choose file of type` matches a single extension token.
+            # Multi-part suffixes such as `.cbf.gz` need the terminal segment.
+            token = token.rsplit(".", 1)[-1]
+        if token and token not in tokens:
+            tokens.append(token)
+    return tuple(tokens)
+
+
 def _powershell_single_quote(text: str) -> str:
     return text.replace("'", "''")
 
@@ -271,7 +284,7 @@ def choose_file(
         if normalized_exts == (".expt",):
             script = f'POSIX path of (choose file with prompt "{escaped_prompt}")'
         else:
-            apple_types = ", ".join(f'"{ext.lstrip(".")}"' for ext in normalized_exts)
+            apple_types = ", ".join(f'"{token}"' for token in _darwin_picker_types(normalized_exts))
             script = (
                 f'POSIX path of (choose file with prompt "{escaped_prompt}" '
                 f"of type {{{apple_types}}})"

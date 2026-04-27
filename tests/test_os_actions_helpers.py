@@ -29,6 +29,25 @@ def test_choose_file_omits_darwin_type_filter_for_expt(monkeypatch) -> None:
     assert "of type" not in captured[0][2]
 
 
+def test_choose_file_maps_darwin_compound_extension_to_terminal_suffix(monkeypatch) -> None:
+    captured: list[list[str]] = []
+
+    def _fake_run(cmd, **kwargs):  # noqa: ANN001
+        captured.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout="/tmp/frame_0001.cbf.gz\n", stderr="")
+
+    monkeypatch.setattr("backend.services.os_actions.platform.system", lambda: "Darwin")
+    monkeypatch.setattr("backend.services.os_actions.subprocess.run", _fake_run)
+
+    selected = choose_file(exts=[".h5", ".cbf.gz"], prompt="Select image file")
+
+    assert selected == "/tmp/frame_0001.cbf.gz"
+    assert len(captured) == 1
+    assert 'choose file with prompt "Select image file"' in captured[0][2]
+    assert 'of type {"h5", "gz"}' in captured[0][2]
+    assert "cbf.gz" not in captured[0][2]
+
+
 def test_choose_file_uses_windows_powershell_dialog(monkeypatch) -> None:
     captured: list[list[str]] = []
 
