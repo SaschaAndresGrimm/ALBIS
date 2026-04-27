@@ -112,7 +112,15 @@ export function createOverviewViewportController({
     canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom})`;
   }
 
-  function getPanOffsetBounds() {
+  function clampToRange(value, min, max) {
+    if (!Number.isFinite(value)) return min;
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
+      return value;
+    }
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function getEffectiveScrollBounds() {
     if (!canvasWrap || !state.width || !state.height) {
       return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     }
@@ -125,14 +133,17 @@ export function createOverviewViewportController({
     const baseY = state.renderOffsetY || 0;
 
     const computeBounds = (scaled, view, base, leadInset = 0, trailInset = 0) => {
-      if (!(scaled > 0) || !(view > 0) || scaled >= view) {
+      if (!(scaled > 0) || !(view > 0)) {
         return { min: 0, max: 0 };
       }
-      const minVisible = Math.min(scaled, Math.max(48, scaled * 0.16));
       const insetLead = Math.max(0, Number(leadInset) || 0);
       const insetTrail = Math.max(0, Number(trailInset) || 0);
-      const min = insetLead + minVisible - (base + scaled);
-      const max = view - insetTrail - minVisible - base;
+      const availableView = Math.max(1, view - insetLead - insetTrail);
+      // Keep a small sliver visible so the image cannot be dragged away entirely,
+      // but do not scale that guard with zoom or large images will "snap" to an edge.
+      const minVisible = Math.min(scaled, Math.max(1, Math.min(48, availableView * 0.5)));
+      const min = base + minVisible + insetTrail - view;
+      const max = base + scaled - insetLead - minVisible;
       if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
         return { min: 0, max: 0 };
       }
@@ -147,13 +158,52 @@ export function createOverviewViewportController({
     return { minX: bx.min, maxX: bx.max, minY: by.min, maxY: by.max };
   }
 
+  function clampEffectiveScroll(targetX, targetY) {
+    const bounds = getEffectiveScrollBounds();
+    const desiredX = Number.isFinite(targetX) ? targetX : 0;
+    const desiredY = Number.isFinite(targetY) ? targetY : 0;
+    return {
+      x: clampToRange(desiredX, bounds.minX, bounds.maxX),
+      y: clampToRange(desiredY, bounds.minY, bounds.maxY),
+    };
+  }
+
+  function applyEffectiveScroll(targetX, targetY, schedule = true, clamp = true) {
+    if (!canvasWrap) {
+      return { x: 0, y: 0 };
+    }
+    let desiredX = Number.isFinite(targetX) ? targetX : 0;
+    let desiredY = Number.isFinite(targetY) ? targetY : 0;
+    if (clamp) {
+      const clamped = clampEffectiveScroll(desiredX, desiredY);
+      desiredX = clamped.x;
+      desiredY = clamped.y;
+    }
+    const maxScrollLeft = Math.max(0, (canvasWrap.scrollWidth || 0) - (canvasWrap.clientWidth || 0));
+    const maxScrollTop = Math.max(0, (canvasWrap.scrollHeight || 0) - (canvasWrap.clientHeight || 0));
+    const nextScrollLeft = clampToRange(desiredX, 0, maxScrollLeft);
+    const nextScrollTop = clampToRange(desiredY, 0, maxScrollTop);
+    canvasWrap.scrollLeft = nextScrollLeft;
+    canvasWrap.scrollTop = nextScrollTop;
+    const appliedScrollLeft = canvasWrap.scrollLeft || 0;
+    const appliedScrollTop = canvasWrap.scrollTop || 0;
+    state.panOffsetX = appliedScrollLeft - desiredX;
+    state.panOffsetY = appliedScrollTop - desiredY;
+    applyCanvasTransform();
+    if (schedule) {
+      deferPixelOverlayRedraw();
+      syncViewportOverlays();
+    }
+    return { x: desiredX, y: desiredY };
+  }
+
   function clampPanOffsetsToBounds() {
-    const bounds = getPanOffsetBounds();
-    const nextX = Math.max(bounds.minX, Math.min(bounds.maxX, Number(state.panOffsetX) || 0));
-    const nextY = Math.max(bounds.minY, Math.min(bounds.maxY, Number(state.panOffsetY) || 0));
-    const changed = nextX !== state.panOffsetX || nextY !== state.panOffsetY;
-    state.panOffsetX = nextX;
-    state.panOffsetY = nextY;
+    if (!canvasWrap) return false;
+    const currentX = getEffectiveScrollLeft();
+    const currentY = getEffectiveScrollTop();
+    const clamped = clampEffectiveScroll(currentX, currentY);
+    const changed = clamped.x !== currentX || clamped.y !== currentY;
+    applyEffectiveScroll(clamped.x, clamped.y, false, false);
     return changed;
   }
 
@@ -203,25 +253,7 @@ export function createOverviewViewportController({
   }
 
   function setEffectiveScroll(targetX, targetY, schedule = true) {
-    if (!canvasWrap) return;
-    const desiredX = Number.isFinite(targetX) ? targetX : 0;
-    const desiredY = Number.isFinite(targetY) ? targetY : 0;
-    const maxScrollLeft = Math.max(0, canvasWrap.scrollWidth - canvasWrap.clientWidth);
-    const maxScrollTop = Math.max(0, canvasWrap.scrollHeight - canvasWrap.clientHeight);
-    const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, desiredX));
-    const nextScrollTop = Math.max(0, Math.min(maxScrollTop, desiredY));
-    canvasWrap.scrollLeft = nextScrollLeft;
-    canvasWrap.scrollTop = nextScrollTop;
-    const appliedScrollLeft = canvasWrap.scrollLeft || 0;
-    const appliedScrollTop = canvasWrap.scrollTop || 0;
-    state.panOffsetX = appliedScrollLeft - desiredX;
-    state.panOffsetY = appliedScrollTop - desiredY;
-    clampPanOffsetsToBounds();
-    applyCanvasTransform();
-    if (schedule) {
-      deferPixelOverlayRedraw();
-      syncViewportOverlays();
-    }
+    applyEffectiveScroll(targetX, targetY, schedule, true);
   }
 
   function updatePanCapability() {
