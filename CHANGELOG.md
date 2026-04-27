@@ -7,6 +7,29 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-04-27
+
+### Added
+
+- Added an in-app backend log viewer so packaged ALBIS builds can inspect backend logs without leaving the app.
+
+### Changed
+
+- Reworked the web file picker with better navigation, richer file metadata, series-aware browsing, geometry-file filters, and translated modal copy across shipped locales.
+- Refreshed backend and frontend dependency pins, including `fastapi`, `uvicorn`, `python-multipart`, `eslint`, and `vitest`.
+
+### Fixed
+
+- Fixed circular ROI placement so centers can sit just outside the image while mask, interaction, and viewport behavior stay aligned.
+- Fixed playback-era UI regressions affecting the peak finder table, watch-folder toggling after returning to file mode, and ROI hover tooltips.
+- Fixed Firefox rendering failures on integer-texture paths by avoiding a WebGL upload mode it rejects.
+
+### Notes
+
+- This is a test release packed with small quality-of-life improvements and bug fixes.
+- This release is called: "Tiny Tweaks, Better Beamtime."
+- This release is called: "Logs in-app, ROIs off-road, Firefox less dramatic."
+
 ## [0.9.7] - 2026-04-09
 
 ### Changed
@@ -335,7 +358,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.7...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.8...HEAD
+[0.9.8]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.8
 [0.9.7]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.7
 [0.9.6]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.6
 [0.9.5]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.5
