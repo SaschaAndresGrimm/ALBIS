@@ -36,6 +36,18 @@ def test_frontend_module_entrypoint_is_served_as_javascript() -> None:
     assert 'from "./modules/http.js"' in response.text
 
 
+def test_frontend_modules_and_locales_are_served_without_cache() -> None:
+    client = TestClient(app)
+
+    module_response = client.get("/modules/file_browser.js")
+    locale_response = client.get("/locales/en.json")
+
+    assert module_response.status_code == 200
+    assert locale_response.status_code == 200
+    assert module_response.headers["cache-control"] == "no-store"
+    assert locale_response.headers["cache-control"] == "no-store"
+
+
 def test_open_log_endpoint_returns_backend_log_path() -> None:
     client = TestClient(app)
     response = client.post("/api/open-log")

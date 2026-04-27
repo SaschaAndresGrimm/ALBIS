@@ -341,4 +341,47 @@ describe("file_browser", () => {
 
     await expect(selectionPromise).resolves.toBe("frame_0001.cbf");
   });
+
+  it("keeps the format list populated and derives parent navigation for legacy browse responses", async () => {
+    const controller = await createController({
+      fetchHandler: (url) => {
+        const parsed = new URL(url, "http://localhost");
+        const path = parsed.searchParams.get("path") || "";
+        if (path === "processed") {
+          return jsonResponse({
+            folders: [],
+            files: ["scan_0001.h5", "scan_0002.h5"],
+            currentPath: "processed",
+            root: "/tmp",
+            canGoUp: true,
+            allowAbsolutePaths: true,
+          });
+        }
+        return jsonResponse({
+          folders: ["processed"],
+          files: [],
+          currentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        });
+      },
+    });
+
+    controller.openFileBrowser("autoload", document.createElement("input"));
+    await flushAsyncWork();
+    document.querySelector("#browse-folders-list .browse-item").dispatchEvent(
+      new window.MouseEvent("dblclick", { bubbles: true }),
+    );
+    await flushAsyncWork();
+
+    const formatOptions = Array.from(document.querySelectorAll("#browse-format option")).map((option) => option.textContent);
+    expect(formatOptions).toContain("All");
+    expect(formatOptions).toContain("HDF5");
+    expect(document.getElementById("browse-series-mode").disabled).toBe(true);
+
+    document.getElementById("browse-up").click();
+    await flushAsyncWork();
+    expect(browseRequests().at(-1)).toBe("/api/browse?sort=name_asc&series_mode=all");
+  });
 });

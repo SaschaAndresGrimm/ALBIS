@@ -13,6 +13,7 @@ const DEFAULT_SERIES_MODE = "all";
 const FORMAT_ALL = "__all__";
 const EXPT_EXTS = [".expt"];
 const DEFAULT_BROWSE_EXTS = [...HDF_EXTS, ...TIFF_EXTS, ...CBF_EXTS, ...EDF_EXTS];
+const LOCAL_SERIES_EXTS = new Set(SERIES_IMAGE_EXTS);
 const FORMAT_GROUPS = [
   { value: "hdf5", labelKey: "browse.filter.option.hdf5", exts: HDF_EXTS },
   { value: "tiff", labelKey: "browse.filter.option.tiff", exts: TIFF_EXTS },
@@ -20,6 +21,7 @@ const FORMAT_GROUPS = [
   { value: "edf", labelKey: "browse.filter.option.edf", exts: EDF_EXTS },
   { value: "geometry", labelKey: "browse.filter.option.geometry", exts: EXPT_EXTS },
 ];
+const NATURAL_SPLIT_RE = /(\d+)/;
 
 function detectBackendLocal(apiBase) {
   try {
@@ -70,8 +72,34 @@ function serializeExts(exts) {
     .join(",");
 }
 
+function naturalSortKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .split(NATURAL_SPLIT_RE)
+    .filter((part) => part !== "")
+    .map((part) => (/^\d+$/.test(part) ? Number(part) : part));
+}
+
 function intersectsExts(exts, candidates) {
   return candidates.some((candidate) => exts.has(candidate));
+}
+
+function compareNatural(a, b) {
+  const left = naturalSortKey(a);
+  const right = naturalSortKey(b);
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = left[index];
+    const rightPart = right[index];
+    if (typeof leftPart === "undefined") return -1;
+    if (typeof rightPart === "undefined") return 1;
+    if (leftPart === rightPart) continue;
+    if (typeof leftPart === "number" && typeof rightPart === "number") {
+      return leftPart - rightPart;
+    }
+    return String(leftPart).localeCompare(String(rightPart));
+  }
+  return 0;
 }
 
 function joinBrowsePath(base, name) {
@@ -80,6 +108,115 @@ function joinBrowsePath(base, name) {
   if (!root) return child;
   const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
   return `${root.replace(/[\\/]$/, "")}${separator}${child}`;
+}
+
+function inferFileExt(name) {
+  const lower = String(name || "").toLowerCase();
+  if (lower.endsWith(".cbf.gz")) return ".cbf.gz";
+  const dot = lower.lastIndexOf(".");
+  return dot >= 0 ? lower.slice(dot) : "";
+}
+
+function splitSeriesName(name) {
+  const ext = inferFileExt(name);
+  const stem = ext === ".cbf.gz"
+    ? String(name || "").slice(0, -ext.length)
+    : String(name || "").replace(new RegExp(`${ext.replace(".", "\\.")}$`, "i"), "");
+  const match = stem.match(/^(.*?)(\d+)([^\d]*)$/);
+  if (!match) return null;
+  return { prefix: match[1], digits: match[2], suffix: match[3] };
+}
+
+function deriveParentPath(currentPath) {
+  const raw = String(currentPath || "").trim();
+  if (!raw) return "";
+  if (/^[A-Za-z]:\\/.test(raw)) {
+    const parts = raw.split("\\").filter(Boolean);
+    return parts.length > 1 ? parts.slice(0, -1).join("\\") : "";
+  }
+  const isAbsolute = raw.startsWith("/");
+  const parts = raw.split("/").filter(Boolean);
+  if (!parts.length) return "";
+  if (isAbsolute && parts.length === 1) {
+    return "/";
+  }
+  const parent = parts.slice(0, -1).join("/");
+  return isAbsolute ? (parent ? `/${parent}` : "/") : parent;
+}
+
+function sortFileItems(items, sortMode) {
+  const working = [...items];
+  if (sortMode === "name_desc") {
+    return working.sort((left, right) => compareNatural(right.name, left.name));
+  }
+  if (sortMode === "mtime_desc") {
+    return working.sort((left, right) => {
+      const delta = Number(right.mtime || 0) - Number(left.mtime || 0);
+      return delta || compareNatural(left.name, right.name);
+    });
+  }
+  if (sortMode === "mtime_asc") {
+    return working.sort((left, right) => {
+      const delta = Number(left.mtime || 0) - Number(right.mtime || 0);
+      return delta || compareNatural(left.name, right.name);
+    });
+  }
+  if (sortMode === "type_asc") {
+    return working.sort((left, right) => {
+      const extDelta = compareNatural(left.ext, right.ext);
+      return extDelta || compareNatural(left.name, right.name);
+    });
+  }
+  return working.sort((left, right) => compareNatural(left.name, right.name));
+}
+
+function aggregateSeriesLocally(items) {
+  const singles = [];
+  const groups = new Map();
+  for (const item of items) {
+    const ext = inferFileExt(item.ext || item.name);
+    if (!LOCAL_SERIES_EXTS.has(ext)) {
+      singles.push(item);
+      continue;
+    }
+    const parts = splitSeriesName(item.name);
+    if (!parts) {
+      singles.push(item);
+      continue;
+    }
+    const index = Number(parts.digits);
+    if (!Number.isFinite(index)) {
+      singles.push(item);
+      continue;
+    }
+    const key = `${parts.prefix}\u0000${parts.suffix}\u0000${ext}`;
+    const current = groups.get(key);
+    if (!current) {
+      groups.set(key, {
+        ...item,
+        ext,
+        isSeriesLead: false,
+        seriesCount: 1,
+        _leadIndex: index,
+      });
+      continue;
+    }
+    current.seriesCount += 1;
+    current.mtime = Math.max(Number(current.mtime || 0), Number(item.mtime || 0));
+    if (index < current._leadIndex) {
+      current.name = item.name;
+      current.path = item.path;
+      current.ext = ext;
+      current.sizeBytes = item.sizeBytes;
+      current._leadIndex = index;
+    }
+  }
+  const merged = [...singles, ...groups.values()];
+  return merged.map((item) => ({
+    ...item,
+    isSeriesLead: Number(item.seriesCount || 1) > 1,
+    seriesCount: Math.max(1, Number(item.seriesCount || 1)),
+  }));
 }
 
 function buildBreadcrumbSegments(currentPath) {
@@ -162,7 +299,9 @@ export function createFileBrowserController({
     sort: DEFAULT_SORT,
     seriesMode: DEFAULT_SERIES_MODE,
     folders: [],
+    rawFileItems: [],
     fileItems: [],
+    richMetadataAvailable: false,
   };
 
   let browseModalBusy = false;
@@ -194,20 +333,31 @@ export function createFileBrowserController({
     browseUpBtn.disabled = browseModalBusy || !state.canGoUp;
   }
 
+  function syncBrowseSortState() {
+    if (!browseSortSelect) return;
+    const canSortByMtime = state.rawFileItems.some((item) => Number(item.mtime || 0) > 0);
+    Array.from(browseSortSelect.options).forEach((option) => {
+      option.disabled = !canSortByMtime && (option.value === "mtime_desc" || option.value === "mtime_asc");
+    });
+    if (!canSortByMtime && (state.sort === "mtime_desc" || state.sort === "mtime_asc")) {
+      state.sort = DEFAULT_SORT;
+      browseSortSelect.value = state.sort;
+    }
+    browseSortSelect.disabled = browseModalBusy;
+  }
+
   function setBrowseModalBusy(isBusy, statusText = "") {
     browseModalBusy = Boolean(isBusy);
     browseModal?.setAttribute("aria-busy", browseModalBusy ? "true" : "false");
     browseBreadcrumb?.classList.toggle("is-loading", browseModalBusy);
     browseFoldersList?.classList.toggle("is-loading", browseModalBusy);
     browseFilesList?.classList.toggle("is-loading", browseModalBusy);
-    if (browseFormatSelect) browseFormatSelect.disabled = browseModalBusy;
-    if (browseSortSelect) browseSortSelect.disabled = browseModalBusy;
-    if (browseSeriesModeSelect) browseSeriesModeSelect.disabled = browseModalBusy;
     if (statusText) {
       setBrowseStatus(statusText, { isLoading: browseModalBusy });
     } else if (!browseModalBusy && browseStatus?.classList.contains("is-loading")) {
       setBrowseStatus("");
     }
+    syncBrowseSortState();
     syncBrowseSelectState();
     syncBrowseUpState();
   }
@@ -241,7 +391,11 @@ export function createFileBrowserController({
   }
 
   function getAvailableFormatGroups() {
-    return FORMAT_GROUPS.filter((group) => intersectsExts(state.requestedExts, group.exts));
+    const effectiveRequestedExts =
+      state.requestedExts instanceof Set && state.requestedExts.size
+        ? state.requestedExts
+        : new Set(DEFAULT_BROWSE_EXTS);
+    return FORMAT_GROUPS.filter((group) => intersectsExts(effectiveRequestedExts, group.exts));
   }
 
   function getActiveBrowseExts() {
@@ -278,17 +432,25 @@ export function createFileBrowserController({
 
     browseFormatField?.classList.toggle("is-hidden", !showControl);
     browseFormatSelect.innerHTML = "";
-    if (!showControl) {
-      browseFormatSelect.disabled = true;
-      return;
-    }
-
     const addOption = (value, label) => {
       const option = document.createElement("option");
       option.value = value;
       option.textContent = label;
       browseFormatSelect.appendChild(option);
     };
+    if (!showControl) {
+      if (availableGroups.length === 1) {
+        const [singleGroup] = availableGroups;
+        state.activeFormat = singleGroup.value;
+        addOption(singleGroup.value, t(singleGroup.labelKey));
+      } else {
+        state.activeFormat = FORMAT_ALL;
+        addOption(FORMAT_ALL, t("browse.filter.option.all"));
+      }
+      browseFormatSelect.value = state.activeFormat;
+      browseFormatSelect.disabled = true;
+      return;
+    }
 
     addOption(FORMAT_ALL, t("browse.filter.option.all"));
     availableGroups.forEach((group) => addOption(group.value, t(group.labelKey)));
@@ -298,11 +460,12 @@ export function createFileBrowserController({
 
   function syncSeriesControl() {
     if (!browseSeriesModeSelect) return;
-    const hasSeriesCapableFiles = intersectsExts(getActiveBrowseExts(), SERIES_IMAGE_EXTS);
-    if (!hasSeriesCapableFiles) {
+    const hasSeriesCapableFilter = intersectsExts(getActiveBrowseExts(), SERIES_IMAGE_EXTS);
+    const hasSeriesCapableFiles = state.rawFileItems.some((item) => LOCAL_SERIES_EXTS.has(inferFileExt(item.ext || item.name)));
+    if (!hasSeriesCapableFilter || !hasSeriesCapableFiles) {
       state.seriesMode = DEFAULT_SERIES_MODE;
     }
-    browseSeriesModeSelect.disabled = browseModalBusy || !hasSeriesCapableFiles;
+    browseSeriesModeSelect.disabled = browseModalBusy || !hasSeriesCapableFilter || !hasSeriesCapableFiles;
     browseSeriesModeSelect.value = state.seriesMode;
   }
 
@@ -386,7 +549,7 @@ export function createFileBrowserController({
       return data.fileItems.map((item) => ({
         name: String(item?.name || ""),
         path: String(item?.path || joinBrowsePath(state.currentPath, item?.name || "")),
-        ext: String(item?.ext || ""),
+        ext: String(item?.ext || inferFileExt(item?.name || "")),
         mtime: Number(item?.mtime || 0),
         sizeBytes: Number(item?.sizeBytes || 0),
         isSeriesLead: Boolean(item?.isSeriesLead),
@@ -397,7 +560,7 @@ export function createFileBrowserController({
       return data.files.map((name) => ({
         name: String(name || ""),
         path: joinBrowsePath(state.currentPath, name || ""),
-        ext: "",
+        ext: inferFileExt(name),
         mtime: 0,
         sizeBytes: 0,
         isSeriesLead: false,
@@ -545,21 +708,33 @@ export function createFileBrowserController({
   function renderBrowseContent(data) {
     if (!data) return;
     state.currentPath = String(data.currentPath || "");
-    state.parentPath = String(data.parentPath ?? "");
-    state.canGoUp = Boolean(data.canGoUp);
+    state.parentPath = String(data.parentPath ?? deriveParentPath(state.currentPath));
+    state.canGoUp = Boolean(data.canGoUp ?? state.parentPath);
     state.folders = Array.isArray(data.folders)
       ? data.folders.map((folder) => ({
         name: String(folder || ""),
         path: joinBrowsePath(state.currentPath, folder || ""),
       }))
       : [];
-    state.fileItems = normalizeFileItems(data);
+    state.rawFileItems = normalizeFileItems(data);
+    state.richMetadataAvailable = Array.isArray(data?.fileItems) && data.fileItems.length > 0;
+    let visibleItems = [...state.rawFileItems];
+    if (!state.richMetadataAvailable) {
+      if (state.seriesMode === "first_only") {
+        visibleItems = aggregateSeriesLocally(visibleItems);
+      }
+      visibleItems = sortFileItems(visibleItems, state.sort);
+    }
+    state.fileItems = visibleItems;
 
     updateBrowseTitle();
     renderBreadcrumb();
     renderFolders();
     renderFiles();
     applyDirectorySelectionDefaults();
+    syncBrowseSortState();
+    syncFormatControl();
+    syncSeriesControl();
     syncBrowseUpState();
   }
 
@@ -579,6 +754,7 @@ export function createFileBrowserController({
     } finally {
       if (requestId === browseRequestId) {
         setBrowseModalBusy(false);
+        syncBrowseSortState();
         syncFormatControl();
         syncSeriesControl();
       }

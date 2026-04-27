@@ -765,7 +765,10 @@ async def _no_cache_static(request: Request, call_next):
     response = await call_next(request)
     if request.method == "GET":
         path = request.url.path
-        if path in {"/", "/index.html", "/app.js", "/style.css", "/docs.html"}:
+        if path == "/" or (
+            not path.startswith(("/api/", "/assets/"))
+            and path.endswith((".html", ".js", ".css", ".json"))
+        ):
             response.headers["Cache-Control"] = "no-store"
     return response
 
