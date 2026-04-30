@@ -70,9 +70,6 @@ export function createOverviewViewportController({
 
   let overviewScheduled = false;
   let overviewRect = null;
-  let zoomWheelTarget = null;
-  let zoomWheelRaf = null;
-  let zoomWheelPivot = null;
   let viewportInteractionUntil = 0;
   let viewportInteractionResumeTimer = null;
   let touchGestureActive = false;
@@ -252,8 +249,8 @@ export function createOverviewViewportController({
     }, delay + 12);
   }
 
-  function setEffectiveScroll(targetX, targetY, schedule = true) {
-    applyEffectiveScroll(targetX, targetY, schedule, true);
+  function setEffectiveScroll(targetX, targetY, schedule = true, clamp = true) {
+    applyEffectiveScroll(targetX, targetY, schedule, clamp);
   }
 
   function updatePanCapability() {
@@ -553,7 +550,8 @@ export function createOverviewViewportController({
     overviewRect = { rectX, rectY, rectW, rectH, handles, handleSize, view, metrics };
   }
 
-  function setZoom(value) {
+  function setZoom(value, options = {}) {
+    const { clampPan = true } = options;
     const minZoom = getMinZoom();
     const clamped = Math.max(minZoom, Math.min(MAX_ZOOM, Number(value)));
     state.zoom = clamped;
@@ -567,7 +565,9 @@ export function createOverviewViewportController({
         : 0;
     state.renderOffsetX = Number.isFinite(offsetX) ? offsetX : 0;
     state.renderOffsetY = Number.isFinite(offsetY) ? offsetY : 0;
-    clampPanOffsetsToBounds();
+    if (clampPan) {
+      clampPanOffsetsToBounds();
+    }
     applyCanvasTransform();
     updatePanCapability();
     if (zoomRange) {
@@ -602,20 +602,8 @@ export function createOverviewViewportController({
     const prevOffsetY = state.renderOffsetY || 0;
     const prevEffectiveLeft = getEffectiveScrollLeft();
     const prevEffectiveTop = getEffectiveScrollTop();
-    const prevScaledW = (state.width || 0) * prevZoom;
-    const prevScaledH = (state.height || 0) * prevZoom;
-    const imageLeft = prevOffsetX - prevEffectiveLeft;
-    const imageTop = prevOffsetY - prevEffectiveTop;
-    const imageRight = imageLeft + prevScaledW;
-    const imageBottom = imageTop + prevScaledH;
-    const pointerInsideImage =
-      x >= imageLeft &&
-      x <= imageRight &&
-      y >= imageTop &&
-      y <= imageBottom;
-    const imageFitsViewport = prevScaledW <= (rect.width || 0) || prevScaledH <= (rect.height || 0);
-    const focusX = imageFitsViewport && !pointerInsideImage ? imageLeft + prevScaledW * 0.5 : x;
-    const focusY = imageFitsViewport && !pointerInsideImage ? imageTop + prevScaledH * 0.5 : y;
+    const focusX = x;
+    const focusY = y;
     const rawWorldX = (prevEffectiveLeft + focusX - prevOffsetX) / prevZoom;
     const rawWorldY = (prevEffectiveTop + focusY - prevOffsetY) / prevZoom;
     const worldX = Number.isFinite(state.width)
@@ -625,13 +613,13 @@ export function createOverviewViewportController({
       ? Math.max(0, Math.min(state.height, rawWorldY))
       : rawWorldY;
 
-    setZoom(nextZoom);
+    setZoom(nextZoom, { clampPan: false });
 
     const newOffsetX = state.renderOffsetX || 0;
     const newOffsetY = state.renderOffsetY || 0;
     const targetEffectiveX = worldX * state.zoom - focusX + newOffsetX;
     const targetEffectiveY = worldY * state.zoom - focusY + newOffsetY;
-    setEffectiveScroll(targetEffectiveX, targetEffectiveY, false);
+    setEffectiveScroll(targetEffectiveX, targetEffectiveY, false, false);
     syncViewportOverlays();
   }
 
@@ -705,42 +693,20 @@ export function createOverviewViewportController({
     if (dx || dy) {
       const nextEffectiveX = getEffectiveScrollLeft() - dx;
       const nextEffectiveY = getEffectiveScrollTop() - dy;
-      setEffectiveScroll(nextEffectiveX, nextEffectiveY);
+      setEffectiveScroll(nextEffectiveX, nextEffectiveY, true, false);
     }
 
     touchGestureDistance = nextDistance;
     touchGestureMid = nextMid;
   }
 
-  function stepWheelZoom() {
-    if (zoomWheelTarget === null || !zoomWheelPivot) {
-      zoomWheelRaf = null;
-      return;
-    }
-    const current = state.zoom || 1;
-    const minZoom = getMinZoom();
-    const target = Math.max(minZoom, Math.min(MAX_ZOOM, zoomWheelTarget));
-    const next = current + (target - current) * 0.35;
-    zoomAt(zoomWheelPivot.x, zoomWheelPivot.y, next);
-    if (Math.abs(target - next) < 0.001) {
-      zoomWheelTarget = null;
-      zoomWheelRaf = null;
-      schedulePixelOverlay();
-      return;
-    }
-    zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
-  }
-
   function queueWheelZoom(delta, clientX, clientY) {
     if (!delta) return;
-    const zoomBase = zoomWheelTarget ?? state.zoom ?? 1;
+    const zoomBase = state.zoom ?? 1;
     const factor = Math.exp(-delta * 0.002);
     const minZoom = getMinZoom();
-    zoomWheelTarget = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
-    zoomWheelPivot = { x: clientX, y: clientY };
-    if (!zoomWheelRaf) {
-      zoomWheelRaf = window.requestAnimationFrame(stepWheelZoom);
-    }
+    const nextZoom = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
+    zoomAt(clientX, clientY, nextZoom);
   }
 
   function fitImageToView() {

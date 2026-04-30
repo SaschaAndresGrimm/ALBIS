@@ -117,6 +117,13 @@ async function createController({
   return { controller, state, canvasWrap, canvas };
 }
 
+function getScreenPoint(controller, state, worldX, worldY) {
+  return {
+    x: (state.renderOffsetX || 0) + worldX * (state.zoom || 1) - controller.getEffectiveScrollLeft(),
+    y: (state.renderOffsetY || 0) + worldY * (state.zoom || 1) - controller.getEffectiveScrollTop(),
+  };
+}
+
 describe("overview_viewport_controller", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -226,5 +233,116 @@ describe("overview_viewport_controller", () => {
 
     expect(controller.getEffectiveScrollTop()).toBe(-120);
     expect(state.panOffsetY).toBe(120);
+  });
+
+  it("does not snap zoom-at back to the image edge when zooming from a right-edge overscroll", async () => {
+    const { controller, state } = await createController({
+      imageWidth: 2000,
+      imageHeight: 2000,
+      viewWidth: 400,
+      viewHeight: 300,
+      scrollWidth: 2000,
+      scrollHeight: 2000,
+    });
+
+    controller.setZoom(1);
+    controller.setEffectiveScroll(1952, 0, false);
+
+    controller.zoomAt(200, 150, 2);
+
+    const imageRight = (state.width * state.zoom) - controller.getEffectiveScrollLeft();
+    expect(imageRight).toBe(200);
+  });
+
+  it("keeps off-edge positioning while zooming out", async () => {
+    const { controller, state } = await createController({
+      imageWidth: 2000,
+      imageHeight: 2000,
+      viewWidth: 400,
+      viewHeight: 300,
+      scrollWidth: 2000,
+      scrollHeight: 2000,
+    });
+
+    controller.setZoom(2);
+    controller.setEffectiveScroll(3900, 0, false, false);
+
+    controller.zoomAt(200, 150, 1);
+
+    const imageRight = (state.width * state.zoom) - controller.getEffectiveScrollLeft();
+    expect(imageRight).toBe(200);
+  });
+
+  it("pins the nearest image edge to the cursor when zooming from just outside the image", async () => {
+    const { controller, state } = await createController({
+      imageWidth: 2000,
+      imageHeight: 2000,
+      viewWidth: 2400,
+      viewHeight: 2000,
+      scrollWidth: 2000,
+      scrollHeight: 2000,
+    });
+
+    controller.setZoom(1);
+    controller.zoomAt(2300, 1900, 2);
+
+    const imageRight = (state.width * state.zoom) - controller.getEffectiveScrollLeft();
+    const imageBottom = (state.height * state.zoom) - controller.getEffectiveScrollTop();
+    expect(imageRight).toBe(2300);
+    expect(imageBottom).toBe(2100);
+  });
+
+  it("keeps the hovered pixel anchored when zooming from just inside the right image boundary", async () => {
+    const { controller, state } = await createController({
+      imageWidth: 2000,
+      imageHeight: 2000,
+      viewWidth: 2400,
+      viewHeight: 2000,
+      scrollWidth: 2000,
+      scrollHeight: 2000,
+    });
+
+    controller.setZoom(1);
+    const worldX = 1990;
+    const worldY = 1000;
+    const before = getScreenPoint(controller, state, worldX, worldY);
+
+    controller.zoomAt(before.x, before.y, 2);
+
+    const after = getScreenPoint(controller, state, worldX, worldY);
+    const imageRight = (state.width * state.zoom) - controller.getEffectiveScrollLeft();
+    expect(after.x).toBeCloseTo(before.x, 6);
+    expect(after.y).toBeCloseTo(before.y, 6);
+    expect(imageRight).toBe(2210);
+  });
+
+  it("keeps a near-edge detector pixel anchored during the screenshot bottom-right zoom case", async () => {
+    const { controller, state } = await createController({
+      imageWidth: 2048,
+      imageHeight: 2048,
+      viewWidth: 1900,
+      viewHeight: 1200,
+      scrollWidth: 2048,
+      scrollHeight: 2048,
+    });
+
+    controller.setZoom(0.3);
+    const worldX = 1979;
+    const worldY = 1424;
+    const before = getScreenPoint(controller, state, worldX, worldY);
+
+    controller.zoomAt(before.x, before.y, 3.3);
+
+    const after = getScreenPoint(controller, state, worldX, worldY);
+    expect(after.x).toBeCloseTo(before.x, 6);
+    expect(after.y).toBeCloseTo(before.y, 6);
+  });
+
+  it("applies wheel zoom immediately instead of waiting for a deferred animation step", async () => {
+    const { controller, state } = await createController();
+
+    controller.queueWheelZoom(-100, 200, 150);
+
+    expect(state.zoom).toBeGreaterThan(1);
   });
 });
