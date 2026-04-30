@@ -38,6 +38,11 @@ _TAG_MULTIDIM_ROW_MAJOR = 40
 _TAG_MULTIDIM_COLUMN_MAJOR = 1040
 _TAG_DECTRIS_COMPRESSION = 56500
 
+if cbor2 is not None:
+    _CBOR_DECODE_VALUE_ERROR = getattr(cbor2, "CBORDecodeValueError", cbor2.CBORDecodeError)
+else:  # pragma: no cover - optional dependency missing
+    _CBOR_DECODE_VALUE_ERROR = ValueError
+
 _TAG_TYPED_ARRAY_DTYPES: dict[int, str] = {
     64: "u1",
     65: ">u2",
@@ -112,7 +117,7 @@ def _decode_typed_array(tag: Any, dtype: str) -> np.ndarray:
     if isinstance(payload, bytearray):
         payload = bytes(payload)
     if not isinstance(payload, bytes | np.ndarray):
-        raise cbor2.CBORDecodeValueError("expected bytes payload in typed array")
+        raise _CBOR_DECODE_VALUE_ERROR("expected bytes payload in typed array")
     if isinstance(payload, np.ndarray):
         return np.asarray(payload, dtype=np.dtype(dtype))
     return np.frombuffer(payload, dtype=np.dtype(dtype))
@@ -121,22 +126,22 @@ def _decode_typed_array(tag: Any, dtype: str) -> np.ndarray:
 def _decode_multi_dim_array(tag: Any, *, column_major: bool) -> np.ndarray:
     value = tag.value
     if not isinstance(value, list | tuple) or len(value) != 2:
-        raise cbor2.CBORDecodeValueError("expected multidim array pair")
+        raise _CBOR_DECODE_VALUE_ERROR("expected multidim array pair")
     dimensions_raw, payload = value
     if not isinstance(dimensions_raw, list | tuple) or not dimensions_raw:
-        raise cbor2.CBORDecodeValueError("invalid multidim dimensions")
+        raise _CBOR_DECODE_VALUE_ERROR("invalid multidim dimensions")
     try:
         dimensions = tuple(int(v) for v in dimensions_raw)
     except (TypeError, ValueError) as exc:  # pragma: no cover - defensive
-        raise cbor2.CBORDecodeValueError("invalid multidim dimensions") from exc
+        raise _CBOR_DECODE_VALUE_ERROR("invalid multidim dimensions") from exc
     if any(dim <= 0 for dim in dimensions):
-        raise cbor2.CBORDecodeValueError("invalid multidim dimensions")
+        raise _CBOR_DECODE_VALUE_ERROR("invalid multidim dimensions")
     if isinstance(payload, np.ndarray):
         arr = payload
     elif isinstance(payload, list):
         arr = np.asarray(payload)
     else:
-        raise cbor2.CBORDecodeValueError("expected array payload in multidim array")
+        raise _CBOR_DECODE_VALUE_ERROR("expected array payload in multidim array")
     return arr.reshape(dimensions, order="F" if column_major else "C")
 
 
@@ -145,7 +150,7 @@ def _decode_dectris_compression(tag: Any) -> bytes:
     if _dectris_decompress is None:
         raise RuntimeError("dectris-compression is not available")
     if not isinstance(value, list | tuple) or len(value) != 3:
-        raise cbor2.CBORDecodeValueError("invalid DECTRIS compression payload")
+        raise _CBOR_DECODE_VALUE_ERROR("invalid DECTRIS compression payload")
     algorithm = str(value[0] or "")
     elem_size = int(value[1] or 0)
     encoded = value[2]
@@ -154,7 +159,7 @@ def _decode_dectris_compression(tag: Any) -> bytes:
     if isinstance(encoded, bytearray):
         encoded = bytes(encoded)
     if not isinstance(encoded, bytes):
-        raise cbor2.CBORDecodeValueError("invalid compressed bytes payload")
+        raise _CBOR_DECODE_VALUE_ERROR("invalid compressed bytes payload")
     decoded = _dectris_decompress(encoded, algorithm, elem_size=elem_size)
     if isinstance(decoded, memoryview):
         return decoded.tobytes()
@@ -162,7 +167,7 @@ def _decode_dectris_compression(tag: Any) -> bytes:
         return bytes(decoded)
     if isinstance(decoded, bytes):
         return decoded
-    raise cbor2.CBORDecodeValueError("invalid decompressed payload")
+    raise _CBOR_DECODE_VALUE_ERROR("invalid decompressed payload")
 
 
 def jfjoch_tag_hook(_decoder: Any, tag: Any) -> Any:
@@ -508,4 +513,3 @@ class JungfraujochPreviewBridge:
             "wavelength_a": _as_float(start_meta.get("incident_wavelength")),
             "beam_center_px": beam_center,
         }
-

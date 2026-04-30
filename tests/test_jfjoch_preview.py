@@ -1,11 +1,22 @@
 from __future__ import annotations
 
 import uuid
+from types import SimpleNamespace
 
+import cbor2
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app import app
-from backend.services.jungfraujoch_preview import jfjoch_peak_sets_from_spots
+from backend.services.jungfraujoch_preview import (
+    _decode_multi_dim_array,
+    _decode_typed_array,
+    jfjoch_peak_sets_from_spots,
+)
+
+
+def _decode_error_type() -> type[Exception]:
+    return getattr(cbor2, "CBORDecodeValueError", cbor2.CBORDecodeError)
 
 
 def test_jfjoch_peak_sets_from_spots_splits_indexed_and_unindexed() -> None:
@@ -62,3 +73,14 @@ def test_jfjoch_preview_start_rejects_invalid_source_id() -> None:
         json={"endpoint": "tcp://127.0.0.1:31999", "source_id": "invalid source"},
     )
     assert response.status_code == 400
+
+
+def test_jfjoch_typed_array_rejects_non_bytes_payload() -> None:
+    with pytest.raises(_decode_error_type(), match="expected bytes payload"):
+        _decode_typed_array(SimpleNamespace(value="bad-payload"), "u1")
+
+
+def test_jfjoch_multi_dim_array_rejects_invalid_dimensions() -> None:
+    tag = SimpleNamespace(value=(["bad-dimension"], [1, 2, 3]))
+    with pytest.raises(_decode_error_type(), match="invalid multidim dimensions"):
+        _decode_multi_dim_array(tag, column_major=False)
