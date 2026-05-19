@@ -157,6 +157,7 @@ const resetView = document.getElementById("reset-view");
 const exportBtn = document.getElementById("export-btn");
 const statusEl = document.getElementById("status");
 const loadingEl = document.getElementById("loading");
+const splashHint = document.querySelector(".splash-hint");
 const metaShape = document.getElementById("meta-shape");
 const metaDtype = document.getElementById("meta-dtype");
 const metaRange = document.getElementById("meta-range");
@@ -1416,7 +1417,13 @@ function localizePlaybackOptionLabels() {
   localizeFpsSelect(toolbarMoreFps);
 }
 
+function syncSplashHintMode() {
+  if (!splashHint) return;
+  splashHint.dataset.i18n = backendIsLocal ? "splash.hint.open_file_only" : "splash.hint.open_or_drop";
+}
+
 function refreshLocalizedUi() {
+  syncSplashHintMode();
   applyI18nToDom(document);
   localizePlaybackOptionLabels();
   refreshHelpTooltips();
@@ -1893,6 +1900,10 @@ async function openFileModal() {
 
 async function uploadAndOpenSelectedFiles(selectedFiles) {
   await uploadFlowController.uploadAndOpenSelectedFiles(selectedFiles);
+}
+
+function showDocumentDropDisabledStatus() {
+  setStatus(t("status.upload.local_drop_disabled"));
 }
 
 function hideUploadProgress() {
@@ -3595,6 +3606,8 @@ const mainUiBindingsCallbacks = createMainUiBindingsCallbacks({
   clearInspectorSearch,
   runInspectorSearch,
   uploadAndOpenSelectedFiles,
+  isDocumentDropEnabled: () => !backendIsLocal,
+  showDocumentDropDisabledStatus,
   closeAboutModal,
   closeSettingsModal,
   saveSettingsFromModal,
@@ -3670,6 +3683,9 @@ const {
   closeFileBrowser,
   restoreFilesystemMode,
 } = createFileBrowserController(fileBrowserControllerContext);
+
+syncSplashHintMode();
+applyI18nToDom(splashHint);
 
 backendLogViewerController = createBackendLogViewerController({
   apiBase: API,

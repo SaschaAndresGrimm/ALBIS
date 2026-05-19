@@ -75,6 +75,8 @@ export function initializeMainUiBindings({
     clearInspectorSearch,
     runInspectorSearch,
     uploadAndOpenSelectedFiles,
+    isDocumentDropEnabled,
+    showDocumentDropDisabledStatus,
     closeAboutModal,
     closeSettingsModal,
     saveSettingsFromModal,
@@ -147,6 +149,8 @@ export function initializeMainUiBindings({
     fileInput,
     canvasShell,
     onFilesSelected: uploadAndOpenSelectedFiles,
+    allowDocumentDrop: typeof isDocumentDropEnabled === "function" ? isDocumentDropEnabled() : true,
+    onDocumentDropDisabled: showDocumentDropDisabledStatus,
   });
 
   bindChromeUiInteractions({

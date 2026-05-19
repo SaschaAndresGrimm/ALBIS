@@ -6,42 +6,78 @@ export function bindFileIngress({
   fileInput,
   canvasShell,
   onFilesSelected,
+  allowDocumentDrop = true,
+  onDocumentDropDisabled,
 }) {
+  const cleanup = [];
+
   if (fileInput) {
-    fileInput.addEventListener("change", async () => {
+    const handleFileInputChange = async () => {
       const selected = Array.from(fileInput.files || []);
       if (!selected.length) return;
       await onFilesSelected(selected);
-    });
+    };
+    fileInput.addEventListener("change", handleFileInputChange);
+    cleanup.push(() => fileInput.removeEventListener("change", handleFileInputChange));
   }
 
   const clearDropTarget = () => {
     canvasShell?.classList.remove("is-file-drop-target");
   };
 
-  document.addEventListener("dragover", (event) => {
+  const hasFileTransfer = (transfer) => Boolean(
+    transfer && Array.from(transfer.types || []).includes("Files"),
+  );
+
+  const addDocumentListener = (type, handler) => {
+    document.addEventListener(type, handler);
+    cleanup.push(() => document.removeEventListener(type, handler));
+  };
+
+  const addWindowListener = (type, handler) => {
+    window.addEventListener(type, handler);
+    cleanup.push(() => window.removeEventListener(type, handler));
+  };
+
+  addDocumentListener("dragover", (event) => {
     const transfer = event.dataTransfer;
-    if (!transfer || !Array.from(transfer.types || []).includes("Files")) return;
+    if (!hasFileTransfer(transfer)) return;
     event.preventDefault();
+    if (!allowDocumentDrop) {
+      transfer.dropEffect = "none";
+      clearDropTarget();
+      return;
+    }
     transfer.dropEffect = "copy";
     canvasShell?.classList.add("is-file-drop-target");
   });
 
-  document.addEventListener("dragleave", (event) => {
+  addDocumentListener("dragleave", (event) => {
     if (event.relatedTarget) return;
     clearDropTarget();
   });
 
-  document.addEventListener("dragend", clearDropTarget);
-  window.addEventListener("blur", clearDropTarget);
+  addDocumentListener("dragend", clearDropTarget);
+  addWindowListener("blur", clearDropTarget);
 
-  document.addEventListener("drop", async (event) => {
+  addDocumentListener("drop", async (event) => {
     const transfer = event.dataTransfer;
-    if (!transfer || !Array.from(transfer.types || []).includes("Files")) return;
+    if (!hasFileTransfer(transfer)) return;
     event.preventDefault();
     clearDropTarget();
+    if (!allowDocumentDrop) {
+      transfer.dropEffect = "none";
+      if (typeof onDocumentDropDisabled === "function") {
+        onDocumentDropDisabled();
+      }
+      return;
+    }
     const files = Array.from(transfer.files || []);
     if (!files.length) return;
     await onFilesSelected(files);
   });
+
+  return () => {
+    cleanup.forEach((removeListener) => removeListener());
+  };
 }

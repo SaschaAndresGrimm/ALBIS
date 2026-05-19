@@ -75,6 +75,8 @@ export function createMainUiBindingsCallbacks(callbacks) {
     clearInspectorSearch: callbacks.clearInspectorSearch,
     runInspectorSearch: callbacks.runInspectorSearch,
     uploadAndOpenSelectedFiles: callbacks.uploadAndOpenSelectedFiles,
+    isDocumentDropEnabled: callbacks.isDocumentDropEnabled,
+    showDocumentDropDisabledStatus: callbacks.showDocumentDropDisabledStatus,
     closeAboutModal: callbacks.closeAboutModal,
     closeSettingsModal: callbacks.closeSettingsModal,
     saveSettingsFromModal: callbacks.saveSettingsFromModal,

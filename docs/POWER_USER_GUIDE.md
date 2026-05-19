@@ -158,7 +158,7 @@ If you built locally instead of pulling from GHCR, replace the image reference w
 
 If you intentionally expose the container on a trusted LAN, do it behind your own network controls and treat it as a lab-managed deployment rather than a public service.
 
-When the data mount is read-only, drag-and-drop uploads are written to a temporary container directory (`/tmp/albis-uploads`) and opened from there.
+When ALBIS is opened through a localhost backend, drag-and-drop file uploads are disabled to avoid copying detector data into a second location. Use **File -> Open...** or the browser panel to open files directly from the configured data path instead. Non-local browser sessions can still use drag-and-drop as an upload workflow, but read-only data mounts should be opened from their mounted path rather than uploaded.
 
 ## Remote Stream API
 
