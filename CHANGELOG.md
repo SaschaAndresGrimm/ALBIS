@@ -7,6 +7,29 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.10] - 2026-05-19
+
+### Added
+
+- Added clearer drag-and-drop overlays so remote sessions explicitly say dropped files will be uploaded.
+
+### Changed
+
+- Local browser sessions now disable drag-and-drop uploads and point users to **File -> Open...** so detector data opens from its existing path instead of being copied.
+- Refined pointer-anchored zoom behavior so zooming feels steadier around the pixel you are inspecting.
+- Saturated pixels now use a cyan overlay for better visual separation from other masks and highlights.
+- Refreshed backend and frontend dependency pins, including `cbor2`, Python package updates, and `jsdom`.
+
+### Fixed
+
+- Fixed macOS picker support for `.cbf.gz` files.
+
+### Notes
+
+- ALBIS `0.9.10` is the "no accidental data cloning" release: drag-and-drop now says what it means, local data stays where it lives, and remote uploads get a proper signpost.
+- This release is called: "Drop Responsibly."
+- This release is called: "Look, Don't Duplicate."
+
 ## [0.9.9] - 2026-04-27
 
 ### Fixed
@@ -371,7 +394,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.9...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.10...HEAD
+[0.9.10]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.10
 [0.9.9]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.9
 [0.9.8]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.8
 [0.9.7]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.7
