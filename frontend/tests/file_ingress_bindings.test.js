@@ -66,12 +66,14 @@ describe("file_ingress_bindings", () => {
     expect(drag.event.defaultPrevented).toBe(true);
     expect(drag.dataTransfer.dropEffect).toBe("none");
     expect(canvasShell.classList.contains("is-file-drop-target")).toBe(false);
+    expect(canvasShell.classList.contains("is-file-drop-disabled")).toBe(true);
 
     const drop = makeFileTransferEvent("drop");
     document.dispatchEvent(drop.event);
 
     expect(drop.event.defaultPrevented).toBe(true);
     expect(drop.dataTransfer.dropEffect).toBe("none");
+    expect(canvasShell.classList.contains("is-file-drop-disabled")).toBe(false);
     expect(onFilesSelected).not.toHaveBeenCalled();
     expect(onDocumentDropDisabled).toHaveBeenCalledTimes(1);
   });
@@ -88,6 +90,7 @@ describe("file_ingress_bindings", () => {
     expect(drag.event.defaultPrevented).toBe(true);
     expect(drag.dataTransfer.dropEffect).toBe("copy");
     expect(canvasShell.classList.contains("is-file-drop-target")).toBe(true);
+    expect(canvasShell.classList.contains("is-file-drop-disabled")).toBe(false);
 
     const drop = makeFileTransferEvent("drop", files);
     document.dispatchEvent(drop.event);

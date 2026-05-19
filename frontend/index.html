@@ -250,8 +250,18 @@
                   <button class="btn btn-primary splash-open-file" id="splash-open-file" type="button" data-i18n="splash.action.open_file">
                     Open file
                   </button>
-                  <div class="splash-hint" data-i18n="splash.hint.open_or_drop">Use File -> Open... or drag and drop files onto the viewer.</div>
+                  <div class="splash-hint" data-i18n="splash.hint.open_or_drop">Use File -> Open... or drag and drop to upload files.</div>
                 </div>
+              </div>
+            </div>
+            <div class="file-drop-overlay" aria-hidden="true">
+              <div class="file-drop-message file-drop-message-upload">
+                <div class="file-drop-title" data-i18n="drop_overlay.upload.title">Upload files</div>
+                <div class="file-drop-detail" data-i18n="drop_overlay.upload.detail">Drop image files here to upload and open them.</div>
+              </div>
+              <div class="file-drop-message file-drop-message-disabled">
+                <div class="file-drop-title" data-i18n="drop_overlay.local.title">File drops disabled</div>
+                <div class="file-drop-detail" data-i18n="drop_overlay.local.detail">Use File -> Open... to open without copying.</div>
               </div>
             </div>
             <div class="cursor-overlay" id="cursor-overlay" aria-hidden="true"></div>

@@ -23,6 +23,7 @@ export function bindFileIngress({
 
   const clearDropTarget = () => {
     canvasShell?.classList.remove("is-file-drop-target");
+    canvasShell?.classList.remove("is-file-drop-disabled");
   };
 
   const hasFileTransfer = (transfer) => Boolean(
@@ -46,9 +47,11 @@ export function bindFileIngress({
     if (!allowDocumentDrop) {
       transfer.dropEffect = "none";
       clearDropTarget();
+      canvasShell?.classList.add("is-file-drop-disabled");
       return;
     }
     transfer.dropEffect = "copy";
+    canvasShell?.classList.remove("is-file-drop-disabled");
     canvasShell?.classList.add("is-file-drop-target");
   });
 

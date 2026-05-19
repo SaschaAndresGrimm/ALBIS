@@ -892,6 +892,67 @@ body {
     0 14px 28px rgba(5, 10, 18, 0.4);
 }
 
+.canvas-shell.is-file-drop-disabled {
+  box-shadow:
+    0 0 0 2px rgba(245, 167, 66, 0.72),
+    0 14px 28px rgba(5, 10, 18, 0.4);
+}
+
+.file-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 42;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  background: rgba(7, 12, 20, 0.56);
+  transition: opacity var(--motion-fast) var(--motion-ease-standard), visibility 0s linear var(--motion-fast);
+}
+
+.canvas-shell.is-file-drop-target .file-drop-overlay,
+.canvas-shell.is-file-drop-disabled .file-drop-overlay {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.file-drop-message {
+  display: none;
+  max-width: min(480px, 92vw);
+  padding: 18px 22px;
+  border: 1px solid rgba(148, 177, 219, 0.36);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 22, 34, 0.92);
+  box-shadow: 0 18px 36px rgba(3, 7, 14, 0.38);
+  text-align: center;
+}
+
+.canvas-shell.is-file-drop-target .file-drop-message-upload,
+.canvas-shell.is-file-drop-disabled .file-drop-message-disabled {
+  display: grid;
+  gap: 7px;
+}
+
+.canvas-shell.is-file-drop-disabled .file-drop-message {
+  border-color: rgba(245, 167, 66, 0.54);
+}
+
+.file-drop-title {
+  color: #f4f8ff;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.file-drop-detail {
+  color: #c5d4ee;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .canvas-wrap {
   position: absolute;
   inset: 0;
