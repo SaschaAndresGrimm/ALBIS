@@ -218,14 +218,18 @@ detect_signing_identity() (
 
   if [ -n "$requested_identity" ]; then
     if ! security find-identity -v -p codesigning "$keychain_path" \
-      | awk -F'"' -v requested="$requested_identity" '$2 == requested { found = 1 } END { exit(found ? 0 : 1) }'; then
+      | awk -F'"' -v requested="$requested_identity" '
+          index($0, requested) && $2 ~ /^Developer ID Application:/ { found = 1 }
+          $2 == requested && $2 ~ /^Developer ID Application:/ { found = 1 }
+          END { exit(found ? 0 : 1) }
+        '; then
       exit 1
     fi
     printf '%s\n' "$requested_identity"
     exit 0
   fi
 
-  identity="$(security find-identity -v -p codesigning "$keychain_path" | awk -F'"' '/"/ { print $2; exit }')"
+  identity="$(security find-identity -v -p codesigning "$keychain_path" | awk -F'"' '/"Developer ID Application:/ { print $2; exit }')"
   [ -n "$identity" ] || exit 1
   printf '%s\n' "$identity"
 )
@@ -321,7 +325,7 @@ SIGNING_IDENTITY="$(resolve_value "$SIGNING_IDENTITY" MACOS_SIGNING_IDENTITY "$A
 
 log "Validating $CERT_PATH and importing it into a temporary keychain"
 if ! SIGNING_IDENTITY="$(detect_signing_identity "$CERT_PATH" "$CERT_PASSWORD" "$SIGNING_IDENTITY")"; then
-  die "Failed to import $CERT_PATH with the resolved certificate password"
+  die "Failed to import $CERT_PATH with the resolved certificate password, or it does not contain a Developer ID Application identity"
 fi
 log "Using signing identity: $SIGNING_IDENTITY"
 

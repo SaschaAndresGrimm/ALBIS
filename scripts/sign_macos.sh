@@ -28,9 +28,14 @@ DMG_OUT="dist/ALBIS-${TARGET}-${TAG}.dmg"
 TEMP_DIR="$(mktemp -d)"
 KEYCHAIN_PATH=""
 KEYCHAIN_PASSWORD=""
+KEYCHAIN_SEARCH_LIST_CHANGED=0
+ORIGINAL_KEYCHAINS=()
 
 cleanup() {
   if [ -n "$KEYCHAIN_PATH" ] && command -v security >/dev/null 2>&1; then
+    if [ "$KEYCHAIN_SEARCH_LIST_CHANGED" = "1" ]; then
+      security list-keychains -d user -s "${ORIGINAL_KEYCHAINS[@]}" >/dev/null 2>&1 || true
+    fi
     security delete-keychain "$KEYCHAIN_PATH" >/dev/null 2>&1 || true
   fi
   rm -rf "$TEMP_DIR"
@@ -124,6 +129,11 @@ if [ -n "$CERT_PATH" ] || [ -n "$CERT_B64" ]; then
   security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
   security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH" >/dev/null
   security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+  while IFS= read -r keychain; do
+    [ -n "$keychain" ] && ORIGINAL_KEYCHAINS+=("$keychain")
+  done < <(security list-keychains -d user | sed -e 's/^[[:space:]]*"//' -e 's/"$//')
+  security list-keychains -d user -s "$KEYCHAIN_PATH" "${ORIGINAL_KEYCHAINS[@]}" >/dev/null
+  KEYCHAIN_SEARCH_LIST_CHANGED=1
   security import "$CERT_FILE" \
     -k "$KEYCHAIN_PATH" \
     -P "$CERT_PASSWORD" \
@@ -133,31 +143,71 @@ if [ -n "$CERT_PATH" ] || [ -n "$CERT_B64" ]; then
   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
 
   if [ -z "$IDENTITY" ]; then
-    IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F'"' '/"/ { print $2; exit }')"
+    IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F'"' '/"Developer ID Application:/ { print $2; exit }')"
   fi
 fi
 
 if [ -z "$IDENTITY" ]; then
-  echo "[sign_macos] Could not determine a macOS signing identity."
+  echo "[sign_macos] Could not determine a Developer ID Application signing identity."
   exit 1
 fi
+
+resolve_identity_common_name() {
+  local identity="$1"
+  local find_args=(-v -p codesigning)
+  if [ -n "$KEYCHAIN_PATH" ]; then
+    find_args+=("$KEYCHAIN_PATH")
+  fi
+
+  security find-identity "${find_args[@]}" \
+    | awk -F'"' -v identity="$identity" '
+        index($0, identity) { print $2; found = 1; exit }
+        $2 == identity { print $2; found = 1; exit }
+        END { exit(found ? 0 : 1) }
+      '
+}
+
+IDENTITY_COMMON_NAME="$IDENTITY"
+if [[ "$IDENTITY_COMMON_NAME" != Developer\ ID\ Application:* ]]; then
+  if ! IDENTITY_COMMON_NAME="$(resolve_identity_common_name "$IDENTITY")"; then
+    echo "[sign_macos] Could not resolve signing identity: $IDENTITY"
+    exit 1
+  fi
+fi
+
+if [[ "$IDENTITY_COMMON_NAME" != Developer\ ID\ Application:* ]]; then
+  echo "[sign_macos] macOS distribution requires a Developer ID Application identity, got: $IDENTITY_COMMON_NAME"
+  exit 1
+fi
+
+SIGN_IDENTITY="$IDENTITY"
+if [ -n "$KEYCHAIN_PATH" ]; then
+  if SIGN_IDENTITY_HASH="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F'"' -v identity="$IDENTITY_COMMON_NAME" '$2 == identity { print $1; exit }')" \
+    && [ -n "$SIGN_IDENTITY_HASH" ]; then
+    SIGN_IDENTITY="$(printf '%s' "$SIGN_IDENTITY_HASH" | awk '{ print $2 }')"
+  fi
+fi
+
+echo "[sign_macos] Using signing identity: $IDENTITY_COMMON_NAME"
 
 KEYCHAIN_ARGS=()
 if [ -n "$KEYCHAIN_PATH" ]; then
   KEYCHAIN_ARGS+=(--keychain "$KEYCHAIN_PATH")
 fi
 
-echo "[sign_macos] Signing app bundle: $APP_PATH"
-codesign --force --deep --options runtime --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$IDENTITY" "$APP_PATH"
-codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+create_zip() {
+  if command -v ditto >/dev/null 2>&1; then
+    rm -f "$ZIP_OUT"
+    ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_OUT"
+  else
+    rm -f "$ZIP_OUT"
+    (cd dist && zip -r "$(basename "$ZIP_OUT")" "$(basename "$APP_PATH")")
+  fi
+}
 
-if command -v ditto >/dev/null 2>&1; then
-  rm -f "$ZIP_OUT"
-  ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_OUT"
-else
-  rm -f "$ZIP_OUT"
-  (cd dist && zip -r "$(basename "$ZIP_OUT")" "$(basename "$APP_PATH")")
-fi
+echo "[sign_macos] Signing app bundle: $APP_PATH"
+codesign --force --deep --options runtime --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$SIGN_IDENTITY" "$APP_PATH"
+codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
 if ! command -v hdiutil >/dev/null 2>&1; then
   echo "[sign_macos] hdiutil not available."
@@ -184,7 +234,7 @@ for attempt in 1 2 3; do
 done
 
 echo "[sign_macos] Signing DMG: $DMG_OUT"
-codesign --force --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$IDENTITY" "$DMG_OUT"
+codesign --force --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$SIGN_IDENTITY" "$DMG_OUT"
 codesign --verify --verbose=2 "$DMG_OUT"
 
 APPLE_ID="${APPLE_ID:-}"
@@ -193,6 +243,7 @@ APPLE_APP_SPECIFIC_PASSWORD="${APPLE_APP_SPECIFIC_PASSWORD:-}"
 
 if [ -z "$APPLE_ID" ] && [ -z "$APPLE_TEAM_ID" ] && [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
   echo "[sign_macos] Apple notarization credentials not set; skipping notarization."
+  create_zip
   exit 0
 fi
 
@@ -215,5 +266,7 @@ xcrun notarytool submit "$DMG_OUT" \
 
 xcrun stapler staple "$APP_PATH"
 xcrun stapler staple "$DMG_OUT"
+
+create_zip
 
 echo "[sign_macos] Signing and notarization completed."

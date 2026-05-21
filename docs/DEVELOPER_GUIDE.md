@@ -136,7 +136,9 @@ Optional notarization env vars:
 - `APPLE_TEAM_ID`
 - `APPLE_APP_SPECIFIC_PASSWORD`
 
-If the signing env vars are set, `build_mac.sh` now signs the `.app`, rebuilds the `.zip`, creates a signed `.dmg`, and notarizes/staples the macOS artifacts when Apple credentials are present.
+If the signing env vars are set, `build_mac.sh` signs the `.app`, creates a signed `.dmg`, and notarizes/staples the macOS artifacts when Apple credentials are present. The release `.zip` is rebuilt after stapling so the zipped `.app` carries the notarization ticket.
+
+Public tag releases require both signing and notarization secrets. CI rejects incomplete macOS signing configuration rather than publishing macOS artifacts that Gatekeeper would report as unidentified or potentially malicious.
 
 ### Build (Linux)
 
@@ -201,6 +203,8 @@ Example output:
 - `ALBIS-windows-<arch>-v<version>-<commit>.zip`
 - `ALBIS-Setup-windows-<arch>-v<version>-<commit>.exe`
 
+Windows signing setup and low-cost certificate options are covered in [`docs/WINDOWS_SIGNING.md`](WINDOWS_SIGNING.md).
+
 Optional build env controls:
 - `$env:ALBIS_BUILD_ISOLATED = "0"` uses your current Python environment.
 - `$env:ALBIS_BUILD_CLEAN_VENV = "0"` reuses an existing build venv.
@@ -212,8 +216,9 @@ Cross-target naming controls (all platforms):
 
 Public tag releases require the following signing/notarization environment variables in CI:
 - macOS: `MACOS_SIGN_CERT_B64`, `MACOS_SIGN_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`
-  - optional: `MACOS_SIGNING_IDENTITY` to force a specific imported identity; otherwise the first Developer ID identity from the `.p12` is used
+  - optional: `MACOS_SIGNING_IDENTITY` to force a specific imported identity; otherwise the first Developer ID Application identity from the `.p12` is used
   - `MACOS_SIGN_CERT_B64` should contain the base64-encoded `.p12` payload
+  - the `.p12` must contain a `Developer ID Application` certificate with its private key
 - Windows: `WINDOWS_SIGN_CERT_B64`, `WINDOWS_SIGN_CERT_PASSWORD`, `WINDOWS_SIGN_TIMESTAMP_URL`
   - when configured, the Windows pipeline signs `dist/ALBIS/ALBIS.exe`, the setup `.exe`, and the generated `unins*.exe`
 - Linux (GPG detached signatures): `LINUX_GPG_PRIVATE_KEY_B64`, `LINUX_GPG_PASSPHRASE`, `LINUX_GPG_KEY_ID`

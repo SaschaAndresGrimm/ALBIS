@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Tightened macOS distribution signing so public releases require Developer ID notarization secrets, CI verifies notarized artifacts, and zipped apps are rebuilt after stapling.
+
 ## [0.9.10] - 2026-05-19
 
 ### Added

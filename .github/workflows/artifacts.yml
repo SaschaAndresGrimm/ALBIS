@@ -285,8 +285,16 @@ jobs:
 
           $installerSig = Get-AuthenticodeSignature $installer.FullName
           Write-Host "Installer signature status: $($installerSig.Status)"
-          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64) -and $installerSig.Status -ne 'Valid') {
-            throw "Expected signed installer, got status $($installerSig.Status)"
+          $payloadSig = Get-AuthenticodeSignature $payloadExe
+          Write-Host "Payload signature status: $($payloadSig.Status)"
+
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64)) {
+            if ($installerSig.Status -ne 'Valid') {
+              throw "Expected signed installer, got status $($installerSig.Status)"
+            }
+            if ($payloadSig.Status -ne 'Valid') {
+              throw "Expected signed payload, got status $($payloadSig.Status)"
+            }
           }
 
       - name: Generate checksums
@@ -358,6 +366,23 @@ jobs:
             exit 1
           fi
 
+      - name: Validate macOS signing configuration
+        run: |
+          set -euo pipefail
+          configured=0
+          missing=()
+          for key in MACOS_SIGN_CERT_B64 MACOS_SIGN_CERT_PASSWORD APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
+            if [ -n "${!key:-}" ]; then
+              configured=$((configured + 1))
+            else
+              missing+=("$key")
+            fi
+          done
+          if [ "$configured" -gt 0 ] && [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Incomplete macOS signing/notarization secret set. Missing: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -390,6 +415,13 @@ jobs:
 
           unzip -tq "$zip_file" >/dev/null
           hdiutil verify "$dmg_file" >/dev/null
+
+      - name: Verify macOS signing and notarization
+        if: ${{ env.MACOS_SIGN_CERT_B64 != '' && env.MACOS_SIGN_CERT_PASSWORD != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '' }}
+        run: |
+          zip_file="$(ls dist/ALBIS-${{ matrix.target }}-*.zip | head -n1)"
+          dmg_file="$(ls dist/ALBIS-${{ matrix.target }}-*.dmg | head -n1)"
+          ./scripts/verify_macos_distribution.sh dist/ALBIS.app "$dmg_file" "$zip_file"
 
       - name: Generate checksums
         run: |
