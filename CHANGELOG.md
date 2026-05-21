@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.11] - 2026-05-21
+
 ### Fixed
 
 - Tightened macOS distribution signing so public releases require Developer ID notarization secrets, CI verifies notarized artifacts, and zipped apps are rebuilt after stapling.
@@ -398,7 +400,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.10...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.11...HEAD
+[0.9.11]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.11
 [0.9.10]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.10
 [0.9.9]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.9
 [0.9.8]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.8
