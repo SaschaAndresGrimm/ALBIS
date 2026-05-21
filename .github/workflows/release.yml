@@ -476,6 +476,9 @@ jobs:
     env:
       LINUX_GPG_PRIVATE_KEY_B64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_B64 }}
     steps:
+      - name: Check out release notes
+        uses: actions/checkout@v6
+
       - name: Download release assets
         uses: actions/download-artifact@v8
         with:
