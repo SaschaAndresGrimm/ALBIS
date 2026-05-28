@@ -21,15 +21,16 @@ def _find_free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _wait_for_health(url: str, timeout_sec: float) -> None:
+def _wait_for_health(url: str, timeout_sec: float) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     last_error: Exception | None = None
     while time.monotonic() < deadline:
         try:
             with urllib.request.urlopen(url, timeout=1.5) as response:
                 if response.status == 200:
-                    return
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                    payload = json.load(response)
+                    return payload if isinstance(payload, dict) else {}
+        except (json.JSONDecodeError, urllib.error.URLError, TimeoutError, OSError) as exc:
             last_error = exc
         time.sleep(0.2)
     detail = f" last error: {last_error}" if last_error is not None else ""
@@ -63,7 +64,30 @@ def _terminate_process(proc: subprocess.Popen[str], timeout_sec: float) -> None:
         proc.wait(timeout=timeout_sec)
 
 
-def run_smoke(binary_path: Path, startup_timeout_sec: float, stop_timeout_sec: float) -> None:
+def _read_repo_version() -> str | None:
+    version_file = Path(__file__).resolve().parents[1] / "VERSION"
+    try:
+        version = version_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return version or None
+
+
+def _assert_health_version(payload: dict[str, object], expected_version: str) -> None:
+    actual_version = str(payload.get("version") or "")
+    if actual_version != expected_version:
+        raise RuntimeError(
+            "Unexpected packaged backend version from /api/health: "
+            f"{actual_version or '<missing>'!r}; expected {expected_version!r}"
+        )
+
+
+def run_smoke(
+    binary_path: Path,
+    startup_timeout_sec: float,
+    stop_timeout_sec: float,
+    expected_version: str | None = None,
+) -> None:
     if not binary_path.exists():
         raise FileNotFoundError(f"Binary not found: {binary_path}")
 
@@ -108,7 +132,11 @@ def run_smoke(binary_path: Path, startup_timeout_sec: float, stop_timeout_sec: f
         try:
             if proc.poll() is not None:
                 raise RuntimeError(f"Process exited early with code {proc.returncode}.")
-            _wait_for_health(f"http://127.0.0.1:{port}/api/health", startup_timeout_sec)
+            health_payload = _wait_for_health(
+                f"http://127.0.0.1:{port}/api/health", startup_timeout_sec
+            )
+            if expected_version:
+                _assert_health_version(health_payload, expected_version)
             _assert_http_asset(
                 f"http://127.0.0.1:{port}/",
                 expected_content_type_substring="text/html",
@@ -128,11 +156,27 @@ def main() -> int:
     parser.add_argument("--binary", required=True, help="Path to packaged ALBIS executable")
     parser.add_argument("--startup-timeout", type=float, default=30.0)
     parser.add_argument("--stop-timeout", type=float, default=10.0)
+    parser.add_argument(
+        "--expected-version",
+        default=None,
+        help="Expected /api/health version. Defaults to VERSION when available.",
+    )
+    parser.add_argument(
+        "--skip-version-check",
+        action="store_true",
+        help="Do not assert the packaged /api/health version.",
+    )
     args = parser.parse_args()
 
     binary_path = Path(args.binary).expanduser().resolve()
+    expected_version = (
+        None if args.skip_version_check else args.expected_version or _read_repo_version()
+    )
     run_smoke(
-        binary_path, startup_timeout_sec=args.startup_timeout, stop_timeout_sec=args.stop_timeout
+        binary_path,
+        startup_timeout_sec=args.startup_timeout,
+        stop_timeout_sec=args.stop_timeout,
+        expected_version=expected_version,
     )
     print(f"Smoke test passed for {binary_path}")
     return 0

@@ -324,7 +324,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/health":
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(b"{\\"status\\": \\"ok\\"}")
+            self.wfile.write(b"{\\"status\\": \\"ok\\", \\"version\\": \\"9.9.9\\"}")
             return
         if self.path == "/":
             self.send_response(200)
@@ -357,7 +357,12 @@ server.serve_forever()
     )
     server.chmod(0o755)
 
-    module.run_smoke(server, startup_timeout_sec=5.0, stop_timeout_sec=2.0)
+    module.run_smoke(
+        server,
+        startup_timeout_sec=5.0,
+        stop_timeout_sec=2.0,
+        expected_version="9.9.9",
+    )
 
 
 def test_native_pickers_return_conflict_when_unavailable(monkeypatch) -> None:
