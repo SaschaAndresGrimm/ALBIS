@@ -353,6 +353,7 @@ export function createDataExportController({
       state.dataExport.openTarget = "";
       setProgress(0, t("data_export.progress.idle"));
       updateUi();
+      closeDialog();
     } catch (err) {
       console.error(err);
       setStatus(t("status.data_export.output_open_failed"));
