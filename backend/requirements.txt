@@ -1,5 +1,5 @@
-fastapi==0.136.1
-uvicorn[standard]==0.47.0
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
 python-multipart==0.0.29
 hdf5plugin==6.0.0
 h5py==3.16.0
