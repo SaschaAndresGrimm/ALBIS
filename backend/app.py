@@ -602,6 +602,13 @@ data_export = DataExportService(
         extract_frame=_extract_frame,
         find_pixel_mask=_find_pixel_mask,
         mask_slices=_mask_slices,
+        read_scalar=_read_scalar,
+        to_mm=_to_mm,
+        to_um=_to_um,
+        to_ev=_to_ev,
+        wavelength_to_ev=_wavelength_to_ev,
+        pilatus_meta_from_image=_pilatus_meta_from_image,
+        pilatus_header_text=_pilatus_header_text,
     )
 )
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import math
 import re
 import sys
 import threading
@@ -36,12 +37,19 @@ class DataExportDeps:
     read_cbf: Callable[[Path], np.ndarray]
     read_cbf_gz: Callable[[Path], np.ndarray]
     read_edf: Callable[[Path], np.ndarray]
-    write_tiff: Callable[[Path, np.ndarray], None]
-    write_cbf: Callable[[Path, np.ndarray], None]
+    write_tiff: Callable[[Path, np.ndarray, dict[str, Any] | None], None]
+    write_cbf: Callable[[Path, np.ndarray, dict[str, Any] | None], None]
     resolve_dataset_view: Callable[[Any, Path, str], tuple[dict[str, Any], list[Any]]]
     extract_frame: Callable[[dict[str, Any], int, int], np.ndarray]
     find_pixel_mask: Callable[[Any, int | None], Any | None]
     mask_slices: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray, np.ndarray]]
+    read_scalar: Callable[[Any, list[str]], tuple[float | None, str | None]]
+    to_mm: Callable[[float, str | None], float]
+    to_um: Callable[[float, str | None], float]
+    to_ev: Callable[[float, str | None], float]
+    wavelength_to_ev: Callable[[float, str | None], float | None]
+    pilatus_meta_from_image: Callable[[Path], dict[str, Any]]
+    pilatus_header_text: Callable[[Path], str]
 
 
 class DataExportService:
@@ -263,6 +271,436 @@ class DataExportService:
                 output[bad_mask] = -2
         return output
 
+    @staticmethod
+    def _finite_float(value: Any) -> float | None:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return number if math.isfinite(number) else None
+
+    @classmethod
+    def _finite_int(cls, value: Any) -> int | None:
+        number = cls._finite_float(value)
+        if number is None:
+            return None
+        return int(round(number))
+
+    @staticmethod
+    def _decode_h5_text(value: Any) -> str:
+        if isinstance(value, np.ndarray):
+            if value.size == 0:
+                return ""
+            value = value.reshape(-1)[0]
+        if isinstance(value, np.generic):
+            value = value.item()
+        if isinstance(value, bytes | np.bytes_):
+            return bytes(value).decode("utf-8", errors="replace").strip("\x00").strip()
+        return str(value or "").strip()
+
+    @staticmethod
+    def _h5_units(obj: Any) -> str | None:
+        try:
+            units = obj.attrs.get("units") or obj.attrs.get("unit")
+        except Exception:
+            return None
+        if isinstance(units, np.ndarray):
+            if units.size == 0:
+                return None
+            units = units.reshape(-1)[0]
+        if isinstance(units, np.generic):
+            units = units.item()
+        if isinstance(units, bytes | np.bytes_):
+            return bytes(units).decode("utf-8", errors="replace")
+        return str(units) if units is not None else None
+
+    @staticmethod
+    def _to_seconds(value: float, units: str | None) -> float:
+        unit = (units or "").strip().lower().replace("µ", "u")
+        if unit in {"ms", "millisecond", "milliseconds"}:
+            return value / 1000.0
+        if unit in {"us", "microsecond", "microseconds"}:
+            return value / 1_000_000.0
+        if unit in {"ns", "nanosecond", "nanoseconds"}:
+            return value / 1_000_000_000.0
+        return value
+
+    @staticmethod
+    def _to_degrees(value: float, units: str | None) -> float:
+        unit = (units or "").strip().lower()
+        if unit in {"rad", "radian", "radians"}:
+            return math.degrees(value)
+        return value
+
+    @staticmethod
+    def _to_angstrom(value: float, units: str | None) -> float:
+        unit = (units or "").strip().lower().replace("å", "a").replace("µ", "u")
+        if unit in {"m", "meter", "metre", "meters", "metres"}:
+            return value * 1e10
+        if unit in {"mm", "millimeter", "millimetre", "millimeters", "millimetres"}:
+            return value * 1e7
+        if unit in {"um", "micrometer", "micrometre", "micrometers", "micrometres"}:
+            return value * 1e4
+        if unit in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
+            return value * 10.0
+        if unit in {"a", "ang", "angstrom", "angstroms"}:
+            return value
+        if value < 1e-6:
+            return value * 1e10
+        if value < 0.2:
+            return value * 10.0
+        return value
+
+    def _read_h5_text(self, h5: Any, paths: list[str]) -> str | None:
+        h5py = self._deps.get_h5py()
+        for path in paths:
+            if path not in h5:
+                continue
+            obj = h5[path]
+            if not isinstance(obj, h5py.Dataset):
+                continue
+            try:
+                text = self._decode_h5_text(obj[()])
+            except Exception:
+                continue
+            if text:
+                return text
+        return None
+
+    def _read_h5_number(self, h5: Any, paths: list[str]) -> tuple[float | None, str | None]:
+        value, units = self._deps.read_scalar(h5, paths)
+        number = self._finite_float(value)
+        if number is None:
+            return None, units
+        return number, units
+
+    def _read_h5_indexed_number(
+        self, h5: Any, path: str, index: int
+    ) -> tuple[float | None, str | None]:
+        h5py = self._deps.get_h5py()
+        if path not in h5:
+            return None, None
+        obj = h5[path]
+        if not isinstance(obj, h5py.Dataset):
+            return None, None
+        try:
+            arr = np.asarray(obj[()])
+        except Exception:
+            return None, self._h5_units(obj)
+        units = self._h5_units(obj)
+        if arr.size == 0:
+            return None, units
+        if arr.ndim == 0:
+            value = arr.item()
+        else:
+            flat = arr.reshape(-1)
+            value = flat[min(max(0, int(index)), flat.size - 1)]
+        return self._finite_float(value), units
+
+    def _read_h5_length_m(self, h5: Any, paths: list[str]) -> float | None:
+        value, units = self._read_h5_number(h5, paths)
+        if value is None:
+            return None
+        try:
+            return self._deps.to_um(value, units) / 1e6
+        except Exception:
+            return None
+
+    def _read_h5_distance_m(self, h5: Any, paths: list[str]) -> float | None:
+        value, units = self._read_h5_number(h5, paths)
+        if value is None:
+            return None
+        try:
+            return self._deps.to_mm(value, units) / 1000.0
+        except Exception:
+            return None
+
+    def _read_h5_energy_ev(self, h5: Any, paths: list[str]) -> float | None:
+        value, units = self._read_h5_number(h5, paths)
+        if value is None:
+            return None
+        try:
+            return self._deps.to_ev(value, units)
+        except Exception:
+            return None
+
+    def _read_h5_seconds(self, h5: Any, paths: list[str]) -> float | None:
+        value, units = self._read_h5_number(h5, paths)
+        if value is None:
+            return None
+        return self._to_seconds(value, units)
+
+    def _read_h5_angle_deg(self, h5: Any, paths: list[str]) -> float | None:
+        value, units = self._read_h5_number(h5, paths)
+        if value is None:
+            return None
+        return self._to_degrees(value, units)
+
+    def _read_h5_threshold_energy_ev(self, h5: Any, threshold_index: int) -> float | None:
+        return self._read_h5_energy_ev(
+            h5,
+            [
+                f"/entry/instrument/detector/threshold_{threshold_index + 1}_channel/threshold_energy",
+                f"/entry/instrument/detector/detectorSpecific/threshold_{threshold_index + 1}_energy",
+            ],
+        )
+
+    def _hdf5_base_export_metadata(
+        self, h5: Any, source_path: Path, dataset: str
+    ) -> dict[str, Any]:
+        meta: dict[str, Any] = {
+            "source_path": str(source_path),
+            "source_dataset": dataset,
+        }
+        text_fields = {
+            "detector_description": [
+                "/entry/instrument/detector/description",
+                "/entry/instrument/detector/name",
+            ],
+            "detector_serial_number": [
+                "/entry/instrument/detector/detector_number",
+                "/entry/instrument/detector/serial_number",
+                "/entry/instrument/detector/detectorSpecific/detector_number",
+            ],
+            "series_unique_id": [
+                "/entry/instrument/detector/detectorSpecific/series_unique_id",
+                "/entry/instrument/detector/detectorSpecific/series_id",
+                "/entry/experiment_identifier",
+            ],
+            "image_datetime": [
+                "/entry/start_time",
+                "/entry/instrument/detector/detectorSpecific/image_datetime",
+            ],
+        }
+        for key, paths in text_fields.items():
+            value = self._read_h5_text(h5, paths)
+            if value:
+                meta[key] = value
+
+        series_number, _ = self._read_h5_number(
+            h5,
+            [
+                "/entry/instrument/detector/detectorSpecific/series_number",
+                "/entry/instrument/detector/detectorSpecific/series",
+            ],
+        )
+        if series_number is not None:
+            meta["series_number"] = int(round(series_number))
+
+        image_start, _ = self._read_h5_number(
+            h5,
+            [
+                "/entry/instrument/detector/detectorSpecific/image_nr_start",
+                "/entry/instrument/detector/detectorSpecific/image_nr_low",
+            ],
+        )
+        if image_start is not None:
+            meta["image_number_start"] = int(round(image_start))
+
+        x_pixel = self._read_h5_length_m(
+            h5,
+            [
+                "/entry/instrument/detector/x_pixel_size",
+                "/entry/instrument/detector/detectorSpecific/x_pixel_size",
+            ],
+        )
+        y_pixel = self._read_h5_length_m(
+            h5,
+            [
+                "/entry/instrument/detector/y_pixel_size",
+                "/entry/instrument/detector/detectorSpecific/y_pixel_size",
+            ],
+        )
+        if x_pixel is not None:
+            meta["pixel_size_x_m"] = x_pixel
+        if y_pixel is not None:
+            meta["pixel_size_y_m"] = y_pixel
+        if x_pixel is not None and y_pixel is None:
+            meta["pixel_size_y_m"] = x_pixel
+        if y_pixel is not None and x_pixel is None:
+            meta["pixel_size_x_m"] = y_pixel
+
+        sensor_thickness = self._read_h5_length_m(
+            h5, ["/entry/instrument/detector/sensor_thickness"]
+        )
+        if sensor_thickness is not None:
+            meta["sensor_thickness_m"] = sensor_thickness
+
+        exposure_time = self._read_h5_seconds(
+            h5,
+            [
+                "/entry/instrument/detector/count_time",
+                "/entry/instrument/detector/exposure_time",
+            ],
+        )
+        if exposure_time is not None:
+            meta["exposure_time_s"] = exposure_time
+        exposure_period = self._read_h5_seconds(
+            h5,
+            [
+                "/entry/instrument/detector/frame_time",
+                "/entry/instrument/detector/exposure_period",
+            ],
+        )
+        if exposure_period is not None:
+            meta["exposure_period_s"] = exposure_period
+
+        for path, increment in (
+            ("/entry/instrument/detector/detectorSpecific/saturation_value", 0),
+            (
+                "/entry/instrument/detector/detectorSpecific/countrate_correction_count_cutoff",
+                1,
+            ),
+            (
+                "/entry/instrument/detector/detectorSpecific/detectorModule_000/countrate_correction_count_cutoff",
+                1,
+            ),
+        ):
+            value, _units = self._read_h5_number(h5, [path])
+            if value is not None:
+                meta["count_cutoff"] = int(round(value)) + increment
+                break
+
+        wavelength_value, wavelength_units = self._read_h5_number(
+            h5,
+            [
+                "/entry/sample/beam/incident_wavelength",
+                "/entry/instrument/beam/wavelength",
+                "/entry/instrument/monochromator/wavelength",
+                "/entry/instrument/beam/incident_wavelength",
+            ],
+        )
+        if wavelength_value is not None:
+            wavelength_a = self._to_angstrom(wavelength_value, wavelength_units)
+            meta["wavelength_a"] = wavelength_a
+            energy_from_wavelength = self._deps.wavelength_to_ev(
+                wavelength_value, wavelength_units
+            )
+            if energy_from_wavelength is not None:
+                meta["incident_energy_ev"] = energy_from_wavelength
+
+        incident_energy = self._read_h5_energy_ev(
+            h5,
+            [
+                "/entry/instrument/beam/incident_energy",
+                "/entry/instrument/beam/energy",
+                "/entry/instrument/source/energy",
+                "/entry/sample/beam/incident_energy",
+            ],
+        )
+        if incident_energy is not None:
+            meta["incident_energy_ev"] = incident_energy
+
+        distance = self._read_h5_distance_m(
+            h5,
+            [
+                "/entry/instrument/detector/distance",
+                "/entry/instrument/detector/detector_distance",
+            ],
+        )
+        if distance is not None:
+            meta["detector_distance_m"] = distance
+
+        beam_x, _ = self._read_h5_number(h5, ["/entry/instrument/detector/beam_center_x"])
+        beam_y, _ = self._read_h5_number(h5, ["/entry/instrument/detector/beam_center_y"])
+        if beam_x is not None and beam_y is not None:
+            meta["beam_center_x_px"] = beam_x
+            meta["beam_center_y_px"] = beam_y
+
+        angle_increment = self._read_h5_angle_deg(
+            h5,
+            [
+                "/entry/sample/goniometer/omega_range_average",
+                "/entry/sample/goniometer/omega_increment",
+            ],
+        )
+        if angle_increment is not None:
+            meta["angle_increment_deg"] = angle_increment
+
+        return meta
+
+    def _hdf5_frame_export_metadata(
+        self,
+        h5: Any,
+        base: dict[str, Any],
+        *,
+        frame_index: int,
+        threshold_index: int,
+    ) -> dict[str, Any]:
+        meta = dict(base)
+        image_start = self._finite_int(meta.get("image_number_start"))
+        meta["image_number"] = (image_start + frame_index) if image_start is not None else frame_index + 1
+        meta["threshold_ids"] = [threshold_index + 1]
+        threshold_energy = self._read_h5_threshold_energy_ev(h5, threshold_index)
+        if threshold_energy is not None:
+            meta["threshold_energies_ev"] = [threshold_energy]
+
+        start_angle, start_units = self._read_h5_indexed_number(
+            h5, "/entry/sample/goniometer/omega", frame_index
+        )
+        if start_angle is not None:
+            meta["start_angle_deg"] = self._to_degrees(start_angle, start_units)
+        elif self._finite_float(meta.get("angle_increment_deg")) is not None:
+            meta["start_angle_deg"] = float(meta["angle_increment_deg"]) * frame_index
+        else:
+            omega_start = self._read_h5_angle_deg(
+                h5,
+                [
+                    "/entry/sample/goniometer/omega_start",
+                    "/entry/sample/goniometer/start_angle",
+                ],
+            )
+            if omega_start is not None:
+                meta["start_angle_deg"] = omega_start
+
+        return meta
+
+    def _image_source_export_metadata(self, path: Path, frame_index: int) -> dict[str, Any]:
+        meta: dict[str, Any] = {
+            "source_path": str(path),
+            "image_number": frame_index + 1,
+        }
+        parsed: dict[str, Any] = {}
+        with contextlib.suppress(Exception):
+            parsed = self._deps.pilatus_meta_from_image(path)
+        if parsed.get("series_unique_id"):
+            meta["series_unique_id"] = parsed.get("series_unique_id")
+        if parsed.get("series_number") is not None:
+            meta["series_number"] = parsed.get("series_number")
+        if parsed.get("image_number") is not None:
+            meta["image_number"] = parsed.get("image_number")
+        if parsed.get("image_datetime"):
+            meta["image_datetime"] = parsed.get("image_datetime")
+        if parsed.get("threshold_ids"):
+            meta["threshold_ids"] = parsed.get("threshold_ids")
+        if parsed.get("threshold_energies_ev"):
+            meta["threshold_energies_ev"] = parsed.get("threshold_energies_ev")
+        elif parsed.get("threshold_energy_ev") is not None:
+            meta["threshold_energies_ev"] = [parsed.get("threshold_energy_ev")]
+        if parsed.get("exposure_time_s") is not None:
+            meta["exposure_time_s"] = parsed.get("exposure_time_s")
+        if parsed.get("energy_ev") is not None:
+            meta["incident_energy_ev"] = parsed.get("energy_ev")
+        if parsed.get("wavelength_a") is not None:
+            meta["wavelength_a"] = parsed.get("wavelength_a")
+        if parsed.get("lost_pixel_count") is not None:
+            meta["lost_pixel_count"] = parsed.get("lost_pixel_count")
+        if parsed.get("distance_mm") is not None:
+            meta["detector_distance_m"] = float(parsed["distance_mm"]) / 1000.0
+        if parsed.get("pixel_size_um") is not None:
+            pixel_m = float(parsed["pixel_size_um"]) / 1e6
+            meta["pixel_size_x_m"] = pixel_m
+            meta["pixel_size_y_m"] = pixel_m
+        beam_center = parsed.get("beam_center_px")
+        if isinstance(beam_center, list | tuple) and len(beam_center) >= 2:
+            meta["beam_center_x_px"] = beam_center[0]
+            meta["beam_center_y_px"] = beam_center[1]
+        with contextlib.suppress(Exception):
+            header_text = self._deps.pilatus_header_text(path)
+            if header_text:
+                meta["source_header_text"] = header_text
+        return meta
+
     def _write_frame(
         self,
         *,
@@ -271,6 +709,7 @@ class DataExportService:
         output_format: str,
         arr: np.ndarray,
         mask_bits: np.ndarray | None = None,
+        metadata: dict[str, Any] | None = None,
         overwrite: bool,
     ) -> Path:
         suffix = ".cbf" if output_format == "cbf" else ".tiff"
@@ -279,9 +718,9 @@ class DataExportService:
             path = self._next_available_path(path)
         frame = self._normalize_frame(arr, mask_bits=mask_bits)
         if output_format == "cbf":
-            self._deps.write_cbf(path, frame)
+            self._deps.write_cbf(path, frame, metadata)
         else:
-            self._deps.write_tiff(path, frame)
+            self._deps.write_tiff(path, frame, metadata)
         return path
 
     @staticmethod
@@ -400,6 +839,7 @@ class DataExportService:
                         f"{source_path.stem}_{dataset}", fallback=source_path.stem or "dataset"
                     )
                 )
+                base_metadata = self._hdf5_base_export_metadata(h5, source_path, dataset)
                 include_frame_tag = frame_count > 1
                 include_threshold_tag = threshold_count > 1
                 for frame_idx in frames:
@@ -412,12 +852,19 @@ class DataExportService:
                             parts.append(f"thr{thr_idx + 1:02d}")
                         name = "_".join(parts)
                         arr = self._deps.extract_frame(view, frame_idx, thr_idx)
+                        metadata = self._hdf5_frame_export_metadata(
+                            h5,
+                            base_metadata,
+                            frame_index=frame_idx,
+                            threshold_index=thr_idx,
+                        )
                         out_file = self._write_frame(
                             out_dir=out_dir,
                             name=name,
                             output_format=output_format,
                             arr=arr,
                             mask_bits=mask_bits_by_thr.get(thr_idx),
+                            metadata=metadata,
                             overwrite=overwrite,
                         )
                         outputs.append(str(out_file))
@@ -465,11 +912,13 @@ class DataExportService:
             if include_frame_tag:
                 name = f"{prefix}_f{frame_idx + 1:06d}"
             arr = self._read_non_h5_image(src)
+            metadata = self._image_source_export_metadata(src, frame_idx)
             out_file = self._write_frame(
                 out_dir=out_dir,
                 name=name,
                 output_format=output_format,
                 arr=arr,
+                metadata=metadata,
                 overwrite=overwrite,
             )
             outputs.append(str(out_file))

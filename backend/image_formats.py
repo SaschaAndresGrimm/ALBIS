@@ -216,6 +216,210 @@ def _as_pair(value: Any) -> tuple[float, float] | None:
     return None
 
 
+def _as_number_list(value: Any) -> list[float]:
+    if value is None:
+        return []
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1).tolist()
+    elif not isinstance(value, list | tuple):
+        value = [value]
+    out: list[float] = []
+    for item in value:
+        number = _first_number(item)
+        if number is not None and math.isfinite(number):
+            out.append(float(number))
+    return out
+
+
+def _as_int_list(value: Any) -> list[int]:
+    out: list[int] = []
+    for number in _as_number_list(value):
+        out.append(int(round(number)))
+    return out
+
+
+def _export_float(metadata: dict[str, Any] | None, key: str) -> float | None:
+    if not metadata:
+        return None
+    number = _first_number(metadata.get(key))
+    if number is None or not math.isfinite(number):
+        return None
+    return float(number)
+
+
+def _export_int(metadata: dict[str, Any] | None, key: str) -> int | None:
+    number = _export_float(metadata, key)
+    if number is None:
+        return None
+    return int(round(number))
+
+
+def _export_text(metadata: dict[str, Any] | None, key: str) -> str:
+    if not metadata:
+        return ""
+    text = _as_str(metadata.get(key)) or ""
+    return " ".join(text.replace("\r", " ").replace("\n", " ").split())
+
+
+def _pack_dectris_ifd_value(type_code: int, value: Any) -> tuple[bytes, int] | None:
+    if type_code == 2:
+        text = str(value or "").encode("ascii", errors="replace")
+        if not text.endswith(b"\x00"):
+            text += b"\x00"
+        return text, len(text)
+    if type_code == 3:
+        values = [v for v in _as_int_list(value) if 0 <= v <= 0xFFFF]
+        if not values:
+            return None
+        return struct.pack(f"<{len(values)}H", *values), len(values)
+    if type_code == 4:
+        values = [v for v in _as_int_list(value) if 0 <= v <= 0xFFFFFFFF]
+        if not values:
+            return None
+        return struct.pack(f"<{len(values)}I", *values), len(values)
+    if type_code == 12:
+        values = _as_number_list(value)
+        if not values:
+            return None
+        return struct.pack(f"<{len(values)}d", *values), len(values)
+    return None
+
+
+def _pack_dectris_ifd(entries: list[tuple[int, int, Any]]) -> bytes:
+    normalized: list[tuple[int, int, bytes, int]] = []
+    for tag, type_code, value in sorted(entries, key=lambda item: item[0]):
+        packed = _pack_dectris_ifd_value(type_code, value)
+        if packed is None:
+            continue
+        value_bytes, count = packed
+        normalized.append((tag, type_code, value_bytes, count))
+    if not normalized:
+        return b""
+
+    data_start = 2 + len(normalized) * 12 + 4
+    entry_bytes = bytearray()
+    data_bytes = bytearray()
+    for tag, type_code, value_bytes, count in normalized:
+        if len(value_bytes) <= 4:
+            value_field = value_bytes.ljust(4, b"\x00")
+        else:
+            if (data_start + len(data_bytes)) % 2:
+                data_bytes.append(0)
+            value_offset = data_start + len(data_bytes)
+            value_field = struct.pack("<I", value_offset)
+            data_bytes.extend(value_bytes)
+        entry_bytes.extend(
+            struct.pack("<HHI", int(tag), int(type_code), int(count)) + value_field
+        )
+    return struct.pack("<H", len(normalized)) + bytes(entry_bytes) + b"\x00\x00\x00\x00" + bytes(data_bytes)
+
+
+def _dectris_tiff_payload(metadata: dict[str, Any] | None) -> bytes:
+    if not metadata:
+        return b""
+    entries: list[tuple[int, int, Any]] = []
+    series_unique_id = _export_text(metadata, "series_unique_id")
+    if series_unique_id:
+        entries.append((0x0001, 2, series_unique_id))
+    series_number = _export_int(metadata, "series_number")
+    if series_number is not None:
+        entries.append((0x0002, 4, series_number))
+    image_number = _export_int(metadata, "image_number")
+    if image_number is not None:
+        entries.append((0x0003, 4, image_number))
+    image_datetime = _export_text(metadata, "image_datetime")
+    if image_datetime:
+        entries.append((0x0004, 2, image_datetime))
+    threshold_ids = _as_int_list(metadata.get("threshold_ids"))
+    if threshold_ids:
+        entries.append((0x0005, 3, threshold_ids))
+    threshold_energies = _as_number_list(metadata.get("threshold_energies_ev"))
+    if threshold_energies:
+        entries.append((0x0006, 12, threshold_energies))
+    exposure_time = _export_float(metadata, "exposure_time_s")
+    if exposure_time is not None:
+        entries.append((0x0007, 12, exposure_time))
+    incident_energy = _export_float(metadata, "incident_energy_ev")
+    if incident_energy is not None:
+        entries.append((0x0009, 12, incident_energy))
+    wavelength = _export_float(metadata, "wavelength_a")
+    if wavelength is not None:
+        entries.append((0x000A, 12, wavelength))
+    lost_pixels = _export_int(metadata, "lost_pixel_count")
+    if lost_pixels is not None:
+        entries.append((0x0012, 4, lost_pixels))
+    beam_x = _export_float(metadata, "beam_center_x_px")
+    beam_y = _export_float(metadata, "beam_center_y_px")
+    if beam_x is not None and beam_y is not None:
+        entries.append((0x0016, 12, [beam_x, beam_y]))
+    detector_distance = _export_float(metadata, "detector_distance_m")
+    if detector_distance is not None:
+        entries.append((0x0017, 12, detector_distance))
+    if not entries:
+        return b""
+    return _pack_dectris_ifd([(0x0000, 4, 0), *entries])
+
+
+def _format_header_number(value: Any) -> str | None:
+    number = _first_number(value)
+    if number is None or not math.isfinite(number):
+        return None
+    return f"{float(number):.12g}"
+
+
+def _mini_cbf_header_text(metadata: dict[str, Any] | None) -> str:
+    if not metadata:
+        return ""
+    lines: list[str] = []
+    detector = _export_text(metadata, "detector_description")
+    serial = _export_text(metadata, "detector_serial_number")
+    if detector or serial:
+        line = f"# Detector: {detector or 'unknown'}"
+        if serial:
+            line += f", S/N {serial}"
+        lines.append(line)
+
+    pixel_x = _format_header_number(metadata.get("pixel_size_x_m"))
+    pixel_y = _format_header_number(metadata.get("pixel_size_y_m"))
+    if pixel_x and pixel_y:
+        lines.append(f"# Pixel_size {pixel_x} m x {pixel_y} m")
+    thickness = _format_header_number(metadata.get("sensor_thickness_m"))
+    if thickness:
+        lines.append(f"# Silicon sensor, thickness {thickness} m")
+    exposure = _format_header_number(metadata.get("exposure_time_s"))
+    if exposure:
+        lines.append(f"# Exposure_time {exposure} s")
+    period = _format_header_number(metadata.get("exposure_period_s"))
+    if period:
+        lines.append(f"# Exposure_period {period} s")
+    cutoff = _export_int(metadata, "count_cutoff")
+    if cutoff is not None:
+        lines.append(f"# Count_cutoff {cutoff} counts")
+    wavelength = _format_header_number(metadata.get("wavelength_a"))
+    if wavelength:
+        lines.append(f"# Wavelength {wavelength} A")
+    energy = _format_header_number(metadata.get("incident_energy_ev"))
+    if energy:
+        lines.append(f"# Incident_energy {energy} eV")
+    distance = _format_header_number(metadata.get("detector_distance_m"))
+    if distance:
+        lines.append(f"# Detector_distance {distance} m")
+    beam_x = _format_header_number(metadata.get("beam_center_x_px"))
+    beam_y = _format_header_number(metadata.get("beam_center_y_px"))
+    if beam_x and beam_y:
+        lines.append(f"# Beam_xy ({beam_x}, {beam_y}) pixels")
+    start = _format_header_number(metadata.get("start_angle_deg"))
+    if start:
+        lines.append(f"# Start_angle {start} deg.")
+    increment = _format_header_number(metadata.get("angle_increment_deg"))
+    if increment:
+        lines.append(f"# Angle_increment {increment} deg.")
+    if lines:
+        return "\n".join(lines)
+    source_header = str(metadata.get("source_header_text") or "")
+    return source_header.strip()
+
+
 def _distance_to_mm(value: float | None) -> float | None:
     if value is None or not math.isfinite(value):
         return None
@@ -246,12 +450,17 @@ def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, An
         entries = _parse_dectris_tag_value(tag.value, tiff.byteorder)
     if not entries:
         return meta
+    series_unique_id = _as_str(entries.get(0x0001))
     series_number = _as_int(entries.get(0x0002))
     image_number = _as_int(entries.get(0x0003))
     image_datetime = _as_str(entries.get(0x0004))
+    threshold_ids = _as_int_list(entries.get(0x0005))
     threshold_energy = _first_number(entries.get(0x0006))
+    threshold_energies = _as_number_list(entries.get(0x0006))
+    exposure_time = _first_number(entries.get(0x0007))
     incident_energy = _first_number(entries.get(0x0009))
     incident_wavelength = _first_number(entries.get(0x000A))
+    lost_pixel_count = _as_int(entries.get(0x0012))
     beam_center = _as_pair(entries.get(0x0016))
     detector_distance = _first_number(entries.get(0x0017))
     energy_ev = None
@@ -261,12 +470,17 @@ def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, An
         energy_ev = 12398.4193 / float(incident_wavelength)
     meta.update(
         {
+            "series_unique_id": series_unique_id,
             "series_number": series_number,
             "image_number": image_number,
             "image_datetime": image_datetime,
+            "threshold_ids": threshold_ids,
             "threshold_energy_ev": threshold_energy,
+            "threshold_energies_ev": threshold_energies,
+            "exposure_time_s": exposure_time,
             "energy_ev": energy_ev,
             "wavelength_a": incident_wavelength,
+            "lost_pixel_count": lost_pixel_count,
             "distance_mm": _distance_to_mm(detector_distance),
             "beam_center_px": beam_center,
         }
@@ -439,6 +653,7 @@ def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
 
 def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
     _ensure_tifffile()
+    simplon_meta: dict[str, Any] = {}
     try:
         with _tifffile.TiffFile(path) as tiff:
             desc = ""
@@ -446,11 +661,14 @@ def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
                 desc = tiff.pages[0].description or ""
             except Exception:
                 desc = ""
+            simplon_meta = _simplon_meta_from_tiff(tiff)
     except Exception:
         desc = ""
     meta = _parse_pilatus_header_text(desc)
     if meta:
         return meta
+    if simplon_meta:
+        return simplon_meta
     try:
         return _pilatus_meta_from_fabio(path)
     except Exception:
@@ -866,14 +1084,29 @@ def _read_tiff_bytes_with_simplon_meta(raw: bytes) -> tuple[np.ndarray, dict[str
         return arr, meta
 
 
-def _write_tiff(path: Path, arr: np.ndarray) -> None:
+def _write_tiff(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = None) -> None:
     _ensure_tifffile()
-    _tifffile.imwrite(path, arr, photometric="minisblack")
+    dectris_payload = _dectris_tiff_payload(metadata)
+    extratags = None
+    if dectris_payload:
+        extratags = [(_DECTRIS_TIFF_TAG, 7, len(dectris_payload), dectris_payload, False)]
+    _tifffile.imwrite(
+        path,
+        arr,
+        photometric="minisblack",
+        byteorder="<",
+        extratags=extratags,
+    )
 
 
-def _write_cbf(path: Path, arr: np.ndarray) -> None:
+def _write_cbf(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = None) -> None:
     _ensure_fabio_readers()
-    _fabio_cbf_image_cls(data=np.asarray(arr)).write(str(path))
+    header: dict[str, Any] = {}
+    header_text = _mini_cbf_header_text(metadata)
+    if header_text:
+        header["_array_data.header_convention"] = "SLS_1.0"
+        header["_array_data.header_contents"] = header_text
+    _fabio_cbf_image_cls(data=np.asarray(arr), header=header).write(str(path))
 
 
 def _read_cbf(path: Path) -> np.ndarray:
