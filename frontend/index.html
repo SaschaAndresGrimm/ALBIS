@@ -555,10 +555,60 @@
                 <span data-i18n="data_source.field.threshold">Threshold</span>
                 <select id="threshold-select"></select>
               </label>
+              <div class="autoload-group is-hidden" id="autoload-simplon">
+                <label class="field">
+                  <span data-i18n="data_source.field.base_url">Base URL</span>
+                  <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
+                </label>
+                <label class="checkbox">
+                  <input id="simplon-enable" type="checkbox" checked />
+                  <span data-i18n="data_source.monitor.enable">Enable monitor</span>
+                </label>
+              </div>
+              <div id="autoload-status-primary-slot">
+                <div class="autoload-group autoload-status-block is-hidden" id="autoload-status-block">
+                  <div class="autoload-meta">
+                    <div class="meta-row"><span data-i18n="data_source.meta.last_poll">Last poll</span><strong id="autoload-status">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.last_image">Last image</span><strong id="autoload-latest">-</strong></div>
+                  </div>
+                  <div class="simplon-meta is-hidden" id="simplon-meta">
+                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="simplon-series">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="simplon-image">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="simplon-time">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="simplon-energy">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.threshold_ev">Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="simplon-distance">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="simplon-center">-</strong></div>
+                  </div>
+                  <div class="remote-meta is-hidden" id="remote-meta">
+                    <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="remote-source">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="remote-seq">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="remote-series">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="remote-image">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="remote-time">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="remote-energy">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="remote-distance">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="remote-center">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.peak_sets">Peak sets</span><strong id="remote-peak-sets">-</strong></div>
+                  </div>
+                  <div class="remote-meta is-hidden" id="jfjoch-meta">
+                    <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="jfjoch-source">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="jfjoch-seq">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="jfjoch-series">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="jfjoch-image">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="jfjoch-time">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.reflections">Reflections</span><strong id="jfjoch-reflections">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.channel">Channel</span><strong id="jfjoch-channel-meta">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.bridge_status">Bridge status</span><strong id="jfjoch-bridge-status">-</strong></div>
+                  </div>
+                </div>
+              </div>
               <details class="advanced-details">
                 <summary data-i18n="data_source.advanced.title">Advanced source settings</summary>
                 <div class="advanced-inner">
-                  <label class="field">
+                  <label class="field" id="filesystem-field">
                     <span data-i18n="data_source.field.file_system">File System</span>
                     <select id="filesystem-mode">
                       <option value="remote" data-i18n="data_source.option.remote_server">Remote Server</option>
@@ -595,15 +645,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="autoload-group is-hidden" id="autoload-simplon">
-                    <label class="field">
-                      <span data-i18n="data_source.field.base_url">Base URL</span>
-                      <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
-                    </label>
-                    <label class="checkbox">
-                      <input id="simplon-enable" type="checkbox" checked />
-                      <span data-i18n="data_source.monitor.enable">Enable monitor</span>
-                    </label>
+                  <div class="autoload-group is-hidden" id="autoload-simplon-advanced">
                     <label class="field">
                       <span data-i18n="data_source.field.api_version">API Version</span>
                       <input id="simplon-version" type="text" value="1.8.0" />
@@ -645,44 +687,7 @@
                       <input id="jfjoch-interval" type="number" min="100" step="100" value="250" />
                     </label>
                   </div>
-                  <div class="autoload-group advanced-status-block">
-                    <div class="autoload-meta">
-                      <div class="meta-row"><span data-i18n="data_source.meta.last_poll">Last poll</span><strong id="autoload-status">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.last_image">Last image</span><strong id="autoload-latest">-</strong></div>
-                    </div>
-                    <div class="simplon-meta is-hidden" id="simplon-meta">
-                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="simplon-series">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="simplon-image">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="simplon-time">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="simplon-energy">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.threshold_ev">Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="simplon-distance">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="simplon-center">-</strong></div>
-                    </div>
-                    <div class="remote-meta is-hidden" id="remote-meta">
-                      <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="remote-source">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="remote-seq">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="remote-series">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="remote-image">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="remote-time">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="remote-energy">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="remote-distance">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="remote-center">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.peak_sets">Peak sets</span><strong id="remote-peak-sets">-</strong></div>
-                    </div>
-                    <div class="remote-meta is-hidden" id="jfjoch-meta">
-                      <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="jfjoch-source">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="jfjoch-seq">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="jfjoch-series">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="jfjoch-image">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="jfjoch-time">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.reflections">Reflections</span><strong id="jfjoch-reflections">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.channel">Channel</span><strong id="jfjoch-channel-meta">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.bridge_status">Bridge status</span><strong id="jfjoch-bridge-status">-</strong></div>
-                    </div>
-                  </div>
+                  <div id="autoload-status-advanced-slot"></div>
                 </div>
               </details>
             </section>

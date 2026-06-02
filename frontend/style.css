@@ -2860,6 +2860,15 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   border-color: var(--border-strong);
 }
 
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus-visible {
+  border-color: var(--border-soft);
+  -webkit-text-fill-color: #f2f7ff;
+  box-shadow: 0 0 0 1000px rgba(10, 15, 24, 0.96) inset;
+  caret-color: #f2f7ff;
+}
+
 body.platform-linux {
   color-scheme: dark;
 }
@@ -3635,13 +3644,14 @@ body.platform-windows select option:disabled {
   border-top: 1px solid var(--border-subtle);
 }
 
-.advanced-status-block {
+.autoload-status-block {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
 }
 
-.autoload-group.is-hidden {
+.autoload-group.is-hidden,
+.autoload-status-block.is-hidden {
   display: none;
 }
 

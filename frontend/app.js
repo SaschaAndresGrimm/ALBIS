@@ -231,8 +231,13 @@ const autoloadWatchEnabled = document.getElementById("autoload-watch-enabled");
 const autoloadWatchOptions = document.getElementById("autoload-watch-options");
 const autoloadTypesRow = document.getElementById("autoload-types");
 const autoloadSimplon = document.getElementById("autoload-simplon");
+const autoloadSimplonAdvanced = document.getElementById("autoload-simplon-advanced");
+const autoloadStatusBlock = document.getElementById("autoload-status-block");
+const autoloadStatusPrimarySlot = document.getElementById("autoload-status-primary-slot");
+const autoloadStatusAdvancedSlot = document.getElementById("autoload-status-advanced-slot");
 const autoloadRemote = document.getElementById("autoload-remote");
 const autoloadJfjoch = document.getElementById("autoload-jfjoch");
+const filesystemField = document.getElementById("filesystem-field");
 const simplonMetaPanel = document.getElementById("simplon-meta");
 const simplonSeriesEl = document.getElementById("simplon-series");
 const simplonImageEl = document.getElementById("simplon-image");
@@ -2423,8 +2428,13 @@ const autoloadSettingsController = createAutoloadSettingsController({
     autoloadWatchOptions,
     autoloadTypesRow,
     autoloadSimplon,
+    autoloadSimplonAdvanced,
+    autoloadStatusBlock,
+    autoloadStatusPrimarySlot,
+    autoloadStatusAdvancedSlot,
     autoloadRemote,
     autoloadJfjoch,
+    filesystemField,
     fileField,
     datasetField,
     thresholdField,
@@ -2470,6 +2480,7 @@ const autoloadSettingsController = createAutoloadSettingsController({
     setAutoloadStatus,
     setAutoloadLatest,
     updatePlayButtons,
+    isBackendLocal: () => backendIsLocal,
     startAutoload: (...args) => startAutoload(...args),
   },
 });
