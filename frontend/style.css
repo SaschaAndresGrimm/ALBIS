@@ -2908,6 +2908,14 @@ body.platform-windows select option:disabled {
   box-shadow: var(--focus-ring);
 }
 
+.field input:-webkit-autofill:focus,
+.field input:-webkit-autofill:focus-visible {
+  border-color: var(--accent);
+  -webkit-text-fill-color: #f2f7ff;
+  box-shadow: 0 0 0 1000px rgba(10, 15, 24, 0.96) inset, var(--focus-ring);
+  caret-color: #f2f7ff;
+}
+
 .panel-fab {
   position: absolute;
   left: -14px;
