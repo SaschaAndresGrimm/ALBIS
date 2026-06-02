@@ -25,6 +25,7 @@ export function buildCommandPaletteCommands({
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,
+    openDataExportDialog,
     startSeriesSumming,
     openSeriesSumOutputTarget,
     cancelSeriesSumming,
@@ -44,6 +45,7 @@ export function buildCommandPaletteCommands({
   const hasNavigableFrames = hasFrame && state.frameCount > 1 && (hasDataset || hasSeries);
   const hasThresholds = hasFile && state.autoload.mode === "file" && state.thresholdCount > 1;
   const canStartSeriesOps = hasFile && (!isHdfFile(state.file) || hasDataset) && !state.seriesSum.running;
+  const canExportData = hasFile && (!isHdfFile(state.file) || hasDataset);
   const canCancelSeriesOps = state.seriesSum.running && Boolean(state.seriesSum.jobId);
   const canOpenSeriesOutput = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
   const togglePlaybackLabel = state.playing ? t("command.label.playback_pause") : t("command.label.playback_play");
@@ -191,6 +193,14 @@ export function buildCommandPaletteCommands({
       search: "export save viewer window screenshot",
       when: hasFrame,
       run: () => exportViewerWindow(),
+    },
+    {
+      id: "export-data",
+      label: t("command.label.export_data"),
+      shortcut: platformShortcutLabel("export-data"),
+      search: "export convert dataset tiff cbf image frames",
+      when: canExportData,
+      run: () => openDataExportDialog(),
     },
     {
       id: "series-start",

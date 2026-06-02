@@ -41,6 +41,17 @@ Config lookup order:
 
 In packaged mode, if no config exists, ALBIS writes defaults to `~/.config/albis/config.json`.
 
+## Data Export
+
+Use **File -> Convert Dataset...** or `Ctrl+Shift+X` (`Cmd+Shift+X` on macOS) to batch-export the currently selected dataset or image series to TIFF or CBF.
+For HDF5 inputs, select the dataset first, then choose all frames, the current frame, or a frame range.
+
+Exported detector frames are written as signed integer images.
+ALBIS follows the common detector convention where module-gap pixels are `-1` and bad or saturated pixels are `-2`.
+
+TIFF exports include Dectris-style header metadata in private TIFF tag `0xC7F8` when matching metadata is present in the source image or HDF5 master file.
+CBF exports use a miniCBF-style `_array_data.header_contents` block with the available detector, pixel-size, exposure, energy/wavelength, distance, beam-center, and rotation metadata.
+
 ### Rules
 
 - Unknown top-level sections are rejected.

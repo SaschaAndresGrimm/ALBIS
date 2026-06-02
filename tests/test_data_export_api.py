@@ -61,9 +61,7 @@ def _add_export_header_metadata(h5: Any) -> None:
     _write_h5_dataset(h5, "/entry/instrument/detector/sensor_thickness", 70.0, "m")
     _write_h5_dataset(h5, "/entry/instrument/detector/count_time", 0.1, "s")
     _write_h5_dataset(h5, "/entry/instrument/detector/frame_time", 0.2, "s")
-    _write_h5_dataset(
-        h5, "/entry/instrument/detector/detectorSpecific/saturation_value", 999_999
-    )
+    _write_h5_dataset(h5, "/entry/instrument/detector/detectorSpecific/saturation_value", 999_999)
     _write_h5_dataset(h5, "/entry/sample/beam/incident_wavelength", 1.0332, "angstrom")
     _write_h5_dataset(h5, "/entry/instrument/detector/detectorSpecific/photon_energy", 12_000, "eV")
     _write_h5_dataset(h5, "/entry/instrument/detector/detector_distance", 0.25, "m")

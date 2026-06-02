@@ -559,6 +559,7 @@ const PLATFORM_SHORTCUTS = {
   "export-full": { mac: "⌘E", other: "Ctrl+E" },
   "export-visible": { mac: "⇧⌘E", other: "Shift+Ctrl+E" },
   "export-window": { mac: "⌥⌘E", other: "Alt+Ctrl+E" },
+  "export-data": { mac: "⇧⌘X", other: "Shift+Ctrl+X" },
   "settings-open": { mac: "⌘,", other: "Ctrl+," },
   "command-palette": { mac: "⌘K", other: "Ctrl+K" },
 };
@@ -2938,6 +2939,7 @@ function getCommandPaletteCommands() {
       exportFullImage,
       exportVisibleArea,
       exportViewerWindow,
+      openDataExportDialog,
       startSeriesSumming,
       openSeriesSumOutputTarget,
       cancelSeriesSumming,

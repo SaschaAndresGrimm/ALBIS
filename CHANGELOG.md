@@ -7,6 +7,33 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.12] - 2026-06-02
+
+### Added
+
+- Added **File -> Convert Dataset...** for batch conversion of HDF5 datasets and image series to TIFF or CBF.
+- Added Dectris-style TIFF header metadata in private tag `0xC7F8` for exported detector metadata.
+- Added miniCBF-style header contents for CBF exports, including detector, pixel size, exposure, wavelength/energy, distance, beam center, and angle metadata when available.
+- Added `Cmd+Shift+X` / `Ctrl+Shift+X` as a keyboard shortcut for dataset conversion.
+
+### Changed
+
+- TIFF and CBF exports now write signed integer images and use `-1` for module gaps and `-2` for bad or saturated pixels.
+- Converted export outputs can be opened directly from the completed export action.
+- Localized the new data-export UI strings across shipped locales.
+
+### Fixed
+
+- Preserved Dectris/Jungfrau saturated sentinel pixels as `-2` instead of expanding exported images to 64-bit integer data.
+- Handled Dectris/Jungfrau sensor-thickness metadata that reports micrometer values with a meter unit.
+- Fixed the data-export dialog close behavior after opening the first converted output image.
+
+### Notes
+
+- ALBIS `0.9.12` is the data-export release: datasets go out as TIFF or CBF, detector headers come along for the ride, and gap/bad pixels keep their detector conventions.
+- This release is called: "Mind the Gaps, Export the Frames."
+- This release is called: "Header, I Barely Know Her."
+
 ## [0.9.11] - 2026-05-21
 
 ### Fixed
@@ -400,7 +427,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.11...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.12...HEAD
+[0.9.12]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.11
 [0.9.10]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.10
 [0.9.9]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.9
