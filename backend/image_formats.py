@@ -871,6 +871,11 @@ def _write_tiff(path: Path, arr: np.ndarray) -> None:
     _tifffile.imwrite(path, arr, photometric="minisblack")
 
 
+def _write_cbf(path: Path, arr: np.ndarray) -> None:
+    _ensure_fabio_readers()
+    _fabio_cbf_image_cls(data=np.asarray(arr)).write(str(path))
+
+
 def _read_cbf(path: Path) -> np.ndarray:
     image = _open_fabio_cbf_image(path)
     arr = np.asarray(image.data)

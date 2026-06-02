@@ -67,6 +67,9 @@
                   <span data-i18n="menu.file.viewer_window">Viewer Window</span>
                   <span class="shortcut">⌥⌘E</span>
                 </button>
+                <button class="dropdown-item" data-action="export-data">
+                  <span data-i18n="menu.file.convert_dataset">Convert Dataset…</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1253,6 +1256,74 @@
             Download Raw Log
           </a>
           <button class="btn btn-primary" id="log-viewer-close" type="button" data-i18n="common.close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="data-export-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card data-export-modal-card" role="dialog" aria-modal="true" aria-labelledby="data-export-title">
+        <div class="modal-header">
+          <div id="data-export-title" data-i18n="data_export.title">Convert Dataset</div>
+          <button class="modal-close" id="data-export-close" data-i18n-aria-label="common.close" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body data-export-modal-body">
+          <div class="data-export-source" id="data-export-source">-</div>
+          <div class="data-export-grid">
+            <label class="field">
+              <span data-i18n="data_export.format">Format</span>
+              <select id="data-export-format">
+                <option value="tiff">TIFF</option>
+                <option value="cbf">CBF</option>
+              </select>
+            </label>
+            <label class="field">
+              <span data-i18n="data_export.frames">Frames</span>
+              <select id="data-export-frame-mode">
+                <option value="all" data-i18n="data_export.frames.all">All frames</option>
+                <option value="current" data-i18n="data_export.frames.current">Current frame</option>
+                <option value="range" data-i18n="data_export.frames.range">Range</option>
+              </select>
+            </label>
+            <label class="field is-hidden" id="data-export-range-start-field">
+              <span data-i18n="data_export.range_start">Start frame</span>
+              <input id="data-export-range-start" type="number" min="1" step="1" value="1" />
+            </label>
+            <label class="field is-hidden" id="data-export-range-end-field">
+              <span data-i18n="data_export.range_end">End frame</span>
+              <input id="data-export-range-end" type="number" min="1" step="1" value="1" />
+            </label>
+            <label class="field is-hidden" id="data-export-threshold-mode-field">
+              <span data-i18n="data_export.thresholds">Thresholds</span>
+              <select id="data-export-threshold-mode">
+                <option value="current" data-i18n="data_export.thresholds.current">Current threshold</option>
+                <option value="all" data-i18n="data_export.thresholds.all">All thresholds</option>
+              </select>
+            </label>
+            <label class="field data-export-span-2">
+              <span data-i18n="data_export.output_dir">Output folder</span>
+              <div class="inline data-export-output-row">
+                <input id="data-export-output-dir" type="text" />
+                <button id="data-export-output-browse" class="btn btn-secondary" type="button" data-i18n="series.ui.browse">Browse</button>
+              </div>
+            </label>
+            <label class="field">
+              <span data-i18n="data_export.prefix">File prefix</span>
+              <input id="data-export-prefix" type="text" />
+            </label>
+            <label class="checkbox data-export-overwrite">
+              <input id="data-export-overwrite" type="checkbox" />
+              <span data-i18n="data_export.overwrite">Overwrite existing files</span>
+            </label>
+          </div>
+          <div class="data-export-progress" id="data-export-progress">
+            <div class="data-export-progress-fill" id="data-export-progress-fill"></div>
+            <div class="data-export-progress-text" id="data-export-progress-text" data-i18n="data_export.progress.idle">Idle</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary is-hidden" id="data-export-cancel" type="button" data-i18n="data_export.button.cancel">Cancel</button>
+          <button class="btn btn-primary" id="data-export-start" type="button" data-i18n="data_export.button.start">Start Export</button>
         </div>
       </div>
     </div>

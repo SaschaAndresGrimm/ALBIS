@@ -123,6 +123,35 @@ class SeriesSumCancelResponse(_StrictModel):
     accepted: bool
 
 
+class DataExportStartRequest(_StrictModel):
+    file: str
+    dataset: str = ""
+    format: str = "tiff"
+    output_dir: str | None = None
+    output_prefix: str | None = None
+    frame_mode: str = "all"
+    frame_start: int | None = None
+    frame_end: int | None = None
+    threshold_mode: str = "current"
+    threshold_index: int | None = None
+    overwrite: bool = False
+
+
+class DataExportStartResponse(_StrictModel):
+    job_id: str
+    status: str
+
+
+class DataExportCancelRequest(_StrictModel):
+    job_id: str
+
+
+class DataExportCancelResponse(_StrictModel):
+    job_id: str
+    status: str
+    accepted: bool
+
+
 class ImageHeaderResponse(_StrictModel):
     header: str
 

@@ -206,6 +206,19 @@ function createSeriesSumState() {
   };
 }
 
+function createDataExportState() {
+  return {
+    running: false,
+    cancelling: false,
+    jobId: "",
+    progress: 0,
+    message: "Idle",
+    outputs: [],
+    autoOutputDir: "",
+    autoOutputPrefix: "",
+  };
+}
+
 export function createAppState() {
   return {
     // Global view/data state used across renderer + UI controls.
@@ -217,5 +230,6 @@ export function createAppState() {
     ...createMaskState(),
     autoload: createAutoloadState(),
     seriesSum: createSeriesSumState(),
+    dataExport: createDataExportState(),
   };
 }

@@ -37,6 +37,7 @@ import { createMenuActionHandler } from "./modules/menu_actions.js";
 import { createShortcutHandlers } from "./modules/shortcut_handlers.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
 import { createSeriesSumController } from "./modules/series_sum_controller.js";
+import { createDataExportController } from "./modules/data_export_controller.js";
 import { createBackendStatusController } from "./modules/backend_status_controller.js";
 import { createJfjochBridgeController } from "./modules/jfjoch_bridge_controller.js";
 import { createRemoteStreamController } from "./modules/remote_stream_controller.js";
@@ -431,6 +432,26 @@ const logViewerContent = document.getElementById("log-viewer-content");
 const logViewerOpenHost = document.getElementById("log-viewer-open-host");
 const logViewerDownload = document.getElementById("log-viewer-download");
 const logViewerClose = document.getElementById("log-viewer-close");
+const dataExportModal = document.getElementById("data-export-modal");
+const dataExportClose = document.getElementById("data-export-close");
+const dataExportSource = document.getElementById("data-export-source");
+const dataExportFormat = document.getElementById("data-export-format");
+const dataExportFrameMode = document.getElementById("data-export-frame-mode");
+const dataExportRangeStartField = document.getElementById("data-export-range-start-field");
+const dataExportRangeEndField = document.getElementById("data-export-range-end-field");
+const dataExportRangeStart = document.getElementById("data-export-range-start");
+const dataExportRangeEnd = document.getElementById("data-export-range-end");
+const dataExportThresholdModeField = document.getElementById("data-export-threshold-mode-field");
+const dataExportThresholdMode = document.getElementById("data-export-threshold-mode");
+const dataExportOutputDir = document.getElementById("data-export-output-dir");
+const dataExportOutputBrowse = document.getElementById("data-export-output-browse");
+const dataExportPrefix = document.getElementById("data-export-prefix");
+const dataExportOverwrite = document.getElementById("data-export-overwrite");
+const dataExportStart = document.getElementById("data-export-start");
+const dataExportCancel = document.getElementById("data-export-cancel");
+const dataExportProgress = document.getElementById("data-export-progress");
+const dataExportProgressFill = document.getElementById("data-export-progress-fill");
+const dataExportProgressText = document.getElementById("data-export-progress-text");
 const settingsModal = document.getElementById("settings-modal");
 const settingsClose = document.getElementById("settings-close");
 const settingsCancel = document.getElementById("settings-cancel");
@@ -1333,6 +1354,53 @@ const seriesSumController = createSeriesSumController({
     getSeriesSumGeometryContext,
   },
 });
+
+const dataExportController = createDataExportController({
+  apiBase: API,
+  state,
+  elements: {
+    dataExportModal,
+    dataExportClose,
+    dataExportSource,
+    dataExportFormat,
+    dataExportFrameMode,
+    dataExportRangeStartField,
+    dataExportRangeEndField,
+    dataExportRangeStart,
+    dataExportRangeEnd,
+    dataExportThresholdModeField,
+    dataExportThresholdMode,
+    dataExportOutputDir,
+    dataExportOutputBrowse,
+    dataExportPrefix,
+    dataExportOverwrite,
+    dataExportStart,
+    dataExportCancel,
+    dataExportProgress,
+    dataExportProgressFill,
+    dataExportProgressText,
+  },
+  callbacks: {
+    isHdfFile,
+    openModal: (...args) => openModal(...args),
+    closeModal: (...args) => closeModal(...args),
+    setStatus,
+    fetchJSON,
+    fetchJSONWithInit,
+  },
+});
+
+function openDataExportDialog() {
+  dataExportController.openDialog();
+}
+
+function setDataExportProgress(progress, text) {
+  dataExportController.setProgress(progress, text);
+}
+
+function updateDataExportUi() {
+  dataExportController.updateUi();
+}
 
 function setSeriesSumProgress(progress, text) {
   seriesSumController.setSeriesSumProgress(progress, text);
@@ -2926,6 +2994,7 @@ const menuActionHandler = createMenuActionHandler({
     openAboutModal,
     openFileModal,
     closeCurrentFile,
+    openDataExportDialog,
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,
@@ -4081,8 +4150,11 @@ bindAnalysisControlInteractions({
 renderPeakList();
 setSeriesSumProgress(0, t("series.progress.idle"));
 updateSeriesSumUi();
+setDataExportProgress(0, t("data_export.progress.idle"));
+updateDataExportUi();
 onLanguageChange(() => {
   refreshLocalizedUi();
+  updateDataExportUi();
   if (isHdf5File(state.file)) {
     void loadInspectorRoot();
   }
