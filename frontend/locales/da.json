@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Start ramme",
   "series.ui.section_title": "Seriedrift",
   "settings.actions.save_close": "Gem og luk",
+  "settings.application.auto_check_updates": "Søg efter opdateringer ved start",
   "settings.config_file": "Konfigurationsfil:",
   "settings.data.allow_absolute_paths": "Tillad absolutte stier",
   "settings.data.max_scan_depth": "Max scanningsdybde",

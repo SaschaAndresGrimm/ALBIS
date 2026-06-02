@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Quadro inicial",
   "series.ui.section_title": "Operações em série",
   "settings.actions.save_close": "Salvar e fechar",
+  "settings.application.auto_check_updates": "Verificar atualizações ao iniciar",
   "settings.config_file": "Arquivo de configuração:",
   "settings.data.allow_absolute_paths": "Permitir caminhos absolutos",
   "settings.data.max_scan_depth": "Profundidade máxima de digitalização",

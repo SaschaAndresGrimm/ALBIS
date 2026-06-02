@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Startbild",
   "series.ui.section_title": "Serie-Aktione",
   "settings.actions.save_close": "Spychere und zue",
+  "settings.application.auto_check_updates": "Bim Start nach Updates sueche",
   "settings.config_file": "Config-Datei:",
   "settings.data.allow_absolute_paths": "Absolute Pfäd erlaube",
   "settings.data.max_scan_depth": "Maximale Scantiefi",

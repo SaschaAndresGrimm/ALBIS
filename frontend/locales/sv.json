@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Startram",
   "series.ui.section_title": "Serieverksamhet",
   "settings.actions.save_close": "Spara & Stäng",
+  "settings.application.auto_check_updates": "Sök efter uppdateringar vid start",
   "settings.config_file": "Konfigurationsfil:",
   "settings.data.allow_absolute_paths": "Tillåt absoluta vägar",
   "settings.data.max_scan_depth": "Max skanningsdjup",

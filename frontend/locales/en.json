@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Start frame",
   "series.ui.section_title": "Series Operations",
   "settings.actions.save_close": "Save & Close",
+  "settings.application.auto_check_updates": "Check for updates on startup",
   "settings.config_file": "Config file:",
   "settings.data.allow_absolute_paths": "Allow absolute paths",
   "settings.data.max_scan_depth": "Max scan depth",

@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "起始帧",
   "series.ui.section_title": "序列操作",
   "settings.actions.save_close": "保存并关闭",
+  "settings.application.auto_check_updates": "启动时检查更新",
   "settings.config_file": "配置文件：",
   "settings.data.allow_absolute_paths": "允许绝对路径",
   "settings.data.max_scan_depth": "最大扫描深度",

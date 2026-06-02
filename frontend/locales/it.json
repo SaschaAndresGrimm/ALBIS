@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Inizia fotogramma",
   "series.ui.section_title": "Operazioni in serie",
   "settings.actions.save_close": "Salva e chiudi",
+  "settings.application.auto_check_updates": "Controlla aggiornamenti all'avvio",
   "settings.config_file": "File di configurazione:",
   "settings.data.allow_absolute_paths": "Consenti percorsi assoluti",
   "settings.data.max_scan_depth": "Profondità di scansione massima",

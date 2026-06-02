@@ -80,6 +80,7 @@ function createUiPreferencesState() {
     backendVersion: "",
     language: "en",
     toolHintsEnabled: false,
+    autoCheckUpdates: true,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,
     pixelLabelFormat: "auto",

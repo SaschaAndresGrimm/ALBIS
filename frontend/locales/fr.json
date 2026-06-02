@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Image de départ",
   "series.ui.section_title": "Opérations en série",
   "settings.actions.save_close": "Enregistrer et fermer",
+  "settings.application.auto_check_updates": "Rechercher des mises à jour au démarrage",
   "settings.config_file": "Fichier de configuration :",
   "settings.data.allow_absolute_paths": "Autoriser les chemins absolus",
   "settings.data.max_scan_depth": "Profondeur de numérisation maximale",

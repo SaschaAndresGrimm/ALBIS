@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Maletg da cumenzament",
   "series.ui.section_title": "Operaziuns da seria",
   "settings.actions.save_close": "Memorisar e serrar",
+  "settings.application.auto_check_updates": "Controllar actualisaziuns al cumenzament",
   "settings.config_file": "Datoteca da config:",
   "settings.data.allow_absolute_paths": "Lubir vias absolutas",
   "settings.data.max_scan_depth": "Profunditad massimala da scan",

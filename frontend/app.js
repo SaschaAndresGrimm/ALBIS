@@ -471,6 +471,7 @@ const settingsServerPort = document.getElementById("settings-server-port");
 const settingsServerReload = document.getElementById("settings-server-reload");
 const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
 const settingsOpenBrowser = document.getElementById("settings-open-browser");
+const settingsAutoCheckUpdates = document.getElementById("settings-auto-check-updates");
 const settingsToolHints = document.getElementById("settings-tool-hints");
 const settingsLanguage = document.getElementById("settings-language");
 const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
@@ -2401,6 +2402,11 @@ async function fetchSettingsConfig() {
   }
 }
 
+function maybeCheckForStartupUpdates() {
+  if (!state.autoCheckUpdates) return;
+  void updateCheckController?.checkOnStartup({ enabled: state.autoCheckUpdates });
+}
+
 async function bootstrapApp() {
   showSplash();
   drawSplash();
@@ -2412,6 +2418,7 @@ async function bootstrapApp() {
   await loadAutoloadFolders();
   await loadFiles();
   setSplashStatus("splash.status.ready_open_file");
+  maybeCheckForStartupUpdates();
 }
 
 async function loadAutoloadFolders() {
@@ -2798,6 +2805,7 @@ const settingsController = createSettingsController({
     settingsServerReload,
     settingsStartupTimeout,
     settingsOpenBrowser,
+    settingsAutoCheckUpdates,
     settingsToolHints,
     settingsLanguage,
     settingsPixelLabelMin,

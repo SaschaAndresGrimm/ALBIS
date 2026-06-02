@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "Tīmatahia te tāpare",
   "series.ui.section_title": "Nga Mahi Rangatū",
   "settings.actions.save_close": "Tiakina & Katia",
+  "settings.application.auto_check_updates": "Tirohia ngā whakahou i te tīmatanga",
   "settings.config_file": "Kōnae Whirihora:",
   "settings.data.allow_absolute_paths": "Whakaaetia nga huarahi tino",
   "settings.data.max_scan_depth": "Te hōhonu matawai teitei",

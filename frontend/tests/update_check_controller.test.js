@@ -208,6 +208,63 @@ describe("update check controller", () => {
     expect(document.getElementById("update-check-latest-row")?.hidden).toBe(true);
   });
 
+  it("startup check opens the modal only when an update is available", async () => {
+    const { controller, openModal } = await initializeModules({
+      updateJson: {
+        status: "update_available",
+        current_version: "0.9.2",
+        latest_version: "0.9.3",
+        release_url: "https://example.invalid/releases/v0.9.3",
+        message: "",
+      },
+    });
+
+    const payload = await controller.checkOnStartup();
+
+    expect(payload?.status).toBe("update_available");
+    expect(openModal).toHaveBeenCalledOnce();
+    expect(document.getElementById("update-check-modal")?.classList.contains("is-open")).toBe(true);
+    expect(document.getElementById("update-check-message")?.textContent).toBe("A newer version of ALBIS is available.");
+    expect(document.getElementById("update-check-action")?.textContent).toBe("Open Release Page");
+  });
+
+  it("startup check stays quiet when ALBIS is up to date", async () => {
+    const { controller, openModal } = await initializeModules({
+      updateJson: {
+        status: "up_to_date",
+        current_version: "0.9.2",
+        latest_version: "0.9.2",
+        release_url: "https://example.invalid/releases/v0.9.2",
+        message: "",
+      },
+    });
+
+    const payload = await controller.checkOnStartup();
+
+    expect(payload?.status).toBe("up_to_date");
+    expect(openModal).not.toHaveBeenCalled();
+    expect(document.getElementById("update-check-modal")?.classList.contains("is-open")).toBe(false);
+    expect(document.getElementById("update-check-message")?.textContent).toBe("");
+  });
+
+  it("startup check can be disabled before making a request", async () => {
+    const { controller, openModal } = await initializeModules({
+      updateJson: {
+        status: "update_available",
+        current_version: "0.9.2",
+        latest_version: "0.9.3",
+        release_url: "https://example.invalid/releases/v0.9.3",
+        message: "",
+      },
+    });
+
+    const payload = await controller.checkOnStartup({ enabled: false });
+
+    expect(payload).toBeNull();
+    expect(openModal).not.toHaveBeenCalled();
+    expect(global.fetch.mock.calls.filter(([url]) => String(url).endsWith("/api/update-check"))).toHaveLength(0);
+  });
+
   it("opens the release page when the modal action is clicked", async () => {
     const { controller } = await initializeModules({
       updateJson: {

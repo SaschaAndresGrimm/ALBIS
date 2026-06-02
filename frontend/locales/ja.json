@@ -478,6 +478,7 @@
   "series.ui.range_start_label": "開始フレーム",
   "series.ui.section_title": "シリーズ操作",
   "settings.actions.save_close": "保存して閉じる",
+  "settings.application.auto_check_updates": "起動時にアップデートを確認",
   "settings.config_file": "設定ファイル:",
   "settings.data.allow_absolute_paths": "絶対パスを許可",
   "settings.data.max_scan_depth": "最大スキャン深度",
