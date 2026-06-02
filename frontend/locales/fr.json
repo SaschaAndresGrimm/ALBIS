@@ -768,5 +768,8 @@
   "status.data_export.start_failed": "Could not start data export",
   "status.data_export.started": "Data export started",
   "status.data_export.status_failed": "Could not read export status",
-  "status.data_export.status_query_failed": "Status query failed"
+  "status.data_export.status_query_failed": "Status query failed",
+  "data_export.button.open_image": "Open Image",
+  "status.data_export.output_open_failed": "Could not open exported image",
+  "status.data_export.output_opened": "Opened exported image"
 }

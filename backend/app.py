@@ -600,6 +600,8 @@ data_export = DataExportService(
         write_cbf=_write_cbf,
         resolve_dataset_view=_resolve_dataset_view,
         extract_frame=_extract_frame,
+        find_pixel_mask=_find_pixel_mask,
+        mask_slices=_mask_slices,
     )
 )
 

@@ -214,6 +214,8 @@ function createDataExportState() {
     progress: 0,
     message: "Idle",
     outputs: [],
+    openTarget: "",
+    sourceKey: "",
     autoOutputDir: "",
     autoOutputPrefix: "",
   };

@@ -1387,6 +1387,8 @@ const dataExportController = createDataExportController({
     setStatus,
     fetchJSON,
     fetchJSONWithInit,
+    ensureFileMode,
+    loadAutoloadFile,
   },
 });
 

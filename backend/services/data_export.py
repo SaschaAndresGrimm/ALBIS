@@ -40,6 +40,8 @@ class DataExportDeps:
     write_cbf: Callable[[Path, np.ndarray], None]
     resolve_dataset_view: Callable[[Any, Path, str], tuple[dict[str, Any], list[Any]]]
     extract_frame: Callable[[dict[str, Any], int, int], np.ndarray]
+    find_pixel_mask: Callable[[Any, int | None], Any | None]
+    mask_slices: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray, np.ndarray]]
 
 
 class DataExportService:
@@ -209,7 +211,27 @@ class DataExportService:
         raise HTTPException(status_code=500, detail="Unable to allocate output file name")
 
     @staticmethod
-    def _normalize_frame(arr: np.ndarray) -> np.ndarray:
+    def _cast_frame_to_int(frame: np.ndarray) -> np.ndarray:
+        if np.issubdtype(frame.dtype, np.integer):
+            min_value = int(np.min(frame, initial=0))
+            max_value = int(np.max(frame, initial=0))
+        else:
+            finite = np.isfinite(frame)
+            finite_values = frame[finite]
+            if finite_values.size:
+                min_value = int(np.rint(np.min(finite_values)))
+                max_value = int(np.rint(np.max(finite_values)))
+            else:
+                min_value = 0
+                max_value = 0
+            frame = np.rint(np.where(finite, frame, 0))
+
+        dtype = np.int32
+        if min_value < np.iinfo(np.int32).min or max_value > np.iinfo(np.int32).max:
+            dtype = np.int64
+        return np.asarray(frame, dtype=dtype)
+
+    def _normalize_frame(self, arr: np.ndarray, mask_bits: np.ndarray | None = None) -> np.ndarray:
         frame = np.asarray(arr)
         if frame.ndim != 2:
             raise HTTPException(status_code=400, detail="Only 2D frames can be exported")
@@ -218,7 +240,28 @@ class DataExportService:
             frame.dtype.byteorder == "=" and sys.byteorder == "big"
         ):
             frame = frame.byteswap().view(frame.dtype.newbyteorder("<"))
-        return frame
+
+        gap_mask: np.ndarray | None = None
+        bad_mask: np.ndarray | None = None
+        if mask_bits is not None:
+            mask = np.asarray(mask_bits, dtype=np.uint32)
+            if mask.shape != frame.shape:
+                raise HTTPException(status_code=400, detail="Pixel mask shape does not match frame")
+            gap_mask, bad_mask, _ = self._deps.mask_slices(mask)
+
+        if not np.issubdtype(frame.dtype, np.integer):
+            bad_values = ~np.isfinite(frame)
+            if np.any(bad_values):
+                bad_mask = bad_values if bad_mask is None else (bad_mask | bad_values)
+
+        output = self._cast_frame_to_int(frame)
+        if gap_mask is not None or bad_mask is not None:
+            output = output.copy()
+            if gap_mask is not None:
+                output[gap_mask] = -1
+            if bad_mask is not None:
+                output[bad_mask] = -2
+        return output
 
     def _write_frame(
         self,
@@ -227,13 +270,14 @@ class DataExportService:
         name: str,
         output_format: str,
         arr: np.ndarray,
+        mask_bits: np.ndarray | None = None,
         overwrite: bool,
     ) -> Path:
         suffix = ".cbf" if output_format == "cbf" else ".tiff"
         path = out_dir / f"{name}{suffix}"
         if path.exists() and not overwrite:
             path = self._next_available_path(path)
-        frame = self._normalize_frame(arr)
+        frame = self._normalize_frame(arr, mask_bits=mask_bits)
         if output_format == "cbf":
             self._deps.write_cbf(path, frame)
         else:
@@ -341,6 +385,14 @@ class DataExportService:
                 )
                 total = max(1, len(frames) * len(thresholds))
                 completed = 0
+                mask_bits_by_thr: dict[int, np.ndarray | None] = {}
+                for thr_idx in thresholds:
+                    mask_dset = self._deps.find_pixel_mask(
+                        h5, threshold=thr_idx if threshold_count > 1 else None
+                    )
+                    mask_bits_by_thr[thr_idx] = (
+                        np.asarray(mask_dset, dtype=np.uint32) if mask_dset is not None else None
+                    )
                 prefix = (
                     self._safe_name(output_prefix)
                     if output_prefix
@@ -365,6 +417,7 @@ class DataExportService:
                             name=name,
                             output_format=output_format,
                             arr=arr,
+                            mask_bits=mask_bits_by_thr.get(thr_idx),
                             overwrite=overwrite,
                         )
                         outputs.append(str(out_file))

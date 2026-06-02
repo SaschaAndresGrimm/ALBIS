@@ -77,6 +77,8 @@ export function createDataExportController({
     setStatus,
     fetchJSON,
     fetchJSONWithInit,
+    ensureFileMode,
+    loadAutoloadFile,
   } = callbacks;
 
   let pollTimer = null;
@@ -90,6 +92,15 @@ export function createDataExportController({
 
   function isReady() {
     return Boolean(state.file && (!isHdfFile(state.file) || state.dataset));
+  }
+
+  function sourceKey() {
+    return `${state.file || ""}|${state.dataset || ""}`;
+  }
+
+  function resolveOpenTarget(outputs) {
+    if (!Array.isArray(outputs) || !outputs.length) return "";
+    return String(outputs[0] || "");
   }
 
   function setProgress(progress, text) {
@@ -130,9 +141,18 @@ export function createDataExportController({
     }
   }
 
+  function clearFinishedResult() {
+    if (state.dataExport.running || !state.dataExport.openTarget) return;
+    state.dataExport.openTarget = "";
+    state.dataExport.outputs = [];
+    setProgress(0, t("data_export.progress.idle"));
+    updateUi();
+  }
+
   function updateUi() {
     const ready = isReady();
     const running = Boolean(state.dataExport.running);
+    const canOpen = !running && Boolean(state.dataExport.openTarget);
     const frameMode = String(dataExportFrameMode?.value || "all").toLowerCase();
     const showRange = frameMode === "range";
     const hasThresholds = Number(state.thresholdCount || 1) > 1;
@@ -175,10 +195,12 @@ export function createDataExportController({
     if (dataExportRangeStart) dataExportRangeStart.disabled = running || !ready || !showRange;
     if (dataExportRangeEnd) dataExportRangeEnd.disabled = running || !ready || !showRange;
     if (dataExportStart) {
-      dataExportStart.disabled = running || !ready;
+      dataExportStart.disabled = running || (!ready && !canOpen);
       dataExportStart.textContent = running
         ? t("data_export.button.exporting")
-        : t("data_export.button.start");
+        : canOpen
+          ? t("data_export.button.open_image")
+          : t("data_export.button.start");
     }
     if (dataExportCancel) {
       dataExportCancel.classList.toggle("is-hidden", !running);
@@ -206,6 +228,7 @@ export function createDataExportController({
       state.dataExport.running = status === "queued" || status === "running" || status === "cancelling";
       state.dataExport.cancelling = Boolean(data.cancel_requested) && state.dataExport.running;
       state.dataExport.outputs = outputs;
+      state.dataExport.openTarget = state.dataExport.running ? "" : resolveOpenTarget(outputs);
       setProgress(progress, data.message || t("data_export.progress.running"));
       updateUi();
       if (state.dataExport.running) {
@@ -230,6 +253,10 @@ export function createDataExportController({
   }
 
   async function startExport() {
+    if (!state.dataExport.running && state.dataExport.openTarget) {
+      await openFirstOutput();
+      return;
+    }
     if (!isReady() || state.dataExport.running) return;
     const mode = String(dataExportFrameMode?.value || "all").toLowerCase();
     const totalFrames = Math.max(1, Math.round(Number(state.frameCount || 1)));
@@ -262,6 +289,7 @@ export function createDataExportController({
       state.dataExport.cancelling = false;
       state.dataExport.jobId = "";
       state.dataExport.outputs = [];
+      state.dataExport.openTarget = "";
       setProgress(0, t("data_export.progress.submitting"));
       updateUi();
       const data = await fetchJSONWithInit(`${apiBase}/export/data/start`, {
@@ -311,6 +339,26 @@ export function createDataExportController({
     }
   }
 
+  async function openFirstOutput() {
+    const target = state.dataExport.openTarget;
+    if (state.dataExport.running || !target) return;
+    try {
+      await ensureFileMode();
+      const loaded = await loadAutoloadFile(target);
+      if (!loaded) {
+        setStatus(t("status.data_export.output_open_failed"));
+        return;
+      }
+      setStatus(t("status.data_export.output_opened"));
+      state.dataExport.openTarget = "";
+      setProgress(0, t("data_export.progress.idle"));
+      updateUi();
+    } catch (err) {
+      console.error(err);
+      setStatus(t("status.data_export.output_open_failed"));
+    }
+  }
+
   async function browseOutputDir() {
     if (state.dataExport.running) return;
     try {
@@ -336,6 +384,13 @@ export function createDataExportController({
       setStatus(t("status.data_export.no_dataset"));
       return;
     }
+    const nextSourceKey = sourceKey();
+    if (!state.dataExport.running && state.dataExport.sourceKey !== nextSourceKey) {
+      state.dataExport.outputs = [];
+      state.dataExport.openTarget = "";
+      state.dataExport.sourceKey = nextSourceKey;
+      setProgress(0, t("data_export.progress.idle"));
+    }
     syncDefaults(false);
     updateUi();
     openModal(dataExportModal, { focusTarget: dataExportFormat });
@@ -352,6 +407,19 @@ export function createDataExportController({
     }
   });
   dataExportFrameMode?.addEventListener("change", updateUi);
+  [
+    dataExportFormat,
+    dataExportFrameMode,
+    dataExportRangeStart,
+    dataExportRangeEnd,
+    dataExportThresholdMode,
+    dataExportOutputDir,
+    dataExportPrefix,
+    dataExportOverwrite,
+  ].forEach((element) => {
+    element?.addEventListener("change", clearFinishedResult);
+    element?.addEventListener("input", clearFinishedResult);
+  });
   dataExportThresholdMode?.addEventListener("change", updateUi);
   dataExportOutputBrowse?.addEventListener("click", browseOutputDir);
   dataExportStart?.addEventListener("click", startExport);

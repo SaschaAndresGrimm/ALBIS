@@ -35,8 +35,12 @@ def test_data_export_hdf5_range_to_tiff(tmp_path: Path) -> None:
     source = tmp_path / "source.h5"
     out_dir = tmp_path / "converted"
     data = np.arange(3 * 2 * 4, dtype=np.int32).reshape(3, 2, 4)
+    mask = np.zeros((2, 4), dtype=np.uint32)
+    mask[0, 0] = 1
+    mask[0, 1] = 0x10
     with h5py.File(source, "w") as h5:
         h5.create_dataset("/entry/data/data", data=data)
+        h5.create_dataset("/entry/instrument/detector/detectorSpecific/pixel_mask", data=mask)
 
     client = _client()
     start = client.post(
@@ -57,8 +61,17 @@ def test_data_export_hdf5_range_to_tiff(tmp_path: Path) -> None:
     job = _wait_for_job(client, start.json()["job_id"])
     assert job["status"] == "done"
     assert len(job["outputs"]) == 2
-    assert np.array_equal(tifffile.imread(job["outputs"][0]), data[1])
-    assert np.array_equal(tifffile.imread(job["outputs"][1]), data[2])
+    first = tifffile.imread(job["outputs"][0])
+    second = tifffile.imread(job["outputs"][1])
+    assert np.issubdtype(first.dtype, np.signedinteger)
+    expected_first = data[1].copy()
+    expected_first[0, 0] = -1
+    expected_first[0, 1] = -2
+    expected_second = data[2].copy()
+    expected_second[0, 0] = -1
+    expected_second[0, 1] = -2
+    assert np.array_equal(first, expected_first)
+    assert np.array_equal(second, expected_second)
 
 
 def test_data_export_hdf5_4d_all_thresholds_to_cbf(tmp_path: Path) -> None:
