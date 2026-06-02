@@ -219,7 +219,10 @@ Public tag releases require the following signing/notarization environment varia
   - optional: `MACOS_SIGNING_IDENTITY` to force a specific imported identity; otherwise the first Developer ID Application identity from the `.p12` is used
   - `MACOS_SIGN_CERT_B64` should contain the base64-encoded `.p12` payload
   - the `.p12` must contain a `Developer ID Application` certificate with its private key
-- Windows: `WINDOWS_SIGN_CERT_B64`, `WINDOWS_SIGN_CERT_PASSWORD`, `WINDOWS_SIGN_TIMESTAMP_URL`
+- Windows: either Azure Artifact Signing variables/secrets or the legacy PFX variables
+  - Azure variables: `AZURE_ARTIFACT_SIGNING_ENDPOINT`, `AZURE_ARTIFACT_SIGNING_ACCOUNT`, `AZURE_ARTIFACT_SIGNING_CERT_PROFILE`
+  - Azure secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
+  - legacy PFX secrets: `WINDOWS_SIGN_CERT_B64`, `WINDOWS_SIGN_CERT_PASSWORD`, `WINDOWS_SIGN_TIMESTAMP_URL`
   - when configured, the Windows pipeline signs `dist/ALBIS/ALBIS.exe`, the setup `.exe`, and the generated `unins*.exe`
 - Linux (GPG detached signatures): `LINUX_GPG_PRIVATE_KEY_B64`, `LINUX_GPG_PASSPHRASE`, `LINUX_GPG_KEY_ID`
   - `LINUX_GPG_PRIVATE_KEY_B64` accepts base64-encoded private key data (recommended), a raw ASCII-armored private key block, or an escaped armored block using `\n`.

@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Added Azure Artifact Signing support for Windows CI signing, including GitHub OIDC login, SignTool/dlib setup, and Inno Setup uninstaller signing.
+
 ## [0.9.12] - 2026-06-02
 
 ### Added

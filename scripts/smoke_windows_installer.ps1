@@ -200,7 +200,12 @@ if (-not $uninstaller) {
   throw "Uninstaller not found in $installDir"
 }
 
-if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64)) {
+$windowsSigningConfigured = (
+  (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64)) -or
+  (-not [string]::IsNullOrWhiteSpace($env:AZURE_ARTIFACT_SIGNING_ENDPOINT))
+)
+
+if ($windowsSigningConfigured) {
   $uninstallerSig = Get-AuthenticodeSignature $uninstaller.FullName
   Write-Host "Uninstaller signature status: $($uninstallerSig.Status)"
   if ($uninstallerSig.Status -ne "Valid") {

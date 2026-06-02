@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -74,22 +75,40 @@ jobs:
             exit 1
           fi
 
-      - name: Check Windows signing credentials for public tag releases
+      - name: Require Windows signing credentials for public tag releases
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           WINDOWS_SIGN_CERT_B64: ${{ secrets.WINDOWS_SIGN_CERT_B64 }}
           WINDOWS_SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_CERT_PASSWORD }}
           WINDOWS_SIGN_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGN_TIMESTAMP_URL }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT || secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT || secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+          AZURE_ARTIFACT_SIGNING_CERT_PROFILE: ${{ vars.AZURE_ARTIFACT_SIGNING_CERT_PROFILE || secrets.AZURE_ARTIFACT_SIGNING_CERT_PROFILE }}
         run: |
-          missing=()
+          pfx_missing=()
           for key in WINDOWS_SIGN_CERT_B64 WINDOWS_SIGN_CERT_PASSWORD WINDOWS_SIGN_TIMESTAMP_URL; do
             if [ -z "${!key:-}" ]; then
-              missing+=("$key")
+              pfx_missing+=("$key")
             fi
           done
-          if [ "${#missing[@]}" -gt 0 ]; then
-            printf 'Windows signing will be skipped for this release. Missing secret(s): %s\n' "${missing[*]}"
+
+          azure_missing=()
+          for key in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_ARTIFACT_SIGNING_ENDPOINT AZURE_ARTIFACT_SIGNING_ACCOUNT AZURE_ARTIFACT_SIGNING_CERT_PROFILE; do
+            if [ -z "${!key:-}" ]; then
+              azure_missing+=("$key")
+            fi
+          done
+
+          if [ "${#pfx_missing[@]}" -eq 0 ] || [ "${#azure_missing[@]}" -eq 0 ]; then
+            exit 0
           fi
+
+          printf 'Missing Windows PFX signing value(s): %s\n' "${pfx_missing[*]}"
+          printf 'Missing Azure Artifact Signing value(s): %s\n' "${azure_missing[*]}"
+          exit 1
 
       - uses: actions/setup-python@v6
         with:
@@ -258,6 +277,9 @@ jobs:
       WINDOWS_SIGN_CERT_B64: ${{ secrets.WINDOWS_SIGN_CERT_B64 }}
       WINDOWS_SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_CERT_PASSWORD }}
       WINDOWS_SIGN_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGN_TIMESTAMP_URL }}
+      AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT || secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+      AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT || secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+      AZURE_ARTIFACT_SIGNING_CERT_PROFILE: ${{ vars.AZURE_ARTIFACT_SIGNING_CERT_PROFILE || secrets.AZURE_ARTIFACT_SIGNING_CERT_PROFILE }}
     steps:
       - uses: actions/checkout@v6
 
@@ -288,6 +310,19 @@ jobs:
       - name: Smoke test packaged binary
         shell: pwsh
         run: python .\scripts\smoke_packaged_binary.py --binary .\dist\ALBIS\ALBIS.exe --startup-timeout 60
+
+      - name: Azure login for Artifact Signing
+        if: ${{ env.AZURE_ARTIFACT_SIGNING_ENDPOINT != '' && env.AZURE_ARTIFACT_SIGNING_ACCOUNT != '' && env.AZURE_ARTIFACT_SIGNING_CERT_PROFILE != '' }}
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Prepare Azure Artifact Signing tools
+        if: ${{ env.AZURE_ARTIFACT_SIGNING_ENDPOINT != '' && env.AZURE_ARTIFACT_SIGNING_ACCOUNT != '' && env.AZURE_ARTIFACT_SIGNING_CERT_PROFILE != '' }}
+        shell: pwsh
+        run: .\scripts\setup_azure_artifact_signing.ps1
 
       - name: Sign application payload
         shell: pwsh
@@ -340,7 +375,12 @@ jobs:
           $payloadSig = Get-AuthenticodeSignature $payloadExe
           Write-Host "Payload signature status: $($payloadSig.Status)"
 
-          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64)) {
+          $windowsSigningConfigured = (
+            (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64)) -or
+            (-not [string]::IsNullOrWhiteSpace($env:AZURE_ARTIFACT_SIGNING_ENDPOINT))
+          )
+
+          if ($windowsSigningConfigured) {
             if ($installerSig.Status -ne 'Valid') {
               throw "Expected signed installer, got status $($installerSig.Status)"
             }
