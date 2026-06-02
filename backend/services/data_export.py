@@ -239,7 +239,12 @@ class DataExportService:
             dtype = np.int64
         return np.asarray(frame, dtype=dtype)
 
-    def _normalize_frame(self, arr: np.ndarray, mask_bits: np.ndarray | None = None) -> np.ndarray:
+    def _normalize_frame(
+        self,
+        arr: np.ndarray,
+        mask_bits: np.ndarray | None = None,
+        saturated_value: int | None = None,
+    ) -> np.ndarray:
         frame = np.asarray(arr)
         if frame.ndim != 2:
             raise HTTPException(status_code=400, detail="Only 2D frames can be exported")
@@ -257,18 +262,37 @@ class DataExportService:
                 raise HTTPException(status_code=400, detail="Pixel mask shape does not match frame")
             gap_mask, bad_mask, _ = self._deps.mask_slices(mask)
 
-        if not np.issubdtype(frame.dtype, np.integer):
+        if np.issubdtype(frame.dtype, np.integer):
+            saturated_masks: list[np.ndarray] = []
+            if np.issubdtype(frame.dtype, np.unsignedinteger):
+                saturated_masks.append(frame == np.iinfo(frame.dtype).max)
+            if saturated_value is not None:
+                saturated_masks.append(frame >= saturated_value)
+            for saturated_mask in saturated_masks:
+                if np.any(saturated_mask):
+                    bad_mask = saturated_mask if bad_mask is None else (bad_mask | saturated_mask)
+        else:
             bad_values = ~np.isfinite(frame)
             if np.any(bad_values):
                 bad_mask = bad_values if bad_mask is None else (bad_mask | bad_values)
 
-        output = self._cast_frame_to_int(frame)
+        cast_source = frame
+        cast_mask = None
+        if gap_mask is not None:
+            cast_mask = gap_mask
+        if bad_mask is not None:
+            cast_mask = bad_mask if cast_mask is None else (cast_mask | bad_mask)
+        if cast_mask is not None and np.any(cast_mask):
+            cast_source = frame.copy()
+            cast_source[cast_mask] = 0
+
+        output = self._cast_frame_to_int(cast_source)
         if gap_mask is not None or bad_mask is not None:
             output = output.copy()
-            if gap_mask is not None:
-                output[gap_mask] = -1
             if bad_mask is not None:
                 output[bad_mask] = -2
+            if gap_mask is not None:
+                output[gap_mask] = -1
         return output
 
     @staticmethod
@@ -406,6 +430,17 @@ class DataExportService:
         except Exception:
             return None
 
+    def _read_h5_sensor_thickness_m(self, h5: Any, paths: list[str]) -> float | None:
+        value, units = self._read_h5_number(h5, paths)
+        if value is None:
+            return None
+        thickness_m = self._read_h5_length_m(h5, paths)
+        unit = (units or "").strip().lower()
+        if thickness_m is not None and thickness_m > 0.1 and unit in {"m", "meter", "metre"}:
+            # Some Dectris/Jungfrau master files report micrometer values with a meter unit.
+            return value / 1e6
+        return thickness_m
+
     def _read_h5_distance_m(self, h5: Any, paths: list[str]) -> float | None:
         value, units = self._read_h5_number(h5, paths)
         if value is None:
@@ -442,6 +477,7 @@ class DataExportService:
             [
                 f"/entry/instrument/detector/threshold_{threshold_index + 1}_channel/threshold_energy",
                 f"/entry/instrument/detector/detectorSpecific/threshold_{threshold_index + 1}_energy",
+                "/entry/instrument/detector/threshold_energy",
             ],
         )
 
@@ -520,7 +556,7 @@ class DataExportService:
         if y_pixel is not None and x_pixel is None:
             meta["pixel_size_x_m"] = y_pixel
 
-        sensor_thickness = self._read_h5_length_m(
+        sensor_thickness = self._read_h5_sensor_thickness_m(
             h5, ["/entry/instrument/detector/sensor_thickness"]
         )
         if sensor_thickness is not None:
@@ -547,6 +583,7 @@ class DataExportService:
 
         for path, increment in (
             ("/entry/instrument/detector/detectorSpecific/saturation_value", 0),
+            ("/entry/instrument/detector/saturation_value", 0),
             (
                 "/entry/instrument/detector/detectorSpecific/countrate_correction_count_cutoff",
                 1,
@@ -558,6 +595,8 @@ class DataExportService:
         ):
             value, _units = self._read_h5_number(h5, [path])
             if value is not None:
+                if increment == 0:
+                    meta["saturation_value"] = int(round(value))
                 meta["count_cutoff"] = int(round(value)) + increment
                 break
 
@@ -586,6 +625,7 @@ class DataExportService:
                 "/entry/instrument/beam/energy",
                 "/entry/instrument/source/energy",
                 "/entry/sample/beam/incident_energy",
+                "/entry/instrument/detector/detectorSpecific/photon_energy",
             ],
         )
         if incident_energy is not None:
@@ -716,7 +756,12 @@ class DataExportService:
         path = out_dir / f"{name}{suffix}"
         if path.exists() and not overwrite:
             path = self._next_available_path(path)
-        frame = self._normalize_frame(arr, mask_bits=mask_bits)
+        saturated_value = self._finite_int(metadata.get("saturation_value")) if metadata else None
+        frame = self._normalize_frame(
+            arr,
+            mask_bits=mask_bits,
+            saturated_value=saturated_value,
+        )
         if output_format == "cbf":
             self._deps.write_cbf(path, frame, metadata)
         else:

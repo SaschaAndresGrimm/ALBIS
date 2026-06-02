@@ -58,20 +58,18 @@ def _add_export_header_metadata(h5: Any) -> None:
     )
     _write_h5_dataset(h5, "/entry/instrument/detector/x_pixel_size", 75e-6, "m")
     _write_h5_dataset(h5, "/entry/instrument/detector/y_pixel_size", 75e-6, "m")
-    _write_h5_dataset(h5, "/entry/instrument/detector/sensor_thickness", 450e-6, "m")
+    _write_h5_dataset(h5, "/entry/instrument/detector/sensor_thickness", 70.0, "m")
     _write_h5_dataset(h5, "/entry/instrument/detector/count_time", 0.1, "s")
     _write_h5_dataset(h5, "/entry/instrument/detector/frame_time", 0.2, "s")
     _write_h5_dataset(
         h5, "/entry/instrument/detector/detectorSpecific/saturation_value", 999_999
     )
     _write_h5_dataset(h5, "/entry/sample/beam/incident_wavelength", 1.0332, "angstrom")
-    _write_h5_dataset(h5, "/entry/instrument/beam/incident_energy", 12.0, "keV")
+    _write_h5_dataset(h5, "/entry/instrument/detector/detectorSpecific/photon_energy", 12_000, "eV")
     _write_h5_dataset(h5, "/entry/instrument/detector/detector_distance", 0.25, "m")
     _write_h5_dataset(h5, "/entry/instrument/detector/beam_center_x", 123.4)
     _write_h5_dataset(h5, "/entry/instrument/detector/beam_center_y", 234.5)
-    _write_h5_dataset(
-        h5, "/entry/instrument/detector/threshold_1_channel/threshold_energy", 12_000, "eV"
-    )
+    _write_h5_dataset(h5, "/entry/instrument/detector/threshold_energy", 6_000, "eV")
     _write_h5_dataset(h5, "/entry/sample/goniometer/omega", np.asarray([0.0, 0.1]), "deg")
     _write_h5_dataset(h5, "/entry/sample/goniometer/omega_range_average", 0.1, "deg")
 
@@ -79,7 +77,8 @@ def _add_export_header_metadata(h5: Any) -> None:
 def test_data_export_hdf5_range_to_tiff(tmp_path: Path) -> None:
     source = tmp_path / "source.h5"
     out_dir = tmp_path / "converted"
-    data = np.arange(3 * 2 * 4, dtype=np.int32).reshape(3, 2, 4)
+    data = np.arange(3 * 2 * 4, dtype=np.uint32).reshape(3, 2, 4)
+    data[1, 1, 2] = np.iinfo(np.uint32).max
     mask = np.zeros((2, 4), dtype=np.uint32)
     mask[0, 0] = 1
     mask[0, 1] = 0x10
@@ -109,10 +108,12 @@ def test_data_export_hdf5_range_to_tiff(tmp_path: Path) -> None:
     first = tifffile.imread(job["outputs"][0])
     second = tifffile.imread(job["outputs"][1])
     assert np.issubdtype(first.dtype, np.signedinteger)
-    expected_first = data[1].copy()
+    assert first.dtype == np.dtype(np.int32)
+    expected_first = data[1].astype(np.int64)
     expected_first[0, 0] = -1
     expected_first[0, 1] = -2
-    expected_second = data[2].copy()
+    expected_first[1, 2] = -2
+    expected_second = data[2].astype(np.int64)
     expected_second[0, 0] = -1
     expected_second[0, 1] = -2
     assert np.array_equal(first, expected_first)
@@ -155,7 +156,7 @@ def test_data_export_hdf5_to_tiff_writes_dectris_header(tmp_path: Path) -> None:
     assert meta["image_number"] == 101
     assert meta["image_datetime"] == "2026-06-02T12:00:00Z"
     assert meta["threshold_ids"] == [1]
-    assert meta["threshold_energy_ev"] == pytest.approx(12_000)
+    assert meta["threshold_energy_ev"] == pytest.approx(6_000)
     assert meta["exposure_time_s"] == pytest.approx(0.1)
     assert meta["energy_ev"] == pytest.approx(12_000)
     assert meta["wavelength_a"] == pytest.approx(1.0332)
@@ -227,7 +228,7 @@ def test_data_export_hdf5_to_cbf_writes_minicbf_header(tmp_path: Path) -> None:
     assert header.get("_array_data.header_convention") == "SLS_1.0"
     assert "Detector: EIGER2 4M, S/N E-32" in header_text
     assert "Pixel_size 7.5e-05 m x 7.5e-05 m" in header_text
-    assert "Silicon sensor, thickness 0.00045 m" in header_text
+    assert "Silicon sensor, thickness 7e-05 m" in header_text
     assert "Exposure_time 0.1 s" in header_text
     assert "Exposure_period 0.2 s" in header_text
     assert "Count_cutoff 999999 counts" in header_text
