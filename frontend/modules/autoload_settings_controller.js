@@ -17,8 +17,13 @@ export function createAutoloadSettingsController({
     autoloadWatchOptions,
     autoloadTypesRow,
     autoloadSimplon,
+    autoloadSimplonAdvanced,
+    autoloadStatusBlock,
+    autoloadStatusPrimarySlot,
+    autoloadStatusAdvancedSlot,
     autoloadRemote,
     autoloadJfjoch,
+    filesystemField,
     fileField,
     datasetField,
     thresholdField,
@@ -66,7 +71,16 @@ export function createAutoloadSettingsController({
     setAutoloadLatest,
     updatePlayButtons,
     startAutoload,
+    isBackendLocal = () => false,
   } = callbacks;
+
+  function placeAutoloadStatusBlock() {
+    if (!autoloadStatusBlock) return;
+    const target = state.autoload.mode === "simplon" ? autoloadStatusPrimarySlot : autoloadStatusAdvancedSlot;
+    if (target && autoloadStatusBlock.parentElement !== target) {
+      target.appendChild(autoloadStatusBlock);
+    }
+  }
 
   function persistAutoloadSettings() {
     try {
@@ -96,6 +110,7 @@ export function createAutoloadSettingsController({
   }
 
   function updateAutoloadUI() {
+    placeAutoloadStatusBlock();
     if (autoloadMode) autoloadMode.value = state.autoload.mode;
     if (autoloadFolder) {
       autoloadFolder.classList.toggle(
@@ -110,8 +125,14 @@ export function createAutoloadSettingsController({
     if (autoloadWatchOptions) autoloadWatchOptions.classList.toggle("is-hidden", !state.autoload.watchEnabled);
     if (autoloadTypesRow) autoloadTypesRow.classList.toggle("is-hidden", !state.autoload.watchEnabled);
     if (autoloadSimplon) autoloadSimplon.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
+    if (autoloadSimplonAdvanced) {
+      autoloadSimplonAdvanced.classList.toggle("is-hidden", state.autoload.mode !== "simplon");
+    }
     if (autoloadRemote) autoloadRemote.classList.toggle("is-hidden", state.autoload.mode !== "remote");
     if (autoloadJfjoch) autoloadJfjoch.classList.toggle("is-hidden", state.autoload.mode !== "jungfraujoch");
+    if (filesystemField) {
+      filesystemField.classList.toggle("is-hidden", Boolean(isBackendLocal()) || state.autoload.mode !== "file");
+    }
     const hideDatasetUi =
       state.autoload.mode === "simplon" ||
       state.autoload.mode === "remote" ||
@@ -134,9 +155,11 @@ export function createAutoloadSettingsController({
     }
     if (toolbarMoreStepField) toolbarMoreStepField.classList.toggle("is-hidden", !showPlaybackControls);
     if (toolbarMoreFpsField) toolbarMoreFpsField.classList.toggle("is-hidden", !showPlaybackControls);
+    const showAutoloadStatusBlock = state.autoload.mode !== "file" || Boolean(state.autoload.watchEnabled);
+    if (autoloadStatusBlock) autoloadStatusBlock.classList.toggle("is-hidden", !showAutoloadStatusBlock);
     if (autoloadStatus) {
       const meta = autoloadStatus.closest(".autoload-meta");
-      if (meta) meta.classList.toggle("is-hidden", state.autoload.mode === "file" && !state.autoload.watchEnabled);
+      if (meta) meta.classList.toggle("is-hidden", !showAutoloadStatusBlock);
     }
     if (simplonMetaPanel) {
       simplonMetaPanel.classList.toggle("is-hidden", state.autoload.mode !== "simplon");

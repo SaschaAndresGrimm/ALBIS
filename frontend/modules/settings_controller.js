@@ -30,6 +30,7 @@ export function createSettingsController({
     settingsServerReload,
     settingsStartupTimeout,
     settingsOpenBrowser,
+    settingsAutoCheckUpdates,
     settingsToolHints,
     settingsLanguage,
     settingsPixelLabelMin,
@@ -133,6 +134,9 @@ export function createSettingsController({
 
     settingsStartupTimeout.value = String(Number(config?.launcher?.startup_timeout_sec ?? 5.0));
     settingsOpenBrowser.checked = Boolean(config?.launcher?.open_browser ?? true);
+    if (settingsAutoCheckUpdates) {
+      settingsAutoCheckUpdates.checked = Boolean(config?.ui?.auto_check_updates ?? state.autoCheckUpdates ?? true);
+    }
     if (settingsToolHints) {
       const toolHints = config?.ui?.tool_hints;
       settingsToolHints.checked = Boolean(toolHints ?? state.toolHintsEnabled);
@@ -208,6 +212,7 @@ export function createSettingsController({
       },
       ui: {
         tool_hints: Boolean(settingsToolHints?.checked),
+        auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
         pixel_label_min_cell_px: Math.max(
           8,
           Math.min(64, asInt(settingsPixelLabelMin?.value, state.pixelLabelMinCellPx || pixelLabelDefaultMinCellPx))
@@ -231,6 +236,9 @@ export function createSettingsController({
     const cfg = uiConfig && typeof uiConfig === "object" ? uiConfig : {};
     if (typeof cfg.tool_hints !== "undefined") {
       setToolHintsEnabled(Boolean(cfg.tool_hints));
+    }
+    if (typeof cfg.auto_check_updates !== "undefined") {
+      state.autoCheckUpdates = Boolean(cfg.auto_check_updates);
     }
     const minCell = Number(cfg.pixel_label_min_cell_px);
     if (Number.isFinite(minCell)) {

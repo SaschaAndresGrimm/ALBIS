@@ -24,6 +24,7 @@ function renderSettingsShell() {
       <input id="settings-server-reload" type="checkbox" />
       <input id="settings-startup-timeout" type="number" />
       <input id="settings-open-browser" type="checkbox" />
+      <input id="settings-auto-check-updates" type="checkbox" />
       <input id="settings-tool-hints" type="checkbox" />
       <select id="settings-language"><option value="en">English</option></select>
       <input id="settings-pixel-label-min" type="number" />
@@ -87,6 +88,7 @@ async function initializeController({ initialConfig }) {
     apiBase: "/api",
     state: {
       toolHintsEnabled: false,
+      autoCheckUpdates: true,
       language: "en",
       pixelLabelMinCellPx: 18,
       pixelLabelMaxLabels: 4000,
@@ -111,6 +113,7 @@ async function initializeController({ initialConfig }) {
       settingsServerReload: document.getElementById("settings-server-reload"),
       settingsStartupTimeout: document.getElementById("settings-startup-timeout"),
       settingsOpenBrowser: document.getElementById("settings-open-browser"),
+      settingsAutoCheckUpdates: document.getElementById("settings-auto-check-updates"),
       settingsToolHints: document.getElementById("settings-tool-hints"),
       settingsLanguage: document.getElementById("settings-language"),
       settingsPixelLabelMin: document.getElementById("settings-pixel-label-min"),
@@ -156,7 +159,7 @@ describe("settings controller external access warning", () => {
         launcher: { startup_timeout_sec: 10, open_browser: true },
         data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
         logging: { level: "INFO", dir: "" },
-        ui: { tool_hints: false, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
+        ui: { tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
       },
     });
 
@@ -187,7 +190,7 @@ describe("settings controller external access warning", () => {
         launcher: { startup_timeout_sec: 10, open_browser: true },
         data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
         logging: { level: "INFO", dir: "" },
-        ui: { tool_hints: false, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
+        ui: { tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
       },
     });
 
@@ -208,5 +211,28 @@ describe("settings controller external access warning", () => {
 
     expect(savedConfigs).toHaveLength(1);
     expect(savedConfigs[0]?.server?.host).toBe("127.0.0.1");
+  });
+
+  it("round-trips the startup update-check preference", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: {
+        server: { host: "127.0.0.1", port: 8000, reload: false },
+        launcher: { startup_timeout_sec: 10, open_browser: true },
+        data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
+        logging: { level: "INFO", dir: "" },
+        ui: { tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18, pixel_label_max_labels: 4000, pixel_label_format: "auto", pixel_label_show_during_drag: false, language: "en" },
+      },
+    });
+
+    await controller.openSettingsModal();
+
+    const toggle = document.getElementById("settings-auto-check-updates");
+    expect(toggle?.checked).toBe(true);
+
+    toggle.checked = false;
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs).toHaveLength(1);
+    expect(savedConfigs[0]?.ui?.auto_check_updates).toBe(false);
   });
 });

@@ -111,6 +111,11 @@
           "default": false,
           "description": "Enable additional tool-hint text in the UI."
         },
+        "auto_check_updates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check for ALBIS updates on frontend startup and notify when a newer version is available."
+        },
         "pixel_label_min_cell_px": {
           "type": "integer",
           "minimum": 8,
@@ -169,6 +174,7 @@
     },
     "ui": {
       "tool_hints": false,
+      "auto_check_updates": true,
       "pixel_label_min_cell_px": 18,
       "pixel_label_max_labels": 4000,
       "pixel_label_format": "auto",

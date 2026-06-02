@@ -24,6 +24,16 @@ def test_normalize_config_defaults_to_english_ui_language() -> None:
     assert config["ui"]["language"] == "en"
 
 
+def test_normalize_config_defaults_to_startup_update_checks_enabled() -> None:
+    config = normalize_config(None)
+    assert config["ui"]["auto_check_updates"] is True
+
+
+def test_normalize_config_accepts_disabled_startup_update_checks() -> None:
+    config = normalize_config({"ui": {"auto_check_updates": False}})
+    assert config["ui"]["auto_check_updates"] is False
+
+
 def test_normalize_config_normalizes_ui_language_aliases() -> None:
     config = normalize_config({"ui": {"language": "zh"}})
     assert config["ui"]["language"] == "zh-CN"

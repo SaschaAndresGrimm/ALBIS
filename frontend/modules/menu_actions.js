@@ -17,6 +17,7 @@ export function createMenuActionHandler({
     openAboutModal,
     openFileModal,
     closeCurrentFile,
+    openDataExportDialog,
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,
@@ -53,6 +54,9 @@ export function createMenuActionHandler({
         break;
       case "close-file":
         closeCurrentFile();
+        break;
+      case "export-data":
+        openDataExportDialog();
         break;
       case "save-full": {
         const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";

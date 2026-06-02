@@ -39,6 +39,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "ui": {
         "tool_hints": False,
+        "auto_check_updates": True,
         "pixel_label_min_cell_px": 18,
         "pixel_label_max_labels": 4000,
         "pixel_label_format": "auto",
@@ -69,6 +70,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("logging", "level"): (str,),
     ("logging", "dir"): (str,),
     ("ui", "tool_hints"): (bool, int, float, str),
+    ("ui", "auto_check_updates"): (bool, int, float, str),
     ("ui", "pixel_label_min_cell_px"): (int, float, str),
     ("ui", "pixel_label_max_labels"): (int, float, str),
     ("ui", "pixel_label_format"): (str,),
@@ -282,6 +284,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         },
         "ui": {
             "tool_hints": get_bool(merged, ("ui", "tool_hints"), False),
+            "auto_check_updates": get_bool(merged, ("ui", "auto_check_updates"), True),
             "pixel_label_min_cell_px": pixel_label_min_cell_px,
             "pixel_label_max_labels": pixel_label_max_labels,
             "pixel_label_format": pixel_label_format,

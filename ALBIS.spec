@@ -37,7 +37,7 @@ if not icon_path:
 if icon_path and not os.path.exists(icon_path):
     icon_path = ""
 
-datas = [("frontend", "frontend")]
+datas = [("frontend", "frontend"), ("VERSION", ".")]
 for asset_name in (
     "albis_splash_1920x1080.png",
     "albis_splash_3840x2160.png",

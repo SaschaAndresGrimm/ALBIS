@@ -43,7 +43,7 @@ export function createShortcutHandlers({
     const key = event.key.toLowerCase();
     const isShift = event.shiftKey;
     const isAlt = event.altKey;
-    if (["o", "s", "e", "n", "w", ",", "k"].includes(key)) {
+    if (["o", "s", "e", "n", "w", ",", "k"].includes(key) || (key === "x" && isShift && !isAlt)) {
       event.preventDefault();
     }
     switch (key) {
@@ -69,6 +69,11 @@ export function createShortcutHandlers({
           handleMenuAction("export-visible");
         } else {
           handleMenuAction("export-full");
+        }
+        break;
+      case "x":
+        if (isShift && !isAlt) {
+          handleMenuAction("export-data");
         }
         break;
       case "n":

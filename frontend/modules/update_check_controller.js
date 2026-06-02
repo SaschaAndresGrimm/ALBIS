@@ -151,6 +151,28 @@ export function createUpdateCheckController({
     render();
   }
 
+  async function checkOnStartup({ enabled = true } = {}) {
+    if (!enabled) return null;
+    requestSerial += 1;
+    const activeRequest = requestSerial;
+
+    try {
+      const payload = await fetchJSONWithInit(`${apiBase}/update-check`, { cache: "no-store" });
+      if (activeRequest !== requestSerial) return null;
+      const normalized = normalizePayload(payload);
+      if (normalized.status !== "update_available") {
+        return normalized;
+      }
+      latestPayload = normalized;
+      modalState = "update_available";
+      render();
+      openModal(updateCheckModal, { focusTarget: updateCheckCloseIcon || updateCheckClose || updateCheckAction });
+      return normalized;
+    } catch {
+      return null;
+    }
+  }
+
   function refreshUi() {
     if (modalState === "idle") return;
     render();
@@ -172,6 +194,7 @@ export function createUpdateCheckController({
   });
 
   return {
+    checkOnStartup,
     close,
     openAndCheck,
     refreshUi,

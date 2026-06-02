@@ -80,6 +80,7 @@ function createUiPreferencesState() {
     backendVersion: "",
     language: "en",
     toolHintsEnabled: false,
+    autoCheckUpdates: true,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,
     pixelLabelFormat: "auto",
@@ -206,6 +207,21 @@ function createSeriesSumState() {
   };
 }
 
+function createDataExportState() {
+  return {
+    running: false,
+    cancelling: false,
+    jobId: "",
+    progress: 0,
+    message: "Idle",
+    outputs: [],
+    openTarget: "",
+    sourceKey: "",
+    autoOutputDir: "",
+    autoOutputPrefix: "",
+  };
+}
+
 export function createAppState() {
   return {
     // Global view/data state used across renderer + UI controls.
@@ -217,5 +233,6 @@ export function createAppState() {
     ...createMaskState(),
     autoload: createAutoloadState(),
     seriesSum: createSeriesSumState(),
+    dataExport: createDataExportState(),
   };
 }

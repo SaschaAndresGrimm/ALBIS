@@ -51,15 +51,18 @@ try:
         _resolve_series_files,
         _split_series_name,
         _strip_image_ext,
+        _write_cbf,
         _write_tiff,
     )
     from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
+    from .routes.data_export import DataExportRouteDeps, register_data_export_routes
     from .routes.files import FileRouteDeps, register_file_routes
     from .routes.frames import FrameRouteDeps, register_frame_routes
     from .routes.handoff import HandoffRouteDeps, register_handoff_routes
     from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
     from .routes.stream import StreamRouteDeps, register_stream_routes
     from .routes.system import SystemRouteDeps, register_system_routes
+    from .services.data_export import DataExportDeps, DataExportService
     from .services.handoff_queue import HandoffQueueService
     from .services.hdf5_stack import HDF5StackService
     from .services.jungfraujoch_preview import JungfraujochPreviewBridge
@@ -135,15 +138,18 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         _resolve_series_files,
         _split_series_name,
         _strip_image_ext,
+        _write_cbf,
         _write_tiff,
     )
     from routes.analysis import AnalysisRouteDeps, register_analysis_routes
+    from routes.data_export import DataExportRouteDeps, register_data_export_routes
     from routes.files import FileRouteDeps, register_file_routes
     from routes.frames import FrameRouteDeps, register_frame_routes
     from routes.handoff import HandoffRouteDeps, register_handoff_routes
     from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
     from routes.stream import StreamRouteDeps, register_stream_routes
     from routes.system import SystemRouteDeps, register_system_routes
+    from services.data_export import DataExportDeps, DataExportService
     from services.handoff_queue import HandoffQueueService
     from services.hdf5_stack import HDF5StackService
     from services.jungfraujoch_preview import JungfraujochPreviewBridge
@@ -575,6 +581,37 @@ series_summing = SeriesSummingService(
     )
 )
 
+data_export = DataExportService(
+    DataExportDeps(
+        data_dir=runtime_state.data_dir,
+        get_allow_abs_paths=lambda: runtime_state.allow_abs_paths,
+        is_within=_is_within,
+        logger=logger,
+        ensure_hdf5_stack=_ensure_hdf5_stack,
+        get_h5py=_get_h5py,
+        resolve_image_file=_resolve_image_file,
+        image_ext_name=_image_ext_name,
+        resolve_series_files=_resolve_series_files,
+        read_tiff=_read_tiff,
+        read_cbf=_read_cbf,
+        read_cbf_gz=_read_cbf_gz,
+        read_edf=_read_edf,
+        write_tiff=_write_tiff,
+        write_cbf=_write_cbf,
+        resolve_dataset_view=_resolve_dataset_view,
+        extract_frame=_extract_frame,
+        find_pixel_mask=_find_pixel_mask,
+        mask_slices=_mask_slices,
+        read_scalar=_read_scalar,
+        to_mm=_to_mm,
+        to_um=_to_um,
+        to_ev=_to_ev,
+        wavelength_to_ev=_wavelength_to_ev,
+        pilatus_meta_from_image=_pilatus_meta_from_image,
+        pilatus_header_text=_pilatus_header_text,
+    )
+)
+
 jfjoch_preview = JungfraujochPreviewBridge(
     logger=logger,
     remote_store_frame=_remote_store_frame,
@@ -734,6 +771,15 @@ register_analysis_routes(
         start_series_sum_job=series_summing.start_job,
         get_series_sum_job=series_summing.get_job,
         cancel_series_sum_job=series_summing.cancel_job,
+    ),
+)
+
+register_data_export_routes(
+    app,
+    DataExportRouteDeps(
+        start_data_export_job=data_export.start_job,
+        get_data_export_job=data_export.get_job,
+        cancel_data_export_job=data_export.cancel_job,
     ),
 )
 

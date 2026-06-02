@@ -67,6 +67,10 @@
                   <span data-i18n="menu.file.viewer_window">Viewer Window</span>
                   <span class="shortcut">⌥⌘E</span>
                 </button>
+                <button class="dropdown-item" data-action="export-data">
+                  <span data-i18n="menu.file.convert_dataset">Convert Dataset…</span>
+                  <span class="shortcut">⇧⌘X</span>
+                </button>
               </div>
             </div>
           </div>
@@ -551,10 +555,60 @@
                 <span data-i18n="data_source.field.threshold">Threshold</span>
                 <select id="threshold-select"></select>
               </label>
+              <div class="autoload-group is-hidden" id="autoload-simplon">
+                <label class="field">
+                  <span data-i18n="data_source.field.base_url">Base URL</span>
+                  <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
+                </label>
+                <label class="checkbox">
+                  <input id="simplon-enable" type="checkbox" checked />
+                  <span data-i18n="data_source.monitor.enable">Enable monitor</span>
+                </label>
+              </div>
+              <div id="autoload-status-primary-slot">
+                <div class="autoload-group autoload-status-block is-hidden" id="autoload-status-block">
+                  <div class="autoload-meta">
+                    <div class="meta-row"><span data-i18n="data_source.meta.last_poll">Last poll</span><strong id="autoload-status">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.last_image">Last image</span><strong id="autoload-latest">-</strong></div>
+                  </div>
+                  <div class="simplon-meta is-hidden" id="simplon-meta">
+                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="simplon-series">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="simplon-image">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="simplon-time">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="simplon-energy">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.threshold_ev">Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="simplon-distance">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="simplon-center">-</strong></div>
+                  </div>
+                  <div class="remote-meta is-hidden" id="remote-meta">
+                    <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="remote-source">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="remote-seq">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="remote-series">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="remote-image">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="remote-time">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="remote-energy">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="remote-distance">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="remote-center">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.peak_sets">Peak sets</span><strong id="remote-peak-sets">-</strong></div>
+                  </div>
+                  <div class="remote-meta is-hidden" id="jfjoch-meta">
+                    <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="jfjoch-source">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="jfjoch-seq">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="jfjoch-series">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="jfjoch-image">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="jfjoch-time">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.reflections">Reflections</span><strong id="jfjoch-reflections">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.channel">Channel</span><strong id="jfjoch-channel-meta">-</strong></div>
+                    <div class="meta-row"><span data-i18n="data_source.meta.bridge_status">Bridge status</span><strong id="jfjoch-bridge-status">-</strong></div>
+                  </div>
+                </div>
+              </div>
               <details class="advanced-details">
                 <summary data-i18n="data_source.advanced.title">Advanced source settings</summary>
                 <div class="advanced-inner">
-                  <label class="field">
+                  <label class="field" id="filesystem-field">
                     <span data-i18n="data_source.field.file_system">File System</span>
                     <select id="filesystem-mode">
                       <option value="remote" data-i18n="data_source.option.remote_server">Remote Server</option>
@@ -591,15 +645,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="autoload-group is-hidden" id="autoload-simplon">
-                    <label class="field">
-                      <span data-i18n="data_source.field.base_url">Base URL</span>
-                      <input id="simplon-url" type="text" placeholder="http://127.0.0.1:5000" />
-                    </label>
-                    <label class="checkbox">
-                      <input id="simplon-enable" type="checkbox" checked />
-                      <span data-i18n="data_source.monitor.enable">Enable monitor</span>
-                    </label>
+                  <div class="autoload-group is-hidden" id="autoload-simplon-advanced">
                     <label class="field">
                       <span data-i18n="data_source.field.api_version">API Version</span>
                       <input id="simplon-version" type="text" value="1.8.0" />
@@ -641,44 +687,7 @@
                       <input id="jfjoch-interval" type="number" min="100" step="100" value="250" />
                     </label>
                   </div>
-                  <div class="autoload-group advanced-status-block">
-                    <div class="autoload-meta">
-                      <div class="meta-row"><span data-i18n="data_source.meta.last_poll">Last poll</span><strong id="autoload-status">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.last_image">Last image</span><strong id="autoload-latest">-</strong></div>
-                    </div>
-                    <div class="simplon-meta is-hidden" id="simplon-meta">
-                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="simplon-series">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="simplon-image">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="simplon-time">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="simplon-energy">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.threshold_ev">Threshold (eV)</span><strong id="simplon-threshold">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="simplon-wavelength">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="simplon-distance">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="simplon-center">-</strong></div>
-                    </div>
-                    <div class="remote-meta is-hidden" id="remote-meta">
-                      <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="remote-source">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="remote-seq">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="remote-series">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="remote-image">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="remote-time">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.energy_ev">Energy (eV)</span><strong id="remote-energy">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.wavelength_a">Wavelength (Å)</span><strong id="remote-wavelength">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.distance_mm">Distance (mm)</span><strong id="remote-distance">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.beam_center_px">Beam center (px)</span><strong id="remote-center">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.peak_sets">Peak sets</span><strong id="remote-peak-sets">-</strong></div>
-                    </div>
-                    <div class="remote-meta is-hidden" id="jfjoch-meta">
-                      <div class="meta-row"><span data-i18n="data_source.meta.source">Source</span><strong id="jfjoch-source">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.sequence">Sequence</span><strong id="jfjoch-seq">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.series">Series</span><strong id="jfjoch-series">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.image">Image</span><strong id="jfjoch-image">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.timestamp">Timestamp</span><strong id="jfjoch-time">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.reflections">Reflections</span><strong id="jfjoch-reflections">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.channel">Channel</span><strong id="jfjoch-channel-meta">-</strong></div>
-                      <div class="meta-row"><span data-i18n="data_source.meta.bridge_status">Bridge status</span><strong id="jfjoch-bridge-status">-</strong></div>
-                    </div>
-                  </div>
+                  <div id="autoload-status-advanced-slot"></div>
                 </div>
               </details>
             </section>
@@ -1257,6 +1266,74 @@
       </div>
     </div>
 
+    <div class="modal" id="data-export-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card data-export-modal-card" role="dialog" aria-modal="true" aria-labelledby="data-export-title">
+        <div class="modal-header">
+          <div id="data-export-title" data-i18n="data_export.title">Convert Dataset</div>
+          <button class="modal-close" id="data-export-close" data-i18n-aria-label="common.close" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body data-export-modal-body">
+          <div class="data-export-source" id="data-export-source">-</div>
+          <div class="data-export-grid">
+            <label class="field">
+              <span data-i18n="data_export.format">Format</span>
+              <select id="data-export-format">
+                <option value="tiff">TIFF</option>
+                <option value="cbf">CBF</option>
+              </select>
+            </label>
+            <label class="field">
+              <span data-i18n="data_export.frames">Frames</span>
+              <select id="data-export-frame-mode">
+                <option value="all" data-i18n="data_export.frames.all">All frames</option>
+                <option value="current" data-i18n="data_export.frames.current">Current frame</option>
+                <option value="range" data-i18n="data_export.frames.range">Range</option>
+              </select>
+            </label>
+            <label class="field is-hidden" id="data-export-range-start-field">
+              <span data-i18n="data_export.range_start">Start frame</span>
+              <input id="data-export-range-start" type="number" min="1" step="1" value="1" />
+            </label>
+            <label class="field is-hidden" id="data-export-range-end-field">
+              <span data-i18n="data_export.range_end">End frame</span>
+              <input id="data-export-range-end" type="number" min="1" step="1" value="1" />
+            </label>
+            <label class="field is-hidden" id="data-export-threshold-mode-field">
+              <span data-i18n="data_export.thresholds">Thresholds</span>
+              <select id="data-export-threshold-mode">
+                <option value="current" data-i18n="data_export.thresholds.current">Current threshold</option>
+                <option value="all" data-i18n="data_export.thresholds.all">All thresholds</option>
+              </select>
+            </label>
+            <label class="field data-export-span-2">
+              <span data-i18n="data_export.output_dir">Output folder</span>
+              <div class="inline data-export-output-row">
+                <input id="data-export-output-dir" type="text" />
+                <button id="data-export-output-browse" class="btn btn-secondary" type="button" data-i18n="series.ui.browse">Browse</button>
+              </div>
+            </label>
+            <label class="field">
+              <span data-i18n="data_export.prefix">File prefix</span>
+              <input id="data-export-prefix" type="text" />
+            </label>
+            <label class="checkbox data-export-overwrite">
+              <input id="data-export-overwrite" type="checkbox" />
+              <span data-i18n="data_export.overwrite">Overwrite existing files</span>
+            </label>
+          </div>
+          <div class="data-export-progress" id="data-export-progress">
+            <div class="data-export-progress-fill" id="data-export-progress-fill"></div>
+            <div class="data-export-progress-text" id="data-export-progress-text" data-i18n="data_export.progress.idle">Idle</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary is-hidden" id="data-export-cancel" type="button" data-i18n="data_export.button.cancel">Cancel</button>
+          <button class="btn btn-primary" id="data-export-start" type="button" data-i18n="data_export.button.start">Start Export</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal" id="settings-modal" aria-hidden="true">
       <div class="modal-backdrop"></div>
       <div class="modal-card settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
@@ -1304,6 +1381,10 @@
                 <label class="checkbox settings-check">
                   <input id="settings-open-browser" type="checkbox" />
                   <span data-i18n="settings.server.open_browser">Open browser on launch</span>
+                </label>
+                <label class="checkbox settings-check settings-span-2">
+                  <input id="settings-auto-check-updates" type="checkbox" />
+                  <span data-i18n="settings.application.auto_check_updates">Check for updates on startup</span>
                 </label>
               </div>
             </section>
