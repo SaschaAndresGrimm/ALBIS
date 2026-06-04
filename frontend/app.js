@@ -51,6 +51,7 @@ import { createOverlayRenderController } from "./modules/overlay_render_controll
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
 import { createRenderEngineController } from "./modules/render_engine_controller.js";
 import { createOverviewViewportController } from "./modules/overview_viewport_controller.js";
+import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
 import { createFrameMetadataController } from "./modules/frame_metadata_controller.js";
 import { createInspectorPanelController } from "./modules/inspector_panel_controller.js";
@@ -143,6 +144,7 @@ const toolbarMoreThresholdField = document.getElementById("toolbar-more-threshol
 const toolbarMoreThreshold = document.getElementById("toolbar-more-threshold");
 const toolbarMorePanelToggle = document.getElementById("toolbar-more-panel-toggle");
 const toolbarMoreFullscreen = document.getElementById("toolbar-more-fullscreen");
+const viewerSyncToggle = document.getElementById("viewer-sync-toggle");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
@@ -518,6 +520,7 @@ const browseCloseBtn = document.getElementById("browse-close");
 
 let renderer = null;
 let overviewViewportController = null;
+let viewerSyncController = null;
 let framePlaybackController = null;
 let frameMetadataController = null;
 let exportSplashController = null;
@@ -1521,6 +1524,7 @@ function refreshLocalizedUi() {
   updateSeriesSumUi();
   updateCheckController?.refreshUi();
   backendLogViewerController?.refreshUi();
+  viewerSyncController?.refreshUi();
   validateSeriesStepInput(false);
   if (commandPaletteController?.isOpen()) {
     commandPaletteController.render();
@@ -3386,6 +3390,24 @@ overviewViewportController = createOverviewViewportController({
     consumePendingFrameRequest,
     isFrameLoading,
     updateViewerFooter,
+    onViewportChanged: ({ reason }) => {
+      viewerSyncController?.handleViewportChanged(reason);
+    },
+  },
+});
+
+viewerSyncController = createViewerSyncController({
+  state,
+  elements: {
+    syncToggle: viewerSyncToggle,
+    canvasWrap,
+  },
+  callbacks: {
+    getViewRect,
+    getEffectiveScrollLeft,
+    getEffectiveScrollTop,
+    setZoom,
+    setEffectiveScroll,
   },
 });
 

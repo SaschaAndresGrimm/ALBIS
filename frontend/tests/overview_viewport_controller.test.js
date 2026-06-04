@@ -58,6 +58,7 @@ async function createController({
   viewHeight = 300,
   scrollWidth = 400,
   scrollHeight = 400,
+  onViewportChanged = vi.fn(),
 } = {}) {
   const { createOverviewViewportController } = await import("../modules/overview_viewport_controller.js");
   const state = {
@@ -111,10 +112,11 @@ async function createController({
       consumePendingFrameRequest: () => null,
       isFrameLoading: () => false,
       updateViewerFooter: vi.fn(),
+      onViewportChanged,
     },
   });
 
-  return { controller, state, canvasWrap, canvas };
+  return { controller, state, canvasWrap, canvas, onViewportChanged };
 }
 
 function getScreenPoint(controller, state, worldX, worldY) {
@@ -344,5 +346,13 @@ describe("overview_viewport_controller", () => {
     controller.queueWheelZoom(-100, 200, 150);
 
     expect(state.zoom).toBeGreaterThan(1);
+  });
+
+  it("notifies callers when the viewport changes", async () => {
+    const { controller, onViewportChanged } = await createController();
+
+    controller.setEffectiveScroll(20, 30, false);
+
+    expect(onViewportChanged).toHaveBeenCalledWith({ reason: "pan" });
   });
 });

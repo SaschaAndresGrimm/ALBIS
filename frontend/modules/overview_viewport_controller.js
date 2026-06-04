@@ -42,6 +42,7 @@ export function createOverviewViewportController({
     consumePendingFrameRequest: consumePendingFrameRequestCallback,
     isFrameLoading: isFrameLoadingCallback,
     updateViewerFooter,
+    onViewportChanged,
   } = callbacks;
 
   function hasPendingFrameRequest() {
@@ -75,6 +76,7 @@ export function createOverviewViewportController({
   let touchGestureActive = false;
   let touchGestureDistance = 0;
   let touchGestureMid = null;
+  let viewportChangeSuppressCount = 0;
 
   function getMinZoom() {
     if (!canvasWrap || !state.width || !state.height) {
@@ -107,6 +109,21 @@ export function createOverviewViewportController({
     const tx = (state.renderOffsetX || 0) + (state.panOffsetX || 0);
     const ty = (state.renderOffsetY || 0) + (state.panOffsetY || 0);
     canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom})`;
+  }
+
+  function notifyViewportChanged(reason) {
+    if (viewportChangeSuppressCount > 0) return;
+    if (!state.hasFrame || !state.width || !state.height) return;
+    onViewportChanged?.({ reason });
+  }
+
+  function withViewportChangeSuppressed(callback) {
+    viewportChangeSuppressCount += 1;
+    try {
+      return callback();
+    } finally {
+      viewportChangeSuppressCount = Math.max(0, viewportChangeSuppressCount - 1);
+    }
   }
 
   function clampToRange(value, min, max) {
@@ -191,6 +208,7 @@ export function createOverviewViewportController({
       deferPixelOverlayRedraw();
       syncViewportOverlays();
     }
+    notifyViewportChanged("pan");
     return { x: desiredX, y: desiredY };
   }
 
@@ -566,7 +584,9 @@ export function createOverviewViewportController({
     state.renderOffsetX = Number.isFinite(offsetX) ? offsetX : 0;
     state.renderOffsetY = Number.isFinite(offsetY) ? offsetY : 0;
     if (clampPan) {
-      clampPanOffsetsToBounds();
+      withViewportChangeSuppressed(() => {
+        clampPanOffsetsToBounds();
+      });
     }
     applyCanvasTransform();
     updatePanCapability();
@@ -587,6 +607,7 @@ export function createOverviewViewportController({
     scheduleRoiOverlay();
     scheduleResolutionOverlay();
     schedulePeakOverlay();
+    notifyViewportChanged("zoom");
   }
 
   function zoomAt(clientX, clientY, nextZoom) {
@@ -613,14 +634,17 @@ export function createOverviewViewportController({
       ? Math.max(0, Math.min(state.height, rawWorldY))
       : rawWorldY;
 
-    setZoom(nextZoom, { clampPan: false });
+    withViewportChangeSuppressed(() => {
+      setZoom(nextZoom, { clampPan: false });
 
-    const newOffsetX = state.renderOffsetX || 0;
-    const newOffsetY = state.renderOffsetY || 0;
-    const targetEffectiveX = worldX * state.zoom - focusX + newOffsetX;
-    const targetEffectiveY = worldY * state.zoom - focusY + newOffsetY;
-    setEffectiveScroll(targetEffectiveX, targetEffectiveY, false, false);
+      const newOffsetX = state.renderOffsetX || 0;
+      const newOffsetY = state.renderOffsetY || 0;
+      const targetEffectiveX = worldX * state.zoom - focusX + newOffsetX;
+      const targetEffectiveY = worldY * state.zoom - focusY + newOffsetY;
+      setEffectiveScroll(targetEffectiveX, targetEffectiveY, false, false);
+    });
     syncViewportOverlays();
+    notifyViewportChanged("zoom");
   }
 
   function normalizeWheelDelta(event) {
@@ -716,11 +740,14 @@ export function createOverviewViewportController({
       canvasWrap.clientHeight / state.height,
     );
     if (!Number.isFinite(scale) || scale <= 0) return;
-    setZoom(scale);
-    state.panOffsetX = 0;
-    state.panOffsetY = 0;
-    setEffectiveScroll(0, 0, false);
+    withViewportChangeSuppressed(() => {
+      setZoom(scale);
+      state.panOffsetX = 0;
+      state.panOffsetY = 0;
+      setEffectiveScroll(0, 0, false);
+    });
     syncViewportOverlays();
+    notifyViewportChanged("fit");
   }
 
   function isTouchGestureActive() {

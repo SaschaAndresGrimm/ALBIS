@@ -123,6 +123,16 @@ function createViewportState() {
   };
 }
 
+function createViewerSyncState() {
+  return {
+    enabled: false,
+    group: "default",
+    viewport: true,
+    contrast: false,
+    roi: false,
+  };
+}
+
 function createFrameDataState() {
   return {
     dataRaw: null,
@@ -238,6 +248,7 @@ export function createAppState() {
     ...createViewportState(),
     ...createFrameDataState(),
     ...createMaskState(),
+    viewerSync: createViewerSyncState(),
     autoload: createAutoloadState(),
     seriesSum: createSeriesSumState(),
     dataExport: createDataExportState(),
