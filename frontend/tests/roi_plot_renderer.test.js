@@ -77,4 +77,51 @@ describe("roi_plot_renderer", () => {
     expect(canvasEl._roiPlot.xMin).toBe(1);
     expect(canvasEl._roiPlot.xMax).toBe(2);
   });
+
+  it("keeps histogram autoscale y-min at zero", () => {
+    const canvasEl = {
+      clientWidth: 300,
+      clientHeight: 120,
+      _roiPlotMeta: { xStart: 0, xStep: 1, seriesType: "histogram" },
+    };
+    const ctx = createMockContext();
+    const limits = { xMin: null, xMax: null, yMin: null, yMax: null };
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [0, 2, 4],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "hist",
+      getRoiPlotLimits: () => limits,
+      autoscale: true,
+      formatRoiTick: (value) => value.toFixed(1),
+    });
+    expect(canvasEl._roiPlot.yMin).toBe(0);
+    expect(canvasEl._roiPlot.totalYMin).toBe(0);
+    expect(canvasEl._roiPlot.yMax).toBeGreaterThan(4);
+  });
+
+  it("clamps manual histogram y-min limits to zero", () => {
+    const canvasEl = {
+      clientWidth: 300,
+      clientHeight: 120,
+      _roiPlotMeta: { xStart: 0, xStep: 1, seriesType: "histogram" },
+    };
+    const ctx = createMockContext();
+    const limits = { xMin: null, xMax: null, yMin: -5, yMax: 2 };
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [0, 2, 4],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "hist",
+      getRoiPlotLimits: () => limits,
+      autoscale: false,
+      formatRoiTick: (value) => value.toFixed(1),
+    });
+    expect(canvasEl._roiPlot.yMin).toBe(0);
+    expect(canvasEl._roiPlot.yMax).toBe(2);
+  });
 });

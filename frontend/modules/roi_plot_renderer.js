@@ -74,9 +74,10 @@ export function renderRoiPlot({
   });
   const finiteValues = values.filter((value) => Number.isFinite(value));
   const seriesType = plotMeta.seriesType || "line";
+  const isHistogramSeries = seriesType === "histogram";
 
   const allValuesRaw = data.filter((value) => Number.isFinite(value));
-  const totalMinY = allValuesRaw.length ? Math.min(...allValuesRaw) : 0;
+  const totalMinY = isHistogramSeries || !allValuesRaw.length ? 0 : Math.min(...allValuesRaw);
   const totalMaxY = allValuesRaw.length ? Math.max(...allValuesRaw) : 0;
 
   let minValue = finiteValues.length ? Math.min(...finiteValues) : 0;
@@ -98,6 +99,10 @@ export function renderRoiPlot({
         minValue = Math.max(0, minValue);
       }
     }
+  }
+  if (isHistogramSeries) {
+    minValue = Math.max(0, minValue);
+    maxValue = Math.max(0, maxValue);
   }
   if (!Number.isFinite(maxValue) || maxValue <= minValue) {
     maxValue = minValue + 1;

@@ -144,6 +144,10 @@ function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
   if (lo !== null && hi !== null && lo > hi) {
     [lo, hi] = [hi, lo];
   }
+  if (plotKey === "hist" && axis === "y") {
+    if (lo !== null) lo = Math.max(0, lo);
+    if (hi !== null) hi = Math.max(0, hi);
+  }
   limits[minKey] = lo;
   limits[maxKey] = hi;
 }
