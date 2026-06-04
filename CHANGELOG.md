@@ -7,9 +7,32 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.13] - 2026-06-04
+
 ### Added
 
+- Added fixed-bin controls for ROI histograms, with Auto bins plus selectable manual bin counts.
+- Added per-plot settings menus for ROI X/Y profiles and histograms, including manual X/Y axis minimum/maximum controls and per-plot log scale toggles.
 - Added Azure Artifact Signing support for Windows CI signing, including GitHub OIDC login, SignTool/dlib setup, and Inno Setup uninstaller signing.
+
+### Changed
+
+- ROI plot controls now live in each plot's cog menu; histogram bins and scale settings share one menu, and the old global Log plot/Autoscale checkboxes were removed.
+- Axis spinner changes now redraw plots continuously while values are adjusted.
+- Refreshed GitHub Actions, Python, and npm dependency pins for release/tooling maintenance.
+
+### Fixed
+
+- ROI histogram y-axis minimum is clamped at zero so count plots no longer imply negative counts.
+- Fixed per-plot log toggles so log mode applies to the selected ROI plot.
+- Fixed ROI plot settings menus so they remain open when clicked and can extend beyond the plot area without clipping.
+- Fixed dev npm audit findings.
+
+### Notes
+
+- ALBIS `0.9.13` is the ROI plot tune-up: histograms get sane floors, plots get their own settings, and axis limits finally sit where the user can reach them.
+- This release is called: "Cogs, Logs, and Zero Floors."
+- This release is called: "Histogram, but Make It Behave."
 
 ## [0.9.12] - 2026-06-02
 
@@ -431,7 +454,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.12...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.13...HEAD
+[0.9.13]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.11
 [0.9.10]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.10
