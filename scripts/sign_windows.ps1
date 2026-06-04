@@ -26,11 +26,11 @@ function Assert-CompleteSigningVarSet {
     [Parameter(Mandatory = $true)]
     [hashtable]$Vars,
 
-    [Parameter(Mandatory = $true)]
-    [string[]]$ConfiguredVars
+    [string[]]$ConfiguredVars = @()
   )
 
-  if ($ConfiguredVars.Count -gt 0 -and $ConfiguredVars.Count -lt $Vars.Count) {
+  $configuredCount = if ($null -eq $ConfiguredVars) { 0 } else { $ConfiguredVars.Count }
+  if ($configuredCount -gt 0 -and $configuredCount -lt $Vars.Count) {
     $missing = @(
       $Vars.Keys |
         Where-Object { [string]::IsNullOrWhiteSpace($Vars[$_]) } |

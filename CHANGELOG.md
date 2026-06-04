@@ -20,6 +20,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Fixed
 
 - Fixed zoomed-out linked views so synchronized image centers preserve the same image-space location even when the rendered image is smaller than the viewport.
+- Fixed Windows release signing so unsigned Windows builds correctly skip the signing step when no Windows signing secrets are configured.
 
 ### Notes
 
