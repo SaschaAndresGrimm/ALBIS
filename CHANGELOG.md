@@ -7,6 +7,26 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.14] - 2026-06-04
+
+### Added
+
+- Added linked viewer windows so multiple ALBIS browser windows can synchronize the same image-space view.
+- Added live position synchronization while panning, zooming, using the overview, or changing the viewport.
+- Added selectable sync options for Position, Contrast, and ROI, with all three enabled by default.
+- Added contrast synchronization for levels, auto-scale state, colormap, and invert mode.
+- Added ROI selection synchronization for line, box, circle, and annulus geometry.
+
+### Fixed
+
+- Fixed zoomed-out linked views so synchronized image centers preserve the same image-space location even when the rendered image is smaller than the viewport.
+
+### Notes
+
+- ALBIS `0.9.14` is the long-requested window synchronization release: open two viewers, link them, and stop manually chasing the same detector pixel twice.
+- This release is called: "Happy Birthday, Tilman."
+- This release is also called: "The Windows Finally Talk To Each Other."
+
 ## [0.9.13] - 2026-06-04
 
 ### Added
@@ -455,7 +475,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.13...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.14...HEAD
+[0.9.14]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/SaschaAndresGrimm/ALBIS/releases/tag/v0.9.11
