@@ -19,14 +19,10 @@ export function bindRoiControlInteractions({
   const {
     roiEnableToggle,
     roiModeSelect,
-    roiLogToggle,
     roiHistogramToggle,
-    roiHistBinsToggle,
-    roiHistBinsPopover,
     roiHistBinsAuto,
     roiHistBinCount,
     roiHistBinPresetBtns,
-    roiLimitsEnable,
     roiClearBtn,
     roiExportCsvBtn,
     roiRadiusInput,
@@ -43,21 +39,12 @@ export function bindRoiControlInteractions({
     updateRoiModeUI,
     scheduleRoiOverlay,
     scheduleRoiUpdate,
-    updateRoiPlotLimitsEnabled,
     clearRoi,
     setStatus,
     exportRoiCsv,
     applyRoiCenterFromInputs,
     updateRoiCenterInputs,
   } = callbacks;
-
-  function setRoiHistogramBinsPopoverOpen(open) {
-    if (!roiHistBinsToggle || !roiHistBinsPopover) return;
-    const isOpen = Boolean(open);
-    roiHistBinsToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-    roiHistBinsPopover.classList.toggle("is-open", isOpen);
-    roiHistBinsPopover.setAttribute("aria-hidden", isOpen ? "false" : "true");
-  }
 
   function updateRoiHistogramBinSettings(mode, count = roiState.histogramBins?.count) {
     const nextMode = mode === "fixed" ? "fixed" : "auto";
@@ -67,10 +54,6 @@ export function bindRoiControlInteractions({
     };
     updateRoiModeUI();
     scheduleRoiUpdate();
-  }
-
-  function isRoiHistogramBinsPopoverOpen() {
-    return roiHistBinsToggle?.getAttribute("aria-expanded") === "true";
   }
 
   roiEnableToggle?.addEventListener("change", () => {
@@ -98,24 +81,10 @@ export function bindRoiControlInteractions({
     scheduleRoiUpdate();
   });
 
-  roiLogToggle?.addEventListener("change", () => {
-    roiState.log = roiLogToggle.checked;
-    scheduleRoiUpdate();
-  });
-
   roiHistogramToggle?.addEventListener("change", () => {
     roiState.histogramEnabled = Boolean(roiHistogramToggle.checked);
     updateRoiModeUI();
     scheduleRoiUpdate();
-  });
-
-  roiHistBinsToggle?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    setRoiHistogramBinsPopoverOpen(!isRoiHistogramBinsPopoverOpen());
-  });
-
-  roiHistBinsPopover?.addEventListener("click", (event) => {
-    event.stopPropagation();
   });
 
   roiHistBinsAuto?.addEventListener("change", () => {
@@ -136,20 +105,6 @@ export function bindRoiControlInteractions({
       updateRoiHistogramBinSettings("fixed", count);
     });
   });
-
-  document.addEventListener("click", (event) => {
-    if (!isRoiHistogramBinsPopoverOpen()) return;
-    if (roiHistBinsPopover?.contains(event.target) || roiHistBinsToggle?.contains(event.target)) return;
-    setRoiHistogramBinsPopoverOpen(false);
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !isRoiHistogramBinsPopoverOpen()) return;
-    setRoiHistogramBinsPopoverOpen(false);
-    roiHistBinsToggle?.focus();
-  });
-
-  roiLimitsEnable?.addEventListener("change", updateRoiPlotLimitsEnabled);
 
   roiClearBtn?.addEventListener("click", () => {
     clearRoi();

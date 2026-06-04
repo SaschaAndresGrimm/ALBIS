@@ -2690,10 +2690,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   border: 0;
 }
 
-.roi-log-toggle.is-hidden {
-  display: none;
-}
-
 .roi-plot-controls {
   display: flex;
   align-items: center;
@@ -2718,10 +2714,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding: 4px 10px;
   font-size: 11px;
   min-height: var(--control-h);
-}
-
-.roi-autoscale-toggle {
-  font-size: 12px;
 }
 
 .roi-export-btn {
@@ -3948,13 +3940,14 @@ body.platform-windows select option:disabled {
   flex: 1 1 auto;
 }
 
-.roi-histogram-actions {
+.roi-plot-actions {
   display: flex;
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
 }
 
+.roi-axis-limit-chip,
 .roi-histogram-bin-chip {
   min-height: 18px;
   display: inline-flex;
@@ -3969,6 +3962,12 @@ body.platform-windows select option:disabled {
   white-space: nowrap;
 }
 
+.roi-axis-limit-chip {
+  border-color: rgba(143, 196, 255, 0.32);
+  background: rgba(34, 52, 76, 0.62);
+}
+
+.roi-axis-limit-chip.is-hidden,
 .roi-histogram-bin-chip.is-hidden {
   display: none;
 }
@@ -4003,12 +4002,14 @@ body.platform-windows select option:disabled {
   box-shadow: var(--focus-ring);
 }
 
-.roi-histogram-bins-popover {
-  position: absolute;
-  top: 30px;
-  right: 6px;
-  z-index: 5;
-  width: min(220px, calc(100% - 12px));
+.roi-axis-limits-popover {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: min(248px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   display: grid;
   gap: 8px;
   padding: 8px;
@@ -4026,7 +4027,7 @@ body.platform-windows select option:disabled {
     visibility 0s linear var(--motion-med);
 }
 
-.roi-histogram-bins-popover.is-open {
+.roi-axis-limits-popover.is-open {
   opacity: 1;
   transform: translateY(0);
   visibility: visible;
@@ -4037,8 +4038,38 @@ body.platform-windows select option:disabled {
     visibility 0s;
 }
 
+.roi-axis-auto-toggle,
+.roi-plot-log-toggle,
 .roi-histogram-auto-bins {
   margin: 0;
+}
+
+.roi-axis-limits-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.roi-axis-limits-grid label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  font-size: 10px;
+  color: #c9d9ef;
+}
+
+.roi-axis-limits-grid input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 11px;
+}
+
+.roi-axis-reset-btn {
+  min-height: 24px;
+  justify-self: end;
+  padding: 2px 8px;
+  font-size: 11px;
 }
 
 .roi-histogram-bin-manual {

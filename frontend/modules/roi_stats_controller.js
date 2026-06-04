@@ -22,7 +22,6 @@ export function createRoiStatsController(ctx) {
     roiState,
     roiCenterXInput,
     roiCenterYInput,
-    roiLimitsEnable,
     roiParams,
     roiLinePlot,
     roiBoxPlotX,
@@ -61,8 +60,6 @@ export function createRoiStatsController(ctx) {
     roiHistCanvas,
     roiHistCtx,
     roiHistogramToggle,
-    roiHistBinsToggle,
-    roiHistBinsPopover,
     roiHistBinsAuto,
     roiHistBinCount,
     roiHistBinChip,
@@ -116,6 +113,36 @@ function getRoiPlotLimits(plotKey) {
   return roiState.plotLimits[plotKey] || roiState.plotLimits.line;
 }
 
+function getRoiPlotLogMap() {
+  if (!roiState.plotLog || typeof roiState.plotLog !== "object") {
+    const fallback = Boolean(roiState.log);
+    roiState.plotLog = {
+      line: fallback,
+      x: fallback,
+      y: fallback,
+      hist: fallback,
+    };
+  }
+  ["line", "x", "y", "hist"].forEach((key) => {
+    if (typeof roiState.plotLog[key] !== "boolean") {
+      roiState.plotLog[key] = Boolean(roiState.log);
+    }
+  });
+  return roiState.plotLog;
+}
+
+function getRoiPlotLog(plotKey) {
+  const plotLog = getRoiPlotLogMap();
+  return Boolean(plotLog[plotKey] ?? roiState.log);
+}
+
+function setRoiPlotLog(plotKey, enabled) {
+  if (!["line", "x", "y", "hist"].includes(plotKey)) return;
+  const plotLog = getRoiPlotLogMap();
+  plotLog[plotKey] = Boolean(enabled);
+  roiState.log = ["line", "x", "y", "hist"].some((key) => Boolean(plotLog[key]));
+}
+
 function getRoiHistogramBinsConfig() {
   if (!roiState.histogramBins || typeof roiState.histogramBins !== "object") {
     roiState.histogramBins = { mode: "auto", count: 128 };
@@ -145,14 +172,6 @@ function syncRoiHistogramBinsUi() {
     roiHistBinChip.textContent = isFixed ? t("roi.histogram.bins_chip", { count }) : "";
     roiHistBinChip.classList.toggle("is-hidden", !isFixed);
   }
-  if (roiHistBinsToggle) {
-    roiHistBinsToggle.disabled = !roiState.enabled;
-  }
-  if ((!roiState.enabled || !roiState.histogramEnabled) && roiHistBinsToggle && roiHistBinsPopover) {
-    roiHistBinsToggle.setAttribute("aria-expanded", "false");
-    roiHistBinsPopover.classList.remove("is-open");
-    roiHistBinsPopover.setAttribute("aria-hidden", "true");
-  }
   roiHistBinPresetBtns?.forEach((button) => {
     const presetCount = normalizeRoiHistogramBinCount(button.dataset?.bins);
     button.classList.toggle("is-active", isFixed && presetCount === count);
@@ -160,31 +179,7 @@ function syncRoiHistogramBinsUi() {
   });
 }
 
-function clearRoiPlotLimits() {
-  ["line", "x", "y", "hist"].forEach((key) => {
-    const limits = roiState.plotLimits[key];
-    if (!limits) return;
-    limits.xMin = null;
-    limits.xMax = null;
-    limits.yMin = null;
-    limits.yMax = null;
-  });
-}
-
-function syncRoiPlotLimitControls() {
-  if (roiLimitsEnable) {
-    roiLimitsEnable.checked = roiState.plotLimits.autoscale;
-  }
-}
-
-function updateRoiPlotLimitsEnabled() {
-  roiState.plotLimits.autoscale = Boolean(roiLimitsEnable?.checked);
-  if (roiState.plotLimits.autoscale) {
-    clearRoiPlotLimits();
-  }
-  syncRoiPlotLimitControls();
-  scheduleRoiUpdate();
-}
+function syncRoiPlotLimitControls() {}
 
 function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
   if (axis !== "x" && axis !== "y") return;
@@ -338,10 +333,10 @@ function clearRoi() {
   setRoiText(roiMedianEl, "-");
   setRoiText(roiMeanEl, "-");
   setRoiText(roiStdEl, "-");
-  drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
-  drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
-  drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
-  drawRoiPlot(roiHistCanvas, roiHistCtx, null, roiState.log);
+  drawRoiPlot(roiLineCanvas, roiLineCtx, null);
+  drawRoiPlot(roiXCanvas, roiXCtx, null);
+  drawRoiPlot(roiYCanvas, roiYCtx, null);
+  drawRoiPlot(roiHistCanvas, roiHistCtx, null);
   drawRoiOverlay();
   updateRoiSectionState();
 }
@@ -484,7 +479,7 @@ function updateRoiHistogramPlot(values) {
   if (!enabled) {
     roiState.histogramDistribution = null;
     roiHistCanvas._roiPlotMeta = null;
-    drawRoiPlot(roiHistCanvas, roiHistCtx, null, roiState.log);
+    drawRoiPlot(roiHistCanvas, roiHistCtx, null);
     return;
   }
 
@@ -492,7 +487,7 @@ function updateRoiHistogramPlot(values) {
   if (!histogram || !histogram.data?.length) {
     roiState.histogramDistribution = null;
     roiHistCanvas._roiPlotMeta = null;
-    drawRoiPlot(roiHistCanvas, roiHistCtx, null, roiState.log);
+    drawRoiPlot(roiHistCanvas, roiHistCtx, null);
     return;
   }
 
@@ -505,7 +500,7 @@ function updateRoiHistogramPlot(values) {
     xTickMode: histogram.xTickMode,
     seriesType: "histogram",
   };
-  drawRoiPlot(roiHistCanvas, roiHistCtx, roiState.histogramDistribution, roiState.log);
+  drawRoiPlot(roiHistCanvas, roiHistCtx, roiState.histogramDistribution);
 }
 
 function updateRoiStats() {
@@ -556,9 +551,9 @@ function updateRoiStats() {
     if (roiHistCanvas) {
       roiHistCanvas._roiPlotMeta = null;
     }
-    drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
-    drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
-    drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+    drawRoiPlot(roiLineCanvas, roiLineCtx, null);
+    drawRoiPlot(roiXCanvas, roiXCtx, null);
+    drawRoiPlot(roiYCanvas, roiYCtx, null);
     updateRoiHistogramPlot([]);
     drawRoiOverlay();
     updateRoiSectionState();
@@ -585,9 +580,9 @@ function updateRoiStats() {
     setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
     setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
     setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
-    drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
-    drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
-    drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+    drawRoiPlot(roiLineCanvas, roiLineCtx, null);
+    drawRoiPlot(roiXCanvas, roiXCtx, null);
+    drawRoiPlot(roiYCanvas, roiYCtx, null);
     updateRoiHistogramPlot([]);
     drawRoiOverlay();
     updateRoiSectionState();
@@ -669,9 +664,9 @@ function updateRoiStats() {
         xTickMode: "integer",
       };
     }
-    drawRoiPlot(roiLineCanvas, roiLineCtx, values, roiState.log);
-    drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
-    drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+    drawRoiPlot(roiLineCanvas, roiLineCtx, values);
+    drawRoiPlot(roiXCanvas, roiXCtx, null);
+    drawRoiPlot(roiYCanvas, roiYCtx, null);
   } else if (roiState.mode === "box") {
     const left = Math.min(x0, x1);
     const right = Math.max(x0, x1);
@@ -731,7 +726,7 @@ function updateRoiStats() {
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
     setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
-    drawRoiPlot(roiLineCanvas, roiLineCtx, null, roiState.log);
+    drawRoiPlot(roiLineCanvas, roiLineCtx, null);
     if (roiXCanvas) {
       roiXCanvas._roiPlotMeta = {
         xLabel: t("roi.plot.x_pixel"),
@@ -750,8 +745,8 @@ function updateRoiStats() {
         xTickMode: "integer",
       };
     }
-    drawRoiPlot(roiXCanvas, roiXCtx, roiState.xProjection, roiState.log);
-    drawRoiPlot(roiYCanvas, roiYCtx, roiState.yProjection, roiState.log);
+    drawRoiPlot(roiXCanvas, roiXCtx, roiState.xProjection);
+    drawRoiPlot(roiYCanvas, roiYCtx, roiState.yProjection);
   } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
     const outerRadius = getCircularRoiOuterRadius(roiState);
     if (roiState.mode === "circle") {
@@ -838,25 +833,26 @@ function updateRoiStats() {
         xTickMode: "integer",
       };
     }
-    drawRoiPlot(roiLineCanvas, roiLineCtx, displayProfile, roiState.log);
-    drawRoiPlot(roiXCanvas, roiXCtx, null, roiState.log);
-    drawRoiPlot(roiYCanvas, roiYCtx, null, roiState.log);
+    drawRoiPlot(roiLineCanvas, roiLineCtx, displayProfile);
+    drawRoiPlot(roiXCanvas, roiXCtx, null);
+    drawRoiPlot(roiYCanvas, roiYCtx, null);
   }
   updateRoiHistogramPlot(statsValues);
   drawRoiOverlay();
   updateRoiSectionState();
 }
 
-function drawRoiPlot(canvasEl, ctx, data, logScale) {
+function drawRoiPlot(canvasEl, ctx, data) {
+  const plotKey = getRoiPlotKey(canvasEl);
   renderRoiPlot({
     canvasEl,
     ctx,
     data,
-    logScale,
+    logScale: getRoiPlotLog(plotKey),
     plotTheme: PLOT_THEME,
     getRoiPlotKey,
     getRoiPlotLimits,
-    autoscale: Boolean(roiState.plotLimits.autoscale),
+    autoscale: !hasManualRoiPlotLimits(plotKey),
     formatRoiTick,
   });
 }
@@ -874,14 +870,13 @@ function redrawRoiPlots() {
     roiState.histogramDistribution.length > 0
   );
 
-  drawRoiPlot(roiLineCanvas, roiLineCtx, showsLineProfile ? roiState.lineProfile : null, roiState.log);
-  drawRoiPlot(roiXCanvas, roiXCtx, showsBoxProfiles ? roiState.xProjection : null, roiState.log);
-  drawRoiPlot(roiYCanvas, roiYCtx, showsBoxProfiles ? roiState.yProjection : null, roiState.log);
+  drawRoiPlot(roiLineCanvas, roiLineCtx, showsLineProfile ? roiState.lineProfile : null);
+  drawRoiPlot(roiXCanvas, roiXCtx, showsBoxProfiles ? roiState.xProjection : null);
+  drawRoiPlot(roiYCanvas, roiYCtx, showsBoxProfiles ? roiState.yProjection : null);
   drawRoiPlot(
     roiHistCanvas,
     roiHistCtx,
-    showsHistogram ? roiState.histogramDistribution : null,
-    roiState.log
+    showsHistogram ? roiState.histogramDistribution : null
   );
 }
 
@@ -920,9 +915,9 @@ function exportRoiCsv() {
     applyRoiCenterFromInputs,
     getRoiPlotKey,
     getRoiPlotLimits,
-    clearRoiPlotLimits,
+    getRoiPlotLog,
+    setRoiPlotLog,
     syncRoiPlotLimitControls,
-    updateRoiPlotLimitsEnabled,
     setRoiPlotAxisLimits,
     clearRoiPlotLimitsForKey,
     hasManualRoiPlotLimits,

@@ -309,7 +309,6 @@ const jfjochIntervalInput = document.getElementById("jfjoch-interval");
 const liveBadge = document.getElementById("live-badge");
 const roiHelp = document.getElementById("roi-help");
 const roiModeSelect = document.getElementById("roi-mode");
-const roiLogToggle = document.getElementById("roi-log");
 const roiHistogramToggle = document.getElementById("roi-histogram");
 const roiPlotControls = document.getElementById("roi-plot-controls");
 const roiParams = document.getElementById("roi-params");
@@ -321,7 +320,6 @@ const roiCenterYInput = document.getElementById("roi-center-y");
 const roiRingFields = document.getElementById("roi-ring-fields");
 const roiInnerInput = document.getElementById("roi-inner-radius");
 const roiOuterInput = document.getElementById("roi-outer-radius");
-const roiLimitsEnable = document.getElementById("roi-limits-enable");
 const roiExportCsvBtn = document.getElementById("roi-export-csv");
 const roiClearBtn = document.getElementById("roi-clear-btn");
 const roiStartEl = document.getElementById("roi-start");
@@ -342,8 +340,6 @@ const roiLinePlot = document.getElementById("roi-line-plot");
 const roiBoxPlotX = document.getElementById("roi-box-plot-x");
 const roiBoxPlotY = document.getElementById("roi-box-plot-y");
 const roiHistPlot = document.getElementById("roi-hist-plot");
-const roiHistBinsToggle = document.getElementById("roi-hist-bins-toggle");
-const roiHistBinsPopover = document.getElementById("roi-hist-bins-popover");
 const roiHistBinsAuto = document.getElementById("roi-hist-bins-auto");
 const roiHistBinCount = document.getElementById("roi-hist-bin-count");
 const roiHistBinChip = document.getElementById("roi-hist-bin-chip");
@@ -3508,7 +3504,6 @@ const roiStatsController = createRoiStatsController({
   roiState,
   roiCenterXInput,
   roiCenterYInput,
-  roiLimitsEnable,
   roiParams,
   roiLinePlot,
   roiBoxPlotX,
@@ -3547,8 +3542,6 @@ const roiStatsController = createRoiStatsController({
   roiHistCanvas,
   roiHistCtx,
   roiHistogramToggle,
-  roiHistBinsToggle,
-  roiHistBinsPopover,
   roiHistBinsAuto,
   roiHistBinCount,
   roiHistBinChip,
@@ -3582,12 +3575,16 @@ function getRoiPlotLimits(plotKey) {
   return roiStatsController.getRoiPlotLimits(plotKey);
 }
 
-function syncRoiPlotLimitControls() {
-  roiStatsController.syncRoiPlotLimitControls();
+function getRoiPlotLog(plotKey) {
+  return roiStatsController.getRoiPlotLog(plotKey);
 }
 
-function updateRoiPlotLimitsEnabled() {
-  roiStatsController.updateRoiPlotLimitsEnabled();
+function setRoiPlotLog(plotKey, enabled) {
+  roiStatsController.setRoiPlotLog(plotKey, enabled);
+}
+
+function syncRoiPlotLimitControls() {
+  roiStatsController.syncRoiPlotLimitControls();
 }
 
 function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
@@ -3596,6 +3593,10 @@ function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
 
 function clearRoiPlotLimitsForKey(plotKey) {
   roiStatsController.clearRoiPlotLimitsForKey(plotKey);
+}
+
+function hasManualRoiPlotLimits(plotKey) {
+  return roiStatsController.hasManualRoiPlotLimits(plotKey);
 }
 
 function hasAnyManualRoiPlotLimits() {
@@ -3893,16 +3894,12 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   canvasWrap,
   roiEnableToggle,
   roiModeSelect,
-  roiLogToggle,
   roiHistogramToggle,
-  roiHistBinsToggle,
-  roiHistBinsPopover,
   roiHistBinsAuto,
   roiHistBinCount,
   roiHistBinChip,
   roiHistBinManualRow,
   roiHistBinPresetBtns,
-  roiLimitsEnable,
   roiClearBtn,
   roiExportCsvBtn,
   roiRadiusInput,
@@ -3980,7 +3977,6 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   stopRoiEdit,
   updateRoiModeUI,
   scheduleRoiOverlay,
-  updateRoiPlotLimitsEnabled,
   clearRoi,
   setStatus,
   exportRoiCsv,
@@ -4018,9 +4014,12 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   hideRoiTooltip,
   getRoiPlotKey,
   getRoiPlotLimits,
+  getRoiPlotLog,
+  setRoiPlotLog,
   setRoiPlotAxisLimits,
   syncRoiPlotLimitControls,
   clearRoiPlotLimitsForKey,
+  hasManualRoiPlotLimits,
   hasAnyManualRoiPlotLimits,
   overviewEventToImage,
   overviewEventToOverview,
@@ -4081,7 +4080,6 @@ initializeUiDefaults({
     colormapSelect,
     roiEnableToggle,
     roiModeSelect,
-    roiLogToggle,
     roiHistogramToggle,
   },
   callbacks: {
@@ -4091,7 +4089,6 @@ initializeUiDefaults({
     setFps,
     setFrameStep,
     updateRoiModeUI,
-    updateRoiPlotLimitsEnabled,
   },
 });
 

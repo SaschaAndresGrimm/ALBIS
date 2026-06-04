@@ -2,6 +2,8 @@
  * ROI plot pan/zoom/resize interaction bindings.
  */
 
+import { t } from "./i18n.js";
+
 function isInsideRoiPlotViewport(plot, x, y) {
   if (!plot) return false;
   const minX = plot.padL;
@@ -25,7 +27,6 @@ export function bindRoiPlotInteractions({
     roiBoxPlotX,
     roiBoxPlotY,
     roiHistogramPlot,
-    roiLimitsEnable,
   } = elements;
 
   const {
@@ -33,19 +34,40 @@ export function bindRoiPlotInteractions({
     hideRoiTooltip,
     getRoiPlotKey,
     getRoiPlotLimits,
+    getRoiPlotLog,
+    setRoiPlotLog,
     setRoiPlotAxisLimits,
     syncRoiPlotLimitControls,
     redrawRoiPlots,
     clearRoiPlotLimitsForKey,
+    hasManualRoiPlotLimits,
     hasAnyManualRoiPlotLimits,
     normalizeWheelDelta,
   } = callbacks;
 
   const roiPlotCanvases = [roiLineCanvas, roiXCanvas, roiYCanvas, roiHistCanvas].filter(Boolean);
+  const roiPlotEntries = [
+    { key: "line", container: roiLinePlot, canvas: roiLineCanvas },
+    { key: "x", container: roiBoxPlotX, canvas: roiXCanvas },
+    { key: "y", container: roiBoxPlotY, canvas: roiYCanvas },
+    { key: "hist", container: roiHistogramPlot, canvas: roiHistCanvas },
+  ].filter((entry) => entry.container);
+  const roiAxisLimitControls = roiPlotEntries.map((entry) => ({
+    ...entry,
+    toggle: entry.container.querySelector(".roi-axis-limits-toggle"),
+    popover: entry.container.querySelector(".roi-axis-limits-popover"),
+    chip: entry.container.querySelector("[data-roi-axis-chip]"),
+    logToggle: entry.container.querySelector("[data-roi-plot-log]"),
+    autoToggle: entry.container.querySelector("[data-roi-axis-auto]"),
+    inputs: [...entry.container.querySelectorAll(".roi-axis-limits-grid input")],
+    resetBtn: entry.container.querySelector("[data-roi-axis-reset]"),
+  }));
   let roiPlotResizing = null;
   let roiPlotResizeStart = { x: 0, y: 0, height: 0, container: null };
   let roiPlotPanning = null;
   let roiPlotRedrawScheduled = false;
+  let roiAxisPopoverRepositionScheduled = false;
+  let roiAxisPopoverOpenedAt = 0;
 
   function scheduleRoiPlotRedraw() {
     if (roiPlotRedrawScheduled) return;
@@ -54,6 +76,209 @@ export function bindRoiPlotInteractions({
       roiPlotRedrawScheduled = false;
       redrawRoiPlots();
     });
+  }
+
+  function formatAxisLimitInputValue(value) {
+    if (!Number.isFinite(value)) return "";
+    const abs = Math.abs(value);
+    if (abs !== 0 && (abs >= 1e7 || abs < 1e-4)) {
+      return value.toExponential(6).replace(/\.?0+e/, "e");
+    }
+    return `${Number(value.toPrecision(7))}`;
+  }
+
+  function getAxisLimitKey(axis, bound) {
+    if (axis === "x") return bound === "min" ? "xMin" : "xMax";
+    if (axis === "y") return bound === "min" ? "yMin" : "yMax";
+    return "";
+  }
+
+  function getAxisControl(plotKey) {
+    return roiAxisLimitControls.find((entry) => entry.key === plotKey) || null;
+  }
+
+  function isAxisLimitsPopoverOpen(entry) {
+    return entry?.toggle?.getAttribute("aria-expanded") === "true";
+  }
+
+  function moveRoiAxisPopoverToBody(entry) {
+    if (!entry?.popover || entry.popover.parentElement === document.body) return;
+    entry.popoverParent = entry.popover.parentElement;
+    entry.popoverNextSibling = entry.popover.nextSibling;
+    document.body?.appendChild(entry.popover);
+  }
+
+  function restoreRoiAxisPopover(entry) {
+    if (!entry?.popover || !entry.popoverParent || entry.popover.parentElement === entry.popoverParent) return;
+    if (entry.popoverNextSibling && entry.popoverNextSibling.parentElement === entry.popoverParent) {
+      entry.popoverParent.insertBefore(entry.popover, entry.popoverNextSibling);
+    } else {
+      entry.popoverParent.appendChild(entry.popover);
+    }
+  }
+
+  function resetRoiAxisPopoverPosition(entry) {
+    if (!entry?.popover) return;
+    entry.popover.style.left = "";
+    entry.popover.style.top = "";
+    entry.popover.style.right = "";
+    entry.popover.style.width = "";
+    entry.popover.style.maxHeight = "";
+    entry.popover.style.overflowY = "";
+  }
+
+  function positionRoiAxisLimitPopover(entry) {
+    if (!entry?.toggle || !entry?.popover || !isAxisLimitsPopoverOpen(entry)) return;
+    const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 320;
+    const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 480;
+    const margin = 8;
+    const gap = 6;
+    const toggleRect = entry.toggle.getBoundingClientRect();
+    const maxWidth = Math.max(180, viewportWidth - margin * 2);
+    const width = Math.min(248, maxWidth);
+    const left = Math.min(viewportWidth - margin - width, Math.max(margin, toggleRect.right - width));
+
+    entry.popover.style.width = `${width}px`;
+    entry.popover.style.left = `${left}px`;
+    entry.popover.style.right = "auto";
+
+    const belowTop = toggleRect.bottom + gap;
+    const belowSpace = viewportHeight - belowTop - margin;
+    const aboveSpace = toggleRect.top - gap - margin;
+    const desiredHeight = Math.min(entry.popover.scrollHeight || 0, viewportHeight - margin * 2);
+    const useAbove = aboveSpace > belowSpace && belowSpace < Math.min(desiredHeight, 180);
+    const availableHeight = Math.max(120, useAbove ? aboveSpace : belowSpace);
+    const top = useAbove
+      ? Math.max(margin, toggleRect.top - gap - Math.min(desiredHeight || availableHeight, availableHeight))
+      : Math.max(margin, belowTop);
+
+    entry.popover.style.top = `${top}px`;
+    entry.popover.style.maxHeight = `${availableHeight}px`;
+    entry.popover.style.overflowY = "auto";
+  }
+
+  function scheduleRoiAxisPopoverReposition() {
+    if (roiAxisPopoverRepositionScheduled) return;
+    roiAxisPopoverRepositionScheduled = true;
+    window.requestAnimationFrame(() => {
+      roiAxisPopoverRepositionScheduled = false;
+      roiAxisLimitControls.forEach((entry) => positionRoiAxisLimitPopover(entry));
+    });
+  }
+
+  function closeRoiAxisLimitPopovers(exceptEntry = null) {
+    roiAxisLimitControls.forEach((entry) => {
+      if (entry === exceptEntry || !entry.toggle || !entry.popover) return;
+      entry.toggle.setAttribute("aria-expanded", "false");
+      entry.popover.classList.remove("is-open");
+      entry.popover.setAttribute("aria-hidden", "true");
+      resetRoiAxisPopoverPosition(entry);
+      restoreRoiAxisPopover(entry);
+    });
+  }
+
+  function setRoiAxisLimitsPopoverOpen(entry, open) {
+    if (!entry?.toggle || !entry?.popover) return;
+    const isOpen = Boolean(open);
+    if (isOpen) {
+      closeRoiAxisLimitPopovers(entry);
+      syncRoiAxisLimitControls(entry.key);
+      moveRoiAxisPopoverToBody(entry);
+      roiAxisPopoverOpenedAt = Date.now();
+    }
+    entry.toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    entry.popover.classList.toggle("is-open", isOpen);
+    entry.popover.setAttribute("aria-hidden", isOpen ? "false" : "true");
+    if (isOpen) {
+      positionRoiAxisLimitPopover(entry);
+    } else {
+      resetRoiAxisPopoverPosition(entry);
+      restoreRoiAxisPopover(entry);
+    }
+  }
+
+  function updateGlobalAutoscaleFromManualLimits() {
+    roiState.plotLimits.autoscale = !hasAnyManualRoiPlotLimits();
+  }
+
+  function syncRoiAxisLimitControls(plotKey = null, options = {}) {
+    const preserveInput = options.preserveInput || null;
+    roiAxisLimitControls.forEach((entry) => {
+      if (plotKey && entry.key !== plotKey) return;
+      const limits = getRoiPlotLimits(entry.key);
+      const hasManual = Boolean(hasManualRoiPlotLimits?.(entry.key));
+      if (entry.chip) {
+        entry.chip.textContent = t("roi.axis.manual_chip");
+        entry.chip.classList.toggle("is-hidden", !hasManual);
+      }
+      if (entry.autoToggle) {
+        entry.autoToggle.checked = !hasManual;
+      }
+      if (entry.resetBtn) {
+        entry.resetBtn.disabled = !hasManual;
+      }
+      if (entry.logToggle) {
+        entry.logToggle.checked = Boolean(getRoiPlotLog?.(entry.key));
+        entry.logToggle.disabled = roiState.enabled === false;
+      }
+      entry.inputs.forEach((input) => {
+        if (input === preserveInput) return;
+        const key = getAxisLimitKey(input.dataset.axis, input.dataset.bound);
+        input.value = key ? formatAxisLimitInputValue(limits[key]) : "";
+      });
+    });
+  }
+
+  function seedRoiAxisLimitsFromVisiblePlot(entry) {
+    const plot = entry?.canvas?._roiPlot;
+    if (!plot) return false;
+    setRoiPlotAxisLimits(entry.key, "x", plot.xMin, plot.xMax);
+    setRoiPlotAxisLimits(entry.key, "y", plot.yMin, plot.yMax);
+    roiState.plotLimits.autoscale = false;
+    syncRoiPlotLimitControls();
+    syncRoiAxisLimitControls(entry.key);
+    scheduleRoiPlotRedraw();
+    return true;
+  }
+
+  function clearRoiAxisLimitsForEntry(entry) {
+    if (!entry) return;
+    clearRoiPlotLimitsForKey(entry.key);
+    updateGlobalAutoscaleFromManualLimits();
+    syncRoiPlotLimitControls();
+    syncRoiAxisLimitControls(entry.key);
+    scheduleRoiPlotRedraw();
+  }
+
+  function applyRoiAxisLimitInput(entry, input, options = {}) {
+    if (!entry || !input) return;
+    const commit = options.commit !== false;
+    const axis = input.dataset.axis;
+    const bound = input.dataset.bound;
+    if (axis !== "x" && axis !== "y") return;
+    const limits = getRoiPlotLimits(entry.key);
+    const minKey = getAxisLimitKey(axis, "min");
+    const maxKey = getAxisLimitKey(axis, "max");
+    let nextMin = Number.isFinite(limits[minKey]) ? limits[minKey] : null;
+    let nextMax = Number.isFinite(limits[maxKey]) ? limits[maxKey] : null;
+    const raw = String(input.value || "").trim();
+    const value = raw ? Number(raw) : null;
+    if (raw && !Number.isFinite(value)) {
+      if (commit) syncRoiAxisLimitControls(entry.key);
+      return;
+    }
+    if (bound === "min") {
+      nextMin = value;
+    } else if (bound === "max") {
+      nextMax = value;
+    } else {
+      return;
+    }
+    setRoiPlotAxisLimits(entry.key, axis, nextMin, nextMax);
+    updateGlobalAutoscaleFromManualLimits();
+    syncRoiPlotLimitControls();
+    syncRoiAxisLimitControls(entry.key, { preserveInput: commit ? null : input });
+    scheduleRoiPlotRedraw();
   }
 
   function updateRoiPlotPanReadyState(canvasEl, clientX, clientY) {
@@ -123,12 +348,11 @@ export function bindRoiPlotInteractions({
     const dx = event.clientX - roiPlotPanning.startClientX;
     const dy = event.clientY - roiPlotPanning.startClientY;
 
-    if (!roiPlotPanning.hasMoved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
-      roiPlotPanning.hasMoved = true;
-      if (roiState.plotLimits.autoscale) {
-        roiState.plotLimits.autoscale = false;
-        if (roiLimitsEnable) roiLimitsEnable.checked = false;
-      }
+      if (!roiPlotPanning.hasMoved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
+        roiPlotPanning.hasMoved = true;
+        if (roiState.plotLimits.autoscale) {
+          roiState.plotLimits.autoscale = false;
+        }
       const limits = getRoiPlotLimits(plotKey);
       if (!Number.isFinite(limits.xMin) || !Number.isFinite(limits.xMax)) {
         setRoiPlotAxisLimits(plotKey, "x", plot.xMin, plot.xMax);
@@ -193,6 +417,7 @@ export function bindRoiPlotInteractions({
     setRoiPlotAxisLimits(plotKey, "x", nextXMin, nextXMax);
     setRoiPlotAxisLimits(plotKey, "y", nextYMin, nextYMax);
     syncRoiPlotLimitControls();
+    syncRoiAxisLimitControls(plotKey);
     scheduleRoiPlotRedraw();
     event.preventDefault();
   }
@@ -257,6 +482,7 @@ export function bindRoiPlotInteractions({
         roiState.plotLimits.autoscale = true;
       }
       syncRoiPlotLimitControls();
+      syncRoiAxisLimitControls(plotKey);
       scheduleRoiPlotRedraw();
     });
 
@@ -281,7 +507,6 @@ export function bindRoiPlotInteractions({
 
         if (roiState.plotLimits.autoscale) {
           roiState.plotLimits.autoscale = false;
-          if (roiLimitsEnable) roiLimitsEnable.checked = false;
         }
 
         if (inYAxis) {
@@ -321,11 +546,79 @@ export function bindRoiPlotInteractions({
         }
 
         syncRoiPlotLimitControls();
+        syncRoiAxisLimitControls(plotKey);
         scheduleRoiPlotRedraw();
       },
       { passive: false }
     );
   });
+
+  roiAxisLimitControls.forEach((entry) => {
+    entry.toggle?.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+    });
+
+    entry.toggle?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setRoiAxisLimitsPopoverOpen(entry, !isAxisLimitsPopoverOpen(entry));
+    });
+
+    entry.popover?.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+    });
+
+    entry.popover?.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+
+    entry.logToggle?.addEventListener("change", () => {
+      setRoiPlotLog?.(entry.key, entry.logToggle.checked);
+      scheduleRoiPlotRedraw();
+      syncRoiAxisLimitControls(entry.key);
+    });
+
+    entry.autoToggle?.addEventListener("change", () => {
+      if (entry.autoToggle.checked) {
+        clearRoiAxisLimitsForEntry(entry);
+      } else if (!seedRoiAxisLimitsFromVisiblePlot(entry)) {
+        syncRoiAxisLimitControls(entry.key);
+      }
+    });
+
+    entry.inputs.forEach((input) => {
+      input.addEventListener("input", () => {
+        applyRoiAxisLimitInput(entry, input, { commit: false });
+      });
+
+      input.addEventListener("change", () => {
+        applyRoiAxisLimitInput(entry, input, { commit: true });
+      });
+    });
+
+    entry.resetBtn?.addEventListener("click", () => {
+      clearRoiAxisLimitsForEntry(entry);
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!roiAxisLimitControls.some((entry) => isAxisLimitsPopoverOpen(entry))) return;
+    if (Date.now() - roiAxisPopoverOpenedAt < 80) return;
+    if (roiAxisLimitControls.some((entry) => entry.popover?.contains(event.target) || entry.toggle?.contains(event.target))) {
+      return;
+    }
+    closeRoiAxisLimitPopovers();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const openEntry = roiAxisLimitControls.find((entry) => isAxisLimitsPopoverOpen(entry));
+    if (!openEntry) return;
+    closeRoiAxisLimitPopovers();
+    openEntry.toggle?.focus();
+  });
+
+  window.addEventListener("resize", scheduleRoiAxisPopoverReposition);
+  document.addEventListener("scroll", scheduleRoiAxisPopoverReposition, true);
 
   if (typeof window.ResizeObserver === "function" && roiPlotCanvases.length) {
     const roiPlotResizeObserver = new window.ResizeObserver((entries) => {

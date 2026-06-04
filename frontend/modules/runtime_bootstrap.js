@@ -20,7 +20,6 @@ export function initializeUiDefaults({
     colormapSelect,
     roiEnableToggle,
     roiModeSelect,
-    roiLogToggle,
     roiHistogramToggle,
   } = elements;
 
@@ -31,7 +30,6 @@ export function initializeUiDefaults({
     setFps,
     setFrameStep,
     updateRoiModeUI,
-    updateRoiPlotLimitsEnabled,
   } = callbacks;
 
   restoreFilesystemMode();
@@ -65,15 +63,10 @@ export function initializeUiDefaults({
     roiState.mode = roiModeSelect.value || "line";
     roiState.active = false;
   }
-  if (roiLogToggle) {
-    roiState.log = roiLogToggle.checked;
-  }
   if (roiHistogramToggle) {
     roiState.histogramEnabled = roiHistogramToggle.checked;
   }
   updateRoiModeUI();
-
-  updateRoiPlotLimitsEnabled();
 }
 
 export function finalizeRuntimeBootstrap({

@@ -7,6 +7,12 @@ export function createRoiState() {
     end: null,
     active: false,
     log: false,
+    plotLog: {
+      line: false,
+      x: false,
+      y: false,
+      hist: false,
+    },
     histogramEnabled: false,
     stats: null,
     lineProfile: null,
