@@ -81,7 +81,7 @@ describe("viewer_sync_controller", () => {
       options: {
         createChannel,
         sourceId: "viewer-a",
-        publishDelayMs: 40,
+        publishIntervalMs: 40,
       },
     });
 
@@ -99,16 +99,81 @@ describe("viewer_sync_controller", () => {
       options: {
         createChannel,
         sourceId: "viewer-b",
-        publishDelayMs: 40,
+        publishIntervalMs: 40,
       },
     }).setEnabled(true);
 
     controllerA.setEnabled(true);
     controllerA.handleViewportChanged("pan");
-    await vi.advanceTimersByTimeAsync(40);
 
     expect(setZoomB).toHaveBeenCalledWith(2);
     expect(setEffectiveScrollB).toHaveBeenCalledWith(250, 100, true);
+  });
+
+  it("publishes live viewport changes at a throttled cadence", async () => {
+    vi.useFakeTimers();
+    const { createViewerSyncController } = await import("../modules/viewer_sync_controller.js");
+    const { createChannel } = createChannelFactory();
+
+    const stateA = createState();
+    const stateB = createState();
+    const setZoomB = vi.fn((zoom) => {
+      stateB.zoom = Number(zoom);
+    });
+    const setEffectiveScrollB = vi.fn();
+    let effectiveLeft = 10;
+    let effectiveTop = 20;
+
+    const controllerA = createViewerSyncController({
+      state: stateA,
+      elements: {
+        syncToggle: null,
+        canvasWrap: createCanvasWrap({ clientWidth: 200, clientHeight: 100 }),
+      },
+      callbacks: {
+        getViewRect: vi.fn(),
+        getEffectiveScrollLeft: () => effectiveLeft,
+        getEffectiveScrollTop: () => effectiveTop,
+        setZoom: vi.fn(),
+        setEffectiveScroll: vi.fn(),
+      },
+      options: {
+        createChannel,
+        sourceId: "viewer-a",
+        publishIntervalMs: 40,
+      },
+    });
+
+    createViewerSyncController({
+      state: stateB,
+      elements: {
+        syncToggle: null,
+        canvasWrap: createCanvasWrap({ clientWidth: 200, clientHeight: 100 }),
+      },
+      callbacks: {
+        getViewRect: vi.fn(),
+        setZoom: setZoomB,
+        setEffectiveScroll: setEffectiveScrollB,
+      },
+      options: {
+        createChannel,
+        sourceId: "viewer-b",
+        publishIntervalMs: 40,
+      },
+    }).setEnabled(true);
+
+    controllerA.setEnabled(true);
+    controllerA.handleViewportChanged("pan");
+    expect(setEffectiveScrollB).toHaveBeenCalledWith(10, 20, true);
+
+    effectiveLeft = 30;
+    effectiveTop = 40;
+    await vi.advanceTimersByTimeAsync(10);
+    controllerA.handleViewportChanged("pan");
+    expect(setEffectiveScrollB).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(30);
+    expect(setEffectiveScrollB).toHaveBeenLastCalledWith(30, 40, true);
   });
 
   it("requests the current viewport when a viewer joins an active sync group", async () => {

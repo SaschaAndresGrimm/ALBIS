@@ -74,8 +74,10 @@ export function createViewerSyncController({
   const windowObj = options.windowObj || window;
   const channelName = options.channelName || DEFAULT_CHANNEL_NAME;
   const sourceId = options.sourceId || createSourceId(windowObj);
-  const rawPublishDelayMs = Number(options.publishDelayMs);
-  const publishDelayMs = Number.isFinite(rawPublishDelayMs) ? Math.max(0, rawPublishDelayMs) : 60;
+  const rawPublishIntervalMs = Number(options.publishIntervalMs ?? options.publishDelayMs);
+  const publishIntervalMs = Number.isFinite(rawPublishIntervalMs)
+    ? Math.max(0, rawPublishIntervalMs)
+    : 40;
   const createChannel = options.createChannel || ((name) => {
     if (typeof windowObj.BroadcastChannel !== "function") return null;
     return new windowObj.BroadcastChannel(name);
@@ -83,6 +85,8 @@ export function createViewerSyncController({
 
   let channel = null;
   let publishTimer = null;
+  let lastPublishTs = 0;
+  let queuedPublishReason = "";
   let applyingRemote = false;
   let available = Boolean(options.createChannel || typeof windowObj.BroadcastChannel === "function");
 
@@ -175,11 +179,15 @@ export function createViewerSyncController({
     if (!current.enabled || current.viewport === false || applyingRemote) return false;
     const viewport = readViewport();
     if (!viewport) return false;
-    return postMessage({
+    const sent = postMessage({
       type: MESSAGE_VIEWPORT,
       reason,
       viewport,
     });
+    if (sent) {
+      lastPublishTs = Date.now();
+    }
+    return sent;
   }
 
   function clearPublishTimer() {
@@ -188,14 +196,30 @@ export function createViewerSyncController({
     publishTimer = null;
   }
 
+  function cancelQueuedPublish() {
+    clearPublishTimer();
+    queuedPublishReason = "";
+  }
+
+  function flushQueuedViewport() {
+    publishTimer = null;
+    const reason = queuedPublishReason || "change";
+    queuedPublishReason = "";
+    publishViewport(reason);
+  }
+
   function handleViewportChanged(reason = "change") {
     const current = syncState();
     if (!current.enabled || current.viewport === false || applyingRemote) return;
-    clearPublishTimer();
-    publishTimer = windowObj.setTimeout(() => {
-      publishTimer = null;
-      publishViewport(reason);
-    }, publishDelayMs);
+    queuedPublishReason = reason;
+    const elapsedMs = lastPublishTs > 0 ? Date.now() - lastPublishTs : Infinity;
+    if (elapsedMs >= publishIntervalMs) {
+      clearPublishTimer();
+      flushQueuedViewport();
+      return;
+    }
+    if (publishTimer) return;
+    publishTimer = windowObj.setTimeout(flushQueuedViewport, publishIntervalMs - elapsedMs);
   }
 
   function applyRemoteViewport(rawViewport) {
@@ -210,7 +234,7 @@ export function createViewerSyncController({
     const viewWidth = Math.max(0, Number(canvasWrap?.clientWidth) || 0);
     const viewHeight = Math.max(0, Number(canvasWrap?.clientHeight) || 0);
 
-    clearPublishTimer();
+    cancelQueuedPublish();
     applyingRemote = true;
     try {
       setZoom?.(viewport.zoom);
@@ -265,7 +289,7 @@ export function createViewerSyncController({
       return current.enabled;
     }
     current.enabled = next;
-    clearPublishTimer();
+    cancelQueuedPublish();
     if (next) {
       if (!openChannel()) {
         current.enabled = false;
@@ -285,7 +309,7 @@ export function createViewerSyncController({
   }
 
   function destroy() {
-    clearPublishTimer();
+    cancelQueuedPublish();
     closeChannel();
     syncToggle?.removeEventListener("click", toggleEnabled);
   }
