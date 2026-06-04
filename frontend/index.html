@@ -986,7 +986,45 @@
                   <div class="roi-resize-handle"></div>
                 </div>
                 <div class="roi-plot is-hidden" id="roi-hist-plot">
-                  <div class="roi-plot-title" data-i18n="analysis.roi.plot.histogram">ROI Histogram</div>
+                  <div class="roi-plot-header">
+                    <div class="roi-plot-title" data-i18n="analysis.roi.plot.histogram">ROI Histogram</div>
+                    <div class="roi-histogram-actions">
+                      <span class="roi-histogram-bin-chip is-hidden" id="roi-hist-bin-chip" aria-live="polite"></span>
+                      <button
+                        class="roi-plot-icon-btn"
+                        id="roi-hist-bins-toggle"
+                        type="button"
+                        title="Histogram settings"
+                        aria-label="Histogram settings"
+                        aria-expanded="false"
+                        aria-haspopup="true"
+                        aria-controls="roi-hist-bins-popover"
+                        data-i18n-title="roi.histogram.settings"
+                        data-i18n-aria-label="roi.histogram.settings"
+                      >
+                        ⚙
+                      </button>
+                    </div>
+                  </div>
+                  <div class="roi-histogram-bins-popover" id="roi-hist-bins-popover" aria-hidden="true">
+                    <label class="checkbox roi-histogram-auto-bins">
+                      <input id="roi-hist-bins-auto" type="checkbox" checked />
+                      <span data-i18n="roi.histogram.auto_bins">Auto bins</span>
+                    </label>
+                    <div class="roi-histogram-bin-manual" id="roi-hist-bin-manual-row">
+                      <label class="roi-histogram-bin-count-field">
+                        <span data-i18n="roi.histogram.bins">Bins</span>
+                        <input id="roi-hist-bin-count" type="number" min="2" max="512" step="1" value="128" />
+                      </label>
+                      <div class="roi-histogram-bin-presets" aria-label="Histogram bin presets" data-i18n-aria-label="roi.histogram.presets">
+                        <button class="roi-histogram-bin-preset" type="button" data-bins="32">32</button>
+                        <button class="roi-histogram-bin-preset" type="button" data-bins="64">64</button>
+                        <button class="roi-histogram-bin-preset" type="button" data-bins="128">128</button>
+                        <button class="roi-histogram-bin-preset" type="button" data-bins="256">256</button>
+                        <button class="roi-histogram-bin-preset" type="button" data-bins="512">512</button>
+                      </div>
+                    </div>
+                  </div>
                   <canvas id="roi-hist-canvas"></canvas>
                   <div class="roi-tooltip" aria-hidden="true"></div>
                   <div class="roi-resize-handle"></div>

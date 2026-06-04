@@ -3,6 +3,7 @@ import {
   buildRoiHistogram,
   computeGlobalStats,
   getMaskFlags,
+  normalizeRoiHistogramBinCount,
 } from "../modules/roi_stats_engine.js";
 
 describe("roi_stats_engine", () => {
@@ -60,5 +61,22 @@ describe("roi_stats_engine", () => {
     expect(hist.xStart).toBe(1);
     expect(hist.xStep).toBe(1);
     expect(hist.data).toEqual([1, 2, 3]);
+  });
+
+  it("builds fixed-count histogram bins when requested", () => {
+    const hist = buildRoiHistogram([0, 1, 2, 3], { mode: "fixed", count: 2 });
+    expect(hist.xTickMode).toBe("");
+    expect(hist.xStart).toBe(0.75);
+    expect(hist.xStep).toBe(1.5);
+    expect(hist.data).toEqual([2, 2]);
+  });
+
+  it("clamps fixed histogram bin counts", () => {
+    expect(normalizeRoiHistogramBinCount(1)).toBe(2);
+    expect(normalizeRoiHistogramBinCount(9999)).toBe(512);
+    expect(normalizeRoiHistogramBinCount("not-a-number")).toBe(128);
+
+    const hist = buildRoiHistogram([0, 1, 2, 3], { mode: "fixed", count: 1 });
+    expect(hist.data).toHaveLength(2);
   });
 });

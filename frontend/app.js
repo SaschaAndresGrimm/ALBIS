@@ -342,6 +342,13 @@ const roiLinePlot = document.getElementById("roi-line-plot");
 const roiBoxPlotX = document.getElementById("roi-box-plot-x");
 const roiBoxPlotY = document.getElementById("roi-box-plot-y");
 const roiHistPlot = document.getElementById("roi-hist-plot");
+const roiHistBinsToggle = document.getElementById("roi-hist-bins-toggle");
+const roiHistBinsPopover = document.getElementById("roi-hist-bins-popover");
+const roiHistBinsAuto = document.getElementById("roi-hist-bins-auto");
+const roiHistBinCount = document.getElementById("roi-hist-bin-count");
+const roiHistBinChip = document.getElementById("roi-hist-bin-chip");
+const roiHistBinManualRow = document.getElementById("roi-hist-bin-manual-row");
+const roiHistBinPresetBtns = document.querySelectorAll(".roi-histogram-bin-preset");
 const roiLineCanvas = document.getElementById("roi-line-canvas");
 const roiLineCtx = roiLineCanvas?.getContext("2d");
 const roiXCanvas = document.getElementById("roi-x-canvas");
@@ -3540,6 +3547,13 @@ const roiStatsController = createRoiStatsController({
   roiHistCanvas,
   roiHistCtx,
   roiHistogramToggle,
+  roiHistBinsToggle,
+  roiHistBinsPopover,
+  roiHistBinsAuto,
+  roiHistBinCount,
+  roiHistBinChip,
+  roiHistBinManualRow,
+  roiHistBinPresetBtns,
   scheduleRoiUpdate: (...args) => scheduleRoiUpdate(...args),
   updateRoiSectionState,
   drawRoiOverlay: (...args) => drawRoiOverlay(...args),
@@ -3881,6 +3895,13 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   roiModeSelect,
   roiLogToggle,
   roiHistogramToggle,
+  roiHistBinsToggle,
+  roiHistBinsPopover,
+  roiHistBinsAuto,
+  roiHistBinCount,
+  roiHistBinChip,
+  roiHistBinManualRow,
+  roiHistBinPresetBtns,
   roiLimitsEnable,
   roiClearBtn,
   roiExportCsvBtn,

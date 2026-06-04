@@ -9,6 +9,7 @@ import {
   getCircularRoiDirection,
   getCircularRoiOuterRadius,
 } from "./roi_geometry_utils.js";
+import { normalizeRoiHistogramBinCount } from "./roi_stats_engine.js";
 
 export function bindRoiControlInteractions({
   roiState,
@@ -20,6 +21,11 @@ export function bindRoiControlInteractions({
     roiModeSelect,
     roiLogToggle,
     roiHistogramToggle,
+    roiHistBinsToggle,
+    roiHistBinsPopover,
+    roiHistBinsAuto,
+    roiHistBinCount,
+    roiHistBinPresetBtns,
     roiLimitsEnable,
     roiClearBtn,
     roiExportCsvBtn,
@@ -44,6 +50,28 @@ export function bindRoiControlInteractions({
     applyRoiCenterFromInputs,
     updateRoiCenterInputs,
   } = callbacks;
+
+  function setRoiHistogramBinsPopoverOpen(open) {
+    if (!roiHistBinsToggle || !roiHistBinsPopover) return;
+    const isOpen = Boolean(open);
+    roiHistBinsToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    roiHistBinsPopover.classList.toggle("is-open", isOpen);
+    roiHistBinsPopover.setAttribute("aria-hidden", isOpen ? "false" : "true");
+  }
+
+  function updateRoiHistogramBinSettings(mode, count = roiState.histogramBins?.count) {
+    const nextMode = mode === "fixed" ? "fixed" : "auto";
+    roiState.histogramBins = {
+      mode: nextMode,
+      count: normalizeRoiHistogramBinCount(count),
+    };
+    updateRoiModeUI();
+    scheduleRoiUpdate();
+  }
+
+  function isRoiHistogramBinsPopoverOpen() {
+    return roiHistBinsToggle?.getAttribute("aria-expanded") === "true";
+  }
 
   roiEnableToggle?.addEventListener("change", () => {
     roiState.enabled = Boolean(roiEnableToggle.checked);
@@ -79,6 +107,46 @@ export function bindRoiControlInteractions({
     roiState.histogramEnabled = Boolean(roiHistogramToggle.checked);
     updateRoiModeUI();
     scheduleRoiUpdate();
+  });
+
+  roiHistBinsToggle?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setRoiHistogramBinsPopoverOpen(!isRoiHistogramBinsPopoverOpen());
+  });
+
+  roiHistBinsPopover?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  roiHistBinsAuto?.addEventListener("change", () => {
+    updateRoiHistogramBinSettings(roiHistBinsAuto.checked ? "auto" : "fixed");
+  });
+
+  roiHistBinCount?.addEventListener("change", () => {
+    const count = normalizeRoiHistogramBinCount(roiHistBinCount.value);
+    roiHistBinCount.value = String(count);
+    updateRoiHistogramBinSettings("fixed", count);
+  });
+
+  roiHistBinPresetBtns?.forEach((button) => {
+    button.addEventListener("click", () => {
+      const count = normalizeRoiHistogramBinCount(button.dataset?.bins);
+      if (roiHistBinsAuto) roiHistBinsAuto.checked = false;
+      if (roiHistBinCount) roiHistBinCount.value = String(count);
+      updateRoiHistogramBinSettings("fixed", count);
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!isRoiHistogramBinsPopoverOpen()) return;
+    if (roiHistBinsPopover?.contains(event.target) || roiHistBinsToggle?.contains(event.target)) return;
+    setRoiHistogramBinsPopoverOpen(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !isRoiHistogramBinsPopoverOpen()) return;
+    setRoiHistogramBinsPopoverOpen(false);
+    roiHistBinsToggle?.focus();
   });
 
   roiLimitsEnable?.addEventListener("change", updateRoiPlotLimitsEnabled);

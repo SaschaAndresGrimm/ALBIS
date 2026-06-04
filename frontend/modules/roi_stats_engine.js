@@ -2,6 +2,16 @@
  * Pure ROI statistics helpers for histogram and mask-aware aggregation.
  */
 
+export const ROI_HISTOGRAM_MIN_FIXED_BINS = 2;
+export const ROI_HISTOGRAM_MAX_FIXED_BINS = 512;
+export const ROI_HISTOGRAM_DEFAULT_FIXED_BINS = 128;
+
+export function normalizeRoiHistogramBinCount(value) {
+  const count = Math.round(Number(value));
+  if (!Number.isFinite(count)) return ROI_HISTOGRAM_DEFAULT_FIXED_BINS;
+  return Math.max(ROI_HISTOGRAM_MIN_FIXED_BINS, Math.min(ROI_HISTOGRAM_MAX_FIXED_BINS, count));
+}
+
 export function getMaskFlags(maskValue) {
   if (!Number.isFinite(maskValue)) {
     return { gap: false, defective: false };
@@ -46,7 +56,35 @@ export function accumulateRoiPixelCounters(counters, sampled, satMax, isSaturate
   }
 }
 
-export function buildRoiHistogram(values) {
+function buildFixedRoiHistogram(finite, min, max, binCount, isIntegerSeries) {
+  const counts = new Float64Array(binCount);
+  if (!(max > min)) {
+    const step = isIntegerSeries ? 1 : Math.max(1e-6, Math.abs(min) * 1e-6);
+    const centerIdx = Math.floor(binCount / 2);
+    counts[centerIdx] = finite.length;
+    return {
+      data: Array.from(counts),
+      xStart: min - centerIdx * step,
+      xStep: step,
+      xTickMode: isIntegerSeries ? "integer" : "",
+    };
+  }
+
+  const step = (max - min) / binCount;
+  finite.forEach((value) => {
+    const t = (value - min) / step;
+    const idx = Math.max(0, Math.min(binCount - 1, Math.floor(t)));
+    counts[idx] += 1;
+  });
+  return {
+    data: Array.from(counts),
+    xStart: min + step * 0.5,
+    xStep: step,
+    xTickMode: "",
+  };
+}
+
+export function buildRoiHistogram(values, options = {}) {
   const finite = [];
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -61,6 +99,17 @@ export function buildRoiHistogram(values) {
     }
   });
   if (!finite.length || !Number.isFinite(min) || !Number.isFinite(max)) return null;
+
+  const binMode = options?.mode === "fixed" ? "fixed" : "auto";
+  if (binMode === "fixed") {
+    return buildFixedRoiHistogram(
+      finite,
+      min,
+      max,
+      normalizeRoiHistogramBinCount(options?.count),
+      isIntegerSeries,
+    );
+  }
 
   if (isIntegerSeries) {
     const iMin = Math.floor(min);

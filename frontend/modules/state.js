@@ -13,6 +13,7 @@ export function createRoiState() {
     xProjection: null,
     yProjection: null,
     histogramDistribution: null,
+    histogramBins: { mode: "auto", count: 128 },
     innerRadius: 0,
     outerRadius: 0,
     plotLimits: {

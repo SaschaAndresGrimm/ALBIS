@@ -3933,6 +3933,166 @@ body.platform-windows select option:disabled {
   flex-shrink: 0;
 }
 
+.roi-plot-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  margin-bottom: 3px;
+  flex-shrink: 0;
+}
+
+.roi-plot-header .roi-plot-title {
+  margin-bottom: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.roi-histogram-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.roi-histogram-bin-chip {
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid rgba(110, 181, 255, 0.36);
+  border-radius: var(--radius-sm);
+  background: rgba(37, 67, 96, 0.6);
+  color: #dbeeff;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.roi-histogram-bin-chip.is-hidden {
+  display: none;
+}
+
+.roi-plot-icon-btn {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(78, 100, 137, 0.52);
+  border-radius: var(--radius-sm);
+  background: rgba(16, 25, 38, 0.9);
+  color: #e5f0ff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.roi-plot-icon-btn:hover,
+.roi-plot-icon-btn[aria-expanded="true"] {
+  border-color: rgba(118, 154, 214, 0.75);
+  background: rgba(31, 47, 70, 0.96);
+}
+
+.roi-plot-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.roi-histogram-bins-popover {
+  position: absolute;
+  top: 30px;
+  right: 6px;
+  z-index: 5;
+  width: min(220px, calc(100% - 12px));
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(78, 100, 137, 0.58);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  box-shadow: var(--shadow-soft);
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s linear var(--motion-med);
+}
+
+.roi-histogram-bins-popover.is-open {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s;
+}
+
+.roi-histogram-auto-bins {
+  margin: 0;
+}
+
+.roi-histogram-bin-manual {
+  display: grid;
+  gap: 8px;
+}
+
+.roi-histogram-bin-manual.is-hidden {
+  display: none;
+}
+
+.roi-histogram-bin-count-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: #dce8fb;
+}
+
+.roi-histogram-bin-count-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.roi-histogram-bin-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.roi-histogram-bin-preset {
+  min-width: 0;
+  min-height: 24px;
+  border: 1px solid rgba(78, 100, 137, 0.5);
+  border-radius: var(--radius-sm);
+  background: rgba(16, 25, 38, 0.86);
+  color: #e8f3ff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.roi-histogram-bin-preset:hover,
+.roi-histogram-bin-preset.is-active {
+  border-color: rgba(110, 181, 255, 0.72);
+  background: rgba(45, 82, 118, 0.82);
+}
+
+.roi-histogram-bin-preset:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .roi-plot canvas {
   width: 100%;
   flex: 1;

@@ -9,6 +9,7 @@ import {
   computeGlobalStats as computeGlobalStatsEngine,
   createRoiPixelCounters as createRoiPixelCountersEngine,
   getMaskFlags as getMaskFlagsEngine,
+  normalizeRoiHistogramBinCount,
 } from "./roi_stats_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
 import { buildRoiCsvExportPayload } from "./roi_csv_export.js";
@@ -60,6 +61,13 @@ export function createRoiStatsController(ctx) {
     roiHistCanvas,
     roiHistCtx,
     roiHistogramToggle,
+    roiHistBinsToggle,
+    roiHistBinsPopover,
+    roiHistBinsAuto,
+    roiHistBinCount,
+    roiHistBinChip,
+    roiHistBinManualRow,
+    roiHistBinPresetBtns,
     scheduleRoiUpdate,
     updateRoiSectionState,
     drawRoiOverlay,
@@ -106,6 +114,50 @@ function getRoiPlotKey(canvasEl) {
 
 function getRoiPlotLimits(plotKey) {
   return roiState.plotLimits[plotKey] || roiState.plotLimits.line;
+}
+
+function getRoiHistogramBinsConfig() {
+  if (!roiState.histogramBins || typeof roiState.histogramBins !== "object") {
+    roiState.histogramBins = { mode: "auto", count: 128 };
+  }
+  const mode = roiState.histogramBins.mode === "fixed" ? "fixed" : "auto";
+  const count = normalizeRoiHistogramBinCount(roiState.histogramBins.count);
+  roiState.histogramBins.mode = mode;
+  roiState.histogramBins.count = count;
+  return { mode, count };
+}
+
+function syncRoiHistogramBinsUi() {
+  const { mode, count } = getRoiHistogramBinsConfig();
+  const isFixed = mode === "fixed";
+  if (roiHistBinsAuto) {
+    roiHistBinsAuto.checked = !isFixed;
+    roiHistBinsAuto.disabled = !roiState.enabled;
+  }
+  if (roiHistBinCount) {
+    roiHistBinCount.value = String(count);
+    roiHistBinCount.disabled = !roiState.enabled || !isFixed;
+  }
+  if (roiHistBinManualRow) {
+    roiHistBinManualRow.classList.toggle("is-hidden", !isFixed);
+  }
+  if (roiHistBinChip) {
+    roiHistBinChip.textContent = isFixed ? t("roi.histogram.bins_chip", { count }) : "";
+    roiHistBinChip.classList.toggle("is-hidden", !isFixed);
+  }
+  if (roiHistBinsToggle) {
+    roiHistBinsToggle.disabled = !roiState.enabled;
+  }
+  if ((!roiState.enabled || !roiState.histogramEnabled) && roiHistBinsToggle && roiHistBinsPopover) {
+    roiHistBinsToggle.setAttribute("aria-expanded", "false");
+    roiHistBinsPopover.classList.remove("is-open");
+    roiHistBinsPopover.setAttribute("aria-hidden", "true");
+  }
+  roiHistBinPresetBtns?.forEach((button) => {
+    const presetCount = normalizeRoiHistogramBinCount(button.dataset?.bins);
+    button.classList.toggle("is-active", isFixed && presetCount === count);
+    button.disabled = !roiState.enabled || !isFixed;
+  });
 }
 
 function clearRoiPlotLimits() {
@@ -251,6 +303,7 @@ function updateRoiModeUI() {
     roiHistogramToggle.checked = Boolean(roiState.histogramEnabled);
     roiHistogramToggle.disabled = !enabled;
   }
+  syncRoiHistogramBinsUi();
   updateRoiCenterInputs();
   syncRoiPlotLimitControls();
   updateRoiSectionState();
@@ -421,7 +474,7 @@ function updateRoiPixelCounterFields(counters) {
 }
 
 function buildRoiHistogram(values) {
-  return buildRoiHistogramEngine(values);
+  return buildRoiHistogramEngine(values, getRoiHistogramBinsConfig());
 }
 
 function updateRoiHistogramPlot(values) {
