@@ -44,6 +44,7 @@ jobs:
           LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
           LINUX_GPG_KEY_ID: ${{ secrets.LINUX_GPG_KEY_ID }}
         run: |
+          configured=0
           missing=()
           for key in LINUX_GPG_PRIVATE_KEY_B64 LINUX_GPG_PASSPHRASE LINUX_GPG_KEY_ID; do
             if [ -z "${!key:-}" ]; then
@@ -55,7 +56,7 @@ jobs:
             exit 1
           fi
 
-      - name: Require macOS signing and notarization credentials for public tag releases
+      - name: Validate macOS signing and notarization credentials
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           MACOS_SIGN_CERT_B64: ${{ secrets.MACOS_SIGN_CERT_B64 }}
@@ -66,16 +67,21 @@ jobs:
         run: |
           missing=()
           for key in MACOS_SIGN_CERT_B64 MACOS_SIGN_CERT_PASSWORD APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
-            if [ -z "${!key:-}" ]; then
+            if [ -n "${!key:-}" ]; then
+              configured=$((configured + 1))
+            else
               missing+=("$key")
             fi
           done
-          if [ "${#missing[@]}" -gt 0 ]; then
-            printf 'Missing required macOS signing/notarization secret(s): %s\n' "${missing[*]}"
+          if [ "$configured" -gt 0 ] && [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Incomplete macOS signing/notarization secret set. Missing: %s\n' "${missing[*]}"
             exit 1
           fi
+          if [ "$configured" -eq 0 ]; then
+            echo "macOS signing/notarization is not configured; unsigned macOS artifacts will be built."
+          fi
 
-      - name: Require Windows signing credentials for public tag releases
+      - name: Validate Windows signing credentials
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           WINDOWS_SIGN_CERT_B64: ${{ secrets.WINDOWS_SIGN_CERT_B64 }}
@@ -88,27 +94,39 @@ jobs:
           AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT || secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
           AZURE_ARTIFACT_SIGNING_CERT_PROFILE: ${{ vars.AZURE_ARTIFACT_SIGNING_CERT_PROFILE || secrets.AZURE_ARTIFACT_SIGNING_CERT_PROFILE }}
         run: |
+          pfx_configured=0
           pfx_missing=()
           for key in WINDOWS_SIGN_CERT_B64 WINDOWS_SIGN_CERT_PASSWORD WINDOWS_SIGN_TIMESTAMP_URL; do
-            if [ -z "${!key:-}" ]; then
+            if [ -n "${!key:-}" ]; then
+              pfx_configured=$((pfx_configured + 1))
+            else
               pfx_missing+=("$key")
             fi
           done
 
+          azure_configured=0
           azure_missing=()
           for key in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_ARTIFACT_SIGNING_ENDPOINT AZURE_ARTIFACT_SIGNING_ACCOUNT AZURE_ARTIFACT_SIGNING_CERT_PROFILE; do
-            if [ -z "${!key:-}" ]; then
+            if [ -n "${!key:-}" ]; then
+              azure_configured=$((azure_configured + 1))
+            else
               azure_missing+=("$key")
             fi
           done
 
-          if [ "${#pfx_missing[@]}" -eq 0 ] || [ "${#azure_missing[@]}" -eq 0 ]; then
-            exit 0
+          if [ "$pfx_configured" -gt 0 ] && [ "${#pfx_missing[@]}" -gt 0 ]; then
+            printf 'Incomplete Windows PFX signing value(s). Missing: %s\n' "${pfx_missing[*]}"
+            exit 1
           fi
 
-          printf 'Missing Windows PFX signing value(s): %s\n' "${pfx_missing[*]}"
-          printf 'Missing Azure Artifact Signing value(s): %s\n' "${azure_missing[*]}"
-          exit 1
+          if [ "$azure_configured" -gt 0 ] && [ "${#azure_missing[@]}" -gt 0 ]; then
+            printf 'Incomplete Azure Artifact Signing value(s). Missing: %s\n' "${azure_missing[*]}"
+            exit 1
+          fi
+
+          if [ "$pfx_configured" -eq 0 ] && [ "$azure_configured" -eq 0 ]; then
+            echo "Windows signing is not configured; unsigned Windows artifacts will be built."
+          fi
 
       - uses: actions/setup-python@v6
         with:

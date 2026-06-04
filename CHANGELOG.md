@@ -26,6 +26,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - ROI histogram y-axis minimum is clamped at zero so count plots no longer imply negative counts.
 - Fixed per-plot log toggles so log mode applies to the selected ROI plot.
 - Fixed ROI plot settings menus so they remain open when clicked and can extend beyond the plot area without clipping.
+- Fixed release input verification so optional Windows/macOS signing configurations only fail when partially configured.
 - Fixed dev npm audit findings.
 
 ### Notes
