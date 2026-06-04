@@ -45,6 +45,7 @@ export function bindViewerControls({
   const {
     redraw,
     scheduleHistogram,
+    handleContrastChanged,
     computeAutoLevels,
     formatValue,
     updateGlobalStats,
@@ -84,6 +85,7 @@ export function bindViewerControls({
       state.colormap = value;
       redraw();
       scheduleHistogram();
+      handleContrastChanged?.("colormap");
     }
   });
 
@@ -98,6 +100,7 @@ export function bindViewerControls({
     }
     redraw();
     scheduleHistogram();
+    handleContrastChanged?.("levels");
   });
 
   maskToggle?.addEventListener("change", () => {
@@ -128,12 +131,14 @@ export function bindViewerControls({
     maxInput.value = formatValue(state.max);
     redraw();
     scheduleHistogram();
+    handleContrastChanged?.("auto");
   });
 
   invertToggle.addEventListener("change", () => {
     state.invert = invertToggle.checked;
     redraw();
     scheduleHistogram();
+    handleContrastChanged?.("invert");
   });
 
   [histLogX, histLogY].forEach((toggle) => {
@@ -180,6 +185,7 @@ export function bindViewerControls({
       autoScaleToggle.checked = false;
       redraw();
       scheduleHistogram();
+      handleContrastChanged?.("levels");
     });
   });
 

@@ -165,19 +165,47 @@
             <div class="toolbar-path" id="toolbar-path" data-i18n="toolbar.source.no_file">No file loaded</div>
           </div>
           <div class="toolbar-right">
-            <button
-              class="tool-btn tool-btn-compact"
-              id="viewer-sync-toggle"
-              type="button"
-              aria-label="Link viewer position"
-              data-i18n-aria-label="toolbar.viewer_sync.enable"
-              aria-pressed="false"
-            >
-              <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1.1 1.1" />
-                <path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1.1-1.1" />
-              </svg>
-            </button>
+            <div class="toolbar-sync" id="viewer-sync-wrap">
+              <button
+                class="tool-btn tool-btn-compact toolbar-sync-toggle"
+                id="viewer-sync-toggle"
+                type="button"
+                aria-label="Link viewer position"
+                data-i18n-aria-label="toolbar.viewer_sync.enable"
+                aria-pressed="false"
+              >
+                <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1.1 1.1" />
+                  <path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1.1-1.1" />
+                </svg>
+              </button>
+              <button
+                class="tool-btn tool-btn-compact toolbar-sync-options-toggle"
+                id="viewer-sync-options-toggle"
+                type="button"
+                aria-label="Viewer sync options"
+                data-i18n-aria-label="toolbar.viewer_sync.options"
+                aria-expanded="false"
+                aria-haspopup="true"
+                aria-controls="viewer-sync-popover"
+              >
+                <span aria-hidden="true">▾</span>
+              </button>
+              <div class="toolbar-sync-popover" id="viewer-sync-popover" aria-hidden="true">
+                <label class="checkbox toolbar-sync-option">
+                  <input id="viewer-sync-position" type="checkbox" checked />
+                  <span data-i18n="toolbar.viewer_sync.position">Position</span>
+                </label>
+                <label class="checkbox toolbar-sync-option">
+                  <input id="viewer-sync-contrast" type="checkbox" checked />
+                  <span data-i18n="toolbar.viewer_sync.contrast">Contrast</span>
+                </label>
+                <label class="checkbox toolbar-sync-option">
+                  <input id="viewer-sync-roi" type="checkbox" checked />
+                  <span data-i18n="toolbar.viewer_sync.roi">ROI</span>
+                </label>
+              </div>
+            </div>
             <button class="tool-btn tool-btn-compact" id="fullscreen-toggle" data-i18n-aria-label="toolbar.fullscreen.enter" aria-label="Toggle full screen">⛶</button>
             <div class="toolbar-more" id="toolbar-more-wrap">
               <button

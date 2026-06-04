@@ -42,8 +42,8 @@ function createState(overrides = {}) {
       enabled: false,
       group: "default",
       viewport: true,
-      contrast: false,
-      roi: false,
+      contrast: true,
+      roi: true,
     },
     ...overrides,
   };
@@ -260,6 +260,7 @@ describe("viewer_sync_controller", () => {
       options: {
         createChannel,
         sourceId: "viewer-a",
+        publishIntervalMs: 0,
       },
     });
 
@@ -288,5 +289,186 @@ describe("viewer_sync_controller", () => {
 
     expect(setZoomB).toHaveBeenCalledWith(0.2);
     expect(setEffectiveScrollB).toHaveBeenCalledWith(-70, 180, true);
+  });
+
+  it("broadcasts contrast settings when contrast sync is enabled", async () => {
+    const { createViewerSyncController } = await import("../modules/viewer_sync_controller.js");
+    const { createChannel } = createChannelFactory();
+
+    const stateA = createState({
+      autoScale: false,
+      min: 12,
+      max: 48,
+      colormap: "viridis",
+      invert: true,
+    });
+    const stateB = createState({
+      autoScale: true,
+      min: 0,
+      max: 1,
+      colormap: "gray",
+      invert: false,
+    });
+    const applySyncedContrastB = vi.fn((contrast) => {
+      stateB.autoScale = contrast.autoScale;
+      stateB.min = contrast.min;
+      stateB.max = contrast.max;
+      stateB.colormap = contrast.colormap;
+      stateB.invert = contrast.invert;
+    });
+
+    const controllerA = createViewerSyncController({
+      state: stateA,
+      elements: {
+        syncToggle: null,
+        canvasWrap: createCanvasWrap(),
+      },
+      callbacks: {
+        getViewRect: vi.fn(),
+        setZoom: vi.fn(),
+        setEffectiveScroll: vi.fn(),
+      },
+      options: {
+        createChannel,
+        sourceId: "viewer-a",
+        publishIntervalMs: 0,
+      },
+    });
+
+    const controllerB = createViewerSyncController({
+      state: stateB,
+      elements: {
+        syncToggle: null,
+        canvasWrap: createCanvasWrap(),
+      },
+      callbacks: {
+        getViewRect: vi.fn(),
+        setZoom: vi.fn(),
+        setEffectiveScroll: vi.fn(),
+        applySyncedContrast: applySyncedContrastB,
+      },
+      options: {
+        createChannel,
+        sourceId: "viewer-b",
+      },
+    });
+
+    controllerA.setSyncOption("contrast", true);
+    controllerB.setSyncOption("contrast", true);
+    controllerA.setEnabled(true);
+    controllerB.setEnabled(true);
+    applySyncedContrastB.mockClear();
+
+    stateA.min = 14;
+    stateA.max = 56;
+    controllerA.handleContrastChanged("levels");
+
+    expect(applySyncedContrastB).toHaveBeenCalledWith({
+      autoScale: false,
+      min: 14,
+      max: 56,
+      colormap: "viridis",
+      invert: true,
+    });
+    expect(stateB).toMatchObject({
+      autoScale: false,
+      min: 14,
+      max: 56,
+      colormap: "viridis",
+      invert: true,
+    });
+  });
+
+  it("broadcasts ROI geometry when ROI sync is enabled", async () => {
+    const { createViewerSyncController } = await import("../modules/viewer_sync_controller.js");
+    const { createChannel } = createChannelFactory();
+
+    const roiA = {
+      enabled: true,
+      mode: "box",
+      active: true,
+      start: { x: 20, y: 30 },
+      end: { x: 220, y: 180 },
+      innerRadius: 0,
+      outerRadius: 0,
+    };
+    const roiB = {
+      enabled: true,
+      mode: "line",
+      active: false,
+      start: null,
+      end: null,
+      innerRadius: 0,
+      outerRadius: 0,
+    };
+    const stateA = createState();
+    const stateB = createState();
+    const applySyncedRoiB = vi.fn((roi) => {
+      Object.assign(roiB, roi);
+    });
+
+    const controllerA = createViewerSyncController({
+      state: stateA,
+      roiState: roiA,
+      elements: {
+        syncToggle: null,
+        canvasWrap: createCanvasWrap(),
+      },
+      callbacks: {
+        getViewRect: vi.fn(),
+        setZoom: vi.fn(),
+        setEffectiveScroll: vi.fn(),
+      },
+      options: {
+        createChannel,
+        sourceId: "viewer-a",
+        publishIntervalMs: 0,
+      },
+    });
+
+    const controllerB = createViewerSyncController({
+      state: stateB,
+      roiState: roiB,
+      elements: {
+        syncToggle: null,
+        canvasWrap: createCanvasWrap(),
+      },
+      callbacks: {
+        getViewRect: vi.fn(),
+        setZoom: vi.fn(),
+        setEffectiveScroll: vi.fn(),
+        applySyncedRoi: applySyncedRoiB,
+      },
+      options: {
+        createChannel,
+        sourceId: "viewer-b",
+      },
+    });
+
+    controllerA.setSyncOption("roi", true);
+    controllerB.setSyncOption("roi", true);
+    controllerA.setEnabled(true);
+    controllerB.setEnabled(true);
+    applySyncedRoiB.mockClear();
+
+    roiA.end = { x: 240, y: 190 };
+    controllerA.handleRoiChanged("roi");
+
+    expect(applySyncedRoiB).toHaveBeenCalledWith({
+      enabled: true,
+      mode: "box",
+      active: true,
+      start: { x: 20, y: 30 },
+      end: { x: 240, y: 190 },
+      innerRadius: 0,
+      outerRadius: 0,
+    });
+    expect(roiB).toMatchObject({
+      enabled: true,
+      mode: "box",
+      active: true,
+      start: { x: 20, y: 30 },
+      end: { x: 240, y: 190 },
+    });
   });
 });

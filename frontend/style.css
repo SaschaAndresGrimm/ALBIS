@@ -676,6 +676,65 @@ body {
   display: none;
 }
 
+.toolbar-sync {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.toolbar-sync-toggle {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.toolbar-sync-options-toggle {
+  min-width: 24px;
+  padding-inline: 5px;
+  border-left-color: rgba(148, 163, 184, 0.18);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.toolbar-sync-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 36;
+  min-width: 152px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  box-shadow: var(--shadow-soft);
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s linear var(--motion-med);
+}
+
+.toolbar-sync.is-open .toolbar-sync-popover {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s;
+}
+
+.toolbar-sync-option {
+  min-height: 26px;
+  align-items: center;
+  white-space: nowrap;
+}
+
 .toolbar-more-toggle {
   min-width: 76px;
 }

@@ -21,6 +21,7 @@ export function bindHistogramDragInteractions({
     formatValue,
     redraw,
     scheduleHistogram,
+    handleContrastChanged,
     histogramValueToX,
     histogramXToValue,
     getHistTooltipPosition,
@@ -54,6 +55,7 @@ export function bindHistogramDragInteractions({
     autoScaleToggle.checked = false;
     redraw();
     scheduleHistogram();
+    handleContrastChanged?.("levels");
   }
 
   function flushHistogramDragFrame() {

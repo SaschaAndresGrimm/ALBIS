@@ -32,6 +32,7 @@ export function createRoiInteractionController({
     syncOverlayCanvas,
     updateRoiCenterInputs,
     updateRoiStats,
+    handleRoiChanged,
   } = callbacks;
 
   let roiOverlayScheduled = false;
@@ -327,6 +328,7 @@ export function createRoiInteractionController({
     roiState.active = true;
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   }
 
   function stopRoiEdit(event) {
@@ -341,6 +343,7 @@ export function createRoiInteractionController({
     }
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   }
 
   function drawRoiHandles(ctx, x0, y0, x1, y1, zoom, canvasWidth, canvasHeight) {

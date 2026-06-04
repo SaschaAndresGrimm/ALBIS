@@ -128,8 +128,8 @@ function createViewerSyncState() {
     enabled: false,
     group: "default",
     viewport: true,
-    contrast: false,
-    roi: false,
+    contrast: true,
+    roi: true,
   };
 }
 

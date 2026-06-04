@@ -30,6 +30,7 @@ export function bindViewportInteractions({
     setPanelWidth,
     redraw,
     scheduleHistogram,
+    handleContrastChanged,
     deferViewportInteraction,
     normalizeWheelDelta,
     queueWheelZoom,
@@ -60,6 +61,7 @@ export function bindViewportInteractions({
     getRoiDragging,
     setRoiDragging,
     scheduleRoiUpdate,
+    handleRoiChanged,
     formatValue,
     snapHistogramValue,
   } = callbacks;
@@ -177,6 +179,7 @@ export function bindViewportInteractions({
     if (maxInput) maxInput.value = formatValue(state.max);
     redraw();
     scheduleHistogram();
+    handleContrastChanged?.("windowing");
   }
 
   function stopRoi(event) {
@@ -188,6 +191,7 @@ export function bindViewportInteractions({
     }
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   }
 
   function updateRoiDrag(point) {
@@ -209,6 +213,7 @@ export function bindViewportInteractions({
     }
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   }
 
   panelResizer?.addEventListener("mousedown", (event) => {
@@ -367,6 +372,7 @@ export function bindViewportInteractions({
       event.preventDefault();
       scheduleRoiOverlay();
       scheduleRoiUpdate();
+      handleRoiChanged?.("roi");
       return;
     }
 

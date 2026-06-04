@@ -90,6 +90,7 @@ export function createHelpTooltipController({
       "toolbar-more-panel-toggle": "hint.toolbar.toggle_side_menu",
       "toolbar-more-fullscreen": "hint.toolbar.fullscreen",
       "viewer-sync-toggle": "hint.toolbar.viewer_sync",
+      "viewer-sync-options-toggle": "hint.toolbar.viewer_sync_options",
       "frame-step": "hint.frame.step",
       "fps-select": "hint.frame.fps",
       "toolbar-more-step": "hint.frame.step",

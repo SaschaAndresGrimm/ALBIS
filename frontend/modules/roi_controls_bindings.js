@@ -39,6 +39,7 @@ export function bindRoiControlInteractions({
     updateRoiModeUI,
     scheduleRoiOverlay,
     scheduleRoiUpdate,
+    handleRoiChanged,
     clearRoi,
     setStatus,
     exportRoiCsv,
@@ -68,6 +69,7 @@ export function bindRoiControlInteractions({
     updateRoiModeUI();
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   });
 
   roiModeSelect?.addEventListener("change", () => {
@@ -79,6 +81,7 @@ export function bindRoiControlInteractions({
     roiState.active = Boolean(roiState.start && roiState.end);
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   });
 
   roiHistogramToggle?.addEventListener("change", () => {
@@ -108,6 +111,7 @@ export function bindRoiControlInteractions({
 
   roiClearBtn?.addEventListener("click", () => {
     clearRoi();
+    handleRoiChanged?.("roi");
     setStatus(t("status.roi.cleared"));
   });
 
@@ -134,6 +138,7 @@ export function bindRoiControlInteractions({
     updateRoiCenterInputs();
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   });
 
   roiInnerInput?.addEventListener("change", () => {
@@ -156,6 +161,7 @@ export function bindRoiControlInteractions({
     updateRoiCenterInputs();
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   });
 
   roiOuterInput?.addEventListener("change", () => {
@@ -181,6 +187,7 @@ export function bindRoiControlInteractions({
     updateRoiCenterInputs();
     scheduleRoiOverlay();
     scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
   });
 
   [roiCenterXInput, roiCenterYInput].forEach((input) => {
@@ -207,6 +214,7 @@ export function bindRoiControlInteractions({
       updateRoiCenterInputs();
       scheduleRoiOverlay();
       scheduleRoiUpdate();
+      handleRoiChanged?.("roi");
     });
   });
 }

@@ -144,7 +144,13 @@ const toolbarMoreThresholdField = document.getElementById("toolbar-more-threshol
 const toolbarMoreThreshold = document.getElementById("toolbar-more-threshold");
 const toolbarMorePanelToggle = document.getElementById("toolbar-more-panel-toggle");
 const toolbarMoreFullscreen = document.getElementById("toolbar-more-fullscreen");
+const viewerSyncWrap = document.getElementById("viewer-sync-wrap");
 const viewerSyncToggle = document.getElementById("viewer-sync-toggle");
+const viewerSyncOptionsToggle = document.getElementById("viewer-sync-options-toggle");
+const viewerSyncPopover = document.getElementById("viewer-sync-popover");
+const viewerSyncPositionToggle = document.getElementById("viewer-sync-position");
+const viewerSyncContrastToggle = document.getElementById("viewer-sync-contrast");
+const viewerSyncRoiToggle = document.getElementById("viewer-sync-roi");
 const frameRange = document.getElementById("frame-range");
 const frameIndex = document.getElementById("frame-index");
 const frameStep = document.getElementById("frame-step");
@@ -1190,6 +1196,7 @@ const roiInteractionController = createRoiInteractionController({
     syncOverlayCanvas,
     updateRoiCenterInputs,
     updateRoiStats,
+    handleRoiChanged,
   },
 });
 
@@ -3398,8 +3405,15 @@ overviewViewportController = createOverviewViewportController({
 
 viewerSyncController = createViewerSyncController({
   state,
+  roiState,
   elements: {
+    syncWrap: viewerSyncWrap,
     syncToggle: viewerSyncToggle,
+    syncOptionsToggle: viewerSyncOptionsToggle,
+    syncPopover: viewerSyncPopover,
+    syncViewportToggle: viewerSyncPositionToggle,
+    syncContrastToggle: viewerSyncContrastToggle,
+    syncRoiToggle: viewerSyncRoiToggle,
     canvasWrap,
   },
   callbacks: {
@@ -3408,6 +3422,8 @@ viewerSyncController = createViewerSyncController({
     getEffectiveScrollTop,
     setZoom,
     setEffectiveScroll,
+    applySyncedContrast,
+    applySyncedRoi,
   },
 });
 
@@ -3519,6 +3535,97 @@ function drawHistogram(hist) {
 
 function clearHistogram() {
   histogramRenderController.clearHistogram();
+}
+
+const SYNC_ROI_MODES = new Set(["line", "box", "circle", "annulus"]);
+
+function hasSelectOption(select, value) {
+  if (!select || !value) return false;
+  return Array.from(select.options || []).some((option) => option.value === value);
+}
+
+function applySyncedContrast(payload) {
+  if (!state.hasFrame || !payload || typeof payload !== "object") return false;
+  const min = Number(payload.min);
+  const max = Number(payload.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max < min) return false;
+
+  state.autoScale = Boolean(payload.autoScale);
+  state.min = min;
+  state.max = max;
+  state.invert = Boolean(payload.invert);
+  const colormap = typeof payload.colormap === "string" ? payload.colormap : "";
+  if (colormap && hasSelectOption(colormapSelect, colormap)) {
+    state.colormap = colormap;
+    colormapSelect.value = colormap;
+  }
+  if (autoScaleToggle) autoScaleToggle.checked = state.autoScale;
+  if (minInput) minInput.value = formatValue(state.min);
+  if (maxInput) maxInput.value = formatValue(state.max);
+  if (invertToggle) invertToggle.checked = state.invert;
+  redraw();
+  scheduleHistogram();
+  return true;
+}
+
+function cloneSyncedRoiPoint(point) {
+  const x = Number(point?.x);
+  const y = Number(point?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
+}
+
+function applySyncedRoi(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  const mode = SYNC_ROI_MODES.has(payload.mode) ? payload.mode : "line";
+  const active = Boolean(payload.active);
+  const start = active ? cloneSyncedRoiPoint(payload.start) : null;
+  const end = active ? cloneSyncedRoiPoint(payload.end) : null;
+  if (active && (!start || !end)) return false;
+
+  const outerRadius = Math.max(0, Math.round(Number(payload.outerRadius) || 0));
+  const innerRadius = Math.min(
+    outerRadius,
+    Math.max(0, Math.round(Number(payload.innerRadius) || 0)),
+  );
+  roiState.enabled = payload.enabled !== false;
+  roiState.mode = mode;
+  roiState.active = active;
+  roiState.start = start;
+  roiState.end = end;
+  roiState.outerRadius = outerRadius;
+  roiState.innerRadius = mode === "circle" ? 0 : innerRadius;
+  roiState.stats = null;
+  roiState.lineProfile = null;
+  roiState.xProjection = null;
+  roiState.yProjection = null;
+  roiState.histogramDistribution = null;
+
+  if (roiEnableToggle) roiEnableToggle.checked = roiState.enabled;
+  if (roiModeSelect) roiModeSelect.value = roiState.mode;
+  updateRoiModeUI();
+  if (roiState.mode === "circle") {
+    if (roiRadiusInput) roiRadiusInput.value = active ? String(outerRadius) : "";
+  } else if (roiState.mode === "annulus") {
+    if (roiInnerInput) roiInnerInput.value = active ? String(roiState.innerRadius) : "";
+    if (roiOuterInput) roiOuterInput.value = active ? String(outerRadius) : "";
+  } else {
+    if (roiRadiusInput) roiRadiusInput.value = "";
+    if (roiInnerInput) roiInnerInput.value = "";
+    if (roiOuterInput) roiOuterInput.value = "";
+  }
+  updateRoiCenterInputs();
+  scheduleRoiOverlay();
+  scheduleRoiUpdate();
+  return true;
+}
+
+function handleContrastChanged(reason = "change") {
+  viewerSyncController?.handleContrastChanged(reason);
+}
+
+function handleRoiChanged(reason = "change") {
+  viewerSyncController?.handleRoiChanged(reason);
 }
 
 const roiStatsController = createRoiStatsController({
@@ -3965,10 +4072,12 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   handleLocalFileSelection,
   redraw,
   scheduleHistogram,
+  handleContrastChanged,
   computeAutoLevels,
   formatValue,
   updateGlobalStats,
   scheduleRoiUpdate,
+  handleRoiChanged,
   redrawRoiPlots,
   schedulePeakFinder,
   chooseHistogramBins,
