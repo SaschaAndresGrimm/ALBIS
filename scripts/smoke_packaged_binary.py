@@ -21,12 +21,18 @@ def _find_free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+# The backend is always reached over loopback, so a proxy must never be
+# consulted. A dedicated no-proxy opener also avoids the slow system proxy
+# auto-detection urllib performs on macOS, which can stall localhost requests.
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def _wait_for_health(url: str, timeout_sec: float) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     last_error: Exception | None = None
     while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen(url, timeout=1.5) as response:
+            with _OPENER.open(url, timeout=1.5) as response:
                 if response.status == 200:
                     payload = json.load(response)
                     return payload if isinstance(payload, dict) else {}
@@ -40,7 +46,7 @@ def _wait_for_health(url: str, timeout_sec: float) -> dict[str, object]:
 def _assert_http_asset(
     url: str, *, expected_content_type_substring: str, timeout_sec: float
 ) -> None:
-    with urllib.request.urlopen(url, timeout=timeout_sec) as response:
+    with _OPENER.open(url, timeout=timeout_sec) as response:
         if response.status != 200:
             raise RuntimeError(f"Unexpected HTTP status {response.status} for {url}")
         content_type = response.headers.get("Content-Type", "")

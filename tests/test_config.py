@@ -116,7 +116,9 @@ def test_resolve_log_dir_defaults_to_user_config_logs_for_frozen(
 ) -> None:
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("HOME", str(home))
+    # Patch Path.home() directly: the HOME env var is ignored by Path.home() on
+    # Windows (it uses USERPROFILE), so monkeypatching the env is not portable.
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     config = normalize_config({"logging": {"dir": ""}})
     config_path = tmp_path / "albis.config.json"
