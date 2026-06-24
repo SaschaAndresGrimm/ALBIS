@@ -1,4 +1,4 @@
-# ALBIS (**A**I-engineered, **L**ocal, **B**rowser-based **I**mage viewer for **S**ynchrotron data)
+# ALBIS (**A** **L**ocal, **B**rowser-based **I**mage viewer for **S**ynchrotron data)
 ![ALBIS screenshot](frontend/ressources/albis.png)
 
 ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stacks and other common DECTRIS camera formats. It is platform‑independent, free, and open source.
