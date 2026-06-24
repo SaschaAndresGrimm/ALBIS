@@ -4,6 +4,7 @@ import gzip
 import importlib.util
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 import h5py
@@ -308,6 +309,9 @@ def test_packaged_binary_smoke_harness_with_dummy_server(tmp_path: Path) -> None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
+    debug_log = Path(tempfile.gettempdir()) / "albis_dummy_server.log"
+    debug_log.unlink(missing_ok=True)
+
     server_source = """\
 import json
 import os
@@ -315,58 +319,74 @@ import signal
 import tempfile
 import threading
 import time
+import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-config = json.loads(Path("albis.config.json").read_text(encoding="utf-8"))
-port = int(config["server"]["port"])
+_DEBUG_LOG = Path(r"__DEBUG_LOG__")
 
-# Move out of the launch cwd so the harness can delete its temp dir even if a
-# wrapper process (Windows .bat) leaves this server briefly orphaned.
-os.chdir(tempfile.gettempdir())
 
-def _watchdog():
-    # Safety net: exit even if no stop signal is delivered (e.g. when launched
-    # through a Windows .bat wrapper that is terminated without us).
-    time.sleep(30)
-    os._exit(0)
+def _main():
+    config = json.loads(Path("albis.config.json").read_text(encoding="utf-8"))
+    port = int(config["server"]["port"])
 
-threading.Thread(target=_watchdog, daemon=True).start()
+    # Move out of the launch cwd so the harness can delete its temp dir even if
+    # a wrapper process (Windows .bat) leaves this server briefly orphaned.
+    os.chdir(tempfile.gettempdir())
 
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == "/api/health":
-            self.send_response(200)
+    def _watchdog():
+        # Exit even if no stop signal is delivered (e.g. when launched through a
+        # Windows .bat wrapper that is terminated without us).
+        time.sleep(30)
+        os._exit(0)
+
+    threading.Thread(target=_watchdog, daemon=True).start()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/api/health":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"{\\"status\\": \\"ok\\", \\"version\\": \\"9.9.9\\"}")
+                return
+            if self.path == "/":
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(b"<!doctype html><html><body>dummy</body></html>")
+                return
+            if self.path == "/app.js":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/javascript; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(b"console.log('dummy albis');")
+                return
+            self.send_response(404)
             self.end_headers()
-            self.wfile.write(b"{\\"status\\": \\"ok\\", \\"version\\": \\"9.9.9\\"}")
+
+        def log_message(self, *args, **kwargs):
             return
-        if self.path == "/":
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(b"<!doctype html><html><body>dummy</body></html>")
-            return
-        if self.path == "/app.js":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/javascript; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(b"console.log('dummy albis');")
-            return
-        self.send_response(404)
-        self.end_headers()
 
-    def log_message(self, *args, **kwargs):
-        return
+    def _stop(*_args):
+        raise SystemExit(0)
 
-def _stop(*_args):
-    raise SystemExit(0)
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
 
-signal.signal(signal.SIGTERM, _stop)
-signal.signal(signal.SIGINT, _stop)
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server.serve_forever()
 
-server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-server.serve_forever()
-"""
+
+try:
+    _main()
+except SystemExit:
+    raise
+except BaseException:
+    _DEBUG_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+    raise
+""".replace(
+        "__DEBUG_LOG__", str(debug_log)
+    )
 
     # smoke_packaged_binary launches the binary directly (no interpreter prefix),
     # so the stand-in must be natively executable on each OS. sys.executable avoids
@@ -386,12 +406,17 @@ server.serve_forever()
         server.write_text(f"#!{sys.executable}\n{server_source}", encoding="utf-8")
         server.chmod(0o755)
 
-    module.run_smoke(
-        server,
-        startup_timeout_sec=5.0,
-        stop_timeout_sec=2.0,
-        expected_version="9.9.9",
-    )
+    try:
+        module.run_smoke(
+            server,
+            startup_timeout_sec=15.0,
+            stop_timeout_sec=2.0,
+            expected_version="9.9.9",
+        )
+    finally:
+        if debug_log.exists():
+            print("dummy smoke server crash log:\n" + debug_log.read_text(encoding="utf-8"))
+            debug_log.unlink(missing_ok=True)
 
 
 def test_native_pickers_return_conflict_when_unavailable(monkeypatch) -> None:
