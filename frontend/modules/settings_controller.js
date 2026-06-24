@@ -3,6 +3,7 @@
  */
 
 import { onLanguageChange, t } from "./i18n.js";
+import { showConfirmDialog } from "./dialogs.js";
 
 export function createSettingsController({
   apiBase,
@@ -111,10 +112,15 @@ export function createSettingsController({
     updateExternalAccessUi();
   }
 
-  function handleExternalAccessToggle() {
+  async function handleExternalAccessToggle() {
     if (!settingsServerExternal) return;
     if (!syncingExternalAccessUi && settingsServerExternal.checked) {
-      const confirmed = window.confirm(t("settings.server.external_confirm"));
+      const confirmed = await showConfirmDialog({
+        title: t("settings.server.external_access"),
+        message: t("settings.server.external_confirm"),
+        confirmLabel: t("common.confirm"),
+        danger: true,
+      });
       if (!confirmed) {
         setExternalAccessChecked(false);
         return;
@@ -323,7 +329,7 @@ export function createSettingsController({
       schedulePixelOverlay();
       updateExternalAccessUi();
       setSettingsMessage(t("settings.message.saved_restart"));
-      setStatus(t("status.settings.saved"));
+      setStatus(t("status.settings.saved"), { tone: "success" });
       if (closeAfter) {
         closeSettingsModal();
       }

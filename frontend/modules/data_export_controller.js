@@ -236,7 +236,7 @@ export function createDataExportController({
         return;
       }
       if (status === "done") {
-        setStatus(t("status.data_export.done", { count: outputs.length }));
+        setStatus(t("status.data_export.done", { count: outputs.length }), { tone: "success" });
       } else if (status === "cancelled") {
         setStatus(t("status.data_export.cancelled"));
       } else if (status === "error") {

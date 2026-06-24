@@ -2,6 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
+const { showConfirmDialogMock } = vi.hoisted(() => ({ showConfirmDialogMock: vi.fn() }));
+vi.mock("../modules/dialogs.js", () => ({
+  showConfirmDialog: showConfirmDialogMock,
+  showPromptDialog: vi.fn(),
+}));
+
 function readLocale(language) {
   const filePath = path.join(process.cwd(), "frontend", "locales", `${language}.json`);
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -144,7 +150,8 @@ async function initializeController({ initialConfig }) {
 
 describe("settings controller external access warning", () => {
   beforeEach(() => {
-    window.confirm = vi.fn(() => true);
+    showConfirmDialogMock.mockReset();
+    showConfirmDialogMock.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -176,14 +183,19 @@ describe("settings controller external access warning", () => {
     toggle.checked = true;
     toggle.dispatchEvent(new Event("change", { bubbles: true }));
 
-    expect(window.confirm).toHaveBeenCalledWith(locale["settings.server.external_confirm"]);
-    expect(label?.textContent).toBe(locale["settings.server.external_access_enabled"]);
+    await vi.waitFor(() => expect(showConfirmDialogMock).toHaveBeenCalled());
+    expect(showConfirmDialogMock.mock.calls[0][0]).toMatchObject({
+      message: locale["settings.server.external_confirm"],
+    });
+    await vi.waitFor(() =>
+      expect(label?.textContent).toBe(locale["settings.server.external_access_enabled"]),
+    );
     expect(warning?.textContent).toBe(locale["settings.server.external_warning"]);
     expect(warning?.classList.contains("is-hidden")).toBe(false);
   });
 
   it("reverts the toggle when the confirmation is declined and preserves local-only save output", async () => {
-    window.confirm = vi.fn(() => false);
+    showConfirmDialogMock.mockResolvedValue(false);
     const { controller, savedConfigs, locale } = await initializeController({
       initialConfig: {
         server: { host: "127.0.0.1", port: 8000, reload: false },
@@ -203,7 +215,7 @@ describe("settings controller external access warning", () => {
     toggle.checked = true;
     toggle.dispatchEvent(new Event("change", { bubbles: true }));
 
-    expect(toggle.checked).toBe(false);
+    await vi.waitFor(() => expect(toggle.checked).toBe(false));
     expect(label?.textContent).toBe(locale["settings.server.external_access"]);
     expect(warning?.classList.contains("is-hidden")).toBe(true);
 

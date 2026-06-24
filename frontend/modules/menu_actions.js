@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { showPromptDialog } from "./dialogs.js";
 
 export function createMenuActionHandler({
   state,
@@ -61,7 +62,12 @@ export function createMenuActionHandler({
       case "save-full": {
         const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
         const suggested = `${base}_frame_${state.frameIndex + 1}.png`;
-        const name = window.prompt(t("menu.prompt.save_as_full"), suggested);
+        const name = await showPromptDialog({
+          title: t("menu.file.save_as"),
+          message: t("menu.prompt.save_as_full"),
+          defaultValue: suggested,
+          confirmLabel: t("common.save"),
+        });
         if (name) {
           exportFullImage(name);
         }
@@ -70,7 +76,12 @@ export function createMenuActionHandler({
       case "save-visible": {
         const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
         const suggested = `${base}_view_${state.frameIndex + 1}.png`;
-        const name = window.prompt(t("menu.prompt.save_as_visible"), suggested);
+        const name = await showPromptDialog({
+          title: t("menu.file.save_as"),
+          message: t("menu.prompt.save_as_visible"),
+          defaultValue: suggested,
+          confirmLabel: t("common.save"),
+        });
         if (name) {
           exportVisibleArea(name);
         }
@@ -78,7 +89,12 @@ export function createMenuActionHandler({
       }
       case "save-window": {
         const suggested = `albis_view_${state.frameIndex + 1}.png`;
-        const name = window.prompt(t("menu.prompt.save_as_window"), suggested);
+        const name = await showPromptDialog({
+          title: t("menu.file.save_as"),
+          message: t("menu.prompt.save_as_window"),
+          defaultValue: suggested,
+          confirmLabel: t("common.save"),
+        });
         if (name) {
           exportViewerWindow(name);
         }

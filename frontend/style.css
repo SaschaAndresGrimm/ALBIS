@@ -3828,6 +3828,17 @@ body.platform-windows select option:disabled {
   border-color: rgba(150, 205, 255, 0.95);
 }
 
+.btn-danger {
+  background: linear-gradient(to bottom, #e06b6b, #c23f3f);
+  border-color: rgba(224, 93, 93, 0.9);
+  color: #2a0c0c;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(to bottom, #e98080, #d04f4f);
+  border-color: rgba(240, 130, 130, 0.95);
+}
+
 .btn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -5665,4 +5676,56 @@ body.platform-windows select option:disabled {
     bottom: 16px;
     width: auto;
   }
+}
+
+/* Promise-based prompt/confirm dialogs ------------------------------------- */
+.dialog-modal {
+  z-index: 1500;
+}
+
+.dialog-card {
+  width: min(420px, 92vw);
+}
+
+.dialog-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.dialog-message {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.dialog-input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-0);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.dialog-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
 }

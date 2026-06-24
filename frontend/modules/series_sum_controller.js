@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { showConfirmDialog } from "./dialogs.js";
 
 export function createSeriesSumController({
   apiBase,
@@ -380,7 +381,7 @@ export function createSeriesSumController({
       }
       if (status === "done") {
         const count = state.seriesSum.outputs.length;
-        setStatus(t("status.series.done", { count }));
+        setStatus(t("status.series.done", { count }), { tone: "success" });
       } else if (status === "cancelled") {
         setStatus(t("status.series.cancelled"));
       } else if (status === "error") {
@@ -504,14 +505,12 @@ export function createSeriesSumController({
     }
     const medianEstimate = buildMedianEstimate();
     if (medianEstimate?.requiresConfirm) {
-      const proceed = window.confirm(
-        [
-          t("series.confirm.memory_title"),
-          medianEstimate.message,
-          "",
-          t("series.confirm.continue"),
-        ].join("\n")
-      );
+      const proceed = await showConfirmDialog({
+        title: t("series.confirm.memory_title"),
+        message: [medianEstimate.message, "", t("series.confirm.continue")].join("\n"),
+        confirmLabel: t("common.confirm"),
+        danger: true,
+      });
       if (!proceed) {
         setStatus(t("status.series.cancelled_before_start"));
         return;

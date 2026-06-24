@@ -907,7 +907,7 @@ function exportRoiCsv() {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  setStatus(t("status.roi.exported_csv", { filename: payload.filename }));
+  setStatus(t("status.roi.exported_csv", { filename: payload.filename }), { tone: "success" });
 }
 
   return {

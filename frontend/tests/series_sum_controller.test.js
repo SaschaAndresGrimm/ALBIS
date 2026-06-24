@@ -187,7 +187,7 @@ describe("series_sum_controller", () => {
     await controller.openSeriesSumOutputTarget();
 
     expect(callbacks.loadAutoloadFile).toHaveBeenCalledWith("output/series_sum.h5");
-    expect(callbacks.setStatus).toHaveBeenCalledWith("Failed to open output");
-    expect(callbacks.setStatus).not.toHaveBeenCalledWith("Opened output");
+    expect(callbacks.setStatus).toHaveBeenCalledWith("Failed to open output", { tone: "error" });
+    expect(callbacks.setStatus).not.toHaveBeenCalledWith("Opened output", { tone: "success" });
   });
 });
