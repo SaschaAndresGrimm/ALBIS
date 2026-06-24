@@ -1325,22 +1325,22 @@
       <div class="modal-backdrop"></div>
       <div class="modal-card about-modal-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
         <div class="modal-header">
-          <div id="about-title">About ALBIS — ALBIS WEB VIEW</div>
-          <button class="modal-close" id="about-close">✕</button>
+          <div id="about-title" data-i18n="about.title">About ALBIS</div>
+          <button class="modal-close" id="about-close" data-i18n-aria-label="common.close" aria-label="Close">✕</button>
         </div>
         <div class="modal-body about-modal-body">
           <img class="about-logo" src="assets/icon_512x512.png" alt="ALBIS logo" />
-          <p class="about-lead">
-            ALBIS WEB VIEW is a canvas-first image viewer for fast exploration of HDF5 stacks and other detector frames.
+          <p class="about-lead" data-i18n="about.lead">
+            ALBIS is a canvas-first image viewer for fast exploration of HDF5 stacks and other detector frames.
           </p>
           <p id="about-version" class="about-version">Version -</p>
           <div class="about-facts">
-            <div class="about-fact"><span>Author</span><strong>Sascha Grimm</strong></div>
-            <div class="about-fact"><span>Rendering</span><strong>WebGL2 + CPU fallback</strong></div>
-            <div class="about-fact"><span>Focus</span><strong>Interactive analysis and overlays</strong></div>
-            <div class="about-fact"><span>Formats</span><strong>HDF5, TIFF, CBF, EDF</strong></div>
+            <div class="about-fact"><span data-i18n="about.fact.author">Author</span><strong>Sascha Grimm</strong></div>
+            <div class="about-fact"><span data-i18n="about.fact.rendering">Rendering</span><strong>WebGL2 + CPU fallback</strong></div>
+            <div class="about-fact"><span data-i18n="about.fact.focus">Focus</span><strong data-i18n="about.fact.focus_value">Interactive analysis and overlays</strong></div>
+            <div class="about-fact"><span data-i18n="about.fact.formats">Formats</span><strong>HDF5, TIFF, CBF, EDF</strong></div>
           </div>
-          <a class="about-repo-link" href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">
+          <a class="about-repo-link" href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener" data-i18n="about.repo_link">
             Open ALBIS on GitHub
           </a>
         </div>
