@@ -316,12 +316,18 @@ def test_packaged_binary_smoke_harness_with_dummy_server(tmp_path: Path) -> None
 import json
 import os
 import signal
+import socket
 import tempfile
 import threading
 import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+# HTTPServer.server_bind() calls socket.getfqdn(host), a reverse-DNS lookup that
+# can block for many seconds on macOS CI runners, delaying listen() so the
+# harness times out connecting. The resolved name is unused here, so stub it.
+socket.getfqdn = lambda *_args: "localhost"
 
 _DEBUG_LOG = Path(r"__DEBUG_LOG__")
 
