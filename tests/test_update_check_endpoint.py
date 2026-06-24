@@ -1,9 +1,20 @@
 from __future__ import annotations
 
+import ssl
+
 from fastapi.testclient import TestClient
 
 from backend.app import app, update_check_service
-from backend.services.update_check import RELEASES_PAGE_URL, ReleaseMetadata
+from backend.services.update_check import RELEASES_PAGE_URL, ReleaseMetadata, _ssl_context
+
+
+def test_ssl_context_uses_verifying_certifi_bundle() -> None:
+    # Packaged builds have no system trust store, so the GitHub update check must
+    # verify against certifi's CA bundle rather than failing the TLS handshake.
+    context = _ssl_context()
+    assert isinstance(context, ssl.SSLContext)
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname is True
 
 
 def _request_update_check() -> dict[str, str]:

@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+import ssl
 import threading
 import time
 import urllib.request
 from dataclasses import dataclass
 from logging import Logger
 from urllib.error import URLError
+
+try:
+    import certifi
+except ImportError:  # pragma: no cover - certifi is a declared dependency
+    certifi = None
 
 try:
     from ..api_models import UpdateCheckResponse
@@ -19,6 +25,22 @@ LATEST_RELEASE_API_URL = "https://api.github.com/repos/SaschaAndresGrimm/ALBIS/r
 RELEASES_PAGE_URL = "https://github.com/SaschaAndresGrimm/ALBIS/releases"
 REQUEST_TIMEOUT_SECONDS = 3.0
 CACHE_TTL_SECONDS = 300.0
+
+
+def _ssl_context() -> ssl.SSLContext | None:
+    """Return an SSL context backed by the certifi CA bundle.
+
+    Packaged (PyInstaller) builds ship their own Python without access to the
+    system trust store, so HTTPS to api.github.com fails with
+    CERTIFICATE_VERIFY_FAILED unless we point verification at certifi's bundle.
+    Falls back to the default context when certifi is unavailable.
+    """
+    if certifi is not None:
+        try:
+            return ssl.create_default_context(cafile=certifi.where())
+        except Exception:  # pragma: no cover - defensive fallback
+            return None
+    return None
 
 
 @dataclass(frozen=True)
@@ -184,7 +206,9 @@ class ReleaseCheckService:
                 "User-Agent": f"ALBIS/{self.current_version}",
             },
         )
-        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(
+            request, timeout=REQUEST_TIMEOUT_SECONDS, context=_ssl_context()
+        ) as response:
             payload = json.load(response)
 
         if not isinstance(payload, dict):

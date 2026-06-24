@@ -112,6 +112,13 @@ datas += collected_datas
 binaries += collected_binaries
 hiddenimports += collected_hiddenimports
 
+# Bundle certifi's CA bundle so HTTPS (e.g. the GitHub update check) verifies in
+# the packaged app, which otherwise has no system trust store.
+certifi_datas, certifi_binaries, certifi_hiddenimports = collect_all("certifi")
+datas += certifi_datas
+binaries += certifi_binaries
+hiddenimports += certifi_hiddenimports
+
 a = Analysis(
     ["albis_launcher.py"],
     pathex=[os.path.abspath(".")],

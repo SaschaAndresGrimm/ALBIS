@@ -9,4 +9,5 @@ fabio==2025.10.0
 cbor2==6.1.2
 pyzmq==27.1.0
 dectris-compression==0.3.1
+certifi==2026.1.4
 pyobjc==12.2.1; sys_platform == "darwin"
