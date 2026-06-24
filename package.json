@@ -1,7 +1,7 @@
 {
   "name": "albis-web-view",
   "private": true,
-  "version": "0.9.14",
+  "version": "0.9.15",
   "description": "ALBIS - Fast image viewer for DECTRIS detectors",
   "author": "Sascha Andres Grimm",
   "license": "SEE LICENSE IN LICENSE",

@@ -7,6 +7,31 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.15] - 2026-06-24
+
+### Added
+
+- Added a toast notification system so failures, warnings, and completion confirmations are surfaced to the user instead of only updating the footer status pill.
+- Added a native Save As dialog using the File System Access API, with real folder selection and overwrite confirmation (falls back to a filename-only download on browsers without the API).
+- Added promise-based in-app modal prompt/confirm dialogs that replace the native browser `prompt()`/`confirm()` boxes.
+- Added a frontend architecture section to the Developer Guide (layered mental model, wiring patterns, and a worked example) for new contributors.
+
+### Changed
+
+- Consolidated the File menu into a single Save As submenu (Full Image / Visible Area / Viewer Window) plus a top-level Convert Dataset action, removing the redundant Export submenu.
+- Localized the About dialog and remaining input placeholders, and simplified the page and About titles.
+- Renamed the ALBIS backronym to drop "AI-engineered".
+
+### Fixed
+
+- Fixed the misleading Save As path field: browser downloads always discarded the typed directory, so Save As now opens a real native save dialog where the chosen folder is honored.
+- Fixed a backend type annotation (`logger: any` -> `Any`) and added tooltips explaining when the mask toggles are disabled.
+
+### Notes
+
+- ALBIS `0.9.15` is the polish-and-feedback release: the app now talks back, Save As can actually pick a folder, and the menus stopped doing the same job twice.
+- This release is called: "The App Finally Talks Back."
+
 ## [0.9.14] - 2026-06-04
 
 ### Added
@@ -477,6 +502,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
 [Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.14...HEAD
+[0.9.15]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.11...v0.9.12
