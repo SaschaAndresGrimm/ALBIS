@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Seriebillede indlæst",
   "status.export.viewer_failed": "Eksport af seer mislykkedes",
   "status.export.viewer_unavailable": "Seer-eksport er ikke tilgængelig",
+  "status.export.saved": "{{filename}} gemt",
+  "status.export.save_failed": "Billedet kunne ikke gemmes",
   "status.file.no_file_loaded": "Ingen fil indlæst",
   "status.file.no_selection": "Ingen fil valgt",
   "status.file.select_image_first": "Vælg først en billedfil",

@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Imagen de serie cargada",
   "status.export.viewer_failed": "Error al exportar el visor",
   "status.export.viewer_unavailable": "Exportación del visor no disponible",
+  "status.export.saved": "{{filename}} guardado",
+  "status.export.save_failed": "No se pudo guardar la imagen",
   "status.file.no_file_loaded": "Ningún archivo cargado",
   "status.file.no_selection": "Ningún archivo seleccionado",
   "status.file.select_image_first": "Seleccione un archivo de imagen primero",

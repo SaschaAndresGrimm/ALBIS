@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "序列图像已加载",
   "status.export.viewer_failed": "查看器导出失败",
   "status.export.viewer_unavailable": "查看器导出不可用",
+  "status.export.saved": "已保存 {{filename}}",
+  "status.export.save_failed": "无法保存图像",
   "status.file.no_file_loaded": "未加载文件",
   "status.file.no_selection": "未选择文件",
   "status.file.select_image_first": "请先选择图像文件",

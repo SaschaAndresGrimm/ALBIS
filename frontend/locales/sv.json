@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Seriebild har laddats",
   "status.export.viewer_failed": "Visarexport misslyckades",
   "status.export.viewer_unavailable": "Tittarexport är inte tillgänglig",
+  "status.export.saved": "{{filename}} sparad",
+  "status.export.save_failed": "Det gick inte att spara bilden",
   "status.file.no_file_loaded": "Ingen fil laddad",
   "status.file.no_selection": "Ingen fil har valts",
   "status.file.select_image_first": "Välj en bildfil först",

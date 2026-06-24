@@ -2,11 +2,7 @@
  * Menu action dispatcher.
  */
 
-import { t } from "./i18n.js";
-import { showPromptDialog } from "./dialogs.js";
-
 export function createMenuActionHandler({
-  state,
   callbacks,
 }) {
   const {
@@ -59,47 +55,15 @@ export function createMenuActionHandler({
       case "export-data":
         openDataExportDialog();
         break;
-      case "save-full": {
-        const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
-        const suggested = `${base}_frame_${state.frameIndex + 1}.png`;
-        const name = await showPromptDialog({
-          title: t("menu.file.save_as"),
-          message: t("menu.prompt.save_as_full"),
-          defaultValue: suggested,
-          confirmLabel: t("common.save"),
-        });
-        if (name) {
-          exportFullImage(name);
-        }
+      case "save-full":
+        await exportFullImage({ saveAs: true });
         break;
-      }
-      case "save-visible": {
-        const base = state.file ? state.file.replace(/\.[^.]+$/, "") : "frame";
-        const suggested = `${base}_view_${state.frameIndex + 1}.png`;
-        const name = await showPromptDialog({
-          title: t("menu.file.save_as"),
-          message: t("menu.prompt.save_as_visible"),
-          defaultValue: suggested,
-          confirmLabel: t("common.save"),
-        });
-        if (name) {
-          exportVisibleArea(name);
-        }
+      case "save-visible":
+        await exportVisibleArea({ saveAs: true });
         break;
-      }
-      case "save-window": {
-        const suggested = `albis_view_${state.frameIndex + 1}.png`;
-        const name = await showPromptDialog({
-          title: t("menu.file.save_as"),
-          message: t("menu.prompt.save_as_window"),
-          defaultValue: suggested,
-          confirmLabel: t("common.save"),
-        });
-        if (name) {
-          exportViewerWindow(name);
-        }
+      case "save-window":
+        await exportViewerWindow({ saveAs: true });
         break;
-      }
       case "export-full":
         exportFullImage();
         break;

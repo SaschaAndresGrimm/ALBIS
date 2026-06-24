@@ -3,7 +3,10 @@
  */
 
 import { t } from "./i18n.js";
+import { showPromptDialog } from "./dialogs.js";
 import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
+
+const SAVE_FILE_TYPES = [{ accept: { "image/png": [".png"] } }];
 
 const SPLASH_STATUS_TERMINAL_KEYS = new Set([
   "backend.splash.ready",
@@ -51,6 +54,65 @@ export function createExportSplashController({
       a.click();
       URL.revokeObjectURL(a.href);
     });
+  }
+
+  function canvasToBlob(canvas) {
+    return new Promise((resolve) => {
+      try {
+        canvas.toBlob((blob) => resolve(blob));
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+
+  function defaultExportName(kind) {
+    const raw = state.file ? String(state.file) : "";
+    const base = raw ? raw.replace(/.*[\\/]/, "").replace(/\.[^.]+$/, "") : "frame";
+    const frame = (Number(state.frameIndex) || 0) + 1;
+    if (kind === "view") return `${base}_view_${frame}.png`;
+    if (kind === "window") return `albis_view_${frame}.png`;
+    return `${base}_frame_${frame}.png`;
+  }
+
+  // Save a rendered canvas to a user-chosen location. Prefers the File System
+  // Access API (a real native Save panel with folder navigation); falls back to
+  // a filename-only download for browsers without it. `produceCanvas` is only
+  // invoked once a destination is chosen, and is deferred until after the picker
+  // so the picker call keeps the click's user activation.
+  async function saveCanvasAs(suggestedName, produceCanvas) {
+    if (typeof window.showSaveFilePicker === "function") {
+      let handle;
+      try {
+        handle = await window.showSaveFilePicker({ suggestedName, types: SAVE_FILE_TYPES });
+      } catch (err) {
+        if (err && err.name === "AbortError") return; // user cancelled
+        handle = null; // unsupported context -> fall through to download
+      }
+      if (handle) {
+        try {
+          const canvas = await produceCanvas();
+          const blob = canvas && (await canvasToBlob(canvas));
+          if (!blob) return;
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          setStatus(t("status.export.saved", { filename: handle.name }), { tone: "success" });
+        } catch (err) {
+          console.error(err);
+          setStatus(t("status.export.save_failed"), { tone: "error" });
+        }
+        return;
+      }
+    }
+    const name = await showPromptDialog({
+      title: t("menu.file.save_as"),
+      defaultValue: suggestedName,
+      confirmLabel: t("common.save"),
+    });
+    if (!name) return;
+    const canvas = await produceCanvas();
+    if (canvas) downloadCanvasImage(canvas, name);
   }
 
   function renderRegionToCanvas(region) {
@@ -145,21 +207,28 @@ export function createExportSplashController({
     return { x: startX, y: startY, width, height };
   }
 
-  function exportFullImage(filenameOverride) {
-    if (!state.dataRaw) return;
-    const full = renderRegionToCanvas({ x: 0, y: 0, width: state.width, height: state.height });
-    if (!full) return;
-    const name = filenameOverride || `frame_${state.frameIndex}_full.png`;
-    downloadCanvasImage(full, name);
+  function exportFullImage(options = {}) {
+    if (!state.dataRaw) return undefined;
+    const region = { x: 0, y: 0, width: state.width, height: state.height };
+    const suggested = defaultExportName("full");
+    if (options.saveAs) {
+      return saveCanvasAs(suggested, () => renderRegionToCanvas(region));
+    }
+    const full = renderRegionToCanvas(region);
+    if (full) downloadCanvasImage(full, suggested);
+    return undefined;
   }
 
-  function exportVisibleArea(filenameOverride) {
+  function exportVisibleArea(options = {}) {
     const region = getVisibleRegion();
-    if (!region) return;
+    if (!region) return undefined;
+    const suggested = defaultExportName("view");
+    if (options.saveAs) {
+      return saveCanvasAs(suggested, () => renderRegionToCanvas(region));
+    }
     const image = renderRegionToCanvas(region);
-    if (!image) return;
-    const name = filenameOverride || `frame_${state.frameIndex}_view.png`;
-    downloadCanvasImage(image, name);
+    if (image) downloadCanvasImage(image, suggested);
+    return undefined;
   }
 
   function ensureHtml2Canvas() {
@@ -191,7 +260,7 @@ export function createExportSplashController({
     return html2canvasLoadPromise;
   }
 
-  async function exportViewerWindow(filenameOverride) {
+  async function exportViewerWindow(options = {}) {
     let html2canvasFn;
     try {
       html2canvasFn = await ensureHtml2Canvas();
@@ -202,18 +271,26 @@ export function createExportSplashController({
     }
     const target = document.querySelector(".page");
     if (!target) return;
-    try {
-      const shot = await html2canvasFn(target, {
-        backgroundColor: null,
-        scale: window.devicePixelRatio || 1,
-        useCORS: true,
-      });
-      const name = filenameOverride || `albis_view_${state.frameIndex + 1}.png`;
-      downloadCanvasImage(shot, name);
-    } catch (err) {
-      console.error(err);
-      setStatus(t("status.export.viewer_failed"));
+    const suggested = defaultExportName("window");
+    const produce = async () => {
+      try {
+        return await html2canvasFn(target, {
+          backgroundColor: null,
+          scale: window.devicePixelRatio || 1,
+          useCORS: true,
+        });
+      } catch (err) {
+        console.error(err);
+        setStatus(t("status.export.viewer_failed"));
+        return null;
+      }
+    };
+    if (options.saveAs) {
+      await saveCanvasAs(suggested, produce);
+      return;
     }
+    const shot = await produce();
+    if (shot) downloadCanvasImage(shot, suggested);
   }
 
   function drawGlowDot(ctx, x, y, core, glow, rgb = "255,255,255") {

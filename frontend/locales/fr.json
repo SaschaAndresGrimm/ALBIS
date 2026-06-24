@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Image de série chargée",
   "status.export.viewer_failed": "Échec de l'exportation de la visionneuse",
   "status.export.viewer_unavailable": "Exportation de la visionneuse indisponible",
+  "status.export.saved": "{{filename}} enregistré",
+  "status.export.save_failed": "Impossible d'enregistrer l'image",
   "status.file.no_file_loaded": "Aucun fichier chargé",
   "status.file.no_selection": "Aucun fichier sélectionné",
   "status.file.select_image_first": "Sélectionnez d'abord un fichier image",

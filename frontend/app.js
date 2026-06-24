@@ -2799,16 +2799,16 @@ async function fetchSimplonMask() {
   await maskCursorController.fetchSimplonMask();
 }
 
-function exportFullImage(filenameOverride) {
-  exportSplashController?.exportFullImage(filenameOverride);
+function exportFullImage(options) {
+  return exportSplashController?.exportFullImage(options);
 }
 
-function exportVisibleArea(filenameOverride) {
-  exportSplashController?.exportVisibleArea(filenameOverride);
+function exportVisibleArea(options) {
+  return exportSplashController?.exportVisibleArea(options);
 }
 
-async function exportViewerWindow(filenameOverride) {
-  await exportSplashController?.exportViewerWindow(filenameOverride);
+async function exportViewerWindow(options) {
+  await exportSplashController?.exportViewerWindow(options);
 }
 
 const settingsController = createSettingsController({

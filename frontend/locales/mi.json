@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Kua utaina te ahua raupapa",
   "status.export.viewer_failed": "I rahua te kaweake kaitirotiro",
   "status.export.viewer_unavailable": "Kaore i te waatea te kaweake kaitirotiro",
+  "status.export.saved": "Saved {{filename}}",
+  "status.export.save_failed": "Could not save image",
   "status.file.no_file_loaded": "Kaore he kōnae i utaina",
   "status.file.no_selection": "Karekau he konae i tohua",
   "status.file.select_image_first": "Tīpakohia he kōnae atahanga i te tuatahi",

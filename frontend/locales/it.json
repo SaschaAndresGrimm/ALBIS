@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Immagine della serie caricata",
   "status.export.viewer_failed": "Esportazione del visualizzatore non riuscita",
   "status.export.viewer_unavailable": "Esportazione del visualizzatore non disponibile",
+  "status.export.saved": "{{filename}} salvato",
+  "status.export.save_failed": "Impossibile salvare l'immagine",
   "status.file.no_file_loaded": "Nessun file caricato",
   "status.file.no_selection": "Nessun file selezionato",
   "status.file.select_image_first": "Seleziona prima un file immagine",

@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "シリーズ画像を読み込みました",
   "status.export.viewer_failed": "ビューアーエクスポートに失敗しました",
   "status.export.viewer_unavailable": "ビューアーエクスポートは利用できません",
+  "status.export.saved": "{{filename}} を保存しました",
+  "status.export.save_failed": "画像を保存できませんでした",
   "status.file.no_file_loaded": "ファイルが読み込まれていません",
   "status.file.no_selection": "ファイルが選択されていません",
   "status.file.select_image_first": "先に画像ファイルを選択してください",

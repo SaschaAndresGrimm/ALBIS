@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Maletg da seria chargià",
   "status.export.viewer_failed": "Export dal visualisader betg reussì",
   "status.export.viewer_unavailable": "Export dal visualisader betg disponibel",
+  "status.export.saved": "Saved {{filename}}",
+  "status.export.save_failed": "Could not save image",
   "status.file.no_file_loaded": "Nagina datoteca chargiada",
   "status.file.no_selection": "Nagina tscherna",
   "status.file.select_image_first": "Tscherna l'emprim ina datoteca d'imaginesziun",

@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Serie-Bild glade",
   "status.export.viewer_failed": "Viewer-Export het nit glunge",
   "status.export.viewer_unavailable": "Viewer-Export nit verfiegbar",
+  "status.export.saved": "{{filename}} gspeicheret",
+  "status.export.save_failed": "S Bild het nöd chönne gspeicheret werde",
   "status.file.no_file_loaded": "Kei Datei glade",
   "status.file.no_selection": "Kei Uuswahl",
   "status.file.select_image_first": "Wähl zerscht e Bilddatei us",

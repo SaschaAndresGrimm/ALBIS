@@ -594,6 +594,8 @@
   "status.data.series_image_loaded": "Series image loaded",
   "status.export.viewer_failed": "Viewer export failed",
   "status.export.viewer_unavailable": "Viewer export unavailable",
+  "status.export.saved": "Saved {{filename}}",
+  "status.export.save_failed": "Could not save image",
   "status.file.no_file_loaded": "No file loaded",
   "status.file.no_selection": "No file selected",
   "status.file.select_image_first": "Select an image file first",
