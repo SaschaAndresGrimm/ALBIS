@@ -173,7 +173,7 @@ export function createFileDataPipelineController({
     try {
       const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`);
       if (!res.ok) {
-        setStatus(t("status.data.failed_load_image"));
+        setStatus(t("status.data.failed_load_image"), { tone: "error" });
         return false;
       }
       const buffer = await res.arrayBuffer();
@@ -190,7 +190,7 @@ export function createFileDataPipelineController({
       setStatus(t("status.frame.position", { current: 1, total: 1 }), { frameStatus: true });
     } catch (err) {
       console.error(err);
-      setStatus(t("status.data.failed_load_image"));
+      setStatus(t("status.data.failed_load_image"), { tone: "error" });
     } finally {
       setLoading(false);
     }
@@ -240,7 +240,7 @@ export function createFileDataPipelineController({
       }
     } catch (err) {
       console.error(err);
-      setStatus(t("status.data.failed_scan_datasets"));
+      setStatus(t("status.data.failed_scan_datasets"), { tone: "error" });
       showSplash();
       setSplashStatus("splash.status.dataset_scan_failed");
       setLoading(false);
@@ -275,7 +275,7 @@ export function createFileDataPipelineController({
         cache: "no-store",
       });
       if (!res.ok) {
-        setStatus(t("status.data.failed_load_image"));
+        setStatus(t("status.data.failed_load_image"), { tone: "error" });
         if (!state.hasFrame) {
           showSplash();
         }
@@ -307,7 +307,7 @@ export function createFileDataPipelineController({
     } catch (err) {
       if (err?.name !== "AbortError") {
         console.error(err);
-        setStatus(t("status.data.failed_load_image"));
+        setStatus(t("status.data.failed_load_image"), { tone: "error" });
         if (!state.hasFrame) {
           showSplash();
         }
@@ -345,7 +345,7 @@ export function createFileDataPipelineController({
         cache: "no-store",
       });
       if (!res.ok) {
-        setStatus(t("status.data.failed_load_frame"));
+        setStatus(t("status.data.failed_load_frame"), { tone: "error" });
         if (!state.hasFrame) {
           showSplash();
         }
@@ -368,7 +368,7 @@ export function createFileDataPipelineController({
     } catch (err) {
       if (err?.name !== "AbortError") {
         console.error(err);
-        setStatus(t("status.data.failed_load_frame"));
+        setStatus(t("status.data.failed_load_frame"), { tone: "error" });
         if (!state.hasFrame) {
           showSplash();
         }

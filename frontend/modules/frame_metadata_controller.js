@@ -117,7 +117,7 @@ export function createFrameMetadataController({
       }
     } catch (err) {
       console.error(err);
-      setStatus(t("status.frame.load_files_failed"));
+      setStatus(t("status.frame.load_files_failed"), { tone: "error" });
       setDataSourceSectionState("warning", t("status.files.load_failed"));
     }
   }

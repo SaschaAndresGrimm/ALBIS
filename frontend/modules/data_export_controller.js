@@ -240,7 +240,7 @@ export function createDataExportController({
       } else if (status === "cancelled") {
         setStatus(t("status.data_export.cancelled"));
       } else if (status === "error") {
-        setStatus(t("status.data_export.failed"));
+        setStatus(t("status.data_export.failed"), { tone: "error" });
       }
     } catch (err) {
       console.error(err);
@@ -308,7 +308,7 @@ export function createDataExportController({
       state.dataExport.cancelling = false;
       setProgress(0, t("data_export.progress.start_failed"));
       updateUi();
-      setStatus(t("status.data_export.start_failed"));
+      setStatus(t("status.data_export.start_failed"), { tone: "error" });
     }
   }
 
@@ -335,7 +335,7 @@ export function createDataExportController({
       console.error(err);
       state.dataExport.cancelling = false;
       updateUi();
-      setStatus(t("status.data_export.cancel_failed"));
+      setStatus(t("status.data_export.cancel_failed"), { tone: "error" });
     }
   }
 
@@ -346,7 +346,7 @@ export function createDataExportController({
       await ensureFileMode();
       const loaded = await loadAutoloadFile(target);
       if (!loaded) {
-        setStatus(t("status.data_export.output_open_failed"));
+        setStatus(t("status.data_export.output_open_failed"), { tone: "error" });
         return;
       }
       setStatus(t("status.data_export.output_opened"));
@@ -356,7 +356,7 @@ export function createDataExportController({
       closeDialog();
     } catch (err) {
       console.error(err);
-      setStatus(t("status.data_export.output_open_failed"));
+      setStatus(t("status.data_export.output_open_failed"), { tone: "error" });
     }
   }
 
@@ -372,7 +372,7 @@ export function createDataExportController({
       }
     } catch (err) {
       console.error(err);
-      setStatus(t("status.data_export.browse_failed"));
+      setStatus(t("status.data_export.browse_failed"), { tone: "error" });
     }
   }
 

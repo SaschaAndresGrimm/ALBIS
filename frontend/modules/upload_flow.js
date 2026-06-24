@@ -207,7 +207,7 @@ export function createUploadFlowController({
       }
     } catch (err) {
       console.error(err);
-      setStatus(t("status.upload.failed"));
+      setStatus(t("status.upload.failed"), { tone: "error" });
       setLoading(false);
     } finally {
       hideUploadProgress();

@@ -137,6 +137,7 @@
   "common.auto": "自動",
   "common.cancel": "キャンセル",
   "common.close": "閉じる",
+  "toast.region_label": "通知",
   "common.group": "グループ",
   "common.idle": "待機",
   "common.none": "なし",

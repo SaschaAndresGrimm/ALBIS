@@ -384,7 +384,7 @@ export function createSeriesSumController({
       } else if (status === "cancelled") {
         setStatus(t("status.series.cancelled"));
       } else if (status === "error") {
-        setStatus(t("status.series.failed"));
+        setStatus(t("status.series.failed"), { tone: "error" });
       }
     } catch (err) {
       console.error(err);
@@ -420,7 +420,7 @@ export function createSeriesSumController({
       console.error(err);
       state.seriesSum.cancelling = false;
       updateSeriesSumUi();
-      setStatus(t("status.series.cancel_failed"));
+      setStatus(t("status.series.cancel_failed"), { tone: "error" });
     }
   }
 
@@ -544,7 +544,7 @@ export function createSeriesSumController({
       state.seriesSum.cancelling = false;
       setSeriesSumProgress(0, t("series.progress.start_failed"));
       updateSeriesSumUi();
-      setStatus(t("status.series.start_failed"));
+      setStatus(t("status.series.start_failed"), { tone: "error" });
     }
   }
 
@@ -554,13 +554,13 @@ export function createSeriesSumController({
       await ensureFileMode();
       const loaded = await loadAutoloadFile(state.seriesSum.openTarget);
       if (!loaded) {
-        setStatus(t("status.series.output_open_failed"));
+        setStatus(t("status.series.output_open_failed"), { tone: "error" });
         return;
       }
       setStatus(t("status.series.output_opened"));
     } catch (err) {
       console.error(err);
-      setStatus(t("status.series.output_open_failed"));
+      setStatus(t("status.series.output_open_failed"), { tone: "error" });
     }
   }
 

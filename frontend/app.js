@@ -20,6 +20,7 @@ import {
   setLanguage,
   t,
 } from "./modules/i18n.js";
+import { notifyError, notifySuccess, notifyWarning } from "./modules/toast.js";
 import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
 import { createFileBrowserController } from "./modules/file_browser.js";
 import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bindings.js";
@@ -762,10 +763,22 @@ function applyLanguagePreference(language, options = {}) {
   return next;
 }
 
+const STATUS_TONE_NOTIFIERS = {
+  error: notifyError,
+  warning: notifyWarning,
+  success: notifySuccess,
+};
+
 function setStatus(text, options = {}) {
-  const { frameStatus = false } = options;
-  if (!statusEl) return;
+  const { frameStatus = false, tone = null } = options;
   const normalized = String(text || "").trim();
+  // A toned status is also raised as a toast so the user notices it even after
+  // the footer pill moves on to the next ambient message.
+  const notifier = tone ? STATUS_TONE_NOTIFIERS[tone] : null;
+  if (notifier && normalized) {
+    notifier(normalized);
+  }
+  if (!statusEl) return;
   if (frameStatus) {
     statusEl.textContent = t("common.ready");
   } else {

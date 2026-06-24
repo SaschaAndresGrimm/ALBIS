@@ -131,7 +131,7 @@ export function finalizeRuntimeBootstrap({
   void bootstrapApp().catch((err) => {
     console.error(err);
     setSplashStatus("splash.status.initialization_failed");
-    setStatus(t("status.app.initialization_failed"));
+    setStatus(t("status.app.initialization_failed"), { tone: "error" });
     showSplash();
     setLoading(false);
   });

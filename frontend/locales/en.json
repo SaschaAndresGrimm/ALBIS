@@ -137,6 +137,7 @@
   "common.auto": "Auto",
   "common.cancel": "Cancel",
   "common.close": "Close",
+  "toast.region_label": "Notifications",
   "common.group": "Group",
   "common.idle": "Idle",
   "common.none": "None",

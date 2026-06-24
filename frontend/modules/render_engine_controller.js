@@ -181,7 +181,7 @@ export function createRenderEngineController({
       floatProgram = createProgram(gl, vertexSource, floatFragmentSource);
     } catch (err) {
       console.error(err);
-      setStatus(t("status.render.webgl_shader_error"));
+      setStatus(t("status.render.webgl_shader_error"), { tone: "error" });
       return {
         type: "webgl",
         render: () => {},

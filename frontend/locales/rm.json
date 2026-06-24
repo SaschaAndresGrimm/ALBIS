@@ -137,6 +137,7 @@
   "common.auto": "Automatic",
   "common.cancel": "Annullar",
   "common.close": "Serrar",
+  "toast.region_label": "Notifications",
   "common.group": "Gruppa",
   "common.idle": "Inactiv",
   "common.none": "Nagin",
