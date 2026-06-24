@@ -57,8 +57,8 @@ ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_G
 
 - `⌘O` / `Ctrl+O` Open File
 - `⌘W` / `Ctrl+W` Close File
-- `⌘S` / `Ctrl+S` Save As
-- `⌘E` / `Ctrl+E` Export Image
+- `⌘S` / `Ctrl+S` Save As — Full Image (`⇧⌘S` Visible Area, `⌥⌘S` Viewer Window)
+- `⇧⌘X` / `Shift+Ctrl+X` Convert Dataset
 - `F1` Documentation
 - `Tab` Play/Pause
 - `←`/`→` Previous/Next frame

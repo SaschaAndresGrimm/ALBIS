@@ -64,15 +64,6 @@ export function createMenuActionHandler({
       case "save-window":
         await exportViewerWindow({ saveAs: true });
         break;
-      case "export-full":
-        exportFullImage();
-        break;
-      case "export-visible":
-        exportVisibleArea();
-        break;
-      case "export-window":
-        exportViewerWindow();
-        break;
       default:
         break;
     }

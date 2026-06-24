@@ -43,7 +43,7 @@ export function createShortcutHandlers({
     const key = event.key.toLowerCase();
     const isShift = event.shiftKey;
     const isAlt = event.altKey;
-    if (["o", "s", "e", "n", "w", ",", "k"].includes(key) || (key === "x" && isShift && !isAlt)) {
+    if (["o", "s", "n", "w", ",", "k"].includes(key) || (key === "x" && isShift && !isAlt)) {
       event.preventDefault();
     }
     switch (key) {
@@ -60,15 +60,6 @@ export function createShortcutHandlers({
           handleMenuAction("save-visible");
         } else {
           handleMenuAction("save-full");
-        }
-        break;
-      case "e":
-        if (isAlt) {
-          handleMenuAction("export-window");
-        } else if (isShift) {
-          handleMenuAction("export-visible");
-        } else {
-          handleMenuAction("export-full");
         }
         break;
       case "x":
