@@ -84,6 +84,63 @@ Frontend code is now intentionally split by responsibility:
   - Shapes large element/callback maps passed into binding bootstraps.
   - Used to keep `app.js` readable and prevent accidental callback/key drift.
 
+### Frontend Mental Model (for new contributors)
+
+The frontend has no framework. It is a single page wired together by hand, organized in layers. Read it top-to-bottom as: *state → pure helpers → controllers → bindings → composition root*, with a few cross-cutting singletons available everywhere.
+
+```text
+            ┌───────────────────────────────────────────────┐
+ DOM events │  *_bindings.js   (attach listeners, no logic)  │
+            └───────────────┬───────────────────────────────┘
+                            │ call methods / app callbacks
+            ┌───────────────▼───────────────────────────────┐
+ domain     │  *_controller.js (own behavior; read/write     │
+ logic      │                   state; touch the DOM)        │
+            └───────────────┬───────────────────────────────┘
+                            │ use
+            ┌───────────────▼───────────────┐   ┌─────────────────────────┐
+ pure       │  *_engine / *_utils (no DOM,   │   │ singletons (import directly│
+ helpers    │   no state — easy to unit test)│   │  anywhere): i18n.t,        │
+            └───────────────────────────────┘   │  toast.notify*, dialogs.*  │
+                            ▲                     └─────────────────────────┘
+            ┌───────────────┴───────────────────────────────┐
+ wiring     │  app.js (composition root): owns `state`,      │
+            │  grabs DOM refs, builds wrapper callbacks +     │
+            │  context maps, instantiates everything in order │
+            └─────────────────────────────────────────────────┘
+```
+
+- **`state.js`** defines the mutable state objects (`state`, `roiState`, `analysisState`) that `app.js` creates once and passes into controllers. Controllers read and mutate them; avoid hidden DOM-coupled state.
+- **Pure helpers** (`roi_stats_engine.js`, `intensity_scale_utils.js`, `ring_geometry_utils.js`, `file_type_utils.js`, …) take inputs and return outputs with no DOM or `state` access. New math/transform logic belongs here so it can be unit-tested directly.
+- **Controllers** own a domain (playback, ROI, rendering, …), hold references to their DOM elements and `state`, and expose methods.
+- **Bindings** only attach DOM event listeners and forward to controller methods or `app.js` callbacks. If you find logic in a `*_bindings.js` file, it probably belongs in a controller.
+
+### Frontend Wiring: two patterns
+
+There are exactly two ways a module gets what it needs. Pick by whether the dependency is per-instance or app-wide.
+
+1. **Callback injection (the default).** A controller/binding factory takes `{ apiBase, state, elements, callbacks }`. `app.js` constructs the `elements` and `callbacks` maps (often via `app_binding_contexts.js`) and passes them in. Use this for anything that touches `state`, specific DOM nodes, or other controllers.
+
+   - **Why the wrapper functions in `app.js`?** Controllers are created in sequence, and some need to call into others that are created *later*. `app.js` exposes small **named function declarations** (e.g. `setStatus`, `exportFullImage`) that are hoisted and stable, then passes *those* as callbacks. This decouples wiring from construction order — a controller can call `setStatus` before the controller that ultimately backs it exists, without capturing an `undefined`. When adding a callback, add/keep a stable wrapper rather than passing a controller method directly.
+
+2. **Directly-imported singletons.** A few cross-cutting concerns are stateless and needed from many places, so they are plain module singletons you `import` directly instead of threading through every callback bag:
+   - `i18n.js` → `t(key, vars)` for translated strings.
+   - `toast.js` → `notifyError/notifySuccess/notifyWarning/notifyInfo` for transient notifications.
+   - `dialogs.js` → `showPromptDialog/showConfirmDialog` for promise-based modal prompts.
+
+   Use a singleton only when the module is self-contained (no `state`, no per-instance config) and broadly used. If it needs app state or specific elements, use callback injection instead.
+
+### Worked example: add a new toolbar action
+
+To add, say, a "Reset view" button:
+
+1. **DOM** — add the `<button id="reset-view">` in `frontend/index.html`, with `data-i18n` for its label and styles in `frontend/style.css`.
+2. **Behavior** — implement it on the relevant controller (here `overview_viewport_controller.js`), exposing a `resetView()` method.
+3. **Wiring** — in `app.js`, grab the element (`const resetViewBtn = document.getElementById("reset-view")`), and if other modules need to trigger it, add a stable wrapper (`function resetView() { overviewViewportController?.resetView(); }`).
+4. **Event** — bind the click in the appropriate `*_bindings.js` (or its context map), calling the controller method / wrapper.
+5. **Strings** — add the i18n key to **all** locales in `frontend/locales/` (keep key parity — see `frontend/tests/locale_integrity.test.js`) and surface user feedback with `setStatus(..., { tone })` and/or `notify*`.
+6. **Tests** — add a `frontend/tests/*.test.js` spec (Vitest + jsdom); keep pure logic in a helper so it can be tested without the DOM.
+
 ### Refactor Boundaries (SOLID/DRY)
 
 - Backend shared services:
