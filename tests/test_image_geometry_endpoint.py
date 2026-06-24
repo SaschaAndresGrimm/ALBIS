@@ -104,7 +104,7 @@ def test_image_geometry_endpoint_returns_geometry_for_pilatus_12m_cbf(tmp_path: 
     payload = response.json()
     assert payload["mode"] == "geometry"
     assert payload["detector"] == "pilatus-12m-dls-cshape"
-    assert payload["source"].endswith("P12M_geometry/imported.expt")
+    assert payload["source"].endswith(str(Path("P12M_geometry") / "imported.expt"))
     assert len(payload["panels"]) == 2
     assert payload["panels"][0]["name"] == "row-00"
     assert payload["panels"][1]["raw_offset_px"] == pytest.approx([0, 212])
@@ -226,7 +226,7 @@ def test_image_geometry_endpoint_falls_back_from_invalid_embedded_hdf5_geometry_
     assert response.status_code == 200
     payload = response.json()
     assert payload["mode"] == "geometry"
-    assert payload["source"].endswith("P12M_geometry/imported.expt")
+    assert payload["source"].endswith(str(Path("P12M_geometry") / "imported.expt"))
     assert len(payload["panels"]) == 2
 
 

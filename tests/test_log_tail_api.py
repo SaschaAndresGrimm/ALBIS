@@ -10,7 +10,10 @@ import backend.app as backend_app
 def _configure_log_path(monkeypatch, tmp_path: Path, content: bytes | str = b"") -> Path:
     log_path = tmp_path / "albis.log"
     if isinstance(content, str):
-        log_path.write_text(content, encoding="utf-8")
+        # newline="" disables platform newline translation so the on-disk bytes
+        # are LF-only on every OS; the tail service is byte-accurate and the
+        # assertions below expect "\n" separators.
+        log_path.write_text(content, encoding="utf-8", newline="")
     else:
         log_path.write_bytes(content)
     monkeypatch.setattr(backend_app, "LOG_PATH", log_path)

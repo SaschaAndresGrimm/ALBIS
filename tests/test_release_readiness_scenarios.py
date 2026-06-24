@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import h5py
@@ -307,17 +308,30 @@ def test_packaged_binary_smoke_harness_with_dummy_server(tmp_path: Path) -> None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    server = tmp_path / "dummy_albis"
-    server.write_text(
-        """#!/usr/bin/env python3
+    server_source = """\
 import json
+import os
 import signal
-import sys
+import tempfile
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 config = json.loads(Path("albis.config.json").read_text(encoding="utf-8"))
 port = int(config["server"]["port"])
+
+# Move out of the launch cwd so the harness can delete its temp dir even if a
+# wrapper process (Windows .bat) leaves this server briefly orphaned.
+os.chdir(tempfile.gettempdir())
+
+def _watchdog():
+    # Safety net: exit even if no stop signal is delivered (e.g. when launched
+    # through a Windows .bat wrapper that is terminated without us).
+    time.sleep(30)
+    os._exit(0)
+
+threading.Thread(target=_watchdog, daemon=True).start()
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -352,10 +366,25 @@ signal.signal(signal.SIGINT, _stop)
 
 server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
 server.serve_forever()
-""",
-        encoding="utf-8",
-    )
-    server.chmod(0o755)
+"""
+
+    # smoke_packaged_binary launches the binary directly (no interpreter prefix),
+    # so the stand-in must be natively executable on each OS. sys.executable avoids
+    # depending on a "python3" being resolvable on PATH (notably the macOS system
+    # python stub), and the Windows .bat wrapper is launchable where a POSIX
+    # shebang script is not.
+    if sys.platform.startswith("win"):
+        server_py = tmp_path / "dummy_albis_server.py"
+        server_py.write_text(server_source, encoding="utf-8")
+        server = tmp_path / "dummy_albis.bat"
+        server.write_text(
+            f'@echo off\r\n"{sys.executable}" "{server_py}" %*\r\n',
+            encoding="utf-8",
+        )
+    else:
+        server = tmp_path / "dummy_albis"
+        server.write_text(f"#!{sys.executable}\n{server_source}", encoding="utf-8")
+        server.chmod(0o755)
 
     module.run_smoke(
         server,
