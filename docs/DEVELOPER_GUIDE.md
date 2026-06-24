@@ -125,7 +125,7 @@ DMG images include an `Applications` shortcut for drag-and-drop installation.
 To sign on build, set your Developer ID certificate and password before running the build:
 
 ```bash
-export MACOS_SIGN_CERT_PATH="/Users/sascha.grimm/Documents/albis-dev-id.p12"
+export MACOS_SIGN_CERT_PATH="/path/to/your/albis-dev-id.p12"
 export MACOS_SIGN_CERT_PASSWORD="<p12-password>"
 export MACOS_SIGNING_IDENTITY="Developer ID Application: Your Name Or Company (TEAMID)"  # optional if the p12 contains a single signing identity
 ./scripts/build_mac.sh

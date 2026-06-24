@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
@@ -15,7 +16,7 @@ except ImportError:  # pragma: no cover
 
 @dataclass(frozen=True)
 class HandoffRouteDeps:
-    logger: any
+    logger: Any
     queue_job: Callable[[dict[str, str]], dict[str, str | int]]
     latest_job: Callable[[int], dict[str, str | int] | None]
 

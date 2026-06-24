@@ -127,11 +127,13 @@ export function createMaskCursorController({
     if (maskToggle) {
       maskToggle.disabled = !state.maskAvailable;
       maskToggle.checked = Boolean(state.maskEnabled && state.maskAvailable);
+      maskToggle.title = state.maskAvailable ? "" : t("view.mask_unavailable_hint");
     }
     if (maskSaturatedToggle) {
       const hasSatMax = Number.isFinite(getActiveSaturationMax());
       maskSaturatedToggle.disabled = !hasSatMax;
       maskSaturatedToggle.checked = Boolean(state.maskSaturatedEnabled && hasSatMax);
+      maskSaturatedToggle.title = hasSatMax ? "" : t("view.mask_saturated_unavailable_hint");
     }
   }
 
