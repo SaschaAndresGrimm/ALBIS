@@ -52,6 +52,12 @@ export function createAnalysisState() {
     geometryDistanceManual: false,
     geometryCenterXManual: false,
     geometryCenterYManual: false,
+    // Live-source geometry lock: when engaged, incoming frame metadata is
+    // ignored so manually corrected geometry persists. Scoped to the source
+    // that was active when the lock engaged (see getActiveSourceScopeKey),
+    // so it clears automatically on a source/file switch.
+    geometryLocked: false,
+    geometryLockKey: "",
     rings: [1, 3.67, 11.01],
     ringCount: 3,
     peaksEnabled: false,

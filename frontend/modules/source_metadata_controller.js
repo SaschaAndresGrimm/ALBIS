@@ -3,7 +3,11 @@
  */
 
 import { t } from "./i18n.js";
-import { getActiveGeometryOverridePath, getGeometryScopeKey } from "./geometry_override_utils.js";
+import {
+  getActiveGeometryOverridePath,
+  getGeometryScopeKey,
+  isGeometryLockActive,
+} from "./geometry_override_utils.js";
 import { getGeometryReferencePose, prepareRingGeometry } from "./ring_geometry_utils.js";
 
 export function createSourceMetadataController({
@@ -52,6 +56,9 @@ export function createSourceMetadataController({
     ringsGeometryBrowse,
     ringsGeometryClear,
     ringsGeometryStatusEl,
+    ringsGeometryLockEl,
+    ringsGeometryLockLabel,
+    ringsGeometryLockReset,
   } = elements;
 
   const { scheduleResolutionOverlay, schedulePeakOverlay } = callbacks;
@@ -286,6 +293,10 @@ export function createSourceMetadataController({
   }
 
   function applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY }) {
+    if (isGeometryLockActive(analysisState, state)) {
+      updateGeometryLockUi();
+      return;
+    }
     let updated = false;
     if (Number.isFinite(distanceMm) && ringsDistance && !hasGeometryManualOverride("geometryDistanceManual")) {
       analysisState.distanceMm = distanceMm;
@@ -315,6 +326,58 @@ export function createSourceMetadataController({
     if (updated) {
       scheduleResolutionOverlay();
     }
+    updateGeometryLockUi();
+  }
+
+  function liveSourceActive() {
+    return Boolean(state.autoload?.running) && analysisState.ringMode !== "geometry";
+  }
+
+  function updateGeometryLockUi() {
+    if (!ringsGeometryLockEl) return;
+    if (!liveSourceActive()) {
+      ringsGeometryLockEl.classList.add("is-hidden");
+      ringsGeometryLockEl.classList.remove("is-locked");
+      return;
+    }
+    const locked = isGeometryLockActive(analysisState, state);
+    ringsGeometryLockEl.classList.remove("is-hidden");
+    ringsGeometryLockEl.classList.toggle("is-locked", locked);
+    if (ringsGeometryLockLabel) {
+      ringsGeometryLockLabel.textContent = locked ? t("rings.lock.locked") : t("rings.lock.live");
+    }
+    if (ringsGeometryLockReset) {
+      ringsGeometryLockReset.classList.toggle("is-hidden", !locked);
+    }
+  }
+
+  // Re-apply the most recent live metadata so locked fields snap back to the
+  // values currently arriving from the source.
+  function reapplyLiveAnalysis() {
+    const auto = state.autoload || {};
+    const mode = String(auto.mode || "");
+    let meta = null;
+    if (mode === "simplon") meta = auto.simplonMeta;
+    else if (mode === "remote") meta = auto.remoteMeta;
+    else if (mode === "jungfraujoch") meta = auto.jfjochMeta;
+    if (!meta || typeof meta !== "object") return;
+    applyAnalysisMeta(
+      normalizeAnalysis({
+        distanceMm: meta.distanceMm,
+        pixelSizeUm: meta.pixelSizeUm ?? null,
+        energyEv: meta.energyEv,
+        centerX: meta.centerX,
+        centerY: meta.centerY,
+      }),
+    );
+  }
+
+  function resetGeometryLock() {
+    analysisState.geometryLocked = false;
+    analysisState.geometryLockKey = "";
+    reapplyLiveAnalysis();
+    updateGeometryLockUi();
+    scheduleResolutionOverlay();
   }
 
   function parseSimplonMeta(headers) {
@@ -537,6 +600,8 @@ export function createSourceMetadataController({
     updateRemoteMetaUI,
     updateJfjochMetaUI,
     updateGeometryUi,
+    updateGeometryLockUi,
+    resetGeometryLock,
     parseSimplonMeta,
     parseRemoteMeta,
     createLiveSourceSnapshot,

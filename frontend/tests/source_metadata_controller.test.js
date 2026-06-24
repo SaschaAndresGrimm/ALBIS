@@ -9,8 +9,33 @@ function buildFetchMock() {
       "common.ready": "Ready",
       "rings.geometry.status_auto": "Auto geometry: {{source}}.",
       "rings.geometry.status_manual": "Manual geometry: {{source}}.",
+      "rings.lock.live": "Live geometry",
+      "rings.lock.locked": "Geometry locked",
     }),
   }));
+}
+
+function buildHeaders(map) {
+  return { get: (key) => (key in map ? map[key] : null) };
+}
+
+function buildLiveControllerElements() {
+  const make = () => document.createElement("input");
+  return {
+    ringsDistance: make(),
+    ringsPixel: make(),
+    ringsEnergy: make(),
+    ringsCenterX: make(),
+    ringsCenterY: make(),
+    ringsGeometryFile: make(),
+    ringsGeometryFileHint: document.createElement("div"),
+    ringsGeometryBrowse: document.createElement("button"),
+    ringsGeometryClear: document.createElement("button"),
+    ringsGeometryStatusEl: document.createElement("div"),
+    ringsGeometryLockEl: document.createElement("div"),
+    ringsGeometryLockLabel: document.createElement("span"),
+    ringsGeometryLockReset: document.createElement("button"),
+  };
 }
 
 function createGapGeometryPayload() {
@@ -155,5 +180,79 @@ describe("source_metadata_controller", () => {
     expect(analysisState.centerY).toBeCloseTo(reference.centerY, 6);
     expect(ringsDistance.value).toBe(String(reference.distanceMm));
     expect(ringsGeometryStatusEl.textContent).toContain("Manual geometry");
+  });
+
+  it("honours the geometry lock for live SIMPLON metadata and reset restores live values", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createSourceMetadataController } = await import("../modules/source_metadata_controller.js");
+
+    const elements = buildLiveControllerElements();
+    const analysisState = {
+      ringMode: "planar",
+      ringGeometry: null,
+      ringGeometryKey: "",
+      geometryManualKey: "",
+      geometryDistanceManual: false,
+      geometryCenterXManual: false,
+      geometryCenterYManual: false,
+      geometryLocked: false,
+      geometryLockKey: "",
+      distanceMm: null,
+      pixelSizeUm: null,
+      energyEv: null,
+      centerX: null,
+      centerY: null,
+      externalPeakSets: [],
+    };
+    const state = {
+      file: "",
+      seriesFiles: [],
+      autoload: { mode: "simplon", running: true, simplonUrl: "http://det:80", simplonMeta: {} },
+    };
+
+    const controller = createSourceMetadataController({
+      state,
+      analysisState,
+      elements,
+      callbacks: { scheduleResolutionOverlay: () => {} },
+    });
+
+    // First frame seeds geometry from headers.
+    controller.applySimplonMeta(
+      buildHeaders({
+        "X-Simplon-DetectorDistance-MM": "250",
+        "X-Simplon-Energy-Ev": "12000",
+        "X-Simplon-BeamCenter-X": "1000",
+        "X-Simplon-BeamCenter-Y": "1100",
+      }),
+    );
+    expect(analysisState.distanceMm).toBeCloseTo(250, 6);
+    expect(elements.ringsGeometryLockEl.classList.contains("is-hidden")).toBe(false);
+    expect(elements.ringsGeometryLockEl.classList.contains("is-locked")).toBe(false);
+
+    // User corrects + locks geometry for the active source scope.
+    analysisState.distanceMm = 305;
+    analysisState.geometryLocked = true;
+    analysisState.geometryLockKey = "simplon:http://det:80";
+
+    // Next frame must NOT overwrite the corrected distance.
+    controller.applySimplonMeta(
+      buildHeaders({
+        "X-Simplon-DetectorDistance-MM": "250",
+        "X-Simplon-BeamCenter-X": "1000",
+        "X-Simplon-BeamCenter-Y": "1100",
+      }),
+    );
+    expect(analysisState.distanceMm).toBe(305);
+    expect(elements.ringsGeometryLockEl.classList.contains("is-locked")).toBe(true);
+
+    // Reset clears the lock and snaps back to the latest live metadata.
+    controller.resetGeometryLock();
+    expect(analysisState.geometryLocked).toBe(false);
+    expect(analysisState.distanceMm).toBeCloseTo(250, 6);
+    expect(elements.ringsGeometryLockEl.classList.contains("is-locked")).toBe(false);
   });
 });

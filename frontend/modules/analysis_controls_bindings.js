@@ -3,7 +3,7 @@
  */
 
 import { t } from "./i18n.js";
-import { getGeometryScopeKey, isExptPath } from "./geometry_override_utils.js";
+import { getActiveSourceScopeKey, getGeometryScopeKey, isExptPath } from "./geometry_override_utils.js";
 
 function clampFrameIndex(rawValue, total, fallback) {
   const parsed = Number(rawValue);
@@ -36,6 +36,7 @@ export function bindAnalysisControlInteractions({
     ringsGeometryFileHint,
     ringsGeometryBrowse,
     ringsGeometryClear,
+    ringsGeometryLockReset,
     ringInputs,
     peaksCountInput,
     peaksCountHint,
@@ -76,6 +77,8 @@ export function bindAnalysisControlInteractions({
     openFileDialog,
     applyGeometryOverridePath,
     clearGeometryOverridePath,
+    updateGeometryLockUi,
+    resetGeometryLock,
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,
@@ -107,7 +110,8 @@ export function bindAnalysisControlInteractions({
     return value;
   }
 
-  function updateRingsFromInputs() {
+  function updateRingsFromInputs(evt) {
+    const userEdit = Boolean(evt && evt.type);
     const geometryDriven = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
     if (ringsToggle) {
       analysisState.ringsEnabled = ringsToggle.checked;
@@ -188,6 +192,14 @@ export function bindAnalysisControlInteractions({
       const visible = idx < analysisState.ringCount;
       input.style.display = visible ? "" : "none";
     });
+    // A manual correction to any geometry field while a live source is running
+    // locks the whole geometry block so incoming frames stop overwriting it.
+    // Geometry-file mode keeps its own per-field override handling above.
+    if (userEdit && evt?.target !== ringsToggle && !geometryDriven && state.autoload?.running) {
+      analysisState.geometryLocked = true;
+      analysisState.geometryLockKey = getActiveSourceScopeKey(state);
+      updateGeometryLockUi?.();
+    }
     updateRingsSectionState();
     scheduleResolutionOverlay();
   }
@@ -317,6 +329,10 @@ export function bindAnalysisControlInteractions({
     }
     setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
     await clearGeometryOverridePath();
+  });
+
+  ringsGeometryLockReset?.addEventListener("click", () => {
+    resetGeometryLock?.();
   });
 
   if (peaksCountInput) {

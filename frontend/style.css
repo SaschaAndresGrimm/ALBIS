@@ -2419,6 +2419,46 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-top: 4px;
 }
 
+.rings-geometry-lock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.rings-geometry-lock-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted, #9aa7b8);
+}
+
+.rings-geometry-lock-state::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-live, #4caf50);
+  flex: 0 0 auto;
+}
+
+.rings-geometry-lock.is-locked .rings-geometry-lock-state {
+  color: var(--warn, #e0a83b);
+}
+
+.rings-geometry-lock.is-locked .rings-geometry-lock-state::before {
+  background: var(--warn, #e0a83b);
+}
+
+.rings-geometry-lock-reset {
+  padding: 4px 8px;
+  min-width: 0;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
 .ring-center {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

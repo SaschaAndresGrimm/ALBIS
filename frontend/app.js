@@ -379,6 +379,9 @@ const ringsGeometryFileHint = document.getElementById("rings-geometry-file-hint"
 const ringsGeometryBrowse = document.getElementById("rings-geometry-browse");
 const ringsGeometryClear = document.getElementById("rings-geometry-clear");
 const ringsGeometryStatusEl = document.getElementById("rings-geometry-status");
+const ringsGeometryLockEl = document.getElementById("rings-geometry-lock");
+const ringsGeometryLockLabel = document.getElementById("rings-geometry-lock-label");
+const ringsGeometryLockReset = document.getElementById("rings-geometry-lock-reset");
 const ringsSectionStateEl = document.getElementById("rings-state");
 const ringsSummaryEl = document.getElementById("summary-rings");
 const ringInputs = [
@@ -2164,6 +2167,9 @@ sourceMetadataController = createSourceMetadataController({
     ringsGeometryBrowse,
     ringsGeometryClear,
     ringsGeometryStatusEl,
+    ringsGeometryLockEl,
+    ringsGeometryLockLabel,
+    ringsGeometryLockReset,
   },
   callbacks: {
     scheduleResolutionOverlay,
@@ -2171,6 +2177,7 @@ sourceMetadataController = createSourceMetadataController({
   },
 });
 sourceMetadataController.updateGeometryUi();
+sourceMetadataController.updateGeometryLockUi();
 
 panelLayoutController = createPanelLayoutController({
   state,
@@ -2522,6 +2529,7 @@ function persistAutoloadSettings() {
 
 function updateAutoloadUI() {
   autoloadSettingsController.updateAutoloadUI();
+  sourceMetadataController?.updateGeometryLockUi?.();
 }
 
 function loadAutoloadSettings() {
@@ -4283,6 +4291,7 @@ bindAnalysisControlInteractions({
     ringsGeometryFileHint,
     ringsGeometryBrowse,
     ringsGeometryClear,
+    ringsGeometryLockReset,
     ringInputs,
     peaksCountInput,
     peaksCountHint,
@@ -4322,6 +4331,8 @@ bindAnalysisControlInteractions({
     openFileDialog,
     applyGeometryOverridePath,
     clearGeometryOverridePath,
+    updateGeometryLockUi: () => sourceMetadataController.updateGeometryLockUi(),
+    resetGeometryLock: () => sourceMetadataController.resetGeometryLock(),
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,
