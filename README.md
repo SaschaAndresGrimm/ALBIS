@@ -1,11 +1,13 @@
 # ALBIS (**A** **L**ocal, **B**rowser-based **I**mage viewer for **S**ynchrotron data)
+
 ![ALBIS screenshot](frontend/ressources/albis.png)
 
 ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stacks and other common DECTRIS camera formats. It is platform‑independent, free, and open source.
 
-It targets modern **DECTRIS** detectors (SELUN, EIGER2, PILATUS4) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
+It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4)) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
+
 - Files on disk (`.h5/.hdf5` stacks and common detector image formats `.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
 - The detector **SIMPLON monitor** stream for live viewing.
 - **JUNGFRAUJOCH Preview** ZeroMQ PUB stream (CBOR image messages + reflection spots).
@@ -15,6 +17,7 @@ ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small
 
 ALBIS `1.0` is a **local-first desktop viewer** for workstation and beamline use.
 Official public support covers:
+
 - **Windows x64**
 - **macOS arm64 / x64**
 - **Linux x64**
@@ -22,6 +25,18 @@ Official public support covers:
 Docker images are published for **local and trusted lab deployments** on `linux/amd64` and `linux/arm64`.
 Public internet exposure is **not** a supported deployment mode for `1.0`.
 
+## Getting Started (just want to look at images?)
+
+You don't need Python or any setup. Three steps:
+
+1. **Download** the build for your operating system from the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page (see [Downloads / Installation](#downloads--installation) below for which file to pick).
+2. **Install and open it:**
+   - **macOS:** open the `.dmg` and drag ALBIS into `Applications`, then launch it. The builds are signed and notarized, so they open normally.
+   - **Windows:** run the `...-Setup-...exe` installer. If Windows shows a blue "Windows protected your PC" screen, click **More info → Run anyway** (this is expected for newer apps).
+   - **Linux:** make the `.AppImage` executable (`chmod +x ALBIS-*.AppImage`) and double-click it, or run the bundled `install_linux_appimage.sh`.
+3. **Open your first image:** use **File → Open** to load an HDF5 stack, TIFF, CBF, or EDF file. Navigate frames with the slider or the `←`/`→` keys.
+
+Press **F1** any time inside ALBIS to open the built-in help (interaction basics, data sources, and troubleshooting).
 
 ## Highlights
 
@@ -67,12 +82,15 @@ ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_G
 ## Advanced Usage & Contributing
 
 For power users looking to configure the server, use the advanced Stream API, or run ALBIS from source:
+
 - [Power User Guide](docs/POWER_USER_GUIDE.md)
 
 For developers looking to build, test, and contribute:
+
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Acknowledgements and Contributions
+
 This project stands on the shoulders of a giant: ALBULA. Thanks to Volker Pilipp for creating such an intuitive image viewer that set the benchmark.
 Thanks to Tilman Donath and Nicolas Pilet for testing, breaking, and giving useful feedback for improvements.

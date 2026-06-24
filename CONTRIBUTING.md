@@ -23,6 +23,9 @@ npm ci
 ## Contributor docs
 
 - Developer Guide: `docs/DEVELOPER_GUIDE.md`
+- Architecture: `docs/ARCHITECTURE.md`
+- Code Map: `docs/CODE_MAP.md`
+- API Contracts: `docs/API_CONTRACTS.md`
 - Release process checklist: `docs/RELEASE_CHECKLIST.md`
 - Translation review guide: `docs/I18N_REVIEW_GUIDE.md`
 
@@ -36,6 +39,7 @@ npm ci
 ## Reporting issues
 
 Please include:
+
 - OS + version
 - How you installed/ran ALBIS
 - Steps to reproduce
@@ -43,6 +47,7 @@ Please include:
 - Logs or console errors
 
 Use the GitHub issue forms:
+
 - Bug report: `.github/ISSUE_TEMPLATE/bug_report.yml`
 - Feature request: `.github/ISSUE_TEMPLATE/feature_request.yml`
 
@@ -54,7 +59,7 @@ Use the GitHub issue forms:
 - Update docs when behavior changes.
 - Update `CHANGELOG.md` for user-visible changes.
 - If you add/reshape major logic paths, update `docs/DEVELOPER_GUIDE.md`.
-- If you move frontend module boundaries or callback/context contracts, update the frontend module map in `docs/DEVELOPER_GUIDE.md`.
+- If you move frontend module boundaries or callback/context contracts, update the frontend module map in `docs/CODE_MAP.md`.
 
 ## Local checks before PR
 
@@ -85,6 +90,7 @@ pre-commit run --all-files
 ```
 
 Requirements:
+
 - GitHub CLI (`gh`) installed
 - Authenticated with repository admin permissions
 

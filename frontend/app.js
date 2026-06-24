@@ -7,7 +7,7 @@
  * - Rendering (WebGL2 primary + CPU fallback)
  * - Overlay layers (ROI, rings, peaks, pixel labels, histogram)
  *
- * Use `docs/DEVELOPER_GUIDE.md` for a quick function-level navigation guide.
+ * Use `docs/CODE_MAP.md` for a quick file-level navigation guide.
  */
 
 import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";

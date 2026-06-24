@@ -20,7 +20,6 @@ By default `server.port` is `0`, so ALBIS auto-selects a free port at startup.
 For `python backend/app.py`, read the startup URL printed by Uvicorn (for example `http://127.0.0.1:51243`) and open that URL.
 For `python albis_launcher.py` or packaged app runs, ALBIS opens the browser automatically.
 
-
 - **Standalone mode**:
   Use packaged artifacts created by the build scripts (no Python installation required on target machines).
 - **Docker mode**:
@@ -62,16 +61,19 @@ CBF exports use a miniCBF-style `_array_data.header_contents` block with the ava
 ### Settings Reference
 
 #### `server`
+
 - `host` (`string`, default `127.0.0.1`): Set to `"0.0.0.0"` to enable LAN access.
 - `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
 - `reload` (`boolean`, default `false`)
 
 #### `launcher`
+
 - `startup_timeout_sec` (`number`, default `5.0`, minimum `0.1`)
 - `open_browser` (`boolean`, default `true`)
 - `debug_macos_events` (`boolean`, default `false`): Enables verbose macOS Dock/app event traces in launcher log.
 
 #### `data`
+
 - `root` (`string`, default `""`): Defaults to project root for source runs and `~/ALBIS-data` for packaged runs.
 - `allow_abs_paths` (`boolean`, default `true`)
 - `scan_cache_sec` (`number`, default `2.0`, minimum `0.0`)
@@ -79,12 +81,14 @@ CBF exports use a miniCBF-style `_array_data.header_contents` block with the ava
 - `max_upload_mb` (`integer`, default `0`, minimum `0`)
 
 #### `logging`
+
 - `level` (`DEBUG|INFO|WARNING|ERROR|CRITICAL`, default `INFO`)
 - `dir` (`string`, default `""`):
   - source mode default: `<data.root>/logs`
   - packaged/standalone default: `~/.config/albis/logs`
 
 #### `ui`
+
 - `tool_hints` (`boolean`, default `false`)
 - `pixel_label_min_cell_px` (`integer`, default `18`, clamped `8..64`)
 - `pixel_label_max_labels` (`integer`, default `4000`, clamped `100..100000`)
@@ -95,10 +99,12 @@ CBF exports use a miniCBF-style `_array_data.header_contents` block with the ava
 
 Log level and log directory are configured in `albis.config.json` under `logging.level` and `logging.dir`.
 ALBIS writes:
+
 - Backend log: `<resolved log dir>/albis.log`
 - Launcher log: `<resolved log dir>/launcher.log` (automatic rotation at ~1 MiB to `launcher.log.1`)
 
 When `logging.dir` is empty:
+
 - source mode uses `<data.root>/logs`
 - packaged/standalone mode uses `~/.config/albis/logs`
 
@@ -131,7 +137,7 @@ Examples:
 
 ```bash
 docker pull ghcr.io/saschaandresgrimm/albis:latest
-docker pull ghcr.io/saschaandresgrimm/albis:v0.8.15
+docker pull ghcr.io/saschaandresgrimm/albis:v1.0.0
 ```
 
 ### Published Tags and Architectures
@@ -210,12 +216,17 @@ ALBIS can ingest externally generated frames and metadata when Data Source is se
 
 ### Minimal sender example
 
+The example below targets port `8000`. Note that the default `server.port` is `0`
+(auto-select), so a source-mode server picks a random free port at startup. Either set
+`server.port` to a fixed value in `albis.config.json`, or read the port ALBIS prints at
+startup and use that here.
+
 ```python
 import json
 import requests
 import numpy as np
 
-PORT = 8000
+PORT = 8000  # match albis.config.json server.port, or the port printed at startup
 SOURCE_ID = "default"
 
 frame = (np.random.rand(512, 512) * 1000).astype("<u2")
@@ -254,6 +265,29 @@ python test_scripts/stream_ingest.py
 ```
 
 Important: the script `source_id` must match the UI `Remote Stream` source id (default `default`).
+
+## JUNGFRAUJOCH Preview
+
+`JUNGFRAUJOCH Preview` mode subscribes to a JUNGFRAUJOCH ZeroMQ preview PUB stream, decodes the
+CBOR image messages, maps `spots` to peak overlays, and exposes the result through the same
+Remote Stream endpoints (`/api/remote/v1/latest`, `/api/remote/v1/meta`) under the configured
+`source_id`.
+
+You can select this mode from the UI (Data tab), or drive the backend subscription directly:
+
+### Endpoints
+
+- `POST /api/jfjoch/preview/start` — start or reconfigure the subscription
+  - JSON body:
+    - `endpoint` (required): ZeroMQ PUB endpoint, e.g. `tcp://host:5555`
+    - `source_id` (optional, default `jungfraujoch`)
+    - `topic` (optional): SUB topic filter
+    - `channel` (optional): preview channel selector
+- `POST /api/jfjoch/preview/stop` — stop the active subscription worker
+- `GET /api/jfjoch/preview/status` — current worker state and ingest counters
+
+Once started, poll the Remote Stream endpoints with the same `source_id` to read frames,
+metadata, and reflection overlays.
 
 ## Handoff API
 
