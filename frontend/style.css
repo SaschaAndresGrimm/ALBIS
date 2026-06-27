@@ -309,6 +309,11 @@ body {
   display: block;
 }
 
+/* Keep the submenu open while keyboard focus is inside it. */
+.dropdown-submenu-parent:focus-within .dropdown-submenu {
+  display: block;
+}
+
 .dropdown-item:hover {
   background: rgba(91, 122, 173, 0.22);
 }

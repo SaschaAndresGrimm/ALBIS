@@ -2023,7 +2023,10 @@ function applyPlatformShortcutLabels() {
 }
 
 function closeSubmenus() {
-  submenuParents.forEach((parent) => parent.classList.remove("is-open"));
+  submenuParents.forEach((parent) => {
+    parent.classList.remove("is-open");
+    parent.setAttribute("aria-expanded", "false");
+  });
 }
 
 function openMenu(menu, anchor) {
