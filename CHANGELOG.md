@@ -7,9 +7,31 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-27
+
 ### Added
 
 - Added animated GIF export for image series and multi-frame datasets (File → Export Animation…, the Playback popover's Export GIF…, or ⌘G). The dialog offers a frame range with a "use every Nth frame" step, full-image or visible-area region, output scale, playback speed, and a loop-forever toggle, with a live frame-count/dimension/size estimate. Frames are rendered client-side so the GIF matches the on-screen colormap, contrast, invert, mask, and saturation highlighting, using a dependency-free encoder that streams frames to keep memory bounded.
+- Added direct manipulation of the resolution-ring overlay: drag the beam-center marker to reposition it (planar and geometry mode) and drag a ring in/out to change its d-spacing (planar mode), with a grab cursor and handle highlight on hover. Drags write back into the geometry input fields, keeping the inputs the single source of truth for validation and redraw.
+- Added a geometry lock so manually corrected geometry persists while a live source (SIMPLON/remote/JFJ) is streaming, instead of being overwritten by every incoming frame. Includes a Live/Locked pill under the geometry inputs and a "Reset to live" control, and surfaces the geometry inputs at the top level instead of inside the collapsible submenu.
+- Added a "Min. SNR" control to the Peak Finder (default 5; 0 restores intensity ranking).
+
+### Changed
+
+- Peak Finder now ranks spots by local signal-to-noise instead of brightest local maximum, estimating background from an annulus around each candidate via summed-area tables. It rejects noise sitting on a high background (beam stop, hot modules) and surfaces faint genuine reflections.
+- Reviewed and corrected all 12 locale translations at native level: filled English gaps, fixed mistranslations (e.g. network "Port" rendered as harbor), and standardized Swiss German dialect.
+- Restructured documentation ahead of 1.0.0: added a beginner Getting Started section to the README and split the Developer Guide into four focused, cross-linked docs (DEVELOPER_GUIDE, ARCHITECTURE, CODE_MAP, API_CONTRACTS).
+
+### Fixed
+
+- Auto contrast now rejects detached extreme-pixel clusters (e.g. summed gap/dead-pixel sentinels) that previously dragged the 99.9th percentile into orbit and blew the whole image out to white, while preserving isolated bright Bragg peaks.
+- Fixed the update check in packaged builds by verifying TLS against the bundled certifi CA bundle.
+- Capped the default ROI Line/Annulus/Circle projection plot height (120px) so it matches the box and histogram plots instead of stretching to fill the side panel.
+
+### Notes
+
+- ALBIS `0.10.0` is the direct-manipulation release: grab the rings, drag the beam center, lock your geometry against live frames, and export the whole series as a GIF.
+- This release is called: "Grab It And Drag It."
 
 ## [0.9.15] - 2026-06-24
 
