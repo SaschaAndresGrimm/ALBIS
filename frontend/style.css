@@ -4046,6 +4046,7 @@ body.platform-windows select option:disabled {
   min-height: 42px;
 }
 
+#roi-line-plot,
 #roi-box-plot-x,
 #roi-box-plot-y,
 #roi-hist-plot {
