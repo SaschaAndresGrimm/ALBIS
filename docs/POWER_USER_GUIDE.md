@@ -51,6 +51,20 @@ ALBIS follows the common detector convention where module-gap pixels are `-1` an
 TIFF exports include Dectris-style header metadata in private TIFF tag `0xC7F8` when matching metadata is present in the source image or HDF5 master file.
 CBF exports use a miniCBF-style `_array_data.header_contents` block with the available detector, pixel-size, exposure, energy/wavelength, distance, beam-center, and rotation metadata.
 
+### Animated GIF Export
+
+Use **File -> Export Animation...**, the **Export GIF...** entry in the toolbar Playback popover, or `Ctrl+G` (`Cmd+G` on macOS) to render an image series or multi-frame dataset to an animated GIF.
+
+The dialog lets you choose:
+
+- **Frames** - all frames or a start/end range, plus a **Use every Nth frame** step to subsample long series.
+- **Region** - the full image or just the currently visible area.
+- **Scale** - downscale the output (100% / 50% / 25% / 10%) to reduce file size.
+- **Speed** - playback rate in frames per second (prefilled from the toolbar playback speed).
+- **Loop forever** - repeat indefinitely, or play once when unchecked.
+
+A live summary shows the resulting frame count, pixel dimensions, and an estimated file size. The GIF is rendered to match the on-screen view exactly - active colormap, contrast (BG/FG), invert, mask, and saturation highlighting are all applied. Frame count, region, and scale are the levers that control the file size; GIF size depends on image content, so the size figure is an estimate.
+
 ### Rules
 
 - Unknown top-level sections are rejected.

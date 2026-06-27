@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Added animated GIF export for image series and multi-frame datasets (File → Export Animation…, the Playback popover's Export GIF…, or ⌘G). The dialog offers a frame range with a "use every Nth frame" step, full-image or visible-area region, output scale, playback speed, and a loop-forever toggle, with a live frame-count/dimension/size estimate. Frames are rendered client-side so the GIF matches the on-screen colormap, contrast, invert, mask, and saturation highlighting, using a dependency-free encoder that streams frames to keep memory bounded.
+
 ## [0.9.15] - 2026-06-24
 
 ### Added

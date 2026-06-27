@@ -39,6 +39,7 @@ import { createShortcutHandlers } from "./modules/shortcut_handlers.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
 import { createSeriesSumController } from "./modules/series_sum_controller.js";
 import { createDataExportController } from "./modules/data_export_controller.js";
+import { createAnimationExportController } from "./modules/animation_export_controller.js";
 import { createBackendStatusController } from "./modules/backend_status_controller.js";
 import { createJfjochBridgeController } from "./modules/jfjoch_bridge_controller.js";
 import { createRemoteStreamController } from "./modules/remote_stream_controller.js";
@@ -475,6 +476,26 @@ const dataExportCancel = document.getElementById("data-export-cancel");
 const dataExportProgress = document.getElementById("data-export-progress");
 const dataExportProgressFill = document.getElementById("data-export-progress-fill");
 const dataExportProgressText = document.getElementById("data-export-progress-text");
+const animationExportModal = document.getElementById("animation-export-modal");
+const animationExportClose = document.getElementById("animation-export-close");
+const animationExportSource = document.getElementById("animation-export-source");
+const animationExportFrameMode = document.getElementById("animation-export-frame-mode");
+const animationExportFrameStep = document.getElementById("animation-export-frame-step");
+const animationExportRangeStartField = document.getElementById("animation-export-range-start-field");
+const animationExportRangeEndField = document.getElementById("animation-export-range-end-field");
+const animationExportRangeStart = document.getElementById("animation-export-range-start");
+const animationExportRangeEnd = document.getElementById("animation-export-range-end");
+const animationExportRegion = document.getElementById("animation-export-region");
+const animationExportScale = document.getElementById("animation-export-scale");
+const animationExportFps = document.getElementById("animation-export-fps");
+const animationExportLoop = document.getElementById("animation-export-loop");
+const animationExportSummary = document.getElementById("animation-export-summary");
+const animationExportProgress = document.getElementById("animation-export-progress");
+const animationExportProgressFill = document.getElementById("animation-export-progress-fill");
+const animationExportProgressText = document.getElementById("animation-export-progress-text");
+const animationExportStart = document.getElementById("animation-export-start");
+const animationExportCancel = document.getElementById("animation-export-cancel");
+const toolbarPlaybackExportGif = document.getElementById("toolbar-playback-export-gif");
 const settingsModal = document.getElementById("settings-modal");
 const settingsClose = document.getElementById("settings-close");
 const settingsCancel = document.getElementById("settings-cancel");
@@ -1489,6 +1510,57 @@ function setDataExportProgress(progress, text) {
 function updateDataExportUi() {
   dataExportController.updateUi();
 }
+
+const animationExportController = createAnimationExportController({
+  apiBase: API,
+  state,
+  elements: {
+    modal: animationExportModal,
+    closeBtn: animationExportClose,
+    source: animationExportSource,
+    frameMode: animationExportFrameMode,
+    rangeStartField: animationExportRangeStartField,
+    rangeEndField: animationExportRangeEndField,
+    rangeStart: animationExportRangeStart,
+    rangeEnd: animationExportRangeEnd,
+    frameStep: animationExportFrameStep,
+    regionSelect: animationExportRegion,
+    fpsSelect: animationExportFps,
+    loopCheckbox: animationExportLoop,
+    scaleSelect: animationExportScale,
+    summary: animationExportSummary,
+    progress: animationExportProgress,
+    progressFill: animationExportProgressFill,
+    progressText: animationExportProgressText,
+    startBtn: animationExportStart,
+    cancelBtn: animationExportCancel,
+  },
+  callbacks: {
+    buildPalette,
+    getPaletteColorCount,
+    mapValueToNorm,
+    getActiveSaturationMax,
+    isSaturatedValue,
+    parseDtype,
+    parseShape,
+    typedArrayFrom,
+    getVisibleRegion: () => exportSplashController?.getVisibleRegion(),
+    openModal: (...args) => openModal(...args),
+    closeModal: (...args) => closeModal(...args),
+    setStatus,
+  },
+});
+
+function openAnimationExportDialog() {
+  animationExportController.openDialog();
+}
+
+toolbarPlaybackExportGif?.addEventListener("click", () => {
+  // Collapse the playback popover before raising the modal on top of it.
+  toolbarPlaybackPopover?.setAttribute("aria-hidden", "true");
+  toolbarPlaybackToggle?.setAttribute("aria-expanded", "false");
+  openAnimationExportDialog();
+});
 
 function setSeriesSumProgress(progress, text) {
   seriesSumController.setSeriesSumProgress(progress, text);
@@ -3103,6 +3175,7 @@ const menuActionHandler = createMenuActionHandler({
     openFileModal,
     closeCurrentFile,
     openDataExportDialog,
+    openAnimationExportDialog,
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,

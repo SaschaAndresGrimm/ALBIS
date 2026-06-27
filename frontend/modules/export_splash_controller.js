@@ -565,6 +565,7 @@ export function createExportSplashController({
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,
+    getVisibleRegion,
     drawSplash,
     updateSplashCallToAction,
     showSplash,

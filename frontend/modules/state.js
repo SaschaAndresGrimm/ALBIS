@@ -246,6 +246,13 @@ function createDataExportState() {
   };
 }
 
+function createAnimationExportState() {
+  return {
+    running: false,
+    cancelling: false,
+  };
+}
+
 export function createAppState() {
   return {
     // Global view/data state used across renderer + UI controls.
@@ -259,5 +266,6 @@ export function createAppState() {
     autoload: createAutoloadState(),
     seriesSum: createSeriesSumState(),
     dataExport: createDataExportState(),
+    animationExport: createAnimationExportState(),
   };
 }

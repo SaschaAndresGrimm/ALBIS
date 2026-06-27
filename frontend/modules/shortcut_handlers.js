@@ -43,12 +43,20 @@ export function createShortcutHandlers({
     const key = event.key.toLowerCase();
     const isShift = event.shiftKey;
     const isAlt = event.altKey;
-    if (["o", "s", "n", "w", ",", "k"].includes(key) || (key === "x" && isShift && !isAlt)) {
+    if (
+      ["o", "s", "n", "w", ",", "k", "g"].includes(key) ||
+      (key === "x" && isShift && !isAlt)
+    ) {
       event.preventDefault();
     }
     switch (key) {
       case "o":
         openFileModal();
+        break;
+      case "g":
+        if (!isShift && !isAlt) {
+          handleMenuAction("export-animation");
+        }
         break;
       case "w":
         closeCurrentFile();

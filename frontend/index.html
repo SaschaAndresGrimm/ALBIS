@@ -51,6 +51,10 @@
                 </button>
               </div>
             </div>
+            <button class="dropdown-item" data-action="export-animation">
+              <span data-i18n="menu.file.export_animation">Export Animation…</span>
+              <span class="shortcut">⌘G</span>
+            </button>
             <button class="dropdown-item" data-action="export-data">
               <span data-i18n="menu.file.convert_dataset">Convert Dataset…</span>
               <span class="shortcut">⇧⌘X</span>
@@ -137,6 +141,14 @@
                           <option value="10">10 fps</option>
                         </select>
                       </div>
+                      <button
+                        class="tool-btn toolbar-playback-export"
+                        id="toolbar-playback-export-gif"
+                        type="button"
+                        data-i18n="toolbar.playback.export_gif"
+                      >
+                        Export GIF…
+                      </button>
                     </div>
                   </div>
                   <div class="toolbar-threshold is-hidden" id="toolbar-threshold-wrap">
@@ -1522,6 +1534,86 @@
         <div class="modal-footer">
           <button class="btn btn-secondary is-hidden" id="data-export-cancel" type="button" data-i18n="data_export.button.cancel">Cancel</button>
           <button class="btn btn-primary" id="data-export-start" type="button" data-i18n="data_export.button.start">Start Export</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="animation-export-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card data-export-modal-card" role="dialog" aria-modal="true" aria-labelledby="animation-export-title">
+        <div class="modal-header">
+          <div id="animation-export-title" data-i18n="animation_export.title">Export Animation</div>
+          <button class="modal-close" id="animation-export-close" data-i18n-aria-label="common.close" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body data-export-modal-body">
+          <div class="data-export-source" id="animation-export-source">-</div>
+          <div class="data-export-grid">
+            <label class="field">
+              <span data-i18n="animation_export.frames">Frames</span>
+              <select id="animation-export-frame-mode">
+                <option value="all" data-i18n="animation_export.frames.all">All frames</option>
+                <option value="range" data-i18n="animation_export.frames.range">Range</option>
+              </select>
+            </label>
+            <label class="field">
+              <span data-i18n="animation_export.frame_step">Use every</span>
+              <select id="animation-export-frame-step">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+              </select>
+            </label>
+            <label class="field is-hidden" id="animation-export-range-start-field">
+              <span data-i18n="animation_export.range_start">Start frame</span>
+              <input id="animation-export-range-start" type="number" min="1" step="1" value="1" />
+            </label>
+            <label class="field is-hidden" id="animation-export-range-end-field">
+              <span data-i18n="animation_export.range_end">End frame</span>
+              <input id="animation-export-range-end" type="number" min="1" step="1" value="1" />
+            </label>
+            <label class="field">
+              <span data-i18n="animation_export.region">Region</span>
+              <select id="animation-export-region">
+                <option value="full" data-i18n="animation_export.region.full">Full image</option>
+                <option value="visible" data-i18n="animation_export.region.visible">Visible area</option>
+              </select>
+            </label>
+            <label class="field">
+              <span data-i18n="animation_export.scale">Scale</span>
+              <select id="animation-export-scale">
+                <option value="1">100%</option>
+                <option value="0.5" selected>50%</option>
+                <option value="0.25">25%</option>
+                <option value="0.1">10%</option>
+              </select>
+            </label>
+            <label class="field">
+              <span data-i18n="animation_export.fps">Speed</span>
+              <select id="animation-export-fps">
+                <option value="2">2 fps</option>
+                <option value="5" selected>5 fps</option>
+                <option value="10">10 fps</option>
+                <option value="15">15 fps</option>
+                <option value="20">20 fps</option>
+                <option value="30">30 fps</option>
+              </select>
+            </label>
+            <label class="checkbox data-export-overwrite">
+              <input id="animation-export-loop" type="checkbox" checked />
+              <span data-i18n="animation_export.loop">Loop forever</span>
+            </label>
+          </div>
+          <div class="data-export-source" id="animation-export-summary" data-i18n="animation_export.summary.empty">No frames selected</div>
+          <div class="data-export-progress" id="animation-export-progress">
+            <div class="data-export-progress-fill" id="animation-export-progress-fill"></div>
+            <div class="data-export-progress-text" id="animation-export-progress-text" data-i18n="animation_export.progress.idle">Idle</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary is-hidden" id="animation-export-cancel" type="button" data-i18n="animation_export.button.cancel">Cancel</button>
+          <button class="btn btn-primary" id="animation-export-start" type="button" data-i18n="animation_export.button.export">Export GIF</button>
         </div>
       </div>
     </div>
