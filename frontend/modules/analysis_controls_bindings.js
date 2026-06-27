@@ -40,6 +40,8 @@ export function bindAnalysisControlInteractions({
     ringInputs,
     peaksCountInput,
     peaksCountHint,
+    peaksSnrInput,
+    peaksSnrHint,
     peaksEnableToggle,
     peaksExportBtn,
     seriesSumOutput,
@@ -229,6 +231,30 @@ export function bindAnalysisControlInteractions({
     return clamped;
   }
 
+  function validatePeaksSnrInput(commit = false) {
+    if (!peaksSnrInput) return null;
+    const raw = String(peaksSnrInput.value || "").trim();
+    if (!raw) {
+      setFieldHint(peaksSnrInput, peaksSnrHint, t("validation.peaks.snr_range"));
+      return null;
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      setFieldHint(peaksSnrInput, peaksSnrHint, t("validation.peaks.snr_range"));
+      return null;
+    }
+    const clamped = Math.max(0, Math.min(50, parsed));
+    if (commit) {
+      peaksSnrInput.value = String(clamped);
+    }
+    if (clamped !== parsed && !commit) {
+      setFieldHint(peaksSnrInput, peaksSnrHint, t("validation.peaks.snr_range"));
+    } else {
+      setFieldHint(peaksSnrInput, peaksSnrHint, "");
+    }
+    return clamped;
+  }
+
   updateRingsFromInputs();
 
   [ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ...ringInputs]
@@ -347,6 +373,23 @@ export function bindAnalysisControlInteractions({
       const next = validatePeaksCountInput(true);
       if (!Number.isFinite(next)) return;
       analysisState.peakCount = next;
+      schedulePeakFinder();
+    });
+  }
+
+  if (peaksSnrInput) {
+    const fallback = Number.isFinite(analysisState.peakMinSnr) ? analysisState.peakMinSnr : 5;
+    const initial = Math.max(0, Math.min(50, Number(peaksSnrInput.value || fallback)));
+    analysisState.peakMinSnr = initial;
+    peaksSnrInput.value = String(initial);
+    setFieldHint(peaksSnrInput, peaksSnrHint, "");
+    peaksSnrInput.addEventListener("input", () => {
+      validatePeaksSnrInput(false);
+    });
+    peaksSnrInput.addEventListener("change", () => {
+      const next = validatePeaksSnrInput(true);
+      if (!Number.isFinite(next)) return;
+      analysisState.peakMinSnr = next;
       schedulePeakFinder();
     });
   }

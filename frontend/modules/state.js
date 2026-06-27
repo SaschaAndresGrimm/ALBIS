@@ -62,6 +62,7 @@ export function createAnalysisState() {
     ringCount: 3,
     peaksEnabled: false,
     peakCount: 25,
+    peakMinSnr: 5,
     peaks: [],
     externalPeakSets: [],
     selectedPeaks: [],

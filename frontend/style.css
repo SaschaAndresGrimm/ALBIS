@@ -2499,7 +2499,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   min-width: 0;
 }
 
-.peaks-count-field input {
+.peaks-count-field input,
+.peaks-snr-field input {
   max-width: 96px;
 }
 
@@ -2511,7 +2512,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-bottom: 8px;
 }
 
-.peaks-controls .peaks-count-field {
+.peaks-controls .peaks-count-field,
+.peaks-controls .peaks-snr-field {
   flex: 1 1 auto;
   margin: 0;
 }

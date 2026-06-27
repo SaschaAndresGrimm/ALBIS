@@ -288,7 +288,65 @@ export function createAnalysisOverlayController({
     updatePeaksSectionState();
   }
 
-  function detectPeaks(maxPeaks) {
+  // Background window geometry (pixels) for the local signal-to-noise test.
+  // The signal is integrated over a small box around the candidate; the local
+  // background is estimated from an annulus around it (outer box minus an inner
+  // guard box) so the peak's own tails never contaminate the background.
+  const PEAK_SIGNAL_RADIUS = 1; // 3x3 signal box
+  const PEAK_BG_INNER_RADIUS = 3; // guard region excluded from the background
+  const PEAK_BG_OUTER_RADIUS = 8; // outer edge of the background annulus
+
+  // Build a padded summed-area table (integral image) so the sum/count over any
+  // rectangle is four lookups regardless of window size. Invalid pixels (masked,
+  // saturated, non-finite) contribute zero to both the value sum and the pixel
+  // count, so the background mean is computed only over real measurements.
+  // Returns null if the scratch buffers cannot be allocated (very large frames),
+  // in which case the caller falls back to ranking by absolute intensity.
+  function buildPeakIntegralImages(data, width, height, shouldIgnorePixel) {
+    const w1 = width + 1;
+    const h1 = height + 1;
+    let sum;
+    let count;
+    try {
+      sum = new Float64Array(w1 * h1);
+      count = new Uint32Array(w1 * h1);
+    } catch {
+      return null;
+    }
+    for (let y = 0; y < height; y += 1) {
+      const rowOff = y * width;
+      const prevRow = y * w1;
+      const curRow = (y + 1) * w1;
+      for (let x = 0; x < width; x += 1) {
+        const idx = rowOff + x;
+        const v = data[idx];
+        let value = 0;
+        let valid = 0;
+        if (Number.isFinite(v) && !shouldIgnorePixel(idx)) {
+          value = v;
+          valid = 1;
+        }
+        const col = x + 1;
+        sum[curRow + col] = value + sum[curRow + x] + sum[prevRow + col] - sum[prevRow + x];
+        count[curRow + col] = valid + count[curRow + x] + count[prevRow + col] - count[prevRow + x];
+      }
+    }
+    const w = w1;
+    // Inclusive rectangle [x0..x1] x [y0..y1], clamped to the image bounds.
+    const rectSum = (table, x0, y0, x1, y1) => {
+      const ax = x0 < 0 ? 0 : x0;
+      const ay = y0 < 0 ? 0 : y0;
+      const bx = (x1 >= width ? width - 1 : x1) + 1;
+      const by = (y1 >= height ? height - 1 : y1) + 1;
+      return table[by * w + bx] - table[ay * w + bx] - table[by * w + ax] + table[ay * w + ax];
+    };
+    return {
+      valueSum: (x0, y0, x1, y1) => rectSum(sum, x0, y0, x1, y1),
+      pixelCount: (x0, y0, x1, y1) => rectSum(count, x0, y0, x1, y1),
+    };
+  }
+
+  function detectPeaks(maxPeaks, minSnr) {
     if (!state.hasFrame || !state.dataRaw || !state.width || !state.height) return [];
     const width = state.width;
     const height = state.height;
@@ -312,27 +370,76 @@ export function createAnalysisOverlayController({
       return false;
     };
 
+    // Local signal-to-noise gate. Real Bragg spots stand out from their *local*
+    // surroundings; ranking by absolute intensity alone promotes noise that sits
+    // on a bright background (around the beam stop or hot modules) and buries
+    // genuine but faint reflections. The integral images make this test O(1) per
+    // candidate, keeping the whole pass linear in the number of pixels.
+    const snrThreshold = Number.isFinite(minSnr) && minSnr > 0 ? minSnr : 0;
+    const integrals = snrThreshold > 0 ? buildPeakIntegralImages(data, width, height, shouldIgnorePixel) : null;
+
+    function scorePeak(x, y, value) {
+      // No SNR test requested (or buffers unavailable): rank by intensity.
+      if (!integrals) return value;
+      const bgOuter = integrals.valueSum(
+        x - PEAK_BG_OUTER_RADIUS, y - PEAK_BG_OUTER_RADIUS,
+        x + PEAK_BG_OUTER_RADIUS, y + PEAK_BG_OUTER_RADIUS,
+      );
+      const bgInner = integrals.valueSum(
+        x - PEAK_BG_INNER_RADIUS, y - PEAK_BG_INNER_RADIUS,
+        x + PEAK_BG_INNER_RADIUS, y + PEAK_BG_INNER_RADIUS,
+      );
+      const cntOuter = integrals.pixelCount(
+        x - PEAK_BG_OUTER_RADIUS, y - PEAK_BG_OUTER_RADIUS,
+        x + PEAK_BG_OUTER_RADIUS, y + PEAK_BG_OUTER_RADIUS,
+      );
+      const cntInner = integrals.pixelCount(
+        x - PEAK_BG_INNER_RADIUS, y - PEAK_BG_INNER_RADIUS,
+        x + PEAK_BG_INNER_RADIUS, y + PEAK_BG_INNER_RADIUS,
+      );
+      const bgCount = cntOuter - cntInner;
+      if (bgCount < 4) return Number.NEGATIVE_INFINITY; // too little background to judge
+      const bgMean = (bgOuter - bgInner) / bgCount;
+
+      const sigSum = integrals.valueSum(
+        x - PEAK_SIGNAL_RADIUS, y - PEAK_SIGNAL_RADIUS,
+        x + PEAK_SIGNAL_RADIUS, y + PEAK_SIGNAL_RADIUS,
+      );
+      const sigCount = integrals.pixelCount(
+        x - PEAK_SIGNAL_RADIUS, y - PEAK_SIGNAL_RADIUS,
+        x + PEAK_SIGNAL_RADIUS, y + PEAK_SIGNAL_RADIUS,
+      );
+      if (sigCount < 1) return Number.NEGATIVE_INFINITY;
+
+      // Background-subtracted integrated intensity and its Poisson variance:
+      // var = var(signal counts) + (signal area)^2 * var(background mean).
+      const excess = sigSum - bgMean * sigCount;
+      const variance = sigSum + (sigCount * sigCount * bgMean) / bgCount;
+      const noise = Math.sqrt(variance > 1 ? variance : 1);
+      return excess / noise;
+    }
+
     const candidates = [];
     const candidateLimit = Math.min(4096, Math.max(128, maxPeaks * 24));
-    let minCandidateValue = Number.POSITIVE_INFINITY;
+    let minCandidateScore = Number.POSITIVE_INFINITY;
     let minCandidateIndex = -1;
 
-    function pushCandidate(x, y, value) {
+    function pushCandidate(x, y, value, score) {
       if (candidates.length < candidateLimit) {
-        candidates.push({ x, y, intensity: value });
-        if (value < minCandidateValue) {
-          minCandidateValue = value;
+        candidates.push({ x, y, intensity: value, score });
+        if (score < minCandidateScore) {
+          minCandidateScore = score;
           minCandidateIndex = candidates.length - 1;
         }
         return;
       }
-      if (value <= minCandidateValue || minCandidateIndex < 0) return;
-      candidates[minCandidateIndex] = { x, y, intensity: value };
-      minCandidateValue = Number.POSITIVE_INFINITY;
+      if (score <= minCandidateScore || minCandidateIndex < 0) return;
+      candidates[minCandidateIndex] = { x, y, intensity: value, score };
+      minCandidateScore = Number.POSITIVE_INFINITY;
       minCandidateIndex = -1;
       for (let i = 0; i < candidates.length; i += 1) {
-        if (candidates[i].intensity < minCandidateValue) {
-          minCandidateValue = candidates[i].intensity;
+        if (candidates[i].score < minCandidateScore) {
+          minCandidateScore = candidates[i].score;
           minCandidateIndex = i;
         }
       }
@@ -360,11 +467,14 @@ export function createAnalysisOverlayController({
         if (!Number.isFinite(down)) down = Number.NEGATIVE_INFINITY;
 
         if (!(v > left && v >= right && v > up && v >= down)) continue;
-        pushCandidate(x, y, v);
+
+        const score = scorePeak(x, y, v);
+        if (integrals && score < snrThreshold) continue; // below local SNR gate
+        pushCandidate(x, y, v, score);
       }
     }
 
-    candidates.sort((a, b) => b.intensity - a.intensity);
+    candidates.sort((a, b) => b.score - a.score);
     const selected = [];
     const minSeparation = Math.max(4, Math.round(Math.min(width, height) * 0.004));
     const minSeparationSq = minSeparation * minSeparation;
@@ -380,7 +490,7 @@ export function createAnalysisOverlayController({
         }
       }
       if (!tooClose) {
-        selected.push(candidate);
+        selected.push({ x: candidate.x, y: candidate.y, intensity: candidate.intensity });
         if (selected.length >= maxPeaks) break;
       }
     }
@@ -403,7 +513,8 @@ export function createAnalysisOverlayController({
       peaksCountInput.value = String(requested);
       setFieldHint(peaksCountInput, peaksCountHint, "");
     }
-    analysisState.peaks = detectPeaks(requested);
+    const minSnr = Math.max(0, Math.min(50, Number(analysisState.peakMinSnr) || 0));
+    analysisState.peaks = detectPeaks(requested, minSnr);
     analysisState.selectedPeaks = analysisState.selectedPeaks.filter(
       (idx) => Number.isInteger(idx) && idx >= 0 && idx < analysisState.peaks.length,
     );

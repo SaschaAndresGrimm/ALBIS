@@ -393,6 +393,8 @@ const ringInputs = [
 const peaksEnableToggle = document.getElementById("peaks-enable");
 const peaksCountInput = document.getElementById("peaks-count");
 const peaksCountHint = document.getElementById("peaks-count-hint");
+const peaksSnrInput = document.getElementById("peaks-snr");
+const peaksSnrHint = document.getElementById("peaks-snr-hint");
 const peaksExportBtn = document.getElementById("peaks-export");
 const peaksBody = document.getElementById("peaks-body");
 const peaksSectionStateEl = document.getElementById("peaks-state");
@@ -4354,6 +4356,8 @@ bindAnalysisControlInteractions({
     ringInputs,
     peaksCountInput,
     peaksCountHint,
+    peaksSnrInput,
+    peaksSnrHint,
     peaksEnableToggle,
     peaksExportBtn,
     seriesSumOutput,
