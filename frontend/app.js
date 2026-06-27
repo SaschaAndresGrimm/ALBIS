@@ -59,6 +59,7 @@ import { createInspectorPanelController } from "./modules/inspector_panel_contro
 import { createAnalysisOverlayController } from "./modules/analysis_overlay_controller.js";
 import { createMaskCursorController } from "./modules/mask_cursor_controller.js";
 import { createRoiInteractionController } from "./modules/roi_interaction_controller.js";
+import { createResolutionRingInteractionController } from "./modules/resolution_ring_interaction_controller.js";
 import { createSourceMetadataController } from "./modules/source_metadata_controller.js";
 import { createExportSplashController } from "./modules/export_splash_controller.js";
 import { createChromeToolbarController } from "./modules/chrome_toolbar_controller.js";
@@ -1265,6 +1266,56 @@ function getRingParams() {
 
 function getResolutionAtPixel(ix, iy, params = getRingParams()) {
   return analysisOverlayController.getResolutionAtPixel(ix, iy, params);
+}
+
+const resolutionRingInteractionController = createResolutionRingInteractionController({
+  state,
+  analysisState,
+  elements: {
+    canvasWrap,
+    ringsCenterX,
+    ringsCenterY,
+    ringInputs,
+  },
+  callbacks: {
+    getEffectiveScrollLeft,
+    getEffectiveScrollTop,
+    getRingParams,
+    getResolutionAtPixel,
+    scheduleResolutionOverlay,
+  },
+});
+
+function getRingHandleAt(event) {
+  return resolutionRingInteractionController.getRingHandleAt(event);
+}
+
+function startRingEdit(handle) {
+  resolutionRingInteractionController.startRingEdit(handle);
+}
+
+function applyRingEdit(point) {
+  resolutionRingInteractionController.applyRingEdit(point);
+}
+
+function stopRingEdit(event) {
+  resolutionRingInteractionController.stopRingEdit(event);
+}
+
+function isRingEditing() {
+  return resolutionRingInteractionController.isRingEditing();
+}
+
+function updateRingHover(event) {
+  return resolutionRingInteractionController.updateRingHover(event);
+}
+
+function clearRingHover() {
+  resolutionRingInteractionController.clearRingHover();
+}
+
+function getRingInteractionState() {
+  return resolutionRingInteractionController.getRingInteractionState();
 }
 
 function getRoiModeLabel(mode) {
@@ -3501,6 +3552,7 @@ const overlayRenderController = createOverlayRenderController({
     isSaturatedValue,
     getRingParams,
     updateRingsSectionState,
+    getRingInteractionState,
   },
 });
 
@@ -4157,6 +4209,13 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   updateCursorOverlay,
   isRoiEditing,
   applyRoiEdit,
+  getRingHandleAt,
+  startRingEdit,
+  applyRingEdit,
+  stopRingEdit,
+  isRingEditing,
+  updateRingHover,
+  clearRingHover,
   hideCursorOverlay,
   getMinZoom,
   updateRoiTooltip,

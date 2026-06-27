@@ -1060,6 +1060,14 @@ body {
   cursor: crosshair;
 }
 
+.canvas-wrap.is-ring-target {
+  cursor: grab;
+}
+
+.canvas-wrap.is-ring-dragging {
+  cursor: grabbing;
+}
+
 #pixel-overlay {
   position: absolute;
   pointer-events: none;

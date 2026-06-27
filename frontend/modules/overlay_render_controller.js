@@ -42,6 +42,7 @@ export function createOverlayRenderController({
     isSaturatedValue,
     getRingParams,
     updateRingsSectionState,
+    getRingInteractionState,
   } = callbacks;
 
   let pixelOverlayScheduled = false;
@@ -453,10 +454,19 @@ export function createOverlayRenderController({
     resolutionCtx.stroke();
   }
 
-  function drawBeamCenterMarker(centerX, centerY, zoom) {
+  function drawBeamCenterMarker(centerX, centerY, zoom, highlight = false) {
     if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return;
     const arm = Math.max(10, Math.min(22, 10 + Math.log2(Math.max(1, zoom)) * 4));
     resolutionCtx.setLineDash([]);
+    if (highlight) {
+      resolutionCtx.beginPath();
+      resolutionCtx.arc(centerX, centerY, arm + 4, 0, Math.PI * 2);
+      resolutionCtx.fillStyle = "rgba(255, 65, 65, 0.16)";
+      resolutionCtx.fill();
+      resolutionCtx.lineWidth = 1.5;
+      resolutionCtx.strokeStyle = "rgba(255, 65, 65, 0.85)";
+      resolutionCtx.stroke();
+    }
     resolutionCtx.beginPath();
     resolutionCtx.moveTo(centerX - arm, centerY);
     resolutionCtx.lineTo(centerX + arm, centerY);
@@ -496,6 +506,12 @@ export function createOverlayRenderController({
     const centerX = (params.centerX - viewX) * zoom + offsetX;
     const centerY = (params.centerY - viewY) * zoom + offsetY;
     const pixelSizeMm = params.pixelSizeUm / 1000;
+    const activeHandle = getRingInteractionState?.().handle || null;
+    const centerActive = activeHandle?.type === "center";
+    const isRingActive = (d) =>
+      activeHandle?.type === "ring" &&
+      Number.isFinite(activeHandle.d) &&
+      Math.abs(activeHandle.d - d) <= Math.max(0.01, d * 0.005);
 
     resolutionCtx.save();
     resolutionCtx.setLineDash([6, 6]);
@@ -527,7 +543,7 @@ export function createOverlayRenderController({
         drawRingLabel(labelPoint, label);
       });
       if (params.centerKnown) {
-        drawBeamCenterMarker(centerX, centerY, zoom);
+        drawBeamCenterMarker(centerX, centerY, zoom, centerActive);
       }
       resolutionCtx.restore();
       return;
@@ -545,13 +561,14 @@ export function createOverlayRenderController({
       if (!Number.isFinite(radiusPx) || radiusPx <= 0) return;
       const screenRadius = radiusPx * zoom;
       if (screenRadius < 5) return;
+      const active = isRingActive(d);
       resolutionCtx.beginPath();
       resolutionCtx.arc(centerX, centerY, screenRadius, 0, Math.PI * 2);
-      resolutionCtx.lineWidth = 3.5;
+      resolutionCtx.lineWidth = active ? 4.5 : 3.5;
       resolutionCtx.strokeStyle = "rgba(255, 255, 255, 0.45)";
       resolutionCtx.stroke();
-      resolutionCtx.lineWidth = 2;
-      resolutionCtx.strokeStyle = "rgba(20, 80, 170, 0.95)";
+      resolutionCtx.lineWidth = active ? 3 : 2;
+      resolutionCtx.strokeStyle = active ? "rgba(90, 160, 255, 1)" : "rgba(20, 80, 170, 0.95)";
       resolutionCtx.stroke();
 
       const labelX = centerX + Math.cos(labelAngle) * screenRadius;
@@ -561,7 +578,7 @@ export function createOverlayRenderController({
     });
 
     if (params.centerKnown) {
-      drawBeamCenterMarker(centerX, centerY, zoom);
+      drawBeamCenterMarker(centerX, centerY, zoom, centerActive);
     }
     resolutionCtx.restore();
   }

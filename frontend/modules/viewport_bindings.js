@@ -55,6 +55,13 @@ export function bindViewportInteractions({
     isRoiEditing,
     applyRoiEdit,
     stopRoiEdit,
+    getRingHandleAt,
+    startRingEdit,
+    applyRingEdit,
+    stopRingEdit,
+    isRingEditing,
+    updateRingHover,
+    clearRingHover,
     hideCursorOverlay,
     getMinZoom,
     zoomAt,
@@ -379,19 +386,43 @@ export function bindViewportInteractions({
     if (event.button !== 0) return;
     if (event.target.closest(".loading")) return;
 
+    let roiPoint = null;
+    let roiHandle = null;
     if (roiState.enabled && roiState.active) {
-      const point = getImagePointFromEvent(event, { allowOutside: allowCircularOutside });
-      if (point) {
-        const handle = getRoiHandleAt(event);
-        if (handle || isPointInRoi(point)) {
-          startRoiEdit(handle || "move", point);
-          canvasWrap.setPointerCapture(event.pointerId);
-          event.preventDefault();
-          return;
-        }
-      }
+      roiPoint = getImagePointFromEvent(event, { allowOutside: allowCircularOutside });
+      if (roiPoint) roiHandle = getRoiHandleAt(event);
+    }
+    // Precise ROI handles win first, then precise ring handles, and only then
+    // the broad "click anywhere inside the ROI to move it" fallback — so a ring
+    // handle that sits inside an active ROI stays grabbable.
+    if (roiHandle) {
+      startRoiEdit(roiHandle, roiPoint);
+      canvasWrap.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      return;
     }
 
+    const ringHandle = getRingHandleAt?.(event);
+    if (ringHandle) {
+      startRingEdit(ringHandle);
+      const point = getImagePointFromEvent(event, {
+        allowOutside: true,
+        allowOutsideViewport: true,
+      });
+      if (point) applyRingEdit(point);
+      canvasWrap.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      return;
+    }
+
+    if (roiPoint && isPointInRoi(roiPoint)) {
+      startRoiEdit("move", roiPoint);
+      canvasWrap.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      return;
+    }
+
+    clearRingHover?.();
     panning = true;
     panStart = {
       x: event.clientX,
@@ -427,6 +458,15 @@ export function bindViewportInteractions({
       return;
     }
 
+    if (isRingEditing?.()) {
+      const point = getImagePointFromEvent(event, {
+        allowOutside: true,
+        allowOutsideViewport: true,
+      });
+      if (point) applyRingEdit(point);
+      return;
+    }
+
     if (getRoiDragging()) {
       const allowOutside = roiState.mode === "circle" || roiState.mode === "annulus";
       const point = getImagePointFromEvent(event, {
@@ -438,7 +478,11 @@ export function bindViewportInteractions({
       return;
     }
 
-    if (!panning) return;
+    if (!panning) {
+      // Hover affordance for the resolution-ring handles when idle.
+      updateRingHover?.(event);
+      return;
+    }
 
     deferViewportInteraction();
     const dx = event.clientX - panStart.x;
@@ -451,6 +495,7 @@ export function bindViewportInteractions({
   canvasWrap.addEventListener("pointerup", (event) => {
     stopWindowing(event);
     stopRoiEdit(event);
+    stopRingEdit?.(event);
     stopRoi(event);
     stopPan(event);
   });
@@ -458,6 +503,7 @@ export function bindViewportInteractions({
   canvasWrap.addEventListener("pointercancel", (event) => {
     stopWindowing(event);
     stopRoiEdit(event);
+    stopRingEdit?.(event);
     stopRoi(event);
     stopPan(event);
   });
@@ -470,6 +516,7 @@ export function bindViewportInteractions({
     if (!hasCapture) {
       stopWindowing(event);
       stopRoi(event);
+      clearRingHover?.();
     }
     hideCursorOverlay();
   });
