@@ -5,6 +5,14 @@
 const AUTO_CONTRAST_LOW = 0.001;
 const AUTO_CONTRAST_HIGH = 0.999;
 const AUTO_CONTRAST_BINS = 4096;
+// Detached extreme-pixel cluster rejection for auto-contrast. Summed gap/dead-pixel
+// sentinels (e.g. 65535 x frames) form a spike far above the real signal; left in,
+// they dominate the upper percentile and blow the foreground out to absurd values.
+// A cluster is rejected only when it sits above a wide empty valley in log space AND
+// holds a meaningful pixel fraction, so isolated bright Bragg peaks are preserved.
+const AUTO_CONTRAST_GAP_FRAC = 0.1;
+const AUTO_CONTRAST_CLUSTER_MIN = 0.002;
+const AUTO_CONTRAST_CLUSTER_MAX = 0.4;
 const ALBULA_LIN_SIZE = 256;
 const ALBULA_LOG_SIZE = 768;
 const ALBULA_LUT_SIZE = ALBULA_LIN_SIZE + ALBULA_LOG_SIZE;
@@ -301,11 +309,49 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
     hist[idx] += 1;
   }
 
-  const lowTarget = count * AUTO_CONTRAST_LOW;
-  const highTarget = count * AUTO_CONTRAST_HIGH;
+  // Reject a detached cluster of extreme pixels (summed sentinels) before taking
+  // percentiles, so it cannot pull the foreground up to its own value.
+  let cutBin = bins - 1;
+  let topOccupied = -1;
+  for (let i = bins - 1; i >= 0; i -= 1) {
+    if (hist[i] > 0) {
+      topOccupied = i;
+      break;
+    }
+  }
+  if (topOccupied > 0) {
+    let clusterLow = topOccupied;
+    while (clusterLow - 1 >= 0 && hist[clusterLow - 1] > 0) clusterLow -= 1;
+    if (clusterLow > 0) {
+      let gapLo = clusterLow - 1;
+      while (gapLo >= 0 && hist[gapLo] === 0) gapLo -= 1;
+      const gapWidth = clusterLow - 1 - gapLo;
+      let clusterCount = 0;
+      for (let i = clusterLow; i < bins; i += 1) clusterCount += hist[i];
+      const clusterFrac = clusterCount / count;
+      if (
+        gapLo >= 0 &&
+        gapWidth >= AUTO_CONTRAST_GAP_FRAC * bins &&
+        clusterFrac >= AUTO_CONTRAST_CLUSTER_MIN &&
+        clusterFrac <= AUTO_CONTRAST_CLUSTER_MAX
+      ) {
+        cutBin = gapLo;
+      }
+    }
+  }
+
+  let keptCount = 0;
+  for (let i = 0; i <= cutBin; i += 1) keptCount += hist[i];
+  if (keptCount === 0) {
+    cutBin = bins - 1;
+    keptCount = count;
+  }
+
+  const lowTarget = keptCount * AUTO_CONTRAST_LOW;
+  const highTarget = keptCount * AUTO_CONTRAST_HIGH;
   let cumulative = 0;
   let lowBin = 0;
-  for (let i = 0; i < bins; i += 1) {
+  for (let i = 0; i <= cutBin; i += 1) {
     cumulative += hist[i];
     if (cumulative >= lowTarget) {
       lowBin = i;
@@ -313,8 +359,8 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
     }
   }
   cumulative = 0;
-  let highBin = bins - 1;
-  for (let i = 0; i < bins; i += 1) {
+  let highBin = cutBin;
+  for (let i = 0; i <= cutBin; i += 1) {
     cumulative += hist[i];
     if (cumulative >= highTarget) {
       highBin = i;
@@ -322,7 +368,7 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
     }
   }
   if (highBin <= lowBin) {
-    highBin = Math.min(bins - 1, lowBin + 1);
+    highBin = Math.min(cutBin, lowBin + 1);
   }
 
   const lowLog = minLog + (lowBin / (bins - 1)) * range;
