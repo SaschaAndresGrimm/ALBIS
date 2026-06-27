@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "El rango de fotogramas de la animación no es válido",
   "status.animation_export.saved": "{{filename}} guardado",
   "status.animation_export.failed": "No se pudo crear la animación",
-  "status.animation_export.cancelled": "Exportación de la animación cancelada"
+  "status.animation_export.cancelled": "Exportación de la animación cancelada",
+  "http.error.network": "No se puede conectar con el servidor. Comprueba que está en marcha e inténtalo de nuevo.",
+  "http.error.forbidden": "No tienes permiso para esta acción.",
+  "http.error.not_found": "No se encontró el recurso solicitado.",
+  "http.error.timeout": "La solicitud expiró. Inténtalo de nuevo.",
+  "http.error.server": "El servidor tuvo un problema. Inténtalo de nuevo.",
+  "http.error.client": "No se pudo completar la solicitud.",
+  "http.error.generic": "La solicitud falló."
 }

@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "La plage d'images de l'animation est invalide",
   "status.animation_export.saved": "{{filename}} enregistré",
   "status.animation_export.failed": "Impossible de créer l'animation",
-  "status.animation_export.cancelled": "Exportation de l'animation annulée"
+  "status.animation_export.cancelled": "Exportation de l'animation annulée",
+  "http.error.network": "Impossible de joindre le serveur. Vérifiez qu'il est en cours d'exécution et réessayez.",
+  "http.error.forbidden": "Vous n'avez pas l'autorisation pour cette action.",
+  "http.error.not_found": "La ressource demandée est introuvable.",
+  "http.error.timeout": "La requête a expiré. Veuillez réessayer.",
+  "http.error.server": "Le serveur a rencontré un problème. Veuillez réessayer.",
+  "http.error.client": "La requête n'a pas pu être effectuée.",
+  "http.error.generic": "Échec de la requête."
 }

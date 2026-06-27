@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "L'intervallo di frame dell'animazione non è valido",
   "status.animation_export.saved": "{{filename}} salvato",
   "status.animation_export.failed": "Impossibile creare l'animazione",
-  "status.animation_export.cancelled": "Esportazione dell'animazione annullata"
+  "status.animation_export.cancelled": "Esportazione dell'animazione annullata",
+  "http.error.network": "Impossibile raggiungere il server. Verifica che sia in esecuzione e riprova.",
+  "http.error.forbidden": "Non hai i permessi per questa azione.",
+  "http.error.not_found": "La risorsa richiesta non è stata trovata.",
+  "http.error.timeout": "La richiesta è scaduta. Riprova.",
+  "http.error.server": "Il server ha riscontrato un problema. Riprova.",
+  "http.error.client": "Impossibile completare la richiesta.",
+  "http.error.generic": "Richiesta non riuscita."
 }

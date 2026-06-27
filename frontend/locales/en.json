@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "Animation frame range is invalid",
   "status.animation_export.saved": "Saved {{filename}}",
   "status.animation_export.failed": "Could not create animation",
-  "status.animation_export.cancelled": "Animation export cancelled"
+  "status.animation_export.cancelled": "Animation export cancelled",
+  "http.error.network": "Cannot reach the server. Check that it is running and try again.",
+  "http.error.forbidden": "You do not have permission for this action.",
+  "http.error.not_found": "The requested resource was not found.",
+  "http.error.timeout": "The request timed out. Please try again.",
+  "http.error.server": "The server ran into a problem. Please try again.",
+  "http.error.client": "The request could not be completed.",
+  "http.error.generic": "Request failed."
 }

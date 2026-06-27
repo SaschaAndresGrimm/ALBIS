@@ -6,6 +6,11 @@ import { t } from "./i18n.js";
 import { getGeometryScopeKey } from "./geometry_override_utils.js";
 import { createTransientFrameLoadState } from "./transient_frame_load_state.js";
 
+// Generous ceiling for a single binary frame/image transfer. Long enough not to
+// trip on large frames over a slow link, short enough that a hung connection no
+// longer leaves the loading spinner up forever.
+const FRAME_LOAD_TIMEOUT_MS = 120000;
+
 export function createFileDataPipelineController({
   apiBase,
   state,
@@ -140,7 +145,9 @@ export function createFileDataPipelineController({
       return loadImageFile(file, { skipSourceSwitchPrep: true });
     }
     try {
-      const data = await fetchJSON(`${apiBase}/series?file=${encodeURIComponent(file)}`);
+      const data = await fetchJSON(`${apiBase}/series?file=${encodeURIComponent(file)}`, {
+        timeoutMs: 60000,
+      });
       const files = Array.isArray(data.files) ? data.files : [file];
       if (data.series && files.length > 1) {
         state.seriesFiles = files;
@@ -212,7 +219,9 @@ export function createFileDataPipelineController({
     setStatus(t("status.data.scanning_datasets"));
     setDataSourceSectionState("loading", t("status.data.scanning_datasets"), true);
     try {
-      const data = await fetchJSON(`${apiBase}/datasets?file=${encodeURIComponent(state.file)}`);
+      const data = await fetchJSON(`${apiBase}/datasets?file=${encodeURIComponent(state.file)}`, {
+        timeoutMs: 60000,
+      });
       const candidates = data.datasets
         .filter((d) => d.image)
         .sort((a, b) => b.size - a.size);
@@ -265,8 +274,13 @@ export function createFileDataPipelineController({
       setLoading(false);
     }
     let appliedFrame = false;
+    let timedOut = false;
     const requestController = new AbortController();
     activeFrameLoadController = requestController;
+    const loadTimer = setTimeout(() => {
+      timedOut = true;
+      requestController.abort();
+    }, FRAME_LOAD_TIMEOUT_MS);
     const geometryScopeKey = getGeometryScopeKey(state, file);
     const geometryPromise = loadImageGeometry(state.file || file, geometryScopeKey);
     try {
@@ -305,7 +319,9 @@ export function createFileDataPipelineController({
       setStatus(currentFrameStatusText(), { frameStatus: true });
       updateToolbar();
     } catch (err) {
-      if (err?.name !== "AbortError") {
+      // A timeout aborts our own controller, so treat it as a surfaced failure
+      // rather than the silent navigation-cancel case below.
+      if (timedOut || err?.name !== "AbortError") {
         console.error(err);
         setStatus(t("status.data.failed_load_image"), { tone: "error" });
         if (!state.hasFrame) {
@@ -313,6 +329,7 @@ export function createFileDataPipelineController({
         }
       }
     } finally {
+      clearTimeout(loadTimer);
       finishFrameLoad(requestController);
     }
     processPendingFrameRequest(appliedFrame);
@@ -337,8 +354,13 @@ export function createFileDataPipelineController({
       state.thresholdCount > 1 ? `&threshold=${state.thresholdIndex}` : ""
     }`;
     let appliedFrame = false;
+    let timedOut = false;
     const requestController = new AbortController();
     activeFrameLoadController = requestController;
+    const loadTimer = setTimeout(() => {
+      timedOut = true;
+      requestController.abort();
+    }, FRAME_LOAD_TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         signal: requestController.signal,
@@ -366,7 +388,9 @@ export function createFileDataPipelineController({
       setStatus(currentFrameStatusText(), { frameStatus: true });
       updateToolbar();
     } catch (err) {
-      if (err?.name !== "AbortError") {
+      // A timeout aborts our own controller, so treat it as a surfaced failure
+      // rather than the silent navigation-cancel case below.
+      if (timedOut || err?.name !== "AbortError") {
         console.error(err);
         setStatus(t("status.data.failed_load_frame"), { tone: "error" });
         if (!state.hasFrame) {
@@ -374,6 +398,7 @@ export function createFileDataPipelineController({
         }
       }
     } finally {
+      clearTimeout(loadTimer);
       finishFrameLoad(requestController);
     }
     processPendingFrameRequest(appliedFrame);

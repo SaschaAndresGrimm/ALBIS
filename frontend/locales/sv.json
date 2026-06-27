@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "Animationens bildruteintervall är ogiltigt",
   "status.animation_export.saved": "{{filename}} sparad",
   "status.animation_export.failed": "Det gick inte att skapa animationen",
-  "status.animation_export.cancelled": "Animationsexport avbruten"
+  "status.animation_export.cancelled": "Animationsexport avbruten",
+  "http.error.network": "Kan inte nå servern. Kontrollera att den körs och försök igen.",
+  "http.error.forbidden": "Du har inte behörighet för den här åtgärden.",
+  "http.error.not_found": "Den begärda resursen hittades inte.",
+  "http.error.timeout": "Begäran tog för lång tid. Försök igen.",
+  "http.error.server": "Servern stötte på ett problem. Försök igen.",
+  "http.error.client": "Begäran kunde inte slutföras.",
+  "http.error.generic": "Begäran misslyckades."
 }

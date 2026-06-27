@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "Dr Bildberäich vo dr Animation isch ungültig",
   "status.animation_export.saved": "{{filename}} gspycheret",
   "status.animation_export.failed": "Animation het nöd chönne erstellt wärde",
-  "status.animation_export.cancelled": "Animations-Export abbroche"
+  "status.animation_export.cancelled": "Animations-Export abbroche",
+  "http.error.network": "Server nid erreichbar. Lueg, ob er lauft, und probier's nomal.",
+  "http.error.forbidden": "Du hesch kei Berächtigung für die Aktion.",
+  "http.error.not_found": "Di aagforderet Ressource isch nid gfunde worde.",
+  "http.error.timeout": "D Aafrog het z lang bruucht. Bitte probier's nomal.",
+  "http.error.server": "Uf em Server isch es Problem ufträte. Bitte probier's nomal.",
+  "http.error.client": "D Aafrog het nid chöne abgschlosse werde.",
+  "http.error.generic": "Aafrog fehlgschlage."
 }

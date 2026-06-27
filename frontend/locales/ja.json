@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "アニメーションのフレーム範囲が無効です",
   "status.animation_export.saved": "{{filename}} を保存しました",
   "status.animation_export.failed": "アニメーションを作成できませんでした",
-  "status.animation_export.cancelled": "アニメーションのエクスポートをキャンセルしました"
+  "status.animation_export.cancelled": "アニメーションのエクスポートをキャンセルしました",
+  "http.error.network": "サーバーに接続できません。サーバーが動作しているか確認して、もう一度お試しください。",
+  "http.error.forbidden": "この操作を行う権限がありません。",
+  "http.error.not_found": "要求されたリソースが見つかりませんでした。",
+  "http.error.timeout": "リクエストがタイムアウトしました。もう一度お試しください。",
+  "http.error.server": "サーバーで問題が発生しました。もう一度お試しください。",
+  "http.error.client": "リクエストを完了できませんでした。",
+  "http.error.generic": "リクエストに失敗しました。"
 }

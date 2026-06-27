@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "Animationens rammeinterval er ugyldigt",
   "status.animation_export.saved": "{{filename}} gemt",
   "status.animation_export.failed": "Kunne ikke oprette animationen",
-  "status.animation_export.cancelled": "Animationseksport annulleret"
+  "status.animation_export.cancelled": "Animationseksport annulleret",
+  "http.error.network": "Kan ikke nå serveren. Kontroller, at den kører, og prøv igen.",
+  "http.error.forbidden": "Du har ikke tilladelse til denne handling.",
+  "http.error.not_found": "Den anmodede ressource blev ikke fundet.",
+  "http.error.timeout": "Anmodningen fik timeout. Prøv igen.",
+  "http.error.server": "Serveren stødte på et problem. Prøv igen.",
+  "http.error.client": "Anmodningen kunne ikke fuldføres.",
+  "http.error.generic": "Anmodning mislykkedes."
 }

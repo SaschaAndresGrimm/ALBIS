@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "L'interval dals maletgs da l'animaziun è invalid",
   "status.animation_export.saved": "Memorisà {{filename}}",
   "status.animation_export.failed": "Impussibel da crear l'animaziun",
-  "status.animation_export.cancelled": "Export da l'animaziun interrut"
+  "status.animation_export.cancelled": "Export da l'animaziun interrut",
+  "http.error.network": "Impussibel da contactar il server. Controllai sch'el funcziuna ed empruvai anc ina giada.",
+  "http.error.forbidden": "Vus n'avais betg il dretg per questa acziun.",
+  "http.error.not_found": "La resursa dumandada n'è betg vegnida chattada.",
+  "http.error.timeout": "La dumonda è scadida. Empruvai p.pl. anc ina giada.",
+  "http.error.server": "Il server ha chattà in problem. Empruvai p.pl. anc ina giada.",
+  "http.error.client": "La dumonda na po betg vegnir cumplettada.",
+  "http.error.generic": "La dumonda è fallida."
 }

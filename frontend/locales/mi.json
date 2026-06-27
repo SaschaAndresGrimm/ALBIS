@@ -848,5 +848,12 @@
   "status.animation_export.range_invalid": "He muhu te awhe tāpare o te pikiata",
   "status.animation_export.saved": "Kua tiakina {{filename}}",
   "status.animation_export.failed": "Kāore i taea te hanga pikiata",
-  "status.animation_export.cancelled": "Kua whakakorea te kaweake pikiata"
+  "status.animation_export.cancelled": "Kua whakakorea te kaweake pikiata",
+  "http.error.network": "Kāore e taea te toro atu ki te tūmau. Tirohia mēnā kei te rere, ka ngana anō.",
+  "http.error.forbidden": "Kāore koe e whai mana mō tēnei mahi.",
+  "http.error.not_found": "Kāore i kitea te rauemi i tonohia.",
+  "http.error.timeout": "I pau te wā o te tono. Tēnā, ngana anō.",
+  "http.error.server": "I raru te tūmau. Tēnā, ngana anō.",
+  "http.error.client": "Kāore i taea te whakaoti i te tono.",
+  "http.error.generic": "I rahu te tono."
 }

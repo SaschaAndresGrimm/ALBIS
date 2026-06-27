@@ -126,7 +126,9 @@ export function createInspectorPanelController({
       imageHeaderEmpty.classList.add("is-hidden");
     }
     try {
-      const data = await fetchJSON(`${apiBase}/image/header?file=${encodeURIComponent(file)}`);
+      const data = await fetchJSON(`${apiBase}/image/header?file=${encodeURIComponent(file)}`, {
+        timeoutMs: 30000,
+      });
       const text = typeof data.header === "string" ? data.header : "";
       state.imageHeaderFile = file;
       state.imageHeaderText = text;

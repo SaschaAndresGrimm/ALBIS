@@ -5780,3 +5780,28 @@ body.platform-windows select option:disabled {
   gap: 8px;
   margin-top: 4px;
 }
+
+/*
+ * Keyboard focus rings for interactive controls that previously had only
+ * :hover styling. Consolidated at end of file so the ring also wins when an
+ * element is simultaneously hovered. Matches the --focus-ring token used
+ * elsewhere; rules for non-focusable elements simply never match.
+ */
+.dropdown-item:focus-visible,
+.breadcrumb-btn:focus-visible,
+.command-item:focus-visible,
+.peaks-row:focus-visible,
+.inspector-toggle:focus-visible,
+.roi-quick-btn:focus-visible,
+.roi-export-btn:focus-visible,
+.toolbar-sync-toggle:focus-visible,
+.toolbar-more-toggle:focus-visible,
+.toolbar-playback-btn:focus-visible,
+.series-sum-browse-btn:focus-visible,
+.rings-geometry-icon-btn:focus-visible,
+.rings-geometry-clear-btn:focus-visible,
+.log-viewer-follow-toggle:focus-visible,
+.autoload-action-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
