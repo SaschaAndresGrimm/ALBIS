@@ -422,16 +422,47 @@ export function createOverlayRenderController({
     return geometryRingCache;
   }
 
-  function drawRingLabel(screenPoint, label) {
+  // Boxes already occupied by ring labels (and the beam center) for the current
+  // frame, used to keep labels from stacking on the shared radial ray.
+  let ringLabelBoxes = [];
+
+  function ringLabelsOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function drawRingLabel(screenPoint, label, direction) {
     if (!screenPoint || !label) return;
     const fontSize = 14;
-    const textX = screenPoint.x + 8;
-    const textY = screenPoint.y;
-    const textWidth = resolutionCtx.measureText(label).width;
     const padX = 6;
     const padY = 3;
+    const textWidth = resolutionCtx.measureText(label).width;
+    const boxW = textWidth + padX * 2;
+    const boxH = fontSize + padY * 2;
+    // Nudge the label outward along its ring's radial direction until it clears
+    // already-placed labels (and the seeded beam-center box). Close-together
+    // rings would otherwise pile their labels on the same ray near the center.
+    let ux = direction?.x ?? 1;
+    let uy = direction?.y ?? 0;
+    const mag = Math.hypot(ux, uy) || 1;
+    ux /= mag;
+    uy /= mag;
+    let textX = screenPoint.x + 8;
+    let textY = screenPoint.y;
+    const step = boxH + 4;
+    const maxSteps = 6;
+    const boxAt = (tx, ty) => ({ x: tx - padX, y: ty - fontSize / 2 - padY, w: boxW, h: boxH });
+    let box = boxAt(textX, textY);
+    let steps = 0;
+    while (steps < maxSteps && ringLabelBoxes.some((other) => ringLabelsOverlap(box, other))) {
+      textX += ux * step;
+      textY += uy * step;
+      box = boxAt(textX, textY);
+      steps += 1;
+    }
+    if (ringLabelBoxes.some((other) => ringLabelsOverlap(box, other))) return; // too crowded; skip
+    ringLabelBoxes.push(box);
     resolutionCtx.fillStyle = "rgba(10, 20, 40, 0.55)";
-    resolutionCtx.fillRect(textX - padX, textY - fontSize / 2 - padY, textWidth + padX * 2, fontSize + padY * 2);
+    resolutionCtx.fillRect(box.x, box.y, box.w, box.h);
     resolutionCtx.lineWidth = 3;
     resolutionCtx.strokeStyle = "rgba(0, 0, 0, 0.7)";
     resolutionCtx.strokeText(label, textX, textY);
@@ -521,6 +552,13 @@ export function createOverlayRenderController({
     resolutionCtx.font = `${fontSize}px 'Avenir', 'Segoe UI', sans-serif`;
     resolutionCtx.textBaseline = "middle";
     const labelAngle = -Math.PI / 6;
+    // Reset per-frame label collision tracking and reserve the beam-center area
+    // so labels never land on top of the marker / beamstop.
+    ringLabelBoxes = [];
+    if (Number.isFinite(centerX) && Number.isFinite(centerY)) {
+      const reserve = 22;
+      ringLabelBoxes.push({ x: centerX - reserve, y: centerY - reserve, w: reserve * 2, h: reserve * 2 });
+    }
     if (params.mode === "geometry" && params.geometry) {
       const geometryCache = getGeometryRingCache(params);
       params.rings.forEach((d) => {
@@ -540,7 +578,10 @@ export function createOverlayRenderController({
             }
           : null;
         const label = Number.isFinite(d) ? `${d.toFixed(2).replace(/\.00$/, "")} \u00C5` : "\u00C5";
-        drawRingLabel(labelPoint, label);
+        const labelDir = labelPoint
+          ? { x: labelPoint.x - centerX, y: labelPoint.y - centerY }
+          : null;
+        drawRingLabel(labelPoint, label, labelDir);
       });
       if (params.centerKnown) {
         drawBeamCenterMarker(centerX, centerY, zoom, centerActive);
@@ -574,7 +615,10 @@ export function createOverlayRenderController({
       const labelX = centerX + Math.cos(labelAngle) * screenRadius;
       const labelY = centerY + Math.sin(labelAngle) * screenRadius;
       const label = Number.isFinite(d) ? `${d.toFixed(2).replace(/\.00$/, "")} \u00C5` : "\u00C5";
-      drawRingLabel({ x: labelX, y: labelY }, label);
+      drawRingLabel({ x: labelX, y: labelY }, label, {
+        x: Math.cos(labelAngle),
+        y: Math.sin(labelAngle),
+      });
     });
 
     if (params.centerKnown) {

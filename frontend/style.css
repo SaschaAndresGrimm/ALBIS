@@ -4017,6 +4017,12 @@ body.platform-windows select option:disabled {
   row-gap: 3px;
 }
 
+/* Subtle divider so the two columns read as one table rather than scattered pairs. */
+.roi-stats-col + .roi-stats-col {
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 12px;
+}
+
 .roi-stats .meta-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -4025,7 +4031,7 @@ body.platform-windows select option:disabled {
 
 .roi-stats .meta-row span {
   justify-self: start;
-  color: #dddddd;
+  color: var(--muted);
 }
 
 .roi-stats .meta-row strong {

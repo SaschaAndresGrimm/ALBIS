@@ -1351,6 +1351,9 @@ function getRoiModeLabel(mode) {
 
 function updateRoiSectionState() {
   if (!roiSectionStateEl) return;
+  // The status line carries actionable guidance in the empty/disabled/ready
+  // states; keep it visible for those.
+  roiSectionStateEl.classList.remove("is-hidden");
   if (!state.hasFrame) {
     setSectionBadgeState(roiSectionStateEl, "empty", t("roi.section.load_frame"));
     setSummaryChip(roiSummaryEl, t("roi.summary.no_frame"));
@@ -1371,7 +1374,10 @@ function updateRoiSectionState() {
     setSummaryChip(roiSummaryEl, t("roi.summary.mode_ready", { mode: modeLabel }));
     return;
   }
+  // Active state: the summary badge and the populated stats grid already convey
+  // this, so hide the redundant status line to declutter the panel.
   setSectionBadgeState(roiSectionStateEl, "active", t("roi.section.mode_active", { mode: modeLabel }));
+  roiSectionStateEl.classList.add("is-hidden");
   setSummaryChip(roiSummaryEl, t("roi.summary.mode_active", { mode: modeLabel }), "active");
 }
 
