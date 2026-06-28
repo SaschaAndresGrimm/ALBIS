@@ -438,24 +438,32 @@ export function createOverlayRenderController({
     const textWidth = resolutionCtx.measureText(label).width;
     const boxW = textWidth + padX * 2;
     const boxH = fontSize + padY * 2;
-    // Nudge the label outward along its ring's radial direction until it clears
-    // already-placed labels (and the seeded beam-center box). Close-together
-    // rings would otherwise pile their labels on the same ray near the center.
-    let ux = direction?.x ?? 1;
-    let uy = direction?.y ?? 0;
-    const mag = Math.hypot(ux, uy) || 1;
-    ux /= mag;
-    uy /= mag;
+    // When a label collides, nudge it *tangentially* (along its own ring) rather
+    // than radially: sliding sideways keeps it at the ring's radius, whereas a
+    // radial nudge would fling a middle ring's label out past the outer ring and
+    // leave it looking detached. Bias the slide upward (negative screen y) to
+    // stay clear of the horizontal beamstop.
+    let rx = direction?.x ?? 1;
+    let ry = direction?.y ?? 0;
+    const mag = Math.hypot(rx, ry) || 1;
+    rx /= mag;
+    ry /= mag;
+    let tx = -ry;
+    let ty = rx;
+    if (ty > 0) {
+      tx = -tx;
+      ty = -ty;
+    }
     let textX = screenPoint.x + 8;
     let textY = screenPoint.y;
     const step = boxH + 4;
     const maxSteps = 6;
-    const boxAt = (tx, ty) => ({ x: tx - padX, y: ty - fontSize / 2 - padY, w: boxW, h: boxH });
+    const boxAt = (bx, by) => ({ x: bx - padX, y: by - fontSize / 2 - padY, w: boxW, h: boxH });
     let box = boxAt(textX, textY);
     let steps = 0;
     while (steps < maxSteps && ringLabelBoxes.some((other) => ringLabelsOverlap(box, other))) {
-      textX += ux * step;
-      textY += uy * step;
+      textX += tx * step;
+      textY += ty * step;
       box = boxAt(textX, textY);
       steps += 1;
     }
