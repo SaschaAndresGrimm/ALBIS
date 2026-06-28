@@ -22,6 +22,7 @@ export function createRoiStatsController(ctx) {
     roiState,
     roiCenterXInput,
     roiCenterYInput,
+    roiCenterSnapBtn,
     roiParams,
     roiLinePlot,
     roiBoxPlotX,
@@ -75,10 +76,97 @@ export function createRoiStatsController(ctx) {
     formatRoiTick,
     PLOT_THEME,
     setStatus,
+    getRingParams,
+    getResolutionAtPixel,
   } = ctx;
+
+// d-spacing axis / feature-detection tuning.
+const PROFILE_PEAK_MAX = 6;
+const PROFILE_PEAK_MIN_PROMINENCE_FRAC = 0.08;
+// Radial d-axis only makes physical sense when the ROI is centred on the beam.
+// Floor for the beam-offset tolerance (the effective tolerance scales with the
+// ROI radius, see beamOffsetTolerance).
+const BEAM_CENTER_TOLERANCE_PX = 6;
+
 function setRoiText(el, value) {
   if (!el) return;
   el.textContent = value;
+}
+
+// Same calibration requirements as getResolutionAtPixel (planar needs distance +
+// pixel size + energy; geometry mode needs energy + a loaded geometry).
+function isResolutionCalibrated(params) {
+  if (!params) return false;
+  if (params.mode === "geometry") {
+    return Number.isFinite(params.energyEv) && params.energyEv > 0 && !!params.geometry;
+  }
+  return (
+    Number.isFinite(params.distanceMm) && params.distanceMm > 0 &&
+    Number.isFinite(params.pixelSizeUm) && params.pixelSizeUm > 0 &&
+    Number.isFinite(params.energyEv) && params.energyEv > 0
+  );
+}
+
+// Cheap 1D peak finder over a projection array. Returns axis-space peak
+// positions ({ x, value }) so they survive plot zoom/pan (which re-slices data).
+function detectProfilePeaks(values, xStart = 0, xStep = 1) {
+  const n = values.length;
+  if (n < 3) return [];
+  let maxV = -Infinity;
+  let minV = Infinity;
+  for (let i = 0; i < n; i += 1) {
+    const v = values[i];
+    if (Number.isFinite(v)) {
+      if (v > maxV) maxV = v;
+      if (v < minV) minV = v;
+    }
+  }
+  const range = maxV - minV;
+  if (!(range > 0)) return [];
+  const minProminence = range * PROFILE_PEAK_MIN_PROMINENCE_FRAC;
+  const candidates = [];
+  for (let i = 0; i < n; i += 1) {
+    const v = values[i];
+    if (!Number.isFinite(v)) continue;
+    let leftVal = -Infinity;
+    for (let k = i - 1; k >= 0; k -= 1) {
+      if (Number.isFinite(values[k])) { leftVal = values[k]; break; }
+    }
+    let rightVal = -Infinity;
+    for (let k = i + 1; k < n; k += 1) {
+      if (Number.isFinite(values[k])) { rightVal = values[k]; break; }
+    }
+    if (!(v >= leftVal && v >= rightVal)) continue;
+    if (v === leftVal && v === rightVal) continue;
+    // Topographic prominence: scan outward until higher ground, tracking the valley.
+    let leftValley = v;
+    for (let k = i - 1; k >= 0; k -= 1) {
+      const val = values[k];
+      if (!Number.isFinite(val)) continue;
+      if (val > v) break;
+      if (val < leftValley) leftValley = val;
+    }
+    let rightValley = v;
+    for (let k = i + 1; k < n; k += 1) {
+      const val = values[k];
+      if (!Number.isFinite(val)) continue;
+      if (val > v) break;
+      if (val < rightValley) rightValley = val;
+    }
+    const prominence = v - Math.max(leftValley, rightValley);
+    if (prominence < minProminence) continue;
+    candidates.push({ index: i, value: v, prominence });
+  }
+  candidates.sort((a, b) => b.prominence - a.prominence);
+  const minSeparation = Math.max(2, Math.round(n * 0.02));
+  const selected = [];
+  for (const cand of candidates) {
+    if (selected.some((s) => Math.abs(s.index - cand.index) < minSeparation)) continue;
+    selected.push(cand);
+    if (selected.length >= PROFILE_PEAK_MAX) break;
+  }
+  selected.sort((a, b) => a.index - b.index);
+  return selected.map((p) => ({ x: xStart + p.index * xStep, value: p.value }));
 }
 
 function updateRoiCenterInputs() {
@@ -258,6 +346,9 @@ function updateRoiModeUI() {
   }
   if (roiCenterFields) {
     roiCenterFields.classList.toggle("is-hidden", !enabled || (mode !== "circle" && mode !== "annulus"));
+  }
+  if (roiCenterSnapBtn) {
+    roiCenterSnapBtn.classList.toggle("is-hidden", !enabled || (mode !== "circle" && mode !== "annulus"));
   }
   if (roiRingFields) {
     roiRingFields.classList.toggle("is-hidden", !enabled || mode !== "annulus");
@@ -655,6 +746,16 @@ function updateRoiStats() {
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
     setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    const lineParams = typeof getRingParams === "function" ? getRingParams() : null;
+    const lineDSpacingForX =
+      isResolutionCalibrated(lineParams) && typeof getResolutionAtPixel === "function"
+        ? (xValue) => {
+            const frac = steps === 0 ? 0 : xValue / steps;
+            const ix = Math.max(0, Math.min(state.width - 1, Math.round(x0 + dx * frac)));
+            const iy = Math.max(0, Math.min(state.height - 1, Math.round(y0 + dy * frac)));
+            return getResolutionAtPixel(ix, iy);
+          }
+        : null;
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
         xLabel: t("roi.plot.pixels"),
@@ -662,6 +763,10 @@ function updateRoiStats() {
         xStart: 0,
         xStep: 1,
         xTickMode: "integer",
+        dSpacingForX: lineDSpacingForX,
+        dAxisLabel: t("roi.plot.d_axis"),
+        qAxisLabel: t("roi.plot.q_axis"),
+        peaks: lineDSpacingForX ? detectProfilePeaks(values, 0, 1) : null,
       };
     }
     drawRoiPlot(roiLineCanvas, roiLineCtx, values);
@@ -824,6 +929,31 @@ function updateRoiStats() {
     setRoiText(roiMedianEl, count ? formatStat(median) : "-");
     setRoiText(roiMeanEl, count ? formatStat(mean) : "-");
     setRoiText(roiStdEl, count ? formatStat(std) : "-");
+    const radialParams = typeof getRingParams === "function" ? getRingParams() : null;
+    // A radius->d mapping is only physical when the radial profile is centred on
+    // the beam; otherwise the ring geometry the profile sees is off-axis. Use a
+    // radius-relative tolerance so a hand-placed-but-centred circle still
+    // qualifies, while an off-in-a-corner ROI (where d would be meaningless) does
+    // not. Accuracy is exact at the beam centre and degrades with the offset.
+    const beamCentreReady =
+      isResolutionCalibrated(radialParams) &&
+      typeof getResolutionAtPixel === "function" &&
+      Number.isFinite(radialParams.centerX) &&
+      Number.isFinite(radialParams.centerY);
+    const beamOffsetPx = beamCentreReady
+      ? Math.hypot(x0 - radialParams.centerX, y0 - radialParams.centerY)
+      : Number.POSITIVE_INFINITY;
+    const beamOffsetTolerance = Math.max(BEAM_CENTER_TOLERANCE_PX, outerRadius * 0.1);
+    const radialCentredOnBeam = beamOffsetPx <= beamOffsetTolerance;
+    const radialDSpacingForX = radialCentredOnBeam
+      ? (radius) => {
+          const params = getRingParams();
+          if (!params || !Number.isFinite(params.centerX) || !Number.isFinite(params.centerY)) {
+            return null;
+          }
+          return getResolutionAtPixel(params.centerX + radius, params.centerY, params);
+        }
+      : null;
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
         xLabel: t("roi.size.radius_px"),
@@ -831,6 +961,10 @@ function updateRoiStats() {
         xStart: displayStart,
         xStep: 1,
         xTickMode: "integer",
+        dSpacingForX: radialDSpacingForX,
+        dAxisLabel: t("roi.plot.d_axis"),
+        qAxisLabel: t("roi.plot.q_axis"),
+        peaks: radialDSpacingForX ? detectProfilePeaks(displayProfile, displayStart, 1) : null,
       };
     }
     drawRoiPlot(roiLineCanvas, roiLineCtx, displayProfile);
@@ -854,6 +988,7 @@ function drawRoiPlot(canvasEl, ctx, data) {
     getRoiPlotLimits,
     autoscale: !hasManualRoiPlotLimits(plotKey),
     formatRoiTick,
+    resolutionAxisUnit: roiState.resolutionAxisUnit === "q" ? "q" : "d",
   });
 }
 

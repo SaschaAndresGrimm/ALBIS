@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-06-28
+
+### Added
+
+- Added a secondary resolution axis to the ROI line and radial (circle/annulus) profiles: a top axis that maps the pixel/radius x-axis to d-spacing, styled to match the primary axes (same color, centered title). It appears only when the geometry is calibrated (distance, pixel size, energy) and, for radial profiles, only when the ROI is centered on the beam.
+- Added automatic feature detection on those profiles: a lightweight 1D peak finder marks prominent peaks and labels each with its resolution, so you can read d-spacing straight off the diffraction features.
+- Added a d (Å) ↔ Q (1/nm) unit toggle in the profile plot's settings menu (default d, with Q = 2π/d). The choice drives both the axis ticks and the peak labels; Q yields evenly spaced ticks since it is linear in reciprocal space.
+- Added a "Center on beam" button for circle/annulus ROIs that snaps the ROI center onto the beam center, making the radial profile's resolution axis exact.
+
+### Notes
+
+- ALBIS `0.10.2` teaches the ROI profiles to speak resolution: a d-spacing/Q axis, auto-labeled peaks, and one-click beam centering.
+- This release is called: "Mind The Gap (Spacing)."
+
 ## [0.10.1] - 2026-06-28
 
 ### Added

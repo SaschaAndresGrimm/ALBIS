@@ -2,6 +2,26 @@
  * ROI plot renderer kept separate from controller wiring.
  */
 
+const D_AXIS_TITLE_FONT = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+const D_AXIS_TICK_FONT = '500 9px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+const PEAK_LABEL_FONT = '600 9px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+
+// Q (nm^-1) = 2*pi / d(nm) = 20*pi / d(Å). Physics/SAXS convention Q = 4*pi*sin(theta)/lambda.
+const Q_FROM_D_NM = 20 * Math.PI;
+
+function resolutionDisplayValue(dAngstrom, unit) {
+  if (!Number.isFinite(dAngstrom) || dAngstrom <= 0) return Number.NaN;
+  return unit === "q" ? Q_FROM_D_NM / dAngstrom : dAngstrom;
+}
+
+function formatResolutionLabel(value, unit) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  if (value >= 100) return value.toFixed(0);
+  if (value >= 10) return value.toFixed(1);
+  if (value >= 1) return value.toFixed(2);
+  return unit === "q" ? value.toFixed(3) : value.toFixed(2);
+}
+
 export function renderRoiPlot({
   canvasEl,
   ctx,
@@ -12,7 +32,9 @@ export function renderRoiPlot({
   getRoiPlotLimits,
   autoscale,
   formatRoiTick,
+  resolutionAxisUnit,
 }) {
+  const dUnit = resolutionAxisUnit === "q" ? "q" : "d";
   if (!canvasEl || !ctx) return;
   const width = canvasEl.clientWidth || 1;
   const height = canvasEl.clientHeight || 1;
@@ -43,6 +65,21 @@ export function renderRoiPlot({
   let xStart = Number(plotMeta.xStart ?? 0) || 0;
   const totalMinX = xStart;
   const totalMaxX = xStart + (data.length - 1) * xStep;
+
+  // Optional secondary d-spacing axis + detected-feature markers.
+  const dSpacingForX = typeof plotMeta.dSpacingForX === "function" ? plotMeta.dSpacingForX : null;
+  const profilePeaks = Array.isArray(plotMeta.peaks) ? plotMeta.peaks : null;
+  let hasDAxis = false;
+  if (dSpacingForX) {
+    for (let i = 0; i <= 4; i += 1) {
+      const probeX = totalMinX + (i / 4) * (totalMaxX - totalMinX);
+      const probeD = dSpacingForX(probeX);
+      if (Number.isFinite(probeD) && probeD > 0) {
+        hasDAxis = true;
+        break;
+      }
+    }
+  }
   let visibleData = data;
   if (!autoscale && data.length > 0) {
     const lo = Number.isFinite(limits.xMin) ? Math.max(totalMinX, limits.xMin) : totalMinX;
@@ -110,7 +147,7 @@ export function renderRoiPlot({
 
   const yRange = maxValue - minValue;
   const padR = 8;
-  const padT = 8;
+  const padT = hasDAxis ? 34 : 8;
   const padB = 30;
   const drawableHeight = Math.max(4, height - padT - padB);
 
@@ -204,6 +241,43 @@ export function renderRoiPlot({
     ctx.fillText(yTickLabels[i] || "", padL - 8, y);
   }
 
+  if (hasDAxis) {
+    // Match the primary axes: axis/tick lines in plotTheme.axis, labels in plotTheme.text.
+    ctx.strokeStyle = plotTheme.axis;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL + drawableWidth, padT);
+    ctx.stroke();
+    ctx.font = D_AXIS_TICK_FONT;
+    ctx.fillStyle = plotTheme.text;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    for (let i = 0; i <= xTickCount; i += 1) {
+      const t = i / xTickCount;
+      const x = padL + t * drawableWidth;
+      const xValue = xStart + t * (values.length - 1) * xStep;
+      const d = dSpacingForX(xValue);
+      const displayValue = resolutionDisplayValue(d, dUnit);
+      if (!Number.isFinite(displayValue)) continue;
+      ctx.strokeStyle = plotTheme.axis;
+      ctx.beginPath();
+      ctx.moveTo(x, padT);
+      ctx.lineTo(x, padT - 4);
+      ctx.stroke();
+      ctx.fillText(formatResolutionLabel(displayValue, dUnit), x, padT - 6);
+    }
+    // Axis title centered above the axis, mirroring the bottom xLabel styling.
+    const dAxisTitle = dUnit === "q"
+      ? (plotMeta.qAxisLabel || "Q (1/nm)")
+      : (plotMeta.dAxisLabel || "d (Å)");
+    ctx.font = D_AXIS_TITLE_FONT;
+    ctx.fillStyle = plotTheme.text;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(dAxisTitle, padL + drawableWidth / 2, 2);
+  }
+
   if (seriesType === "histogram") {
     const barWidth = drawableWidth / Math.max(1, values.length);
     ctx.fillStyle = "rgba(198, 220, 255, 0.88)";
@@ -240,6 +314,39 @@ export function renderRoiPlot({
     });
     ctx.stroke();
     ctx.shadowBlur = 0;
+  }
+
+  if (profilePeaks && profilePeaks.length) {
+    const peakColor = plotTheme.peak || plotTheme.line;
+    const lastValueIndex = Math.max(1, values.length - 1);
+    let lastLabelRight = -Infinity;
+    profilePeaks.forEach((peak) => {
+      if (!peak || !Number.isFinite(peak.x) || !Number.isFinite(peak.value)) return;
+      const idx = (peak.x - xStart) / xStep;
+      if (idx < 0 || idx > values.length - 1) return;
+      const x = padL + (idx / lastValueIndex) * drawableWidth;
+      const disp = logScale ? Math.log10(1 + Math.max(0, peak.value)) : peak.value;
+      const yNorm = yRange ? (disp - minValue) / yRange : 0;
+      const y = padT + drawableHeight - Math.max(0, Math.min(1, yNorm)) * drawableHeight;
+      ctx.fillStyle = peakColor;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      if (!dSpacingForX) return;
+      const d = dSpacingForX(peak.x);
+      const label = formatResolutionLabel(resolutionDisplayValue(d, dUnit), dUnit);
+      if (!label) return;
+      ctx.font = PEAK_LABEL_FONT;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      const labelWidth = ctx.measureText(label).width;
+      // Skip labels that would collide with the previous one.
+      if (x - labelWidth / 2 < lastLabelRight + 2) return;
+      const labelY = Math.max(padT + 10, y - 5);
+      ctx.fillStyle = peakColor;
+      ctx.fillText(label, x, labelY);
+      lastLabelRight = x + labelWidth / 2;
+    });
   }
 
   const xLabel = plotMeta.xLabel || "Index";

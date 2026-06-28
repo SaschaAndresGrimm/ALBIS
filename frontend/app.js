@@ -328,6 +328,7 @@ const roiRadiusInput = document.getElementById("roi-radius");
 const roiCenterFields = document.getElementById("roi-center-fields");
 const roiCenterXInput = document.getElementById("roi-center-x");
 const roiCenterYInput = document.getElementById("roi-center-y");
+const roiCenterSnapBtn = document.getElementById("roi-center-snap");
 const roiRingFields = document.getElementById("roi-ring-fields");
 const roiInnerInput = document.getElementById("roi-inner-radius");
 const roiOuterInput = document.getElementById("roi-outer-radius");
@@ -622,6 +623,7 @@ const PLOT_THEME = {
   line: "rgba(236, 243, 255, 0.95)",
   lineGlow: "rgba(102, 178, 255, 0.2)",
   markerOutline: "rgba(8, 14, 22, 0.85)",
+  peak: "rgba(255, 196, 110, 0.95)",
 };
 
 const clientLogBuffer = [];
@@ -3790,6 +3792,7 @@ const roiStatsController = createRoiStatsController({
   roiState,
   roiCenterXInput,
   roiCenterYInput,
+  roiCenterSnapBtn,
   roiParams,
   roiLinePlot,
   roiBoxPlotX,
@@ -3843,6 +3846,8 @@ const roiStatsController = createRoiStatsController({
   formatRoiTick,
   PLOT_THEME,
   setStatus,
+  getRingParams,
+  getResolutionAtPixel,
 });
 
 function updateRoiCenterInputs() {
@@ -4193,6 +4198,7 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   roiOuterInput,
   roiCenterXInput,
   roiCenterYInput,
+  roiCenterSnapBtn,
   panelTabs,
   sectionToggles,
   sectionSwitches,
@@ -4213,6 +4219,7 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
 });
 
 const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
+  getRingParams,
   stopAutoload,
   startAutoload,
   updateAutoloadUI,

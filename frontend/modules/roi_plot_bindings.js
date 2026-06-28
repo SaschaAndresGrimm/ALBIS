@@ -58,6 +58,7 @@ export function bindRoiPlotInteractions({
     popover: entry.container.querySelector(".roi-axis-limits-popover"),
     chip: entry.container.querySelector("[data-roi-axis-chip]"),
     logToggle: entry.container.querySelector("[data-roi-plot-log]"),
+    unitSelect: entry.container.querySelector("[data-roi-resolution-unit]"),
     autoToggle: entry.container.querySelector("[data-roi-axis-auto]"),
     inputs: [...entry.container.querySelectorAll(".roi-axis-limits-grid input")],
     resetBtn: entry.container.querySelector("[data-roi-axis-reset]"),
@@ -220,6 +221,10 @@ export function bindRoiPlotInteractions({
       if (entry.logToggle) {
         entry.logToggle.checked = Boolean(getRoiPlotLog?.(entry.key));
         entry.logToggle.disabled = roiState.enabled === false;
+      }
+      if (entry.unitSelect) {
+        entry.unitSelect.value = roiState.resolutionAxisUnit === "q" ? "q" : "d";
+        entry.unitSelect.disabled = roiState.enabled === false;
       }
       entry.inputs.forEach((input) => {
         if (input === preserveInput) return;
@@ -575,6 +580,11 @@ export function bindRoiPlotInteractions({
       setRoiPlotLog?.(entry.key, entry.logToggle.checked);
       scheduleRoiPlotRedraw();
       syncRoiAxisLimitControls(entry.key);
+    });
+
+    entry.unitSelect?.addEventListener("change", () => {
+      roiState.resolutionAxisUnit = entry.unitSelect.value === "q" ? "q" : "d";
+      scheduleRoiPlotRedraw();
     });
 
     entry.autoToggle?.addEventListener("change", () => {

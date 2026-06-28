@@ -95,6 +95,7 @@ export function initializePostFilePickerBindings({
     roiOuterInput,
     roiCenterXInput,
     roiCenterYInput,
+    roiCenterSnapBtn,
     panelTabs,
     sectionToggles,
     sectionSwitches,
@@ -173,6 +174,7 @@ export function initializePostFilePickerBindings({
     exportRoiCsv,
     applyRoiCenterFromInputs,
     updateRoiCenterInputs,
+    getRingParams,
     initializeSectionContentWrappers,
     initializePanelTabA11y,
     setPanelTab,
@@ -378,6 +380,7 @@ export function initializePostFilePickerBindings({
       roiOuterInput,
       roiCenterXInput,
       roiCenterYInput,
+      roiCenterSnapBtn,
       canvasWrap,
     },
     callbacks: {
@@ -392,6 +395,7 @@ export function initializePostFilePickerBindings({
       exportRoiCsv,
       applyRoiCenterFromInputs,
       updateRoiCenterInputs,
+      getRingParams,
     },
   });
 

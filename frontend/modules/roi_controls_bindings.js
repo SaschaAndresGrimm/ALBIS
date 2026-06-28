@@ -30,6 +30,7 @@ export function bindRoiControlInteractions({
     roiOuterInput,
     roiCenterXInput,
     roiCenterYInput,
+    roiCenterSnapBtn,
     canvasWrap,
   } = elements;
 
@@ -45,6 +46,7 @@ export function bindRoiControlInteractions({
     exportRoiCsv,
     applyRoiCenterFromInputs,
     updateRoiCenterInputs,
+    getRingParams,
   } = callbacks;
 
   function updateRoiHistogramBinSettings(mode, count = roiState.histogramBins?.count) {
@@ -216,5 +218,37 @@ export function bindRoiControlInteractions({
       scheduleRoiUpdate();
       handleRoiChanged?.("roi");
     });
+  });
+
+  roiCenterSnapBtn?.addEventListener("click", () => {
+    if (roiState.mode !== "circle" && roiState.mode !== "annulus") return;
+    const params = typeof getRingParams === "function" ? getRingParams() : null;
+    if (
+      !params ||
+      !params.centerKnown ||
+      !Number.isFinite(params.centerX) ||
+      !Number.isFinite(params.centerY)
+    ) {
+      setStatus?.(t("status.roi.snap_no_beam"));
+      return;
+    }
+    const center = { x: Math.round(params.centerX), y: Math.round(params.centerY) };
+    if (!roiState.start) {
+      roiState.start = center;
+      roiState.end = center;
+    }
+    const outer = Math.max(0, Math.round(getCircularRoiOuterRadius(roiState)));
+    const direction = getCircularRoiDirection(roiState.start, roiState.end);
+    applyCircularRoiGeometry(roiState, center, outer, direction);
+    if (roiState.mode === "annulus") {
+      roiState.innerRadius = clampCircularRoiInnerRadius(roiState.innerRadius, outer);
+      if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
+    }
+    roiState.active = true;
+    updateRoiCenterInputs();
+    scheduleRoiOverlay();
+    scheduleRoiUpdate();
+    handleRoiChanged?.("roi");
+    setStatus?.(t("status.roi.snapped_beam", { x: center.x, y: center.y }));
   });
 }

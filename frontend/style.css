@@ -3947,8 +3947,17 @@ body.platform-windows select option:disabled {
 
 .roi-radius-field.is-hidden,
 .roi-ring-fields.is-hidden,
-.roi-center-fields.is-hidden {
+.roi-center-fields.is-hidden,
+.roi-snap-btn.is-hidden {
   display: none;
+}
+
+.roi-snap-btn {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  font-size: 12px;
+  min-height: var(--control-h);
+  padding: 6px 10px;
 }
 
 .roi-ring-fields {
@@ -4188,6 +4197,24 @@ body.platform-windows select option:disabled {
 .roi-plot-log-toggle,
 .roi-histogram-auto-bins {
   margin: 0;
+}
+
+.roi-plot-unit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #c9d9ef;
+}
+
+.roi-plot-unit-row select {
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  color: #f2f7ff;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
 }
 
 .roi-axis-limits-grid {

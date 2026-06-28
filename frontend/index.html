@@ -970,6 +970,9 @@
                     <input id="roi-outer-radius" type="number" min="0" step="1" />
                   </label>
                 </div>
+                <button id="roi-center-snap" class="btn btn-secondary roi-snap-btn is-hidden" type="button" title="Set the ROI center to the beam center for accurate d-spacing" aria-label="Set the ROI center to the beam center for accurate d-spacing" data-i18n="roi.center.snap_beam" data-i18n-title="roi.center.snap_beam_hint" data-i18n-aria-label="roi.center.snap_beam_hint">
+                  Center on beam
+                </button>
               </div>
               <div class="roi-stats roi-stats-grid">
                 <div class="roi-stats-col">
@@ -1022,6 +1025,13 @@
                     </div>
                   </div>
                   <div class="roi-axis-limits-popover" id="roi-line-axis-popover" data-plot-key="line" aria-hidden="true">
+                    <label class="roi-plot-unit-row">
+                      <span data-i18n="roi.axis.resolution_unit">Resolution axis</span>
+                      <select data-roi-resolution-unit>
+                        <option value="d" data-i18n="roi.plot.d_axis">d (Å)</option>
+                        <option value="q" data-i18n="roi.plot.q_axis">Q (1/nm)</option>
+                      </select>
+                    </label>
                     <label class="checkbox roi-plot-log-toggle">
                       <input type="checkbox" data-roi-plot-log />
                       <span data-i18n="roi.plot.log_y">Log Y</span>
