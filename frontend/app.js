@@ -1988,7 +1988,9 @@ function updateToolbar() {
 function setActiveMenu(menu, anchor) {
   activeMenu = menu;
   menuButtons.forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.menu === menu);
+    const isActive = btn.dataset.menu === menu;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-expanded", String(isActive));
   });
   dropdownPanels.forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.menu === menu);
@@ -2044,6 +2046,7 @@ function closeMenu() {
   closeSubmenus();
   dropdown.classList.remove("is-open");
   dropdown.setAttribute("aria-hidden", "true");
+  menuButtons.forEach((btn) => btn.setAttribute("aria-expanded", "false"));
 }
 
 function scheduleClose() {

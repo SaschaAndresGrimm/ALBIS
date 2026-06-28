@@ -855,5 +855,6 @@
   "http.error.timeout": "リクエストがタイムアウトしました。もう一度お試しください。",
   "http.error.server": "サーバーで問題が発生しました。もう一度お試しください。",
   "http.error.client": "リクエストを完了できませんでした。",
-  "http.error.generic": "リクエストに失敗しました。"
+  "http.error.generic": "リクエストに失敗しました。",
+  "aria.menubar": "メインメニュー"
 }

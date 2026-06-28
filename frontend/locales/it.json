@@ -855,5 +855,6 @@
   "http.error.timeout": "La richiesta è scaduta. Riprova.",
   "http.error.server": "Il server ha riscontrato un problema. Riprova.",
   "http.error.client": "Impossibile completare la richiesta.",
-  "http.error.generic": "Richiesta non riuscita."
+  "http.error.generic": "Richiesta non riuscita.",
+  "aria.menubar": "Menu principale"
 }

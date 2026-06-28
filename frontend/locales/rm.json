@@ -855,5 +855,6 @@
   "http.error.timeout": "La dumonda è scadida. Empruvai p.pl. anc ina giada.",
   "http.error.server": "Il server ha chattà in problem. Empruvai p.pl. anc ina giada.",
   "http.error.client": "La dumonda na po betg vegnir cumplettada.",
-  "http.error.generic": "La dumonda è fallida."
+  "http.error.generic": "La dumonda è fallida.",
+  "aria.menubar": "Menu principal"
 }

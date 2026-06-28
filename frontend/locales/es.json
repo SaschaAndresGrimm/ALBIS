@@ -855,5 +855,6 @@
   "http.error.timeout": "La solicitud expiró. Inténtalo de nuevo.",
   "http.error.server": "El servidor tuvo un problema. Inténtalo de nuevo.",
   "http.error.client": "No se pudo completar la solicitud.",
-  "http.error.generic": "La solicitud falló."
+  "http.error.generic": "La solicitud falló.",
+  "aria.menubar": "Menú principal"
 }

@@ -855,5 +855,6 @@
   "http.error.timeout": "The request timed out. Please try again.",
   "http.error.server": "The server ran into a problem. Please try again.",
   "http.error.client": "The request could not be completed.",
-  "http.error.generic": "Request failed."
+  "http.error.generic": "Request failed.",
+  "aria.menubar": "Main menu"
 }

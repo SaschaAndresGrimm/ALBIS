@@ -855,5 +855,6 @@
   "http.error.timeout": "Anmodningen fik timeout. Prøv igen.",
   "http.error.server": "Serveren stødte på et problem. Prøv igen.",
   "http.error.client": "Anmodningen kunne ikke fuldføres.",
-  "http.error.generic": "Anmodning mislykkedes."
+  "http.error.generic": "Anmodning mislykkedes.",
+  "aria.menubar": "Hovedmenu"
 }

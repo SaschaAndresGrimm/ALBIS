@@ -12,80 +12,86 @@
     <div class="page">
       <div class="chrome">
         <div class="menu-bar">
-          <div class="menu-left">
-            <button class="menu-item is-active" data-menu="file" data-i18n="menu.file">File</button>
-            <button class="menu-item" data-menu="settings" data-i18n="menu.settings">Settings</button>
-            <button class="menu-item" data-menu="help" data-i18n="menu.help">Help</button>
+          <div class="menu-left" role="menubar" data-i18n-aria-label="aria.menubar" aria-label="Main menu">
+            <button class="menu-item is-active" data-menu="file" data-i18n="menu.file" role="menuitem"
+                    aria-haspopup="true" aria-expanded="false" aria-controls="menu-panel-file">File</button>
+            <button class="menu-item" data-menu="settings" data-i18n="menu.settings" role="menuitem"
+                    aria-haspopup="true" aria-expanded="false" aria-controls="menu-panel-settings">Settings</button>
+            <button class="menu-item" data-menu="help" data-i18n="menu.help" role="menuitem"
+                    aria-haspopup="true" aria-expanded="false" aria-controls="menu-panel-help">Help</button>
           </div>
           <div class="menu-right">ALBIS</div>
         </div>
         <div class="menu-dropdown" id="menu-dropdown" aria-hidden="true">
-          <div class="dropdown-panel" data-menu="file">
-            <button class="dropdown-item" data-action="new-window">
+          <div class="dropdown-panel" data-menu="file" id="menu-panel-file" role="menu"
+               data-i18n-aria-label="menu.file" aria-label="File">
+            <button class="dropdown-item" role="menuitem" data-action="new-window">
               <span data-i18n="menu.file.new_window">New Window</span>
               <span class="shortcut">⌘N</span>
             </button>
-            <button class="dropdown-item" data-action="open">
+            <button class="dropdown-item" role="menuitem" data-action="open">
               <span data-i18n="menu.file.open">Open…</span>
               <span class="shortcut">⌘O</span>
             </button>
-            <button class="dropdown-item" data-action="close-file">
+            <button class="dropdown-item" role="menuitem" data-action="close-file">
               <span data-i18n="menu.file.close_file">Close File</span>
               <span class="shortcut">⌘W</span>
             </button>
-            <div class="dropdown-item dropdown-submenu-parent" tabindex="0" aria-haspopup="true" aria-expanded="false">
+            <div class="dropdown-item dropdown-submenu-parent" role="menuitem" tabindex="0" aria-haspopup="true" aria-expanded="false">
               <span data-i18n="menu.file.save_as">Save As…</span>
               <span class="submenu-caret">▶</span>
-              <div class="dropdown-submenu">
-                <button class="dropdown-item" data-action="save-full">
+              <div class="dropdown-submenu" role="menu" data-i18n-aria-label="menu.file.save_as" aria-label="Save As…">
+                <button class="dropdown-item" role="menuitem" data-action="save-full">
                   <span data-i18n="menu.file.full_image">Full Image</span>
                   <span class="shortcut">⌘S</span>
                 </button>
-                <button class="dropdown-item" data-action="save-visible">
+                <button class="dropdown-item" role="menuitem" data-action="save-visible">
                   <span data-i18n="menu.file.visible_area">Visible Area</span>
                   <span class="shortcut">⇧⌘S</span>
                 </button>
-                <button class="dropdown-item" data-action="save-window">
+                <button class="dropdown-item" role="menuitem" data-action="save-window">
                   <span data-i18n="menu.file.viewer_window">Viewer Window</span>
                   <span class="shortcut">⌥⌘S</span>
                 </button>
               </div>
             </div>
-            <button class="dropdown-item" data-action="export-animation">
+            <button class="dropdown-item" role="menuitem" data-action="export-animation">
               <span data-i18n="menu.file.export_animation">Export Animation…</span>
               <span class="shortcut">⌘G</span>
             </button>
-            <button class="dropdown-item" data-action="export-data">
+            <button class="dropdown-item" role="menuitem" data-action="export-data">
               <span data-i18n="menu.file.convert_dataset">Convert Dataset…</span>
               <span class="shortcut">⇧⌘X</span>
             </button>
           </div>
-          <div class="dropdown-panel" data-menu="settings">
-            <button class="dropdown-item" data-action="settings-open">
+          <div class="dropdown-panel" data-menu="settings" id="menu-panel-settings" role="menu"
+               data-i18n-aria-label="menu.settings" aria-label="Settings">
+            <button class="dropdown-item" role="menuitem" data-action="settings-open">
               <span data-i18n="menu.settings.preferences">Preferences…</span>
               <span class="shortcut">⌘,</span>
             </button>
-            <button class="dropdown-item" data-action="command-palette">
+            <button class="dropdown-item" role="menuitem" data-action="command-palette">
               <span data-i18n="menu.settings.command_palette">Command Palette…</span>
               <span class="shortcut">⌘K</span>
             </button>
-            <button class="dropdown-item" data-action="toggle-fullscreen">
+            <button class="dropdown-item" role="menuitem" data-action="toggle-fullscreen">
               <span data-i18n="menu.settings.toggle_fullscreen">Toggle Full Screen</span>
               <span class="shortcut">F</span>
             </button>
           </div>
-          <div class="dropdown-panel" data-menu="help">
-            <button class="dropdown-item" data-action="help-docs">
+          <div class="dropdown-panel" data-menu="help" id="menu-panel-help" role="menu"
+               data-i18n-aria-label="menu.help" aria-label="Help">
+            <button class="dropdown-item" role="menuitem" data-action="help-docs">
               <span data-i18n="menu.help.documentation">Documentation</span>
               <span class="shortcut">F1</span>
             </button>
-            <button class="dropdown-item" data-action="help-check-updates">
+            <button class="dropdown-item" role="menuitem" data-action="help-check-updates">
               <span data-i18n="menu.help.check_updates">Check for Updates</span>
             </button>
-            <button class="dropdown-item" data-action="help-log">
+            <button class="dropdown-item" role="menuitem" data-action="help-log">
               <span data-i18n="menu.help.open_log">View Backend Log</span>
             </button>
-            <button class="dropdown-item" data-action="help-about">
+            <button class="dropdown-item" role="menuitem" data-action="help-about">
               <span data-i18n="menu.help.about">About</span>
             </button>
           </div>

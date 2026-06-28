@@ -855,5 +855,6 @@
   "http.error.timeout": "La requête a expiré. Veuillez réessayer.",
   "http.error.server": "Le serveur a rencontré un problème. Veuillez réessayer.",
   "http.error.client": "La requête n'a pas pu être effectuée.",
-  "http.error.generic": "Échec de la requête."
+  "http.error.generic": "Échec de la requête.",
+  "aria.menubar": "Menu principal"
 }
