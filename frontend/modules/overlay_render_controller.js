@@ -8,6 +8,15 @@ import {
   pickGeometryRingLabelPoint,
 } from "./ring_geometry_utils.js";
 
+// Peak markers scale with zoom so they track a spot's image footprint instead
+// of staying a fixed (tiny) screen size when zoomed into individual pixels.
+// footprintPx is the marker's radius in image pixels; clamped to screen bounds
+// so markers stay visible when zoomed out and don't get absurd when zoomed in.
+function peakMarkerRadius(zoom, footprintPx, minPx, maxPx) {
+  const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  return Math.max(minPx, Math.min(maxPx, footprintPx * z));
+}
+
 export function createOverlayRenderController({
   state,
   analysisState,
@@ -254,8 +263,8 @@ export function createOverlayRenderController({
       const jfjochSet = style === "jfjoch-indexed" || style === "jfjoch-unindexed";
       const points = Array.isArray(set?.points) ? set.points : [];
       const radius = jfjochSet
-        ? Math.max(6, Math.min(14, 8 + Math.log2(Math.max(1, zoom)) * 0.45))
-        : Math.max(5, Math.min(11, 7 + Math.log2(Math.max(1, zoom)) * 0.35));
+        ? peakMarkerRadius(zoom, 3.0, 8, 80)
+        : peakMarkerRadius(zoom, 2.6, 7, 70);
       points.forEach((peak) => {
         const px = Number(peak?.x);
         const py = Number(peak?.y);
@@ -314,10 +323,9 @@ export function createOverlayRenderController({
       const sy = (peak.y + 0.5 - viewY) * zoom + offsetY;
       if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
       const selected = analysisState.selectedPeaks.includes(index);
-      const zoomScale = Math.max(0, Math.log2(Math.max(1, zoom)));
       const radius = selected
-        ? Math.max(14, Math.min(34, 16 + zoomScale * 2.2))
-        : Math.max(8, Math.min(16, 9 + zoomScale * 0.6));
+        ? peakMarkerRadius(zoom, 4.5, 16, 120)
+        : peakMarkerRadius(zoom, 3.0, 9, 90);
 
       if (selected) {
         peakCtx.setLineDash([]);
