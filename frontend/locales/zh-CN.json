@@ -856,5 +856,7 @@
   "http.error.server": "服务器发生错误。请重试。",
   "http.error.client": "请求无法完成。",
   "http.error.generic": "请求失败。",
-  "aria.menubar": "主菜单"
+  "aria.menubar": "主菜单",
+  "command.search.label": "搜索命令",
+  "inspector.toggle_group": "展开或折叠组"
 }

@@ -1813,6 +1813,8 @@
                   type="search"
                   placeholder="Search files and folders"
                   data-i18n-placeholder="browse.search.placeholder"
+                  data-i18n-aria-label="browse.search.label"
+                  aria-label="Search"
                   autocomplete="off"
                 />
                 <button id="browse-search-clear" class="btn btn-secondary browse-search-clear" type="button" data-i18n="browse.search.clear">Clear</button>
@@ -1881,9 +1883,13 @@
           <div class="command-hint" data-i18n="command.hint">Enter to run • Esc to close</div>
         </div>
         <div class="command-search">
-          <input id="command-input" type="search" placeholder="Type a command or shortcut…" data-i18n-placeholder="command.search.open" autocomplete="off" />
+          <input id="command-input" type="search" placeholder="Type a command or shortcut…"
+                 data-i18n-placeholder="command.search.open" autocomplete="off"
+                 role="combobox" aria-expanded="false" aria-controls="command-list"
+                 aria-autocomplete="list" data-i18n-aria-label="command.search.label" aria-label="Search commands" />
         </div>
-        <div class="command-list" id="command-list"></div>
+        <div class="command-list" id="command-list" role="listbox"
+             data-i18n-aria-label="command.title" aria-label="Command Palette"></div>
       </div>
     </div>
 

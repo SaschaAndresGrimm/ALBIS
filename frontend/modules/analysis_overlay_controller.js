@@ -252,6 +252,11 @@ export function createAnalysisOverlayController({
       if (isSelected) {
         row.classList.add("is-selected");
       }
+      row.setAttribute("aria-pressed", String(isSelected));
+      row.setAttribute(
+        "aria-label",
+        `#${idx + 1}, X ${peak.x}, Y ${peak.y}, ${t("roi.plot.intensity")} ${formatStat(peak.intensity)}`,
+      );
       row.innerHTML = `<span>${idx + 1}</span><span>${peak.x}</span><span>${peak.y}</span><span>${formatStat(peak.intensity)}</span>`;
       row.addEventListener("click", (event) => {
         const anchor = analysisState.peakSelectionAnchor;

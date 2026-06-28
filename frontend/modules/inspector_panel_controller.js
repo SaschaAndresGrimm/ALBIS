@@ -420,9 +420,13 @@ export function createInspectorPanelController({
     toggle.className = "inspector-toggle";
     if (nodeType === "group" && node.hasChildren) {
       toggle.textContent = "▸";
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", t("inspector.toggle_group"));
     } else {
       toggle.textContent = "";
       toggle.classList.add("is-hidden");
+      toggle.setAttribute("aria-hidden", "true");
+      toggle.tabIndex = -1;
     }
 
     const name = document.createElement("span");

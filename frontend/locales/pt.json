@@ -856,5 +856,7 @@
   "http.error.server": "O servidor encontrou um problema. Tente novamente.",
   "http.error.client": "Não foi possível concluir a solicitação.",
   "http.error.generic": "A solicitação falhou.",
-  "aria.menubar": "Menu principal"
+  "aria.menubar": "Menu principal",
+  "command.search.label": "Pesquisar comandos",
+  "inspector.toggle_group": "Expandir ou recolher grupo"
 }

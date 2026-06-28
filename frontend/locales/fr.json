@@ -856,5 +856,7 @@
   "http.error.server": "Le serveur a rencontré un problème. Veuillez réessayer.",
   "http.error.client": "La requête n'a pas pu être effectuée.",
   "http.error.generic": "Échec de la requête.",
-  "aria.menubar": "Menu principal"
+  "aria.menubar": "Menu principal",
+  "command.search.label": "Rechercher des commandes",
+  "inspector.toggle_group": "Développer ou réduire le groupe"
 }

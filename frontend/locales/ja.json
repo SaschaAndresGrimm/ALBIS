@@ -856,5 +856,7 @@
   "http.error.server": "サーバーで問題が発生しました。もう一度お試しください。",
   "http.error.client": "リクエストを完了できませんでした。",
   "http.error.generic": "リクエストに失敗しました。",
-  "aria.menubar": "メインメニュー"
+  "aria.menubar": "メインメニュー",
+  "command.search.label": "コマンドを検索",
+  "inspector.toggle_group": "グループを展開または折りたたむ"
 }

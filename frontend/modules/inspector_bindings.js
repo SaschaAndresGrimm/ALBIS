@@ -42,6 +42,7 @@ export function bindInspectorInteractions({
       node.classList.toggle("is-open", willOpen);
       if (toggle) {
         toggle.textContent = willOpen ? "▾" : "▸";
+        toggle.setAttribute("aria-expanded", String(willOpen));
       }
       if (willOpen && node.dataset.loaded !== "true") {
         try {

@@ -856,5 +856,7 @@
   "http.error.server": "I raru te tūmau. Tēnā, ngana anō.",
   "http.error.client": "Kāore i taea te whakaoti i te tono.",
   "http.error.generic": "I rahu te tono.",
-  "aria.menubar": "Tahua matua"
+  "aria.menubar": "Tahua matua",
+  "command.search.label": "Rapua ngā whakahau",
+  "inspector.toggle_group": "Whakawhānui, whakahōki rōpū rānei"
 }

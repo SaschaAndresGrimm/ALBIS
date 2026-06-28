@@ -856,5 +856,7 @@
   "http.error.server": "Serveren stødte på et problem. Prøv igen.",
   "http.error.client": "Anmodningen kunne ikke fuldføres.",
   "http.error.generic": "Anmodning mislykkedes.",
-  "aria.menubar": "Hovedmenu"
+  "aria.menubar": "Hovedmenu",
+  "command.search.label": "Søg kommandoer",
+  "inspector.toggle_group": "Udvid eller skjul gruppe"
 }

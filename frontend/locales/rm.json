@@ -856,5 +856,7 @@
   "http.error.server": "Il server ha chattà in problem. Empruvai p.pl. anc ina giada.",
   "http.error.client": "La dumonda na po betg vegnir cumplettada.",
   "http.error.generic": "La dumonda è fallida.",
-  "aria.menubar": "Menu principal"
+  "aria.menubar": "Menu principal",
+  "command.search.label": "Tschertgar cumonds",
+  "inspector.toggle_group": "Expander u reducer la gruppa"
 }

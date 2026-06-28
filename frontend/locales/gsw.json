@@ -856,5 +856,7 @@
   "http.error.server": "Uf em Server isch es Problem ufträte. Bitte probier's nomal.",
   "http.error.client": "D Aafrog het nid chöne abgschlosse werde.",
   "http.error.generic": "Aafrog fehlgschlage.",
-  "aria.menubar": "Hauptmenü"
+  "aria.menubar": "Hauptmenü",
+  "command.search.label": "Befähl sueche",
+  "inspector.toggle_group": "Gruppe uf- oder zueklappe"
 }

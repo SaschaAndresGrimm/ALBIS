@@ -856,5 +856,7 @@
   "http.error.server": "Servern stötte på ett problem. Försök igen.",
   "http.error.client": "Begäran kunde inte slutföras.",
   "http.error.generic": "Begäran misslyckades.",
-  "aria.menubar": "Huvudmeny"
+  "aria.menubar": "Huvudmeny",
+  "command.search.label": "Sök kommandon",
+  "inspector.toggle_group": "Expandera eller komprimera grupp"
 }

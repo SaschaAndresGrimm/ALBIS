@@ -856,5 +856,7 @@
   "http.error.server": "The server ran into a problem. Please try again.",
   "http.error.client": "The request could not be completed.",
   "http.error.generic": "Request failed.",
-  "aria.menubar": "Main menu"
+  "aria.menubar": "Main menu",
+  "command.search.label": "Search commands",
+  "inspector.toggle_group": "Expand or collapse group"
 }

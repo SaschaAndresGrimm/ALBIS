@@ -55,6 +55,8 @@ export function createCommandPaletteController({
     if (!closeModal(commandModal, { restoreFocus })) return false;
     commandPaletteItems = [];
     commandPaletteIndex = 0;
+    commandInput?.setAttribute("aria-expanded", "false");
+    commandInput?.removeAttribute("aria-activedescendant");
     return true;
   }
 
@@ -81,6 +83,7 @@ export function createCommandPaletteController({
       empty.className = "command-empty";
       empty.textContent = t("command.empty");
       commandList.appendChild(empty);
+      commandInput?.removeAttribute("aria-activedescendant");
       return;
     }
 
@@ -89,7 +92,11 @@ export function createCommandPaletteController({
       const button = document.createElement("button");
       button.type = "button";
       button.className = "command-item";
-      if (idx === commandPaletteIndex) {
+      button.id = `command-option-${idx}`;
+      button.setAttribute("role", "option");
+      const isActive = idx === commandPaletteIndex;
+      button.setAttribute("aria-selected", String(isActive));
+      if (isActive) {
         button.classList.add("is-active");
       }
       button.dataset.commandIndex = String(idx);
@@ -119,6 +126,7 @@ export function createCommandPaletteController({
       commandList.appendChild(button);
     });
 
+    commandInput?.setAttribute("aria-activedescendant", `command-option-${commandPaletteIndex}`);
     commandList.querySelector(".command-item.is-active")?.scrollIntoView({ block: "nearest" });
   }
 
@@ -142,6 +150,7 @@ export function createCommandPaletteController({
 
     commandInput.value = nextValue;
     commandPaletteIndex = 0;
+    commandInput.setAttribute("aria-expanded", "true");
     openModal(commandModal, { focusTarget: commandInput });
     render();
     window.requestAnimationFrame(() => {

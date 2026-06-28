@@ -856,5 +856,7 @@
   "http.error.server": "Auf dem Server ist ein Problem aufgetreten. Bitte versuche es erneut.",
   "http.error.client": "Die Anfrage konnte nicht abgeschlossen werden.",
   "http.error.generic": "Anfrage fehlgeschlagen.",
-  "aria.menubar": "Hauptmenü"
+  "aria.menubar": "Hauptmenü",
+  "command.search.label": "Befehle suchen",
+  "inspector.toggle_group": "Gruppe ein- oder ausklappen"
 }
