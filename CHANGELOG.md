@@ -7,6 +7,32 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-06-28
+
+### Added
+
+- Added full keyboard navigation to the menu bar and dropdowns: Up/Down move between items, Home/End jump to the ends, Left/Right switch top-level menus, and ArrowDown opens a focused menu. Escape closes the menu and returns focus to its button; the "Save As…" submenu opens via Right/Enter/Space. Arrow keys are only claimed while a menu is open, so frame navigation is unaffected otherwise.
+- Added ARIA semantics across the remaining interactive surfaces: the menu bar is a role=menubar/menu/menuitem tree, the command palette is a role=combobox + role=listbox with aria-activedescendant tracking, peak-finder rows carry descriptive labels and aria-pressed, and inspector group toggles report aria-expanded.
+- Added `:focus-visible` focus rings to 15 interactive controls (menu/dropdown items, breadcrumbs, command palette, peak rows, inspector toggles, ROI/toolbar/rings/series buttons) so keyboard focus is visible everywhere.
+- Added opt-in per-call fetch timeouts: image headers (30s), series and dataset scans (60s), and binary image/frame loads (120s).
+- Added `THIRD_PARTY_LICENSES.md` plus verbatim Apache-2.0 and MPL-2.0 license texts, bundled into the packaged app via the PyInstaller spec, attributing every shipped dependency ahead of the MIT release.
+- Added test suites for menu keyboard navigation, menu ARIA, command-palette ARIA, and the HTTP error/timeout layer.
+
+### Changed
+
+- HTTP requests now throw localized, structured errors (carrying status and detail) instead of raw "Request failed: 500" strings, including a friendly network-failure message. Added 7 `http.error.*` keys and 2 new ARIA i18n keys across all 13 locales.
+- Decluttered the ROI panel: hid the duplicated status line when a region is active (the badge and stats grid already convey it), and gave the stats grid muted labels with a column divider for clearer hierarchy.
+
+### Fixed
+
+- Resolution-ring label collision avoidance now nudges crowded labels along the ring tangent (biased upward, away from the beamstop) instead of outward along the radius, so a label no longer flies past adjacent rings and stays attached to its own ring.
+- Fixed a latent bug where a timed-out binary image/frame load was silently swallowed by the AbortError check, leaving the loading spinner up indefinitely.
+
+### Notes
+
+- ALBIS `0.10.1` is the accessibility and polish release: drive the menus from the keyboard, full screen-reader semantics, localized error messages, request timeouts, and third-party license attribution for the MIT release.
+- This release is called: "Mind Your Manners (And Your Keyboard)."
+
 ## [0.10.0] - 2026-06-27
 
 ### Added
