@@ -80,6 +80,27 @@ export function bindRoiControlInteractions({
     if (roiState.mode === "circle") {
       roiState.innerRadius = 0;
     }
+    if (
+      (roiState.mode === "circle" || roiState.mode === "annulus") &&
+      roiState.start &&
+      roiState.end &&
+      !(Number(roiState.outerRadius) > 0)
+    ) {
+      // Switching from a line/box carries over start/end but leaves outerRadius
+      // at its 0 default, so the radial profile reads radius 0 and comes back
+      // empty until the ROI is nudged. Seed the circle geometry from the current
+      // start/end (the radius the overlay already shows) so the profile is
+      // populated immediately.
+      applyCircularRoiGeometry(
+        roiState,
+        roiState.start,
+        Math.round(Math.hypot(
+          Number(roiState.end.x) - Number(roiState.start.x),
+          Number(roiState.end.y) - Number(roiState.start.y),
+        )),
+        getCircularRoiDirection(roiState.start, roiState.end),
+      );
+    }
     roiState.active = Boolean(roiState.start && roiState.end);
     scheduleRoiOverlay();
     scheduleRoiUpdate();
