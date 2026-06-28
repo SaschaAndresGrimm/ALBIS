@@ -352,17 +352,19 @@ export function createOverlayRenderController({
         peakCtx.strokeStyle = "rgba(72, 255, 105, 0.98)";
         peakCtx.stroke();
       } else {
-        peakCtx.setLineDash([5, 4]);
+        peakCtx.setLineDash([]);
+        // Dark halo first so the marker stays readable on light or dark frames.
         peakCtx.beginPath();
         peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
-        peakCtx.lineWidth = 1.8;
-        peakCtx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+        peakCtx.lineWidth = 3.4;
+        peakCtx.strokeStyle = "rgba(8, 10, 14, 0.72)";
         peakCtx.stroke();
 
+        // Amber ring, matching the ROI peak accent (PLOT_THEME.peak).
         peakCtx.beginPath();
-        peakCtx.arc(sx, sy, Math.max(3, radius - 2), 0, Math.PI * 2);
-        peakCtx.lineWidth = 1.2;
-        peakCtx.strokeStyle = "rgba(70, 155, 255, 0.72)";
+        peakCtx.arc(sx, sy, radius, 0, Math.PI * 2);
+        peakCtx.lineWidth = 1.7;
+        peakCtx.strokeStyle = "rgba(255, 196, 110, 0.98)";
         peakCtx.stroke();
       }
     });
