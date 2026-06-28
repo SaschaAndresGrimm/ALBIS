@@ -38,6 +38,16 @@ if icon_path and not os.path.exists(icon_path):
     icon_path = ""
 
 datas = [("frontend", "frontend"), ("VERSION", ".")]
+# License and third-party attribution files (required for redistribution).
+for license_file in (
+    "LICENSE",
+    "THIRD_PARTY_LICENSES.md",
+    os.path.join("licenses", "LICENSE-APACHE-2.0.txt"),
+    os.path.join("licenses", "LICENSE-MPL-2.0.txt"),
+):
+    license_path = os.path.abspath(license_file)
+    if os.path.exists(license_path):
+        datas.append((license_path, os.path.dirname(license_file) or "."))
 for asset_name in (
     "albis_splash_1920x1080.png",
     "albis_splash_3840x2160.png",
