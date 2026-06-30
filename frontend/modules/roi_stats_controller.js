@@ -14,7 +14,11 @@ import {
 import { renderRoiPlot } from "./roi_plot_renderer.js";
 import { buildRoiCsvExportPayload } from "./roi_csv_export.js";
 import { t } from "./i18n.js";
-import { clampCircularRoiInnerRadius, getCircularRoiOuterRadius } from "./roi_geometry_utils.js";
+import {
+  clampCircularRoiInnerRadius,
+  getCircularRoiOuterRadius,
+  physicalRoiRadius,
+} from "./roi_geometry_utils.js";
 
 export function createRoiStatsController(ctx) {
   const {
@@ -853,7 +857,12 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, roiState.xProjection);
     drawRoiPlot(roiYCanvas, roiYCtx, roiState.yProjection);
   } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
-    const outerRadius = getCircularRoiOuterRadius(roiState);
+    // A circular/annulus ROI is a physical resolution shell. Radii are stored
+    // in X-pixel-equivalent units; physical radius r = sqrt(dx^2 + (dy*aspect)^2)
+    // with aspect = y_pixel_size / x_pixel_size. For square pixels aspect = 1
+    // and this reduces to the ordinary pixel-space circle.
+    const aspect = state.pixelAspect || 1;
+    const outerRadius = getCircularRoiOuterRadius(roiState, aspect);
     if (roiState.mode === "circle") {
       roiState.innerRadius = 0;
       roiState.outerRadius = outerRadius;
@@ -866,17 +875,20 @@ function updateRoiStats() {
       if (roiOuterInput) roiOuterInput.value = String(outerRadius);
     }
 
+    // The shell is an ellipse in pixel space: full width in X, but only
+    // outerRadius / aspect rows tall in Y.
+    const yExtent = Math.ceil(outerRadius / aspect);
     const left = Math.max(0, Math.floor(x0 - outerRadius));
     const right = Math.min(state.width - 1, Math.ceil(x0 + outerRadius));
-    const top = Math.max(0, Math.floor(y0 - outerRadius));
-    const bottom = Math.min(state.height - 1, Math.ceil(y0 + outerRadius));
+    const top = Math.max(0, Math.floor(y0 - yExtent));
+    const bottom = Math.min(state.height - 1, Math.ceil(y0 + yExtent));
     const innerR2 = roiState.innerRadius * roiState.innerRadius;
     const outerR2 = outerRadius * outerRadius;
     const radialSum = new Float64Array(outerRadius + 1);
     const radialCount = new Uint32Array(outerRadius + 1);
 
     for (let y = top; y <= bottom; y += 1) {
-      const dyPix = y - y0;
+      const dyPix = (y - y0) * aspect;
       for (let x = left; x <= right; x += 1) {
         const dxPix = x - x0;
         const r2 = dxPix * dxPix + dyPix * dyPix;
@@ -941,30 +953,41 @@ function updateRoiStats() {
       Number.isFinite(radialParams.centerX) &&
       Number.isFinite(radialParams.centerY);
     const beamOffsetPx = beamCentreReady
-      ? Math.hypot(x0 - radialParams.centerX, y0 - radialParams.centerY)
+      ? physicalRoiRadius(x0 - radialParams.centerX, y0 - radialParams.centerY, aspect)
       : Number.POSITIVE_INFINITY;
     const beamOffsetTolerance = Math.max(BEAM_CENTER_TOLERANCE_PX, outerRadius * 0.1);
     const radialCentredOnBeam = beamOffsetPx <= beamOffsetTolerance;
+    // Radial bins are in X-pixel-equivalent units; label the axis in physical
+    // millimetres when the pixel size is known (geometry-independent), else fall
+    // back to pixels. pxXmm converts a bin radius to mm via r_mm = r * pxXmm.
+    const pxXmm =
+      radialParams && Number.isFinite(radialParams.pixelSizeUm) && radialParams.pixelSizeUm > 0
+        ? radialParams.pixelSizeUm / 1000
+        : null;
+    const xStep = pxXmm || 1;
     const radialDSpacingForX = radialCentredOnBeam
-      ? (radius) => {
+      ? (xValue) => {
           const params = getRingParams();
           if (!params || !Number.isFinite(params.centerX) || !Number.isFinite(params.centerY)) {
             return null;
           }
+          // Convert the axis value back to an X-equivalent pixel radius, then
+          // probe resolution along the X axis (dy = 0) where r_mm = r * pxXmm.
+          const radius = pxXmm ? xValue / pxXmm : xValue;
           return getResolutionAtPixel(params.centerX + radius, params.centerY, params);
         }
       : null;
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = {
-        xLabel: t("roi.size.radius_px"),
+        xLabel: pxXmm ? t("roi.size.radius_mm") : t("roi.size.radius_px"),
         yLabel: t("roi.plot.intensity"),
-        xStart: displayStart,
-        xStep: 1,
-        xTickMode: "integer",
+        xStart: displayStart * xStep,
+        xStep,
+        xTickMode: pxXmm ? "auto" : "integer",
         dSpacingForX: radialDSpacingForX,
         dAxisLabel: t("roi.plot.d_axis"),
         qAxisLabel: t("roi.plot.q_axis"),
-        peaks: radialDSpacingForX ? detectProfilePeaks(displayProfile, displayStart, 1) : null,
+        peaks: radialDSpacingForX ? detectProfilePeaks(displayProfile, displayStart * xStep, xStep) : null,
       };
     }
     drawRoiPlot(roiLineCanvas, roiLineCtx, displayProfile);

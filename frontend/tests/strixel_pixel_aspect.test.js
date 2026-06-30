@@ -5,6 +5,10 @@ vi.mock("../modules/i18n.js", () => ({
 }));
 
 import { createMaskCursorController } from "../modules/mask_cursor_controller.js";
+import {
+  getCircularRoiOuterRadius,
+  physicalRoiRadius,
+} from "../modules/roi_geometry_utils.js";
 
 function makeController(state) {
   const canvasWrap = document.createElement("div");
@@ -79,5 +83,32 @@ describe("non-square (strixel) pixel aspect", () => {
       { allowOutside: true },
     );
     expect(point).toEqual({ x: 3, y: 3 });
+  });
+});
+
+describe("physical resolution-shell ROI radius", () => {
+  it("reduces to the ordinary pixel radius for square pixels", () => {
+    expect(physicalRoiRadius(3, 4, 1)).toBe(5);
+    expect(physicalRoiRadius(3, 4)).toBe(5); // default aspect
+  });
+
+  it("scales the Y offset by aspect so equal physical radii match across axes", () => {
+    // With 4x-taller pixels, 10 px in Y spans the same physical distance as
+    // 40 px in X, so both yield the same X-pixel-equivalent radius.
+    expect(physicalRoiRadius(40, 0, 4)).toBe(40);
+    expect(physicalRoiRadius(0, 10, 4)).toBe(40);
+    // Mixed offset: sqrt(9 + (4*4)^2) = sqrt(265) ~= 16.28 -> 16
+    expect(physicalRoiRadius(3, 4, 4)).toBe(16);
+  });
+
+  it("derives the outer radius from the drag endpoint using aspect", () => {
+    const roiState = { start: { x: 0, y: 0 }, end: { x: 0, y: 10 } };
+    expect(getCircularRoiOuterRadius(roiState, 4)).toBe(40);
+    expect(getCircularRoiOuterRadius(roiState, 1)).toBe(10);
+  });
+
+  it("honours an explicit stored radius regardless of aspect", () => {
+    const roiState = { start: { x: 0, y: 0 }, end: { x: 0, y: 10 }, outerRadius: 7 };
+    expect(getCircularRoiOuterRadius(roiState, 4)).toBe(7);
   });
 });

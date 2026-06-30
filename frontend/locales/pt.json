@@ -452,6 +452,7 @@
   "roi.size.image": "Imagem",
   "roi.size.length_px": "Comprimento (px)",
   "roi.size.radius_px": "Raio (px)",
+  "roi.size.radius_mm": "Raio (mm)",
   "roi.size.rin_rout": "Rin → Rout",
   "roi.size.width_height": "Tamanho (LxA)",
   "roi.summary.mode_active": "{{mode}} ativo",

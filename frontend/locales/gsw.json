@@ -452,6 +452,7 @@
   "roi.size.image": "Bild",
   "roi.size.length_px": "Länge (px)",
   "roi.size.radius_px": "Radius (px)",
+  "roi.size.radius_mm": "Radius (mm)",
   "roi.size.rin_rout": "Rin → Rout",
   "roi.size.width_height": "Gröössi (BxH)",
   "roi.summary.mode_active": "{{mode}} aktiv",

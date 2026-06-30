@@ -2,7 +2,11 @@
  * Canvas viewport and gesture interaction bindings.
  */
 
-import { applyCircularRoiGeometry, clampCircularRoiInnerRadius } from "./roi_geometry_utils.js";
+import {
+  applyCircularRoiGeometry,
+  clampCircularRoiInnerRadius,
+  physicalRoiRadius,
+} from "./roi_geometry_utils.js";
 
 export function bindViewportInteractions({
   state,
@@ -206,7 +210,10 @@ export function bindViewportInteractions({
     if (roiState.mode === "circle" || roiState.mode === "annulus") {
       const dx = roiState.end.x - roiState.start.x;
       const dy = roiState.end.y - roiState.start.y;
-      const outer = Math.max(0, Math.round(Math.hypot(dx, dy)));
+      // Physical resolution-shell radius: 1 step in Y spans aspect x the
+      // physical distance of 1 step in X, so the radius is measured in
+      // X-pixel-equivalent units. For square pixels this is the pixel radius.
+      const outer = physicalRoiRadius(dx, dy, state.pixelAspect || 1);
       applyCircularRoiGeometry(roiState, roiState.start, outer, { x: dx, y: dy });
       if (roiState.mode === "circle") {
         if (roiRadiusInput) roiRadiusInput.value = String(outer);

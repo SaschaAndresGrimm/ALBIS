@@ -9,6 +9,7 @@ import {
   getCircularRoiDirection,
   getCircularRoiOuterRadius,
   getVisibleCircularHandlePoint,
+  physicalRoiRadius,
 } from "./roi_geometry_utils.js";
 
 export function createRoiInteractionController({
@@ -108,11 +109,19 @@ export function createRoiInteractionController({
 
   function getCircularHandleScreenPoints(x0, y0, x1, y1, zoom, canvasWidth, canvasHeight) {
     const visibleRect = getVisibleImageScreenRect(canvasWidth, canvasHeight);
+    // The shell is a true circle on the isotropic screen, so its screen radius
+    // is the (X-pixel-equivalent) radius * zoom. `end` only supplies direction.
+    const aspect = state.pixelAspect || 1;
     const direction = { x: x1 - x0, y: y1 - y0 };
-    const outerRadius = Math.hypot(direction.x, direction.y);
+    const outerRadius = getCircularRoiOuterRadius(roiState, aspect) * zoom;
+    const mag = Math.hypot(direction.x, direction.y) || 1;
+    const fallback = {
+      x: x0 + (direction.x / mag) * outerRadius,
+      y: y0 + (direction.y / mag) * outerRadius,
+    };
     const outer =
       getVisibleCircularHandlePoint({ x: x0, y: y0 }, outerRadius, direction, visibleRect) ||
-      { x: x1, y: y1 };
+      fallback;
     let inner = null;
     if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
       inner =
@@ -192,10 +201,11 @@ export function createRoiInteractionController({
       return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom;
     }
     if (roiState.mode === "circle" || roiState.mode === "annulus") {
-      const dx = point.x - x0;
-      const dy = point.y - y0;
-      const dist = Math.hypot(dx, dy);
-      const outer = Math.hypot(x1 - x0, y1 - y0);
+      // Membership is a physical resolution shell (a circle in physical space,
+      // an ellipse in pixel space): compare X-pixel-equivalent radii.
+      const aspect = state.pixelAspect || 1;
+      const dist = physicalRoiRadius(point.x - x0, point.y - y0, aspect);
+      const outer = getCircularRoiOuterRadius(roiState, aspect);
       return dist <= outer;
     }
     if (roiState.mode === "line") {
@@ -234,7 +244,7 @@ export function createRoiInteractionController({
       start: { ...roiState.start },
       end: { ...roiState.end },
       innerRadius: roiState.innerRadius || 0,
-      outerRadius: roiState.outerRadius || Math.hypot(roiState.end.x - roiState.start.x, roiState.end.y - roiState.start.y),
+      outerRadius: getCircularRoiOuterRadius(roiState, state.pixelAspect || 1),
     };
     canvasWrap.classList.add("is-roi");
   }
@@ -292,8 +302,9 @@ export function createRoiInteractionController({
         roiState.end = { x: point.x, y: point.y };
       }
     } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
+      const aspect = state.pixelAspect || 1;
       if (roiEditHandle === "outer") {
-        const outer = Math.max(0, Math.round(Math.hypot(point.x - snap.start.x, point.y - snap.start.y)));
+        const outer = physicalRoiRadius(point.x - snap.start.x, point.y - snap.start.y, aspect);
         applyCircularRoiGeometry(
           roiState,
           snap.start,
@@ -309,9 +320,9 @@ export function createRoiInteractionController({
           if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
         }
       } else if (roiEditHandle === "inner" && roiState.mode === "annulus") {
-        const outer = getCircularRoiOuterRadius(snap);
+        const outer = getCircularRoiOuterRadius(snap, aspect);
         const inner = clampCircularRoiInnerRadius(
-          Math.round(Math.hypot(point.x - snap.start.x, point.y - snap.start.y)),
+          physicalRoiRadius(point.x - snap.start.x, point.y - snap.start.y, aspect),
           outer,
         );
         applyCircularRoiGeometry(
@@ -447,23 +458,22 @@ export function createRoiInteractionController({
       roiCtx.rect(left, top, w, h);
       strokeWithHalo();
     } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
-      // The ROI radius is defined in data-pixel space (the hit-test and backend
-      // both use plain data-pixel distance), so on an anisotropic display it
-      // renders as an ellipse: rX = R * zoom, rY = R * zoomY. For square pixels
-      // zoomY === zoom, so this is an ordinary circle.
-      const radiusData = Math.hypot(roiState.end.x - roiState.start.x, roiState.end.y - roiState.start.y);
-      const rX = radiusData * zoom;
-      const rY = radiusData * zoomY;
-      const innerData = roiState.mode === "annulus" ? roiState.innerRadius || 0 : 0;
-      if (rX > 0 && rY > 0) {
+      // A circular/annulus ROI is a physical resolution shell: a true circle in
+      // physical space and therefore a true circle on the (isotropic) display,
+      // coinciding with the resolution rings. Its radius is stored in
+      // X-pixel-equivalent units, so the on-screen radius is radius * zoom.
+      const aspect = state.pixelAspect || 1;
+      const radius = getCircularRoiOuterRadius(roiState, aspect) * zoom;
+      const inner = (roiState.mode === "annulus" ? roiState.innerRadius || 0 : 0) * zoom;
+      if (radius > 0) {
         roiCtx.save();
         roiCtx.setLineDash([]);
         roiCtx.fillStyle = "rgba(160, 160, 160, 0.08)";
         roiCtx.beginPath();
-        roiCtx.ellipse(x0, y0, rX, rY, 0, 0, Math.PI * 2);
-        if (innerData > 0) {
-          roiCtx.moveTo(x0 + innerData * zoom, y0);
-          roiCtx.ellipse(x0, y0, innerData * zoom, innerData * zoomY, 0, 0, Math.PI * 2);
+        roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
+        if (inner > 0) {
+          roiCtx.moveTo(x0 + inner, y0);
+          roiCtx.arc(x0, y0, inner, 0, Math.PI * 2);
           try {
             roiCtx.fill("evenodd");
           } catch {
@@ -475,11 +485,11 @@ export function createRoiInteractionController({
         roiCtx.restore();
       }
       roiCtx.beginPath();
-      roiCtx.ellipse(x0, y0, rX, rY, 0, 0, Math.PI * 2);
+      roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
       strokeWithHalo();
-      if (innerData > 0) {
+      if (inner > 0) {
         roiCtx.beginPath();
-        roiCtx.ellipse(x0, y0, innerData * zoom, innerData * zoomY, 0, 0, Math.PI * 2);
+        roiCtx.arc(x0, y0, inner, 0, Math.PI * 2);
         strokeWithHalo();
       }
     }

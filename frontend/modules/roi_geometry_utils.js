@@ -27,18 +27,27 @@ export function getCircularRoiDirection(start, end) {
   return normalizeDirection({ x: dx, y: dy });
 }
 
-export function getCircularRoiOuterRadius(roiState) {
+// Physical ("resolution shell") radius of a pixel offset, expressed in
+// X-pixel-equivalent units: r_xeq = sqrt(dx^2 + (dy * aspect)^2), where
+// aspect = y_pixel_size / x_pixel_size. This is the radius that maps to a true
+// circle on the (isotropic) display and converts to physical mm via r * px_x.
+// For square pixels (aspect = 1) it reduces to the ordinary pixel radius.
+export function physicalRoiRadius(dx, dy, aspect = 1) {
+  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+  const dyScaled = Number(dy) * a;
+  return Math.max(0, Math.round(Math.hypot(Number(dx), dyScaled)));
+}
+
+export function getCircularRoiOuterRadius(roiState, aspect = 1) {
   const explicit = Number(roiState?.outerRadius);
   if (Number.isFinite(explicit) && explicit >= 0) {
     return Math.max(0, Math.round(explicit));
   }
   if (!roiState?.start || !roiState?.end) return 0;
-  return Math.max(
-    0,
-    Math.round(Math.hypot(
-      Number(roiState.end.x) - Number(roiState.start.x),
-      Number(roiState.end.y) - Number(roiState.start.y),
-    )),
+  return physicalRoiRadius(
+    Number(roiState.end.x) - Number(roiState.start.x),
+    Number(roiState.end.y) - Number(roiState.start.y),
+    aspect,
   );
 }
 

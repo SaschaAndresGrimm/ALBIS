@@ -452,6 +452,7 @@
   "roi.size.image": "图像",
   "roi.size.length_px": "长度 (px)",
   "roi.size.radius_px": "半径 (px)",
+  "roi.size.radius_mm": "半径 (mm)",
   "roi.size.rin_rout": "内半径 → 外半径",
   "roi.size.width_height": "尺寸 (宽x高)",
   "roi.summary.mode_active": "{{mode}} 已激活",
