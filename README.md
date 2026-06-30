@@ -4,7 +4,7 @@
 
 ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stacks and other common DECTRIS camera formats. It is platform‑independent, free, and open source.
 
-It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4)) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
+It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4), JUNGFRAU, and POLLUX — including rectangular "strixel" pixels) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
 

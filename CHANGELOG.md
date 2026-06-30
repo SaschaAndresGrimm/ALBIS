@@ -7,6 +7,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-06-30
+
+### Added
+
+- Added support for non-square ("strixel") detectors such as DECTRIS POLLUX PANORAMA HR. The per-axis pixel sizes from the master HDF5 (`x_pixel_size` / `y_pixel_size`) are now kept distinct instead of averaged into one scalar, and the image is displayed with the correct physical aspect ratio. The data matrix stays pixelwise — only the display mapping is stretched (`pixelAspect = y_pixel_size / x_pixel_size`).
+- Added physical ROI readouts alongside the pixel values: ROI size in mm and area in mm², computed from the per-axis pixel sizes.
+
+### Changed
+
+- Threaded the per-axis display aspect through every screen↔image transform — cursor probe, box/line/circle ROIs, peak markers, resolution rings, the overview thumbnail, cross-window sync, and visible-region export — so all overlays stay aligned on anisotropic detectors. Square detectors are unaffected (aspect = 1, every path identical to before).
+- Circular/annulus ROIs are now physical resolution shells: a true circle on screen that coincides with the resolution rings (an ellipse in pixel space). Their radial profile is binned by physical radius and labels the x-axis in millimetres, so the azimuthal integration is correct for elongated pixels.
+- Resolution rings and the per-pixel resolution readout now use the true per-axis physical distance.
+- Added DECTRIS JUNGFRAU and POLLUX (including rectangular "strixel" pixels) to the README compatibility list.
+
+### Notes
+
+- ALBIS `0.10.3` teaches the viewer that pixels aren't always square — DECTRIS POLLUX's elongated "strixels" now display, measure, and integrate with correct physics.
+- This release is called: "Strixel Things."
+
 ## [0.10.2] - 2026-06-28
 
 ### Added
@@ -567,7 +586,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.14...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.3...HEAD
+[0.10.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.2...v0.10.3
 [0.9.15]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.12...v0.9.13
