@@ -56,10 +56,11 @@ export function createMaskCursorController({
     const y = event.clientY - rect.top;
     if (!allowOutsideViewport && (x < 0 || y < 0 || x > rect.width || y > rect.height)) return null;
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const imgX = (getEffectiveScrollLeft() + x - offsetX) / zoom;
-    const imgY = (getEffectiveScrollTop() + y - offsetY) / zoom;
+    const imgY = (getEffectiveScrollTop() + y - offsetY) / zoomY;
     if (allowOutside) {
       return { x: Math.floor(imgX), y: Math.floor(imgY) };
     }
@@ -279,10 +280,11 @@ export function createMaskCursorController({
       return;
     }
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const imgX = (getEffectiveScrollLeft() + x - offsetX) / zoom;
-    const imgY = (getEffectiveScrollTop() + y - offsetY) / zoom;
+    const imgY = (getEffectiveScrollTop() + y - offsetY) / zoomY;
     const ix = Math.floor(imgX);
     const iy = Math.floor(imgY);
     if (ix < 0 || iy < 0 || ix >= state.width || iy >= state.height) {

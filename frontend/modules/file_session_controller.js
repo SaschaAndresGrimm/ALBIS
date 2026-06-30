@@ -102,6 +102,7 @@ export function createFileSessionController({
     state.panOffsetY = 0;
     state.renderOffsetX = 0;
     state.renderOffsetY = 0;
+    state.pixelAspect = 1;
     state.globalStats = null;
     analysisState.peaks = [];
     analysisState.selectedPeaks = [];

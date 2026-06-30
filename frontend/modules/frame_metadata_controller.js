@@ -185,6 +185,9 @@ export function createFrameMetadataController({
   }
 
   async function loadAnalysisParams() {
+    // Reset the display aspect to square first; only HDF master files with
+    // per-axis pixel sizes override it below.
+    state.pixelAspect = 1;
     if (!state.file || !isHdf5File(state.file)) {
       return;
     }
@@ -202,6 +205,14 @@ export function createFrameMetadataController({
         analysisState.pixelSizeUm = data.pixel_size_um;
         ringsPixel.value = data.pixel_size_um.toFixed(2);
       }
+      // Derive the display aspect ratio from the per-axis pixel sizes so
+      // anisotropic ("strixel") detectors render with the correct geometry.
+      // X is the reference axis; Y is stretched by y/x. Defaults to 1 (square)
+      // whenever the per-axis sizes are missing or equal.
+      const pxX = Number(data.pixel_size_x_um);
+      const pxY = Number(data.pixel_size_y_um);
+      state.pixelAspect =
+        Number.isFinite(pxX) && pxX > 0 && Number.isFinite(pxY) && pxY > 0 ? pxY / pxX : 1;
       if (Number.isFinite(data.energy_ev) && ringsEnergy) {
         analysisState.energyEv = data.energy_ev;
         ringsEnergy.value = String(Math.round(data.energy_ev));

@@ -78,7 +78,12 @@ class HandoffJobResponse(_StrictModel):
 
 class AnalysisParamsResponse(_StrictModel):
     distance_mm: float | None = None
+    # pixel_size_um is the reference (fast / X-axis) pixel size, kept for
+    # backwards compatibility. pixel_size_x_um / pixel_size_y_um carry the
+    # per-axis sizes so anisotropic ("strixel") detectors render correctly.
     pixel_size_um: float | None = None
+    pixel_size_x_um: float | None = None
+    pixel_size_y_um: float | None = None
     energy_ev: float | None = None
     center_x_px: float | None = None
     center_y_px: float | None = None

@@ -51,28 +51,30 @@ export function createRoiInteractionController({
   function getRoiScreenGeometry() {
     if (!canvasWrap || !roiState.start || !roiState.end) return null;
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const viewX = getEffectiveScrollLeft() / zoom;
-    const viewY = getEffectiveScrollTop() / zoom;
+    const viewY = getEffectiveScrollTop() / zoomY;
     const x0 = (roiState.start.x - viewX) * zoom + offsetX;
-    const y0 = (roiState.start.y - viewY) * zoom + offsetY;
+    const y0 = (roiState.start.y - viewY) * zoomY + offsetY;
     const x1 = (roiState.end.x - viewX) * zoom + offsetX;
-    const y1 = (roiState.end.y - viewY) * zoom + offsetY;
-    return { x0, y0, x1, y1, zoom };
+    const y1 = (roiState.end.y - viewY) * zoomY + offsetY;
+    return { x0, y0, x1, y1, zoom, zoomY };
   }
 
   function getVisibleImageScreenRect(canvasWidth, canvasHeight) {
     if (!canvasWrap || !state.width || !state.height) return null;
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const viewX = getEffectiveScrollLeft() / zoom;
-    const viewY = getEffectiveScrollTop() / zoom;
+    const viewY = getEffectiveScrollTop() / zoomY;
     const imageLeft = (-viewX) * zoom + offsetX;
-    const imageTop = (-viewY) * zoom + offsetY;
+    const imageTop = (-viewY) * zoomY + offsetY;
     const imageRight = imageLeft + state.width * zoom;
-    const imageBottom = imageTop + state.height * zoom;
+    const imageBottom = imageTop + state.height * zoomY;
     const rect = {
       left: Math.max(0, imageLeft),
       top: Math.max(0, imageTop),
@@ -83,25 +85,24 @@ export function createRoiInteractionController({
     return rect;
   }
 
-  function getBoxScreenBounds(x0, y0, x1, y1, zoom) {
+  function getBoxScreenBounds(x0, y0, x1, y1, zoom, zoomY = zoom) {
     // x0/y0/x1/y1 are pixel-cell origins in screen space (top-left corners).
     // Box ROI is inclusive in pixel indices, so the visual boundary must extend
-    // one full pixel beyond the max index.
+    // one full pixel beyond the max index (one cell wide in X, one tall in Y).
     return {
       left: Math.min(x0, x1),
       top: Math.min(y0, y1),
       right: Math.max(x0, x1) + zoom,
-      bottom: Math.max(y0, y1) + zoom,
+      bottom: Math.max(y0, y1) + zoomY,
     };
   }
 
-  function getLineScreenEndpoints(x0, y0, x1, y1, zoom) {
-    const centerOffset = zoom * 0.5;
+  function getLineScreenEndpoints(x0, y0, x1, y1, zoom, zoomY = zoom) {
     return {
-      xStart: x0 + centerOffset,
-      yStart: y0 + centerOffset,
-      xEnd: x1 + centerOffset,
-      yEnd: y1 + centerOffset,
+      xStart: x0 + zoom * 0.5,
+      yStart: y0 + zoomY * 0.5,
+      xEnd: x1 + zoom * 0.5,
+      yEnd: y1 + zoomY * 0.5,
     };
   }
 
@@ -131,18 +132,18 @@ export function createRoiInteractionController({
     const pointer = getPointerCanvasPos(event);
     const geom = getRoiScreenGeometry();
     if (!pointer || !geom) return null;
-    const { x0, y0, x1, y1, zoom } = geom;
+    const { x0, y0, x1, y1, zoom, zoomY } = geom;
     const rect = canvasWrap.getBoundingClientRect();
     const hit = (x, y) => Math.abs(pointer.x - x) <= 6 && Math.abs(pointer.y - y) <= 6;
 
     if (roiState.mode === "line") {
-      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom);
+      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom, zoomY);
       if (hit(lineGeom.xStart, lineGeom.yStart)) return "line-start";
       if (hit(lineGeom.xEnd, lineGeom.yEnd)) return "line-end";
       return null;
     }
     if (roiState.mode === "box") {
-      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom);
+      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom, zoomY);
       if (hit(left, top)) return "box-nw";
       if (hit(right, top)) return "box-ne";
       if (hit(right, bottom)) return "box-se";
@@ -346,7 +347,7 @@ export function createRoiInteractionController({
     handleRoiChanged?.("roi");
   }
 
-  function drawRoiHandles(ctx, x0, y0, x1, y1, zoom, canvasWidth, canvasHeight) {
+  function drawRoiHandles(ctx, x0, y0, x1, y1, zoom, canvasWidth, canvasHeight, zoomY = zoom) {
     const handleSize = 8;
     const half = handleSize / 2;
     ctx.save();
@@ -373,11 +374,11 @@ export function createRoiInteractionController({
     };
 
     if (roiState.mode === "line") {
-      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom);
+      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom, zoomY);
       drawHandle(lineGeom.xStart, lineGeom.yStart);
       drawHandle(lineGeom.xEnd, lineGeom.yEnd);
     } else if (roiState.mode === "box") {
-      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom);
+      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom, zoomY);
       drawHandle(left, top);
       drawHandle(right, top);
       drawHandle(right, bottom);
@@ -403,14 +404,15 @@ export function createRoiInteractionController({
     roiCtx.clearRect(0, 0, width, height);
     if (!roiState.enabled || !roiState.active || !roiState.start || !roiState.end) return;
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const viewX = getEffectiveScrollLeft() / zoom;
-    const viewY = getEffectiveScrollTop() / zoom;
+    const viewY = getEffectiveScrollTop() / zoomY;
     const x0 = (roiState.start.x - viewX) * zoom + offsetX;
-    const y0 = (roiState.start.y - viewY) * zoom + offsetY;
+    const y0 = (roiState.start.y - viewY) * zoomY + offsetY;
     const x1 = (roiState.end.x - viewX) * zoom + offsetX;
-    const y1 = (roiState.end.y - viewY) * zoom + offsetY;
+    const y1 = (roiState.end.y - viewY) * zoomY + offsetY;
 
     roiCtx.save();
     roiCtx.setLineDash([6, 4]);
@@ -425,13 +427,13 @@ export function createRoiInteractionController({
       roiCtx.stroke();
     };
     if (roiState.mode === "line") {
-      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom);
+      const lineGeom = getLineScreenEndpoints(x0, y0, x1, y1, zoom, zoomY);
       roiCtx.beginPath();
       roiCtx.moveTo(lineGeom.xStart, lineGeom.yStart);
       roiCtx.lineTo(lineGeom.xEnd, lineGeom.yEnd);
       strokeWithHalo();
     } else if (roiState.mode === "box") {
-      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom);
+      const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom, zoomY);
       const w = Math.max(0, right - left);
       const h = Math.max(0, bottom - top);
       if (w > 0 && h > 0) {
@@ -445,17 +447,23 @@ export function createRoiInteractionController({
       roiCtx.rect(left, top, w, h);
       strokeWithHalo();
     } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
-      const radius = Math.hypot(x1 - x0, y1 - y0);
-      if (radius > 0) {
+      // The ROI radius is defined in data-pixel space (the hit-test and backend
+      // both use plain data-pixel distance), so on an anisotropic display it
+      // renders as an ellipse: rX = R * zoom, rY = R * zoomY. For square pixels
+      // zoomY === zoom, so this is an ordinary circle.
+      const radiusData = Math.hypot(roiState.end.x - roiState.start.x, roiState.end.y - roiState.start.y);
+      const rX = radiusData * zoom;
+      const rY = radiusData * zoomY;
+      const innerData = roiState.mode === "annulus" ? roiState.innerRadius || 0 : 0;
+      if (rX > 0 && rY > 0) {
         roiCtx.save();
         roiCtx.setLineDash([]);
         roiCtx.fillStyle = "rgba(160, 160, 160, 0.08)";
         roiCtx.beginPath();
-        roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
-        if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
-          const inner = roiState.innerRadius * zoom;
-          roiCtx.moveTo(x0 + inner, y0);
-          roiCtx.arc(x0, y0, inner, 0, Math.PI * 2);
+        roiCtx.ellipse(x0, y0, rX, rY, 0, 0, Math.PI * 2);
+        if (innerData > 0) {
+          roiCtx.moveTo(x0 + innerData * zoom, y0);
+          roiCtx.ellipse(x0, y0, innerData * zoom, innerData * zoomY, 0, 0, Math.PI * 2);
           try {
             roiCtx.fill("evenodd");
           } catch {
@@ -467,17 +475,17 @@ export function createRoiInteractionController({
         roiCtx.restore();
       }
       roiCtx.beginPath();
-      roiCtx.arc(x0, y0, radius, 0, Math.PI * 2);
+      roiCtx.ellipse(x0, y0, rX, rY, 0, 0, Math.PI * 2);
       strokeWithHalo();
-      if (roiState.mode === "annulus" && roiState.innerRadius > 0) {
+      if (innerData > 0) {
         roiCtx.beginPath();
-        roiCtx.arc(x0, y0, roiState.innerRadius * zoom, 0, Math.PI * 2);
+        roiCtx.ellipse(x0, y0, innerData * zoom, innerData * zoomY, 0, 0, Math.PI * 2);
         strokeWithHalo();
       }
     }
     roiCtx.restore();
 
-    drawRoiHandles(roiCtx, x0, y0, x1, y1, zoom, width, height);
+    drawRoiHandles(roiCtx, x0, y0, x1, y1, zoom, width, height, zoomY);
   }
 
   function scheduleRoiOverlay() {

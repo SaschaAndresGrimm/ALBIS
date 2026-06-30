@@ -293,6 +293,9 @@ export function createSourceMetadataController({
   }
 
   function applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY }) {
+    // Image/remote sources expose a single pixel size and are treated as
+    // square; per-axis ("strixel") aspect only comes from HDF master files.
+    state.pixelAspect = 1;
     if (isGeometryLockActive(analysisState, state)) {
       updateGeometryLockUi();
       return;

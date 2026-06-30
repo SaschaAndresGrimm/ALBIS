@@ -82,9 +82,10 @@ export function createOverviewViewportController({
     if (!canvasWrap || !state.width || !state.height) {
       return MIN_ZOOM;
     }
+    const aspect = state.pixelAspect || 1;
     const fitScale = Math.min(
       canvasWrap.clientWidth / state.width,
-      canvasWrap.clientHeight / state.height,
+      canvasWrap.clientHeight / (state.height * aspect),
     );
     if (!Number.isFinite(fitScale) || fitScale <= 0) {
       return MIN_ZOOM;
@@ -106,9 +107,12 @@ export function createOverviewViewportController({
   function applyCanvasTransform() {
     if (!canvas) return;
     const zoom = Number.isFinite(state.zoom) ? state.zoom : 1;
+    const aspect = state.pixelAspect || 1;
     const tx = (state.renderOffsetX || 0) + (state.panOffsetX || 0);
     const ty = (state.renderOffsetY || 0) + (state.panOffsetY || 0);
-    canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom})`;
+    // Non-uniform scale stretches each data pixel to its physical aspect ratio
+    // (X is the reference axis; Y is scaled by pixelAspect).
+    canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom}, ${zoom * aspect})`;
   }
 
   function notifyViewportChanged(reason) {
@@ -139,8 +143,9 @@ export function createOverviewViewportController({
       return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     }
     const zoom = state.zoom || 1;
+    const aspect = state.pixelAspect || 1;
     const scaledW = state.width * zoom;
-    const scaledH = state.height * zoom;
+    const scaledH = state.height * zoom * aspect;
     const viewW = canvasWrap.clientWidth || 0;
     const viewH = canvasWrap.clientHeight || 0;
     const baseX = state.renderOffsetX || 0;
@@ -284,12 +289,16 @@ export function createOverviewViewportController({
     const height = wrap?.clientHeight || 1;
     const imgW = state.width || 1;
     const imgH = state.height || 1;
-    const scale = Math.min(width / imgW, height / imgH);
+    const aspect = state.pixelAspect || 1;
+    // Fit the physically stretched image (height scaled by aspect) into the
+    // overview box. scale maps data-X pixels; scaleY maps data-Y pixels.
+    const scale = Math.min(width / imgW, height / (imgH * aspect));
+    const scaleY = scale * aspect;
     const drawW = imgW * scale;
-    const drawH = imgH * scale;
+    const drawH = imgH * scaleY;
     const offsetX = (width - drawW) / 2;
     const offsetY = (height - drawH) / 2;
-    return { width, height, imgW, imgH, scale, offsetX, offsetY };
+    return { width, height, imgW, imgH, scale, scaleY, offsetX, offsetY };
   }
 
   function getViewRect() {
@@ -297,8 +306,9 @@ export function createOverviewViewportController({
     const imgH = state.height;
     if (!imgW || !imgH) return null;
     const zoom = state.zoom || 1;
+    const aspect = state.pixelAspect || 1;
     const scaleX = zoom;
-    const scaleY = zoom;
+    const scaleY = zoom * aspect;
     const viewW = canvasWrap.clientWidth / scaleX;
     const viewH = canvasWrap.clientHeight / scaleY;
     const viewWClamped = Math.min(viewW, imgW);
@@ -318,7 +328,7 @@ export function createOverviewViewportController({
     const x = (event.clientX - rect.left) * (metrics.width / rect.width);
     const y = (event.clientY - rect.top) * (metrics.height / rect.height);
     const imgX = (x - metrics.offsetX) / metrics.scale;
-    const imgY = (y - metrics.offsetY) / metrics.scale;
+    const imgY = (y - metrics.offsetY) / metrics.scaleY;
     return {
       x: Math.max(0, Math.min(metrics.imgW, imgX)),
       y: Math.max(0, Math.min(metrics.imgH, imgY)),
@@ -348,7 +358,8 @@ export function createOverviewViewportController({
   function scrollToView(viewX, viewY) {
     if (!state.width || !state.height) return;
     const zoom = state.zoom || 1;
-    setEffectiveScroll(viewX * zoom, viewY * zoom);
+    const aspect = state.pixelAspect || 1;
+    setEffectiveScroll(viewX * zoom, viewY * zoom * aspect);
   }
 
   function getOverviewHandleAt(point) {
@@ -384,7 +395,10 @@ export function createOverviewViewportController({
   function resizeViewFromHandle(point, handle, keepCenter) {
     if (!overviewState.anchor || !state.width || !state.height) return;
     const anchor = overviewState.anchor;
-    const aspect = canvasWrap.clientWidth / canvasWrap.clientHeight || 1;
+    const pixelAspect = state.pixelAspect || 1;
+    // anchor/point are in data-pixel space; the view rectangle should keep the
+    // viewport's on-screen shape, so the data-space aspect folds in pixelAspect.
+    const aspect = (canvasWrap.clientWidth / canvasWrap.clientHeight || 1) * pixelAspect;
     let width;
     let height;
 
@@ -479,7 +493,7 @@ export function createOverviewViewportController({
     viewY = Math.max(0, Math.min(state.height - height, viewY));
 
     const zoomX = canvasWrap.clientWidth / width;
-    const zoomY = canvasWrap.clientHeight / height;
+    const zoomY = canvasWrap.clientHeight / (height * pixelAspect);
     const zoom = Math.min(6, Math.max(0.5, Math.min(zoomX, zoomY)));
     setZoom(zoom);
     window.requestAnimationFrame(() => {
@@ -492,7 +506,7 @@ export function createOverviewViewportController({
     if (!overviewCanvas || !overviewCtx) return;
     const metrics = getOverviewMetrics();
     if (!metrics) return;
-    const { width, height, imgW, imgH, scale, offsetX, offsetY } = metrics;
+    const { width, height, imgW, imgH, scale, scaleY, offsetX, offsetY } = metrics;
     const dpr = window.devicePixelRatio || 1;
     overviewCanvas.width = Math.max(1, Math.floor(width * dpr));
     overviewCanvas.height = Math.max(1, Math.floor(height * dpr));
@@ -513,7 +527,7 @@ export function createOverviewViewportController({
     }
 
     const drawW = imgW * scale;
-    const drawH = imgH * scale;
+    const drawH = imgH * scaleY;
     overviewCtx.drawImage(canvas, 0, 0, imgW, imgH, offsetX, offsetY, drawW, drawH);
 
     const view = getViewRect();
@@ -522,9 +536,9 @@ export function createOverviewViewportController({
       return;
     }
     const rectX = offsetX + view.viewX * scale;
-    const rectY = offsetY + view.viewY * scale;
+    const rectY = offsetY + view.viewY * scaleY;
     const rectW = view.viewW * scale;
-    const rectH = view.viewH * scale;
+    const rectH = view.viewH * scaleY;
 
     overviewCtx.fillStyle = "rgba(0, 0, 0, 0.35)";
     overviewCtx.fillRect(offsetX, offsetY, drawW, drawH);
@@ -573,13 +587,14 @@ export function createOverviewViewportController({
     const minZoom = getMinZoom();
     const clamped = Math.max(minZoom, Math.min(MAX_ZOOM, Number(value)));
     state.zoom = clamped;
+    const aspect = state.pixelAspect || 1;
     const offsetX =
       canvasWrap && state.width
         ? Math.max(0, (canvasWrap.clientWidth - state.width * clamped) / 2)
         : 0;
     const offsetY =
       canvasWrap && state.height
-        ? Math.max(0, (canvasWrap.clientHeight - state.height * clamped) / 2)
+        ? Math.max(0, (canvasWrap.clientHeight - state.height * clamped * aspect) / 2)
         : 0;
     state.renderOffsetX = Number.isFinite(offsetX) ? offsetX : 0;
     state.renderOffsetY = Number.isFinite(offsetY) ? offsetY : 0;
@@ -619,6 +634,8 @@ export function createOverviewViewportController({
     const x = Math.max(0, Math.min(rect.width || 0, clientX - rect.left));
     const y = Math.max(0, Math.min(rect.height || 0, clientY - rect.top));
     const prevZoom = state.zoom || 1;
+    const aspect = state.pixelAspect || 1;
+    const prevZoomY = prevZoom * aspect;
     const prevOffsetX = state.renderOffsetX || 0;
     const prevOffsetY = state.renderOffsetY || 0;
     const prevEffectiveLeft = getEffectiveScrollLeft();
@@ -626,7 +643,7 @@ export function createOverviewViewportController({
     const focusX = x;
     const focusY = y;
     const rawWorldX = (prevEffectiveLeft + focusX - prevOffsetX) / prevZoom;
-    const rawWorldY = (prevEffectiveTop + focusY - prevOffsetY) / prevZoom;
+    const rawWorldY = (prevEffectiveTop + focusY - prevOffsetY) / prevZoomY;
     const worldX = Number.isFinite(state.width)
       ? Math.max(0, Math.min(state.width, rawWorldX))
       : rawWorldX;
@@ -640,7 +657,7 @@ export function createOverviewViewportController({
       const newOffsetX = state.renderOffsetX || 0;
       const newOffsetY = state.renderOffsetY || 0;
       const targetEffectiveX = worldX * state.zoom - focusX + newOffsetX;
-      const targetEffectiveY = worldY * state.zoom - focusY + newOffsetY;
+      const targetEffectiveY = worldY * state.zoom * aspect - focusY + newOffsetY;
       setEffectiveScroll(targetEffectiveX, targetEffectiveY, false, false);
     });
     syncViewportOverlays();
@@ -735,9 +752,10 @@ export function createOverviewViewportController({
 
   function fitImageToView() {
     if (!canvasWrap || !state.width || !state.height) return;
+    const aspect = state.pixelAspect || 1;
     const scale = Math.min(
       canvasWrap.clientWidth / state.width,
-      canvasWrap.clientHeight / state.height,
+      canvasWrap.clientHeight / (state.height * aspect),
     );
     if (!Number.isFinite(scale) || scale <= 0) return;
     withViewportChangeSuppressed(() => {

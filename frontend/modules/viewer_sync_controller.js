@@ -226,8 +226,9 @@ export function createViewerSyncController({
       Number.isFinite(effectiveLeft) &&
       Number.isFinite(effectiveTop)
     ) {
+      const zoomY = zoom * (state.pixelAspect || 1);
       const centerX = (effectiveLeft + viewWidth / 2 - (state.renderOffsetX || 0)) / zoom;
-      const centerY = (effectiveTop + viewHeight / 2 - (state.renderOffsetY || 0)) / zoom;
+      const centerY = (effectiveTop + viewHeight / 2 - (state.renderOffsetY || 0)) / zoomY;
       if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return null;
       return {
         zoom,
@@ -424,8 +425,9 @@ export function createViewerSyncController({
     try {
       setZoom?.(viewport.zoom);
       const zoom = Number.isFinite(state.zoom) ? state.zoom : viewport.zoom;
+      const zoomY = zoom * (state.pixelAspect || 1);
       const targetX = centerX * zoom - viewWidth / 2 + (state.renderOffsetX || 0);
-      const targetY = centerY * zoom - viewHeight / 2 + (state.renderOffsetY || 0);
+      const targetY = centerY * zoomY - viewHeight / 2 + (state.renderOffsetY || 0);
       setEffectiveScroll?.(targetX, targetY, true);
     } finally {
       applyingRemote = false;

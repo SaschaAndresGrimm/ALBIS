@@ -127,13 +127,16 @@ export function createAnalysisOverlayController({
     if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) return null;
     const lambda = 12398.4193 / params.energyEv;
     if (!Number.isFinite(lambda) || lambda <= 0) return null;
-    const pixelSizeMm = params.pixelSizeUm / 1000;
-    if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) return null;
+    const pixelSizeMmX = params.pixelSizeUm / 1000;
+    if (!Number.isFinite(pixelSizeMmX) || pixelSizeMmX <= 0) return null;
+    // For anisotropic ("strixel") pixels the radial distance must be measured in
+    // physical mm per axis, not in averaged pixels. pixelSizeUm is the X size;
+    // Y size = X * pixelAspect.
+    const pixelSizeMmY = pixelSizeMmX * (state.pixelAspect || 1);
 
-    const dxPx = ix - params.centerX;
-    const dyPx = iy - params.centerY;
-    const radiusPx = Math.hypot(dxPx, dyPx);
-    const radiusMm = radiusPx * pixelSizeMm;
+    const dxMm = (ix - params.centerX) * pixelSizeMmX;
+    const dyMm = (iy - params.centerY) * pixelSizeMmY;
+    const radiusMm = Math.hypot(dxMm, dyMm);
     const twoTheta = Math.atan2(radiusMm, params.distanceMm);
     const sinArg = Math.sin(twoTheta / 2);
     if (!Number.isFinite(sinArg) || sinArg <= 0) return null;

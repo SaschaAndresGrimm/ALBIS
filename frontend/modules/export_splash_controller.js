@@ -190,10 +190,11 @@ export function createExportSplashController({
   function getVisibleRegion() {
     if (!canvasWrap || !state.width || !state.height) return null;
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const viewX = getEffectiveScrollLeft() / zoom;
-    const viewY = getEffectiveScrollTop() / zoom;
+    const viewY = getEffectiveScrollTop() / zoomY;
     const viewW = canvasWrap.clientWidth / zoom;
-    const viewH = canvasWrap.clientHeight / zoom;
+    const viewH = canvasWrap.clientHeight / zoomY;
     let startX = Math.floor(viewX);
     let startY = Math.floor(viewY);
     let endX = Math.ceil(viewX + viewW);

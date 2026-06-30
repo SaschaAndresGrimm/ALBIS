@@ -123,6 +123,14 @@ function createViewportState() {
     colormap: "albulaHdr",
     invert: false,
     zoom: 1,
+    // Vertical display stretch for non-square ("strixel") pixels:
+    //   pixelAspect = y_pixel_size / x_pixel_size
+    // The data matrix is always pixelwise; X is the reference axis (screen
+    // scale = zoom) and Y is stretched (screen scale = zoom * pixelAspect) so
+    // each pixel occupies its true physical aspect ratio on screen. For square
+    // detectors pixelAspect === 1, making every coordinate transform identical
+    // to the isotropic case.
+    pixelAspect: 1,
     renderOffsetX: 0,
     renderOffsetY: 0,
     panOffsetX: 0,

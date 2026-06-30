@@ -136,14 +136,20 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
 
         distance_mm = deps.to_mm(distance_val, distance_unit) if distance_val is not None else None
 
-        pixel_size_um = None
-        if pixel_x_val is not None:
-            pixel_size_um = deps.to_um(pixel_x_val, pixel_x_unit)
-        if pixel_y_val is not None:
-            pixel_y_um = deps.to_um(pixel_y_val, pixel_y_unit)
-            pixel_size_um = (
-                (pixel_size_um + pixel_y_um) / 2 if pixel_size_um is not None else pixel_y_um
-            )
+        # Keep the X and Y pixel sizes distinct so anisotropic ("strixel")
+        # detectors such as DECTRIS POLLUX can be displayed with the correct
+        # aspect ratio. pixel_size_um stays as the reference (X / fast axis)
+        # value for backwards compatibility; for square detectors X == Y so
+        # nothing downstream changes.
+        pixel_x_um = deps.to_um(pixel_x_val, pixel_x_unit) if pixel_x_val is not None else None
+        pixel_y_um = deps.to_um(pixel_y_val, pixel_y_unit) if pixel_y_val is not None else None
+        # Fall back across axes when only one is present so the aspect ratio
+        # defaults to 1 (square) rather than going undefined.
+        if pixel_x_um is None:
+            pixel_x_um = pixel_y_um
+        if pixel_y_um is None:
+            pixel_y_um = pixel_x_um
+        pixel_size_um = pixel_x_um
 
         energy_ev = None
         if energy_val is not None:
@@ -156,21 +162,23 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         if center_x_val is not None:
             unit = deps.norm_unit(center_x_unit)
             if unit in {"mm", "m", "cm", "um", "nm"}:
-                if pixel_size_um:
-                    center_x_px = deps.to_mm(center_x_val, center_x_unit) / (pixel_size_um / 1000)
+                if pixel_x_um:
+                    center_x_px = deps.to_mm(center_x_val, center_x_unit) / (pixel_x_um / 1000)
             else:
                 center_x_px = center_x_val
         if center_y_val is not None:
             unit = deps.norm_unit(center_y_unit)
             if unit in {"mm", "m", "cm", "um", "nm"}:
-                if pixel_size_um:
-                    center_y_px = deps.to_mm(center_y_val, center_y_unit) / (pixel_size_um / 1000)
+                if pixel_y_um:
+                    center_y_px = deps.to_mm(center_y_val, center_y_unit) / (pixel_y_um / 1000)
             else:
                 center_y_px = center_y_val
 
         return {
             "distance_mm": distance_mm,
             "pixel_size_um": pixel_size_um,
+            "pixel_size_x_um": pixel_x_um,
+            "pixel_size_y_um": pixel_y_um,
             "energy_ev": energy_ev,
             "center_x_px": center_x_px,
             "center_y_px": center_y_px,
@@ -182,9 +190,12 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         beam_center = meta.get("beam_center_px")
         center_x_px = beam_center[0] if isinstance(beam_center, tuple | list) and len(beam_center) >= 2 else None
         center_y_px = beam_center[1] if isinstance(beam_center, tuple | list) and len(beam_center) >= 2 else None
+        pixel_size_um = meta.get("pixel_size_um")
         return {
             "distance_mm": meta.get("distance_mm"),
-            "pixel_size_um": meta.get("pixel_size_um"),
+            "pixel_size_um": pixel_size_um,
+            "pixel_size_x_um": pixel_size_um,
+            "pixel_size_y_um": pixel_size_um,
             "energy_ev": meta.get("energy_ev"),
             "center_x_px": center_x_px,
             "center_y_px": center_y_px,
@@ -233,7 +244,15 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                         source_payload = _analysis_payload_from_source_image(source_path)
                 except Exception:
                     source_payload = {}
-                for key in ("distance_mm", "pixel_size_um", "energy_ev", "center_x_px", "center_y_px"):
+                for key in (
+                    "distance_mm",
+                    "pixel_size_um",
+                    "pixel_size_x_um",
+                    "pixel_size_y_um",
+                    "energy_ev",
+                    "center_x_px",
+                    "center_y_px",
+                ):
                     if payload.get(key) is None and source_payload.get(key) is not None:
                         payload[key] = source_payload[key]
 

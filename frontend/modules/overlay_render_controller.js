@@ -101,8 +101,11 @@ export function createOverlayRenderController({
     if (!state.hasFrame || !state.dataRaw || !state.pixelLabels) return;
     if (isPixelOverlayInteractionActive()) return;
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const minCellPx = Math.max(8, Number(state.pixelLabelMinCellPx) || pixelLabelDefaultMinCellPx);
-    if (zoom < minCellPx) return;
+    // Gate on the smaller cell dimension so labels only appear once each pixel
+    // is large enough on both axes (matters for anisotropic pixels).
+    if (Math.min(zoom, zoomY) < minCellPx) return;
     const satMax = getActiveSaturationMax();
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
@@ -115,9 +118,9 @@ export function createOverlayRenderController({
       state.maskShape[1] === state.width;
 
     const viewX = getEffectiveScrollLeft() / zoom;
-    const viewY = getEffectiveScrollTop() / zoom;
+    const viewY = getEffectiveScrollTop() / zoomY;
     const viewW = canvasWrap.clientWidth / zoom;
-    const viewH = canvasWrap.clientHeight / zoom;
+    const viewH = canvasWrap.clientHeight / zoomY;
     let startX = Math.floor(viewX);
     let startY = Math.floor(viewY);
     let endX = Math.ceil(viewX + viewW);
@@ -202,7 +205,7 @@ export function createOverlayRenderController({
 
     for (let y = startY; y < endY; y += 1) {
       const rowOffset = y * state.width;
-      const screenY = (y - viewY) * zoom + zoom / 2 + offsetY;
+      const screenY = (y - viewY) * zoomY + zoomY / 2 + offsetY;
       for (let x = startX; x < endX; x += 1) {
         const idx = rowOffset + x;
         const text = resolvePixelLabelText(idx);
@@ -248,10 +251,11 @@ export function createOverlayRenderController({
     if (!state.hasFrame) return;
 
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const viewX = getEffectiveScrollLeft() / zoom;
-    const viewY = getEffectiveScrollTop() / zoom;
+    const viewY = getEffectiveScrollTop() / zoomY;
     const externalSets = Array.isArray(analysisState.externalPeakSets) ? analysisState.externalPeakSets : [];
     const hasLocalPeaks = analysisState.peaksEnabled && Array.isArray(analysisState.peaks) && analysisState.peaks.length;
 
@@ -270,7 +274,7 @@ export function createOverlayRenderController({
         const py = Number(peak?.y);
         if (!Number.isFinite(px) || !Number.isFinite(py)) return;
         const sx = (px + 0.5 - viewX) * zoom + offsetX;
-        const sy = (py + 0.5 - viewY) * zoom + offsetY;
+        const sy = (py + 0.5 - viewY) * zoomY + offsetY;
         if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
 
         if (jfjochSet) {
@@ -320,7 +324,7 @@ export function createOverlayRenderController({
 
     analysisState.peaks.forEach((peak, index) => {
       const sx = (peak.x + 0.5 - viewX) * zoom + offsetX;
-      const sy = (peak.y + 0.5 - viewY) * zoom + offsetY;
+      const sy = (peak.y + 0.5 - viewY) * zoomY + offsetY;
       if (sx < -20 || sy < -20 || sx > width + 20 || sy > height + 20) return;
       const selected = analysisState.selectedPeaks.includes(index);
       const radius = selected
@@ -548,12 +552,16 @@ export function createOverlayRenderController({
     const lambda = 12398.4193 / params.energyEv;
     if (!Number.isFinite(lambda) || lambda <= 0) return;
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const viewX = getEffectiveScrollLeft() / zoom;
-    const viewY = getEffectiveScrollTop() / zoom;
+    const viewY = getEffectiveScrollTop() / zoomY;
     const centerX = (params.centerX - viewX) * zoom + offsetX;
-    const centerY = (params.centerY - viewY) * zoom + offsetY;
+    const centerY = (params.centerY - viewY) * zoomY + offsetY;
+    // params.pixelSizeUm is the X (reference) pixel size. After the display
+    // stretch the screen is physically isotropic, so resolution rings stay
+    // true circles with screen radius = radiusMm / pixelSizeX_mm * zoom.
     const pixelSizeMm = params.pixelSizeUm / 1000;
     const activeHandle = getRingInteractionState?.().handle || null;
     const centerActive = activeHandle?.type === "center";
@@ -585,14 +593,14 @@ export function createOverlayRenderController({
         entry.segments.forEach((segment) => {
           const screenPoints = segment.map((point) => ({
             x: (point.x - viewX) * zoom + offsetX,
-            y: (point.y - viewY) * zoom + offsetY,
+            y: (point.y - viewY) * zoomY + offsetY,
           }));
           strokeRingPath(screenPoints);
         });
         const labelPoint = entry.labelPoint
           ? {
               x: (entry.labelPoint.x - viewX) * zoom + offsetX,
-              y: (entry.labelPoint.y - viewY) * zoom + offsetY,
+              y: (entry.labelPoint.y - viewY) * zoomY + offsetY,
             }
           : null;
         const label = Number.isFinite(d) ? `${d.toFixed(2).replace(/\.00$/, "")} \u00C5` : "\u00C5";

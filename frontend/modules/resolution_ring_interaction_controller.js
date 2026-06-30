@@ -42,11 +42,12 @@ export function createResolutionRingInteractionController({
 
   function imageToScreen(ix, iy) {
     const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
     const offsetY = state.renderOffsetY || 0;
     const viewX = getEffectiveScrollLeft() / zoom;
-    const viewY = getEffectiveScrollTop() / zoom;
-    return { x: (ix - viewX) * zoom + offsetX, y: (iy - viewY) * zoom + offsetY };
+    const viewY = getEffectiveScrollTop() / zoomY;
+    return { x: (ix - viewX) * zoom + offsetX, y: (iy - viewY) * zoomY + offsetY };
   }
 
   // Screen-space radius (px) of every ring input that resolves to a valid
