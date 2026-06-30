@@ -98,6 +98,17 @@ function setRoiText(el, value) {
   el.textContent = value;
 }
 
+// Render a value on two lines (e.g. pixel size above, physical mm below) so the
+// combined readout does not overflow the stats column. Falls back to a single
+// line when line2 is empty.
+function setRoiTwoLine(el, line1, line2) {
+  if (!el) return;
+  el.textContent = line1;
+  if (line2) {
+    el.append(document.createElement("br"), document.createTextNode(line2));
+  }
+}
+
 // Same calibration requirements as getResolutionAtPixel (planar needs distance +
 // pixel size + energy; geometry mode needs energy + a loaded geometry).
 function isResolutionCalibrated(params) {
@@ -653,7 +664,7 @@ function updateRoiStats() {
       if (pxXmm) {
         const wMm = state.width * pxXmm;
         const hMm = state.height * pxYmm;
-        setRoiText(roiSizeEl, `${state.width} × ${state.height} px · ${formatMm(wMm)} × ${formatMm(hMm)} mm`);
+        setRoiTwoLine(roiSizeEl, `${state.width} × ${state.height} px`, `${formatMm(wMm)} × ${formatMm(hMm)} mm`);
         setRoiText(roiAreaEl, `${formatArea(wMm * hMm)} mm²`);
       } else {
         setRoiText(roiSizeEl, `${state.width} × ${state.height}`);
@@ -790,7 +801,7 @@ function updateRoiStats() {
     if (linePxX) {
       // Physical length uses the per-axis pixel sizes for the X/Y components.
       const lengthMm = Math.hypot(dx * linePxX, dy * linePxY);
-      setRoiText(roiSizeEl, `${formatStat(length)} px · ${formatMm(lengthMm)} mm`);
+      setRoiTwoLine(roiSizeEl, `${formatStat(length)} px`, `${formatMm(lengthMm)} mm`);
     } else {
       setRoiText(roiSizeEl, formatStat(length));
     }
@@ -883,7 +894,7 @@ function updateRoiStats() {
     if (boxPxX) {
       const wMm = width * boxPxX;
       const hMm = height * boxPxY;
-      setRoiText(roiSizeEl, `${width} × ${height} px · ${formatMm(wMm)} × ${formatMm(hMm)} mm`);
+      setRoiTwoLine(roiSizeEl, `${width} × ${height} px`, `${formatMm(wMm)} × ${formatMm(hMm)} mm`);
       setRoiText(roiAreaEl, `${formatArea(wMm * hMm)} mm²`);
     } else {
       setRoiText(roiSizeEl, `${width} × ${height}`);
@@ -997,7 +1008,7 @@ function updateRoiStats() {
       const sizePx = `${outerRadius}`;
       if (circPxX) {
         const rMm = outerRadius * circPxX;
-        setRoiText(roiSizeEl, `${sizePx} px · ${formatMm(rMm)} mm`);
+        setRoiTwoLine(roiSizeEl, `${sizePx} px`, `${formatMm(rMm)} mm`);
         setRoiText(roiAreaEl, `${formatArea(Math.PI * rMm * rMm)} mm²`);
       } else {
         setRoiText(roiSizeEl, sizePx);
@@ -1008,10 +1019,7 @@ function updateRoiStats() {
       if (circPxX) {
         const rInMm = roiState.innerRadius * circPxX;
         const rOutMm = outerRadius * circPxX;
-        setRoiText(
-          roiSizeEl,
-          `${sizePx} px · ${formatMm(rInMm)} → ${formatMm(rOutMm)} mm`,
-        );
+        setRoiTwoLine(roiSizeEl, `${sizePx} px`, `${formatMm(rInMm)} → ${formatMm(rOutMm)} mm`);
         setRoiText(roiAreaEl, `${formatArea(Math.PI * (rOutMm * rOutMm - rInMm * rInMm))} mm²`);
       } else {
         setRoiText(roiSizeEl, sizePx);
