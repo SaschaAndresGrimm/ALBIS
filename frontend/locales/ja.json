@@ -301,6 +301,7 @@
   "histogram.tooltip.value": "値 {{value}}",
   "info.dtype": "データ型",
   "info.range": "範囲",
+  "info.saturation": "飽和値",
   "info.renderer": "レンダラー",
   "info.shape": "形状",
   "inspector.browser_ready": "インスペクター準備完了",

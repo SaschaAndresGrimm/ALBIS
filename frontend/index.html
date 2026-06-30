@@ -427,32 +427,12 @@
                         <span data-i18n="view.mask_saturated">Mask saturated</span>
                       </label>
                     </div>
-                    <label class="field">
-                      <span data-i18n="view.color_map">Color Map</span>
-                      <div class="inline color-map-row">
-                        <select id="colormap-select">
-                          <option value="heat" data-i18n="view.colormap.heat">Heat</option>
-                          <option value="albulaHdr" selected data-i18n="view.colormap.albula_hdr">ALBULA HDR</option>
-                          <option value="albisHdr" data-i18n="view.colormap.albis_hdr">High Dynamic Range</option>
-                          <option value="gray" data-i18n="view.colormap.gray_scale">Grey Scale</option>
-                          <option value="viridis" data-i18n="view.colormap.rainbow_viridis">Rainbow (Viridis)</option>
-                          <option value="magma" data-i18n="view.colormap.magma">Magma</option>
-                          <option value="inferno" data-i18n="view.colormap.inferno">Inferno</option>
-                          <option value="cividis" data-i18n="view.colormap.cividis">Cividis</option>
-                          <option value="turbo" data-i18n="view.colormap.turbo">Turbo</option>
-                        </select>
-                        <label class="checkbox">
-                          <input type="checkbox" id="invert-color" />
-                          <span data-i18n="view.invert_color">Invert Color</span>
-                        </label>
-                      </div>
-                    </label>
                   </div>
                 </details>
               </div>
             </section>
 
-            <section class="panel-section is-collapsed" data-section="histogram">
+            <section class="panel-section" data-section="histogram">
               <button class="section-title" type="button" data-section-toggle>
                 <span data-i18n="panel.section.histogram">Histogram</span>
                 <span class="section-chevron">▾</span>
@@ -477,9 +457,31 @@
                   <input id="max-input" type="number" step="1" />
                 </label>
               </div>
+              <div class="view-color-controls">
+                <label class="field">
+                  <span data-i18n="view.color_map">Color Map</span>
+                  <div class="inline color-map-row">
+                    <select id="colormap-select">
+                      <option value="heat" data-i18n="view.colormap.heat">Heat</option>
+                      <option value="albulaHdr" selected data-i18n="view.colormap.albula_hdr">ALBULA HDR</option>
+                      <option value="albisHdr" data-i18n="view.colormap.albis_hdr">High Dynamic Range</option>
+                      <option value="gray" data-i18n="view.colormap.gray_scale">Grey Scale</option>
+                      <option value="viridis" data-i18n="view.colormap.rainbow_viridis">Rainbow (Viridis)</option>
+                      <option value="magma" data-i18n="view.colormap.magma">Magma</option>
+                      <option value="inferno" data-i18n="view.colormap.inferno">Inferno</option>
+                      <option value="cividis" data-i18n="view.colormap.cividis">Cividis</option>
+                      <option value="turbo" data-i18n="view.colormap.turbo">Turbo</option>
+                    </select>
+                    <label class="checkbox">
+                      <input type="checkbox" id="invert-color" />
+                      <span data-i18n="view.invert_color">Invert Color</span>
+                    </label>
+                  </div>
+                </label>
+              </div>
             </section>
 
-            <section class="panel-section meta is-collapsed" data-section="info">
+            <section class="panel-section meta" data-section="info">
               <button class="section-title" type="button" data-section-toggle>
                 <span data-i18n="panel.section.info">Info</span>
                 <span class="section-chevron">▾</span>
@@ -488,6 +490,7 @@
               <div class="meta-row"><span data-i18n="info.shape">Shape</span><strong id="meta-shape">-</strong></div>
               <div class="meta-row"><span data-i18n="info.dtype">DType</span><strong id="meta-dtype">-</strong></div>
               <div class="meta-row"><span data-i18n="info.range">Range</span><strong id="meta-range">-</strong></div>
+              <div class="meta-row"><span data-i18n="info.saturation">Saturation</span><strong id="meta-saturation">-</strong></div>
             </section>
           </div>
 

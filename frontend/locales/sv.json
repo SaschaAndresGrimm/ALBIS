@@ -301,6 +301,7 @@
   "histogram.tooltip.value": "Värde {{value}}",
   "info.dtype": "DType",
   "info.range": "Intervall",
+  "info.saturation": "Mättnad",
   "info.renderer": "Renderare",
   "info.shape": "Form",
   "inspector.browser_ready": "Inspektör redo",

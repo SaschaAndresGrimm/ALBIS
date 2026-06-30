@@ -18,6 +18,7 @@ export function createFileSessionController({
     metaShape,
     metaDtype,
     metaRange,
+    metaSaturation,
     canvas,
   } = elements;
 
@@ -144,6 +145,7 @@ export function createFileSessionController({
     if (metaShape) metaShape.textContent = "-";
     if (metaDtype) metaDtype.textContent = "-";
     if (metaRange) metaRange.textContent = "-";
+    if (metaSaturation) metaSaturation.textContent = "-";
 
     if (canvas) {
       canvas.width = 1;
@@ -203,6 +205,11 @@ export function createFileSessionController({
 
     if (metaRange && state.stats) {
       metaRange.textContent = `${formatValue(state.stats.min)} → ${formatValue(state.stats.max)}`;
+    }
+    if (metaSaturation && state.stats) {
+      metaSaturation.textContent = Number.isFinite(state.stats.satMax)
+        ? formatValue(state.stats.satMax)
+        : t("common.none");
     }
     alignMaskToFrame();
     syncMaskAvailability(false);

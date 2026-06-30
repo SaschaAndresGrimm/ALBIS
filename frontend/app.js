@@ -173,6 +173,7 @@ const splashHint = document.querySelector(".splash-hint");
 const metaShape = document.getElementById("meta-shape");
 const metaDtype = document.getElementById("meta-dtype");
 const metaRange = document.getElementById("meta-range");
+const metaSaturation = document.getElementById("meta-saturation");
 const metaRenderer = document.getElementById("meta-renderer");
 const toolbarPath = document.getElementById("toolbar-path");
 const backendBadge = document.getElementById("backend-badge");
@@ -2462,6 +2463,7 @@ fileSessionController = createFileSessionController({
     metaShape,
     metaDtype,
     metaRange,
+    metaSaturation,
     canvas,
   },
   callbacks: {
