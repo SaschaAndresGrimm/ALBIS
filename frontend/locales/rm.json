@@ -36,6 +36,7 @@
   "analysis.roi.plot.profile_x": "Profil tenor X",
   "analysis.roi.plot.profile_y": "Profil tenor Y",
   "analysis.roi.section_title": "Statisticas e ROI",
+  "analysis.roi.stats.area": "Surfatscha",
   "analysis.roi.stats.defective_pixels": "Pixels defectuads",
   "analysis.roi.stats.end_xy": "Fin (X,Y)",
   "analysis.roi.stats.gap_pixels": "Pixels da spazi",

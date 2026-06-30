@@ -36,6 +36,7 @@
   "analysis.roi.plot.profile_x": "沿 X 方向剖面",
   "analysis.roi.plot.profile_y": "沿 Y 方向剖面",
   "analysis.roi.section_title": "统计与 ROI",
+  "analysis.roi.stats.area": "面积",
   "analysis.roi.stats.defective_pixels": "缺陷像素",
   "analysis.roi.stats.end_xy": "终点 (X,Y)",
   "analysis.roi.stats.gap_pixels": "间隙像素",

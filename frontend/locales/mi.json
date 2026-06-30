@@ -36,6 +36,7 @@
   "analysis.roi.plot.profile_x": "Kōtaha i te taha o X",
   "analysis.roi.plot.profile_y": "Kōtaha i te taha o Y",
   "analysis.roi.section_title": "Tauanga me ROI",
+  "analysis.roi.stats.area": "Horahanga",
   "analysis.roi.stats.defective_pixels": "Pika hapa",
   "analysis.roi.stats.end_xy": "Mutunga (X,Y)",
   "analysis.roi.stats.gap_pixels": "Pika āputa",

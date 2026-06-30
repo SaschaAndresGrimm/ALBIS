@@ -36,6 +36,7 @@
   "analysis.roi.plot.profile_x": "X 方向プロファイル",
   "analysis.roi.plot.profile_y": "Y 方向プロファイル",
   "analysis.roi.section_title": "統計と ROI",
+  "analysis.roi.stats.area": "面積",
   "analysis.roi.stats.defective_pixels": "欠陥ピクセル",
   "analysis.roi.stats.end_xy": "終点 (X,Y)",
   "analysis.roi.stats.gap_pixels": "ギャップピクセル",

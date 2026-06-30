@@ -46,6 +46,7 @@ export function createRoiStatsController(ctx) {
     roiStartEl,
     roiEndEl,
     roiSizeEl,
+    roiAreaEl,
     roiTotalEl,
     roiGapEl,
     roiDefectiveEl,
@@ -109,6 +110,21 @@ function isResolutionCalibrated(params) {
     Number.isFinite(params.pixelSizeUm) && params.pixelSizeUm > 0 &&
     Number.isFinite(params.energyEv) && params.energyEv > 0
   );
+}
+
+// Format a physical length (mm) with precision that scales with magnitude.
+function formatMm(value) {
+  if (!Number.isFinite(value)) return null;
+  const abs = Math.abs(value);
+  const digits = abs >= 100 ? 1 : abs >= 1 ? 2 : 3;
+  return value.toFixed(digits);
+}
+
+// Format a physical area (mm^2) with magnitude-aware precision.
+function formatArea(value) {
+  if (!Number.isFinite(value) || value < 0) return null;
+  const digits = value >= 100 ? 0 : value >= 1 ? 1 : value >= 0.01 ? 3 : 5;
+  return value.toFixed(digits);
 }
 
 // Cheap 1D peak finder over a projection array. Returns axis-space peak
@@ -418,6 +434,7 @@ function clearRoi() {
   setRoiText(roiStartEl, "-");
   setRoiText(roiEndEl, "-");
   setRoiText(roiSizeEl, "-");
+  setRoiText(roiAreaEl, "-");
   setRoiText(roiTotalEl, "-");
   setRoiText(roiGapEl, "-");
   setRoiText(roiDefectiveEl, "-");
@@ -598,6 +615,20 @@ function updateRoiHistogramPlot(values) {
   drawRoiPlot(roiHistCanvas, roiHistCtx, roiState.histogramDistribution);
 }
 
+// Per-axis pixel sizes in mm for physical ROI readouts. X is the reference
+// axis; Y = X * pixelAspect (so strixel detectors report true mm). Returns
+// nulls when the pixel size is unknown, in which case physical readouts are
+// suppressed and only the pixel size is shown.
+function getRoiPixelSizesMm() {
+  const params = typeof getRingParams === "function" ? getRingParams() : null;
+  const pxX =
+    params && Number.isFinite(params.pixelSizeUm) && params.pixelSizeUm > 0
+      ? params.pixelSizeUm / 1000
+      : null;
+  if (pxX == null) return { pxXmm: null, pxYmm: null };
+  return { pxXmm: pxX, pxYmm: pxX * (state.pixelAspect || 1) };
+}
+
 function updateRoiStats() {
   // This function is intentionally central: it computes ROI statistics and
   // updates all derived plots/labels in one pass to keep UI state consistent.
@@ -617,7 +648,21 @@ function updateRoiStats() {
     if (roiSizeLabel) {
       roiSizeLabel.textContent = t("roi.size.image");
     }
-    setRoiText(roiSizeEl, state.width && state.height ? `${state.width} × ${state.height}` : "-");
+    if (state.width && state.height) {
+      const { pxXmm, pxYmm } = getRoiPixelSizesMm();
+      if (pxXmm) {
+        const wMm = state.width * pxXmm;
+        const hMm = state.height * pxYmm;
+        setRoiText(roiSizeEl, `${state.width} × ${state.height} px · ${formatMm(wMm)} × ${formatMm(hMm)} mm`);
+        setRoiText(roiAreaEl, `${formatArea(wMm * hMm)} mm²`);
+      } else {
+        setRoiText(roiSizeEl, `${state.width} × ${state.height}`);
+        setRoiText(roiAreaEl, "-");
+      }
+    } else {
+      setRoiText(roiSizeEl, "-");
+      setRoiText(roiAreaEl, "-");
+    }
     updateRoiPixelCounterFields(
       stats
         ? {
@@ -659,6 +704,7 @@ function updateRoiStats() {
     setRoiText(roiStartEl, "-");
     setRoiText(roiEndEl, "-");
     setRoiText(roiSizeEl, "-");
+    setRoiText(roiAreaEl, "-");
     updateRoiPixelCounterFields(
       stats
         ? {
@@ -740,7 +786,15 @@ function updateRoiStats() {
     roiState.lineProfile = values;
     roiState.xProjection = null;
     roiState.yProjection = null;
-    setRoiText(roiSizeEl, formatStat(length));
+    const { pxXmm: linePxX, pxYmm: linePxY } = getRoiPixelSizesMm();
+    if (linePxX) {
+      // Physical length uses the per-axis pixel sizes for the X/Y components.
+      const lengthMm = Math.hypot(dx * linePxX, dy * linePxY);
+      setRoiText(roiSizeEl, `${formatStat(length)} px · ${formatMm(lengthMm)} mm`);
+    } else {
+      setRoiText(roiSizeEl, formatStat(length));
+    }
+    setRoiText(roiAreaEl, "-");
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
@@ -825,7 +879,16 @@ function updateRoiStats() {
     roiState.xProjection = Array.from(xProj);
     roiState.yProjection = Array.from(yProj);
     roiState.lineProfile = null;
-    setRoiText(roiSizeEl, `${width} × ${height}`);
+    const { pxXmm: boxPxX, pxYmm: boxPxY } = getRoiPixelSizesMm();
+    if (boxPxX) {
+      const wMm = width * boxPxX;
+      const hMm = height * boxPxY;
+      setRoiText(roiSizeEl, `${width} × ${height} px · ${formatMm(wMm)} × ${formatMm(hMm)} mm`);
+      setRoiText(roiAreaEl, `${formatArea(wMm * hMm)} mm²`);
+    } else {
+      setRoiText(roiSizeEl, `${width} × ${height}`);
+      setRoiText(roiAreaEl, "-");
+    }
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
     const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
@@ -927,10 +990,33 @@ function updateRoiStats() {
     roiState.lineProfile = displayProfile;
     roiState.xProjection = null;
     roiState.yProjection = null;
+    // Radii are X-pixel-equivalent, so physical radius = radius * pxXmm and the
+    // shell area is that of a true (physical) circle / annulus.
+    const { pxXmm: circPxX } = getRoiPixelSizesMm();
     if (roiState.mode === "circle") {
-      setRoiText(roiSizeEl, `${outerRadius}`);
+      const sizePx = `${outerRadius}`;
+      if (circPxX) {
+        const rMm = outerRadius * circPxX;
+        setRoiText(roiSizeEl, `${sizePx} px · ${formatMm(rMm)} mm`);
+        setRoiText(roiAreaEl, `${formatArea(Math.PI * rMm * rMm)} mm²`);
+      } else {
+        setRoiText(roiSizeEl, sizePx);
+        setRoiText(roiAreaEl, "-");
+      }
     } else {
-      setRoiText(roiSizeEl, `${roiState.innerRadius} → ${outerRadius}`);
+      const sizePx = `${roiState.innerRadius} → ${outerRadius}`;
+      if (circPxX) {
+        const rInMm = roiState.innerRadius * circPxX;
+        const rOutMm = outerRadius * circPxX;
+        setRoiText(
+          roiSizeEl,
+          `${sizePx} px · ${formatMm(rInMm)} → ${formatMm(rOutMm)} mm`,
+        );
+        setRoiText(roiAreaEl, `${formatArea(Math.PI * (rOutMm * rOutMm - rInMm * rInMm))} mm²`);
+      } else {
+        setRoiText(roiSizeEl, sizePx);
+        setRoiText(roiAreaEl, "-");
+      }
     }
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;

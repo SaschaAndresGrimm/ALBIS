@@ -36,6 +36,7 @@
   "analysis.roi.plot.profile_x": "Profil selon X",
   "analysis.roi.plot.profile_y": "Profil selon Y",
   "analysis.roi.section_title": "Statistiques et ROI",
+  "analysis.roi.stats.area": "Aire",
   "analysis.roi.stats.defective_pixels": "Pixels défectueux",
   "analysis.roi.stats.end_xy": "Fin (X,Y)",
   "analysis.roi.stats.gap_pixels": "Pixels d'intervalle",

@@ -338,6 +338,7 @@ const roiStartEl = document.getElementById("roi-start");
 const roiEndEl = document.getElementById("roi-end");
 const roiSizeLabel = document.getElementById("roi-size-label");
 const roiSizeEl = document.getElementById("roi-size");
+const roiAreaEl = document.getElementById("roi-area");
 const roiTotalEl = document.getElementById("roi-total");
 const roiGapEl = document.getElementById("roi-gap");
 const roiDefectiveEl = document.getElementById("roi-defective");
@@ -3812,6 +3813,7 @@ const roiStatsController = createRoiStatsController({
   roiStartEl,
   roiEndEl,
   roiSizeEl,
+  roiAreaEl,
   roiTotalEl,
   roiGapEl,
   roiDefectiveEl,

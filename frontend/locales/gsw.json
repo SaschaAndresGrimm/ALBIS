@@ -36,6 +36,7 @@
   "analysis.roi.plot.profile_x": "Profil entlang X",
   "analysis.roi.plot.profile_y": "Profil entlang Y",
   "analysis.roi.section_title": "Statistike und ROI",
+  "analysis.roi.stats.area": "Flächi",
   "analysis.roi.stats.defective_pixels": "Defekte Pixel",
   "analysis.roi.stats.end_xy": "Ende (X,Y)",
   "analysis.roi.stats.gap_pixels": "Lückenpixel",

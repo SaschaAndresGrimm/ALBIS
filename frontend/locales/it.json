@@ -36,6 +36,7 @@
   "analysis.roi.plot.profile_x": "Profilo lungo X",
   "analysis.roi.plot.profile_y": "Profilo lungo Y",
   "analysis.roi.section_title": "Statistiche e ROI",
+  "analysis.roi.stats.area": "Area",
   "analysis.roi.stats.defective_pixels": "Pixel difettosi",
   "analysis.roi.stats.end_xy": "Fine (X,Y)",
   "analysis.roi.stats.gap_pixels": "Pixel di gap",
