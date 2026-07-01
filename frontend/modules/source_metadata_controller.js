@@ -61,7 +61,16 @@ export function createSourceMetadataController({
     ringsGeometryLockReset,
   } = elements;
 
-  const { scheduleResolutionOverlay, schedulePeakOverlay } = callbacks;
+  const { scheduleResolutionOverlay, schedulePeakOverlay, refreshPeakResolutions } = callbacks;
+
+  // Any geometry change (distance/center/energy or a geometry file) repaints the
+  // resolution rings and must also refresh the peak-list d-spacings, which are
+  // geometry-derived. refreshPeakResolutions is lightweight (no re-detection)
+  // and no-ops when nothing actually changed.
+  function scheduleGeometryDependentOverlays() {
+    scheduleResolutionOverlay();
+    refreshPeakResolutions?.();
+  }
 
   function formatNumberInput(value, digits = 2) {
     if (!Number.isFinite(value)) return "";
@@ -327,7 +336,7 @@ export function createSourceMetadataController({
       updated = true;
     }
     if (updated) {
-      scheduleResolutionOverlay();
+      scheduleGeometryDependentOverlays();
     }
     updateGeometryLockUi();
   }
@@ -380,7 +389,7 @@ export function createSourceMetadataController({
     analysisState.geometryLockKey = "";
     reapplyLiveAnalysis();
     updateGeometryLockUi();
-    scheduleResolutionOverlay();
+    scheduleGeometryDependentOverlays();
   }
 
   function parseSimplonMeta(headers) {
@@ -507,7 +516,7 @@ export function createSourceMetadataController({
       analysisState.ringGeometryKey = "";
     }
     updateGeometryUi();
-    scheduleResolutionOverlay();
+    scheduleGeometryDependentOverlays();
   }
 
   function applyImageGeometry(payload, cacheKey = "", { overrideActive = false } = {}) {
@@ -520,7 +529,7 @@ export function createSourceMetadataController({
       analysisState.geometryOverrideActive = false;
       clearGeometryManualOverrides();
       updateGeometryUi();
-      scheduleResolutionOverlay();
+      scheduleGeometryDependentOverlays();
       return;
     }
     const reference = getGeometryReferencePose(prepared);
@@ -554,7 +563,7 @@ export function createSourceMetadataController({
       setCenterInputValue(ringsCenterY, reference.centerY);
     }
     updateGeometryUi();
-    scheduleResolutionOverlay();
+    scheduleGeometryDependentOverlays();
   }
 
   function applyImageMeta(headers) {

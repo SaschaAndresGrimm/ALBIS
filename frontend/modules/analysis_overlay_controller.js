@@ -47,6 +47,10 @@ export function createAnalysisOverlayController({
   // Peak coordinates are sub-pixel (centroid-refined); show one decimal in the
   // UI but keep whole numbers clean.
   const formatCoord = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+  // SNR is only defined when the SNR gate is active; d-spacing only when detector
+  // geometry is configured. Show an em dash otherwise.
+  const formatSnr = (v) => (Number.isFinite(v) ? v.toFixed(1) : "—");
+  const formatResolution = (v) => (Number.isFinite(v) ? v.toFixed(2) : "—");
 
   let peakFinderScheduled = false;
 
@@ -251,6 +255,14 @@ export function createAnalysisOverlayController({
       updatePeaksSectionState();
       return;
     }
+    // Only show the resolution column when at least one peak has a d-spacing
+    // (i.e. detector geometry is configured), so the list is not padded with an
+    // empty column otherwise.
+    const hasResolution = analysisState.peaks.some((p) => p && Number.isFinite(p.resolution));
+    const listEl = peaksBody.parentElement;
+    if (listEl && listEl.classList.contains("peaks-list")) {
+      listEl.classList.toggle("has-resolution", hasResolution);
+    }
     analysisState.peaks.forEach((peak, idx) => {
       const row = document.createElement("button");
       row.type = "button";
@@ -259,12 +271,14 @@ export function createAnalysisOverlayController({
       if (isSelected) {
         row.classList.add("is-selected");
       }
+      const snrText = formatSnr(peak.snr);
+      const resText = formatResolution(peak.resolution);
       row.setAttribute("aria-pressed", String(isSelected));
       row.setAttribute(
         "aria-label",
-        `#${idx + 1}, X ${formatCoord(peak.x)}, Y ${formatCoord(peak.y)}, ${t("roi.plot.intensity")} ${formatStat(peak.intensity)}`,
+        `#${idx + 1}, X ${formatCoord(peak.x)}, Y ${formatCoord(peak.y)}, ${t("roi.plot.intensity")} ${formatStat(peak.intensity)}, SNR ${snrText}${hasResolution ? `, d ${resText} Å` : ""}`,
       );
-      row.innerHTML = `<span>${idx + 1}</span><span>${formatCoord(peak.x)}</span><span>${formatCoord(peak.y)}</span><span>${formatStat(peak.intensity)}</span>`;
+      row.innerHTML = `<span>${idx + 1}</span><span>${formatCoord(peak.x)}</span><span>${formatCoord(peak.y)}</span><span>${formatStat(peak.intensity)}</span><span>${snrText}</span><span>${resText}</span>`;
       row.addEventListener("click", (event) => {
         const anchor = analysisState.peakSelectionAnchor;
         if (event.shiftKey && Number.isInteger(anchor) && anchor >= 0 && anchor < analysisState.peaks.length) {
@@ -579,6 +593,9 @@ export function createAnalysisOverlayController({
     const selected = [];
     const minSeparation = Math.max(4, Math.round(Math.min(width, height) * 0.004));
     const minSeparationSq = minSeparation * minSeparation;
+    // Fetch ring/geometry params once; getResolutionAtPixel is then a handful of
+    // trig ops per selected peak (returns null when geometry is not configured).
+    const resolutionParams = getRingParams();
     for (let i = 0; i < candidates.length; i += 1) {
       const candidate = candidates[i];
       let tooClose = false;
@@ -592,17 +609,45 @@ export function createAnalysisOverlayController({
       }
       if (!tooClose) {
         const centroid = refineCentroid(candidate.x, candidate.y);
+        const resolution = getResolutionAtPixel(centroid.x, centroid.y, resolutionParams);
         selected.push({
           x: centroid.x,
           y: centroid.y,
           px: candidate.x,
           py: candidate.y,
           intensity: candidate.intensity,
+          // candidate.score is the local SNR only when the SNR gate is on; in
+          // pure intensity mode there is no meaningful SNR to report.
+          snr: integrals ? candidate.score : null,
+          resolution: Number.isFinite(resolution) ? resolution : null,
         });
         if (selected.length >= maxPeaks) break;
       }
     }
     return selected;
+  }
+
+  // Recompute only the d-spacing of the peaks already on screen. The peaks
+  // themselves do not move when the detector geometry changes, so this avoids a
+  // full detection pass (whole-image scan) — it is a handful of trig ops per
+  // peak. Used when the resolution-ring geometry (distance/center/energy) is
+  // edited while peaks are displayed.
+  function refreshPeakResolutions() {
+    const peaks = analysisState.peaks;
+    if (!Array.isArray(peaks) || !peaks.length) return;
+    const params = getRingParams();
+    let changed = false;
+    for (let i = 0; i < peaks.length; i += 1) {
+      const peak = peaks[i];
+      if (!peak) continue;
+      const d = getResolutionAtPixel(peak.x, peak.y, params);
+      const next = Number.isFinite(d) ? d : null;
+      if (next !== peak.resolution) {
+        peak.resolution = next;
+        changed = true;
+      }
+    }
+    if (changed) renderPeakList();
   }
 
   function runPeakFinder() {
@@ -653,9 +698,12 @@ export function createAnalysisOverlayController({
   function exportPeakCsv() {
     if (!analysisState.peaks.length) return;
     const csvCoord = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(3));
-    const rows = ["index,x,y,intensity"];
+    const csvNum = (v) => (Number.isFinite(v) ? v : "");
+    const rows = ["index,x,y,intensity,snr,resolution_angstrom"];
     analysisState.peaks.forEach((peak, idx) => {
-      rows.push(`${idx + 1},${csvCoord(peak.x)},${csvCoord(peak.y)},${peak.intensity}`);
+      rows.push(
+        `${idx + 1},${csvCoord(peak.x)},${csvCoord(peak.y)},${peak.intensity},${csvNum(peak.snr)},${csvNum(peak.resolution)}`,
+      );
     });
     const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
     const link = document.createElement("a");
@@ -680,6 +728,7 @@ export function createAnalysisOverlayController({
     detectPeaks,
     runPeakFinder,
     schedulePeakFinder,
+    refreshPeakResolutions,
     exportPeakCsv,
   };
 }

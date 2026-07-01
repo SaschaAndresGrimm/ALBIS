@@ -1401,6 +1401,10 @@ function schedulePeakFinder() {
   analysisOverlayController.schedulePeakFinder();
 }
 
+function refreshPeakResolutions() {
+  analysisOverlayController.refreshPeakResolutions();
+}
+
 function exportPeakCsv() {
   analysisOverlayController.exportPeakCsv();
 }
@@ -2315,6 +2319,7 @@ sourceMetadataController = createSourceMetadataController({
   callbacks: {
     scheduleResolutionOverlay,
     schedulePeakOverlay,
+    refreshPeakResolutions,
   },
 });
 sourceMetadataController.updateGeometryUi();
@@ -4480,6 +4485,7 @@ bindAnalysisControlInteractions({
     updateRingsSectionState,
     scheduleResolutionOverlay,
     schedulePeakFinder,
+    refreshPeakResolutions,
     exportPeakCsv,
     syncSeriesSumOutputPath,
     updateSeriesSumUi,

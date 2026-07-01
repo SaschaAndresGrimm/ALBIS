@@ -69,6 +69,7 @@ export function bindAnalysisControlInteractions({
     updateRingsSectionState,
     scheduleResolutionOverlay,
     schedulePeakFinder,
+    refreshPeakResolutions,
     exportPeakCsv,
     syncSeriesSumOutputPath,
     updateSeriesSumUi,
@@ -204,6 +205,10 @@ export function bindAnalysisControlInteractions({
     }
     updateRingsSectionState();
     scheduleResolutionOverlay();
+    // Geometry (distance/center/energy) drives each peak's d-spacing. Refresh
+    // just that column in place — no re-detection — so the peak list stays in
+    // sync with the rings without a full image pass.
+    refreshPeakResolutions?.();
   }
 
   function validatePeaksCountInput(commit = false) {

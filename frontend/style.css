@@ -2537,9 +2537,26 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .peaks-head,
 .peaks-row {
   display: grid;
-  grid-template-columns: 34px 52px 52px 1fr;
+  grid-template-columns: 30px 48px 48px 1fr 46px;
   gap: 8px;
   align-items: center;
+}
+
+/* The resolution (d) column only appears when detector geometry is configured;
+   otherwise it is hidden so the list is not padded with an empty column. */
+.peaks-head span:nth-child(6),
+.peaks-row span:nth-child(6) {
+  display: none;
+}
+
+.peaks-list.has-resolution .peaks-head,
+.peaks-list.has-resolution .peaks-row {
+  grid-template-columns: 28px 44px 44px 1fr 42px 52px;
+}
+
+.peaks-list.has-resolution .peaks-head span:nth-child(6),
+.peaks-list.has-resolution .peaks-row span:nth-child(6) {
+  display: block;
 }
 
 .peaks-head {
@@ -2566,7 +2583,11 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .peaks-head span:nth-child(4),
-.peaks-row span:nth-child(4) {
+.peaks-row span:nth-child(4),
+.peaks-head span:nth-child(5),
+.peaks-row span:nth-child(5),
+.peaks-head span:nth-child(6),
+.peaks-row span:nth-child(6) {
   text-align: right;
 }
 

@@ -21,10 +21,29 @@ function buildFetchMock() {
   }));
 }
 
-function buildController(createAnalysisOverlayController, stateOverrides = {}) {
+function buildController(createAnalysisOverlayController, stateOverrides = {}, analysisStateOverrides = {}) {
   const peaksBody = document.createElement("div");
   const peaksSectionStateEl = document.createElement("div");
   const peaksSummaryEl = document.createElement("div");
+
+  const analysisState = {
+    ringsEnabled: false,
+    ringMode: "planar",
+    ringGeometry: null,
+    ringGeometrySource: "",
+    distanceMm: null,
+    pixelSizeUm: null,
+    energyEv: null,
+    centerX: null,
+    centerY: null,
+    rings: [],
+    peaksEnabled: true,
+    peakCount: 25,
+    peaks: [{ x: 9, y: 8, intensity: 7 }],
+    selectedPeaks: [],
+    peakSelectionAnchor: null,
+    ...analysisStateOverrides,
+  };
 
   const controller = createAnalysisOverlayController({
     state: {
@@ -41,23 +60,7 @@ function buildController(createAnalysisOverlayController, stateOverrides = {}) {
       maskSaturatedEnabled: false,
       ...stateOverrides,
     },
-    analysisState: {
-      ringsEnabled: false,
-      ringMode: "planar",
-      ringGeometry: null,
-      ringGeometrySource: "",
-      distanceMm: null,
-      pixelSizeUm: null,
-      energyEv: null,
-      centerX: null,
-      centerY: null,
-      rings: [],
-      peaksEnabled: true,
-      peakCount: 25,
-      peaks: [{ x: 9, y: 8, intensity: 7 }],
-      selectedPeaks: [],
-      peakSelectionAnchor: null,
-    },
+    analysisState,
     elements: {
       ringsDistance: null,
       ringsPixel: null,
@@ -93,7 +96,7 @@ function buildController(createAnalysisOverlayController, stateOverrides = {}) {
     },
   });
 
-  return { controller, peaksBody, peaksSectionStateEl, peaksSummaryEl };
+  return { controller, analysisState, peaksBody, peaksSectionStateEl, peaksSummaryEl };
 }
 
 describe("analysis_overlay_controller", () => {
@@ -169,5 +172,79 @@ describe("analysis_overlay_controller", () => {
     expect(spot.x).toBeGreaterThan(5);
     expect(spot.x).toBeLessThan(6);
     expect(spot.y).toBeCloseTo(6, 5);
+    // Intensity mode → no SNR; no geometry configured → no resolution.
+    expect(spot.snr).toBeNull();
+    expect(spot.resolution).toBeNull();
+  });
+
+  it("reports a finite SNR for each peak when the SNR gate is active", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAnalysisOverlayController } = await import("../modules/analysis_overlay_controller.js");
+
+    const W = 25;
+    const H = 25;
+    const data = new Float32Array(W * H);
+    // Flat low background so the annulus has a well-defined mean, plus one spot.
+    data.fill(2);
+    const at = (x, y) => y * W + x;
+    data[at(12, 12)] = 200;
+    data[at(11, 12)] = 90;
+    data[at(13, 12)] = 90;
+    data[at(12, 11)] = 90;
+    data[at(12, 13)] = 90;
+
+    const { controller } = buildController(createAnalysisOverlayController, {
+      dataRaw: data,
+      width: W,
+      height: H,
+    });
+
+    const peaks = controller.detectPeaks(5, 5);
+    const spot = peaks.find((p) => p.px === 12 && p.py === 12);
+    expect(spot).toBeTruthy();
+    expect(Number.isFinite(spot.snr)).toBe(true);
+    expect(spot.snr).toBeGreaterThan(5);
+  });
+
+  it("refreshes peak d-spacing in place when geometry changes, without re-detecting", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAnalysisOverlayController } = await import("../modules/analysis_overlay_controller.js");
+
+    const geometry = {
+      distanceMm: 100,
+      pixelSizeUm: 75,
+      energyEv: 12400,
+      centerX: 12,
+      centerY: 12,
+    };
+    // A peak off-centre so its resolution is finite.
+    const { controller, analysisState } = buildController(createAnalysisOverlayController, {}, {
+      distanceMm: geometry.distanceMm,
+      pixelSizeUm: geometry.pixelSizeUm,
+      energyEv: geometry.energyEv,
+      centerX: geometry.centerX,
+      centerY: geometry.centerY,
+      peaks: [{ x: 20, y: 12, px: 20, py: 12, intensity: 100, snr: null, resolution: null }],
+    });
+
+    controller.refreshPeakResolutions();
+    const before = analysisState.peaks[0].resolution;
+    expect(Number.isFinite(before)).toBe(true);
+
+    // Doubling the distance moves the same pixel to a coarser resolution shell.
+    analysisState.distanceMm = 200;
+    controller.refreshPeakResolutions();
+    const after = analysisState.peaks[0].resolution;
+    expect(Number.isFinite(after)).toBe(true);
+    expect(after).toBeGreaterThan(before);
+    // The peak position itself is untouched — no re-detection occurred.
+    expect(analysisState.peaks[0].x).toBe(20);
+    expect(analysisState.peaks[0].y).toBe(12);
   });
 });
