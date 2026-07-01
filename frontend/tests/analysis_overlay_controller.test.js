@@ -21,7 +21,7 @@ function buildFetchMock() {
   }));
 }
 
-function buildController(createAnalysisOverlayController) {
+function buildController(createAnalysisOverlayController, stateOverrides = {}) {
   const peaksBody = document.createElement("div");
   const peaksSectionStateEl = document.createElement("div");
   const peaksSummaryEl = document.createElement("div");
@@ -39,6 +39,7 @@ function buildController(createAnalysisOverlayController) {
       maskRaw: null,
       maskShape: null,
       maskSaturatedEnabled: false,
+      ...stateOverrides,
     },
     analysisState: {
       ringsEnabled: false,
@@ -126,5 +127,47 @@ describe("analysis_overlay_controller", () => {
     expect(peaksBody.textContent).not.toContain("stale peak row");
     expect(peaksSectionStateEl.textContent).toContain("Updating peaks");
     expect(peaksSummaryEl.textContent).toContain("Active");
+  });
+
+  it("rejects lone hot pixels and reports sub-pixel centroids", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAnalysisOverlayController } = await import("../modules/analysis_overlay_controller.js");
+
+    const W = 21;
+    const H = 21;
+    const data = new Float32Array(W * H);
+    const at = (x, y) => y * W + x;
+    // A multi-pixel spot whose intensity is skewed toward +x so its centre of
+    // mass lands between pixels.
+    data[at(5, 6)] = 100;
+    data[at(6, 6)] = 80;
+    data[at(4, 6)] = 20;
+    data[at(5, 5)] = 40;
+    data[at(5, 7)] = 40;
+    // A lone hot pixel (zinger): brighter than the spot but no shoulder.
+    data[at(15, 15)] = 500;
+
+    const { controller } = buildController(createAnalysisOverlayController, {
+      dataRaw: data,
+      width: W,
+      height: H,
+    });
+
+    // SNR disabled so ranking is by intensity; isolates the footprint gate and
+    // centroid refinement from the SNR test.
+    const peaks = controller.detectPeaks(10, 0);
+
+    // The hot pixel outranks the spot on intensity but must be filtered out.
+    expect(peaks.some((p) => p.px === 15 && p.py === 15)).toBe(false);
+
+    const spot = peaks.find((p) => p.px === 5 && p.py === 6);
+    expect(spot).toBeTruthy();
+    // Centroid pulled toward the brighter +x neighbour, staying within 1px.
+    expect(spot.x).toBeGreaterThan(5);
+    expect(spot.x).toBeLessThan(6);
+    expect(spot.y).toBeCloseTo(6, 5);
   });
 });

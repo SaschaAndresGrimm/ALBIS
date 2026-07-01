@@ -44,6 +44,10 @@ export function createAnalysisOverlayController({
     isSaturatedValue,
   } = callbacks;
 
+  // Peak coordinates are sub-pixel (centroid-refined); show one decimal in the
+  // UI but keep whole numbers clean.
+  const formatCoord = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+
   let peakFinderScheduled = false;
 
   function parseNumericInputValue(inputEl) {
@@ -258,9 +262,9 @@ export function createAnalysisOverlayController({
       row.setAttribute("aria-pressed", String(isSelected));
       row.setAttribute(
         "aria-label",
-        `#${idx + 1}, X ${peak.x}, Y ${peak.y}, ${t("roi.plot.intensity")} ${formatStat(peak.intensity)}`,
+        `#${idx + 1}, X ${formatCoord(peak.x)}, Y ${formatCoord(peak.y)}, ${t("roi.plot.intensity")} ${formatStat(peak.intensity)}`,
       );
-      row.innerHTML = `<span>${idx + 1}</span><span>${peak.x}</span><span>${peak.y}</span><span>${formatStat(peak.intensity)}</span>`;
+      row.innerHTML = `<span>${idx + 1}</span><span>${formatCoord(peak.x)}</span><span>${formatCoord(peak.y)}</span><span>${formatStat(peak.intensity)}</span>`;
       row.addEventListener("click", (event) => {
         const anchor = analysisState.peakSelectionAnchor;
         if (event.shiftKey && Number.isInteger(anchor) && anchor >= 0 && anchor < analysisState.peaks.length) {
@@ -303,6 +307,12 @@ export function createAnalysisOverlayController({
   const PEAK_SIGNAL_RADIUS = 1; // 3x3 signal box
   const PEAK_BG_INNER_RADIUS = 3; // guard region excluded from the background
   const PEAK_BG_OUTER_RADIUS = 8; // outer edge of the background annulus
+  // A real Bragg spot spreads over several pixels; a zinger/hot pixel is a lone
+  // spike. Require at least PEAK_MIN_FOOTPRINT of the 8 neighbours to carry a
+  // meaningful fraction of the peak so isolated spikes are rejected before they
+  // ever reach the candidate pool.
+  const PEAK_MIN_FOOTPRINT = 2;
+  const PEAK_FOOTPRINT_FRACTION = 0.3;
 
   // Build a padded summed-area table (integral image) so the sum/count over any
   // rectangle is four lookups regardless of window size. Invalid pixels (masked,
@@ -386,9 +396,11 @@ export function createAnalysisOverlayController({
     const snrThreshold = Number.isFinite(minSnr) && minSnr > 0 ? minSnr : 0;
     const integrals = snrThreshold > 0 ? buildPeakIntegralImages(data, width, height, shouldIgnorePixel) : null;
 
-    function scorePeak(x, y, value) {
-      // No SNR test requested (or buffers unavailable): rank by intensity.
-      if (!integrals) return value;
+    // Local background mean from the annulus (outer box minus inner guard box).
+    // Returns NaN when there is too little valid background to trust, or when no
+    // integral image is available (SNR test disabled).
+    function localBackground(x, y) {
+      if (!integrals) return NaN;
       const bgOuter = integrals.valueSum(
         x - PEAK_BG_OUTER_RADIUS, y - PEAK_BG_OUTER_RADIUS,
         x + PEAK_BG_OUTER_RADIUS, y + PEAK_BG_OUTER_RADIUS,
@@ -406,8 +418,17 @@ export function createAnalysisOverlayController({
         x + PEAK_BG_INNER_RADIUS, y + PEAK_BG_INNER_RADIUS,
       );
       const bgCount = cntOuter - cntInner;
-      if (bgCount < 4) return Number.NEGATIVE_INFINITY; // too little background to judge
-      const bgMean = (bgOuter - bgInner) / bgCount;
+      if (bgCount < 4) return NaN; // too little background to judge
+      return { mean: (bgOuter - bgInner) / bgCount, count: bgCount };
+    }
+
+    function scorePeak(x, y, value) {
+      // No SNR test requested (or buffers unavailable): rank by intensity.
+      if (!integrals) return value;
+      const bg = localBackground(x, y);
+      if (!bg) return Number.NEGATIVE_INFINITY; // too little background to judge
+      const bgMean = bg.mean;
+      const bgCount = bg.count;
 
       const sigSum = integrals.valueSum(
         x - PEAK_SIGNAL_RADIUS, y - PEAK_SIGNAL_RADIUS,
@@ -425,6 +446,52 @@ export function createAnalysisOverlayController({
       const variance = sigSum + (sigCount * sigCount * bgMean) / bgCount;
       const noise = Math.sqrt(variance > 1 ? variance : 1);
       return excess / noise;
+    }
+
+    // Intensity-weighted centroid over the 3x3 signal box, using
+    // background-subtracted weights so the reported position lands on the spot's
+    // centre of mass rather than the brightest integer pixel. Only run on the
+    // handful of finally-selected peaks, so the extra lookups are negligible.
+    // x, y are always interior (1..dim-2), so the window is in bounds.
+    function refineCentroid(x, y) {
+      const bg = localBackground(x, y);
+      let floor;
+      if (bg) {
+        floor = bg.mean;
+      } else {
+        // No integral image (SNR disabled): use the window minimum as a cheap
+        // background floor.
+        floor = Number.POSITIVE_INFINITY;
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            const nv = data[(y + dy) * width + (x + dx)];
+            if (Number.isFinite(nv) && nv < floor) floor = nv;
+          }
+        }
+        if (!Number.isFinite(floor)) return { x, y };
+      }
+      let sumW = 0;
+      let sumX = 0;
+      let sumY = 0;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nIdx = (y + dy) * width + (x + dx);
+          const nv = data[nIdx];
+          if (!Number.isFinite(nv) || shouldIgnorePixel(nIdx)) continue;
+          const w = nv - floor;
+          if (w <= 0) continue;
+          sumW += w;
+          sumX += w * (x + dx);
+          sumY += w * (y + dy);
+        }
+      }
+      if (sumW <= 0) return { x, y };
+      const cx = sumX / sumW;
+      const cy = sumY / sumW;
+      // Guard against runaway shifts from masked/asymmetric windows: a real
+      // centroid never moves more than one pixel from its local maximum.
+      if (Math.abs(cx - x) > 1 || Math.abs(cy - y) > 1) return { x, y };
+      return { x: cx, y: cy };
     }
 
     const candidates = [];
@@ -453,6 +520,14 @@ export function createAnalysisOverlayController({
       }
     }
 
+    // Value of a neighbour, or -Infinity if it is masked/saturated/non-finite so
+    // it can never win the local-maximum comparison.
+    const neighborValue = (nIdx) => {
+      const nv = data[nIdx];
+      if (!Number.isFinite(nv) || shouldIgnorePixel(nIdx)) return Number.NEGATIVE_INFINITY;
+      return nv;
+    };
+
     for (let y = 1; y < height - 1; y += 1) {
       const row = y * width;
       for (let x = 1; x < width - 1; x += 1) {
@@ -461,20 +536,38 @@ export function createAnalysisOverlayController({
         if (!Number.isFinite(v) || v <= 0) continue;
         if (shouldIgnorePixel(idx)) continue;
 
-        let left = data[idx - 1];
-        let right = data[idx + 1];
-        let up = data[idx - width];
-        let down = data[idx + width];
-        if (shouldIgnorePixel(idx - 1)) left = Number.NEGATIVE_INFINITY;
-        if (shouldIgnorePixel(idx + 1)) right = Number.NEGATIVE_INFINITY;
-        if (shouldIgnorePixel(idx - width)) up = Number.NEGATIVE_INFINITY;
-        if (shouldIgnorePixel(idx + width)) down = Number.NEGATIVE_INFINITY;
-        if (!Number.isFinite(left)) left = Number.NEGATIVE_INFINITY;
-        if (!Number.isFinite(right)) right = Number.NEGATIVE_INFINITY;
-        if (!Number.isFinite(up)) up = Number.NEGATIVE_INFINITY;
-        if (!Number.isFinite(down)) down = Number.NEGATIVE_INFINITY;
+        // 8-connected local maximum. The comparison is a scan-order tiebreak
+        // (strict `>` against already-visited neighbours, `>=` against the rest)
+        // so a flat plateau yields exactly one peak instead of a doubled cluster.
+        // `&&` short-circuits, so most pixels bail after one or two lookups.
+        const up = idx - width;
+        const dn = idx + width;
+        if (!(
+          v > neighborValue(up - 1) && // up-left
+          v > neighborValue(up) && // up
+          v > neighborValue(up + 1) && // up-right
+          v > neighborValue(idx - 1) && // left
+          v >= neighborValue(idx + 1) && // right
+          v >= neighborValue(dn - 1) && // down-left
+          v >= neighborValue(dn) && // down
+          v >= neighborValue(dn + 1) // down-right
+        )) continue;
 
-        if (!(v > left && v >= right && v > up && v >= down)) continue;
+        // Footprint gate: reject lone spikes (zingers/hot pixels) that clear the
+        // maximum test but have no shoulder. Real spots share intensity with
+        // their neighbours; a high background lifts every neighbour and passes
+        // trivially, so this never penalises faint spots on a bright field.
+        const footThresh = v * PEAK_FOOTPRINT_FRACTION;
+        let footprint = 0;
+        if (neighborValue(up - 1) >= footThresh) footprint += 1;
+        if (neighborValue(up) >= footThresh) footprint += 1;
+        if (neighborValue(up + 1) >= footThresh) footprint += 1;
+        if (neighborValue(idx - 1) >= footThresh) footprint += 1;
+        if (neighborValue(idx + 1) >= footThresh) footprint += 1;
+        if (neighborValue(dn - 1) >= footThresh) footprint += 1;
+        if (neighborValue(dn) >= footThresh) footprint += 1;
+        if (neighborValue(dn + 1) >= footThresh) footprint += 1;
+        if (footprint < PEAK_MIN_FOOTPRINT) continue;
 
         const score = scorePeak(x, y, v);
         if (integrals && score < snrThreshold) continue; // below local SNR gate
@@ -498,7 +591,14 @@ export function createAnalysisOverlayController({
         }
       }
       if (!tooClose) {
-        selected.push({ x: candidate.x, y: candidate.y, intensity: candidate.intensity });
+        const centroid = refineCentroid(candidate.x, candidate.y);
+        selected.push({
+          x: centroid.x,
+          y: centroid.y,
+          px: candidate.x,
+          py: candidate.y,
+          intensity: candidate.intensity,
+        });
         if (selected.length >= maxPeaks) break;
       }
     }
@@ -552,9 +652,10 @@ export function createAnalysisOverlayController({
 
   function exportPeakCsv() {
     if (!analysisState.peaks.length) return;
+    const csvCoord = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(3));
     const rows = ["index,x,y,intensity"];
     analysisState.peaks.forEach((peak, idx) => {
-      rows.push(`${idx + 1},${peak.x},${peak.y},${peak.intensity}`);
+      rows.push(`${idx + 1},${csvCoord(peak.x)},${csvCoord(peak.y)},${peak.intensity}`);
     });
     const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
     const link = document.createElement("a");
