@@ -134,9 +134,7 @@ def test_browse_endpoint_collapses_hdf5_master_data_series(tmp_path: Path) -> No
     os.utime(summed, (300, 300))
 
     all_files = client.get("/api/browse", params={"path": str(tmp_path), "series_mode": "all"})
-    grouped = client.get(
-        "/api/browse", params={"path": str(tmp_path), "series_mode": "first_only"}
-    )
+    grouped = client.get("/api/browse", params={"path": str(tmp_path), "series_mode": "first_only"})
 
     assert all_files.status_code == 200
     # Without grouping every master/data member is listed individually.
@@ -170,9 +168,7 @@ def test_browse_endpoint_hdf5_data_only_series_uses_first_as_lead(tmp_path: Path
     for path in (data_1, data_2):
         path.write_bytes(b"test")
 
-    grouped = client.get(
-        "/api/browse", params={"path": str(tmp_path), "series_mode": "first_only"}
-    )
+    grouped = client.get("/api/browse", params={"path": str(tmp_path), "series_mode": "first_only"})
 
     assert grouped.status_code == 200
     payload = grouped.json()
