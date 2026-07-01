@@ -544,7 +544,9 @@ const browseFormatField = document.getElementById("browse-format-field");
 const browseFormat = document.getElementById("browse-format");
 const browseSort = document.getElementById("browse-sort");
 const browseSeriesMode = document.getElementById("browse-series-mode");
+const browseSeriesField = document.getElementById("browse-series-field");
 const browseViewMode = document.getElementById("browse-view-mode");
+const browseViewField = document.getElementById("browse-view-field");
 const browseContent = document.getElementById("browse-content");
 const browseSplitter = document.getElementById("browse-splitter");
 const browseFoldersList = document.getElementById("browse-folders-list");
@@ -4058,7 +4060,9 @@ const fileBrowserControllerContext = createFileBrowserControllerContext({
     browseFormat,
     browseSort,
     browseSeriesMode,
+    browseSeriesField,
     browseViewMode,
+    browseViewField,
     browseContent,
     browseSplitter,
     browseFoldersList,

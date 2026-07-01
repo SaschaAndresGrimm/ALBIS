@@ -5228,6 +5228,15 @@ body.platform-windows select option:disabled {
   min-height: 0;
 }
 
+.browse-content.is-folder-only {
+  grid-template-columns: 1fr;
+}
+
+.browse-content.is-folder-only .browse-splitter,
+.browse-content.is-folder-only .browse-files {
+  display: none;
+}
+
 .browse-splitter {
   cursor: col-resize;
   background: linear-gradient(to right, rgba(10, 14, 19, 0.68), rgba(84, 105, 139, 0.16));

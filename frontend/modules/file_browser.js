@@ -368,7 +368,9 @@ export function createFileBrowserController({
   browseFormatSelect,
   browseSortSelect,
   browseSeriesModeSelect,
+  browseSeriesField,
   browseViewModeSelect,
+  browseViewField,
   browseContent,
   browseSplitter,
   browseFoldersList,
@@ -539,6 +541,16 @@ export function createFileBrowserController({
     renderBrowseLists({ preserveSelection: true });
   }
 
+  function isFolderSelectMode() {
+    return state.mode !== "file-open";
+  }
+
+  function applyBrowseModeLayout() {
+    const folderMode = isFolderSelectMode();
+    browseContent?.classList.toggle("is-folder-only", folderMode);
+    browseViewField?.classList.toggle("is-hidden", folderMode);
+  }
+
   function canConfirmBrowseSelection() {
     if (state.mode === "file-open") {
       return state.selectedType === "file" && Boolean(state.selectedPath);
@@ -638,7 +650,7 @@ export function createFileBrowserController({
   function syncFormatControl() {
     if (!browseFormatSelect) return;
     const availableGroups = getAvailableFormatGroups();
-    const showControl = availableGroups.length > 1;
+    const showControl = !isFolderSelectMode() && availableGroups.length > 1;
     if (!showControl) {
       state.activeFormat = FORMAT_ALL;
     } else if (
@@ -678,6 +690,7 @@ export function createFileBrowserController({
 
   function syncSeriesControl() {
     if (!browseSeriesModeSelect) return;
+    browseSeriesField?.classList.toggle("is-hidden", isFolderSelectMode());
     const hasSeriesCapableFilter = intersectsExts(getActiveBrowseExts(), BROWSE_SERIES_CAPABLE_EXTS);
     const hasSeriesCapableFiles = state.rawFileItems.some((item) => BROWSE_SERIES_CAPABLE_SET.has(inferFileExt(item.ext || item.name)));
     if (!hasSeriesCapableFilter || (state.rawFileItems.length > 0 && !hasSeriesCapableFiles)) {
@@ -749,6 +762,7 @@ export function createFileBrowserController({
   }
 
   function selectFileIndex(index, { focus = false } = {}) {
+    if (isFolderSelectMode()) return;
     const file = state.fileItems[index];
     if (!file) return;
     state.selectedPane = "files";
@@ -906,6 +920,10 @@ export function createFileBrowserController({
     state.folders = !query
       ? [...state.allFolders]
       : state.allFolders.filter((folder) => matchesBrowseQuery(folder.name, query));
+    if (isFolderSelectMode()) {
+      state.fileItems = [];
+      return;
+    }
     state.fileItems = !query
       ? [...state.fileBaseItems]
       : state.fileBaseItems.filter((file) => matchesBrowseQuery(file.name, query));
@@ -1007,6 +1025,9 @@ export function createFileBrowserController({
   function renderFiles() {
     if (!browseFilesList) return;
     browseFilesList.innerHTML = "";
+    if (isFolderSelectMode()) {
+      return;
+    }
     if (!state.fileItems.length) {
       const empty = document.createElement("div");
       empty.className = "browse-empty";
@@ -1127,6 +1148,7 @@ export function createFileBrowserController({
     syncSearchControl();
     syncBrowseViewState();
     syncBrowseUpState();
+    applyBrowseModeLayout();
     applyBrowsePaneWidth();
   }
 
@@ -1197,6 +1219,7 @@ export function createFileBrowserController({
     clearSearchQuery({ rerender: false });
     resetBrowseFilters("");
     updateBrowseTitle();
+    applyBrowseModeLayout();
     openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
     setBrowseModalBusy(true, t("file_browser.loading", { label: initialPath || t("file_browser.root") }));
     loadAndRenderBrowser(initialPath).catch((err) => console.error(err));
@@ -1217,6 +1240,7 @@ export function createFileBrowserController({
       clearSearchQuery({ rerender: false });
       resetBrowseFilters(exts);
       updateBrowseTitle();
+      applyBrowseModeLayout();
       openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
       setBrowseModalBusy(true, t("file_browser.loading", { label: initialPath || t("file_browser.root") }));
       loadAndRenderBrowser(initialPath).catch((err) => {

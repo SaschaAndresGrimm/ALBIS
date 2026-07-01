@@ -121,7 +121,9 @@ async function createController({ fetchHandler, onPathSelected = vi.fn() } = {})
     browseFormatSelect: document.getElementById("browse-format"),
     browseSortSelect: document.getElementById("browse-sort"),
     browseSeriesModeSelect: document.getElementById("browse-series-mode"),
+    browseSeriesField: document.getElementById("browse-series-field"),
     browseViewModeSelect: document.getElementById("browse-view-mode"),
+    browseViewField: document.getElementById("browse-view-field"),
     browseContent: document.getElementById("browse-content"),
     browseSplitter: document.getElementById("browse-splitter"),
     browseFoldersList: document.getElementById("browse-folders-list"),
@@ -347,6 +349,48 @@ describe("file_browser", () => {
     expect(browseRequests().at(-1)).toBe("/api/browse?sort=name_asc&series_mode=all");
   });
 
+  it("hides files and file-only controls in folder-select mode and keeps the current folder selected", async () => {
+    const controller = await createController({
+      fetchHandler: () =>
+        jsonResponse({
+          folders: ["raw", "processed"],
+          files: ["scan_0001.h5"],
+          fileItems: [
+            {
+              name: "scan_0001.h5",
+              path: "scan_0001.h5",
+              ext: ".h5",
+              mtime: 1,
+              sizeBytes: 5,
+              isSeriesLead: false,
+              seriesCount: 1,
+            },
+          ],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        }),
+    });
+
+    controller.openFileBrowser("autoload", document.createElement("input"));
+    await flushAsyncWork();
+
+    // Folder mode collapses to a folder-only browser.
+    expect(document.getElementById("browse-content").classList.contains("is-folder-only")).toBe(true);
+    expect(document.querySelectorAll("#browse-files-list .browse-item")).toHaveLength(0);
+    expect(document.getElementById("browse-format-field").classList.contains("is-hidden")).toBe(true);
+    expect(document.getElementById("browse-series-field").classList.contains("is-hidden")).toBe(true);
+    expect(document.getElementById("browse-view-field").classList.contains("is-hidden")).toBe(true);
+
+    // Folders remain browsable and the current folder is selected so Select is ready.
+    expect(Array.from(document.querySelectorAll("#browse-folders-list .browse-item")).map((item) => item.textContent))
+      .toEqual(["raw", "processed"]);
+    expect(document.getElementById("browse-select").disabled).toBe(false);
+    expect(document.getElementById("browse-path-input").value).toBe("");
+  });
+
   it("supports keyboard selection and enter-to-open for files", async () => {
     const controller = await createController({
       fetchHandler: () =>
@@ -441,7 +485,7 @@ describe("file_browser", () => {
       },
     });
 
-    controller.openFileBrowser("autoload", document.createElement("input"));
+    void controller.openFileDialog();
     await flushAsyncWork();
 
     const modal = document.getElementById("browse-modal");
@@ -474,7 +518,7 @@ describe("file_browser", () => {
     expect(searchInput.value).toBe("");
 
     controller.closeFileBrowser();
-    controller.openFileBrowser("autoload", document.createElement("input"));
+    void controller.openFileDialog();
     await flushAsyncWork();
     expect(searchInput.value).toBe("");
   });
@@ -612,7 +656,7 @@ describe("file_browser", () => {
       },
     });
 
-    controller.openFileBrowser("autoload", document.createElement("input"));
+    void controller.openFileDialog();
     await flushAsyncWork();
     document.querySelector("#browse-folders-list .browse-item").dispatchEvent(
       new window.MouseEvent("dblclick", { bubbles: true }),
