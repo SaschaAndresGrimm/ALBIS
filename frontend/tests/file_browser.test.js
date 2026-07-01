@@ -622,10 +622,42 @@ describe("file_browser", () => {
     const formatOptions = Array.from(document.querySelectorAll("#browse-format option")).map((option) => option.textContent);
     expect(formatOptions).toContain("All");
     expect(formatOptions).toContain("HDF5");
-    expect(document.getElementById("browse-series-mode").disabled).toBe(true);
+    // HDF5 folders are series-capable (master/data collapsing), so the control is enabled.
+    expect(document.getElementById("browse-series-mode").disabled).toBe(false);
 
     document.getElementById("browse-up").click();
     await flushAsyncWork();
     expect(browseRequests().at(-1)).toBe("/api/browse?sort=name_asc&series_mode=all");
+  });
+
+  it("collapses HDF5 master/data files to the master in legacy first_only responses", async () => {
+    localStorage.setItem("albis.browseSeriesMode", "first_only");
+    const controller = await createController({
+      fetchHandler: () =>
+        jsonResponse({
+          folders: [],
+          files: [
+            "260616_CeO2_raw_master.h5",
+            "260616_CeO2_raw_data_000001.h5",
+            "260616_CeO2_raw_data_000002.h5",
+            "series_sum_dark_20260618_081052.h5",
+          ],
+          currentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        }),
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const fileNames = Array.from(document.querySelectorAll("#browse-files-list .browse-item"))
+      .map((item) => item.getAttribute("title"))
+      .filter(Boolean);
+    expect(fileNames).toContain("260616_CeO2_raw_master.h5");
+    expect(fileNames).toContain("series_sum_dark_20260618_081052.h5");
+    expect(fileNames).not.toContain("260616_CeO2_raw_data_000001.h5");
+    expect(fileNames).not.toContain("260616_CeO2_raw_data_000002.h5");
   });
 });

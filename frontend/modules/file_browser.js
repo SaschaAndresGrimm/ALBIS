@@ -15,6 +15,11 @@ const FORMAT_ALL = "__all__";
 const EXPT_EXTS = [".expt"];
 const DEFAULT_BROWSE_EXTS = [...HDF_EXTS, ...TIFF_EXTS, ...CBF_EXTS, ...EDF_EXTS];
 const LOCAL_SERIES_EXTS = new Set(SERIES_IMAGE_EXTS);
+const HDF_SERIES_EXTS = new Set(HDF_EXTS);
+const BROWSE_SERIES_CAPABLE_EXTS = [...SERIES_IMAGE_EXTS, ...HDF_EXTS];
+const BROWSE_SERIES_CAPABLE_SET = new Set(BROWSE_SERIES_CAPABLE_EXTS);
+const HDF_MASTER_RE = /^(.+?)_master\.(?:h5|hdf5)$/i;
+const HDF_DATA_RE = /^(.+?)_data_(\d+)\.(?:h5|hdf5)$/i;
 const VALID_SORTS = new Set(["name_asc", "name_desc", "mtime_desc", "mtime_asc", "type_asc"]);
 const VALID_SERIES_MODES = new Set(["all", "first_only"]);
 const VALID_VIEW_MODES = new Set(["list", "details"]);
@@ -25,6 +30,7 @@ const STORAGE_KEYS = {
   browseSeriesMode: "albis.browseSeriesMode",
   browseFormat: "albis.browseFormat",
   browseViewMode: "albis.browseViewMode",
+  browseLastPath: "albis.browseLastPath",
 };
 const BROWSE_BREAKPOINT = 760;
 const BROWSE_MIN_FOLDER_WIDTH = 220;
@@ -178,6 +184,15 @@ function splitSeriesName(name) {
   return { prefix: match[1], digits: match[2], suffix: match[3] };
 }
 
+function splitHdfSeries(name) {
+  const raw = String(name || "");
+  const master = raw.match(HDF_MASTER_RE);
+  if (master) return { kind: "master", prefix: master[1].toLowerCase(), index: 0 };
+  const data = raw.match(HDF_DATA_RE);
+  if (data) return { kind: "data", prefix: data[1].toLowerCase(), index: Number(data[2]) };
+  return null;
+}
+
 function deriveParentPath(currentPath) {
   const raw = String(currentPath || "").trim();
   if (!raw) return "";
@@ -224,8 +239,27 @@ function sortFileItems(items, sortMode) {
 function aggregateSeriesLocally(items) {
   const singles = [];
   const groups = new Map();
+  const hdfGroups = new Map();
   for (const item of items) {
     const ext = inferFileExt(item.ext || item.name);
+    if (HDF_SERIES_EXTS.has(ext)) {
+      const parsed = splitHdfSeries(item.name);
+      if (!parsed) {
+        singles.push(item);
+        continue;
+      }
+      let group = hdfGroups.get(parsed.prefix);
+      if (!group) {
+        group = { master: null, data: [] };
+        hdfGroups.set(parsed.prefix, group);
+      }
+      if (parsed.kind === "master") {
+        group.master = item;
+      } else {
+        group.data.push({ index: parsed.index, item });
+      }
+      continue;
+    }
     if (!LOCAL_SERIES_EXTS.has(ext)) {
       singles.push(item);
       continue;
@@ -261,6 +295,19 @@ function aggregateSeriesLocally(items) {
       current.sizeBytes = item.sizeBytes;
       current._leadIndex = index;
     }
+  }
+  for (const group of hdfGroups.values()) {
+    const data = [...group.data].sort((left, right) => left.index - right.index);
+    const lead = group.master || (data.length ? data[0].item : null);
+    if (!lead) continue;
+    const members = [group.master, ...data.map((entry) => entry.item)].filter(Boolean);
+    const maxMtime = members.reduce((acc, member) => Math.max(acc, Number(member.mtime || 0)), 0);
+    singles.push({
+      ...lead,
+      ext: inferFileExt(lead.ext || lead.name),
+      mtime: maxMtime,
+      seriesCount: Math.max(1, data.length),
+    });
   }
   const merged = [...singles, ...groups.values()];
   return merged.map((item) => ({
@@ -631,8 +678,8 @@ export function createFileBrowserController({
 
   function syncSeriesControl() {
     if (!browseSeriesModeSelect) return;
-    const hasSeriesCapableFilter = intersectsExts(getActiveBrowseExts(), SERIES_IMAGE_EXTS);
-    const hasSeriesCapableFiles = state.rawFileItems.some((item) => LOCAL_SERIES_EXTS.has(inferFileExt(item.ext || item.name)));
+    const hasSeriesCapableFilter = intersectsExts(getActiveBrowseExts(), BROWSE_SERIES_CAPABLE_EXTS);
+    const hasSeriesCapableFiles = state.rawFileItems.some((item) => BROWSE_SERIES_CAPABLE_SET.has(inferFileExt(item.ext || item.name)));
     if (!hasSeriesCapableFilter || (state.rawFileItems.length > 0 && !hasSeriesCapableFiles)) {
       state.seriesMode = DEFAULT_SERIES_MODE;
     }
@@ -1051,6 +1098,7 @@ export function createFileBrowserController({
   function renderBrowseContent(data) {
     if (!data) return;
     state.currentPath = String(data.currentPath || "");
+    writeStoredValue(STORAGE_KEYS.browseLastPath, state.currentPath);
     state.parentPath = String(data.parentPath ?? deriveParentPath(state.currentPath));
     state.canGoUp = Boolean(data.canGoUp ?? state.parentPath);
     state.allFolders = Array.isArray(data.folders)
@@ -1139,9 +1187,10 @@ export function createFileBrowserController({
   }
 
   function openFileBrowser(mode, inputElement) {
+    const initialPath = readStoredValue(STORAGE_KEYS.browseLastPath) || "";
     state.mode = mode;
     state.inputElement = inputElement;
-    state.currentPath = "";
+    state.currentPath = initialPath;
     state.parentPath = "";
     state.canGoUp = false;
     clearBrowseSelection();
@@ -1149,18 +1198,19 @@ export function createFileBrowserController({
     resetBrowseFilters("");
     updateBrowseTitle();
     openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
-    setBrowseModalBusy(true, t("file_browser.loading", { label: t("file_browser.root") }));
-    loadAndRenderBrowser("").catch((err) => console.error(err));
+    setBrowseModalBusy(true, t("file_browser.loading", { label: initialPath || t("file_browser.root") }));
+    loadAndRenderBrowser(initialPath).catch((err) => console.error(err));
   }
 
   function openFileDialog(options = {}) {
     const exts = typeof options === "object" && options !== null ? String(options.exts || "") : "";
     return new Promise((resolve, reject) => {
+      const initialPath = readStoredValue(STORAGE_KEYS.browseLastPath) || "";
       settleFileDialog("");
       fileDialogPromise = { resolve, reject };
       state.mode = "file-open";
       state.inputElement = null;
-      state.currentPath = "";
+      state.currentPath = initialPath;
       state.parentPath = "";
       state.canGoUp = false;
       clearBrowseSelection();
@@ -1168,8 +1218,8 @@ export function createFileBrowserController({
       resetBrowseFilters(exts);
       updateBrowseTitle();
       openModal(browseModal, { focusTarget: browseCloseBtn || browseSelectBtn || browsePathInput });
-      setBrowseModalBusy(true, t("file_browser.loading", { label: t("file_browser.root") }));
-      loadAndRenderBrowser("").catch((err) => {
+      setBrowseModalBusy(true, t("file_browser.loading", { label: initialPath || t("file_browser.root") }));
+      loadAndRenderBrowser(initialPath).catch((err) => {
         closeFileBrowser({ cancelDialog: false });
         rejectFileDialog(err);
       });

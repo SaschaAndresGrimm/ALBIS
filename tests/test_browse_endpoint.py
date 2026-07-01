@@ -117,3 +117,67 @@ def test_browse_endpoint_groups_series_and_sorts_naturally(tmp_path: Path) -> No
     assert series_item["mtime"] == 500.0
     assert grouped_payload["files"].count("scan_0001.h5") == 1
     assert grouped_payload["files"].count("scan_0002.h5") == 1
+
+
+def test_browse_endpoint_collapses_hdf5_master_data_series(tmp_path: Path) -> None:
+    client = TestClient(app)
+    master = tmp_path / "260616_CeO2_raw_master.h5"
+    data_1 = tmp_path / "260616_CeO2_raw_data_000001.h5"
+    data_2 = tmp_path / "260616_CeO2_raw_data_000002.h5"
+    summed = tmp_path / "series_sum_dark_20260618_081052.h5"
+
+    for path in (master, data_1, data_2, summed):
+        path.write_bytes(b"test")
+    os.utime(master, (100, 100))
+    os.utime(data_1, (200, 200))
+    os.utime(data_2, (900, 900))
+    os.utime(summed, (300, 300))
+
+    all_files = client.get("/api/browse", params={"path": str(tmp_path), "series_mode": "all"})
+    grouped = client.get(
+        "/api/browse", params={"path": str(tmp_path), "series_mode": "first_only"}
+    )
+
+    assert all_files.status_code == 200
+    # Without grouping every master/data member is listed individually.
+    assert all_files.json()["files"] == [
+        "260616_CeO2_raw_data_000001.h5",
+        "260616_CeO2_raw_data_000002.h5",
+        "260616_CeO2_raw_master.h5",
+        "series_sum_dark_20260618_081052.h5",
+    ]
+
+    assert grouped.status_code == 200
+    grouped_payload = grouped.json()
+    # The master represents the acquisition; data files are collapsed; the
+    # standalone summed file is untouched.
+    assert grouped_payload["files"] == [
+        "260616_CeO2_raw_master.h5",
+        "series_sum_dark_20260618_081052.h5",
+    ]
+    items = {item["name"]: item for item in grouped_payload["fileItems"]}
+    lead = items["260616_CeO2_raw_master.h5"]
+    assert lead["isSeriesLead"] is True
+    assert lead["seriesCount"] == 2
+    assert lead["mtime"] == 900.0
+    assert items["series_sum_dark_20260618_081052.h5"]["isSeriesLead"] is False
+
+
+def test_browse_endpoint_hdf5_data_only_series_uses_first_as_lead(tmp_path: Path) -> None:
+    client = TestClient(app)
+    data_1 = tmp_path / "scan_raw_data_000001.h5"
+    data_2 = tmp_path / "scan_raw_data_000002.h5"
+    for path in (data_1, data_2):
+        path.write_bytes(b"test")
+
+    grouped = client.get(
+        "/api/browse", params={"path": str(tmp_path), "series_mode": "first_only"}
+    )
+
+    assert grouped.status_code == 200
+    payload = grouped.json()
+    # No master present: fall back to the first data file as the visible lead.
+    assert payload["files"] == ["scan_raw_data_000001.h5"]
+    lead = payload["fileItems"][0]
+    assert lead["isSeriesLead"] is True
+    assert lead["seriesCount"] == 2

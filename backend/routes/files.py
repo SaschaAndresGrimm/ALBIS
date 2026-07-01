@@ -162,7 +162,27 @@ def _parse_requested_picker_exts(
 
 
 _BROWSE_SERIES_EXTS = {".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}
+_HDF_SERIES_EXTS = {".h5", ".hdf5"}
 _NATURAL_SPLIT_RE = re.compile(r"(\d+)")
+_HDF_MASTER_RE = re.compile(r"^(?P<prefix>.+?)_master\.(?:h5|hdf5)$", re.IGNORECASE)
+_HDF_DATA_RE = re.compile(r"^(?P<prefix>.+?)_data_(?P<index>\d+)\.(?:h5|hdf5)$", re.IGNORECASE)
+
+
+def _split_hdf_series(name: str) -> tuple[str, str, int] | None:
+    """Classify a DECTRIS-style HDF5 file as a member of a master/data series.
+
+    Returns ``(kind, prefix, index)`` where ``kind`` is ``"master"`` or
+    ``"data"``, or ``None`` when the file does not follow the
+    ``PREFIX_master.h5`` / ``PREFIX_data_NNNNNN.h5`` convention (e.g. standalone
+    or summed HDF5 files, which must never be collapsed into a series).
+    """
+    master = _HDF_MASTER_RE.match(name)
+    if master:
+        return ("master", master.group("prefix").casefold(), 0)
+    data = _HDF_DATA_RE.match(name)
+    if data:
+        return ("data", data.group("prefix").casefold(), int(data.group("index")))
+    return None
 
 
 def _natural_sort_key(value: str) -> tuple[tuple[int, Any], ...]:
@@ -219,8 +239,21 @@ def _aggregate_browse_series(
 ) -> list[dict[str, Any]]:
     singles: list[dict[str, Any]] = []
     groups: dict[tuple[str, str, str], dict[str, Any]] = {}
+    hdf_groups: dict[str, dict[str, Any]] = {}
     for item in files:
         ext = str(item.get("ext") or "").lower()
+        if ext in _HDF_SERIES_EXTS:
+            parsed = _split_hdf_series(str(item.get("name") or ""))
+            if parsed is None:
+                singles.append(item)
+                continue
+            kind, prefix, index = parsed
+            group = hdf_groups.setdefault(prefix, {"master": None, "data": []})
+            if kind == "master":
+                group["master"] = item
+            else:
+                group["data"].append((index, item))
+            continue
         if ext not in _BROWSE_SERIES_EXTS:
             singles.append(item)
             continue
@@ -256,6 +289,20 @@ def _aggregate_browse_series(
                     "_lead_index": index,
                 }
             )
+    for group in hdf_groups.values():
+        master = group["master"]
+        data_items = sorted(group["data"], key=lambda pair: pair[0])
+        lead = master if master is not None else (data_items[0][1] if data_items else None)
+        if lead is None:
+            continue
+        members = ([master] if master is not None else []) + [item for _, item in data_items]
+        singles.append(
+            {
+                **lead,
+                "mtime": max(float(member.get("mtime", 0.0)) for member in members),
+                "seriesCount": max(1, len(data_items)),
+            }
+        )
     merged = singles + list(groups.values())
     for item in merged:
         item["isSeriesLead"] = int(item.get("seriesCount", 1)) > 1
