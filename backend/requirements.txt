@@ -1,4 +1,4 @@
-fastapi==0.138.0
+fastapi==0.139.0
 uvicorn[standard]==0.49.0
 python-multipart==0.0.32
 hdf5plugin==6.0.0
@@ -9,5 +9,5 @@ fabio==2025.10.0
 cbor2==6.1.2
 pyzmq==27.1.0
 dectris-compression==0.3.1
-certifi==2026.1.4
+certifi==2026.6.17
 pyobjc==12.2.1; sys_platform == "darwin"
