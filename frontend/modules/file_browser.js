@@ -9,8 +9,8 @@ import { t } from "./i18n.js";
 import { CBF_EXTS, EDF_EXTS, HDF_EXTS, SERIES_IMAGE_EXTS, TIFF_EXTS } from "./file_type_utils.js";
 
 const DEFAULT_SORT = "name_asc";
-const DEFAULT_SERIES_MODE = "all";
-const DEFAULT_VIEW_MODE = "list";
+const DEFAULT_SERIES_MODE = "first_only";
+const DEFAULT_VIEW_MODE = "details";
 const FORMAT_ALL = "__all__";
 const EXPT_EXTS = [".expt"];
 const DEFAULT_BROWSE_EXTS = [...HDF_EXTS, ...TIFF_EXTS, ...CBF_EXTS, ...EDF_EXTS];

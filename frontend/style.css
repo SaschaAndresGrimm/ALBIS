@@ -5097,8 +5097,8 @@ body.platform-windows select option:disabled {
   }
 }
 .browse-modal-card {
-  width: min(1040px, calc(100vw - 32px));
-  max-height: 82vh;
+  width: min(1280px, calc(100vw - 48px));
+  height: min(880px, calc(100vh - 64px));
   display: flex;
   flex-direction: column;
 }
@@ -5109,7 +5109,7 @@ body.platform-windows select option:disabled {
   gap: 10px;
   overflow-y: auto;
   flex: 1;
-  max-height: min(640px, calc(82vh - 96px));
+  min-height: 0;
 }
 
 .browse-breadcrumb {

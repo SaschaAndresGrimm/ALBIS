@@ -201,7 +201,7 @@ describe("file_browser", () => {
     const selectionPromise = controller.openFileDialog({ exts: ".expt" });
     await flushAsyncWork();
 
-    expect(browseRequests()).toEqual(["/api/browse?exts=.expt&sort=name_asc&series_mode=all"]);
+    expect(browseRequests()).toEqual(["/api/browse?exts=.expt&sort=name_asc&series_mode=first_only"]);
     expect(document.getElementById("browse-title").textContent).toBe("Select File");
     expect(document.getElementById("browse-format-field").classList.contains("is-hidden")).toBe(true);
     expect(document.getElementById("browse-series-mode").disabled).toBe(true);
@@ -215,6 +215,8 @@ describe("file_browser", () => {
   });
 
   it("reloads browse results when format, sort, and series controls change and renders series badges", async () => {
+    // Pin the "all" default so this test exercises the all -> first_only transition.
+    localStorage.setItem("albis.browseSeriesMode", "all");
     const controller = await createController({
       fetchHandler: (url) => {
         const parsed = new URL(url, "http://localhost");
@@ -353,13 +355,13 @@ describe("file_browser", () => {
 
     folderButton.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true }));
     await flushAsyncWork();
-    expect(browseRequests()).toContain("/api/browse?path=raw&sort=name_asc&series_mode=all");
+    expect(browseRequests()).toContain("/api/browse?path=raw&sort=name_asc&series_mode=first_only");
 
     document.getElementById("browse-modal").dispatchEvent(
       new window.KeyboardEvent("keydown", { key: "Backspace", bubbles: true }),
     );
     await flushAsyncWork();
-    expect(browseRequests().at(-1)).toBe("/api/browse?sort=name_asc&series_mode=all");
+    expect(browseRequests().at(-1)).toBe("/api/browse?sort=name_asc&series_mode=first_only");
   });
 
   it("hides files and file-only controls in folder-select mode and keeps the current folder selected", async () => {
@@ -513,7 +515,7 @@ describe("file_browser", () => {
 
     expect(browseRequests()).toHaveLength(initialRequests);
     expect(Array.from(document.querySelectorAll("#browse-folders-list .browse-item")).map((item) => item.textContent)).toEqual(["raw"]);
-    expect(Array.from(document.querySelectorAll("#browse-files-list .browse-item")).map((item) => item.textContent)).toEqual(["raw_scan_0001.h5"]);
+    expect(Array.from(document.querySelectorAll("#browse-files-list .browse-item")).map((item) => item.getAttribute("title"))).toEqual(["raw_scan_0001.h5"]);
 
     searchInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await flushAsyncWork();
@@ -527,7 +529,7 @@ describe("file_browser", () => {
     );
     await flushAsyncWork();
 
-    expect(browseRequests().at(-1)).toBe("/api/browse?path=raw&sort=name_asc&series_mode=all");
+    expect(browseRequests().at(-1)).toBe("/api/browse?path=raw&sort=name_asc&series_mode=first_only");
     expect(searchInput.value).toBe("");
 
     controller.closeFileBrowser();
@@ -684,7 +686,7 @@ describe("file_browser", () => {
 
     document.getElementById("browse-up").click();
     await flushAsyncWork();
-    expect(browseRequests().at(-1)).toBe("/api/browse?sort=name_asc&series_mode=all");
+    expect(browseRequests().at(-1)).toBe("/api/browse?sort=name_asc&series_mode=first_only");
   });
 
   it("collapses HDF5 master/data files to the master in legacy first_only responses", async () => {
@@ -742,13 +744,13 @@ describe("file_browser", () => {
     pathInput.value = "processed/raw";
     pathInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await flushAsyncWork();
-    expect(browseRequests().at(-1)).toBe("/api/browse?path=processed%2Fraw&sort=name_asc&series_mode=all");
+    expect(browseRequests().at(-1)).toBe("/api/browse?path=processed%2Fraw&sort=name_asc&series_mode=first_only");
 
     // A typed file path lands in its containing folder.
     pathInput.value = "beam/scan_master.h5";
     pathInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await flushAsyncWork();
-    expect(browseRequests().at(-1)).toBe("/api/browse?path=beam&sort=name_asc&series_mode=all");
+    expect(browseRequests().at(-1)).toBe("/api/browse?path=beam&sort=name_asc&series_mode=first_only");
   });
 
   it("focuses the first entry on open for immediate keyboard navigation", async () => {
@@ -858,7 +860,7 @@ describe("file_browser", () => {
     // First click on a fresh column sorts ascending.
     sizeHeader().click();
     await flushAsyncWork();
-    expect(browseRequests().at(-1)).toBe("/api/browse?sort=size_asc&series_mode=all");
+    expect(browseRequests().at(-1)).toBe("/api/browse?sort=size_asc&series_mode=first_only");
     expect(sizeHeader().getAttribute("aria-sort")).toBe("ascending");
     expect(sizeHeader().querySelector(".browse-sort-caret").textContent).toBe("▴");
     expect(document.getElementById("browse-sort").value).toBe("size_asc");
@@ -866,7 +868,7 @@ describe("file_browser", () => {
     // Clicking the active column toggles to descending.
     sizeHeader().click();
     await flushAsyncWork();
-    expect(browseRequests().at(-1)).toBe("/api/browse?sort=size_desc&series_mode=all");
+    expect(browseRequests().at(-1)).toBe("/api/browse?sort=size_desc&series_mode=first_only");
     expect(sizeHeader().getAttribute("aria-sort")).toBe("descending");
     expect(sizeHeader().querySelector(".browse-sort-caret").textContent).toBe("▾");
     expect(document.getElementById("browse-sort").value).toBe("size_desc");
