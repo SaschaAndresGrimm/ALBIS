@@ -5356,6 +5356,41 @@ body.platform-windows select option:disabled {
   color: #9fb3d6;
 }
 
+button.browse-details-header-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+button.browse-details-header-cell:hover:not(:disabled) {
+  color: #cfe0ff;
+}
+
+button.browse-details-header-cell:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+button.browse-details-header-cell[aria-sort="ascending"],
+button.browse-details-header-cell[aria-sort="descending"] {
+  color: #cfe0ff;
+}
+
+.browse-sort-caret {
+  font-size: 9px;
+  line-height: 1;
+}
+
 .browse-item-details {
   padding: 0;
 }

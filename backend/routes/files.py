@@ -230,6 +230,23 @@ def _sort_browse_items(items: list[dict[str, Any]], sort: str) -> list[dict[str,
         return sorted(items, key=lambda item: (float(item.get("mtime", 0.0)), _natural_sort_key(item["name"])))
     if sort == "type_asc":
         return sorted(items, key=lambda item: (_natural_sort_key(item["ext"]), _natural_sort_key(item["name"])))
+    if sort == "type_desc":
+        return sorted(
+            items,
+            key=lambda item: (_natural_sort_key(item["ext"]), _natural_sort_key(item["name"])),
+            reverse=True,
+        )
+    if sort == "size_asc":
+        return sorted(
+            items,
+            key=lambda item: (int(item.get("sizeBytes", 0)), _natural_sort_key(item["name"])),
+        )
+    if sort == "size_desc":
+        return sorted(
+            items,
+            key=lambda item: (int(item.get("sizeBytes", 0)), _natural_sort_key(item["name"])),
+            reverse=True,
+        )
     return sorted(items, key=lambda item: _natural_sort_key(item["name"]))
 
 
@@ -456,9 +473,16 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
     def browse(
         path: str | None = Query(None),
         exts: str | None = Query(None),
-        sort: Literal["name_asc", "name_desc", "mtime_desc", "mtime_asc", "type_asc"] = Query(
-            "name_asc"
-        ),
+        sort: Literal[
+            "name_asc",
+            "name_desc",
+            "mtime_desc",
+            "mtime_asc",
+            "type_asc",
+            "type_desc",
+            "size_asc",
+            "size_desc",
+        ] = Query("name_asc"),
         series_mode: Literal["all", "first_only"] = Query("all"),
     ) -> BrowseResponse:
         """List folders and image files in a directory for web-based file browser."""

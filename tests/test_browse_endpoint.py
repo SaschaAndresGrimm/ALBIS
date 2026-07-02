@@ -119,6 +119,26 @@ def test_browse_endpoint_groups_series_and_sorts_naturally(tmp_path: Path) -> No
     assert grouped_payload["files"].count("scan_0002.h5") == 1
 
 
+def test_browse_endpoint_sorts_by_type_and_size(tmp_path: Path) -> None:
+    client = TestClient(app)
+    small = tmp_path / "b_small.tiff"
+    large = tmp_path / "a_large.tiff"
+    other = tmp_path / "c_other.edf"
+    small.write_bytes(b"x")  # 1 byte
+    large.write_bytes(b"x" * 100)  # 100 bytes
+    other.write_bytes(b"xx")  # 2 bytes
+
+    size_asc = client.get("/api/browse", params={"path": str(tmp_path), "sort": "size_asc"})
+    size_desc = client.get("/api/browse", params={"path": str(tmp_path), "sort": "size_desc"})
+    type_desc = client.get("/api/browse", params={"path": str(tmp_path), "sort": "type_desc"})
+
+    assert size_asc.status_code == 200
+    assert size_asc.json()["files"] == ["b_small.tiff", "c_other.edf", "a_large.tiff"]
+    assert size_desc.json()["files"] == ["a_large.tiff", "c_other.edf", "b_small.tiff"]
+    # type_desc: .tiff before .edf; names sorted within the reverse ordering.
+    assert type_desc.json()["files"] == ["b_small.tiff", "a_large.tiff", "c_other.edf"]
+
+
 def test_browse_endpoint_collapses_hdf5_master_data_series(tmp_path: Path) -> None:
     client = TestClient(app)
     master = tmp_path / "260616_CeO2_raw_master.h5"

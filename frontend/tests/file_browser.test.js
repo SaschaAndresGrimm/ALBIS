@@ -70,6 +70,9 @@ function buildBrowseDom() {
         <option value="mtime_desc">Newest first</option>
         <option value="mtime_asc">Oldest first</option>
         <option value="type_asc">Type</option>
+        <option value="type_desc">Type (Z-A)</option>
+        <option value="size_asc">Size (smallest)</option>
+        <option value="size_desc">Size (largest)</option>
       </select></label>
       <label id="browse-series-field"><select id="browse-series-mode">
         <option value="all">All files</option>
@@ -826,5 +829,46 @@ describe("file_browser", () => {
 
     expect(document.querySelector(".browse-folders .browse-section-title").textContent).toBe("Folders (2)");
     expect(document.querySelector(".browse-files .browse-section-title").textContent).toBe("Image Files (2)");
+  });
+
+  it("sorts by clicking Details column headers and reflects direction with a caret", async () => {
+    localStorage.setItem("albis.browseViewMode", "details");
+    const controller = await createController({
+      fetchHandler: () =>
+        jsonResponse({
+          folders: [],
+          files: ["a.tiff", "b.tiff"],
+          fileItems: [
+            { name: "a.tiff", path: "a.tiff", ext: ".tiff", mtime: 10, sizeBytes: 100, isSeriesLead: false, seriesCount: 1 },
+            { name: "b.tiff", path: "b.tiff", ext: ".tiff", mtime: 20, sizeBytes: 200, isSeriesLead: false, seriesCount: 1 },
+          ],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        }),
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const sizeHeader = () => document.querySelector('.browse-details-header [data-sort-column="size"]');
+
+    // First click on a fresh column sorts ascending.
+    sizeHeader().click();
+    await flushAsyncWork();
+    expect(browseRequests().at(-1)).toBe("/api/browse?sort=size_asc&series_mode=all");
+    expect(sizeHeader().getAttribute("aria-sort")).toBe("ascending");
+    expect(sizeHeader().querySelector(".browse-sort-caret").textContent).toBe("▴");
+    expect(document.getElementById("browse-sort").value).toBe("size_asc");
+
+    // Clicking the active column toggles to descending.
+    sizeHeader().click();
+    await flushAsyncWork();
+    expect(browseRequests().at(-1)).toBe("/api/browse?sort=size_desc&series_mode=all");
+    expect(sizeHeader().getAttribute("aria-sort")).toBe("descending");
+    expect(sizeHeader().querySelector(".browse-sort-caret").textContent).toBe("▾");
+    expect(document.getElementById("browse-sort").value).toBe("size_desc");
   });
 });

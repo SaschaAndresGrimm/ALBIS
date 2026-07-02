@@ -21,7 +21,33 @@ const BROWSE_SERIES_CAPABLE_EXTS = [...SERIES_IMAGE_EXTS, ...HDF_EXTS];
 const BROWSE_SERIES_CAPABLE_SET = new Set(BROWSE_SERIES_CAPABLE_EXTS);
 const HDF_MASTER_RE = /^(.+?)_master\.(?:h5|hdf5)$/i;
 const HDF_DATA_RE = /^(.+?)_data_(\d+)\.(?:h5|hdf5)$/i;
-const VALID_SORTS = new Set(["name_asc", "name_desc", "mtime_desc", "mtime_asc", "type_asc"]);
+const VALID_SORTS = new Set([
+  "name_asc",
+  "name_desc",
+  "mtime_desc",
+  "mtime_asc",
+  "type_asc",
+  "type_desc",
+  "size_asc",
+  "size_desc",
+]);
+// Maps a Details column to its [ascending, descending] sort mode.
+const COLUMN_SORTS = {
+  name: ["name_asc", "name_desc"],
+  type: ["type_asc", "type_desc"],
+  modified: ["mtime_asc", "mtime_desc"],
+  size: ["size_asc", "size_desc"],
+};
+const SORT_COLUMN = {
+  name_asc: "name",
+  name_desc: "name",
+  type_asc: "type",
+  type_desc: "type",
+  mtime_asc: "modified",
+  mtime_desc: "modified",
+  size_asc: "size",
+  size_desc: "size",
+};
 const VALID_SERIES_MODES = new Set(["all", "first_only"]);
 const VALID_VIEW_MODES = new Set(["list", "details"]);
 const STORAGE_KEYS = {
@@ -232,6 +258,24 @@ function sortFileItems(items, sortMode) {
     return working.sort((left, right) => {
       const extDelta = compareNatural(left.ext, right.ext);
       return extDelta || compareNatural(left.name, right.name);
+    });
+  }
+  if (sortMode === "type_desc") {
+    return working.sort((left, right) => {
+      const extDelta = compareNatural(right.ext, left.ext);
+      return extDelta || compareNatural(left.name, right.name);
+    });
+  }
+  if (sortMode === "size_asc") {
+    return working.sort((left, right) => {
+      const delta = Number(left.sizeBytes || 0) - Number(right.sizeBytes || 0);
+      return delta || compareNatural(left.name, right.name);
+    });
+  }
+  if (sortMode === "size_desc") {
+    return working.sort((left, right) => {
+      const delta = Number(right.sizeBytes || 0) - Number(left.sizeBytes || 0);
+      return delta || compareNatural(left.name, right.name);
     });
   }
   return working.sort((left, right) => compareNatural(left.name, right.name));
@@ -595,17 +639,47 @@ export function createFileBrowserController({
     browseUpBtn.disabled = browseModalBusy || !state.canGoUp;
   }
 
+  function canSortByMtime() {
+    return state.rawFileItems.some((item) => Number(item.mtime || 0) > 0);
+  }
+
+  function canSortBySize() {
+    return state.rawFileItems.some((item) => Number(item.sizeBytes || 0) > 0);
+  }
+
+  function isSortModeAvailable(sort) {
+    if (sort === "mtime_asc" || sort === "mtime_desc") return canSortByMtime();
+    if (sort === "size_asc" || sort === "size_desc") return canSortBySize();
+    return true;
+  }
+
   function syncBrowseSortState() {
     if (!browseSortSelect) return;
-    const canSortByMtime = state.rawFileItems.some((item) => Number(item.mtime || 0) > 0);
     Array.from(browseSortSelect.options).forEach((option) => {
-      option.disabled = !canSortByMtime && (option.value === "mtime_desc" || option.value === "mtime_asc");
+      option.disabled = !isSortModeAvailable(option.value);
     });
-    if (!canSortByMtime && (state.sort === "mtime_desc" || state.sort === "mtime_asc")) {
+    if (!isSortModeAvailable(state.sort)) {
       state.sort = DEFAULT_SORT;
       browseSortSelect.value = state.sort;
     }
     browseSortSelect.disabled = browseModalBusy;
+  }
+
+  function applySort(nextSort) {
+    const sort = VALID_SORTS.has(nextSort) ? nextSort : DEFAULT_SORT;
+    if (sort === state.sort) return;
+    state.sort = sort;
+    if (browseSortSelect) browseSortSelect.value = state.sort;
+    persistBrowseControlPreferences();
+    loadAndRenderBrowser(state.currentPath).catch((err) => console.error(err));
+  }
+
+  function sortForColumnClick(column) {
+    const [asc, desc] = COLUMN_SORTS[column] || [];
+    if (!asc) return state.sort;
+    if (state.sort === asc) return desc;
+    if (state.sort === desc) return asc;
+    return asc;
   }
 
   function setBrowseModalBusy(isBusy, statusText = "") {
@@ -908,10 +982,35 @@ export function createFileBrowserController({
       ["size", t("browse.details.header.size")],
     ];
 
+    const activeColumn = SORT_COLUMN[state.sort];
+    const activeDesc = state.sort.endsWith("_desc");
+
     columns.forEach(([name, label]) => {
-      const cell = document.createElement("span");
+      const cell = document.createElement("button");
+      cell.type = "button";
       cell.className = `browse-details-header-cell browse-details-col-${name}`;
-      cell.textContent = label;
+      cell.dataset.sortColumn = name;
+      const isActive = name === activeColumn;
+      cell.setAttribute("aria-sort", isActive ? (activeDesc ? "descending" : "ascending") : "none");
+      cell.disabled = !isSortModeAvailable(COLUMN_SORTS[name][0]);
+
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "browse-details-header-label";
+      labelSpan.textContent = label;
+      cell.appendChild(labelSpan);
+
+      if (isActive) {
+        const caret = document.createElement("span");
+        caret.className = "browse-sort-caret";
+        caret.setAttribute("aria-hidden", "true");
+        caret.textContent = activeDesc ? "▾" : "▴";
+        cell.appendChild(caret);
+      }
+
+      cell.addEventListener("click", () => {
+        if (cell.disabled) return;
+        applySort(sortForColumnClick(name));
+      });
       header.appendChild(cell);
     });
 
@@ -1444,9 +1543,7 @@ export function createFileBrowserController({
   });
 
   browseSortSelect?.addEventListener("change", () => {
-    state.sort = browseSortSelect.value || DEFAULT_SORT;
-    persistBrowseControlPreferences();
-    loadAndRenderBrowser(state.currentPath).catch((err) => console.error(err));
+    applySort(browseSortSelect.value || DEFAULT_SORT);
   });
 
   browseSeriesModeSelect?.addEventListener("change", () => {
