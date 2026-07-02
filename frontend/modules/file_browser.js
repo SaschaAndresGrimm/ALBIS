@@ -14,6 +14,7 @@ const DEFAULT_VIEW_MODE = "list";
 const FORMAT_ALL = "__all__";
 const EXPT_EXTS = [".expt"];
 const DEFAULT_BROWSE_EXTS = [...HDF_EXTS, ...TIFF_EXTS, ...CBF_EXTS, ...EDF_EXTS];
+const KNOWN_BROWSE_EXTS = new Set([...DEFAULT_BROWSE_EXTS, ".expt"]);
 const LOCAL_SERIES_EXTS = new Set(SERIES_IMAGE_EXTS);
 const HDF_SERIES_EXTS = new Set(HDF_EXTS);
 const BROWSE_SERIES_CAPABLE_EXTS = [...SERIES_IMAGE_EXTS, ...HDF_EXTS];
@@ -417,6 +418,9 @@ export function createFileBrowserController({
   let browseModalBusy = false;
   let browseRequestId = 0;
   let fileDialogPromise = null;
+  let pendingInitialFocus = false;
+  const browseFoldersTitle = browseFoldersList?.previousElementSibling || null;
+  const browseFilesTitle = browseFilesList?.previousElementSibling || null;
   const isBackendLocal = detectBackendLocal(apiBase);
   const dateTimeFormatter = (() => {
     try {
@@ -431,6 +435,29 @@ export function createFileBrowserController({
     browseStatus.textContent = text || "";
     browseStatus.classList.toggle("is-error", Boolean(isError));
     browseStatus.classList.toggle("is-loading", Boolean(isLoading));
+  }
+
+  function showBrowseLoadError(path) {
+    setBrowseStatus(t("file_browser.failed_load"), { isError: true });
+    if (!browseStatus) return;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "browse-retry-btn";
+    retry.textContent = t("file_browser.retry");
+    retry.addEventListener("click", () => {
+      loadAndRenderBrowser(path).catch((err) => console.error(err));
+    });
+    browseStatus.appendChild(document.createTextNode(" "));
+    browseStatus.appendChild(retry);
+  }
+
+  function updateSectionCounts() {
+    const setCount = (titleEl, key, count) => {
+      if (!titleEl) return;
+      titleEl.textContent = count > 0 ? `${t(key)} (${count})` : t(key);
+    };
+    setCount(browseFoldersTitle, "browse.section.folders", state.folders.length);
+    setCount(browseFilesTitle, "browse.section.image_files", state.fileItems.length);
   }
 
   function isStackedBrowseLayout() {
@@ -742,6 +769,16 @@ export function createFileBrowserController({
     const button = browseModal?.querySelector(selector);
     if (button instanceof HTMLElement) {
       button.focus({ preventScroll: true });
+    }
+  }
+
+  function focusInitialBrowseItem() {
+    if (state.folders.length) {
+      focusBrowseItem("folders", 0);
+    } else if (state.fileItems.length) {
+      focusBrowseItem("files", 0);
+    } else {
+      browseSearchInput?.focus();
     }
   }
 
@@ -1083,6 +1120,7 @@ export function createFileBrowserController({
     filterBrowseItems();
     renderFolders();
     renderFiles();
+    updateSectionCounts();
     if (!restoreVisibleSelection(previousSelection)) {
       applyDirectorySelectionDefaults();
     }
@@ -1162,8 +1200,12 @@ export function createFileBrowserController({
       if (data) {
         renderBrowseContent(data);
         setBrowseStatus("");
+        if (pendingInitialFocus) {
+          pendingInitialFocus = false;
+          focusInitialBrowseItem();
+        }
       } else {
-        setBrowseStatus(t("file_browser.failed_load"), { isError: true });
+        showBrowseLoadError(path);
       }
     } finally {
       if (requestId === browseRequestId) {
@@ -1210,6 +1252,7 @@ export function createFileBrowserController({
 
   function openFileBrowser(mode, inputElement) {
     const initialPath = readStoredValue(STORAGE_KEYS.browseLastPath) || "";
+    pendingInitialFocus = true;
     state.mode = mode;
     state.inputElement = inputElement;
     state.currentPath = initialPath;
@@ -1229,6 +1272,7 @@ export function createFileBrowserController({
     const exts = typeof options === "object" && options !== null ? String(options.exts || "") : "";
     return new Promise((resolve, reject) => {
       const initialPath = readStoredValue(STORAGE_KEYS.browseLastPath) || "";
+      pendingInitialFocus = true;
       settleFileDialog("");
       fileDialogPromise = { resolve, reject };
       state.mode = "file-open";
@@ -1310,6 +1354,19 @@ export function createFileBrowserController({
     return true;
   }
 
+  function submitTypedPath() {
+    if (!browsePathInput) return;
+    const raw = String(browsePathInput.value || "").trim();
+    // Jumping to a file path lands in its folder; a directory path opens directly.
+    const target = raw && KNOWN_BROWSE_EXTS.has(inferFileExt(raw)) ? deriveParentPath(raw) : raw;
+    if (target === state.currentPath) {
+      updatePathInput();
+      return;
+    }
+    clearSearchQuery({ rerender: false });
+    loadAndRenderBrowser(target).catch((err) => console.error(err));
+  }
+
   function moveSelection(direction) {
     const panes = state.focusPane === "folders" ? ["folders", "files"] : ["files", "folders"];
     let pane = panes.find((candidate) => (candidate === "folders" ? state.folders.length : state.fileItems.length));
@@ -1365,6 +1422,18 @@ export function createFileBrowserController({
 
   browseSearchClearBtn?.addEventListener("click", () => {
     clearSearchQuery({ focusInput: true });
+  });
+
+  browsePathInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitTypedPath();
+    }
+  });
+
+  browsePathInput?.addEventListener("blur", () => {
+    // Discard any uncommitted edits so the field reflects the actual location.
+    updatePathInput();
   });
 
   browseFormatSelect?.addEventListener("change", () => {
@@ -1429,8 +1498,11 @@ export function createFileBrowserController({
       return;
     }
 
+    const target = event.target;
+    const inEditableField = target instanceof HTMLElement
+      && (target.tagName === "TEXTAREA" || (target.tagName === "INPUT" && !target.readOnly));
     if (
-      (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey)
+      (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey && !inEditableField)
       || (event.key.toLowerCase() === "f" && event.ctrlKey)
     ) {
       browseSearchInput?.focus();

@@ -26,6 +26,9 @@ function buildFetchMock(handler) {
         "browse.search.clear": "Clear",
         "browse.search.label": "Search",
         "browse.search.placeholder": "Search files and folders",
+        "browse.section.folders": "Folders",
+        "browse.section.image_files": "Image Files",
+        "browse.path.hint": "Type or paste a path, then press Enter",
         "browse.title.select_file": "Select File",
         "browse.title.select_folder": "Select Folder",
         "browse.view.label": "View",
@@ -35,6 +38,7 @@ function buildFetchMock(handler) {
         "file_browser.loading": "Loading {{label}}",
         "file_browser.no_folders": "No folders",
         "file_browser.no_images": "No files",
+        "file_browser.retry": "Retry",
         "file_browser.root": "Root",
         "file_browser.series_badge": "Series • {{count}}",
         "status.file.select_image_first": "Select a file first",
@@ -76,9 +80,15 @@ function buildBrowseDom() {
         <option value="details">Details</option>
       </select></label>
       <div id="browse-content" class="browse-content">
-        <div class="browse-folders"><div id="browse-folders-list"></div></div>
+        <div class="browse-folders">
+          <div class="browse-section-title" data-i18n="browse.section.folders">Folders</div>
+          <div id="browse-folders-list"></div>
+        </div>
         <div id="browse-splitter"></div>
-        <div class="browse-files"><div id="browse-files-list"></div></div>
+        <div class="browse-files">
+          <div class="browse-section-title" data-i18n="browse.section.image_files">Image Files</div>
+          <div id="browse-files-list"></div>
+        </div>
       </div>
       <input id="browse-path-input" />
       <div id="browse-status"></div>
@@ -703,5 +713,118 @@ describe("file_browser", () => {
     expect(fileNames).toContain("series_sum_dark_20260618_081052.h5");
     expect(fileNames).not.toContain("260616_CeO2_raw_data_000001.h5");
     expect(fileNames).not.toContain("260616_CeO2_raw_data_000002.h5");
+  });
+
+  it("jumps to a typed directory (or a file's folder) from the path field on Enter", async () => {
+    const controller = await createController({
+      fetchHandler: (url) => {
+        const path = new URL(url, "http://localhost").searchParams.get("path") || "";
+        return jsonResponse({
+          folders: [],
+          files: [],
+          fileItems: [],
+          currentPath: path,
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: Boolean(path),
+          allowAbsolutePaths: true,
+        });
+      },
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+    const pathInput = document.getElementById("browse-path-input");
+
+    pathInput.value = "processed/raw";
+    pathInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flushAsyncWork();
+    expect(browseRequests().at(-1)).toBe("/api/browse?path=processed%2Fraw&sort=name_asc&series_mode=all");
+
+    // A typed file path lands in its containing folder.
+    pathInput.value = "beam/scan_master.h5";
+    pathInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flushAsyncWork();
+    expect(browseRequests().at(-1)).toBe("/api/browse?path=beam&sort=name_asc&series_mode=all");
+  });
+
+  it("focuses the first entry on open for immediate keyboard navigation", async () => {
+    const controller = await createController({
+      fetchHandler: () =>
+        jsonResponse({
+          folders: ["alpha", "beta"],
+          files: [],
+          fileItems: [],
+          currentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        }),
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const active = document.activeElement;
+    expect(active?.classList.contains("browse-item")).toBe(true);
+    expect(active?.getAttribute("data-browse-pane")).toBe("folders");
+  });
+
+  it("offers a retry action when a directory fails to load", async () => {
+    let failNext = true;
+    const controller = await createController({
+      fetchHandler: () => {
+        if (failNext) return { ok: false, status: 500, json: async () => ({}) };
+        return jsonResponse({
+          folders: ["ok"],
+          files: [],
+          fileItems: [],
+          currentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        });
+      },
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const status = document.getElementById("browse-status");
+    expect(status.classList.contains("is-error")).toBe(true);
+    const retryBtn = status.querySelector(".browse-retry-btn");
+    expect(retryBtn).not.toBeNull();
+
+    failNext = false;
+    retryBtn.click();
+    await flushAsyncWork();
+
+    expect(status.querySelector(".browse-retry-btn")).toBeNull();
+    expect(Array.from(document.querySelectorAll("#browse-folders-list .browse-item")).map((item) => item.textContent))
+      .toEqual(["ok"]);
+  });
+
+  it("shows folder and file counts in the section titles", async () => {
+    const controller = await createController({
+      fetchHandler: () =>
+        jsonResponse({
+          folders: ["a", "b"],
+          files: ["x.tiff", "y.tiff"],
+          fileItems: [
+            { name: "x.tiff", path: "x.tiff", ext: ".tiff", mtime: 1, sizeBytes: 1, isSeriesLead: false, seriesCount: 1 },
+            { name: "y.tiff", path: "y.tiff", ext: ".tiff", mtime: 1, sizeBytes: 1, isSeriesLead: false, seriesCount: 1 },
+          ],
+          currentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        }),
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    expect(document.querySelector(".browse-folders .browse-section-title").textContent).toBe("Folders (2)");
+    expect(document.querySelector(".browse-files .browse-section-title").textContent).toBe("Image Files (2)");
   });
 });

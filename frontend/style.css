@@ -5456,6 +5456,21 @@ body.platform-windows select option:disabled {
   color: #ff9a9a;
 }
 
+.browse-retry-btn {
+  margin-left: 6px;
+  padding: 1px 8px;
+  font: inherit;
+  color: var(--accent, #6db3ff);
+  background: transparent;
+  border: 1px solid rgba(109, 179, 255, 0.5);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.browse-retry-btn:hover {
+  background: rgba(109, 179, 255, 0.14);
+}
+
 @media (max-width: 760px) {
   .browse-content {
     grid-template-columns: 1fr;
