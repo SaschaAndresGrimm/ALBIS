@@ -1,3 +1,42 @@
+[project]
+name = "albis"
+version = "0.10.6"
+description = "ALBIS — a local, browser-based image viewer for synchrotron/DECTRIS detector data (HDF5, TIFF, CBF, EDF)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Sascha Grimm" }]
+keywords = [
+  "dectris",
+  "image-viewer",
+  "hdf5",
+  "detector",
+  "albula",
+  "eiger",
+  "pilatus",
+  "jungfrau",
+  "scientific-imaging",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Web Environment",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Visualization",
+]
+
+# Runtime dependencies are pinned in backend/requirements.txt. ALBIS is
+# distributed as prebuilt desktop binaries (PyInstaller) and Docker images
+# rather than as a pip-installable package, so they are not duplicated here.
+
+[project.urls]
+Homepage = "https://github.com/SaschaAndresGrimm/ALBIS"
+Repository = "https://github.com/SaschaAndresGrimm/ALBIS.git"
+Issues = "https://github.com/SaschaAndresGrimm/ALBIS/issues"
+Changelog = "https://github.com/SaschaAndresGrimm/ALBIS/blob/main/CHANGELOG.md"
+
 [tool.black]
 line-length = 100
 target-version = ["py310"]

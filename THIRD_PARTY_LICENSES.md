@@ -16,10 +16,10 @@ here.
 
 | Component | Version | License | Copyright |
 |---|---|---|---|
-| FastAPI | 0.138.0 | MIT | © 2018 Sebastián Ramírez |
+| FastAPI | 0.139.0 | MIT | © 2018 Sebastián Ramírez |
 | Uvicorn | 0.49.0 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
 | python-multipart | 0.0.32 | Apache-2.0 | © Andrew Dunham |
-| hdf5plugin | 6.0.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
+| hdf5plugin | 7.0.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
 | h5py | 3.16.0 | BSD-3-Clause | © 2008 Andrew Collette and contributors |
 | NumPy | 2.2.6 | BSD-3-Clause | © 2005-2023 NumPy Developers |
 | tifffile | 2025.5.10 | BSD-3-Clause | © 2008-2025 Christoph Gohlke |
@@ -27,7 +27,7 @@ here.
 | cbor2 | 6.1.2 | MIT | © 2016 Alex Grönholm |
 | PyZMQ | 27.1.0 | BSD-3-Clause | © 2009-2012 Brian Granger, Min Ragan-Kelley (bundles libzmq, MPL-2.0) |
 | dectris-compression | 0.3.1 | MIT | © 2020 DECTRIS Ltd. |
-| certifi | 2026.1.4 | MPL-2.0 | © Kenneth Reitz (bundles Mozilla CA certificates) |
+| certifi | 2026.6.17 | MPL-2.0 | © Kenneth Reitz (bundles Mozilla CA certificates) |
 | pyobjc (macOS only) | 12.2.1 | MIT | © 2002-2025 Ronald Oussoren et al. |
 | html2canvas | 1.4.1 | MIT | © 2022 Niklas von Hertzen |
 

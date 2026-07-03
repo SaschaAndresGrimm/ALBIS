@@ -7,6 +7,67 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-07-03
+
+### Added
+
+- File browser: click a Details-view column header (**Name / Type / Modified / Size**) to sort, click again to flip direction, with a caret indicating order. Adds Size and reverse-Type sorting; the header and the Sort dropdown stay in sync.
+- File browser: the Path field is now editable — type or paste a directory and press Enter to jump there (a file path drops you in its folder). A non-existent path shows a clear "Path not found" instead of silently redirecting to Root.
+- File browser: press Enter in the search box to jump to the first match (and open it if it is the only match). Folder/file counts now appear in the section headers (e.g. `Image Files (241)`), and a failed load offers a one-click **Retry**.
+- Backend `/api/browse`: new `requestedPathMissing` flag plus `type_desc` / `size_asc` / `size_desc` sort modes. New i18n strings localized across all 13 locales.
+
+### Changed
+
+- File browser: larger, responsive window that scales to the screen; the file list expands to the bottom instead of a small fixed height.
+- File browser: Details view and **First image only** are now the defaults.
+- Selection now survives a re-sort — reloading the same directory restores the highlighted file by path, so the Select button no longer blinks off when reordering.
+- Series and sort choices are no longer reset when passing through a folder that cannot use them; the control disables and the choice returns on the next compatible folder.
+- Folder-select mode is a true folder picker: the file list and file-only filters step aside so a file can't be picked when a folder is required. The browser focuses the first entry on open for immediate keyboard navigation.
+
+### Notes
+
+- The file-browser polish release: bigger window, click-to-sort columns, editable path, better defaults, and smarter search.
+- This release is called: "Browse Like You Mean It."
+
+## [0.10.5] - 2026-07-01
+
+### Added
+
+- File browser: remembers the last directory across sessions and reopens there instead of returning to root; a vanished path safely falls back to root.
+- File browser: the **First image only** filter now collapses a DECTRIS HDF5 series (`PREFIX_master.h5` + `PREFIX_data_000001.h5…`) down to the single master file, with a badge counting the hidden data files. Standalone and summed `.h5` files are left in place.
+
+### Changed
+
+- When ALBIS asks you to choose a *folder*, the dialog now shows folders only: the file list, format filter, and series filter step aside, the folders pane goes full-width, and the current folder is pre-selected so **Select** is armed on open. File-open mode is unchanged.
+- HDF5 series detection uses a strict `_master.h5` / `_data_NNNNNN.h5` matcher, so ordinary numbered `.h5` files are never grouped by accident; backend and frontend aggregate identically.
+- Housekeeping: bumped `hdf5plugin`, several Python deps, and ESLint via Dependabot.
+
+### Notes
+
+- The file browser gains a memory, series-to-master collapsing, and a real folder picker.
+- This release is called: "Now Where Was I?"
+
+## [0.10.4] - 2026-07-01
+
+### Added
+
+- Peak Finder: every peak now shows its local signal-to-noise (SNR) in the table — the score the finder already ranked by, previously discarded.
+- Peak Finder: with detector geometry set, the list gains a **d (Å)** column showing each reflection's resolution shell; it updates instantly when distance or beam center changes and hides itself when there is no geometry.
+
+### Changed
+
+- Peak Finder: peaks now land on their intensity-weighted centre of mass (sub-pixel centroids) instead of the brightest pixel.
+- Peak Finder: local-maxima detection went from 4- to 8-connected, so spots behind a diagonal neighbour are no longer missed and flat plateaus are not double-counted.
+
+### Fixed
+
+- Peak Finder: a footprint check now rejects lone hot pixels and cosmic-ray spikes (zingers) before they reach the list. Still a single linear full-resolution pass — no downsampling, same speed.
+
+### Notes
+
+- The Peak Finder release: cleaner spots, sub-pixel centroids, and SNR + resolution right in the table.
+- This release is called: "Spot On."
+
 ## [0.10.3] - 2026-06-30
 
 ### Added

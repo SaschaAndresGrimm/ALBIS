@@ -20,6 +20,15 @@ test_data/
 coverage.xml
 htmlcov/
 
+# Tool caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Runtime data root and local (non-example) config
+/data/
+albis.config.json
+
 # AI assistant / nanoclaw files
 .claude/
 ALBIS_REVIEW.md
