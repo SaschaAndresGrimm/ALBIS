@@ -233,6 +233,7 @@
   "file_browser.loading": "Indlæser {{label}}...",
   "file_browser.no_folders": "Ingen mapper",
   "file_browser.no_images": "Ingen billedfiler",
+  "file_browser.path_not_found": "Sti ikke fundet — viser Root",
   "file_browser.root": "Rod",
   "file_browser.series_badge": "Serie • {{count}}",
   "files.select_placeholder": "Vælg en fil",

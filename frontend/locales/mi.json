@@ -233,6 +233,7 @@
   "file_browser.loading": "Uta ana {{label}}...",
   "file_browser.no_folders": "Karekau he kōpaki",
   "file_browser.no_images": "Kāore he konae whakaahua",
+  "file_browser.path_not_found": "Kāore i kitea te ara — e whakaatu ana i te Pūtake",
   "file_browser.root": "Pakiaka",
   "file_browser.series_badge": "Raupapa • {{count}}",
   "files.select_placeholder": "Tīpakohia he kōnae",

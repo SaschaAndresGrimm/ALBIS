@@ -271,6 +271,7 @@ class BrowseResponse(_StrictModel):
     root: str
     canGoUp: bool
     allowAbsolutePaths: bool
+    requestedPathMissing: bool = False
 
 
 class AutoloadLatestResponse(_StrictModel):

@@ -233,6 +233,7 @@
   "file_browser.loading": "Chargement de {{label}}...",
   "file_browser.no_folders": "Aucun dossier",
   "file_browser.no_images": "Aucun fichier image",
+  "file_browser.path_not_found": "Chemin introuvable — affichage de Root",
   "file_browser.root": "Racine",
   "file_browser.series_badge": "Série • {{count}}",
   "files.select_placeholder": "Sélectionnez un fichier",

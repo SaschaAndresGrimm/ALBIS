@@ -233,6 +233,7 @@
   "file_browser.loading": "Carregando {{label}}...",
   "file_browser.no_folders": "Sem pastas",
   "file_browser.no_images": "Nenhum arquivo de imagem",
+  "file_browser.path_not_found": "Caminho não encontrado — mostrando Root",
   "file_browser.root": "Raiz",
   "file_browser.series_badge": "Série • {{count}}",
   "files.select_placeholder": "Selecione um arquivo",

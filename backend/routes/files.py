@@ -486,11 +486,13 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         series_mode: Literal["all", "first_only"] = Query("all"),
     ) -> BrowseResponse:
         """List folders and image files in a directory for web-based file browser."""
+        requested_path_missing = False
         try:
             target_dir = deps.resolve_dir(path)
         except HTTPException as exc:
             if exc.status_code == 404:
                 target_dir = deps.data_dir.resolve()
+                requested_path_missing = bool((path or "").strip())
             else:
                 raise
 
@@ -568,6 +570,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             root=str(data_root),
             canGoUp=can_go_up,
             allowAbsolutePaths=allow_absolute_paths,
+            requestedPathMissing=requested_path_missing,
         )
 
     @app.get("/api/autoload/latest", response_model=AutoloadLatestResponse)

@@ -233,6 +233,7 @@
   "file_browser.loading": "正在加载 {{label}}...",
   "file_browser.no_folders": "无文件夹",
   "file_browser.no_images": "无图像文件",
+  "file_browser.path_not_found": "找不到路径 — 显示根目录",
   "file_browser.root": "根目录",
   "file_browser.series_badge": "序列 • {{count}}",
   "files.select_placeholder": "选择文件",

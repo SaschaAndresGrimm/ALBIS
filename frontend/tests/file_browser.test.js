@@ -38,6 +38,7 @@ function buildFetchMock(handler) {
         "file_browser.loading": "Loading {{label}}",
         "file_browser.no_folders": "No folders",
         "file_browser.no_images": "No files",
+        "file_browser.path_not_found": "Path not found — showing Root",
         "file_browser.retry": "Retry",
         "file_browser.root": "Root",
         "file_browser.series_badge": "Series • {{count}}",
@@ -872,5 +873,159 @@ describe("file_browser", () => {
     expect(sizeHeader().getAttribute("aria-sort")).toBe("descending");
     expect(sizeHeader().querySelector(".browse-sort-caret").textContent).toBe("▾");
     expect(document.getElementById("browse-sort").value).toBe("size_desc");
+  });
+
+  it("keeps the selected file when re-sorting the same directory", async () => {
+    localStorage.setItem("albis.browseViewMode", "details");
+    const controller = await createController({
+      fetchHandler: () =>
+        jsonResponse({
+          folders: [],
+          files: ["a.tiff", "b.tiff"],
+          fileItems: [
+            { name: "a.tiff", path: "a.tiff", ext: ".tiff", mtime: 10, sizeBytes: 100, isSeriesLead: false, seriesCount: 1 },
+            { name: "b.tiff", path: "b.tiff", ext: ".tiff", mtime: 20, sizeBytes: 200, isSeriesLead: false, seriesCount: 1 },
+          ],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        }),
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const bButton = Array.from(document.querySelectorAll("#browse-files-list .browse-item"))
+      .find((el) => el.getAttribute("title") === "b.tiff");
+    bButton.click();
+    expect(document.getElementById("browse-select").disabled).toBe(false);
+    expect(document.getElementById("browse-path-input").value).toBe("b.tiff");
+
+    document.querySelector('.browse-details-header [data-sort-column="size"]').click();
+    await flushAsyncWork();
+
+    // The selection survives the sort reload of the same directory.
+    expect(document.getElementById("browse-select").disabled).toBe(false);
+    expect(document.getElementById("browse-path-input").value).toBe("b.tiff");
+  });
+
+  it("preserves the chosen series mode when passing through a non-series folder", async () => {
+    localStorage.setItem("albis.browseSeriesMode", "all");
+    const controller = await createController({
+      fetchHandler: (url) => {
+        const path = new URL(url, "http://localhost").searchParams.get("path") || "";
+        if (path === "expt_only") {
+          return jsonResponse({
+            folders: [],
+            files: ["a.expt"],
+            fileItems: [{ name: "a.expt", path: "expt_only/a.expt", ext: ".expt", mtime: 1, sizeBytes: 1, isSeriesLead: false, seriesCount: 1 }],
+            currentPath: "expt_only",
+            parentPath: "",
+            root: "/tmp",
+            canGoUp: true,
+            allowAbsolutePaths: true,
+          });
+        }
+        return jsonResponse({
+          folders: ["expt_only"],
+          files: ["x.tiff"],
+          fileItems: [{ name: "x.tiff", path: "x.tiff", ext: ".tiff", mtime: 1, sizeBytes: 1, isSeriesLead: false, seriesCount: 1 }],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        });
+      },
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const series = document.getElementById("browse-series-mode");
+    expect(series.value).toBe("all");
+
+    document.querySelector("#browse-folders-list .browse-item").dispatchEvent(
+      new window.MouseEvent("dblclick", { bubbles: true }),
+    );
+    await flushAsyncWork();
+
+    // Disabled on the incompatible folder, but the choice is not clobbered.
+    expect(series.disabled).toBe(true);
+    expect(series.value).toBe("all");
+  });
+
+  it("shows a not-found message when a typed path falls back to root", async () => {
+    const controller = await createController({
+      fetchHandler: (url) => {
+        const path = new URL(url, "http://localhost").searchParams.get("path") || "";
+        const missing = path === "does/not/exist";
+        return jsonResponse({
+          folders: ["real"],
+          files: [],
+          fileItems: [],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+          requestedPathMissing: missing,
+        });
+      },
+    });
+
+    void controller.openFileDialog();
+    await flushAsyncWork();
+
+    const pathInput = document.getElementById("browse-path-input");
+    pathInput.value = "does/not/exist";
+    pathInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flushAsyncWork();
+
+    const status = document.getElementById("browse-status");
+    expect(status.textContent).toContain("Path not found");
+    expect(status.classList.contains("is-error")).toBe(true);
+  });
+
+  it("selects the first search match on Enter, and opens it when it is the only one", async () => {
+    const controller = await createController({
+      fetchHandler: () =>
+        jsonResponse({
+          folders: [],
+          files: ["alpha.tiff", "alphabet.tiff", "beta.tiff"],
+          fileItems: [
+            { name: "alpha.tiff", path: "alpha.tiff", ext: ".tiff", mtime: 1, sizeBytes: 1, isSeriesLead: false, seriesCount: 1 },
+            { name: "alphabet.tiff", path: "alphabet.tiff", ext: ".tiff", mtime: 1, sizeBytes: 1, isSeriesLead: false, seriesCount: 1 },
+            { name: "beta.tiff", path: "beta.tiff", ext: ".tiff", mtime: 1, sizeBytes: 1, isSeriesLead: false, seriesCount: 1 },
+          ],
+          currentPath: "",
+          parentPath: "",
+          root: "/tmp",
+          canGoUp: false,
+          allowAbsolutePaths: true,
+        }),
+    });
+
+    const selectionPromise = controller.openFileDialog();
+    await flushAsyncWork();
+    const searchInput = document.getElementById("browse-search-input");
+
+    // Multiple matches: Enter selects the first without opening.
+    searchInput.value = "alpha";
+    searchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+    await flushAsyncWork();
+    searchInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await flushAsyncWork();
+    expect(document.getElementById("browse-path-input").value).toBe("alpha.tiff");
+
+    // Single match: Enter opens it.
+    searchInput.value = "beta";
+    searchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+    await flushAsyncWork();
+    searchInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    await expect(selectionPromise).resolves.toBe("beta.tiff");
   });
 });

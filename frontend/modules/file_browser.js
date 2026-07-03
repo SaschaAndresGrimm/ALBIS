@@ -658,10 +658,9 @@ export function createFileBrowserController({
     Array.from(browseSortSelect.options).forEach((option) => {
       option.disabled = !isSortModeAvailable(option.value);
     });
-    if (!isSortModeAvailable(state.sort)) {
-      state.sort = DEFAULT_SORT;
-      browseSortSelect.value = state.sort;
-    }
+    // Keep the chosen sort even when unavailable here (disabled option stays
+    // selected); it applies again on folders that have the needed metadata.
+    browseSortSelect.value = state.sort;
     browseSortSelect.disabled = browseModalBusy;
   }
 
@@ -794,9 +793,8 @@ export function createFileBrowserController({
     browseSeriesField?.classList.toggle("is-hidden", isFolderSelectMode());
     const hasSeriesCapableFilter = intersectsExts(getActiveBrowseExts(), BROWSE_SERIES_CAPABLE_EXTS);
     const hasSeriesCapableFiles = state.rawFileItems.some((item) => BROWSE_SERIES_CAPABLE_SET.has(inferFileExt(item.ext || item.name)));
-    if (!hasSeriesCapableFilter || (state.rawFileItems.length > 0 && !hasSeriesCapableFiles)) {
-      state.seriesMode = DEFAULT_SERIES_MODE;
-    }
+    // Disable (don't reset) on incompatible folders so the user's choice survives
+    // navigating through them; first_only is a harmless no-op on non-series files.
     browseSeriesModeSelect.disabled = browseModalBusy
       || !hasSeriesCapableFilter
       || (state.rawFileItems.length > 0 && !hasSeriesCapableFiles);
@@ -1278,7 +1276,9 @@ export function createFileBrowserController({
 
     updateBrowseTitle();
     renderBreadcrumb();
-    renderBrowseLists();
+    // Preserve the selection by path: a sort/filter reload of the same directory
+    // keeps it; navigating elsewhere drops it (the old path is no longer listed).
+    renderBrowseLists({ preserveSelection: true });
     syncBrowseSortState();
     syncFormatControl();
     syncSeriesControl();
@@ -1298,7 +1298,11 @@ export function createFileBrowserController({
       if (requestId !== browseRequestId) return;
       if (data) {
         renderBrowseContent(data);
-        setBrowseStatus("");
+        if (data.requestedPathMissing) {
+          setBrowseStatus(t("file_browser.path_not_found"), { isError: true });
+        } else {
+          setBrowseStatus("");
+        }
         if (pendingInitialFocus) {
           pendingInitialFocus = false;
           focusInitialBrowseItem();
@@ -1505,6 +1509,23 @@ export function createFileBrowserController({
     return false;
   }
 
+  function handleSearchEnter() {
+    // Prefer a file match, else the first folder. Open outright only when it is
+    // the sole match in a file-open dialog; otherwise just select + focus it.
+    if (state.fileItems.length) {
+      selectFileIndex(0, { focus: true });
+      if (state.fileItems.length === 1 && !state.folders.length && state.mode === "file-open") {
+        confirmBrowseSelection();
+      }
+      return true;
+    }
+    if (state.folders.length) {
+      selectFolderIndex(0, { focus: true });
+      return true;
+    }
+    return false;
+  }
+
   browseSelectBtn?.addEventListener("click", () => {
     confirmBrowseSelection();
   });
@@ -1605,6 +1626,11 @@ export function createFileBrowserController({
       browseSearchInput?.focus();
       browseSearchInput?.select();
       event.preventDefault();
+      return;
+    }
+
+    if (event.key === "Enter" && event.target === browseSearchInput) {
+      if (handleSearchEnter()) event.preventDefault();
       return;
     }
 

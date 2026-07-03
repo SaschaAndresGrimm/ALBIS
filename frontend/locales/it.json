@@ -233,6 +233,7 @@
   "file_browser.loading": "Caricamento {{label}}...",
   "file_browser.no_folders": "Nessuna cartella",
   "file_browser.no_images": "Nessun file di immagine",
+  "file_browser.path_not_found": "Percorso non trovato — mostro Root",
   "file_browser.root": "Radice",
   "file_browser.series_badge": "Serie • {{count}}",
   "files.select_placeholder": "Seleziona un file",

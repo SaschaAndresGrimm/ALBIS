@@ -139,6 +139,20 @@ def test_browse_endpoint_sorts_by_type_and_size(tmp_path: Path) -> None:
     assert type_desc.json()["files"] == ["b_small.tiff", "a_large.tiff", "c_other.edf"]
 
 
+def test_browse_endpoint_flags_missing_requested_path(tmp_path: Path) -> None:
+    client = TestClient(app)
+    (tmp_path / "real.tiff").write_bytes(b"x")
+
+    missing = client.get("/api/browse", params={"path": str(tmp_path / "nope")})
+    present = client.get("/api/browse", params={"path": str(tmp_path)})
+
+    assert missing.status_code == 200
+    # A non-existent path falls back to the data root and is flagged.
+    assert missing.json()["requestedPathMissing"] is True
+    assert present.status_code == 200
+    assert present.json()["requestedPathMissing"] is False
+
+
 def test_browse_endpoint_collapses_hdf5_master_data_series(tmp_path: Path) -> None:
     client = TestClient(app)
     master = tmp_path / "260616_CeO2_raw_master.h5"

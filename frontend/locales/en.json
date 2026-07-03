@@ -233,6 +233,7 @@
   "file_browser.loading": "Loading {{label}}...",
   "file_browser.no_folders": "No folders",
   "file_browser.no_images": "No image files",
+  "file_browser.path_not_found": "Path not found — showing Root",
   "file_browser.root": "Root",
   "file_browser.series_badge": "Series • {{count}}",
   "files.select_placeholder": "Select a file",

@@ -5277,7 +5277,6 @@ body.platform-windows select option:disabled {
 .browse-list {
   flex: 1;
   overflow: auto;
-  max-height: 320px;
   min-height: 0;
 }
 
@@ -5509,6 +5508,11 @@ button.browse-details-header-cell[aria-sort="descending"] {
 @media (max-width: 760px) {
   .browse-content {
     grid-template-columns: 1fr;
+  }
+
+  /* Stacked layout: the panes share one column, so cap each list so both stay visible. */
+  .browse-list {
+    max-height: 320px;
   }
 
   .browse-splitter {

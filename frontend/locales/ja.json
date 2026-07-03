@@ -233,6 +233,7 @@
   "file_browser.loading": "{{label}} を読み込み中...",
   "file_browser.no_folders": "フォルダーなし",
   "file_browser.no_images": "画像ファイルなし",
+  "file_browser.path_not_found": "パスが見つかりません — ルートを表示",
   "file_browser.root": "ルート",
   "file_browser.series_badge": "シリーズ • {{count}}",
   "files.select_placeholder": "ファイルを選択",

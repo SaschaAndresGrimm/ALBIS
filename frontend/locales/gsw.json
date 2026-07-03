@@ -233,6 +233,7 @@
   "file_browser.loading": "Lad {{label}}...",
   "file_browser.no_folders": "Kei Ordner",
   "file_browser.no_images": "Kei Bilddateie",
+  "file_browser.path_not_found": "Pfad nöd gfunde — zeig Root",
   "file_browser.root": "Wurzle",
   "file_browser.series_badge": "Serie • {{count}}",
   "files.select_placeholder": "E Datei uuswähle",

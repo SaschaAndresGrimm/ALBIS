@@ -233,6 +233,7 @@
   "file_browser.loading": "Chargiar {{label}}...",
   "file_browser.no_folders": "Nagins ordinaturs",
   "file_browser.no_images": "Naginas datotecas da maletgs",
+  "file_browser.path_not_found": "Percurs betg chattà — mussar Root",
   "file_browser.root": "Raiz",
   "file_browser.series_badge": "Seria • {{count}}",
   "files.select_placeholder": "Tscherna ina datoteca",
