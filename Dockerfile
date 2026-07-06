@@ -45,19 +45,28 @@ RUN python -m pip uninstall -y setuptools wheel
 COPY albis_assets/ albis_assets/
 COPY backend/ backend/
 COPY frontend/ frontend/
-COPY albis.config.json .
 COPY VERSION .
 
+# Generate the container runtime config. The live albis.config.json is not
+# tracked in git (see albis.config.example.jsonc for documented options), so the
+# image writes its own production config bound to 0.0.0.0:8000. Everything else
+# falls back to backend DEFAULT_CONFIG.
 RUN python - <<'PY'
 import json
 from pathlib import Path
 
-config_path = Path("albis.config.json")
-payload = json.loads(config_path.read_text(encoding="utf-8"))
-server = payload.setdefault("server", {})
-server["host"] = "0.0.0.0"
-server["port"] = 8000
-config_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+Path("albis.config.json").write_text(
+    json.dumps(
+        {
+            "server": {"host": "0.0.0.0", "port": 8000},
+            "data": {"root": "./data"},
+            "logging": {"dir": "./logs"},
+        },
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
 PY
 
 RUN addgroup --system albis \
