@@ -19,6 +19,12 @@ describe("file_type_utils", () => {
     expect(isHeaderCapableFile("frame_0001.h5")).toBe(false);
   });
 
+  it("treats a MYTHEN .cfg acquisition as header-capable but not a series", () => {
+    expect(isHeaderCapableFile("Acquisition0001.cfg")).toBe(true);
+    expect(isSeriesCapableFile("Acquisition0001.cfg")).toBe(false);
+    expect(isHdfFile("Acquisition0001.cfg")).toBe(false);
+  });
+
   it("detects series-capable files while excluding HDF5", () => {
     expect(isSeriesCapableFile("scan_0001.tiff")).toBe(true);
     expect(isSeriesCapableFile("scan_0001.h5")).toBe(false);

@@ -11,6 +11,18 @@ import { createTransientFrameLoadState } from "./transient_frame_load_state.js";
 // longer leaves the loading spinner up forever.
 const FRAME_LOAD_TIMEOUT_MS = 120000;
 
+// Parse the comma-separated X-Image-Bad-Channels header (strip-detector dead
+// channels) into a list of column indices to mask.
+export function parseBadChannels(headerValue) {
+  if (!headerValue) return [];
+  const out = [];
+  for (const token of String(headerValue).split(",")) {
+    const value = Number.parseInt(token.trim(), 10);
+    if (Number.isInteger(value) && value >= 0) out.push(value);
+  }
+  return out;
+}
+
 export function createFileDataPipelineController({
   apiBase,
   state,
@@ -192,6 +204,7 @@ export function createFileDataPipelineController({
       applyExternalFrame(data, shape, dtype, file, true, false, {
         autoMask: true,
         maskKey: `auto:${file}`,
+        maskColumns: parseBadChannels(res.headers.get("X-Image-Bad-Channels")),
       });
       loaded = true;
       setStatus(t("status.frame.position", { current: 1, total: 1 }), { frameStatus: true });

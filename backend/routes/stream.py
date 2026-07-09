@@ -121,6 +121,8 @@ class StreamRouteDeps:
     read_cbf: Callable[[Path], Any]
     read_cbf_gz: Callable[[Path], Any]
     read_edf: Callable[[Path], Any]
+    read_mythen_acquisition: Callable[[Path], tuple[Any, dict[str, Any]]]
+    mythen_header_text: Callable[[Path], str]
     pilatus_meta_from_tiff: Callable[[Path], dict[str, Any]]
     pilatus_meta_from_fabio: Callable[[Path], dict[str, Any]]
     pilatus_header_text: Callable[[Path], str]
@@ -153,7 +155,9 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         meta: dict[str, Any] = {}
         if ext in {".h5", ".hdf5"}:
             raise HTTPException(status_code=400, detail="Use /api/frame for HDF5 datasets")
-        if ext in {".tif", ".tiff"}:
+        if ext in {".cfg", ".dat"}:
+            arr, meta = deps.read_mythen_acquisition(path)
+        elif ext in {".tif", ".tiff"}:
             arr = deps.read_tiff(path, index=index)
             meta = deps.pilatus_meta_from_tiff(path)
         elif ext == ".cbf":
@@ -180,6 +184,13 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
                 center = meta["beam_center_px"]
                 add_optional_header(headers, "X-Image-BeamCenter-X", center[0])
                 add_optional_header(headers, "X-Image-BeamCenter-Y", center[1])
+            bad_channels = meta.get("bad_channels")
+            if bad_channels:
+                # Cap to keep the header well under typical 8 KiB limits.
+                capped = [int(c) for c in bad_channels[:1000]]
+                add_optional_header(
+                    headers, "X-Image-Bad-Channels", ",".join(str(c) for c in capped)
+                )
         return Response(content=data, media_type="application/octet-stream", headers=headers)
 
     @app.get("/api/image/header", response_model=ImageHeaderResponse)
@@ -191,6 +202,9 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             raise HTTPException(
                 status_code=400, detail="Header is only available for non-HDF images"
             )
+        if ext in {".cfg", ".dat"}:
+            header_text = deps.mythen_header_text(path)
+            return ImageHeaderResponse(header=header_text or "")
         header_text = deps.pilatus_header_text(path)
         deps.logger.debug("Image header (%s): %d chars", path.name, len(header_text))
         return ImageHeaderResponse(header=header_text or "")

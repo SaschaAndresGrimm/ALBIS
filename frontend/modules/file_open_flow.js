@@ -90,7 +90,7 @@ export function createFileOpenController({
         return;
       }
     } else if (filesystemMode?.value === "local") {
-      fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf";
+      fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf,.cfg";
       fileInput.multiple = true;
       fileInput.click();
       return;
@@ -106,7 +106,7 @@ export function createFileOpenController({
     }
 
     if (fileInput) {
-      fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf";
+      fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf,.cfg";
       fileInput.multiple = true;
     }
     fileInput?.click();

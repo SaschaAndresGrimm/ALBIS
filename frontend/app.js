@@ -1182,6 +1182,10 @@ function buildNegativeMask(data) {
   return maskCursorController.buildNegativeMask(data);
 }
 
+function buildColumnMask(width, height, columns, base = null) {
+  return maskCursorController.buildColumnMask(width, height, columns, base);
+}
+
 function alignMaskToFrame() {
   maskCursorController.alignMaskToFrame();
 }
@@ -2504,6 +2508,7 @@ fileSessionController = createFileSessionController({
     setDataControlsForImage,
     setDataControlsForSeries,
     buildNegativeMask,
+    buildColumnMask,
     updateMaskUI,
     getRenderer: () => renderer,
     isWebglUnsignedRawCandidate,
@@ -4125,7 +4130,7 @@ backendLogViewerController = createBackendLogViewerController({
 initializeMainUiBindings();
 
 async function handleLocalFileSelection(mode) {
-  fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf";
+  fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf,.cfg";
   fileInput.onchange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;

@@ -38,6 +38,7 @@ try:
     )
     from .image_formats import (
         _image_ext_name,
+        _mythen_header_text,
         _pilatus_header_text,
         _pilatus_image_geometry,
         _pilatus_meta_from_fabio,
@@ -46,6 +47,7 @@ try:
         _read_cbf,
         _read_cbf_gz,
         _read_edf,
+        _read_mythen_acquisition,
         _read_tiff,
         _read_tiff_bytes_with_simplon_meta,
         _resolve_series_files,
@@ -125,6 +127,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     )
     from image_formats import (
         _image_ext_name,
+        _mythen_header_text,
         _pilatus_header_text,
         _pilatus_image_geometry,
         _pilatus_meta_from_fabio,
@@ -133,6 +136,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         _read_cbf,
         _read_cbf_gz,
         _read_edf,
+        _read_mythen_acquisition,
         _read_tiff,
         _read_tiff_bytes_with_simplon_meta,
         _resolve_series_files,
@@ -238,7 +242,7 @@ _register_static_mime_types()
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 
-AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}
+AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf", ".cfg"}
 LOG_DIR: Path | None = None
 LOG_PATH: Path | None = None
 h5py = None
@@ -715,6 +719,8 @@ register_stream_routes(
         read_cbf=_read_cbf,
         read_cbf_gz=_read_cbf_gz,
         read_edf=_read_edf,
+        read_mythen_acquisition=_read_mythen_acquisition,
+        mythen_header_text=_mythen_header_text,
         pilatus_meta_from_tiff=_pilatus_meta_from_tiff,
         pilatus_meta_from_fabio=_pilatus_meta_from_fabio,
         pilatus_header_text=_pilatus_header_text,

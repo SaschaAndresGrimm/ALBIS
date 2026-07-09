@@ -53,6 +53,7 @@ export function createFileSessionController({
     setDataControlsForImage,
     setDataControlsForSeries,
     buildNegativeMask,
+    buildColumnMask,
     updateMaskUI,
     getRenderer,
     isWebglUnsignedRawCandidate,
@@ -280,7 +281,10 @@ export function createFileSessionController({
       clearMaskState();
     }
     if (options.autoMask) {
-      const autoMask = buildNegativeMask(data);
+      let autoMask = buildNegativeMask(data);
+      if (Array.isArray(options.maskColumns) && options.maskColumns.length) {
+        autoMask = buildColumnMask(width, height, options.maskColumns, autoMask);
+      }
       if (autoMask) {
         state.maskRaw = autoMask;
         state.maskShape = [height, width];

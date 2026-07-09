@@ -98,6 +98,25 @@ export function createMaskCursorController({
     return hasMask ? mask : null;
   }
 
+  // Flag whole columns (x = channel) as defective across every row (y = frame).
+  // Used for strip-detector bad channels; `base` is OR-combined when provided.
+  function buildColumnMask(width, height, columns, base = null) {
+    if (!width || !height || !Array.isArray(columns) || !columns.length) {
+      return base;
+    }
+    const mask = base || new Uint32Array(width * height);
+    let applied = false;
+    for (const col of columns) {
+      const x = Math.trunc(col);
+      if (!Number.isFinite(x) || x < 0 || x >= width) continue;
+      for (let y = 0; y < height; y += 1) {
+        mask[y * width + x] |= 0x1e;
+      }
+      applied = true;
+    }
+    return applied || base ? mask : null;
+  }
+
   function alignMaskToFrame() {
     if (
       !state.maskRaw ||
@@ -366,6 +385,7 @@ export function createMaskCursorController({
     getImagePointFromEvent,
     normalizeMaskData,
     buildNegativeMask,
+    buildColumnMask,
     alignMaskToFrame,
     updateMaskUI,
     syncMaskAvailability,
