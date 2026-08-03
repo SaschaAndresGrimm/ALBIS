@@ -1044,7 +1044,10 @@ body {
 }
 
 .canvas-wrap.can-pan {
-  cursor: grab;
+  /* Keep the normal arrow when hovering a pannable image; the open-hand "grab"
+     renders as a distracting glove on some Linux cursor themes. The closed-hand
+     "grabbing" below still signals an active drag. */
+  cursor: default;
 }
 
 .canvas-wrap::-webkit-scrollbar {
