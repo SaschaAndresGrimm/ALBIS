@@ -110,6 +110,9 @@ jobs:
       - name: Build tarball package
         run: ./scripts/build_linux.sh
 
+      - name: Assert glibc floor (<= 2.35 / Ubuntu 22.04)
+        run: ./scripts/check_glibc_floor.sh 2.35 dist/ALBIS
+
       - name: Build AppImage package
         run: ./scripts/package_linux_appimage.sh
 
