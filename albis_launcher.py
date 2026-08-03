@@ -607,7 +607,13 @@ def main() -> None:
     from backend.app import app as asgi_app
     _launcher_log(start_ts, "backend app imported")
 
-    uvicorn_config = uvicorn.Config(asgi_app, host=host, port=port, log_level="info")
+    # Uvicorn runs its own loggers (uvicorn / uvicorn.access / uvicorn.error)
+    # that ignore the "albis" logger level, so its access log stays at INFO
+    # unless we mirror the configured level here.
+    uvicorn_level = get_str(app_config, ("logging", "level"), "INFO").strip().lower()
+    if uvicorn_level not in {"critical", "error", "warning", "info", "debug"}:
+        uvicorn_level = "info"
+    uvicorn_config = uvicorn.Config(asgi_app, host=host, port=port, log_level=uvicorn_level)
     server = uvicorn.Server(uvicorn_config)
 
     def _request_windows_shutdown() -> None:
