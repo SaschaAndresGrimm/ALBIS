@@ -175,8 +175,12 @@ exe = EXE(
     name="ALBIS",
     debug=False,
     bootloader_ignore_signals=False,
-    strip=is_linux,
-    upx=True,
+    # Do not strip/UPX on Linux: stripping the numpy-vendored OpenBLAS .so with
+    # older binutils (e.g. Ubuntu 22.04) corrupts its PT_LOAD page alignment,
+    # yielding "ELF load command address/offset not page-aligned" at import on
+    # glibc 2.35. Costs some size but keeps the payload loadable everywhere.
+    strip=False,
+    upx=not is_linux,
     console=False,
     disable_windowed_traceback=False,
     icon=icon_path or None,
@@ -187,8 +191,9 @@ coll = COLLECT(
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=is_linux,
-    upx=True,
+    # See EXE() above: stripping/UPX on Linux breaks the OpenBLAS .so alignment.
+    strip=False,
+    upx=not is_linux,
     name="ALBIS",
 )
 
