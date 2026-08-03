@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-08-03
+
+### Fixed
+
+- Linux AppImage: build against the oldest supported glibc (2.35 / Ubuntu 22.04) so it no longer fails on startup with `version 'GLIBC_2.38' not found`. Also stop stripping/UPX-ing the numpy-vendored OpenBLAS library on Linux, which corrupted its segment alignment and broke `import numpy` ("ELF load command address/offset not page-aligned") on glibc 2.35.
+- Viewer: hovering a pannable (zoomed) image now shows the normal arrow cursor instead of an open-hand "grab" cursor; the closed-hand still indicates an active drag.
+- Launcher: `logging.level` is now honored by uvicorn's own loggers, so setting `CRITICAL` silences the access log (`INFO: ... "GET /..." 200 OK`) instead of printing it regardless.
+
+### Added
+
+- CI: a glibc-floor guard (`scripts/check_glibc_floor.sh`) that fails the Linux build if the packaged bundle requires a glibc newer than 2.35, preventing this class of regression.
+
 ## [0.10.6] - 2026-07-03
 
 ### Added
@@ -647,7 +659,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.3...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.7...HEAD
+[0.10.7]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.6...v0.10.7
 [0.10.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.2...v0.10.3
 [0.9.15]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.13...v0.9.14
