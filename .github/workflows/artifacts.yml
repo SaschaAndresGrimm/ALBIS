@@ -65,7 +65,10 @@ jobs:
   build_linux:
     name: Build Linux Artifact (${{ matrix.target }})
     if: ${{ always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
-    runs-on: ubuntu-latest
+    # Pin to the oldest supported target (glibc 2.35). AppImages are only
+    # forward-compatible, so building on a newer glibc (ubuntu-latest = 24.04,
+    # glibc 2.39) breaks the artifact on Ubuntu 22.04 and older.
+    runs-on: ubuntu-22.04
     needs: verify
     strategy:
       fail-fast: false
