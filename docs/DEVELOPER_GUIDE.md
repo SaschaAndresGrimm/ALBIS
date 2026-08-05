@@ -50,6 +50,8 @@ npm run review:i18n
 
 `npm run test:js` executes Vitest in `jsdom`. The repository requires Node `>=22.22` (jsdom 30 depends on `undici` 8, which needs `webidl.util.markAsUncloneable` from Node 22); the script pins `node@24` so local runs match CI regardless of the Node on your PATH.
 
+**`npm ci` itself must run on Node `>=22.22`** — no shim can cover it, because npm is the process doing the install. `.npmrc` sets `engine-strict=true` so an older Node fails immediately with `EBADENGINE` instead of producing a tree that installs cleanly and then dies at test time: an older npm silently skips optional platform packages such as `@rolldown/binding-<platform>` (pulled in by Vitest), and the run fails with `Cannot find module '@rolldown/binding-…'`. If you hit that error, reinstall with a current Node rather than debugging Vitest.
+
 Translation review workflow:
 
 - Guide: `docs/I18N_REVIEW_GUIDE.md`
