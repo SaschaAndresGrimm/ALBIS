@@ -12,7 +12,7 @@ Companion references:
 ## Prerequisites
 
 - **Python 3.10** (see `.python-version`).
-- **Node.js >= 20** (see `package.json` `engines`) for frontend linting, tests, and the i18n audit.
+- **Node.js >= 22.22** (see `package.json` `engines`) for frontend linting, tests, and the i18n audit. CI runs Node 24.
 - **git**, plus a C/build toolchain for any wheels that need compilation.
 
 The frontend has **no build step**: it is plain ES modules served statically by the backend, so after editing `frontend/**` you just reload the browser.
@@ -48,7 +48,7 @@ npm run test:js
 npm run review:i18n
 ```
 
-`npm run test:js` executes Vitest in `jsdom`. The repository requires Node `>=20`; the script currently enforces this via `node@20` to keep local runs reproducible.
+`npm run test:js` executes Vitest in `jsdom`. The repository requires Node `>=22.22` (jsdom 30 depends on `undici` 8, which needs `webidl.util.markAsUncloneable` from Node 22); the script pins `node@24` so local runs match CI regardless of the Node on your PATH.
 
 Translation review workflow:
 
