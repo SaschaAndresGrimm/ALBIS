@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { describeSimplonFailure, readSimplonFailure } from "./simplon_diagnostics.js";
 
 export function createAutoloadModeController({
   apiBase,
@@ -136,10 +137,23 @@ export function createAutoloadModeController({
       return;
     }
     if (!res.ok) {
-      setAutoloadStatus(t("autoload.status.simplon.error"));
+      // Report the classified reason (wrong port, unknown host, wrong API
+      // version) rather than a status line that says only "error".
+      const diagnosis = await readSimplonFailure(res);
+      if (diagnosis) {
+        const reason = describeSimplonFailure({ api_version: version, ...diagnosis });
+        setAutoloadStatus(t("autoload.status.simplon.error_reason", { reason }));
+        if (state.autoload.lastSimplonFailure !== diagnosis.code) {
+          state.autoload.lastSimplonFailure = diagnosis.code;
+          logClient("error", "SIMPLON monitor poll failed", diagnosis);
+        }
+      } else {
+        setAutoloadStatus(t("autoload.status.simplon.error"));
+      }
       updateLiveBadge();
       return;
     }
+    state.autoload.lastSimplonFailure = "";
     const buffer = await res.arrayBuffer();
     const dtype = parseDtype(res.headers.get("X-Dtype"));
     const shape = parseShape(res.headers.get("X-Shape"));

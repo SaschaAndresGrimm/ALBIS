@@ -1,6 +1,8 @@
 const EXACT_KEY_ALLOWLIST = new Set([
   "analysis.rings.placeholder.center_x",
   "analysis.rings.placeholder.center_y",
+  // Product name plus a placeholder — identical in every locale by design.
+  "autoload.status.simplon.error_reason",
   "backend.live.live",
   "backend.server.offline",
   "backend.server.online",

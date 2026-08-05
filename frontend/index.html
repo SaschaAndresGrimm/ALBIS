@@ -602,13 +602,31 @@
               <div class="autoload-group is-hidden" id="autoload-simplon">
                 <label class="field">
                   <span data-i18n="data_source.field.base_url">Base URL</span>
-                  <input
-                    id="simplon-url"
-                    type="text"
-                    placeholder="192.168.1.10 or detector.example.com"
-                    data-i18n-placeholder="data_source.placeholder.simplon_url"
-                  />
+                  <div class="inline autoload-source-inline">
+                    <input
+                      id="simplon-url"
+                      type="text"
+                      placeholder="192.168.1.10 or detector.example.com"
+                      data-i18n-placeholder="data_source.placeholder.simplon_url"
+                    />
+                    <button
+                      class="btn btn-secondary simplon-test-btn"
+                      id="simplon-test"
+                      type="button"
+                      title="Test connection"
+                      data-i18n-title="data_source.action.test_connection"
+                      data-i18n="data_source.action.test"
+                    >
+                      Test
+                    </button>
+                  </div>
                 </label>
+                <p
+                  class="simplon-probe-message is-hidden"
+                  id="simplon-probe-message"
+                  role="status"
+                  aria-live="polite"
+                ></p>
                 <label class="checkbox">
                   <input id="simplon-enable" type="checkbox" checked />
                   <span data-i18n="data_source.monitor.enable">Enable monitor</span>

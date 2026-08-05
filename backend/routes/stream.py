@@ -19,6 +19,7 @@ try:
         RemoteMetaConflictResponse,
         RemoteMetaResponse,
         SimplonModeResponse,
+        SimplonProbeResponse,
     )
     from .binary_response_utils import (
         add_optional_header,
@@ -36,6 +37,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         RemoteMetaConflictResponse,
         RemoteMetaResponse,
         SimplonModeResponse,
+        SimplonProbeResponse,
     )
     from binary_response_utils import (  # type: ignore[no-redef]
         add_optional_header,
@@ -131,6 +133,7 @@ class StreamRouteDeps:
     simplon_set_mode: Callable[[str, str], None]
     simplon_fetch_monitor: Callable[[str, int], bytes | None]
     simplon_fetch_pixel_mask: Callable[[str, str], Any | None]
+    simplon_probe: Callable[[str, str], dict[str, Any]]
     read_tiff_bytes_with_simplon_meta: Callable[[bytes], tuple[Any, dict[str, Any]]]
     remote_parse_meta: Callable[[str], dict[str, Any]]
     remote_safe_source_id: Callable[[str], str]
@@ -275,6 +278,21 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         deps.simplon_set_mode(base, mode_value)
         deps.logger.info("SIMPLON monitor mode: %s (url=%s)", mode_value, url)
         return SimplonModeResponse(status="ok", mode=mode_value)
+
+    @app.get("/api/simplon/probe", response_model=SimplonProbeResponse)
+    def simplon_probe(
+        url: str = Query(..., min_length=1),
+        version: str = Query("1.8.0"),
+    ) -> SimplonProbeResponse:
+        """Test whether a SIMPLON monitor API answers, and classify any failure."""
+        result = deps.simplon_probe(url, version)
+        deps.logger.info(
+            "SIMPLON probe (url=%s): %s (%s)",
+            url,
+            result.get("status"),
+            result.get("code"),
+        )
+        return SimplonProbeResponse(**result)
 
     @app.get("/api/simplon/mask", responses=SIMPLON_MASK_RESPONSE_DOCS)
     def simplon_mask(

@@ -4,6 +4,7 @@
  * This module keeps event wiring separate from app-level orchestration logic.
  */
 
+import { createSimplonProbeController } from "./simplon_probe_controller.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
 export function bindAutoloadControls({
@@ -34,6 +35,8 @@ export function bindAutoloadControls({
     autoloadSelectFile,
     filesystemMode,
     simplonUrl,
+    simplonTest,
+    simplonProbeMessage,
     simplonVersion,
     simplonTimeout,
     simplonEnable,
@@ -53,6 +56,7 @@ export function bindAutoloadControls({
     openFileBrowser,
     openFileModal,
     handleLocalFileSelection,
+    logClient,
   } = callbacks;
 
   autoloadMode?.addEventListener("change", async () => {
@@ -231,15 +235,37 @@ export function bindAutoloadControls({
     void openFileModal();
   });
 
+  const simplonProbeController = createSimplonProbeController({
+    apiBase,
+    elements: { simplonUrl, simplonVersion, simplonTest, simplonProbeMessage },
+    callbacks: { persistAutoloadSettings, logClient },
+  });
+
   simplonUrl?.addEventListener("change", () => {
     // Canonical form is written back into the field so the user sees the
     // scheme/port that will actually be used.
     state.autoload.simplonUrl = normalizeSimplonUrlInput(simplonUrl);
+    // A previous test result no longer describes the address on screen.
+    simplonProbeController.clearSimplonProbeMessage();
     persistAutoloadSettings();
+  });
+
+  simplonTest?.addEventListener("click", () => {
+    void simplonProbeController.probeSimplonConnection();
+  });
+
+  simplonUrl?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      state.autoload.simplonUrl = normalizeSimplonUrlInput(simplonUrl);
+      persistAutoloadSettings();
+      void simplonProbeController.probeSimplonConnection();
+    }
   });
 
   simplonVersion?.addEventListener("change", () => {
     state.autoload.simplonVersion = simplonVersion.value.trim() || "1.8.0";
+    simplonProbeController.clearSimplonProbeMessage();
     persistAutoloadSettings();
   });
 

@@ -3750,6 +3750,44 @@ body.platform-windows select option:disabled {
   display: block;
 }
 
+.simplon-test-btn {
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.simplon-probe-message {
+  margin: -2px 0 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.simplon-probe-message.is-hidden {
+  display: none;
+}
+
+.simplon-probe-message.is-busy::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  border: 2px solid rgba(150, 176, 220, 0.45);
+  border-top-color: rgba(224, 236, 255, 0.95);
+  animation: splash-spin 0.8s linear infinite;
+  vertical-align: -1px;
+}
+
+.simplon-probe-message.is-ok {
+  color: #7fd6a2;
+}
+
+.simplon-probe-message.is-error {
+  color: #ff8888;
+}
+
 #autoload-watch-options {
   display: grid;
   gap: 8px;

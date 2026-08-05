@@ -128,6 +128,7 @@ export function createHelpTooltipController({
       "jfjoch-channel": "hint.jfjoch.channel",
       "jfjoch-interval": "hint.jfjoch.interval",
       "simplon-url": "hint.simplon.url",
+      "simplon-test": "hint.simplon.test",
       "simplon-timeout": "hint.simplon.timeout",
       "simplon-enable": "hint.simplon.enable",
       "series-sum-start": "hint.series.start",

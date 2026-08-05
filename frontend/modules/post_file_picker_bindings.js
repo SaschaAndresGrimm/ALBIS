@@ -47,6 +47,8 @@ export function initializePostFilePickerBindings({
     autoloadSelectFile,
     filesystemMode,
     simplonUrl,
+    simplonTest,
+    simplonProbeMessage,
     simplonVersion,
     simplonTimeout,
     simplonEnable,
@@ -130,6 +132,7 @@ export function initializePostFilePickerBindings({
     openFileBrowser,
     openFileModal,
     handleLocalFileSelection,
+    logClient,
     redraw,
     scheduleHistogram,
     handleContrastChanged,
@@ -267,6 +270,8 @@ export function initializePostFilePickerBindings({
       autoloadSelectFile,
       filesystemMode,
       simplonUrl,
+      simplonTest,
+      simplonProbeMessage,
       simplonVersion,
       simplonTimeout,
       simplonEnable,
@@ -286,6 +291,7 @@ export function initializePostFilePickerBindings({
       openFileBrowser,
       openFileModal,
       handleLocalFileSelection,
+      logClient,
     },
   });
 

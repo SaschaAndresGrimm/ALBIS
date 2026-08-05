@@ -194,6 +194,8 @@ function createAutoloadState() {
     simplonVersion: "1.8.0",
     simplonTimeout: 500,
     simplonEnable: true,
+    // Last classified poll failure code, so a repeating failure logs once.
+    lastSimplonFailure: "",
     remoteSourceId: "default",
     jfjochEndpoint: "",
     jfjochSourceId: "jungfraujoch",
