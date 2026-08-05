@@ -20,9 +20,9 @@
     "scientific-imaging"
   ],
   "scripts": {
-    "lint:js": "eslint frontend/app.js frontend/modules/*.js",
-    "review:i18n": "npx -y node@20 ./scripts/review_i18n.mjs",
-    "test:js": "npx -y node@20 ./node_modules/vitest/vitest.mjs run"
+    "lint:js": "npx -y node@24 ./node_modules/eslint/bin/eslint.js frontend/app.js frontend/modules/*.js",
+    "review:i18n": "npx -y node@24 ./scripts/review_i18n.mjs",
+    "test:js": "npx -y node@24 ./node_modules/vitest/vitest.mjs run"
   },
   "devDependencies": {
     "eslint": "^10.8.0",
@@ -30,6 +30,6 @@
     "vitest": "^4.1.10"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.22.2"
   }
 }
