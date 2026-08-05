@@ -310,6 +310,8 @@ const autoloadTypeHdf5 = document.getElementById("autoload-type-hdf5");
 const autoloadTypeTiff = document.getElementById("autoload-type-tiff");
 const autoloadTypeCbf = document.getElementById("autoload-type-cbf");
 const simplonUrl = document.getElementById("simplon-url");
+const simplonTest = document.getElementById("simplon-test");
+const simplonProbeMessage = document.getElementById("simplon-probe-message");
 const simplonVersion = document.getElementById("simplon-version");
 const simplonTimeout = document.getElementById("simplon-timeout");
 const simplonEnable = document.getElementById("simplon-enable");
@@ -4168,6 +4170,8 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   autoloadSelectFile,
   filesystemMode,
   simplonUrl,
+  simplonTest,
+  simplonProbeMessage,
   simplonVersion,
   simplonTimeout,
   simplonEnable,
@@ -4252,6 +4256,7 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   openFileBrowser,
   openFileModal,
   handleLocalFileSelection,
+  logClient,
   redraw,
   scheduleHistogram,
   handleContrastChanged,

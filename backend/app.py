@@ -108,6 +108,9 @@ try:
         simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
     )
     from .services.simplon import (
+        simplon_probe as _simplon_probe,
+    )
+    from .services.simplon import (
         simplon_set_mode as _simplon_set_mode,
     )
     from .services.update_check import ReleaseCheckService
@@ -195,6 +198,9 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     )
     from services.simplon import (
         simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
+    )
+    from services.simplon import (
+        simplon_probe as _simplon_probe,
     )
     from services.simplon import (
         simplon_set_mode as _simplon_set_mode,
@@ -729,6 +735,7 @@ register_stream_routes(
         simplon_set_mode=_simplon_set_mode,
         simplon_fetch_monitor=_simplon_fetch_monitor,
         simplon_fetch_pixel_mask=_simplon_fetch_pixel_mask,
+        simplon_probe=_simplon_probe,
         read_tiff_bytes_with_simplon_meta=_read_tiff_bytes_with_simplon_meta,
         remote_parse_meta=_remote_parse_meta,
         remote_safe_source_id=_remote_safe_source_id,

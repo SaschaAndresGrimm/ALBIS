@@ -5,9 +5,11 @@ from __future__ import annotations
 import base64
 import json
 import re
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
+from typing import Any, NoReturn
 
 import numpy as np
 from fastapi import HTTPException
@@ -27,6 +29,9 @@ _TRAILING_API_ROOT_RE = re.compile(
 )
 
 _DEFAULT_API_VERSION = "1.8.0"
+# Short enough that a wrong address fails the connection test while the user
+# is still looking at the field.
+_PROBE_TIMEOUT_S = 3.0
 
 
 def normalize_simplon_base_url(url: str) -> str:
@@ -64,10 +69,7 @@ def normalize_simplon_base_url(url: str) -> str:
         return ""
 
     api_path = _API_PATH_RE.search(rest)
-    if api_path:
-        rest = rest[: api_path.start()]
-    else:
-        rest = _TRAILING_API_ROOT_RE.sub("", rest)
+    rest = rest[: api_path.start()] if api_path else _TRAILING_API_ROOT_RE.sub("", rest)
 
     rest = rest.rstrip("/").rstrip(":")
     if not rest:
@@ -100,6 +102,53 @@ def simplon_detector_base(url: str, version: str) -> str:
     return _simplon_api_base(url, version, "detector")
 
 
+def classify_simplon_failure(exc: BaseException, base_url: str) -> dict[str, Any]:
+    """Turn a transport/HTTP error into a diagnosis the UI can act on.
+
+    Returns a ``code`` from a fixed vocabulary — ``dns``, ``refused``,
+    ``timeout``, ``api_missing``, ``http_error``, ``unreachable`` — plus the
+    parameters that make the message specific (the port that refused, the HTTP
+    status). The frontend localizes from ``code``; ``message`` is the English
+    fallback used in logs and by non-UI clients.
+    """
+    parsed = urllib.parse.urlparse(base_url)
+    host = parsed.hostname or base_url
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+
+    if isinstance(exc, urllib.error.HTTPError):
+        if exc.code == 404:
+            return {
+                "code": "api_missing",
+                "http_status": 404,
+                "message": f"{host} answered, but no SIMPLON API was found at this path",
+            }
+        return {
+            "code": "http_error",
+            "http_status": int(exc.code),
+            "message": f"{host} answered with HTTP {exc.code}",
+        }
+
+    reason = getattr(exc, "reason", None)
+    causes = [exc] + ([reason] if isinstance(reason, BaseException) else [])
+    if any(isinstance(cause, socket.gaierror) for cause in causes):
+        return {"code": "dns", "message": f"Host not found: {host}"}
+    if any(isinstance(cause, ConnectionRefusedError) for cause in causes):
+        return {
+            "code": "refused",
+            "port": port,
+            "message": f"Connection refused by {host} on port {port}",
+        }
+    # socket.timeout is an alias of TimeoutError on Python 3.10+.
+    if any(isinstance(cause, TimeoutError) for cause in causes):
+        return {"code": "timeout", "message": f"No response from {host}"}
+    return {"code": "unreachable", "message": f"Cannot reach {host} on port {port}"}
+
+
+def _raise_simplon_failure(exc: BaseException, base_url: str, summary: str) -> NoReturn:
+    diagnosis = classify_simplon_failure(exc, base_url)
+    raise HTTPException(status_code=502, detail={"summary": summary, **diagnosis}) from exc
+
+
 def simplon_set_mode(base: str, mode: str) -> None:
     payload = json.dumps({"value": mode}).encode("utf-8")
     req = urllib.request.Request(
@@ -112,9 +161,7 @@ def simplon_set_mode(base: str, mode: str) -> None:
         with urllib.request.urlopen(req, timeout=5) as resp:
             resp.read()
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail="Failed to update SIMPLON monitor mode"
-        ) from exc
+        _raise_simplon_failure(exc, base, "Failed to update SIMPLON monitor mode")
 
 
 def simplon_fetch_monitor(base: str, timeout_ms: int) -> bytes | None:
@@ -128,11 +175,9 @@ def simplon_fetch_monitor(base: str, timeout_ms: int) -> bytes | None:
     except urllib.error.HTTPError as exc:
         if exc.code in {204, 408}:
             return None
-        raise HTTPException(status_code=502, detail=f"SIMPLON monitor error {exc.code}") from exc
+        _raise_simplon_failure(exc, base, "Failed to fetch SIMPLON monitor image")
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail="Failed to fetch SIMPLON monitor image"
-        ) from exc
+        _raise_simplon_failure(exc, base, "Failed to fetch SIMPLON monitor image")
 
 
 def simplon_fetch_pixel_mask(base_url: str, version: str) -> np.ndarray | None:
@@ -168,7 +213,59 @@ def simplon_fetch_pixel_mask(base_url: str, version: str) -> np.ndarray | None:
             continue
         return _normalize_image_array(arr)
     if last_error:
-        raise HTTPException(
-            status_code=502, detail="Failed to fetch SIMPLON pixel mask"
-        ) from last_error
+        _raise_simplon_failure(last_error, base, "Failed to fetch SIMPLON pixel mask")
     return None
+
+
+def _simplon_get_json(url: str, timeout: float) -> Any:
+    with urllib.request.urlopen(url, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _simplon_config_value(base: str, key: str, timeout: float) -> str:
+    """Best-effort read of one SIMPLON config value as display text."""
+    try:
+        payload = _simplon_get_json(f"{base}/config/{key}", timeout)
+    except Exception:
+        return ""
+    value = payload.get("value") if isinstance(payload, dict) else None
+    if isinstance(value, (str, int, float)):
+        return str(value).strip()
+    return ""
+
+
+def simplon_probe(url: str, version: str) -> dict[str, Any]:
+    """Diagnose whether a SIMPLON monitor API answers at the given address.
+
+    Always returns a payload rather than raising for a dead detector: a failed
+    probe is a successful diagnosis. ``status`` is ``ok`` or ``error``, and on
+    error ``code`` says which failure it was so the UI can name the fix (wrong
+    port, unknown host, wrong API version). Only unusable input raises (400).
+    """
+    monitor_base = simplon_base(url, version)
+    detector_base = simplon_detector_base(url, version)
+    base = normalize_simplon_base_url(url)
+    api_version = monitor_base.rsplit("/", 1)[-1]
+    result: dict[str, Any] = {
+        "url": base,
+        "api_version": api_version,
+        "timeout_s": _PROBE_TIMEOUT_S,
+    }
+
+    # The monitor API is what live polling needs, so probe that rather than
+    # settling for "the host answers something".
+    try:
+        _simplon_get_json(f"{monitor_base}/config/mode", _PROBE_TIMEOUT_S)
+    except Exception as exc:
+        return {"status": "error", **result, **classify_simplon_failure(exc, base)}
+
+    detector = _simplon_config_value(detector_base, "description", _PROBE_TIMEOUT_S)
+    serial = _simplon_config_value(detector_base, "detector_number", _PROBE_TIMEOUT_S)
+    return {
+        "status": "ok",
+        "code": "ok",
+        **result,
+        "detector": detector,
+        "serial": serial,
+        "message": f"SIMPLON monitor API {api_version} answered at {base}",
+    }

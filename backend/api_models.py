@@ -182,6 +182,21 @@ class SimplonModeResponse(StatusResponse):
     mode: str
 
 
+class SimplonProbeResponse(_StrictModel):
+    """Result of a SIMPLON connection test — a diagnosis, not a transport error."""
+
+    status: Literal["ok", "error"]
+    code: str
+    url: str = ""
+    api_version: str = ""
+    message: str = ""
+    detector: str = ""
+    serial: str = ""
+    port: int | None = None
+    http_status: int | None = None
+    timeout_s: float | None = None
+
+
 class RemoteFrameIngestResponse(StatusResponse):
     source_id: str
     seq: int

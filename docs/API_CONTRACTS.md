@@ -84,6 +84,21 @@ Response:
 - `GET /api/jfjoch/preview/status`: return current worker state and latest ingest counters.
 - Preview frames are exposed through existing Remote Stream endpoints under configured `source_id`.
 
+## SIMPLON Diagnostics
+
+- `GET /api/simplon/probe`: test whether a SIMPLON monitor API answers at an address.
+- A dead or misconfigured detector is a **successful** probe: the route returns `200` with
+  `status: "error"` plus a classified `code`. Only an unusable address returns `400`.
+- `code` vocabulary: `ok`, `dns`, `refused`, `timeout`, `api_missing`, `http_error`, `unreachable`.
+  Accompanying fields carry the specifics: `port` (refused), `http_status`, `api_version`, `timeout_s`.
+- On success the payload also reports `detector` and `serial`, so a client can confirm the address
+  points at the intended instrument.
+- `502` responses from `/api/simplon/monitor`, `/api/simplon/mask`, and `/api/simplon/mode` carry the
+  same classification as an object detail — `{"detail": {"summary", "code", ...}}` — so clients can
+  localize the reason instead of showing a generic transport error.
+- `url` accepts a bare hostname or IP; `http://` and port 80 are assumed when omitted, and a pasted
+  `/monitor/api/<version>` path is normalized away.
+
 ## Client Guidance
 
 - Prefer schema-driven clients from `/openapi.json` for JSON endpoints.

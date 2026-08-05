@@ -87,6 +87,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - ZeroMQ preview subscriber, CBOR/Stream2 decode, and mapping to remote snapshot metadata.
 - `backend/services/simplon.py`:
   - SIMPLON endpoint URL/mode helpers and monitor/mask fetch logic.
+  - Base-URL normalization (bare host/IP accepted), failure classification, and connection probe.
 - `backend/services/path_policy.py`:
   - Shared path safety policy and extension filtering helpers.
 - `backend/services/os_actions.py`:
