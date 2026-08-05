@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 
 export function createAutoloadSettingsController({
   state,
@@ -228,7 +229,8 @@ export function createAutoloadSettingsController({
             };
           }
           state.autoload.pattern = stored.pattern || "";
-          state.autoload.simplonUrl = stored.simplonUrl || "";
+          // Settings persisted before URL normalization may hold a bare host.
+          state.autoload.simplonUrl = normalizeSimplonBaseUrl(stored.simplonUrl);
           state.autoload.simplonVersion = stored.simplonVersion || state.autoload.simplonVersion;
           state.autoload.simplonTimeout = Number(stored.simplonTimeout || state.autoload.simplonTimeout);
           state.autoload.simplonEnable =

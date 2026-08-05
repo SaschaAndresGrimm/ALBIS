@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
 export function createMaskCursorController({
   apiBase,
@@ -346,7 +347,7 @@ export function createMaskCursorController({
 
   async function fetchSimplonMask() {
     if (!simplonUrl) return;
-    const baseUrl = simplonUrl.value.trim();
+    const baseUrl = normalizeSimplonUrlInput(simplonUrl);
     if (!baseUrl) return;
     const version = simplonVersion?.value?.trim() || "1.8.0";
     try {

@@ -4,6 +4,8 @@
  * This module keeps event wiring separate from app-level orchestration logic.
  */
 
+import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
+
 export function bindAutoloadControls({
   apiBase,
   state,
@@ -230,7 +232,9 @@ export function bindAutoloadControls({
   });
 
   simplonUrl?.addEventListener("change", () => {
-    state.autoload.simplonUrl = simplonUrl.value.trim();
+    // Canonical form is written back into the field so the user sees the
+    // scheme/port that will actually be used.
+    state.autoload.simplonUrl = normalizeSimplonUrlInput(simplonUrl);
     persistAutoloadSettings();
   });
 

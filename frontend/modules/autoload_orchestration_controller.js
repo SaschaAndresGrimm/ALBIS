@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
 export function createAutoloadOrchestrationController({
   state,
@@ -104,7 +105,7 @@ export function createAutoloadOrchestrationController({
       cbf: autoloadTypeCbf?.checked ?? true,
     };
     state.autoload.pattern = autoloadPattern?.value?.trim() || "";
-    state.autoload.simplonUrl = simplonUrl?.value?.trim() || "";
+    state.autoload.simplonUrl = normalizeSimplonUrlInput(simplonUrl);
     state.autoload.simplonVersion = simplonVersion?.value?.trim() || "1.8.0";
     state.autoload.simplonTimeout = Math.max(100, Number(simplonTimeout?.value || 500));
     state.autoload.simplonEnable = simplonEnable?.checked ?? true;

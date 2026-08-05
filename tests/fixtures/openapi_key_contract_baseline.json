@@ -214,7 +214,7 @@
         "required": true,
         "schema": {
           "type": "string",
-          "minLength": 4,
+          "minLength": 1,
           "title": "Url"
         }
       },
@@ -294,7 +294,7 @@
         "required": true,
         "schema": {
           "type": "string",
-          "minLength": 4,
+          "minLength": 1,
           "title": "Url"
         }
       },

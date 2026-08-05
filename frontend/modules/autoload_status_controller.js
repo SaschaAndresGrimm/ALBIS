@@ -2,6 +2,8 @@
  * Autoload status/meta labels and SIMPLON monitor mode toggling.
  */
 
+import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
+
 export function createAutoloadStatusController({
   apiBase,
   state,
@@ -57,7 +59,7 @@ export function createAutoloadStatusController({
 
   async function setSimplonMode(enabled) {
     if (!simplonUrl || !simplonVersion) return;
-    const url = simplonUrl.value.trim();
+    const url = normalizeSimplonUrlInput(simplonUrl);
     if (!url) return;
     const version = simplonVersion.value.trim() || "1.8.0";
     const mode = enabled ? "enabled" : "disabled";
