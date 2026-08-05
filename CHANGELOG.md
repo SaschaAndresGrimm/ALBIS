@@ -7,6 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Data source: a **Test** button beside the SIMPLON monitor address (Enter in the field works too) reports whether the detector answers. On success it names the detector and serial number, so the address can be confirmed to point at the intended instrument; on failure it names the cause — unknown host, refused port, wrong API version, or timeout.
+- Backend `GET /api/simplon/probe`: connection test for a SIMPLON address. A detector that does not answer is a successful diagnosis (`200` with `status: "error"` and a classified `code`), not a transport error; only an unusable address returns `400`.
+
+### Fixed
+
+- Data source: the SIMPLON monitor address now accepts what operators actually type. A bare hostname or IP gains `http://`, a mistyped scheme separator is repaired, and a URL pasted from the SIMPLON docs has its `/monitor/api/<version>` path stripped. The field shows the canonical form it will use, so typing `192.168.1.10` becomes `http://192.168.1.10`. An explicit port is always kept; omitting one means the detector default of 80. Previously a bare IP was rejected outright and the placeholder suggested port 5000, which SIMPLON does not use.
+- Data source: a failing SIMPLON poll now says why. The status line reads, for example, `SIMPLON: Connection refused on port 5000 — SIMPLON normally listens on port 80.` instead of `SIMPLON: error`, and the same wording is used by the connection test. Addresses persisted by earlier versions are normalized when settings load, so a saved bare host starts working instead of failing forever.
+
+### Changed
+
+- API: `502` responses from `/api/simplon/monitor`, `/api/simplon/mask` and `/api/simplon/mode` now carry a classified object detail (`{"detail": {"summary", "code", ...}}`) rather than a plain string, so clients can localize the reason. The `url` query parameter accepts a bare hostname. See `docs/API_CONTRACTS.md`.
+- Dependencies: fastapi 0.141.1, uvicorn 0.52.1, cbor2 6.1.4, jsdom 30.0.1.
+- Development tooling moved to Node 24 (Node 20 reached end of life in April 2026, and jsdom 30 requires Node 22.22 or newer). The supported floor is Node `>=22.22.2`; `npm ci` now fails immediately on an older Node instead of installing an incomplete tree. This affects contributors only — no packaged artifact contains Node.
+
 ## [0.10.7] - 2026-08-03
 
 ### Fixed
