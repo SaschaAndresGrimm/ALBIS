@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-08-05
+
 ### Added
 
 - Data source: a **Test** button beside the SIMPLON monitor address (Enter in the field works too) reports whether the detector answers. On success it names the detector and serial number, so the address can be confirmed to point at the intended instrument; on failure it names the cause — unknown host, refused port, wrong API version, or timeout.
@@ -675,8 +677,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.7...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.8...HEAD
+[0.10.8]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.6...v0.10.7
+[0.10.6]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.5...v0.10.6
+[0.10.5]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.4...v0.10.5
+[0.10.4]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.3...v0.10.4
 [0.10.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.2...v0.10.3
 [0.9.15]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.9.13...v0.9.14
