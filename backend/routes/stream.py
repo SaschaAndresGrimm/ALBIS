@@ -229,7 +229,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
 
     @app.get("/api/simplon/monitor", responses=SIMPLON_MONITOR_RESPONSE_DOCS)
     def simplon_monitor(
-        url: str = Query(..., min_length=4),
+        url: str = Query(..., min_length=1),
         version: str = Query("1.8.0"),
         timeout: int = Query(500, ge=0),
         enable: bool = Query(True),
@@ -263,7 +263,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
 
     @app.post("/api/simplon/mode", response_model=SimplonModeResponse)
     def simplon_mode(
-        url: str = Query(..., min_length=4),
+        url: str = Query(..., min_length=1),
         version: str = Query("1.8.0"),
         mode: str = Query("enabled"),
     ) -> SimplonModeResponse:
@@ -278,7 +278,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
 
     @app.get("/api/simplon/mask", responses=SIMPLON_MASK_RESPONSE_DOCS)
     def simplon_mask(
-        url: str = Query(..., min_length=4),
+        url: str = Query(..., min_length=1),
         version: str = Query("1.8.0"),
     ) -> Response:
         """Fetch detector pixel mask from SIMPLON and return it as raw bytes."""

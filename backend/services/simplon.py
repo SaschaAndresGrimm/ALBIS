@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -13,27 +14,90 @@ from fastapi import HTTPException
 
 from ..image_formats import _normalize_image_array
 
+_SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.\-]*://", re.IGNORECASE)
+# `http//host`, `http:/host`, `http:host` — a scheme keyword with a mangled
+# separator. The trailing `:`/`/` requirement keeps hostnames that merely start
+# with "http" (e.g. `http-gw.local`) untouched.
+_MALFORMED_SCHEME_RE = re.compile(r"^(https?)(?::/*|/+)", re.IGNORECASE)
+# SIMPLON sub-API roots, e.g. `/monitor/api/1.8.0/images/monitor`.
+_API_PATH_RE = re.compile(r"/(monitor|detector|stream|filewriter|system)/api(/|$)", re.IGNORECASE)
+# A dangling sub-API segment without the `/api` part, e.g. `http://host/monitor`.
+_TRAILING_API_ROOT_RE = re.compile(
+    r"/(monitor|detector|stream|filewriter|system)/*$", re.IGNORECASE
+)
+
+_DEFAULT_API_VERSION = "1.8.0"
+
+
+def normalize_simplon_base_url(url: str) -> str:
+    """Fold user-supplied detector addresses into a canonical base URL.
+
+    Accepts what operators actually enter — a bare hostname or IP, a URL copied
+    from the SIMPLON docs (carrying the `/monitor/api/<version>` path), or a
+    mistyped scheme separator — and returns `http(s)://host[:port][/prefix]`.
+    The port is never rewritten: omitting it means the detector default (80),
+    and an explicit port is kept as given.
+
+    Mirrors ``frontend/modules/simplon_url_utils.js`` so presets and settings
+    persisted outside the UI normalize identically. Returns "" for empty input;
+    a non-HTTP scheme is passed through unchanged for the caller to reject.
+    """
+    text = re.sub(r"\s+", "", str(url or ""))
+    if not text:
+        return ""
+
+    if _SCHEME_RE.match(text):
+        scheme, _, remainder = text.partition("://")
+        if scheme.lower() not in {"http", "https"}:
+            return text
+        text = f"{scheme.lower()}://{remainder}"
+    else:
+        malformed = _MALFORMED_SCHEME_RE.match(text)
+        if malformed:
+            text = f"{malformed.group(1).lower()}://{text[malformed.end():]}"
+        else:
+            text = f"http://{text}"
+
+    scheme, _, rest = text.partition("://")
+    rest = rest.lstrip("/")
+    if not rest:
+        return ""
+
+    api_path = _API_PATH_RE.search(rest)
+    if api_path:
+        rest = rest[: api_path.start()]
+    else:
+        rest = _TRAILING_API_ROOT_RE.sub("", rest)
+
+    rest = rest.rstrip("/").rstrip(":")
+    if not rest:
+        return ""
+    return f"{scheme}://{rest}"
+
+
+def _simplon_api_base(url: str, version: str, section: str) -> str:
+    base = normalize_simplon_base_url(url)
+    parsed = urllib.parse.urlparse(base)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid SIMPLON base URL. Enter the detector hostname or IP address "
+                "(for example 192.168.1.10), optionally as a full http:// URL."
+            ),
+        )
+    ver = (version or _DEFAULT_API_VERSION).strip().strip("/")
+    if not ver:
+        ver = _DEFAULT_API_VERSION
+    return f"{base}/{section}/api/{ver}"
+
 
 def simplon_base(url: str, version: str) -> str:
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise HTTPException(status_code=400, detail="Invalid SIMPLON base URL")
-    base = url.rstrip("/")
-    ver = (version or "1.8.0").strip().strip("/")
-    if not ver:
-        ver = "1.8.0"
-    return f"{base}/monitor/api/{ver}"
+    return _simplon_api_base(url, version, "monitor")
 
 
 def simplon_detector_base(url: str, version: str) -> str:
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise HTTPException(status_code=400, detail="Invalid SIMPLON base URL")
-    base = url.rstrip("/")
-    ver = (version or "1.8.0").strip().strip("/")
-    if not ver:
-        ver = "1.8.0"
-    return f"{base}/detector/api/{ver}"
+    return _simplon_api_base(url, version, "detector")
 
 
 def simplon_set_mode(base: str, mode: str) -> None:
