@@ -123,6 +123,7 @@ export function createHelpTooltipController({
       "remote-source-id": "hint.remote.source_id",
       "remote-interval": "hint.remote.interval",
       "jfjoch-preview-endpoint": "hint.jfjoch.endpoint",
+      "jfjoch-test": "hint.jfjoch.test",
       "jfjoch-source-id": "hint.jfjoch.source_id",
       "jfjoch-topic": "hint.jfjoch.topic",
       "jfjoch-channel": "hint.jfjoch.channel",

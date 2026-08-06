@@ -15,6 +15,7 @@ try:
         JungfraujochPreviewControlResponse,
         JungfraujochPreviewStartRequest,
         JungfraujochPreviewStatusResponse,
+        JungfraujochProbeResponse,
         RemoteFrameIngestResponse,
         RemoteMetaConflictResponse,
         RemoteMetaResponse,
@@ -33,6 +34,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         JungfraujochPreviewControlResponse,
         JungfraujochPreviewStartRequest,
         JungfraujochPreviewStatusResponse,
+        JungfraujochProbeResponse,
         RemoteFrameIngestResponse,
         RemoteMetaConflictResponse,
         RemoteMetaResponse,
@@ -144,6 +146,7 @@ class StreamRouteDeps:
     jfjoch_preview_start: Callable[..., dict[str, Any]]
     jfjoch_preview_stop: Callable[[], dict[str, Any]]
     jfjoch_preview_status: Callable[[], dict[str, Any]]
+    jfjoch_probe_endpoint: Callable[[str], dict[str, Any]]
 
 
 def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
@@ -308,6 +311,21 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         data = arr.tobytes(order="C")
         headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape)
         return Response(content=data, media_type="application/octet-stream", headers=headers)
+
+    @app.get("/api/jfjoch/probe", response_model=JungfraujochProbeResponse)
+    def jfjoch_probe(endpoint: str = Query(..., min_length=1)) -> JungfraujochProbeResponse:
+        """Check whether a JUNGFRAUJOCH preview endpoint accepts TCP connections."""
+        try:
+            result = deps.jfjoch_probe_endpoint(endpoint)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        deps.logger.info(
+            "JUNGFRAUJOCH probe (endpoint=%s): %s (%s)",
+            endpoint,
+            result.get("status"),
+            result.get("code"),
+        )
+        return JungfraujochProbeResponse(**result)
 
     @app.post(
         "/api/jfjoch/preview/start",

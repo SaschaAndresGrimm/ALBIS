@@ -737,8 +737,26 @@
                   <div class="autoload-group is-hidden" id="autoload-jfjoch">
                     <label class="field">
                       <span data-i18n="data_source.field.preview_endpoint">Preview Endpoint</span>
-                      <input id="jfjoch-preview-endpoint" type="text" placeholder="tcp://127.0.0.1:31003" />
+                      <div class="inline autoload-source-inline">
+                        <input id="jfjoch-preview-endpoint" type="text" placeholder="tcp://127.0.0.1:31003" />
+                        <button
+                          class="btn btn-secondary simplon-test-btn"
+                          id="jfjoch-test"
+                          type="button"
+                          title="Test connection"
+                          data-i18n-title="data_source.action.test_connection"
+                          data-i18n="data_source.action.test"
+                        >
+                          Test
+                        </button>
+                      </div>
                     </label>
+                    <p
+                      class="simplon-probe-message is-hidden"
+                      id="jfjoch-probe-message"
+                      role="status"
+                      aria-live="polite"
+                    ></p>
                     <label class="field">
                       <span data-i18n="data_source.field.source_id">Source ID</span>
                       <input id="jfjoch-source-id" type="text" value="jungfraujoch" placeholder="jungfraujoch" />

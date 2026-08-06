@@ -317,6 +317,8 @@ const simplonVersion = document.getElementById("simplon-version");
 const simplonTimeout = document.getElementById("simplon-timeout");
 const simplonEnable = document.getElementById("simplon-enable");
 const jfjochEndpointInput = document.getElementById("jfjoch-preview-endpoint");
+const jfjochTest = document.getElementById("jfjoch-test");
+const jfjochProbeMessage = document.getElementById("jfjoch-probe-message");
 const jfjochSourceInput = document.getElementById("jfjoch-source-id");
 const jfjochTopicInput = document.getElementById("jfjoch-topic");
 const jfjochChannelInput = document.getElementById("jfjoch-channel");
@@ -2660,6 +2662,8 @@ const autoloadSettingsController = createAutoloadSettingsController({
     remoteSourceInput,
     remoteIntervalInput,
     jfjochEndpointInput,
+    jfjochTest,
+    jfjochProbeMessage,
     jfjochSourceInput,
     jfjochTopicInput,
     jfjochChannelInput,
@@ -2716,6 +2720,8 @@ const autoloadOrchestrationController = createAutoloadOrchestrationController({
     remoteSourceInput,
     remoteIntervalInput,
     jfjochEndpointInput,
+    jfjochTest,
+    jfjochProbeMessage,
     jfjochSourceInput,
     jfjochTopicInput,
     jfjochChannelInput,
@@ -4165,6 +4171,8 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   remoteSourceInput,
   jfjochSourceInput,
   jfjochEndpointInput,
+  jfjochTest,
+  jfjochProbeMessage,
   jfjochTopicInput,
   jfjochChannelInput,
   autoloadTypeHdf5,

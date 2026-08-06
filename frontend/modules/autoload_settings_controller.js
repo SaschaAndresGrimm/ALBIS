@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { normalizeJfjochEndpoint } from "./jfjoch_endpoint_utils.js";
 import { renderSimplonHostOptions, sanitizeRecentSimplonHosts } from "./simplon_host_history.js";
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 
@@ -240,7 +241,9 @@ export function createAutoloadSettingsController({
           state.autoload.simplonEnable =
             stored.simplonEnable !== undefined ? Boolean(stored.simplonEnable) : state.autoload.simplonEnable;
           state.autoload.remoteSourceId = String(stored.remoteSourceId || state.autoload.remoteSourceId || "default");
-          state.autoload.jfjochEndpoint = String(stored.jfjochEndpoint || state.autoload.jfjochEndpoint || "");
+          state.autoload.jfjochEndpoint = normalizeJfjochEndpoint(
+            stored.jfjochEndpoint || state.autoload.jfjochEndpoint || "",
+          );
           state.autoload.jfjochSourceId = String(stored.jfjochSourceId || state.autoload.jfjochSourceId || "jungfraujoch");
           state.autoload.jfjochTopic = String(stored.jfjochTopic || state.autoload.jfjochTopic || "");
           state.autoload.jfjochChannel = String(stored.jfjochChannel || state.autoload.jfjochChannel || "");

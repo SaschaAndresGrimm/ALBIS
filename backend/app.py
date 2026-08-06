@@ -68,6 +68,9 @@ try:
     from .services.handoff_queue import HandoffQueueService
     from .services.hdf5_stack import HDF5StackService
     from .services.jungfraujoch_preview import JungfraujochPreviewBridge
+    from .services.jungfraujoch_preview import (
+        jfjoch_probe_endpoint as _jfjoch_probe_endpoint,
+    )
     from .services.path_policy import PathPolicy
     from .services.remote_stream import (
         remote_extract_metadata as _remote_extract_metadata,
@@ -160,6 +163,9 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from services.handoff_queue import HandoffQueueService
     from services.hdf5_stack import HDF5StackService
     from services.jungfraujoch_preview import JungfraujochPreviewBridge
+    from services.jungfraujoch_preview import (
+        jfjoch_probe_endpoint as _jfjoch_probe_endpoint,
+    )
     from services.path_policy import PathPolicy
     from services.remote_stream import (
         remote_extract_metadata as _remote_extract_metadata,
@@ -746,6 +752,7 @@ register_stream_routes(
         jfjoch_preview_start=jfjoch_preview.start,
         jfjoch_preview_stop=jfjoch_preview.stop,
         jfjoch_preview_status=jfjoch_preview.status,
+        jfjoch_probe_endpoint=_jfjoch_probe_endpoint,
     ),
 )
 

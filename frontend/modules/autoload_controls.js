@@ -4,6 +4,8 @@
  * This module keeps event wiring separate from app-level orchestration logic.
  */
 
+import { createJfjochProbeController } from "./jfjoch_probe_controller.js";
+import { normalizeJfjochEndpointInput } from "./jfjoch_endpoint_utils.js";
 import { createSimplonProbeController } from "./simplon_probe_controller.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
@@ -25,6 +27,8 @@ export function bindAutoloadControls({
     remoteSourceInput,
     jfjochSourceInput,
     jfjochEndpointInput,
+    jfjochTest,
+    jfjochProbeMessage,
     jfjochTopicInput,
     jfjochChannelInput,
     autoloadTypeHdf5,
@@ -152,8 +156,28 @@ export function bindAutoloadControls({
     }
   });
 
+  const jfjochProbeController = createJfjochProbeController({
+    apiBase,
+    elements: { jfjochEndpointInput, jfjochTest, jfjochProbeMessage },
+    callbacks: { persistAutoloadSettings, logClient },
+  });
+
+  jfjochTest?.addEventListener("click", () => {
+    void jfjochProbeController.probeJfjochEndpoint();
+  });
+
+  jfjochEndpointInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void jfjochProbeController.probeJfjochEndpoint();
+    }
+  });
+
   jfjochEndpointInput?.addEventListener("change", () => {
-    state.autoload.jfjochEndpoint = (jfjochEndpointInput.value || "").trim();
+    // Canonical form is written back so the user sees the transport and port
+    // that will actually be connected.
+    state.autoload.jfjochEndpoint = normalizeJfjochEndpointInput(jfjochEndpointInput);
+    jfjochProbeController.clearJfjochProbeMessage();
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
       startAutoload();

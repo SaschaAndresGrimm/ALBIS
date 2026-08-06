@@ -235,6 +235,18 @@ class JungfraujochPreviewControlResponse(StatusResponse):
     source_id: str
 
 
+class JungfraujochProbeResponse(_StrictModel):
+    """Reachability check for a preview endpoint — TCP only, not a protocol check."""
+
+    status: Literal["ok", "error"]
+    code: str
+    endpoint: str = ""
+    host: str = ""
+    port: int | None = None
+    message: str = ""
+    timeout_s: float | None = None
+
+
 class JungfraujochPreviewStatusResponse(_StrictModel):
     running: bool
     endpoint: str = ""

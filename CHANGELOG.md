@@ -7,6 +7,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Data source: the SIMPLON address field remembers detector addresses that answered — a successful connection test or a started monitor — and offers them back as autocomplete. Only addresses that worked are stored, so a failed typo is never suggested.
+- Data source: **Test** button for the JUNGFRAUJOCH preview endpoint, reporting whether the port accepts connections and naming the cause when it does not (unknown host, refused port, timeout). It is a reachability check: frames are confirmed once the preview starts.
+- Backend `GET /api/jfjoch/probe`: TCP reachability check for a preview endpoint.
+
+### Fixed
+
+- Data source: the SIMPLON **API Version** field is no longer a guessing game. When the configured version is absent but a known one answers, the connection test adopts the working version, applies it to the field and says so.
+- Data source: the JUNGFRAUJOCH preview endpoint accepts a bare `host:port` and fills in `tcp://`, repairing mistyped separators. A missing port is now rejected up front with wording that says what to enter, instead of failing later inside ZeroMQ. Path transports such as `ipc:///tmp/x` are left untouched.
+
+### Changed
+
+- Development: ESLint reports zero warnings after removing two dead symbols, so a new warning is visible immediately.
+
 ## [0.10.8] - 2026-08-05
 
 ### Added

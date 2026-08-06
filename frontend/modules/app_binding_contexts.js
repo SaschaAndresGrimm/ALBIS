@@ -111,6 +111,8 @@ export function createPostFilePickerBindingsElements(elements) {
     remoteSourceInput: elements.remoteSourceInput,
     jfjochSourceInput: elements.jfjochSourceInput,
     jfjochEndpointInput: elements.jfjochEndpointInput,
+    jfjochTest: elements.jfjochTest,
+    jfjochProbeMessage: elements.jfjochProbeMessage,
     jfjochTopicInput: elements.jfjochTopicInput,
     jfjochChannelInput: elements.jfjochChannelInput,
     autoloadTypeHdf5: elements.autoloadTypeHdf5,
