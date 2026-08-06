@@ -31,6 +31,13 @@ def _closed_port() -> int:
         return int(probe.getsockname()[1])
 
 
+# A closed local port refuses the connection on Linux and macOS, but Windows
+# may silently drop the SYN instead, which surfaces as a timeout. Both are
+# truthful diagnoses of "nothing is listening there", so assert the pair rather
+# than pinning platform-specific behaviour.
+_NOTHING_LISTENING = {"refused", "timeout"}
+
+
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
@@ -103,8 +110,9 @@ def test_probe_reports_a_closed_port() -> None:
     result = jfjoch_probe_endpoint(f"127.0.0.1:{port}")
 
     assert result["status"] == "error"
-    assert result["code"] == "refused"
+    assert result["code"] in _NOTHING_LISTENING
     assert result["port"] == port
+    assert result["endpoint"] == f"tcp://127.0.0.1:{port}"
 
 
 def test_probe_reports_an_unknown_host() -> None:
@@ -132,7 +140,10 @@ def test_probe_route_returns_a_diagnosis(listening_port: int) -> None:
     port = _closed_port()
     refused = client.get("/api/jfjoch/probe", params={"endpoint": f"127.0.0.1:{port}"})
     assert refused.status_code == 200
-    assert refused.json()["code"] == "refused"
+    body = refused.json()
+    assert body["status"] == "error"
+    assert body["code"] in _NOTHING_LISTENING
+    assert body["port"] == port
 
 
 def test_probe_route_rejects_an_endpoint_without_a_port() -> None:
