@@ -94,10 +94,6 @@ export function bindRoiPlotInteractions({
     return "";
   }
 
-  function getAxisControl(plotKey) {
-    return roiAxisLimitControls.find((entry) => entry.key === plotKey) || null;
-  }
-
   function isAxisLimitsPopoverOpen(entry) {
     return entry?.toggle?.getAttribute("aria-expanded") === "true";
   }
