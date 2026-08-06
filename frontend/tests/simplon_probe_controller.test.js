@@ -8,6 +8,7 @@ const DICTIONARY = {
   "simplon.probe.enter_address": "Enter the detector hostname or IP address first.",
   "simplon.probe.invalid_address": "That address cannot be used.",
   "simplon.probe.request_failed": "The test could not run.",
+  "simplon.probe.version_switched": "API version switched to {{version}}.",
   "simplon.failure.dns": "Host not found — check the hostname or IP address.",
   "simplon.failure.refused_port": "Connection refused on port {{port}} — SIMPLON normally listens on port 80.",
   "simplon.failure.timeout_seconds": "No response within {{seconds}} s.",
@@ -225,6 +226,95 @@ describe("simplon_probe_controller", () => {
 
     expect(global.fetch.mock.calls.filter(([url]) => String(url).includes("/simplon/probe"))).toHaveLength(1);
     expect(elements.simplonTest.disabled).toBe(false);
+  });
+
+  it("adopts an API version the detector actually serves", async () => {
+    const create = await loadController(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: "ok",
+        code: "ok_other_version",
+        api_version: "1.6.0",
+        requested_version: "1.8.0",
+        detector: "EIGER2 CdTe 1M",
+      }),
+    }));
+    const elements = buildElements("det.local");
+    const state = { autoload: { simplonRecentHosts: [], simplonVersion: "1.8.0" } };
+    const persistAutoloadSettings = vi.fn();
+    const controller = create({
+      apiBase: "/api",
+      state,
+      elements,
+      callbacks: { persistAutoloadSettings },
+    });
+
+    await controller.probeSimplonConnection();
+
+    expect(elements.simplonVersion.value).toBe("1.6.0");
+    expect(state.autoload.simplonVersion).toBe("1.6.0");
+    expect(elements.simplonProbeMessage.textContent).toBe(
+      "Connected — EIGER2 CdTe 1M API version switched to 1.6.0.",
+    );
+    expect(persistAutoloadSettings).toHaveBeenCalled();
+  });
+
+  it("leaves the configured version alone on a plain success", async () => {
+    const create = await loadController(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "ok", code: "ok", api_version: "1.8.0" }),
+    }));
+    const elements = buildElements("det.local");
+    const state = { autoload: { simplonRecentHosts: [], simplonVersion: "1.8.0" } };
+    const controller = create({ apiBase: "/api", state, elements, callbacks: {} });
+
+    await controller.probeSimplonConnection();
+
+    expect(elements.simplonVersion.value).toBe("1.8.0");
+    expect(elements.simplonProbeMessage.textContent).not.toContain("switched");
+  });
+
+  it("remembers a working address and offers it back", async () => {
+    const create = await loadController(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "ok", code: "ok" }),
+    }));
+    const elements = buildElements("192.168.1.10");
+    elements.simplonUrlList = document.createElement("datalist");
+    const state = { autoload: { simplonRecentHosts: [] } };
+    const persistAutoloadSettings = vi.fn();
+    const controller = create({
+      apiBase: "/api",
+      state,
+      elements,
+      callbacks: { persistAutoloadSettings },
+    });
+
+    await controller.probeSimplonConnection();
+
+    expect(state.autoload.simplonRecentHosts).toEqual(["http://192.168.1.10"]);
+    expect([...elements.simplonUrlList.querySelectorAll("option")].map((o) => o.value)).toEqual([
+      "http://192.168.1.10",
+    ]);
+    expect(persistAutoloadSettings).toHaveBeenCalled();
+  });
+
+  it("does not remember an address that failed", async () => {
+    const create = await loadController(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "error", code: "dns" }),
+    }));
+    const elements = buildElements("typo.invalid");
+    const state = { autoload: { simplonRecentHosts: [] } };
+    const controller = create({ apiBase: "/api", state, elements, callbacks: {} });
+
+    await controller.probeSimplonConnection();
+
+    expect(state.autoload.simplonRecentHosts).toEqual([]);
   });
 
   it("clears a stale result when asked", async () => {

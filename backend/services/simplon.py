@@ -32,6 +32,9 @@ _DEFAULT_API_VERSION = "1.8.0"
 # Short enough that a wrong address fails the connection test while the user
 # is still looking at the field.
 _PROBE_TIMEOUT_S = 3.0
+# Tried in order when the configured API version answers 404, so a version
+# mismatch reports the version that works instead of just "not found".
+_PROBE_VERSION_CANDIDATES = ("1.8.0", "1.6.0")
 
 
 def normalize_simplon_base_url(url: str) -> str:
@@ -234,6 +237,33 @@ def _simplon_config_value(base: str, key: str, timeout: float) -> str:
     return ""
 
 
+def _simplon_probe_version(url: str, version: str) -> tuple[bool, Exception | None]:
+    """Ask one SIMPLON API version whether it answers."""
+    try:
+        _simplon_get_json(f"{simplon_base(url, version)}/config/mode", _PROBE_TIMEOUT_S)
+    except Exception as exc:
+        return False, exc
+    return True, None
+
+
+def _simplon_probe_success(url: str, base: str, version: str, requested: str) -> dict[str, Any]:
+    detector_base = simplon_detector_base(url, version)
+    detector = _simplon_config_value(detector_base, "description", _PROBE_TIMEOUT_S)
+    serial = _simplon_config_value(detector_base, "detector_number", _PROBE_TIMEOUT_S)
+    switched = version != requested
+    return {
+        "status": "ok",
+        "code": "ok_other_version" if switched else "ok",
+        "url": base,
+        "api_version": version,
+        "requested_version": requested if switched else "",
+        "timeout_s": _PROBE_TIMEOUT_S,
+        "detector": detector,
+        "serial": serial,
+        "message": f"SIMPLON monitor API {version} answered at {base}",
+    }
+
+
 def simplon_probe(url: str, version: str) -> dict[str, Any]:
     """Diagnose whether a SIMPLON monitor API answers at the given address.
 
@@ -241,31 +271,34 @@ def simplon_probe(url: str, version: str) -> dict[str, Any]:
     probe is a successful diagnosis. ``status`` is ``ok`` or ``error``, and on
     error ``code`` says which failure it was so the UI can name the fix (wrong
     port, unknown host, wrong API version). Only unusable input raises (400).
+
+    When the configured version is absent (404) but another known version
+    answers, this reports ``ok_other_version`` with the version that worked in
+    ``api_version`` and the configured one in ``requested_version``, so the
+    caller can offer the correction instead of leaving the user to guess.
     """
-    monitor_base = simplon_base(url, version)
-    detector_base = simplon_detector_base(url, version)
     base = normalize_simplon_base_url(url)
-    api_version = monitor_base.rsplit("/", 1)[-1]
-    result: dict[str, Any] = {
-        "url": base,
-        "api_version": api_version,
-        "timeout_s": _PROBE_TIMEOUT_S,
-    }
+    requested = simplon_base(url, version).rsplit("/", 1)[-1]
 
-    # The monitor API is what live polling needs, so probe that rather than
-    # settling for "the host answers something".
-    try:
-        _simplon_get_json(f"{monitor_base}/config/mode", _PROBE_TIMEOUT_S)
-    except Exception as exc:
-        return {"status": "error", **result, **classify_simplon_failure(exc, base)}
+    answered, error = _simplon_probe_version(url, requested)
+    if answered:
+        return _simplon_probe_success(url, base, requested, requested)
 
-    detector = _simplon_config_value(detector_base, "description", _PROBE_TIMEOUT_S)
-    serial = _simplon_config_value(detector_base, "detector_number", _PROBE_TIMEOUT_S)
+    diagnosis = classify_simplon_failure(error, base) if error else {}
+    # Only an absent API is worth retrying: a refused port or unknown host
+    # fails identically for every version, so retrying would just add delay.
+    if diagnosis.get("code") == "api_missing":
+        for candidate in _PROBE_VERSION_CANDIDATES:
+            if candidate == requested:
+                continue
+            found, _ = _simplon_probe_version(url, candidate)
+            if found:
+                return _simplon_probe_success(url, base, candidate, requested)
+
     return {
-        "status": "ok",
-        "code": "ok",
-        **result,
-        "detector": detector,
-        "serial": serial,
-        "message": f"SIMPLON monitor API {api_version} answered at {base}",
+        "status": "error",
+        "url": base,
+        "api_version": requested,
+        "timeout_s": _PROBE_TIMEOUT_S,
+        **diagnosis,
     }

@@ -600,6 +600,7 @@
   "simplon.probe.ok_detector_serial": "Kua hono — {{detector}} (S/N {{serial}})",
   "simplon.probe.request_failed": "Kāore i taea te whakahaere i te whakamātau — tirohia mēnā e wātea ana te tuara ALBIS.",
   "simplon.probe.testing": "Kei te whakamātau i {{url}}…",
+  "simplon.probe.version_switched": "Kua hurihia te putanga API ki {{version}}.",
   "source.bridge.running": "rere",
   "source.bridge.stopped": "ka mutu",
   "source.label.jfjoch_preview_with_seq": "JUNGFRAUJOCH arokite ({{sourceId}}){{seqSuffix}}",

@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app import app
+from backend.services import simplon as simplon_module
 from backend.services.simplon import classify_simplon_failure, simplon_probe
 
 DESCRIPTION = "Dectris EIGER2 CdTe 4M"
@@ -49,6 +50,40 @@ class _FakeSimplonHandler(BaseHTTPRequestHandler):
         self._json(500, {"error": "boom"})
 
 
+class _Simplon16Handler(_FakeSimplonHandler):
+    """A detector that only serves API 1.6.0."""
+
+    api_version = "1.6.0"
+
+
+class _SimplonExoticHandler(_FakeSimplonHandler):
+    """A detector on an API version ALBIS does not know to try."""
+
+    api_version = "2.5.0"
+
+
+def _serve(handler: type[BaseHTTPRequestHandler]) -> Iterator[str]:
+    server = HTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+@pytest.fixture
+def fake_simplon_16() -> Iterator[str]:
+    yield from _serve(_Simplon16Handler)
+
+
+@pytest.fixture
+def fake_simplon_exotic() -> Iterator[str]:
+    yield from _serve(_SimplonExoticHandler)
+
+
 @pytest.fixture
 def fake_simplon() -> Iterator[str]:
     server = HTTPServer(("127.0.0.1", 0), _FakeSimplonHandler)
@@ -84,13 +119,67 @@ def test_probe_accepts_a_bare_host_and_pasted_api_path(fake_simplon: str) -> Non
     assert simplon_probe(pasted, "1.8.0")["status"] == "ok"
 
 
-def test_probe_flags_a_wrong_api_version(fake_simplon: str) -> None:
+def test_probe_falls_back_to_a_known_version(fake_simplon: str) -> None:
+    """An unknown configured version resolves to the one the detector serves."""
     result = simplon_probe(fake_simplon, "9.9.9")
+
+    assert result["status"] == "ok"
+    assert result["code"] == "ok_other_version"
+    assert result["api_version"] == "1.8.0"
+    assert result["requested_version"] == "9.9.9"
+
+
+def test_probe_reports_api_missing_when_no_known_version_answers(
+    fake_simplon_exotic: str,
+) -> None:
+    """A detector on an unrecognized API version still reports the mismatch."""
+    result = simplon_probe(fake_simplon_exotic, "1.8.0")
 
     assert result["status"] == "error"
     assert result["code"] == "api_missing"
     assert result["http_status"] == 404
-    assert result["api_version"] == "9.9.9"
+    assert result["api_version"] == "1.8.0"
+
+
+def test_probe_adopts_a_version_the_detector_serves(fake_simplon_16: str) -> None:
+    """A detector on 1.6.0 probed with the 1.8.0 default reports the working one."""
+    result = simplon_probe(fake_simplon_16, "1.8.0")
+
+    assert result["status"] == "ok"
+    assert result["code"] == "ok_other_version"
+    assert result["api_version"] == "1.6.0"
+    assert result["requested_version"] == "1.8.0"
+    assert result["detector"] == DESCRIPTION
+
+
+def test_probe_does_not_flag_a_switch_when_the_requested_version_works(
+    fake_simplon_16: str,
+) -> None:
+    result = simplon_probe(fake_simplon_16, "1.6.0")
+
+    assert result["code"] == "ok"
+    assert result["api_version"] == "1.6.0"
+    assert result["requested_version"] == ""
+
+
+def test_probe_does_not_retry_versions_for_a_dead_host() -> None:
+    """A refused port fails identically for every version, so retrying is waste."""
+    port = _closed_port()
+    calls: list[str] = []
+    original = simplon_module._simplon_probe_version
+
+    def counting(url: str, version: str) -> tuple[bool, Exception | None]:
+        calls.append(version)
+        return original(url, version)
+
+    simplon_module._simplon_probe_version = counting
+    try:
+        result = simplon_probe(f"127.0.0.1:{port}", "1.8.0")
+    finally:
+        simplon_module._simplon_probe_version = original
+
+    assert result["code"] == "refused"
+    assert calls == ["1.8.0"]
 
 
 def test_probe_reports_the_refused_port() -> None:

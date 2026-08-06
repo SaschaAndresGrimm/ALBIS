@@ -600,6 +600,7 @@
   "simplon.probe.ok_detector_serial": "接続しました — {{detector}}（S/N {{serial}}）",
   "simplon.probe.request_failed": "テストを実行できませんでした。ALBIS バックエンドが利用可能か確認してください。",
   "simplon.probe.testing": "{{url}} をテスト中…",
+  "simplon.probe.version_switched": "API バージョンを {{version}} に切り替えました。",
   "source.bridge.running": "実行中",
   "source.bridge.stopped": "停止中",
   "source.label.jfjoch_preview_with_seq": "JUNGFRAUJOCH プレビュー ({{sourceId}}){{seqSuffix}}",

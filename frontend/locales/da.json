@@ -600,6 +600,7 @@
   "simplon.probe.ok_detector_serial": "Forbundet — {{detector}} (S/N {{serial}})",
   "simplon.probe.request_failed": "Testen kunne ikke køres — kontrollér, at ALBIS-backend er tilgængelig.",
   "simplon.probe.testing": "Tester {{url}} …",
+  "simplon.probe.version_switched": "API-version skiftet til {{version}}.",
   "source.bridge.running": "kører",
   "source.bridge.stopped": "stoppet",
   "source.label.jfjoch_preview_with_seq": "JUNGFRAUJOCH forhåndsvisning ({{sourceId}}){{seqSuffix}}",
