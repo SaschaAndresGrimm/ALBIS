@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import contextlib
 import math
+import re
+import socket
 import threading
 import time
+import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -17,6 +20,18 @@ from typing import Any
 import numpy as np
 
 from ..image_formats import _normalize_image_array
+
+# Transports a ZeroMQ subscriber can actually use for a preview PUB socket.
+_ZMQ_SCHEMES = ("tcp", "ipc", "inproc", "pgm", "epgm")
+_SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://", re.IGNORECASE)
+# `tcp//host`, `tcp:/host`, `tcp:host` — a known transport with a mangled
+# separator. Requires a `:` or `/` after the keyword so a hostname that merely
+# starts with one of them is left alone.
+_MALFORMED_SCHEME_RE = re.compile(
+    rf"^({'|'.join(_ZMQ_SCHEMES)})(?::/*|/+)",
+    re.IGNORECASE,
+)
+_PROBE_TIMEOUT_S = 2.0
 
 try:
     import cbor2
@@ -66,6 +81,133 @@ _TAG_TYPED_ARRAY_DTYPES: dict[int, str] = {
     85: "<f4",
     86: "<f8",
 }
+
+
+def normalize_jfjoch_endpoint(value: str) -> str:
+    """Fold a user-typed preview endpoint into a ZeroMQ-usable form.
+
+    Accepts a bare ``host:port`` (the common case — ``tcp://`` is added) and
+    repairs a mangled separator such as ``tcp//host``. Unlike the SIMPLON
+    address there is no default port to fall back on: a ZeroMQ TCP endpoint
+    without one cannot connect, so validation rejects it rather than guessing.
+
+    Returns "" for empty input; a non-ZeroMQ scheme is passed through unchanged
+    so validation can reject it with a meaningful message.
+    """
+    text = re.sub(r"\s+", "", str(value or ""))
+    if not text:
+        return ""
+
+    scheme_match = _SCHEME_RE.match(text)
+    if scheme_match:
+        scheme = scheme_match.group(1)
+        if scheme.lower() not in _ZMQ_SCHEMES:
+            return text
+        text = f"{scheme.lower()}://{text[scheme_match.end():]}"
+    else:
+        malformed = _MALFORMED_SCHEME_RE.match(text)
+        if malformed:
+            text = f"{malformed.group(1).lower()}://{text[malformed.end():]}"
+        else:
+            text = f"tcp://{text}"
+
+    scheme, _, rest = text.partition("://")
+    if scheme != "tcp":
+        # ipc/inproc addresses are paths, not hosts: `ipc:///tmp/x` means the
+        # absolute path /tmp/x, so slashes here are content and must survive.
+        return f"{scheme}://{rest}" if rest else ""
+    rest = rest.lstrip("/").rstrip("/")
+    if not rest:
+        return ""
+    return f"{scheme}://{rest}"
+
+
+def validate_jfjoch_endpoint(value: str) -> str:
+    """Normalize an endpoint and raise ValueError when it cannot be connected.
+
+    Raises:
+        ValueError: with wording that says what to enter, since this surfaces
+            to the user as the 400 detail from the preview start route.
+    """
+    endpoint = normalize_jfjoch_endpoint(value)
+    if not endpoint:
+        raise ValueError(
+            "JUNGFRAUJOCH preview endpoint is required "
+            "(for example tcp://192.168.1.5:31003)"
+        )
+    parsed = urllib.parse.urlparse(endpoint)
+    if parsed.scheme not in _ZMQ_SCHEMES:
+        raise ValueError(
+            f"Unsupported preview transport '{parsed.scheme}' — "
+            "use tcp://host:port (for example tcp://192.168.1.5:31003)"
+        )
+    if parsed.scheme != "tcp":
+        return endpoint
+    if not parsed.hostname:
+        raise ValueError("Preview endpoint is missing a host (for example tcp://192.168.1.5:31003)")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"Preview endpoint has an invalid port: {endpoint}") from exc
+    if not port:
+        raise ValueError(
+            "Preview endpoint needs an explicit port, e.g. tcp://192.168.1.5:31003 "
+            "(JUNGFRAUJOCH has no default preview port)"
+        )
+    return endpoint
+
+
+def jfjoch_probe_endpoint(endpoint: str) -> dict[str, Any]:
+    """Check whether anything accepts TCP connections at the preview endpoint.
+
+    This is a reachability check, not a protocol check: a plain TCP connect
+    cannot confirm the peer is a JUNGFRAUJOCH preview publisher, only that the
+    host resolves and the port is open. That is still the difference between a
+    typo'd host, a wrong port and a firewall, which is what goes wrong in
+    practice. Callers report the limit in the wording they show.
+    """
+    value = validate_jfjoch_endpoint(endpoint)
+    parsed = urllib.parse.urlparse(value)
+    result: dict[str, Any] = {"endpoint": value, "timeout_s": _PROBE_TIMEOUT_S}
+    if parsed.scheme != "tcp":
+        # Only TCP is probe-able; ipc/inproc have no host to connect to.
+        return {"status": "ok", "code": "not_probed", **result, "message": "Endpoint accepted"}
+
+    host = parsed.hostname or ""
+    port = int(parsed.port or 0)
+    result |= {"host": host, "port": port}
+    try:
+        with socket.create_connection((host, port), timeout=_PROBE_TIMEOUT_S):
+            pass
+    except socket.gaierror:
+        return {"status": "error", "code": "dns", **result, "message": f"Host not found: {host}"}
+    except ConnectionRefusedError:
+        return {
+            "status": "error",
+            "code": "refused",
+            **result,
+            "message": f"Connection refused by {host} on port {port}",
+        }
+    except TimeoutError:
+        return {
+            "status": "error",
+            "code": "timeout",
+            **result,
+            "message": f"No response from {host} on port {port}",
+        }
+    except OSError as exc:
+        return {
+            "status": "error",
+            "code": "unreachable",
+            **result,
+            "message": f"Cannot reach {host} on port {port}: {exc}",
+        }
+    return {
+        "status": "ok",
+        "code": "ok",
+        **result,
+        "message": f"{host} accepts connections on port {port}",
+    }
 
 
 def _as_float(value: Any) -> float | None:
@@ -293,9 +435,7 @@ class JungfraujochPreviewBridge:
         topic: str = "",
         channel: str = "",
     ) -> dict[str, Any]:
-        endpoint_value = str(endpoint or "").strip()
-        if not endpoint_value:
-            raise ValueError("JUNGFRAUJOCH preview endpoint is required")
+        endpoint_value = validate_jfjoch_endpoint(endpoint)
         config = _BridgeConfig(
             endpoint=endpoint_value,
             source_id=str(source_id or "jungfraujoch").strip() or "jungfraujoch",

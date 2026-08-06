@@ -219,7 +219,7 @@
           <li><strong>File:</strong> load local files from disk.</li>
           <li><strong>Watch Folder:</strong> poll folders for new files.</li>
           <li><strong>SIMPLON Monitor:</strong> monitor live TIFF updates. Enter the detector hostname or IP address (for example <code>192.168.1.10</code>); <code>http://</code> and the default port 80 are filled in automatically. Press <strong>Test</strong> (or Enter in the address field) to check the connection — it names the detector on success, or the reason on failure (unknown host, refused port, wrong API version).</li>
-          <li><strong>JUNGFRAUJOCH Preview:</strong> subscribe to ZeroMQ preview CBOR stream with reflection overlays.</li>
+          <li><strong>JUNGFRAUJOCH Preview:</strong> subscribe to ZeroMQ preview CBOR stream with reflection overlays. Enter <code>host:port</code> and <code>tcp://</code> is filled in; there is no default preview port, so the port is required. <strong>Test</strong> checks that the port accepts connections — frames are confirmed once the preview starts.</li>
           <li><strong>Remote Stream:</strong> consume pushed frames via API source ids.</li>
           <li>For technical API details, see the repository README.</li>
         </ul>

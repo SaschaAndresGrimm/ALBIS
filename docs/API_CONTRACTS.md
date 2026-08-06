@@ -93,11 +93,25 @@ Response:
   Accompanying fields carry the specifics: `port` (refused), `http_status`, `api_version`, `timeout_s`.
 - On success the payload also reports `detector` and `serial`, so a client can confirm the address
   points at the intended instrument.
+- When the configured API version is absent but a known one answers, `code` is `ok_other_version`,
+  `api_version` holds the version that worked and `requested_version` the one asked for.
 - `502` responses from `/api/simplon/monitor`, `/api/simplon/mask`, and `/api/simplon/mode` carry the
   same classification as an object detail — `{"detail": {"summary", "code", ...}}` — so clients can
   localize the reason instead of showing a generic transport error.
 - `url` accepts a bare hostname or IP; `http://` and port 80 are assumed when omitted, and a pasted
   `/monitor/api/<version>` path is normalized away.
+
+## JUNGFRAUJOCH Endpoint Diagnostics
+
+- `GET /api/jfjoch/probe`: reachability check for a preview endpoint. `endpoint` accepts a bare
+  `host:port` — `tcp://` is added — but a port is required, since JUNGFRAUJOCH has no default.
+- **TCP reachability only.** A successful probe means the host resolves and the port accepts
+  connections; it cannot confirm the peer is a JUNGFRAUJOCH publisher. Use
+  `GET /api/jfjoch/preview/status` for whether frames actually arrive.
+- `code` vocabulary: `ok`, `not_probed` (path transports such as `ipc://`), `dns`, `refused`,
+  `timeout`, `unreachable`. An unusable endpoint returns `400` with wording that says what to enter.
+- `POST /api/jfjoch/preview/start` validates the endpoint the same way, so a missing port now fails
+  with an actionable `400` instead of an opaque ZeroMQ error later.
 
 ## Client Guidance
 

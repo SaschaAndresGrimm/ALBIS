@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { normalizeJfjochEndpointInput } from "./jfjoch_endpoint_utils.js";
 import { recordSimplonHost, renderSimplonHostOptions } from "./simplon_host_history.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
@@ -113,7 +114,8 @@ export function createAutoloadOrchestrationController({
     state.autoload.simplonEnable = simplonEnable?.checked ?? true;
     state.autoload.remoteSourceId =
       (remoteSourceInput?.value || state.autoload.remoteSourceId || "default").trim() || "default";
-    state.autoload.jfjochEndpoint = (jfjochEndpointInput?.value || state.autoload.jfjochEndpoint || "").trim();
+    state.autoload.jfjochEndpoint =
+      normalizeJfjochEndpointInput(jfjochEndpointInput) || state.autoload.jfjochEndpoint || "";
     state.autoload.jfjochSourceId =
       (jfjochSourceInput?.value || state.autoload.jfjochSourceId || "jungfraujoch").trim() || "jungfraujoch";
     state.autoload.jfjochTopic = (jfjochTopicInput?.value || state.autoload.jfjochTopic || "").trim();
