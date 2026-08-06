@@ -189,6 +189,9 @@ class SimplonProbeResponse(_StrictModel):
     code: str
     url: str = ""
     api_version: str = ""
+    # Set only when api_version differs from what the caller asked for, i.e. the
+    # configured version was absent and a known alternative answered.
+    requested_version: str = ""
     message: str = ""
     detector: str = ""
     serial: str = ""

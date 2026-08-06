@@ -310,6 +310,7 @@ const autoloadTypeHdf5 = document.getElementById("autoload-type-hdf5");
 const autoloadTypeTiff = document.getElementById("autoload-type-tiff");
 const autoloadTypeCbf = document.getElementById("autoload-type-cbf");
 const simplonUrl = document.getElementById("simplon-url");
+const simplonUrlList = document.getElementById("simplon-url-list");
 const simplonTest = document.getElementById("simplon-test");
 const simplonProbeMessage = document.getElementById("simplon-probe-message");
 const simplonVersion = document.getElementById("simplon-version");
@@ -1155,6 +1156,7 @@ const maskCursorController = createMaskCursorController({
     maskToggle,
     maskSaturatedToggle,
     simplonUrl,
+    simplonUrlList,
     simplonVersion,
   },
   callbacks: {
@@ -2268,6 +2270,7 @@ autoloadStatusController = createAutoloadStatusController({
     autoloadStatus,
     autoloadLatest,
     simplonUrl,
+    simplonUrlList,
     simplonVersion,
   },
   callbacks: {
@@ -2650,6 +2653,7 @@ const autoloadSettingsController = createAutoloadSettingsController({
     autoloadTypeCbf,
     autoloadPattern,
     simplonUrl,
+    simplonUrlList,
     simplonVersion,
     simplonTimeout,
     simplonEnable,
@@ -2705,6 +2709,7 @@ const autoloadOrchestrationController = createAutoloadOrchestrationController({
     autoloadTypeCbf,
     autoloadPattern,
     simplonUrl,
+    simplonUrlList,
     simplonVersion,
     simplonTimeout,
     simplonEnable,
@@ -4170,6 +4175,7 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   autoloadSelectFile,
   filesystemMode,
   simplonUrl,
+  simplonUrlList,
   simplonTest,
   simplonProbeMessage,
   simplonVersion,

@@ -600,6 +600,7 @@
   "simplon.probe.ok_detector_serial": "Verbunden – {{detector}} (S/N {{serial}})",
   "simplon.probe.request_failed": "Der Test konnte nicht ausgeführt werden – prüfe, ob das ALBIS-Backend verfügbar ist.",
   "simplon.probe.testing": "{{url}} wird getestet …",
+  "simplon.probe.version_switched": "API-Version auf {{version}} umgestellt.",
   "source.bridge.running": "läuft",
   "source.bridge.stopped": "gestoppt",
   "source.label.jfjoch_preview_with_seq": "JUNGFRAUJOCH Vorschau ({{sourceId}}){{seqSuffix}}",

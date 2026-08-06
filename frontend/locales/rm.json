@@ -600,6 +600,7 @@
   "simplon.probe.ok_detector_serial": "Connectà – {{detector}} (nr. da seria {{serial}})",
   "simplon.probe.request_failed": "Il test n'ha betg pudì vegnir exequì – controllescha sche il backend ALBIS è disponibel.",
   "simplon.probe.testing": "Testar {{url}} …",
+  "simplon.probe.version_switched": "Versiun d'API midada a {{version}}.",
   "source.bridge.running": "en execuziun",
   "source.bridge.stopped": "fermà",
   "source.label.jfjoch_preview_with_seq": "Preview JUNGFRAUJOCH ({{sourceId}}){{seqSuffix}}",

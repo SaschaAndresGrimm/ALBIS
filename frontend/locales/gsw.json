@@ -600,6 +600,7 @@
   "simplon.probe.ok_detector_serial": "Verbunde – {{detector}} (S/N {{serial}})",
   "simplon.probe.request_failed": "De Test het nid chöne laufe – lueg, öb s ALBIS-Backend verfiegbar isch.",
   "simplon.probe.testing": "{{url}} wird testet …",
+  "simplon.probe.version_switched": "API-Version uf {{version}} gwächslet.",
   "source.bridge.running": "lauft",
   "source.bridge.stopped": "gstoppt",
   "source.label.jfjoch_preview_with_seq": "JUNGFRAUJOCH Vorschau ({{sourceId}}){{seqSuffix}}",

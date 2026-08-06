@@ -121,6 +121,7 @@ export function createPostFilePickerBindingsElements(elements) {
     autoloadSelectFile: elements.autoloadSelectFile,
     filesystemMode: elements.filesystemMode,
     simplonUrl: elements.simplonUrl,
+    simplonUrlList: elements.simplonUrlList,
     simplonTest: elements.simplonTest,
     simplonProbeMessage: elements.simplonProbeMessage,
     simplonVersion: elements.simplonVersion,

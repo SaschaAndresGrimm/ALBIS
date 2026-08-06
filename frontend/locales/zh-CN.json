@@ -600,6 +600,7 @@
   "simplon.probe.ok_detector_serial": "已连接 — {{detector}}（S/N {{serial}}）",
   "simplon.probe.request_failed": "无法执行测试 — 请检查 ALBIS 后端是否可用。",
   "simplon.probe.testing": "正在测试 {{url}}…",
+  "simplon.probe.version_switched": "API 版本已切换为 {{version}}。",
   "source.bridge.running": "运行中",
   "source.bridge.stopped": "已停止",
   "source.label.jfjoch_preview_with_seq": "JUNGFRAUJOCH 预览 ({{sourceId}}){{seqSuffix}}",

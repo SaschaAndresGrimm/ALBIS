@@ -35,6 +35,7 @@ export function bindAutoloadControls({
     autoloadSelectFile,
     filesystemMode,
     simplonUrl,
+    simplonUrlList,
     simplonTest,
     simplonProbeMessage,
     simplonVersion,
@@ -237,7 +238,8 @@ export function bindAutoloadControls({
 
   const simplonProbeController = createSimplonProbeController({
     apiBase,
-    elements: { simplonUrl, simplonVersion, simplonTest, simplonProbeMessage },
+    state,
+    elements: { simplonUrl, simplonVersion, simplonTest, simplonProbeMessage, simplonUrlList },
     callbacks: { persistAutoloadSettings, logClient },
   });
 

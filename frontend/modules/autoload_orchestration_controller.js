@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { recordSimplonHost, renderSimplonHostOptions } from "./simplon_host_history.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
 export function createAutoloadOrchestrationController({
@@ -21,6 +22,7 @@ export function createAutoloadOrchestrationController({
     autoloadTypeCbf,
     autoloadPattern,
     simplonUrl,
+    simplonUrlList,
     simplonVersion,
     simplonTimeout,
     simplonEnable,
@@ -164,6 +166,10 @@ export function createAutoloadOrchestrationController({
     persistAutoloadSettings();
 
     if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
+      if (recordSimplonHost(state, state.autoload.simplonUrl)) {
+        renderSimplonHostOptions(simplonUrlList, state.autoload.simplonRecentHosts);
+        persistAutoloadSettings();
+      }
       setStatus(t("status.autoload.simplon_monitor"));
       await setSimplonMode(true);
       state.autoload.lastMaskAttempt = Date.now();
