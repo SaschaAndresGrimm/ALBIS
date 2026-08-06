@@ -71,7 +71,6 @@ export function createRoiStatsController(ctx) {
     roiHistBinChip,
     roiHistBinManualRow,
     roiHistBinPresetBtns,
-    scheduleRoiUpdate,
     updateRoiSectionState,
     drawRoiOverlay,
     getActiveSaturationMax,
