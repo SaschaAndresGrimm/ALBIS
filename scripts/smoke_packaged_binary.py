@@ -59,6 +59,21 @@ def _assert_http_asset(
             raise RuntimeError(f"Empty response body for {url}")
 
 
+def _assert_zstd_bundled(payload: dict[str, object]) -> None:
+    """Fail if the packaged build cannot produce zstd responses.
+
+    zstd needs a native extension. If PyInstaller misses it the app still starts
+    and remote clients silently fall back to gzip, which is a real regression that
+    no functional test would notice — so assert it explicitly here.
+    """
+    encodings = payload.get("compression_encodings")
+    if not isinstance(encodings, list) or "zstd" not in encodings:
+        raise RuntimeError(
+            "Packaged backend cannot produce zstd responses; the zstandard "
+            f"extension is likely not bundled. /api/health reported: {encodings!r}"
+        )
+
+
 def _terminate_process(proc: subprocess.Popen[str], timeout_sec: float) -> None:
     if proc.poll() is not None:
         return
@@ -143,6 +158,7 @@ def run_smoke(
             )
             if expected_version:
                 _assert_health_version(health_payload, expected_version)
+            _assert_zstd_bundled(health_payload)
             _assert_http_asset(
                 f"http://127.0.0.1:{port}/",
                 expected_content_type_substring="text/html",

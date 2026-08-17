@@ -56,7 +56,7 @@ try:
         _write_cbf,
         _write_tiff,
     )
-    from .response_compression import RemoteGZipMiddleware
+    from .response_compression import ResponseCompressionMiddleware
     from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
     from .routes.data_export import DataExportRouteDeps, register_data_export_routes
     from .routes.files import FileRouteDeps, register_file_routes
@@ -152,7 +152,9 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         _write_cbf,
         _write_tiff,
     )
-    from response_compression import RemoteGZipMiddleware  # type: ignore[no-redef]
+    from response_compression import (  # type: ignore[no-redef]
+        ResponseCompressionMiddleware,
+    )
     from routes.analysis import AnalysisRouteDeps, register_analysis_routes
     from routes.data_export import DataExportRouteDeps, register_data_export_routes
     from routes.files import FileRouteDeps, register_file_routes
@@ -260,11 +262,11 @@ app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 # middleware at the head of the stack, so the first one registered sits closest
 # to the router. Position matters here for a non-obvious reason — every
 # @app.middleware("http") below is a BaseHTTPMiddleware, and those re-emit their
-# response as a stream. From outside one, gzip can never see a body length, so it
-# would compress even tiny JSON poll responses regardless of `minimum_size`.
-# Innermost, it sees real responses and leaves small ones alone.
+# response as a stream. From outside one, the compressor can never see a body
+# length, so it would compress even tiny JSON poll responses regardless of
+# `minimum_size`. Innermost, it sees real responses and leaves small ones alone.
 app.add_middleware(
-    RemoteGZipMiddleware,
+    ResponseCompressionMiddleware,
     mode=get_str(runtime_state.config, ("server", "compression"), "auto"),
 )
 

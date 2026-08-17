@@ -9,6 +9,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import pytest
 import tifffile
 from fabio.cbfimage import CbfImage
 from fabio.edfimage import EdfImage
@@ -302,12 +303,31 @@ def test_upload_browse_autoload_and_series_flow(tmp_path: Path, monkeypatch) -> 
     assert too_large.status_code == 413
 
 
-def test_packaged_binary_smoke_harness_with_dummy_server(tmp_path: Path) -> None:
+def _load_smoke_module():
     module_path = Path(__file__).resolve().parents[1] / "scripts" / "smoke_packaged_binary.py"
     spec = importlib.util.spec_from_file_location("smoke_packaged_binary", module_path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    return module
+
+
+def test_smoke_harness_rejects_a_build_without_zstd() -> None:
+    """A PyInstaller build that drops the zstandard extension still starts and
+    serves frames, just uncompressed. Nothing else would notice, so this guard is
+    the only thing standing between a packaging slip and a silent remote
+    performance regression — it has to actually fail."""
+    module = _load_smoke_module()
+
+    module._assert_zstd_bundled({"compression_encodings": ["zstd", "gzip"]})
+
+    for degraded in ({"compression_encodings": ["gzip"]}, {"compression_encodings": []}, {}):
+        with pytest.raises(RuntimeError, match="zstd"):
+            module._assert_zstd_bundled(degraded)
+
+
+def test_packaged_binary_smoke_harness_with_dummy_server(tmp_path: Path) -> None:
+    module = _load_smoke_module()
 
     debug_log = Path(tempfile.gettempdir()) / "albis_dummy_server.log"
     debug_log.unlink(missing_ok=True)
@@ -353,7 +373,10 @@ def _main():
             if self.path == "/api/health":
                 self.send_response(200)
                 self.end_headers()
-                self.wfile.write(b"{\\"status\\": \\"ok\\", \\"version\\": \\"9.9.9\\"}")
+                self.wfile.write(
+                    b"{\\"status\\": \\"ok\\", \\"version\\": \\"9.9.9\\","
+                    b" \\"compression_encodings\\": [\\"zstd\\", \\"gzip\\"]}"
+                )
                 return
             if self.path == "/":
                 self.send_response(200)

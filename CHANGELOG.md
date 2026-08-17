@@ -12,6 +12,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Data source: the SIMPLON address field remembers detector addresses that answered — a successful connection test or a started monitor — and offers them back as autocomplete. Only addresses that worked are stored, so a failed typo is never suggested.
 - Data source: **Test** button for the JUNGFRAUJOCH preview endpoint, reporting whether the port accepts connections and naming the cause when it does not (unknown host, refused port, timeout). It is a reachability check: frames are confirmed once the preview starts.
 - Backend `GET /api/jfjoch/probe`: TCP reachability check for a preview endpoint.
+- `GET /api/health` now reports `compression_encodings`, the response encodings the running build can produce. zstd needs a native extension that a packaged build could fail to bundle, in which case remote sessions would quietly fall back to gzip; this makes that visible rather than silent.
 
 ### Fixed
 
@@ -20,9 +21,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
-- Remote sessions transfer far less data. Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire and a 4M frame is around 18 MB — the reason the UI felt sluggish when the browser was not on the same machine as the server. Responses to remote clients are now gzipped: measured on real EIGER data, a frame drops to 2.1 MB and the frontend's cold load drops from 1134 KB to 323 KB. Nothing changes for local use — a browser on the same machine is never compressed, since the transfer was already instant.
+- Remote sessions transfer far less data. Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire and a 4M frame is around 18 MB — the reason the UI felt sluggish when the browser was not on the same machine as the server. Responses to remote clients are now compressed, using zstd where the browser supports it and gzip otherwise: measured on real EIGER data, a frame drops to 1.9 MB and the frontend's cold load drops from 1134 KB to 323 KB. Nothing changes for local use — a browser on the same machine is never compressed, since the transfer was already instant, and a browser that does not support zstd is never sent it.
 - Reloading the UI over a remote link no longer refetches the whole frontend. Modules, styles and locales were previously marked `no-store` and re-downloaded in full on every single load; they are now revalidated instead, so an unchanged file comes back empty. Entry documents are still never stored, so an upgraded backend is never paired with a stale UI.
 - New `server.compression` setting: `"auto"` (default, compress for everyone except a local browser), `"on"` (always — use this behind a reverse proxy, where every request otherwise looks local), or `"off"`.
+- New dependency: `zstandard` (BSD-3-Clause). It is optional at runtime — without it ALBIS serves gzip instead of failing.
 - Development: ESLint reports zero warnings after removing two dead symbols, so a new warning is visible immediately.
 
 ## [0.10.8] - 2026-08-05

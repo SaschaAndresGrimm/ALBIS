@@ -31,7 +31,7 @@
           "type": "string",
           "enum": ["auto", "on", "off"],
           "default": "auto",
-          "description": "Gzip responses for remote clients. 'auto' compresses for every client except loopback, so local desktop use pays nothing. Use 'on' behind a reverse proxy, where the proxy is the client and every request looks like loopback. 'off' disables compression."
+          "description": "Compress responses for remote clients, preferring zstd and falling back to gzip based on what the client accepts. 'auto' compresses for every client except loopback, so local desktop use pays nothing. Use 'on' behind a reverse proxy, where the proxy is the client and every request looks like loopback. 'off' disables compression."
         }
       }
     },

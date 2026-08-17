@@ -129,6 +129,16 @@ datas += certifi_datas
 binaries += certifi_binaries
 hiddenimports += certifi_hiddenimports
 
+# zstd response compression for remote sessions. The extension module is loaded
+# through a C entry point that PyInstaller's static analysis does not see, so it
+# needs collecting explicitly. A packaged build that misses it still runs and
+# falls back to gzip, which would make the loss silent — hence the smoke test in
+# scripts/smoke_packaged_binary.py.
+zstd_datas, zstd_binaries, zstd_hiddenimports = collect_all("zstandard")
+datas += zstd_datas
+binaries += zstd_binaries
+hiddenimports += zstd_hiddenimports
+
 a = Analysis(
     ["albis_launcher.py"],
     pathex=[os.path.abspath(".")],

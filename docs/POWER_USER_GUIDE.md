@@ -79,7 +79,7 @@ A live summary shows the resulting frame count, pixel dimensions, and an estimat
 - `host` (`string`, default `127.0.0.1`): Set to `"0.0.0.0"` to enable LAN access.
 - `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
 - `reload` (`boolean`, default `false`)
-- `compression` (`auto|on|off`, default `auto`): Gzip responses for remote clients.
+- `compression` (`auto|on|off`, default `auto`): Compress responses for remote clients.
 
 Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire
 and a 4M frame around 18 MB. Over a remote link that dominates how responsive the
@@ -91,10 +91,28 @@ viewer feels; over loopback it is free either way.
   client, so every request appears to come from loopback and `auto` would never engage.
 - `off`: never compress.
 
-Measured on real EIGER 1M data, a frame drops from 4.4 MB to 2.1 MB and the
-frontend's cold load from 1134 KB to 323 KB. Clients need no changes: browsers and
-HTTP libraries with automatic content decoding handle this transparently, and any
-client sending `Accept-Encoding: identity` still gets uncompressed bytes.
+The codec is negotiated from the client's `Accept-Encoding`: **zstd** when it is
+offered, **gzip** otherwise. Measured on a real EIGER 1M `uint32` frame (4.38 MB):
+
+| codec | size | ratio | CPU |
+| --- | --- | --- | --- |
+| gzip -1 | 2.09 MB | 2.10x | 47 ms |
+| **zstd -3** | **1.88 MB** | **2.33x** | **18 ms** |
+| gzip -9 | 1.86 MB | 2.35x | 1902 ms |
+
+zstd is both smaller and faster, so it is preferred whenever available. The
+frontend's cold load drops from 1134 KB to 323 KB, and an unchanged reload now
+revalidates to empty `304`s instead of refetching.
+
+Clients need no changes. This is ordinary HTTP content negotiation, so a browser
+that does not support zstd never receives it — it simply does not advertise it and
+gets gzip. Browsers and HTTP libraries with automatic content decoding (`requests`,
+`httpx`, `curl --compressed`) handle either transparently, and a client sending
+`Accept-Encoding: identity` still gets raw bytes.
+
+zstd support needs the `zstandard` package. If it is missing, ALBIS still runs and
+serves gzip; `GET /api/health` reports `compression_encodings` so you can confirm
+what a given build can actually produce.
 
 #### `launcher`
 

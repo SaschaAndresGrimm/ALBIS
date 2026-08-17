@@ -49,19 +49,27 @@ Endpoint-specific headers are documented in OpenAPI for each route:
 ### Transfer encoding
 
 Frames are raw pixel bytes, so a single large frame runs to tens of megabytes.
-These responses honor `Accept-Encoding: gzip` for remote clients (see
-`server.compression` in `albis.config.schema.json`; loopback clients are not
-compressed, since the transfer was already local).
+These responses honor `Accept-Encoding` for remote clients, serving **zstd** when
+the client offers it and **gzip** otherwise (see `server.compression` in
+`albis.config.schema.json`; loopback clients are not compressed, since the transfer
+was already local).
 
 This is transport-level only and changes nothing about the payload contract:
 
 - The decoded bytes are identical to the uncompressed response.
 - `X-Dtype`, `X-Shape`, `X-Frame` and the endpoint-specific headers are unaffected.
+- `Vary: Accept-Encoding` is set, so intermediate caches key on the encoding.
 - Clients sending `Accept-Encoding: identity` receive uncompressed bytes.
+- A client that accepts neither codec receives uncompressed bytes.
 
-Browsers decode this transparently, including for `response.arrayBuffer()`. Custom
-clients using an HTTP library with automatic content decoding (`requests`, `httpx`,
-`curl --compressed`) need no changes either.
+Standard content negotiation applies, so a client is never sent an encoding it did
+not advertise. Browsers decode transparently, including for
+`response.arrayBuffer()`, and HTTP libraries with automatic content decoding
+(`requests`, `httpx`, `curl --compressed`) need no changes either.
+
+`GET /api/health` reports `compression_encodings`: the encodings the running build
+can produce, best first. zstd needs an optional native extension, so a build
+without it reports `["gzip"]`.
 
 ### CSV export
 
