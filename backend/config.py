@@ -19,6 +19,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "host": "127.0.0.1",
         "port": 0,
         "reload": False,
+        "compression": "auto",
     },
     "launcher": {
         "startup_timeout_sec": 10.0,
@@ -50,6 +51,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _PIXEL_LABEL_FORMATS = {"auto", "integer", "scientific"}
+_COMPRESSION_MODES = {"auto", "on", "off"}
 _UI_LANGUAGES = {"en", "zh-CN", "ja", "fr", "es", "it", "pt", "rm", "de", "sv", "da", "mi", "gsw"}
 _ALLOWED_CONFIG_KEYS: dict[str, set[str]] = {
     section: set(values.keys()) for section, values in DEFAULT_CONFIG.items()
@@ -58,6 +60,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("server", "host"): (str,),
     ("server", "port"): (int, float, str),
     ("server", "reload"): (bool, int, float, str),
+    ("server", "compression"): (str,),
     ("launcher", "startup_timeout_sec"): (int, float, str),
     ("launcher", "startup_health_timeout_sec"): (int, float, str),
     ("launcher", "open_browser"): (bool, int, float, str),
@@ -258,12 +261,16 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     ui_language = _normalize_ui_language(get_str(merged, ("ui", "language"), "en"))
     if ui_language not in _UI_LANGUAGES:
         ui_language = "en"
+    compression = get_str(merged, ("server", "compression"), "auto").strip().lower() or "auto"
+    if compression not in _COMPRESSION_MODES:
+        compression = "auto"
 
     return {
         "server": {
             "host": server_host,
             "port": server_port,
             "reload": get_bool(merged, ("server", "reload"), False),
+            "compression": compression,
         },
         "launcher": {
             "startup_timeout_sec": startup_timeout,

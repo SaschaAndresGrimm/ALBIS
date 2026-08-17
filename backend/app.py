@@ -56,6 +56,7 @@ try:
         _write_cbf,
         _write_tiff,
     )
+    from .response_compression import RemoteGZipMiddleware
     from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
     from .routes.data_export import DataExportRouteDeps, register_data_export_routes
     from .routes.files import FileRouteDeps, register_file_routes
@@ -151,6 +152,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         _write_cbf,
         _write_tiff,
     )
+    from response_compression import RemoteGZipMiddleware  # type: ignore[no-redef]
     from routes.analysis import AnalysisRouteDeps, register_analysis_routes
     from routes.data_export import DataExportRouteDeps, register_data_export_routes
     from routes.files import FileRouteDeps, register_file_routes
@@ -253,6 +255,18 @@ def _register_static_mime_types() -> None:
 _register_static_mime_types()
 
 app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
+
+# Registered first so it ends up innermost: Starlette inserts each added
+# middleware at the head of the stack, so the first one registered sits closest
+# to the router. Position matters here for a non-obvious reason — every
+# @app.middleware("http") below is a BaseHTTPMiddleware, and those re-emit their
+# response as a stream. From outside one, gzip can never see a body length, so it
+# would compress even tiny JSON poll responses regardless of `minimum_size`.
+# Innermost, it sees real responses and leaves small ones alone.
+app.add_middleware(
+    RemoteGZipMiddleware,
+    mode=get_str(runtime_state.config, ("server", "compression"), "auto"),
+)
 
 AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf", ".cfg"}
 LOG_DIR: Path | None = None
@@ -826,16 +840,24 @@ def _resource_root() -> Path:
 
 
 @app.middleware("http")
-async def _no_cache_static(request: Request, call_next):
-    """Disable browser caching for core frontend entry assets during development/updates."""
+async def _static_cache_policy(request: Request, call_next):
+    """Keep entry documents fresh while letting module assets revalidate.
+
+    Entry documents stay `no-store` so an upgraded backend is never paired with a
+    stale shell. Modules, styles and locales switch to `no-cache`: the browser may
+    store them but must revalidate, which lets StaticFiles answer an unchanged
+    asset with a bodyless 304 instead of resending it. That matters over a remote
+    link, where the frontend is ~1.3 MB spread across ~90 module files.
+    """
     response = await call_next(request)
     if request.method == "GET":
         path = request.url.path
-        if path == "/" or (
-            not path.startswith(("/api/", "/assets/"))
-            and path.endswith((".html", ".js", ".css", ".json"))
-        ):
+        if path.startswith(("/api/", "/assets/")):
+            return response
+        if path == "/" or path.endswith(".html"):
             response.headers["Cache-Control"] = "no-store"
+        elif path.endswith((".js", ".css", ".json")):
+            response.headers["Cache-Control"] = "no-cache"
     return response
 
 

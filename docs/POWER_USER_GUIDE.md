@@ -79,6 +79,22 @@ A live summary shows the resulting frame count, pixel dimensions, and an estimat
 - `host` (`string`, default `127.0.0.1`): Set to `"0.0.0.0"` to enable LAN access.
 - `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
 - `reload` (`boolean`, default `false`)
+- `compression` (`auto|on|off`, default `auto`): Gzip responses for remote clients.
+
+Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire
+and a 4M frame around 18 MB. Over a remote link that dominates how responsive the
+viewer feels; over loopback it is free either way.
+
+- `auto`: compress for every client except loopback. A browser on the same machine
+  is never compressed, so local use pays no CPU for a transfer that was already instant.
+- `on`: always compress. **Use this behind a reverse proxy** — the proxy is the
+  client, so every request appears to come from loopback and `auto` would never engage.
+- `off`: never compress.
+
+Measured on real EIGER 1M data, a frame drops from 4.4 MB to 2.1 MB and the
+frontend's cold load from 1134 KB to 323 KB. Clients need no changes: browsers and
+HTTP libraries with automatic content decoding handle this transparently, and any
+client sending `Accept-Encoding: identity` still gets uncompressed bytes.
 
 #### `launcher`
 

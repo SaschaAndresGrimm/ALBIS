@@ -6,7 +6,14 @@
     "host": "127.0.0.1",
     // Set to 0 to auto-select a free port on each startup.
     "port": 0,
-    "reload": false
+    "reload": false,
+    // Gzip responses for remote clients. Frames travel as raw pixel bytes, so a
+    // large detector frame is tens of megabytes over the wire.
+    // - "auto": compress for every client except loopback, so local use pays nothing.
+    // - "on":   always compress. Use this behind a reverse proxy, where the proxy
+    //           is the client and every request otherwise looks like loopback.
+    // - "off":  never compress.
+    "compression": "auto"
   },
 
   // Launcher behavior for packaged/source starts.

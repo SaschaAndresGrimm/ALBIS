@@ -36,6 +36,24 @@ Key state:
 - Caches: file/folder scan caches and background series-summing job state.
 - Logging: rotating logfile plus console output.
 
+#### Middleware stack
+
+Registered in `backend/app.py`, listed from innermost (closest to the router) out:
+
+1. `RemoteGZipMiddleware` (`backend/response_compression.py`) — gzips responses for
+   remote clients only. ALBIS is local-first, so under the default `auto` mode a
+   loopback client is never compressed and pays nothing.
+2. `log_requests` — request/response logging with severity by status and latency.
+3. `_static_cache_policy` — `no-store` for entry documents, `no-cache` for module
+   assets so `StaticFiles` can answer an unchanged file with a bodyless `304`.
+
+**Registration order is load-bearing.** Starlette inserts each added middleware at
+the head of the stack, so the *first* registered ends up innermost. Both items 2
+and 3 are `BaseHTTPMiddleware`, which re-emits its response as a stream — and a
+gzip layer placed outside one can never observe a body length, so it would
+compress every small JSON response regardless of its `minimum_size` threshold.
+Compression must therefore be registered before either of them.
+
 ### Frontend (`frontend/app.js`)
 
 Responsibilities:

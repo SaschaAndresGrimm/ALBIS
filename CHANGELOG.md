@@ -20,6 +20,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Remote sessions transfer far less data. Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire and a 4M frame is around 18 MB — the reason the UI felt sluggish when the browser was not on the same machine as the server. Responses to remote clients are now gzipped: measured on real EIGER data, a frame drops to 2.1 MB and the frontend's cold load drops from 1134 KB to 323 KB. Nothing changes for local use — a browser on the same machine is never compressed, since the transfer was already instant.
+- Reloading the UI over a remote link no longer refetches the whole frontend. Modules, styles and locales were previously marked `no-store` and re-downloaded in full on every single load; they are now revalidated instead, so an unchanged file comes back empty. Entry documents are still never stored, so an upgraded backend is never paired with a stale UI.
+- New `server.compression` setting: `"auto"` (default, compress for everyone except a local browser), `"on"` (always — use this behind a reverse proxy, where every request otherwise looks local), or `"off"`.
 - Development: ESLint reports zero warnings after removing two dead symbols, so a new warning is visible immediately.
 
 ## [0.10.8] - 2026-08-05

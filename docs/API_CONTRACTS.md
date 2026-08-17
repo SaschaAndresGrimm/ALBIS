@@ -46,6 +46,23 @@ Endpoint-specific headers are documented in OpenAPI for each route:
 - `X-Simplon-*` for SIMPLON metadata.
 - `X-Remote-*` for remote stream metadata and sequence control.
 
+### Transfer encoding
+
+Frames are raw pixel bytes, so a single large frame runs to tens of megabytes.
+These responses honor `Accept-Encoding: gzip` for remote clients (see
+`server.compression` in `albis.config.schema.json`; loopback clients are not
+compressed, since the transfer was already local).
+
+This is transport-level only and changes nothing about the payload contract:
+
+- The decoded bytes are identical to the uncompressed response.
+- `X-Dtype`, `X-Shape`, `X-Frame` and the endpoint-specific headers are unaffected.
+- Clients sending `Accept-Encoding: identity` receive uncompressed bytes.
+
+Browsers decode this transparently, including for `response.arrayBuffer()`. Custom
+clients using an HTTP library with automatic content decoding (`requests`, `httpx`,
+`curl --compressed`) need no changes either.
+
 ### CSV export
 
 - `GET /api/hdf5/csv`
