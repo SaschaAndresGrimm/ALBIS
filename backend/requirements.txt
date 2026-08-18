@@ -1,5 +1,5 @@
 fastapi==0.141.1
-uvicorn[standard]==0.52.1
+uvicorn[standard]==0.52.3
 python-multipart==0.0.32
 hdf5plugin==7.0.0
 h5py==3.16.0
@@ -10,4 +10,4 @@ cbor2==6.1.4
 pyzmq==27.1.0
 dectris-compression==0.3.1
 certifi==2026.7.22
-pyobjc==12.2.1; sys_platform == "darwin"
+pyobjc==12.2.2; sys_platform == "darwin"
