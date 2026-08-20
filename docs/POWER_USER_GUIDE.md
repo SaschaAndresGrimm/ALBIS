@@ -226,6 +226,8 @@ If you built locally instead of pulling from GHCR, replace the image reference w
 
 *Note: In the example above, `/path/to/your/data` is mounted into the container at `/app/data` as read-only (`:ro`). In the default ALBIS configuration (`albis.config.json`), the `data.root` is already set to `./data`, so ALBIS will immediately see your mounted files.*
 
+The image also sets `data.allow_abs_paths` to `false`, unlike the desktop default of `true`. On a workstation that setting is on because whoever browses to an absolute path already owns the machine; a container listens on `0.0.0.0` with no authentication, where the same reasoning does not hold. Mount everything you want to open under `data.root` (`/app/data`) — several mounts side by side there work fine. If you deliberately want the container to read paths outside it, set `data.allow_abs_paths` back to `true` in a mounted `albis.config.json`, and only where you control who can reach the port.
+
 If you intentionally expose the container on a trusted LAN, do it behind your own network controls and treat it as a lab-managed deployment rather than a public service.
 
 When ALBIS is opened through a localhost backend, drag-and-drop file uploads are disabled to avoid copying detector data into a second location. Use **File -> Open...** or the browser panel to open files directly from the configured data path instead. Non-local browser sessions can still use drag-and-drop as an upload workflow, but read-only data mounts should be opened from their mounted path rather than uploaded.

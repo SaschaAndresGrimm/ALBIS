@@ -26,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 try:
     from .config import (
         DEFAULT_CONFIG,
+        config_load_error,
         get_bool,
         get_float,
         get_int,
@@ -122,6 +123,7 @@ try:
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
         DEFAULT_CONFIG,
+        config_load_error,
         get_bool,
         get_float,
         get_int,
@@ -350,6 +352,16 @@ async def _lifespan(_app: FastAPI):
         pid = os.getpid()
         logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
         logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
+        load_error = config_load_error()
+        if load_error:
+            # Started on defaults rather than the user's settings. Say so loudly:
+            # otherwise this looks like ALBIS silently forgot how it was configured.
+            logger.warning(
+                "ALBIS config could not be read and defaults are in use (pid=%s): %s. "
+                "Saving settings will replace the unreadable file.",
+                pid,
+                load_error,
+            )
         logger.info(
             "ALBIS frontend root (pid=%s): %s [index=%s app.js=%s js-mime=%s]",
             pid,
