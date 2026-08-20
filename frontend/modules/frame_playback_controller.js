@@ -76,7 +76,7 @@ export function createFramePlaybackController({
 
   function stopPlayback() {
     if (state.playTimer) {
-      window.clearInterval(state.playTimer);
+      window.clearTimeout(state.playTimer);
       state.playTimer = null;
     }
     state.playing = false;
@@ -93,7 +93,14 @@ export function createFramePlaybackController({
     }
     if (isFrameLoading()) {
       queuePendingFrameRequest(clamped);
-      cancelActiveFrameLoad();
+      // Interactive navigation wants the newest index and nothing in between, so
+      // dropping the stale request is right. Playback is the opposite: every frame
+      // is wanted, and aborting the one in flight would mean no frame ever lands
+      // once a load outlasts the tick interval. Every interactive caller stops
+      // playback first, so `playing` separates the two cleanly.
+      if (!state.playing) {
+        cancelActiveFrameLoad();
+      }
       return;
     }
     state.frameIndex = clamped;
@@ -102,17 +109,32 @@ export function createFramePlaybackController({
     loadFrame();
   }
 
+  // Playback paces itself instead of running on a fixed interval. A tick that
+  // finds the previous frame still in flight waits for it rather than starting a
+  // competing request, so a slow source slows playback down instead of starving
+  // it: the selected fps is a ceiling, not a promise. Re-arming is idempotent, so
+  // overlapping callers cannot stack up two timers, and reading `fps` at arm time
+  // means a speed change applies from the next tick without restarting playback.
+  function scheduleNextPlaybackTick() {
+    if (!state.playing || state.playTimer) return;
+    state.playTimer = window.setTimeout(() => {
+      state.playTimer = null;
+      if (!state.playing) return;
+      if (!isFrameLoading()) {
+        const step = Math.max(1, state.step);
+        const next = (state.frameIndex + step) % state.frameCount;
+        requestFrame(next);
+      }
+      scheduleNextPlaybackTick();
+    }, Math.max(1000 / state.fps, 50));
+  }
+
   function startPlayback() {
     if (state.playing || state.frameCount <= 1) return;
     state.playing = true;
     updatePlayButtons();
     setLoading(false);
-    state.playTimer = window.setInterval(() => {
-      if (!state.playing) return;
-      const step = Math.max(1, state.step);
-      const next = (state.frameIndex + step) % state.frameCount;
-      requestFrame(next);
-    }, Math.max(1000 / state.fps, 50));
+    scheduleNextPlaybackTick();
   }
 
   function processPendingFrameRequest(appliedFrame) {

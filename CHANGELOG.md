@@ -16,6 +16,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- Playback no longer freezes at higher frame rates. When a frame took longer to load than the gap between ticks, each tick aborted the load the previous one had started, so nothing was ever displayed until playback was stopped — and the faster the selected rate, the more certain the stall. Playback now waits for the frame in flight instead of cancelling it, so the selected rate acts as a ceiling and a slow source simply plays more slowly. Changing speed mid-playback now takes effect without restarting it.
 - Data source: the SIMPLON **API Version** field is no longer a guessing game. When the configured version is absent but a known one answers, the connection test adopts the working version, applies it to the field and says so.
 - Data source: the JUNGFRAUJOCH preview endpoint accepts a bare `host:port` and fills in `tcp://`, repairing mistyped separators. A missing port is now rejected up front with wording that says what to enter, instead of failing later inside ZeroMQ. Path transports such as `ipc:///tmp/x` are left untouched.
 
