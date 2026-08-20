@@ -97,6 +97,7 @@ function createUiPreferencesState() {
     autoCheckUpdates: true,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,
+    frameCacheMb: 256,
     pixelLabelFormat: "auto",
     pixelLabelShowDuringDrag: false,
     panelWidth: 640,

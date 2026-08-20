@@ -140,6 +140,11 @@ what a given build can actually produce.
 - `tool_hints` (`boolean`, default `false`)
 - `pixel_label_min_cell_px` (`integer`, default `18`, clamped `8..64`)
 - `pixel_label_max_labels` (`integer`, default `4000`, clamped `100..100000`)
+- `frame_cache_mb` (`integer`, default `256`, clamped `0..4096`): Memory budget for keeping recently viewed frames, so stepping back to one costs no transfer at all.
+
+  Budgeted in memory rather than in frames on purpose: a frame is about 4 MB on an EIGER 1M and about 18 MB on a 4M detector, so a fixed frame count would mean very different memory use per instrument. Set `0` to disable caching.
+
+  Frames are never cached while autoload is running or a watch is armed, because the file may still be growing under the filewriter. Live sources (SIMPLON, Remote Stream, JUNGFRAUJOCH) are never cached either. Multi-file image series are not cached yet — this applies to HDF5 stacks.
 - `pixel_label_format` (`auto|integer|scientific`, default `auto`)
 - `pixel_label_show_during_drag` (`boolean`, default `false`)
 

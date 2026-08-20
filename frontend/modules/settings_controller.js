@@ -57,6 +57,11 @@ export function createSettingsController({
     applyLanguagePreference,
   } = callbacks;
 
+  // The config last loaded into the form. Saving rebuilds each section from the
+  // form controls, so without this any key that has no control — server.compression
+  // or ui.frame_cache_mb, say — would be dropped on save and silently reset to its
+  // default by the backend's normalization.
+  let loadedConfig = null;
   let settingsModalBusy = false;
   let settingsRequestId = 0;
   let syncingExternalAccessUi = false;
@@ -131,6 +136,7 @@ export function createSettingsController({
 
   function fillSettingsForm(config, configPath = "") {
     if (!config) return;
+    loadedConfig = config;
     if (settingsServerExternal) {
       const host = String(config?.server?.host ?? "127.0.0.1");
       setExternalAccessChecked(!isLocalOnlyHost(host));
@@ -197,15 +203,18 @@ export function createSettingsController({
 
     return {
       server: {
+        ...(loadedConfig?.server || {}),
         host: settingsServerExternal?.checked ? "0.0.0.0" : "127.0.0.1",
         port: Math.max(0, Math.min(65535, asInt(settingsServerPort?.value, 0))),
         reload: Boolean(settingsServerReload?.checked),
       },
       launcher: {
+        ...(loadedConfig?.launcher || {}),
         startup_timeout_sec: Math.max(0.1, asFloat(settingsStartupTimeout?.value, 5.0)),
         open_browser: Boolean(settingsOpenBrowser?.checked),
       },
       data: {
+        ...(loadedConfig?.data || {}),
         root: (settingsDataRoot?.value || "").trim(),
         allow_abs_paths: Boolean(settingsAllowAbs?.checked),
         scan_cache_sec: Math.max(0, asFloat(settingsScanCache?.value, 2.0)),
@@ -213,10 +222,12 @@ export function createSettingsController({
         max_upload_mb: Math.max(0, asInt(settingsMaxUpload?.value, 0)),
       },
       logging: {
+        ...(loadedConfig?.logging || {}),
         level: (settingsLogLevel?.value || "INFO").toUpperCase(),
         dir: (settingsLogDir?.value || "").trim(),
       },
       ui: {
+        ...(loadedConfig?.ui || {}),
         tool_hints: Boolean(settingsToolHints?.checked),
         auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
         pixel_label_min_cell_px: Math.max(
@@ -253,6 +264,10 @@ export function createSettingsController({
     const maxLabels = Number(cfg.pixel_label_max_labels);
     if (Number.isFinite(maxLabels)) {
       state.pixelLabelMaxLabels = Math.max(100, Math.min(100000, Math.round(maxLabels)));
+    }
+    const frameCacheMb = Number(cfg.frame_cache_mb);
+    if (Number.isFinite(frameCacheMb)) {
+      state.frameCacheMb = Math.max(0, Math.min(4096, Math.round(frameCacheMb)));
     }
     const format = String(cfg.pixel_label_format || "").toLowerCase();
     if (format === "auto" || format === "integer" || format === "scientific") {

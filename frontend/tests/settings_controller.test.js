@@ -90,9 +90,7 @@ async function initializeController({ initialConfig }) {
 
   const { createSettingsController } = await import("../modules/settings_controller.js");
 
-  const controller = createSettingsController({
-    apiBase: "/api",
-    state: {
+  const state = {
       toolHintsEnabled: false,
       autoCheckUpdates: true,
       language: "en",
@@ -100,7 +98,10 @@ async function initializeController({ initialConfig }) {
       pixelLabelMaxLabels: 4000,
       pixelLabelFormat: "auto",
       pixelLabelShowDuringDrag: false,
-    },
+  };
+  const controller = createSettingsController({
+    apiBase: "/api",
+    state,
     constants: {
       pixelLabelDefaultMinCellPx: 18,
       pixelLabelDefaultMaxLabels: 4000,
@@ -145,7 +146,7 @@ async function initializeController({ initialConfig }) {
     },
   });
 
-  return { controller, savedConfigs, locale: readLocale("en") };
+  return { controller, savedConfigs, state, locale: readLocale("en") };
 }
 
 describe("settings controller external access warning", () => {
@@ -246,5 +247,82 @@ describe("settings controller external access warning", () => {
 
     expect(savedConfigs).toHaveLength(1);
     expect(savedConfigs[0]?.ui?.auto_check_updates).toBe(false);
+  });
+});
+
+describe("settings controller preserves config it has no form control for", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  // Saving rebuilds each config section from the modal's form controls, so any
+  // key without a control was silently dropped and then reset to its default by
+  // the backend's normalization. Opening settings and pressing Save would quietly
+  // undo a hand-edited albis.config.json.
+  const configWithFormlessKeys = {
+    server: { host: "127.0.0.1", port: 8000, reload: false, compression: "on" },
+    launcher: { startup_timeout_sec: 10, open_browser: true },
+    data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
+    logging: { level: "INFO", dir: "" },
+    ui: {
+      tool_hints: false,
+      auto_check_updates: true,
+      pixel_label_min_cell_px: 18,
+      pixel_label_max_labels: 4000,
+      frame_cache_mb: 1024,
+      pixel_label_format: "auto",
+      pixel_label_show_during_drag: false,
+      language: "en",
+    },
+  };
+
+  it("keeps server.compression across a save", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWithFormlessKeys,
+    });
+
+    await controller.openSettingsModal();
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.server?.compression).toBe("on");
+  });
+
+  it("keeps ui.frame_cache_mb across a save", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWithFormlessKeys,
+    });
+
+    await controller.openSettingsModal();
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.ui?.frame_cache_mb).toBe(1024);
+  });
+
+  it("still lets a form control win over the loaded value", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWithFormlessKeys,
+    });
+
+    await controller.openSettingsModal();
+    document.getElementById("settings-auto-check-updates").checked = false;
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.ui?.auto_check_updates).toBe(false);
+    expect(savedConfigs[0]?.ui?.frame_cache_mb).toBe(1024);
+  });
+
+  it("applies frame_cache_mb to state so the cache honours it", async () => {
+    const { controller, state } = await initializeController({
+      initialConfig: configWithFormlessKeys,
+    });
+
+    await controller.openSettingsModal();
+
+    expect(state.frameCacheMb).toBe(1024);
   });
 });

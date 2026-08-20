@@ -43,6 +43,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "auto_check_updates": True,
         "pixel_label_min_cell_px": 18,
         "pixel_label_max_labels": 4000,
+        "frame_cache_mb": 256,
         "pixel_label_format": "auto",
         "pixel_label_show_during_drag": False,
         "language": "en",
@@ -76,6 +77,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("ui", "auto_check_updates"): (bool, int, float, str),
     ("ui", "pixel_label_min_cell_px"): (int, float, str),
     ("ui", "pixel_label_max_labels"): (int, float, str),
+    ("ui", "frame_cache_mb"): (int, float, str),
     ("ui", "pixel_label_format"): (str,),
     ("ui", "pixel_label_show_during_drag"): (bool, int, float, str),
     ("ui", "language"): (str,),
@@ -253,6 +255,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     pixel_label_max_labels = max(
         100, min(100000, get_int(merged, ("ui", "pixel_label_max_labels"), 4000))
     )
+    frame_cache_mb = max(0, min(4096, get_int(merged, ("ui", "frame_cache_mb"), 256)))
     pixel_label_format = (
         get_str(merged, ("ui", "pixel_label_format"), "auto").strip().lower() or "auto"
     )
@@ -294,6 +297,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "auto_check_updates": get_bool(merged, ("ui", "auto_check_updates"), True),
             "pixel_label_min_cell_px": pixel_label_min_cell_px,
             "pixel_label_max_labels": pixel_label_max_labels,
+            "frame_cache_mb": frame_cache_mb,
             "pixel_label_format": pixel_label_format,
             "pixel_label_show_during_drag": get_bool(
                 merged, ("ui", "pixel_label_show_during_drag"), False
