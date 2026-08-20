@@ -18,6 +18,7 @@ here.
 |---|---|---|---|
 | FastAPI | 0.141.1 | MIT | © 2018 Sebastián Ramírez |
 | Uvicorn | 0.52.1 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
+| Starlette | 1.6.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
 | python-multipart | 0.0.32 | Apache-2.0 | © Andrew Dunham |
 | hdf5plugin | 7.0.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
 | h5py | 3.16.0 | BSD-3-Clause | © 2008 Andrew Collette and contributors |
@@ -115,6 +116,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 The following components are licensed under the BSD 3-Clause License:
 
 - **Uvicorn** — Copyright © 2017-present, Encode OSS Ltd
+- **Starlette** — Copyright © 2018, Encode OSS Ltd
 - **h5py** — Copyright (c) 2008 Andrew Collette and contributors
 - **NumPy** — Copyright (c) 2005-2023, NumPy Developers
 - **tifffile** — Copyright (c) 2008-2025, Christoph Gohlke

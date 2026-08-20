@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import gzip
+import inspect
 from pathlib import Path
 
 import h5py
@@ -473,3 +474,17 @@ def test_starlette_responder_extension_point_still_exists() -> None:
     assert GZipResponder.content_encoding == "gzip"
     assert ZstdResponder.content_encoding == "zstd"
     assert IdentityResponder.__init__ is not object.__init__
+
+    # The hook became a coroutine in Starlette 1.6. A sync override against an
+    # async base makes Starlette await a bytes object, which fails on every
+    # request that passes through the middleware -- so assert the two agree.
+    # An earlier version of this test only checked callability and let exactly
+    # that mismatch reach CI.
+    assert inspect.iscoroutinefunction(IdentityResponder.apply_compression), (
+        "Starlette's apply_compression is no longer a coroutine; "
+        "ZstdResponder.apply_compression must change to match."
+    )
+    assert inspect.iscoroutinefunction(ZstdResponder.apply_compression), (
+        "ZstdResponder.apply_compression must be a coroutine to match "
+        "Starlette's IdentityResponder."
+    )
