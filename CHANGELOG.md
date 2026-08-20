@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Big-endian detector data no longer fails to load. Any frame whose bytes are stored most-significant-first — an HDF5 stack written that way, a raw frame pushed to the Remote Stream API with a `>u2`-style dtype, or a JUNGFRAUJOCH preview image, whose CBOR typed-array tags are big-endian by definition — returned a server error instead of an image. The byte-order swap they all pass through used a NumPy call that NumPy 2.0 removed, so it failed for exactly the data that needed swapping and for no other. The three copies of that swap are now one shared helper, which is what let two of them drift onto the removed call while the third was fixed.
+- A file that cannot be decoded is now reported as such instead of as an ALBIS failure. Opening a truncated or corrupt HDF5, TIFF, CBF, or EDF — most often a file the filewriter has not finished writing — surfaced a bare "Internal Server Error". It now names the file and the reason, so it reads as something to retry rather than something broken.
+- A truncated EDF is no longer displayed as if it were complete. fabio zero-fills the part of the frame it could not read and reports the shortfall only in a log line, so the missing region rendered as genuine zero counts, with nothing to distinguish it from real data.
+- Live metadata from an external producer can no longer break the frame it describes. Text supplied by a remote stream or a JUNGFRAUJOCH series — a display name, a sample name, a timestamp — is sent back in response headers, and three kinds of value broke that response for as long as the frame stayed current: a character outside Latin-1 (a 500), a line break (the connection dropped mid-response), and a very long value (past what the client will read). Such text is now percent-encoded on the way out and decoded for display, so a non-ASCII sample name survives intact rather than being dropped or mangled.
+
 ## [0.10.9] - 2026-08-20
 
 ### Added

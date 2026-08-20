@@ -20,6 +20,7 @@ try:
         HDF5TreeResponse,
         HDF5ValueResponse,
     )
+    from ..services.hdf5_stack import open_hdf5_for_read
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         HDF5DatasetsResponse,
@@ -29,6 +30,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         HDF5TreeResponse,
         HDF5ValueResponse,
     )
+    from services.hdf5_stack import open_hdf5_for_read  # type: ignore[no-redef]
 
 
 HDF5_CSV_RESPONSE_DOCS: dict[int, dict[str, Any]] = {
@@ -66,7 +68,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         h5py = deps.get_h5py()
         path = deps.resolve_file(file)
         results: list[dict[str, Any]] = []
-        with h5py.File(path, "r") as h5:
+        with open_hdf5_for_read(h5py, path) as h5:
             file_cache: dict[Path, Any] = {path: h5}
             try:
                 deps.walk_datasets(h5["/"], "/", path, results, set(), file_cache)
@@ -85,7 +87,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
-        with h5py.File(file_path, "r") as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5:
             if path not in h5:
                 raise HTTPException(status_code=404, detail="Path not found")
             obj = h5[path]
@@ -154,7 +156,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
-        with h5py.File(file_path, "r") as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5:
             if path not in h5:
                 raise HTTPException(status_code=404, detail="Path not found")
             obj = h5[path]
@@ -187,7 +189,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
-        with h5py.File(file_path, "r") as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5:
             if path not in h5:
                 raise HTTPException(status_code=404, detail="Path not found")
             obj = h5[path]
@@ -221,7 +223,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             return HDF5SearchResponse(matches=[])
         file_path = deps.resolve_file(file)
         matches: list[dict[str, Any]] = []
-        with h5py.File(file_path, "r") as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5:
             stack: list[tuple[str, Any]] = [("/", h5["/"])]
             while stack and len(matches) < limit:
                 base_path, group = stack.pop()
@@ -299,7 +301,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
-        with h5py.File(file_path, "r") as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5:
             if path not in h5:
                 raise HTTPException(status_code=404, detail="Path not found")
             obj = h5[path]

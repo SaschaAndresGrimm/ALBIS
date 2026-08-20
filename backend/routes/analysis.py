@@ -15,6 +15,7 @@ try:
         SeriesSumStartRequest,
         SeriesSumStartResponse,
     )
+    from ..services.hdf5_stack import open_hdf5_for_read
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from api_models import (  # type: ignore[no-redef]
         AnalysisParamsResponse,
@@ -23,6 +24,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         SeriesSumStartRequest,
         SeriesSumStartResponse,
     )
+    from services.hdf5_stack import open_hdf5_for_read  # type: ignore[no-redef]
 
 
 @dataclass(frozen=True)
@@ -213,7 +215,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         source_file_ref = ""
         source_dataset_ref = ""
 
-        with h5py.File(file_path, "r") as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5:
             payload = _analysis_payload_from_h5(h5, file_path, dataset)
             source_file_ref = _clean_text(h5.attrs.get("source_file"))
             source_dataset_ref = _clean_text(h5.attrs.get("source_dataset"))
@@ -234,7 +236,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 source_payload: dict[str, Any] = {}
                 try:
                     if ext in {".h5", ".hdf5"} and source_path.resolve() != file_path.resolve():
-                        with h5py.File(source_path, "r") as source_h5:
+                        with open_hdf5_for_read(h5py, source_path) as source_h5:
                             source_payload = _analysis_payload_from_h5(
                                 source_h5,
                                 source_path,

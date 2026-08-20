@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { readHeaderText } from "./http.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
 export function createMaskCursorController({
@@ -221,7 +222,7 @@ export function createMaskCursorController({
       const data = typedArrayFrom(buffer, dtype);
       state.maskRaw = normalizeMaskData(data);
       state.maskShape = shape;
-      state.maskPath = res.headers.get("X-Mask-Path") || "";
+      state.maskPath = readHeaderText(res.headers, "X-Mask-Path");
       alignMaskToFrame();
       syncMaskAvailability(forceEnable);
       if (state.hasFrame) {

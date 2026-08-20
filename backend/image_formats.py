@@ -9,10 +9,13 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import logging
 import math
 import re
 import struct
 import sys
+import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -1028,6 +1031,25 @@ def _resolve_series_files(path: Path) -> tuple[list[Path], int]:
     return files, index
 
 
+def _to_little_endian(arr: np.ndarray) -> np.ndarray:
+    """Return `arr` with little-endian byte order, copying only when it differs.
+
+    Frames leave the backend as raw bytes that the frontend decodes as
+    little-endian, so anything big-endian has to be swapped first. NumPy 2.0
+    removed `ndarray.newbyteorder`, so the relabel goes through a dtype view:
+    `byteswap()` reorders the bytes but leaves the dtype still claiming
+    big-endian, and the view fixes the label without touching the buffer again.
+
+    Every caller must share this one implementation. Three copies of it existed
+    previously and two were left on the removed API, which turned any
+    big-endian source -- an HDF5 stack, a CBOR typed array from the
+    JUNGFRAUJOCH bridge -- into a 500.
+    """
+    if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
+        return arr.byteswap().view(arr.dtype.newbyteorder("<"))
+    return arr
+
+
 def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
     if arr.ndim == 2:
         frame = arr
@@ -1040,8 +1062,7 @@ def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
     else:
         raise HTTPException(status_code=400, detail="Unsupported image shape")
     frame = np.ascontiguousarray(frame)
-    if frame.dtype.byteorder == ">" or (frame.dtype.byteorder == "=" and sys.byteorder == "big"):
-        frame = frame.byteswap().newbyteorder("<")
+    frame = _to_little_endian(frame)
     if frame.dtype.kind in {"u", "i"} and frame.dtype.itemsize > 4:
         if frame.dtype.kind == "u":
             vmax = int(np.max(frame, initial=0))
@@ -1059,10 +1080,79 @@ def _normalize_image_array(arr: np.ndarray, index: int = 0) -> np.ndarray:
     return frame
 
 
+def _unreadable_image_error(path: Path, exc: Exception) -> HTTPException:
+    """Build the 422 raised when an image file exists but cannot be decoded.
+
+    A viewer is pointed at whatever is on disk, and at a beamline that
+    routinely includes a file the filewriter has not finished writing. Letting
+    the decoder's own exception escape reports that as a 500 -- an ALBIS fault
+    the user cannot act on -- when the honest answer is that the bytes are not
+    readable yet. Mirrors how the MYTHEN readers below already report one.
+    """
+    # An empty message (fabio raises bare AssertionErrors) is useless to a
+    # user, so fall back to the exception type; either way it is capped so a
+    # verbose decoder never dominates the toast.
+    reason = str(exc).strip().replace("\n", " ") or type(exc).__name__
+    if len(reason) > 120:
+        reason = reason[:117] + "..."
+    return HTTPException(
+        status_code=422,
+        detail=f"Cannot read {path.name}: file may be incomplete or corrupt ({reason})",
+    )
+
+
+class _FabioErrorProbe(logging.Handler):
+    """Capture fabio's own error records emitted on the calling thread.
+
+    fabio does not always raise on a short file: a truncated EDF decodes into a
+    correctly shaped array whose missing tail is silently zero-filled, and it
+    reports that only by logging `Data stream is incomplete`. Left alone, ALBIS
+    would render half a frame as genuine zero counts -- for a viewer used to
+    judge data quality, quietly wrong is worse than an error.
+
+    Records are matched by thread id because the handler is attached to a
+    process-wide logger: export and series-sum jobs decode images on worker
+    threads, and without the check one job's bad file could fail an unrelated
+    request decoding a good one.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.ERROR)
+        self.thread_id = threading.get_ident()
+        self.message = ""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if not self.message and record.thread == self.thread_id:
+            self.message = record.getMessage()
+
+
+def _decode_fabio_data(path: Path, opener: Callable[[Path], Any]) -> np.ndarray:
+    """Decode a fabio-backed image, converting any decode failure into a 422."""
+    probe = _FabioErrorProbe()
+    fabio_logger = logging.getLogger("fabio")
+    fabio_logger.addHandler(probe)
+    try:
+        image = opener(path)
+        # `.data` is lazy: the read, and any truncation error, happens here.
+        arr = np.asarray(image.data)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise _unreadable_image_error(path, exc) from exc
+    finally:
+        fabio_logger.removeHandler(probe)
+    if probe.message:
+        raise _unreadable_image_error(path, RuntimeError(probe.message))
+    return arr
+
+
 def _read_tiff(path: Path, index: int = 0) -> np.ndarray:
     _ensure_tifffile()
-    arr = _tifffile.imread(path)
-    return _normalize_image_array(np.asarray(arr), index=index)
+    try:
+        arr = np.asarray(_tifffile.imread(path))
+    except Exception as exc:
+        raise _unreadable_image_error(path, exc) from exc
+    return _normalize_image_array(arr, index=index)
 
 
 def _read_tiff_bytes(raw: bytes, index: int = 0) -> np.ndarray:
@@ -1110,21 +1200,15 @@ def _write_cbf(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = No
 
 
 def _read_cbf(path: Path) -> np.ndarray:
-    image = _open_fabio_cbf_image(path)
-    arr = np.asarray(image.data)
-    return _normalize_image_array(arr)
+    return _normalize_image_array(_decode_fabio_data(path, _open_fabio_cbf_image))
 
 
 def _read_cbf_gz(path: Path) -> np.ndarray:
-    image = _open_fabio_cbf_image(path)
-    arr = np.asarray(image.data)
-    return _normalize_image_array(arr)
+    return _normalize_image_array(_decode_fabio_data(path, _open_fabio_cbf_image))
 
 
 def _read_edf(path: Path) -> np.ndarray:
-    image = _open_fabio_edf_image(path)
-    arr = np.asarray(image.data)
-    return _normalize_image_array(arr)
+    return _normalize_image_array(_decode_fabio_data(path, _open_fabio_edf_image))
 
 
 # ---------------------------------------------------------------------------

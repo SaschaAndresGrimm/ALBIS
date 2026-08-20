@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchJSON, fetchJSONWithInit } from "../modules/http.js";
+import { fetchJSON, fetchJSONWithInit, readHeaderText } from "../modules/http.js";
 
 // Reject like a real fetch() does when its AbortSignal fires.
 function abortableFetch() {
@@ -94,5 +94,46 @@ describe("http", () => {
     await fetchJSON("/x");
     const init = fetchMock.mock.calls[0][1] || {};
     expect(init.signal).toBeUndefined();
+  });
+});
+
+describe("readHeaderText", () => {
+  // Mirrors sanitize_header_value() in backend/routes/binary_response_utils.py:
+  // percent-encode everything outside printable ASCII, plus `%` itself.
+  function encodeLikeBackend(value) {
+    return [...value]
+      .map((ch) => {
+        const code = ch.codePointAt(0);
+        return code >= 0x20 && code <= 0x7e && ch !== "%" ? ch : encodeURIComponent(ch);
+      })
+      .join("");
+  }
+
+  const headers = (value) => ({ get: (name) => (name === "X-Remote-Display" ? value : null) });
+
+  it("returns plain ASCII labels unchanged", () => {
+    expect(readHeaderText(headers("Remote stream (default) S1 Img2"), "X-Remote-Display")).toBe(
+      "Remote stream (default) S1 Img2",
+    );
+  });
+
+  it("round-trips text the backend had to encode to send at all", () => {
+    for (const original of ["結晶 α-helix ~2.1 Å", "a\r\nX-Evil: 1", "100% sure", "a\tb"]) {
+      expect(readHeaderText(headers(encodeLikeBackend(original)), "X-Remote-Display")).toBe(
+        original,
+      );
+    }
+  });
+
+  it("returns an empty string for a missing or empty header", () => {
+    expect(readHeaderText(headers(""), "X-Remote-Display")).toBe("");
+    expect(readHeaderText(headers("x"), "X-Absent")).toBe("");
+    expect(readHeaderText(null, "X-Remote-Display")).toBe("");
+  });
+
+  it("falls back to the raw value rather than throwing on a malformed escape", () => {
+    // decodeURIComponent throws a URIError here; losing the frame over a
+    // cosmetic label would be the wrong trade.
+    expect(readHeaderText(headers("broken%E0%A4"), "X-Remote-Display")).toBe("broken%E0%A4");
   });
 });

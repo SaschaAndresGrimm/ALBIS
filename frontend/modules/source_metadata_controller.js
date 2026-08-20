@@ -8,6 +8,7 @@ import {
   getGeometryScopeKey,
   isGeometryLockActive,
 } from "./geometry_override_utils.js";
+import { readHeaderText } from "./http.js";
 import { getGeometryReferencePose, prepareRingGeometry } from "./ring_geometry_utils.js";
 
 export function createSourceMetadataController({
@@ -411,7 +412,7 @@ export function createSourceMetadataController({
       meta: {
         series: headers.get("X-Simplon-Series") || "",
         image: headers.get("X-Simplon-Image") || "",
-        date: headers.get("X-Simplon-Date") || "",
+        date: readHeaderText(headers, "X-Simplon-Date"),
         energyEv,
         thresholdEv,
         wavelengthA,
@@ -444,10 +445,10 @@ export function createSourceMetadataController({
       meta: {
         source: headers.get("X-Remote-Source") || state.autoload.remoteSourceId || "",
         seq: Number(headers.get("X-Remote-Seq") || 0),
-        displayName: headers.get("X-Remote-Display") || "",
+        displayName: readHeaderText(headers, "X-Remote-Display"),
         series: headers.get("X-Remote-Series") || "",
         image: headers.get("X-Remote-Image") || "",
-        date: headers.get("X-Remote-Date") || "",
+        date: readHeaderText(headers, "X-Remote-Date"),
         energyEv,
         wavelengthA,
         distanceMm,
