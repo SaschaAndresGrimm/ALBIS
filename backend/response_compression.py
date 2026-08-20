@@ -20,10 +20,12 @@ read — an old browser simply does not offer `zstd` and receives gzip instead.
 
 Implementation note: the responders subclass Starlette's `IdentityResponder`,
 which reduces zstd support to one `apply_compression` hook and reuses Starlette's
-handling of the minimum-size threshold, already-encoded responses, event streams,
-streaming bodies and the `Vary` header. Those names are not part of Starlette's
-documented API, so `test_response_compression.py` asserts the assumptions this
-relies on: a Starlette upgrade that moves them should fail loudly in CI.
+handling of the minimum-size threshold, already-encoded responses, excluded
+content types, partial responses, streaming bodies and the `Vary` header. Those
+names are not part of Starlette's documented API, so `test_response_compression.py`
+asserts the assumptions this relies on -- including whether the hook is a
+coroutine, which changed in Starlette 1.6 and must fail loudly in CI rather than
+at request time.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ from __future__ import annotations
 import ipaddress
 from typing import Any
 
+import anyio
 from starlette.datastructures import Headers
 from starlette.middleware.gzip import GZipResponder, IdentityResponder
 
@@ -53,6 +56,11 @@ GZIP_LEVEL = 1
 # Below this, the framing and the round trip through the compressor cost more
 # than they save. Small JSON replies pass through untouched.
 MINIMUM_SIZE = 1024
+
+# Above this, compression runs on a worker thread. Frames are megabytes, and
+# compressing one inline would block the event loop for long enough to stall
+# every other request on the server. Mirrors what Starlette does for gzip.
+THREAD_MINIMUM_SIZE = 128 * 1024
 
 COMPRESSION_MODES = ("auto", "on", "off")
 
@@ -130,21 +138,43 @@ class ZstdResponder(IdentityResponder):
 
     content_encoding = "zstd"
 
-    def __init__(self, app: Any, minimum_size: int, level: int = ZSTD_LEVEL) -> None:
+    def __init__(
+        self,
+        app: Any,
+        minimum_size: int,
+        level: int = ZSTD_LEVEL,
+        *,
+        thread_minimum_size: int = THREAD_MINIMUM_SIZE,
+    ) -> None:
         super().__init__(app, minimum_size)
-        self._compressor = zstandard.ZstdCompressor(level=level).compressobj()
+        self.level = level
+        self.thread_minimum_size = thread_minimum_size
+        self._compressor: Any = None
 
-    def apply_compression(self, body: bytes, *, more_body: bool) -> bytes:
-        chunk = self._compressor.compress(body)
+    @property
+    def compressor(self) -> Any:
+        # Built on first use so constructing a responder for a response that
+        # turns out to be too small to compress costs nothing.
+        if self._compressor is None:
+            self._compressor = zstandard.ZstdCompressor(level=self.level).compressobj()
+        return self._compressor
+
+    async def apply_compression(self, body: bytes, *, more_body: bool) -> bytes:
+        if len(body) >= self.thread_minimum_size:
+            return await anyio.to_thread.run_sync(self._compress_body, body, more_body)
+        return self._compress_body(body, more_body)
+
+    def _compress_body(self, body: bytes, more_body: bool) -> bytes:
+        chunk = self.compressor.compress(body)
         if not more_body:
-            return chunk + self._compressor.flush(zstandard.COMPRESSOBJ_FLUSH_FINISH)
+            return chunk + self.compressor.flush(zstandard.COMPRESSOBJ_FLUSH_FINISH)
         if not chunk:
             # zstd buffers small writes and can legitimately return nothing here.
             # Starlette decides whether to set Content-Encoding by checking that
             # the first streamed chunk differs from the input, so yielding b"" on
             # that chunk would leave the header unset for the whole stream. Flush
             # a block to guarantee output.
-            chunk = self._compressor.flush(zstandard.COMPRESSOBJ_FLUSH_BLOCK)
+            chunk = self.compressor.flush(zstandard.COMPRESSOBJ_FLUSH_BLOCK)
         return chunk
 
 

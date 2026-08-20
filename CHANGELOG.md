@@ -28,6 +28,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Reloading the UI over a remote link no longer refetches the whole frontend. Modules, styles and locales were previously marked `no-store` and re-downloaded in full on every single load; they are now revalidated instead, so an unchanged file comes back empty. Entry documents are still never stored, so an upgraded backend is never paired with a stale UI.
 - New `server.compression` setting: `"auto"` (default, compress for everyone except a local browser), `"on"` (always — use this behind a reverse proxy, where every request otherwise looks local), or `"off"`.
 - New dependency: `zstandard` (BSD-3-Clause). It is optional at runtime — without it ALBIS serves gzip instead of failing.
+- Dependencies: `starlette` is now pinned explicitly (`1.6.0`). FastAPI only requires `starlette>=0.46.0` with no upper bound, so the version actually installed could drift between machines and CI — and the response-compression code builds on Starlette's compression responder, whose interface changed in 1.6.
 - Development: ESLint reports zero warnings after removing two dead symbols, so a new warning is visible immediately.
 
 ## [0.10.8] - 2026-08-05
