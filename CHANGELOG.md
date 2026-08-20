@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Security
+
+- ALBIS no longer answers requests a web page made on the user's behalf. It has no authentication, on the reasoning that the only person who can reach a local viewer is the person in front of it — but while ALBIS runs, every page the user visits can send requests to it that arrive carrying the user's own local access. Two of those got through. A page whose own domain resolves to `127.0.0.1` was same-origin with ALBIS as far as the browser was concerned, which made the API readable, `/api/browse` included. And `POST /api/upload` uses a form encoding that predates CORS and is sent with no preflight, so any page could write a file into the data directory and simply not read the reply. ALBIS now checks the `Host` header, and refuses state-changing requests — plus the two endpoints that open a native file dialog — when the browser reports them as coming from another site.
+
+  Nothing changes for normal use. A local browser, a `0.0.0.0` bind, and clients that are not browsers are all unaffected; the last of those is deliberate, since the Remote Stream API exists to be called by detector-side scripts and a non-browser client can set any header it likes. **One case needs configuration:** a reverse proxy in front of a loopback bind forwards its own hostname, so add it to the new `server.allowed_hosts` (see *Reverse Proxies and Remote Access* in the Power User Guide). A refused request is logged and answers `403` naming the setting.
+
 ### Changed
 
 - Docker images no longer allow absolute paths. The desktop default stays `true` — on a workstation, whoever browses to an absolute path already owns the machine — but the image listens on `0.0.0.0` with no authentication, where that reasoning does not hold and anything reaching the port could otherwise read the whole container filesystem. The documented setup is unaffected, since it already mounts data at `/app/data`, which is `data.root`; several mounts side by side there work fine. Set `data.allow_abs_paths` back to `true` in a mounted config if you deliberately want paths outside it.

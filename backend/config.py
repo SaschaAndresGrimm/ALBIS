@@ -36,6 +36,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "port": 0,
         "reload": False,
         "compression": "auto",
+        "allowed_hosts": [],
     },
     "launcher": {
         "startup_timeout_sec": 10.0,
@@ -78,6 +79,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("server", "port"): (int, float, str),
     ("server", "reload"): (bool, int, float, str),
     ("server", "compression"): (str,),
+    ("server", "allowed_hosts"): (list, str),
     ("launcher", "startup_timeout_sec"): (int, float, str),
     ("launcher", "startup_health_timeout_sec"): (int, float, str),
     ("launcher", "open_browser"): (bool, int, float, str),
@@ -132,6 +134,20 @@ def _normalize_ui_language(value: Any) -> str:
     if lower.startswith("en"):
         return "en"
     return "en"
+
+
+def _normalize_allowed_hosts(value: Any) -> list[str]:
+    """Coerce `server.allowed_hosts` to a de-duplicated list of lowercase names."""
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list | tuple):
+        return []
+    cleaned: list[str] = []
+    for entry in value:
+        token = str(entry or "").strip().lower()
+        if token and token not in cleaned:
+            cleaned.append(token)
+    return cleaned
 
 
 def _repo_root() -> Path:
@@ -283,6 +299,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     compression = get_str(merged, ("server", "compression"), "auto").strip().lower() or "auto"
     if compression not in _COMPRESSION_MODES:
         compression = "auto"
+    allowed_hosts = _normalize_allowed_hosts(get_nested(merged, ("server", "allowed_hosts"), []))
 
     return {
         "server": {
@@ -290,6 +307,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "port": server_port,
             "reload": get_bool(merged, ("server", "reload"), False),
             "compression": compression,
+            "allowed_hosts": allowed_hosts,
         },
         "launcher": {
             "startup_timeout_sec": startup_timeout,

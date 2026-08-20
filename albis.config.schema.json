@@ -27,6 +27,12 @@
           "default": false,
           "description": "Enable auto-reload in source mode."
         },
+        "allowed_hosts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Host header names ALBIS will answer to, in addition to localhost. Leave empty to derive them from server.host: a loopback bind accepts only this machine, a 0.0.0.0 bind accepts anything. Set this when a reverse proxy forwards its own hostname to a loopback bind. Use [\"*\"] to accept any host."
+        },
         "compression": {
           "type": "string",
           "enum": ["auto", "on", "off"],
@@ -168,7 +174,8 @@
       "host": "127.0.0.1",
       "port": 0,
       "reload": false,
-      "compression": "auto"
+      "compression": "auto",
+      "allowed_hosts": []
     },
     "launcher": {
       "startup_timeout_sec": 5.0,
