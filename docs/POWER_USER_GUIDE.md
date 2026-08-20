@@ -79,6 +79,40 @@ A live summary shows the resulting frame count, pixel dimensions, and an estimat
 - `host` (`string`, default `127.0.0.1`): Set to `"0.0.0.0"` to enable LAN access.
 - `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
 - `reload` (`boolean`, default `false`)
+- `compression` (`auto|on|off`, default `auto`): Compress responses for remote clients.
+
+Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire
+and a 4M frame around 18 MB. Over a remote link that dominates how responsive the
+viewer feels; over loopback it is free either way.
+
+- `auto`: compress for every client except loopback. A browser on the same machine
+  is never compressed, so local use pays no CPU for a transfer that was already instant.
+- `on`: always compress. **Use this behind a reverse proxy** — the proxy is the
+  client, so every request appears to come from loopback and `auto` would never engage.
+- `off`: never compress.
+
+The codec is negotiated from the client's `Accept-Encoding`: **zstd** when it is
+offered, **gzip** otherwise. Measured on a real EIGER 1M `uint32` frame (4.38 MB):
+
+| codec | size | ratio | CPU |
+| --- | --- | --- | --- |
+| gzip -1 | 2.09 MB | 2.10x | 47 ms |
+| **zstd -3** | **1.88 MB** | **2.33x** | **18 ms** |
+| gzip -9 | 1.86 MB | 2.35x | 1902 ms |
+
+zstd is both smaller and faster, so it is preferred whenever available. The
+frontend's cold load drops from 1134 KB to 323 KB, and an unchanged reload now
+revalidates to empty `304`s instead of refetching.
+
+Clients need no changes. This is ordinary HTTP content negotiation, so a browser
+that does not support zstd never receives it — it simply does not advertise it and
+gets gzip. Browsers and HTTP libraries with automatic content decoding (`requests`,
+`httpx`, `curl --compressed`) handle either transparently, and a client sending
+`Accept-Encoding: identity` still gets raw bytes.
+
+zstd support needs the `zstandard` package. If it is missing, ALBIS still runs and
+serves gzip; `GET /api/health` reports `compression_encodings` so you can confirm
+what a given build can actually produce.
 
 #### `launcher`
 
@@ -106,6 +140,11 @@ A live summary shows the resulting frame count, pixel dimensions, and an estimat
 - `tool_hints` (`boolean`, default `false`)
 - `pixel_label_min_cell_px` (`integer`, default `18`, clamped `8..64`)
 - `pixel_label_max_labels` (`integer`, default `4000`, clamped `100..100000`)
+- `frame_cache_mb` (`integer`, default `256`, clamped `0..4096`): Memory budget for keeping recently viewed frames, so stepping back to one costs no transfer at all. Also adjustable in **Settings -> Viewer**.
+
+  Budgeted in memory rather than in frames on purpose: a frame is about 4 MB on an EIGER 1M and about 18 MB on a 4M detector, so a fixed frame count would mean very different memory use per instrument. Set `0` to disable caching.
+
+  Frames are never cached while autoload is running or a watch is armed, because the file may still be growing under the filewriter. Live sources (SIMPLON, Remote Stream, JUNGFRAUJOCH) are never cached either. Multi-file image series are not cached yet — this applies to HDF5 stacks.
 - `pixel_label_format` (`auto|integer|scientific`, default `auto`)
 - `pixel_label_show_during_drag` (`boolean`, default `false`)
 

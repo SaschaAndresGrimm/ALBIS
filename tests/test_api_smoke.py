@@ -32,11 +32,11 @@ def test_frontend_module_entrypoint_is_served_as_javascript() -> None:
 
     assert response.status_code == 200
     assert "javascript" in response.headers["content-type"]
-    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["cache-control"] == "no-cache"
     assert 'from "./modules/http.js"' in response.text
 
 
-def test_frontend_modules_and_locales_are_served_without_cache() -> None:
+def test_frontend_modules_and_locales_revalidate_instead_of_refetching() -> None:
     client = TestClient(app)
 
     module_response = client.get("/modules/file_browser.js")
@@ -44,8 +44,10 @@ def test_frontend_modules_and_locales_are_served_without_cache() -> None:
 
     assert module_response.status_code == 200
     assert locale_response.status_code == 200
-    assert module_response.headers["cache-control"] == "no-store"
-    assert locale_response.headers["cache-control"] == "no-store"
+    # `no-cache` stores but always revalidates, so an unchanged module can come
+    # back as a bodyless 304 instead of being resent on every reload.
+    assert module_response.headers["cache-control"] == "no-cache"
+    assert locale_response.headers["cache-control"] == "no-cache"
 
 
 def test_open_log_endpoint_returns_backend_log_path() -> None:

@@ -5,21 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.9] - 2026-08-20
 
 ### Added
 
+- Recently viewed frames are kept in memory, so stepping back to a frame — or replaying a stretch you have already watched — costs no transfer and renders immediately. The budget is memory rather than a frame count, since a frame ranges from about 4 MB on an EIGER 1M to about 18 MB on a 4M detector; tune it in **Settings -> Viewer** or with `ui.frame_cache_mb` (default 256 MB, `0` disables it). Frames are never cached while autoload is running or a watch is armed, because the file may still be growing under the filewriter.
 - Data source: the SIMPLON address field remembers detector addresses that answered — a successful connection test or a started monitor — and offers them back as autocomplete. Only addresses that worked are stored, so a failed typo is never suggested.
 - Data source: **Test** button for the JUNGFRAUJOCH preview endpoint, reporting whether the port accepts connections and naming the cause when it does not (unknown host, refused port, timeout). It is a reachability check: frames are confirmed once the preview starts.
 - Backend `GET /api/jfjoch/probe`: TCP reachability check for a preview endpoint.
+- `GET /api/health` now reports `compression_encodings`, the response encodings the running build can produce. zstd needs a native extension that a packaged build could fail to bundle, in which case remote sessions would quietly fall back to gzip; this makes that visible rather than silent.
 
 ### Fixed
 
+- Settings: opening the settings dialog and saving no longer discards configuration that has no field in it. Every section was rebuilt from the dialog's controls alone, so hand-edited keys without a control — `server.compression` and `ui.frame_cache_mb` — were dropped on save and silently reset to their defaults.
+- Playback no longer freezes at higher frame rates. When a frame took longer to load than the gap between ticks, each tick aborted the load the previous one had started, so nothing was ever displayed until playback was stopped — and the faster the selected rate, the more certain the stall. Playback now waits for the frame in flight instead of cancelling it, so the selected rate acts as a ceiling and a slow source simply plays more slowly. Changing speed mid-playback now takes effect without restarting it.
 - Data source: the SIMPLON **API Version** field is no longer a guessing game. When the configured version is absent but a known one answers, the connection test adopts the working version, applies it to the field and says so.
 - Data source: the JUNGFRAUJOCH preview endpoint accepts a bare `host:port` and fills in `tcp://`, repairing mistyped separators. A missing port is now rejected up front with wording that says what to enter, instead of failing later inside ZeroMQ. Path transports such as `ipc:///tmp/x` are left untouched.
 
 ### Changed
 
+- Remote sessions transfer far less data. Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire and a 4M frame is around 18 MB — the reason the UI felt sluggish when the browser was not on the same machine as the server. Responses to remote clients are now compressed, using zstd where the browser supports it and gzip otherwise: measured on real EIGER data, a frame drops to 1.9 MB and the frontend's cold load drops from 1134 KB to 323 KB. Nothing changes for local use — a browser on the same machine is never compressed, since the transfer was already instant, and a browser that does not support zstd is never sent it.
+- Reloading the UI over a remote link no longer refetches the whole frontend. Modules, styles and locales were previously marked `no-store` and re-downloaded in full on every single load; they are now revalidated instead, so an unchanged file comes back empty. Entry documents are still never stored, so an upgraded backend is never paired with a stale UI.
+- New `server.compression` setting: `"auto"` (default, compress for everyone except a local browser), `"on"` (always — use this behind a reverse proxy, where every request otherwise looks local), or `"off"`.
+- New dependency: `zstandard` (BSD-3-Clause). It is optional at runtime — without it ALBIS serves gzip instead of failing.
 - Development: ESLint reports zero warnings after removing two dead symbols, so a new warning is visible immediately.
 
 ## [0.10.8] - 2026-08-05
@@ -692,7 +700,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.8...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.9...HEAD
+[0.10.9]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.8...v0.10.9
 [0.10.8]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.6...v0.10.7
 [0.10.6]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.5...v0.10.6

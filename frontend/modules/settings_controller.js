@@ -17,6 +17,10 @@ export function createSettingsController({
     pixelLabelDefaultMaxLabels,
   } = constants;
 
+  // Mirrors ui.frame_cache_mb in backend/config.py. Only a fallback: the value
+  // shown and saved comes from the loaded config whenever there is one.
+  const FRAME_CACHE_DEFAULT_MB = 256;
+
   const {
     settingsModal,
     settingsClose,
@@ -36,6 +40,7 @@ export function createSettingsController({
     settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
+    settingsFrameCache,
     settingsPixelLabelFormat,
     settingsPixelLabelDrag,
     settingsDataRoot,
@@ -57,6 +62,11 @@ export function createSettingsController({
     applyLanguagePreference,
   } = callbacks;
 
+  // The config last loaded into the form. Saving rebuilds each section from the
+  // form controls, so without this any key that has no control — server.compression
+  // or ui.frame_cache_mb, say — would be dropped on save and silently reset to its
+  // default by the backend's normalization.
+  let loadedConfig = null;
   let settingsModalBusy = false;
   let settingsRequestId = 0;
   let syncingExternalAccessUi = false;
@@ -131,6 +141,7 @@ export function createSettingsController({
 
   function fillSettingsForm(config, configPath = "") {
     if (!config) return;
+    loadedConfig = config;
     if (settingsServerExternal) {
       const host = String(config?.server?.host ?? "127.0.0.1");
       setExternalAccessChecked(!isLocalOnlyHost(host));
@@ -158,6 +169,11 @@ export function createSettingsController({
     if (settingsPixelLabelMax) {
       settingsPixelLabelMax.value = String(
         Number(config?.ui?.pixel_label_max_labels ?? state.pixelLabelMaxLabels ?? pixelLabelDefaultMaxLabels)
+      );
+    }
+    if (settingsFrameCache) {
+      settingsFrameCache.value = String(
+        Number(config?.ui?.frame_cache_mb ?? state.frameCacheMb ?? FRAME_CACHE_DEFAULT_MB)
       );
     }
     if (settingsPixelLabelFormat) {
@@ -197,15 +213,18 @@ export function createSettingsController({
 
     return {
       server: {
+        ...(loadedConfig?.server || {}),
         host: settingsServerExternal?.checked ? "0.0.0.0" : "127.0.0.1",
         port: Math.max(0, Math.min(65535, asInt(settingsServerPort?.value, 0))),
         reload: Boolean(settingsServerReload?.checked),
       },
       launcher: {
+        ...(loadedConfig?.launcher || {}),
         startup_timeout_sec: Math.max(0.1, asFloat(settingsStartupTimeout?.value, 5.0)),
         open_browser: Boolean(settingsOpenBrowser?.checked),
       },
       data: {
+        ...(loadedConfig?.data || {}),
         root: (settingsDataRoot?.value || "").trim(),
         allow_abs_paths: Boolean(settingsAllowAbs?.checked),
         scan_cache_sec: Math.max(0, asFloat(settingsScanCache?.value, 2.0)),
@@ -213,10 +232,12 @@ export function createSettingsController({
         max_upload_mb: Math.max(0, asInt(settingsMaxUpload?.value, 0)),
       },
       logging: {
+        ...(loadedConfig?.logging || {}),
         level: (settingsLogLevel?.value || "INFO").toUpperCase(),
         dir: (settingsLogDir?.value || "").trim(),
       },
       ui: {
+        ...(loadedConfig?.ui || {}),
         tool_hints: Boolean(settingsToolHints?.checked),
         auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
         pixel_label_min_cell_px: Math.max(
@@ -226,6 +247,10 @@ export function createSettingsController({
         pixel_label_max_labels: Math.max(
           100,
           Math.min(100000, asInt(settingsPixelLabelMax?.value, state.pixelLabelMaxLabels || pixelLabelDefaultMaxLabels))
+        ),
+        frame_cache_mb: Math.max(
+          0,
+          Math.min(4096, asInt(settingsFrameCache?.value, state.frameCacheMb ?? FRAME_CACHE_DEFAULT_MB))
         ),
         pixel_label_format: (() => {
           const format = String(settingsPixelLabelFormat?.value || "auto").toLowerCase();
@@ -253,6 +278,10 @@ export function createSettingsController({
     const maxLabels = Number(cfg.pixel_label_max_labels);
     if (Number.isFinite(maxLabels)) {
       state.pixelLabelMaxLabels = Math.max(100, Math.min(100000, Math.round(maxLabels)));
+    }
+    const frameCacheMb = Number(cfg.frame_cache_mb);
+    if (Number.isFinite(frameCacheMb)) {
+      state.frameCacheMb = Math.max(0, Math.min(4096, Math.round(frameCacheMb)));
     }
     const format = String(cfg.pixel_label_format || "").toLowerCase();
     if (format === "auto" || format === "integer" || format === "scientific") {

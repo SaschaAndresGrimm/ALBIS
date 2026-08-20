@@ -15,6 +15,11 @@ class _StrictModel(BaseModel):
 class HealthResponse(_StrictModel):
     status: str
     version: str
+    # Response encodings this build can actually produce, best first. zstd needs a
+    # native extension that a packaged build can silently fail to bundle, in which
+    # case remote sessions quietly fall back to gzip — reporting it here makes that
+    # visible to the packaged-binary smoke test and to support.
+    compression_encodings: list[str] = []
 
 
 class UpdateCheckResponse(_StrictModel):

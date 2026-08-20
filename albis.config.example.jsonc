@@ -6,7 +6,15 @@
     "host": "127.0.0.1",
     // Set to 0 to auto-select a free port on each startup.
     "port": 0,
-    "reload": false
+    "reload": false,
+    // Compress responses for remote clients. Frames travel as raw pixel bytes, so
+    // a large detector frame is tens of megabytes over the wire. zstd is used when
+    // the client accepts it, gzip otherwise.
+    // - "auto": compress for every client except loopback, so local use pays nothing.
+    // - "on":   always compress. Use this behind a reverse proxy, where the proxy
+    //           is the client and every request otherwise looks like loopback.
+    // - "off":  never compress.
+    "compression": "auto"
   },
 
   // Launcher behavior for packaged/source starts.
@@ -46,6 +54,10 @@
     "auto_check_updates": true,
     "pixel_label_min_cell_px": 18,
     "pixel_label_max_labels": 4000,
+    // Memory budget in MB for keeping recently viewed frames, so stepping back to
+    // one costs no transfer. Budgeted in memory rather than in frames because a
+    // frame is ~4 MB on an EIGER 1M and ~18 MB on a 4M detector. 0 disables it.
+    "frame_cache_mb": 256,
     "pixel_label_format": "auto",
     "pixel_label_show_during_drag": false,
     // Supported values: en, zh-CN, ja, fr, es, it, pt, rm, de, sv, da, mi, gsw

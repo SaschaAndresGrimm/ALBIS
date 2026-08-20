@@ -1741,7 +1741,7 @@
             <section class="settings-section">
               <div class="settings-section-head">
                 <h3 data-i18n="settings.section.viewer">Viewer</h3>
-                <p data-i18n="settings.section.viewer.description">Interaction hints and pixel label behavior.</p>
+                <p data-i18n="settings.section.viewer.description">Interaction hints, pixel labels, and frame memory.</p>
               </div>
               <div class="settings-grid">
                 <label class="field">
@@ -1785,6 +1785,10 @@
                 <label class="checkbox settings-check">
                   <input id="settings-pixel-label-drag" type="checkbox" />
                   <span data-i18n="settings.viewer.pixel_label_drag">Draw labels during pan/zoom</span>
+                </label>
+                <label class="field">
+                  <span data-i18n="settings.viewer.frame_cache">Frame cache (MB, 0 = off)</span>
+                  <input id="settings-frame-cache" type="number" min="0" max="4096" step="64" />
                 </label>
               </div>
             </section>

@@ -4,6 +4,7 @@
 
 import { t } from "./i18n.js";
 import { getGeometryScopeKey } from "./geometry_override_utils.js";
+import { createFrameCache } from "./frame_cache.js";
 import { createTransientFrameLoadState } from "./transient_frame_load_state.js";
 
 // Generous ceiling for a single binary frame/image transfer. Long enough not to
@@ -72,6 +73,37 @@ export function createFileDataPipelineController({
   const transientFrameLoadState = createTransientFrameLoadState(state);
   let activeFrameLoadController = null;
 
+  const frameCache = createFrameCache({
+    getMaxBytes: () => Math.max(0, Number(state.frameCacheMb) || 0) * 1024 * 1024,
+  });
+
+  // The key has to cover everything that changes the bytes. Omitting the
+  // threshold would silently show the wrong channel of multi-threshold data, and
+  // omitting the dataset would show a different image altogether — both would
+  // look like corrupted data rather than a bug. NUL separates the parts because
+  // file paths may legitimately contain almost anything else.
+  //
+  // Nothing is cached while autoload is active: the file may still be growing
+  // under the filewriter, and a frame read before it was fully flushed would
+  // otherwise be pinned in memory and shown for the rest of the session.
+  function frameCacheKey(index) {
+    if (!state.file || !state.dataset) return "";
+    if (state.autoload?.watchEnabled || state.autoload?.running) return "";
+    const threshold = state.thresholdCount > 1 ? state.thresholdIndex : 0;
+    return `${state.file}\u0000${state.dataset}\u0000${threshold}\u0000${index}`;
+  }
+
+  // Shared by the cache and network paths so the two cannot drift apart.
+  function applyFramePayload({ data, shape, dtype }) {
+    const height = shape[0];
+    const width = shape[1];
+    metaShape.textContent = `${width} × ${height}`;
+    metaDtype.textContent = dtype;
+    callbacks.applyFrame(data, width, height, dtype);
+    setStatus(currentFrameStatusText(), { frameStatus: true });
+    updateToolbar();
+  }
+
   function cancelActiveLoad() {
     if (!activeFrameLoadController) return;
     try {
@@ -92,6 +124,7 @@ export function createFileDataPipelineController({
       activeFrameLoadController = null;
     }
     transientFrameLoadState.resetTransientFrameLoadState();
+    frameCache.clear();
     setLoading(false);
   }
 
@@ -355,6 +388,18 @@ export function createFileDataPipelineController({
     }
     if (!state.file || !state.dataset) return false;
     if (!startFrameLoad()) return false;
+
+    // A hit applies within this same task: no request, no spinner, no flicker.
+    const cacheKey = frameCacheKey(state.frameIndex);
+    const cached = frameCache.get(cacheKey);
+    if (cached) {
+      applyFramePayload(cached);
+      transientFrameLoadState.finishFrameLoad();
+      setLoading(false);
+      processPendingFrameRequest(true);
+      return true;
+    }
+
     if (!state.playing) {
       setLoading(true);
       setStatus(t("status.data.loading_frame"));
@@ -391,15 +436,9 @@ export function createFileDataPipelineController({
       const shape = parseShape(res.headers.get("X-Shape"));
       const data = typedArrayFrom(buffer, dtype);
 
-      const height = shape[0];
-      const width = shape[1];
-      metaShape.textContent = `${width} × ${height}`;
-      metaDtype.textContent = dtype;
-
-      callbacks.applyFrame(data, width, height, dtype);
+      frameCache.set(cacheKey, { data, shape, dtype });
+      applyFramePayload({ data, shape, dtype });
       appliedFrame = true;
-      setStatus(currentFrameStatusText(), { frameStatus: true });
-      updateToolbar();
     } catch (err) {
       // A timeout aborts our own controller, so treat it as a surfaced failure
       // rather than the silent navigation-cancel case below.

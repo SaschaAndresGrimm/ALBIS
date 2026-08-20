@@ -26,6 +26,12 @@
           "type": "boolean",
           "default": false,
           "description": "Enable auto-reload in source mode."
+        },
+        "compression": {
+          "type": "string",
+          "enum": ["auto", "on", "off"],
+          "default": "auto",
+          "description": "Compress responses for remote clients, preferring zstd and falling back to gzip based on what the client accepts. 'auto' compresses for every client except loopback, so local desktop use pays nothing. Use 'on' behind a reverse proxy, where the proxy is the client and every request looks like loopback. 'off' disables compression."
         }
       }
     },
@@ -130,6 +136,13 @@
           "default": 4000,
           "description": "Upper bound for rendered pixel labels per frame."
         },
+        "frame_cache_mb": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096,
+          "default": 256,
+          "description": "Memory budget in MB for caching recently viewed frames, so revisiting one costs no transfer. Budgeted in memory rather than in frames because a frame is about 4 MB on an EIGER 1M and about 18 MB on a 4M detector. Set 0 to disable caching."
+        },
         "pixel_label_format": {
           "type": "string",
           "enum": ["auto", "integer", "scientific"],
@@ -154,7 +167,8 @@
     "server": {
       "host": "127.0.0.1",
       "port": 0,
-      "reload": false
+      "reload": false,
+      "compression": "auto"
     },
     "launcher": {
       "startup_timeout_sec": 5.0,
@@ -177,6 +191,7 @@
       "auto_check_updates": true,
       "pixel_label_min_cell_px": 18,
       "pixel_label_max_labels": 4000,
+      "frame_cache_mb": 256,
       "pixel_label_format": "auto",
       "pixel_label_show_during_drag": false,
       "language": "en"

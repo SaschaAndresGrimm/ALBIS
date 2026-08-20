@@ -20,6 +20,7 @@ try:
         StatusResponse,
         UpdateCheckResponse,
     )
+    from ..response_compression import available_encodings
     from ..services.log_tail import read_log_tail
     from ..services.os_actions import open_in_system
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
@@ -33,6 +34,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         StatusResponse,
         UpdateCheckResponse,
     )
+    from response_compression import available_encodings  # type: ignore[no-redef]
     from services.log_tail import read_log_tail  # type: ignore[no-redef]
     from services.os_actions import open_in_system  # type: ignore[no-redef]
 
@@ -65,7 +67,11 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
 
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
-        return HealthResponse(status="ok", version=deps.version)
+        return HealthResponse(
+            status="ok",
+            version=deps.version,
+            compression_encodings=list(available_encodings()),
+        )
 
     @app.get("/api/update-check", response_model=UpdateCheckResponse)
     def update_check() -> UpdateCheckResponse:
