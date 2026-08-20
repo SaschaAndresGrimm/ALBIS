@@ -523,6 +523,7 @@ const settingsToolHints = document.getElementById("settings-tool-hints");
 const settingsLanguage = document.getElementById("settings-language");
 const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
 const settingsPixelLabelMax = document.getElementById("settings-pixel-label-max");
+const settingsFrameCache = document.getElementById("settings-frame-cache");
 const settingsPixelLabelFormat = document.getElementById("settings-pixel-label-format");
 const settingsPixelLabelDrag = document.getElementById("settings-pixel-label-drag");
 const settingsDataRoot = document.getElementById("settings-data-root");
@@ -3009,6 +3010,7 @@ const settingsController = createSettingsController({
     settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
+    settingsFrameCache,
     settingsPixelLabelFormat,
     settingsPixelLabelDrag,
     settingsDataRoot,

@@ -9,7 +9,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
-- Recently viewed frames are kept in memory, so stepping back to a frame — or replaying a stretch you have already watched — costs no transfer and renders immediately. The budget is memory rather than a frame count, since a frame ranges from about 4 MB on an EIGER 1M to about 18 MB on a 4M detector; tune it with `ui.frame_cache_mb` (default 256 MB, `0` disables it). Frames are never cached while autoload is running or a watch is armed, because the file may still be growing under the filewriter.
+- Recently viewed frames are kept in memory, so stepping back to a frame — or replaying a stretch you have already watched — costs no transfer and renders immediately. The budget is memory rather than a frame count, since a frame ranges from about 4 MB on an EIGER 1M to about 18 MB on a 4M detector; tune it in **Settings -> Viewer** or with `ui.frame_cache_mb` (default 256 MB, `0` disables it). Frames are never cached while autoload is running or a watch is armed, because the file may still be growing under the filewriter.
 - Data source: the SIMPLON address field remembers detector addresses that answered — a successful connection test or a started monitor — and offers them back as autocomplete. Only addresses that worked are stored, so a failed typo is never suggested.
 - Data source: **Test** button for the JUNGFRAUJOCH preview endpoint, reporting whether the port accepts connections and naming the cause when it does not (unknown host, refused port, timeout). It is a reachability check: frames are confirmed once the preview starts.
 - Backend `GET /api/jfjoch/probe`: TCP reachability check for a preview endpoint.

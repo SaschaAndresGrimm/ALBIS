@@ -37,6 +37,7 @@ function renderSettingsShell() {
       <input id="settings-pixel-label-max" type="number" />
       <select id="settings-pixel-label-format"><option value="auto">Auto</option></select>
       <input id="settings-pixel-label-drag" type="checkbox" />
+      <input id="settings-frame-cache" type="number" />
       <input id="settings-data-root" type="text" />
       <input id="settings-allow-abs" type="checkbox" />
       <input id="settings-scan-cache" type="number" />
@@ -127,6 +128,7 @@ async function initializeController({ initialConfig }) {
       settingsPixelLabelMax: document.getElementById("settings-pixel-label-max"),
       settingsPixelLabelFormat: document.getElementById("settings-pixel-label-format"),
       settingsPixelLabelDrag: document.getElementById("settings-pixel-label-drag"),
+      settingsFrameCache: document.getElementById("settings-frame-cache"),
       settingsDataRoot: document.getElementById("settings-data-root"),
       settingsAllowAbs: document.getElementById("settings-allow-abs"),
       settingsScanCache: document.getElementById("settings-scan-cache"),
@@ -314,6 +316,45 @@ describe("settings controller preserves config it has no form control for", () =
 
     expect(savedConfigs[0]?.ui?.auto_check_updates).toBe(false);
     expect(savedConfigs[0]?.ui?.frame_cache_mb).toBe(1024);
+  });
+
+  it("round-trips the frame cache size through its dialog field", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWithFormlessKeys,
+    });
+
+    await controller.openSettingsModal();
+    const field = document.getElementById("settings-frame-cache");
+    expect(field?.value).toBe("1024");
+
+    field.value = "512";
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.ui?.frame_cache_mb).toBe(512);
+  });
+
+  it("clamps a frame cache size outside the supported range", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWithFormlessKeys,
+    });
+
+    await controller.openSettingsModal();
+    document.getElementById("settings-frame-cache").value = "999999";
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.ui?.frame_cache_mb).toBe(4096);
+  });
+
+  it("accepts 0 as an explicit way to disable the frame cache", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWithFormlessKeys,
+    });
+
+    await controller.openSettingsModal();
+    document.getElementById("settings-frame-cache").value = "0";
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.ui?.frame_cache_mb).toBe(0);
   });
 
   it("applies frame_cache_mb to state so the cache honours it", async () => {

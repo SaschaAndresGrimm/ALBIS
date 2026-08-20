@@ -17,6 +17,10 @@ export function createSettingsController({
     pixelLabelDefaultMaxLabels,
   } = constants;
 
+  // Mirrors ui.frame_cache_mb in backend/config.py. Only a fallback: the value
+  // shown and saved comes from the loaded config whenever there is one.
+  const FRAME_CACHE_DEFAULT_MB = 256;
+
   const {
     settingsModal,
     settingsClose,
@@ -36,6 +40,7 @@ export function createSettingsController({
     settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
+    settingsFrameCache,
     settingsPixelLabelFormat,
     settingsPixelLabelDrag,
     settingsDataRoot,
@@ -166,6 +171,11 @@ export function createSettingsController({
         Number(config?.ui?.pixel_label_max_labels ?? state.pixelLabelMaxLabels ?? pixelLabelDefaultMaxLabels)
       );
     }
+    if (settingsFrameCache) {
+      settingsFrameCache.value = String(
+        Number(config?.ui?.frame_cache_mb ?? state.frameCacheMb ?? FRAME_CACHE_DEFAULT_MB)
+      );
+    }
     if (settingsPixelLabelFormat) {
       settingsPixelLabelFormat.value = String(config?.ui?.pixel_label_format ?? state.pixelLabelFormat ?? "auto");
     }
@@ -237,6 +247,10 @@ export function createSettingsController({
         pixel_label_max_labels: Math.max(
           100,
           Math.min(100000, asInt(settingsPixelLabelMax?.value, state.pixelLabelMaxLabels || pixelLabelDefaultMaxLabels))
+        ),
+        frame_cache_mb: Math.max(
+          0,
+          Math.min(4096, asInt(settingsFrameCache?.value, state.frameCacheMb ?? FRAME_CACHE_DEFAULT_MB))
         ),
         pixel_label_format: (() => {
           const format = String(settingsPixelLabelFormat?.value || "auto").toLowerCase();
