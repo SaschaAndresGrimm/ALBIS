@@ -177,7 +177,20 @@ export function createMaskCursorController({
     updateMaskUI();
   }
 
+  // Bumped for every mask request so a response that lost the race can tell.
+  // Without it, switching files while a mask is in flight lets the previous
+  // file's mask land on the new one: `alignMaskToFrame` only corrects shape and
+  // orientation, so two files from the same detector -- the normal case when
+  // stepping between runs -- pass straight through. It does not even self-heal,
+  // because `state.maskFile` already names the new file, so the early return
+  // below treats the wrong mask as cached for the rest of the session.
+  let maskRequestId = 0;
+
   function clearMaskState() {
+    // Also invalidates any mask still in flight: this runs when the session is
+    // reset or the file changes, so a response arriving afterwards describes a
+    // file that is no longer open.
+    maskRequestId += 1;
     state.maskRaw = null;
     state.maskShape = null;
     state.maskAvailable = false;
@@ -200,6 +213,8 @@ export function createMaskCursorController({
       syncMaskAvailability(forceEnable);
       return;
     }
+    const requestId = ++maskRequestId;
+    const requestFile = state.file;
     state.maskFile = maskKey;
     state.maskRaw = null;
     state.maskShape = null;
@@ -210,13 +225,15 @@ export function createMaskCursorController({
     updateMaskUI();
     try {
       const thresholdParam = hasThresholdDimension ? `&threshold=${state.thresholdIndex}` : "";
-      const res = await fetch(`${apiBase}/mask?file=${encodeURIComponent(state.file)}${thresholdParam}`);
+      const res = await fetch(`${apiBase}/mask?file=${encodeURIComponent(requestFile)}${thresholdParam}`);
+      if (requestId !== maskRequestId) return;
       if (!res.ok) {
         state.maskEnabled = false;
         updateMaskUI();
         return;
       }
       const buffer = await res.arrayBuffer();
+      if (requestId !== maskRequestId) return;
       const dtype = parseDtype(res.headers.get("X-Dtype"));
       const shape = parseShape(res.headers.get("X-Shape"));
       const data = typedArrayFrom(buffer, dtype);
@@ -231,6 +248,7 @@ export function createMaskCursorController({
         scheduleRoiUpdate();
       }
     } catch (err) {
+      if (requestId !== maskRequestId) return;
       console.error(err);
       state.maskEnabled = false;
       state.maskAvailable = false;

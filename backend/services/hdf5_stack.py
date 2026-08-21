@@ -62,6 +62,30 @@ def open_hdf5_for_read(h5py: Any, path: Path) -> Any:
         ) from exc
 
 
+def read_hdf5_array(path: Path, read: Callable[[], Any]) -> Any:
+    """Run an HDF5 read, reporting a failure to decode the data as 422.
+
+    Opening a file successfully does not mean its contents can be read. Detector
+    data is stored with a compression filter, and HDF5 only needs the matching
+    plugin library when the bytes are actually pulled in -- so a missing filter,
+    or a chunk the filewriter has not finished flushing, surfaces here rather
+    than at open time and would otherwise escape the route as a 500.
+    """
+    try:
+        return read()
+    except HTTPException:
+        raise
+    except OSError as exc:
+        _log.warning("Cannot read HDF5 data from %s: %s", path, exc)
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Cannot read data from {path.name}: {exc}. The file may be "
+                "incomplete, or its compression filter may be unavailable."
+            ),
+        ) from exc
+
+
 MASK_PATHS = (
     "/entry/instrument/detector/detectorSpecific/pixel_mask",
     "/entry/instrument/detector/pixel_mask",

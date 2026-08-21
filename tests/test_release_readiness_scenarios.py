@@ -390,6 +390,33 @@ def _main():
                 self.end_headers()
                 self.wfile.write(b"console.log('dummy albis');")
                 return
+            # The harness decodes a frame of each format it stages, so the dummy
+            # has to answer those too -- otherwise this test would stop covering
+            # the decode assertions the moment they were added.
+            if self.path.startswith("/api/image?"):
+                body = bytes(4 * 4 * 4)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("X-Shape", "4,4")
+                self.send_header("X-Dtype", "<u4")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if self.path.startswith("/api/datasets?"):
+                self.send_response(200)
+                self.end_headers()
+                payload = {"datasets": [{"path": "/entry/data/data"}]}
+                self.wfile.write(json.dumps(payload).encode())
+                return
+            if self.path.startswith("/api/frame?"):
+                # Frame N filled with N, matching the committed fixture.
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("X-Shape", "4,4")
+                self.send_header("X-Dtype", "<u4")
+                self.end_headers()
+                self.wfile.write((2).to_bytes(4, "little") * 16)
+                return
             self.send_response(404)
             self.end_headers()
 

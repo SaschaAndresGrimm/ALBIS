@@ -267,17 +267,27 @@ export function computeHistogram(data, min, max, satMax, bins, logX) {
 }
 
 export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
-  let rawMax = Number.NEGATIVE_INFINITY;
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (v > rawMax) rawMax = v;
+  // The scan for `rawMax` exists only to derive a saturation value, so it is
+  // skipped when the caller already knows one. The per-frame path does: it
+  // passes the `satMax` that computeStats just worked out, which made this a
+  // full extra pass over every pixel for a value that was already in hand.
+  let satMax = satMaxInput;
+  if (satMax === null || satMax === undefined) {
+    let rawMax = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < data.length; i += 1) {
+      const v = data[i];
+      if (!Number.isFinite(v)) continue;
+      if (v < 0) continue;
+      if (v > rawMax) rawMax = v;
+    }
+    satMax = getSaturationMax(dtype, rawMax);
   }
-
-  const satMax = satMaxInput ?? getSaturationMax(dtype, rawMax);
-  let minLog = Number.POSITIVE_INFINITY;
-  let maxLog = Number.NEGATIVE_INFINITY;
+  // log1p is monotonic over the non-negative values kept here, so the extremes
+  // of the logs are the logs of the extremes. Taking min/max on the raw values
+  // and transforming twice at the end is exactly equivalent and saves one
+  // log1p per pixel -- a full frame's worth of transcendental calls.
+  let minValue = Number.POSITIVE_INFINITY;
+  let maxValue = Number.NEGATIVE_INFINITY;
   let count = 0;
 
   for (let i = 0; i < data.length; i += 1) {
@@ -285,11 +295,13 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
     if (!Number.isFinite(v)) continue;
     if (v < 0) continue;
     if (satMax !== null && v === satMax) continue;
-    const lv = Math.log1p(v);
-    if (lv < minLog) minLog = lv;
-    if (lv > maxLog) maxLog = lv;
+    if (v < minValue) minValue = v;
+    if (v > maxValue) maxValue = v;
     count += 1;
   }
+
+  const minLog = count ? Math.log1p(minValue) : Number.POSITIVE_INFINITY;
+  const maxLog = count ? Math.log1p(maxValue) : Number.NEGATIVE_INFINITY;
 
   if (!Number.isFinite(minLog) || !Number.isFinite(maxLog) || count === 0) {
     return { min: fallbackStats?.min ?? 0, max: fallbackStats?.max ?? 1 };
