@@ -82,6 +82,18 @@ promise above covers every documented endpoint.
   produced it, the source it came from, and the substitutions applied. The
   wording may improve; the facts stay.
 
+### The supported Python
+
+- **The desktop artifacts bundle their own interpreter**, so which Python ALBIS
+  is built on is invisible to anyone using a `.dmg`, `.exe` or `.AppImage`, and
+  moving to a newer one is not a compatibility event for them.
+- **Running from source is different**: the required Python is stated in
+  `.python-version` and `pyproject.toml`, and raising that floor breaks a working
+  source checkout. The floor therefore only rises in a major release, and the
+  changelog says so when it does.
+- The Docker image's base interpreter follows the same floor. It is pinned by
+  digest, not only by tag.
+
 ### Command surface
 
 - Documented keyboard shortcuts keep their actions.

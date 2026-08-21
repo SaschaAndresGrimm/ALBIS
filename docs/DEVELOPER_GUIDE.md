@@ -11,7 +11,7 @@ Companion references:
 
 ## Prerequisites
 
-- **Python 3.10** (see `.python-version`).
+- **Python 3.13** (see `.python-version`). This is the floor and the ceiling: 3.13 is what CI runs and what the release artifacts bundle. 3.14 is not supported yet because the pinned `numpy` has no 3.14 wheels; that upper bound comes off when numpy is bumped.
 - **Node.js >= 22.22** (see `package.json` `engines`) for frontend linting, tests, and the i18n audit. CI runs Node 24.
 - **git**, plus a C/build toolchain for any wheels that need compilation.
 

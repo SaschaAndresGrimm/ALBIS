@@ -6,6 +6,7 @@ This guide is for users who want to run the ALBIS server manually, use the Remot
 
 - **Python/source mode**:
   Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
+  Needs **Python 3.13**; the packaged builds bundle their own interpreter and need none.
 
 ## Run (backend + frontend)
 

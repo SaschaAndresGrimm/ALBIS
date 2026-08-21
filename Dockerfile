@@ -1,4 +1,4 @@
-FROM python:3.10.20-slim-bookworm@sha256:a02d127ac3e004d100268fcf394e8d673e1f43f2ac84d2f38f7d8345f18890b3 AS builder
+FROM python:3.13.15-slim-bookworm@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1 AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ RUN python -m pip install --no-cache-dir --upgrade \
     "wheel==0.43.0" \
     && pip install --no-cache-dir --prefix=/install -r backend/requirements.txt
 
-FROM python:3.10.20-slim-bookworm@sha256:a02d127ac3e004d100268fcf394e8d673e1f43f2ac84d2f38f7d8345f18890b3
+FROM python:3.13.15-slim-bookworm@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1
 
 WORKDIR /app
 
@@ -37,7 +37,7 @@ WORKDIR /app
 ARG ALBIS_BUILD_COMMIT=""
 
 ENV HOME=/home/albis \
-    HDF5_PLUGIN_PATH=/usr/local/lib/python3.10/site-packages/hdf5plugin/plugins \
+    HDF5_PLUGIN_PATH=/usr/local/lib/python3.13/site-packages/hdf5plugin/plugins \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     ALBIS_BUILD_COMMIT=${ALBIS_BUILD_COMMIT}

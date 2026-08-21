@@ -41,6 +41,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- ALBIS is built on **Python 3.13**, not 3.10. 3.10's upstream support ends in October 2026, and the desktop artifacts bundle the interpreter — every `.dmg`, `.exe` and `.AppImage` ships a CPython inside it — so releasing `1.0` on 3.10 would have meant shipping an interpreter that stops receiving security fixes weeks later. The timing is also a compatibility question: `docs/COMPATIBILITY.md` puts the Python a source checkout needs inside the covered surface, so raising that floor after `1.0` would be a major-release change. Now it costs a changelog entry.
+
+  3.13 rather than 3.12 or 3.14 because it needs **no dependency changes at all**: every pinned requirement already has 3.13 wheels at the exact version ALBIS ships, and the one sdist-only dependency (`dectris-compression`, a C extension) builds cleanly. 3.12 would have bought a year less for identical work. 3.14 is blocked only by the pinned `numpy`, whose 3.14 wheels start at 2.3 — hence the `<3.14` upper bound in `requires-python`, which says exactly what is tested and comes off when numpy is bumped.
+
+  Nothing changes for anyone using a packaged build: the interpreter is inside the bundle, and there is nothing to install. Running from source now needs 3.13, which the Power User Guide and the Developer Guide both say.
+
+  Verified rather than assumed: the pinned dependency set installs unmodified on 3.13, the full suite passes on it, and a real PyInstaller build of the app passes the same packaged-binary smoke test CI runs — the one that decodes a compression-filtered HDF5 frame and checks that zstd came along.
+
+- A test now compares every statement of the supported Python version against `.python-version`: `pyproject.toml`, the ruff and black targets, all four workflows, and the Docker base image. The image is checked twice, because the version appears in the tag *and* inside `HDF5_PLUGIN_PATH` — and the second one fails silently. A stale plugin path builds, starts, and answers `/api/health` while quietly losing every HDF5 compression filter, so real detector data stops decoding with nothing to show for it. The container frame-decode smoke test added earlier is the other half of that guard.
+
 - The coverage gate is `77`, not `50`. Actual coverage was 76%, so 26 points of real coverage could be lost without CI noticing; the new tests took it to 79% and the gate now sits just under that, with enough margin for the platform-specific branches in `os_actions`. The lift came from the places that only fail in front of a detector or a beamline filesystem: the series-summing request gate (57% → 93%), the unit conversions all detector geometry is read through (63% → 99%), and the JUNGFRAUJOCH message handling (58% → 83%) — where writing the tests is what found the decode bug above.
 
 - `ruff` now also checks `albis_launcher.py`. It was outside the lint scope in every workflow, which is how a file with argument parsing, socket handling and platform branches had no linting at all.
