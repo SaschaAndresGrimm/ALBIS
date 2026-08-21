@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Documentation
 
+- There is a **User Guide** (`docs/USER_GUIDE.md`), organised by task rather than by where the buttons are: opening data, moving through a series, making the image readable, measuring a region, resolution rings and reflections, following a running experiment, combining a series, exporting, comparing two views, and working from another machine. Until now the documentation went from an install page straight to a configuration and API reference, with nothing covering the work itself. Linked from the README and the built-in help.
+
 - MYTHEN(2) acquisitions are documented. Support has shipped for some time — a dedicated reader, its own error handling, its own tests — but no document a user reads mentioned it, so nobody with a strip detector could discover it. The README, the format list and the in-app help now cover opening an acquisition through its `.cfg`.
 
 - The built-in help (F1) lists the keyboard shortcuts. The app advertises twelve in its own menus and the help described two, so the command palette, dataset conversion and animation export were reachable only by chance.

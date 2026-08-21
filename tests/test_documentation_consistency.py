@@ -22,8 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 HELP = (ROOT / "frontend" / "docs.html").read_text(encoding="utf-8")
 GUIDE = (ROOT / "docs" / "POWER_USER_GUIDE.md").read_text(encoding="utf-8")
+USER_GUIDE = (ROOT / "docs" / "USER_GUIDE.md").read_text(encoding="utf-8")
 INDEX = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-USER_FACING = f"{README}\n{HELP}\n{GUIDE}"
+USER_FACING = f"{README}\n{HELP}\n{GUIDE}\n{USER_GUIDE}"
 
 
 def _autoload_extensions() -> set[str]:
@@ -88,3 +89,24 @@ def test_language_count_claimed_in_the_readme_is_accurate() -> None:
     assert (
         int(claimed.group(1)) == locales
     ), f"README claims {claimed.group(1)} languages but {locales} locale files exist"
+
+
+def test_user_guide_is_reachable_from_the_places_users_start() -> None:
+    """A guide nobody links to is a guide nobody reads."""
+    assert "docs/USER_GUIDE.md" in README, "the README does not link the User Guide"
+    assert "USER_GUIDE.md" in HELP, "the in-app help does not link the User Guide"
+
+
+@pytest.mark.parametrize(
+    "anchor",
+    sorted(set(re.findall(r"POWER_USER_GUIDE\.md#([\w-]+)", USER_GUIDE))),
+)
+def test_user_guide_cross_references_resolve(anchor: str) -> None:
+    """Cross-document links rot silently when a heading is renamed."""
+    headings = {
+        re.sub(r"[^a-z0-9 -]", "", heading.lower()).strip().replace(" ", "-")
+        for heading in re.findall(r"^#+\s+(.*)$", GUIDE, re.M)
+    }
+    assert (
+        anchor in headings
+    ), f"USER_GUIDE.md links to POWER_USER_GUIDE.md#{anchor}, which no heading produces"

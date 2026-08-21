@@ -43,6 +43,8 @@ You don't need Python or any setup. Three steps:
 
 Press **F1** any time inside ALBIS to open the built-in help (interaction basics, keyboard shortcuts, data sources, and troubleshooting).
 
+For the full walkthrough — opening data, contrast, ROI statistics, resolution rings, live sources, and exporting — see the **[User Guide](docs/USER_GUIDE.md)**.
+
 ## Highlights
 
 - ALBULA‑style UI with fast navigation and contrast control.
