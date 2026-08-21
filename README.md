@@ -1,4 +1,4 @@
-# ALBIS (**AL*lbula-style, **B**rowser-based **I**mage viewer for **S**ynchrotron Images)
+# ALBIS (**AL**bula-style, **B**rowser-based **I**mage viewer for **S**ynchrotron Images)
 
 [![CI](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml/badge.svg)](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
