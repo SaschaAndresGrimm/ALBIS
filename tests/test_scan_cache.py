@@ -116,7 +116,18 @@ def test_entries_are_pruned_so_a_walked_filesystem_cannot_grow_it() -> None:
     assert len(cache._entries) <= 4
 
 
-def test_pruning_keeps_the_most_recent_entries() -> None:
+def test_pruning_keeps_the_most_recent_entries(monkeypatch) -> None:
+    """The clock is driven by hand here, and not for tidiness.
+
+    `time.monotonic()` on Windows is coarse enough that three consecutive cache
+    writes can share a timestamp, at which point "the oldest" is a tie and the
+    eviction order is arbitrary -- which is fine for a cache and useless for a
+    test. Advancing the clock a second per read states the intent instead of
+    depending on how fast the runner is.
+    """
+    ticks = iter(float(second) for second in range(1, 100))
+    monkeypatch.setattr(scan_cache_module.time, "monotonic", lambda: next(ticks))
+
     cache = ScanCacheService(max_entries=2)
     calls = {"n": 0}
 
@@ -124,14 +135,14 @@ def test_pruning_keeps_the_most_recent_entries() -> None:
         calls["n"] += 1
         return ["x"]
 
-    cache.get("old", 60.0, load)
-    cache.get("newer", 60.0, load)
-    cache.get("newest", 60.0, load)  # evicts "old"
+    cache.get("old", 600.0, load)
+    cache.get("newer", 600.0, load)
+    cache.get("newest", 600.0, load)  # evicts "old"
 
     assert calls["n"] == 3
-    cache.get("newest", 60.0, load)
+    cache.get("newest", 600.0, load)
     assert calls["n"] == 3, "the newest entry should still be cached"
-    cache.get("old", 60.0, load)
+    cache.get("old", 600.0, load)
     assert calls["n"] == 4, "the oldest entry should have been evicted"
 
 

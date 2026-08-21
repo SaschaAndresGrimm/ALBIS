@@ -8,6 +8,7 @@ the filesystem again on every poll.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -25,14 +26,37 @@ def clean_cache():
     scan_cache.clear()
 
 
+# Modification times are set explicitly rather than taken from the order the
+# files were written. "Newest" has to be unambiguous for a test about the newest
+# file, and on a filesystem with coarse timestamps a whole tree written in one
+# tick shares an mtime -- at which point the winner is whichever the walk reached
+# first, which is how this passed on APFS and failed on the CI runners.
+_OLD_MTIME = 1_700_000_000
+_NEW_MTIME = 1_700_009_999
+
+
+def _age(path: Path, when: int) -> None:
+    os.utime(path, (when, when))
+
+
 @pytest.fixture
 def tree(tmp_path: Path) -> Path:
     for run in range(4):
         folder = tmp_path / f"run_{run:02d}"
         folder.mkdir()
         for frame in range(5):
-            (folder / f"frame_{frame:04d}.cbf").write_bytes(b"")
+            frame_path = folder / f"frame_{frame:04d}.cbf"
+            frame_path.write_bytes(b"")
+            _age(frame_path, _OLD_MTIME)
     return tmp_path
+
+
+def _write_newest(tree: Path, name: str = "zz_newest.cbf") -> Path:
+    """Write a file that is unambiguously the newest in the tree."""
+    path = tree / "run_00" / name
+    path.write_bytes(b"")
+    _age(path, _NEW_MTIME)
+    return path
 
 
 def test_a_complete_listing_is_not_marked_truncated(tree: Path) -> None:
@@ -102,7 +126,7 @@ def test_autoload_polls_do_not_rescan_within_the_ttl(
     first_file = first.json()["file"]
 
     # A file that would win on mtime if the directory were walked again.
-    (tree / "run_00" / "zz_newest.cbf").write_bytes(b"")
+    _write_newest(tree)
 
     second = client.get("/api/autoload/latest", params=params)
 
@@ -115,8 +139,7 @@ def test_autoload_sees_a_new_file_once_the_ttl_expires(tree: Path, monkeypatch) 
     params = {"folder": str(tree)}
 
     client.get("/api/autoload/latest", params=params)
-    newest = tree / "run_00" / "zz_newest.cbf"
-    newest.write_bytes(b"")
+    _write_newest(tree)
 
     response = client.get("/api/autoload/latest", params=params)
 
@@ -127,7 +150,7 @@ def test_autoload_sees_a_new_file_once_the_ttl_expires(tree: Path, monkeypatch) 
 def test_autoload_caches_per_folder_pattern_and_extensions(tree: Path, monkeypatch) -> None:
     """Different watches must not answer each other's questions."""
     monkeypatch.setattr(runtime_state, "scan_cache_sec", 60.0)
-    (tree / "run_00" / "special_9999.cbf").write_bytes(b"")
+    _write_newest(tree, "special_9999.cbf")
 
     everything = client.get("/api/autoload/latest", params={"folder": str(tree)})
     filtered = client.get(
@@ -145,7 +168,7 @@ def test_a_selected_subfolder_is_not_cached(tree: Path, monkeypatch) -> None:
     params = {"folder": str(tree)}
 
     before = client.get("/api/files", params=params).json()["files"]
-    (tree / "run_00" / "just_written.cbf").write_bytes(b"")
+    _write_newest(tree, "just_written.cbf")
     after = client.get("/api/files", params=params).json()["files"]
 
     assert len(after) == len(before) + 1
@@ -155,8 +178,7 @@ def test_a_selected_subfolder_is_not_cached(tree: Path, monkeypatch) -> None:
 def test_a_vanished_file_is_nothing_to_load_not_an_error(tree: Path, monkeypatch) -> None:
     """A cached path can be deleted between the scan and the next poll."""
     monkeypatch.setattr(runtime_state, "scan_cache_sec", 60.0)
-    newest = tree / "run_00" / "zz_newest.cbf"
-    newest.write_bytes(b"")
+    newest = _write_newest(tree)
     params = {"folder": str(tree)}
 
     assert (
