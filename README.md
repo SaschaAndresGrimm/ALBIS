@@ -3,6 +3,7 @@
 [![CI](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml/badge.svg)](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/SaschaAndresGrimm/ALBIS)](https://github.com/SaschaAndresGrimm/ALBIS/releases)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22046648.svg)](https://doi.org/10.5281/zenodo.22046648)
 
 ![ALBIS screenshot](frontend/ressources/albis.png)
 
@@ -108,8 +109,13 @@ For developers looking to build, test, and contribute:
 
 If ALBIS contributed to work you are publishing, please cite it. GitHub renders
 a **Cite this repository** button from [`CITATION.cff`](CITATION.cff), which
-gives you APA and BibTeX directly; cite the version you actually used, which
-ALBIS reports under **Help → About**.
+gives you APA and BibTeX directly.
+
+Every release is archived on Zenodo. The concept DOI
+[10.5281/zenodo.22046648](https://doi.org/10.5281/zenodo.22046648) always resolves to the
+newest version, and each release also has its own version DOI — cite whichever
+matches what you actually ran. ALBIS names the exact build it is running under
+the **Versions** button in the bottom right, and in **Help → About**.
 
 ## Acknowledgements and Contributions
 

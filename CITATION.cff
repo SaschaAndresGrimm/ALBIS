@@ -5,10 +5,10 @@
 # VERSION on every release -- tests/test_version_consistency.py enforces the
 # version half, and docs/RELEASE_CHECKLIST.md carries the date.
 #
-# To add a permanent identifier, follow "Archive the Release for Citation"
-# in docs/RELEASE_CHECKLIST.md: archive a release on Zenodo, then uncomment
-# the `identifiers` block below and paste the concept DOI -- the one that
-# always resolves to the newest version, rather than to one release.
+# The DOI below is the concept DOI: it always resolves to the newest release,
+# which is why it belongs in a file that outlives any one of them. Zenodo mints
+# a separate version DOI per release and archives each tag automatically; see
+# "Archive the Release for Citation" in docs/RELEASE_CHECKLIST.md.
 
 cff-version: 1.2.0
 message: "If you use ALBIS in work that leads to a publication, please cite it as below."
@@ -42,7 +42,7 @@ keywords:
   - HDF5
   - crystallography
   - scientific visualization
-# identifiers:
-#   - type: doi
-#     value: "10.5281/zenodo.XXXXXXX"
-#     description: "Concept DOI resolving to the latest ALBIS release."
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.22046648"
+    description: "Concept DOI resolving to the latest ALBIS release."

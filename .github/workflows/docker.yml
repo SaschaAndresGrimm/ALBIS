@@ -81,6 +81,32 @@ jobs:
             exit 1
           fi
 
+      - name: Assert the image knows which build it is
+        run: |
+          set -euo pipefail
+
+          # The image has no .git and no BUILD_COMMIT file, so the commit can
+          # only arrive through the ALBIS_BUILD_COMMIT build argument. Nothing
+          # else fails when that wiring breaks: the container still starts and
+          # still reports status=ok, it just silently stops being able to say
+          # which build it is -- which is the whole point of stamping it.
+          python - <<'PY'
+          import json
+          import re
+          import sys
+
+          with open("/tmp/albis-health.json", encoding="utf-8") as handle:
+              payload = json.load(handle)
+
+          commit = payload.get("commit", "")
+          if not re.fullmatch(r"[0-9a-f]{7}", commit):
+              print(f"Image reported commit {commit!r}, expected a 7-character hex commit.")
+              print("Check the ALBIS_BUILD_COMMIT build argument in this workflow and Dockerfile.")
+              sys.exit(1)
+
+          print(f"Image reports version {payload.get('version')} commit {commit}")
+          PY
+
       - name: Smoke test /api/files returns mounted image files
         run: |
           set -euo pipefail

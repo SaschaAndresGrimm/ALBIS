@@ -119,25 +119,23 @@ Expected result:
 
 ## 7. Archive the Release for Citation
 
-`CITATION.cff` already makes ALBIS citable by version. This step adds a permanent
-identifier so a paper cites something that cannot move or disappear. It is a one-time
-setup; afterwards every tagged release is archived automatically.
+**This setup is complete — there is nothing to do here per release.** Zenodo is linked
+to the repository and archives every published tag on its own, reading its metadata from
+`CITATION.cff`. Only `version` and `date-released` in that file need updating, which
+section 1 already covers.
 
-**First time only** (requires a Zenodo login — this cannot be automated from the repo):
+- Concept DOI (always resolves to the newest release): [10.5281/zenodo.22046648](https://doi.org/10.5281/zenodo.22046648)
+- Each release also gets its own version DOI, listed on the Zenodo record.
+
+After publishing, confirm the new release appears at the concept DOI. Zenodo archives
+asynchronously, so it lags the GitHub release by a few minutes.
+
+The concept DOI is what belongs in `CITATION.cff`: a version DOI there would freeze
+every citation at whichever release happened to be current when it was pasted in.
+
+If the link ever has to be re-established (a transferred repository, a revoked token):
 
 1. Sign in to <https://zenodo.org> with the GitHub account that owns the repository.
-2. Open **Account -> GitHub**, find `SaschaAndresGrimm/ALBIS`, and switch the toggle on.
-   Zenodo only archives releases published *after* the toggle is enabled, so do this
-   before the next tag.
-3. Publish a release (section 4). Zenodo mints two DOIs: a **version DOI** for that
-   release, and a **concept DOI** that always resolves to the newest one.
-4. Put the **concept DOI** in `CITATION.cff`: uncomment the `identifiers` block and
-   replace `10.5281/zenodo.XXXXXXX`. The concept DOI is the right one for the file —
-   a version DOI there would freeze citations at whichever release happened to be
-   current when it was pasted in.
-5. Optionally add the DOI badge to `README.md` so it is visible without opening the
-   citation file.
-
-**Every release after that:** nothing. Zenodo archives the tag on its own, and the
-concept DOI keeps resolving to the newest version. Only `version` and `date-released`
-in `CITATION.cff` need updating, which section 1 already covers.
+2. Open **Account -> GitHub** and switch the toggle on for `SaschaAndresGrimm/ALBIS`.
+3. Note that Zenodo only archives releases published *after* the toggle is enabled, so
+   enable it before tagging rather than after.
