@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Documentation
+
+- MYTHEN(2) acquisitions are documented. Support has shipped for some time — a dedicated reader, its own error handling, its own tests — but no document a user reads mentioned it, so nobody with a strip detector could discover it. The README, the format list and the in-app help now cover opening an acquisition through its `.cfg`.
+
+- The built-in help (F1) lists the keyboard shortcuts. The app advertises twelve in its own menus and the help described two, so the command palette, dataset conversion and animation export were reachable only by chance.
+
+- The built-in help stopped describing a dialog that no longer exists: it named settings groups from before Settings was regrouped into tabs, and pointed at the README for API details that live in the Power User Guide. Both are corrected, and the guide is now linked from the help.
+
+- Troubleshooting covers what actually goes wrong: a file that will not open yet, the `403` you get behind a reverse proxy before setting an allowed host, settings that appear to have reset because the config could not be read, and the first-launch warning on Windows.
+
+- The README no longer implies 1.0 has shipped, and its highlights list mentions exports, remote performance and the thirteen-language interface.
+
+
 ### Security
 
 - ALBIS no longer answers requests a web page made on the user's behalf. It has no authentication, on the reasoning that the only person who can reach a local viewer is the person in front of it — but while ALBIS runs, every page the user visits can send requests to it that arrive carrying the user's own local access. Two of those got through. A page whose own domain resolves to `127.0.0.1` was same-origin with ALBIS as far as the browser was concerned, which made the API readable, `/api/browse` included. And `POST /api/upload` uses a form encoding that predates CORS and is sent with no preflight, so any page could write a file into the data directory and simply not read the reply. ALBIS now checks the `Host` header, and refuses state-changing requests — plus the two endpoints that open a native file dialog — when the browser reports them as coming from another site.

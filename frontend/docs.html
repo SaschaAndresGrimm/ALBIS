@@ -189,11 +189,16 @@
       <section class="doc-card">
         <h2>Quick Start</h2>
         <ul>
-          <li>Open data: <code>File -> Open</code> to load HDF5, TIFF, CBF(.gz), or EDF files.</li>
+          <li>Open data: <code>File -> Open</code> to load HDF5, TIFF, CBF(.gz) or EDF files, or a MYTHEN
+              acquisition by picking its <code>.cfg</code> file.</li>
           <li>Navigate frames with slider, index field, play/pause, and keyboard arrows.</li>
           <li>Use the <strong>Data</strong> tab to select data source, dataset, threshold, and inspect file metadata.</li>
           <li>Use the <strong>Overlay</strong> tab for ROI stats, resolution rings, and peak finder.</li>
-          <li>Use <code>Settings -> Preferences</code> to configure server, viewer, data access, and logging.</li>
+          <li>Export what you see: <code>File -> Convert Dataset…</code> writes TIFF or CBF,
+              <code>File -> Export Animation…</code> writes an animated GIF.</li>
+          <li><code>Settings -> Preferences…</code> opens the Settings dialog, grouped into
+              <strong>Viewer</strong>, <strong>Connection</strong>, <strong>Data</strong> and
+              <strong>Logging</strong>. Fields that only take effect on the next start say so as you change them.</li>
         </ul>
       </section>
 
@@ -214,14 +219,33 @@
       </section>
 
       <section class="doc-card">
+        <h2>Keyboard Shortcuts</h2>
+        <p class="note">
+          Shown with the macOS modifier. On Windows and Linux use <code>Ctrl</code> where
+          <code>⌘</code> appears and <code>Alt</code> where <code>⌥</code> appears.
+        </p>
+        <ul>
+          <li><code>⌘K</code> Command Palette — the fastest way to reach anything below.</li>
+          <li><code>⌘O</code> Open…&nbsp;&nbsp;<code>⌘W</code> Close File&nbsp;&nbsp;<code>⌘N</code> New Window</li>
+          <li><code>←</code> / <code>→</code> previous / next frame</li>
+          <li><code>⌘S</code> save full image&nbsp;&nbsp;<code>⇧⌘S</code> save visible area&nbsp;&nbsp;<code>⌥⌘S</code> save viewer window</li>
+          <li><code>⌘G</code> Export Animation…&nbsp;&nbsp;<code>⇧⌘X</code> Convert Dataset…</li>
+          <li><code>⌘,</code> Preferences…&nbsp;&nbsp;<code>F</code> full screen&nbsp;&nbsp;<code>F1</code> this page</li>
+        </ul>
+      </section>
+
+      <section class="doc-card">
         <h2>Data Sources and Streaming</h2>
         <ul>
           <li><strong>File:</strong> load local files from disk.</li>
+          <li><strong>MYTHEN acquisition:</strong> a folder holding one <code>.cfg</code> descriptor and one
+              <code>FrameNNNN.dat</code> per exposure. Open the <code>.cfg</code> and the whole acquisition is
+              assembled into a single image — channel across, frame down, counts as intensity.</li>
           <li><strong>Watch Folder:</strong> poll folders for new files.</li>
           <li><strong>SIMPLON Monitor:</strong> monitor live TIFF updates. Enter the detector hostname or IP address (for example <code>192.168.1.10</code>); <code>http://</code> and the default port 80 are filled in automatically. Press <strong>Test</strong> (or Enter in the address field) to check the connection — it names the detector on success, or the reason on failure (unknown host, refused port, wrong API version).</li>
           <li><strong>JUNGFRAUJOCH Preview:</strong> subscribe to ZeroMQ preview CBOR stream with reflection overlays. Enter <code>host:port</code> and <code>tcp://</code> is filled in; there is no default preview port, so the port is required. <strong>Test</strong> checks that the port accepts connections — frames are confirmed once the preview starts.</li>
           <li><strong>Remote Stream:</strong> consume pushed frames via API source ids.</li>
-          <li>For technical API details, see the repository README.</li>
+          <li>For the Remote Stream API and every configuration key, see the Power User Guide (linked below).</li>
         </ul>
       </section>
 
@@ -231,6 +255,16 @@
           <li>If the viewer shows <code>OFFLINE</code>, wait for backend startup or restart the launcher.</li>
           <li>If no image appears, check selected dataset and threshold in the Data tab.</li>
           <li>If overlays look stale in playback, pause and re-enable the overlay tool once.</li>
+          <li>If a file will not open, ALBIS names the reason — a file still being written by the
+              filewriter is the usual cause, and retrying once it is complete normally works.</li>
+          <li>If every request fails with <code>403</code> and a message about allowed hosts, you are
+              reaching ALBIS under a name it does not answer to. This happens behind a reverse proxy:
+              add the proxy's hostname to <strong>Settings -> Connection -> Allowed hosts</strong>.</li>
+          <li>If your settings appear to have reset, ALBIS could not read its configuration file and
+              started on defaults rather than refusing to start. The log says which file and why;
+              saving from the Settings dialog replaces it.</li>
+          <li>On first launch, Windows may show “Windows protected your PC” (choose <em>More info -&gt;
+              Run anyway</em>). macOS builds are signed and notarized and should open normally.</li>
           <li>Use <code>Help -> View Backend Log</code> for runtime diagnostics.</li>
         </ul>
       </section>
@@ -241,6 +275,17 @@
           Repository and source code:
           <a href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">
             github.com/SaschaAndresGrimm/ALBIS
+          </a>
+        </p>
+        <p>
+          Power User Guide — every configuration key, the Remote Stream and Handoff APIs,
+          Docker, and running behind a reverse proxy:
+          <a
+            href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/POWER_USER_GUIDE.md"
+            target="_blank"
+            rel="noopener"
+          >
+            docs/POWER_USER_GUIDE.md
           </a>
         </p>
         <p>
