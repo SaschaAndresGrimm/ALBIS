@@ -1,0 +1,48 @@
+# Citation metadata for ALBIS.
+#
+# GitHub reads this file to render the "Cite this repository" button and to
+# offer APA and BibTeX exports. Keep `version` and `date-released` in step with
+# VERSION on every release -- tests/test_version_consistency.py enforces the
+# version half, and docs/RELEASE_CHECKLIST.md carries the date.
+#
+# To add a permanent identifier, follow "Archive the Release for Citation"
+# in docs/RELEASE_CHECKLIST.md: archive a release on Zenodo, then uncomment
+# the `identifiers` block below and paste the concept DOI -- the one that
+# always resolves to the newest version, rather than to one release.
+
+cff-version: 1.2.0
+message: "If you use ALBIS in work that leads to a publication, please cite it as below."
+title: "ALBIS: an ALBULA-style, browser-based image viewer for synchrotron detector data"
+abstract: >-
+  ALBIS is a platform-independent, browser-based viewer for large HDF5 detector
+  stacks and common area-detector image formats. It targets DECTRIS detectors
+  (SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX, JUNGFRAU), reads both
+  filewriter1 and filewriter2 layouts including multi-threshold data, and can
+  follow a running experiment through the SIMPLON monitor stream, a
+  JUNGFRAUJOCH preview stream, or externally pushed frames. It provides
+  region-of-interest statistics, resolution ring and spot overlays, pixel mask
+  handling, an HDF5 dataset inspector, and export to TIFF, CBF and animated GIF.
+type: software
+authors:
+  - family-names: Grimm
+    given-names: Sascha Andres
+    email: sascha.grimm@dectris.com
+    affiliation: DECTRIS AG
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+repository-code: "https://github.com/SaschaAndresGrimm/ALBIS"
+url: "https://github.com/SaschaAndresGrimm/ALBIS"
+license: MIT
+version: 0.11.0
+date-released: 2026-08-21
+keywords:
+  - image viewer
+  - synchrotron
+  - X-ray detector
+  - DECTRIS
+  - HDF5
+  - crystallography
+  - scientific visualization
+# identifiers:
+#   - type: doi
+#     value: "10.5281/zenodo.XXXXXXX"
+#     description: "Concept DOI resolving to the latest ALBIS release."

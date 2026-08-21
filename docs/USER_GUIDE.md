@@ -21,6 +21,7 @@ reference of the same material.
 - [Compare two views](#compare-two-views)
 - [Work from another machine](#work-from-another-machine)
 - [Keyboard shortcuts](#keyboard-shortcuts)
+- [What ALBIS sends over the network](#what-albis-sends-over-the-network)
 - [When something looks wrong](#when-something-looks-wrong)
 
 ---
@@ -287,6 +288,30 @@ appears and `Alt` where `⌥` appears.
 
 The command palette is the fastest route to anything you do not have a shortcut
 for, including switching panel tabs and stepping thresholds.
+
+---
+
+## What ALBIS sends over the network
+
+Almost nothing, and nothing about you. ALBIS has no telemetry and no analytics.
+Your images, file paths and the datasets you browse are read from disk and sent
+to your own browser; they are never uploaded anywhere.
+
+There is one exception. When the interface starts, ALBIS asks GitHub whether a
+newer release exists, so it can tell you when to update. The request carries the
+version you are running and nothing else — no file names, no identifier of you
+or your machine. If the machine is offline or firewalled the check fails quietly
+and everything else keeps working.
+
+To stop it, uncheck **Settings → Connection → Check for updates on startup**.
+ALBIS then makes no outbound request of its own accord at all.
+
+Live sources are the other network traffic, and they only ever go to the address
+you typed — the SIMPLON monitor or JUNGFRAUJOCH endpoint you connected to. ALBIS
+does not look for detectors by itself.
+
+For the precise details, including what a facility's IT group will want to know,
+see [Network Behaviour and Privacy](NETWORK_AND_PRIVACY.md).
 
 ---
 

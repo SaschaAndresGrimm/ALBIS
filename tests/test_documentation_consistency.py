@@ -110,3 +110,56 @@ def test_user_guide_cross_references_resolve(anchor: str) -> None:
     assert (
         anchor in headings
     ), f"USER_GUIDE.md links to POWER_USER_GUIDE.md#{anchor}, which no heading produces"
+
+
+def test_every_ui_config_key_is_documented_in_the_power_user_guide() -> None:
+    """A configurable knob nobody can read about is not configurable.
+
+    `auto_check_updates` and `language` were both settable, both in the schema,
+    and both absent from the Settings Reference -- so the one outbound network
+    request ALBIS makes had no documented off switch.
+    """
+    from backend.config import DEFAULT_CONFIG
+
+    section = re.search(r"^#### `ui`$(.*?)(?=^#{1,4} |\Z)", GUIDE, re.M | re.S)
+    assert section, "the Power User Guide no longer has a `ui` settings section"
+
+    documented = set(re.findall(r"^- `(\w+)`", section.group(1), re.M))
+    missing = sorted(set(DEFAULT_CONFIG["ui"]) - documented)
+    assert (
+        not missing
+    ), f"ui config keys with no entry in the Power User Guide Settings Reference: {missing}"
+
+
+def test_network_behaviour_is_disclosed_where_users_and_IT_will_look() -> None:
+    """ALBIS contacts GitHub on startup; saying so is not optional.
+
+    A viewer installed on a facility workstation gets approved by someone who
+    needs to know what it sends. The disclosure is only useful where they look:
+    the README, the in-app help, and the guide that documents the setting.
+    """
+    privacy = ROOT / "docs" / "NETWORK_AND_PRIVACY.md"
+    assert privacy.is_file(), "docs/NETWORK_AND_PRIVACY.md is missing"
+
+    text = privacy.read_text(encoding="utf-8")
+    from backend.services.update_check import LATEST_RELEASE_API_URL
+
+    assert LATEST_RELEASE_API_URL in text, (
+        "the privacy document must name the exact URL ALBIS requests, so it stays "
+        "honest if the endpoint changes"
+    )
+    assert (
+        "auto_check_updates" in text
+    ), "the privacy document must name the setting that disables it"
+
+    assert "NETWORK_AND_PRIVACY.md" in README, "the README does not link the privacy document"
+    assert "NETWORK_AND_PRIVACY.md" in HELP, "the in-app help does not link the privacy document"
+    assert (
+        "NETWORK_AND_PRIVACY.md" in GUIDE
+    ), "the Power User Guide does not link the privacy document"
+
+
+def test_albis_is_citable() -> None:
+    """Scientific software that cannot be cited does not get credited."""
+    assert (ROOT / "CITATION.cff").is_file(), "CITATION.cff is missing"
+    assert "CITATION.cff" in README, "the README does not point users at how to cite ALBIS"

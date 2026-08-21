@@ -139,6 +139,8 @@ what a given build can actually produce.
 #### `ui`
 
 - `tool_hints` (`boolean`, default `false`)
+- `auto_check_updates` (`boolean`, default `true`): Ask GitHub once per interface start whether a newer release exists, and notify only when one does. Also adjustable in **Settings -> Connection**. This is the only network request ALBIS makes that you did not ask for; set `false` for offline or managed deployments, and see [Network Behaviour and Privacy](NETWORK_AND_PRIVACY.md) for exactly what the request contains.
+- `language` (`string`, default `en`): Interface language. Supported values: `en`, `zh-CN`, `ja`, `fr`, `es`, `it`, `pt`, `rm`, `de`, `sv`, `da`, `mi`, `gsw`. Also adjustable in **Settings -> Viewer**.
 - `pixel_label_min_cell_px` (`integer`, default `18`, clamped `8..64`)
 - `pixel_label_max_labels` (`integer`, default `4000`, clamped `100..100000`)
 - `frame_cache_mb` (`integer`, default `256`, clamped `0..4096`): Memory budget for keeping recently viewed frames, so stepping back to one costs no transfer at all. Also adjustable in **Settings -> Viewer**.

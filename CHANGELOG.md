@@ -7,6 +7,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Documentation
+
+- ALBIS now states what it sends over a network (`docs/NETWORK_AND_PRIVACY.md`), because it was not saying so anywhere a user or a facility's IT group would look. There is no telemetry and never was — but the interface asks GitHub for the latest release at every startup, and the only trace of that in any document was one line of comment in the example configuration. The new document names the exact URL, what the request contains (the running version, in the `User-Agent`, and nothing else), how often it happens, what happens when it fails, and how to switch it off. It also says plainly where image data, paths and logs stay, and separates the traffic ALBIS starts by itself from the SIMPLON and JUNGFRAUJOCH addresses the user typed. Summarised in the README, the User Guide, and the built-in help (F1).
+
+- The Settings Reference documented six of the eight `ui` configuration keys. The two missing were `language` and `auto_check_updates` — the second being the off switch for the only outbound request ALBIS makes, which meant the setting existed, shipped enabled, and was undocumented. A test now fails when a `ui` key has no entry.
+
+- ALBIS can be cited. `CITATION.cff` gives GitHub a **Cite this repository** button with APA and BibTeX, which for software used to produce published results is the difference between being credited and being a footnote nobody can resolve. The release checklist gained the one-time Zenodo setup for a permanent DOI, and the file's version is now covered by the release version check.
+
+### Changed
+
+- The security policy no longer disclaims the version that is actually shipping. It promised triage for `1.x` releases and best-effort for `0.x`, while every user was on `0.x` — so read literally, no released version was supported. Support is now stated against the latest published release regardless of its number, with the `0.x` caveat limited to what semantic versioning actually implies about configuration and API stability. The scope section also says outright that an unauthenticated listener exposed to the internet is a deployment choice rather than a vulnerability.
+
+- The Python packaging metadata called ALBIS `Development Status :: 5 - Production/Stable` while the version was `0.11.0`; it now says `4 - Beta`, matching the version and the security policy.
+
+### Added
+
+- A test that `VERSION`, `package.json`, `pyproject.toml` and `CITATION.cff` all agree on the version. Nothing compared them before: the release workflow checked the git tag against `VERSION` and a human was asked to eyeball the rest, so two of the four could drift a release apart without any check failing.
+
 ## [0.11.0] - 2026-08-21
 
 ### Documentation

@@ -29,6 +29,10 @@ Official public support covers:
 Docker images are published for **local and trusted lab deployments** on `linux/amd64` and `linux/arm64`.
 Public internet exposure is **not** a supported deployment mode.
 
+ALBIS collects no telemetry and sends no usage data, file names or image data anywhere. It makes one
+request you did not ask for — a version check against GitHub, which you can switch off. See
+[Network Behaviour and Privacy](docs/NETWORK_AND_PRIVACY.md) for exactly what is sent.
+
 ## Getting Started (just want to look at images?)
 
 You don't need Python or any setup. Three steps:
@@ -93,11 +97,19 @@ ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_G
 For power users looking to configure the server, use the advanced Stream API, or run ALBIS from source:
 
 - [Power User Guide](docs/POWER_USER_GUIDE.md)
+- [Network Behaviour and Privacy](docs/NETWORK_AND_PRIVACY.md) — what leaves your machine, and how to stop it
 
 For developers looking to build, test, and contribute:
 
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
 - [Contributing](CONTRIBUTING.md)
+
+## Citing ALBIS
+
+If ALBIS contributed to work you are publishing, please cite it. GitHub renders
+a **Cite this repository** button from [`CITATION.cff`](CITATION.cff), which
+gives you APA and BibTeX directly; cite the version you actually used, which
+ALBIS reports under **Help → About**.
 
 ## Acknowledgements and Contributions
 

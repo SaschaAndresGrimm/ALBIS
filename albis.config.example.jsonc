@@ -59,7 +59,10 @@
   // Frontend UI toggles/performance knobs.
   "ui": {
     "tool_hints": false,
-    // Check GitHub releases on startup and notify only when a newer version exists.
+    // Ask GitHub once per interface start whether a newer release exists, and notify
+    // only when one does. This is the only outbound request ALBIS makes on its own;
+    // it sends nothing but the running version in the User-Agent. Set false for
+    // offline or managed installs. See docs/NETWORK_AND_PRIVACY.md.
     "auto_check_updates": true,
     "pixel_label_min_cell_px": 18,
     "pixel_label_max_labels": 4000,

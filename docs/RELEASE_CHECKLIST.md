@@ -5,7 +5,8 @@ This checklist is intended for production releases, including `v1.0.0`.
 ## 1. Prepare Release Content
 
 - Ensure `main` is green and up to date.
-- Confirm the version matches across all sources: `VERSION`, `package.json` (`version`), and `pyproject.toml` (`[project].version`) all equal the target release version (for example `1.0.0`).
+- Confirm the version matches across all sources: `VERSION`, `package.json` (`version`), `pyproject.toml` (`[project].version`), and `CITATION.cff` (`version`) all equal the target release version (for example `1.0.0`). `tests/test_version_consistency.py` enforces this, so a mismatch fails CI rather than shipping.
+- Set `date-released` in `CITATION.cff` to the release date. Nothing can check this for you, and a stale date is what shows up in everyone's bibliography.
 - Finalize `CHANGELOG.md`:
   - Move release items from `Unreleased` into a dated version section.
   - Update compare/release links at the bottom.
@@ -115,3 +116,28 @@ Expected result:
 - For the first AppImage release, or when AppStream metadata changes materially, open a PR against `AppImage/appimage.github.io`.
 - Add or update a file under `data/` that contains only `https://github.com/SaschaAndresGrimm/ALBIS`.
 - Wait for the AppImageHub catalog checks to pass before merging.
+
+## 7. Archive the Release for Citation
+
+`CITATION.cff` already makes ALBIS citable by version. This step adds a permanent
+identifier so a paper cites something that cannot move or disappear. It is a one-time
+setup; afterwards every tagged release is archived automatically.
+
+**First time only** (requires a Zenodo login — this cannot be automated from the repo):
+
+1. Sign in to <https://zenodo.org> with the GitHub account that owns the repository.
+2. Open **Account -> GitHub**, find `SaschaAndresGrimm/ALBIS`, and switch the toggle on.
+   Zenodo only archives releases published *after* the toggle is enabled, so do this
+   before the next tag.
+3. Publish a release (section 4). Zenodo mints two DOIs: a **version DOI** for that
+   release, and a **concept DOI** that always resolves to the newest one.
+4. Put the **concept DOI** in `CITATION.cff`: uncomment the `identifiers` block and
+   replace `10.5281/zenodo.XXXXXXX`. The concept DOI is the right one for the file —
+   a version DOI there would freeze citations at whichever release happened to be
+   current when it was pasted in.
+5. Optionally add the DOI badge to `README.md` so it is visible without opening the
+   citation file.
+
+**Every release after that:** nothing. Zenodo archives the tag on its own, and the
+concept DOI keeps resolving to the newest version. Only `version` and `date-released`
+in `CITATION.cff` need updating, which section 1 already covers.
