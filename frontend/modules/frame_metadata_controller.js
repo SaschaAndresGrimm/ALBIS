@@ -34,6 +34,7 @@ export function createFrameMetadataController({
     setDataSourceSectionState,
     setStatus,
     stopPlayback,
+    onWriterPresenceChange,
     updateToolbar,
     showSplash,
     setSplashStatus,
@@ -181,6 +182,7 @@ export function createFrameMetadataController({
         return false;
       }
       setDataSourceSectionState("active", t("status.data.metadata_ready"));
+      onWriterPresenceChange?.(Boolean(data.writer_present));
       return true;
     } catch (err) {
       console.error(err);
@@ -189,6 +191,48 @@ export function createFrameMetadataController({
     } finally {
       hideProcessingProgress();
     }
+  }
+
+  function frameCountFromShape(shape) {
+    if (!Array.isArray(shape) || !shape.length) return 1;
+    if (shape.length === 4 || shape.length === 3) return shape[0];
+    return 1;
+  }
+
+  /**
+   * Re-read the frame count of the open dataset, and nothing else.
+   *
+   * `loadMetadata` cannot be used for this: it stops playback, resets the frame
+   * index to zero, reloads the mask and refetches the frame. On a timer that
+   * would drag the viewer back to the first frame every second. What a growing
+   * series needs is only the count, so this touches only the count.
+   *
+   * Returns whether a writer still holds the file, which is what decides
+   * whether asking again is worth anything.
+   */
+  async function refreshFrameCount() {
+    if (!state.file || !state.dataset) return { writerPresent: false, changed: false };
+    let data;
+    try {
+      data = await fetchJSON(
+        `${apiBase}/metadata?file=${encodeURIComponent(state.file)}&dataset=${encodeURIComponent(state.dataset)}`,
+      );
+    } catch (err) {
+      console.error(err);
+      // A file being written can momentarily refuse a read. Stopping the watch
+      // on the first hiccup would be worse than trying again on the next tick.
+      return { writerPresent: true, changed: false };
+    }
+    const nextCount = frameCountFromShape(data.shape);
+    const changed = Number.isFinite(nextCount) && nextCount !== state.frameCount;
+    if (changed) {
+      state.frameCount = nextCount;
+      state.shape = data.shape;
+      if (metaShape) metaShape.textContent = data.shape.join(" × ");
+      updateFrameControls();
+      updateToolbar();
+    }
+    return { writerPresent: Boolean(data.writer_present), changed, frameCount: nextCount };
   }
 
   async function loadAnalysisParams() {
@@ -251,5 +295,6 @@ export function createFrameMetadataController({
     loadFiles,
     loadMetadata,
     loadAnalysisParams,
+    refreshFrameCount,
   };
 }

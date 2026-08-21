@@ -37,6 +37,7 @@ import { createUploadFlowController } from "./modules/upload_flow.js";
 import { createMenuActionHandler } from "./modules/menu_actions.js";
 import { createShortcutHandlers } from "./modules/shortcut_handlers.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
+import { createLiveSeriesWatch } from "./modules/live_series_watch.js";
 import { createRecentFiles } from "./modules/recent_files.js";
 import { createRecentFilesController } from "./modules/recent_files_controller.js";
 import { createSeriesSumController } from "./modules/series_sum_controller.js";
@@ -2953,6 +2954,7 @@ frameMetadataController = createFrameMetadataController({
     setDataSourceSectionState,
     setStatus,
     stopPlayback,
+    onWriterPresenceChange: (present) => liveSeriesWatch?.setWriterPresent(present),
     updateToolbar,
     showSplash,
     setSplashStatus,
@@ -2972,6 +2974,19 @@ frameMetadataController = createFrameMetadataController({
     scheduleResolutionOverlay,
   },
 });
+
+const liveSeriesWatch = createLiveSeriesWatch({
+  refreshFrameCount: () => frameMetadataController.refreshFrameCount(),
+  callbacks: {
+    onGrew: (frameCount) => {
+      // Only when the count actually changes, so a run in progress does not
+      // rewrite the status line every second.
+      setStatus(t("status.frame.series_growing", { count: frameCount }));
+      scheduleOverview();
+    },
+  },
+});
+
 
 fileDataPipelineController = createFileDataPipelineController({
   apiBase: API,
@@ -3498,6 +3513,7 @@ function updateLiveHistoryEntry(dedupeKey, patch) {
 }
 
 function resetLiveHistory() {
+  liveSeriesWatch?.stop();
   liveHistoryController?.resetLiveHistory();
 }
 
@@ -4025,6 +4041,7 @@ function exportRoiCsv() {
 }
 
 function closeCurrentFile() {
+  liveSeriesWatch.stop();
   resetLiveHistory();
   fileSessionController.closeCurrentFile();
 }

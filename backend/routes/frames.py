@@ -12,7 +12,11 @@ from fastapi.responses import Response
 try:
     from ..api_models import FrameMetadataResponse
     from ..image_formats import _to_little_endian
-    from ..services.hdf5_stack import open_hdf5_for_read, read_hdf5_array
+    from ..services.hdf5_stack import (
+        open_hdf5_for_read,
+        open_hdf5_for_read_reporting_writer,
+        read_hdf5_array,
+    )
     from .binary_response_utils import (
         add_optional_header,
         build_binary_headers,
@@ -28,6 +32,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from image_formats import _to_little_endian  # type: ignore[no-redef]
     from services.hdf5_stack import (  # type: ignore[no-redef]
         open_hdf5_for_read,
+        open_hdf5_for_read_reporting_writer,
         read_hdf5_array,
     )
 
@@ -71,12 +76,18 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         path = deps.resolve_file(file)
-        with open_hdf5_for_read(h5py, path) as h5:
+        # `writer_present` is what tells a client whether asking again is
+        # worthwhile: a series still being written grows, and one that is
+        # finished never will, so a viewer can follow the first and leave the
+        # second alone.
+        handle, writer_present = open_hdf5_for_read_reporting_writer(h5py, path)
+        with handle as h5:
             try:
                 view, extra_files = deps.resolve_dataset_view(h5, path, dataset)
                 try:
                     shape = tuple(int(x) for x in view["shape"])
                     response: dict[str, Any] = {
+                        "writer_present": writer_present,
                         "path": dataset,
                         "shape": [int(x) for x in shape],
                         "dtype": str(view["dtype"]),

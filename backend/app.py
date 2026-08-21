@@ -778,6 +778,7 @@ register_file_routes(
         logger=logger,
         get_allow_abs_paths=_get_allow_abs_paths,
         get_scan_cache_sec=_get_scan_cache_sec,
+        get_max_scan_entries=lambda: runtime_state.max_scan_entries,
         get_max_upload_bytes=_get_max_upload_bytes,
         resolve_dir=_resolve_dir,
         resolve_image_file=_resolve_image_file,

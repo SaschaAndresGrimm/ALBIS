@@ -57,8 +57,22 @@ def open_hdf5_read_only(h5py: Any, path: Path) -> Any:
     outright. When both fail the *first* error is raised, because for a genuinely
     truncated file it is the one that names the real problem.
     """
+    handle, _writer_present = open_hdf5_read_only_reporting_writer(h5py, path)
+    return handle
+
+
+def open_hdf5_read_only_reporting_writer(h5py: Any, path: Path) -> tuple[Any, bool]:
+    """Open for reading, and say whether a writer is still holding the file.
+
+    The second half matters to the interface. A reader that only ever asks once
+    sees the frame count the series happened to have at open time, and a series
+    being written grows -- so "is someone still writing this" is the difference
+    between a slider that follows an acquisition and one that is quietly stale.
+    Needing SWMR to open the file at all is exactly that signal, and it costs
+    nothing extra to report it.
+    """
     try:
-        return h5py.File(path, "r")
+        return h5py.File(path, "r"), False
     except FileNotFoundError:
         raise
     except OSError as plain_exc:
@@ -69,7 +83,7 @@ def open_hdf5_read_only(h5py: Any, path: Path) -> Any:
             # all. Either way the plain error is the better diagnosis.
             raise plain_exc from None
         _log.info("Opened %s in SWMR mode: a writer still holds it open", path)
-        return handle
+        return handle, True
 
 
 def open_hdf5_for_read(h5py: Any, path: Path) -> Any:
@@ -82,8 +96,14 @@ def open_hdf5_for_read(h5py: Any, path: Path) -> Any:
     user can simply retry. 422 with the cause named matches how the MYTHEN
     readers already report an unreadable acquisition.
     """
+    handle, _writer_present = open_hdf5_for_read_reporting_writer(h5py, path)
+    return handle
+
+
+def open_hdf5_for_read_reporting_writer(h5py: Any, path: Path) -> tuple[Any, bool]:
+    """`open_hdf5_for_read`, plus whether a writer still holds the file."""
     try:
-        return open_hdf5_read_only(h5py, path)
+        return open_hdf5_read_only_reporting_writer(h5py, path)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="File not found") from exc
     except OSError as exc:

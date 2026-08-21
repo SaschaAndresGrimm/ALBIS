@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "画像ファイルが見つかりません",
   "status.frame.position": "フレーム {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "開始するにはファイルを選択してください",
+  "status.frame.series_growing": "シリーズは書き込み中です: 現在 {{count}} フレーム",
   "status.fullscreen_unavailable": "フルスクリーンは利用できません",
   "status.handoff.no_target": "Handoff #{{id}} を受信しましたが、開く対象がありません。",
   "status.handoff.opened": "RUSLER handoff を開きました: {{targetPath}}",

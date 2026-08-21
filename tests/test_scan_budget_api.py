@@ -196,3 +196,68 @@ def test_folders_listing_reports_truncation(tree: Path, monkeypatch) -> None:
 
     assert response.status_code == 200
     assert "truncated" in response.json()
+
+
+# --------------------------------------------------------------------------
+# The interactive listing
+# --------------------------------------------------------------------------
+
+
+def test_browsing_a_normal_folder_is_not_marked_truncated(tree: Path) -> None:
+    response = client.get("/api/browse", params={"path": str(tree)})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["truncated"] is False
+    assert len(payload["folders"]) == 4
+
+
+def test_browsing_a_huge_flat_folder_stops_and_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The shape a beamline folder actually has: one directory, many frames.
+
+    The recursive scans were budgeted first because they looked like the risk.
+    This is the endpoint the file browser calls, and unbounded it means a stat
+    per entry, a dict per entry, a sort across all of them and the lot
+    serialized -- for a listing nobody can read.
+    """
+    for index in range(40):
+        (tmp_path / f"frame_{index:05d}.cbf").write_bytes(b"")
+    monkeypatch.setattr(runtime_state, "max_scan_entries", 10)
+
+    response = client.get("/api/browse", params={"path": str(tmp_path)})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["truncated"] is True
+    assert len(payload["fileItems"]) < 40
+
+
+def test_the_browse_budget_is_shared_by_folders_and_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One allowance per request, not one per pass."""
+    for index in range(20):
+        (tmp_path / f"run_{index:02d}").mkdir()
+        (tmp_path / f"frame_{index:02d}.cbf").write_bytes(b"")
+    monkeypatch.setattr(runtime_state, "max_scan_entries", 12)
+
+    payload = client.get("/api/browse", params={"path": str(tmp_path)}).json()
+
+    assert payload["truncated"] is True
+    assert len(payload["folders"]) < 20
+
+
+def test_an_unlimited_budget_still_lists_everything(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """0 means unlimited here, as it does for every other budget."""
+    for index in range(30):
+        (tmp_path / f"frame_{index:05d}.cbf").write_bytes(b"")
+    monkeypatch.setattr(runtime_state, "max_scan_entries", 0)
+
+    payload = client.get("/api/browse", params={"path": str(tmp_path)}).json()
+
+    assert payload["truncated"] is False
+    assert len(payload["fileItems"]) == 30

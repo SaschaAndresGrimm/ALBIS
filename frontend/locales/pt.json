@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Nenhum arquivo de imagem encontrado",
   "status.frame.position": "Quadro {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Selecione um arquivo para começar",
+  "status.frame.series_growing": "A série ainda está sendo gravada: {{count}} imagens até agora",
   "status.fullscreen_unavailable": "Tela cheia indisponível",
   "status.handoff.no_target": "Transferência #{{id}} recebida sem alvo aberto.",
   "status.handoff.opened": "Transferência RUSLER aberta: {{targetPath}}",

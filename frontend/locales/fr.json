@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Aucun fichier image trouvé",
   "status.frame.position": "Image {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Sélectionnez un fichier pour commencer",
+  "status.frame.series_growing": "Série en cours d'écriture : {{count}} images pour l'instant",
   "status.fullscreen_unavailable": "Plein écran indisponible",
   "status.handoff.no_target": "Transfert #{{id}} reçu sans cible ouverte.",
   "status.handoff.opened": "Transfert RUSLER ouvert : {{targetPath}}",

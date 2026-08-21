@@ -46,6 +46,18 @@ A **MYTHEN(2)** acquisition is a folder holding one `.cfg` descriptor and one
 `FrameNNNN.dat` per exposure. Open the `.cfg` and the whole run is assembled
 into a single image: channel across, frame down, counts as intensity.
 
+### Watching a series that is still being written
+
+You can open an HDF5 stack while the detector is still writing it. ALBIS reads
+the frames flushed so far, and then keeps up: the frame slider grows as the
+acquisition does, and the status line says how many frames have arrived. The
+frame you are looking at, the playback position and the mask are left alone
+while that happens — following a run does not mean being dragged back to the
+first frame every second.
+
+When the filewriter closes the file, ALBIS notices and stops asking. Nothing to
+switch on, and nothing to switch off afterwards.
+
 ### Open Recent
 
 **File → Open Recent** lists the last ten files you opened, newest first, so

@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Inga bildfiler hittades",
   "status.frame.position": "Bildruta {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Välj en fil för att börja",
+  "status.frame.series_growing": "Serien skrivs fortfarande: {{count}} bilder så långt",
   "status.fullscreen_unavailable": "Helskärm är inte tillgänglig",
   "status.handoff.no_target": "Handoff #{{id}} mottagen utan öppet mål.",
   "status.handoff.opened": "RUSLER handoff öppnad: {{targetPath}}",

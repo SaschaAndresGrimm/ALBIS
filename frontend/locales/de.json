@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Keine Bilddateien gefunden",
   "status.frame.position": "Frame {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Wähle eine Datei aus, um loszulegen",
+  "status.frame.series_growing": "Serie wird noch geschrieben: bisher {{count}} Bilder",
   "status.fullscreen_unavailable": "Vollbild nicht verfügbar",
   "status.handoff.no_target": "Übergabe #{{id}} ohne offenes Ziel empfangen.",
   "status.handoff.opened": "RUSLER-Übergabe geöffnet: {{targetPath}}",

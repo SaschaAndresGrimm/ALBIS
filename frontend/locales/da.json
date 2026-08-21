@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Ingen billedfiler fundet",
   "status.frame.position": "Ramme {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Vælg en fil for at begynde",
+  "status.frame.series_growing": "Serien skrives stadig: {{count}} billeder indtil nu",
   "status.fullscreen_unavailable": "Fuld skærm er ikke tilgængelig",
   "status.handoff.no_target": "Handoff #{{id}} modtaget uden åbent mål.",
   "status.handoff.opened": "RUSLER aflevering åbnet: {{targetPath}}",

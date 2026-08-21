@@ -214,3 +214,48 @@ def test_a_missing_file_is_still_a_missing_file(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 404
+
+
+def test_metadata_says_a_writer_still_holds_the_file(live_series) -> None:
+    """The signal a viewer needs to know whether asking again is worthwhile.
+
+    Without it a client has to choose between polling every open file forever
+    and never noticing a series grow.
+    """
+    path, _ = live_series
+
+    payload = client.get("/api/metadata", params={"file": str(path), "dataset": DATASET}).json()
+
+    assert payload["writer_present"] is True
+
+
+def test_metadata_says_nothing_holds_a_finished_file(tmp_path: Path) -> None:
+    path = tmp_path / "finished.h5"
+    with h5py.File(path, "w") as handle:
+        handle.create_dataset(DATASET, data=np.zeros((2, HEIGHT, WIDTH), dtype="<u4"))
+
+    payload = client.get("/api/metadata", params={"file": str(path), "dataset": DATASET}).json()
+
+    assert payload["writer_present"] is False
+    assert payload["shape"] == [2, HEIGHT, WIDTH]
+
+
+def test_writer_presence_drops_when_the_run_ends(live_series, tmp_path: Path) -> None:
+    """A watch that never stops is a poll on every finished file forever."""
+    path, append_to = live_series
+    params = {"file": str(path), "dataset": DATASET}
+    append_to(3)
+
+    assert client.get("/api/metadata", params=params).json()["writer_present"] is True
+
+    # End the run the way the fixture's teardown does, then read again.
+    (tmp_path / "stop").write_text("1", encoding="utf-8")
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        if client.get("/api/metadata", params=params).json()["writer_present"] is False:
+            break
+        time.sleep(0.1)
+
+    payload = client.get("/api/metadata", params=params).json()
+    assert payload["writer_present"] is False
+    assert payload["shape"][0] == 3, "the frames written during the run are still there"

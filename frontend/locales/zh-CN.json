@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "未找到图像文件",
   "status.frame.position": "帧 {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "请选择文件开始",
+  "status.frame.series_growing": "序列仍在写入：目前 {{count}} 帧",
   "status.fullscreen_unavailable": "全屏不可用",
   "status.handoff.no_target": "已收到交接 #{{id}}，但没有可打开的目标。",
   "status.handoff.opened": "已打开 RUSLER 交接：{{targetPath}}",

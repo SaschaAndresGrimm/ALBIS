@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Nessun file immagine trovato",
   "status.frame.position": "Frame {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Seleziona un file per iniziare",
+  "status.frame.series_growing": "La serie è ancora in scrittura: {{count}} immagini finora",
   "status.fullscreen_unavailable": "Schermo intero non disponibile",
   "status.handoff.no_target": "Handoff #{{id}} ricevuto senza target aperto.",
   "status.handoff.opened": "Handoff RUSLER aperto: {{targetPath}}",

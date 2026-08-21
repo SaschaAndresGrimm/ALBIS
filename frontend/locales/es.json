@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "No se encontraron archivos de imagen",
   "status.frame.position": "Fotograma {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Seleccione un archivo para comenzar",
+  "status.frame.series_growing": "La serie se está escribiendo: {{count}} imágenes hasta ahora",
   "status.fullscreen_unavailable": "Pantalla completa no disponible",
   "status.handoff.no_target": "Traspaso #{{id}} recibido sin objetivo abierto.",
   "status.handoff.opened": "Se abrió el traspaso de RUSLER: {{targetPath}}",

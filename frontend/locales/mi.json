@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Karekau he kōnae atahanga i kitea",
   "status.frame.position": "Tāpare {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Tīpakohia he kōnae hei tīmata",
+  "status.frame.series_growing": "Kei te tuhia tonu te raupapa: {{count}} ngā anga i tēnei wā",
   "status.fullscreen_unavailable": "Kāore i te wātea te mata katoa",
   "status.handoff.no_target": "I tae mai te tukunga #{{id}} engari kāore he whāinga tuwhera.",
   "status.handoff.opened": "Kua tuwhera te tukunga RUSLER: {{targetPath}}",

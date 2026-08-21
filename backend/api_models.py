@@ -319,6 +319,8 @@ class BrowseResponse(_StrictModel):
     canGoUp: bool
     allowAbsolutePaths: bool
     requestedPathMissing: bool = False
+    # True when this directory holds more entries than one listing may visit.
+    truncated: bool = False
 
 
 class AutoloadLatestResponse(_StrictModel):
@@ -405,3 +407,7 @@ class FrameMetadataResponse(_StrictModel):
     maxshape: Any | None = None
     linked_stack: bool
     threshold_energies: list[float | None] | None = None
+    # True when a writer still holds the file, so `shape` is the count so far
+    # rather than the count. A client watching an acquisition asks again; one
+    # looking at a finished file does not need to.
+    writer_present: bool = False

@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Naginas datotecas da maletgs chattadas",
   "status.frame.position": "Maletg {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Tscherna ina datoteca per cumenzar",
+  "status.frame.series_growing": "La seria vegn anc scritta: {{count}} maletgs enfin ussa",
   "status.fullscreen_unavailable": "Maletg entir betg disponibel",
   "status.handoff.no_target": "Handoff #{{id}} retschavì senza destinaziun averta.",
   "status.handoff.opened": "Handoff RUSLER avert: {{targetPath}}",

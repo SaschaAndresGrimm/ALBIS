@@ -799,6 +799,7 @@
   "status.frame.no_image_files": "Kei Bilddateie gfunde",
   "status.frame.position": "Bild {{current}} / {{total}}",
   "status.frame.select_file_to_begin": "Wähl e Datei us zum Aafange",
+  "status.frame.series_growing": "Serie wird no gschribe: bis jetzt {{count}} Bilder",
   "status.fullscreen_unavailable": "Vollbild nit verfiegbar",
   "status.handoff.no_target": "Ibergab #{{id}} ohni offes Ziel yycho.",
   "status.handoff.opened": "RUSLER-Ibergab ufgmacht: {{targetPath}}",

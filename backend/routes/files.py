@@ -67,6 +67,7 @@ class FileRouteDeps:
     logger: Any
     get_allow_abs_paths: Callable[[], bool]
     get_scan_cache_sec: Callable[[], float]
+    get_max_scan_entries: Callable[[], int]
     get_max_upload_bytes: Callable[[], int]
     resolve_dir: Callable[[str | None], Path]
     resolve_image_file: Callable[[str], Path]
@@ -220,6 +221,37 @@ def _browse_parent_path(
 
 def _browse_file_path(name: str, target_dir: Path, data_root: Path, allow_absolute_paths: bool) -> str:
     return _display_browse_path(target_dir / name, data_root, allow_absolute_paths) or name
+
+
+class _BrowseBudget:
+    """Entry allowance shared by one browse request's two directory passes.
+
+    Time is not budgeted here, unlike the recursive walks: this is a single
+    `scandir` over one directory, so the entry count is what bounds it, and a
+    request that stops halfway through the second pass would report folders
+    without their files.
+    """
+
+    __slots__ = ("_remaining", "_unlimited", "truncated")
+
+    def __init__(self, max_entries: int) -> None:
+        limit = max(0, int(max_entries or 0))
+        # "Unlimited" is held separately from the counter on purpose. Reusing
+        # `remaining == 0` for both meanings makes an exhausted budget read as
+        # an unlimited one, which lets everything through after the allowance
+        # runs out -- silently, and only in the second pass.
+        self._unlimited = limit == 0
+        self._remaining = limit
+        self.truncated = False
+
+    def charge(self) -> bool:
+        if self._unlimited:
+            return True
+        if self._remaining <= 0:
+            self.truncated = True
+            return False
+        self._remaining -= 1
+        return True
 
 
 def _sort_browse_items(items: list[dict[str, Any]], sort: str) -> list[dict[str, Any]]:
@@ -514,10 +546,21 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         allow_absolute_paths = deps.get_allow_abs_paths()
         data_root = deps.data_dir.resolve()
 
+        # One budget across both passes below. The recursive scans have had one
+        # since they were the obvious risk, but this is the endpoint the file
+        # browser actually calls, and a beamline folder is frequently flat and
+        # enormous -- one directory per run holding a hundred thousand frames.
+        # Unbounded, that means a `stat` per entry, a dict per entry, a sort over
+        # all of them and the lot serialized to JSON, for a listing nobody can
+        # read anyway.
+        budget = _BrowseBudget(deps.get_max_scan_entries())
+
         dirs: set[str] = set()
         try:
             with os.scandir(target_dir) as it:
                 for entry in it:
+                    if not budget.charge():
+                        break
                     if entry.name.startswith("."):
                         continue
                     try:
@@ -532,6 +575,8 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         try:
             with os.scandir(target_dir) as it:
                 for entry in it:
+                    if not budget.charge():
+                        break
                     if entry.name.startswith("."):
                         continue
                     try:
@@ -585,6 +630,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             canGoUp=can_go_up,
             allowAbsolutePaths=allow_absolute_paths,
             requestedPathMissing=requested_path_missing,
+            truncated=budget.truncated,
         )
 
     @app.get("/api/autoload/latest", response_model=AutoloadLatestResponse)

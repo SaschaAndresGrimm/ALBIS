@@ -203,7 +203,9 @@ what a given build can actually produce.
 - `max_scan_entries` (`integer`, default `200000`, minimum `0`): Directory entries one scan may visit before it stops. `0` is unlimited.
 - `max_scan_seconds` (`number`, default `5.0`, minimum `0.0`): Wall-clock budget for one scan. `0` is unlimited.
 
-  A scan that hits either budget stops and says so, rather than presenting a partial listing as a complete one: `GET /api/files` and `GET /api/folders` return `truncated: true`, `GET /api/autoload/latest` returns it as a field and as the `X-Scan-Truncated` header (which is how it can also be reported on a bodyless `204`), and the interface says the folder is too large to scan. Raise the budgets if you would rather wait; a scan holds a worker thread for as long as it runs.
+  A scan that hits either budget stops and says so, rather than presenting a partial listing as a complete one: `GET /api/files`, `GET /api/folders` and `GET /api/browse` return `truncated: true`, `GET /api/autoload/latest` returns it as a field and as the `X-Scan-Truncated` header (which is how it can also be reported on a bodyless `204`), and the interface says the folder is too large to scan.
+
+  `GET /api/browse` lists a single directory rather than a tree, so only the entry budget bounds it. That is not a lesser case: a beamline folder is frequently flat and enormous — one directory per run holding a hundred thousand frames — and unbounded that meant a `stat` per entry, a sort across all of them, and the whole listing serialized. Raise the budgets if you would rather wait; a scan holds a worker thread for as long as it runs.
 
 - `max_upload_mb` (`integer`, default `0`, minimum `0`)
 

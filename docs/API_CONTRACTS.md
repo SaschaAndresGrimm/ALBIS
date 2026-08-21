@@ -86,15 +86,33 @@ Response:
 - `text/csv`
 - `Content-Disposition` attachment header
 
+## Live Series
+
+`GET /api/metadata` reports `writer_present`: `true` when a writer still holds
+the file, which is how a client knows whether asking again is worthwhile.
+
+- A series being written **grows**, so `shape[0]` is the count so far, not the
+  count. Re-read it while `writer_present` is `true`.
+- A finished file reports `false`, and its frame count will not change. There is
+  nothing to poll.
+- The flag comes from needing SWMR to open the file at all, so it costs no extra
+  work. It says nothing about *who* is writing.
+
+The interface uses exactly this: it re-reads the count about once a second while
+the flag is set, updates the frame slider, and stops when the writer lets go.
+
 ## Directory Scans
 
-`GET /api/files`, `GET /api/folders` and `GET /api/autoload/latest` walk a
-directory, and a walk is bounded by `data.max_scan_entries` and
-`data.max_scan_seconds` (see the Power User Guide). A scan that reaches either
-budget stops early, and every one of these endpoints reports that rather than
-presenting a partial answer as a complete one:
+`GET /api/files`, `GET /api/folders`, `GET /api/browse` and
+`GET /api/autoload/latest` walk a directory, and a walk is bounded by
+`data.max_scan_entries` and `data.max_scan_seconds` (see the Power User Guide).
+A scan that reaches either budget stops early, and every one of these endpoints
+reports that rather than presenting a partial answer as a complete one:
 
-- `truncated: true` in the JSON body of all three.
+- `truncated: true` in the JSON body of all four. `GET /api/browse` lists one
+  directory rather than a tree, so only the entry budget applies to it — but a
+  single beamline folder holding a hundred thousand frames is exactly the case
+  it applies to.
 - `X-Scan-Truncated: 1` on `GET /api/autoload/latest`, on the `200` and on the
   `204` alike — a bodyless response still has to be able to say "there is no
   newest file *because the walk ran out*", which is not the same answer as "this
