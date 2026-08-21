@@ -25,11 +25,18 @@ describe("settings dialog wiring", () => {
   });
 
   it.each(destructured)("%s resolves to an element that exists in index.html", (name) => {
-    const lookup = app.match(
-      new RegExp(`const ${name} = document\\.getElementById\\("([^"]+)"\\)`),
+    const byId = app.match(new RegExp(`const ${name} = document\\.getElementById\\("([^"]+)"\\)`));
+    if (byId) {
+      expect(html, `id="${byId[1]}" is missing from index.html`).toContain(`id="${byId[1]}"`);
+      return;
+    }
+    // A few are class-based, so accept querySelector too rather than forcing an
+    // id purely to satisfy this check.
+    const bySelector = app.match(
+      new RegExp(`const ${name} = document\\.querySelector\\("\\.([^"]+)"\\)`),
     );
-    expect(lookup, `${name} is never looked up in app.js`).not.toBeNull();
-    expect(html, `id="${lookup[1]}" is missing from index.html`).toContain(`id="${lookup[1]}"`);
+    expect(bySelector, `${name} is never looked up in app.js`).not.toBeNull();
+    expect(html, `class "${bySelector[1]}" is missing from index.html`).toContain(bySelector[1]);
   });
 
   it("gives every config section written on save a control in the dialog", () => {

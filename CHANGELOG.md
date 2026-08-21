@@ -17,7 +17,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Settings covers the whole configuration again. **Allowed hosts**, **Response compression** and **Health check timeout** had no control, so the two settings a reverse-proxy deployment needs could only be reached by hand-editing `albis.config.json` — and getting `allowed_hosts` wrong there means every request is refused. Allowed hosts accepts a comma-separated list and applies as soon as it is saved.
 
-- Settings now says which fields need a restart instead of warning about all of them. Each one carries a **restart** marker; everything else applies on save. Fields with a special value say so in their label, the way the frame cache already did: port `0` picks a free port, max scan depth `-1` is unlimited, max upload `0` is unlimited, scan cache `0` disables caching.
+- Settings is grouped into **Viewer**, **Connection**, **Data** and **Logging** tabs instead of four stacked sections. Twenty-three controls competed for attention on one scrolling page; six to eight are now on screen at a time and the dialog no longer scrolls. The tabs are the same control the viewer panel uses.
+
+- Settings says which fields need a restart, and only once one has changed. Instead of a marker on ten of the twenty-four controls — enough repetition that it read as decoration — the footer names what you actually edited: *Restart to apply: Port, Response compression*. A value with a special meaning is explained under its field rather than inside its label, which had made twelve of sixteen labels wrap.
+
+- **Save** now closes the settings dialog, and **Save & Close** is gone. Two buttons for the same intent made you choose between them for no benefit.
 
 - The external-connections checkbox keeps its label when ticked. It used to be replaced by the warning text, which left the control no longer describing what it does — and no label at all for switching it back — while repeating the warning already shown beneath it.
 

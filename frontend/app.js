@@ -508,7 +508,8 @@ const settingsModal = document.getElementById("settings-modal");
 const settingsClose = document.getElementById("settings-close");
 const settingsCancel = document.getElementById("settings-cancel");
 const settingsSave = document.getElementById("settings-save");
-const settingsSaveClose = document.getElementById("settings-save-close");
+const settingsTabs = document.querySelector(".settings-tabs");
+const settingsRestartNote = document.getElementById("settings-restart-note");
 const settingsConfigPath = document.getElementById("settings-config-path");
 const settingsMessage = document.getElementById("settings-message");
 const settingsServerExternal = document.getElementById("settings-server-external");
@@ -2997,7 +2998,8 @@ const settingsController = createSettingsController({
     settingsModal,
     settingsClose,
     settingsSave,
-    settingsSaveClose,
+    settingsTabs,
+    settingsRestartNote,
     settingsConfigPath,
     settingsMessage,
     settingsServerExternal,
@@ -3995,7 +3997,6 @@ const mainUiBindingsElements = createMainUiBindingsElements({
   settingsClose,
   settingsCancel,
   settingsSave,
-  settingsSaveClose,
   settingsModal,
   commandInput,
   commandModal,

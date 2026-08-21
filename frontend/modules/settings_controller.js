@@ -25,7 +25,8 @@ export function createSettingsController({
     settingsModal,
     settingsClose,
     settingsSave,
-    settingsSaveClose,
+    settingsTabs,
+    settingsRestartNote,
     settingsConfigPath,
     settingsMessage,
     settingsServerExternal,
@@ -85,9 +86,6 @@ export function createSettingsController({
     settingsModal?.setAttribute("aria-busy", settingsModalBusy ? "true" : "false");
     if (settingsSave) {
       settingsSave.disabled = settingsModalBusy;
-    }
-    if (settingsSaveClose) {
-      settingsSaveClose.disabled = settingsModalBusy;
     }
     if (settingsLanguage) {
       settingsLanguage.disabled = settingsModalBusy;
@@ -153,6 +151,82 @@ export function createSettingsController({
   function formatAllowedHosts(value) {
     if (Array.isArray(value)) return value.join(", ");
     return String(value || "");
+  }
+
+  // Fields whose value only reaches the running process at the next start. The
+  // dialog used to badge each of these; naming them in the footer once one has
+  // actually changed says more and shows nothing until it is relevant.
+  const RESTART_SCOPED_IDS = [
+    "settings-server-external",
+    "settings-server-port",
+    "settings-compression",
+    "settings-startup-timeout",
+    "settings-startup-health-timeout",
+    "settings-server-reload",
+    "settings-open-browser",
+    "settings-data-root",
+    "settings-log-level",
+    "settings-log-dir",
+  ];
+
+  // Values as last loaded or saved, so the note reflects unsaved edits only.
+  let restartBaseline = new Map();
+
+  function readFieldValue(el) {
+    if (!el) return null;
+    return el.type === "checkbox" ? String(el.checked) : String(el.value);
+  }
+
+  /** The field's own visible label, so the note needs no second set of names. */
+  function fieldLabel(el) {
+    const span = el?.closest("label")?.querySelector("span");
+    return (span?.textContent || el?.id || "").trim();
+  }
+
+  function captureRestartBaseline() {
+    restartBaseline = new Map(
+      RESTART_SCOPED_IDS.map((id) => [id, readFieldValue(document.getElementById(id))]),
+    );
+    updateRestartNote();
+  }
+
+  function updateRestartNote() {
+    if (!settingsRestartNote) return;
+    const changed = [];
+    for (const [id, before] of restartBaseline) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      if (readFieldValue(el) !== before) changed.push(fieldLabel(el));
+    }
+    if (!changed.length) {
+      settingsRestartNote.textContent = "";
+      settingsRestartNote.classList.add("is-hidden");
+      settingsRestartNote.setAttribute("aria-hidden", "true");
+      return;
+    }
+    settingsRestartNote.textContent = "";
+    const icon = document.createElement("span");
+    icon.textContent = "\u21bb";
+    const text = document.createElement("span");
+    text.textContent = t("settings.restart_note", { fields: changed.join(", ") });
+    settingsRestartNote.append(icon, text);
+    settingsRestartNote.classList.remove("is-hidden");
+    settingsRestartNote.setAttribute("aria-hidden", "false");
+  }
+
+  function showSettingsTab(name) {
+    if (!settingsModal) return;
+    const target = String(name || "");
+    settingsModal.querySelectorAll("[data-settings-tab]").forEach((el) => {
+      const matches = el.dataset.settingsTab === target;
+      if (el.classList.contains("panel-tab")) {
+        el.classList.toggle("is-active", matches);
+        el.setAttribute("aria-selected", matches ? "true" : "false");
+      } else {
+        el.classList.toggle("is-active", matches);
+        el.hidden = !matches;
+      }
+    });
   }
 
   function fillSettingsForm(config, configPath = "") {
@@ -224,6 +298,7 @@ export function createSettingsController({
       settingsConfigPath.textContent = configPath || "-";
     }
     updateExternalAccessUi();
+    captureRestartBaseline();
   }
 
   function collectSettingsForm() {
@@ -337,6 +412,19 @@ export function createSettingsController({
     }
   }
 
+  if (settingsTabs) {
+    settingsTabs.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-settings-tab]");
+      if (button) showSettingsTab(button.dataset.settingsTab);
+    });
+  }
+
+  if (settingsModal) {
+    // One delegated listener rather than ten: any edit re-evaluates the note.
+    settingsModal.addEventListener("input", updateRestartNote);
+    settingsModal.addEventListener("change", updateRestartNote);
+  }
+
   function closeSettingsModal({ restoreFocus = true } = {}) {
     settingsRequestId += 1;
     closeModal(settingsModal, { restoreFocus });
@@ -348,7 +436,8 @@ export function createSettingsController({
     closeMenu();
     if (!settingsModal) return;
     const requestId = ++settingsRequestId;
-    openModal(settingsModal, { focusTarget: settingsServerPort || settingsClose });
+    showSettingsTab("viewer");
+    openModal(settingsModal, { focusTarget: settingsClose });
     setSettingsModalBusy(true);
     setSettingsMessage(t("settings.message.loading"), false, true);
     try {
@@ -396,7 +485,6 @@ export function createSettingsController({
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
       schedulePixelOverlay();
       updateExternalAccessUi();
-      setSettingsMessage(t("settings.message.saved_restart"));
       setStatus(t("status.settings.saved"), { tone: "success" });
       if (closeAfter) {
         closeSettingsModal();
@@ -421,5 +509,6 @@ export function createSettingsController({
     closeSettingsModal,
     openSettingsModal,
     saveSettingsFromModal,
+    showSettingsTab,
   };
 }

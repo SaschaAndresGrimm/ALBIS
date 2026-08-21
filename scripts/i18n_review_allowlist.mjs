@@ -12,10 +12,9 @@ const EXACT_KEY_ALLOWLIST = new Set([
   "series.ui.output_placeholder",
   "settings.language.mi",
   "settings.language.rm",
-  // Romansh already renders "restart" as a noun in settings.restart_hint
-  // ("suenter in restart"), so the badge matching English is the established
-  // term here rather than an untranslated carryover.
-  "settings.restart_badge",
+  // "Data" is the Swedish and Danish word as well as the English one, so the
+  // match is a cognate rather than a missing translation.
+  "settings.tab.data",
   "toolbar.playback.fps_option",
   "viewer.footer.badge.live",
   "viewer.footer.badge.server",

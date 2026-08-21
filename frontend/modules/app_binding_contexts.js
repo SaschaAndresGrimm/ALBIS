@@ -24,7 +24,6 @@ export function createMainUiBindingsElements(elements) {
     settingsClose: elements.settingsClose,
     settingsCancel: elements.settingsCancel,
     settingsSave: elements.settingsSave,
-    settingsSaveClose: elements.settingsSaveClose,
     settingsModal: elements.settingsModal,
     commandInput: elements.commandInput,
     commandModal: elements.commandModal,
