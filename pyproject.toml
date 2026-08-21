@@ -1,6 +1,6 @@
 [project]
 name = "albis"
-version = "0.12.0"
+version = "0.13.0"
 description = "ALBIS — a local, browser-based image viewer for synchrotron/DECTRIS detector data (HDF5, TIFF, CBF, EDF)"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"

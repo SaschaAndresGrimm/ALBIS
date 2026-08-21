@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-21
+
 ### Fixed
 
 - ALBIS can open a file the detector is still writing. A filewriter holds its output open in SWMR mode for the length of a series, and HDF5 refuses a plain read-only open of such a file — it reports `file is already open for write`, the same bare `OSError` it uses for a corrupt file. ALBIS translated that into "not a readable HDF5 file (it may be incomplete or corrupt)", so the live-acquisition workflow the viewer exists for did not work at all: every frame, dataset listing and metadata read on a running series was refused, and the message blamed the file. The read-only open now retries with `swmr=True`, which sees the frames flushed so far, and because each request opens its own handle the next one sees the frames written since — so the frame count grows with the acquisition. Plain open first, so a finished file costs exactly what it did before, and when both attempts fail the *plain* error is the one reported, because for a genuinely truncated file it is the one that names the real problem. External and linked targets (filewriter2 master/data layouts) go through the same path. `tests/test_hdf5_live_writer.py` stages a real writer process, because HDF5 lets a process reopen a file *it* holds open — an in-process writer would have proved nothing.
@@ -859,7 +861,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.9...v0.11.0
 [0.10.9]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.8...v0.10.9
