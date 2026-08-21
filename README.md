@@ -1,4 +1,4 @@
-# ALBIS (**A** **L**ocal, **B**rowser-based **I**mage viewer for **S**ynchrotron data)
+# ALBIS (**A**lbula-style, **B**rowser-based **I**mage viewer for **S**ynchrotron Images)
 
 [![CI](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml/badge.svg)](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -8,19 +8,18 @@
 
 ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stacks and other common DECTRIS camera formats. It is platform‑independent, free, and open source.
 
-It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4), JUNGFRAU, MYTHEN(2), and POLLUX — including rectangular "strixel" pixels) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
+It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX, and JUNGFRAU — including rectangular "strixel" pixels) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
 
 - Files on disk (`.h5/.hdf5` stacks and common detector image formats `.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
-- **MYTHEN(2)** strip-detector acquisitions — open the acquisition's `.cfg` and the whole run is assembled into one image (channel across, frame down, counts as intensity).
+- **MYTHEN(2)** strip-detector acquisitions - open the acquisition's `.cfg` and the whole run is assembled into one image (channel across, frame down, counts as intensity).
 - The detector **SIMPLON monitor** stream for live viewing.
 - **JUNGFRAUJOCH Preview** ZeroMQ PUB stream (CBOR image messages + reflection spots).
 - The **Remote Stream API** (`/api/remote/v1/*`) for externally pushed frames + metadata.
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
 
-ALBIS is a **local-first desktop viewer** for workstation and beamline use.
 Official public support covers:
 
 - **Windows x64**
@@ -48,6 +47,7 @@ For the full walkthrough — opening data, contrast, ROI statistics, resolution 
 ## Highlights
 
 - ALBULA‑style UI with fast navigation and contrast control.
+- Built for remote use: server backend, browser frontend.
 - Full support for DECTRIS filewriter1 and filewriter2 (multi‑threshold data with selector).
 - Live SIMPLON monitor mode with mask prefetch.
 - JUNGFRAUJOCH Preview mode (ZeroMQ CBOR stream bridge with reflection overlays).
@@ -57,7 +57,6 @@ For the full walkthrough — opening data, contrast, ROI statistics, resolution 
 - Pixel mask support (gaps and defective pixels).
 - Spot finding and resolution ring overlays.
 - Export to TIFF or CBF, and animated GIF export of a series.
-- Built for remote use: frames are compressed on the wire and recently viewed frames are kept in memory, so a browser on another machine stays responsive.
 - Interface available in 13 languages.
 
 ## Downloads / Installation
