@@ -1,4 +1,4 @@
-# ALBIS (**A** **L**ocal, **B**rowser-based **I**mage viewer for **S**ynchrotron data)
+# ALBIS (**A**lbula-style, **B**rowser-based **I**mage viewer for **S**ynchrotron Images)
 
 [![CI](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml/badge.svg)](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -8,18 +8,18 @@
 
 ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stacks and other common DECTRIS camera formats. It is platform‑independent, free, and open source.
 
-It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4), JUNGFRAU, and POLLUX — including rectangular "strixel" pixels) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
+It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX, and JUNGFRAU — including rectangular "strixel" pixels) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
 
 - Files on disk (`.h5/.hdf5` stacks and common detector image formats `.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
+- **MYTHEN(2)** strip-detector acquisitions - open the acquisition's `.cfg` and the whole run is assembled into one image (channel across, frame down, counts as intensity).
 - The detector **SIMPLON monitor** stream for live viewing.
 - **JUNGFRAUJOCH Preview** ZeroMQ PUB stream (CBOR image messages + reflection spots).
 - The **Remote Stream API** (`/api/remote/v1/*`) for externally pushed frames + metadata.
 
 ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
 
-ALBIS `1.0` is a **local-first desktop viewer** for workstation and beamline use.
 Official public support covers:
 
 - **Windows x64**
@@ -27,7 +27,7 @@ Official public support covers:
 - **Linux x64**
 
 Docker images are published for **local and trusted lab deployments** on `linux/amd64` and `linux/arm64`.
-Public internet exposure is **not** a supported deployment mode for `1.0`.
+Public internet exposure is **not** a supported deployment mode.
 
 ## Getting Started (just want to look at images?)
 
@@ -38,21 +38,26 @@ You don't need Python or any setup. Three steps:
    - **macOS:** open the `.dmg` and drag ALBIS into `Applications`, then launch it. The builds are signed and notarized, so they open normally.
    - **Windows:** run the `...-Setup-...exe` installer. If Windows shows a blue "Windows protected your PC" screen, click **More info → Run anyway** (this is expected for newer apps).
    - **Linux:** make the `.AppImage` executable (`chmod +x ALBIS-*.AppImage`) and double-click it, or run the bundled `install_linux_appimage.sh`.
-3. **Open your first image:** use **File → Open** to load an HDF5 stack, TIFF, CBF, or EDF file. Navigate frames with the slider or the `←`/`→` keys.
+3. **Open your first image:** use **File → Open** to load an HDF5 stack, TIFF, CBF or EDF file, or a MYTHEN acquisition's `.cfg`. Navigate frames with the slider or the `←`/`→` keys.
 
-Press **F1** any time inside ALBIS to open the built-in help (interaction basics, data sources, and troubleshooting).
+Press **F1** any time inside ALBIS to open the built-in help (interaction basics, keyboard shortcuts, data sources, and troubleshooting).
+
+For the full walkthrough — opening data, contrast, ROI statistics, resolution rings, live sources, and exporting — see the **[User Guide](docs/USER_GUIDE.md)**.
 
 ## Highlights
 
 - ALBULA‑style UI with fast navigation and contrast control.
+- Built for remote use: server backend, browser frontend.
 - Full support for DECTRIS filewriter1 and filewriter2 (multi‑threshold data with selector).
 - Live SIMPLON monitor mode with mask prefetch.
 - JUNGFRAUJOCH Preview mode (ZeroMQ CBOR stream bridge with reflection overlays).
 - Remote Stream mode for live external producers (with optional ring parameters and colored peak overlays).
+- MYTHEN(2) strip-detector acquisitions rendered as a single channel‑vs‑frame intensity map.
 - ROI tools (line, box, circle, annulus) with statistics and plots.
 - Pixel mask support (gaps and defective pixels).
-- spotfinding & resolution rings overlay
-- multi language support
+- Spot finding and resolution ring overlays.
+- Export to TIFF or CBF, and animated GIF export of a series.
+- Interface available in 13 languages.
 
 ## Downloads / Installation
 
