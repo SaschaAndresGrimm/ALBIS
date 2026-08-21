@@ -12,7 +12,7 @@ from fastapi.responses import Response
 try:
     from ..api_models import FrameMetadataResponse
     from ..image_formats import _to_little_endian
-    from ..services.hdf5_stack import open_hdf5_for_read
+    from ..services.hdf5_stack import open_hdf5_for_read, read_hdf5_array
     from .binary_response_utils import (
         add_optional_header,
         build_binary_headers,
@@ -26,7 +26,10 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         octet_stream_responses,
     )
     from image_formats import _to_little_endian  # type: ignore[no-redef]
-    from services.hdf5_stack import open_hdf5_for_read  # type: ignore[no-redef]
+    from services.hdf5_stack import (  # type: ignore[no-redef]
+        open_hdf5_for_read,
+        read_hdf5_array,
+    )
 
 
 FRAME_RESPONSE_DOCS = octet_stream_responses(
@@ -108,7 +111,9 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
             except KeyError as exc:
                 raise HTTPException(status_code=404, detail="Dataset not found") from exc
             try:
-                frame_data = deps.extract_frame(view, index=index, threshold=threshold)
+                frame_data = read_hdf5_array(
+                    path, lambda: deps.extract_frame(view, index=index, threshold=threshold)
+                )
             finally:
                 for handle in extra_files:
                     handle.close()
@@ -133,7 +138,7 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
                 raise HTTPException(status_code=404, detail="Pixel mask not found")
             if dset.ndim != 2:
                 raise HTTPException(status_code=400, detail="Pixel mask has invalid shape")
-            arr = _to_little_endian(np.asarray(dset))
+            arr = _to_little_endian(read_hdf5_array(path, lambda: np.asarray(dset)))
             data = arr.tobytes(order="C")
             headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape)
             add_optional_header(headers, "X-Mask-Path", dset.name)

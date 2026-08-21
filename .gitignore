@@ -14,6 +14,11 @@ logs/
 *.tif
 *.edf
 test_data/
+
+# testdata/ holds committed fixtures, so it is exempt from the data-file
+# patterns above. Without this the detector formats the tests decode would be
+# silently dropped from a commit.
+!testdata/**
 *.coverage
 .coverage
 .coverage.*

@@ -166,11 +166,39 @@ def test_cross_site_upload_cannot_write_a_file() -> None:
     assert not written.exists()
 
 
-def test_rebound_host_cannot_read_the_filesystem() -> None:
+@pytest.fixture
+def loopback_bind(monkeypatch: pytest.MonkeyPatch):
+    """Pin the bind address the guard reasons about.
+
+    `runtime_state.bind_host` comes from whatever albis.config.json the machine
+    has, and that file is gitignored -- a developer who binds 0.0.0.0 locally
+    would otherwise see these fail while CI, running on defaults, passed.
+    """
+    monkeypatch.setattr(runtime_state, "bind_host", "127.0.0.1")
+    monkeypatch.setattr(runtime_state, "allowed_hosts", [])
+
+
+def test_rebound_host_cannot_read_the_filesystem(loopback_bind) -> None:
     response = client.get("/api/browse", params={"path": "/etc"}, headers={"Host": "evil.example"})
 
     assert response.status_code == 403
     assert "allowed_hosts" in response.json()["detail"]
+
+
+def test_a_wildcard_bind_still_answers_any_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Docker and LAN deployments must keep working unchanged."""
+    monkeypatch.setattr(runtime_state, "bind_host", "0.0.0.0")
+    monkeypatch.setattr(runtime_state, "allowed_hosts", [])
+
+    assert client.get("/api/health", headers={"Host": "albis-container"}).status_code == 200
+
+
+def test_configured_allowed_host_is_served(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(runtime_state, "bind_host", "127.0.0.1")
+    monkeypatch.setattr(runtime_state, "allowed_hosts", ["albis.lab"])
+
+    assert client.get("/api/health", headers={"Host": "albis.lab"}).status_code == 200
+    assert client.get("/api/health", headers={"Host": "evil.example"}).status_code == 403
 
 
 @pytest.mark.parametrize("path", ["/api/choose-file", "/api/choose-folder"])

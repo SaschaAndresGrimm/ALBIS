@@ -4,12 +4,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -103,6 +105,102 @@ def _assert_health_version(payload: dict[str, object], expected_version: str) ->
         )
 
 
+# Detector files the packaged build must be able to decode. Serving the UI shell
+# proves the process starts; it says nothing about whether the image stack --
+# fabio's format plugins, tifffile, and the native hdf5plugin filter libraries --
+# survived being frozen. Those are the parts a PyInstaller build actually loses,
+# and losing them breaks the first thing a user does.
+REPO_TESTDATA = Path(__file__).resolve().parents[1] / "testdata"
+DECODE_FIXTURES = ("in16c_010001.cbf", "monitor.tiff", "compressed_stack.h5")
+
+
+def _stage_decode_fixtures(data_root: Path) -> list[str]:
+    """Copy the decode fixtures into the server's data root, if present."""
+    data_root.mkdir(parents=True, exist_ok=True)
+    staged: list[str] = []
+    for name in DECODE_FIXTURES:
+        source = REPO_TESTDATA / name
+        if not source.exists():
+            continue
+        shutil.copy2(source, data_root / name)
+        staged.append(name)
+    return staged
+
+
+def _get(url: str, timeout_sec: float):
+    try:
+        response = _OPENER.open(url, timeout=timeout_sec)
+    except urllib.error.HTTPError as exc:
+        # Surface the backend's own explanation. A bare "HTTP 500" in a release
+        # log says nothing; the detail names the format that failed to decode.
+        detail = ""
+        try:
+            body = json.loads(exc.read().decode("utf-8", "replace"))
+            detail = str(body.get("detail") or "")
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"{url} failed with HTTP {exc.code}"
+            + (f": {detail}" if detail else "")
+            + " -- the packaged build cannot decode this format."
+            " Check that the image stack (fabio plugins, tifffile, hdf5plugin"
+            " filter libraries) was collected into the bundle."
+        ) from exc
+    if response.status != 200:
+        raise RuntimeError(f"Unexpected HTTP status {response.status} for {url}")
+    return response
+
+
+def _assert_decodes_image(base_url: str, name: str, timeout_sec: float) -> None:
+    """Decode a non-HDF image and check the payload matches its own headers."""
+    url = f"{base_url}/api/image?file={urllib.parse.quote(name)}"
+    with _get(url, timeout_sec) as response:
+        shape = response.headers.get("X-Shape", "")
+        dtype = response.headers.get("X-Dtype", "")
+        body = response.read()
+    dims = [int(part) for part in shape.split(",") if part.strip()]
+    if len(dims) != 2 or not dtype:
+        raise RuntimeError(f"{name}: unusable headers (X-Shape={shape!r} X-Dtype={dtype!r})")
+    itemsize = int(dtype[-1])
+    expected = dims[0] * dims[1] * itemsize
+    if len(body) != expected:
+        raise RuntimeError(
+            f"{name}: decoded {len(body)} bytes, expected {expected} for {shape} {dtype}"
+        )
+
+
+def _assert_decodes_compressed_hdf5(base_url: str, name: str, timeout_sec: float) -> None:
+    """Read a frame from a compression-filtered HDF5 and verify its contents.
+
+    This is the check that fails when hdf5plugin's native filter libraries are
+    missing from the bundle: the file opens and its datasets list, and only the
+    actual frame read fails.
+    """
+    quoted = urllib.parse.quote(name)
+    with _get(f"{base_url}/api/datasets?file={quoted}", timeout_sec) as response:
+        datasets = json.load(response).get("datasets") or []
+    if not datasets:
+        raise RuntimeError(f"{name}: no image datasets discovered")
+
+    dataset = str(datasets[0].get("path") or "")
+    index = 2
+    url = f"{base_url}/api/frame?file={quoted}&dataset={urllib.parse.quote(dataset)}&index={index}"
+    with _get(url, timeout_sec) as response:
+        dtype = response.headers.get("X-Dtype", "")
+        body = response.read()
+    if not body:
+        raise RuntimeError(f"{name}: empty frame payload for {dataset}")
+    # The fixture fills frame N with the value N (see
+    # scripts/make_compressed_hdf5_fixture.py), so a decode that silently
+    # returned zeros or the wrong frame is caught rather than passing as "200".
+    first_pixel = int.from_bytes(body[:4], "little", signed=False)
+    if first_pixel != index:
+        raise RuntimeError(
+            f"{name}: frame {index} first pixel was {first_pixel}, expected {index}"
+            f" (dtype={dtype!r}) -- decompression produced the wrong data"
+        )
+
+
 def run_smoke(
     binary_path: Path,
     startup_timeout_sec: float,
@@ -138,6 +236,8 @@ def run_smoke(
         }
         config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
+        staged_fixtures = _stage_decode_fixtures(root / "data")
+
         child_env = os.environ.copy()
         child_env["HOME"] = str(root)
         if sys.platform.startswith("win"):
@@ -169,6 +269,20 @@ def run_smoke(
                 expected_content_type_substring="javascript",
                 timeout_sec=1.5,
             )
+
+            base_url = f"http://127.0.0.1:{port}"
+            for name in staged_fixtures:
+                if name.endswith((".h5", ".hdf5")):
+                    _assert_decodes_compressed_hdf5(base_url, name, timeout_sec=20.0)
+                else:
+                    _assert_decodes_image(base_url, name, timeout_sec=20.0)
+            missing = sorted(set(DECODE_FIXTURES) - set(staged_fixtures))
+            if missing:
+                # Never let absent fixtures read as a pass: the decode path would
+                # simply go unchecked.
+                raise RuntimeError(
+                    f"Decode fixtures missing from {REPO_TESTDATA}: {', '.join(missing)}"
+                )
         finally:
             _terminate_process(proc, stop_timeout_sec)
 

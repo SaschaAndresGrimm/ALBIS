@@ -245,7 +245,11 @@ class RuntimeState:
     def apply_config(self, payload: dict[str, Any]) -> None:
         self.config = payload
         self.allow_abs_paths = get_bool(self.config, ("data", "allow_abs_paths"), True)
-        self.bind_host = get_str(self.config, ("server", "host"), "127.0.0.1")
+        # `bind_host` is deliberately not refreshed here. It describes the
+        # address the server is actually listening on, and that cannot change
+        # without a restart (settings report `restart_required`). Tracking the
+        # saved value instead would let ticking "external access" widen the
+        # accepted Host names while the socket is still on loopback.
         allowed = get_nested(self.config, ("server", "allowed_hosts"), [])
         self.allowed_hosts = [str(entry) for entry in allowed] if isinstance(allowed, list) else []
         self.scan_cache_sec = get_float(self.config, ("data", "scan_cache_sec"), 2.0)
@@ -254,7 +258,12 @@ class RuntimeState:
         self.max_upload_bytes = self.max_upload_mb * 1024 * 1024 if self.max_upload_mb > 0 else 0
 
 
-runtime_state = RuntimeState(config=CONFIG, config_path=CONFIG_PATH, data_dir=DATA_DIR)
+runtime_state = RuntimeState(
+    config=CONFIG,
+    config_path=CONFIG_PATH,
+    data_dir=DATA_DIR,
+    bind_host=get_str(CONFIG, ("server", "host"), "127.0.0.1"),
+)
 runtime_state.apply_config(CONFIG)
 
 
