@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +11,8 @@ from fastapi.responses import Response
 
 try:
     from ..api_models import FrameMetadataResponse
+    from ..image_formats import _to_little_endian
+    from ..services.hdf5_stack import open_hdf5_for_read, read_hdf5_array
     from .binary_response_utils import (
         add_optional_header,
         build_binary_headers,
@@ -23,6 +24,11 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         add_optional_header,
         build_binary_headers,
         octet_stream_responses,
+    )
+    from image_formats import _to_little_endian  # type: ignore[no-redef]
+    from services.hdf5_stack import (  # type: ignore[no-redef]
+        open_hdf5_for_read,
+        read_hdf5_array,
     )
 
 
@@ -56,13 +62,6 @@ class FrameRouteDeps:
     read_threshold_energies: Callable[[Any, int], list[float | None]]
 
 
-def _to_little_endian(arr: np.ndarray) -> np.ndarray:
-    """Normalize arrays to little-endian before shipping raw bytes to clients."""
-    if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
-        return arr.byteswap().newbyteorder("<")
-    return arr
-
-
 def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
     @app.get("/api/metadata", response_model=FrameMetadataResponse)
     def metadata(
@@ -72,7 +71,7 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         path = deps.resolve_file(file)
-        with h5py.File(path, "r") as h5:
+        with open_hdf5_for_read(h5py, path) as h5:
             try:
                 view, extra_files = deps.resolve_dataset_view(h5, path, dataset)
                 try:
@@ -106,13 +105,15 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         path = deps.resolve_file(file)
-        with h5py.File(path, "r") as h5:
+        with open_hdf5_for_read(h5py, path) as h5:
             try:
                 view, extra_files = deps.resolve_dataset_view(h5, path, dataset)
             except KeyError as exc:
                 raise HTTPException(status_code=404, detail="Dataset not found") from exc
             try:
-                frame_data = deps.extract_frame(view, index=index, threshold=threshold)
+                frame_data = read_hdf5_array(
+                    path, lambda: deps.extract_frame(view, index=index, threshold=threshold)
+                )
             finally:
                 for handle in extra_files:
                     handle.close()
@@ -131,13 +132,13 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         path = deps.resolve_file(file)
-        with h5py.File(path, "r") as h5:
+        with open_hdf5_for_read(h5py, path) as h5:
             dset = deps.find_pixel_mask(h5, threshold=threshold)
             if not dset:
                 raise HTTPException(status_code=404, detail="Pixel mask not found")
             if dset.ndim != 2:
                 raise HTTPException(status_code=400, detail="Pixel mask has invalid shape")
-            arr = _to_little_endian(np.asarray(dset))
+            arr = _to_little_endian(read_hdf5_array(path, lambda: np.asarray(dset)))
             data = arr.tobytes(order="C")
             headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape)
             add_optional_header(headers, "X-Mask-Path", dset.name)

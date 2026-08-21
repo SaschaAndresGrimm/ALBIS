@@ -38,6 +38,54 @@ from .hdf5_units import (
 
 _log = logging.getLogger("albis.hdf5_stack")
 
+
+def open_hdf5_for_read(h5py: Any, path: Path) -> Any:
+    """Open an HDF5 file for reading, reporting an undecodable file as 422.
+
+    h5py signals a truncated or corrupt file with a bare `OSError`, which would
+    otherwise escape a route as a 500. That is the wrong story to tell: the
+    request was fine, the bytes on disk are not -- and at a beamline the usual
+    reason is a file the filewriter has not finished writing yet, which the
+    user can simply retry. 422 with the cause named matches how the MYTHEN
+    readers already report an unreadable acquisition.
+    """
+    try:
+        return h5py.File(path, "r")
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="File not found") from exc
+    except OSError as exc:
+        _log.warning("Cannot open HDF5 file %s: %s", path, exc)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot read {path.name}: not a readable HDF5 file "
+            "(it may be incomplete or corrupt)",
+        ) from exc
+
+
+def read_hdf5_array(path: Path, read: Callable[[], Any]) -> Any:
+    """Run an HDF5 read, reporting a failure to decode the data as 422.
+
+    Opening a file successfully does not mean its contents can be read. Detector
+    data is stored with a compression filter, and HDF5 only needs the matching
+    plugin library when the bytes are actually pulled in -- so a missing filter,
+    or a chunk the filewriter has not finished flushing, surfaces here rather
+    than at open time and would otherwise escape the route as a 500.
+    """
+    try:
+        return read()
+    except HTTPException:
+        raise
+    except OSError as exc:
+        _log.warning("Cannot read HDF5 data from %s: %s", path, exc)
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Cannot read data from {path.name}: {exc}. The file may be "
+                "incomplete, or its compression filter may be unavailable."
+            ),
+        ) from exc
+
+
 MASK_PATHS = (
     "/entry/instrument/detector/detectorSpecific/pixel_mask",
     "/entry/instrument/detector/pixel_mask",

@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import math
 import re
-import sys
 import threading
 import time
 import uuid
@@ -16,6 +15,8 @@ from typing import Any
 
 import numpy as np
 from fastapi import HTTPException
+
+from ..image_formats import _to_little_endian
 
 
 class _DataExportCancelledError(Exception):
@@ -249,10 +250,7 @@ class DataExportService:
         if frame.ndim != 2:
             raise HTTPException(status_code=400, detail="Only 2D frames can be exported")
         frame = np.ascontiguousarray(frame)
-        if frame.dtype.byteorder == ">" or (
-            frame.dtype.byteorder == "=" and sys.byteorder == "big"
-        ):
-            frame = frame.byteswap().view(frame.dtype.newbyteorder("<"))
+        frame = _to_little_endian(frame)
 
         gap_mask: np.ndarray | None = None
         bad_mask: np.ndarray | None = None
