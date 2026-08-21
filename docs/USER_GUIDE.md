@@ -46,6 +46,16 @@ A **MYTHEN(2)** acquisition is a folder holding one `.cfg` descriptor and one
 `FrameNNNN.dat` per exposure. Open the `.cfg` and the whole run is assembled
 into a single image: channel across, frame down, counts as intensity.
 
+### Open Recent
+
+**File → Open Recent** lists the last ten files you opened, newest first, so
+yesterday's dataset is two clicks away instead of a walk back through the file
+browser. The list survives closing the browser, and **Clear Recent Files**
+empties it. Files loaded by a watched folder or a live stream are not listed —
+those are frames that arrived, not files you chose. An entry that can no longer
+be opened (a cleared scratch directory, an unplugged mount) says so and removes
+itself.
+
 ### Choosing the dataset and threshold
 
 An HDF5 file usually contains more than one dataset. The **Data** tab lists the

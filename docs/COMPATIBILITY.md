@@ -67,6 +67,11 @@ promise above covers every documented endpoint.
   what ALBIS actually reads.
 - Config files are forward-compatible within a major version: a file written by
   `1.0` is read by `1.9`.
+- **Environment variables and launcher flags** are part of this surface, not a
+  convenience on top of it. `ALBIS_<SECTION>_<KEY>` keeps its meaning for as long
+  as the key does, `ALBIS_CONFIG` keeps naming the config file, and a documented
+  flag keeps its name and its effect. The precedence -- command line, then
+  environment, then file -- does not change within a major version.
 
 ### Exported files
 

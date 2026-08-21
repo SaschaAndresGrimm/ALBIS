@@ -27,6 +27,7 @@ export function createSettingsController({
     settingsSave,
     settingsTabs,
     settingsRestartNote,
+    settingsEnvNote,
     settingsConfigPath,
     settingsMessage,
     settingsServerExternal,
@@ -72,6 +73,7 @@ export function createSettingsController({
   let loadedConfig = null;
   let settingsModalBusy = false;
   let settingsRequestId = 0;
+  let envOverrides = [];
   let syncingExternalAccessUi = false;
 
   function setSettingsMessage(text, isError = false, isBusy = false) {
@@ -181,6 +183,70 @@ export function createSettingsController({
   function fieldLabel(el) {
     const span = el?.closest("label")?.querySelector("span");
     return (span?.textContent || el?.id || "").trim();
+  }
+
+  // Which field edits which config key. Needed because a value coming from the
+  // environment cannot be changed by saving the file, so the field for it is
+  // disabled rather than left accepting an edit that the next start ignores.
+  function envOverridableFields() {
+    return {
+      "server.host": settingsServerExternal,
+      "server.port": settingsServerPort,
+      "server.reload": settingsServerReload,
+      "server.allowed_hosts": settingsAllowedHosts,
+      "server.compression": settingsCompression,
+      "launcher.startup_timeout_sec": settingsStartupTimeout,
+      "launcher.startup_health_timeout_sec": settingsStartupHealthTimeout,
+      "launcher.open_browser": settingsOpenBrowser,
+      "data.root": settingsDataRoot,
+      "data.allow_abs_paths": settingsAllowAbs,
+      "data.scan_cache_sec": settingsScanCache,
+      "data.max_scan_depth": settingsMaxScanDepth,
+      "data.max_upload_mb": settingsMaxUpload,
+      "logging.level": settingsLogLevel,
+      "logging.dir": settingsLogDir,
+      "ui.tool_hints": settingsToolHints,
+      "ui.auto_check_updates": settingsAutoCheckUpdates,
+      "ui.language": settingsLanguage,
+      "ui.pixel_label_min_cell_px": settingsPixelLabelMin,
+      "ui.pixel_label_max_labels": settingsPixelLabelMax,
+      "ui.frame_cache_mb": settingsFrameCache,
+      "ui.pixel_label_format": settingsPixelLabelFormat,
+      "ui.pixel_label_show_during_drag": settingsPixelLabelDrag,
+    };
+  }
+
+  function applyEnvOverrides(keys) {
+    envOverrides = Array.isArray(keys) ? keys.filter(Boolean).map(String) : [];
+    const fields = envOverridableFields();
+    const overridden = new Set(envOverrides);
+    Object.entries(fields).forEach(([key, field]) => {
+      if (!field) return;
+      const locked = overridden.has(key);
+      field.disabled = locked;
+      field.closest(".field")?.classList.toggle("is-env-locked", locked);
+      if (locked) {
+        field.title = t("settings.env_override_field");
+      } else if (field.title === t("settings.env_override_field")) {
+        field.title = "";
+      }
+    });
+    updateEnvOverrideNote();
+  }
+
+  function updateEnvOverrideNote() {
+    if (!settingsEnvNote) return;
+    if (!envOverrides.length) {
+      settingsEnvNote.textContent = "";
+      settingsEnvNote.classList.add("is-hidden");
+      settingsEnvNote.setAttribute("aria-hidden", "true");
+      return;
+    }
+    settingsEnvNote.textContent = t("settings.env_override_note", {
+      keys: envOverrides.join(", "),
+    });
+    settingsEnvNote.classList.remove("is-hidden");
+    settingsEnvNote.setAttribute("aria-hidden", "false");
   }
 
   function captureRestartBaseline() {
@@ -326,7 +392,7 @@ export function createSettingsController({
       },
       launcher: {
         ...(loadedConfig?.launcher || {}),
-        startup_timeout_sec: Math.max(0.1, asFloat(settingsStartupTimeout?.value, 5.0)),
+        startup_timeout_sec: Math.max(0.1, asFloat(settingsStartupTimeout?.value, 10.0)),
         ...(settingsStartupHealthTimeout
           ? {
               startup_health_timeout_sec: Math.max(
@@ -449,6 +515,7 @@ export function createSettingsController({
       if (requestId !== settingsRequestId) return;
       const config = payload?.config || {};
       fillSettingsForm(config, payload?.path || "");
+      applyEnvOverrides(payload?.env_overrides);
       applyUiSettings(config?.ui, { source: "config" });
       if (settingsToolHints) {
         settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
@@ -482,6 +549,7 @@ export function createSettingsController({
         throw new Error(data?.detail || `Save failed (${res.status})`);
       }
       fillSettingsForm(data?.config || config, data?.path || "");
+      applyEnvOverrides(data?.env_overrides);
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
       schedulePixelOverlay();
       updateExternalAccessUi();

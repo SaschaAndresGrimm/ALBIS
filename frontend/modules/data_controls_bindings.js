@@ -31,6 +31,7 @@ export function bindDataControlInteractions({
     setFrameStep,
     closeToolbarPlaybackPopover,
     setFps,
+    recordRecentFile,
   } = callbacks;
 
   fileSelect.addEventListener("change", async (event) => {
@@ -44,6 +45,7 @@ export function bindDataControlInteractions({
     } else {
       await loadImageSeries(state.file);
     }
+    recordRecentFile?.(state.file);
   });
 
   datasetSelect.addEventListener("change", async (event) => {

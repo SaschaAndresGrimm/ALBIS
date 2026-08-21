@@ -280,7 +280,9 @@ def _decode_multi_dim_array(tag: Any, *, column_major: bool) -> np.ndarray:
         raise _CBOR_DECODE_VALUE_ERROR("invalid multidim dimensions")
     if isinstance(payload, np.ndarray):
         arr = payload
-    elif isinstance(payload, list):
+    elif isinstance(payload, list | tuple):
+        # A tuple, not just a list: cbor2 decodes the contents of a tag as
+        # immutable, so the flat pixel payload arrives as a tuple.
         arr = np.asarray(payload)
     else:
         raise _CBOR_DECODE_VALUE_ERROR("expected array payload in multidim array")
@@ -312,7 +314,21 @@ def _decode_dectris_compression(tag: Any) -> bytes:
     raise _CBOR_DECODE_VALUE_ERROR("invalid decompressed payload")
 
 
-def jfjoch_tag_hook(_decoder: Any, tag: Any) -> Any:
+def jfjoch_tag_hook(*args: Any) -> Any:
+    """Turn a CBOR tag into what it describes: pixels, an array, or itself.
+
+    Takes its arguments positionally and finds the tag among them, because the
+    two callers disagree about the order. cbor2 documents the hook as
+    `(decoder, tag)`, and the C implementation shipped in 6.1.x calls it as
+    `(tag, immutable)` -- so a hook written to the documented signature reads
+    the tag out of the wrong argument and raises. That failure is invisible from
+    the outside: the worker catches it, records "CBOR decode failed: error
+    decoding semantic tag 40", and keeps waiting, so the preview simply never
+    shows a frame.
+    """
+    tag = next((arg for arg in args if hasattr(arg, "tag") and hasattr(arg, "value")), None)
+    if tag is None:  # pragma: no cover - neither argument is a tag
+        return args[0] if args else None
     dtype = _TAG_TYPED_ARRAY_DTYPES.get(tag.tag)
     if dtype:
         return _decode_typed_array(tag, dtype)

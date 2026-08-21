@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
 
 
 def coerce_scalar(value: Any) -> float | None:
-    """Convert an HDF5 scalar/array-like value into a plain float."""
+    """Convert an HDF5 scalar/array-like value into a plain float.
+
+    A non-finite value is reported as absent rather than passed on. An
+    uninitialised NeXus field reads as `NaN`, and a `NaN` here does not stay
+    here: it survives the unit conversion, reaches the analysis payload, and is
+    then serialized as the literal `NaN`, which is not valid JSON -- so a single
+    unwritten field in a file turned the whole geometry response into a parse
+    error in the browser. "We do not know this number" is the truth and the
+    interface already handles it.
+    """
     try:
         if isinstance(value, np.ndarray):
             if value.size == 0:
@@ -16,9 +26,10 @@ def coerce_scalar(value: Any) -> float | None:
             value = value.reshape(-1)[0]
         if isinstance(value, np.generic):
             value = value.item()
-        return float(value)
+        number = float(value)
     except Exception:
         return None
+    return number if math.isfinite(number) else None
 
 
 def get_units(obj: Any) -> str | None:

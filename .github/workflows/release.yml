@@ -148,13 +148,13 @@ jobs:
           npm ci
 
       - name: Ruff
-        run: ruff check backend tests scripts test_scripts
+        run: ruff check backend albis_launcher.py tests scripts test_scripts
 
       - name: Black
         run: black --check tests scripts test_scripts
 
       - name: Pytest
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 
       - name: ESLint
         run: npm run lint:js

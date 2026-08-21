@@ -154,6 +154,59 @@ def _normalize_allowed_hosts(value: Any) -> list[str]:
     return cleaned
 
 
+# Configuration supplied through the environment, which is how a container is
+# configured: `docker run -e ALBIS_DATA_ROOT=/data` rather than baking a JSON
+# file into an image or mounting one to change a single value. One variable per
+# config key, named from the key itself so the two cannot drift, and
+# `ALBIS_CONFIG` to point at the file.
+CONFIG_PATH_ENV_VAR = "ALBIS_CONFIG"
+ENV_PREFIX = "ALBIS"
+
+# Keys whose value is a list. The environment only carries strings, so these
+# accept a comma-separated one.
+_ENV_LIST_KEYS: frozenset[tuple[str, str]] = frozenset({("server", "allowed_hosts")})
+
+# Which keys the environment is currently deciding. Read it through
+# `env_override_keys()`; the interface shows them as not editable, because a
+# value the environment sets cannot be changed by saving the file.
+ENV_OVERRIDE_KEYS: list[str] = []
+
+
+def env_override_keys() -> list[str]:
+    """Return the `section.key` names the environment is currently overriding."""
+    return list(ENV_OVERRIDE_KEYS)
+
+
+def env_var_name(section: str, key: str) -> str:
+    """Return the environment variable that sets one config key."""
+    return f"{ENV_PREFIX}_{section.upper()}_{key.upper()}"
+
+
+def env_config_overrides(environ: Any | None = None) -> tuple[dict[str, Any], list[str]]:
+    """Collect config values present in the environment.
+
+    Presence is intent, including an empty value: `ALBIS_DATA_ROOT=` is a way of
+    saying "use the default root", which is not the same as saying nothing.
+    Values stay strings here and are coerced by `normalize_config`, which
+    already accepts strings for every typed key.
+    """
+    env = os.environ if environ is None else environ
+    overrides: dict[str, Any] = {}
+    applied: list[str] = []
+    for section, keys in DEFAULT_CONFIG.items():
+        for key in keys:
+            name = env_var_name(section, key)
+            if name not in env:
+                continue
+            raw = str(env[name])
+            value: Any = raw
+            if (section, key) in _ENV_LIST_KEYS:
+                value = [token.strip() for token in raw.split(",") if token.strip()]
+            overrides.setdefault(section, {})[key] = value
+            applied.append(f"{section}.{key}")
+    return overrides, applied
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
@@ -172,7 +225,21 @@ def _user_config_path() -> Path:
     return _user_config_dir() / "config.json"
 
 
+def _explicit_config_path() -> Path | None:
+    """The config file named by `ALBIS_CONFIG`, if any."""
+    raw = str(os.environ.get(CONFIG_PATH_ENV_VAR, "") or "").strip()
+    if not raw:
+        return None
+    return Path(raw).expanduser()
+
+
 def _candidate_paths() -> list[Path]:
+    explicit = _explicit_config_path()
+    if explicit is not None:
+        # Named outright, so it is the only candidate. Searching on and quietly
+        # reading a different file would be the worst outcome: the operator
+        # edits the file they named and nothing they change takes effect.
+        return [explicit]
     candidates = [Path.cwd() / CONFIG_FILE_NAME]
     if getattr(sys, "frozen", False):
         candidates.append(Path(sys.executable).resolve().parent / CONFIG_FILE_NAME)
@@ -377,6 +444,25 @@ def save_config(config: dict[str, Any], path: Path) -> None:
 
 
 def load_config() -> tuple[dict[str, Any], Path]:
+    """Load the effective config: the file on disk, then the environment on top.
+
+    The environment wins, because it is the layer an operator controls when the
+    file is baked into an image or shared between machines. Which keys it decided
+    is recorded in `ENV_OVERRIDE_KEYS`, so the interface can show them as not
+    editable instead of accepting a change that the next start would ignore.
+    """
+    global ENV_OVERRIDE_KEYS
+    config, config_path = _load_config_from_disk()
+    overrides, applied = env_config_overrides()
+    ENV_OVERRIDE_KEYS = applied
+    if overrides:
+        merged = copy.deepcopy(config)
+        _deep_merge(merged, overrides)
+        config = normalize_config(merged)
+    return config, config_path
+
+
+def _load_config_from_disk() -> tuple[dict[str, Any], Path]:
     """Load the effective config, falling back to defaults rather than failing.
 
     This runs before anything else, including logging setup, so an exception
@@ -400,6 +486,12 @@ def load_config() -> tuple[dict[str, Any], Path]:
             config_path = path
             break
     if config_path is None:
+        explicit = _explicit_config_path()
+        if explicit is not None:
+            # Asked for by name. Writing the defaults anywhere else would leave
+            # the operator editing a file ALBIS does not read.
+            _write_default_config(explicit)
+            return config, explicit
         if getattr(sys, "frozen", False):
             user_path = _user_config_path()
             if _write_default_config(user_path):

@@ -318,6 +318,25 @@ body {
   background: rgba(91, 122, 173, 0.22);
 }
 
+/* Open Recent: a file name is what a person recognises, so it gets the width,
+   and the full path stays on the item's title. */
+.dropdown-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgba(88, 112, 150, 0.4);
+}
+
+#recent-files-submenu {
+  max-width: 380px;
+}
+
+.recent-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 340px;
+}
+
 .dropdown-item.is-disabled {
   opacity: 0.5;
   cursor: default;
@@ -5103,6 +5122,31 @@ body.platform-windows select option:disabled {
 .settings-restart-note strong {
   color: #dce9ff;
   font-weight: 600;
+}
+
+/* A setting the environment decides. The note says which ones and why they are
+   not editable; the field itself is disabled, so the dialog cannot accept an
+   edit that the next start would ignore. */
+.settings-env-note {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(214, 178, 106, 0.4);
+  background: rgba(214, 178, 106, 0.1);
+  color: #e2c98f;
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.field.is-env-locked > span {
+  opacity: 0.6;
+}
+
+.field.is-env-locked input:disabled,
+.field.is-env-locked select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .settings-inline-warning {

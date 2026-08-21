@@ -37,6 +37,8 @@ import { createUploadFlowController } from "./modules/upload_flow.js";
 import { createMenuActionHandler } from "./modules/menu_actions.js";
 import { createShortcutHandlers } from "./modules/shortcut_handlers.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
+import { createRecentFiles } from "./modules/recent_files.js";
+import { createRecentFilesController } from "./modules/recent_files_controller.js";
 import { createSeriesSumController } from "./modules/series_sum_controller.js";
 import { createDataExportController } from "./modules/data_export_controller.js";
 import { createAnimationExportController } from "./modules/animation_export_controller.js";
@@ -444,6 +446,9 @@ const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
 const dropdown = document.getElementById("menu-dropdown");
 const dropdownPanels = document.querySelectorAll(".dropdown-panel");
 const submenuParents = document.querySelectorAll(".dropdown-submenu-parent");
+const recentFilesSubmenu = document.getElementById("recent-files-submenu");
+const recentFilesParent = document.getElementById("recent-files-parent");
+const recentFiles = createRecentFiles();
 const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
 const aboutModal = document.getElementById("about-modal");
 const aboutClose = document.getElementById("about-close");
@@ -514,6 +519,7 @@ const settingsCancel = document.getElementById("settings-cancel");
 const settingsSave = document.getElementById("settings-save");
 const settingsTabs = document.querySelector(".settings-tabs");
 const settingsRestartNote = document.getElementById("settings-restart-note");
+const settingsEnvNote = document.getElementById("settings-env-note");
 const settingsConfigPath = document.getElementById("settings-config-path");
 const settingsMessage = document.getElementById("settings-message");
 const settingsServerExternal = document.getElementById("settings-server-external");
@@ -2069,6 +2075,11 @@ function openMenu(menu, anchor) {
   closeToolbarPlaybackPopover();
   closeToolbarMorePopover();
   closeSubmenus();
+  if (menu === "file") {
+    // Rebuilt on open rather than kept in sync: the list is short, and one
+    // source of truth for what is on screen beats two.
+    recentFilesController?.render();
+  }
   dropdown.classList.add("is-open");
   dropdown.setAttribute("aria-hidden", "false");
   setActiveMenu(menu, anchor);
@@ -2134,11 +2145,30 @@ const fileOpenController = createFileOpenController({
     ensureFileMode,
     setStatus,
     openFileDialog: (...args) => openFileDialog(...args),
+    recordRecentFile: (path) => recordRecentFile(path),
   },
 });
 
 async function openPathInViewer(path, options = {}) {
   await fileOpenController.openPathInViewer(path, options);
+}
+
+const recentFilesController = createRecentFilesController({
+  recentFiles,
+  elements: {
+    submenu: recentFilesSubmenu,
+    parent: recentFilesParent,
+  },
+  callbacks: {
+    openPath: (path) => openPathInViewer(path),
+    closeMenu: () => closeMenu(),
+    setStatus: (...args) => setStatus(...args),
+  },
+});
+
+function recordRecentFile(path) {
+  recentFiles.record(path);
+  recentFilesController.render();
 }
 
 const uploadFlowController = createUploadFlowController({
@@ -3030,6 +3060,7 @@ const settingsController = createSettingsController({
     settingsSave,
     settingsTabs,
     settingsRestartNote,
+    settingsEnvNote,
     settingsConfigPath,
     settingsMessage,
     settingsServerExternal,
@@ -4082,6 +4113,7 @@ const mainUiBindingsCallbacks = createMainUiBindingsCallbacks({
   stopPlayback,
   isHdfFile,
   loadDatasets,
+  recordRecentFile,
   loadImageSeries,
   loadMetadata,
   setThresholdIndex,

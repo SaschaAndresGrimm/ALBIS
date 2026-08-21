@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import os
@@ -21,6 +22,9 @@ from pathlib import Path
 import uvicorn
 
 from backend.config import (
+    CONFIG_PATH_ENV_VAR,
+    env_override_keys,
+    env_var_name,
     get_bool,
     get_float,
     get_int,
@@ -29,6 +33,7 @@ from backend.config import (
     resolve_data_dir,
     resolve_log_dir,
 )
+from backend.version import ALBIS_VERSION
 
 try:
     import AppKit
@@ -78,6 +83,83 @@ class _NullStream:
 
     def isatty(self) -> bool:
         return False
+
+# The flags worth having on a command line: where to listen, where the data is,
+# and how loud to be. Each one sets the environment variable for the same config
+# key rather than carrying a second override mechanism alongside it, so there is
+# one precedence order to explain and one to test -- command line, then
+# environment, then the file.
+_CLI_TO_ENV: dict[str, tuple[str, str]] = {
+    "host": ("server", "host"),
+    "port": ("server", "port"),
+    "allowed_hosts": ("server", "allowed_hosts"),
+    "data_root": ("data", "root"),
+    "log_level": ("logging", "level"),
+    "language": ("ui", "language"),
+}
+
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="albis",
+        description="ALBIS - browser-based image viewer for detector data.",
+        epilog=(
+            "Every setting can also come from the environment (ALBIS_SERVER_HOST, "
+            "ALBIS_DATA_ROOT, ...) or from albis.config.json. Precedence: these "
+            "flags, then the environment, then the file."
+        ),
+    )
+    parser.add_argument("--version", action="version", version=f"ALBIS {ALBIS_VERSION}")
+    parser.add_argument("--config", metavar="PATH", help="configuration file to read")
+    parser.add_argument("--host", metavar="ADDRESS", help="address to listen on")
+    parser.add_argument("--port", metavar="PORT", help="port to listen on (0 picks a free one)")
+    parser.add_argument(
+        "--allowed-hosts",
+        metavar="NAMES",
+        help="comma-separated Host header names to answer to, beyond this machine",
+    )
+    parser.add_argument("--data-root", metavar="PATH", help="directory to browse for data")
+    parser.add_argument(
+        "--log-level",
+        metavar="LEVEL",
+        help="DEBUG, INFO, WARNING, ERROR or CRITICAL",
+    )
+    parser.add_argument("--language", metavar="CODE", help="interface language, e.g. de")
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="do not open a browser window on start",
+    )
+    return parser
+
+
+def _apply_cli_arguments(argv: list[str] | None = None) -> tuple[list[str], list[str]]:
+    """Turn command-line flags into environment overrides.
+
+    Unknown arguments are returned rather than rejected. A double-clicked
+    desktop build is started by the operating system, which passes things of its
+    own -- macOS sends `-psn_0_...` and a file path when ALBIS is used to open a
+    document -- and refusing to start over an argument nobody typed would be a
+    worse failure than ignoring it.
+    """
+    parser = _build_arg_parser()
+    args, unknown = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
+
+    applied: list[str] = []
+    if args.config:
+        os.environ[CONFIG_PATH_ENV_VAR] = str(Path(args.config).expanduser())
+        applied.append("--config")
+    for attribute, (section, key) in _CLI_TO_ENV.items():
+        value = getattr(args, attribute, None)
+        if value is None:
+            continue
+        os.environ[env_var_name(section, key)] = str(value)
+        applied.append(f"--{attribute.replace('_', '-')}")
+    if args.no_browser:
+        os.environ[env_var_name("launcher", "open_browser")] = "false"
+        applied.append("--no-browser")
+    return applied, unknown
+
 
 def _ensure_stdio_streams() -> None:
     # PyInstaller windowed executables on Windows may start with stdout/stderr set to None.
@@ -545,10 +627,18 @@ def main() -> None:
     global _MACOS_EVENT_LOGS_ENABLED
     _ensure_stdio_streams()
     start_ts = time.perf_counter()
+    cli_applied, cli_ignored = _apply_cli_arguments()
     app_config, _config_path = load_config()
     _configure_launcher_logger(resolve_log_dir(app_config, _config_path) / "launcher.log")
     _launcher_log(start_ts, "starting")
     _launcher_log(start_ts, f"config loaded ({_config_path})")
+    if cli_applied:
+        _launcher_log(start_ts, f"command line set {', '.join(cli_applied)}")
+    if cli_ignored:
+        _launcher_log(start_ts, f"ignored unrecognized arguments: {' '.join(cli_ignored)}")
+    overrides = env_override_keys()
+    if overrides:
+        _launcher_log(start_ts, f"environment set {', '.join(overrides)}")
     _MACOS_EVENT_LOGS_ENABLED = get_bool(app_config, ("launcher", "debug_macos_events"), False)
     if _MACOS_EVENT_LOGS_ENABLED:
         _launcher_log(start_ts, "macos event debug logging enabled")

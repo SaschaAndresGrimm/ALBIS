@@ -25,9 +25,9 @@ This checklist is intended for production releases, including `v1.0.0`.
 ## 2. Run Local Quality Gates
 
 ```bash
-ruff check backend tests scripts test_scripts
+ruff check backend albis_launcher.py tests scripts test_scripts
 black --check tests scripts test_scripts
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 npm run lint:js
 npm run test:js
 ```

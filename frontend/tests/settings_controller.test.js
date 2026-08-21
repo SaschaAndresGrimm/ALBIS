@@ -26,6 +26,7 @@ function renderSettingsShell() {
       <div class="settings-tabpage is-active" data-settings-tab="viewer"></div>
       <div class="settings-tabpage" data-settings-tab="connection" hidden></div>
       <div id="settings-restart-note" class="is-hidden" aria-hidden="true"></div>
+      <div id="settings-env-note" class="is-hidden" aria-hidden="true"></div>
       <div id="settings-message"></div>
       <label>
         <input id="settings-server-external" type="checkbox" />
@@ -60,7 +61,7 @@ function renderSettingsShell() {
   `;
 }
 
-function buildFetchMock({ initialConfig, savedConfigs }) {
+function buildFetchMock({ initialConfig, savedConfigs, envOverrides = [] }) {
   return vi.fn(async (url, init) => {
     const requestUrl = String(url);
     if (requestUrl.includes("locales/")) {
@@ -74,7 +75,11 @@ function buildFetchMock({ initialConfig, savedConfigs }) {
     if (requestUrl.endsWith("/api/settings") && (!init || !init.method || init.method === "GET")) {
       return {
         ok: true,
-        json: async () => ({ config: initialConfig, path: "/tmp/albis.config.json" }),
+        json: async () => ({
+          config: initialConfig,
+          path: "/tmp/albis.config.json",
+          env_overrides: envOverrides,
+        }),
       };
     }
     if (requestUrl.endsWith("/api/settings") && init?.method === "POST") {
@@ -82,20 +87,24 @@ function buildFetchMock({ initialConfig, savedConfigs }) {
       savedConfigs.push(payload.config);
       return {
         ok: true,
-        json: async () => ({ config: payload.config, path: "/tmp/albis.config.json" }),
+        json: async () => ({
+          config: payload.config,
+          path: "/tmp/albis.config.json",
+          env_overrides: envOverrides,
+        }),
       };
     }
     throw new Error(`Unexpected fetch URL: ${requestUrl}`);
   });
 }
 
-async function initializeController({ initialConfig }) {
+async function initializeController({ initialConfig, envOverrides = [] }) {
   vi.resetModules();
   renderSettingsShell();
   localStorage.clear();
 
   const savedConfigs = [];
-  global.fetch = buildFetchMock({ initialConfig, savedConfigs });
+  global.fetch = buildFetchMock({ initialConfig, savedConfigs, envOverrides });
 
   const i18n = await import("../modules/i18n.js");
   await i18n.initializeI18n({ backendLanguage: "en" });
@@ -124,6 +133,7 @@ async function initializeController({ initialConfig }) {
       settingsSave: document.getElementById("settings-save"),
       settingsTabs: document.querySelector(".settings-tabs"),
       settingsRestartNote: document.getElementById("settings-restart-note"),
+      settingsEnvNote: document.getElementById("settings-env-note"),
       settingsConfigPath: document.getElementById("settings-config-path"),
       settingsMessage: document.getElementById("settings-message"),
       settingsServerExternal: document.getElementById("settings-server-external"),
@@ -577,5 +587,71 @@ describe("settings controller tabs and the restart notice", () => {
     await controller.saveSettingsFromModal();
 
     expect(noteHidden()).toBe(true);
+  });
+});
+
+describe("settings controller environment overrides", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("says which settings the environment decides", async () => {
+    const { controller, locale } = await initializeController({
+      initialConfig: { data: { root: "/mnt/beamline" } },
+      envOverrides: ["data.root", "ui.language"],
+    });
+
+    await controller.openSettingsModal();
+
+    const note = document.getElementById("settings-env-note");
+    expect(note.classList.contains("is-hidden")).toBe(false);
+    expect(note.getAttribute("aria-hidden")).toBe("false");
+    expect(note.textContent).toContain("data.root");
+    expect(note.textContent).toContain("ui.language");
+    expect(note.textContent).toContain(
+      locale["settings.env_override_note"].replace(" {{keys}}", "").replace("{{keys}}", "").trim(),
+    );
+  });
+
+  it("disables the fields it cannot change, and only those", async () => {
+    const { controller } = await initializeController({
+      initialConfig: { data: { root: "/mnt/beamline" } },
+      envOverrides: ["data.root", "server.port"],
+    });
+
+    await controller.openSettingsModal();
+
+    expect(document.getElementById("settings-data-root").disabled).toBe(true);
+    expect(document.getElementById("settings-server-port").disabled).toBe(true);
+    expect(document.getElementById("settings-log-dir").disabled).toBe(false);
+    expect(document.getElementById("settings-max-upload").disabled).toBe(false);
+  });
+
+  it("says nothing and locks nothing when the environment is silent", async () => {
+    const { controller } = await initializeController({
+      initialConfig: { data: { root: "" } },
+      envOverrides: [],
+    });
+
+    await controller.openSettingsModal();
+
+    const note = document.getElementById("settings-env-note");
+    expect(note.classList.contains("is-hidden")).toBe(true);
+    expect(note.textContent).toBe("");
+    expect(document.getElementById("settings-data-root").disabled).toBe(false);
+  });
+
+  it("keeps the fields locked after a save", async () => {
+    const { controller } = await initializeController({
+      initialConfig: { data: { root: "/mnt/beamline" } },
+      envOverrides: ["data.root"],
+    });
+
+    await controller.openSettingsModal();
+    await controller.saveSettingsFromModal();
+
+    expect(document.getElementById("settings-data-root").disabled).toBe(true);
+    expect(document.getElementById("settings-env-note").classList.contains("is-hidden")).toBe(false);
   });
 });

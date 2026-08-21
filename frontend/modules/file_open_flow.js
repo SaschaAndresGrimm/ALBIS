@@ -31,6 +31,7 @@ export function createFileOpenController({
     ensureFileMode,
     setStatus,
     openFileDialog,
+    recordRecentFile,
   } = callbacks;
 
   let openFileModalPromise = null;
@@ -59,6 +60,9 @@ export function createFileOpenController({
     } else {
       await loadImageSeries(path);
     }
+    // After the load, not before: a path that could not be opened does not
+    // belong in a list whose whole purpose is reopening things.
+    recordRecentFile?.(path);
   }
 
   async function runOpenFileModal() {

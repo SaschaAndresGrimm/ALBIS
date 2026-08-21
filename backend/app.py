@@ -27,6 +27,7 @@ try:
     from .config import (
         DEFAULT_CONFIG,
         config_load_error,
+        env_override_keys,
         get_bool,
         get_float,
         get_int,
@@ -140,6 +141,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
         DEFAULT_CONFIG,
         config_load_error,
+        env_override_keys,
         get_bool,
         get_float,
         get_int,
@@ -456,6 +458,14 @@ async def _lifespan(_app: FastAPI):
         pid = os.getpid()
         logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
         logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
+        overrides = env_override_keys()
+        if overrides:
+            # Worth a line of its own: a value from the environment is invisible
+            # in the config file, so "the file says 127.0.0.1" and "ALBIS is on
+            # 0.0.0.0" can both be true and only the log explains it.
+            logger.info(
+                "ALBIS settings from the environment (pid=%s): %s", pid, ", ".join(overrides)
+            )
         _log_network_exposure(pid)
         load_error = config_load_error()
         if load_error:
@@ -705,6 +715,7 @@ def _settings_payload() -> dict[str, Any]:
         "defaults": DEFAULT_CONFIG,
         "path": str(runtime_state.config_path),
         "restart_required": True,
+        "env_overrides": env_override_keys(),
     }
 
 

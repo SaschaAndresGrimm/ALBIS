@@ -86,6 +86,7 @@ export function createMainUiBindingsCallbacks(callbacks) {
     stopPlayback: callbacks.stopPlayback,
     isHdfFile: callbacks.isHdfFile,
     loadDatasets: callbacks.loadDatasets,
+    recordRecentFile: callbacks.recordRecentFile,
     loadImageSeries: callbacks.loadImageSeries,
     loadMetadata: callbacks.loadMetadata,
     setThresholdIndex: callbacks.setThresholdIndex,

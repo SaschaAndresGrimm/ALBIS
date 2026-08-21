@@ -268,7 +268,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         mode = str(payload.mode).strip().lower()
         if mode == "step":
             mode = "chunks"
-        step = int(payload.step or 10)
+        step = int(payload.step)
         operation = str(payload.operation).strip().lower()
         normalize_method = str(payload.normalize_method or "none").strip().lower()
         normalize_frame = payload.normalize_frame

@@ -87,6 +87,7 @@ export function initializeMainUiBindings({
     stopPlayback,
     isHdfFile,
     loadDatasets,
+    recordRecentFile,
     loadImageSeries,
     loadMetadata,
     setThresholdIndex,
@@ -198,6 +199,7 @@ export function initializeMainUiBindings({
       setFrameStep,
       closeToolbarPlaybackPopover,
       setFps,
+      recordRecentFile,
     },
   });
 }

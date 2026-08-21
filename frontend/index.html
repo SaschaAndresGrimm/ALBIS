@@ -33,6 +33,13 @@
               <span data-i18n="menu.file.open">Open…</span>
               <span class="shortcut">⌘O</span>
             </button>
+            <div class="dropdown-item dropdown-submenu-parent" role="menuitem" tabindex="0"
+                 id="recent-files-parent" aria-haspopup="true" aria-expanded="false">
+              <span data-i18n="menu.file.open_recent">Open Recent</span>
+              <span class="submenu-caret">▶</span>
+              <div class="dropdown-submenu" role="menu" id="recent-files-submenu"
+                   data-i18n-aria-label="menu.file.open_recent" aria-label="Open Recent"></div>
+            </div>
             <button class="dropdown-item" role="menuitem" data-action="close-file">
               <span data-i18n="menu.file.close_file">Close File</span>
               <span class="shortcut">⌘W</span>
@@ -1720,20 +1727,25 @@
           </div>
           <div class="panel-tabs settings-tabs" role="tablist" data-i18n-aria-label="settings.title" aria-label="Settings">
             <button class="panel-tab is-active" type="button" role="tab"
+                    id="settings-tab-viewer" aria-controls="settings-tabpanel-viewer"
                     data-settings-tab="viewer" aria-selected="true"
                     data-i18n="settings.tab.viewer">Viewer</button>
             <button class="panel-tab" type="button" role="tab"
+                    id="settings-tab-connection" aria-controls="settings-tabpanel-connection"
                     data-settings-tab="connection" aria-selected="false"
                     data-i18n="settings.tab.connection">Connection</button>
             <button class="panel-tab" type="button" role="tab"
+                    id="settings-tab-data" aria-controls="settings-tabpanel-data"
                     data-settings-tab="data" aria-selected="false"
                     data-i18n="settings.tab.data">Data</button>
             <button class="panel-tab" type="button" role="tab"
+                    id="settings-tab-logging" aria-controls="settings-tabpanel-logging"
                     data-settings-tab="logging" aria-selected="false"
                     data-i18n="settings.tab.logging">Logging</button>
           </div>
 
-          <div class="settings-tabpage is-active" data-settings-tab="viewer" role="tabpage">
+          <div class="settings-tabpage is-active" data-settings-tab="viewer" role="tabpanel"
+               id="settings-tabpanel-viewer" aria-labelledby="settings-tab-viewer" tabindex="0">
             <p class="settings-tabpage-hint" data-i18n="settings.section.viewer.description">Interaction hints, pixel labels, and frame memory.</p>
             <div class="settings-grid">
               <label class="field">
@@ -1786,7 +1798,8 @@
             </div>
           </div>
 
-          <div class="settings-tabpage" data-settings-tab="connection" role="tabpage" hidden>
+          <div class="settings-tabpage" data-settings-tab="connection" role="tabpanel"
+               id="settings-tabpanel-connection" aria-labelledby="settings-tab-connection" tabindex="0" hidden>
             <p class="settings-tabpage-hint" data-i18n="settings.section.application.description">Backend endpoint and launch behavior.</p>
             <div class="settings-grid">
               <label class="checkbox settings-check settings-span-2">
@@ -1851,7 +1864,8 @@
             </div>
           </div>
 
-          <div class="settings-tabpage" data-settings-tab="data" role="tabpage" hidden>
+          <div class="settings-tabpage" data-settings-tab="data" role="tabpanel"
+               id="settings-tabpanel-data" aria-labelledby="settings-tab-data" tabindex="0" hidden>
             <p class="settings-tabpage-hint" data-i18n="settings.section.data_access.description">File system permissions and scan limits.</p>
             <div class="settings-grid">
               <label class="field settings-span-2">
@@ -1880,7 +1894,8 @@
             </div>
           </div>
 
-          <div class="settings-tabpage" data-settings-tab="logging" role="tabpage" hidden>
+          <div class="settings-tabpage" data-settings-tab="logging" role="tabpanel"
+               id="settings-tabpanel-logging" aria-labelledby="settings-tab-logging" tabindex="0" hidden>
             <p class="settings-tabpage-hint" data-i18n="settings.section.logging.description">Verbosity and log output location.</p>
             <div class="settings-grid">
               <label class="field">
@@ -1900,6 +1915,7 @@
             </div>
           </div>
 
+          <div class="settings-env-note is-hidden" id="settings-env-note" aria-live="polite" aria-hidden="true"></div>
           <div class="settings-message" id="settings-message"></div>
         </div>
         <div class="modal-footer settings-modal-footer">

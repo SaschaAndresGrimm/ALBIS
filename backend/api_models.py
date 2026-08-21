@@ -39,6 +39,10 @@ class SettingsPayloadResponse(_StrictModel):
     defaults: dict[str, Any]
     path: str
     restart_required: bool
+    # `section.key` names the environment is deciding. Saving the file cannot
+    # change these, so the interface shows them as not editable instead of
+    # accepting an edit the next start would ignore.
+    env_overrides: list[str] = Field(default_factory=list)
 
 
 class SettingsSaveRequest(_StrictModel):

@@ -31,6 +31,14 @@ ALBIS runtime settings are configured via `albis.config.json` (project root by d
 JSON does not support comments, so a commented template is provided at `albis.config.example.jsonc`.
 The machine-readable schema is `albis.config.schema.json`.
 
+A setting can come from three places. Later ones win:
+
+1. the config file,
+2. the environment,
+3. the command line.
+
+### Where the config file comes from
+
 Config lookup order:
 
 1. `<cwd>/albis.config.json`
@@ -39,6 +47,69 @@ Config lookup order:
 4. `~/.config/albis/config.json`
 
 In packaged mode, if no config exists, ALBIS writes defaults to `~/.config/albis/config.json`.
+
+`ALBIS_CONFIG=/path/to/albis.json` (or `--config`) names the file outright. It then
+replaces the search rather than joining it, so a named file that does not exist yet is
+created where you asked for it — ALBIS never quietly reads a different file than the one
+you named.
+
+### Environment variables
+
+Every key in the Settings Reference below has a matching variable, named
+`ALBIS_<SECTION>_<KEY>` in upper case. This is how a container is configured:
+
+```bash
+docker run -d \
+  -e ALBIS_DATA_ROOT=/app/data \
+  -e ALBIS_SERVER_ALLOWED_HOSTS=albis.lab \
+  -e ALBIS_LOGGING_LEVEL=DEBUG \
+  -p 8000:8000 -v /path/to/data:/app/data:ro \
+  ghcr.io/saschaandresgrimm/albis:latest
+```
+
+The most useful ones:
+
+| Variable | Sets |
+| --- | --- |
+| `ALBIS_CONFIG` | which config file to read |
+| `ALBIS_SERVER_HOST` | `server.host` — address to listen on |
+| `ALBIS_SERVER_PORT` | `server.port` |
+| `ALBIS_SERVER_ALLOWED_HOSTS` | `server.allowed_hosts` — comma-separated |
+| `ALBIS_DATA_ROOT` | `data.root` |
+| `ALBIS_DATA_ALLOW_ABS_PATHS` | `data.allow_abs_paths` |
+| `ALBIS_LOGGING_LEVEL` | `logging.level` |
+| `ALBIS_UI_LANGUAGE` | `ui.language` |
+
+Values are strings and are coerced to the key's type: `false`, `0`, `no` and `off` are
+false for a boolean key, and a list key takes a comma-separated value. Setting a variable
+to an empty string still counts as a setting — `ALBIS_DATA_ROOT=` means "use the default
+root", which is not the same as leaving it unset.
+
+A key the environment sets cannot be changed by saving the config file, so
+**Settings** shows those fields as not editable and says which ones they are, rather
+than accepting an edit the next start would ignore. `GET /api/settings` reports them as
+`env_overrides`, and both the launcher log and the backend log name them at startup.
+
+### Command line
+
+```
+albis [--config PATH] [--host ADDRESS] [--port PORT] [--allowed-hosts NAMES]
+      [--data-root PATH] [--log-level LEVEL] [--language CODE] [--no-browser]
+      [--version] [--help]
+```
+
+Each flag sets the environment variable for the same key, so there is one precedence
+order rather than two. Arguments ALBIS does not recognise are ignored and logged rather
+than refused — a desktop build is started by the operating system, which passes
+arguments of its own (macOS sends `-psn_0_...`, and a file path when ALBIS is used to
+open a document), and refusing to start over one of those would be a worse failure than
+ignoring it.
+
+Running from source, the same flags apply:
+
+```bash
+python albis_launcher.py --port 9000 --data-root /gpfs/beamline --no-browser
+```
 
 ## Data Export
 
@@ -295,6 +366,19 @@ docker run -d \
 ```
 
 If you built locally instead of pulling from GHCR, replace the image reference with `albis:latest`.
+
+Settings can be passed with `-e` instead of mounting a config file — see
+[Environment variables](#environment-variables):
+
+```bash
+docker run -d \
+  --name albis \
+  -p 127.0.0.1:8000:8000 \
+  -v /path/to/your/data:/app/data:ro \
+  -e ALBIS_LOGGING_LEVEL=DEBUG \
+  -e ALBIS_SERVER_ALLOWED_HOSTS=albis \
+  ghcr.io/saschaandresgrimm/albis:latest
+```
 
 *Note: In the example above, `/path/to/your/data` is mounted into the container at `/app/data` as read-only (`:ro`). In the default ALBIS configuration (`albis.config.json`), the `data.root` is already set to `./data`, so ALBIS will immediately see your mounted files.*
 
