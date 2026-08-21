@@ -92,6 +92,18 @@ function createUiPreferencesState() {
   return {
     backendAlive: false,
     backendVersion: "",
+    // The build behind backendVersion, empty when the server is unstamped.
+    backendCommit: "",
+    // The server's build as it was when this page loaded, and whether it has
+    // changed since. A change means the server was upgraded or restarted on a
+    // different build while this tab stayed open, so the code running here is
+    // older than what it is talking to. `null` until the first health reply.
+    buildStampAtLoad: null,
+    serverBuildChanged: false,
+    // Result of the startup update check, surfaced in the footer rather than
+    // only in the modal that opens once and is then gone.
+    updateStatus: "",
+    updateLatestVersion: "",
     language: "en",
     toolHintsEnabled: false,
     autoCheckUpdates: true,

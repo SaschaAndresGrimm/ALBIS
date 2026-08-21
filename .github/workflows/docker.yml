@@ -36,6 +36,8 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          build-args: |
+            ALBIS_BUILD_COMMIT=${{ github.sha }}
           platforms: linux/amd64
           load: true
           tags: albis-ci:validate
@@ -154,6 +156,8 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          build-args: |
+            ALBIS_BUILD_COMMIT=${{ github.sha }}
           platforms: linux/amd64
           load: true
           tags: albis-scan:latest
@@ -180,6 +184,8 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          build-args: |
+            ALBIS_BUILD_COMMIT=${{ github.sha }}
           platforms: linux/arm64
           push: false
           tags: albis-validate:arm64
@@ -191,6 +197,8 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          build-args: |
+            ALBIS_BUILD_COMMIT=${{ github.sha }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta_release.outputs.tags }}

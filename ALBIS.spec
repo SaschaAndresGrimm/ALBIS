@@ -38,6 +38,11 @@ if icon_path and not os.path.exists(icon_path):
     icon_path = ""
 
 datas = [("frontend", "frontend"), ("VERSION", ".")]
+# The commit this build came from, written by scripts/stamp_build.py before
+# packaging. Bundled only when present: an unstamped build reports no commit
+# and shows its version alone, which is better than failing to package.
+if os.path.exists(os.path.abspath("BUILD_COMMIT")):
+    datas.append((os.path.abspath("BUILD_COMMIT"), "."))
 # License and third-party attribution files (required for redistribution).
 for license_file in (
     "LICENSE",

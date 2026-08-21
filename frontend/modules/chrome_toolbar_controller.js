@@ -11,7 +11,6 @@ export function createChromeToolbarController({
   callbacks,
 }) {
   const {
-    appFrontendBuild,
     frameStepOptions,
     chromeIdleDelayMs,
   } = constants;
@@ -35,8 +34,12 @@ export function createChromeToolbarController({
     footerVersionPopoverEl,
     footerFileEl,
     footerZoomEl,
-    footerFrontendVersionEl,
-    footerBackendVersionEl,
+    footerVersionBuildEl,
+    footerVersionUpdateEl,
+    footerVersionStaleEl,
+    footerVersionStaleTextEl,
+    footerVersionReloadEl,
+    footerVersionCopyEl,
     splash,
     dropdown,
     panelFab,
@@ -53,6 +56,8 @@ export function createChromeToolbarController({
     updateSeriesSumUi,
     isPhonePanelLayout,
     isMenuOpen,
+    onOpenUpdateCheck,
+    onCopyBuildInfoUnavailable,
   } = callbacks;
 
   let footerVersionPopoverOpen = false;
@@ -158,16 +163,77 @@ export function createChromeToolbarController({
     return `${fileText}${datasetLabel}${suffix}`;
   }
 
+  /**
+   * What to paste into a bug report.
+   *
+   * Deliberately not translated. The person reading this is whoever is
+   * diagnosing the problem, not the person running the app, and a report in a
+   * language the maintainer cannot read is worse than one that is terse.
+   */
+  function buildInfoText() {
+    const commit = state.backendCommit ? ` (${state.backendCommit})` : "";
+    const lines = [
+      `ALBIS ${state.backendVersion || "unknown"}${commit}`,
+      `Server: ${state.backendAlive ? "online" : "offline"}`,
+    ];
+    if (state.serverBuildChanged) {
+      lines.push(`Page loaded against build: ${state.buildStampAtLoad || "unknown"}`);
+    }
+    if (typeof navigator !== "undefined" && navigator.userAgent) {
+      lines.push(`User agent: ${navigator.userAgent}`);
+    }
+    return lines.join("\n");
+  }
+
+  function updateFooterBuildRow() {
+    if (!footerVersionBuildEl) return;
+    const version = state.backendVersion || "-";
+    const commit = state.backendCommit || "";
+    // An unstamped build has no commit to show, and inventing one would be
+    // worse than the version alone.
+    footerVersionBuildEl.textContent = commit
+      ? t("toolbar.footer.build", { version, commit })
+      : t("toolbar.footer.build.unstamped", { version });
+    footerVersionBuildEl.title = t("toolbar.footer.build.title");
+  }
+
+  function updateFooterUpdateRow() {
+    if (!footerVersionUpdateEl) return;
+    const status = String(state.updateStatus || "");
+    const actionable = status === "update_available";
+    let label = "";
+    if (status === "up_to_date") {
+      label = t("toolbar.footer.update.up_to_date");
+    } else if (actionable) {
+      label = t("toolbar.footer.update.available", { version: state.updateLatestVersion || "-" });
+    } else if (status === "unavailable") {
+      label = t("toolbar.footer.update.unavailable");
+    } else if (status === "disabled") {
+      label = t("toolbar.footer.update.disabled");
+    }
+    footerVersionUpdateEl.hidden = !label;
+    footerVersionUpdateEl.textContent = label;
+    // Only a pending update leads anywhere, so only then is it a control.
+    footerVersionUpdateEl.disabled = !actionable;
+    footerVersionUpdateEl.classList.toggle("is-actionable", actionable);
+  }
+
+  function updateFooterStaleRow() {
+    if (!footerVersionStaleEl) return;
+    const stale = state.serverBuildChanged === true;
+    footerVersionStaleEl.hidden = !stale;
+    if (stale && footerVersionStaleTextEl) {
+      footerVersionStaleTextEl.textContent = t("toolbar.footer.stale", {
+        version: state.backendVersion || "-",
+        commit: state.backendCommit || "-",
+      });
+    }
+  }
+
   function updateFooterVersions() {
-    if (footerFrontendVersionEl) {
-      footerFrontendVersionEl.textContent = t("toolbar.footer.frontend", { version: appFrontendBuild });
-      footerFrontendVersionEl.title = t("toolbar.footer.frontend.title", { version: appFrontendBuild });
-    }
-    if (footerBackendVersionEl) {
-      const backendVersion = state.backendVersion || "-";
-      footerBackendVersionEl.textContent = t("toolbar.footer.backend", { version: backendVersion });
-      footerBackendVersionEl.title = t("toolbar.footer.backend.title", { version: backendVersion });
-    }
+    updateFooterBuildRow();
+    updateFooterUpdateRow();
+    updateFooterStaleRow();
   }
 
   function updateViewerFooter() {
@@ -296,6 +362,82 @@ export function createChromeToolbarController({
     const tone = stale || paused ? "warning" : running ? "active" : "default";
     setSummaryChip(dataSourceSummaryEl, `${modeLabel} · ${streamState}`, tone);
   }
+
+  let copyFeedbackTimer = null;
+
+  /**
+   * Copy without the Clipboard API, which needs a secure context.
+   *
+   * ALBIS is routinely reached over plain HTTP on a LAN -- that is a documented
+   * way to use it -- so `navigator.clipboard` being absent is the ordinary case
+   * for a remote session, not an edge case. A hidden textarea and
+   * `execCommand` still work there, and a button that copies is worth more than
+   * a modern API that does nothing.
+   */
+  function copyViaSelection(text) {
+    if (typeof document === "undefined" || !document.body) return false;
+    const scratch = document.createElement("textarea");
+    scratch.value = text;
+    // Off-screen rather than hidden: a display:none element cannot be selected.
+    scratch.setAttribute("aria-hidden", "true");
+    scratch.style.position = "fixed";
+    scratch.style.top = "-1000px";
+    scratch.style.opacity = "0";
+    document.body.appendChild(scratch);
+    let copied = false;
+    try {
+      scratch.select();
+      copied = document.execCommand?.("copy") === true;
+    } catch {
+      copied = false;
+    } finally {
+      scratch.remove();
+    }
+    return copied;
+  }
+
+  async function copyBuildInfo() {
+    if (!footerVersionCopyEl) return;
+    const text = buildInfoText();
+    let copied = false;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      }
+    } catch {
+      copied = false;
+    }
+    if (!copied) {
+      copied = copyViaSelection(text);
+    }
+    if (!copied) {
+      onCopyBuildInfoUnavailable?.(text);
+      return;
+    }
+    footerVersionCopyEl.textContent = t("toolbar.footer.copy_build.copied");
+    if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer);
+    copyFeedbackTimer = window.setTimeout(() => {
+      copyFeedbackTimer = null;
+      if (footerVersionCopyEl) {
+        footerVersionCopyEl.textContent = t("toolbar.footer.copy_build");
+      }
+    }, 1500);
+  }
+
+  footerVersionCopyEl?.addEventListener("click", () => {
+    void copyBuildInfo();
+  });
+
+  footerVersionUpdateEl?.addEventListener("click", () => {
+    // Reuses the update dialog rather than duplicating its release link and
+    // version rows in a popover.
+    onOpenUpdateCheck?.();
+  });
+
+  footerVersionReloadEl?.addEventListener("click", () => {
+    window.location.reload();
+  });
 
   function updateToolbar() {
     syncToolbarPlaybackToggle();

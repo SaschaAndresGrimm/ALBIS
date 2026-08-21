@@ -83,9 +83,45 @@ export function createBackendStatusController({
     updateFooterVersions();
   }
 
+  /**
+   * A stamp that changes whenever the server is a different build.
+   *
+   * Version alone is too coarse: a rebuild of the same release is a different
+   * build with the same number, and that is exactly the case a support question
+   * turns on. Commit alone is too fragile, since an unstamped server reports
+   * none. Together they change whenever anything about the build changed.
+   */
+  function buildStamp(version, commit) {
+    return `${version || ""}@${commit || ""}`;
+  }
+
+  /**
+   * Notice that this page is older than the server it is talking to.
+   *
+   * The cache policy already rules out being served a stale frontend -- entry
+   * documents are `no-store` and modules revalidate. What it cannot rule out is
+   * a tab that was loaded before the server was upgraded and never reloaded
+   * since, which happens to any viewer left open on a workstation. The code in
+   * memory then predates the server, and only a reload fixes it.
+   *
+   * Sticky once set: the tab does not become current again by itself.
+   */
+  function trackServerBuild(alive, version, commit) {
+    if (!alive) return;
+    const stamp = buildStamp(version, commit);
+    if (state.buildStampAtLoad === null) {
+      state.buildStampAtLoad = stamp;
+      return;
+    }
+    if (!state.serverBuildChanged && stamp !== state.buildStampAtLoad) {
+      state.serverBuildChanged = true;
+    }
+  }
+
   async function checkBackendHealth() {
     let alive = false;
     let version = state.backendVersion || "";
+    let commit = state.backendCommit || "";
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 1500);
     try {
@@ -97,6 +133,9 @@ export function createBackendStatusController({
           if (data?.version) {
             version = String(data.version);
           }
+          // Absent on a server older than this field, which is a valid answer:
+          // an unstamped build reports no commit rather than a wrong one.
+          commit = data?.commit ? String(data.commit) : "";
         } catch {
           // ignore parse errors
         }
@@ -108,6 +147,10 @@ export function createBackendStatusController({
     }
     if (state.backendAlive !== alive) {
       state.backendAlive = alive;
+    }
+    trackServerBuild(alive, version, commit);
+    if (state.backendCommit !== commit) {
+      state.backendCommit = commit;
     }
     if (state.backendVersion !== version) {
       state.backendVersion = version;
@@ -151,6 +194,9 @@ export function createBackendStatusController({
   return {
     updateLiveBadge,
     updateAboutVersion,
+    // Exposed so the build-change detection can be tested a poll at a time,
+    // rather than through the heartbeat's timers.
+    checkBackendHealth,
     startBackendHeartbeat,
     waitForBackendReady,
   };

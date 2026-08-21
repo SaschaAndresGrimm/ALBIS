@@ -342,5 +342,12 @@ once.
 **Statistics look wrong near a module gap.** Check the gap and defective pixel
 counts in the ROI census, and turn on **Apply mask**.
 
+**ALBIS asks you to reload.** The server was upgraded or restarted on a
+different build while this tab stayed open, so the page is running older code
+than the server it is talking to. Reload and the warning goes away.
+
 For anything else, **Help → View Backend Log** shows what the server is doing,
-and the log can be downloaded from there to attach to an issue.
+and the log can be downloaded from there to attach to an issue. The **Versions**
+button in the bottom right names the exact build you are running and copies it
+to the clipboard — quote that in a report, because a version number alone cannot
+distinguish two builds of the same release.

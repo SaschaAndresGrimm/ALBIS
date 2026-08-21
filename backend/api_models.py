@@ -15,6 +15,10 @@ class _StrictModel(BaseModel):
 class HealthResponse(_StrictModel):
     status: str
     version: str
+    # The build behind `version`, empty when unstamped. A version number cannot
+    # distinguish two builds of the same release, which is what a bug report and
+    # the interface's own upgrade detection both need.
+    commit: str = ""
     # Response encodings this build can actually produce, best first. zstd needs a
     # native extension that a packaged build can silently fail to bundle, in which
     # case remote sessions quietly fall back to gzip — reporting it here makes that

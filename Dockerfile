@@ -24,10 +24,16 @@ FROM python:3.10.20-slim-bookworm@sha256:a02d127ac3e004d100268fcf394e8d673e1f43f
 
 WORKDIR /app
 
+# The commit this image was built from. There is no .git here and no BUILD_COMMIT
+# file, so the value arrives as a build argument; an image built without it
+# reports no commit and shows its version alone.
+ARG ALBIS_BUILD_COMMIT=""
+
 ENV HOME=/home/albis \
     HDF5_PLUGIN_PATH=/usr/local/lib/python3.10/site-packages/hdf5plugin/plugins \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    ALBIS_BUILD_COMMIT=${ALBIS_BUILD_COMMIT}
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ca-certificates \

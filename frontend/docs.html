@@ -292,7 +292,13 @@
               saving from the Settings dialog replaces it.</li>
           <li>On first launch, Windows may show “Windows protected your PC” (choose <em>More info -&gt;
               Run anyway</em>). macOS builds are signed and notarized and should open normally.</li>
-          <li>Use <code>Help -> View Backend Log</code> for runtime diagnostics.</li>
+          <li>If ALBIS asks you to reload, the server was upgraded or restarted on a different
+              build while this tab stayed open, so this page is running older code than the server.
+              Reloading clears it.</li>
+          <li>Use <code>Help -> View Backend Log</code> for runtime diagnostics, and the
+              <strong>Versions</strong> button in the bottom right to copy the exact build you are
+              running into a bug report — a version number alone cannot tell two builds of the same
+              release apart.</li>
         </ul>
       </section>
 

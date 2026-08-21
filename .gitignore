@@ -30,6 +30,9 @@ htmlcov/
 .pytest_cache/
 .mypy_cache/
 
+# Build stamp written at packaging time (see scripts/stamp_build.py)
+/BUILD_COMMIT
+
 # Runtime data root and local (non-example) config
 /data/
 albis.config.json

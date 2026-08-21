@@ -24,6 +24,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 
 try:
+    from .build_info import ALBIS_COMMIT
     from .config import (
         DEFAULT_CONFIG,
         config_load_error,
@@ -123,6 +124,7 @@ try:
     from .services.update_check import ReleaseCheckService
     from .version import ALBIS_VERSION
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
+    from build_info import ALBIS_COMMIT  # type: ignore[no-redef]
     from config import (
         DEFAULT_CONFIG,
         config_load_error,
@@ -728,6 +730,7 @@ register_system_routes(
     app,
     SystemRouteDeps(
         version=ALBIS_VERSION,
+        commit=ALBIS_COMMIT,
         logger=logger,
         default_config=DEFAULT_CONFIG,
         config_path=runtime_state.config_path,

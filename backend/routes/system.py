@@ -42,6 +42,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
 @dataclass(frozen=True)
 class SystemRouteDeps:
     version: str
+    commit: str
     logger: Any
     default_config: dict[str, Any]
     config_path: Path
@@ -70,6 +71,7 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
         return HealthResponse(
             status="ok",
             version=deps.version,
+            commit=deps.commit,
             compression_encodings=list(available_encodings()),
         )
 

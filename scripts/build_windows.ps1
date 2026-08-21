@@ -24,6 +24,10 @@ if ($isolatedBuild) {
 $versionInfo = & $pythonExe .\scripts\version_info.py --json | ConvertFrom-Json
 $tag = $versionInfo.tag
 
+# Stamp the commit into the bundle so the running program can name its build.
+# Optional by design: an unstamped build shows its version alone.
+& $pythonExe .\scripts\stamp_build.py --commit $($versionInfo.commit)
+
 & $pythonExe -m pip install --upgrade pip
 if ($isolatedBuild) {
   & $pythonExe -m pip install -r .\backend\requirements.txt

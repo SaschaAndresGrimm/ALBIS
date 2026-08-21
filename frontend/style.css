@@ -1258,6 +1258,88 @@ body {
   white-space: nowrap;
 }
 
+/* The build identity is the line people are asked to quote, so it reads as a
+   token rather than as prose. */
+.viewer-footer-version-build {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  letter-spacing: 0.01em;
+  color: #eaf3ff;
+}
+
+/* Update state and the copy action are buttons in markup, but only the update
+   row ever becomes interactive, so the rest must not look clickable. */
+.viewer-footer-version-update,
+.viewer-footer-version-copy {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  color: #9fb8da;
+  cursor: default;
+}
+
+.viewer-footer-version-update.is-actionable {
+  color: #8ecbff;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.viewer-footer-version-copy {
+  cursor: pointer;
+  color: #c6defd;
+}
+
+.viewer-footer-version-update.is-actionable:hover,
+.viewer-footer-version-copy:hover {
+  color: #eaf3ff;
+}
+
+.viewer-footer-version-update:focus-visible,
+.viewer-footer-version-copy:focus-visible,
+.viewer-footer-version-reload:focus-visible {
+  outline: 2px solid rgba(142, 203, 255, 0.9);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Only shown when this tab has fallen behind the server, where it is the most
+   important thing in the popover. */
+.viewer-footer-version-stale {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(113, 145, 201, 0.36);
+  white-space: normal;
+  max-width: 240px;
+  color: #ffd8a8;
+  font-weight: 600;
+}
+
+.viewer-footer-version-stale[hidden] {
+  display: none;
+}
+
+.viewer-footer-version-reload {
+  appearance: none;
+  justify-self: start;
+  border: 1px solid rgba(255, 216, 168, 0.5);
+  background: rgba(255, 216, 168, 0.12);
+  color: #ffe6c4;
+  font: inherit;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.viewer-footer-version-reload:hover {
+  background: rgba(255, 216, 168, 0.2);
+}
+
 .viewer-footer-link {
   display: inline-flex;
   align-items: center;

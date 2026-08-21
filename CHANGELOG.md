@@ -7,6 +7,28 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-21
+
+### Added
+
+- ALBIS knows which build it is. The commit was already resolved at packaging time to name artifacts like `ALBIS-linux-x64-v0.12.0-a1b2c3d.tar.gz`, then discarded, so the running program could not say which build it was and neither could a bug report: two builds of one release are indistinguishable by version number. `scripts/stamp_build.py` writes it before packaging, the Docker image takes it as a build argument, a checkout falls back to `git`, and `/api/health` reports it. An unstamped build reports no commit and shows its version alone rather than inventing one.
+
+- The footer reports whether the release is current, instead of the answer existing only inside a dialog that opened once at startup and was then gone. The row becomes a control only when an update is actually pending, in which case it opens the existing update dialog rather than duplicating its release link.
+
+- **Copy build info** puts the version, commit, server state and browser into the clipboard for pasting into an issue. It falls back to a selection-based copy where the Clipboard API is unavailable — that is a plain-HTTP LAN session, which is a documented way to run ALBIS and therefore the ordinary case for a remote user rather than an edge case.
+
+- ALBIS now notices when a tab has fallen behind the server. The caching policy already rules out being *served* a stale frontend: entry documents are `no-store` and modules revalidate against an ETag. What it cannot rule out is a viewer left open across an upgrade — the code in memory then predates the server it is talking to, and only a reload fixes it. The footer says so and offers the reload. Because the check compares version *and* commit, it also catches a rebuild of the same release, which a version comparison misses.
+
+- A test that `VERSION`, `package.json`, `pyproject.toml` and `CITATION.cff` all agree on the version. Nothing compared them before: the release workflow checked the git tag against `VERSION` and a human was asked to eyeball the rest, so two of the four could drift a release apart without any check failing. A second test fails when a `ui` configuration key has no entry in the Power User Guide's Settings Reference.
+
+### Changed
+
+- The **Versions** footer names the build rather than repeating itself. It showed two rows, `Frontend: local` and `Backend: v0.11.0`. The first was a string literal in `app.js` that no build step ever replaced, so it read `local` in every shipped artifact on every platform; the second repeated what **Help → About** already said. Since the frontend and backend ship inside one bundle they cannot disagree on a version, so the popover asked a question that had no answer and answered one nobody asked. It now shows one line — `ALBIS v0.12.0 · a1b2c3d` — naming the commit the build came from.
+
+- The security policy no longer disclaims the version that is actually shipping. It promised triage for `1.x` releases and best-effort for `0.x`, while every user was on `0.x` — so read literally, no released version was supported. Support is now stated against the latest published release regardless of its number, with the `0.x` caveat limited to what semantic versioning actually implies about configuration and API stability. The scope section also says outright that an unauthenticated listener exposed to the internet is a deployment choice rather than a vulnerability.
+
+- The Python packaging metadata called ALBIS `Development Status :: 5 - Production/Stable` while the version was `0.11.0`; it now says `4 - Beta`, matching the version and the security policy.
+
 ### Documentation
 
 - ALBIS now states what it sends over a network (`docs/NETWORK_AND_PRIVACY.md`), because it was not saying so anywhere a user or a facility's IT group would look. There is no telemetry and never was — but the interface asks GitHub for the latest release at every startup, and the only trace of that in any document was one line of comment in the example configuration. The new document names the exact URL, what the request contains (the running version, in the `User-Agent`, and nothing else), how often it happens, what happens when it fails, and how to switch it off. It also says plainly where image data, paths and logs stay, and separates the traffic ALBIS starts by itself from the SIMPLON and JUNGFRAUJOCH addresses the user typed. Summarised in the README, the User Guide, and the built-in help (F1).
@@ -15,15 +37,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - ALBIS can be cited. `CITATION.cff` gives GitHub a **Cite this repository** button with APA and BibTeX, which for software used to produce published results is the difference between being credited and being a footnote nobody can resolve. The release checklist gained the one-time Zenodo setup for a permanent DOI, and the file's version is now covered by the release version check.
 
-### Changed
-
-- The security policy no longer disclaims the version that is actually shipping. It promised triage for `1.x` releases and best-effort for `0.x`, while every user was on `0.x` — so read literally, no released version was supported. Support is now stated against the latest published release regardless of its number, with the `0.x` caveat limited to what semantic versioning actually implies about configuration and API stability. The scope section also says outright that an unauthenticated listener exposed to the internet is a deployment choice rather than a vulnerability.
-
-- The Python packaging metadata called ALBIS `Development Status :: 5 - Production/Stable` while the version was `0.11.0`; it now says `4 - Beta`, matching the version and the security policy.
-
-### Added
-
-- A test that `VERSION`, `package.json`, `pyproject.toml` and `CITATION.cff` all agree on the version. Nothing compared them before: the release workflow checked the git tag against `VERSION` and a human was asked to eyeball the rest, so two of the four could drift a release apart without any check failing.
+- Troubleshooting covers the two things the footer now surfaces: what the reload prompt means, and that the **Versions** button copies the exact build to quote in a report.
 
 ## [0.11.0] - 2026-08-21
 
@@ -774,7 +788,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.9...v0.11.0
 [0.10.9]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.8...v0.10.9
 [0.10.8]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.7...v0.10.8

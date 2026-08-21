@@ -225,8 +225,12 @@ const footerFileEl = document.getElementById("footer-file");
 const footerZoomEl = document.getElementById("footer-zoom");
 const footerVersionToggleEl = document.getElementById("footer-version-toggle");
 const footerVersionPopoverEl = document.getElementById("footer-version-popover");
-const footerFrontendVersionEl = document.getElementById("footer-version-frontend");
-const footerBackendVersionEl = document.getElementById("footer-version-backend");
+const footerVersionBuildEl = document.getElementById("footer-version-build");
+const footerVersionUpdateEl = document.getElementById("footer-version-update");
+const footerVersionStaleEl = document.getElementById("footer-version-stale");
+const footerVersionStaleTextEl = document.getElementById("footer-version-stale-text");
+const footerVersionReloadEl = document.getElementById("footer-version-reload");
+const footerVersionCopyEl = document.getElementById("footer-version-copy");
 const resolutionOverlay = document.getElementById("resolution-overlay");
 const resolutionCtx = resolutionOverlay?.getContext("2d");
 const peakOverlay = document.getElementById("peak-overlay");
@@ -701,7 +705,6 @@ bindClientLogging({
 });
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
-const APP_FRONTEND_BUILD = "local";
 const DEFAULT_RING_COUNT = 3;
 const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
@@ -2375,7 +2378,6 @@ panelLayoutController = createPanelLayoutController({
 chromeToolbarController = createChromeToolbarController({
   state,
   constants: {
-    appFrontendBuild: APP_FRONTEND_BUILD,
     frameStepOptions: FRAME_STEP_OPTIONS,
     chromeIdleDelayMs: CHROME_IDLE_DELAY_MS,
   },
@@ -2398,8 +2400,12 @@ chromeToolbarController = createChromeToolbarController({
     footerVersionPopoverEl,
     footerFileEl,
     footerZoomEl,
-    footerFrontendVersionEl,
-    footerBackendVersionEl,
+    footerVersionBuildEl,
+    footerVersionUpdateEl,
+    footerVersionStaleEl,
+    footerVersionStaleTextEl,
+    footerVersionReloadEl,
+    footerVersionCopyEl,
     splash,
     dropdown,
     panelFab,
@@ -2415,6 +2421,14 @@ chromeToolbarController = createChromeToolbarController({
     updateSeriesSumUi,
     isPhonePanelLayout,
     isMenuOpen: () => Boolean(activeMenu),
+    onOpenUpdateCheck: () => {
+      updateCheckController?.openAndCheck();
+    },
+    onCopyBuildInfoUnavailable: (text) => {
+      // Both clipboard routes refused. Put the text somewhere it can still be
+      // read and copied by hand rather than reporting a silent success.
+      notifyWarning(text);
+    },
   },
 });
 
@@ -2599,8 +2613,24 @@ async function fetchSettingsConfig() {
 }
 
 function maybeCheckForStartupUpdates() {
-  if (!state.autoCheckUpdates) return;
-  void updateCheckController?.checkOnStartup({ enabled: state.autoCheckUpdates });
+  if (!state.autoCheckUpdates) {
+    state.updateStatus = "disabled";
+    updateFooterVersions();
+    return;
+  }
+  void updateCheckController
+    ?.checkOnStartup({ enabled: state.autoCheckUpdates })
+    .then((payload) => {
+      // A null payload means the request failed or was superseded; either way
+      // the honest report is that the check did not produce an answer.
+      state.updateStatus = payload?.status || "unavailable";
+      state.updateLatestVersion = payload?.latest_version || "";
+      updateFooterVersions();
+    })
+    .catch(() => {
+      state.updateStatus = "unavailable";
+      updateFooterVersions();
+    });
 }
 
 async function bootstrapApp() {

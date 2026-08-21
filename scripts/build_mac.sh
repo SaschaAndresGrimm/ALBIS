@@ -10,6 +10,10 @@ VERSION_INFO="$("$PYTHON_BIN" scripts/version_info.py --shell)"
 eval "$VERSION_INFO"
 export ALBIS_BUNDLE_VERSION="$VERSION"
 export ALBIS_BUNDLE_BUILD="$VERSION"
+
+# Stamp the commit into the bundle so the running program can name its build.
+# Optional by design: an unstamped build shows its version alone.
+"$PYTHON_BIN" scripts/stamp_build.py --commit "$COMMIT"
 ZIP_OUT="dist/ALBIS-${TARGET}-${TAG}.zip"
 DMG_OUT="dist/ALBIS-${TARGET}-${TAG}.dmg"
 

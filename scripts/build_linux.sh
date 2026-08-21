@@ -24,6 +24,10 @@ fi
 VERSION_INFO="$("$PYTHON_BIN" scripts/version_info.py --shell)"
 eval "$VERSION_INFO"
 
+# Stamp the commit into the bundle so the running program can name its build.
+# Optional by design: an unstamped build shows its version alone.
+"$PYTHON_BIN" scripts/stamp_build.py --commit "$COMMIT"
+
 "$PYTHON_BIN" -m pip install --upgrade pip
 if [ "$ISOLATED_BUILD" = "1" ]; then
   "$PYTHON_BIN" -m pip install -r backend/requirements.txt

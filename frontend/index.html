@@ -331,8 +331,32 @@
                   Versions ▾
                 </button>
                 <div class="viewer-footer-version-popover" id="footer-version-popover" aria-hidden="true">
-                  <div class="viewer-footer-version-row" id="footer-version-frontend">Frontend: v-</div>
-                  <div class="viewer-footer-version-row" id="footer-version-backend">Backend: v-</div>
+                  <div class="viewer-footer-version-row viewer-footer-version-build" id="footer-version-build">ALBIS</div>
+                  <button
+                    class="viewer-footer-version-row viewer-footer-version-update"
+                    id="footer-version-update"
+                    type="button"
+                    hidden
+                  ></button>
+                  <div class="viewer-footer-version-stale" id="footer-version-stale" role="status" hidden>
+                    <span id="footer-version-stale-text"></span>
+                    <button
+                      class="viewer-footer-version-reload"
+                      id="footer-version-reload"
+                      type="button"
+                      data-i18n="toolbar.footer.stale.reload"
+                    >
+                      Reload
+                    </button>
+                  </div>
+                  <button
+                    class="viewer-footer-version-copy"
+                    id="footer-version-copy"
+                    type="button"
+                    data-i18n="toolbar.footer.copy_build"
+                  >
+                    Copy build info
+                  </button>
                 </div>
                 <a
                   class="viewer-footer-link"
