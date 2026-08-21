@@ -14,7 +14,16 @@
     // - "on":   always compress. Use this behind a reverse proxy, where the proxy
     //           is the client and every request otherwise looks like loopback.
     // - "off":  never compress.
-    "compression": "auto"
+    "compression": "auto",
+    // Host header names ALBIS answers to, beyond localhost. Empty means "derive
+    // it from host above": a loopback bind answers only to this machine, which
+    // is what stops a web page from reaching ALBIS by pointing its own domain at
+    // 127.0.0.1, and a "0.0.0.0" bind answers to anything because the name a
+    // container or LAN client uses cannot be predicted.
+    // Set this when a reverse proxy forwards its own hostname to a loopback
+    // bind, e.g. ["albis.lab"]. Localhost keeps working alongside it.
+    // ["*"] accepts any host and turns the check off.
+    "allowed_hosts": []
   },
 
   // Launcher behavior for packaged/source starts.

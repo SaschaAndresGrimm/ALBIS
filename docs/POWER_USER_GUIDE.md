@@ -80,6 +80,7 @@ A live summary shows the resulting frame count, pixel dimensions, and an estimat
 - `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
 - `reload` (`boolean`, default `false`)
 - `compression` (`auto|on|off`, default `auto`): Compress responses for remote clients.
+- `allowed_hosts` (`array of string`, default `[]`): Extra `Host` header names ALBIS answers to. Empty derives them from `host`: a loopback bind answers only to this machine, a `0.0.0.0` bind answers to anything. Set this when a reverse proxy forwards its own hostname to a loopback bind — see [Reverse Proxies and Remote Access](#reverse-proxies-and-remote-access). `["*"]` accepts any host.
 
 Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire
 and a 4M frame around 18 MB. Over a remote link that dominates how responsive the
@@ -147,6 +148,57 @@ what a given build can actually produce.
   Frames are never cached while autoload is running or a watch is armed, because the file may still be growing under the filewriter. Live sources (SIMPLON, Remote Stream, JUNGFRAUJOCH) are never cached either. Multi-file image series are not cached yet — this applies to HDF5 stacks.
 - `pixel_label_format` (`auto|integer|scientific`, default `auto`)
 - `pixel_label_show_during_drag` (`boolean`, default `false`)
+
+## Reverse Proxies and Remote Access
+
+ALBIS has no authentication: it assumes the only person who can reach it is the
+person sitting in front of it. What complicates that is the browser. While ALBIS
+is running, every page the user visits can send requests to it, and those
+requests arrive carrying the user's own local access. Two checks close that off.
+
+**Host header.** A page on `attacker.example` can point its own DNS at
+`127.0.0.1`, at which point the browser treats it as same-origin with ALBIS and
+the same-origin policy stops protecting anything. The rebound request still
+names the attacker's domain in its `Host` header, so ALBIS checks it:
+
+- Bound to loopback (the desktop default): only `localhost` and loopback
+  addresses are answered.
+- Bound to `0.0.0.0`: any host is answered. Choosing a wildcard bind is an
+  explicit decision to serve other machines, and the name they use — a container
+  hostname, a LAN address, a proxy's `server_name` — cannot be predicted.
+- `server.allowed_hosts` overrides both.
+
+**If you run a reverse proxy in front of a loopback bind, set
+`server.allowed_hosts`.** A proxy forwards its own hostname, which a loopback
+bind would otherwise refuse:
+
+```jsonc
+{
+  "server": {
+    "host": "127.0.0.1",
+    "allowed_hosts": ["albis.lab"],
+    "compression": "on"
+  }
+}
+```
+
+Localhost keeps working alongside it, so you can still reach ALBIS directly on
+the machine. A refused request is logged and answers `403` naming the setting.
+`["*"]` turns the check off entirely.
+
+**Cross-site requests.** CORS stops a page from *reading* a cross-origin
+response, which is often mistaken for stopping the request. `multipart/form-data`
+predates CORS and is sent with no preflight, so before this check any page could
+`POST /api/upload` and write a file into the data directory while simply
+ignoring the reply it was not allowed to read. Requests that change state — plus
+`/api/choose-file` and `/api/choose-folder`, which put a native dialog on the
+user's screen — are now refused when the browser reports them as coming from
+another site, via `Sec-Fetch-Site` or a foreign `Origin`.
+
+Clients that are not browsers send neither header and are unaffected. This is
+deliberate: the [Remote Stream API](#remote-stream-api) exists to be called by
+detector-side scripts, and a non-browser client can set any header it likes, so
+requiring one would break that workflow without stopping an attacker.
 
 ## Logging
 
@@ -225,6 +277,8 @@ docker run -d \
 If you built locally instead of pulling from GHCR, replace the image reference with `albis:latest`.
 
 *Note: In the example above, `/path/to/your/data` is mounted into the container at `/app/data` as read-only (`:ro`). In the default ALBIS configuration (`albis.config.json`), the `data.root` is already set to `./data`, so ALBIS will immediately see your mounted files.*
+
+The image also sets `data.allow_abs_paths` to `false`, unlike the desktop default of `true`. On a workstation that setting is on because whoever browses to an absolute path already owns the machine; a container listens on `0.0.0.0` with no authentication, where the same reasoning does not hold. Mount everything you want to open under `data.root` (`/app/data`) — several mounts side by side there work fine. If you deliberately want the container to read paths outside it, set `data.allow_abs_paths` back to `true` in a mounted `albis.config.json`, and only where you control who can reach the port.
 
 If you intentionally expose the container on a trusted LAN, do it behind your own network controls and treat it as a lab-managed deployment rather than a public service.
 

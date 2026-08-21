@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
@@ -26,9 +26,11 @@ from fastapi.staticfiles import StaticFiles
 try:
     from .config import (
         DEFAULT_CONFIG,
+        config_load_error,
         get_bool,
         get_float,
         get_int,
+        get_nested,
         get_str,
         load_config,
         normalize_config,
@@ -56,6 +58,7 @@ try:
         _write_cbf,
         _write_tiff,
     )
+    from .request_guard import RequestGuardMiddleware
     from .response_compression import ResponseCompressionMiddleware
     from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
     from .routes.data_export import DataExportRouteDeps, register_data_export_routes
@@ -122,9 +125,11 @@ try:
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from config import (
         DEFAULT_CONFIG,
+        config_load_error,
         get_bool,
         get_float,
         get_int,
+        get_nested,
         get_str,
         load_config,
         normalize_config,
@@ -152,6 +157,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         _write_cbf,
         _write_tiff,
     )
+    from request_guard import RequestGuardMiddleware  # type: ignore[no-redef]
     from response_compression import (  # type: ignore[no-redef]
         ResponseCompressionMiddleware,
     )
@@ -233,10 +239,15 @@ class RuntimeState:
     max_scan_depth: int = -1
     max_upload_mb: int = 0
     max_upload_bytes: int = 0
+    bind_host: str = "127.0.0.1"
+    allowed_hosts: list[str] = field(default_factory=list)
 
     def apply_config(self, payload: dict[str, Any]) -> None:
         self.config = payload
         self.allow_abs_paths = get_bool(self.config, ("data", "allow_abs_paths"), True)
+        self.bind_host = get_str(self.config, ("server", "host"), "127.0.0.1")
+        allowed = get_nested(self.config, ("server", "allowed_hosts"), [])
+        self.allowed_hosts = [str(entry) for entry in allowed] if isinstance(allowed, list) else []
         self.scan_cache_sec = get_float(self.config, ("data", "scan_cache_sec"), 2.0)
         self.max_scan_depth = get_int(self.config, ("data", "max_scan_depth"), -1)
         self.max_upload_mb = max(0, get_int(self.config, ("data", "max_upload_mb"), 0))
@@ -268,6 +279,16 @@ app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
 app.add_middleware(
     ResponseCompressionMiddleware,
     mode=get_str(runtime_state.config, ("server", "compression"), "auto"),
+)
+
+# Registered after the compressor and before the request logger below, which
+# puts it between them in the stack: rejections are cheap and never reach the
+# router, but they still pass back out through log_requests and get recorded.
+app.add_middleware(
+    RequestGuardMiddleware,
+    get_bind_host=lambda: runtime_state.bind_host,
+    get_allowed_hosts=lambda: runtime_state.allowed_hosts,
+    logger=logging.getLogger("albis"),
 )
 
 AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf", ".cfg"}
@@ -350,6 +371,16 @@ async def _lifespan(_app: FastAPI):
         pid = os.getpid()
         logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
         logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
+        load_error = config_load_error()
+        if load_error:
+            # Started on defaults rather than the user's settings. Say so loudly:
+            # otherwise this looks like ALBIS silently forgot how it was configured.
+            logger.warning(
+                "ALBIS config could not be read and defaults are in use (pid=%s): %s. "
+                "Saving settings will replace the unreadable file.",
+                pid,
+                load_error,
+            )
         logger.info(
             "ALBIS frontend root (pid=%s): %s [index=%s app.js=%s js-mime=%s]",
             pid,

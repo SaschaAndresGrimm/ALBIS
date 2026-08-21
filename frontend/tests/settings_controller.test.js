@@ -267,7 +267,13 @@ describe("settings controller preserves config it has no form control for", () =
   // the backend's normalization. Opening settings and pressing Save would quietly
   // undo a hand-edited albis.config.json.
   const configWithFormlessKeys = {
-    server: { host: "127.0.0.1", port: 8000, reload: false, compression: "on" },
+    server: {
+      host: "127.0.0.1",
+      port: 8000,
+      reload: false,
+      compression: "on",
+      allowed_hosts: ["albis.lab"],
+    },
     launcher: { startup_timeout_sec: 10, open_browser: true },
     data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
     logging: { level: "INFO", dir: "" },
@@ -292,6 +298,20 @@ describe("settings controller preserves config it has no form control for", () =
     await controller.saveSettingsFromModal();
 
     expect(savedConfigs[0]?.server?.compression).toBe("on");
+  });
+
+  it("keeps server.allowed_hosts across a save", async () => {
+    // This one decides which Host headers the backend answers, so dropping it
+    // would not just reset a preference -- it would re-close a reverse proxy's
+    // access, or silently widen what a deployment accepts.
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWithFormlessKeys,
+    });
+
+    await controller.openSettingsModal();
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.server?.allowed_hosts).toEqual(["albis.lab"]);
   });
 
   it("keeps ui.frame_cache_mb across a save", async () => {

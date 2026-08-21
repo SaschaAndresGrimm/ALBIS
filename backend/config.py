@@ -6,13 +6,29 @@ predictable path resolution for both source and frozen (packaged) execution.
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
 CONFIG_FILE_NAME = "albis.config.json"
+
+# Set when the config on disk could not be read, so the caller can say so
+# instead of silently presenting defaults as if they were the user's settings.
+# See `load_config`, which never raises. Read it through `config_load_error()`:
+# `from config import CONFIG_LOAD_ERROR` copies the binding at import time,
+# which for a module-level `load_config()` call is always before it is set.
+CONFIG_LOAD_ERROR: str = ""
+
+
+def config_load_error() -> str:
+    """Return why the config on disk was unusable, or "" when it loaded."""
+    return CONFIG_LOAD_ERROR
+
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "server": {
@@ -20,6 +36,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "port": 0,
         "reload": False,
         "compression": "auto",
+        "allowed_hosts": [],
     },
     "launcher": {
         "startup_timeout_sec": 10.0,
@@ -62,6 +79,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("server", "port"): (int, float, str),
     ("server", "reload"): (bool, int, float, str),
     ("server", "compression"): (str,),
+    ("server", "allowed_hosts"): (list, str),
     ("launcher", "startup_timeout_sec"): (int, float, str),
     ("launcher", "startup_health_timeout_sec"): (int, float, str),
     ("launcher", "open_browser"): (bool, int, float, str),
@@ -116,6 +134,20 @@ def _normalize_ui_language(value: Any) -> str:
     if lower.startswith("en"):
         return "en"
     return "en"
+
+
+def _normalize_allowed_hosts(value: Any) -> list[str]:
+    """Coerce `server.allowed_hosts` to a de-duplicated list of lowercase names."""
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list | tuple):
+        return []
+    cleaned: list[str] = []
+    for entry in value:
+        token = str(entry or "").strip().lower()
+        if token and token not in cleaned:
+            cleaned.append(token)
+    return cleaned
 
 
 def _repo_root() -> Path:
@@ -267,6 +299,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     compression = get_str(merged, ("server", "compression"), "auto").strip().lower() or "auto"
     if compression not in _COMPRESSION_MODES:
         compression = "auto"
+    allowed_hosts = _normalize_allowed_hosts(get_nested(merged, ("server", "allowed_hosts"), []))
 
     return {
         "server": {
@@ -274,6 +307,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "port": server_port,
             "reload": get_bool(merged, ("server", "reload"), False),
             "compression": compression,
+            "allowed_hosts": allowed_hosts,
         },
         "launcher": {
             "startup_timeout_sec": startup_timeout,
@@ -308,14 +342,49 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def save_config(config: dict[str, Any], path: Path) -> None:
-    """Persist a normalized config to disk."""
+    """Persist a normalized config to disk, replacing it atomically.
+
+    Writing in place would leave a half-written file if the process died
+    mid-save, and this file is on the startup path: a truncated one is a config
+    ALBIS cannot parse, so a crash while saving settings could stop the app from
+    starting again. Rendering to a sibling temp file and renaming means the
+    config is only ever the old contents or the new ones, never neither.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        json.dump(normalize_config(config), fh, indent=2)
-        fh.write("\n")
+    payload = json.dumps(normalize_config(config), indent=2) + "\n"
+    # Same directory as the target, because os.replace is only atomic within a
+    # filesystem and the temp dir can be on another one.
+    handle, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
+        raise
 
 
 def load_config() -> tuple[dict[str, Any], Path]:
+    """Load the effective config, falling back to defaults rather than failing.
+
+    This runs before anything else, including logging setup, so an exception
+    here does not surface as an error -- it stops ALBIS from starting at all,
+    and from a double-clicked desktop build that looks like nothing happened.
+    Two ordinary situations reach it: a config truncated by a crash mid-save,
+    and one written by a newer ALBIS whose keys this build rejects, which is
+    what a downgrade looks like.
+
+    Neither is worth refusing to start over, so a config that cannot be read is
+    reported through `CONFIG_LOAD_ERROR` and defaults are used instead. The file
+    itself is left untouched: it is the user's, it may be salvageable by hand,
+    and overwriting it would destroy the evidence.
+    """
+    global CONFIG_LOAD_ERROR
+    CONFIG_LOAD_ERROR = ""
     config = normalize_config(None)
     config_path: Path | None = None
     for path in _candidate_paths():
@@ -349,7 +418,15 @@ def load_config() -> tuple[dict[str, Any], Path]:
                     config_path = user_path
                 except OSError:
                     pass
-    return normalize_config(_parse_config(config_path)), config_path
+    try:
+        return normalize_config(_parse_config(config_path)), config_path
+    except Exception as exc:
+        CONFIG_LOAD_ERROR = f"{config_path}: {exc}"
+        print(
+            f"WARNING: Could not read config {config_path} ({exc}); using defaults",
+            file=sys.stderr,
+        )
+        return config, config_path
 
 
 def resolve_data_dir(config: dict[str, Any], config_path: Path) -> Path:

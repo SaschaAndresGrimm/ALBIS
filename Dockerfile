@@ -51,6 +51,13 @@ COPY VERSION .
 # tracked in git (see albis.config.example.jsonc for documented options), so the
 # image writes its own production config bound to 0.0.0.0:8000. Everything else
 # falls back to backend DEFAULT_CONFIG.
+#
+# `allow_abs_paths` is off here, unlike the desktop default. On a workstation it
+# is on because the person browsing to an absolute path is the person who owns
+# the machine. This image listens on 0.0.0.0 and has no authentication, so that
+# reasoning does not carry: anything that can reach the port would otherwise be
+# able to browse and read the whole container filesystem. Data belongs under
+# `data.root`, which is where the volume is mounted.
 RUN python - <<'PY'
 import json
 from pathlib import Path
@@ -59,7 +66,7 @@ Path("albis.config.json").write_text(
     json.dumps(
         {
             "server": {"host": "0.0.0.0", "port": 8000},
-            "data": {"root": "./data"},
+            "data": {"root": "./data", "allow_abs_paths": False},
             "logging": {"dir": "./logs"},
         },
         indent=2,
