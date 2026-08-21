@@ -512,9 +512,11 @@ const settingsSaveClose = document.getElementById("settings-save-close");
 const settingsConfigPath = document.getElementById("settings-config-path");
 const settingsMessage = document.getElementById("settings-message");
 const settingsServerExternal = document.getElementById("settings-server-external");
-const settingsServerExternalLabel = document.getElementById("settings-server-external-label");
 const settingsServerExternalWarning = document.getElementById("settings-server-external-warning");
 const settingsServerPort = document.getElementById("settings-server-port");
+const settingsAllowedHosts = document.getElementById("settings-allowed-hosts");
+const settingsCompression = document.getElementById("settings-compression");
+const settingsStartupHealthTimeout = document.getElementById("settings-startup-health-timeout");
 const settingsServerReload = document.getElementById("settings-server-reload");
 const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
 const settingsOpenBrowser = document.getElementById("settings-open-browser");
@@ -2999,9 +3001,11 @@ const settingsController = createSettingsController({
     settingsConfigPath,
     settingsMessage,
     settingsServerExternal,
-    settingsServerExternalLabel,
     settingsServerExternalWarning,
     settingsServerPort,
+    settingsAllowedHosts,
+    settingsCompression,
+    settingsStartupHealthTimeout,
     settingsServerReload,
     settingsStartupTimeout,
     settingsOpenBrowser,

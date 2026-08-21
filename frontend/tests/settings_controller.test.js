@@ -27,6 +27,11 @@ function renderSettingsShell() {
       </label>
       <div id="settings-server-external-warning" class="is-hidden" data-i18n="settings.server.external_warning" aria-hidden="true"></div>
       <input id="settings-server-port" type="number" />
+      <input id="settings-allowed-hosts" type="text" />
+      <select id="settings-compression">
+        <option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option>
+      </select>
+      <input id="settings-startup-health-timeout" type="number" />
       <input id="settings-server-reload" type="checkbox" />
       <input id="settings-startup-timeout" type="number" />
       <input id="settings-open-browser" type="checkbox" />
@@ -115,9 +120,11 @@ async function initializeController({ initialConfig }) {
       settingsConfigPath: document.getElementById("settings-config-path"),
       settingsMessage: document.getElementById("settings-message"),
       settingsServerExternal: document.getElementById("settings-server-external"),
-      settingsServerExternalLabel: document.getElementById("settings-server-external-label"),
       settingsServerExternalWarning: document.getElementById("settings-server-external-warning"),
       settingsServerPort: document.getElementById("settings-server-port"),
+      settingsAllowedHosts: document.getElementById("settings-allowed-hosts"),
+      settingsCompression: document.getElementById("settings-compression"),
+      settingsStartupHealthTimeout: document.getElementById("settings-startup-health-timeout"),
       settingsServerReload: document.getElementById("settings-server-reload"),
       settingsStartupTimeout: document.getElementById("settings-startup-timeout"),
       settingsOpenBrowser: document.getElementById("settings-open-browser"),
@@ -176,12 +183,13 @@ describe("settings controller external access warning", () => {
     await controller.openSettingsModal();
 
     const toggle = document.getElementById("settings-server-external");
-    const label = document.getElementById("settings-server-external-label");
+    const label = document.getElementById("settings-server-external")?.parentElement?.querySelector("[data-i18n='settings.server.external_access']");
     const warning = document.getElementById("settings-server-external-warning");
 
     expect(toggle?.checked).toBe(false);
     expect(label?.textContent).toBe(locale["settings.server.external_access"]);
     expect(warning?.classList.contains("is-hidden")).toBe(true);
+    const labelBeforeEnabling = label?.textContent;
 
     toggle.checked = true;
     toggle.dispatchEvent(new Event("change", { bubbles: true }));
@@ -190,11 +198,12 @@ describe("settings controller external access warning", () => {
     expect(showConfirmDialogMock.mock.calls[0][0]).toMatchObject({
       message: locale["settings.server.external_confirm"],
     });
-    await vi.waitFor(() =>
-      expect(label?.textContent).toBe(locale["settings.server.external_access_enabled"]),
-    );
+    await vi.waitFor(() => expect(warning?.classList.contains("is-hidden")).toBe(false));
     expect(warning?.textContent).toBe(locale["settings.server.external_warning"]);
-    expect(warning?.classList.contains("is-hidden")).toBe(false);
+    // The label keeps describing what the checkbox does. It used to be replaced
+    // by the warning, which left the control unlabelled once ticked and said the
+    // same thing as the box directly below it.
+    expect(label?.textContent).toBe(labelBeforeEnabling);
   });
 
   it("reverts the toggle when the confirmation is declined and preserves local-only save output", async () => {
@@ -212,7 +221,7 @@ describe("settings controller external access warning", () => {
     await controller.openSettingsModal();
 
     const toggle = document.getElementById("settings-server-external");
-    const label = document.getElementById("settings-server-external-label");
+    const label = document.getElementById("settings-server-external")?.parentElement?.querySelector("[data-i18n='settings.server.external_access']");
     const warning = document.getElementById("settings-server-external-warning");
 
     toggle.checked = true;
@@ -385,5 +394,82 @@ describe("settings controller preserves config it has no form control for", () =
     await controller.openSettingsModal();
 
     expect(state.frameCacheMb).toBe(1024);
+  });
+});
+
+describe("settings controller fields added for reverse-proxy deployments", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  const configWith = (server) => ({
+    server: { host: "127.0.0.1", port: 8000, reload: false, ...server },
+    launcher: { startup_timeout_sec: 10, startup_health_timeout_sec: 15, open_browser: true },
+    data: { root: "", allow_abs_paths: true, scan_cache_sec: 2, max_scan_depth: -1, max_upload_mb: 0 },
+    logging: { level: "INFO", dir: "" },
+    ui: {
+      tool_hints: false, auto_check_updates: true, pixel_label_min_cell_px: 18,
+      pixel_label_max_labels: 4000, pixel_label_format: "auto",
+      pixel_label_show_during_drag: false, language: "en",
+    },
+  });
+
+  it("shows the stored allowed hosts as a comma separated list", async () => {
+    const { controller } = await initializeController({
+      initialConfig: configWith({ allowed_hosts: ["albis.lab", "192.168.1.20"] }),
+    });
+
+    await controller.openSettingsModal();
+
+    expect(document.getElementById("settings-allowed-hosts").value).toBe("albis.lab, 192.168.1.20");
+  });
+
+  it("saves allowed hosts as a list, however the user separated them", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWith({ allowed_hosts: [] }),
+    });
+    await controller.openSettingsModal();
+
+    // Commas, spaces, a trailing comma and stray whitespace all appear in a
+    // pasted list; none of them should reach the backend as an entry.
+    document.getElementById("settings-allowed-hosts").value = " albis.lab,  192.168.1.20 ,\nproxy.internal, ";
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.server?.allowed_hosts).toEqual([
+      "albis.lab",
+      "192.168.1.20",
+      "proxy.internal",
+    ]);
+  });
+
+  it("saves an empty field as an empty list rather than a blank entry", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWith({ allowed_hosts: ["albis.lab"] }),
+    });
+    await controller.openSettingsModal();
+
+    document.getElementById("settings-allowed-hosts").value = "   ";
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.server?.allowed_hosts).toEqual([]);
+  });
+
+  it("round-trips compression and the health check timeout", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: configWith({ compression: "on" }),
+    });
+    await controller.openSettingsModal();
+
+    expect(document.getElementById("settings-compression").value).toBe("on");
+    expect(document.getElementById("settings-startup-health-timeout").value).toBe("15");
+
+    document.getElementById("settings-compression").value = "off";
+    document.getElementById("settings-startup-health-timeout").value = "22.5";
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0]?.server?.compression).toBe("off");
+    expect(savedConfigs[0]?.launcher?.startup_health_timeout_sec).toBe(22.5);
   });
 });

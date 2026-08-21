@@ -80,7 +80,7 @@ A live summary shows the resulting frame count, pixel dimensions, and an estimat
 - `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
 - `reload` (`boolean`, default `false`)
 - `compression` (`auto|on|off`, default `auto`): Compress responses for remote clients.
-- `allowed_hosts` (`array of string`, default `[]`): Extra `Host` header names ALBIS answers to. Empty derives them from `host`: a loopback bind answers only to this machine, a `0.0.0.0` bind answers to anything. Set this when a reverse proxy forwards its own hostname to a loopback bind — see [Reverse Proxies and Remote Access](#reverse-proxies-and-remote-access). `["*"]` accepts any host.
+- `allowed_hosts` (`array of string`, default `[]`, also in **Settings -> Application**): Extra `Host` header names ALBIS answers to. Empty derives them from `host`: a loopback bind answers only to this machine, a `0.0.0.0` bind answers to anything. Set this when a reverse proxy forwards its own hostname to a loopback bind — see [Reverse Proxies and Remote Access](#reverse-proxies-and-remote-access). `["*"]` accepts any host.
 
 Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire
 and a 4M frame around 18 MB. Over a remote link that dominates how responsive the
@@ -181,6 +181,10 @@ bind would otherwise refuse:
   }
 }
 ```
+
+Both are also editable in **Settings -> Application**, so this does not need a
+hand-edited file. `allowed_hosts` takes effect as soon as you save; `compression`
+needs a restart, which the dialog marks.
 
 Localhost keeps working alongside it, so you can still reach ALBIS directly on
 the machine. A refused request is logged and answers `403` naming the setting.

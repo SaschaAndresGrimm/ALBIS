@@ -29,11 +29,13 @@ export function createSettingsController({
     settingsConfigPath,
     settingsMessage,
     settingsServerExternal,
-    settingsServerExternalLabel,
     settingsServerExternalWarning,
     settingsServerPort,
     settingsServerReload,
+    settingsAllowedHosts,
+    settingsCompression,
     settingsStartupTimeout,
+    settingsStartupHealthTimeout,
     settingsOpenBrowser,
     settingsAutoCheckUpdates,
     settingsToolHints,
@@ -102,11 +104,10 @@ export function createSettingsController({
 
   function updateExternalAccessUi() {
     const enabled = Boolean(settingsServerExternal?.checked);
-    if (settingsServerExternalLabel) {
-      settingsServerExternalLabel.textContent = enabled
-        ? t("settings.server.external_access_enabled")
-        : t("settings.server.external_access");
-    }
+    // The label stays constant. It used to become "external connections are
+    // enabled" when ticked, which left the control no longer describing what it
+    // does -- and unticking it unlabelled -- while duplicating the warning box
+    // directly below. The box is the right place for the warning.
     if (settingsServerExternalWarning) {
       settingsServerExternalWarning.textContent = t("settings.server.external_warning");
       settingsServerExternalWarning.classList.toggle("is-hidden", !enabled);
@@ -139,6 +140,21 @@ export function createSettingsController({
     updateExternalAccessUi();
   }
 
+  // `server.allowed_hosts` is a list in the config and a single field in the
+  // dialog. Split on commas and whitespace so a pasted list works whichever way
+  // it is separated, and drop blanks so a trailing comma is harmless.
+  function parseAllowedHosts(value) {
+    return String(value || "")
+      .split(/[\s,]+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  function formatAllowedHosts(value) {
+    if (Array.isArray(value)) return value.join(", ");
+    return String(value || "");
+  }
+
   function fillSettingsForm(config, configPath = "") {
     if (!config) return;
     loadedConfig = config;
@@ -148,8 +164,19 @@ export function createSettingsController({
     }
     settingsServerPort.value = String(Number(config?.server?.port ?? 0));
     settingsServerReload.checked = Boolean(config?.server?.reload);
+    if (settingsAllowedHosts) {
+      settingsAllowedHosts.value = formatAllowedHosts(config?.server?.allowed_hosts);
+    }
+    if (settingsCompression) {
+      settingsCompression.value = String(config?.server?.compression ?? "auto");
+    }
 
     settingsStartupTimeout.value = String(Number(config?.launcher?.startup_timeout_sec ?? 5.0));
+    if (settingsStartupHealthTimeout) {
+      settingsStartupHealthTimeout.value = String(
+        Number(config?.launcher?.startup_health_timeout_sec ?? 15.0)
+      );
+    }
     settingsOpenBrowser.checked = Boolean(config?.launcher?.open_browser ?? true);
     if (settingsAutoCheckUpdates) {
       settingsAutoCheckUpdates.checked = Boolean(config?.ui?.auto_check_updates ?? state.autoCheckUpdates ?? true);
@@ -217,10 +244,22 @@ export function createSettingsController({
         host: settingsServerExternal?.checked ? "0.0.0.0" : "127.0.0.1",
         port: Math.max(0, Math.min(65535, asInt(settingsServerPort?.value, 0))),
         reload: Boolean(settingsServerReload?.checked),
+        ...(settingsAllowedHosts
+          ? { allowed_hosts: parseAllowedHosts(settingsAllowedHosts.value) }
+          : {}),
+        ...(settingsCompression ? { compression: String(settingsCompression.value || "auto") } : {}),
       },
       launcher: {
         ...(loadedConfig?.launcher || {}),
         startup_timeout_sec: Math.max(0.1, asFloat(settingsStartupTimeout?.value, 5.0)),
+        ...(settingsStartupHealthTimeout
+          ? {
+              startup_health_timeout_sec: Math.max(
+                0.1,
+                asFloat(settingsStartupHealthTimeout.value, 15.0),
+              ),
+            }
+          : {}),
         open_browser: Boolean(settingsOpenBrowser?.checked),
       },
       data: {

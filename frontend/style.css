@@ -4957,6 +4957,52 @@ body.platform-windows select option:disabled {
   grid-column: span 2;
 }
 
+/* `.field` stacks its children in a column, so a label and its badge need a row
+   of their own. `.checkbox` is already a row and needs no wrapper. */
+.settings-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-label-row > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Marks a field that only takes effect on the next start, so the dialog can say
+   which ones rather than warning about all of them. Sits inline after the label
+   text; `.field` and `.checkbox` are flex rows, so it needs no positioning. */
+.settings-restart-badge {
+  align-self: center;
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(159, 184, 223, 0.35);
+  background: rgba(159, 184, 223, 0.12);
+  color: #9fb8df;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Per-field explanation, for a setting whose label cannot carry the whole
+   story. Deliberately rare: every one of these is 13 translations. */
+.settings-field-hint {
+  grid-column: 2;
+  margin-top: 2px;
+  color: #8ba3c7;
+  font-size: 10px;
+  line-height: 1.45;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .settings-inline-warning {
   padding: 8px 10px;
   border-radius: var(--radius-sm);
@@ -5005,7 +5051,8 @@ body.platform-windows select option:disabled {
   }
 
   .settings-grid .field input,
-  .settings-grid .field select {
+  .settings-grid .field select,
+  .settings-grid .field .settings-field-hint {
     grid-column: 1;
   }
 

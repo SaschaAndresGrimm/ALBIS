@@ -1693,7 +1693,7 @@
         <div class="modal-body settings-modal-body">
           <div class="settings-meta">
             <div><span data-i18n="settings.config_file">Config file:</span> <code id="settings-config-path">-</code></div>
-            <div class="settings-hint" data-i18n="settings.restart_hint">Some settings apply after restart.</div>
+            <div class="settings-hint" data-i18n="settings.restart_hint">Settings marked “restart” take effect the next time ALBIS starts. Everything else applies on save.</div>
           </div>
           <div class="settings-sections">
             <section class="settings-section">
@@ -1704,7 +1704,8 @@
               <div class="settings-grid">
                 <label class="checkbox settings-check settings-span-2">
                   <input id="settings-server-external" type="checkbox" />
-                  <span id="settings-server-external-label" data-i18n="settings.server.external_access">Allow external connections from other machines</span>
+                  <span data-i18n="settings.server.external_access">Allow external connections from other machines</span>
+                  <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
                 </label>
                 <div
                   class="settings-inline-warning settings-span-2 is-hidden"
@@ -1715,21 +1716,60 @@
                 >
                   Other devices on your network can reach this ALBIS instance while this is enabled.
                 </div>
+                <label class="field settings-span-2">
+                  <span data-i18n="settings.server.allowed_hosts">Allowed hosts</span>
+                  <input
+                    id="settings-allowed-hosts"
+                    type="text"
+                    data-i18n-placeholder="settings.server.allowed_hosts_placeholder"
+                    placeholder="albis.lab, 192.168.1.20"
+                  />
+                  <small class="settings-field-hint" data-i18n="settings.server.allowed_hosts_hint">
+                    Extra names this server answers to, comma separated. Localhost always works.
+                    Needed when a reverse proxy forwards its own hostname.
+                  </small>
+                </label>
                 <label class="field">
-                  <span data-i18n="settings.server.port">Port</span>
+                  <span class="settings-label-row">
+                    <span data-i18n="settings.server.port">Port (0 = auto)</span>
+                    <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
+                  </span>
                   <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
                 </label>
                 <label class="field">
-                  <span data-i18n="settings.server.startup_timeout">Startup timeout (s)</span>
+                  <span class="settings-label-row">
+                    <span data-i18n="settings.server.compression">Response compression</span>
+                    <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
+                  </span>
+                  <select id="settings-compression">
+                    <option value="auto" data-i18n="settings.server.compression.auto">Auto (not for local clients)</option>
+                    <option value="on" data-i18n="settings.server.compression.on">Always on (behind a proxy)</option>
+                    <option value="off" data-i18n="settings.server.compression.off">Off</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="settings-label-row">
+                    <span data-i18n="settings.server.startup_timeout">Startup timeout (s)</span>
+                    <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
+                  </span>
                   <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
+                </label>
+                <label class="field">
+                  <span class="settings-label-row">
+                    <span data-i18n="settings.server.startup_health_timeout">Health check timeout (s)</span>
+                    <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
+                  </span>
+                  <input id="settings-startup-health-timeout" type="number" min="0.1" step="0.1" />
                 </label>
                 <label class="checkbox settings-check">
                   <input id="settings-server-reload" type="checkbox" />
                   <span data-i18n="settings.server.enable_reload">Enable backend reload</span>
+                  <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
                 </label>
                 <label class="checkbox settings-check">
                   <input id="settings-open-browser" type="checkbox" />
                   <span data-i18n="settings.server.open_browser">Open browser on launch</span>
+                  <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
                 </label>
                 <label class="checkbox settings-check settings-span-2">
                   <input id="settings-auto-check-updates" type="checkbox" />
@@ -1800,7 +1840,10 @@
               </div>
               <div class="settings-grid">
                 <label class="field settings-span-2">
-                  <span data-i18n="settings.data.root">Data root</span>
+                  <span class="settings-label-row">
+                    <span data-i18n="settings.data.root">Data root</span>
+                    <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
+                  </span>
                   <input id="settings-data-root" type="text" />
                 </label>
                 <label class="checkbox settings-check">
@@ -1808,15 +1851,15 @@
                   <span data-i18n="settings.data.allow_absolute_paths">Allow absolute paths</span>
                 </label>
                 <label class="field">
-                  <span data-i18n="settings.data.scan_cache">Scan cache (s)</span>
+                  <span data-i18n="settings.data.scan_cache">Scan cache (s, 0 = off)</span>
                   <input id="settings-scan-cache" type="number" min="0" step="0.1" />
                 </label>
                 <label class="field">
-                  <span data-i18n="settings.data.max_scan_depth">Max scan depth</span>
+                  <span data-i18n="settings.data.max_scan_depth">Max scan depth (-1 = unlimited)</span>
                   <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
                 </label>
                 <label class="field">
-                  <span data-i18n="settings.data.max_upload">Max upload (MB)</span>
+                  <span data-i18n="settings.data.max_upload">Max upload (MB, 0 = unlimited)</span>
                   <input id="settings-max-upload" type="number" min="0" step="1" />
                 </label>
               </div>
@@ -1829,7 +1872,10 @@
               </div>
               <div class="settings-grid">
                 <label class="field">
-                  <span data-i18n="settings.logging.level">Log level</span>
+                  <span class="settings-label-row">
+                    <span data-i18n="settings.logging.level">Log level</span>
+                    <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
+                  </span>
                   <select id="settings-log-level">
                     <option value="DEBUG">DEBUG</option>
                     <option value="INFO">INFO</option>
@@ -1839,7 +1885,10 @@
                   </select>
                 </label>
                 <label class="field settings-span-2">
-                  <span data-i18n="settings.logging.directory">Log directory</span>
+                  <span class="settings-label-row">
+                    <span data-i18n="settings.logging.directory">Log directory</span>
+                    <span class="settings-restart-badge" data-i18n="settings.restart_badge">restart</span>
+                  </span>
                   <input id="settings-log-dir" type="text" />
                 </label>
               </div>
