@@ -12,7 +12,6 @@ export function bindChromeUiInteractions({
     settingsClose,
     settingsCancel,
     settingsSave,
-    settingsSaveClose,
     settingsModal,
     commandInput,
     commandModal,
@@ -41,10 +40,6 @@ export function bindChromeUiInteractions({
   settingsCancel?.addEventListener("click", closeSettingsModal);
 
   settingsSave?.addEventListener("click", () => {
-    void saveSettingsFromModal();
-  });
-
-  settingsSaveClose?.addEventListener("click", () => {
     void saveSettingsFromModal(true);
   });
 

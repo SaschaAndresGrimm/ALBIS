@@ -4957,6 +4957,72 @@ body.platform-windows select option:disabled {
   grid-column: span 2;
 }
 
+/* Settings is grouped into tabs rather than four stacked sections. Twenty-three
+   controls competing at once is the bulk of why the dialog read as cluttered;
+   this puts six to eight on screen and removes the need to scroll. Reuses the
+   panel tab component so it matches the viewer's own tabs. */
+.settings-tabs {
+  margin: 0 0 12px;
+}
+
+.settings-tabpage[hidden] {
+  display: none;
+}
+
+/* Hold the body at the tallest tab so the dialog does not jump by ~200px as
+   you move between them. A floor only: taller content still grows and the body
+   still scrolls. */
+.settings-tabpage {
+  min-height: 300px;
+}
+
+.settings-tabpage-hint {
+  margin: 0 0 10px;
+  color: #9fb8df;
+  font-size: 11px;
+}
+
+/* Per-field explanation. This is where a value with a special meaning belongs --
+   in the label it made twelve of sixteen labels wrap, which is documentation
+   crowding out identification. */
+.settings-field-hint {
+  grid-column: 2;
+  margin-top: 2px;
+  color: #8ba3c7;
+  font-size: 10px;
+  line-height: 1.45;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Named after the fields the user actually changed, and only once they have
+   changed one. The previous per-field badges marked ten of twenty-four controls,
+   at which point a marker stops being a marker and becomes texture. */
+.settings-modal-footer {
+  gap: 10px;
+}
+
+.settings-restart-note {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-right: auto;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(159, 184, 223, 0.28);
+  background: rgba(159, 184, 223, 0.09);
+  color: #b9cdea;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.settings-restart-note strong {
+  color: #dce9ff;
+  font-weight: 600;
+}
+
 .settings-inline-warning {
   padding: 8px 10px;
   border-radius: var(--radius-sm);
@@ -5005,8 +5071,14 @@ body.platform-windows select option:disabled {
   }
 
   .settings-grid .field input,
-  .settings-grid .field select {
+  .settings-grid .field select,
+  .settings-grid .field .settings-field-hint {
     grid-column: 1;
+  }
+
+  .settings-restart-note {
+    margin-right: 0;
+    width: 100%;
   }
 
   .settings-grid .settings-check.settings-span-2 {

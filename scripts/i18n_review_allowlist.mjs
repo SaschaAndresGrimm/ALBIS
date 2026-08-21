@@ -12,6 +12,9 @@ const EXACT_KEY_ALLOWLIST = new Set([
   "series.ui.output_placeholder",
   "settings.language.mi",
   "settings.language.rm",
+  // "Data" is the Swedish and Danish word as well as the English one, so the
+  // match is a cognate rather than a missing translation.
+  "settings.tab.data",
   "toolbar.playback.fps_option",
   "viewer.footer.badge.live",
   "viewer.footer.badge.server",
@@ -24,6 +27,9 @@ const EXACT_KEY_ALLOWLIST = new Set([
 
 const VALUE_ALLOWLIST = [
   /^path\/to\/[a-z0-9_.-]+$/i,
+  // Example host and address shown as a placeholder, like the path examples
+  // above: a literal sample value, identical in every language.
+  /^albis\.lab,\s*\d{1,3}(?:\.\d{1,3}){3}$/u,
   /^output\/[a-z0-9_.-]+$/i,
   /^[XY]$/u,
   /^Rin\s+→\s+Rout$/u,

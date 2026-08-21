@@ -1693,164 +1693,195 @@
         <div class="modal-body settings-modal-body">
           <div class="settings-meta">
             <div><span data-i18n="settings.config_file">Config file:</span> <code id="settings-config-path">-</code></div>
-            <div class="settings-hint" data-i18n="settings.restart_hint">Some settings apply after restart.</div>
           </div>
-          <div class="settings-sections">
-            <section class="settings-section">
-              <div class="settings-section-head">
-                <h3 data-i18n="settings.section.application">Application</h3>
-                <p data-i18n="settings.section.application.description">Backend endpoint and launch behavior.</p>
-              </div>
-              <div class="settings-grid">
-                <label class="checkbox settings-check settings-span-2">
-                  <input id="settings-server-external" type="checkbox" />
-                  <span id="settings-server-external-label" data-i18n="settings.server.external_access">Allow external connections from other machines</span>
-                </label>
-                <div
-                  class="settings-inline-warning settings-span-2 is-hidden"
-                  id="settings-server-external-warning"
-                  data-i18n="settings.server.external_warning"
-                  aria-live="polite"
-                  aria-hidden="true"
-                >
-                  Other devices on your network can reach this ALBIS instance while this is enabled.
-                </div>
-                <label class="field">
-                  <span data-i18n="settings.server.port">Port</span>
-                  <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
-                </label>
-                <label class="field">
-                  <span data-i18n="settings.server.startup_timeout">Startup timeout (s)</span>
-                  <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
-                </label>
-                <label class="checkbox settings-check">
-                  <input id="settings-server-reload" type="checkbox" />
-                  <span data-i18n="settings.server.enable_reload">Enable backend reload</span>
-                </label>
-                <label class="checkbox settings-check">
-                  <input id="settings-open-browser" type="checkbox" />
-                  <span data-i18n="settings.server.open_browser">Open browser on launch</span>
-                </label>
-                <label class="checkbox settings-check settings-span-2">
-                  <input id="settings-auto-check-updates" type="checkbox" />
-                  <span data-i18n="settings.application.auto_check_updates">Check for updates on startup</span>
-                </label>
-              </div>
-            </section>
-
-            <section class="settings-section">
-              <div class="settings-section-head">
-                <h3 data-i18n="settings.section.viewer">Viewer</h3>
-                <p data-i18n="settings.section.viewer.description">Interaction hints, pixel labels, and frame memory.</p>
-              </div>
-              <div class="settings-grid">
-                <label class="field">
-                  <span data-i18n="settings.field.language">Language</span>
-                  <select id="settings-language">
-                    <option value="en" data-i18n="settings.language.en">English</option>
-                    <option value="zh-CN" data-i18n="settings.language.zh_cn">Chinese (Simplified)</option>
-                    <option value="ja" data-i18n="settings.language.ja">Japanese</option>
-                    <option value="fr" data-i18n="settings.language.fr">French</option>
-                    <option value="es" data-i18n="settings.language.es">Spanish</option>
-                    <option value="it" data-i18n="settings.language.it">Italian</option>
-                    <option value="pt" data-i18n="settings.language.pt">Portuguese</option>
-                    <option value="rm" data-i18n="settings.language.rm">Rumantsch Grischun</option>
-                    <option value="de" data-i18n="settings.language.de">German</option>
-                    <option value="sv" data-i18n="settings.language.sv">Swedish</option>
-                    <option value="da" data-i18n="settings.language.da">Danish</option>
-                    <option value="mi" data-i18n="settings.language.mi">Māori</option>
-                    <option value="gsw" data-i18n="settings.language.gsw">Swiss German (Basel)</option>
-                  </select>
-                </label>
-                <label class="checkbox settings-check settings-span-2">
-                  <input id="settings-tool-hints" type="checkbox" />
-                  <span data-i18n="settings.viewer.tool_hints">Enable tool hints</span>
-                </label>
-                <label class="field">
-                  <span data-i18n="settings.viewer.pixel_label_min">Pixel label min cell (px)</span>
-                  <input id="settings-pixel-label-min" type="number" min="8" max="64" step="1" />
-                </label>
-                <label class="field">
-                  <span data-i18n="settings.viewer.pixel_label_max">Pixel labels max/frame</span>
-                  <input id="settings-pixel-label-max" type="number" min="100" max="100000" step="100" />
-                </label>
-                <label class="field">
-                  <span data-i18n="settings.viewer.pixel_label_format">Pixel label format</span>
-                  <select id="settings-pixel-label-format">
-                    <option value="auto" data-i18n="settings.viewer.pixel_label_format.auto">Auto</option>
-                    <option value="integer" data-i18n="settings.viewer.pixel_label_format.integer">Integer</option>
-                    <option value="scientific" data-i18n="settings.viewer.pixel_label_format.scientific">Scientific</option>
-                  </select>
-                </label>
-                <label class="checkbox settings-check">
-                  <input id="settings-pixel-label-drag" type="checkbox" />
-                  <span data-i18n="settings.viewer.pixel_label_drag">Draw labels during pan/zoom</span>
-                </label>
-                <label class="field">
-                  <span data-i18n="settings.viewer.frame_cache">Frame cache (MB, 0 = off)</span>
-                  <input id="settings-frame-cache" type="number" min="0" max="4096" step="64" />
-                </label>
-              </div>
-            </section>
-
-            <section class="settings-section">
-              <div class="settings-section-head">
-                <h3 data-i18n="settings.section.data_access">Data Access</h3>
-                <p data-i18n="settings.section.data_access.description">File system permissions and scan limits.</p>
-              </div>
-              <div class="settings-grid">
-                <label class="field settings-span-2">
-                  <span data-i18n="settings.data.root">Data root</span>
-                  <input id="settings-data-root" type="text" />
-                </label>
-                <label class="checkbox settings-check">
-                  <input id="settings-allow-abs" type="checkbox" />
-                  <span data-i18n="settings.data.allow_absolute_paths">Allow absolute paths</span>
-                </label>
-                <label class="field">
-                  <span data-i18n="settings.data.scan_cache">Scan cache (s)</span>
-                  <input id="settings-scan-cache" type="number" min="0" step="0.1" />
-                </label>
-                <label class="field">
-                  <span data-i18n="settings.data.max_scan_depth">Max scan depth</span>
-                  <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
-                </label>
-                <label class="field">
-                  <span data-i18n="settings.data.max_upload">Max upload (MB)</span>
-                  <input id="settings-max-upload" type="number" min="0" step="1" />
-                </label>
-              </div>
-            </section>
-
-            <section class="settings-section">
-              <div class="settings-section-head">
-                <h3 data-i18n="settings.section.logging">Logging</h3>
-                <p data-i18n="settings.section.logging.description">Verbosity and log output location.</p>
-              </div>
-              <div class="settings-grid">
-                <label class="field">
-                  <span data-i18n="settings.logging.level">Log level</span>
-                  <select id="settings-log-level">
-                    <option value="DEBUG">DEBUG</option>
-                    <option value="INFO">INFO</option>
-                    <option value="WARNING">WARNING</option>
-                    <option value="ERROR">ERROR</option>
-                    <option value="CRITICAL">CRITICAL</option>
-                  </select>
-                </label>
-                <label class="field settings-span-2">
-                  <span data-i18n="settings.logging.directory">Log directory</span>
-                  <input id="settings-log-dir" type="text" />
-                </label>
-              </div>
-            </section>
+          <div class="panel-tabs settings-tabs" role="tablist" data-i18n-aria-label="settings.title" aria-label="Settings">
+            <button class="panel-tab is-active" type="button" role="tab"
+                    data-settings-tab="viewer" aria-selected="true"
+                    data-i18n="settings.tab.viewer">Viewer</button>
+            <button class="panel-tab" type="button" role="tab"
+                    data-settings-tab="connection" aria-selected="false"
+                    data-i18n="settings.tab.connection">Connection</button>
+            <button class="panel-tab" type="button" role="tab"
+                    data-settings-tab="data" aria-selected="false"
+                    data-i18n="settings.tab.data">Data</button>
+            <button class="panel-tab" type="button" role="tab"
+                    data-settings-tab="logging" aria-selected="false"
+                    data-i18n="settings.tab.logging">Logging</button>
           </div>
+
+          <div class="settings-tabpage is-active" data-settings-tab="viewer" role="tabpage">
+            <p class="settings-tabpage-hint" data-i18n="settings.section.viewer.description">Interaction hints, pixel labels, and frame memory.</p>
+            <div class="settings-grid">
+              <label class="field">
+                <span data-i18n="settings.field.language">Language</span>
+                <select id="settings-language">
+                  <option value="en" data-i18n="settings.language.en">English</option>
+                  <option value="zh-CN" data-i18n="settings.language.zh_cn">Chinese (Simplified)</option>
+                  <option value="ja" data-i18n="settings.language.ja">Japanese</option>
+                  <option value="fr" data-i18n="settings.language.fr">French</option>
+                  <option value="es" data-i18n="settings.language.es">Spanish</option>
+                  <option value="it" data-i18n="settings.language.it">Italian</option>
+                  <option value="pt" data-i18n="settings.language.pt">Portuguese</option>
+                  <option value="rm" data-i18n="settings.language.rm">Rumantsch Grischun</option>
+                  <option value="de" data-i18n="settings.language.de">German</option>
+                  <option value="sv" data-i18n="settings.language.sv">Swedish</option>
+                  <option value="da" data-i18n="settings.language.da">Danish</option>
+                  <option value="mi" data-i18n="settings.language.mi">Māori</option>
+                  <option value="gsw" data-i18n="settings.language.gsw">Swiss German (Basel)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span data-i18n="settings.viewer.frame_cache">Frame cache (MB)</span>
+                <input id="settings-frame-cache" type="number" min="0" max="4096" step="64" />
+                <small class="settings-field-hint" data-i18n="settings.viewer.frame_cache_hint">0 disables caching</small>
+              </label>
+              <label class="field">
+                <span data-i18n="settings.viewer.pixel_label_min">Pixel label min cell (px)</span>
+                <input id="settings-pixel-label-min" type="number" min="8" max="64" step="1" />
+              </label>
+              <label class="field">
+                <span data-i18n="settings.viewer.pixel_label_max">Pixel labels max/frame</span>
+                <input id="settings-pixel-label-max" type="number" min="100" max="100000" step="100" />
+              </label>
+              <label class="field">
+                <span data-i18n="settings.viewer.pixel_label_format">Pixel label format</span>
+                <select id="settings-pixel-label-format">
+                  <option value="auto" data-i18n="settings.viewer.pixel_label_format.auto">Auto</option>
+                  <option value="integer" data-i18n="settings.viewer.pixel_label_format.integer">Integer</option>
+                  <option value="scientific" data-i18n="settings.viewer.pixel_label_format.scientific">Scientific</option>
+                </select>
+              </label>
+              <label class="checkbox settings-check">
+                <input id="settings-pixel-label-drag" type="checkbox" />
+                <span data-i18n="settings.viewer.pixel_label_drag">Draw labels during pan/zoom</span>
+              </label>
+              <label class="checkbox settings-check settings-span-2">
+                <input id="settings-tool-hints" type="checkbox" />
+                <span data-i18n="settings.viewer.tool_hints">Enable tool hints</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-tabpage" data-settings-tab="connection" role="tabpage" hidden>
+            <p class="settings-tabpage-hint" data-i18n="settings.section.application.description">Backend endpoint and launch behavior.</p>
+            <div class="settings-grid">
+              <label class="checkbox settings-check settings-span-2">
+                <input id="settings-server-external" type="checkbox" />
+                <span data-i18n="settings.server.external_access">Allow external connections from other machines</span>
+              </label>
+              <div
+                class="settings-inline-warning settings-span-2 is-hidden"
+                id="settings-server-external-warning"
+                data-i18n="settings.server.external_warning"
+                aria-live="polite"
+                aria-hidden="true"
+              >
+                Other devices on your network can reach this ALBIS instance while this is enabled.
+              </div>
+              <label class="field settings-span-2">
+                <span data-i18n="settings.server.allowed_hosts">Allowed hosts</span>
+                <input
+                  id="settings-allowed-hosts"
+                  type="text"
+                  data-i18n-placeholder="settings.server.allowed_hosts_placeholder"
+                  placeholder="albis.lab, 192.168.1.20"
+                />
+                <small class="settings-field-hint" data-i18n="settings.server.allowed_hosts_hint">
+                  Extra names this server answers to, comma separated. Localhost always works.
+                  Needed when a reverse proxy forwards its own hostname.
+                </small>
+              </label>
+              <label class="field">
+                <span data-i18n="settings.server.port">Port</span>
+                <input id="settings-server-port" type="number" min="0" max="65535" step="1" />
+                <small class="settings-field-hint" data-i18n="settings.server.port_hint">0 picks a free port</small>
+              </label>
+              <label class="field">
+                <span data-i18n="settings.server.compression">Response compression</span>
+                <select id="settings-compression">
+                  <option value="auto" data-i18n="settings.server.compression.auto">Auto (not for local clients)</option>
+                  <option value="on" data-i18n="settings.server.compression.on">Always on (behind a proxy)</option>
+                  <option value="off" data-i18n="settings.server.compression.off">Off</option>
+                </select>
+              </label>
+              <label class="field">
+                <span data-i18n="settings.server.startup_timeout">Startup timeout (s)</span>
+                <input id="settings-startup-timeout" type="number" min="0.1" step="0.1" />
+              </label>
+              <label class="field">
+                <span data-i18n="settings.server.startup_health_timeout">Health check timeout (s)</span>
+                <input id="settings-startup-health-timeout" type="number" min="0.1" step="0.1" />
+              </label>
+              <label class="checkbox settings-check">
+                <input id="settings-open-browser" type="checkbox" />
+                <span data-i18n="settings.server.open_browser">Open browser on launch</span>
+              </label>
+              <label class="checkbox settings-check">
+                <input id="settings-server-reload" type="checkbox" />
+                <span data-i18n="settings.server.enable_reload">Enable backend reload</span>
+              </label>
+              <label class="checkbox settings-check settings-span-2">
+                <input id="settings-auto-check-updates" type="checkbox" />
+                <span data-i18n="settings.application.auto_check_updates">Check for updates on startup</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-tabpage" data-settings-tab="data" role="tabpage" hidden>
+            <p class="settings-tabpage-hint" data-i18n="settings.section.data_access.description">File system permissions and scan limits.</p>
+            <div class="settings-grid">
+              <label class="field settings-span-2">
+                <span data-i18n="settings.data.root">Data root</span>
+                <input id="settings-data-root" type="text" />
+              </label>
+              <label class="field">
+                <span data-i18n="settings.data.scan_cache">Scan cache (s)</span>
+                <input id="settings-scan-cache" type="number" min="0" step="0.1" />
+                <small class="settings-field-hint" data-i18n="settings.data.scan_cache_hint">0 disables caching</small>
+              </label>
+              <label class="field">
+                <span data-i18n="settings.data.max_scan_depth">Max scan depth</span>
+                <input id="settings-max-scan-depth" type="number" min="-1" step="1" />
+                <small class="settings-field-hint" data-i18n="settings.data.max_scan_depth_hint">-1 searches every level</small>
+              </label>
+              <label class="field">
+                <span data-i18n="settings.data.max_upload">Max upload (MB)</span>
+                <input id="settings-max-upload" type="number" min="0" step="1" />
+                <small class="settings-field-hint" data-i18n="settings.data.max_upload_hint">0 means no limit</small>
+              </label>
+              <label class="checkbox settings-check">
+                <input id="settings-allow-abs" type="checkbox" />
+                <span data-i18n="settings.data.allow_absolute_paths">Allow absolute paths</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-tabpage" data-settings-tab="logging" role="tabpage" hidden>
+            <p class="settings-tabpage-hint" data-i18n="settings.section.logging.description">Verbosity and log output location.</p>
+            <div class="settings-grid">
+              <label class="field">
+                <span data-i18n="settings.logging.level">Log level</span>
+                <select id="settings-log-level">
+                  <option value="DEBUG">DEBUG</option>
+                  <option value="INFO">INFO</option>
+                  <option value="WARNING">WARNING</option>
+                  <option value="ERROR">ERROR</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </label>
+              <label class="field settings-span-2">
+                <span data-i18n="settings.logging.directory">Log directory</span>
+                <input id="settings-log-dir" type="text" />
+              </label>
+            </div>
+          </div>
+
           <div class="settings-message" id="settings-message"></div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer settings-modal-footer">
+          <div class="settings-restart-note is-hidden" id="settings-restart-note" aria-live="polite" aria-hidden="true"></div>
           <button class="btn btn-secondary" id="settings-cancel" data-i18n="common.cancel">Cancel</button>
           <button class="btn btn-primary" id="settings-save" data-i18n="common.save">Save</button>
-          <button class="btn btn-primary" id="settings-save-close" data-i18n="settings.actions.save_close">Save &amp; Close</button>
         </div>
       </div>
     </div>
