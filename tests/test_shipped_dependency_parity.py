@@ -17,6 +17,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENTS = ROOT / "backend" / "requirements.txt"
+DEV_REQUIREMENTS = ROOT / "requirements-dev.txt"
+PRE_COMMIT = ROOT / ".pre-commit-config.yaml"
 DOCKERFILE = ROOT / "Dockerfile"
 LICENSES = ROOT / "THIRD_PARTY_LICENSES.md"
 
@@ -93,3 +95,71 @@ def test_the_licence_table_states_the_version_that_ships(package: str, version: 
         f"THIRD_PARTY_LICENSES.md says {package} {listed[package]} but "
         f"backend/requirements.txt pins {version}."
     )
+
+
+# --------------------------------------------------------------------------
+# Development tooling
+# --------------------------------------------------------------------------
+
+
+def _dev_pins() -> dict[str, str]:
+    pins: dict[str, str] = {}
+    for line in DEV_REQUIREMENTS.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "-r ", "--")):
+            continue
+        match = _PIN_RE.match(stripped)
+        assert match, (
+            f"unpinned development requirement: {stripped!r}. A lint or format tool that "
+            "resolves to whatever is newest turns an unrelated upstream release into a red "
+            "build on a commit that changed nothing."
+        )
+        pins[_normalize(match.group("name"))] = match.group("version")
+    return pins
+
+
+def test_every_development_tool_is_pinned() -> None:
+    """The assertion lives in the parser above; this proves it ran on something."""
+    assert set(_dev_pins()) >= {"pytest", "ruff", "black"}
+
+
+@pytest.mark.parametrize("tool", ["ruff", "black"])
+def test_the_commit_hook_runs_the_same_tool_version_as_ci(tool: str) -> None:
+    """A hook that passes while CI fails is worse than no hook at all.
+
+    `.pre-commit-config.yaml` pinned ruff `v0.9.7` while CI installed whatever
+    was newest -- seven minor versions apart, checking different rules.
+    """
+    pinned = _dev_pins()[tool]
+    config = PRE_COMMIT.read_text(encoding="utf-8")
+
+    revisions = re.findall(rf"{tool}[^\n]*\n\s*rev:\s*v?([0-9][^\s]*)", config)
+    if not revisions:
+        revisions = re.findall(rf"repo:\s*https://\S*{tool}\S*\n\s*rev:\s*v?([0-9][^\s]*)", config)
+    assert revisions, f"no pre-commit revision found for {tool}"
+    assert all(rev == pinned for rev in revisions), (
+        f".pre-commit-config.yaml runs {tool} {revisions} but requirements-dev.txt pins "
+        f"{pinned}, so the hook and CI check different things"
+    )
+
+
+def test_formatting_is_owned_by_one_tool() -> None:
+    """Two formatters is a fight, not a policy.
+
+    The hooks ran `ruff-format` while CI gates on `black`, and the two disagree:
+    ruff-format rewrote files black considers correct, so a contributor with the
+    hook installed had commits reformatted into a state CI then rejected.
+    """
+    config = PRE_COMMIT.read_text(encoding="utf-8")
+    workflows = "\n".join(
+        path.read_text(encoding="utf-8") for path in (ROOT / ".github" / "workflows").glob("*.yml")
+    )
+
+    # Matched as a hook id, not as a mention: the config explains in a comment
+    # why ruff-format is absent, and a substring check would trip over that.
+    enabled_hooks = re.findall(r"^\s*-\s*id:\s*(\S+)", config, re.M)
+    assert "ruff-format" not in enabled_hooks, (
+        "the commit hooks run ruff-format, but CI formats with black. Pick one; if it is to "
+        "be ruff-format, change the workflows in the same commit."
+    )
+    assert "black --check" in workflows, "no workflow gates on black; has the formatter changed?"

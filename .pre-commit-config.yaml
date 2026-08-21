@@ -6,11 +6,17 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
+  # Kept in step with requirements-dev.txt: this hook ran ruff v0.9.7 while CI
+  # installed whatever was newest, so the two checked different rules.
+  #
+  # `ruff-format` is deliberately absent. Formatting is black's job here, CI
+  # gates on black, and the two do not agree -- ruff-format wanted to rewrite
+  # files black considers correct, so a contributor with this hook installed
+  # would have had their commits reformatted into a state CI then rejected.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.7
+    rev: v0.16.4
     hooks:
       - id: ruff
-      - id: ruff-format
 
   - repo: https://github.com/psf/black
     rev: 25.1.0

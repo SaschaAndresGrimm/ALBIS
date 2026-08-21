@@ -1,7 +1,17 @@
 -r backend/requirements.txt
-pytest
-pytest-cov
-httpx
-ruff
+
+# Pinned for the same reason the runtime requirements are: a lint or format tool
+# that resolves to whatever is newest turns an unrelated upstream release into a
+# red build on a commit that changed nothing. `black` was already pinned; the
+# rest were not, so CI ran a different linter every few weeks and a contributor
+# ran a different one again.
+#
+# Bump these deliberately, and keep .pre-commit-config.yaml in step -- a test
+# fails when the two disagree, because a hook that passes while CI fails is
+# worse than no hook.
+pytest==9.1.1
+pytest-cov==7.1.0
+httpx==0.28.1
+ruff==0.16.4
 black==25.1.0
-pre-commit
+pre-commit==4.6.2

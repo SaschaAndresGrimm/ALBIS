@@ -65,6 +65,15 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+The hooks run the same tool versions CI does — `requirements-dev.txt` pins them
+and `.pre-commit-config.yaml` names the same numbers, with a test that fails when
+the two drift apart. A hook that passes while CI fails is worse than no hook, so
+bump both in one commit.
+
+Formatting is black's, and only black's. `ruff` lints; `ruff format` is not part
+of the setup, because it disagrees with black on this codebase and CI gates on
+black.
+
 CI runs on GitHub Actions.
 
 ## Development Tips

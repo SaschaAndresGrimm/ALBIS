@@ -53,6 +53,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - The coverage gate is `77`, not `50`. Actual coverage was 76%, so 26 points of real coverage could be lost without CI noticing; the new tests took it to 79% and the gate now sits just under that, with enough margin for the platform-specific branches in `os_actions`. The lift came from the places that only fail in front of a detector or a beamline filesystem: the series-summing request gate (57% → 93%), the unit conversions all detector geometry is read through (63% → 99%), and the JUNGFRAUJOCH message handling (58% → 83%) — where writing the tests is what found the decode bug above.
 
+- The development tooling is pinned, and the commit hooks now run what CI runs. `pytest`, `pytest-cov`, `httpx`, `ruff` and `pre-commit` floated to whatever was newest, so an unrelated upstream release could turn a commit that changed nothing into a red build — a real prospect for `ruff`, which adds rules. Worse, `.pre-commit-config.yaml` pinned ruff `v0.9.7` while CI installed the latest (`0.16.4` today): seven minor versions apart, checking different rules, so the hook and the gate disagreed by construction.
+
+  The hooks also ran `ruff-format` while CI gates on `black` — two formatters, and not compatible ones: `ruff format` wanted to rewrite three files that `black` considers correctly formatted. Anyone who had installed the hooks was having commits reformatted into a state CI would then reject. `ruff-format` is gone, black owns formatting, and `ruff` lints. Tests now fail when a dev requirement loses its pin, when a hook version stops matching the pinned one, or when a second formatter reappears.
+
 - `ruff` now also checks `albis_launcher.py`. It was outside the lint scope in every workflow, which is how a file with argument parsing, socket handling and platform branches had no linting at all.
 
 - Two configuration keys added for the scan budget: `data.max_scan_entries` and `data.max_scan_seconds`, both documented in the Settings Reference and both in the published schema.
