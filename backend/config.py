@@ -49,6 +49,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "allow_abs_paths": True,
         "scan_cache_sec": 2.0,
         "max_scan_depth": -1,
+        "max_scan_entries": 200000,
+        "max_scan_seconds": 5.0,
         "max_upload_mb": 0,
     },
     "logging": {
@@ -88,6 +90,8 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("data", "allow_abs_paths"): (bool, int, float, str),
     ("data", "scan_cache_sec"): (int, float, str),
     ("data", "max_scan_depth"): (int, float, str),
+    ("data", "max_scan_entries"): (int, float, str),
+    ("data", "max_scan_seconds"): (int, float, str),
     ("data", "max_upload_mb"): (int, float, str),
     ("logging", "level"): (str,),
     ("logging", "dir"): (str,),
@@ -277,6 +281,8 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     max_scan_depth = get_int(merged, ("data", "max_scan_depth"), -1)
     if max_scan_depth < -1:
         max_scan_depth = -1
+    max_scan_entries = max(0, get_int(merged, ("data", "max_scan_entries"), 200000))
+    max_scan_seconds = max(0.0, get_float(merged, ("data", "max_scan_seconds"), 5.0))
     max_upload_mb = max(0, get_int(merged, ("data", "max_upload_mb"), 0))
     log_level = get_str(merged, ("logging", "level"), "INFO").upper()
     if log_level not in _LOG_LEVELS:
@@ -320,6 +326,8 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "allow_abs_paths": get_bool(merged, ("data", "allow_abs_paths"), True),
             "scan_cache_sec": scan_cache,
             "max_scan_depth": max_scan_depth,
+            "max_scan_entries": max_scan_entries,
+            "max_scan_seconds": max_scan_seconds,
             "max_upload_mb": max_upload_mb,
         },
         "logging": {

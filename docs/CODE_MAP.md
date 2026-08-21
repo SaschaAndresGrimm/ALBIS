@@ -90,6 +90,10 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Base-URL normalization (bare host/IP accepted), failure classification, and connection probe.
 - `backend/services/path_policy.py`:
   - Shared path safety policy and extension filtering helpers.
+- `backend/services/directory_scan.py`:
+  - Depth-, entry- and time-bounded directory walks for file/folder discovery and the newest-matching-file search, reporting whether a scan was cut short.
+- `backend/services/scan_cache.py`:
+  - TTL cache for scan results with single-flight loading, so concurrent pollers share one walk.
 - `backend/services/os_actions.py`:
   - Shared desktop open actions and native picker integrations.
 

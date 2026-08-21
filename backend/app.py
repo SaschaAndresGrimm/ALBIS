@@ -7,7 +7,6 @@ endpoints, monitor integration, and long-running series jobs.
 
 from __future__ import annotations
 
-import fnmatch
 import logging
 import mimetypes
 import os
@@ -59,7 +58,12 @@ try:
         _write_cbf,
         _write_tiff,
     )
-    from .request_guard import RequestGuardMiddleware
+    from .request_guard import (
+        RequestGuardMiddleware,
+        is_loopback_host,
+        local_host_names,
+        strip_port,
+    )
     from .response_compression import ResponseCompressionMiddleware
     from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
     from .routes.data_export import DataExportRouteDeps, register_data_export_routes
@@ -70,6 +74,14 @@ try:
     from .routes.stream import StreamRouteDeps, register_stream_routes
     from .routes.system import SystemRouteDeps, register_system_routes
     from .services.data_export import DataExportDeps, DataExportService
+    from .services.directory_scan import (
+        LatestFileResult,
+        ScanLimits,
+        ScanResult,
+        latest_image_file,
+        scan_folders,
+        scan_image_files,
+    )
     from .services.handoff_queue import HandoffQueueService
     from .services.hdf5_stack import HDF5StackService
     from .services.jungfraujoch_preview import JungfraujochPreviewBridge
@@ -95,7 +107,7 @@ try:
     from .services.remote_stream import (
         remote_store_frame as _remote_store_frame,
     )
-    from .services.root_scan_cache import RootScanCacheService
+    from .services.scan_cache import ScanCacheService
     from .services.series_ops import (
         iter_sum_groups as _iter_sum_groups,
     )
@@ -159,7 +171,12 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         _write_cbf,
         _write_tiff,
     )
-    from request_guard import RequestGuardMiddleware  # type: ignore[no-redef]
+    from request_guard import (  # type: ignore[no-redef]
+        RequestGuardMiddleware,
+        is_loopback_host,
+        local_host_names,
+        strip_port,
+    )
     from response_compression import (  # type: ignore[no-redef]
         ResponseCompressionMiddleware,
     )
@@ -172,6 +189,14 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from routes.stream import StreamRouteDeps, register_stream_routes
     from routes.system import SystemRouteDeps, register_system_routes
     from services.data_export import DataExportDeps, DataExportService
+    from services.directory_scan import (  # type: ignore[no-redef]
+        LatestFileResult,
+        ScanLimits,
+        ScanResult,
+        latest_image_file,
+        scan_folders,
+        scan_image_files,
+    )
     from services.handoff_queue import HandoffQueueService
     from services.hdf5_stack import HDF5StackService
     from services.jungfraujoch_preview import JungfraujochPreviewBridge
@@ -197,7 +222,7 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from services.remote_stream import (
         remote_store_frame as _remote_store_frame,
     )
-    from services.root_scan_cache import RootScanCacheService
+    from services.scan_cache import ScanCacheService  # type: ignore[no-redef]
     from services.series_ops import (
         iter_sum_groups as _iter_sum_groups,
     )
@@ -239,6 +264,8 @@ class RuntimeState:
     allow_abs_paths: bool = True
     scan_cache_sec: float = 2.0
     max_scan_depth: int = -1
+    max_scan_entries: int = 200000
+    max_scan_seconds: float = 5.0
     max_upload_mb: int = 0
     max_upload_bytes: int = 0
     bind_host: str = "127.0.0.1"
@@ -256,6 +283,10 @@ class RuntimeState:
         self.allowed_hosts = [str(entry) for entry in allowed] if isinstance(allowed, list) else []
         self.scan_cache_sec = get_float(self.config, ("data", "scan_cache_sec"), 2.0)
         self.max_scan_depth = get_int(self.config, ("data", "max_scan_depth"), -1)
+        self.max_scan_entries = max(0, get_int(self.config, ("data", "max_scan_entries"), 200000))
+        self.max_scan_seconds = max(
+            0.0, get_float(self.config, ("data", "max_scan_seconds"), 5.0)
+        )
         self.max_upload_mb = max(0, get_int(self.config, ("data", "max_upload_mb"), 0))
         self.max_upload_bytes = self.max_upload_mb * 1024 * 1024 if self.max_upload_mb > 0 else 0
 
@@ -370,7 +401,50 @@ logger = _init_logging()
 update_check_service = ReleaseCheckService(current_version=ALBIS_VERSION, logger=logger)
 _startup_banner_logged = False
 handoff_queue = HandoffQueueService(max_jobs=1024)
-root_scan_cache = RootScanCacheService()
+scan_cache = ScanCacheService()
+
+
+def _log_network_exposure(pid: int) -> None:
+    """Say what a non-loopback bind accepts, because the operator chose it blind.
+
+    Typing `0.0.0.0` is a decision to serve other machines, but nothing told the
+    person who typed it which names ALBIS will answer to -- and the answer
+    decides whether a page in their browser can reach it by pointing its own
+    domain at this address. A deployment reached under a name ALBIS cannot
+    derive needs `server.allowed_hosts`, and finding that out from a 403 in a
+    colleague's browser is worse than reading it at startup.
+    """
+    bind_host = str(runtime_state.bind_host or "").strip()
+    if is_loopback_host(strip_port(bind_host)):
+        return
+
+    configured = [str(entry).strip().lower() for entry in runtime_state.allowed_hosts if str(entry).strip()]
+    if "*" in configured:
+        logger.warning(
+            "ALBIS is listening on %s and server.allowed_hosts is [\"*\"] (pid=%s): every Host "
+            "header is accepted, which turns off the DNS-rebinding check. Use it only where a "
+            "proxy or container makes the name unpredictable.",
+            bind_host,
+            pid,
+        )
+        return
+    if configured:
+        logger.info(
+            "ALBIS is listening on %s (pid=%s), answering to %s plus this machine's addresses.",
+            bind_host,
+            pid,
+            ", ".join(configured),
+        )
+        return
+
+    logger.warning(
+        "ALBIS is listening on %s with no authentication (pid=%s). It answers to IP addresses "
+        "and to %s; a client reaching it under any other name -- a reverse proxy, a container "
+        "alias -- must be added to server.allowed_hosts.",
+        bind_host,
+        pid,
+        ", ".join(sorted(local_host_names())) or "no resolvable name",
+    )
 
 
 @asynccontextmanager
@@ -382,6 +456,7 @@ async def _lifespan(_app: FastAPI):
         pid = os.getpid()
         logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
         logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
+        _log_network_exposure(pid)
         load_error = config_load_error()
         if load_error:
             # Started on defaults rather than the user's settings. Say so loudly:
@@ -494,110 +569,41 @@ def _parse_ext_filter(exts: str | None) -> set[str]:
     return path_policy.parse_ext_filter(exts)
 
 
-def _iter_entries(root: Path, max_depth: int | None):
-    """Depth-limited directory walk that skips hidden entries and symlink traversal."""
-    stack: list[tuple[Path, int]] = [(root, 0)]
-    while stack:
-        base, depth = stack.pop()
-        try:
-            with os.scandir(base) as it:
-                for entry in it:
-                    name = entry.name
-                    if name.startswith("."):
-                        continue
-                    try:
-                        if entry.is_dir(follow_symlinks=False):
-                            if max_depth is None or depth < max_depth:
-                                stack.append((Path(entry.path), depth + 1))
-                        elif entry.is_file(follow_symlinks=False):
-                            yield entry.path, name
-                    except OSError:
-                        continue
-        except OSError:
-            continue
+def _scan_limits() -> ScanLimits:
+    """Build the walk budget from the running configuration."""
+    return ScanLimits.from_config(
+        max_depth=runtime_state.max_scan_depth,
+        max_entries=runtime_state.max_scan_entries,
+        max_seconds=runtime_state.max_scan_seconds,
+    )
 
 
-def _scan_files(root: Path) -> list[str]:
-    """Collect unique relative image-file paths under `root`."""
-    items: list[str] = []
-    max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
-    root = root.resolve()
-    for path_str, name in _iter_entries(root, max_depth):
-        ext = _image_ext_name(name)
-        if ext not in AUTOLOAD_EXTS:
-            continue
-        try:
-            rel = os.path.relpath(path_str, root)
-        except ValueError:
-            continue
-        if rel.startswith(".."):
-            continue
-        items.append(rel.replace(os.sep, "/"))
-    return sorted(set(items))
+def _scan_files(root: Path) -> ScanResult:
+    """Collect relative image-file paths under `root`, within the scan budget."""
+    return scan_image_files(
+        root,
+        allowed_exts=AUTOLOAD_EXTS,
+        ext_name=_image_ext_name,
+        limits=_scan_limits(),
+    )
 
 
-def _scan_folders(root: Path) -> list[str]:
-    """Collect unique relative subfolders under `root` respecting scan depth limits."""
-    dirs: set[str] = set()
-    max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
-    stack: list[tuple[Path, int]] = [(root.resolve(), 0)]
-    while stack:
-        base, depth = stack.pop()
-        try:
-            with os.scandir(base) as it:
-                for entry in it:
-                    name = entry.name
-                    if name.startswith("."):
-                        continue
-                    try:
-                        if entry.is_dir(follow_symlinks=False):
-                            if max_depth is None or depth < max_depth:
-                                stack.append((Path(entry.path), depth + 1))
-                            try:
-                                rel = os.path.relpath(entry.path, root)
-                            except ValueError:
-                                continue
-                            if not rel or rel.startswith(".."):
-                                continue
-                            dirs.add(rel.replace(os.sep, "/"))
-                    except OSError:
-                        continue
-        except OSError:
-            continue
-    return sorted(dirs)
+def _scan_folders(root: Path) -> ScanResult:
+    """Collect relative subfolders under `root`, within the scan budget."""
+    return scan_folders(root, limits=_scan_limits())
 
 
-def _latest_image_file(root: Path, allowed_exts: set[str], pattern: str | None) -> Path | None:
+def _latest_image_file(
+    root: Path, allowed_exts: set[str], pattern: str | None
+) -> LatestFileResult:
     """Find the newest image file under `root` after extension/pattern filtering."""
-    latest_path: Path | None = None
-    latest_mtime = -1.0
-    max_depth = None if runtime_state.max_scan_depth < 0 else runtime_state.max_scan_depth
-    root = root.resolve()
-    pattern_norm = (pattern or "").strip()
-    needs_rel = "/" in pattern_norm or "\\" in pattern_norm
-    for path_str, name in _iter_entries(root, max_depth):
-        ext = _image_ext_name(name)
-        if ext not in allowed_exts:
-            continue
-        if pattern_norm:
-            if needs_rel:
-                try:
-                    rel = os.path.relpath(path_str, root).replace(os.sep, "/")
-                except ValueError:
-                    continue
-                target = rel
-            else:
-                target = name
-            if not fnmatch.fnmatch(target, pattern_norm):
-                continue
-        try:
-            mtime = os.stat(path_str).st_mtime
-        except OSError:
-            continue
-        if mtime > latest_mtime:
-            latest_mtime = mtime
-            latest_path = Path(path_str)
-    return latest_path
+    return latest_image_file(
+        root,
+        allowed_exts=allowed_exts,
+        ext_name=_image_ext_name,
+        pattern=pattern,
+        limits=_scan_limits(),
+    )
 
 
 hdf5_stack = HDF5StackService(
@@ -767,8 +773,8 @@ register_file_routes(
         is_within=_is_within,
         parse_ext_filter=_parse_ext_filter,
         latest_image_file=_latest_image_file,
-        get_cached_root_files=root_scan_cache.get_root_files,
-        get_cached_root_folders=root_scan_cache.get_root_folders,
+        get_cached_scan=scan_cache.get,
+        invalidate_scans=scan_cache.clear,
         safe_rel_path=_safe_rel_path,
         scan_files=_scan_files,
         scan_folders=_scan_folders,

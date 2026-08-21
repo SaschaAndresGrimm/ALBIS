@@ -57,8 +57,14 @@ export function createAutoloadModeController({
       exts.join(",")
     )}&pattern=${encodeURIComponent(pattern)}`;
     const res = await fetch(url);
+    // A 204 carries no body, so a search that ran out of scan budget before it
+    // reached any file says so in a header. Without it, "the folder is too big
+    // to scan" would be reported as "the folder is empty".
+    const truncated = res.headers?.get("X-Scan-Truncated") === "1";
     if (res.status === 204) {
-      setAutoloadStatus(t("autoload.status.watch.no_files"));
+      setAutoloadStatus(
+        t(truncated ? "autoload.status.watch.truncated" : "autoload.status.watch.no_files"),
+      );
       setAutoloadLatest("-");
       return;
     }
@@ -68,11 +74,18 @@ export function createAutoloadModeController({
     }
     const payload = await res.json();
     if (!payload?.file) {
-      setAutoloadStatus(t("autoload.status.watch.no_files"));
+      setAutoloadStatus(
+        t(truncated ? "autoload.status.watch.truncated" : "autoload.status.watch.no_files"),
+      );
       return;
     }
+    // The newest file may be one the walk never reached, so the watch is
+    // working from a partial view of the folder. That outranks "loaded" as a
+    // status: which frame arrived is visible in the viewer, this is not.
+    const partial = truncated || Boolean(payload.truncated);
     const mtime = Number(payload.mtime || 0);
     if (payload.file === state.autoload.lastFile && mtime <= state.autoload.lastMtime) {
+      if (partial) setAutoloadStatus(t("autoload.status.watch.truncated"));
       return;
     }
     const previousFile = state.autoload.lastFile;
@@ -95,9 +108,13 @@ export function createAutoloadModeController({
       state.autoload.lastUpdate = Date.now();
       updateAutoloadMeta();
     }
-    setAutoloadStatus(
-      payload.file === previousFile ? t("autoload.status.watch.updated") : t("autoload.status.watch.loaded"),
-    );
+    if (partial) {
+      setAutoloadStatus(t("autoload.status.watch.truncated"));
+    } else {
+      setAutoloadStatus(
+        payload.file === previousFile ? t("autoload.status.watch.updated") : t("autoload.status.watch.loaded"),
+      );
+    }
   }
 
   async function autoloadSimplonTick() {

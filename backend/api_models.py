@@ -275,6 +275,9 @@ class JungfraujochPreviewStatusResponse(_StrictModel):
 
 class FilesListResponse(_StrictModel):
     files: list[str]
+    # True when the scan hit its entry or time budget and stopped early, so the
+    # list is "what fitted", not "what is there". See data.max_scan_entries.
+    truncated: bool = False
 
 
 class SeriesInfoResponse(_StrictModel):
@@ -285,6 +288,7 @@ class SeriesInfoResponse(_StrictModel):
 
 class FoldersListResponse(_StrictModel):
     folders: list[str]
+    truncated: bool = False
 
 
 class PathSelectionResponse(_StrictModel):
@@ -318,6 +322,7 @@ class AutoloadLatestResponse(_StrictModel):
     ext: str
     mtime: float
     absolute: bool
+    truncated: bool = False
 
 
 class UploadResponse(_StrictModel):

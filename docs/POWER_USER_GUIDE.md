@@ -80,7 +80,7 @@ A live summary shows the resulting frame count, pixel dimensions, and an estimat
 - `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
 - `reload` (`boolean`, default `false`)
 - `compression` (`auto|on|off`, default `auto`): Compress responses for remote clients.
-- `allowed_hosts` (`array of string`, default `[]`, also in **Settings -> Connection**): Extra `Host` header names ALBIS answers to. Empty derives them from `host`: a loopback bind answers only to this machine, a `0.0.0.0` bind answers to anything. Set this when a reverse proxy forwards its own hostname to a loopback bind — see [Reverse Proxies and Remote Access](#reverse-proxies-and-remote-access). `["*"]` accepts any host.
+- `allowed_hosts` (`array of string`, default `[]`, also in **Settings -> Connection**): Extra `Host` header names ALBIS answers to. Empty derives them from `host`: a loopback bind answers only to this machine, and a `0.0.0.0` bind answers to any IP address plus this machine's own hostnames. Set this when clients arrive under a name ALBIS cannot derive — a reverse proxy's hostname, a LAN DNS name, a container alias — see [Reverse Proxies and Remote Access](#reverse-proxies-and-remote-access). `["*"]` accepts any host and turns the check off.
 
 Frames travel as raw pixel bytes, so a single EIGER 1M frame is 4.4 MB on the wire
 and a 4M frame around 18 MB. Over a remote link that dominates how responsive the
@@ -117,7 +117,8 @@ what a given build can actually produce.
 
 #### `launcher`
 
-- `startup_timeout_sec` (`number`, default `5.0`, minimum `0.1`)
+- `startup_timeout_sec` (`number`, default `10.0`, minimum `0.1`)
+- `startup_health_timeout_sec` (`number`, default `15.0`, minimum `0.1`): How long the launcher waits for `GET /api/health` to answer before reporting a failed start.
 - `open_browser` (`boolean`, default `true`)
 - `debug_macos_events` (`boolean`, default `false`): Enables verbose macOS Dock/app event traces in launcher log.
 
@@ -125,8 +126,13 @@ what a given build can actually produce.
 
 - `root` (`string`, default `""`): Defaults to project root for source runs and `~/ALBIS-data` for packaged runs.
 - `allow_abs_paths` (`boolean`, default `true`)
-- `scan_cache_sec` (`number`, default `2.0`, minimum `0.0`)
-- `max_scan_depth` (`integer`, default `-1`, minimum `-1`)
+- `scan_cache_sec` (`number`, default `2.0`, minimum `0.0`): How long a directory scan is reused before it is walked again. This also throttles the live autoload poll, which asks for the newest matching file about once a second.
+- `max_scan_depth` (`integer`, default `-1`, minimum `-1`): `-1` is unlimited. Depth is not what bounds the cost of a scan — the two budgets below are — so this stays unlimited by default rather than silently hiding files that sit deeper.
+- `max_scan_entries` (`integer`, default `200000`, minimum `0`): Directory entries one scan may visit before it stops. `0` is unlimited.
+- `max_scan_seconds` (`number`, default `5.0`, minimum `0.0`): Wall-clock budget for one scan. `0` is unlimited.
+
+  A scan that hits either budget stops and says so, rather than presenting a partial listing as a complete one: `GET /api/files` and `GET /api/folders` return `truncated: true`, `GET /api/autoload/latest` returns it as a field and as the `X-Scan-Truncated` header (which is how it can also be reported on a bodyless `204`), and the interface says the folder is too large to scan. Raise the budgets if you would rather wait; a scan holds a worker thread for as long as it runs.
+
 - `max_upload_mb` (`integer`, default `0`, minimum `0`)
 
 #### `logging`
@@ -165,14 +171,18 @@ names the attacker's domain in its `Host` header, so ALBIS checks it:
 
 - Bound to loopback (the desktop default): only `localhost` and loopback
   addresses are answered.
-- Bound to `0.0.0.0`: any host is answered. Choosing a wildcard bind is an
-  explicit decision to serve other machines, and the name they use — a container
-  hostname, a LAN address, a proxy's `server_name` — cannot be predicted.
+- Bound to `0.0.0.0`: any **IP address** is answered, plus this machine's own
+  hostnames. Rebinding needs a *name* — the browser puts the name from the URL
+  in `Host`, and only DNS can be made to point it somewhere else — so an address
+  is not a way in, and a cross-origin response fetched from one is still
+  unreadable to the page that asked for it. A name this machine does not answer
+  to is refused.
 - `server.allowed_hosts` overrides both.
 
-**If you run a reverse proxy in front of a loopback bind, set
-`server.allowed_hosts`.** A proxy forwards its own hostname, which a loopback
-bind would otherwise refuse:
+**If clients reach ALBIS under a name it cannot derive, set
+`server.allowed_hosts`.** That is a reverse proxy forwarding its own hostname to
+a loopback bind, a LAN name from your own DNS, or a container reached by a
+service alias:
 
 ```jsonc
 {
@@ -191,6 +201,10 @@ needs a restart, which the dialog marks.
 Localhost keeps working alongside it, so you can still reach ALBIS directly on
 the machine. A refused request is logged and answers `403` naming the setting.
 `["*"]` turns the check off entirely.
+
+A non-loopback bind also logs one line at startup saying which names it will
+answer to, so this is something you find out when you start ALBIS rather than
+when a colleague's browser gets a `403`.
 
 **Cross-site requests.** CORS stops a page from *reading* a cross-origin
 response, which is often mistaken for stopping the request. `multipart/form-data`
@@ -287,6 +301,18 @@ If you built locally instead of pulling from GHCR, replace the image reference w
 The image also sets `data.allow_abs_paths` to `false`, unlike the desktop default of `true`. On a workstation that setting is on because whoever browses to an absolute path already owns the machine; a container listens on `0.0.0.0` with no authentication, where the same reasoning does not hold. Mount everything you want to open under `data.root` (`/app/data`) — several mounts side by side there work fine. If you deliberately want the container to read paths outside it, set `data.allow_abs_paths` back to `true` in a mounted `albis.config.json`, and only where you control who can reach the port.
 
 If you intentionally expose the container on a trusted LAN, do it behind your own network controls and treat it as a lab-managed deployment rather than a public service.
+
+#### Which addresses the container answers to
+
+ALBIS checks the `Host` header, because a web page open in someone's browser can point its own domain at your address and reach a server that has no authentication. A `0.0.0.0` bind answers to any **IP address** — an address cannot be redirected by DNS, and a page still cannot read a cross-origin response it fetched from one — and to the container's own hostname. That covers the ordinary cases: `-p 127.0.0.1:8000:8000` reached as `localhost:8000`, and a LAN client reaching the host by IP.
+
+It does not cover a **name** ALBIS cannot derive, which is what you get when another container reaches ALBIS through a service alias, or a reverse proxy forwards its own hostname. Those are rejected with a `403` naming the setting to change. Add the name in a mounted `albis.config.json`:
+
+```json
+{ "server": { "allowed_hosts": ["albis", "albis.lab"] } }
+```
+
+Or run the container with `--hostname albis`, which makes `albis` the container's own name and therefore accepted without configuration. `["*"]` accepts any `Host` and turns the check off; use it only where a proxy makes the name genuinely unpredictable and you control who can reach the port.
 
 When ALBIS is opened through a localhost backend, drag-and-drop file uploads are disabled to avoid copying detector data into a second location. Use **File -> Open...** or the browser panel to open files directly from the configured data path instead. Non-local browser sessions can still use drag-and-drop as an upload workflow, but read-only data mounts should be opened from their mounted path rather than uploaded.
 

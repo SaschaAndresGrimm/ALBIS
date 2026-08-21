@@ -16,19 +16,21 @@
     // - "off":  never compress.
     "compression": "auto",
     // Host header names ALBIS answers to, beyond localhost. Empty means "derive
-    // it from host above": a loopback bind answers only to this machine, which
+    // it from host above". A loopback bind answers only to this machine, which
     // is what stops a web page from reaching ALBIS by pointing its own domain at
-    // 127.0.0.1, and a "0.0.0.0" bind answers to anything because the name a
-    // container or LAN client uses cannot be predicted.
-    // Set this when a reverse proxy forwards its own hostname to a loopback
-    // bind, e.g. ["albis.lab"]. Localhost keeps working alongside it.
+    // 127.0.0.1. A "0.0.0.0" bind answers to any IP address -- an address cannot
+    // be pointed somewhere else by DNS -- plus this machine's own hostnames.
+    // Set this when clients arrive under a name ALBIS cannot derive: a reverse
+    // proxy's hostname, or a container service alias, e.g. ["albis.lab"].
+    // Localhost keeps working alongside it.
     // ["*"] accepts any host and turns the check off.
     "allowed_hosts": []
   },
 
   // Launcher behavior for packaged/source starts.
   "launcher": {
-    "startup_timeout_sec": 5.0,
+    "startup_timeout_sec": 10.0,
+    "startup_health_timeout_sec": 15.0,
     "open_browser": true,
     "debug_macos_events": false
   },
@@ -41,8 +43,16 @@
     "root": "",
     "allow_abs_paths": true,
     "scan_cache_sec": 2.0,
-    // -1 means unlimited directory recursion.
+    // -1 means unlimited directory recursion. Depth is not what bounds the cost
+    // of a scan; the two budgets below are.
     "max_scan_depth": -1,
+    // What one directory scan may spend before it stops and reports itself as
+    // truncated. A beamline data directory can hold millions of files, and the
+    // file list, the folder list and the once-a-second autoload poll all walk
+    // it -- so a scan has to be allowed to give up rather than hold a worker
+    // for minutes. 0 disables either limit.
+    "max_scan_entries": 200000,
+    "max_scan_seconds": 5.0,
     // 0 disables explicit upload limit.
     "max_upload_mb": 0
   },

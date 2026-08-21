@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 try:
     from ..api_models import (
@@ -24,6 +24,7 @@ try:
         SeriesInfoResponse,
         UploadResponse,
     )
+    from ..services.directory_scan import LatestFileResult, ScanResult
     from ..services.os_actions import (
         choose_file as _choose_file,
     )
@@ -43,6 +44,10 @@ except ImportError:  # pragma: no cover - supports `python backend/app.py`
         PathSelectionResponse,
         SeriesInfoResponse,
         UploadResponse,
+    )
+    from services.directory_scan import (  # type: ignore[no-redef]
+        LatestFileResult,
+        ScanResult,
     )
     from services.os_actions import (  # type: ignore[no-redef]
         choose_file as _choose_file,
@@ -67,12 +72,12 @@ class FileRouteDeps:
     resolve_image_file: Callable[[str], Path]
     is_within: Callable[[Path, Path], bool]
     parse_ext_filter: Callable[[str | None], set[str]]
-    latest_image_file: Callable[[Path, set[str], str | None], Path | None]
-    get_cached_root_files: Callable[[float, Callable[[], list[str]]], list[str]]
-    get_cached_root_folders: Callable[[float, Callable[[], list[str]]], list[str]]
+    latest_image_file: Callable[[Path, set[str], str | None], LatestFileResult]
+    get_cached_scan: Callable[[str, float, Callable[[], Any]], Any]
+    invalidate_scans: Callable[[], None]
     safe_rel_path: Callable[[str], Path]
-    scan_files: Callable[[Path], list[str]]
-    scan_folders: Callable[[Path], list[str]]
+    scan_files: Callable[[Path], ScanResult]
+    scan_folders: Callable[[Path], ScanResult]
     image_ext_name: Callable[[str], str]
     split_series_name: Callable[[str], tuple[str, int, str] | None]
     strip_image_ext: Callable[[str, str], str]
@@ -332,14 +337,21 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
     def files(folder: str | None = Query(None)) -> FilesListResponse:
         """List discoverable image files from data root or a selected subfolder."""
         trimmed = (folder or "").strip()
-        use_cache = trimmed in ("", ".", "./")
         cache_sec = deps.get_scan_cache_sec()
-        if use_cache:
-            items = deps.get_cached_root_files(cache_sec, lambda: deps.scan_files(deps.data_dir))
-            return FilesListResponse(files=items)
+        if trimmed in ("", ".", "./"):
+            scan = deps.get_cached_scan(
+                "root_files", cache_sec, lambda: deps.scan_files(deps.data_dir)
+            )
+            return FilesListResponse(files=scan.as_list(), truncated=scan.truncated)
+        # A selected subfolder is not cached, unlike the root. The upload flow
+        # asks this endpoint to find the file it just wrote, and a TTL long
+        # enough to be worth having is long enough to answer "not there".
         root = deps.resolve_dir(trimmed)
-        items = deps.scan_files(root)
-        return FilesListResponse(files=_prefix_paths(root, deps.data_dir, items))
+        scan = deps.scan_files(root)
+        return FilesListResponse(
+            files=_prefix_paths(root, deps.data_dir, scan.as_list()),
+            truncated=scan.truncated,
+        )
 
     @app.get("/api/series", response_model=SeriesInfoResponse)
     def series(file: str = Query(...)) -> SeriesInfoResponse:
@@ -405,8 +417,10 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
     def folders() -> FoldersListResponse:
         """List cached folder paths under the configured data directory."""
         cache_sec = deps.get_scan_cache_sec()
-        items = deps.get_cached_root_folders(cache_sec, lambda: deps.scan_folders(deps.data_dir))
-        return FoldersListResponse(folders=items)
+        scan = deps.get_cached_scan(
+            "root_folders", cache_sec, lambda: deps.scan_folders(deps.data_dir)
+        )
+        return FoldersListResponse(folders=scan.as_list(), truncated=scan.truncated)
 
     @app.get("/api/choose-folder", response_model=PathSelectionResponse)
     def choose_folder() -> Response:
@@ -579,15 +593,36 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         exts: str | None = Query(None),
         pattern: str | None = Query(None),
     ) -> Response:
-        """Return metadata for the most recently modified matching image file."""
+        """Return metadata for the most recently modified matching image file.
+
+        Cached under the same TTL as the other scans. This endpoint is polled
+        about once a second for as long as a live folder is being watched, and
+        an uncached walk per poll is how a large data directory brought the
+        whole server to a halt: each poll held a worker for longer than the
+        interval, so the next one started before the last had finished.
+        """
         root = deps.resolve_dir(folder)
         allowed = deps.parse_ext_filter(exts)
-        latest = deps.latest_image_file(root, allowed, pattern)
+        cache_key = f"latest:{root}:{','.join(sorted(allowed))}:{pattern or ''}"
+        result = deps.get_cached_scan(
+            cache_key,
+            deps.get_scan_cache_sec(),
+            lambda: deps.latest_image_file(root, allowed, pattern),
+        )
+        # Carried as a header as well as a field, because the "nothing found"
+        # answer is a 204 with no body -- and "nothing found because the walk
+        # ran out of budget" is exactly the case a watching client must not
+        # mistake for "the folder is empty".
+        scan_headers = {"X-Scan-Truncated": "1"} if result.truncated else {}
+        latest = result.path
         if not latest:
             deps.logger.debug(
-                "Autoload scan: no file found (folder=%s pattern=%s)", root, pattern or ""
+                "Autoload scan: no file found (folder=%s pattern=%s truncated=%s)",
+                root,
+                pattern or "",
+                result.truncated,
             )
-            return Response(status_code=204)
+            return Response(status_code=204, headers=scan_headers)
         try:
             rel = latest.resolve().relative_to(deps.data_dir.resolve()).as_posix()
             absolute = False
@@ -597,13 +632,22 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                 raise HTTPException(status_code=400, detail="Invalid file location") from None
             absolute = True
             file_label = str(latest.resolve())
+        try:
+            # Statted per request rather than taken from the cached scan, so a
+            # file being appended to is still seen changing. A file that has
+            # been removed since the scan is "nothing to load", not an error.
+            mtime = latest.stat().st_mtime
+        except OSError:
+            return Response(status_code=204, headers=scan_headers)
         deps.logger.debug("Autoload scan: latest=%s absolute=%s", file_label, absolute)
-        return AutoloadLatestResponse(
+        payload = AutoloadLatestResponse(
             file=file_label,
             ext=deps.image_ext_name(latest.name),
-            mtime=latest.stat().st_mtime,
+            mtime=mtime,
             absolute=absolute,
+            truncated=result.truncated,
         )
+        return JSONResponse(content=payload.model_dump(), headers=scan_headers)
 
     @app.post("/api/upload", response_model=UploadResponse)
     async def upload(
@@ -642,6 +686,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                 ) from exc
             raise
         deps.logger.info("Upload complete: %s (%d bytes)", resolved_dest, written)
+        # The upload flow asks for the file list next, to find what it just
+        # wrote. A cached root scan taken a moment ago does not contain it.
+        deps.invalidate_scans()
         try:
             resolved_rel = resolved_dest.relative_to(deps.data_dir.resolve()).as_posix()
             open_path = resolved_rel

@@ -22,6 +22,13 @@ from typing import Any
 import numpy as np
 from fastapi import HTTPException
 
+try:
+    from .build_info import ALBIS_COMMIT
+    from .version import ALBIS_VERSION
+except ImportError:  # pragma: no cover - supports `python backend/app.py`
+    from build_info import ALBIS_COMMIT  # type: ignore[no-redef]
+    from version import ALBIS_VERSION  # type: ignore[no-redef]
+
 # Lazy-loaded optional dependencies
 _tifffile = None
 _fabio_cbf_image_cls = None
@@ -370,10 +377,48 @@ def _format_header_number(value: Any) -> str | None:
     return f"{float(number):.12g}"
 
 
+def producer_string() -> str:
+    """Name this build, the way a bug report or a citation needs it named."""
+    return f"ALBIS {ALBIS_VERSION}" + (f" ({ALBIS_COMMIT})" if ALBIS_COMMIT else "")
+
+
+def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
+    """Say who made this file, from what, and what was done to the pixels.
+
+    An exported frame is not a copy of the detector's output. The dtype is
+    widened, masked gaps become `-1` and bad or saturated pixels become `-2`.
+    Those are the right conventions, but a mini-CBF header that declares
+    `SLS_1.0` and lists detector, wavelength and distance -- and says nothing
+    about ALBIS -- reads to XDS or DIALS as genuine detector output. For
+    software that asks to be cited when it contributed to a result, derived data
+    that cannot be traced back is the wrong default.
+    """
+    lines = [f"# Produced by {producer_string()} -- derived data, not raw detector output"]
+
+    source = _export_text(metadata or {}, "source_name")
+    if source:
+        parts = [f"# Source: {source}"]
+        dataset = _export_text(metadata or {}, "source_dataset")
+        if dataset:
+            parts.append(dataset)
+        frame = _export_int(metadata or {}, "source_frame")
+        if frame is not None:
+            count = _export_int(metadata or {}, "source_frame_count")
+            parts.append(f"frame {frame}" + (f"/{count}" if count else ""))
+        threshold = _export_int(metadata or {}, "source_threshold")
+        if threshold is not None:
+            count = _export_int(metadata or {}, "source_threshold_count")
+            parts.append(f"threshold {threshold}" + (f"/{count}" if count else ""))
+        lines.append(" ".join(parts))
+
+    lines.append("# Pixel substitutions: masked gaps = -1, bad or saturated = -2")
+    return lines
+
+
 def _mini_cbf_header_text(metadata: dict[str, Any] | None) -> str:
-    if not metadata:
-        return ""
     lines: list[str] = []
+    if not metadata:
+        return "\n".join(_provenance_lines(metadata))
     detector = _export_text(metadata, "detector_description")
     serial = _export_text(metadata, "detector_serial_number")
     if detector or serial:
@@ -417,10 +462,20 @@ def _mini_cbf_header_text(metadata: dict[str, Any] | None) -> str:
     increment = _format_header_number(metadata.get("angle_increment_deg"))
     if increment:
         lines.append(f"# Angle_increment {increment} deg.")
-    if lines:
-        return "\n".join(lines)
-    source_header = str(metadata.get("source_header_text") or "")
-    return source_header.strip()
+    provenance = _provenance_lines(metadata)
+    if not lines:
+        # Nothing was parsed from the source, so keep the source's own header
+        # rather than replacing it with silence. Provenance is appended to
+        # whichever of the two bases we ended up with.
+        #
+        # Re-exporting a file ALBIS wrote carries that file's provenance here,
+        # which is worth keeping -- it is the chain back to the original -- but
+        # not worth repeating verbatim, so lines the new block already says are
+        # dropped rather than stacked up on every round trip.
+        source_header = str(metadata.get("source_header_text") or "").strip()
+        carried = source_header.splitlines() if source_header else []
+        lines = [line for line in carried if line.strip() not in {p.strip() for p in provenance}]
+    return "\n".join(lines + provenance)
 
 
 def _distance_to_mm(value: float | None) -> float | None:
@@ -1180,22 +1235,27 @@ def _write_tiff(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = N
     extratags = None
     if dectris_payload:
         extratags = [(_DECTRIS_TIFF_TAG, 7, len(dectris_payload), dectris_payload, False)]
+    # `Software` and `ImageDescription` are the standard TIFF places to say what
+    # wrote a file and what it holds, and they cost nothing to a reader that
+    # ignores them. Written unconditionally, so a summed or converted frame is
+    # traceable even where no source metadata was parsed.
     _tifffile.imwrite(
         path,
         arr,
         photometric="minisblack",
         byteorder="<",
+        software=producer_string(),
+        description="\n".join(_provenance_lines(metadata)),
         extratags=extratags,
     )
 
 
 def _write_cbf(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = None) -> None:
     _ensure_fabio_readers()
-    header: dict[str, Any] = {}
-    header_text = _mini_cbf_header_text(metadata)
-    if header_text:
-        header["_array_data.header_convention"] = "SLS_1.0"
-        header["_array_data.header_contents"] = header_text
+    header: dict[str, Any] = {
+        "_array_data.header_convention": "SLS_1.0",
+        "_array_data.header_contents": _mini_cbf_header_text(metadata),
+    }
     _fabio_cbf_image_cls(data=np.asarray(arr), header=header).write(str(path))
 
 

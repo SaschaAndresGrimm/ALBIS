@@ -39,6 +39,39 @@ from .hdf5_units import (
 _log = logging.getLogger("albis.hdf5_stack")
 
 
+def open_hdf5_read_only(h5py: Any, path: Path) -> Any:
+    """Open an HDF5 file for reading, including one a writer still holds open.
+
+    A detector filewriter keeps its output open in SWMR mode for the length of a
+    series, and HDF5 refuses a plain read-only open of such a file: it reports
+    `file is already open for write`, the same bare `OSError` it uses for a
+    corrupt file. Read as "unreadable" that is simply wrong -- the file is
+    readable, it just has to be asked for in the mode the writer promised. A
+    reader that opens with `swmr=True` sees the frames flushed so far, and
+    because every request opens its own handle, the next one sees the frames
+    written since.
+
+    Plain first, SWMR second. The plain open is the overwhelmingly common case
+    (a finished file) and stays exactly as fast as it was; the retry costs one
+    failed open, and only for a file that would otherwise have been refused
+    outright. When both fail the *first* error is raised, because for a genuinely
+    truncated file it is the one that names the real problem.
+    """
+    try:
+        return h5py.File(path, "r")
+    except FileNotFoundError:
+        raise
+    except OSError as plain_exc:
+        try:
+            handle = h5py.File(path, "r", swmr=True)
+        except (OSError, ValueError):
+            # ValueError is what older HDF5 raises when it cannot do SWMR at
+            # all. Either way the plain error is the better diagnosis.
+            raise plain_exc from None
+        _log.info("Opened %s in SWMR mode: a writer still holds it open", path)
+        return handle
+
+
 def open_hdf5_for_read(h5py: Any, path: Path) -> Any:
     """Open an HDF5 file for reading, reporting an undecodable file as 422.
 
@@ -50,7 +83,7 @@ def open_hdf5_for_read(h5py: Any, path: Path) -> Any:
     readers already report an unreadable acquisition.
     """
     try:
-        return h5py.File(path, "r")
+        return open_hdf5_read_only(h5py, path)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="File not found") from exc
     except OSError as exc:
@@ -405,7 +438,7 @@ class HDF5StackService:
                 target_file = file_cache.get(target_path)
                 if target_file is None:
                     try:
-                        target_file = h5py.File(target_path, "r")
+                        target_file = open_hdf5_read_only(h5py, target_path)
                     except OSError as _exc:
                         _log.warning("Skipping external link %s: cannot open %s: %s", child_path, link.filename, _exc)
                         continue
@@ -559,7 +592,7 @@ class HDF5StackService:
                     if not target_path:
                         raise KeyError("Path not found")
                     try:
-                        target_file = h5py.File(target_path, "r")
+                        target_file = open_hdf5_read_only(h5py, target_path)
                     except OSError as exc:
                         raise KeyError("Path not found") from exc
                     opened.append(target_file)
@@ -617,7 +650,7 @@ class HDF5StackService:
                 if not target_path:
                     continue
                 try:
-                    target_file = h5py.File(target_path, "r")
+                    target_file = open_hdf5_read_only(h5py, target_path)
                 except OSError as _exc:
                     _log.warning("Skipping linked member %s: cannot open %s: %s", name, link.filename, _exc)
                     continue

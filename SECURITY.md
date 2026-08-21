@@ -22,7 +22,8 @@ report — it affects how the fix is described, though not which release carries
 
 ALBIS is currently in `0.x`. In line with semantic versioning, that means configuration keys
 and API details may still change between minor releases; it does not weaken the commitment
-above.
+above. What `1.0.0` will promise, and what it deliberately will not, is written down in
+[Compatibility Policy](docs/COMPATIBILITY.md).
 
 ## Scope
 

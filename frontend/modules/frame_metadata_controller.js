@@ -92,7 +92,10 @@ export function createFrameMetadataController({
             fileSelect.appendChild(option(fileLabel(existingFile), existingFile));
           }
           fileSelect.value = existingFile;
-          setDataSourceSectionState("active", t("status.files.list_loaded"));
+          setDataSourceSectionState(
+            data.truncated ? "warning" : "active",
+            data.truncated ? t("status.files.truncated") : t("status.files.list_loaded"),
+          );
         } else {
           state.file = "";
           state.dataset = "";
@@ -101,7 +104,11 @@ export function createFrameMetadataController({
           showSplash();
           setSplashStatus("splash.status.ready_open_file");
           setLoading(false);
-          setDataSourceSectionState("empty", t("status.frame.select_file_to_begin"));
+          if (data.truncated) {
+            setDataSourceSectionState("warning", t("status.files.truncated"));
+          } else {
+            setDataSourceSectionState("empty", t("status.frame.select_file_to_begin"));
+          }
         }
         loadAutoloadFolders();
       } else {

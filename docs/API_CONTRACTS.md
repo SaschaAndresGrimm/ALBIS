@@ -1,8 +1,13 @@
 # ALBIS API Contracts
 
-This document describes the stable HTTP contract for ALBIS clients and integrations.
+This document describes the HTTP contract for ALBIS clients and integrations: the
+endpoints, their payloads and their headers.
 
-Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTURE.md) · [Code Map](CODE_MAP.md)
+How stable that contract is — which parts a version number promises not to break,
+and how anything covered is deprecated before it is removed — is
+[Compatibility Policy](COMPATIBILITY.md). Read that one before building against this one.
+
+Related docs: [Compatibility Policy](COMPATIBILITY.md) · [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTURE.md) · [Code Map](CODE_MAP.md)
 
 OpenAPI source of truth:
 
@@ -45,6 +50,7 @@ Endpoint-specific headers are documented in OpenAPI for each route:
 - `X-Mask-Path` for HDF5 pixel-mask source.
 - `X-Simplon-*` for SIMPLON metadata.
 - `X-Remote-*` for remote stream metadata and sequence control.
+- `X-Scan-Truncated` for a directory scan that stopped at its budget (see Directory Scans).
 
 ### Transfer encoding
 
@@ -79,6 +85,23 @@ Response:
 
 - `text/csv`
 - `Content-Disposition` attachment header
+
+## Directory Scans
+
+`GET /api/files`, `GET /api/folders` and `GET /api/autoload/latest` walk a
+directory, and a walk is bounded by `data.max_scan_entries` and
+`data.max_scan_seconds` (see the Power User Guide). A scan that reaches either
+budget stops early, and every one of these endpoints reports that rather than
+presenting a partial answer as a complete one:
+
+- `truncated: true` in the JSON body of all three.
+- `X-Scan-Truncated: 1` on `GET /api/autoload/latest`, on the `200` and on the
+  `204` alike — a bodyless response still has to be able to say "there is no
+  newest file *because the walk ran out*", which is not the same answer as "this
+  folder is empty". The header is absent when the scan completed.
+
+Clients that poll should treat truncation as a standing condition to surface, not
+an error: the newest file may be one the walk never reached.
 
 ## Remote Stream Semantics
 
@@ -142,5 +165,6 @@ Response:
 
 - Prefer schema-driven clients from `/openapi.json` for JSON endpoints.
 - For binary endpoints, always decode payloads using `X-Dtype` + `X-Shape` rather than assumptions.
-- Handle `204` as a normal polling outcome for stream-style endpoints.
+- Handle `204` as a normal polling outcome for stream-style endpoints, and read
+  `X-Scan-Truncated` on it rather than assuming an empty directory.
 - Treat `409` on `/api/remote/v1/meta` as a retry signal with current sequence from response body.

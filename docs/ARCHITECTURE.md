@@ -33,7 +33,9 @@ Responsibilities:
 Key state:
 
 - Configuration: loaded once from `backend/config.py`.
-- Caches: file/folder scan caches and background series-summing job state.
+- Caches: bounded directory scans behind a single-flight TTL cache
+  (`services/directory_scan.py`, `services/scan_cache.py`), and background
+  series-summing job state.
 - Logging: rotating logfile plus console output.
 
 #### Middleware stack

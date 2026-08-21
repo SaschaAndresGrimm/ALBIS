@@ -112,23 +112,66 @@ def test_user_guide_cross_references_resolve(anchor: str) -> None:
     ), f"USER_GUIDE.md links to POWER_USER_GUIDE.md#{anchor}, which no heading produces"
 
 
-def test_every_ui_config_key_is_documented_in_the_power_user_guide() -> None:
+def _config_sections() -> list[str]:
+    from backend.config import DEFAULT_CONFIG
+
+    return sorted(DEFAULT_CONFIG)
+
+
+@pytest.mark.parametrize("section_name", _config_sections())
+def test_every_config_key_is_documented_in_the_power_user_guide(section_name: str) -> None:
     """A configurable knob nobody can read about is not configurable.
 
-    `auto_check_updates` and `language` were both settable, both in the schema,
-    and both absent from the Settings Reference -- so the one outbound network
-    request ALBIS makes had no documented off switch.
+    This started as a check on `ui` alone, because `auto_check_updates` and
+    `language` were both settable, both in the schema, and both absent from the
+    Settings Reference -- so the one outbound network request ALBIS makes had no
+    documented off switch. It covers every section now, because the same drift
+    then happened in `launcher`: `startup_health_timeout_sec` existed in the
+    code, in no document, and in no schema.
     """
     from backend.config import DEFAULT_CONFIG
 
-    section = re.search(r"^#### `ui`$(.*?)(?=^#{1,4} |\Z)", GUIDE, re.M | re.S)
-    assert section, "the Power User Guide no longer has a `ui` settings section"
+    section = re.search(rf"^#### `{section_name}`$(.*?)(?=^#{{1,4}} |\Z)", GUIDE, re.M | re.S)
+    assert section, f"the Power User Guide no longer has a `{section_name}` settings section"
 
     documented = set(re.findall(r"^- `(\w+)`", section.group(1), re.M))
-    missing = sorted(set(DEFAULT_CONFIG["ui"]) - documented)
+    missing = sorted(set(DEFAULT_CONFIG[section_name]) - documented)
+    assert not missing, (
+        f"{section_name} config keys with no entry in the Power User Guide "
+        f"Settings Reference: {missing}"
+    )
+
+
+@pytest.mark.parametrize("section_name", _config_sections())
+def test_the_published_schema_matches_the_config_the_app_writes(section_name: str) -> None:
+    """ALBIS writes `DEFAULT_CONFIG` to disk on a first packaged run, and ships a
+    schema for validating that file. They have to agree.
+
+    They did not: the schema had no `launcher.startup_health_timeout_sec` and
+    sets `additionalProperties: false`, so the file ALBIS itself wrote was
+    rejected by ALBIS's own schema -- and the schema documented a
+    `startup_timeout_sec` default the code had never used.
+    """
+    from backend.config import DEFAULT_CONFIG
+
+    schema = json.loads((ROOT / "albis.config.schema.json").read_text(encoding="utf-8"))
+    properties = schema["properties"][section_name]["properties"]
+
+    defaults = DEFAULT_CONFIG[section_name]
+    assert set(defaults) == set(properties), (
+        f"albis.config.schema.json and DEFAULT_CONFIG disagree on which keys `{section_name}` "
+        f"has: only in code {sorted(set(defaults) - set(properties))}, "
+        f"only in schema {sorted(set(properties) - set(defaults))}"
+    )
+
+    mismatched = {
+        key: (defaults[key], properties[key]["default"])
+        for key in sorted(defaults)
+        if "default" in properties[key] and properties[key]["default"] != defaults[key]
+    }
     assert (
-        not missing
-    ), f"ui config keys with no entry in the Power User Guide Settings Reference: {missing}"
+        not mismatched
+    ), f"schema defaults that do not match the code, as (code, schema): {mismatched}"
 
 
 def test_network_behaviour_is_disclosed_where_users_and_IT_will_look() -> None:
@@ -157,6 +200,48 @@ def test_network_behaviour_is_disclosed_where_users_and_IT_will_look() -> None:
     assert (
         "NETWORK_AND_PRIVACY.md" in GUIDE
     ), "the Power User Guide does not link the privacy document"
+
+
+def test_the_compatibility_policy_exists_and_is_reachable() -> None:
+    """A version number is only a promise if the promise is written down.
+
+    `1.0.0` withdraws the sentence in SECURITY.md that says config keys and API
+    details may still change, and replaces it with a commitment. Which surfaces
+    that commitment covers has to be stated somewhere a client author will look.
+    """
+    policy = ROOT / "docs" / "COMPATIBILITY.md"
+    assert policy.is_file(), "docs/COMPATIBILITY.md is missing"
+
+    text = policy.read_text(encoding="utf-8")
+    for surface in ("HTTP API", "Configuration", "Exported files", "Deprecation"):
+        assert surface in text, f"the compatibility policy does not cover {surface}"
+
+    security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    assert (
+        "COMPATIBILITY.md" in security
+    ), "the security policy does not link the compatibility policy"
+    assert "COMPATIBILITY.md" in README, "the README does not link the compatibility policy"
+    contracts = (ROOT / "docs" / "API_CONTRACTS.md").read_text(encoding="utf-8")
+    assert (
+        "COMPATIBILITY.md" in contracts
+    ), "API_CONTRACTS.md describes the contract without linking what keeps it stable"
+
+
+def test_documented_binary_headers_are_the_ones_the_code_sends() -> None:
+    """A header a client is told to read has to be a header ALBIS sets."""
+    contracts = (ROOT / "docs" / "API_CONTRACTS.md").read_text(encoding="utf-8")
+    backend = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((ROOT / "backend").rglob("*.py"))
+        if "__pycache__" not in str(path)
+    )
+
+    documented = set(re.findall(r"`(X-[A-Za-z-]+)`", contracts))
+    assert documented, "no X- headers documented; has API_CONTRACTS.md changed shape?"
+
+    concrete = {name for name in documented if not name.endswith("-")}
+    missing = sorted(name for name in concrete if name not in backend)
+    assert not missing, f"headers documented but never set by the backend: {missing}"
 
 
 def test_albis_is_citable() -> None:

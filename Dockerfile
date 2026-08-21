@@ -2,6 +2,10 @@ FROM python:3.10.20-slim-bookworm@sha256:a02d127ac3e004d100268fcf394e8d673e1f43f
 
 WORKDIR /app
 
+# A compiler toolchain is still needed: `dectris-compression` publishes no
+# wheels at all, so it is built from its sdist on every platform. Everything
+# else in requirements.txt has a manylinux wheel for both architectures this
+# image is built for.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     build-essential \
     libhdf5-dev \
@@ -9,16 +13,19 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 COPY backend/requirements.txt backend/requirements.txt
 
+# The pinned dependency set, installed as pinned. This used to carve out
+# hdf5plugin and install 4.1.3 instead of the pinned 7.0.0, because 4.1.3 has no
+# aarch64 wheel and had to be built from source -- which is why the surrounding
+# `--no-build-isolation --no-deps` dance and its extra build dependencies were
+# here. The consequence was that the published image had different HDF5 filter
+# support from every other artifact, and THIRD_PARTY_LICENSES.md described a
+# version the image did not contain. 7.0.0 ships manylinux wheels for both
+# linux/amd64 and linux/arm64, so the carve-out is gone.
 RUN python -m pip install --no-cache-dir --upgrade \
     "pip==26.0.1" \
     "setuptools==80.9.0" \
     "wheel==0.43.0" \
-    "py-cpuinfo==8.0.0" \
-    "jaraco.context==6.1.1" \
-    && pip install --no-cache-dir --no-build-isolation --no-deps --prefix=/install "hdf5plugin==4.1.3" \
-    && grep -v '^hdf5plugin==' backend/requirements.txt > /tmp/requirements-no-hdf5plugin.txt \
-    && pip install --no-cache-dir --prefix=/install -r /tmp/requirements-no-hdf5plugin.txt \
-    && rm -f /tmp/requirements-no-hdf5plugin.txt
+    && pip install --no-cache-dir --prefix=/install -r backend/requirements.txt
 
 FROM python:3.10.20-slim-bookworm@sha256:a02d127ac3e004d100268fcf394e8d673e1f43f2ac84d2f38f7d8345f18890b3
 

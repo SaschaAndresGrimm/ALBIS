@@ -485,6 +485,10 @@ class DataExportService:
         meta: dict[str, Any] = {
             "source_path": str(source_path),
             "source_dataset": dataset,
+            # Provenance for the written file's header. The name, not the full
+            # path: enough to trace the frame back, without writing someone's
+            # directory layout into a file they may send to a collaborator.
+            "source_name": source_path.name,
         }
         text_fields = {
             "detector_description": [
@@ -664,8 +668,16 @@ class DataExportService:
         *,
         frame_index: int,
         threshold_index: int,
+        frame_count: int | None = None,
+        threshold_count: int | None = None,
     ) -> dict[str, Any]:
         meta = dict(base)
+        meta["source_frame"] = frame_index + 1
+        if frame_count:
+            meta["source_frame_count"] = int(frame_count)
+        if threshold_count and threshold_count > 1:
+            meta["source_threshold"] = threshold_index + 1
+            meta["source_threshold_count"] = int(threshold_count)
         image_start = self._finite_int(meta.get("image_number_start"))
         meta["image_number"] = (image_start + frame_index) if image_start is not None else frame_index + 1
         meta["threshold_ids"] = [threshold_index + 1]
@@ -693,11 +705,17 @@ class DataExportService:
 
         return meta
 
-    def _image_source_export_metadata(self, path: Path, frame_index: int) -> dict[str, Any]:
+    def _image_source_export_metadata(
+        self, path: Path, frame_index: int, frame_count: int | None = None
+    ) -> dict[str, Any]:
         meta: dict[str, Any] = {
             "source_path": str(path),
             "image_number": frame_index + 1,
+            "source_name": path.name,
+            "source_frame": frame_index + 1,
         }
+        if frame_count:
+            meta["source_frame_count"] = int(frame_count)
         parsed: dict[str, Any] = {}
         with contextlib.suppress(Exception):
             parsed = self._deps.pilatus_meta_from_image(path)
@@ -900,6 +918,8 @@ class DataExportService:
                             base_metadata,
                             frame_index=frame_idx,
                             threshold_index=thr_idx,
+                            frame_count=frame_count,
+                            threshold_count=threshold_count,
                         )
                         out_file = self._write_frame(
                             out_dir=out_dir,
@@ -955,7 +975,7 @@ class DataExportService:
             if include_frame_tag:
                 name = f"{prefix}_f{frame_idx + 1:06d}"
             arr = self._read_non_h5_image(src)
-            metadata = self._image_source_export_metadata(src, frame_idx)
+            metadata = self._image_source_export_metadata(src, frame_idx, len(series_files))
             out_file = self._write_frame(
                 out_dir=out_dir,
                 name=name,

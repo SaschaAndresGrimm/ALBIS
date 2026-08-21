@@ -42,6 +42,7 @@ describe("autoload_mode_controller", () => {
           return {
             ok: true,
             status: 200,
+            headers: new Headers(),
             json: async () => ({
               file: "scan_0002.cbf",
               mtime: 200,
@@ -100,6 +101,134 @@ describe("autoload_mode_controller", () => {
     expect(state.autoload.lastMtime).toBe(100);
     expect(updateAutoloadMeta).not.toHaveBeenCalled();
     expect(setAutoloadStatus).toHaveBeenCalledWith("Watch error");
+  });
+
+  it("reports a folder too large to scan instead of an empty one", async () => {
+    // A truncated search that reached no file answers 204, which has no body:
+    // without the header this would be reported as "no files" and the user
+    // would have no way to tell a big folder from an empty one.
+    vi.resetModules();
+    global.fetch = buildFetchMock(
+      {
+        en: {
+          "autoload.status.watch.no_files": "No files",
+          "autoload.status.watch.truncated": "Folder too large",
+        },
+      },
+      async (url) => {
+        if (url.includes("/autoload/latest")) {
+          return {
+            ok: false,
+            status: 204,
+            headers: new Headers({ "X-Scan-Truncated": "1" }),
+            json: async () => ({}),
+          };
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      },
+    );
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAutoloadModeController } = await import("../modules/autoload_mode_controller.js");
+
+    const setAutoloadStatus = vi.fn();
+    const controller = createAutoloadModeController({
+      apiBase: "/api",
+      state: {
+        autoload: {
+          dir: "/data",
+          pattern: "",
+          lastFile: "",
+          lastMtime: 0,
+          lastUpdate: 0,
+          types: { hdf5: false, tiff: false, cbf: true, edf: false },
+        },
+      },
+      callbacks: {
+        setAutoloadStatus,
+        setAutoloadLatest: vi.fn(),
+        updateAutoloadMeta: vi.fn(),
+        loadAutoloadFile: vi.fn(async () => true),
+        fetchSimplonMask: vi.fn(),
+        parseDtype: vi.fn(),
+        parseShape: vi.fn(),
+        typedArrayFrom: vi.fn(),
+        hashBufferSample: vi.fn(),
+        parseSimplonMeta: vi.fn(() => ({ analysis: {}, meta: {} })),
+        createLiveSourceSnapshot: vi.fn((value) => value),
+        appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
+        logClient: vi.fn(),
+        formatSimplonTimestamp: vi.fn(),
+        updateLiveBadge: vi.fn(),
+      },
+    });
+
+    await controller.autoloadWatchTick();
+
+    expect(setAutoloadStatus).toHaveBeenCalledWith("Folder too large");
+    expect(setAutoloadStatus).not.toHaveBeenCalledWith("No files");
+  });
+
+  it("keeps saying the view is partial while a truncated watch loads files", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock(
+      {
+        en: {
+          "autoload.status.watch.loaded": "Loaded",
+          "autoload.status.watch.truncated": "Folder too large",
+        },
+      },
+      async (url) => {
+        if (url.includes("/autoload/latest")) {
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({ "X-Scan-Truncated": "1" }),
+            json: async () => ({ file: "scan_0002.cbf", mtime: 200, truncated: true }),
+          };
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      },
+    );
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAutoloadModeController } = await import("../modules/autoload_mode_controller.js");
+
+    const setAutoloadStatus = vi.fn();
+    const controller = createAutoloadModeController({
+      apiBase: "/api",
+      state: {
+        autoload: {
+          dir: "/data",
+          pattern: "",
+          lastFile: "",
+          lastMtime: 0,
+          lastUpdate: 0,
+          types: { hdf5: false, tiff: false, cbf: true, edf: false },
+        },
+      },
+      callbacks: {
+        setAutoloadStatus,
+        setAutoloadLatest: vi.fn(),
+        updateAutoloadMeta: vi.fn(),
+        loadAutoloadFile: vi.fn(async () => true),
+        fetchSimplonMask: vi.fn(),
+        parseDtype: vi.fn(),
+        parseShape: vi.fn(),
+        typedArrayFrom: vi.fn(),
+        hashBufferSample: vi.fn(),
+        parseSimplonMeta: vi.fn(() => ({ analysis: {}, meta: {} })),
+        createLiveSourceSnapshot: vi.fn((value) => value),
+        appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
+        logClient: vi.fn(),
+        formatSimplonTimestamp: vi.fn(),
+        updateLiveBadge: vi.fn(),
+      },
+    });
+
+    await controller.autoloadWatchTick();
+
+    expect(setAutoloadStatus).toHaveBeenLastCalledWith("Folder too large");
   });
 
   it("does not append duplicate SIMPLON frames when the monitor hash stays the same", async () => {

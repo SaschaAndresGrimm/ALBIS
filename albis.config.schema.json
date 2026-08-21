@@ -31,7 +31,7 @@
           "type": "array",
           "items": { "type": "string" },
           "default": [],
-          "description": "Host header names ALBIS will answer to, in addition to localhost. Leave empty to derive them from server.host: a loopback bind accepts only this machine, a 0.0.0.0 bind accepts anything. Set this when a reverse proxy forwards its own hostname to a loopback bind. Use [\"*\"] to accept any host."
+          "description": "Host header names ALBIS will answer to, in addition to localhost. Leave empty to derive them from server.host: a loopback bind accepts only this machine, and a 0.0.0.0 bind accepts any IP address plus this machine's own hostnames. Set this when clients reach ALBIS under a name it cannot derive, such as a reverse proxy hostname or a container alias. Use [\"*\"] to accept any host, which turns the DNS-rebinding check off."
         },
         "compression": {
           "type": "string",
@@ -48,8 +48,14 @@
         "startup_timeout_sec": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "default": 5.0,
+          "default": 10.0,
           "description": "Seconds to wait for backend startup before warning."
+        },
+        "startup_health_timeout_sec": {
+          "type": "number",
+          "minimum": 0.1,
+          "default": 15.0,
+          "description": "Seconds to wait for the backend health endpoint to answer at startup."
         },
         "open_browser": {
           "type": "boolean",
@@ -87,7 +93,19 @@
           "type": "integer",
           "minimum": -1,
           "default": -1,
-          "description": "Maximum recursive scan depth for folder discovery. -1 means unlimited."
+          "description": "Maximum recursive scan depth for folder discovery. -1 means unlimited, which is bounded in practice by max_scan_entries and max_scan_seconds."
+        },
+        "max_scan_entries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 200000,
+          "description": "Maximum directory entries a single scan may visit. 0 means unlimited. A scan that reaches the limit stops and reports itself as truncated."
+        },
+        "max_scan_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "default": 5.0,
+          "description": "Wall-clock budget in seconds for a single scan. 0 means unlimited. A scan that reaches the limit stops and reports itself as truncated."
         },
         "max_upload_mb": {
           "type": "integer",
@@ -103,7 +121,13 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL"
+          ],
           "default": "INFO",
           "description": "Backend log level."
         },
@@ -151,7 +175,11 @@
         },
         "pixel_label_format": {
           "type": "string",
-          "enum": ["auto", "integer", "scientific"],
+          "enum": [
+            "auto",
+            "integer",
+            "scientific"
+          ],
           "default": "auto",
           "description": "Pixel-label number format."
         },
@@ -162,7 +190,21 @@
         },
         "language": {
           "type": "string",
-          "enum": ["en", "zh-CN", "ja", "fr", "es", "it", "pt", "rm", "de", "sv", "da", "mi", "gsw"],
+          "enum": [
+            "en",
+            "zh-CN",
+            "ja",
+            "fr",
+            "es",
+            "it",
+            "pt",
+            "rm",
+            "de",
+            "sv",
+            "da",
+            "mi",
+            "gsw"
+          ],
           "default": "en",
           "description": "UI language for frontend labels and messages."
         }

@@ -114,6 +114,55 @@ jobs:
           curl -fsS "http://localhost:18000/api/files" > /tmp/albis-files.json
           python -c "import json,sys; d=json.load(open('/tmp/albis-files.json', encoding='utf-8')); f=d.get('files'); ok=isinstance(f,list) and len(f)>0; print(('Found %d files; first=%s' % (len(f), f[0])) if ok else ('Invalid /api/files response shape' if not isinstance(f,list) else 'No image files discovered from mounted testdata')); sys.exit(0 if ok else 1)"
 
+      - name: Smoke test a compression-filtered frame actually decodes
+        run: |
+          set -euo pipefail
+
+          # The image installs the HDF5 filter plugins that real detector data
+          # needs, and a container that starts proves nothing about them: the
+          # plugin libraries are only loaded when chunks are pulled in. This is
+          # the one artifact whose dependency install differs from a plain
+          # `pip install -r requirements.txt`, so it is the one that has to be
+          # asked to decode something.
+          curl -fsS -D /tmp/albis-frame.headers \
+            "http://localhost:18000/api/frame?file=compressed_stack.h5&dataset=/entry/data/data&index=2" \
+            -o /tmp/albis-frame.bin
+
+          python - <<'PY'
+          import re
+          import sys
+
+          headers = {}
+          with open("/tmp/albis-frame.headers", encoding="utf-8", errors="replace") as handle:
+              for line in handle:
+                  if ":" in line:
+                      name, _, value = line.partition(":")
+                      headers[name.strip().lower()] = value.strip()
+
+          dtype = headers.get("x-dtype", "")
+          shape = headers.get("x-shape", "")
+          if not re.fullmatch(r"[<>|]?u?i?[a-z]?\d+", dtype or ""):
+              print(f"Unexpected X-Dtype {dtype!r}")
+              sys.exit(1)
+
+          dims = [int(part) for part in shape.split(",") if part.strip()]
+          payload = open("/tmp/albis-frame.bin", "rb").read()
+          itemsize = int(re.search(r"\d+$", dtype).group())
+          expected = dims[0] * dims[1] * itemsize
+          if len(payload) != expected:
+              print(f"Frame is {len(payload)} bytes, expected {expected} for {shape} {dtype}")
+              sys.exit(1)
+
+          # The fixture fills frame N with N, so a filter that silently produced
+          # zeros would pass a length check and fail this one.
+          first = int.from_bytes(payload[:itemsize], "little")
+          if first != 2:
+              print(f"Decoded frame 2 starts with {first}, expected 2 -- filter plugins missing?")
+              sys.exit(1)
+
+          print(f"Decoded {shape} {dtype} frame from a compression-filtered dataset")
+          PY
+
       - name: Show container logs on failure
         if: failure()
         run: docker logs albis-ci || true

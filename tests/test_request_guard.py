@@ -66,13 +66,82 @@ def test_loopback_bind_rejects_any_other_name(host: str) -> None:
 
 
 @pytest.mark.parametrize("bind", ["0.0.0.0", "::", ""])
-def test_wildcard_bind_accepts_any_host(bind: str) -> None:
-    """Binding to a wildcard is an explicit choice to serve clients ALBIS cannot name.
+@pytest.mark.parametrize("host", ["192.168.1.5:8000", "10.0.0.7", "[fd00::1]:8000", "127.0.0.1"])
+def test_wildcard_bind_accepts_any_address(bind: str, host: str) -> None:
+    """How a LAN client actually reaches a shared ALBIS: by address.
 
-    Docker, a LAN address and a reverse proxy all arrive under a hostname that
-    cannot be predicted, so guessing one would break working deployments.
+    An address cannot be rebound -- there is no DNS answer to change -- and a
+    cross-origin response fetched from one is still unreadable to the page that
+    asked for it, so there is nothing here for the check to protect.
     """
-    assert is_host_allowed("anything.example", bind_host=bind, allowed_hosts=[])
+    assert is_host_allowed(host, bind_host=bind, allowed_hosts=[])
+
+
+@pytest.mark.parametrize("bind", ["0.0.0.0", "::", ""])
+def test_wildcard_bind_accepts_this_machines_own_names(bind: str) -> None:
+    """The other way a LAN client reaches it: by the name of the machine."""
+    names = frozenset({"beamline-ws", "beamline-ws.psi.ch"})
+
+    assert is_host_allowed("beamline-ws:8000", bind_host=bind, allowed_hosts=[], local_names=names)
+    assert is_host_allowed(
+        "beamline-ws.psi.ch", bind_host=bind, allowed_hosts=[], local_names=names
+    )
+
+
+@pytest.mark.parametrize("bind", ["0.0.0.0", "::", ""])
+def test_wildcard_bind_rejects_a_foreign_name(bind: str) -> None:
+    """The rebinding case: the request arrives here still naming the attacker's domain.
+
+    This is the whole point of the check, and a wildcard bind is the only
+    configuration where the attack applies at all.
+    """
+    names = frozenset({"beamline-ws"})
+
+    assert not is_host_allowed("evil.example", bind_host=bind, allowed_hosts=[], local_names=names)
+    assert not is_host_allowed(
+        "albis.lab:8000", bind_host=bind, allowed_hosts=[], local_names=names
+    )
+
+
+def test_local_host_names_reports_this_machine() -> None:
+    """Both forms, since a LAN client may use either."""
+    import socket
+
+    from backend.request_guard import local_host_names, reset_local_host_names_cache
+
+    reset_local_host_names_cache()
+    names = local_host_names()
+
+    hostname = socket.gethostname().lower().rstrip(".")
+    assert hostname in names
+    assert hostname.partition(".")[0] in names
+    assert "" not in names
+
+
+def test_local_host_names_is_cached_then_refreshed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Resolved per request, so it must not resolve per request."""
+    from backend import request_guard
+
+    request_guard.reset_local_host_names_cache()
+    calls = {"n": 0}
+
+    def fake_hostname() -> str:
+        calls["n"] += 1
+        return f"host-{calls['n']}"
+
+    monkeypatch.setattr(request_guard.socket, "gethostname", fake_hostname)
+    monkeypatch.setattr(request_guard.socket, "getfqdn", lambda: "")
+
+    assert request_guard.local_host_names(now=100.0) == frozenset({"host-1"})
+    assert request_guard.local_host_names(now=100.0 + request_guard.LOCAL_NAME_TTL_SEC / 2) == (
+        frozenset({"host-1"})
+    )
+    assert calls["n"] == 1
+
+    later = 100.0 + request_guard.LOCAL_NAME_TTL_SEC + 1
+    assert request_guard.local_host_names(now=later) == frozenset({"host-2"})
+
+    request_guard.reset_local_host_names_cache()
 
 
 def test_configured_hosts_allow_a_reverse_proxy_in_front_of_a_loopback_bind() -> None:
@@ -185,12 +254,49 @@ def test_rebound_host_cannot_read_the_filesystem(loopback_bind) -> None:
     assert "allowed_hosts" in response.json()["detail"]
 
 
-def test_a_wildcard_bind_still_answers_any_host(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Docker and LAN deployments must keep working unchanged."""
+@pytest.fixture
+def wildcard_bind(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(runtime_state, "bind_host", "0.0.0.0")
     monkeypatch.setattr(runtime_state, "allowed_hosts", [])
 
+
+def test_a_wildcard_bind_serves_lan_clients_by_address(wildcard_bind) -> None:
+    """How LAN and container deployments are actually reached."""
+    assert client.get("/api/health", headers={"Host": "192.168.1.5:8000"}).status_code == 200
+    assert client.get("/api/health", headers={"Host": "localhost:8000"}).status_code == 200
+
+
+def test_a_wildcard_bind_serves_this_machine_by_name(wildcard_bind) -> None:
+    import socket
+
+    from backend.request_guard import reset_local_host_names_cache
+
+    reset_local_host_names_cache()
+    response = client.get("/api/health", headers={"Host": f"{socket.gethostname()}:8000"})
+
+    assert response.status_code == 200
+
+
+def test_a_wildcard_bind_rejects_a_rebound_name(wildcard_bind) -> None:
+    """The hole this closed: reads, not just writes, were reachable from any page."""
+    response = client.get(
+        "/api/browse", headers={"Host": "evil.example", "Sec-Fetch-Site": "cross-site"}
+    )
+
+    assert response.status_code == 403
+    assert "allowed_hosts" in response.json()["detail"]
+
+
+def test_a_deployment_reached_by_its_own_name_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The escape hatch for a container alias or a reverse proxy in front of a wildcard bind."""
+    monkeypatch.setattr(runtime_state, "bind_host", "0.0.0.0")
+    monkeypatch.setattr(runtime_state, "allowed_hosts", ["albis-container"])
+
     assert client.get("/api/health", headers={"Host": "albis-container"}).status_code == 200
+
+    monkeypatch.setattr(runtime_state, "allowed_hosts", ["*"])
+
+    assert client.get("/api/health", headers={"Host": "anything.example"}).status_code == 200
 
 
 def test_configured_allowed_host_is_served(monkeypatch: pytest.MonkeyPatch) -> None:

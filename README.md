@@ -99,6 +99,7 @@ For power users looking to configure the server, use the advanced Stream API, or
 
 - [Power User Guide](docs/POWER_USER_GUIDE.md)
 - [Network Behaviour and Privacy](docs/NETWORK_AND_PRIVACY.md) — what leaves your machine, and how to stop it
+- [Compatibility Policy](docs/COMPATIBILITY.md) — what a version number promises, and what it does not
 
 For developers looking to build, test, and contribute:
 
