@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-21
+
 ### Documentation
 
 - There is a **User Guide** (`docs/USER_GUIDE.md`), organised by task rather than by where the buttons are: opening data, moving through a series, making the image readable, measuring a region, resolution rings and reflections, following a running experiment, combining a series, exporting, comparing two views, and working from another machine. Until now the documentation went from an install page straight to a configuration and API reference, with nothing covering the work itself. Linked from the README and the built-in help.
@@ -754,7 +756,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.9...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.9...v0.11.0
 [0.10.9]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.8...v0.10.9
 [0.10.8]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.6...v0.10.7

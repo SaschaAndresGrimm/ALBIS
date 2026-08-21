@@ -17,7 +17,7 @@ here.
 | Component | Version | License | Copyright |
 |---|---|---|---|
 | FastAPI | 0.141.1 | MIT | © 2018 Sebastián Ramírez |
-| Uvicorn | 0.52.1 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
+| Uvicorn | 0.52.3 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
 | Starlette | 1.6.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
 | python-multipart | 0.0.32 | Apache-2.0 | © Andrew Dunham |
 | hdf5plugin | 7.0.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
@@ -28,9 +28,9 @@ here.
 | cbor2 | 6.1.4 | MIT | © 2016 Alex Grönholm |
 | PyZMQ | 27.1.0 | BSD-3-Clause | © 2009-2012 Brian Granger, Min Ragan-Kelley (bundles libzmq, MPL-2.0) |
 | dectris-compression | 0.3.1 | MIT | © 2020 DECTRIS Ltd. |
-| zstandard | 0.22.0 | BSD-3-Clause | © 2016 Gregory Szorc (bundles libzstd, © Meta Platforms, Inc., dual BSD-3-Clause/GPL-2.0 — used under BSD-3-Clause) |
+| zstandard | 0.25.0 | BSD-3-Clause | © 2016 Gregory Szorc (bundles libzstd, © Meta Platforms, Inc., dual BSD-3-Clause/GPL-2.0 — used under BSD-3-Clause) |
 | certifi | 2026.7.22 | MPL-2.0 | © Kenneth Reitz (bundles Mozilla CA certificates) |
-| pyobjc (macOS only) | 12.2.1 | MIT | © 2002-2025 Ronald Oussoren et al. |
+| pyobjc (macOS only) | 12.2.2 | MIT | © 2002-2025 Ronald Oussoren et al. |
 | html2canvas | 1.4.1 | MIT | © 2022 Niklas von Hertzen |
 
 Transitive dependencies pulled in by `uvicorn[standard]` (h11, httptools,
