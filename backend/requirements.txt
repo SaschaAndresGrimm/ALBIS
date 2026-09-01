@@ -3,15 +3,15 @@ fastapi==0.141.1
 # backend/response_compression.py subclasses starlette's compression responder,
 # whose apply_compression hook became a coroutine in 1.6.
 starlette==1.6.0
-uvicorn[standard]==0.52.3
+uvicorn[standard]==0.52.4
 python-multipart==0.0.32
 hdf5plugin==7.0.0
 h5py==3.16.0
-numpy==2.2.6
+numpy==2.5.2
 tifffile==2025.5.10
-fabio==2025.10.0
+fabio==2026.6.0
 cbor2==6.1.4
-pyzmq==27.1.0
+pyzmq==27.2.0
 dectris-compression==0.3.1
 zstandard==0.25.0
 certifi==2026.7.22
