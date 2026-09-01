@@ -23,7 +23,7 @@ here.
 | hdf5plugin | 7.0.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
 | h5py | 3.16.0 | BSD-3-Clause | © 2008 Andrew Collette and contributors |
 | NumPy | 2.5.2 | BSD-3-Clause | © 2005-2023 NumPy Developers |
-| tifffile | 2025.5.10 | BSD-3-Clause | © 2008-2025 Christoph Gohlke |
+| tifffile | 2026.8.16 | BSD-3-Clause | © 2008-2025 Christoph Gohlke |
 | FabIO | 2026.6.0 | MIT | © European Synchrotron Radiation Facility and FabIO contributors |
 | cbor2 | 6.1.4 | MIT | © 2016 Alex Grönholm |
 | PyZMQ | 27.2.0 | BSD-3-Clause | © 2009-2012 Brian Granger, Min Ragan-Kelley (bundles libzmq, MPL-2.0) |
