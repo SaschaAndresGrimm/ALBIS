@@ -8,7 +8,7 @@ python-multipart==0.0.32
 hdf5plugin==7.0.0
 h5py==3.16.0
 numpy==2.5.2
-tifffile==2026.8.16
+tifffile==2026.8.23
 fabio==2026.6.0
 cbor2==6.1.4
 pyzmq==27.2.0
