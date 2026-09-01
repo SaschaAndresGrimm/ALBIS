@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Exported TIFFs state the DECTRIS metadata where a reader will find it. An IFD embedded in a TIFF tag carries file-absolute value offsets, the same convention EXIF uses. ALBIS wrote them relative to the start of the tag payload and read them back the same way, so writer and reader agreed with each other and with nothing else: every value too large to sit inline in a tag entry — the series unique id, the timestamp, exposure time, incident energy, wavelength, beam centre, detector distance — decoded to whatever bytes happened to lie at that offset from the start of the file. Only the small inline values, the series and image numbers and the threshold id, ever came out right. That was true of every TIFF ALBIS has exported, for every tool except ALBIS, and nothing caught it because the only reader in the test suite was our own — a test that parsed the file the way the writer packed it agreed with the writer. tifffile 2026.x decodes this tag natively and is simply the first outside reader to look. The payload cannot know its own file position, since tifffile chooses that when it writes the tag, so it is still packed with offsets from the payload start and rebased once the file is on disk, seeking to the tag rather than reading the frame back. Reading now works from the file bytes and tells the two layouts apart by where their pointers land, so TIFFs already exported with the old offsets keep reading. `tests/test_dectris_tiff_tag_layout.py` checks the written file with a reader built from the TIFF spec rather than from `backend.image_formats`, because that is the only kind of reader that could ever have failed.
+
 ## [0.13.0] - 2026-08-22
 
 ### Fixed
