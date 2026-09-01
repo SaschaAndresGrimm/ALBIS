@@ -7,9 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-01
+
 ### Fixed
 
 - Exported TIFFs state the DECTRIS metadata where a reader will find it. An IFD embedded in a TIFF tag carries file-absolute value offsets, the same convention EXIF uses. ALBIS wrote them relative to the start of the tag payload and read them back the same way, so writer and reader agreed with each other and with nothing else: every value too large to sit inline in a tag entry — the series unique id, the timestamp, exposure time, incident energy, wavelength, beam centre, detector distance — decoded to whatever bytes happened to lie at that offset from the start of the file. Only the small inline values, the series and image numbers and the threshold id, ever came out right. That was true of every TIFF ALBIS has exported, for every tool except ALBIS, and nothing caught it because the only reader in the test suite was our own — a test that parsed the file the way the writer packed it agreed with the writer. tifffile 2026.x decodes this tag natively and is simply the first outside reader to look. The payload cannot know its own file position, since tifffile chooses that when it writes the tag, so it is still packed with offsets from the payload start and rebased once the file is on disk, seeking to the tag rather than reading the frame back. Reading now works from the file bytes and tells the two layouts apart by where their pointers land, so TIFFs already exported with the old offsets keep reading. `tests/test_dectris_tiff_tag_layout.py` checks the written file with a reader built from the TIFF spec rather than from `backend.image_formats`, because that is the only kind of reader that could ever have failed.
+
+### Changed
+
+- Dependencies: uvicorn 0.52.4, numpy 2.5.2, pyzmq 27.2.0, fabio 2026.6.0, tifffile 2026.8.16, and the `eslint` 10.9.0 / `vitest` 4.1.11 dev tooling. Only tifffile is worth a reader's attention: 2026.x decodes the DECTRIS TIFF tag itself, which is how the offset bug above came to light, and it could not be taken until that was fixed. It needs Python 3.12 or newer, which is below the 3.13 floor `pyproject.toml` already declares, so it changes nothing for a source checkout and nothing at all for the desktop artifacts, which bundle their own interpreter.
 
 ## [0.13.0] - 2026-08-22
 
@@ -865,7 +871,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.10.9...v0.11.0
