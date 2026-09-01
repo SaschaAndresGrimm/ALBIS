@@ -17,7 +17,7 @@ import sys
 import threading
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 import numpy as np
 from fastapi import HTTPException
@@ -37,6 +37,23 @@ _fabio_tif_image_cls = None
 
 
 _DECTRIS_TIFF_TAG = 0xC7F8
+# tifffile 2026.x decodes tag 51192 itself and hands back a dict keyed by these
+# names rather than by the codes the rest of this module indexes on.
+_DECTRIS_TAG_CODES = {
+    "IfdVersion": 0x0000,
+    "SeriesUniqueId": 0x0001,
+    "SeriesNumber": 0x0002,
+    "ImageNumber": 0x0003,
+    "ImageDateTime": 0x0004,
+    "ThresholdId": 0x0005,
+    "ThresholdEnergy": 0x0006,
+    "ExposureTime": 0x0007,
+    "IncidentEnergy": 0x0009,
+    "IncidentWavelength": 0x000A,
+    "LostPixelCount": 0x0012,
+    "BeamCenter": 0x0016,
+    "DetectorDistance": 0x0017,
+}
 _TIFF_TYPE_SIZES = {
     1: 1,  # BYTE
     2: 1,  # ASCII
@@ -151,11 +168,111 @@ def _parse_dectris_ifd(
     return entries
 
 
+def _dectris_offsets_are_absolute(raw: bytes, base: int, length: int, bo: str) -> bool:
+    """Say which base the value offsets in the IFD at `base` are measured from.
+
+    An embedded IFD states file-absolute offsets, the same way EXIF does. ALBIS
+    used to write them relative to the start of the tag payload instead, so
+    files carrying the older layout are already out there and still have to
+    read. For any real file the two readings put the pointers in ranges that do
+    not overlap -- a relative pointer is smaller than the payload, an absolute
+    one is past the header and the first IFD -- so scoring both and taking the
+    one whose pointers land inside the payload tells them apart with no version
+    stamp to go on.
+    """
+    if base + 2 > len(raw):
+        return True
+    end = base + length
+    count = int.from_bytes(raw[base : base + 2], bo)
+    data_start = base + 2 + count * 12 + 4
+    absolute = relative = 0
+    for index in range(count):
+        entry = base + 2 + index * 12
+        if entry + 12 > len(raw):
+            break
+        type_code = int.from_bytes(raw[entry + 2 : entry + 4], bo)
+        value_count = int.from_bytes(raw[entry + 4 : entry + 8], bo)
+        size = _TIFF_TYPE_SIZES.get(type_code)
+        if not size:
+            continue
+        total = size * value_count
+        if total <= 4:
+            continue
+        pointer = int.from_bytes(raw[entry + 8 : entry + 12], bo)
+        if data_start <= pointer and pointer + total <= end:
+            absolute += 1
+        if data_start <= base + pointer and base + pointer + total <= end:
+            relative += 1
+    return absolute >= relative
+
+
+def _find_tiff_tag_value_offset(handle: BinaryIO, tag_id: int) -> int:
+    """Where the first IFD put the value of `tag_id`, read from an open file.
+
+    Takes a handle rather than bytes, and reads only the header and the IFD
+    table: the file this has to find a tag in is an exported frame, and most of
+    it is pixel data there is no reason to pull into memory.
+
+    Only classic little-endian TIFF, which is all `_write_tiff` produces.
+    """
+    handle.seek(0)
+    header = handle.read(8)
+    if len(header) < 8 or header[:4] != b"II\x2a\x00":
+        return 0
+    handle.seek(int.from_bytes(header[4:8], "little"))
+    count = handle.read(2)
+    if len(count) < 2:
+        return 0
+    entries = handle.read(int.from_bytes(count, "little") * 12)
+    for entry in range(0, len(entries) - 11, 12):
+        if int.from_bytes(entries[entry : entry + 2], "little") == tag_id:
+            return int.from_bytes(entries[entry + 8 : entry + 12], "little")
+    return 0
+
+
+def _rebase_dectris_ifd(payload: bytes, base: int) -> bytes:
+    """Point the value offsets in a packed DECTRIS IFD at where the payload landed.
+
+    `_pack_dectris_ifd` cannot know its own file position -- tifffile picks that
+    when it writes the tag -- so it packs offsets from the payload start and
+    they are rebased here, once the file exists. Only the four-byte offset
+    fields change, so the payload keeps its length and can be written back over
+    the bytes already on disk. A negative base undoes a rebase, which is how the
+    tests reproduce the layout earlier versions wrote.
+    """
+    if not payload or base == 0:
+        return payload
+    out = bytearray(payload)
+    count = int.from_bytes(out[0:2], "little")
+    for index in range(count):
+        entry = 2 + index * 12
+        if entry + 12 > len(out):
+            break
+        type_code = int.from_bytes(out[entry + 2 : entry + 4], "little")
+        value_count = int.from_bytes(out[entry + 4 : entry + 8], "little")
+        size = _TIFF_TYPE_SIZES.get(type_code)
+        if not size or size * value_count <= 4:
+            continue
+        field = entry + 8
+        pointer = int.from_bytes(out[field : field + 4], "little")
+        out[field : field + 4] = struct.pack("<I", pointer + base)
+    return bytes(out)
+
+
 def _parse_dectris_tag_value(value: Any, byteorder: str) -> dict[int, Any]:
     if value is None:
         return {}
     if isinstance(value, dict):
-        return {int(k): v for k, v in value.items()}
+        entries: dict[int, Any] = {}
+        for key, item in value.items():
+            code = _DECTRIS_TAG_CODES.get(key) if isinstance(key, str) else None
+            if code is None:
+                try:
+                    code = int(key)
+                except (TypeError, ValueError):
+                    continue
+            entries[code] = item
+        return entries
     if isinstance(value, np.ndarray):
         value = value.tobytes()
     if isinstance(value, memoryview):
@@ -486,6 +603,19 @@ def _distance_to_mm(value: float | None) -> float | None:
     return value
 
 
+def _read_tiff_prefix(tiff: Any, size: int | None = None) -> bytes | None:
+    """The first `size` bytes of the open file, leaving its position alone."""
+    try:
+        handle = tiff.filehandle
+        position = handle.tell()
+        handle.seek(0)
+        data = handle.read() if size is None else handle.read(size)
+        handle.seek(position)
+        return data
+    except Exception:
+        return None
+
+
 def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, Any]:
     meta: dict[str, Any] = {}
     try:
@@ -497,13 +627,31 @@ def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, An
         return meta
     entries: dict[int, Any] = {}
     if isinstance(tag.value, int):
-        if raw is None:
-            try:
-                raw = tiff.filehandle.read()
-            except Exception:
-                raw = None
-        if raw:
-            entries = _parse_dectris_ifd(raw, tiff.byteorder, tag.value, absolute_offsets=True)
+        # A detector-written file points at its IFD with a LONG and the offsets
+        # inside are file-absolute, so they can reach anywhere and the whole
+        # file has to be in hand.
+        window = raw if raw is not None else _read_tiff_prefix(tiff)
+        if window:
+            entries = _parse_dectris_ifd(window, tiff.byteorder, tag.value, absolute_offsets=True)
+    else:
+        # The IFD is embedded in the tag. Read it back out of the file rather
+        # than trusting tag.value: tifffile 2026.x decodes the tag itself and
+        # assumes file-absolute offsets, which silently mangles every
+        # out-of-line value in a file written with the older layout.
+        base = int(getattr(tag, "valueoffset", 0) or 0)
+        length = int(getattr(tag, "count", 0) or 0)
+        if base > 0 and length > 0:
+            # Every pointer in an embedded IFD lands inside the payload under
+            # either layout, so stop short of the pixel data.
+            window = raw if raw is not None else _read_tiff_prefix(tiff, base + length)
+            if window:
+                bo = "little" if tiff.byteorder == "<" else "big"
+                entries = _parse_dectris_ifd(
+                    window,
+                    tiff.byteorder,
+                    base,
+                    absolute_offsets=_dectris_offsets_are_absolute(window, base, length, bo),
+                )
     if not entries:
         entries = _parse_dectris_tag_value(tag.value, tiff.byteorder)
     if not entries:
@@ -1229,6 +1377,28 @@ def _read_tiff_bytes_with_simplon_meta(raw: bytes) -> tuple[np.ndarray, dict[str
         return arr, meta
 
 
+def _absolutize_dectris_offsets(path: Path, payload: bytes) -> None:
+    """Restate the DECTRIS tag's value offsets now that its file position is known.
+
+    Rewrites the payload in place, over the bytes tifffile just wrote. Left
+    undone, every value too large to sit inline in a tag entry decodes to
+    whatever happens to be at that offset from the start of the file.
+    """
+    try:
+        size = path.stat().st_size
+        with path.open("r+b") as handle:
+            base = _find_tiff_tag_value_offset(handle, _DECTRIS_TIFF_TAG)
+            if base <= 0 or base + len(payload) > size:
+                return
+            rebased = _rebase_dectris_ifd(payload, base)
+            if rebased == payload:
+                return
+            handle.seek(base)
+            handle.write(rebased)
+    except OSError:
+        return
+
+
 def _write_tiff(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = None) -> None:
     _ensure_tifffile()
     dectris_payload = _dectris_tiff_payload(metadata)
@@ -1248,6 +1418,8 @@ def _write_tiff(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = N
         description="\n".join(_provenance_lines(metadata)),
         extratags=extratags,
     )
+    if dectris_payload:
+        _absolutize_dectris_offsets(path, dectris_payload)
 
 
 def _write_cbf(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = None) -> None:
