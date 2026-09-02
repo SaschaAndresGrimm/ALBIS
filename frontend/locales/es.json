@@ -781,6 +781,7 @@
   "status.data_export.started": "Exportación de datos iniciada",
   "status.data_export.status_failed": "No se pudo leer el estado de exportación",
   "status.data_export.status_query_failed": "Error en la consulta de estado",
+  "status.export.no_image": "Abra una imagen antes de guardar",
   "status.export.save_failed": "No se pudo guardar la imagen",
   "status.export.saved": "{{filename}} guardado",
   "status.export.viewer_failed": "Error al exportar el visor",

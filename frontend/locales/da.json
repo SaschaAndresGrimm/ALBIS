@@ -781,6 +781,7 @@
   "status.data_export.started": "Dataeksport startet",
   "status.data_export.status_failed": "Kunne ikke læse eksportstatus",
   "status.data_export.status_query_failed": "Statusforespørgsel mislykkedes",
+  "status.export.no_image": "Åbn et billede før du gemmer",
   "status.export.save_failed": "Billedet kunne ikke gemmes",
   "status.export.saved": "{{filename}} gemt",
   "status.export.viewer_failed": "Eksport af fremviser mislykkedes",

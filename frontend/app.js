@@ -451,8 +451,8 @@ const recentFilesSubmenu = document.getElementById("recent-files-submenu");
 const recentFilesParent = document.getElementById("recent-files-parent");
 const recentFiles = createRecentFiles();
 const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
-const animationExportMenuItem = document.querySelector(
-  '.dropdown-item[data-action="export-animation"]'
+const menuItemsByAction = new Map(
+  Array.from(menuActions, (item) => [item.dataset.action, item])
 );
 const aboutModal = document.getElementById("about-modal");
 const aboutClose = document.getElementById("about-close");
@@ -1598,29 +1598,65 @@ function openAnimationExportDialog() {
   animationExportController.openDialog();
 }
 
-// A single frame cannot be animated, so the GIF export entry points are greyed
-// out with the reason on hover rather than left live to refuse the click. The
-// keyboard shortcut reaches openDialog() directly, which is why that guard
-// stays and now raises a toast instead of only nudging the footer pill.
-function syncAnimationExportAvailability() {
-  const ready = Boolean(animationExportController?.isReady());
-  const reason = ready
-    ? ""
-    : t(state.file ? "status.animation_export.not_series" : "status.animation_export.no_file");
-  if (animationExportMenuItem) {
-    animationExportMenuItem.classList.toggle("is-disabled", !ready);
-    if (ready) {
-      animationExportMenuItem.removeAttribute("aria-disabled");
-      animationExportMenuItem.removeAttribute("title");
-    } else {
-      animationExportMenuItem.setAttribute("aria-disabled", "true");
-      animationExportMenuItem.title = reason;
-    }
+// Why a File menu command cannot run right now, or "" when it can. The
+// command palette already leaves these commands out when they cannot run
+// (`when:` in command_palette_commands.js); the menu has no such notion, so it
+// greys the entry out and hangs the reason off it as a tooltip. Each handler
+// keeps its own guard regardless: the keyboard shortcuts reach them directly,
+// past both the menu and the palette.
+function fileCommandUnavailableReason(action) {
+  switch (action) {
+    case "close-file":
+      return state.file ? "" : t("status.file.no_file_loaded");
+    case "save-full":
+    case "save-visible":
+      // Viewer Window is deliberately absent: it screenshots the page, which
+      // works with no image open, splash and all.
+      return exportSplashController?.canExportImage() ? "" : t("status.export.no_image");
+    case "export-animation":
+      if (animationExportController?.isReady()) return "";
+      return t(
+        state.file ? "status.animation_export.not_series" : "status.animation_export.no_file"
+      );
+    case "export-data":
+      if (dataExportController?.isReady()) return "";
+      return t(state.file ? "status.data_export.no_dataset" : "status.data_export.no_file");
+    default:
+      return "";
   }
+}
+
+const GATED_FILE_COMMANDS = [
+  "close-file",
+  "save-full",
+  "save-visible",
+  "export-animation",
+  "export-data",
+];
+
+function setMenuItemAvailability(item, reason) {
+  if (!item) return;
+  item.classList.toggle("is-disabled", Boolean(reason));
+  if (reason) {
+    item.setAttribute("aria-disabled", "true");
+    item.title = reason;
+  } else {
+    item.removeAttribute("aria-disabled");
+    item.removeAttribute("title");
+  }
+}
+
+function syncFileCommandAvailability() {
+  GATED_FILE_COMMANDS.forEach((action) => {
+    setMenuItemAvailability(menuItemsByAction.get(action), fileCommandUnavailableReason(action));
+  });
+  // The playback popover's GIF button is the one entry point outside the menu
+  // that can be greyed out the same way.
   if (toolbarPlaybackExportGif) {
-    toolbarPlaybackExportGif.disabled = !ready;
-    if (ready) toolbarPlaybackExportGif.removeAttribute("title");
-    else toolbarPlaybackExportGif.title = reason;
+    const reason = fileCommandUnavailableReason("export-animation");
+    toolbarPlaybackExportGif.disabled = Boolean(reason);
+    if (reason) toolbarPlaybackExportGif.title = reason;
+    else toolbarPlaybackExportGif.removeAttribute("title");
   }
 }
 
@@ -1736,7 +1772,7 @@ function refreshLocalizedUi() {
   updateRingsSectionState();
   updatePeaksSectionState();
   updateSeriesSumUi();
-  syncAnimationExportAvailability();
+  syncFileCommandAvailability();
   updateCheckController?.refreshUi();
   backendLogViewerController?.refreshUi();
   viewerSyncController?.refreshUi();
@@ -1945,7 +1981,7 @@ function stopPlayback() {
 
 function updateFrameControls() {
   framePlaybackController?.updateFrameControls();
-  syncAnimationExportAvailability();
+  syncFileCommandAvailability();
 }
 
 function startPlayback() {
@@ -2111,7 +2147,7 @@ function openMenu(menu, anchor) {
     // Rebuilt on open rather than kept in sync: the list is short, and one
     // source of truth for what is on screen beats two.
     recentFilesController?.render();
-    syncAnimationExportAvailability();
+    syncFileCommandAvailability();
   }
   dropdown.classList.add("is-open");
   dropdown.setAttribute("aria-hidden", "false");

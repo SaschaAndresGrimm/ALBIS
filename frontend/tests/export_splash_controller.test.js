@@ -1,4 +1,13 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// The real English catalogue, so a renamed status key fails here instead of
+// quietly degrading to a raw key in the UI.
+const EN = JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), "frontend", "locales", "en.json"), "utf8")
+);
 
 function buildFetchMock(dictionaries) {
   return vi.fn(async (url) => {
@@ -74,6 +83,7 @@ describe("export_splash_controller", () => {
 
     const controller = createExportSplashController({
       state: {
+        hasFrame: true,
         dataRaw: new Uint16Array([5]),
         colormap: "gray",
         maskEnabled: false,
@@ -110,5 +120,62 @@ describe("export_splash_controller", () => {
 
     expect(canvases).toHaveLength(1);
     expect(Array.from(canvases[0]._ctx.lastImageData.data)).toEqual([88, 183, 198, 255]);
+  });
+});
+
+describe("export_splash_controller availability", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  async function build(stateOverrides) {
+    vi.resetModules();
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => EN }));
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createExportSplashController } = await import(
+      "../modules/export_splash_controller.js"
+    );
+    const setStatus = vi.fn();
+    const controller = createExportSplashController({
+      state: { width: 4, height: 4, zoom: 1, frameIndex: 0, ...stateOverrides },
+      elements: { canvasWrap: { clientWidth: 4, clientHeight: 4 } },
+      callbacks: {
+        getEffectiveScrollLeft: () => 0,
+        getEffectiveScrollTop: () => 0,
+        setStatus,
+      },
+    });
+    return { controller, setStatus };
+  }
+
+  it("cannot export with nothing on screen", async () => {
+    const { controller } = await build({ hasFrame: false, dataRaw: null });
+    expect(controller.canExportImage()).toBe(false);
+  });
+
+  it("cannot export a stale frame left over from a failed load", async () => {
+    // dataRaw outlives hasFrame across a failed frame load and a dataset
+    // rescan, so it alone would save the previous frame's pixels.
+    const { controller } = await build({ hasFrame: false, dataRaw: new Uint16Array([1]) });
+    expect(controller.canExportImage()).toBe(false);
+  });
+
+  it("can export once a frame is on screen", async () => {
+    const { controller } = await build({ hasFrame: true, dataRaw: new Uint16Array([1]) });
+    expect(controller.canExportImage()).toBe(true);
+  });
+
+  it("says why a full-image save is not possible instead of returning silently", async () => {
+    const { controller, setStatus } = await build({ hasFrame: false, dataRaw: null });
+    expect(controller.exportFullImage({ saveAs: true })).toBeUndefined();
+    expect(setStatus).toHaveBeenCalledWith(EN["status.export.no_image"], { tone: "warning" });
+  });
+
+  it("says why a visible-area save is not possible instead of returning silently", async () => {
+    const { controller, setStatus } = await build({ hasFrame: false, dataRaw: null });
+    expect(controller.exportVisibleArea({ saveAs: true })).toBeUndefined();
+    expect(setStatus).toHaveBeenCalledWith(EN["status.export.no_image"], { tone: "warning" });
   });
 });

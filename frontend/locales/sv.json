@@ -781,6 +781,7 @@
   "status.data_export.started": "Dataexport startad",
   "status.data_export.status_failed": "Kunde inte läsa exportstatus",
   "status.data_export.status_query_failed": "Statusfråga misslyckades",
+  "status.export.no_image": "Öppna en bild före sparande",
   "status.export.save_failed": "Det gick inte att spara bilden",
   "status.export.saved": "{{filename}} sparad",
   "status.export.viewer_failed": "Visarexport misslyckades",

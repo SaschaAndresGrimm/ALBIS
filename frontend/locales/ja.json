@@ -781,6 +781,7 @@
   "status.data_export.started": "データエクスポートを開始しました",
   "status.data_export.status_failed": "エクスポート状態を読み取れませんでした",
   "status.data_export.status_query_failed": "状態問い合わせに失敗しました",
+  "status.export.no_image": "保存前に画像を開いてください",
   "status.export.save_failed": "画像を保存できませんでした",
   "status.export.saved": "{{filename}} を保存しました",
   "status.export.viewer_failed": "ビューアーエクスポートに失敗しました",

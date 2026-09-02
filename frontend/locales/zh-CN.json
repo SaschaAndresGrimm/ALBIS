@@ -781,6 +781,7 @@
   "status.data_export.started": "数据导出已启动",
   "status.data_export.status_failed": "无法读取导出状态",
   "status.data_export.status_query_failed": "状态查询失败",
+  "status.export.no_image": "保存前请打开图像",
   "status.export.save_failed": "无法保存图像",
   "status.export.saved": "已保存 {{filename}}",
   "status.export.viewer_failed": "查看器导出失败",

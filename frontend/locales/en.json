@@ -781,6 +781,7 @@
   "status.data_export.started": "Data export started",
   "status.data_export.status_failed": "Could not read export status",
   "status.data_export.status_query_failed": "Status query failed",
+  "status.export.no_image": "Open an image before saving",
   "status.export.save_failed": "Could not save image",
   "status.export.saved": "Saved {{filename}}",
   "status.export.viewer_failed": "Viewer export failed",

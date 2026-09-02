@@ -781,6 +781,7 @@
   "status.data_export.started": "Exportation des données démarrée",
   "status.data_export.status_failed": "Impossible de lire l’état de l’exportation",
   "status.data_export.status_query_failed": "Échec de la requête d’état",
+  "status.export.no_image": "Ouvrez une image avant l'enregistrement",
   "status.export.save_failed": "Impossible d'enregistrer l'image",
   "status.export.saved": "{{filename}} enregistré",
   "status.export.viewer_failed": "Échec de l'exportation de la visionneuse",

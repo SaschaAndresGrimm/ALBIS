@@ -781,6 +781,7 @@
   "status.data_export.started": "Dateexport gstartet",
   "status.data_export.status_failed": "Exportstatus het nit chönne gläse wärde",
   "status.data_export.status_query_failed": "D Status-Aafraag het nit klappt",
+  "status.export.no_image": "Mach vor em Spychere es Bild uf",
   "status.export.save_failed": "S Bild het nit chönne gspycheret wärde",
   "status.export.saved": "{{filename}} gspycheret",
   "status.export.viewer_failed": "Viewer-Export het nit glunge",

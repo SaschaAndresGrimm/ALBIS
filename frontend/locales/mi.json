@@ -781,6 +781,7 @@
   "status.data_export.started": "Kua tīmata te kaweake raraunga",
   "status.data_export.status_failed": "Kāore i taea te pānui i te tūnga kaweake",
   "status.data_export.status_query_failed": "I rahua te uiui tūnga",
+  "status.export.no_image": "Whakatuwheratia he whakaahua i mua i te tiaki",
   "status.export.save_failed": "Kāore i taea te tiaki i te atahanga",
   "status.export.saved": "Kua tiakina {{filename}}",
   "status.export.viewer_failed": "I rahua te kaweake kaitirotiro",

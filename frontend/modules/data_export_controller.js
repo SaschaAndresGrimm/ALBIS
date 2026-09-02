@@ -427,6 +427,7 @@ export function createDataExportController({
   dataExportCancel?.addEventListener("click", cancelExport);
 
   return {
+    isReady,
     openDialog,
     closeDialog,
     updateUi,

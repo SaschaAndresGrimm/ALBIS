@@ -208,8 +208,18 @@ export function createExportSplashController({
     return { x: startX, y: startY, width, height };
   }
 
+  // Whether there is a frame to write out. `hasFrame` rather than `dataRaw`
+  // alone: dataRaw outlives a failed frame load and a dataset rescan, so it can
+  // still hold the previous frame's pixels when nothing is on screen.
+  function canExportImage() {
+    return Boolean(state.hasFrame && state.dataRaw);
+  }
+
   function exportFullImage(options = {}) {
-    if (!state.dataRaw) return undefined;
+    if (!canExportImage()) {
+      setStatus(t("status.export.no_image"), { tone: "warning" });
+      return undefined;
+    }
     const region = { x: 0, y: 0, width: state.width, height: state.height };
     const suggested = defaultExportName("full");
     if (options.saveAs) {
@@ -221,8 +231,11 @@ export function createExportSplashController({
   }
 
   function exportVisibleArea(options = {}) {
-    const region = getVisibleRegion();
-    if (!region) return undefined;
+    const region = canExportImage() ? getVisibleRegion() : null;
+    if (!region) {
+      setStatus(t("status.export.no_image"), { tone: "warning" });
+      return undefined;
+    }
     const suggested = defaultExportName("view");
     if (options.saveAs) {
       return saveCanvasAs(suggested, () => renderRegionToCanvas(region));
@@ -563,6 +576,7 @@ export function createExportSplashController({
   }
 
   return {
+    canExportImage,
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,

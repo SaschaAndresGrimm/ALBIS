@@ -781,6 +781,7 @@
   "status.data_export.started": "Export da datas cumenzà",
   "status.data_export.status_failed": "Impussibel da leger il status da l’export",
   "status.data_export.status_query_failed": "Dumonda da status fallida",
+  "status.export.no_image": "Avra in maletg avant il memorisar",
   "status.export.save_failed": "Betg reussì da memorisar il maletg",
   "status.export.saved": "Memorisà {{filename}}",
   "status.export.viewer_failed": "Export dal visualisader betg reussì",

@@ -781,6 +781,7 @@
   "status.data_export.started": "Esportazione dati avviata",
   "status.data_export.status_failed": "Impossibile leggere lo stato dell’esportazione",
   "status.data_export.status_query_failed": "Query di stato non riuscita",
+  "status.export.no_image": "Apri un'immagine prima di salvare",
   "status.export.save_failed": "Impossibile salvare l'immagine",
   "status.export.saved": "{{filename}} salvato",
   "status.export.viewer_failed": "Esportazione del visualizzatore non riuscita",
