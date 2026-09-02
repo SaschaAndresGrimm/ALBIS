@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Export Animation no longer turns down a single frame in silence. A lone frame cannot be animated and the export declined it correctly, but the explanation went to `setStatus` without a tone — and only a toned status is also raised as a toast, so the message landed in the footer pill where the next ambient update overwrote it. The File menu entry, the ⌘G shortcut and the playback popover's "Export GIF…" button therefore all looked like they did nothing at all, while a translated sentence saying exactly what was wrong sat unread in all thirteen locales. The menu entry and the toolbar button are now greyed out whenever the open image cannot be animated, carrying that sentence as their tooltip and kept in step with the frame count, the interface language and the File menu opening; the shortcut reaches the dialog directly and cannot be headed off that way, so its guard raises the reason as a warning toast instead. The same untoned refusals in Convert Dataset — no file open, no dataset chosen, an inverted frame range — are toned in the same pass, so a guard that refuses a click is never mute.
+
 ## [0.14.0] - 2026-09-01
 
 ### Fixed

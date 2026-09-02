@@ -451,6 +451,9 @@ const recentFilesSubmenu = document.getElementById("recent-files-submenu");
 const recentFilesParent = document.getElementById("recent-files-parent");
 const recentFiles = createRecentFiles();
 const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
+const animationExportMenuItem = document.querySelector(
+  '.dropdown-item[data-action="export-animation"]'
+);
 const aboutModal = document.getElementById("about-modal");
 const aboutClose = document.getElementById("about-close");
 const updateCheckModal = document.getElementById("update-check-modal");
@@ -1595,6 +1598,32 @@ function openAnimationExportDialog() {
   animationExportController.openDialog();
 }
 
+// A single frame cannot be animated, so the GIF export entry points are greyed
+// out with the reason on hover rather than left live to refuse the click. The
+// keyboard shortcut reaches openDialog() directly, which is why that guard
+// stays and now raises a toast instead of only nudging the footer pill.
+function syncAnimationExportAvailability() {
+  const ready = Boolean(animationExportController?.isReady());
+  const reason = ready
+    ? ""
+    : t(state.file ? "status.animation_export.not_series" : "status.animation_export.no_file");
+  if (animationExportMenuItem) {
+    animationExportMenuItem.classList.toggle("is-disabled", !ready);
+    if (ready) {
+      animationExportMenuItem.removeAttribute("aria-disabled");
+      animationExportMenuItem.removeAttribute("title");
+    } else {
+      animationExportMenuItem.setAttribute("aria-disabled", "true");
+      animationExportMenuItem.title = reason;
+    }
+  }
+  if (toolbarPlaybackExportGif) {
+    toolbarPlaybackExportGif.disabled = !ready;
+    if (ready) toolbarPlaybackExportGif.removeAttribute("title");
+    else toolbarPlaybackExportGif.title = reason;
+  }
+}
+
 toolbarPlaybackExportGif?.addEventListener("click", () => {
   // Collapse the playback popover before raising the modal on top of it.
   toolbarPlaybackPopover?.setAttribute("aria-hidden", "true");
@@ -1707,6 +1736,7 @@ function refreshLocalizedUi() {
   updateRingsSectionState();
   updatePeaksSectionState();
   updateSeriesSumUi();
+  syncAnimationExportAvailability();
   updateCheckController?.refreshUi();
   backendLogViewerController?.refreshUi();
   viewerSyncController?.refreshUi();
@@ -1915,6 +1945,7 @@ function stopPlayback() {
 
 function updateFrameControls() {
   framePlaybackController?.updateFrameControls();
+  syncAnimationExportAvailability();
 }
 
 function startPlayback() {
@@ -2080,6 +2111,7 @@ function openMenu(menu, anchor) {
     // Rebuilt on open rather than kept in sync: the list is short, and one
     // source of truth for what is on screen beats two.
     recentFilesController?.render();
+    syncAnimationExportAvailability();
   }
   dropdown.classList.add("is-open");
   dropdown.setAttribute("aria-hidden", "false");

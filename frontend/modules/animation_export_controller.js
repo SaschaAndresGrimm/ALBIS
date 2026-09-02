@@ -356,12 +356,12 @@ export function createAnimationExportController({
   async function startExport() {
     if (state.animationExport.running) return;
     if (!isReady()) {
-      setStatus(t("status.animation_export.not_series"));
+      setStatus(t("status.animation_export.not_series"), { tone: "warning" });
       return;
     }
     const frames = selectedFrameNumbers();
     if (!frames.length) {
-      setStatus(t("status.animation_export.range_invalid"));
+      setStatus(t("status.animation_export.range_invalid"), { tone: "warning" });
       return;
     }
     const region = selectedRegion();
@@ -425,11 +425,11 @@ export function createAnimationExportController({
 
   function openDialog() {
     if (!state.file) {
-      setStatus(t("status.animation_export.no_file"));
+      setStatus(t("status.animation_export.no_file"), { tone: "warning" });
       return;
     }
     if (!isReady()) {
-      setStatus(t("status.animation_export.not_series"));
+      setStatus(t("status.animation_export.not_series"), { tone: "warning" });
       return;
     }
     if (fpsSelect && !state.animationExport.running) {
@@ -464,6 +464,7 @@ export function createAnimationExportController({
   cancelBtn?.addEventListener("click", cancelExport);
 
   return {
+    isReady,
     openDialog,
     closeDialog,
     updateUi,

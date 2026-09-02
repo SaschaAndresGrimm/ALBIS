@@ -263,7 +263,7 @@ export function createDataExportController({
     const rangeStart = Math.max(1, Math.round(Number(dataExportRangeStart?.value || 1)));
     const rangeEnd = Math.max(1, Math.round(Number(dataExportRangeEnd?.value || totalFrames)));
     if (mode === "range" && rangeStart > rangeEnd) {
-      setStatus(t("status.data_export.range_invalid"));
+      setStatus(t("status.data_export.range_invalid"), { tone: "warning" });
       return;
     }
     const thresholdCount = Math.max(1, Math.round(Number(state.thresholdCount || 1)));
@@ -378,11 +378,11 @@ export function createDataExportController({
 
   function openDialog() {
     if (!state.file) {
-      setStatus(t("status.data_export.no_file"));
+      setStatus(t("status.data_export.no_file"), { tone: "warning" });
       return;
     }
     if (isHdfFile(state.file) && !state.dataset) {
-      setStatus(t("status.data_export.no_dataset"));
+      setStatus(t("status.data_export.no_dataset"), { tone: "warning" });
       return;
     }
     const nextSourceKey = sourceKey();

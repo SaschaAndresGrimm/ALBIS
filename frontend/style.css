@@ -646,9 +646,14 @@ body {
   min-height: var(--toolbar-control-h);
 }
 
-.tool-btn:hover {
+.tool-btn:hover:not(:disabled) {
   border-color: rgba(118, 154, 214, 0.7);
   background: linear-gradient(to bottom, rgba(33, 48, 70, 0.98), rgba(18, 29, 45, 0.98));
+}
+
+.tool-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .tool-btn.is-active {
