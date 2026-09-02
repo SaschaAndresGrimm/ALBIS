@@ -3,6 +3,11 @@
  */
 
 import { t } from "./i18n.js";
+import {
+  canExportAnimation,
+  canExportData,
+  canSaveImage,
+} from "./command_availability.js";
 
 export function buildCommandPaletteCommands({
   state,
@@ -26,6 +31,7 @@ export function buildCommandPaletteCommands({
     exportVisibleArea,
     exportViewerWindow,
     openDataExportDialog,
+    openAnimationExportDialog,
     startSeriesSumming,
     openSeriesSumOutputTarget,
     cancelSeriesSumming,
@@ -45,7 +51,9 @@ export function buildCommandPaletteCommands({
   const hasNavigableFrames = hasFrame && state.frameCount > 1 && (hasDataset || hasSeries);
   const hasThresholds = hasFile && state.autoload.mode === "file" && state.thresholdCount > 1;
   const canStartSeriesOps = hasFile && (!isHdfFile(state.file) || hasDataset) && !state.seriesSum.running;
-  const canExportData = hasFile && (!isHdfFile(state.file) || hasDataset);
+  const canSaveCurrentImage = canSaveImage(state);
+  const canExportGif = canExportAnimation(state);
+  const canConvertDataset = canExportData(state, isHdfFile);
   const canCancelSeriesOps = state.seriesSum.running && Boolean(state.seriesSum.jobId);
   const canOpenSeriesOutput = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
   const togglePlaybackLabel = state.playing ? t("command.label.playback_pause") : t("command.label.playback_play");
@@ -175,7 +183,7 @@ export function buildCommandPaletteCommands({
       label: t("command.label.export_full"),
       shortcut: platformShortcutLabel("save-full"),
       search: "export save full image png",
-      when: hasFrame,
+      when: canSaveCurrentImage,
       run: () => exportFullImage({ saveAs: true }),
     },
     {
@@ -183,7 +191,7 @@ export function buildCommandPaletteCommands({
       label: t("command.label.export_visible"),
       shortcut: platformShortcutLabel("save-visible"),
       search: "export save visible area png",
-      when: hasFrame,
+      when: canSaveCurrentImage,
       run: () => exportVisibleArea({ saveAs: true }),
     },
     {
@@ -191,15 +199,23 @@ export function buildCommandPaletteCommands({
       label: t("command.label.export_window"),
       shortcut: platformShortcutLabel("save-window"),
       search: "export save viewer window screenshot",
-      when: hasFrame,
+      when: canSaveCurrentImage,
       run: () => exportViewerWindow({ saveAs: true }),
+    },
+    {
+      id: "export-animation",
+      label: t("command.label.export_animation"),
+      shortcut: platformShortcutLabel("export-animation"),
+      search: "export animation gif animated movie frames",
+      when: canExportGif,
+      run: () => openAnimationExportDialog(),
     },
     {
       id: "export-data",
       label: t("command.label.export_data"),
       shortcut: platformShortcutLabel("export-data"),
       search: "export convert dataset tiff cbf image frames",
-      when: canExportData,
+      when: canConvertDataset,
       run: () => openDataExportDialog(),
     },
     {

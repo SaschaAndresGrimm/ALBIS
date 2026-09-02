@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { canSaveImage } from "./command_availability.js";
 import { showPromptDialog } from "./dialogs.js";
 import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
 
@@ -208,15 +209,8 @@ export function createExportSplashController({
     return { x: startX, y: startY, width, height };
   }
 
-  // Whether there is a frame to write out. `hasFrame` rather than `dataRaw`
-  // alone: dataRaw outlives a failed frame load and a dataset rescan, so it can
-  // still hold the previous frame's pixels when nothing is on screen.
-  function canExportImage() {
-    return Boolean(state.hasFrame && state.dataRaw);
-  }
-
   function exportFullImage(options = {}) {
-    if (!canExportImage()) {
+    if (!canSaveImage(state)) {
       setStatus(t("status.export.no_image"), { tone: "warning" });
       return undefined;
     }
@@ -231,7 +225,7 @@ export function createExportSplashController({
   }
 
   function exportVisibleArea(options = {}) {
-    const region = canExportImage() ? getVisibleRegion() : null;
+    const region = canSaveImage(state) ? getVisibleRegion() : null;
     if (!region) {
       setStatus(t("status.export.no_image"), { tone: "warning" });
       return undefined;
@@ -275,6 +269,13 @@ export function createExportSplashController({
   }
 
   async function exportViewerWindow(options = {}) {
+    // Screenshotting the page would technically work with only the splash on
+    // screen; refused all the same, so the shortcut agrees with the greyed-out
+    // menu entry and the command the palette leaves out.
+    if (!canSaveImage(state)) {
+      setStatus(t("status.export.no_image"), { tone: "warning" });
+      return;
+    }
     let html2canvasFn;
     try {
       html2canvasFn = await ensureHtml2Canvas();
@@ -576,7 +577,6 @@ export function createExportSplashController({
   }
 
   return {
-    canExportImage,
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,

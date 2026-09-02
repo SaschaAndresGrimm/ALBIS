@@ -164,6 +164,7 @@
   "command.label.debug_picker_file": "Debug: Apri selettore file ALBIS",
   "command.label.debug_picker_folder": "Debug: Apri selettore cartelle ALBIS",
   "command.label.debug_picker_geometry": "Debug: Apri selettore geometria ALBIS",
+  "command.label.export_animation": "Esporta: animazione",
   "command.label.export_data": "Esporta: converti dataset",
   "command.label.export_full": "Esporta: immagine intera",
   "command.label.export_visible": "Esporta: area visibile",

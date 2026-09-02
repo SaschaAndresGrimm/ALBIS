@@ -150,26 +150,15 @@ describe("export_splash_controller availability", () => {
     return { controller, setStatus };
   }
 
-  it("cannot export with nothing on screen", async () => {
-    const { controller } = await build({ hasFrame: false, dataRaw: null });
-    expect(controller.canExportImage()).toBe(false);
-  });
-
-  it("cannot export a stale frame left over from a failed load", async () => {
-    // dataRaw outlives hasFrame across a failed frame load and a dataset
-    // rescan, so it alone would save the previous frame's pixels.
-    const { controller } = await build({ hasFrame: false, dataRaw: new Uint16Array([1]) });
-    expect(controller.canExportImage()).toBe(false);
-  });
-
-  it("can export once a frame is on screen", async () => {
-    const { controller } = await build({ hasFrame: true, dataRaw: new Uint16Array([1]) });
-    expect(controller.canExportImage()).toBe(true);
-  });
-
   it("says why a full-image save is not possible instead of returning silently", async () => {
     const { controller, setStatus } = await build({ hasFrame: false, dataRaw: null });
     expect(controller.exportFullImage({ saveAs: true })).toBeUndefined();
+    expect(setStatus).toHaveBeenCalledWith(EN["status.export.no_image"], { tone: "warning" });
+  });
+
+  it("refuses a viewer-window screenshot with nothing on screen", async () => {
+    const { controller, setStatus } = await build({ hasFrame: false, dataRaw: null });
+    await controller.exportViewerWindow({ saveAs: true });
     expect(setStatus).toHaveBeenCalledWith(EN["status.export.no_image"], { tone: "warning" });
   });
 

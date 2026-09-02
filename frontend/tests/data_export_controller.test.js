@@ -56,28 +56,6 @@ describe("data_export_controller", () => {
     delete global.fetch;
   });
 
-  it("is not ready with no file open", async () => {
-    const { controller } = await build(makeState());
-    expect(controller.isReady()).toBe(false);
-  });
-
-  it("is not ready for an HDF5 file before a dataset is chosen", async () => {
-    const { controller } = await build(makeState({ file: "/data/stack.h5" }));
-    expect(controller.isReady()).toBe(false);
-  });
-
-  it("is ready for an HDF5 file with a dataset chosen", async () => {
-    const { controller } = await build(
-      makeState({ file: "/data/stack.h5", dataset: "/entry/data/data" })
-    );
-    expect(controller.isReady()).toBe(true);
-  });
-
-  it("is ready for a plain image file, which needs no dataset", async () => {
-    const { controller } = await build(makeState({ file: "/data/frame.cbf" }));
-    expect(controller.isReady()).toBe(true);
-  });
-
   it("refuses with no file open with a toast rather than silently", async () => {
     const { controller, setStatus, openModal } = await build(makeState());
     controller.openDialog();

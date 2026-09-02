@@ -301,7 +301,7 @@ body {
   z-index: 30;
 }
 
-.dropdown-submenu-parent:hover .dropdown-submenu {
+.dropdown-submenu-parent:hover:not(.is-disabled) .dropdown-submenu {
   display: block;
 }
 

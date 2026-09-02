@@ -164,6 +164,7 @@
   "command.label.debug_picker_file": "デバッグ: ALBISファイルピッカーを開く",
   "command.label.debug_picker_folder": "デバッグ: ALBISフォルダーピッカーを開く",
   "command.label.debug_picker_geometry": "デバッグ: ALBISジオメトリピッカーを開く",
+  "command.label.export_animation": "エクスポート: アニメーション",
   "command.label.export_data": "エクスポート: データセットを変換",
   "command.label.export_full": "エクスポート: 全体画像",
   "command.label.export_visible": "エクスポート: 表示領域",

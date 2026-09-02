@@ -43,6 +43,11 @@ import { createRecentFilesController } from "./modules/recent_files_controller.j
 import { createSeriesSumController } from "./modules/series_sum_controller.js";
 import { createDataExportController } from "./modules/data_export_controller.js";
 import { createAnimationExportController } from "./modules/animation_export_controller.js";
+import {
+  canExportAnimation,
+  canExportData,
+  canSaveImage,
+} from "./modules/command_availability.js";
 import { createBackendStatusController } from "./modules/backend_status_controller.js";
 import { createJfjochBridgeController } from "./modules/jfjoch_bridge_controller.js";
 import { createRemoteStreamController } from "./modules/remote_stream_controller.js";
@@ -454,6 +459,7 @@ const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
 const menuItemsByAction = new Map(
   Array.from(menuActions, (item) => [item.dataset.action, item])
 );
+const saveAsParent = document.getElementById("save-as-parent");
 const aboutModal = document.getElementById("about-modal");
 const aboutClose = document.getElementById("about-close");
 const updateCheckModal = document.getElementById("update-check-modal");
@@ -630,6 +636,7 @@ const PLATFORM_SHORTCUTS = {
   "save-full": { mac: "⌘S", other: "Ctrl+S" },
   "save-visible": { mac: "⇧⌘S", other: "Shift+Ctrl+S" },
   "save-window": { mac: "⌥⌘S", other: "Alt+Ctrl+S" },
+  "export-animation": { mac: "⌘G", other: "Ctrl+G" },
   "export-data": { mac: "⇧⌘X", other: "Shift+Ctrl+X" },
   "settings-open": { mac: "⌘,", other: "Ctrl+," },
   "command-palette": { mac: "⌘K", other: "Ctrl+K" },
@@ -1598,28 +1605,26 @@ function openAnimationExportDialog() {
   animationExportController.openDialog();
 }
 
-// Why a File menu command cannot run right now, or "" when it can. The
-// command palette already leaves these commands out when they cannot run
-// (`when:` in command_palette_commands.js); the menu has no such notion, so it
-// greys the entry out and hangs the reason off it as a tooltip. Each handler
-// keeps its own guard regardless: the keyboard shortcuts reach them directly,
-// past both the menu and the palette.
+// Why a File menu command cannot run right now, or "" when it can. The rules
+// themselves live in command_availability.js, shared with the command palette
+// (which leaves these commands out instead of greying them) and with each
+// command's own handler, which keeps the last guard for the keyboard shortcuts:
+// they reach the handler directly, past both the menu and the palette.
 function fileCommandUnavailableReason(action) {
   switch (action) {
     case "close-file":
       return state.file ? "" : t("status.file.no_file_loaded");
     case "save-full":
     case "save-visible":
-      // Viewer Window is deliberately absent: it screenshots the page, which
-      // works with no image open, splash and all.
-      return exportSplashController?.canExportImage() ? "" : t("status.export.no_image");
+    case "save-window":
+      return canSaveImage(state) ? "" : t("status.export.no_image");
     case "export-animation":
-      if (animationExportController?.isReady()) return "";
+      if (canExportAnimation(state)) return "";
       return t(
         state.file ? "status.animation_export.not_series" : "status.animation_export.no_file"
       );
     case "export-data":
-      if (dataExportController?.isReady()) return "";
+      if (canExportData(state, isHdfFile)) return "";
       return t(state.file ? "status.data_export.no_dataset" : "status.data_export.no_file");
     default:
       return "";
@@ -1630,6 +1635,7 @@ const GATED_FILE_COMMANDS = [
   "close-file",
   "save-full",
   "save-visible",
+  "save-window",
   "export-animation",
   "export-data",
 ];
@@ -1650,6 +1656,10 @@ function syncFileCommandAvailability() {
   GATED_FILE_COMMANDS.forEach((action) => {
     setMenuItemAvailability(menuItemsByAction.get(action), fileCommandUnavailableReason(action));
   });
+  // Save As has no action of its own and is dead exactly when its three
+  // children are, so it greys out with them rather than opening a submenu of
+  // three disabled entries.
+  setMenuItemAvailability(saveAsParent, fileCommandUnavailableReason("save-full"));
   // The playback popover's GIF button is the one entry point outside the menu
   // that can be greyed out the same way.
   if (toolbarPlaybackExportGif) {
@@ -3310,6 +3320,7 @@ function getCommandPaletteCommands() {
       exportVisibleArea,
       exportViewerWindow,
       openDataExportDialog,
+      openAnimationExportDialog,
       startSeriesSumming,
       openSeriesSumOutputTarget,
       cancelSeriesSumming,

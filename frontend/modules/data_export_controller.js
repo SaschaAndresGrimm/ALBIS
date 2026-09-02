@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { canExportData } from "./command_availability.js";
 
 function fileStem(path) {
   const normalized = String(path || "").replace(/\\/g, "/");
@@ -91,7 +92,7 @@ export function createDataExportController({
   }
 
   function isReady() {
-    return Boolean(state.file && (!isHdfFile(state.file) || state.dataset));
+    return canExportData(state, isHdfFile);
   }
 
   function sourceKey() {
@@ -427,7 +428,6 @@ export function createDataExportController({
   dataExportCancel?.addEventListener("click", cancelExport);
 
   return {
-    isReady,
     openDialog,
     closeDialog,
     updateUi,

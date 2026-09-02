@@ -48,18 +48,6 @@ describe("animation_export_controller", () => {
     delete global.fetch;
   });
 
-  it("reports a single frame as not exportable", async () => {
-    const { controller } = await createController(makeState());
-    expect(controller.isReady()).toBe(false);
-  });
-
-  it("reports a multi-frame dataset as exportable", async () => {
-    const { controller } = await createController(
-      makeState({ file: "/data/stack.h5", dataset: "/entry/data/data", frameCount: 12 })
-    );
-    expect(controller.isReady()).toBe(true);
-  });
-
   it("refuses a single frame with a toast rather than silently", async () => {
     const { controller, setStatus, openModal } = await createController(makeState());
     controller.openDialog();

@@ -10,6 +10,7 @@
  */
 
 import { t } from "./i18n.js";
+import { canExportAnimation } from "./command_availability.js";
 import { GifWriter } from "./gif_encoder.js";
 import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
 
@@ -67,10 +68,7 @@ export function createAnimationExportController({
   let activeController = null;
 
   function isReady() {
-    const total = Math.round(Number(state.frameCount) || 1);
-    if (total <= 1) return false;
-    const hasSeries = Array.isArray(state.seriesFiles) && state.seriesFiles.length > 0;
-    return Boolean(state.file && (hasSeries || state.dataset));
+    return canExportAnimation(state);
   }
 
   function fileStem() {
@@ -464,7 +462,6 @@ export function createAnimationExportController({
   cancelBtn?.addEventListener("click", cancelExport);
 
   return {
-    isReady,
     openDialog,
     closeDialog,
     updateUi,

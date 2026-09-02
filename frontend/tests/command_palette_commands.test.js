@@ -135,4 +135,90 @@ describe("command_palette_commands", () => {
     expect(openDebugFolderPicker).toHaveBeenCalledTimes(1);
     expect(openDebugGeometryPicker).toHaveBeenCalledTimes(1);
   });
+
+  it("offers the animation export only when the frames can be animated", async () => {
+    vi.resetModules();
+    globalThis.fetch = vi.fn(async () => jsonResponse({}));
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { buildCommandPaletteCommands } = await import("../modules/command_palette_commands.js");
+
+    const openAnimationExportDialog = vi.fn();
+    const build = (stateOverrides) =>
+      buildCommandPaletteCommands({
+        state: {
+          file: "",
+          hasFrame: true,
+          dataRaw: new Uint16Array([1]),
+          seriesFiles: [],
+          dataset: "",
+          autoload: { mode: "file" },
+          thresholdCount: 1,
+          seriesSum: { running: false, jobId: "", openTarget: "" },
+          panelCollapsed: true,
+          playing: false,
+          frameCount: 1,
+          frameIndex: 0,
+          ...stateOverrides,
+        },
+        panelTabState: "view",
+        platformShortcutLabel: () => "",
+        isHdfFile: (file) => /\.h5$/i.test(String(file || "")),
+        getThresholdIndexAtOffset: () => 0,
+        actions: { openAnimationExportDialog },
+      });
+
+    const ids = (commands) => commands.map((command) => command.id);
+
+    expect(ids(build({}))).not.toContain("export-animation");
+    expect(ids(build({ file: "/data/one.cbf", frameCount: 1 }))).not.toContain("export-animation");
+    // A multi-frame HDF5 file still needs its dataset chosen.
+    expect(ids(build({ file: "/data/stack.h5", frameCount: 12 }))).not.toContain(
+      "export-animation"
+    );
+
+    const ready = build({ file: "/data/stack.h5", dataset: "/entry/data/data", frameCount: 12 });
+    expect(ids(ready)).toContain("export-animation");
+    ready.find((command) => command.id === "export-animation").run();
+    expect(openAnimationExportDialog).toHaveBeenCalledTimes(1);
+  });
+
+  it("withholds the image saves when only a stale frame buffer remains", async () => {
+    vi.resetModules();
+    globalThis.fetch = vi.fn(async () => jsonResponse({}));
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { buildCommandPaletteCommands } = await import("../modules/command_palette_commands.js");
+
+    const commands = buildCommandPaletteCommands({
+      state: {
+        file: "/data/stack.h5",
+        // hasFrame goes false for the length of a dataset rescan while dataRaw
+        // still holds the previous frame.
+        hasFrame: false,
+        dataRaw: new Uint16Array([1]),
+        seriesFiles: [],
+        dataset: "/entry/data/data",
+        autoload: { mode: "file" },
+        thresholdCount: 1,
+        seriesSum: { running: false, jobId: "", openTarget: "" },
+        panelCollapsed: true,
+        playing: false,
+        frameCount: 12,
+        frameIndex: 0,
+      },
+      panelTabState: "view",
+      platformShortcutLabel: () => "",
+      isHdfFile: () => true,
+      getThresholdIndexAtOffset: () => 0,
+      actions: {},
+    });
+
+    const ids = commands.map((command) => command.id);
+    expect(ids).not.toContain("export-full");
+    expect(ids).not.toContain("export-visible");
+    expect(ids).not.toContain("export-window");
+    // Converting reads from the file, not from what is on screen.
+    expect(ids).toContain("export-data");
+  });
 });

@@ -164,6 +164,7 @@
   "command.label.debug_picker_file": "Debug: ALBIS-Datei-Uuswahl ufmache",
   "command.label.debug_picker_folder": "Debug: ALBIS-Ordner-Uuswahl ufmache",
   "command.label.debug_picker_geometry": "Debug: ALBIS-Geometrie-Uuswahl ufmache",
+  "command.label.export_animation": "Export: Animation",
   "command.label.export_data": "Export: Datensatz konvertiere",
   "command.label.export_full": "Export: Vollbild",
   "command.label.export_visible": "Export: Sichtbare Beräich",

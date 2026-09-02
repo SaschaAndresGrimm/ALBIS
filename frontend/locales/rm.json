@@ -164,6 +164,7 @@
   "command.label.debug_picker_file": "Debug: Avrir il selecziunader da datotecas ALBIS",
   "command.label.debug_picker_folder": "Debug: Avrir il selecziunader d’ordinaturs ALBIS",
   "command.label.debug_picker_geometry": "Debug: Avrir il selecziunader da geometria ALBIS",
+  "command.label.export_animation": "Exportar: Animaziun",
   "command.label.export_data": "Exportar: convertir set da datas",
   "command.label.export_full": "Exportar: Maletg cumplett",
   "command.label.export_visible": "Exportar: Zona visibla",

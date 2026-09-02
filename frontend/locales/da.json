@@ -164,6 +164,7 @@
   "command.label.debug_picker_file": "Debug: Åbn ALBIS-filvælger",
   "command.label.debug_picker_folder": "Debug: Åbn ALBIS-mappevælger",
   "command.label.debug_picker_geometry": "Debug: Åbn ALBIS-geometrivælger",
+  "command.label.export_animation": "Eksport: Animation",
   "command.label.export_data": "Eksport: Konverter datasæt",
   "command.label.export_full": "Eksport: Fuldt billede",
   "command.label.export_visible": "Eksport: Synligt område",

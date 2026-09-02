@@ -6,6 +6,10 @@ const EXACT_KEY_ALLOWLIST = new Set([
   "backend.live.live",
   "backend.server.offline",
   "backend.server.online",
+  // "Export" and "Animation" are the German and Swiss German words as well as
+  // the English ones, so the match is a cognate rather than a missing
+  // translation.
+  "command.label.export_animation",
   "cursor.resolution",
   "roi.mode.default",
   "series.ui.norm_image_placeholder",

@@ -164,6 +164,7 @@
   "command.label.debug_picker_file": "Depuração: Abrir seletor de arquivos do ALBIS",
   "command.label.debug_picker_folder": "Depuração: Abrir seletor de pastas do ALBIS",
   "command.label.debug_picker_geometry": "Depuração: Abrir seletor de geometria do ALBIS",
+  "command.label.export_animation": "Exportar: animação",
   "command.label.export_data": "Exportar: converter conjunto de dados",
   "command.label.export_full": "Exportar: imagem completa",
   "command.label.export_visible": "Exportar: Área Visível",

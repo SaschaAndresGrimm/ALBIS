@@ -164,6 +164,7 @@
   "command.label.debug_picker_file": "调试：打开 ALBIS 文件选择器",
   "command.label.debug_picker_folder": "调试：打开 ALBIS 文件夹选择器",
   "command.label.debug_picker_geometry": "调试：打开 ALBIS 几何文件选择器",
+  "command.label.export_animation": "导出：动画",
   "command.label.export_data": "导出：转换数据集",
   "command.label.export_full": "导出：完整图像",
   "command.label.export_visible": "导出：可见区域",
