@@ -19,6 +19,9 @@ const EXACT_KEY_ALLOWLIST = new Set([
   // "Data" is the Swedish and Danish word as well as the English one, so the
   // match is a cognate rather than a missing translation.
   "settings.tab.data",
+  // German and Italian both use "Frame" for a frame -- the same loanword their
+  // own toolbar.frame.next already uses -- so the match is a cognate.
+  "toolbar.frame.slider",
   "toolbar.playback.fps_option",
   "viewer.footer.badge.live",
   "viewer.footer.badge.server",

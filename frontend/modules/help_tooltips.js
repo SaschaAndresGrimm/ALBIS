@@ -21,6 +21,7 @@ const HELP_SELECTORS = [
 ].join(",");
 
 const HELP_DELAY_MS = 1000;
+const HELP_TOOLTIP_ID = "help-tooltip";
 
 function getHelpLabelText(target) {
   if (!target) return "";
@@ -76,6 +77,8 @@ export function createHelpTooltipController({
   let helpTimer = null;
   let helpTarget = null;
   let helpLastEvent = null;
+  let describedTarget = null;
+  let previousDescribedBy = "";
 
   function setManagedHelp(element, text) {
     if (!element) return;
@@ -205,6 +208,36 @@ export function createHelpTooltipController({
     helpTooltip.style.top = `${y}px`;
   }
 
+  // A tooltip nothing points at is announced to nobody: the hint has to be
+  // named as the control's description, and only while it is on screen, since
+  // an aria-describedby aimed at a hidden element describes nothing. Keyboard
+  // focus is what makes this reachable at all -- see the focusin handler below.
+  // Any description the control already carried is put back on the way out.
+  function describeTarget(target) {
+    if (!target || describedTarget === target) return;
+    undescribeTarget();
+    // Drop any stale mention of the tooltip before adding it back, so the list
+    // cannot grow by repetition and a leftover from an earlier association
+    // heals itself.
+    const existing = (target.getAttribute?.("aria-describedby") || "")
+      .split(/\s+/)
+      .filter((token) => token && token !== HELP_TOOLTIP_ID);
+    previousDescribedBy = existing.join(" ");
+    target.setAttribute?.("aria-describedby", [...existing, HELP_TOOLTIP_ID].join(" "));
+    describedTarget = target;
+  }
+
+  function undescribeTarget() {
+    if (!describedTarget) return;
+    if (previousDescribedBy) {
+      describedTarget.setAttribute("aria-describedby", previousDescribedBy);
+    } else {
+      describedTarget.removeAttribute("aria-describedby");
+    }
+    describedTarget = null;
+    previousDescribedBy = "";
+  }
+
   function hideHelp() {
     if (helpTimer) {
       clearTimeout(helpTimer);
@@ -213,6 +246,7 @@ export function createHelpTooltipController({
     if (helpTooltip) {
       helpTooltip.classList.remove("is-visible");
     }
+    undescribeTarget();
     helpTarget = null;
   }
 
@@ -230,6 +264,7 @@ export function createHelpTooltipController({
       helpTooltip.textContent = text;
       helpTooltip.classList.add("is-visible");
       positionHelpTooltip(event);
+      describeTarget(target);
     };
     if (immediate) {
       reveal();
@@ -248,6 +283,7 @@ export function createHelpTooltipController({
     if (helpTooltip) return;
     helpTooltip = document.createElement("div");
     helpTooltip.className = "help-tooltip";
+    helpTooltip.id = HELP_TOOLTIP_ID;
     helpTooltip.setAttribute("role", "tooltip");
     document.body.appendChild(helpTooltip);
     refreshHelpTooltips();

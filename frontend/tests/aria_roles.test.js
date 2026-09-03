@@ -73,4 +73,30 @@ describe("aria roles", () => {
       expect(tabIds.has(labelledBy), `aria-labelledby="${labelledBy}" names no tab`).toBe(true);
     });
   });
+
+  /**
+   * The transport buttons beside them have carried names all along; these two
+   * were announced as a bare "slider" and "spin button", which is the primary
+   * way through a stack. A visible label is not an option -- they sit in a
+   * toolbar with no room for one -- so the name has to be on the control.
+   */
+  it("names the frame controls, in every language", () => {
+    const html = readHtml(HTML_FILES[0]);
+    const en = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "frontend", "locales", "en.json"), "utf8"),
+    );
+
+    ["frame-range", "frame-index"].forEach((id) => {
+      const tag = html.match(new RegExp(`<input[^>]*id="${id}"[^>]*>`, "s"))?.[0];
+      expect(tag, `no <input id="${id}">`).toBeTruthy();
+
+      const key = tag.match(/data-i18n-aria-label="([^"]+)"/)?.[1] ?? "";
+      expect(key, `${id} has no data-i18n-aria-label`).not.toBe("");
+      expect(en[key], `${key} is missing from en.json`).toBeTruthy();
+
+      // The static attribute is what a screen reader sees before the first
+      // localization pass, so it has to be there too.
+      expect(tag.match(/\saria-label="([^"]+)"/)?.[1] ?? "", `${id} has no aria-label`).not.toBe("");
+    });
+  });
 });
