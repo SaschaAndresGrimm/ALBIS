@@ -26,6 +26,7 @@ export function createAnalysisOverlayController({
     peaksBody,
     peaksCountInput,
     peaksCountHint,
+    peaksExportBtn,
   } = elements;
 
   const {
@@ -42,6 +43,7 @@ export function createAnalysisOverlayController({
     setFieldHint,
     getActiveSaturationMax,
     isSaturatedValue,
+    setStatus,
   } = callbacks;
 
   // Peak coordinates are sub-pixel (centroid-refined); show one decimal in the
@@ -189,7 +191,28 @@ export function createAnalysisOverlayController({
     setSummaryChip(ringsSummaryEl, t("rings.summary.count", { count: params.rings.length }), "active");
   }
 
+  // Why the peak list cannot be exported, or "" when it can. The same three
+  // states the section badge and the empty list already describe, phrased for
+  // the Export CSV button's tooltip and for its refusal.
+  function peakCsvExportUnavailableReason() {
+    if (!analysisState.peaksEnabled) return t("peaks.state.enable_hint");
+    if (!state.hasFrame) return t("peaks.state.load_frame");
+    if (!analysisState.peaks.length) return t("peaks.state.none_on_frame");
+    return "";
+  }
+
+  function syncPeakCsvExportAvailability() {
+    if (!peaksExportBtn) return;
+    const reason = peakCsvExportUnavailableReason();
+    peaksExportBtn.disabled = Boolean(reason);
+    if (reason) peaksExportBtn.title = reason;
+    else peaksExportBtn.removeAttribute("title");
+  }
+
   function updatePeaksSectionState() {
+    // Ahead of the badge, which gives up when its own element is missing: the
+    // button is a separate control and still has to be told where it stands.
+    syncPeakCsvExportAvailability();
     if (!peaksSectionStateEl) return;
     if (!analysisState.peaksEnabled) {
       setSectionBadgeState(peaksSectionStateEl, "empty", t("peaks.state.enable_hint"));
@@ -696,7 +719,11 @@ export function createAnalysisOverlayController({
   }
 
   function exportPeakCsv() {
-    if (!analysisState.peaks.length) return;
+    const unavailable = peakCsvExportUnavailableReason();
+    if (unavailable) {
+      setStatus?.(unavailable, { tone: "warning" });
+      return;
+    }
     const csvCoord = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(3));
     const csvNum = (v) => (Number.isFinite(v) ? v : "");
     const rows = ["index,x,y,intensity,snr,resolution_angstrom"];

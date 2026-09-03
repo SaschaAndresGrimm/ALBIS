@@ -12,7 +12,10 @@ import {
   normalizeRoiHistogramBinCount,
 } from "./roi_stats_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
-import { buildRoiCsvExportPayload } from "./roi_csv_export.js";
+import {
+  buildRoiCsvExportPayload,
+  roiCsvExportUnavailableReason,
+} from "./roi_csv_export.js";
 import { t } from "./i18n.js";
 import {
   clampCircularRoiInnerRadius,
@@ -1132,8 +1135,9 @@ function redrawRoiPlots() {
 }
 
 function exportRoiCsv() {
-  if (!roiState.enabled || !roiState.active) {
-    setStatus(t("status.roi.no_data"));
+  const unavailable = roiCsvExportUnavailableReason(state, roiState);
+  if (unavailable) {
+    setStatus(unavailable, { tone: "warning" });
     return;
   }
   const payload = buildRoiCsvExportPayload({
@@ -1145,7 +1149,7 @@ function exportRoiCsv() {
     histMeta: roiHistCanvas?._roiPlotMeta,
   });
   if (!payload) {
-    setStatus(t("status.roi.no_projection_data"));
+    setStatus(t("status.roi.no_projection_data"), { tone: "warning" });
     return;
   }
 
@@ -1184,5 +1188,6 @@ function exportRoiCsv() {
     redrawRoiPlots,
     drawRoiPlot,
     exportRoiCsv,
+    roiCsvExportUnavailableReason: () => roiCsvExportUnavailableReason(state, roiState),
   };
 }

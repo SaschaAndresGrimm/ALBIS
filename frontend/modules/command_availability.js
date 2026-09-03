@@ -30,3 +30,9 @@ export function canExportAnimation(state) {
 export function canExportData(state, isHdfFile) {
   return Boolean(state.file && (!isHdfFile(state.file) || state.dataset));
 }
+
+// Series operations read the same frames a conversion does, and only one job
+// runs at a time.
+export function canStartSeriesOperation(state, isHdfFile) {
+  return canExportData(state, isHdfFile) && !state.seriesSum.running;
+}

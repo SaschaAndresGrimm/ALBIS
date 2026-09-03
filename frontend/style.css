@@ -4035,9 +4035,14 @@ body.platform-windows select option:disabled {
   min-height: var(--control-h);
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   background: linear-gradient(to bottom, rgba(58, 75, 103, 0.92), rgba(36, 48, 68, 0.92));
   border-color: var(--border-strong);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .btn-primary {
@@ -4046,7 +4051,7 @@ body.platform-windows select option:disabled {
   color: #06101d;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: linear-gradient(to bottom, #86c6ff, #4a91e4);
   border-color: rgba(150, 205, 255, 0.95);
 }
@@ -4057,7 +4062,7 @@ body.platform-windows select option:disabled {
   color: #2a0c0c;
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
   background: linear-gradient(to bottom, #e98080, #d04f4f);
   border-color: rgba(240, 130, 130, 0.95);
 }
@@ -5789,7 +5794,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   color: #d9e8ff;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: linear-gradient(to bottom, rgba(40, 53, 74, 0.94), rgba(24, 33, 47, 0.94));
   border-color: rgba(101, 127, 170, 0.68);
 }

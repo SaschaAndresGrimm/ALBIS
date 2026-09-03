@@ -57,6 +57,7 @@ import { createAutoloadSettingsController } from "./modules/autoload_settings_co
 import { createAutoloadStatusController } from "./modules/autoload_status_controller.js";
 import { createFileDataPipelineController } from "./modules/file_data_pipeline_controller.js";
 import { createRoiStatsController } from "./modules/roi_stats_controller.js";
+import { roiCsvExportUnavailableReason } from "./modules/roi_csv_export.js";
 import { createOverlayRenderController } from "./modules/overlay_render_controller.js";
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
 import { createRenderEngineController } from "./modules/render_engine_controller.js";
@@ -1302,6 +1303,7 @@ const analysisOverlayController = createAnalysisOverlayController({
     peaksBody,
     peaksCountInput,
     peaksCountHint,
+    peaksExportBtn,
   },
   constants: {
     defaultRingCount: DEFAULT_RING_COUNT,
@@ -1316,6 +1318,7 @@ const analysisOverlayController = createAnalysisOverlayController({
     setFieldHint,
     getActiveSaturationMax,
     isSaturatedValue,
+    setStatus,
   },
 });
 
@@ -1389,7 +1392,19 @@ function getRoiModeLabel(mode) {
   return t("roi.mode.default");
 }
 
+// Export CSV is the one ROI control that acts on the statistics rather than
+// describing them, so it greys out when there is nothing to write, with the
+// reason on hover. Same shape as the peak list's button.
+function syncRoiCsvExportAvailability() {
+  if (!roiExportCsvBtn) return;
+  const reason = roiCsvExportUnavailableReason(state, roiState);
+  roiExportCsvBtn.disabled = Boolean(reason);
+  if (reason) roiExportCsvBtn.title = reason;
+  else roiExportCsvBtn.removeAttribute("title");
+}
+
 function updateRoiSectionState() {
+  syncRoiCsvExportAvailability();
   if (!roiSectionStateEl) return;
   // The status line carries actionable guidance in the empty/disabled/ready
   // states; keep it visible for those.

@@ -7,6 +7,7 @@ import {
   canExportAnimation,
   canExportData,
   canSaveImage,
+  canStartSeriesOperation,
 } from "./command_availability.js";
 
 export function buildCommandPaletteCommands({
@@ -50,7 +51,7 @@ export function buildCommandPaletteCommands({
   const hasFrame = Boolean(state.hasFrame);
   const hasNavigableFrames = hasFrame && state.frameCount > 1 && (hasDataset || hasSeries);
   const hasThresholds = hasFile && state.autoload.mode === "file" && state.thresholdCount > 1;
-  const canStartSeriesOps = hasFile && (!isHdfFile(state.file) || hasDataset) && !state.seriesSum.running;
+  const canStartSeriesOps = canStartSeriesOperation(state, isHdfFile);
   const canSaveCurrentImage = canSaveImage(state);
   const canExportGif = canExportAnimation(state);
   const canConvertDataset = canExportData(state, isHdfFile);

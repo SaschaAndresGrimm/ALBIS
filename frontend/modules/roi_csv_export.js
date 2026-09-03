@@ -25,6 +25,20 @@ function addCsvSection(lines, title, data, meta, allowEmpty = false) {
   lines.push("");
 }
 
+/**
+ * Why the ROI CSV export cannot run, or "" when it can.
+ *
+ * Shared by the Export CSV button, which greys out with this as its tooltip,
+ * and by the export itself, which still refuses the call: a click can land
+ * between a state change and the repaint that greys the button.
+ */
+export function roiCsvExportUnavailableReason(state, roiState) {
+  if (!state.hasFrame) return t("roi.section.load_frame");
+  if (!roiState.enabled) return t("roi.section.disabled");
+  if (!roiState.active) return t("status.roi.no_data");
+  return "";
+}
+
 export function buildRoiCsvExportPayload({
   state,
   roiState,

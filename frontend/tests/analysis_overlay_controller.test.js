@@ -25,6 +25,8 @@ function buildController(createAnalysisOverlayController, stateOverrides = {}, a
   const peaksBody = document.createElement("div");
   const peaksSectionStateEl = document.createElement("div");
   const peaksSummaryEl = document.createElement("div");
+  const peaksExportBtn = document.createElement("button");
+  const setStatus = vi.fn();
 
   const analysisState = {
     ringsEnabled: false,
@@ -75,6 +77,7 @@ function buildController(createAnalysisOverlayController, stateOverrides = {}, a
       peaksBody,
       peaksCountInput: null,
       peaksCountHint: null,
+      peaksExportBtn,
     },
     constants: {
       defaultRingCount: 3,
@@ -93,10 +96,19 @@ function buildController(createAnalysisOverlayController, stateOverrides = {}, a
       setFieldHint: vi.fn(),
       getActiveSaturationMax: () => null,
       isSaturatedValue: () => false,
+      setStatus,
     },
   });
 
-  return { controller, analysisState, peaksBody, peaksSectionStateEl, peaksSummaryEl };
+  return {
+    controller,
+    analysisState,
+    peaksBody,
+    peaksSectionStateEl,
+    peaksSummaryEl,
+    peaksExportBtn,
+    setStatus,
+  };
 }
 
 describe("analysis_overlay_controller", () => {
@@ -246,5 +258,71 @@ describe("analysis_overlay_controller", () => {
     // The peak position itself is untouched — no re-detection occurred.
     expect(analysisState.peaks[0].x).toBe(20);
     expect(analysisState.peaks[0].y).toBe(12);
+  });
+
+  async function loadOverlayModule() {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    return (await import("../modules/analysis_overlay_controller.js"))
+      .createAnalysisOverlayController;
+  }
+
+  it("greys out the peak CSV export with the reason on hover when there is nothing to export", async () => {
+    const create = await loadOverlayModule();
+
+    const withPeaks = buildController(create, { isLoading: false });
+    withPeaks.controller.updatePeaksSectionState();
+    expect(withPeaks.peaksExportBtn.disabled).toBe(false);
+    expect(withPeaks.peaksExportBtn.hasAttribute("title")).toBe(false);
+
+    const noPeaks = buildController(create, { isLoading: false }, { peaks: [] });
+    noPeaks.controller.updatePeaksSectionState();
+    expect(noPeaks.peaksExportBtn.disabled).toBe(true);
+    expect(noPeaks.peaksExportBtn.title).toBe("No peaks on this frame");
+
+    const noFrame = buildController(create, { hasFrame: false, isLoading: false }, { peaks: [] });
+    noFrame.controller.updatePeaksSectionState();
+    expect(noFrame.peaksExportBtn.title).toBe("Load a frame");
+
+    const disabled = buildController(create, { isLoading: false }, { peaksEnabled: false });
+    disabled.controller.updatePeaksSectionState();
+    expect(disabled.peaksExportBtn.disabled).toBe(true);
+    expect(disabled.peaksExportBtn.title).toBe("Enable Peak Finder to detect peaks.");
+  });
+
+  it("refuses a peak CSV export out loud instead of returning silently", async () => {
+    const create = await loadOverlayModule();
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    const { controller, setStatus } = buildController(create, { isLoading: false }, { peaks: [] });
+    controller.exportPeakCsv();
+
+    expect(clickSpy).not.toHaveBeenCalled();
+    expect(setStatus).toHaveBeenCalledWith("No peaks on this frame", { tone: "warning" });
+  });
+
+  it("still writes the CSV when there are peaks", async () => {
+    const create = await loadOverlayModule();
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    const originalUrl = global.URL;
+    global.URL = {
+      createObjectURL: vi.fn(() => "blob:mock"),
+      revokeObjectURL: vi.fn(),
+    };
+
+    try {
+      const { controller, setStatus } = buildController(create, { isLoading: false });
+      controller.exportPeakCsv();
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(setStatus).not.toHaveBeenCalled();
+    } finally {
+      global.URL = originalUrl;
+    }
   });
 });

@@ -17,6 +17,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - The command palette can export an animation, and Export Animation reads ⌘G only on macOS. The palette listed the three image saves and the dataset conversion but not the GIF export, and `PLATFORM_SHORTCUTS` had no `export-animation` entry, so the File menu showed the hardcoded mac label to everyone while the shortcut itself has always accepted Ctrl+G. `command.label.export_animation` is new in all thirteen locales.
 
+- The two Export CSV buttons no longer sit there doing nothing. The peak list's button was the worst case in the interface: `if (!analysisState.peaks.length) return;` and not a word to anyone — click it with no peaks found and nothing whatsoever happened, no toast, not even a footer pill. The ROI button was subtler about it, refusing through an untoned status while its *success* raised a toast, so it shouted when it worked and whispered when it would not. Both are now greyed out whenever there is nothing to write, carrying the reason on hover, and both refuse a click that lands before the repaint with the same sentence as a warning. The reasons are the panel's own empty-state strings, so nothing new had to be translated.
+
+- Every disabled button in ALBIS looked exactly like an enabled one. `.btn` had no `:disabled` rule at all: the same gradient, the same `cursor: pointer`, and a hover state that still lit up. All the careful `disabled = !ready` logic behind Start Export, Export GIF, Start, Cancel and both CSV exports was therefore invisible — the buttons were inert but looked live, which is the same lie a silent failure tells, only earlier. `.btn:disabled` now dims to the treatment the menu items and `.tool-btn` already had, and the four `:hover` variants stop lighting up what cannot be clicked.
+
+- Series operations say why they will not start. Five validations behind the Start button — an unusable step, an inverted frame range, a zero or non-numeric scalar, a missing or non-TIFF normalization image — reported through the footer pill only, so clicking Start with a bad range read as the button being broken. They now raise the reason, matching the outcomes of a run that did start, which already toned. The readiness rule the palette and the controller each spelled out separately is now `canStartSeriesOperation` alongside the others.
+
 ## [0.14.0] - 2026-09-01
 
 ### Fixed

@@ -4,6 +4,7 @@ import {
   canExportAnimation,
   canExportData,
   canSaveImage,
+  canStartSeriesOperation,
 } from "../modules/command_availability.js";
 
 const isHdfFile = (file) => /\.(h5|hdf5)$/i.test(String(file || ""));
@@ -84,5 +85,37 @@ describe("canExportData", () => {
 
   it("is true for a plain image file, which needs no dataset", () => {
     expect(canExportData({ file: "/data/frame.cbf", dataset: "" }, isHdfFile)).toBe(true);
+  });
+});
+
+describe("canStartSeriesOperation", () => {
+  it("needs the same source a conversion does", () => {
+    expect(
+      canStartSeriesOperation({ file: "", dataset: "", seriesSum: { running: false } }, isHdfFile)
+    ).toBe(false);
+    expect(
+      canStartSeriesOperation(
+        { file: "/data/stack.h5", dataset: "", seriesSum: { running: false } },
+        isHdfFile
+      )
+    ).toBe(false);
+  });
+
+  it("is false while a job is already running", () => {
+    expect(
+      canStartSeriesOperation(
+        { file: "/data/frame.cbf", dataset: "", seriesSum: { running: true } },
+        isHdfFile
+      )
+    ).toBe(false);
+  });
+
+  it("is true for a usable source with no job running", () => {
+    expect(
+      canStartSeriesOperation(
+        { file: "/data/stack.h5", dataset: "/entry/data/data", seriesSum: { running: false } },
+        isHdfFile
+      )
+    ).toBe(true);
   });
 });

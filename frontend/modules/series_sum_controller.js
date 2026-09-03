@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { canExportData, canStartSeriesOperation } from "./command_availability.js";
 import { showConfirmDialog } from "./dialogs.js";
 
 export function createSeriesSumController({
@@ -273,7 +274,7 @@ export function createSeriesSumController({
       const nextNorm = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumNormalizeFrame.value || 1))));
       seriesSumNormalizeFrame.value = String(nextNorm);
     }
-    const ready = Boolean(state.file && (isHdfFile(state.file) ? state.dataset : true));
+    const ready = canExportData(state, isHdfFile);
     if (seriesSumStart) {
       seriesSumStart.disabled = !ready || state.seriesSum.running;
       seriesSumStart.textContent = state.seriesSum.cancelling
@@ -426,7 +427,7 @@ export function createSeriesSumController({
   }
 
   async function startSeriesSumming() {
-    if (!state.file || (isHdfFile(state.file) && !state.dataset) || state.seriesSum.running) return;
+    if (!canStartSeriesOperation(state, isHdfFile)) return;
     const mode = (seriesSumMode?.value || "all").toLowerCase();
     const operation = (seriesSumOperation?.value || "sum").toLowerCase();
     const normalizeMethod = (seriesSumNormalizeMethod?.value || "none").toLowerCase();
@@ -434,7 +435,7 @@ export function createSeriesSumController({
 
     const parsedStep = validateSeriesStepInput(true);
     if (!Number.isFinite(parsedStep) && mode !== "all") {
-      setStatus(t("status.series.step_invalid"));
+      setStatus(t("status.series.step_invalid"), { tone: "warning" });
       return;
     }
     const step = Number.isFinite(parsedStep) ? parsedStep : 1;
@@ -442,7 +443,7 @@ export function createSeriesSumController({
     const rangeStart = Math.max(1, Math.round(Number(seriesSumRangeStart?.value || 1)));
     const rangeEnd = Math.max(1, Math.round(Number(seriesSumRangeEnd?.value || totalFrames)));
     if (mode === "range" && rangeStart > rangeEnd) {
-      setStatus(t("status.series.range_invalid"));
+      setStatus(t("status.series.range_invalid"), { tone: "warning" });
       return;
     }
 
@@ -457,7 +458,7 @@ export function createSeriesSumController({
     } else if (normalizeMethod === "scalar") {
       const parsedScalar = Number(seriesSumNormalizeScalar?.value || "1");
       if (!Number.isFinite(parsedScalar) || Math.abs(parsedScalar) <= 1e-12) {
-        setStatus(t("status.series.scalar_invalid"));
+        setStatus(t("status.series.scalar_invalid"), { tone: "warning" });
         return;
       }
       normalizeScalar = parsedScalar;
@@ -467,11 +468,11 @@ export function createSeriesSumController({
     } else if (normalizeMethod === "image") {
       normalizeImage = String(seriesSumNormalizeImage?.value || "").trim();
       if (!normalizeImage) {
-        setStatus(t("status.series.select_norm_image"));
+        setStatus(t("status.series.select_norm_image"), { tone: "warning" });
         return;
       }
       if (!isTiffPath(normalizeImage)) {
-        setStatus(t("status.series.norm_image_invalid"));
+        setStatus(t("status.series.norm_image_invalid"), { tone: "warning" });
         return;
       }
     }

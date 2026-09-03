@@ -15,7 +15,38 @@ vi.mock("../modules/i18n.js", () => ({
   },
 }));
 
-import { buildRoiCsvExportPayload } from "../modules/roi_csv_export.js";
+import {
+  buildRoiCsvExportPayload,
+  roiCsvExportUnavailableReason,
+} from "../modules/roi_csv_export.js";
+
+// The mocked `t` above returns the key for anything it does not know, which is
+// what these assertions match on.
+describe("roiCsvExportUnavailableReason", () => {
+  it("names the missing frame first", () => {
+    expect(
+      roiCsvExportUnavailableReason({ hasFrame: false }, { enabled: true, active: true })
+    ).toBe("roi.section.load_frame");
+  });
+
+  it("names the disabled overlay next", () => {
+    expect(
+      roiCsvExportUnavailableReason({ hasFrame: true }, { enabled: false, active: true })
+    ).toBe("roi.section.disabled");
+  });
+
+  it("names the undefined region last", () => {
+    expect(
+      roiCsvExportUnavailableReason({ hasFrame: true }, { enabled: true, active: false })
+    ).toBe("status.roi.no_data");
+  });
+
+  it("is empty once there is a region to export", () => {
+    expect(
+      roiCsvExportUnavailableReason({ hasFrame: true }, { enabled: true, active: true })
+    ).toBe("");
+  });
+});
 
 describe("roi_csv_export", () => {
   it("returns null when ROI export is unavailable", () => {
