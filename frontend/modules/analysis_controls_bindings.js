@@ -277,7 +277,7 @@ export function bindAnalysisControlInteractions({
       return;
     }
     if (!currentGeometryScopeKey()) {
-      setStatus(t("status.file.no_file_loaded"));
+      setStatus(t("status.file.no_file_loaded"), { tone: "warning" });
       return;
     }
     if (!isExptPath(raw)) {
@@ -294,7 +294,7 @@ export function bindAnalysisControlInteractions({
 
   ringsGeometryBrowse?.addEventListener("click", async () => {
     if (!currentGeometryScopeKey()) {
-      setStatus(t("status.file.no_file_loaded"));
+      setStatus(t("status.file.no_file_loaded"), { tone: "warning" });
       return;
     }
     if (backendIsLocal) {
@@ -328,7 +328,7 @@ export function bindAnalysisControlInteractions({
         return;
       } catch (err) {
         console.error(err);
-        setStatus(t("status.analysis.geometry_picker_failed"));
+        setStatus(t("status.analysis.geometry_picker_failed"), { tone: "error" });
         return;
       }
     }
@@ -350,7 +350,7 @@ export function bindAnalysisControlInteractions({
       await applyGeometryOverridePath(String(selectedPath));
     } catch (err) {
       console.error(err);
-      setStatus(t("status.analysis.geometry_picker_failed"));
+      setStatus(t("status.analysis.geometry_picker_failed"), { tone: "error" });
     }
   });
 
@@ -507,13 +507,13 @@ export function bindAnalysisControlInteractions({
         }
       } catch (err) {
         console.error(err);
-        setStatus(t("status.analysis.normalization_picker_failed"));
+        setStatus(t("status.analysis.normalization_picker_failed"), { tone: "error" });
       }
       return;
     }
 
     if (filesystemMode?.value === "local") {
-      setStatus(t("status.analysis.normalization_picker_unavailable"));
+      setStatus(t("status.analysis.normalization_picker_unavailable"), { tone: "warning" });
       return;
     }
 
@@ -529,7 +529,7 @@ export function bindAnalysisControlInteractions({
       }
     } catch (err) {
       console.error(err);
-      setStatus(t("status.analysis.normalization_picker_failed"));
+      setStatus(t("status.analysis.normalization_picker_failed"), { tone: "error" });
     }
   });
 

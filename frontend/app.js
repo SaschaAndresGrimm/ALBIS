@@ -2077,7 +2077,7 @@ async function toggleFullscreen() {
     }
   } catch (err) {
     console.error(err);
-    setStatus(t("status.fullscreen_unavailable"));
+    setStatus(t("status.fullscreen_unavailable"), { tone: "warning" });
   }
 }
 
@@ -3554,7 +3554,7 @@ async function loadImageGeometry(file, scopeKey = getGeometryScopeKey(state, fil
 async function applyGeometryOverridePath(path) {
   const scopeKey = getGeometryScopeKey(state, state.file || "");
   if (!scopeKey) {
-    setStatus(t("status.file.no_file_loaded"));
+    setStatus(t("status.file.no_file_loaded"), { tone: "warning" });
     return;
   }
   analysisState.geometryOverridePath = String(path || "").trim();

@@ -23,6 +23,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Series operations say why they will not start. Five validations behind the Start button — an unusable step, an inverted frame range, a zero or non-numeric scalar, a missing or non-TIFF normalization image — reported through the footer pill only, so clicking Start with a bad range read as the button being broken. They now raise the reason, matching the outcomes of a run that did start, which already toned. The readiness rule the palette and the controller each spelled out separately is now `canStartSeriesOperation` alongside the others.
 
+- Twelve failures that reported at ambient volume now match their severity. A viewer-window export that could not load its renderer or threw while rendering, a geometry or normalization file picker that crashed, a file picker the platform does not offer, Select pressed with nothing selected, full screen refused by the browser, and a geometry path applied with no file open all put their message in the footer pill, where the next ambient update overwrote it. Real failures tone as errors, refusals as warnings. Four cases are deliberately left ambient: the two background job-status polls, whose terminal outcome already tones, and "no image datasets" / "no image files", which already restore the splash with their own splash status *and* mark the data-source section as a warning — two prominent surfaces before a toast would be a third.
+
 ## [0.14.0] - 2026-09-01
 
 ### Fixed

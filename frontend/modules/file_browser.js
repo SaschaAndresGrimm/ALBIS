@@ -1429,7 +1429,7 @@ export function createFileBrowserController({
     }
 
     if (state.selectedType !== "folder") {
-      setStatus(t("status.file.no_selection"));
+      setStatus(t("status.file.no_selection"), { tone: "warning" });
       return false;
     }
 

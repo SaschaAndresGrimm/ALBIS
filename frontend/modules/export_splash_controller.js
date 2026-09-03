@@ -281,7 +281,7 @@ export function createExportSplashController({
       html2canvasFn = await ensureHtml2Canvas();
     } catch (err) {
       console.error(err);
-      setStatus(t("status.export.viewer_unavailable"));
+      setStatus(t("status.export.viewer_unavailable"), { tone: "error" });
       return;
     }
     const target = document.querySelector(".page");
@@ -296,7 +296,7 @@ export function createExportSplashController({
         });
       } catch (err) {
         console.error(err);
-        setStatus(t("status.export.viewer_failed"));
+        setStatus(t("status.export.viewer_failed"), { tone: "error" });
         return null;
       }
     };

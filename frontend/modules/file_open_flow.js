@@ -90,7 +90,7 @@ export function createFileOpenController({
         return;
       } catch (err) {
         console.error(err);
-        setStatus(t("status.file_picker.unavailable"));
+        setStatus(t("status.file_picker.unavailable"), { tone: "warning" });
         return;
       }
     } else if (filesystemMode?.value === "local") {
