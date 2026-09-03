@@ -93,7 +93,9 @@ def test_the_licence_table_states_the_version_that_ships(package: str, version: 
     )
     assert listed[package] == version, (
         f"THIRD_PARTY_LICENSES.md says {package} {listed[package]} but "
-        f"backend/requirements.txt pins {version}."
+        f"backend/requirements.txt pins {version}. This column is derived: run "
+        "`python scripts/sync_licence_table.py`. Whether the *licence* still holds after "
+        "the bump is a separate question, asked by test_shipped_licence_metadata."
     )
 
 
