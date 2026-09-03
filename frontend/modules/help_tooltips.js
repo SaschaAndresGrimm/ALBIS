@@ -41,6 +41,11 @@ function getHelpLabelText(target) {
 
 function getHelpText(target) {
   if (!target) return "";
+  // An unavailable control explains itself first: why it cannot be used right
+  // now outranks a description of what it would otherwise do. Kept out of
+  // `data-help` so that applyHelpMap's managed hints cannot overwrite it.
+  const reason = target.dataset?.helpReason;
+  if (reason) return reason;
   const dataHelp = target.dataset?.help;
   if (dataHelp) return dataHelp;
   const ariaLabel = target.getAttribute?.("aria-label");

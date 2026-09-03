@@ -4,6 +4,7 @@
 
 import { t } from "./i18n.js";
 import { applyGeometryOverrides, getGeometryResolutionAtPixel } from "./ring_geometry_utils.js";
+import { setControlAvailability } from "./control_availability.js";
 
 export function createAnalysisOverlayController({
   state,
@@ -202,11 +203,7 @@ export function createAnalysisOverlayController({
   }
 
   function syncPeakCsvExportAvailability() {
-    if (!peaksExportBtn) return;
-    const reason = peakCsvExportUnavailableReason();
-    peaksExportBtn.disabled = Boolean(reason);
-    if (reason) peaksExportBtn.title = reason;
-    else peaksExportBtn.removeAttribute("title");
+    setControlAvailability(peaksExportBtn, peakCsvExportUnavailableReason());
   }
 
   function updatePeaksSectionState() {

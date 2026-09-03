@@ -274,22 +274,27 @@ describe("analysis_overlay_controller", () => {
 
     const withPeaks = buildController(create, { isLoading: false });
     withPeaks.controller.updatePeaksSectionState();
-    expect(withPeaks.peaksExportBtn.disabled).toBe(false);
-    expect(withPeaks.peaksExportBtn.hasAttribute("title")).toBe(false);
+    expect(withPeaks.peaksExportBtn.classList.contains("is-disabled")).toBe(false);
+    expect(withPeaks.peaksExportBtn.hasAttribute("aria-disabled")).toBe(false);
+    expect(withPeaks.peaksExportBtn.dataset.helpReason).toBeUndefined();
 
+    // Marked unavailable without the native `disabled` attribute, which would
+    // swallow the hover that shows the reason and the click that speaks it.
     const noPeaks = buildController(create, { isLoading: false }, { peaks: [] });
     noPeaks.controller.updatePeaksSectionState();
-    expect(noPeaks.peaksExportBtn.disabled).toBe(true);
-    expect(noPeaks.peaksExportBtn.title).toBe("No peaks on this frame");
+    expect(noPeaks.peaksExportBtn.classList.contains("is-disabled")).toBe(true);
+    expect(noPeaks.peaksExportBtn.getAttribute("aria-disabled")).toBe("true");
+    expect(noPeaks.peaksExportBtn.disabled).toBe(false);
+    expect(noPeaks.peaksExportBtn.dataset.helpReason).toBe("No peaks on this frame");
 
     const noFrame = buildController(create, { hasFrame: false, isLoading: false }, { peaks: [] });
     noFrame.controller.updatePeaksSectionState();
-    expect(noFrame.peaksExportBtn.title).toBe("Load a frame");
+    expect(noFrame.peaksExportBtn.dataset.helpReason).toBe("Load a frame");
 
     const disabled = buildController(create, { isLoading: false }, { peaksEnabled: false });
     disabled.controller.updatePeaksSectionState();
-    expect(disabled.peaksExportBtn.disabled).toBe(true);
-    expect(disabled.peaksExportBtn.title).toBe("Enable Peak Finder to detect peaks.");
+    expect(disabled.peaksExportBtn.classList.contains("is-disabled")).toBe(true);
+    expect(disabled.peaksExportBtn.dataset.helpReason).toBe("Enable Peak Finder to detect peaks.");
   });
 
   it("refuses a peak CSV export out loud instead of returning silently", async () => {

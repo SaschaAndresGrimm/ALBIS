@@ -58,6 +58,7 @@ import { createAutoloadStatusController } from "./modules/autoload_status_contro
 import { createFileDataPipelineController } from "./modules/file_data_pipeline_controller.js";
 import { createRoiStatsController } from "./modules/roi_stats_controller.js";
 import { roiCsvExportUnavailableReason } from "./modules/roi_csv_export.js";
+import { setControlAvailability } from "./modules/control_availability.js";
 import { createOverlayRenderController } from "./modules/overlay_render_controller.js";
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
 import { createRenderEngineController } from "./modules/render_engine_controller.js";
@@ -1396,11 +1397,7 @@ function getRoiModeLabel(mode) {
 // describing them, so it greys out when there is nothing to write, with the
 // reason on hover. Same shape as the peak list's button.
 function syncRoiCsvExportAvailability() {
-  if (!roiExportCsvBtn) return;
-  const reason = roiCsvExportUnavailableReason(state, roiState);
-  roiExportCsvBtn.disabled = Boolean(reason);
-  if (reason) roiExportCsvBtn.title = reason;
-  else roiExportCsvBtn.removeAttribute("title");
+  setControlAvailability(roiExportCsvBtn, roiCsvExportUnavailableReason(state, roiState));
 }
 
 function updateRoiSectionState() {
@@ -1655,34 +1652,17 @@ const GATED_FILE_COMMANDS = [
   "export-data",
 ];
 
-function setMenuItemAvailability(item, reason) {
-  if (!item) return;
-  item.classList.toggle("is-disabled", Boolean(reason));
-  if (reason) {
-    item.setAttribute("aria-disabled", "true");
-    item.title = reason;
-  } else {
-    item.removeAttribute("aria-disabled");
-    item.removeAttribute("title");
-  }
-}
-
 function syncFileCommandAvailability() {
   GATED_FILE_COMMANDS.forEach((action) => {
-    setMenuItemAvailability(menuItemsByAction.get(action), fileCommandUnavailableReason(action));
+    setControlAvailability(menuItemsByAction.get(action), fileCommandUnavailableReason(action));
   });
   // Save As has no action of its own and is dead exactly when its three
   // children are, so it greys out with them rather than opening a submenu of
   // three disabled entries.
-  setMenuItemAvailability(saveAsParent, fileCommandUnavailableReason("save-full"));
+  setControlAvailability(saveAsParent, fileCommandUnavailableReason("save-full"));
   // The playback popover's GIF button is the one entry point outside the menu
   // that can be greyed out the same way.
-  if (toolbarPlaybackExportGif) {
-    const reason = fileCommandUnavailableReason("export-animation");
-    toolbarPlaybackExportGif.disabled = Boolean(reason);
-    if (reason) toolbarPlaybackExportGif.title = reason;
-    else toolbarPlaybackExportGif.removeAttribute("title");
-  }
+  setControlAvailability(toolbarPlaybackExportGif, fileCommandUnavailableReason("export-animation"));
 }
 
 toolbarPlaybackExportGif?.addEventListener("click", () => {

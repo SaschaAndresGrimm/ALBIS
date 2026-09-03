@@ -145,17 +145,35 @@ export function createMaskCursorController({
     }
   }
 
+  // A checkbox stays natively disabled -- one that looks unavailable but still
+  // toggles is worse than one that cannot explain itself -- so the reason goes
+  // on the label around it, which is hoverable and is a help target in its own
+  // right. On the checkbox it was unreachable: a disabled control receives no
+  // pointer events, so neither tooltip ever opened.
+  function setCheckboxUnavailableReason(checkbox, reason) {
+    const target = checkbox?.closest("label") || checkbox;
+    if (!target) return;
+    if (reason) target.dataset.helpReason = reason;
+    else delete target.dataset.helpReason;
+  }
+
   function updateMaskUI() {
     if (maskToggle) {
       maskToggle.disabled = !state.maskAvailable;
       maskToggle.checked = Boolean(state.maskEnabled && state.maskAvailable);
-      maskToggle.title = state.maskAvailable ? "" : t("view.mask_unavailable_hint");
+      setCheckboxUnavailableReason(
+        maskToggle,
+        state.maskAvailable ? "" : t("view.mask_unavailable_hint")
+      );
     }
     if (maskSaturatedToggle) {
       const hasSatMax = Number.isFinite(getActiveSaturationMax());
       maskSaturatedToggle.disabled = !hasSatMax;
       maskSaturatedToggle.checked = Boolean(state.maskSaturatedEnabled && hasSatMax);
-      maskSaturatedToggle.title = hasSatMax ? "" : t("view.mask_saturated_unavailable_hint");
+      setCheckboxUnavailableReason(
+        maskSaturatedToggle,
+        hasSatMax ? "" : t("view.mask_saturated_unavailable_hint")
+      );
     }
   }
 
