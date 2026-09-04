@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-04
+
 ### Fixed
 
 - Export Animation no longer turns down a single frame in silence. A lone frame cannot be animated and the export declined it correctly, but the explanation went to `setStatus` without a tone — and only a toned status is also raised as a toast, so the message landed in the footer pill where the next ambient update overwrote it. The File menu entry, the ⌘G shortcut and the playback popover's "Export GIF…" button therefore all looked like they did nothing at all, while a translated sentence saying exactly what was wrong sat unread in all thirteen locales. The menu entry and the toolbar button are now greyed out whenever the open image cannot be animated, carrying that sentence as their tooltip and kept in step with the frame count, the interface language and the File menu opening; the shortcut reaches the dialog directly and cannot be headed off that way, so its guard raises the reason as a warning toast instead. The same untoned refusals in Convert Dataset — no file open, no dataset chosen, an inverted frame range — are toned in the same pass, so a guard that refuses a click is never mute.
@@ -30,6 +32,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - The frame slider and the frame number box have names. Every control beside them carries one — "Previous frame", "Next frame", "Play" — but the two that actually move through a stack were announced as a bare "slider" and "spin button", with no indication of what they select. They sit in a toolbar with no room for a visible label, so the name has to be on the control: `toolbar.frame.slider` and `toolbar.frame.number`, new in all thirteen locales and built from each one's own frame vocabulary. The slider's name is just "Frame", because the role already announces that it is a slider. A hover hint was there all along, which is why this was invisible unless you could not see the screen.
 
 - The contextual hints are now announced, not only drawn. The tooltip carried `role="tooltip"` but nothing ever pointed at it, so all fifty-odd hints were shown to sighted users and to nobody else. The focused control now names the tooltip through `aria-describedby` while it is open, and drops it again on the way out, since a description aimed at a hidden element describes nothing — and any description a control already carried is put back rather than overwritten. Keyboard focus already opened the tooltip, which is what makes this reachable at all.
+
+### Changed
+
+- Dependencies: tifffile 2026.8.23 and, on the development side, eslint 10.9.1. Neither changes behaviour; tifffile is the reader that caught the TIFF tag offsets in 0.14.0, and its patch release is taken here with the DECTRIS tag round-trip re-checked against it.
+
+- The licence notice keeps itself honest. `THIRD_PARTY_LICENSES.md` states the version and licence of every redistributed dependency, and only the version was ever checked. The version column is now copied from `backend/requirements.txt` by `scripts/sync_licence_table.py` instead of typed, and the licence column is checked against each installed distribution's own metadata, which also refuses GPL/AGPL — the release checklist's copyleft review, asked on every test run rather than once per release from memory.
 
 ## [0.14.0] - 2026-09-01
 
@@ -895,7 +903,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.11.0...v0.12.0
