@@ -5,7 +5,7 @@ fastapi==0.141.1
 starlette==1.6.0
 uvicorn[standard]==0.52.4
 python-multipart==0.0.32
-hdf5plugin==7.0.0
+hdf5plugin==7.1.0
 h5py==3.16.0
 numpy==2.5.2
 tifffile==2026.8.23
