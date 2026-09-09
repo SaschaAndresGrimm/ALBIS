@@ -20,7 +20,7 @@ here.
 | Uvicorn | 0.52.4 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
 | Starlette | 1.6.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
 | python-multipart | 0.0.32 | Apache-2.0 | © Andrew Dunham |
-| hdf5plugin | 7.0.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
+| hdf5plugin | 7.1.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
 | h5py | 3.16.0 | BSD-3-Clause | © 2008 Andrew Collette and contributors |
 | NumPy | 2.5.2 | BSD-3-Clause | © 2005-2023 NumPy Developers |
 | tifffile | 2026.8.23 | BSD-3-Clause | © 2008-2025 Christoph Gohlke |
