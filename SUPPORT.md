@@ -58,8 +58,10 @@ maintain it for you. See [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Not the right place
 
-- **DECTRIS hardware, firmware or the detector's own software.** ALBIS is not a
-  DECTRIS product and cannot help with the instrument itself; contact DECTRIS
-  support.
+- **DECTRIS hardware, firmware or the detector's own software.** ALBIS reads
+  what your detector writes; it cannot help with the instrument itself.
+  Contact DECTRIS support for that, and note that ALBIS is not currently
+  covered by a DECTRIS support commitment either — see
+  [GOVERNANCE.md](GOVERNANCE.md).
 - **Beamline-specific configuration.** Your local controls group knows your
   setup; ALBIS only knows the files and streams it is pointed at.
