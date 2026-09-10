@@ -46,8 +46,8 @@ if [ -f "$ROOT/albis_assets/icon_512x512.png" ]; then
   ICON_SRC="$ROOT/albis_assets/icon_512x512.png"
 elif [ -f "$ROOT/albis_assets/icon_256x256.png" ]; then
   ICON_SRC="$ROOT/albis_assets/icon_256x256.png"
-elif [ -f "$ROOT/frontend/ressources/icon.png" ]; then
-  ICON_SRC="$ROOT/frontend/ressources/icon.png"
+elif [ -f "$ROOT/frontend/resources/icon.png" ]; then
+  ICON_SRC="$ROOT/frontend/resources/icon.png"
 fi
 if [ -n "$ICON_SRC" ]; then
   cp "$ICON_SRC" "$ICON_DIR/albis.png"

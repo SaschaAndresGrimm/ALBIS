@@ -37,7 +37,9 @@ gh api \
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "Python (ubuntu-latest, py3.10)",
+      "Python (ubuntu-latest, py3.13)",
+      "Python (macos-latest, py3.13)",
+      "Python (windows-latest, py3.13)",
       "Frontend Lint"
     ]
   },

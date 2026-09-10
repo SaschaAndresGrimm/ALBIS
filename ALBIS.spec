@@ -16,19 +16,19 @@ if not icon_path:
     if sys.platform == "darwin":
         candidates = (
             os.path.abspath("albis_assets/icon.icns"),
-            os.path.abspath("frontend/ressources/icon.icns"),
+            os.path.abspath("frontend/resources/icon.icns"),
             os.path.abspath("albis_assets/icon_1024x1024.png"),
-            os.path.abspath("frontend/ressources/icon.png"),
+            os.path.abspath("frontend/resources/icon.png"),
         )
     elif sys.platform == "win32":
         candidates = (
             os.path.abspath("albis_assets/icon.ico"),
-            os.path.abspath("frontend/ressources/icon.ico"),
+            os.path.abspath("frontend/resources/icon.ico"),
         )
     else:
         candidates = (
             os.path.abspath("albis_assets/icon_512x512.png"),
-            os.path.abspath("frontend/ressources/icon.png"),
+            os.path.abspath("frontend/resources/icon.png"),
         )
     for candidate in candidates:
         if os.path.exists(candidate):

@@ -214,7 +214,7 @@ This produces versioned artifacts in `dist/`, e.g.:
 - `ALBIS-macos-<arch>-v<version>-<commit>.zip`
 - `ALBIS-macos-<arch>-v<version>-<commit>.dmg`
 
-`build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/ressources/icon.png`).
+`build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/resources/icon.png`).
 DMG images include an `Applications` shortcut for drag-and-drop installation.
 
 To sign on build, set your Developer ID certificate and password before running the build:

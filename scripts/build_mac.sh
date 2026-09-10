@@ -27,7 +27,7 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 ICON_ICNS_ASSET="albis_assets/icon.icns"
 ICON_PNG="albis_assets/icon_1024x1024.png"
 if [ ! -f "$ICON_PNG" ]; then
-  ICON_PNG="frontend/ressources/icon.png"
+  ICON_PNG="frontend/resources/icon.png"
 fi
 ICON_ICNS="$TEMP_DIR/ALBIS.icns"
 if [ -f "$ICON_ICNS_ASSET" ]; then

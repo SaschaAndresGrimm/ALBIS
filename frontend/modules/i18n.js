@@ -91,7 +91,7 @@ async function loadDictionary(language) {
   }
   const url = `locales/${encodeURIComponent(language)}.json`;
   try {
-    const response = await fetch(url, { cache: "no-store" });
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed loading locale ${language}: ${response.status}`);
     }

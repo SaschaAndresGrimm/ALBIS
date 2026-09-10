@@ -18,6 +18,9 @@ concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   docker_validate:
     name: Docker Validate

@@ -5275,7 +5275,7 @@ body.platform-windows select option:disabled {
   max-height: 68vh;
   border-radius: 12px;
   border: none;
-  background: #04070d url("ressources/image.png") center/cover no-repeat;
+  background: #04070d url("resources/image.png") center/cover no-repeat;
   box-shadow: 0 26px 48px rgba(0, 0, 0, 0.68);
 }
 

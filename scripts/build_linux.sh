@@ -39,8 +39,8 @@ if [ -f "albis_assets/icon_512x512.png" ]; then
   export ALBIS_ICON="$(pwd)/albis_assets/icon_512x512.png"
 elif [ -f "albis_assets/icon_256x256.png" ]; then
   export ALBIS_ICON="$(pwd)/albis_assets/icon_256x256.png"
-elif [ -f "frontend/ressources/icon.png" ]; then
-  export ALBIS_ICON="$(pwd)/frontend/ressources/icon.png"
+elif [ -f "frontend/resources/icon.png" ]; then
+  export ALBIS_ICON="$(pwd)/frontend/resources/icon.png"
 fi
 
 # Non-interactive build: never prompt to remove existing output directories.

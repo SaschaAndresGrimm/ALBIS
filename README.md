@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/SaschaAndresGrimm/ALBIS)](https://github.com/SaschaAndresGrimm/ALBIS/releases)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22046648.svg)](https://doi.org/10.5281/zenodo.22046648)
 
-![ALBIS screenshot](frontend/ressources/albis.png)
+![ALBIS screenshot](frontend/resources/albis.png)
 
 ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stacks and other common DECTRIS camera formats. It is platform‑independent, free, and open source.
 
@@ -78,7 +78,7 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 
 macOS release binaries are supported on macOS 14+ on Apple Silicon and macOS 15+ on Intel Macs. Use the native `arm64` build on Apple Silicon and the native `x64` build on Intel Macs.
 Windows release binaries are supported on Windows 10 x64 and Windows 11 x64. Windows 8.1 x64 may work but is not part of the supported/tested release matrix; Windows 7, Windows 8.0, 32-bit Windows, and Windows ARM are not supported.
-Linux desktop release binaries are currently published for `x86_64` only. The AppImage and tarball are intended for newer `x86_64` distributions with `glibc 2.38+`; for broader Linux compatibility, use the published Docker images on `linux/amd64` or `linux/arm64`.
+Linux desktop release binaries are currently published for `x86_64` only. The AppImage and tarball require `glibc 2.35+` — Ubuntu 22.04+, Debian 12+, Fedora 36+. Distributions below that floor, including RHEL/Rocky/AlmaLinux 9 (`glibc 2.34`), are not covered: use the published Docker images on `linux/amd64` or `linux/arm64` instead.
 
 ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 

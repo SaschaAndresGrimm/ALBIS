@@ -52,8 +52,8 @@ if [ -f "albis_assets/icon_512x512.png" ]; then
 elif [ -f "albis_assets/icon_256x256.png" ]; then
   ICON_SRC="albis_assets/icon_256x256.png"
   ICON_SIZE="256x256"
-elif [ -f "frontend/ressources/icon.png" ]; then
-  ICON_SRC="frontend/ressources/icon.png"
+elif [ -f "frontend/resources/icon.png" ]; then
+  ICON_SRC="frontend/resources/icon.png"
   ICON_SIZE="1024x1024"
 fi
 

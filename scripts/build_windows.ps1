@@ -39,7 +39,7 @@ $distDir = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 $generatedIcon = Join-Path $distDir "ALBIS.ico"
 $assetIcon = Join-Path $root "albis_assets\\icon.ico"
-$fallbackIcon = Join-Path $root "frontend\\ressources\\icon.ico"
+$fallbackIcon = Join-Path $root "frontend\\resources\\icon.ico"
 $iconGenerator = Join-Path $root "scripts\\generate_windows_icon.py"
 
 if (Test-Path $iconGenerator) {
