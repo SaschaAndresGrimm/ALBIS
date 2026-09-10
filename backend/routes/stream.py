@@ -8,45 +8,24 @@ from typing import Any
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
 
-try:
-    from ..api_models import (
-        ImageGeometryResponse,
-        ImageHeaderResponse,
-        JungfraujochPreviewControlResponse,
-        JungfraujochPreviewStartRequest,
-        JungfraujochPreviewStatusResponse,
-        JungfraujochProbeResponse,
-        RemoteFrameIngestResponse,
-        RemoteMetaConflictResponse,
-        RemoteMetaResponse,
-        SimplonModeResponse,
-        SimplonProbeResponse,
-    )
-    from .binary_response_utils import (
-        add_optional_header,
-        build_binary_headers,
-        octet_stream_responses,
-    )
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from api_models import (  # type: ignore[no-redef]
-        ImageGeometryResponse,
-        ImageHeaderResponse,
-        JungfraujochPreviewControlResponse,
-        JungfraujochPreviewStartRequest,
-        JungfraujochPreviewStatusResponse,
-        JungfraujochProbeResponse,
-        RemoteFrameIngestResponse,
-        RemoteMetaConflictResponse,
-        RemoteMetaResponse,
-        SimplonModeResponse,
-        SimplonProbeResponse,
-    )
-    from binary_response_utils import (  # type: ignore[no-redef]
-        add_optional_header,
-        build_binary_headers,
-        octet_stream_responses,
-    )
-
+from ..api_models import (
+    ImageGeometryResponse,
+    ImageHeaderResponse,
+    JungfraujochPreviewControlResponse,
+    JungfraujochPreviewStartRequest,
+    JungfraujochPreviewStatusResponse,
+    JungfraujochProbeResponse,
+    RemoteFrameIngestResponse,
+    RemoteMetaConflictResponse,
+    RemoteMetaResponse,
+    SimplonModeResponse,
+    SimplonProbeResponse,
+)
+from .binary_response_utils import (
+    add_optional_header,
+    build_binary_headers,
+    octet_stream_responses,
+)
 
 IMAGE_RESPONSE_DOCS = octet_stream_responses(
     "Raw detector image bytes in little-endian C-order layout.",

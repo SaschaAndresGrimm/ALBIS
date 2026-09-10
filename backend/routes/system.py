@@ -9,34 +9,19 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-try:
-    from ..api_models import (
-        ClientLogRequest,
-        HealthResponse,
-        LogTailResponse,
-        PathStatusResponse,
-        SettingsPayloadResponse,
-        SettingsSaveRequest,
-        StatusResponse,
-        UpdateCheckResponse,
-    )
-    from ..response_compression import available_encodings
-    from ..services.log_tail import read_log_tail
-    from ..services.os_actions import open_in_system
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from api_models import (  # type: ignore[no-redef]
-        ClientLogRequest,
-        HealthResponse,
-        LogTailResponse,
-        PathStatusResponse,
-        SettingsPayloadResponse,
-        SettingsSaveRequest,
-        StatusResponse,
-        UpdateCheckResponse,
-    )
-    from response_compression import available_encodings  # type: ignore[no-redef]
-    from services.log_tail import read_log_tail  # type: ignore[no-redef]
-    from services.os_actions import open_in_system  # type: ignore[no-redef]
+from ..api_models import (
+    ClientLogRequest,
+    HealthResponse,
+    LogTailResponse,
+    PathStatusResponse,
+    SettingsPayloadResponse,
+    SettingsSaveRequest,
+    StatusResponse,
+    UpdateCheckResponse,
+)
+from ..response_compression import available_encodings
+from ..services.log_tail import read_log_tail
+from ..services.os_actions import open_in_system
 
 
 @dataclass(frozen=True)

@@ -22,236 +22,119 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 
-try:
-    from .build_info import ALBIS_COMMIT
-    from .config import (
-        DEFAULT_CONFIG,
-        config_load_error,
-        env_override_keys,
-        get_bool,
-        get_float,
-        get_int,
-        get_nested,
-        get_str,
-        load_config,
-        normalize_config,
-        resolve_data_dir,
-        resolve_log_dir,
-        save_config,
-    )
-    from .image_formats import (
-        _image_ext_name,
-        _mythen_header_text,
-        _pilatus_header_text,
-        _pilatus_image_geometry,
-        _pilatus_meta_from_fabio,
-        _pilatus_meta_from_image,
-        _pilatus_meta_from_tiff,
-        _read_cbf,
-        _read_cbf_gz,
-        _read_edf,
-        _read_mythen_acquisition,
-        _read_tiff,
-        _read_tiff_bytes_with_simplon_meta,
-        _resolve_series_files,
-        _split_series_name,
-        _strip_image_ext,
-        _write_cbf,
-        _write_tiff,
-    )
-    from .request_guard import (
-        RequestGuardMiddleware,
-        is_loopback_host,
-        local_host_names,
-        strip_port,
-    )
-    from .response_compression import ResponseCompressionMiddleware
-    from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
-    from .routes.data_export import DataExportRouteDeps, register_data_export_routes
-    from .routes.files import FileRouteDeps, register_file_routes
-    from .routes.frames import FrameRouteDeps, register_frame_routes
-    from .routes.handoff import HandoffRouteDeps, register_handoff_routes
-    from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
-    from .routes.stream import StreamRouteDeps, register_stream_routes
-    from .routes.system import SystemRouteDeps, register_system_routes
-    from .services.data_export import DataExportDeps, DataExportService
-    from .services.directory_scan import (
-        LatestFileResult,
-        ScanLimits,
-        ScanResult,
-        latest_image_file,
-        scan_folders,
-        scan_image_files,
-    )
-    from .services.handoff_queue import HandoffQueueService
-    from .services.hdf5_stack import HDF5StackService
-    from .services.jungfraujoch_preview import JungfraujochPreviewBridge
-    from .services.jungfraujoch_preview import (
-        jfjoch_probe_endpoint as _jfjoch_probe_endpoint,
-    )
-    from .services.path_policy import PathPolicy
-    from .services.remote_stream import (
-        remote_extract_metadata as _remote_extract_metadata,
-    )
-    from .services.remote_stream import (
-        remote_parse_meta as _remote_parse_meta,
-    )
-    from .services.remote_stream import (
-        remote_read_image_bytes as _remote_read_image_bytes,
-    )
-    from .services.remote_stream import (
-        remote_safe_source_id as _remote_safe_source_id,
-    )
-    from .services.remote_stream import (
-        remote_snapshot as _remote_snapshot,
-    )
-    from .services.remote_stream import (
-        remote_store_frame as _remote_store_frame,
-    )
-    from .services.scan_cache import ScanCacheService
-    from .services.series_ops import (
-        iter_sum_groups as _iter_sum_groups,
-    )
-    from .services.series_ops import (
-        mask_flag_value as _mask_flag_value,
-    )
-    from .services.series_ops import (
-        mask_slices as _mask_slices,
-    )
-    from .services.series_summing import SeriesSummingDeps, SeriesSummingService
-    from .services.simplon import (
-        simplon_base as _simplon_base,
-    )
-    from .services.simplon import (
-        simplon_fetch_monitor as _simplon_fetch_monitor,
-    )
-    from .services.simplon import (
-        simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
-    )
-    from .services.simplon import (
-        simplon_probe as _simplon_probe,
-    )
-    from .services.simplon import (
-        simplon_set_mode as _simplon_set_mode,
-    )
-    from .services.update_check import ReleaseCheckService
-    from .version import ALBIS_VERSION
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from build_info import ALBIS_COMMIT  # type: ignore[no-redef]
-    from config import (
-        DEFAULT_CONFIG,
-        config_load_error,
-        env_override_keys,
-        get_bool,
-        get_float,
-        get_int,
-        get_nested,
-        get_str,
-        load_config,
-        normalize_config,
-        resolve_data_dir,
-        resolve_log_dir,
-        save_config,
-    )
-    from image_formats import (
-        _image_ext_name,
-        _mythen_header_text,
-        _pilatus_header_text,
-        _pilatus_image_geometry,
-        _pilatus_meta_from_fabio,
-        _pilatus_meta_from_image,
-        _pilatus_meta_from_tiff,
-        _read_cbf,
-        _read_cbf_gz,
-        _read_edf,
-        _read_mythen_acquisition,
-        _read_tiff,
-        _read_tiff_bytes_with_simplon_meta,
-        _resolve_series_files,
-        _split_series_name,
-        _strip_image_ext,
-        _write_cbf,
-        _write_tiff,
-    )
-    from request_guard import (  # type: ignore[no-redef]
-        RequestGuardMiddleware,
-        is_loopback_host,
-        local_host_names,
-        strip_port,
-    )
-    from response_compression import (  # type: ignore[no-redef]
-        ResponseCompressionMiddleware,
-    )
-    from routes.analysis import AnalysisRouteDeps, register_analysis_routes
-    from routes.data_export import DataExportRouteDeps, register_data_export_routes
-    from routes.files import FileRouteDeps, register_file_routes
-    from routes.frames import FrameRouteDeps, register_frame_routes
-    from routes.handoff import HandoffRouteDeps, register_handoff_routes
-    from routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
-    from routes.stream import StreamRouteDeps, register_stream_routes
-    from routes.system import SystemRouteDeps, register_system_routes
-    from services.data_export import DataExportDeps, DataExportService
-    from services.directory_scan import (  # type: ignore[no-redef]
-        LatestFileResult,
-        ScanLimits,
-        ScanResult,
-        latest_image_file,
-        scan_folders,
-        scan_image_files,
-    )
-    from services.handoff_queue import HandoffQueueService
-    from services.hdf5_stack import HDF5StackService
-    from services.jungfraujoch_preview import JungfraujochPreviewBridge
-    from services.jungfraujoch_preview import (
-        jfjoch_probe_endpoint as _jfjoch_probe_endpoint,
-    )
-    from services.path_policy import PathPolicy
-    from services.remote_stream import (
-        remote_extract_metadata as _remote_extract_metadata,
-    )
-    from services.remote_stream import (
-        remote_parse_meta as _remote_parse_meta,
-    )
-    from services.remote_stream import (
-        remote_read_image_bytes as _remote_read_image_bytes,
-    )
-    from services.remote_stream import (
-        remote_safe_source_id as _remote_safe_source_id,
-    )
-    from services.remote_stream import (
-        remote_snapshot as _remote_snapshot,
-    )
-    from services.remote_stream import (
-        remote_store_frame as _remote_store_frame,
-    )
-    from services.scan_cache import ScanCacheService  # type: ignore[no-redef]
-    from services.series_ops import (
-        iter_sum_groups as _iter_sum_groups,
-    )
-    from services.series_ops import (
-        mask_flag_value as _mask_flag_value,
-    )
-    from services.series_ops import (
-        mask_slices as _mask_slices,
-    )
-    from services.series_summing import SeriesSummingDeps, SeriesSummingService
-    from services.simplon import (
-        simplon_base as _simplon_base,
-    )
-    from services.simplon import (
-        simplon_fetch_monitor as _simplon_fetch_monitor,
-    )
-    from services.simplon import (
-        simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
-    )
-    from services.simplon import (
-        simplon_probe as _simplon_probe,
-    )
-    from services.simplon import (
-        simplon_set_mode as _simplon_set_mode,
-    )
-    from services.update_check import ReleaseCheckService
-    from version import ALBIS_VERSION
+from .build_info import ALBIS_COMMIT
+from .config import (
+    DEFAULT_CONFIG,
+    config_load_error,
+    env_override_keys,
+    get_bool,
+    get_float,
+    get_int,
+    get_nested,
+    get_str,
+    load_config,
+    normalize_config,
+    resolve_data_dir,
+    resolve_log_dir,
+    save_config,
+)
+from .image_formats import (
+    _image_ext_name,
+    _mythen_header_text,
+    _pilatus_header_text,
+    _pilatus_image_geometry,
+    _pilatus_meta_from_fabio,
+    _pilatus_meta_from_image,
+    _pilatus_meta_from_tiff,
+    _read_cbf,
+    _read_cbf_gz,
+    _read_edf,
+    _read_mythen_acquisition,
+    _read_tiff,
+    _read_tiff_bytes_with_simplon_meta,
+    _resolve_series_files,
+    _split_series_name,
+    _strip_image_ext,
+    _write_cbf,
+    _write_tiff,
+)
+from .request_guard import (
+    RequestGuardMiddleware,
+    is_loopback_host,
+    local_host_names,
+    strip_port,
+)
+from .response_compression import ResponseCompressionMiddleware
+from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
+from .routes.data_export import DataExportRouteDeps, register_data_export_routes
+from .routes.files import FileRouteDeps, register_file_routes
+from .routes.frames import FrameRouteDeps, register_frame_routes
+from .routes.handoff import HandoffRouteDeps, register_handoff_routes
+from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+from .routes.stream import StreamRouteDeps, register_stream_routes
+from .routes.system import SystemRouteDeps, register_system_routes
+from .services.data_export import DataExportDeps, DataExportService
+from .services.directory_scan import (
+    LatestFileResult,
+    ScanLimits,
+    ScanResult,
+    latest_image_file,
+    scan_folders,
+    scan_image_files,
+)
+from .services.handoff_queue import HandoffQueueService
+from .services.hdf5_stack import HDF5StackService
+from .services.jungfraujoch_preview import JungfraujochPreviewBridge
+from .services.jungfraujoch_preview import (
+    jfjoch_probe_endpoint as _jfjoch_probe_endpoint,
+)
+from .services.path_policy import PathPolicy
+from .services.remote_stream import (
+    remote_extract_metadata as _remote_extract_metadata,
+)
+from .services.remote_stream import (
+    remote_parse_meta as _remote_parse_meta,
+)
+from .services.remote_stream import (
+    remote_read_image_bytes as _remote_read_image_bytes,
+)
+from .services.remote_stream import (
+    remote_safe_source_id as _remote_safe_source_id,
+)
+from .services.remote_stream import (
+    remote_snapshot as _remote_snapshot,
+)
+from .services.remote_stream import (
+    remote_store_frame as _remote_store_frame,
+)
+from .services.scan_cache import ScanCacheService
+from .services.series_ops import (
+    iter_sum_groups as _iter_sum_groups,
+)
+from .services.series_ops import (
+    mask_flag_value as _mask_flag_value,
+)
+from .services.series_ops import (
+    mask_slices as _mask_slices,
+)
+from .services.series_summing import SeriesSummingDeps, SeriesSummingService
+from .services.simplon import (
+    simplon_base as _simplon_base,
+)
+from .services.simplon import (
+    simplon_fetch_monitor as _simplon_fetch_monitor,
+)
+from .services.simplon import (
+    simplon_fetch_pixel_mask as _simplon_fetch_pixel_mask,
+)
+from .services.simplon import (
+    simplon_probe as _simplon_probe,
+)
+from .services.simplon import (
+    simplon_set_mode as _simplon_set_mode,
+)
+from .services.update_check import ReleaseCheckService
+from .version import ALBIS_VERSION
 
 CONFIG, CONFIG_PATH = load_config()
 
@@ -933,9 +816,17 @@ app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 
 if __name__ == "__main__":
+    # Reached by `python -m backend.app`, the lightweight backend-only entry
+    # point. `python backend/app.py` cannot work and is no longer documented:
+    # running a package module as a script leaves it with no parent package,
+    # so the relative imports above fail before this line is read.
+    #
+    # The target is the dotted module path rather than "app:app" because that
+    # is what uvicorn re-imports in a reloader subprocess, where only the
+    # working directory is on sys.path.
     import uvicorn
 
     host = get_str(runtime_state.config, ("server", "host"), "127.0.0.1")
     port = max(0, min(65535, get_int(runtime_state.config, ("server", "port"), 0)))
     reload = get_bool(runtime_state.config, ("server", "reload"), False)
-    uvicorn.run("app:app", host=host, port=port, reload=reload)
+    uvicorn.run("backend.app:app", host=host, port=port, reload=reload)

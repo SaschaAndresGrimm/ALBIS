@@ -16,10 +16,7 @@ try:
 except ImportError:  # pragma: no cover - certifi is a declared dependency
     certifi = None
 
-try:
-    from ..api_models import UpdateCheckResponse
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from api_models import UpdateCheckResponse  # type: ignore[no-redef]
+from ..api_models import UpdateCheckResponse
 
 LATEST_RELEASE_API_URL = "https://api.github.com/repos/SaschaAndresGrimm/ALBIS/releases/latest"
 RELEASES_PAGE_URL = "https://github.com/SaschaAndresGrimm/ALBIS/releases"

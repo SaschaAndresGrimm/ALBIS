@@ -9,33 +9,18 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import Response
 
-try:
-    from ..api_models import FrameMetadataResponse
-    from ..image_formats import _to_little_endian
-    from ..services.hdf5_stack import (
-        open_hdf5_for_read,
-        open_hdf5_for_read_reporting_writer,
-        read_hdf5_array,
-    )
-    from .binary_response_utils import (
-        add_optional_header,
-        build_binary_headers,
-        octet_stream_responses,
-    )
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from api_models import FrameMetadataResponse  # type: ignore[no-redef]
-    from binary_response_utils import (  # type: ignore[no-redef]
-        add_optional_header,
-        build_binary_headers,
-        octet_stream_responses,
-    )
-    from image_formats import _to_little_endian  # type: ignore[no-redef]
-    from services.hdf5_stack import (  # type: ignore[no-redef]
-        open_hdf5_for_read,
-        open_hdf5_for_read_reporting_writer,
-        read_hdf5_array,
-    )
-
+from ..api_models import FrameMetadataResponse
+from ..image_formats import _to_little_endian
+from ..services.hdf5_stack import (
+    open_hdf5_for_read,
+    open_hdf5_for_read_reporting_writer,
+    read_hdf5_array,
+)
+from .binary_response_utils import (
+    add_optional_header,
+    build_binary_headers,
+    octet_stream_responses,
+)
 
 FRAME_RESPONSE_DOCS = octet_stream_responses(
     "Raw frame bytes in little-endian C-order layout.",

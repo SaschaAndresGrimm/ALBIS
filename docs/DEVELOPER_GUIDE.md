@@ -23,10 +23,15 @@ The frontend has **no build step**: it is plain ES modules served statically by 
 python -m venv .venv
 . .venv/bin/activate
 pip install -r backend/requirements.txt
-python backend/app.py
+python albis_launcher.py
 ```
 
-Default config uses `server.port: 0` (random free port). Open the URL printed by Uvicorn at startup.
+Default config uses `server.port: 0` (random free port), and the launcher opens the browser for you.
+For the backend alone — no browser launch, no desktop integration — use `python -m uvicorn backend.app:app`
+and open the URL Uvicorn prints.
+
+`python backend/app.py` does not work and never can: running a module of a package as a script leaves it
+without a parent package, so its relative imports fail before anything is served.
 
 ## Developer Quality Gates
 
@@ -82,7 +87,7 @@ Faster inner loop while working:
 
 - **Run a single backend test:** `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/test_config.py -k normalize -q`.
 - **Run a single frontend test file:** `npm run test:js -- frontend/tests/<file>.test.js`.
-- **Auto-reload the backend on code changes:** set `"reload": true` under `server` in `albis.config.json`, then run `python backend/app.py`.
+- **Auto-reload the backend on code changes:** set `"reload": true` under `server` in `albis.config.json`, then run `python -m backend.app`.
 - **Verbose logs:** set `"level": "DEBUG"` under `logging` in `albis.config.json`. Backend logs go to `<resolved log dir>/albis.log`; frontend warnings/errors are forwarded to the backend via `/api/client-log`.
 - **Pin the port** (handy when iterating against a fixed URL or an external producer): set `"port": <fixed>` under `server`.
 

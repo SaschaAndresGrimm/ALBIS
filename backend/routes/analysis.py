@@ -7,24 +7,14 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
-try:
-    from ..api_models import (
-        AnalysisParamsResponse,
-        SeriesSumCancelRequest,
-        SeriesSumCancelResponse,
-        SeriesSumStartRequest,
-        SeriesSumStartResponse,
-    )
-    from ..services.hdf5_stack import open_hdf5_for_read
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from api_models import (  # type: ignore[no-redef]
-        AnalysisParamsResponse,
-        SeriesSumCancelRequest,
-        SeriesSumCancelResponse,
-        SeriesSumStartRequest,
-        SeriesSumStartResponse,
-    )
-    from services.hdf5_stack import open_hdf5_for_read  # type: ignore[no-redef]
+from ..api_models import (
+    AnalysisParamsResponse,
+    SeriesSumCancelRequest,
+    SeriesSumCancelResponse,
+    SeriesSumStartRequest,
+    SeriesSumStartResponse,
+)
+from ..services.hdf5_stack import open_hdf5_for_read
 
 
 @dataclass(frozen=True)

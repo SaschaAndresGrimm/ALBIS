@@ -8,10 +8,12 @@ Thanks for considering a contribution! This project is a practical, ALBULA‑sty
 python -m venv .venv
 . .venv/bin/activate
 pip install -r backend/requirements.txt
-python backend/app.py
+python albis_launcher.py
 ```
 
-Default config uses `server.port: 0` (random free port). Open the startup URL printed by Uvicorn.
+Default config uses `server.port: 0` (random free port), and the launcher opens the browser for you.
+For the backend on its own, without the browser launch, run `python -m uvicorn backend.app:app` and open the
+URL Uvicorn prints.
 
 Install contributor tooling:
 

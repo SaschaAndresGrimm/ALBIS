@@ -8,10 +8,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
-try:
-    from ..api_models import HandoffJobCreateRequest, HandoffJobResponse
-except ImportError:  # pragma: no cover
-    from api_models import HandoffJobCreateRequest, HandoffJobResponse  # type: ignore[no-redef]
+from ..api_models import HandoffJobCreateRequest, HandoffJobResponse
 
 
 @dataclass(frozen=True)

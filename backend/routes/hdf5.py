@@ -11,27 +11,15 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import Response
 
-try:
-    from ..api_models import (
-        HDF5DatasetsResponse,
-        HDF5NodeResponse,
-        HDF5SearchResponse,
-        HDF5TreeChild,
-        HDF5TreeResponse,
-        HDF5ValueResponse,
-    )
-    from ..services.hdf5_stack import open_hdf5_for_read
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from api_models import (  # type: ignore[no-redef]
-        HDF5DatasetsResponse,
-        HDF5NodeResponse,
-        HDF5SearchResponse,
-        HDF5TreeChild,
-        HDF5TreeResponse,
-        HDF5ValueResponse,
-    )
-    from services.hdf5_stack import open_hdf5_for_read  # type: ignore[no-redef]
-
+from ..api_models import (
+    HDF5DatasetsResponse,
+    HDF5NodeResponse,
+    HDF5SearchResponse,
+    HDF5TreeChild,
+    HDF5TreeResponse,
+    HDF5ValueResponse,
+)
+from ..services.hdf5_stack import open_hdf5_for_read
 
 HDF5_CSV_RESPONSE_DOCS: dict[int, dict[str, Any]] = {
     200: {

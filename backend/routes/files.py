@@ -13,51 +13,26 @@ from typing import Any, Literal
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
 
-try:
-    from ..api_models import (
-        AutoloadLatestResponse,
-        BrowseFileItem,
-        BrowseResponse,
-        FilesListResponse,
-        FoldersListResponse,
-        PathSelectionResponse,
-        SeriesInfoResponse,
-        UploadResponse,
-    )
-    from ..services.directory_scan import LatestFileResult, ScanResult
-    from ..services.os_actions import (
-        choose_file as _choose_file,
-    )
-    from ..services.os_actions import (
-        choose_folder as _choose_folder,
-    )
-    from ..services.os_actions import (
-        is_applescript_cancel as _is_applescript_cancel,
-    )
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from api_models import (  # type: ignore[no-redef]
-        AutoloadLatestResponse,
-        BrowseFileItem,
-        BrowseResponse,
-        FilesListResponse,
-        FoldersListResponse,
-        PathSelectionResponse,
-        SeriesInfoResponse,
-        UploadResponse,
-    )
-    from services.directory_scan import (  # type: ignore[no-redef]
-        LatestFileResult,
-        ScanResult,
-    )
-    from services.os_actions import (  # type: ignore[no-redef]
-        choose_file as _choose_file,
-    )
-    from services.os_actions import (
-        choose_folder as _choose_folder,
-    )
-    from services.os_actions import (
-        is_applescript_cancel as _is_applescript_cancel,
-    )
+from ..api_models import (
+    AutoloadLatestResponse,
+    BrowseFileItem,
+    BrowseResponse,
+    FilesListResponse,
+    FoldersListResponse,
+    PathSelectionResponse,
+    SeriesInfoResponse,
+    UploadResponse,
+)
+from ..services.directory_scan import LatestFileResult, ScanResult
+from ..services.os_actions import (
+    choose_file as _choose_file,
+)
+from ..services.os_actions import (
+    choose_folder as _choose_folder,
+)
+from ..services.os_actions import (
+    is_applescript_cancel as _is_applescript_cancel,
+)
 
 
 @dataclass(frozen=True)

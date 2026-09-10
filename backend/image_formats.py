@@ -22,14 +22,9 @@ from typing import Any, BinaryIO
 import numpy as np
 from fastapi import HTTPException
 
-try:
-    from .build_info import ALBIS_COMMIT
-    from .services.hdf5_units import wavelength_to_ev
-    from .version import ALBIS_VERSION
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from build_info import ALBIS_COMMIT  # type: ignore[no-redef]
-    from services.hdf5_units import wavelength_to_ev  # type: ignore[no-redef]
-    from version import ALBIS_VERSION  # type: ignore[no-redef]
+from .build_info import ALBIS_COMMIT
+from .services.hdf5_units import wavelength_to_ev
+from .version import ALBIS_VERSION
 
 # Lazy-loaded optional dependencies
 _tifffile = None

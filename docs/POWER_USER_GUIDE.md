@@ -5,7 +5,8 @@ This guide is for users who want to run the ALBIS server manually, use the Remot
 ## Run Modes
 
 - **Python/source mode**:
-  Run directly from this repository with `python backend/app.py` (or `python albis_launcher.py`).
+  Run directly from this repository with `python albis_launcher.py` (or, for the backend alone,
+  `python -m uvicorn backend.app:app`).
   Needs **Python 3.13**; the packaged builds bundle their own interpreter and need none.
 
 ## Run (backend + frontend)
@@ -14,12 +15,13 @@ This guide is for users who want to run the ALBIS server manually, use the Remot
 python -m venv .venv
 . .venv/bin/activate
 pip install -r backend/requirements.txt
-python backend/app.py
+python albis_launcher.py
 ```
 
 By default `server.port` is `0`, so ALBIS auto-selects a free port at startup.
-For `python backend/app.py`, read the startup URL printed by Uvicorn (for example `http://127.0.0.1:51243`) and open that URL.
 For `python albis_launcher.py` or packaged app runs, ALBIS opens the browser automatically.
+Running the backend alone with `python -m uvicorn backend.app:app` prints a startup URL
+(for example `http://127.0.0.1:51243`) to open yourself.
 
 - **Standalone mode**:
   Use packaged artifacts created by the build scripts (no Python installation required on target machines).

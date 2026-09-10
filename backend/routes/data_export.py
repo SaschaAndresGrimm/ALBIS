@@ -7,20 +7,12 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
-try:
-    from ..api_models import (
-        DataExportCancelRequest,
-        DataExportCancelResponse,
-        DataExportStartRequest,
-        DataExportStartResponse,
-    )
-except ImportError:  # pragma: no cover - supports `python backend/app.py`
-    from api_models import (  # type: ignore[no-redef]
-        DataExportCancelRequest,
-        DataExportCancelResponse,
-        DataExportStartRequest,
-        DataExportStartResponse,
-    )
+from ..api_models import (
+    DataExportCancelRequest,
+    DataExportCancelResponse,
+    DataExportStartRequest,
+    DataExportStartResponse,
+)
 
 
 @dataclass(frozen=True)
