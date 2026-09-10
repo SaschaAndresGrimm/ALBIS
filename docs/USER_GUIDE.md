@@ -252,6 +252,18 @@ step, the full image or just the visible area, a scale, and the frame rate. A
 live summary estimates the file size before you commit; frame count, region and
 scale are the levers that control it.
 
+Tick **Include overlays** to draw the resolution rings and the spot finder into
+the GIF as well. The option is only available when at least one of them is
+switched on in the Overlay tab. Two things are worth knowing:
+
+- The spot finder **re-runs on every exported frame**, so the markers belong to
+  the frame they sit on rather than to whichever frame was on screen when you
+  started. That is the honest result, and it is also the slow one — a long
+  series with the spot finder on takes noticeably longer to export.
+- Overlays are drawn opaque, not translucent as on screen. A GIF has 256
+  colours and no alpha channel, so the halos that soften the rings on screen
+  become solid; the rings are a little heavier in the file than in the viewer.
+
 The three **save image** entries differ in what they capture: the whole frame at
 full resolution, only the part you are looking at, or the viewer window as it
 appears.

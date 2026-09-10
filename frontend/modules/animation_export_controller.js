@@ -12,15 +12,43 @@
 import { t } from "./i18n.js";
 import { canExportAnimation } from "./command_availability.js";
 import { GifWriter } from "./gif_encoder.js";
+import {
+  OPAQUE_OVERLAY_COLORS,
+  OPAQUE_OVERLAY_RGB,
+  buildGeometryRingCache,
+  nearestOverlayColorIndex,
+  paintPeakMarkers,
+  paintResolutionRings,
+  regionView,
+} from "./overlay_painters.js";
 import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
 
-// Number of colormap colours reserved in the GIF global colour table. The
-// remaining three slots carry the mask (black + flagged blue) and saturation
-// highlight colours, keeping the table within the 256-entry GIF limit.
+// Number of colormap colours reserved in the GIF global colour table. Three
+// further slots carry the mask (black + flagged blue) and saturation highlight
+// colours; with overlays switched on, one slot per overlay colour comes out of
+// the colormap's share, keeping the table within the 256-entry GIF limit. The
+// resulting 245 colormap steps instead of 252 is a 3% coarser ramp -- below
+// what anyone can see in a gradient, and the alternative was no overlays.
 const COLORMAP_STEPS = 252;
+const OVERLAY_COLORMAP_STEPS = COLORMAP_STEPS - OPAQUE_OVERLAY_RGB.length;
+// An anti-aliased overlay edge either reaches a pixel or it does not: a GIF
+// frame has no alpha channel to hold a partial one.
+const OVERLAY_ALPHA_CUTOFF = 128;
+// Overlay line widths and label text are sized for a viewport, so they scale
+// with the output; without this a ring in a 4000 px wide GIF is a hairline.
+// Clamped so a thumbnail-sized export keeps legible decorations and a huge one
+// does not end up all label.
+const OVERLAY_UI_REFERENCE_PX = 900;
+const OVERLAY_UI_SCALE_MIN = 0.75;
+const OVERLAY_UI_SCALE_MAX = 4;
 const MASK_BLACK_RGB = [0, 0, 0];
 const MASK_FLAG_RGB = [25, 50, 120];
 const GIF_TYPES = [{ accept: { "image/gif": [".gif"] } }];
+
+function overlayUiScale(ow, oh) {
+  const raw = Math.min(ow, oh) / OVERLAY_UI_REFERENCE_PX;
+  return Math.max(OVERLAY_UI_SCALE_MIN, Math.min(OVERLAY_UI_SCALE_MAX, raw));
+}
 
 export function createAnimationExportController({
   apiBase,
@@ -41,6 +69,8 @@ export function createAnimationExportController({
     regionSelect,
     fpsSelect,
     loopCheckbox,
+    overlaysCheckbox,
+    overlaysField,
     scaleSelect,
     summary,
     progress,
@@ -60,6 +90,9 @@ export function createAnimationExportController({
     parseShape,
     typedArrayFrom,
     getVisibleRegion,
+    getOverlayState,
+    detectPeaksInFrame,
+    createOverlayCanvas,
     openModal,
     closeModal,
     setStatus,
@@ -117,6 +150,43 @@ export function createAnimationExportController({
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
     return `${Math.round(bytes)} B`;
+  }
+
+  // What the viewer currently has switched on that the GIF could carry. Null
+  // when there is nothing to draw, which is what greys the checkbox out.
+  //
+  // Externally supplied peak sets (jfjoch) are deliberately left out: they
+  // arrive with one live frame and cannot be recomputed for the others, so
+  // exporting them would paint one frame's spots over the whole animation.
+  function overlaySources() {
+    const info = getOverlayState?.();
+    if (!info) return null;
+    const rings = Boolean(info.ringsEnabled && info.ringParams);
+    const peaks = Boolean(info.peaksEnabled) && typeof detectPeaksInFrame === "function";
+    if (!rings && !peaks) return null;
+    return {
+      rings,
+      peaks,
+      ringParams: info.ringParams || null,
+      pixelAspect: Number(info.pixelAspect) > 0 ? Number(info.pixelAspect) : 1,
+    };
+  }
+
+  function overlaysRequested() {
+    return Boolean(overlaysCheckbox?.checked) && Boolean(overlaySources());
+  }
+
+  // Where each kind of pixel lands in the GIF's 256-entry colour table.
+  function paletteLayout(withOverlays) {
+    const steps = withOverlays ? OVERLAY_COLORMAP_STEPS : COLORMAP_STEPS;
+    return {
+      steps,
+      idxBlack: steps,
+      idxFlag: steps + 1,
+      idxSat: steps + 2,
+      overlayBase: steps + 3,
+      overlayCount: withOverlays ? OPAQUE_OVERLAY_RGB.length : 0,
+    };
   }
 
   function updateSummary() {
@@ -180,6 +250,17 @@ export function createAnimationExportController({
     [frameMode, frameStep, regionSelect, fpsSelect, loopCheckbox, scaleSelect].forEach((el) => {
       if (el) el.disabled = running || !ready;
     });
+    // Nothing to draw means nothing to offer: the checkbox greys out and says
+    // why, rather than exporting a GIF that looks identical when ticked.
+    const overlaysAvailable = Boolean(overlaySources());
+    if (overlaysCheckbox) {
+      overlaysCheckbox.disabled = running || !ready || !overlaysAvailable;
+      if (!overlaysAvailable) overlaysCheckbox.checked = false;
+    }
+    overlaysField?.classList.toggle("is-disabled", !overlaysAvailable);
+    if (overlaysField) {
+      overlaysField.title = overlaysAvailable ? "" : t("animation_export.overlays.unavailable");
+    }
     if (rangeStart) rangeStart.disabled = running || !ready || !showRange;
     if (rangeEnd) rangeEnd.disabled = running || !ready || !showRange;
     if (startBtn) {
@@ -199,39 +280,45 @@ export function createAnimationExportController({
   }
 
   // Build the GIF global colour table from the active colormap, sampled down to
-  // COLORMAP_STEPS entries, plus the reserved mask/saturation colours.
-  function buildGifPalette() {
+  // layout.steps entries, plus the reserved mask/saturation colours and, when
+  // overlays are exported, one entry per overlay colour.
+  function buildGifPalette(layout) {
     const src = buildPalette(state.colormap);
     const srcCount = Math.max(1, getPaletteColorCount(src));
-    const palette = new Uint8Array((COLORMAP_STEPS + 3) * 3);
-    for (let i = 0; i < COLORMAP_STEPS; i += 1) {
-      const tNorm = COLORMAP_STEPS > 1 ? i / (COLORMAP_STEPS - 1) : 0;
+    const { steps } = layout;
+    const palette = new Uint8Array((steps + 3 + layout.overlayCount) * 3);
+    for (let i = 0; i < steps; i += 1) {
+      const tNorm = steps > 1 ? i / (steps - 1) : 0;
       const srcIdx = Math.min(srcCount - 1, Math.round(tNorm * (srcCount - 1))) * 4;
       palette[i * 3] = src[srcIdx];
       palette[i * 3 + 1] = src[srcIdx + 1];
       palette[i * 3 + 2] = src[srcIdx + 2];
     }
-    const black = COLORMAP_STEPS * 3;
+    const black = layout.idxBlack * 3;
     palette[black] = MASK_BLACK_RGB[0];
     palette[black + 1] = MASK_BLACK_RGB[1];
     palette[black + 2] = MASK_BLACK_RGB[2];
-    const flag = (COLORMAP_STEPS + 1) * 3;
+    const flag = layout.idxFlag * 3;
     palette[flag] = MASK_FLAG_RGB[0];
     palette[flag + 1] = MASK_FLAG_RGB[1];
     palette[flag + 2] = MASK_FLAG_RGB[2];
-    const sat = (COLORMAP_STEPS + 2) * 3;
+    const sat = layout.idxSat * 3;
     palette[sat] = SATURATED_PIXEL_RGBA.byte[0];
     palette[sat + 1] = SATURATED_PIXEL_RGBA.byte[1];
     palette[sat + 2] = SATURATED_PIXEL_RGBA.byte[2];
+    for (let i = 0; i < layout.overlayCount; i += 1) {
+      const base = (layout.overlayBase + i) * 3;
+      palette[base] = OPAQUE_OVERLAY_RGB[i][0];
+      palette[base + 1] = OPAQUE_OVERLAY_RGB[i][1];
+      palette[base + 2] = OPAQUE_OVERLAY_RGB[i][2];
+    }
     return palette;
   }
 
   // Convert one decoded frame into palette indices for the chosen region/scale,
   // mirroring renderRegionToCanvas' per-pixel decision order.
-  function frameToIndices(data, frameWidth, frameHeight, region, out, ow, oh) {
-    const idxBlack = COLORMAP_STEPS;
-    const idxFlag = COLORMAP_STEPS + 1;
-    const idxSat = COLORMAP_STEPS + 2;
+  function frameToIndices(data, frameWidth, frameHeight, region, out, ow, oh, layout) {
+    const { idxBlack, idxFlag, idxSat, steps } = layout;
     const satMax = getActiveSaturationMax();
     const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
     const maskReady =
@@ -263,7 +350,7 @@ export function createAnimationExportController({
           } else {
             const norm = mapValueToNorm(v);
             const clamped = norm < 0 ? 0 : norm > 1 ? 1 : norm;
-            outIdx = Math.min(COLORMAP_STEPS - 1, Math.floor(clamped * (COLORMAP_STEPS - 1)));
+            outIdx = Math.min(steps - 1, Math.floor(clamped * (steps - 1)));
           }
         }
         out[outRow + ox] = outIdx;
@@ -295,9 +382,74 @@ export function createAnimationExportController({
     return { data: typedArrayFrom(buffer, dtype), height: shape[0], width: shape[1] };
   }
 
+  /**
+   * Draws the viewer's overlays at export resolution and stamps them into a
+   * frame's palette indices.
+   *
+   * Rings depend only on the geometry, so they are painted once and reused;
+   * spot-finder markers are re-detected per frame, because a marker frozen from
+   * whichever frame happened to be on screen would put spots where this frame
+   * has none.
+   */
+  function createOverlayCompositor(sources, region, ow, oh, layout) {
+    const canvas = createOverlayCanvas
+      ? createOverlayCanvas(ow, oh)
+      : Object.assign(document.createElement("canvas"), { width: ow, height: oh });
+    const ctx = canvas?.getContext?.("2d");
+    if (!ctx) return null;
+    const view = regionView(region, ow, oh);
+    const uiScale = overlayUiScale(ow, oh);
+    const geometryCache = sources.rings ? buildGeometryRingCache(sources.ringParams) : null;
+    let staticRgba = null;
+
+    function paint(peaks) {
+      ctx.clearRect(0, 0, ow, oh);
+      if (sources.rings) {
+        paintResolutionRings(ctx, {
+          params: sources.ringParams,
+          view,
+          geometryCache,
+          pixelAspect: sources.pixelAspect,
+          uiScale,
+          colors: OPAQUE_OVERLAY_COLORS,
+        });
+      }
+      paintPeakMarkers(ctx, {
+        peaks,
+        // Peak selection is a viewer notion; index N of one frame is not the
+        // same spot as index N of the next, so nothing is drawn as selected.
+        selectedPeaks: [],
+        view,
+        width: ow,
+        height: oh,
+        uiScale,
+        colors: OPAQUE_OVERLAY_COLORS,
+      });
+      return ctx.getImageData(0, 0, ow, oh).data;
+    }
+
+    return function apply(indices, frame) {
+      let rgba;
+      if (sources.peaks) {
+        rgba = paint(detectPeaksInFrame(frame) || []);
+      } else {
+        if (!staticRgba) staticRgba = paint([]);
+        rgba = staticRgba;
+      }
+      for (let p = 0, n = ow * oh; p < n; p += 1) {
+        const o = p * 4;
+        if (rgba[o + 3] < OVERLAY_ALPHA_CUTOFF) continue;
+        indices[p] = layout.overlayBase + nearestOverlayColorIndex(rgba[o], rgba[o + 1], rgba[o + 2]);
+      }
+    };
+  }
+
   async function renderFrames(frames, region, scale, fps, loop) {
-    const palette = buildGifPalette();
+    const sources = overlaysRequested() ? overlaySources() : null;
+    const layout = paletteLayout(Boolean(sources));
+    const palette = buildGifPalette(layout);
     let writer = null;
+    let compositeOverlay = null;
     let ow = 0;
     let oh = 0;
     let indices = null;
@@ -325,8 +477,12 @@ export function createAnimationExportController({
         oh = size.height;
         indices = new Uint8Array(ow * oh);
         writer = new GifWriter({ width: ow, height: oh, palette, loop });
+        if (sources) {
+          compositeOverlay = createOverlayCompositor(sources, safeRegion, ow, oh, layout);
+        }
       }
-      frameToIndices(frame.data, frame.width, frame.height, safeRegion, indices, ow, oh);
+      frameToIndices(frame.data, frame.width, frame.height, safeRegion, indices, ow, oh, layout);
+      compositeOverlay?.(indices, frame);
       writer.addFrame(indices, delayCs);
     }
     if (!writer) return null;
@@ -475,6 +631,9 @@ export function createAnimationExportController({
   return {
     openDialog,
     closeDialog,
+    // Same action the Export button runs. Returned as a promise so a caller
+    // -- today only the tests -- can wait for the encode instead of polling.
+    startExport,
     updateUi,
   };
 }

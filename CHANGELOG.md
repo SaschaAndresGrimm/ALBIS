@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- The GIF export can draw the overlays. **Include overlays** in the export dialog renders the resolution rings and the spot-finder markers into every exported frame; it greys out when neither is switched on. The spot finder re-runs on each exported frame rather than freezing the markers from whichever frame happened to be on screen — a marker that stays put while the diffraction underneath it moves is worse than no marker. The overlay drawing itself is now one module shared with the viewer, so the GIF and the screen cannot drift apart, and it handles anisotropic pixels in both: an exported frame is unstretched, so a ring that is a circle on screen is drawn as the ellipse it physically is.
+
 ### Changed
 
 - `GOVERNANCE.md` states where the project is going, not only where it is. ALBIS is to become DECTRIS-supported and move to a DECTRIS organisation, and Windows releases will be signed by DECTRIS USA Ltd — which makes the publisher Windows shows read as DECTRIS regardless of what the documentation says, so the documentation now says it first. It also records the three things coupled to the repository path that a transfer breaks quietly, chief among them that every installed binary asks the current URL for its update check.

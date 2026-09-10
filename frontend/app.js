@@ -519,6 +519,8 @@ const animationExportRegion = document.getElementById("animation-export-region")
 const animationExportScale = document.getElementById("animation-export-scale");
 const animationExportFps = document.getElementById("animation-export-fps");
 const animationExportLoop = document.getElementById("animation-export-loop");
+const animationExportOverlays = document.getElementById("animation-export-overlays");
+const animationExportOverlaysField = document.getElementById("animation-export-overlays-field");
 const animationExportSummary = document.getElementById("animation-export-summary");
 const animationExportProgress = document.getElementById("animation-export-progress");
 const animationExportProgressFill = document.getElementById("animation-export-progress-fill");
@@ -1590,6 +1592,8 @@ const animationExportController = createAnimationExportController({
     regionSelect: animationExportRegion,
     fpsSelect: animationExportFps,
     loopCheckbox: animationExportLoop,
+    overlaysCheckbox: animationExportOverlays,
+    overlaysField: animationExportOverlaysField,
     scaleSelect: animationExportScale,
     summary: animationExportSummary,
     progress: animationExportProgress,
@@ -1608,6 +1612,20 @@ const animationExportController = createAnimationExportController({
     parseShape,
     typedArrayFrom,
     getVisibleRegion: () => exportSplashController?.getVisibleRegion(),
+    getOverlayState: () => ({
+      ringsEnabled: analysisState.ringsEnabled,
+      ringParams: analysisState.ringsEnabled ? analysisOverlayController.getRingParams() : null,
+      peaksEnabled: analysisState.peaksEnabled,
+      pixelAspect: state.pixelAspect || 1,
+    }),
+    // Re-runs the spot finder on an exported frame with the settings the panel
+    // is showing, so the markers in the GIF belong to the frame they sit on.
+    detectPeaksInFrame: (frame) =>
+      analysisOverlayController.detectPeaks(
+        Math.max(1, Math.min(1000, Math.round(Number(analysisState.peakCount) || 25))),
+        Math.max(0, Math.min(50, Number(analysisState.peakMinSnr) || 0)),
+        frame
+      ),
     openModal: (...args) => openModal(...args),
     closeModal: (...args) => closeModal(...args),
     setStatus,

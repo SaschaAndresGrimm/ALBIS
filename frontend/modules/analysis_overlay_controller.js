@@ -403,13 +403,20 @@ export function createAnalysisOverlayController({
     };
   }
 
-  function detectPeaks(maxPeaks, minSnr) {
-    if (!state.hasFrame || !state.dataRaw || !state.width || !state.height) return [];
-    const width = state.width;
-    const height = state.height;
+  /**
+   * Spot finder. `frame` defaults to the frame on screen; the GIF exporter
+   * passes each frame it fetches instead, so exported markers belong to the
+   * frame they are drawn on rather than to whichever frame the viewer happened
+   * to be showing when the export started.
+   */
+  function detectPeaks(maxPeaks, minSnr, frame = null) {
+    const data = frame ? frame.data : state.dataRaw;
+    const width = frame ? frame.width : state.width;
+    const height = frame ? frame.height : state.height;
+    if (!frame && !state.hasFrame) return [];
+    if (!data || !width || !height) return [];
     if (width < 3 || height < 3 || maxPeaks < 1) return [];
 
-    const data = state.dataRaw;
     const maskReady =
       state.maskEnabled &&
       state.maskAvailable &&

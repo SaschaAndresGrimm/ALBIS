@@ -3727,6 +3727,13 @@ body.platform-windows select option:disabled {
   color: var(--muted-strong);
 }
 
+/* A checkbox whose option is not available right now: greyed but still
+   hoverable, so its title can say why. */
+.checkbox.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .section-switch {
   position: relative;
   display: inline-flex;
