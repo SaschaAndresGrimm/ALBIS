@@ -24,9 +24,11 @@ from fastapi import HTTPException
 
 try:
     from .build_info import ALBIS_COMMIT
+    from .services.hdf5_units import wavelength_to_ev
     from .version import ALBIS_VERSION
 except ImportError:  # pragma: no cover - supports `python backend/app.py`
     from build_info import ALBIS_COMMIT  # type: ignore[no-redef]
+    from services.hdf5_units import wavelength_to_ev  # type: ignore[no-redef]
     from version import ALBIS_VERSION  # type: ignore[no-redef]
 
 # Lazy-loaded optional dependencies
@@ -673,7 +675,7 @@ def _simplon_meta_from_tiff(tiff: Any, raw: bytes | None = None) -> dict[str, An
     if incident_energy is not None and math.isfinite(incident_energy):
         energy_ev = float(incident_energy)
     elif incident_wavelength is not None and incident_wavelength > 0:
-        energy_ev = 12398.4193 / float(incident_wavelength)
+        energy_ev = wavelength_to_ev(float(incident_wavelength), "a")
     meta.update(
         {
             "series_unique_id": series_unique_id,
@@ -790,7 +792,7 @@ def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
     if "energy_ev" not in meta:
         wavelength = meta.get("wavelength_a")
         if wavelength and wavelength > 0:
-            meta["energy_ev"] = float(12398.4193 / wavelength)
+            meta["energy_ev"] = wavelength_to_ev(float(wavelength), "a")
     return meta
 
 
@@ -1562,6 +1564,46 @@ def _parse_mythen_cfg(cfg_path: Path | None) -> dict[str, Any]:
     return meta
 
 
+def _is_channel_index_column(values: np.ndarray) -> bool:
+    """Report whether a flat token run is "<channel> <count>" pairs.
+
+    Checked by shape rather than guessed: the first column of a pair layout is
+    the channel index, so it ascends one at a time from 0 (or from 1). A counts
+    column does not, except by coincidence on a perfectly linear ramp.
+    """
+    if values.size < 4 or values.size % 2:
+        return False
+    index = values.reshape(-1, 2)[:, 0]
+    expected = np.arange(index.size, dtype=index.dtype)
+    return bool(np.array_equal(index, expected) or np.array_equal(index, expected + 1))
+
+
+def _mythen_counts_column(values: np.ndarray, n_channels: int | None) -> np.ndarray:
+    """Pick the counts out of a MYTHEN frame, whichever layout it uses.
+
+    A frame is either a single counts column or "<channel> <count>" pairs.
+    Deciding that on the parity of the token count cannot tell them apart:
+    every real MYTHEN module has an even channel count (1280 per module), so a
+    counts-only frame always had an even token count, always took the pair
+    branch, and lost half its channels -- the survivors being the odd-index
+    counts, zero-padded back to full width so the shape still looked right.
+    The counts-only fallback the old comment described could never be reached.
+
+    Decide on the channel count from the `.cfg` when it is known, and on the
+    shape of the first column when it is not.
+    """
+    if n_channels:
+        if values.size == n_channels:
+            return values
+        if values.size == 2 * n_channels:
+            return values.reshape(-1, 2)[:, 1]
+        # Neither layout fits the declared width. Fall through to the shape
+        # check; the caller pads or truncates whatever comes back.
+    if _is_channel_index_column(values):
+        return values.reshape(-1, 2)[:, 1]
+    return values
+
+
 def _read_mythen_dat(path: Path, n_channels: int | None) -> np.ndarray:
     """Parse one ``FrameNNNN.dat`` file into a 1D intensity vector (counts only)."""
     try:
@@ -1577,8 +1619,7 @@ def _read_mythen_dat(path: Path, n_channels: int | None) -> np.ndarray:
         raise HTTPException(
             status_code=422, detail=f"Malformed MYTHEN frame {path.name}"
         ) from exc
-    # "<channel> <count>" pairs; fall back to a counts-only column layout.
-    counts = values.reshape(-1, 2)[:, 1] if values.size % 2 == 0 else values
+    counts = _mythen_counts_column(values, n_channels)
     if n_channels and counts.size != n_channels:
         fixed = np.zeros(int(n_channels), dtype=np.int64)
         limit = min(int(n_channels), counts.size)

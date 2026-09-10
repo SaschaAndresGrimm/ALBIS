@@ -3,7 +3,11 @@
  */
 
 import { t } from "./i18n.js";
-import { applyGeometryOverrides, getGeometryResolutionAtPixel } from "./ring_geometry_utils.js";
+import {
+  applyGeometryOverrides,
+  braggDSpacing,
+  getGeometryResolutionAtPixel,
+} from "./ring_geometry_utils.js";
 import { setControlAvailability } from "./control_availability.js";
 
 export function createAnalysisOverlayController({
@@ -135,9 +139,14 @@ export function createAnalysisOverlayController({
       });
       return getGeometryResolutionAtPixel(ix, iy, geometry, params.energyEv);
     }
+    // centerKnown, not just a finite centre: getRingParams substitutes the
+    // image midpoint when the file carries no beam centre and the user has
+    // typed none, so centerX/centerY are always finite. Computing a d-spacing
+    // from that midpoint reports a number that looks calibrated and is not --
+    // a real beam centre sits tens to hundreds of pixels off it. The overlay
+    // layer already respects this flag; the numbers did not.
+    if (!params.centerKnown) return null;
     if (!params.distanceMm || !params.pixelSizeUm || !params.energyEv) return null;
-    const lambda = 12398.4193 / params.energyEv;
-    if (!Number.isFinite(lambda) || lambda <= 0) return null;
     const pixelSizeMmX = params.pixelSizeUm / 1000;
     if (!Number.isFinite(pixelSizeMmX) || pixelSizeMmX <= 0) return null;
     // For anisotropic ("strixel") pixels the radial distance must be measured in
@@ -148,11 +157,7 @@ export function createAnalysisOverlayController({
     const dxMm = (ix - params.centerX) * pixelSizeMmX;
     const dyMm = (iy - params.centerY) * pixelSizeMmY;
     const radiusMm = Math.hypot(dxMm, dyMm);
-    const twoTheta = Math.atan2(radiusMm, params.distanceMm);
-    const sinArg = Math.sin(twoTheta / 2);
-    if (!Number.isFinite(sinArg) || sinArg <= 0) return null;
-    const d = lambda / (2 * sinArg);
-    return Number.isFinite(d) && d > 0 ? d : null;
+    return braggDSpacing(Math.atan2(radiusMm, params.distanceMm), params.energyEv);
   }
 
   function updateRingsSectionState() {

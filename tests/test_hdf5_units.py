@@ -138,7 +138,45 @@ def test_a_detector_distance_in_metres_is_recognised_without_a_unit() -> None:
 
 def test_a_detector_distance_already_in_mm_is_left_alone() -> None:
     assert to_mm(150.0, None) == pytest.approx(150.0)
-    assert to_mm(0.6, None) == pytest.approx(0.6)
+    assert to_mm(1000.0, None) == pytest.approx(1000.0)
+
+
+@pytest.mark.parametrize(
+    ("metres", "expected_mm"),
+    [
+        (0.08, 80.0),  # close-in MX
+        (0.15, 150.0),
+        (0.5, 500.0),
+        (0.8, 800.0),  # read as 0.8 mm before the break moved to 10
+        (2.0, 2000.0),
+        (5.0, 5000.0),  # long SAXS camera
+        (9.9, 9900.0),
+    ],
+)
+def test_an_undeclared_camera_length_in_metres_is_not_read_as_millimetres(
+    metres: float, expected_mm: float
+) -> None:
+    """The 0.5-to-5 band is where ordinary MX and SAXS camera lengths live.
+
+    A break at 0.5 put all of them on the millimetre side and reported the
+    distance 1000x short, which silently rescales every d-spacing computed
+    from it. No detector sits 0.8 mm from the sample; 0.8 m is routine.
+    """
+    assert to_mm(metres, None) == pytest.approx(expected_mm)
+
+
+def test_the_undeclared_length_break_matches_its_two_siblings() -> None:
+    """`image_formats` and `jungfraujoch_preview` carry the same heuristic.
+
+    They already broke at 10 while this one broke at 0.5, so the same file
+    could yield different distances depending on which path read it.
+    """
+    from backend.image_formats import _distance_to_mm
+    from backend.services.jungfraujoch_preview import _to_mm as jfjoch_to_mm
+
+    for value in (0.15, 0.8, 2.0, 9.9, 10.0, 150.0, 1000.0):
+        assert to_mm(value, None) == pytest.approx(_distance_to_mm(value))
+        assert to_mm(value, None) == pytest.approx(jfjoch_to_mm(value))
 
 
 def test_a_pixel_size_in_metres_is_recognised_without_a_unit() -> None:

@@ -4,7 +4,11 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from backend.app import app
-from backend.image_formats import _mythen_header_text, _read_mythen_acquisition
+from backend.image_formats import (
+    _mythen_counts_column,
+    _mythen_header_text,
+    _read_mythen_acquisition,
+)
 
 CFG_XML = """<config>
   <version>3.0</version>
@@ -124,3 +128,60 @@ def test_image_header_endpoint_returns_mythen_summary(tmp_path):
 
     assert response.status_code == 200
     assert "MYTHEN acquisition" in response.json()["header"]
+
+
+# --------------------------------------------------------------------------
+# Frame layout detection
+# --------------------------------------------------------------------------
+
+
+def _pair_layout(counts: np.ndarray, first_channel: int = 0) -> np.ndarray:
+    """Interleave counts with an ascending channel index, as MYTHEN writes it."""
+    out = np.empty(counts.size * 2, dtype=np.int64)
+    out[0::2] = np.arange(first_channel, first_channel + counts.size)
+    out[1::2] = counts
+    return out
+
+
+def test_a_counts_only_frame_keeps_every_channel() -> None:
+    """Parity cannot classify a MYTHEN frame, and guessing on it loses half.
+
+    Every real module has an even channel count (1280), so a counts-only frame
+    always had an even token count, always took the "<channel> <count>" branch,
+    and returned the odd-index counts zero-padded back to full width -- half
+    the channels dropped and the rest shifted, with the shape still correct.
+    """
+    counts = np.arange(1280, dtype=np.int64) + 1000
+
+    assert np.array_equal(_mythen_counts_column(counts, 1280), counts)
+    assert np.array_equal(_mythen_counts_column(counts, None), counts)
+
+
+def test_a_pair_layout_frame_still_yields_its_counts() -> None:
+    counts = np.arange(1280, dtype=np.int64) + 1000
+
+    assert np.array_equal(_mythen_counts_column(_pair_layout(counts), 1280), counts)
+    assert np.array_equal(_mythen_counts_column(_pair_layout(counts), None), counts)
+
+
+def test_a_one_based_channel_index_is_recognised_as_a_pair_layout() -> None:
+    counts = np.arange(64, dtype=np.int64) + 7
+
+    assert np.array_equal(_mythen_counts_column(_pair_layout(counts, 1), None), counts)
+
+
+def test_the_declared_channel_count_wins_over_the_column_shape() -> None:
+    """A counts column that happens to ramp must not be read as pairs.
+
+    Without the `.cfg` width this is genuinely ambiguous -- a linear ramp looks
+    like a channel index -- so the declared count decides when it is present.
+    """
+    ramp = np.arange(256, dtype=np.int64)
+
+    assert np.array_equal(_mythen_counts_column(ramp, 256), ramp)
+
+
+def test_a_frame_matching_neither_layout_is_returned_for_padding() -> None:
+    odd = np.arange(101, dtype=np.int64)
+
+    assert np.array_equal(_mythen_counts_column(odd, 1280), odd)

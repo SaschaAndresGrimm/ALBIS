@@ -4,8 +4,10 @@
 
 import {
   applyGeometryOverrides,
+  braggTwoTheta,
   buildGeometryRingSegments,
   pickGeometryRingLabelPoint,
+  wavelengthFromEnergy,
 } from "./ring_geometry_utils.js";
 
 // Peak markers scale with zoom so they track a spot's image footprint instead
@@ -549,8 +551,7 @@ export function createOverlayRenderController({
     const params = getRingParams();
     if (!params.energyEv) return;
     if (params.mode !== "geometry" && (!params.distanceMm || !params.pixelSizeUm)) return;
-    const lambda = 12398.4193 / params.energyEv;
-    if (!Number.isFinite(lambda) || lambda <= 0) return;
+    if (!wavelengthFromEnergy(params.energyEv)) return;
     const zoom = state.zoom || 1;
     const zoomY = zoom * (state.pixelAspect || 1);
     const offsetX = state.renderOffsetX || 0;
@@ -620,9 +621,8 @@ export function createOverlayRenderController({
       return;
     }
     params.rings.forEach((d) => {
-      const sinArg = lambda / (2 * d);
-      if (!Number.isFinite(sinArg) || sinArg <= 0 || sinArg >= 1) return;
-      const twoTheta = 2 * Math.asin(sinArg);
+      const twoTheta = braggTwoTheta(d, params.energyEv);
+      if (twoTheta === null) return;
       const radiusMm = params.distanceMm * Math.tan(twoTheta);
       const radiusPx = radiusMm / pixelSizeMm;
       if (!Number.isFinite(radiusPx) || radiusPx <= 0) return;

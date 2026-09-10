@@ -11,9 +11,10 @@
  * source of truth and means dragging behaves exactly like typing.
  */
 
+import { braggTwoTheta, wavelengthFromEnergy } from "./ring_geometry_utils.js";
+
 const CENTER_HIT_PX = 12;
 const RING_HIT_PX = 7;
-const LAMBDA_FACTOR = 12398.4193;
 
 export function createResolutionRingInteractionController({
   state,
@@ -56,8 +57,7 @@ export function createResolutionRingInteractionController({
   function getScreenRings(params) {
     if (params.mode === "geometry") return [];
     if (!params.energyEv || !params.distanceMm || !params.pixelSizeUm) return [];
-    const lambda = LAMBDA_FACTOR / params.energyEv;
-    if (!Number.isFinite(lambda) || lambda <= 0) return [];
+    if (!wavelengthFromEnergy(params.energyEv)) return [];
     const pixelSizeMm = params.pixelSizeUm / 1000;
     if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) return [];
     const zoom = state.zoom || 1;
@@ -65,9 +65,8 @@ export function createResolutionRingInteractionController({
     ringInputs.forEach((input, index) => {
       const d = Number(input?.value);
       if (!Number.isFinite(d) || d <= 0) return;
-      const sinArg = lambda / (2 * d);
-      if (!Number.isFinite(sinArg) || sinArg <= 0 || sinArg >= 1) return;
-      const twoTheta = 2 * Math.asin(sinArg);
+      const twoTheta = braggTwoTheta(d, params.energyEv);
+      if (twoTheta === null) return;
       const radiusMm = params.distanceMm * Math.tan(twoTheta);
       const radiusPx = radiusMm / pixelSizeMm;
       if (!Number.isFinite(radiusPx) || radiusPx <= 0) return;

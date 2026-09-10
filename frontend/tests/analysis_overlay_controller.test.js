@@ -331,3 +331,103 @@ describe("analysis_overlay_controller", () => {
     }
   });
 });
+
+describe("planar resolution: the numbers themselves", () => {
+  async function loadOverlayModule() {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    return (await import("../modules/analysis_overlay_controller.js"))
+      .createAnalysisOverlayController;
+  }
+
+  // Expectations computed offline from d = lambda / (2 sin(theta)), with
+  // theta = atan2(r, D) / 2, r the radius in mm and lambda = 12398.4193 / E.
+  // Deliberately not derived in the test: a round trip through the same
+  // formula would agree with a wrong implementation just as happily.
+  const GEOMETRY = { distanceMm: 100, pixelSizeUm: 75, energyEv: 12400, centerX: 12, centerY: 12 };
+
+  it.each([
+    { dx: 8, dy: 0, expected: 166.647670 },
+    { dx: 0, dy: 8, expected: 166.647670 },
+    { dx: 100, dy: 0, expected: 13.359712 },
+    { dx: 200, dy: 0, expected: 6.721721 },
+    { dx: 300, dy: 400, expected: 2.801944 },
+  ])("resolves a peak $dx,$dy px off the centre to $expected A", async ({ dx, dy, expected }) => {
+    const create = await loadOverlayModule();
+    const x = GEOMETRY.centerX + dx;
+    const y = GEOMETRY.centerY + dy;
+    const { controller, analysisState } = buildController(create, {}, {
+      ...GEOMETRY,
+      peaks: [{ x, y, px: x, py: y, intensity: 100, snr: null, resolution: null }],
+    });
+
+    controller.refreshPeakResolutions();
+
+    expect(analysisState.peaks[0].resolution).toBeCloseTo(expected, 5);
+  });
+
+  it("measures the radius in mm per axis, so strixel pixels are not averaged", async () => {
+    // 100 px of 75 um and 50 px of 150 um are both 7.5 mm from the centre, so
+    // they must land on the same resolution shell. Averaging the two pixel
+    // sizes into one would put them on different shells.
+    const create = await loadOverlayModule();
+    const along = { x: GEOMETRY.centerX + 100, y: GEOMETRY.centerY };
+    const across = { x: GEOMETRY.centerX, y: GEOMETRY.centerY + 50 };
+    const { controller, analysisState } = buildController(create, { pixelAspect: 2 }, {
+      ...GEOMETRY,
+      peaks: [along, across].map((p) => ({
+        x: p.x, y: p.y, px: p.x, py: p.y, intensity: 100, snr: null, resolution: null,
+      })),
+    });
+
+    controller.refreshPeakResolutions();
+
+    expect(analysisState.peaks[0].resolution).toBeCloseTo(13.359712, 5);
+    expect(analysisState.peaks[1].resolution).toBeCloseTo(13.359712, 5);
+  });
+
+  it("reports no resolution when the beam centre is unknown", async () => {
+    // getRingParams substitutes the image midpoint when nothing supplies a
+    // beam centre, so centerX/centerY are always finite and cannot be used to
+    // detect this. Reporting an Angstrom value measured from a guessed centre
+    // is worse than reporting nothing: it reaches the peak table and the CSV
+    // export looking exactly like a calibrated one.
+    const create = await loadOverlayModule();
+    const { controller, analysisState } = buildController(create, {}, {
+      distanceMm: GEOMETRY.distanceMm,
+      pixelSizeUm: GEOMETRY.pixelSizeUm,
+      energyEv: GEOMETRY.energyEv,
+      centerX: null,
+      centerY: null,
+      peaks: [{ x: 112, y: 12, px: 112, py: 12, intensity: 100, snr: null, resolution: null }],
+    });
+
+    controller.refreshPeakResolutions();
+
+    expect(analysisState.peaks[0].resolution).toBeNull();
+  });
+
+  it("resolves again as soon as a beam centre is supplied", async () => {
+    const create = await loadOverlayModule();
+    const { controller, analysisState } = buildController(create, {}, {
+      distanceMm: GEOMETRY.distanceMm,
+      pixelSizeUm: GEOMETRY.pixelSizeUm,
+      energyEv: GEOMETRY.energyEv,
+      centerX: null,
+      centerY: null,
+      peaks: [{ x: 112, y: 12, px: 112, py: 12, intensity: 100, snr: null, resolution: null }],
+    });
+
+    controller.refreshPeakResolutions();
+    expect(analysisState.peaks[0].resolution).toBeNull();
+
+    // What dragging the beam-centre marker does, via the ring centre inputs.
+    analysisState.centerX = 12;
+    analysisState.centerY = 12;
+    controller.refreshPeakResolutions();
+
+    expect(analysisState.peaks[0].resolution).toBeCloseTo(13.359712, 5);
+  });
+});

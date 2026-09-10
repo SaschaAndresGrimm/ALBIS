@@ -237,8 +237,12 @@ def _as_int(value: Any) -> int | None:
 def _to_mm(value: float | None) -> float | None:
     if value is None:
         return None
-    # Jungfraujoch reports distances in meters.
-    if abs(value) < 10.0:
+    # Jungfraujoch reports distances in meters. The boundary is inclusive to
+    # match `hdf5_units.to_mm` and `image_formats._distance_to_mm`: at exactly
+    # 10 this read metres as millimetres while they read metres, so one file
+    # gave two different distances depending on which path opened it. 10 m is
+    # a long SAXS camera; 10 mm is closer than any detector sits to a sample.
+    if abs(value) <= 10.0:
         return value * 1000.0
     return value
 

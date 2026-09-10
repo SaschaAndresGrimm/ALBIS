@@ -118,7 +118,11 @@ function isResolutionCalibrated(params) {
   if (params.mode === "geometry") {
     return Number.isFinite(params.energyEv) && params.energyEv > 0 && !!params.geometry;
   }
+  // Planar mode measures the radius from the beam centre, so an unknown one
+  // is not a calibrated geometry. Geometry mode is exempt above: the panel
+  // origins carry the centre, so it does not come from these inputs.
   return (
+    Boolean(params.centerKnown) &&
     Number.isFinite(params.distanceMm) && params.distanceMm > 0 &&
     Number.isFinite(params.pixelSizeUm) && params.pixelSizeUm > 0 &&
     Number.isFinite(params.energyEv) && params.energyEv > 0

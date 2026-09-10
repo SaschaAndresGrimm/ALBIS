@@ -9,7 +9,11 @@ import {
   isGeometryLockActive,
 } from "./geometry_override_utils.js";
 import { readHeaderText } from "./http.js";
-import { getGeometryReferencePose, prepareRingGeometry } from "./ring_geometry_utils.js";
+import {
+  HC_EV_ANGSTROM,
+  getGeometryReferencePose,
+  prepareRingGeometry,
+} from "./ring_geometry_utils.js";
 
 export function createSourceMetadataController({
   state,
@@ -437,7 +441,7 @@ export function createSourceMetadataController({
     const centerX = parseHeaderFloat(headers, "X-Remote-BeamCenter-X");
     const centerY = parseHeaderFloat(headers, "X-Remote-BeamCenter-Y");
     if (!Number.isFinite(energyEv) && Number.isFinite(wavelengthA) && wavelengthA > 0) {
-      energyEv = 12398.4193 / wavelengthA;
+      energyEv = HC_EV_ANGSTROM / wavelengthA;
     }
 
     return {
@@ -576,7 +580,7 @@ export function createSourceMetadataController({
     const centerX = parseHeaderFloat(headers, "X-Image-BeamCenter-X");
     const centerY = parseHeaderFloat(headers, "X-Image-BeamCenter-Y");
     if (!Number.isFinite(energyEv) && Number.isFinite(wavelengthA) && wavelengthA > 0) {
-      energyEv = 12398.4193 / wavelengthA;
+      energyEv = HC_EV_ANGSTROM / wavelengthA;
     }
     applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY });
   }

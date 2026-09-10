@@ -7,6 +7,12 @@ from typing import Any
 
 import numpy as np
 
+# hc in eV*angstrom. Every energy ALBIS derives from a wavelength, and every
+# resolution derived from that energy, descends from this one number. It was
+# written out separately in three backend files and six frontend ones, so
+# refining it in one place would have left them quietly disagreeing.
+HC_EV_ANGSTROM = 12398.4193
+
 
 def coerce_scalar(value: Any) -> float | None:
     """Convert an HDF5 scalar/array-like value into a plain float.
@@ -65,7 +71,15 @@ def to_mm(value: float, unit: str | None) -> float:
         return value / 1000
     if u in {"nm", "nanometer", "nanometre", "nanometers", "nanometres"}:
         return value / 1e6
-    if value < 0.5:
+    # Undeclared units: decide by magnitude. The break sits at 10 because that
+    # is the gap between the two physically real readings -- below it the value
+    # can only be metres (10 m is a long SAXS camera; 10 mm is closer than any
+    # detector sits to a sample), above it only millimetres. It used to sit at
+    # 0.5, which put ordinary MX and SAXS camera lengths expressed in metres --
+    # 0.5 to 5 -- on the millimetre side and reported them 1000x short.
+    # `image_formats._distance_to_mm` and `jungfraujoch_preview._to_mm` are the
+    # same heuristic and already break at 10; this was the outlier.
+    if value <= 10:
         return value * 1000
     return value
 
@@ -115,4 +129,4 @@ def wavelength_to_ev(value: float, unit: str | None) -> float | None:
         wavelength_m = value
     if wavelength_m is None or wavelength_m <= 0:
         return None
-    return 12398.4193 / (wavelength_m * 1e10)
+    return HC_EV_ANGSTROM / (wavelength_m * 1e10)

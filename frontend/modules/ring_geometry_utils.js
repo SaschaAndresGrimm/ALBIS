@@ -148,13 +148,22 @@ export function serializeGeometryPayload(geometry) {
   };
 }
 
-function wavelengthFromEnergy(energyEv) {
+// hc in eV*Angstrom. Every resolution ALBIS reports descends from this one
+// number. It was written out separately in six places and the Bragg
+// conversion in four, so refining the constant or fixing an edge case in one
+// copy would have left the rings and the peak table quietly disagreeing --
+// the failure mode that puts a wrong number in a paper with no error anywhere.
+export const HC_EV_ANGSTROM = 12398.4193;
+
+/** Photon wavelength in Angstrom, or null if the energy is unusable. */
+export function wavelengthFromEnergy(energyEv) {
   const value = Number(energyEv);
   if (!Number.isFinite(value) || value <= 0) return null;
-  return 12398.4193 / value;
+  return HC_EV_ANGSTROM / value;
 }
 
-function twoThetaFromDSpacing(dSpacing, energyEv) {
+/** Bragg: the scattering angle 2*theta at which a d-spacing diffracts. */
+export function braggTwoTheta(dSpacing, energyEv) {
   const dValue = Number(dSpacing);
   if (!Number.isFinite(dValue) || dValue <= 0) return null;
   const lambda = wavelengthFromEnergy(energyEv);
@@ -162,6 +171,18 @@ function twoThetaFromDSpacing(dSpacing, energyEv) {
   const sinArg = lambda / (2 * dValue);
   if (!Number.isFinite(sinArg) || sinArg <= 0 || sinArg >= 1) return null;
   return 2 * Math.asin(sinArg);
+}
+
+/** Bragg inverted: the d-spacing that diffracts to a scattering angle. */
+export function braggDSpacing(twoTheta, energyEv) {
+  const angle = Number(twoTheta);
+  if (!Number.isFinite(angle)) return null;
+  const lambda = wavelengthFromEnergy(energyEv);
+  if (!lambda) return null;
+  const sinArg = Math.sin(angle / 2);
+  if (!Number.isFinite(sinArg) || sinArg <= 0) return null;
+  const d = lambda / (2 * sinArg);
+  return Number.isFinite(d) && d > 0 ? d : null;
 }
 
 function ringRay(twoTheta, azimuth) {
@@ -307,7 +328,7 @@ export function buildGeometryRingSegments({
   dSpacing,
   sampleCount = 720,
 }) {
-  const twoTheta = twoThetaFromDSpacing(dSpacing, energyEv);
+  const twoTheta = braggTwoTheta(dSpacing, energyEv);
   if (!twoTheta || !geometry || !Array.isArray(geometry.panels) || !geometry.panels.length) {
     return [];
   }
@@ -373,8 +394,9 @@ export function getGeometryResolutionAtPixel(ix, iy, geometry, energyEv) {
   if (!Number.isFinite(ix) || !Number.isFinite(iy) || !geometry || !Array.isArray(geometry.panels)) {
     return null;
   }
-  const lambda = wavelengthFromEnergy(energyEv);
-  if (!lambda) return null;
+  // Reject an unusable energy before walking the panels; braggDSpacing would
+  // reject it again at the end, but only after the geometry work.
+  if (!wavelengthFromEnergy(energyEv)) return null;
   const panel = geometry.panels.find((item) => (
     ix >= item.raw_offset_px[0] &&
     iy >= item.raw_offset_px[1] &&
@@ -394,9 +416,5 @@ export function getGeometryResolutionAtPixel(ix, iy, geometry, energyEv) {
   const distance = norm(point);
   if (!Number.isFinite(distance) || distance <= EPSILON) return null;
   const cosTwoTheta = Math.max(-1, Math.min(1, point[2] / distance));
-  const twoTheta = Math.acos(cosTwoTheta);
-  const sinArg = Math.sin(twoTheta / 2);
-  if (!Number.isFinite(sinArg) || sinArg <= EPSILON) return null;
-  const dSpacing = lambda / (2 * sinArg);
-  return Number.isFinite(dSpacing) && dSpacing > 0 ? dSpacing : null;
+  return braggDSpacing(Math.acos(cosTwoTheta), energyEv);
 }
