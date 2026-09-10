@@ -15,3 +15,8 @@ httpx==0.28.1
 ruff==0.16.4
 black==25.1.0
 pre-commit==4.6.2
+# Declared rather than inherited: tests/test_documented_check_commands.py
+# parses .github/workflows/ci.yml, and PyYAML was reaching the suite only
+# as a transitive dependency of pre-commit -- so dropping or reworking
+# pre-commit would have broken an unrelated test.
+PyYAML==6.0.3

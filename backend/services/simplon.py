@@ -22,6 +22,7 @@ _SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.\-]*://", re.IGNORECASE)
 # with "http" (e.g. `http-gw.local`) untouched.
 _MALFORMED_SCHEME_RE = re.compile(r"^(https?)(?::/*|/+)", re.IGNORECASE)
 # SIMPLON sub-API roots, e.g. `/monitor/api/1.8.0/images/monitor`.
+_API_VERSION_RE = re.compile(r"\d+(?:\.\d+){0,3}")
 _API_PATH_RE = re.compile(r"/(monitor|detector|stream|filewriter|system)/api(/|$)", re.IGNORECASE)
 # A dangling sub-API segment without the `/api` part, e.g. `http://host/monitor`.
 _TRAILING_API_ROOT_RE = re.compile(
@@ -91,9 +92,35 @@ def _simplon_api_base(url: str, version: str, section: str) -> str:
                 "(for example 192.168.1.10), optionally as a full http:// URL."
             ),
         )
+    # A path prefix is supported on purpose, for a detector behind a reverse
+    # proxy. These are not: the section and version are appended to whatever
+    # comes back, so a `..` segment walks off the SIMPLON API onto any path on
+    # the detector, and a query or fragment swallows the appended segments
+    # entirely -- `http://host?x=1` sends the request to `/` with the rest
+    # folded into the query string. Userinfo is refused because it only serves
+    # to disguise which host is really being addressed.
+    if parsed.query or parsed.fragment or "@" in parsed.netloc or ".." in parsed.path.split("/"):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid SIMPLON base URL. Give the detector address, optionally with a "
+                "path prefix -- a query string, a fragment, credentials or a '..' segment "
+                "cannot be part of it."
+            ),
+        )
     ver = (version or _DEFAULT_API_VERSION).strip().strip("/")
     if not ver:
         ver = _DEFAULT_API_VERSION
+    # `.strip("/")` only trims the ends, so an interior `../` survived into the
+    # URL and steered the request off the SIMPLON API onto any path on the
+    # detector -- `1.8.0/../../../admin/shutdown?x=` reached
+    # `/admin/shutdown?x=/config/mode` once the caller appended its own suffix.
+    # A SIMPLON API version is a dotted number and nothing else.
+    if not _API_VERSION_RE.fullmatch(ver):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid SIMPLON API version. Use a version number such as 1.8.0.",
+        )
     return f"{base}/{section}/api/{ver}"
 
 

@@ -21,7 +21,15 @@
   --accent: #4ea1ff;
   --accent-strong: #79bbff;
   --accent-soft: rgba(78, 161, 255, 0.18);
-  --focus-ring: 0 0 0 2px rgba(78, 161, 255, 0.34);
+  /* Two rings, not one. The old value was a 34%-alpha accent, which
+     composited to 1.83:1 against --panel-mid and 1.39:1 against the toolbar --
+     both under the 3:1 that WCAG 1.4.11 asks of a focus indicator, and it is
+     the sole focus affordance for ~30 control classes that each pair it with
+     `outline: none`. Full-opacity accent alone still only reaches 2.49:1 on
+     the toolbar blue, so the dark inner ring carries the contrast: the
+     accent-to-dark edge measures 7.42:1 and travels with the indicator
+     whatever sits behind it. */
+  --focus-ring: 0 0 0 1px rgba(6, 10, 18, 0.92), 0 0 0 3px #4ea1ff;
   --radius-sm: 4px;
   --radius-md: 7px;
   --radius-lg: 10px;
@@ -2410,7 +2418,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .zoom-value-input:focus-visible {
   outline: none;
   border-color: rgba(110, 181, 255, 0.75);
-  box-shadow: 0 0 0 2px rgba(110, 181, 255, 0.18);
+  /* Was an 18%-alpha ring, fainter still than the token it bypassed. */
+  box-shadow: var(--focus-ring);
 }
 
 .view-color-controls {
@@ -3759,6 +3768,12 @@ body.platform-windows select option:disabled {
 
 .section-switch input:checked + .section-switch-track::after {
   transform: translateX(14px);
+}
+
+/* The input itself is 0x0 and fully transparent, so keyboard focus landed on
+   nothing a sighted user could see. Put the ring on the track it drives. */
+.section-switch input:focus-visible + .section-switch-track {
+  box-shadow: var(--focus-ring);
 }
 
 .field {
@@ -5554,7 +5569,8 @@ body.platform-windows select option:disabled {
 
 .browse-item:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 1px rgba(164, 205, 255, 0.72);
+  /* Inset and 1px, so it read as a hover tint rather than a focus ring. */
+  box-shadow: var(--focus-ring);
 }
 
 .browse-item:hover {

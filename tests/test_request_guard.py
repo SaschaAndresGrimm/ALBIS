@@ -342,3 +342,68 @@ def test_the_frontend_own_requests_are_allowed() -> None:
         headers={"Origin": "http://127.0.0.1:8000", "Sec-Fetch-Site": "same-origin"},
     )
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# The stream GETs that reach a third host
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/simplon/monitor",
+        "/api/simplon/probe",
+        "/api/simplon/mask",
+        "/api/jfjoch/probe",
+    ],
+)
+def test_a_cross_site_page_cannot_make_albis_call_a_detector(path: str) -> None:
+    """These GETs make ALBIS talk to a host the caller names.
+
+    `/api/simplon/monitor` is the sharp one: it defaults to `enable=true` and
+    then PUTs to the detector's `config/mode`. Its POST twin
+    `/api/simplon/mode` was guarded, so before this a page the scientist
+    visited could route around that guard through the GET -- an `<img src>` is
+    enough, with no preflight and no need to read the response. Inside a
+    beamline LAN the reachable hosts are detector control APIs.
+    """
+    response = TestClient(app).get(
+        path,
+        params={"url": "127.0.0.1:1", "endpoint": "127.0.0.1:1"},
+        headers={
+            "Host": "localhost",
+            "Origin": "http://evil.example",
+            "Sec-Fetch-Site": "cross-site",
+        },
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/simplon/monitor",
+        "/api/simplon/probe",
+        "/api/simplon/mask",
+        "/api/jfjoch/probe",
+    ],
+)
+def test_the_frontends_own_polling_of_those_routes_still_works(path: str) -> None:
+    """Same-origin must stay allowed: the UI polls these on a timer.
+
+    Any status but 403 means the guard let it through to the handler, which is
+    all this asserts -- the request then fails on the unreachable detector.
+    """
+    response = TestClient(app).get(
+        path,
+        params={"url": "127.0.0.1:1", "endpoint": "127.0.0.1:1"},
+        headers={
+            "Host": "localhost",
+            "Origin": "http://localhost",
+            "Sec-Fetch-Site": "same-origin",
+        },
+    )
+
+    assert response.status_code != 403

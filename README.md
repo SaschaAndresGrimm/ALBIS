@@ -89,7 +89,7 @@ ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_G
 - `⌘S` / `Ctrl+S` Save As — Full Image (`⇧⌘S` Visible Area, `⌥⌘S` Viewer Window)
 - `⇧⌘X` / `Shift+Ctrl+X` Convert Dataset
 - `F1` Documentation
-- `Tab` Play/Pause
+- `Tab` Play/Pause (when the viewer has focus — on a button or field, `Tab` moves focus as usual)
 - `←`/`→` Previous/Next frame
 - `↑`/`↓` Jump by Step setting (or threshold change when multi‑threshold is active)
 

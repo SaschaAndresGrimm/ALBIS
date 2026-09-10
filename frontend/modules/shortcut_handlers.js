@@ -10,6 +10,34 @@ function isFormElement(target) {
   return Boolean(target.closest?.("input, textarea, select, [contenteditable='true']"));
 }
 
+// Anything the browser would move focus to with Tab. Wider than isFormElement,
+// which covers only text-entry controls: the window is mostly buttons, and
+// they are exactly what Tab has to be able to reach.
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  // A <summary> is a tab stop with no tabindex and no disabled state, so it
+  // matched none of the rules above. index.html has two in visible panel
+  // sections ("Advanced view controls", "Advanced source settings"), and the
+  // trap this guard exists to close was still open on both of them.
+  "summary",
+  "audio[controls]",
+  "video[controls]",
+  "iframe",
+  '[tabindex]:not([tabindex="-1"])',
+  '[contenteditable=""]',
+  '[contenteditable="true"]',
+  '[contenteditable="plaintext-only"]',
+].join(", ");
+
+function isFocusableChrome(target) {
+  if (!target || typeof target.closest !== "function") return false;
+  return Boolean(target.closest(FOCUSABLE_SELECTOR));
+}
+
 export function createShortcutHandlers({
   state,
   elements,
@@ -96,6 +124,17 @@ export function createShortcutHandlers({
   function handleNavShortcut(event) {
     if (event.metaKey || event.ctrlKey || event.altKey) return false;
     if (event.key === "Tab" || event.keyCode === 9) {
+      // Tab toggles playback for ALBULA parity (README.md), but Tab is also the
+      // only key that moves keyboard focus. This branch used to sit above the
+      // isFormElement guard and preventDefault() unconditionally, so focus
+      // could not reach any of the window's ~265 controls and Shift+Tab did
+      // nothing either -- a WCAG 2.1.1 failure across the whole shell.
+      //
+      // Claim the key only when focus is somewhere that is not itself a
+      // stop on the tab ring, which is the canvas or the body in practice.
+      // Shift+Tab is never a playback gesture.
+      if (event.shiftKey) return false;
+      if (isFocusableChrome(event.target)) return false;
       event.preventDefault();
       if (state.playing) {
         stopPlayback();

@@ -100,3 +100,45 @@ describe("aria roles", () => {
     });
   });
 });
+
+/**
+ * A control with no accessible name is announced as its role and nothing else
+ * -- "checkbox, checked" -- which is no help at all when it is the on/off
+ * switch for one of the three headline analysis features. Each switch is a
+ * <label> containing only the input and an aria-hidden track, so the name
+ * computed from its contents was the empty string.
+ */
+describe("the analysis feature switches carry an accessible name", () => {
+  const html = fs.readFileSync(path.join(process.cwd(), "frontend", "index.html"), "utf8");
+
+  it.each([
+    ["roi-enable", "analysis.roi.section_title"],
+    ["rings-toggle", "analysis.rings.section_title"],
+    ["peaks-enable", "analysis.peaks.section_title"],
+  ])("%s is named from %s", (id, key) => {
+    const tag = html.match(new RegExp(`<input[^>]*id="${id}"[^>]*>`, "s"));
+
+    expect(tag, `no <input id="${id}"> in index.html`).not.toBeNull();
+    expect(tag[0]).toContain('aria-label="');
+    // Translated, not hardcoded: the name must follow the interface language.
+    expect(tag[0]).toContain(`data-i18n-aria-label="${key}"`);
+  });
+
+  it("names them from keys that exist in every locale", () => {
+    const dir = path.join(process.cwd(), "frontend", "locales");
+    const keys = [
+      "analysis.roi.section_title",
+      "analysis.rings.section_title",
+      "analysis.peaks.section_title",
+    ];
+    const missing = [];
+    for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+      const dict = JSON.parse(fs.readFileSync(path.join(dir, file), "utf8"));
+      for (const key of keys) {
+        if (!dict[key]) missing.push(`${file}:${key}`);
+      }
+    }
+
+    expect(missing).toEqual([]);
+  });
+});

@@ -19,6 +19,7 @@ here.
 | FastAPI | 0.141.1 | MIT | © 2018 Sebastián Ramírez |
 | Uvicorn | 0.52.4 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
 | Starlette | 1.6.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
+| AnyIO | 4.15.1 | MIT | © 2018 Alex Grönholm |
 | python-multipart | 0.0.32 | Apache-2.0 | © Andrew Dunham |
 | hdf5plugin | 7.1.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
 | h5py | 3.16.0 | BSD-3-Clause | © 2008 Andrew Collette and contributors |

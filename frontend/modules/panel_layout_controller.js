@@ -167,6 +167,12 @@ export function createPanelLayoutController({
     title.setAttribute("aria-controls", content.id);
     title.setAttribute("aria-expanded", collapsed ? "false" : "true");
     content.setAttribute("aria-hidden", collapsed ? "true" : "false");
+    // A collapsed section hides only with `max-height: 0` and `overflow:
+    // hidden`, so its controls stayed in the tab ring while aria-hidden told
+    // assistive technology they did not exist. Focus could therefore land in a
+    // zero-height clipped region on a node screen readers had been told to
+    // ignore. `inert` removes both at once and leaves the height animation be.
+    content.inert = collapsed;
   }
 
   function initializePanelTabA11y() {

@@ -66,9 +66,9 @@ Use the GitHub issue forms:
 ## Local checks before PR
 
 ```bash
-ruff check backend tests scripts test_scripts
+ruff check backend albis_launcher.py tests scripts test_scripts
 black --check tests scripts test_scripts
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=50
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 npm run lint:js
 npm run test:js
 npm run review:i18n

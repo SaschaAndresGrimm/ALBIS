@@ -8,11 +8,17 @@ from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from backend.app import app
 from backend.services import simplon as simplon_module
-from backend.services.simplon import classify_simplon_failure, simplon_probe
+from backend.services.simplon import (
+    classify_simplon_failure,
+    simplon_base,
+    simplon_detector_base,
+    simplon_probe,
+)
 
 DESCRIPTION = "Dectris EIGER2 CdTe 4M"
 SERIAL = "E-32-0123"
@@ -287,3 +293,49 @@ def test_classify_uses_the_default_port_when_none_is_given() -> None:
     )
 
     assert diagnosis["port"] == 80
+
+
+# ---------------------------------------------------------------------------
+# The API version is a path segment, so it steers the request
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "version",
+    [
+        "1.8.0/../../../admin/shutdown?x=",
+        "../../etc",
+        "1.8.0/../system/api/1.8.0",
+        "1.8.0;reboot",
+        "latest",
+        "1.8.0 1.8.0",
+    ],
+)
+def test_a_version_that_is_not_a_version_is_refused(version: str) -> None:
+    """`.strip("/")` trims the ends only, so an interior `../` survived.
+
+    The value lands in `f"{base}/{section}/api/{ver}"` and the callers append
+    their own suffix, so `1.8.0/../../../admin/shutdown?x=` produced a PUT to
+    `/admin/shutdown?x=/config/mode` on the detector. A SIMPLON API version is
+    a dotted number and nothing else.
+    """
+    with pytest.raises(HTTPException) as exc:
+        simplon_base("192.168.1.10", version)
+
+    assert exc.value.status_code == 400
+    assert "version" in exc.value.detail.lower()
+
+
+@pytest.mark.parametrize("version", ["1.8.0", "1.8", "2", "1.8.0.1"])
+def test_a_real_version_still_builds_the_expected_base(version: str) -> None:
+    assert simplon_base("192.168.1.10", version) == f"http://192.168.1.10/monitor/api/{version}"
+
+
+def test_an_empty_version_falls_back_to_the_default() -> None:
+    assert simplon_base("192.168.1.10", "") == "http://192.168.1.10/monitor/api/1.8.0"
+
+
+def test_the_detector_section_is_constrained_too() -> None:
+    """All four call sites share `_simplon_api_base`, so one check covers them."""
+    with pytest.raises(HTTPException):
+        simplon_detector_base("192.168.1.10", "1.8.0/../../../admin")

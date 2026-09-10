@@ -72,12 +72,29 @@ _local_names_cache: tuple[float, frozenset[str]] | None = None
 # and `same-origin` is the frontend itself; everything else is another site.
 CROSS_SITE_FETCH_VALUES = frozenset({"cross-site", "same-site"})
 
-# Requests that change state or act on the desktop. The two GETs are here
-# because they open a native file dialog on the user's screen -- harmless to the
-# attacker, who cannot read the answer, but the user gets a picker they did not
-# ask for and may click through.
+# Requests that change state or act on the desktop. The file-picker GETs are
+# here because they open a native file dialog on the user's screen -- harmless
+# to the attacker, who cannot read the answer, but the user gets a picker they
+# did not ask for and may click through.
+#
+# The stream GETs are here because each one makes ALBIS talk to a third host
+# the caller names, and `/api/simplon/monitor` goes further: it defaults to
+# `enable=true` and then PUTs to the detector's `config/mode`. Its POST twin
+# `/api/simplon/mode` was already guarded, so a page the scientist visited
+# could route around that guard through the GET -- no preflight needed, and
+# no need to read the response. On a beamline LAN the reachable hosts are
+# detector control APIs, which is what makes it worth guarding.
 GUARDED_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-GUARDED_GET_PATHS = frozenset({"/api/choose-file", "/api/choose-folder"})
+GUARDED_GET_PATHS = frozenset(
+    {
+        "/api/choose-file",
+        "/api/choose-folder",
+        "/api/simplon/monitor",
+        "/api/simplon/probe",
+        "/api/simplon/mask",
+        "/api/jfjoch/probe",
+    }
+)
 
 
 def strip_port(host_header: str) -> str:

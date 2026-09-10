@@ -87,9 +87,17 @@ Expected result:
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
 - Linux signing secrets are present before tagging.
-- Windows code-signing and macOS signing/notarization secrets are optional:
-  - when configured, the release workflow signs Windows artifacts and signs/notarizes macOS artifacts
-  - macOS requires the base64-encoded `.p12` (`MACOS_SIGN_CERT_B64`) and its password (`MACOS_SIGN_CERT_PASSWORD`), plus notarization credentials
+- **Windows and macOS signing credentials are required on a tag.** They are optional only for
+  `workflow_dispatch` builds, so a fork can still produce unsigned artifacts. On `refs/tags/v*`
+  the release workflow refuses to publish unsigned desktop artifacts, because README.md tells
+  users the builds are signed — check this *before* pushing the tag, since the run fails after
+  a full multi-platform build:
+  - macOS requires the base64-encoded `.p12` (`MACOS_SIGN_CERT_B64`) and its password
+    (`MACOS_SIGN_CERT_PASSWORD`), plus `APPLE_ID`, `APPLE_TEAM_ID` and
+    `APPLE_APP_SPECIFIC_PASSWORD` for notarization
+  - Windows requires either `WINDOWS_SIGN_CERT_B64` (+ `WINDOWS_SIGN_CERT_PASSWORD`) or the
+    Azure Trusted Signing set: `AZURE_ARTIFACT_SIGNING_ENDPOINT`, `_ACCOUNT`, `_CERT_PROFILE`
+    with `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
 - GitHub Release is published with:
   - Linux x64: `ALBIS-linux-x64-v<version>-<commit>.tar.gz` + `ALBIS-<version>-x86_64.AppImage` + `ALBIS-<version>-x86_64-appimage-bundle.tar.gz`
   - Linux x64 signatures (`.sig`) when Linux GPG signing secrets are configured

@@ -3,6 +3,13 @@ fastapi==0.141.1
 # backend/response_compression.py subclasses starlette's compression responder,
 # whose apply_compression hook became a coroutine in 1.6.
 starlette==1.6.0
+# Pinned for the same reason starlette is: starlette allows anyio<5 unbounded,
+# and 4.15 began deprecating the `anyio.abc.*` aliases its own testclient
+# touches at import. With pytest treating warnings as errors that turned an
+# unrelated upstream release into a red build -- it passed on a developer venv
+# holding 4.14.2 and failed on all three CI runners the same afternoon.
+# Pinning it is also what makes a local run and a CI run agree.
+anyio==4.15.1
 uvicorn[standard]==0.52.4
 python-multipart==0.0.32
 hdf5plugin==7.1.0

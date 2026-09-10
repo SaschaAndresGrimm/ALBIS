@@ -304,6 +304,7 @@ jobs:
       AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT || secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
       AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT || secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
       AZURE_ARTIFACT_SIGNING_CERT_PROFILE: ${{ vars.AZURE_ARTIFACT_SIGNING_CERT_PROFILE || secrets.AZURE_ARTIFACT_SIGNING_CERT_PROFILE }}
+      IS_TAG_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/checkout@v7
 
@@ -403,8 +404,27 @@ jobs:
             (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGN_CERT_B64)) -or
             (-not [string]::IsNullOrWhiteSpace($env:AZURE_ARTIFACT_SIGNING_ENDPOINT))
           )
+          $isTagRelease = $env:IS_TAG_RELEASE -eq 'true'
 
-          if ($windowsSigningConfigured) {
+          # A tag is a public release, and README.md tells users the installer is
+          # signed. Without this the credentials being absent -- or silently
+          # rotated to empty -- produced an unsigned installer and a green run,
+          # because the check below only fired when signing was configured. The
+          # secrets stay optional for workflow_dispatch so a fork can still build.
+          if ($isTagRelease -and -not $windowsSigningConfigured) {
+            Write-Host "No Windows signing credentials are configured, so this tag would publish"
+            Write-Host "an unsigned installer while README.md states the builds are signed."
+            Write-Host ""
+            Write-Host "Set either WINDOWS_SIGN_CERT_B64 (+ WINDOWS_SIGN_CERT_PASSWORD), or the"
+            Write-Host "Azure Trusted Signing trio AZURE_ARTIFACT_SIGNING_ENDPOINT / _ACCOUNT /"
+            Write-Host "_CERT_PROFILE together with AZURE_CLIENT_ID / AZURE_TENANT_ID /"
+            Write-Host "AZURE_SUBSCRIPTION_ID. See docs/WINDOWS_SIGNING.md."
+            Write-Host ""
+            Write-Host "To build unsigned on purpose, use workflow_dispatch rather than a tag."
+            throw "Refusing to publish an unsigned Windows installer from a tag"
+          }
+
+          if ($windowsSigningConfigured -or $isTagRelease) {
             if ($installerSig.Status -ne 'Valid') {
               throw "Expected signed installer, got status $($installerSig.Status)"
             }
@@ -517,8 +537,27 @@ jobs:
           unzip -tq "$zip_file" >/dev/null
           hdiutil verify "$dmg_file" >/dev/null
 
+      # Unconditional on a tag: gating the verification on the same secrets it
+      # is meant to police means an empty secret set skips the check instead of
+      # failing it, which is how an unsigned .dmg could reach a release that
+      # README.md describes as notarized.
+      - name: Require macOS signing credentials on a tag
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          missing=()
+          for key in MACOS_SIGN_CERT_B64 MACOS_SIGN_CERT_PASSWORD APPLE_ID APPLE_TEAM_ID \
+                     APPLE_APP_SPECIFIC_PASSWORD; do
+            [ -n "${!key:-}" ] || missing+=("$key")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing macOS signing/notarization secrets for a tag release: %s\n' "${missing[*]}" >&2
+            printf 'README.md states macOS builds are signed and notarized. Build unsigned via\n' >&2
+            printf 'workflow_dispatch instead, or see docs/WINDOWS_SIGNING.md for the signing setup.\n' >&2
+            exit 1
+          fi
+
       - name: Verify macOS signing and notarization
-        if: ${{ env.MACOS_SIGN_CERT_B64 != '' && env.MACOS_SIGN_CERT_PASSWORD != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '' }}
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (env.MACOS_SIGN_CERT_B64 != '' && env.MACOS_SIGN_CERT_PASSWORD != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '') }}
         run: |
           zip_file="$(ls dist/ALBIS-${{ matrix.target }}-*.zip | head -n1)"
           dmg_file="$(ls dist/ALBIS-${{ matrix.target }}-*.dmg | head -n1)"
