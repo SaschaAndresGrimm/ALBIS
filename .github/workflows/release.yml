@@ -12,9 +12,11 @@ on:
         default: false
         type: boolean
 
+# Least privilege at the top; the two jobs that need more declare it. `publish`
+# takes contents: write to create the release and attestations: write for
+# provenance, and build_windows takes id-token: write for the Azure OIDC login.
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -295,6 +297,10 @@ jobs:
     # would never match one scoped to a branch. The environment carries no
     # protection rules; adding required reviewers here would gate releases.
     environment: release
+    permissions:
+      contents: read
+      # azure/login exchanges the GitHub OIDC token for an Azure one.
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -584,8 +590,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build_linux, build_windows, build_macos]
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_publish_validation == 'true')
+    permissions:
+      contents: write
+      id-token: write
+      # For actions/attest-build-provenance, which records in a public
+      # transparency log which workflow, at which commit, produced each file.
+      attestations: write
     env:
       LINUX_GPG_PRIVATE_KEY_B64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_B64 }}
+      LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+      LINUX_GPG_KEY_ID: ${{ secrets.LINUX_GPG_KEY_ID }}
     steps:
       - name: Check out release notes
         uses: actions/checkout@v7
@@ -597,12 +611,42 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Prepare release bundle
+      - name: Collect release assets
         run: |
           mkdir -p release-dist
           find dist -maxdepth 1 -type f -exec cp {} release-dist/ \;
+
+      # A bill of materials for the redistributed dependencies. The binaries
+      # bundle their own interpreter and every wheel, so "what is inside this
+      # download" is not answerable from the repository alone -- which is what
+      # a facility's security review asks first. Generated before the
+      # checksums so it is covered by them, and so by their signature.
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: albis-sbom.cyclonedx.json
+          output-file: release-dist/albis-sbom.cyclonedx.json
+
+      - name: Checksum the release bundle
+        run: |
           cd release-dist
           sha256sum * | sort > SHA256SUMS.txt
+
+      # An unsigned checksum file only proves the assets match each other.
+      # Anyone who can replace an asset can replace the list beside it, so the
+      # signature is what makes the whole set verifiable against a key that
+      # never touches the runner in plaintext. Same key as the Linux artifacts.
+      - name: Sign the checksum file
+        run: ./scripts/sign_linux.sh release-dist/SHA256SUMS.txt
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            release-dist/ALBIS-*
+            release-dist/SHA256SUMS.txt
 
       - name: Verify expected release assets
         env:
@@ -638,6 +682,9 @@ jobs:
           [ -n "$mac_x64_zip" ] || { echo "Missing macOS x64 zip"; exit 1; }
           [ -n "$mac_x64_dmg" ] || { echo "Missing macOS x64 dmg"; exit 1; }
           [ -f release-dist/SHA256SUMS.txt ] || { echo "Missing SHA256SUMS.txt"; exit 1; }
+          if [ "${REQUIRE_PUBLIC_SIGNING}" = "true" ] || [ -n "${LINUX_GPG_PRIVATE_KEY_B64:-}" ]; then
+            [ -f release-dist/SHA256SUMS.txt.sig ] || { echo "Missing SHA256SUMS.txt signature"; exit 1; }
+          fi
 
       - name: Publish release
         env:

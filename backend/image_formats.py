@@ -432,10 +432,13 @@ def _pack_dectris_ifd(entries: list[tuple[int, int, Any]]) -> bytes:
             value_offset = data_start + len(data_bytes)
             value_field = struct.pack("<I", value_offset)
             data_bytes.extend(value_bytes)
-        entry_bytes.extend(
-            struct.pack("<HHI", int(tag), int(type_code), int(count)) + value_field
-        )
-    return struct.pack("<H", len(normalized)) + bytes(entry_bytes) + b"\x00\x00\x00\x00" + bytes(data_bytes)
+        entry_bytes.extend(struct.pack("<HHI", int(tag), int(type_code), int(count)) + value_field)
+    return (
+        struct.pack("<H", len(normalized))
+        + bytes(entry_bytes)
+        + b"\x00\x00\x00\x00"
+        + bytes(data_bytes)
+    )
 
 
 def _dectris_tiff_payload(metadata: dict[str, Any] | None) -> bytes:
@@ -1604,16 +1607,16 @@ def _read_mythen_dat(path: Path, n_channels: int | None) -> np.ndarray:
     try:
         text = path.read_text()
     except OSError as exc:
-        raise HTTPException(status_code=422, detail=f"Cannot read MYTHEN frame {path.name}") from exc
+        raise HTTPException(
+            status_code=422, detail=f"Cannot read MYTHEN frame {path.name}"
+        ) from exc
     tokens = text.split()
     if not tokens:
         return np.zeros(int(n_channels or 0), dtype=np.int64)
     try:
         values = np.array(tokens, dtype=np.int64)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=422, detail=f"Malformed MYTHEN frame {path.name}"
-        ) from exc
+        raise HTTPException(status_code=422, detail=f"Malformed MYTHEN frame {path.name}") from exc
     counts = _mythen_counts_column(values, n_channels)
     if n_channels and counts.size != n_channels:
         fixed = np.zeros(int(n_channels), dtype=np.int64)

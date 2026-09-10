@@ -126,7 +126,9 @@ def _windows_dialog_runner(script: str) -> str | None:
     if result.returncode == 0:
         picked = result.stdout.strip()
         return picked or None
-    detail = (result.stderr or "").strip() or (result.stdout or "").strip() or "Windows dialog failed"
+    detail = (
+        (result.stderr or "").strip() or (result.stdout or "").strip() or "Windows dialog failed"
+    )
     raise RuntimeError(detail)
 
 

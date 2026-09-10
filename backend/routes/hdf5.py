@@ -160,7 +160,9 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                         }
                     )
             children.sort(key=lambda item: (item.get("type") != "group", item.get("name", "")))
-            return HDF5TreeResponse(path=path, children=[HDF5TreeChild(**item) for item in children])
+            return HDF5TreeResponse(
+                path=path, children=[HDF5TreeChild(**item) for item in children]
+            )
 
     @app.get("/api/hdf5/node", response_model=HDF5NodeResponse)
     def hdf5_node(

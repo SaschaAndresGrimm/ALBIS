@@ -62,9 +62,7 @@ def octet_stream_responses(
         200: {
             "description": description,
             "content": {
-                "application/octet-stream": {
-                    "schema": {"type": "string", "format": "binary"}
-                }
+                "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
             },
             "headers": {
                 name: {"description": header_desc, "schema": {"type": "string"}}

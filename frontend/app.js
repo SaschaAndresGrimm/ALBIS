@@ -36,6 +36,7 @@ import { buildCommandPaletteCommands } from "./modules/command_palette_commands.
 import { createUploadFlowController } from "./modules/upload_flow.js";
 import { createMenuActionHandler } from "./modules/menu_actions.js";
 import { createShortcutHandlers } from "./modules/shortcut_handlers.js";
+import { createPointerFocusRelease } from "./modules/pointer_focus_release.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
 import { createLiveSeriesWatch } from "./modules/live_series_watch.js";
 import { createRecentFiles } from "./modules/recent_files.js";
@@ -3385,6 +3386,10 @@ const menuActionHandler = createMenuActionHandler({
 async function handleMenuAction(action) {
   await menuActionHandler(action);
 }
+
+// Keeps Tab working as play/pause after the toolbar's own buttons are
+// clicked; see the module for why only pointer clicks release focus.
+createPointerFocusRelease().attach();
 
 const { handleShortcut, handleNavShortcut } = createShortcutHandlers({
   state,

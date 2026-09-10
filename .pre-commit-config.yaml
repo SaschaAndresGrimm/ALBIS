@@ -21,14 +21,11 @@ repos:
   - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:
+      # No `files:` filter needed: the hook's default scope and CI's now agree,
+      # because backend/ and albis_launcher.py were formatted and added to the
+      # CI check. Before that the hook reformatted fourteen backend files under
+      # any contributor who touched one of them.
       - id: black
-        # Same scope as CI's `black --check tests scripts test_scripts`. With no
-        # filter the hook also formats backend/, which CI does not check and
-        # which is not currently black-clean -- so a contributor who touched one
-        # backend file had fourteen of them reformatted under them at commit
-        # time. Widening both to include backend/ is the better end state, but
-        # it is a reformat-everything commit and belongs on its own.
-        files: ^(tests|scripts|test_scripts)/
 
   - repo: local
     hooks:

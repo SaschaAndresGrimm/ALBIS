@@ -72,6 +72,7 @@ if sys.platform == "win32":
 else:
     _WINDOWS_KERNEL32 = None
 
+
 class _NullStream:
     """Fallback stdio stream for frozen/windowed builds without a console."""
 
@@ -83,6 +84,7 @@ class _NullStream:
 
     def isatty(self) -> bool:
         return False
+
 
 # The flags worth having on a command line: where to listen, where the data is,
 # and how loud to be. Each one sets the environment variable for the same config
@@ -169,8 +171,10 @@ def _ensure_stdio_streams() -> None:
     if sys.stderr is None:
         sys.stderr = _NullStream()
 
+
 def _server_info_path() -> Path:
     return Path.home() / ".config" / "albis" / "server.json"
+
 
 def _load_last_server() -> tuple[str, int] | None:
     path = _server_info_path()
@@ -191,6 +195,7 @@ def _load_last_server() -> tuple[str, int] | None:
         return None
     return host, port
 
+
 def _update_server_status(host: str, port: int, status: str, **extra: object) -> None:
     if not host or port <= 0:
         return
@@ -208,13 +213,16 @@ def _update_server_status(host: str, port: int, status: str, **extra: object) ->
     except OSError:
         return
 
+
 def _normalize_host(host: str) -> str:
     return host if host not in {"0.0.0.0", "::"} else "127.0.0.1"
+
 
 def _server_running(host: str, port: int) -> bool:
     if not host or port <= 0:
         return False
     return _wait_for_health(host, port, timeout=0.8)
+
 
 def _open_browser(host: str, port: int) -> None:
     target_host = _normalize_host(host)
@@ -230,6 +238,7 @@ def _open_browser(host: str, port: int) -> None:
 
 
 if Foundation is not None:
+
     class _DockMenuHandler(Foundation.NSObject):
         def _start_ts(self) -> float:
             try:
@@ -273,7 +282,9 @@ if Foundation is not None:
                 _log_macos_event(start_ts, f"{reason}: throttled")
                 return
             self.last_browser_open_mono = now
-            _log_macos_event(start_ts, f"{reason}: opening browser for {_normalize_host(host)}:{port}")
+            _log_macos_event(
+                start_ts, f"{reason}: opening browser for {_normalize_host(host)}:{port}"
+            )
             _open_browser(host, port)
 
         def openBrowser_(self, _sender):
@@ -292,10 +303,14 @@ if Foundation is not None:
             try:
                 log_path = Path(str(getattr(self, "log_dir", "") or "")).expanduser().resolve()
                 log_path.mkdir(parents=True, exist_ok=True)
-                result = subprocess.run(["open", str(log_path)], check=False, capture_output=True, text=True)
+                result = subprocess.run(
+                    ["open", str(log_path)], check=False, capture_output=True, text=True
+                )
                 if int(result.returncode or 0) != 0:
                     detail = (result.stderr or "").strip() or (result.stdout or "").strip()
-                    _log_macos_event(start_ts, f"open logs failed rc={result.returncode} ({detail})")
+                    _log_macos_event(
+                        start_ts, f"open logs failed rc={result.returncode} ({detail})"
+                    )
             except Exception as exc:
                 _log_macos_event(start_ts, f"open logs error: {type(exc).__name__}: {exc}")
                 return
@@ -355,21 +370,24 @@ if Foundation is not None:
             _log_macos_event(start_ts, "became active")
             self._open_browser_throttled("activate")
 
-
 else:
     _DockMenuHandler = None
+
 
 def _port_available(host: str, port: int) -> bool:
     if port <= 0:
         return False
     bind_host = host if host not in {"::"} else "::"
     try:
-        with socket.socket(socket.AF_INET6 if ":" in bind_host else socket.AF_INET, socket.SOCK_STREAM) as sock:
+        with socket.socket(
+            socket.AF_INET6 if ":" in bind_host else socket.AF_INET, socket.SOCK_STREAM
+        ) as sock:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((bind_host, port))
         return True
     except OSError:
         return False
+
 
 def _should_start_macos_ui_loop() -> bool:
     if sys.platform != "darwin":
@@ -381,6 +399,7 @@ def _should_start_macos_ui_loop() -> bool:
     # Source runs should remain Ctrl+C friendly unless explicitly requested.
     flag = os.environ.get("ALBIS_ENABLE_MACOS_UI", "").strip().lower()
     return flag in {"1", "true", "yes", "on"}
+
 
 def _start_macos_menus(
     host: str,
@@ -497,6 +516,7 @@ def _create_bound_socket(host: str, port: int = 0) -> socket.socket:
     sock.bind((bind_host, port))
     return sock
 
+
 def _wait_for_server(host: str, port: int, timeout: float = 5.0) -> bool:
     deadline = time.time() + timeout
     target_host = host if host not in {"0.0.0.0", "::"} else "127.0.0.1"
@@ -507,6 +527,7 @@ def _wait_for_server(host: str, port: int, timeout: float = 5.0) -> bool:
         except OSError:
             time.sleep(0.1)
     return False
+
 
 def _wait_for_health(host: str, port: int, timeout: float = 5.0) -> bool:
     deadline = time.time() + timeout
@@ -520,6 +541,7 @@ def _wait_for_health(host: str, port: int, timeout: float = 5.0) -> bool:
         except (OSError, urllib.error.URLError):
             time.sleep(0.1)
     return False
+
 
 def _default_launcher_log_path() -> Path:
     return (Path.home() / ".config" / "albis" / "logs" / "launcher.log").resolve()
@@ -565,6 +587,7 @@ def _configure_launcher_logger(log_path: Path) -> None:
     except OSError:
         _LAUNCHER_LOG_PATH = None
 
+
 def _launcher_log(start: float, message: str) -> None:
     elapsed_ms = (time.perf_counter() - start) * 1000
     text = f"[ALBIS launcher +{elapsed_ms:8.1f}ms] {message}"
@@ -583,6 +606,7 @@ def _launcher_log(start: float, message: str) -> None:
             target.flush()
         except Exception:
             pass
+
 
 def _log_macos_event(start: float, message: str) -> None:
     if _MACOS_EVENT_LOGS_ENABLED:
@@ -622,6 +646,7 @@ def _install_windows_shutdown_listener(start: float, request_shutdown: Callable[
         daemon=True,
     )
     listener.start()
+
 
 def main() -> None:
     global _MACOS_EVENT_LOGS_ENABLED
@@ -663,7 +688,9 @@ def main() -> None:
             last_host, last_port = last
             if _server_running(last_host, last_port):
                 _launcher_log(start_ts, f"existing server detected on {last_host}:{last_port}")
-                _update_server_status(last_host, last_port, "running", health=True, source="existing")
+                _update_server_status(
+                    last_host, last_port, "running", health=True, source="existing"
+                )
                 _open_browser(last_host, last_port)
                 return
         bound_sock = _create_bound_socket(host, 0)
@@ -695,6 +722,7 @@ def main() -> None:
     # Use a direct object reference so frozen builds do not rely on dynamic module import strings.
     _launcher_log(start_ts, "importing backend app")
     from backend.app import app as asgi_app
+
     _launcher_log(start_ts, "backend app imported")
 
     # Uvicorn runs its own loggers (uvicorn / uvicorn.access / uvicorn.error)
@@ -721,7 +749,9 @@ def main() -> None:
     _update_server_status(host, port, "starting")
 
     startup_timeout = max(0.5, get_float(app_config, ("launcher", "startup_timeout_sec"), 10.0))
-    startup_health_timeout = max(0.5, get_float(app_config, ("launcher", "startup_health_timeout_sec"), 15.0))
+    startup_health_timeout = max(
+        0.5, get_float(app_config, ("launcher", "startup_health_timeout_sec"), 15.0)
+    )
     if _wait_for_server(host, port, timeout=startup_timeout):
         _launcher_log(start_ts, "socket ready")
     else:
@@ -752,6 +782,7 @@ def main() -> None:
             thread.join(0.5)
     except KeyboardInterrupt:
         pass
+
 
 if __name__ == "__main__":
     main()

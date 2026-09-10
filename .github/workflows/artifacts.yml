@@ -9,9 +9,9 @@ on:
         default: false
         type: boolean
 
+# Only the Windows job needs id-token, for the Azure OIDC login.
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: artifacts-${{ github.ref }}
@@ -207,6 +207,9 @@ jobs:
     # would never match one scoped to a branch. The environment carries no
     # protection rules; adding required reviewers here would gate releases.
     environment: release
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:

@@ -112,9 +112,9 @@ describe("the analysis feature switches carry an accessible name", () => {
   const html = fs.readFileSync(path.join(process.cwd(), "frontend", "index.html"), "utf8");
 
   it.each([
-    ["roi-enable", "analysis.roi.section_title"],
-    ["rings-toggle", "analysis.rings.section_title"],
-    ["peaks-enable", "analysis.peaks.section_title"],
+    ["roi-enable", "analysis.roi.toggle_label"],
+    ["rings-toggle", "analysis.rings.toggle_label"],
+    ["peaks-enable", "analysis.peaks.toggle_label"],
   ])("%s is named from %s", (id, key) => {
     const tag = html.match(new RegExp(`<input[^>]*id="${id}"[^>]*>`, "s"));
 
@@ -127,9 +127,9 @@ describe("the analysis feature switches carry an accessible name", () => {
   it("names them from keys that exist in every locale", () => {
     const dir = path.join(process.cwd(), "frontend", "locales");
     const keys = [
-      "analysis.roi.section_title",
-      "analysis.rings.section_title",
-      "analysis.peaks.section_title",
+      "analysis.roi.toggle_label",
+      "analysis.rings.toggle_label",
+      "analysis.peaks.toggle_label",
     ];
     const missing = [];
     for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".json"))) {

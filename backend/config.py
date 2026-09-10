@@ -343,7 +343,9 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     server_host = get_str(merged, ("server", "host"), "127.0.0.1").strip() or "127.0.0.1"
     server_port = max(0, min(65535, get_int(merged, ("server", "port"), 0)))
     startup_timeout = max(0.1, get_float(merged, ("launcher", "startup_timeout_sec"), 10.0))
-    startup_health_timeout = max(0.1, get_float(merged, ("launcher", "startup_health_timeout_sec"), 15.0))
+    startup_health_timeout = max(
+        0.1, get_float(merged, ("launcher", "startup_health_timeout_sec"), 15.0)
+    )
     scan_cache = max(0.0, get_float(merged, ("data", "scan_cache_sec"), 2.0))
     max_scan_depth = get_int(merged, ("data", "max_scan_depth"), -1)
     if max_scan_depth < -1:

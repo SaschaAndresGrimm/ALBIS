@@ -132,8 +132,7 @@ def validate_jfjoch_endpoint(value: str) -> str:
     endpoint = normalize_jfjoch_endpoint(value)
     if not endpoint:
         raise ValueError(
-            "JUNGFRAUJOCH preview endpoint is required "
-            "(for example tcp://192.168.1.5:31003)"
+            "JUNGFRAUJOCH preview endpoint is required " "(for example tcp://192.168.1.5:31003)"
         )
     parsed = urllib.parse.urlparse(endpoint)
     if parsed.scheme not in _ZMQ_SCHEMES:
@@ -604,7 +603,9 @@ class JungfraujochPreviewBridge:
             self._start_meta = dict(message)
             self._series_number = _as_int(message.get("series_id"))
 
-    def _apply_image_message(self, config: _BridgeConfig, message: dict[str, Any], now: float) -> None:
+    def _apply_image_message(
+        self, config: _BridgeConfig, message: dict[str, Any], now: float
+    ) -> None:
         try:
             frame, channel_name = _select_channel_image(message, config.channel)
         except Exception as exc:
@@ -665,7 +666,9 @@ class JungfraujochPreviewBridge:
     def _resolution_from_start(self, start_meta: dict[str, Any]) -> dict[str, Any]:
         center_x = _as_float(start_meta.get("beam_center_x"))
         center_y = _as_float(start_meta.get("beam_center_y"))
-        beam_center = [center_x, center_y] if center_x is not None and center_y is not None else None
+        beam_center = (
+            [center_x, center_y] if center_x is not None and center_y is not None else None
+        )
         return {
             "distance_mm": _to_mm(_as_float(start_meta.get("detector_distance"))),
             "pixel_size_um": _to_um(_as_float(start_meta.get("pixel_size_x"))),

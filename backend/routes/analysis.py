@@ -180,8 +180,16 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
     def _analysis_payload_from_source_image(path: Path) -> dict[str, Any]:
         meta = deps.pilatus_meta_from_image(path)
         beam_center = meta.get("beam_center_px")
-        center_x_px = beam_center[0] if isinstance(beam_center, tuple | list) and len(beam_center) >= 2 else None
-        center_y_px = beam_center[1] if isinstance(beam_center, tuple | list) and len(beam_center) >= 2 else None
+        center_x_px = (
+            beam_center[0]
+            if isinstance(beam_center, tuple | list) and len(beam_center) >= 2
+            else None
+        )
+        center_y_px = (
+            beam_center[1]
+            if isinstance(beam_center, tuple | list) and len(beam_center) >= 2
+            else None
+        )
         pixel_size_um = meta.get("pixel_size_um")
         return {
             "distance_mm": meta.get("distance_mm"),
@@ -210,13 +218,16 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             source_file_ref = _clean_text(h5.attrs.get("source_file"))
             source_dataset_ref = _clean_text(h5.attrs.get("source_dataset"))
 
-        if source_file_ref and any(payload.get(key) is None for key in (
-            "distance_mm",
-            "pixel_size_um",
-            "energy_ev",
-            "center_x_px",
-            "center_y_px",
-        )):
+        if source_file_ref and any(
+            payload.get(key) is None
+            for key in (
+                "distance_mm",
+                "pixel_size_um",
+                "energy_ev",
+                "center_x_px",
+                "center_y_px",
+            )
+        ):
             try:
                 source_path = deps.resolve_optional_path(source_file_ref)
             except HTTPException:

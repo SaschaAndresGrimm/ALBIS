@@ -105,6 +105,9 @@ For developers looking to build, test, and contribute:
 
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
 - [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md) — where to ask, and what to expect
+- [Governance](GOVERNANCE.md) — who maintains ALBIS, and what you can rely on
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## Citing ALBIS
 

@@ -37,7 +37,7 @@ jobs:
         run: ruff check backend albis_launcher.py tests scripts test_scripts
 
       - name: Black
-        run: black --check tests scripts test_scripts
+        run: black --check backend albis_launcher.py tests scripts test_scripts
 
       - name: Pytest
         run: pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=77

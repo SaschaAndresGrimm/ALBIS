@@ -30,6 +30,11 @@
      accent-to-dark edge measures 7.42:1 and travels with the indicator
      whatever sits behind it. */
   --focus-ring: 0 0 0 1px rgba(6, 10, 18, 0.92), 0 0 0 3px #4ea1ff;
+  /* Same two tones, drawn inward, for a control that sits flush inside a
+     scrolling container. An outset ring on a full-width row in `.browse-list`
+     (`overflow: auto`) is clipped along the edge it is closest to, which is
+     precisely when a keyboard user needs to see it. */
+  --focus-ring-inset: inset 0 0 0 1px rgba(6, 10, 18, 0.92), inset 0 0 0 3px #4ea1ff;
   --radius-sm: 4px;
   --radius-md: 7px;
   --radius-lg: 10px;
@@ -5569,8 +5574,9 @@ body.platform-windows select option:disabled {
 
 .browse-item:focus-visible {
   outline: none;
-  /* Inset and 1px, so it read as a hover tint rather than a focus ring. */
-  box-shadow: var(--focus-ring);
+  /* Was inset and 1px, so it read as a hover tint rather than a focus ring.
+     Stays inset -- these rows are full-width inside a scroller. */
+  box-shadow: var(--focus-ring-inset);
 }
 
 .browse-item:hover {

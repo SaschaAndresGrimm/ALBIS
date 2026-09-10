@@ -614,9 +614,7 @@ class DataExportService:
         if wavelength_value is not None:
             wavelength_a = self._to_angstrom(wavelength_value, wavelength_units)
             meta["wavelength_a"] = wavelength_a
-            energy_from_wavelength = self._deps.wavelength_to_ev(
-                wavelength_value, wavelength_units
-            )
+            energy_from_wavelength = self._deps.wavelength_to_ev(wavelength_value, wavelength_units)
             if energy_from_wavelength is not None:
                 meta["incident_energy_ev"] = energy_from_wavelength
 
@@ -679,7 +677,9 @@ class DataExportService:
             meta["source_threshold"] = threshold_index + 1
             meta["source_threshold_count"] = int(threshold_count)
         image_start = self._finite_int(meta.get("image_number_start"))
-        meta["image_number"] = (image_start + frame_index) if image_start is not None else frame_index + 1
+        meta["image_number"] = (
+            (image_start + frame_index) if image_start is not None else frame_index + 1
+        )
         meta["threshold_ids"] = [threshold_index + 1]
         threshold_energy = self._read_h5_threshold_energy_ev(h5, threshold_index)
         if threshold_energy is not None:

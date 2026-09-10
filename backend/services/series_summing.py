@@ -267,7 +267,6 @@ class SeriesSummingService:
                 with contextlib.suppress(Exception):
                     dst_h5.attrs[key] = val
 
-
         if "/entry/instrument/detector" in src_h5:
             src_detector = src_h5["/entry/instrument/detector"]
             dst_detector = dst_h5.require_group("/entry/instrument/detector")
@@ -275,7 +274,6 @@ class SeriesSummingService:
                 if key not in dst_detector.attrs:
                     with contextlib.suppress(Exception):
                         dst_detector.attrs[key] = val
-
 
             for thr in range(threshold_count):
                 channel_path = f"threshold_{thr + 1}_channel"
@@ -294,7 +292,6 @@ class SeriesSummingService:
                         if isinstance(src_item, h5py.Dataset) and item_name not in dst_channel:
                             with contextlib.suppress(Exception):
                                 dst_channel.create_dataset(item_name, data=src_item[()])
-
 
         for group_path in ("/entry/instrument", "/entry/sample", "/entry/data"):
             if group_path in src_h5 and group_path not in dst_h5:
@@ -366,7 +363,9 @@ class SeriesSummingService:
                 all(np.isfinite(item) for item in normalized_panel["origin_mm"])
                 and all(np.isfinite(item) for item in normalized_panel["fast_axis"])
                 and all(np.isfinite(item) for item in normalized_panel["slow_axis"])
-                and all(np.isfinite(item) and item > 0 for item in normalized_panel["pixel_size_mm"])
+                and all(
+                    np.isfinite(item) and item > 0 for item in normalized_panel["pixel_size_mm"]
+                )
                 and all(item > 0 for item in normalized_panel["image_size_px"])
                 and all(np.isfinite(item) for item in normalized_panel["raw_offset_px"])
             ):
@@ -464,8 +463,18 @@ class SeriesSummingService:
         prefer_unsigned: bool,
         min_itemsize: int,
     ) -> np.dtype | None:
-        unsigned_candidates = [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64)]
-        signed_candidates = [np.dtype(np.int8), np.dtype(np.int16), np.dtype(np.int32), np.dtype(np.int64)]
+        unsigned_candidates = [
+            np.dtype(np.uint8),
+            np.dtype(np.uint16),
+            np.dtype(np.uint32),
+            np.dtype(np.uint64),
+        ]
+        signed_candidates = [
+            np.dtype(np.int8),
+            np.dtype(np.int16),
+            np.dtype(np.int32),
+            np.dtype(np.int64),
+        ]
         candidate_sets: list[list[np.dtype]] = []
         if prefer_unsigned and min_value >= 0:
             candidate_sets.append(unsigned_candidates)
@@ -484,7 +493,8 @@ class SeriesSummingService:
     @classmethod
     def _sum_output_dtype(cls, source_dtype: np.dtype, max_group_count: int) -> np.dtype:
         if not (
-            np.issubdtype(source_dtype, np.integer) or np.issubdtype(source_dtype, np.unsignedinteger)
+            np.issubdtype(source_dtype, np.integer)
+            or np.issubdtype(source_dtype, np.unsignedinteger)
         ):
             return source_dtype
         info = np.iinfo(source_dtype)
@@ -545,7 +555,9 @@ class SeriesSummingService:
     @staticmethod
     def _cast_result_to_dtype(arr: np.ndarray, output_dtype: np.dtype) -> np.ndarray:
         output_dtype = np.dtype(output_dtype)
-        if np.issubdtype(output_dtype, np.integer) or np.issubdtype(output_dtype, np.unsignedinteger):
+        if np.issubdtype(output_dtype, np.integer) or np.issubdtype(
+            output_dtype, np.unsignedinteger
+        ):
             arr_rounded = np.rint(np.asarray(arr, dtype=np.float64))
             info = np.iinfo(output_dtype)
             # Avoid np.clip integer-bound conversions that can overflow on some
@@ -746,13 +758,18 @@ class SeriesSummingService:
                             )
                         frame_count = int(shape[0])
                         threshold_count = int(shape[1]) if ndim == 4 else 1
-                        if normalize_method == "frame" and normalize_frame_idx is not None and (
-                            normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
+                        if (
+                            normalize_method == "frame"
+                            and normalize_frame_idx is not None
+                            and (normalize_frame_idx < 0 or normalize_frame_idx >= frame_count)
                         ):
                             raise HTTPException(
                                 status_code=400, detail="Normalize frame is out of range"
                             )
-                        if normalize_image_ref is not None and normalize_image_ref.shape != shape[-2:]:
+                        if (
+                            normalize_image_ref is not None
+                            and normalize_image_ref.shape != shape[-2:]
+                        ):
                             raise HTTPException(
                                 status_code=400,
                                 detail=(
@@ -853,7 +870,9 @@ class SeriesSummingService:
                                         )
                                     ),
                                     normalize_scalar=(
-                                        normalize_scalar_value if normalize_method == "scalar" else None
+                                        normalize_scalar_value
+                                        if normalize_method == "scalar"
+                                        else None
                                     ),
                                     normalize_ref=norm_ref,
                                     normalize_ref_valid=norm_ref_valid,
@@ -897,8 +916,10 @@ class SeriesSummingService:
                 series_files, _ = self._deps.resolve_series_files(source_path)
                 frame_count = len(series_files)
                 threshold_count = 1
-                if normalize_method == "frame" and normalize_frame_idx is not None and (
-                    normalize_frame_idx < 0 or normalize_frame_idx >= frame_count
+                if (
+                    normalize_method == "frame"
+                    and normalize_frame_idx is not None
+                    and (normalize_frame_idx < 0 or normalize_frame_idx >= frame_count)
                 ):
                     raise HTTPException(status_code=400, detail="Normalize frame is out of range")
                 groups = self._deps.iter_sum_groups(frame_count, mode, step, range_start, range_end)
@@ -913,7 +934,10 @@ class SeriesSummingService:
                 source_dtype = np.dtype(sample.dtype)
                 mask_bits = np.zeros((image_h, image_w), dtype=np.uint32) if apply_mask else None
                 mask_bits_by_thr = [mask_bits]
-                if normalize_image_ref is not None and normalize_image_ref.shape != (image_h, image_w):
+                if normalize_image_ref is not None and normalize_image_ref.shape != (
+                    image_h,
+                    image_w,
+                ):
                     raise HTTPException(
                         status_code=400,
                         detail=(
@@ -964,9 +988,8 @@ class SeriesSummingService:
                     start_idx = int(group["start"])
                     end_idx = int(group["end"])
                     frame_indices = list(group["indices"])
-                    def _preprocess_non_h5_frame(
-                        arr: np.ndarray, _frame_idx: int
-                    ) -> np.ndarray:
+
+                    def _preprocess_non_h5_frame(arr: np.ndarray, _frame_idx: int) -> np.ndarray:
                         if not apply_mask:
                             return arr
                         neg = arr < 0
@@ -986,7 +1009,9 @@ class SeriesSummingService:
                         job_id=job_id,
                         frame_indices=frame_indices,
                         operation=operation,
-                        load_frame=lambda frame_idx: self._read_non_h5_image(series_files[frame_idx]),
+                        load_frame=lambda frame_idx: self._read_non_h5_image(
+                            series_files[frame_idx]
+                        ),
                         processed_ref=processed_ref,
                         total_steps=total_steps,
                         progress_message=(
@@ -1021,7 +1046,15 @@ class SeriesSummingService:
                         rounded = np.rint(reduced_arr)
                         has_fractional_values = bool(np.any(np.abs(reduced_arr - rounded) > 1e-6))
                     sums.append(
-                        (0, chunk_idx, start_idx, end_idx, len(frame_indices), reduced_arr, mask_bits)
+                        (
+                            0,
+                            chunk_idx,
+                            start_idx,
+                            end_idx,
+                            len(frame_indices),
+                            reduced_arr,
+                            mask_bits,
+                        )
                     )
 
             outputs: list[str] = []

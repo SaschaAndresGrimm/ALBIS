@@ -137,7 +137,6 @@ def remote_read_image_bytes(
             with contextlib.suppress(Exception):
                 tmp_path.unlink(missing_ok=True)
 
-
     raise HTTPException(status_code=400, detail=f"Unsupported remote image format: {fmt}")
 
 

@@ -1,0 +1,58 @@
+name: CodeQL
+
+# Static analysis for the two languages ALBIS actually ships. The Security
+# workflow audits dependencies (pip-audit, npm audit) but nothing looked at
+# the code itself -- and the code is what reads arbitrary files from disk,
+# parses untrusted HDF5 and CBOR, and renders detector metadata into the DOM.
+#
+# Runs on pull requests so a finding arrives with the change that caused it,
+# and weekly so a newly published query reaches existing code.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: python
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # security-extended adds the lower-precision queries. Worth the
+          # noise on a codebase whose threat model is "a scientist opens a
+          # file someone sent them".
+          queries: security-extended
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

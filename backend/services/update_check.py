@@ -85,7 +85,9 @@ def _parse_version(raw: str) -> ParsedVersion:
     return ParsedVersion(numbers=tuple(number_parts), prerelease=tuple(prerelease_parts))
 
 
-def _compare_prerelease_identifiers(left: tuple[int | str, ...], right: tuple[int | str, ...]) -> int:
+def _compare_prerelease_identifiers(
+    left: tuple[int | str, ...], right: tuple[int | str, ...]
+) -> int:
     length = max(len(left), len(right))
     for idx in range(length):
         if idx >= len(left):

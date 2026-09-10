@@ -181,7 +181,10 @@ def _display_browse_path(path: Path, data_root: Path, allow_absolute_paths: bool
 
 
 def _browse_parent_path(
-    target_dir: Path, data_root: Path, allow_absolute_paths: bool, is_within: Callable[[Path, Path], bool]
+    target_dir: Path,
+    data_root: Path,
+    allow_absolute_paths: bool,
+    is_within: Callable[[Path, Path], bool],
 ) -> str:
     resolved = target_dir.resolve()
     if is_within(resolved, data_root):
@@ -194,7 +197,9 @@ def _browse_parent_path(
     return _display_browse_path(parent, data_root, allow_absolute_paths)
 
 
-def _browse_file_path(name: str, target_dir: Path, data_root: Path, allow_absolute_paths: bool) -> str:
+def _browse_file_path(
+    name: str, target_dir: Path, data_root: Path, allow_absolute_paths: bool
+) -> str:
     return _display_browse_path(target_dir / name, data_root, allow_absolute_paths) or name
 
 
@@ -239,9 +244,14 @@ def _sort_browse_items(items: list[dict[str, Any]], sort: str) -> list[dict[str,
             reverse=True,
         )
     if sort == "mtime_asc":
-        return sorted(items, key=lambda item: (float(item.get("mtime", 0.0)), _natural_sort_key(item["name"])))
+        return sorted(
+            items, key=lambda item: (float(item.get("mtime", 0.0)), _natural_sort_key(item["name"]))
+        )
     if sort == "type_asc":
-        return sorted(items, key=lambda item: (_natural_sort_key(item["ext"]), _natural_sort_key(item["name"])))
+        return sorted(
+            items,
+            key=lambda item: (_natural_sort_key(item["ext"]), _natural_sort_key(item["name"])),
+        )
     if sort == "type_desc":
         return sorted(
             items,

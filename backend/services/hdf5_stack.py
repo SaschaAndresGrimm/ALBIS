@@ -541,13 +541,23 @@ class HDF5StackService:
                     try:
                         target_file = open_hdf5_read_only(h5py, target_path)
                     except OSError as _exc:
-                        _log.warning("Skipping external link %s: cannot open %s: %s", child_path, link.filename, _exc)
+                        _log.warning(
+                            "Skipping external link %s: cannot open %s: %s",
+                            child_path,
+                            link.filename,
+                            _exc,
+                        )
                         continue
                     file_cache[target_path] = target_file
                 try:
                     target_obj = target_file[link.path]
                 except Exception as _exc:
-                    _log.warning("Skipping external link %s: path %s not found: %s", child_path, link.path, _exc)
+                    _log.warning(
+                        "Skipping external link %s: path %s not found: %s",
+                        child_path,
+                        link.path,
+                        _exc,
+                    )
                     continue
                 self.walk_datasets(
                     target_obj,
@@ -672,7 +682,9 @@ class HDF5StackService:
         filtered.extend(synthetic)
         return filtered
 
-    def _resolve_path_node(self, h5: Any, base_file: Path, path: str) -> tuple[Any, Path, list[Any]]:
+    def _resolve_path_node(
+        self, h5: Any, base_file: Path, path: str
+    ) -> tuple[Any, Path, list[Any]]:
         h5py = self.get_h5py()
         parts = [p for p in path.strip("/").split("/") if p]
         if not parts:
@@ -746,7 +758,9 @@ class HDF5StackService:
             try:
                 link = group.get(name, getlink=True)
             except Exception as _exc:
-                _log.warning("Skipping linked member %s in %s: cannot read link: %s", name, group_file, _exc)
+                _log.warning(
+                    "Skipping linked member %s in %s: cannot read link: %s", name, group_file, _exc
+                )
                 continue
             if isinstance(link, h5py.ExternalLink):
                 target_path = self.resolve_external_path(group_file, link.filename)
@@ -755,13 +769,17 @@ class HDF5StackService:
                 try:
                     target_file = open_hdf5_read_only(h5py, target_path)
                 except OSError as _exc:
-                    _log.warning("Skipping linked member %s: cannot open %s: %s", name, link.filename, _exc)
+                    _log.warning(
+                        "Skipping linked member %s: cannot open %s: %s", name, link.filename, _exc
+                    )
                     continue
                 opened.append(target_file)
                 try:
                     child = target_file[link.path]
                 except Exception as _exc:
-                    _log.warning("Skipping linked member %s: path %s not found: %s", name, link.path, _exc)
+                    _log.warning(
+                        "Skipping linked member %s: path %s not found: %s", name, link.path, _exc
+                    )
                     continue
             elif isinstance(link, h5py.SoftLink):
                 try:

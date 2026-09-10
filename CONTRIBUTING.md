@@ -67,7 +67,7 @@ Use the GitHub issue forms:
 
 ```bash
 ruff check backend albis_launcher.py tests scripts test_scripts
-black --check tests scripts test_scripts
+black --check backend albis_launcher.py tests scripts test_scripts
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 npm run lint:js
 npm run test:js
@@ -83,6 +83,8 @@ pre-commit run --all-files
 
 ## Repository governance
 
+- How the project is run, and what you can and cannot rely on: [GOVERNANCE.md](GOVERNANCE.md).
+- Where to ask for help and what response to expect: [SUPPORT.md](SUPPORT.md).
 - Code owners are defined in `CODEOWNERS`.
 - PR template is in `.github/PULL_REQUEST_TEMPLATE.md`.
 - Branch protection can be configured with:
