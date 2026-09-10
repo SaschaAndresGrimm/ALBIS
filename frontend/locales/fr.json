@@ -66,6 +66,7 @@
   "animation_export.frames.range": "Plage",
   "animation_export.loop": "Boucle infinie",
   "animation_export.progress.encoding": "Encodage...",
+  "animation_export.progress.done": "Terminé",
   "animation_export.progress.idle": "Inactif",
   "animation_export.progress.rendering": "Rendu de l'image {{current}} / {{total}}...",
   "animation_export.range_end": "Image de fin",

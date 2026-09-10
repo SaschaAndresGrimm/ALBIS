@@ -66,6 +66,7 @@
   "animation_export.frames.range": "Range",
   "animation_export.loop": "Loop forever",
   "animation_export.progress.encoding": "Encoding…",
+  "animation_export.progress.done": "Done",
   "animation_export.progress.idle": "Idle",
   "animation_export.progress.rendering": "Rendering frame {{current}} / {{total}}…",
   "animation_export.range_end": "End frame",

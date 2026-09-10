@@ -776,3 +776,62 @@ def test_a_failed_hdf5_job_leaves_no_partial_output(tmp_path: Path) -> None:
     assert leftovers == [], f"a partial output survived the failure: {leftovers}"
     partials = sorted(p.name for p in tmp_path.iterdir() if p.name.endswith(".partial"))
     assert partials == [], f"a scratch file was left behind: {partials}"
+
+
+def test_the_summed_output_declares_which_frame_index_base_it_uses(tmp_path: Path) -> None:
+    """The same run reported its source range two ways and said neither.
+
+    `sum_start_frame` / `sum_end_frame` index the source dataset, so they are
+    0-based like the array. The exported TIFF filenames and every progress
+    message add 1, because "frames 3-7" is what a person expects to read.
+    Both conventions are defensible; having them in one run with nothing
+    stating which is not, and it is the kind of off-by-one that reaches a
+    figure caption.
+    """
+    series_files = [tmp_path / f"img_{i:04d}.tiff" for i in range(1, 5)]
+    frames = {
+        path: np.full((2, 2), i, dtype=np.int16) for i, path in enumerate(series_files, start=1)
+    }
+
+    service = SeriesSummingService(
+        _make_deps(
+            tmp_path,
+            resolve_image_file=lambda name: Path(name),
+            resolve_series_files=lambda _s: (list(series_files), 0),
+            read_tiff=lambda path, index: np.asarray(frames[path]),
+            write_tiff=lambda _path, _arr: None,
+            ensure_hdf5_stack=lambda: None,
+            get_h5py=lambda: h5py,
+        )
+    )
+
+    job_id = service.start_job(
+        file=str(series_files[0]),
+        dataset="",
+        mode="chunks",
+        step=2,
+        operation="sum",
+        normalize_method="none",
+        normalize_frame=None,
+        normalize_scalar=None,
+        normalize_image=None,
+        range_start=None,
+        range_end=None,
+        output_path=str(tmp_path / "sum_out"),
+        output_format="hdf5",
+        apply_mask=False,
+    )
+    job = _wait_for_job(service, job_id)
+    assert job["status"] == "done", job
+
+    with h5py.File(Path(job["outputs"][0]), "r") as h5:
+        start = h5["/entry/data/sum_start_frame"]
+        end = h5["/entry/data/sum_end_frame"]
+        # Two chunks of two over four frames: 0-1 and 2-3, 0-based. The
+        # `range` mode's own parameters are 1-based (`start_1 - 1` in
+        # series_ops), which is the other half of why this needed saying.
+        assert [int(v) for v in start[:]] == [0, 2]
+        assert [int(v) for v in end[:]] == [1, 3]
+        for dset in (start, end):
+            assert int(dset.attrs["index_base"]) == 0
+            assert "0-based" in dset.attrs["description"]

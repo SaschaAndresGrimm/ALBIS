@@ -1189,8 +1189,23 @@ class SeriesSummingService:
                         chunk_count = np.asarray(
                             [int(group["count"]) for group in groups], dtype=np.int64
                         )
-                        data_group.create_dataset("sum_start_frame", data=chunk_start)
-                        data_group.create_dataset("sum_end_frame", data=chunk_end)
+                        # These are indices into the source dataset, so they
+                        # are 0-based like the array they index. The exported
+                        # TIFF filenames and the progress messages count from
+                        # 1, because that is what a person reading "frames
+                        # 3-7" expects -- so the same run reports its range
+                        # two different ways and nothing said which was which.
+                        # Machine-readable stays 0-based; the attribute is
+                        # what makes it checkable instead of guessable.
+                        start_dset = data_group.create_dataset("sum_start_frame", data=chunk_start)
+                        end_dset = data_group.create_dataset("sum_end_frame", data=chunk_end)
+                        for _dset in (start_dset, end_dset):
+                            _dset.attrs["index_base"] = 0
+                            _dset.attrs["description"] = (
+                                "0-based frame index into the source dataset. Exported "
+                                "TIFF filenames and the interface show the same range "
+                                "counting from 1."
+                            )
                         data_group.create_dataset("sum_frame_count", data=chunk_count)
 
                         for thr, chunk_idx, _start_idx, _end_idx, _count, arr, mask_bits in sums:

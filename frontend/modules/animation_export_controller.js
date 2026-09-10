@@ -385,6 +385,7 @@ export function createAnimationExportController({
     state.animationExport.cancelling = false;
     setProgress(0, t("animation_export.progress.rendering", { current: 0, total: frames.length }));
     updateUi();
+    let completed = false;
     try {
       const bytes = await renderFrames(frames, region, scale, fps, loop);
       if (state.animationExport.cancelling || !bytes) {
@@ -392,6 +393,7 @@ export function createAnimationExportController({
         return;
       }
       await saveGif(bytes, handle, suggestedName);
+      completed = true;
     } catch (err) {
       if (err?.name !== "AbortError") {
         console.error(err);
@@ -403,7 +405,16 @@ export function createAnimationExportController({
       state.animationExport.running = false;
       state.animationExport.cancelling = false;
       activeController = null;
-      setProgress(0, t("animation_export.progress.idle"));
+      // A finished export leaves the bar full. Resetting to zero here read as
+      // the work having been undone, which is the opposite of what just
+      // happened -- and the bar is the only thing on screen that says the
+      // encode reached the end. Cancelled and failed runs still reset, since
+      // for those the bar really does not represent anything.
+      if (completed) {
+        setProgress(1, t("animation_export.progress.done"));
+      } else {
+        setProgress(0, t("animation_export.progress.idle"));
+      }
       updateUi();
     }
   }

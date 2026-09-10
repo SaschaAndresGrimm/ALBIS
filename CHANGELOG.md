@@ -13,6 +13,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- The GIF export progress bar stays full when the export finishes. It reset to zero and "Idle" in the same `finally` that runs after a cancellation or a failure, so a successful export ended by appearing to undo itself — and the bar is the only thing on screen that says the encode reached the end. Cancelled and failed runs still reset, because for those the bar genuinely represents nothing.
+
+- A summed HDF5 output says which frame-index base it uses. `sum_start_frame` and `sum_end_frame` index the source dataset and are 0-based like the array they index, while the exported TIFF filenames and every progress message count from 1 — and the `range` mode's own parameters are 1-based too. Every one of those is defensible alone; together, with nothing stating which was which, they are an off-by-one waiting to reach a figure caption. The datasets now carry `index_base` and a description saying so.
+
 - A failed or cancelled series operation no longer leaves a partial output file. The HDF5 branch opened the final path, created the dataset at full shape and filled it frame by frame, checking for cancellation inside that loop — so pressing Cancel closed a half-written `.h5` sitting at the finished name, indistinguishable from a real result, and the path was discarded rather than recorded. The file is now written beside the target and renamed on success, the same way the config save already worked.
 
 - The metadata panel no longer sticks on "Loading metadata…". `setLoading(true)` was switched on before the request and off only on the success path, so an unreadable dataset left the spinner up for the rest of the session. The failure was also written into the footer without a tone, so no toast was raised, and it was rethrown into a call site with no `catch` — the dataset dropdown — making it an unhandled rejection too.

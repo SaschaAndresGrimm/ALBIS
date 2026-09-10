@@ -66,6 +66,7 @@
   "animation_export.frames.range": "Intervall",
   "animation_export.loop": "Upprepa för alltid",
   "animation_export.progress.encoding": "Kodar...",
+  "animation_export.progress.done": "Klart",
   "animation_export.progress.idle": "På tomgång",
   "animation_export.progress.rendering": "Renderar bildruta {{current}} / {{total}}...",
   "animation_export.range_end": "Sista bildruta",

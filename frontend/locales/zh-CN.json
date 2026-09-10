@@ -66,6 +66,7 @@
   "animation_export.frames.range": "范围",
   "animation_export.loop": "无限循环",
   "animation_export.progress.encoding": "正在编码...",
+  "animation_export.progress.done": "完成",
   "animation_export.progress.idle": "空闲",
   "animation_export.progress.rendering": "正在渲染第 {{current}} / {{total}} 帧...",
   "animation_export.range_end": "结束帧",

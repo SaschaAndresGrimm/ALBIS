@@ -66,6 +66,7 @@
   "animation_export.frames.range": "Rango",
   "animation_export.loop": "Bucle infinito",
   "animation_export.progress.encoding": "Codificando...",
+  "animation_export.progress.done": "Listo",
   "animation_export.progress.idle": "Inactivo",
   "animation_export.progress.rendering": "Renderizando fotograma {{current}} / {{total}}...",
   "animation_export.range_end": "Fotograma final",

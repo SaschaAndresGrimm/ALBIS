@@ -66,6 +66,7 @@
   "animation_export.frames.range": "Intervalo",
   "animation_export.loop": "Repetir infinitamente",
   "animation_export.progress.encoding": "Codificando...",
+  "animation_export.progress.done": "Concluído",
   "animation_export.progress.idle": "Inativo",
   "animation_export.progress.rendering": "Renderizando quadro {{current}} / {{total}}...",
   "animation_export.range_end": "Quadro final",

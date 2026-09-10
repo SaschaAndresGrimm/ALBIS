@@ -66,6 +66,7 @@
   "animation_export.frames.range": "Awhe",
   "animation_export.loop": "Koromeke mau tonu",
   "animation_export.progress.encoding": "E whakawaehere ana...",
+  "animation_export.progress.done": "Kua oti",
   "animation_export.progress.idle": "Noho",
   "animation_export.progress.rendering": "E whakaata ana i te tāpare {{current}} / {{total}}...",
   "animation_export.range_end": "Tāpare whakamutunga",

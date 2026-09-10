@@ -66,6 +66,7 @@
   "animation_export.frames.range": "Interval",
   "animation_export.loop": "Repeter senza fin",
   "animation_export.progress.encoding": "Codificond...",
+  "animation_export.progress.done": "Terminà",
   "animation_export.progress.idle": "Inactiv",
   "animation_export.progress.rendering": "Rendering dal maletg {{current}} / {{total}}...",
   "animation_export.range_end": "Maletg final",

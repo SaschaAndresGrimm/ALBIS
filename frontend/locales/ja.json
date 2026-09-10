@@ -66,6 +66,7 @@
   "animation_export.frames.range": "範囲",
   "animation_export.loop": "無限ループ",
   "animation_export.progress.encoding": "エンコード中...",
+  "animation_export.progress.done": "完了",
   "animation_export.progress.idle": "待機中",
   "animation_export.progress.rendering": "フレーム {{current}} / {{total}} をレンダリング中...",
   "animation_export.range_end": "終了フレーム",

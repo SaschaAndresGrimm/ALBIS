@@ -66,6 +66,7 @@
   "animation_export.frames.range": "Bereich",
   "animation_export.loop": "Endlos wiederholen",
   "animation_export.progress.encoding": "Wird kodiert…",
+  "animation_export.progress.done": "Fertig",
   "animation_export.progress.idle": "Bereit",
   "animation_export.progress.rendering": "Bild {{current}} / {{total}} wird gerendert…",
   "animation_export.range_end": "Letztes Bild",
