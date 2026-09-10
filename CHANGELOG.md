@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- `GOVERNANCE.md` and `SUPPORT.md`. ALBIS ships a `CITATION.cff` and an archived DOI, which invite facilities to depend on it and to cite it, while every commit in its history comes from one person — so the bus factor, the relationship to DECTRIS, what a reader can and cannot rely on, and what happens if the maintainer stops are now written down rather than left to be inferred. `SUPPORT.md` says where to ask, what to include, and what response is realistic.
+
+- A CodeQL workflow analysing Python and JavaScript. `security.yml` audited dependencies but nothing looked at the code, which is what reads arbitrary files from disk, parses untrusted HDF5 and CBOR, and renders detector metadata into the DOM.
+
+- Release provenance and a bill of materials. Every published artifact carries an `actions/attest-build-provenance` statement recording which workflow at which commit produced it, and a CycloneDX SBOM ships beside it — the desktop builds bundle their own interpreter and every wheel, so what is inside a download is not answerable from the repository alone.
+
 ### Security
 
 - A page the user visits can no longer make ALBIS talk to a detector. `GET /api/simplon/monitor` defaults to `enable=true` and then sends a `PUT` to the detector's `config/mode`, but only its `POST` twin `/api/simplon/mode` was guarded against cross-site requests — so a cross-site `<img src>` could route around that guard with no preflight and no need to read the response. On a beamline LAN the hosts reachable this way are detector control APIs. `/api/simplon/monitor`, `/probe`, `/mask` and `/api/jfjoch/probe` are now guarded like the state-changing routes; the interface polls them same-origin and is unaffected.
@@ -68,6 +76,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - A SIMPLON API version the backend refuses is reported as a bad version rather than a bad address. The probe maps every 400 to "that address cannot be used", so the new rejection for a malformed version told the user to fix the hostname they had just typed correctly. The version is now checked in the interface first, mirroring the backend rule the way the URL normaliser already does.
 
 - The pre-commit `black` hook covers the same paths CI checks. It had no filter, so it also reformatted `backend/`, which CI does not check and which is not currently black-clean — a contributor who touched one backend file got fourteen of them rewritten at commit time.
+
+- The Code of Conduct names a private reporting channel. It previously asked people to report harassment "via the GitHub issue tracker" — in public, where the person being reported would read it. Reports now go to the maintainer's address, already public in `CITATION.cff`, with an acknowledgement window, a confidentiality commitment, four graded responses, and an explicit note that a single-maintainer project has no separate body to appeal to.
+
+- `SHA256SUMS.txt` is signed with the same GPG key as the Linux artifacts, and a tag release refuses to publish without the signature. An unsigned checksum file only proves the assets match each other; anyone able to replace an asset can replace the list beside it.
+
+- `backend/` and `albis_launcher.py` are black-formatted and CI checks them. The pre-commit hook had no file filter while CI checked only `tests`, `scripts` and `test_scripts`, so a contributor who touched one backend file had fourteen of them reformatted under them at commit time. Both scopes now agree.
+
+- The release workflows follow least privilege. `contents: write` and `id-token: write` were granted to every job; they are now `contents: read` at the top, with the two jobs that need more declaring it.
+
+- Keyboard focus is released after a toolbar button is clicked with a pointer, so `Tab` keeps working as play/pause. Making `Tab` yield to focus traversal fixed a trap across the whole window, but meant pressing the toolbar's own play button disabled the shortcut until focus moved elsewhere. A keyboard activation still keeps focus, which is the same rule pointing the other way.
+
+- The file browser's focus ring is drawn inward again. The two-tone ring is outset, and an outset ring on a full-width row inside an `overflow: auto` scroller is clipped along the edge it is nearest — exactly when a keyboard user needs to see it. Same two tones, same 7.42:1 at its own edge.
+
+- The three analysis switches are named for what they do rather than repeating the section title a screen reader has just announced.
 
 - `anyio` is pinned. Starlette allows `anyio<5` unbounded, and 4.15 began deprecating the `anyio.abc.*` aliases its own test client touches at import — which, with warnings now treated as errors, turned an unrelated upstream release into a red build that passed on a developer machine and failed on all three CI runners the same afternoon.
 
