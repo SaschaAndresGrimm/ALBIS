@@ -26,7 +26,7 @@ This checklist is intended for production releases, including `v1.0.0`.
 
 ```bash
 ruff check backend albis_launcher.py tests scripts test_scripts
-black --check tests scripts test_scripts
+black --check backend albis_launcher.py tests scripts test_scripts
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 npm run lint:js
 npm run test:js
@@ -87,11 +87,16 @@ Expected result:
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
 - Linux signing secrets are present before tagging.
-- **Windows and macOS signing credentials are required on a tag.** They are optional only for
-  `workflow_dispatch` builds, so a fork can still produce unsigned artifacts. On `refs/tags/v*`
-  the release workflow refuses to publish unsigned desktop artifacts, because README.md tells
-  users the builds are signed — check this *before* pushing the tag, since the run fails after
-  a full multi-platform build:
+- **macOS signing credentials are required on every tag.** README.md tells macOS users their
+  build is signed and notarized without qualification, so the release workflow refuses to publish
+  a tag without them. Check *before* pushing the tag: the run fails after a full multi-platform
+  build.
+- **Windows signing credentials are required from `v1.0.0` onward.** README.md tells Windows users
+  to expect the SmartScreen prompt, which is honest about the 0.x builds being unsigned, so a 0.x
+  tag still publishes without them — but a 1.0+ tag will not, because the announcement says
+  otherwise. Whenever credentials *are* present the signature is verified on any tag, so a
+  misconfiguration cannot pass silently.
+- Credentials are optional for `workflow_dispatch` builds either way, so a fork can build unsigned:
   - macOS requires the base64-encoded `.p12` (`MACOS_SIGN_CERT_B64`) and its password
     (`MACOS_SIGN_CERT_PASSWORD`), plus `APPLE_ID`, `APPLE_TEAM_ID` and
     `APPLE_APP_SPECIFIC_PASSWORD` for notarization

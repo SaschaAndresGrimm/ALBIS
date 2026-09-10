@@ -67,8 +67,12 @@ def test_the_ci_pytest_step_still_enables_the_coverage_plugin(ci_steps) -> None:
     [
         (REPO_ROOT / "CONTRIBUTING.md", "## Local checks before PR"),
         (REPO_ROOT / "docs" / "DEVELOPER_GUIDE.md", "Run local checks:"),
+        # Added after this block drifted here first: widening CI's black scope
+        # updated the two docs the test knew about and left the checklist --
+        # the one document someone reads while tagging -- behind.
+        (REPO_ROOT / "docs" / "RELEASE_CHECKLIST.md", "## 2. Run Local Quality Gates"),
     ],
-    ids=["CONTRIBUTING.md", "DEVELOPER_GUIDE.md"],
+    ids=["CONTRIBUTING.md", "DEVELOPER_GUIDE.md", "RELEASE_CHECKLIST.md"],
 )
 def test_a_documented_check_block_matches_the_ci_commands(doc: Path, marker: str, ci_steps) -> None:
     documented = _code_block_lines(doc, marker)

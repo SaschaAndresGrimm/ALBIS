@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-10
+
 ### Added
 
 - `GOVERNANCE.md` and `SUPPORT.md`. ALBIS ships a `CITATION.cff` and an archived DOI, which invite facilities to depend on it and to cite it, while every commit in its history comes from one person — so the bus factor, the relationship to DECTRIS, what a reader can and cannot rely on, and what happens if the maintainer stops are now written down rather than left to be inferred. `SUPPORT.md` says where to ask, what to include, and what response is realistic.
@@ -989,7 +991,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.12.0...v0.13.0

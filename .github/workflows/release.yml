@@ -319,6 +319,7 @@ jobs:
       AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT || secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
       AZURE_ARTIFACT_SIGNING_CERT_PROFILE: ${{ vars.AZURE_ARTIFACT_SIGNING_CERT_PROFILE || secrets.AZURE_ARTIFACT_SIGNING_CERT_PROFILE }}
       IS_TAG_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v7
 
@@ -420,12 +421,20 @@ jobs:
           )
           $isTagRelease = $env:IS_TAG_RELEASE -eq 'true'
 
-          # A tag is a public release, and README.md tells users the installer is
-          # signed. Without this the credentials being absent -- or silently
-          # rotated to empty -- produced an unsigned installer and a green run,
-          # because the check below only fired when signing was configured. The
-          # secrets stay optional for workflow_dispatch so a fork can still build.
-          if ($isTagRelease -and -not $windowsSigningConfigured) {
+          # Required from 1.0.0 onward, not on every tag. README.md tells macOS
+          # users their build is signed and notarized -- an unconditional claim,
+          # so that gate applies to every tag -- but it tells Windows users to
+          # expect the SmartScreen prompt, which is honest about the 0.x builds
+          # being unsigned. Blocking every 0.x tag on credentials the project
+          # has never had would stop releases it has always been able to make,
+          # while the thing actually worth preventing is a 1.0 that ships
+          # unsigned after the announcement says otherwise.
+          $major = 0
+          if ($env:RELEASE_TAG -match '^v(\d+)\.') { $major = [int]$Matches[1] }
+          $signingRequired = $isTagRelease -and $major -ge 1
+          Write-Host "Tag $($env:RELEASE_TAG): major $major, Windows signing required: $signingRequired"
+
+          if ($signingRequired -and -not $windowsSigningConfigured) {
             Write-Host "No Windows signing credentials are configured, so this tag would publish"
             Write-Host "an unsigned installer while README.md states the builds are signed."
             Write-Host ""
@@ -434,11 +443,13 @@ jobs:
             Write-Host "_CERT_PROFILE together with AZURE_CLIENT_ID / AZURE_TENANT_ID /"
             Write-Host "AZURE_SUBSCRIPTION_ID. See docs/WINDOWS_SIGNING.md."
             Write-Host ""
-            Write-Host "To build unsigned on purpose, use workflow_dispatch rather than a tag."
-            throw "Refusing to publish an unsigned Windows installer from a tag"
+            Write-Host "To build unsigned on purpose, use workflow_dispatch or a 0.x tag."
+            throw "Refusing to publish an unsigned Windows installer from a 1.0+ tag"
           }
 
-          if ($windowsSigningConfigured -or $isTagRelease) {
+          # Still verified whenever credentials exist, so a misconfiguration
+          # cannot pass silently on a 0.x tag either.
+          if ($windowsSigningConfigured -or $signingRequired) {
             if ($installerSig.Status -ne 'Valid') {
               throw "Expected signed installer, got status $($installerSig.Status)"
             }
