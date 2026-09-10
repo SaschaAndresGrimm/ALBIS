@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Controls no longer show two tooltips at once. The side-panel button drew ours reading "Toggle the side panel open or closed (M)." with the browser's own "Open side menu (M)." underneath it. The startup pass did strip `title` from every element carrying a managed hint, but only when it ran: `applyPanelState` re-sets that button's title on every call, and i18n re-applies every `data-i18n-title` on each language change, so the attribute came straight back. Six controls showed two different sentences and seven more showed the same sentence twice. The attribute is now taken away for the lifetime of the hover and put back afterwards, which holds whatever re-adds it — and, unlike the old permanent strip, leaves the native tooltip working for anyone who has switched tool hints off, who previously got no tooltip at all on those controls.
+
 ## [0.16.0] - 2026-09-10
 
 ### Added

@@ -51,7 +51,9 @@ function getHelpText(target) {
   if (dataHelp) return dataHelp;
   const ariaLabel = target.getAttribute?.("aria-label");
   if (ariaLabel) return ariaLabel;
-  const title = target.getAttribute?.("title");
+  // The native attribute is taken away while our own bubble is up, so fall
+  // back to where it was put.
+  const title = target.getAttribute?.("title") ?? target.dataset?.helpNativeTitle;
   if (title) return title;
   if (target.classList?.contains("menu-item")) {
     const text = (target.textContent || "").replace(/\s+/g, " ").trim();
@@ -176,11 +178,10 @@ export function createHelpTooltipController({
       setManagedHelp(canvasEl, t("hint.roi.plot_canvas_controls"));
     });
 
-    document.querySelectorAll("[data-help]").forEach((el) => {
-      if (el.hasAttribute("title")) {
-        el.removeAttribute("title");
-      }
-    });
+    // Deliberately no longer strips `title` here. Doing so removed the native
+    // tooltip permanently, so anyone who turned tool hints off was left with
+    // no tooltip at all -- and it did not work anyway against controls that
+    // re-set their own title later. suppressNativeTitle handles it per hover.
   }
 
   function refreshHelpTooltips() {
@@ -238,6 +239,32 @@ export function createHelpTooltipController({
     previousDescribedBy = "";
   }
 
+  // The browser draws its own tooltip from `title`, and ours cannot stop it by
+  // existing. Stripping the attribute once at startup is not enough either:
+  // several controls re-set their own title afterwards -- the side-panel
+  // button rewrites it on every applyPanelState, which is why it showed
+  // "Open side menu (M)" underneath "Toggle the side panel open or closed" --
+  // and i18n re-applies every `data-i18n-title` on each language change.
+  //
+  // So the attribute is taken away at the moment our bubble appears and put
+  // back when it goes, which is robust whatever re-adds it in between, and
+  // leaves the native tooltip intact for anyone who has turned tool hints off.
+  function suppressNativeTitle(target) {
+    if (!target || typeof target.getAttribute !== "function") return;
+    const title = target.getAttribute("title");
+    if (title === null) return;
+    target.dataset.helpNativeTitle = title;
+    target.removeAttribute("title");
+  }
+
+  function restoreNativeTitle(target) {
+    if (!target || !target.dataset) return;
+    const stashed = target.dataset.helpNativeTitle;
+    if (typeof stashed !== "string") return;
+    target.setAttribute("title", stashed);
+    delete target.dataset.helpNativeTitle;
+  }
+
   function hideHelp() {
     if (helpTimer) {
       clearTimeout(helpTimer);
@@ -247,6 +274,7 @@ export function createHelpTooltipController({
       helpTooltip.classList.remove("is-visible");
     }
     undescribeTarget();
+    restoreNativeTitle(helpTarget);
     helpTarget = null;
   }
 
@@ -265,6 +293,7 @@ export function createHelpTooltipController({
       helpTooltip.classList.add("is-visible");
       positionHelpTooltip(event);
       describeTarget(target);
+      suppressNativeTitle(target);
     };
     if (immediate) {
       reveal();
