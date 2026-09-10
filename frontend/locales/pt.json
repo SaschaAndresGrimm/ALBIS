@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "Não é possível acessar {{url}}.",
   "simplon.probe.enter_address": "Informe primeiro o nome de host ou o endereço IP do detector.",
   "simplon.probe.invalid_address": "Esse endereço não pode ser usado — informe um nome de host ou endereço IP.",
+  "simplon.probe.invalid_version": "Essa versão da API não pode ser usada — informe um número de versão, por exemplo 1.8.0.",
   "simplon.probe.ok": "Conectado — a API do monitor SIMPLON respondeu.",
   "simplon.probe.ok_detector": "Conectado — {{detector}}",
   "simplon.probe.ok_detector_serial": "Conectado — {{detector}} (N/S {{serial}})",

@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "无法访问 {{url}}。",
   "simplon.probe.enter_address": "请先输入探测器的主机名或 IP 地址。",
   "simplon.probe.invalid_address": "该地址无法使用 — 请输入主机名或 IP 地址。",
+  "simplon.probe.invalid_version": "该 API 版本无法使用 — 请输入版本号，例如 1.8.0。",
   "simplon.probe.ok": "已连接 — SIMPLON 监控 API 已响应。",
   "simplon.probe.ok_detector": "已连接 — {{detector}}",
   "simplon.probe.ok_detector_serial": "已连接 — {{detector}}（S/N {{serial}}）",

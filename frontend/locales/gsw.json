@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "{{url}} isch nid erreichbar.",
   "simplon.probe.enter_address": "Gib zerscht de Hostname oder d IP-Adrässe vom Detektor yy.",
   "simplon.probe.invalid_address": "Die Adrässe cha nid bruucht werde – gib en Hostname oder e IP-Adrässe yy.",
+  "simplon.probe.invalid_version": "Die API-Version cha me nid bruuche – gib e Versionsnummere yy, zum Byspil 1.8.0.",
   "simplon.probe.ok": "Verbunde – d SIMPLON-Monitor-API het antwortet.",
   "simplon.probe.ok_detector": "Verbunde – {{detector}}",
   "simplon.probe.ok_detector_serial": "Verbunde – {{detector}} (S/N {{serial}})",

@@ -30,10 +30,38 @@ Create these Azure resources:
 2. Completed identity validation.
 3. Public Trust certificate profile.
 4. Microsoft Entra app registration or managed identity for GitHub OIDC.
-5. Federated credential on that identity for this repository's release and artifact workflows.
+5. Federated credential on that identity, scoped to the **`release` GitHub environment**:
+
+   | Field | Value |
+   | --- | --- |
+   | Entity type | Environment |
+   | Environment name | `release` |
+   | Resulting subject | `repo:SaschaAndresGrimm/ALBIS:environment:release` |
+   | Issuer | `https://token.actions.githubusercontent.com` |
+   | Audience | `api://AzureADTokenExchange` |
+
+   Scope it to the environment, not to a branch or a tag. An Azure federated
+   credential matches its subject exactly. The release workflow runs from
+   `refs/tags/v*`, so a ref-scoped credential would have to be recreated for
+   every tag, and one scoped to `refs/heads/main` would never match a release
+   at all — while `artifacts.yml`, which dispatches from `main`, would need a
+   second credential. The Windows build job in both workflows therefore
+   declares `environment: release`, which fixes the subject for both.
+
+   The environment needs no protection rules. Adding required reviewers to it
+   would pause every tagged release for manual approval, which is a decision
+   worth making deliberately rather than by accident.
+
 6. `Artifact Signing Certificate Profile Signer` role assignment for that identity, scoped to the certificate profile or Artifact Signing account.
 
 Microsoft currently limits Public Trust profiles to organizations in the USA, Canada, the European Union, and the United Kingdom, and individual developers in the USA and Canada. Confirm eligibility before relying on this path for a public release.
+
+> **Switzerland is not on that list.** A Swiss-registered organization may not
+> be able to obtain a Public Trust profile at all, so confirm eligibility with
+> Microsoft *before* creating the account and starting identity validation. If
+> it is refused, SignPath Foundation is the documented fallback below and ALBIS
+> qualifies on licence; the CI wiring for the PFX path it uses is already
+> present.
 
 Set these GitHub repository variables:
 

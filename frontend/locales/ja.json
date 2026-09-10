@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "{{url}} に到達できません。",
   "simplon.probe.enter_address": "先に検出器のホスト名または IP アドレスを入力してください。",
   "simplon.probe.invalid_address": "このアドレスは使用できません。ホスト名または IP アドレスを入力してください。",
+  "simplon.probe.invalid_version": "この API バージョンは使用できません。バージョン番号（例 1.8.0）を入力してください。",
   "simplon.probe.ok": "接続しました。SIMPLON モニター API が応答しました。",
   "simplon.probe.ok_detector": "接続しました — {{detector}}",
   "simplon.probe.ok_detector_serial": "接続しました — {{detector}}（S/N {{serial}}）",

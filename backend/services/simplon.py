@@ -22,7 +22,9 @@ _SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.\-]*://", re.IGNORECASE)
 # with "http" (e.g. `http-gw.local`) untouched.
 _MALFORMED_SCHEME_RE = re.compile(r"^(https?)(?::/*|/+)", re.IGNORECASE)
 # SIMPLON sub-API roots, e.g. `/monitor/api/1.8.0/images/monitor`.
-_API_VERSION_RE = re.compile(r"\d+(?:\.\d+){0,3}")
+# [0-9] rather than \\d: for a str pattern \\d matches any Unicode decimal,
+# so "\u0661.\u0668.\u0660" would have passed as a version number and gone into the URL.
+_API_VERSION_RE = re.compile(r"[0-9]+(?:\.[0-9]+){0,3}")
 _API_PATH_RE = re.compile(r"/(monitor|detector|stream|filewriter|system)/api(/|$)", re.IGNORECASE)
 # A dangling sub-API segment without the `/api` part, e.g. `http://host/monitor`.
 _TRAILING_API_ROOT_RE = re.compile(

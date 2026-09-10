@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "{{url}} est injoignable.",
   "simplon.probe.enter_address": "Saisissez d'abord le nom d'hôte ou l'adresse IP du détecteur.",
   "simplon.probe.invalid_address": "Cette adresse est inutilisable — saisissez un nom d'hôte ou une adresse IP.",
+  "simplon.probe.invalid_version": "Cette version d'API est inutilisable — saisissez un numéro de version, par exemple 1.8.0.",
   "simplon.probe.ok": "Connecté — l'API du moniteur SIMPLON a répondu.",
   "simplon.probe.ok_detector": "Connecté — {{detector}}",
   "simplon.probe.ok_detector_serial": "Connecté — {{detector}} (n° de série {{serial}})",

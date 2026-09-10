@@ -199,6 +199,14 @@ jobs:
     if: ${{ always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
     runs-on: windows-latest
     needs: verify
+    # Pins the GitHub OIDC subject to
+    # `repo:<owner>/<repo>:environment:release`, which is stable. Without it
+    # the subject is the ref -- `refs/tags/v1.0.0` for a release, `refs/heads/main`
+    # for a dispatch build -- and an Azure federated credential matches its
+    # subject exactly, so a tag build would need a new credential per tag and
+    # would never match one scoped to a branch. The environment carries no
+    # protection rules; adding required reviewers here would gate releases.
+    environment: release
     strategy:
       fail-fast: false
       matrix:

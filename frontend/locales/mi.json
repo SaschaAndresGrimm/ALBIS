@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "Kāore e taea te toro atu ki {{url}}.",
   "simplon.probe.enter_address": "Tuhia tuatahi te ingoa kaihautū, te wāhitau IP rānei o te pūtirotiro.",
   "simplon.probe.invalid_address": "Kāore e taea te whakamahi i tēnā wāhitau — tuhia he ingoa kaihautū, he wāhitau IP rānei.",
+  "simplon.probe.invalid_version": "Kāore e taea te whakamahi i tērā putanga API — whakaurua he tau putanga, hei tauira 1.8.0.",
   "simplon.probe.ok": "Kua hono — kua whakautu te SIMPLON aroturuki API.",
   "simplon.probe.ok_detector": "Kua hono — {{detector}}",
   "simplon.probe.ok_detector_serial": "Kua hono — {{detector}} (S/N {{serial}})",

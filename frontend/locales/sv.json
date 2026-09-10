@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "{{url}} kan inte nås.",
   "simplon.probe.enter_address": "Ange först detektorns värdnamn eller IP-adress.",
   "simplon.probe.invalid_address": "Den adressen kan inte användas – ange ett värdnamn eller en IP-adress.",
+  "simplon.probe.invalid_version": "Den API-versionen kan inte användas — ange ett versionsnummer, till exempel 1.8.0.",
   "simplon.probe.ok": "Ansluten – SIMPLON-övervaknings-API:et svarade.",
   "simplon.probe.ok_detector": "Ansluten – {{detector}}",
   "simplon.probe.ok_detector_serial": "Ansluten – {{detector}} (S/N {{serial}})",

@@ -65,6 +65,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Locale parity is enforced rather than reported. `npm run review:i18n` prints a report but returns 0 unless `--strict-untranslated` is passed, and that mode fails on 313 legitimate carryovers, so it could not gate anything. A test now asserts what actually breaks the interface: every locale carries exactly the keys `en.json` does, every interpolation placeholder survives translation, and no value is empty or a non-string.
 
+- A SIMPLON API version the backend refuses is reported as a bad version rather than a bad address. The probe maps every 400 to "that address cannot be used", so the new rejection for a malformed version told the user to fix the hostname they had just typed correctly. The version is now checked in the interface first, mirroring the backend rule the way the URL normaliser already does.
+
+- The pre-commit `black` hook covers the same paths CI checks. It had no filter, so it also reformatted `backend/`, which CI does not check and which is not currently black-clean — a contributor who touched one backend file got fourteen of them rewritten at commit time.
+
 - `anyio` is pinned. Starlette allows `anyio<5` unbounded, and 4.15 began deprecating the `anyio.abc.*` aliases its own test client touches at import — which, with warnings now treated as errors, turned an unrelated upstream release into a red build that passed on a developer machine and failed on all three CI runners the same afternoon.
 
 ## [0.15.0] - 2026-09-04

@@ -90,9 +90,9 @@ def test_citation_metadata_has_what_a_citation_needs() -> None:
     assert released, "date-released must be an unquoted ISO date (YYYY-MM-DD) for CFF 1.2.0"
 
 
-def test_citation_file_is_valid_yaml_when_a_parser_is_available() -> None:
-    """Structural check, skipped rather than made a dependency of the project."""
-    yaml = pytest.importorskip("yaml", reason="PyYAML is not a declared dependency")
+def test_citation_file_is_valid_yaml() -> None:
+    """PyYAML is a declared dev dependency, so this no longer skips."""
+    import yaml
 
     data = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
     assert isinstance(data, dict), "CITATION.cff must parse to a mapping"

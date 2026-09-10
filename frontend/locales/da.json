@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "{{url}} kan ikke nås.",
   "simplon.probe.enter_address": "Indtast først detektorens værtsnavn eller IP-adresse.",
   "simplon.probe.invalid_address": "Denne adresse kan ikke bruges — indtast et værtsnavn eller en IP-adresse.",
+  "simplon.probe.invalid_version": "Den API-version kan ikke bruges — angiv et versionsnummer, for eksempel 1.8.0.",
   "simplon.probe.ok": "Forbundet — SIMPLON-monitor-API'en svarede.",
   "simplon.probe.ok_detector": "Forbundet — {{detector}}",
   "simplon.probe.ok_detector_serial": "Forbundet — {{detector}} (S/N {{serial}})",

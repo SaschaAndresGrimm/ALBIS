@@ -172,7 +172,12 @@ export function createPanelLayoutController({
     // assistive technology they did not exist. Focus could therefore land in a
     // zero-height clipped region on a node screen readers had been told to
     // ignore. `inert` removes both at once and leaves the height animation be.
-    content.inert = collapsed;
+    // toggleAttribute rather than the IDL property: it reflects in every
+    // engine that supports inert, degrades to an inert-less no-op elsewhere,
+    // and is observable -- jsdom accepts `el.inert = true` but does not
+    // reflect it to an attribute, so a test written against the property
+    // would pass without proving anything reached the DOM.
+    content.toggleAttribute("inert", collapsed);
   }
 
   function initializePanelTabA11y() {

@@ -716,6 +716,7 @@
   "simplon.failure.unreachable_url": "{{url}} n'è betg cuntanschibel.",
   "simplon.probe.enter_address": "Endatescha l'emprim il num d'host u l'adressa IP dal detector.",
   "simplon.probe.invalid_address": "Questa adressa na po betg vegnir utilisada – endatescha in num d'host u in'adressa IP.",
+  "simplon.probe.invalid_version": "Questa versiun da l'API na po betg vegnir duvrada — endatescha in numer da versiun, per exempel 1.8.0.",
   "simplon.probe.ok": "Connectà – l'API dal monitor SIMPLON ha respundì.",
   "simplon.probe.ok_detector": "Connectà – {{detector}}",
   "simplon.probe.ok_detector_serial": "Connectà – {{detector}} (nr. da seria {{serial}})",

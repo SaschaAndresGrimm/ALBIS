@@ -52,6 +52,16 @@ export function createSimplonProbeController({ apiBase, state, elements, callbac
     persistAutoloadSettings?.();
     const version = simplonVersion?.value?.trim() || "1.8.0";
 
+    // Mirrors the backend rule in `_simplon_api_base`, the way
+    // simplon_url_utils.js mirrors its URL normalisation. Without this the
+    // backend's 400 for a malformed version arrives here indistinguishable
+    // from its 400 for a malformed address, and the user is told to fix the
+    // hostname they just typed correctly.
+    if (!/^[0-9]+(?:\.[0-9]+){0,3}$/.test(String(version || "").trim())) {
+      setMessage(t("simplon.probe.invalid_version"), "error");
+      return;
+    }
+
     inFlight = true;
     if (simplonTest) simplonTest.disabled = true;
     setMessage(t("simplon.probe.testing", { url }), "busy");

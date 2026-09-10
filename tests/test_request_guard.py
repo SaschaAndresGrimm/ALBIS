@@ -16,6 +16,7 @@ from starlette.datastructures import Headers
 
 from backend.app import app, runtime_state
 from backend.request_guard import (
+    GUARDED_GET_PATHS,
     is_cross_site_request,
     is_host_allowed,
     strip_port,
@@ -349,15 +350,26 @@ def test_the_frontend_own_requests_are_allowed() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "path",
-    [
+# Derived from the guard itself rather than restated, so a path added to the
+# set is covered automatically and one removed makes these tests vanish
+# rather than silently pass. The file pickers are excluded because they are
+# covered above and take no `url`.
+GUARDED_STREAM_GETS = sorted(
+    path for path in GUARDED_GET_PATHS if not path.startswith("/api/choose-")
+)
+
+
+def test_the_guarded_stream_routes_are_the_ones_that_reach_a_third_host() -> None:
+    """If a new outbound GET is added and not guarded, this is the reminder."""
+    assert GUARDED_STREAM_GETS == [
+        "/api/jfjoch/probe",
+        "/api/simplon/mask",
         "/api/simplon/monitor",
         "/api/simplon/probe",
-        "/api/simplon/mask",
-        "/api/jfjoch/probe",
-    ],
-)
+    ]
+
+
+@pytest.mark.parametrize("path", GUARDED_STREAM_GETS)
 def test_a_cross_site_page_cannot_make_albis_call_a_detector(path: str) -> None:
     """These GETs make ALBIS talk to a host the caller names.
 
@@ -381,20 +393,19 @@ def test_a_cross_site_page_cannot_make_albis_call_a_detector(path: str) -> None:
     assert response.status_code == 403
 
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        "/api/simplon/monitor",
-        "/api/simplon/probe",
-        "/api/simplon/mask",
-        "/api/jfjoch/probe",
-    ],
-)
+@pytest.mark.parametrize("path", GUARDED_STREAM_GETS)
 def test_the_frontends_own_polling_of_those_routes_still_works(path: str) -> None:
     """Same-origin must stay allowed: the UI polls these on a timer.
 
-    Any status but 403 means the guard let it through to the handler, which is
-    all this asserts -- the request then fails on the unreachable detector.
+    The address points at a closed port on this machine, so a request that
+    reaches its handler must come back as a classified transport failure. That
+    is asserted rather than `!= 403`, which would also have been satisfied by a
+    404 from a route that no longer exists or a 422 from a changed signature --
+    either of which means the live view is broken while the test passes.
+
+    The two shapes are deliberate and differ by route: a probe is a diagnostic,
+    so it answers 200 and puts the verdict in the body; monitor and mask are
+    data routes and raise 502.
     """
     response = TestClient(app).get(
         path,
@@ -406,4 +417,12 @@ def test_the_frontends_own_polling_of_those_routes_still_works(path: str) -> Non
         },
     )
 
-    assert response.status_code != 403
+    assert response.status_code != 403, "the guard refused a same-origin request"
+    payload = response.json()
+    if response.status_code == 200:
+        assert payload["status"] == "error", response.text
+        diagnosis = payload
+    else:
+        assert response.status_code == 502, response.text
+        diagnosis = payload["detail"]
+    assert diagnosis["code"] in {"refused", "timeout", "unreachable", "dns"}, response.text
