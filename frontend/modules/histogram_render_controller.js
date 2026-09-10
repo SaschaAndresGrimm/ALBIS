@@ -2,6 +2,8 @@
  * Histogram and colorbar rendering.
  */
 
+import { canvasFont } from "./canvas_fonts.js";
+
 export function createHistogramRenderController({
   state,
   elements,
@@ -118,7 +120,7 @@ export function createHistogramRenderController({
         histCtx.strokeRect(x - 3, markerTop, 6, 8);
 
         if (label) {
-          histCtx.font = '600 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+          histCtx.font = canvasFont(10, 600);
           histCtx.textBaseline = "top";
           histCtx.fillStyle = PLOT_THEME.text;
           const metrics = histCtx.measureText(label);

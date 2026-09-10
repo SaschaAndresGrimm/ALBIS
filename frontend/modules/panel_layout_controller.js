@@ -32,6 +32,7 @@ export function createPanelLayoutController({
     scheduleOverview,
     scheduleHistogram,
     schedulePixelOverlay,
+    recenterCanvas,
     updateUiIdleAndAnchors,
     getSectionStateStore,
     setSectionStateStore,
@@ -123,6 +124,10 @@ export function createPanelLayoutController({
       panelCollapseBtn.tabIndex = state.panelCollapsed ? -1 : 0;
     }
     syncToolbarMoreControls();
+    // Opening, closing or dragging the panel changes how much of the canvas is
+    // visible, and in canvas-first mode the panel floats over it -- so the
+    // frame has to be re-centred in the band that is left.
+    recenterCanvas?.();
     scheduleOverview();
     scheduleHistogram();
     updateUiIdleAndAnchors();

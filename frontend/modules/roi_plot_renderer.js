@@ -2,9 +2,12 @@
  * ROI plot renderer kept separate from controller wiring.
  */
 
-const D_AXIS_TITLE_FONT = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
-const D_AXIS_TICK_FONT = '500 9px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
-const PEAK_LABEL_FONT = '600 9px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+import { canvasFont } from "./canvas_fonts.js";
+
+const D_AXIS_TITLE_FONT = canvasFont(10, 500);
+const D_AXIS_TICK_FONT = canvasFont(9, 500);
+const PEAK_LABEL_FONT = canvasFont(9, 600);
+const PLOT_LABEL_FONT = canvasFont(10, 500);
 
 // Q (nm^-1) = 2*pi / d(nm) = 20*pi / d(Å). Physics/SAXS convention Q = 4*pi*sin(theta)/lambda.
 const Q_FROM_D_NM = 20 * Math.PI;
@@ -152,7 +155,7 @@ export function renderRoiPlot({
   const drawableHeight = Math.max(4, height - padT - padB);
 
   ctx.fillStyle = plotTheme.text;
-  ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+  ctx.font = PLOT_LABEL_FONT;
   const measureMaxLabel = (labels) =>
     labels.reduce((currentMax, label) => Math.max(currentMax, ctx.measureText(label).width), 0);
 
@@ -356,7 +359,7 @@ export function renderRoiPlot({
   const yMinActual = logScale ? Math.max(0, Math.pow(10, minValue) - 1) : minValue;
   const yMaxActual = logScale ? Math.max(0, Math.pow(10, maxValue) - 1) : maxValue;
   ctx.fillStyle = plotTheme.text;
-  ctx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+  ctx.font = PLOT_LABEL_FONT;
   ctx.textAlign = "center";
   ctx.fillText(xLabel, padL + drawableWidth / 2, height - 4);
   ctx.save();

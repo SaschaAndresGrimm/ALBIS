@@ -53,22 +53,66 @@
   --motion-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
   --overlay-anchor-top: 62px;
   --overlay-gutter: 12px;
-  --font-ui: "Avenir Next", "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "PingFang SC",
-    "Microsoft YaHei UI", "Noto Sans CJK JP", "Noto Sans CJK SC", "Helvetica Neue", Arial, sans-serif;
+  /* Inter is bundled rather than resolved from the system, so a label reads the
+     same on a Mac, a Windows workstation and a beamline Linux box. The stack it
+     replaced led with "Avenir Next" -- a geometric display face, macOS-only,
+     unhinted, and being asked to carry 10-12px UI text -- and fell through to
+     Segoe UI on Windows and Arial/DejaVu on Linux, so the same panel was set in
+     three different faces depending on who opened it. Inter was drawn for
+     exactly this size on exactly these screens.
+
+     system-ui stays behind it as the fallback: if the woff2 fails to load the
+     interface should land on the platform's own hinted UI face, not on Arial. */
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
+/* One variable file covers 100-900, which is every weight the interface uses.
+   No italic face is bundled because nothing here is italic; an italic would be
+   synthesised, and that is the correct trade for the 344 KB this costs. */
+@font-face {
+  font-family: "Inter";
+  src: url("vendor/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Inter has no CJK coverage, so Japanese and Chinese text would fall through to
+   whatever the platform picks -- which is how you get kana in one face and its
+   Latin in another. Naming the CJK face first keeps a whole sentence in one
+   family; Inter stays behind it for anything the CJK face lacks. */
 :root:lang(ja) {
-  --font-ui: "Hiragino Sans", "Yu Gothic UI", Meiryo, "Noto Sans CJK JP", "Avenir Next",
-    "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-ui: "Hiragino Sans", "Yu Gothic UI", Meiryo, "Noto Sans CJK JP", "Inter",
+    system-ui, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 :root:lang(zh-CN) {
   --font-ui: "PingFang SC", "Microsoft YaHei UI", "Noto Sans CJK SC", "Hiragino Sans",
-    "Yu Gothic UI", "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    "Yu Gothic UI", "Inter", system-ui, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* font-family does not inherit into form controls -- the user-agent stylesheet
+   sets its own on button, input, select and textarea, and that wins over
+   anything inherited from body. So `body { font-family: var(--font-ui) }` was
+   dressing the labels and leaving all ~260 controls in the browser's default
+   face: an Inter <span> beside an Arial <select>, eight pixels apart, on every
+   row of every panel. It also meant the :lang(ja)/:lang(zh-CN) stacks above
+   never reached a <select>, so Japanese inside a dropdown fell wherever the
+   browser chose.
+
+   Only the family is inherited here. font-size is deliberately left alone:
+   almost every control already declares its own, and inheriting it would move
+   the handful that do not by a third of a pixel for no gain. */
+button,
+input,
+select,
+textarea,
+optgroup {
+  font-family: inherit;
 }
 
 .is-hidden {
@@ -165,6 +209,9 @@ body {
   background: radial-gradient(circle at 12% 0%, #273346 0%, #1a2130 38%, #121721 100%);
   color: var(--text);
   font-family: var(--font-ui);
+  /* Inter 4 carries an optical-size axis; almost all of this interface is set
+     between 10px and 13px, which is the end of that axis it exists for. */
+  font-optical-sizing: auto;
   font-size: 13px;
 }
 
@@ -231,14 +278,6 @@ body {
   box-shadow: var(--focus-ring);
 }
 
-.menu-right {
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  color: #8ac5ff;
-  text-transform: uppercase;
-  text-shadow: 0 0 10px rgba(74, 140, 227, 0.45);
-}
 
 .menu-dropdown {
   position: absolute;
@@ -861,7 +900,7 @@ body {
   border-radius: 11px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.05em;
   background: rgba(9, 18, 29, 0.45);
   border: 1px solid rgba(12, 22, 35, 0.65);
   color: #9bd4ff;
@@ -912,7 +951,7 @@ body {
   border-radius: 11px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.05em;
   background: rgba(9, 18, 29, 0.45);
   border: 1px solid rgba(12, 22, 35, 0.65);
   color: #9bd49f;
@@ -1203,7 +1242,7 @@ body {
   border: 1px solid rgba(124, 151, 196, 0.46);
   color: #e6f0ff;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1419,8 +1458,13 @@ body {
   background: rgba(13, 19, 28, 0.9);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
-  color: #f2f2f2;
+  color: var(--text);
   font-size: 12px;
+  /* This label is rebuilt on every pointer move. With proportional figures a
+     "1" is narrower than a "0", so the whole readout changed width -- and,
+     being right of the cursor, visibly shuffled -- as the coordinates ticked
+     over. The ROI statistics and the footer pills already set this. */
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
   display: none;
@@ -1616,7 +1660,6 @@ body.canvas-first .panel-fab {
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.15px;
   line-height: 1;
   background: linear-gradient(to bottom, rgba(86, 135, 206, 0.9), rgba(48, 83, 130, 0.9));
   border: 1px solid rgba(150, 195, 255, 0.72);
@@ -5312,6 +5355,10 @@ body.platform-windows select option:disabled {
   text-align: center;
   color: #f5f7ff;
   font-size: 14px;
+  /* px, not em, and deliberately: this is a container, and its children run
+     from 12px to 56px. A px value inherits as one computed length, so they all
+     get the same tracking; an em value would re-resolve against each child's
+     own size and pull the title four times wider than the hint. */
   letter-spacing: 2.2px;
   text-shadow: 0 0 18px rgba(60, 120, 220, 0.5);
 }
@@ -5331,7 +5378,7 @@ body.platform-windows select option:disabled {
   min-height: 18px;
   color: #b9c9ea;
   font-size: clamp(14px, 1.6vw, 18px);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03em;
   text-shadow: 0 0 8px rgba(20, 40, 90, 0.6);
 }
 
@@ -5350,7 +5397,9 @@ body.platform-windows select option:disabled {
 .splash-hint {
   color: #9db2d9;
   font-size: 12px;
-  letter-spacing: 0.2px;
+  /* Cancels the 2.2px inherited from .splash-label. At 12px that is 0.18em,
+     which spaces a sentence out until it reads as monospaced. */
+  letter-spacing: normal;
 }
 
 .splash-sub::before {

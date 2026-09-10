@@ -33,6 +33,7 @@ here.
 | certifi | 2026.7.22 | MPL-2.0 | © Kenneth Reitz (bundles Mozilla CA certificates) |
 | pyobjc (macOS only) | 12.2.2 | MIT | © 2002-2025 Ronald Oussoren et al. |
 | html2canvas | 1.4.1 | MIT | © 2022 Niklas von Hertzen |
+| Inter | 4.1 | OFL-1.1 | © 2016 The Inter Project Authors |
 
 Transitive dependencies pulled in by `uvicorn[standard]` (h11, httptools,
 websockets, uvloop, watchfiles, python-dotenv) are all under MIT or BSD-3-Clause
@@ -204,3 +205,21 @@ Released under MIT License
 
 (See the MIT License text above. The notice is preserved in the file header of
 `frontend/vendor/html2canvas.min.js`.)
+
+---
+
+## Frontend — Inter 4.1
+
+```
+Inter 4.1 <https://github.com/rsms/inter>
+Copyright (c) 2016 The Inter Project Authors
+Licensed under the SIL Open Font License, Version 1.1
+```
+
+The interface font, shipped as `frontend/vendor/InterVariable.woff2` — the
+`web/InterVariable.woff2` file from the upstream `Inter-4.1.zip` release,
+unmodified. The full OFL-1.1 text as distributed with it is kept verbatim
+alongside it in `frontend/vendor/InterVariable-OFL.txt`.
+
+Inter carries no Reserved Font Name, so the OFL's renaming requirement does not
+apply; the font is nevertheless shipped byte-for-byte as released.

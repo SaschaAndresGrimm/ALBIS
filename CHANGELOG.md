@@ -15,7 +15,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- The interface is set in one typeface, and it is bundled. `body` named a font stack led by Avenir Next, but `font-family` does not inherit into form controls — the user-agent stylesheet wins — and there was no reset anywhere in 6209 lines of CSS. So every panel row put a styled `<span>` label eight pixels from an Arial `<select>`, and the `:lang(ja)`/`:lang(zh-CN)` stacks never reached a dropdown at all. The app was literally set in two faces. It now ships Inter 4.1 as `frontend/vendor/InterVariable.woff2` (OFL-1.1, upstream's `web/InterVariable.woff2` byte-for-byte) with `system-ui` behind it, a reset that inherits the family into controls, and `font-optical-sizing: auto` — Inter carries an optical-size axis and almost all of this interface is set between 10px and 13px, which is the end of that axis it exists for. Bundling rather than resolving from the system also means a beamline Linux box renders the same as a Mac; it used to fall through to Arial.
+
+- The frame is centred in the part of the canvas you can actually see. In canvas-first mode the side panel is `position: absolute` over the canvas, but the zoom and fit maths measured `canvasWrap.clientWidth`, which still counts the strip underneath it — so the image was centred on a region whose right ~360px was occupied, sliding it under the panel and leaving an equal band of empty background on the left. The offset now subtracts the panel's measured overlap, and opening, closing or dragging the panel re-centres.
+
+- The cursor readout no longer shuffles as it updates. `.cursor-overlay` is rebuilt on every pointer move and had proportional figures, so a "1" was narrower than a "0" and the whole label changed width while you swept across the frame. The ROI statistics and the footer pills already set `tabular-nums`.
+
+- Canvas text and DOM text name the same family. Six modules each carried their own `ctx.font` literal — a 2D context takes a shorthand string, not a custom property — and they had drifted: five said "Avenir Next", the ring labels said "Avenir", the pixel labels said "Lucida Grande". They now come from one `canvasFont()` helper, and a redraw is scheduled once the bundled face is usable, because canvas text does not re-flow when a `font-display: swap` face arrives the way DOM text does.
+
 - `GOVERNANCE.md` states where the project is going, not only where it is. ALBIS is to become DECTRIS-supported and move to a DECTRIS organisation, and Windows releases will be signed by DECTRIS USA Ltd — which makes the publisher Windows shows read as DECTRIS regardless of what the documentation says, so the documentation now says it first. It also records the three things coupled to the repository path that a transfer breaks quietly, chief among them that every installed binary asks the current URL for its update check.
+
+### Removed
+
+- The ALBIS wordmark in the top-right of the menubar. It was the only decorated string in the working chrome — 800 weight, a one-off `#8ac5ff` that was not the accent token, uppercase, and a blue glow — and it named the application in a window whose title bar, splash, About dialog and Versions chip all already do. Nothing referenced it.
 
 ### Fixed
 

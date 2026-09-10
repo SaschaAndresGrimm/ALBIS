@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { canvasFont } from "../modules/canvas_fonts.js";
 import {
   OPAQUE_OVERLAY_RGB,
   nearestOverlayColorIndex,
@@ -128,8 +129,10 @@ describe("paintResolutionRings", () => {
     const scaled = recordingContext();
     paintResolutionRings(plain, { params: RING_PARAMS, view, uiScale: 1 });
     paintResolutionRings(scaled, { params: RING_PARAMS, view, uiScale: 4 });
-    expect(scaled.font).toBe("56px 'Avenir', 'Segoe UI', sans-serif");
-    expect(plain.font).toBe("14px 'Avenir', 'Segoe UI', sans-serif");
+    // Through canvasFont, so a change to the shared stack does not have to be
+    // transcribed here -- only the size, which is what this test is about.
+    expect(scaled.font).toBe(canvasFont(56));
+    expect(plain.font).toBe(canvasFont(14));
     // The ring itself keeps its radius; only the ink around it grows.
     expect(scaled.of("ellipse")[0][3]).toBeCloseTo(plain.of("ellipse")[0][3]);
   });

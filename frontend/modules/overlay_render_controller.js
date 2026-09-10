@@ -8,6 +8,7 @@ import {
   paintResolutionRings,
   screenView,
 } from "./overlay_painters.js";
+import { canvasFont } from "./canvas_fonts.js";
 
 export function createOverlayRenderController({
   state,
@@ -133,7 +134,7 @@ export function createOverlayRenderController({
     const fontSize = isFloatLabelMode
       ? Math.min(11.5, Math.max(6.5, zoom * 0.44))
       : Math.min(13, Math.max(7, zoom * 0.52));
-    pixelCtx.font = `${fontSize}px "Lucida Grande", "Helvetica Neue", Arial, sans-serif`;
+    pixelCtx.font = canvasFont(fontSize);
     pixelCtx.textAlign = "center";
     pixelCtx.textBaseline = "middle";
     pixelCtx.fillStyle = "rgba(248, 252, 255, 0.95)";

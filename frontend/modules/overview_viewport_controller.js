@@ -2,6 +2,8 @@
  * Overview rendering and viewport interaction orchestration.
  */
 
+import { canvasFont } from "./canvas_fonts.js";
+
 export function createOverviewViewportController({
   state,
   overviewState,
@@ -18,6 +20,7 @@ export function createOverviewViewportController({
     zoomRange,
     zoomValue,
     viewerFooterEl,
+    toolsPanel,
   } = elements;
 
   const {
@@ -518,7 +521,7 @@ export function createOverviewViewportController({
       overviewCtx.strokeStyle = PLOT_THEME.frame;
       overviewCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
       overviewCtx.fillStyle = "rgba(220, 232, 250, 0.7)";
-      overviewCtx.font = '500 10px "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+      overviewCtx.font = canvasFont(10, 500);
       overviewCtx.textAlign = "center";
       overviewCtx.textBaseline = "middle";
       overviewCtx.fillText("No image", width / 2, height / 2);
@@ -582,15 +585,57 @@ export function createOverviewViewportController({
     overviewRect = { rectX, rectY, rectW, rectH, handles, handleSize, view, metrics };
   }
 
+  /**
+   * How much of the canvas the side panel is sitting on top of, per edge.
+   *
+   * The panel has two modes. Docked, it owns a grid column, so `canvasWrap`
+   * already ends where the panel begins and nothing is covered. In
+   * canvas-first mode it is `position: absolute` over the canvas, and
+   * `clientWidth` still counts the strip underneath it -- so centring the
+   * image in the full width slid it under the panel and left an equal band of
+   * empty background on the opposite side. Measuring the real overlap handles
+   * both modes, the collapsed state, and the narrow-viewport case where the
+   * panel spans everything.
+   */
+  function panelInsets() {
+    const none = { left: 0, right: 0 };
+    if (!toolsPanel || !canvasWrap) return none;
+    if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") return none;
+    const style = window.getComputedStyle(toolsPanel);
+    // Only a panel taken out of flow can overlap; a docked one cannot.
+    if (style.position !== "absolute" && style.position !== "fixed") return none;
+    if (style.display === "none" || style.visibility === "hidden") return none;
+    const panel = toolsPanel.getBoundingClientRect();
+    const wrap = canvasWrap.getBoundingClientRect();
+    if (!(panel.width > 0) || !(wrap.width > 0)) return none;
+    const overlap = Math.min(wrap.right, panel.right) - Math.max(wrap.left, panel.left);
+    if (!(overlap > 0)) return none;
+    // Never concede more than half the canvas. Past that the correction costs
+    // more room than the occlusion it is compensating for.
+    const conceded = Math.min(overlap, wrap.width / 2);
+    // Charge the overlap to whichever edge the panel is anchored nearer.
+    return panel.left - wrap.left >= wrap.right - panel.right
+      ? { left: 0, right: conceded }
+      : { left: conceded, right: 0 };
+  }
+
   function setZoom(value, options = {}) {
     const { clampPan = true } = options;
     const minZoom = getMinZoom();
     const clamped = Math.max(minZoom, Math.min(MAX_ZOOM, Number(value)));
     state.zoom = clamped;
     const aspect = state.pixelAspect || 1;
+    const insets = panelInsets();
+    const usableWidth = canvasWrap
+      ? Math.max(0, canvasWrap.clientWidth - insets.left - insets.right)
+      : 0;
+    const scaledWidth = state.width * clamped;
+    // Centre in what is actually visible when the frame fits; when it does not,
+    // pin it to the canvas origin and let panning reach the rest, which is what
+    // the old Math.max(0, ...) did for every case.
     const offsetX =
-      canvasWrap && state.width
-        ? Math.max(0, (canvasWrap.clientWidth - state.width * clamped) / 2)
+      canvasWrap && state.width && scaledWidth <= usableWidth
+        ? insets.left + (usableWidth - scaledWidth) / 2
         : 0;
     const offsetY =
       canvasWrap && state.height

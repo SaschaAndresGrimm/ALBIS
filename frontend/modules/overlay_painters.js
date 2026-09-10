@@ -27,6 +27,7 @@ import {
   pickGeometryRingLabelPoint,
   wavelengthFromEnergy,
 } from "./ring_geometry_utils.js";
+import { canvasFont } from "./canvas_fonts.js";
 
 // Translucent on screen: halos are meant to darken or lighten whatever is
 // underneath rather than replace it.
@@ -324,7 +325,7 @@ export function paintResolutionRings(
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   const labels = createRingLabelPlacer(ctx, colors, uiScale);
-  ctx.font = `${labels.fontSize}px 'Avenir', 'Segoe UI', sans-serif`;
+  ctx.font = canvasFont(labels.fontSize);
   ctx.textBaseline = "middle";
   // Reserve the beam-centre area so labels never land on top of the marker.
   if (Number.isFinite(centerX) && Number.isFinite(centerY)) {

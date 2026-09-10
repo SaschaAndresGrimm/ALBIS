@@ -64,6 +64,7 @@ import { createOverlayRenderController } from "./modules/overlay_render_controll
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
 import { createRenderEngineController } from "./modules/render_engine_controller.js";
 import { createOverviewViewportController } from "./modules/overview_viewport_controller.js";
+import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
 import { createFrameMetadataController } from "./modules/frame_metadata_controller.js";
@@ -2490,6 +2491,9 @@ panelLayoutController = createPanelLayoutController({
     scheduleOverview,
     scheduleHistogram,
     schedulePixelOverlay,
+    recenterCanvas: () => {
+      if (state.hasFrame) setZoom(state.zoom);
+    },
     updateUiIdleAndAnchors,
     getSectionStateStore: () => sectionStateStore,
     setSectionStateStore: (next) => {
@@ -3744,6 +3748,7 @@ overviewViewportController = createOverviewViewportController({
     zoomRange,
     zoomValue,
     viewerFooterEl,
+    toolsPanel,
   },
   constants: {
     MIN_ZOOM,
@@ -4324,6 +4329,23 @@ backendLogViewerController = createBackendLogViewerController({
 });
 
 initializeMainUiBindings();
+
+// Canvas text is rasterised the moment it is drawn and does not re-flow when a
+// `font-display: swap` face arrives later, the way DOM text does. The bundled
+// woff2 comes off the same local origin as the page, so it is normally there
+// well before a frame is open -- but on a cold cache the histogram and the
+// splash can be painted first, and they would then stay in the fallback face
+// beside DOM labels already using Inter. One redraw once the face is usable.
+whenCanvasFontReady().then(() => {
+  drawSplash();
+  if (state.histogram) drawHistogram(state.histogram);
+  scheduleOverview();
+  scheduleHistogram();
+  schedulePixelOverlay();
+  scheduleRoiOverlay();
+  scheduleResolutionOverlay();
+  schedulePeakOverlay();
+});
 
 async function handleLocalFileSelection(mode) {
   fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf,.cfg";
