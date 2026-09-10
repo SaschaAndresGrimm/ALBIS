@@ -680,10 +680,14 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         )
         return JSONResponse(content=payload.model_dump(), headers=scan_headers)
 
+    # Deliberately not `async def`: the body is `_stream_upload_to_path`, a
+    # synchronous read/write loop over the whole upload with nothing to await.
+    # On the event loop that stalls every other request for the duration --
+    # including the interface's own polling, so the window appears to freeze
+    # while a large file uploads. As a plain `def`, Starlette runs it in a
+    # threadpool, which is what the other 46 routes already do.
     @app.post("/api/upload", response_model=UploadResponse)
-    async def upload(
-        file: UploadFile = File(...), folder: str | None = Query(None)
-    ) -> UploadResponse:
+    def upload(file: UploadFile = File(...), folder: str | None = Query(None)) -> UploadResponse:
         """Stream an uploaded detector file into the selected data directory."""
         if not file.filename:
             raise HTTPException(status_code=400, detail="Missing filename")

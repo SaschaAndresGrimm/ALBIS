@@ -13,6 +13,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- A failed or cancelled series operation no longer leaves a partial output file. The HDF5 branch opened the final path, created the dataset at full shape and filled it frame by frame, checking for cancellation inside that loop — so pressing Cancel closed a half-written `.h5` sitting at the finished name, indistinguishable from a real result, and the path was discarded rather than recorded. The file is now written beside the target and renamed on success, the same way the config save already worked.
+
+- The metadata panel no longer sticks on "Loading metadata…". `setLoading(true)` was switched on before the request and off only on the success path, so an unreadable dataset left the spinner up for the rest of the session. The failure was also written into the footer without a tone, so no toast was raised, and it was rethrown into a call site with no `catch` — the dataset dropdown — making it an unhandled rejection too.
+
+- `/api/upload` and `/api/remote/v1/frame` no longer block the event loop. Both were `async def` while doing synchronous work: the upload ran a read/write loop over the whole file with nothing to await, and frame ingest decoded inline. Every other request, including the interface's own polling, waited behind them — so the window appeared to freeze during a large upload. As plain `def` handlers Starlette runs them in a threadpool, which is what the other 46 routes already did.
+
 - Controls no longer show two tooltips at once. The side-panel button drew ours reading "Toggle the side panel open or closed (M)." with the browser's own "Open side menu (M)." underneath it. The startup pass did strip `title` from every element carrying a managed hint, but only when it ran: `applyPanelState` re-sets that button's title on every call, and i18n re-applies every `data-i18n-title` on each language change, so the attribute came straight back. Six controls showed two different sentences and seven more showed the same sentence twice. The attribute is now taken away for the lifetime of the hover and put back afterwards, which holds whatever re-adds it — and, unlike the old permanent strip, leaves the native tooltip working for anyone who has switched tool hints off, who previously got no tooltip at all on those controls.
 
 ## [0.16.0] - 2026-09-10

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import shutil
+import tempfile
 import threading
 import time
 import uuid
@@ -1088,130 +1090,153 @@ class SeriesSummingService:
                 else:
                     out_file = base_target.parent / f"{operation_base_name}_{timestamp}.h5"
                 out_file = self._next_available_path(out_file)
-                with h5py.File(out_file, "w") as out_h5:
-                    out_h5.attrs["source_file"] = str(source_path)
-                    out_h5.attrs["source_dataset"] = str(dataset)
-                    out_h5.attrs["series_mode"] = mode
-                    out_h5.attrs["operation"] = operation
-                    out_h5.attrs["frame_count"] = int(frame_count)
-                    out_h5.attrs["threshold_count"] = int(threshold_count)
-                    out_h5.attrs["mask_applied"] = bool(apply_mask)
-                    out_h5.attrs["normalize_method"] = normalize_method
-                    if normalize_method == "frame" and normalize_frame is not None:
-                        out_h5.attrs["normalize_frame"] = int(normalize_frame)
-                    if normalize_method == "scalar" and normalize_scalar_value is not None:
-                        out_h5.attrs["normalize_scalar"] = float(normalize_scalar_value)
-                    if normalize_method == "image" and normalize_image_source is not None:
-                        out_h5.attrs["normalize_image"] = str(normalize_image_source)
+                # Written beside the target and renamed on success. The write
+                # loop below calls `_raise_if_cancelled`, so pressing Cancel --
+                # or any error part-way -- used to leave a half-written .h5 at
+                # the final name, indistinguishable from a finished one and
+                # recorded nowhere, because `outputs` is discarded on the way
+                # out. Same reasoning and same directory as the atomic config
+                # save in backend/config.py: os.replace is only atomic within a
+                # filesystem.
+                tmp_handle, tmp_name = tempfile.mkstemp(
+                    dir=out_file.parent, prefix=f".{out_file.name}.", suffix=".partial"
+                )
+                os.close(tmp_handle)
+                tmp_path = Path(tmp_name)
+                try:
+                    with h5py.File(tmp_path, "w") as out_h5:
+                        out_h5.attrs["source_file"] = str(source_path)
+                        out_h5.attrs["source_dataset"] = str(dataset)
+                        out_h5.attrs["series_mode"] = mode
+                        out_h5.attrs["operation"] = operation
+                        out_h5.attrs["frame_count"] = int(frame_count)
+                        out_h5.attrs["threshold_count"] = int(threshold_count)
+                        out_h5.attrs["mask_applied"] = bool(apply_mask)
+                        out_h5.attrs["normalize_method"] = normalize_method
+                        if normalize_method == "frame" and normalize_frame is not None:
+                            out_h5.attrs["normalize_frame"] = int(normalize_frame)
+                        if normalize_method == "scalar" and normalize_scalar_value is not None:
+                            out_h5.attrs["normalize_scalar"] = float(normalize_scalar_value)
+                        if normalize_method == "image" and normalize_image_source is not None:
+                            out_h5.attrs["normalize_image"] = str(normalize_image_source)
 
-                    out_frame_count = len(groups)
-                    image_h = int(shape[-2])
-                    image_w = int(shape[-1])
-                    if threshold_count > 1:
-                        data_shape = (out_frame_count, threshold_count, image_h, image_w)
-                        data_chunks = (1, 1, image_h, image_w)
-                    else:
-                        data_shape = (out_frame_count, image_h, image_w)
-                        data_chunks = (1, image_h, image_w)
-
-                    entry_group = out_h5.require_group("/entry")
-                    data_group = entry_group.require_group("data")
-
-                    if ext in {".h5", ".hdf5"}:
-                        try:
-                            with h5py.File(source_path, "r") as src_h5:
-                                self._copy_h5_metadata(src_h5, out_h5, threshold_count)
-                        except Exception:
-                            pass
-                    embedded_geometry = self._write_embedded_geometry(out_h5, geometry_payload)
-                    self._write_analysis_geometry_metadata(
-                        out_h5,
-                        distance_mm=distance_mm_value,
-                        pixel_size_um=pixel_size_um_value,
-                        energy_ev=energy_ev_value,
-                        center_x_px=center_x_px_value,
-                        center_y_px=center_y_px_value,
-                    )
-                    if embedded_geometry:
-                        out_h5.attrs["albis_geometry_embedded"] = True
-
-                    data_dset = data_group.create_dataset(
-                        "data",
-                        shape=data_shape,
-                        dtype=output_dtype,
-                        chunks=data_chunks,
-                        compression="gzip",
-                        compression_opts=4,
-                        shuffle=True,
-                    )
-                    data_dset.attrs["sum_mode"] = mode
-                    data_dset.attrs["sum_step"] = int(step)
-                    data_dset.attrs["sum_operation"] = operation
-                    if range_start is not None:
-                        data_dset.attrs["sum_range_start"] = int(range_start)
-                    if range_end is not None:
-                        data_dset.attrs["sum_range_end"] = int(range_end)
-                    data_dset.attrs["sum_normalize_method"] = normalize_method
-                    if normalize_method == "frame" and normalize_frame is not None:
-                        data_dset.attrs["sum_normalize_frame"] = int(normalize_frame)
-                    if normalize_method == "scalar" and normalize_scalar_value is not None:
-                        data_dset.attrs["sum_normalize_scalar"] = float(normalize_scalar_value)
-                    if normalize_method == "image" and normalize_image_source is not None:
-                        data_dset.attrs["sum_normalize_image"] = str(normalize_image_source)
-                    data_dset.attrs["source_dataset"] = str(dataset)
-                    data_dset.attrs["frame_count_in"] = int(frame_count)
-                    data_dset.attrs["frame_count_out"] = int(out_frame_count)
-                    data_dset.attrs["threshold_count"] = int(threshold_count)
-                    data_dset.attrs["signal"] = "data"
-
-                    chunk_start = np.asarray(
-                        [int(group["start"]) for group in groups], dtype=np.int64
-                    )
-                    chunk_end = np.asarray([int(group["end"]) for group in groups], dtype=np.int64)
-                    chunk_count = np.asarray(
-                        [int(group["count"]) for group in groups], dtype=np.int64
-                    )
-                    data_group.create_dataset("sum_start_frame", data=chunk_start)
-                    data_group.create_dataset("sum_end_frame", data=chunk_end)
-                    data_group.create_dataset("sum_frame_count", data=chunk_count)
-
-                    for thr, chunk_idx, _start_idx, _end_idx, _count, arr, mask_bits in sums:
-                        self._raise_if_cancelled(job_id)
-                        arr_out = self._cast_result_to_dtype(arr, output_dtype)
-                        if mask_bits is not None:
-                            _, _, any_mask = self._deps.mask_slices(mask_bits)
-                            arr_out = arr_out.copy()
-                            arr_out[any_mask] = flag_value
+                        out_frame_count = len(groups)
+                        image_h = int(shape[-2])
+                        image_w = int(shape[-1])
                         if threshold_count > 1:
-                            data_dset[chunk_idx, thr, :, :] = arr_out
+                            data_shape = (out_frame_count, threshold_count, image_h, image_w)
+                            data_chunks = (1, 1, image_h, image_w)
                         else:
-                            data_dset[chunk_idx, :, :] = arr_out
+                            data_shape = (out_frame_count, image_h, image_w)
+                            data_chunks = (1, image_h, image_w)
 
-                    if apply_mask:
-                        base_mask_bits = mask_bits_by_thr[0] if mask_bits_by_thr else None
-                        if base_mask_bits is not None:
-                            mask_group = out_h5.require_group(
-                                "/entry/instrument/detector/detectorSpecific"
-                            )
-                            mask_group.create_dataset(
-                                "pixel_mask",
-                                data=base_mask_bits.astype(np.uint32),
-                                compression="gzip",
-                            )
-                        if threshold_count > 1:
-                            detector_group = out_h5.require_group("/entry/instrument/detector")
-                            for thr, mask_bits in enumerate(mask_bits_by_thr):
-                                if mask_bits is None:
-                                    continue
-                                thr_group = detector_group.require_group(
-                                    f"threshold_{thr + 1}_channel"
+                        entry_group = out_h5.require_group("/entry")
+                        data_group = entry_group.require_group("data")
+
+                        if ext in {".h5", ".hdf5"}:
+                            try:
+                                with h5py.File(source_path, "r") as src_h5:
+                                    self._copy_h5_metadata(src_h5, out_h5, threshold_count)
+                            except Exception:
+                                pass
+                        embedded_geometry = self._write_embedded_geometry(out_h5, geometry_payload)
+                        self._write_analysis_geometry_metadata(
+                            out_h5,
+                            distance_mm=distance_mm_value,
+                            pixel_size_um=pixel_size_um_value,
+                            energy_ev=energy_ev_value,
+                            center_x_px=center_x_px_value,
+                            center_y_px=center_y_px_value,
+                        )
+                        if embedded_geometry:
+                            out_h5.attrs["albis_geometry_embedded"] = True
+
+                        data_dset = data_group.create_dataset(
+                            "data",
+                            shape=data_shape,
+                            dtype=output_dtype,
+                            chunks=data_chunks,
+                            compression="gzip",
+                            compression_opts=4,
+                            shuffle=True,
+                        )
+                        data_dset.attrs["sum_mode"] = mode
+                        data_dset.attrs["sum_step"] = int(step)
+                        data_dset.attrs["sum_operation"] = operation
+                        if range_start is not None:
+                            data_dset.attrs["sum_range_start"] = int(range_start)
+                        if range_end is not None:
+                            data_dset.attrs["sum_range_end"] = int(range_end)
+                        data_dset.attrs["sum_normalize_method"] = normalize_method
+                        if normalize_method == "frame" and normalize_frame is not None:
+                            data_dset.attrs["sum_normalize_frame"] = int(normalize_frame)
+                        if normalize_method == "scalar" and normalize_scalar_value is not None:
+                            data_dset.attrs["sum_normalize_scalar"] = float(normalize_scalar_value)
+                        if normalize_method == "image" and normalize_image_source is not None:
+                            data_dset.attrs["sum_normalize_image"] = str(normalize_image_source)
+                        data_dset.attrs["source_dataset"] = str(dataset)
+                        data_dset.attrs["frame_count_in"] = int(frame_count)
+                        data_dset.attrs["frame_count_out"] = int(out_frame_count)
+                        data_dset.attrs["threshold_count"] = int(threshold_count)
+                        data_dset.attrs["signal"] = "data"
+
+                        chunk_start = np.asarray(
+                            [int(group["start"]) for group in groups], dtype=np.int64
+                        )
+                        chunk_end = np.asarray(
+                            [int(group["end"]) for group in groups], dtype=np.int64
+                        )
+                        chunk_count = np.asarray(
+                            [int(group["count"]) for group in groups], dtype=np.int64
+                        )
+                        data_group.create_dataset("sum_start_frame", data=chunk_start)
+                        data_group.create_dataset("sum_end_frame", data=chunk_end)
+                        data_group.create_dataset("sum_frame_count", data=chunk_count)
+
+                        for thr, chunk_idx, _start_idx, _end_idx, _count, arr, mask_bits in sums:
+                            self._raise_if_cancelled(job_id)
+                            arr_out = self._cast_result_to_dtype(arr, output_dtype)
+                            if mask_bits is not None:
+                                _, _, any_mask = self._deps.mask_slices(mask_bits)
+                                arr_out = arr_out.copy()
+                                arr_out[any_mask] = flag_value
+                            if threshold_count > 1:
+                                data_dset[chunk_idx, thr, :, :] = arr_out
+                            else:
+                                data_dset[chunk_idx, :, :] = arr_out
+
+                        if apply_mask:
+                            base_mask_bits = mask_bits_by_thr[0] if mask_bits_by_thr else None
+                            if base_mask_bits is not None:
+                                mask_group = out_h5.require_group(
+                                    "/entry/instrument/detector/detectorSpecific"
                                 )
-                                thr_group.create_dataset(
+                                mask_group.create_dataset(
                                     "pixel_mask",
-                                    data=mask_bits.astype(np.uint32),
+                                    data=base_mask_bits.astype(np.uint32),
                                     compression="gzip",
                                 )
-                    outputs.append(str(out_file))
+                            if threshold_count > 1:
+                                detector_group = out_h5.require_group("/entry/instrument/detector")
+                                for thr, mask_bits in enumerate(mask_bits_by_thr):
+                                    if mask_bits is None:
+                                        continue
+                                    thr_group = detector_group.require_group(
+                                        f"threshold_{thr + 1}_channel"
+                                    )
+                                    thr_group.create_dataset(
+                                        "pixel_mask",
+                                        data=mask_bits.astype(np.uint32),
+                                        compression="gzip",
+                                    )
+                    os.replace(tmp_path, out_file)
+                except BaseException:
+                    # Cancellation included: a job the user stopped must not
+                    # leave a file that looks like a finished result.
+                    with contextlib.suppress(OSError):
+                        tmp_path.unlink()
+                    raise
+                outputs.append(str(out_file))
             elif output_format in {"tiff", "tif"}:
                 base_name = operation_base_name
                 out_dir = base_target.parent

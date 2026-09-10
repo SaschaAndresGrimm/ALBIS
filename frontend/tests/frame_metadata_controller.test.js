@@ -285,4 +285,81 @@ describe("frame_metadata_controller", () => {
     expect(stopPlayback).not.toHaveBeenCalled();
     expect(resetTransientFrameLoadState).not.toHaveBeenCalled();
   });
+
+
+  it("clears the loading state and reports the failure when metadata cannot be read", async () => {
+    // setLoading(true) was switched on before the fetch and only ever switched
+    // off on the success path, so a dataset the backend cannot read left the
+    // spinner and "Loading metadata…" on screen for the rest of the session.
+    // The catch also rethrew, and the dataset dropdown awaits loadMetadata()
+    // with no try/catch, so it became an unhandled rejection as well.
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createFrameMetadataController } = await import("../modules/frame_metadata_controller.js");
+
+    const setLoading = vi.fn();
+    const setStatus = vi.fn();
+    const setDataSourceSectionState = vi.fn();
+
+    const controller = createFrameMetadataController({
+      apiBase: "/api",
+      state: {
+        autoload: { dir: "" },
+        file: "broken.h5",
+        dataset: "/entry/data/data",
+        seriesFiles: [],
+      },
+      analysisState: { rings: [], distanceMm: null, pixelSizeUm: null, energyEv: null, centerX: null, centerY: null },
+      elements: {
+        autoloadDir: null, autoloadDirList: null, fileSelect: null,
+        metaShape: document.createElement("span"),
+        metaDtype: document.createElement("span"),
+        ringsDistance: document.createElement("input"),
+        ringsPixel: document.createElement("input"),
+        ringsEnergy: document.createElement("input"),
+        ringsCenterX: document.createElement("input"),
+        ringsCenterY: document.createElement("input"),
+        ringInputs: [],
+      },
+      callbacks: {
+        fetchJSON: vi.fn(async () => { throw new Error("422 Cannot read data"); }),
+        option: () => document.createElement("option"),
+        fileLabel: (value) => String(value || ""),
+        setDataControlsForHdf5: () => {},
+        setDataSourceSectionState,
+        setStatus,
+        stopPlayback: () => {},
+        updateToolbar: () => {},
+        showSplash: () => {},
+        setSplashStatus: () => {},
+        setLoading,
+        showProcessingProgress: () => {},
+        hideProcessingProgress: () => {},
+        getDefaultThresholdIndex: () => 0,
+        syncSeriesSumOutputPath: () => {},
+        updateFrameControls: () => {},
+        updateThresholdOptions: () => {},
+        loadMask: async () => {},
+        loadFrame: async () => {},
+        isHdf5File: () => true,
+        getDefaultCenter: () => ({ x: 0, y: 0 }),
+        loadImageGeometry: async () => {},
+        resetTransientFrameLoadState: () => {},
+        scheduleResolutionOverlay: () => {},
+      },
+    });
+
+    // Must not reject: the dataset dropdown awaits this without a catch.
+    const result = await controller.loadMetadata();
+
+    expect(result).toBe(false);
+    expect(setLoading).toHaveBeenCalledWith(false);
+    // Toned, so it is raised as a toast instead of only landing in the footer
+    // pill where the next ambient update overwrites it.
+    const toned = setStatus.mock.calls.find(([, opts]) => opts && opts.tone === "error");
+    expect(toned, "the failure was never reported with an error tone").toBeTruthy();
+    expect(setDataSourceSectionState).toHaveBeenCalledWith("warning", expect.anything());
+  });
 });

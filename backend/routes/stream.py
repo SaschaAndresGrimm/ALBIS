@@ -380,8 +380,11 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
             last_error=str(payload.get("last_error") or ""),
         )
 
+    # Plain `def` for the same reason as `/api/upload`: decoding a pushed frame
+    # is CPU-bound and, for CBF and EDF, goes through a temporary file. A live
+    # producer pushing frames would otherwise stall the event loop on each one.
     @app.post("/api/remote/v1/frame", response_model=RemoteFrameIngestResponse)
-    async def remote_frame_ingest(
+    def remote_frame_ingest(
         source_id: str = Query("default", min_length=1),
         seq: int | None = Query(None, ge=0),
         meta: str = Form("{}"),
@@ -390,7 +393,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         """Ingest one remotely pushed frame and store it in the in-memory snapshot cache."""
         if not image.filename:
             raise HTTPException(status_code=400, detail="Missing image filename")
-        payload = await image.read()
+        payload = image.file.read()
         if not payload:
             raise HTTPException(status_code=400, detail="Empty image payload")
         meta_dict = deps.remote_parse_meta(meta)

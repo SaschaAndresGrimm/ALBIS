@@ -187,9 +187,20 @@ export function createFrameMetadataController({
     } catch (err) {
       console.error(err);
       setDataSourceSectionState("warning", t("status.data.failed_load_metadata"));
-      throw err;
+      // Toned, so the failure is raised as a toast rather than only written
+      // into the footer pill, where the next ambient update overwrites it.
+      setStatus(t("status.data.failed_load_metadata"), { tone: "error" });
+      // Returning rather than rethrowing: `loadMetadata` already reports
+      // failure by returning false on the no-frame path, and one of its two
+      // call sites (the dataset dropdown) has no try/catch, so a throw here
+      // became an unhandled rejection.
+      return false;
     } finally {
       hideProcessingProgress();
+      // The pill was switched on above and only ever switched off on the
+      // success path, so any failure left "Loading metadata…" and a spinner
+      // on screen for the rest of the session.
+      setLoading(false);
     }
   }
 

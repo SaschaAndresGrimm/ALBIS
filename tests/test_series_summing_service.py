@@ -686,3 +686,93 @@ def test_series_summing_service_embeds_effective_geometry_in_hdf5_output(tmp_pat
         assert h5["/entry/instrument/detector/beam_center_x"][()] == pytest.approx(1083.9)
         assert h5["/entry/instrument/detector/beam_center_y"][()] == pytest.approx(2593.48)
         assert h5["/entry/instrument/beam/incident_energy"][()] == pytest.approx(7118.0)
+
+
+def test_a_failed_hdf5_job_leaves_no_partial_output(tmp_path: Path) -> None:
+    """A job that dies mid-write must not leave a file that looks finished.
+
+    `_run_job` opened `h5py.File(out_file, "w")` on the final path, created the
+    dataset at full shape and filled it frame by frame, calling
+    `_raise_if_cancelled` inside that loop. Cancelling from the interface --
+    or any error -- closed a half-written `.h5` and left it at the final name,
+    indistinguishable from a complete result. `outputs` was discarded on the
+    way out, so nothing even recorded its path.
+    """
+    series_files = [tmp_path / "img_0001.tiff", tmp_path / "img_0002.tiff"]
+    frames = {
+        series_files[0]: np.array([[1, 2], [3, 4]], dtype=np.int16),
+        series_files[1]: np.array([[5, 6], [7, 8]], dtype=np.int16),
+    }
+
+    def read_tiff(path: Path, index: int) -> np.ndarray:
+        assert index == 0
+        return np.asarray(frames[path])
+
+    # Fail *while the output file is open and partly written*, which is where
+    # cancellation lands. Failing before `h5py.File` would prove nothing: no
+    # file exists yet either way, and the test passes with or without the fix.
+    class _FailingFile:
+        def __init__(self, handle: Any) -> None:
+            self._handle = handle
+
+        def __enter__(self):
+            self._handle.__enter__()
+            return self
+
+        def __exit__(self, *exc):
+            return self._handle.__exit__(*exc)
+
+        def __getattr__(self, name: str):
+            return getattr(self._handle, name)
+
+        def require_group(self, *args: Any, **kwargs: Any):
+            # Runs for real first, so the file on disk is non-empty and looks
+            # like a partially written result -- then fails, as a cancellation
+            # inside the frame loop would.
+            self._handle.require_group(*args, **kwargs)
+            raise RuntimeError("write failed part-way through")
+
+    class _ExplodingH5py:
+        def __getattr__(self, name: str):
+            return getattr(h5py, name)
+
+        def File(self, *args: Any, **kwargs: Any):
+            return _FailingFile(h5py.File(*args, **kwargs))
+
+    service = SeriesSummingService(
+        _make_deps(
+            tmp_path,
+            resolve_image_file=lambda name: Path(name),
+            resolve_series_files=lambda _s: (list(series_files), 0),
+            read_tiff=read_tiff,
+            write_tiff=lambda _path, _arr: None,
+            ensure_hdf5_stack=lambda: None,
+            get_h5py=lambda: _ExplodingH5py(),
+        )
+    )
+
+    job_id = service.start_job(
+        file=str(series_files[0]),
+        dataset="",
+        mode="all",
+        step=1,
+        operation="sum",
+        normalize_method="none",
+        normalize_frame=None,
+        normalize_scalar=None,
+        normalize_image=None,
+        range_start=None,
+        range_end=None,
+        output_path=str(tmp_path / "sum_out"),
+        output_format="hdf5",
+        apply_mask=False,
+    )
+    job = _wait_for_job(service, job_id)
+
+    assert job["status"] == "error"
+    assert not job.get("outputs")
+    # Neither a finished-looking output nor an abandoned scratch file.
+    leftovers = sorted(p.name for p in tmp_path.iterdir() if p.suffix in {".h5", ".hdf5"})
+    assert leftovers == [], f"a partial output survived the failure: {leftovers}"
+    partials = sorted(p.name for p in tmp_path.iterdir() if p.name.endswith(".partial"))
+    assert partials == [], f"a scratch file was left behind: {partials}"
