@@ -142,7 +142,12 @@ function Start-AlbisBackgroundProcess {
       dir = $logDir
     }
   }
-  $config | ConvertTo-Json -Depth 6 | Set-Content -Path $configPath -Encoding UTF8
+  # BOM-less, deliberately: backend/config.py opens this with encoding="utf-8"
+  # and json.load rejects a leading BOM. Windows PowerShell 5.1's
+  # `Set-Content -Encoding UTF8` writes one; pwsh 7's does not. See the same
+  # note in sign_windows.ps1, where that difference cost a release build.
+  $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+  [System.IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json -Depth 6), $utf8NoBom)
 
   $psi = [System.Diagnostics.ProcessStartInfo]::new($ExePath)
   $psi.WorkingDirectory = $ProfileDir

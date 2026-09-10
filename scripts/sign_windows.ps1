@@ -154,7 +154,17 @@ function New-AzureArtifactSigningMetadataFile {
   $tmp = [System.IO.Path]::GetTempFileName()
   $metadataPath = [System.IO.Path]::ChangeExtension($tmp, ".json")
   Move-Item -Path $tmp -Destination $metadataPath -Force
-  $metadata | ConvertTo-Json -Depth 4 | Set-Content -Path $metadataPath -Encoding UTF8
+  # Not Set-Content -Encoding UTF8. In Windows PowerShell 5.1 that writes a
+  # UTF-8 *BOM*; in pwsh 7 it does not. The Azure signing dlib parses this file
+  # with System.Text.Json, which rejects a BOM outright:
+  #   JsonException: '0xEF' is an invalid start of a value.
+  # So signing worked from the workflow step (shell: pwsh) and failed inside
+  # Inno Setup, which shells out to powershell.exe -- same script, same inputs,
+  # different host. WriteAllText with an explicit BOM-less encoding is the same
+  # on both. New-Object rather than ::new() because this runs under whichever
+  # PowerShell Inno Setup happens to find.
+  $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+  [System.IO.File]::WriteAllText($metadataPath, ($metadata | ConvertTo-Json -Depth 4), $utf8NoBom)
   return $metadataPath
 }
 

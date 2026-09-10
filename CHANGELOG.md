@@ -31,6 +31,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- Windows signing no longer fails inside the installer build. `sign_windows.ps1` wrote the Azure signing metadata with `Set-Content -Encoding UTF8`, and Windows PowerShell 5.1 takes that to mean UTF-8 *with a byte order mark* while PowerShell 7 does not. The signing dlib parses that file with `System.Text.Json`, which rejects a BOM outright — `'0xEF' is an invalid start of a value`. So signing succeeded from the workflow step, which declares `shell: pwsh`, and failed a few seconds later inside Inno Setup, which shells out to `powershell.exe`: same script, same inputs, different host. `smoke_windows_installer.ps1` wrote its config the same way, and `backend/config.py` opens that with `encoding="utf-8"`, so it would have failed the same way for the same reason. Both now write through an explicit BOM-less encoding, and a test rejects the pattern in any `scripts/*.ps1` — CI cannot catch this by running the scripts, because CI runs pwsh.
+
+
 - The GIF export progress bar stays full when the export finishes. It reset to zero and "Idle" in the same `finally` that runs after a cancellation or a failure, so a successful export ended by appearing to undo itself — and the bar is the only thing on screen that says the encode reached the end. Cancelled and failed runs still reset, because for those the bar genuinely represents nothing.
 
 - A summed HDF5 output says which frame-index base it uses. `sum_start_frame` and `sum_end_frame` index the source dataset and are 0-based like the array they index, while the exported TIFF filenames and every progress message count from 1 — and the `range` mode's own parameters are 1-based too. Every one of those is defensible alone; together, with nothing stating which was which, they are an off-by-one waiting to reach a figure caption. The datasets now carry `index_base` and a description saying so.
