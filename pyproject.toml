@@ -72,16 +72,26 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-# Warnings are errors so a deprecation in a dependency surfaces on the commit
-# that introduces it rather than on the release that removes the feature.
-# Each ignore below is third-party and out of our hands; ALBIS's own code
-# must stay warning-clean.
+# Warnings are errors so a deprecation in ALBIS's own code surfaces on the
+# commit that introduces it rather than on the release that removes the
+# feature. Every ignore below is a warning raised while *importing* the
+# TestClient dependency stack (fastapi -> starlette -> anyio), which nothing we
+# write chooses and no test can avoid.
+#
+# This list needs occasional maintenance: backend/requirements.txt pins direct
+# dependencies only, so CI resolves a different transitive closure than a
+# developer's venv and can hit a deprecation that passes locally. Pinning the
+# closure with hashes would end that -- until then, expect to add a line here
+# when an upstream release deprecates something new at import time.
 filterwarnings = [
   "error",
   # starlette.testclient still imports httpx and warns at import time; nothing
   # we call chooses that. Note the category subclasses UserWarning, not
   # DeprecationWarning, so it has to be named in full.
   "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+  # starlette.testclient touches anyio's deprecated aliases at import. Matched
+  # as a family: anyio is deprecating these one release at a time.
+  'ignore:The anyio\.[A-Za-z_.]+ alias is deprecated:DeprecationWarning',
   # urllib closes its socket during GC when a request fails before returning a
   # handle, so the moment is not deterministic and no ALBIS code owns it. Keep
   # this narrow: it is the only non-deterministic category, and dropping it
