@@ -845,6 +845,7 @@ register_hdf5_routes(
         serialize_h5_value=_serialize_h5_value,
         dataset_value_preview=_dataset_value_preview,
         dataset_preview_array=_dataset_preview_array,
+        resolve_node=_resolve_node,
     ),
 )
 

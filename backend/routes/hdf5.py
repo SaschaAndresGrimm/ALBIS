@@ -58,6 +58,32 @@ class HDF5RouteDeps:
     serialize_h5_value: Callable[[Any], Any]
     dataset_value_preview: Callable[[Any, int], tuple[Any, Any, bool, dict[str, Any] | None]]
     dataset_preview_array: Callable[[Any, int], tuple[Any, bool, dict[str, Any] | None]]
+    # Resolves a path the way the frame path does, applying the external-storage
+    # confinement that plain `h5[path]` indexing skips entirely.
+    resolve_node: Callable[[Any, Path, str], tuple[Any, Path, list[Any]]]
+
+
+@contextlib.contextmanager
+def _resolved_node(deps: HDF5RouteDeps, h5: Any, file_path: Path, path: str) -> Any:
+    """Yield the node at `path`, closing whatever files were opened to reach it.
+
+    Indexing `h5[path]` directly hands back a dataset without the checks the
+    frame path applies, so a crafted file whose data lives outside the data
+    root had its bytes returned by the inspector routes with
+    `data.allow_abs_paths` off.
+    """
+    try:
+        node, _node_file, opened = deps.resolve_node(h5, file_path, path)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail="Path not found") from exc
+    try:
+        yield node
+    finally:
+        for handle in opened:
+            with contextlib.suppress(Exception):
+                handle.close()
 
 
 def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
@@ -87,10 +113,10 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
-        with open_hdf5_for_read(h5py, file_path) as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5, contextlib.ExitStack() as stack:
             if path not in h5:
                 raise HTTPException(status_code=404, detail="Path not found")
-            obj = h5[path]
+            obj = stack.enter_context(_resolved_node(deps, h5, file_path, path))
             if not isinstance(obj, h5py.Group):
                 return HDF5TreeResponse(path=path, children=[])
             children: list[dict[str, Any]] = []
@@ -156,10 +182,10 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
-        with open_hdf5_for_read(h5py, file_path) as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5, contextlib.ExitStack() as stack:
             if path not in h5:
                 raise HTTPException(status_code=404, detail="Path not found")
-            obj = h5[path]
+            obj = stack.enter_context(_resolved_node(deps, h5, file_path, path))
             if isinstance(obj, h5py.Group):
                 return HDF5NodeResponse(path=path, type="group", attrs=deps.collect_h5_attrs(obj))
             if isinstance(obj, h5py.Dataset):
@@ -189,10 +215,10 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
-        with open_hdf5_for_read(h5py, file_path) as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5, contextlib.ExitStack() as stack:
             if path not in h5:
                 raise HTTPException(status_code=404, detail="Path not found")
-            obj = h5[path]
+            obj = stack.enter_context(_resolved_node(deps, h5, file_path, path))
             if not isinstance(obj, h5py.Dataset):
                 raise HTTPException(status_code=400, detail="Not a dataset")
             preview, preview_shape, truncated, slice_info = deps.dataset_value_preview(
@@ -301,10 +327,10 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         deps.ensure_hdf5_stack()
         h5py = deps.get_h5py()
         file_path = deps.resolve_file(file)
-        with open_hdf5_for_read(h5py, file_path) as h5:
+        with open_hdf5_for_read(h5py, file_path) as h5, contextlib.ExitStack() as stack:
             if path not in h5:
                 raise HTTPException(status_code=404, detail="Path not found")
-            obj = h5[path]
+            obj = stack.enter_context(_resolved_node(deps, h5, file_path, path))
             if not isinstance(obj, h5py.Dataset):
                 raise HTTPException(status_code=400, detail="Not a dataset")
             data, truncated, slice_info = deps.dataset_preview_array(obj, max_cells=max_cells)

@@ -174,6 +174,87 @@ class HDF5StackService:
             return None
         return target
 
+    def _companion_file_allowed(self, base_file: Path, filename: str) -> bool:
+        """Whether libhdf5 may open a companion file while reading a dataset.
+
+        Location only, unlike `resolve_external_path`: external raw-data
+        storage points at arbitrary bytes rather than an HDF5 file, so neither
+        an `.h5` suffix nor prior existence can be required here. A file that
+        is inside the root but missing is libhdf5's error to raise.
+        """
+        if self.get_allow_abs_paths():
+            return True
+        try:
+            target = Path(filename)
+            if not target.is_absolute():
+                target = base_file.parent / target
+            target = target.expanduser().resolve()
+        except (OSError, ValueError):
+            return False
+        allowed_root = self.data_dir.resolve() if self.data_dir else base_file.parent.resolve()
+        return bool(allowed_root) and bool(self.is_within(target, allowed_root))
+
+    def _companion_files(self, dset: Any) -> list[str]:
+        """Every other file libhdf5 would open to read this dataset.
+
+        Two storage mechanisms name files below h5py, so neither is visible to
+        `resolve_external_path`: external raw-data storage (`H5Pset_external`)
+        and virtual dataset sources. A self-reference -- `.` or the dataset's
+        own file -- is not a companion and is left out.
+        """
+        targets: list[str] = []
+
+        def _text(value: Any) -> str:
+            if isinstance(value, bytes):
+                return value.decode("utf-8", "replace")
+            return str(value or "")
+
+        with contextlib.suppress(Exception):
+            plist = dset.id.get_create_plist()
+            for index in range(plist.get_external_count()):
+                name = _text(plist.get_external(index)[0])
+                if name:
+                    targets.append(name)
+        with contextlib.suppress(Exception):
+            if dset.is_virtual:
+                for source in dset.virtual_sources():
+                    name = _text(source.file_name)
+                    if name and name != ".":
+                        targets.append(name)
+        return targets
+
+    def assert_dataset_storage_confined(self, dset: Any, base_file: Path) -> None:
+        """Refuse a dataset whose bytes live outside the permitted data root.
+
+        `data.allow_abs_paths: false` is documented -- in the Dockerfile and in
+        the Power User Guide -- as the reason a deployment cannot read the
+        filesystem around it, and `resolve_external_path` enforces that for an
+        h5py-level `ExternalLink`. It cannot see the two mechanisms libhdf5
+        resolves for itself, so a crafted `.h5` placed inside the root could
+        name any file the server process can open and have its bytes returned
+        as pixels or as a CSV download.
+
+        Confined rather than refused outright: a virtual dataset whose sources
+        sit beside it inside the root is ordinary detector output, and a
+        filewriter that splits a series across companion files is the normal
+        case this viewer exists to open.
+        """
+        for name in self._companion_files(dset):
+            if not self._companion_file_allowed(base_file, name):
+                _log.warning(
+                    "Refusing %s: dataset stores data in %s, outside the data root",
+                    base_file,
+                    name,
+                )
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "This dataset keeps its data in a file outside the permitted "
+                        "data directory, so it cannot be read. Move the referenced file "
+                        "inside the data root, or enable data.allow_abs_paths."
+                    ),
+                )
+
     def dataset_info(self, name: str, obj: Any) -> dict[str, Any] | None:
         h5py = self.get_h5py()
         if not isinstance(obj, h5py.Dataset):
@@ -633,6 +714,8 @@ class HDF5StackService:
                         raise KeyError("Path not found") from exc
                 if idx < len(parts) - 1 and isinstance(current, h5py.Dataset):
                     raise KeyError("Path not found")
+            if isinstance(current, h5py.Dataset):
+                self.assert_dataset_storage_confined(current, current_file)
         except Exception:
             for handle in opened:
                 with contextlib.suppress(Exception):
@@ -693,6 +776,11 @@ class HDF5StackService:
                     _log.warning("Skipping member %s in %s: %s", name, group_file, _exc)
                     continue
             if not isinstance(child, h5py.Dataset):
+                continue
+            try:
+                self.assert_dataset_storage_confined(child, group_file)
+            except HTTPException as _exc:
+                _log.warning("Skipping linked member %s in %s: %s", name, group_file, _exc.detail)
                 continue
             child_shape = tuple(int(x) for x in child.shape)
             child_ndim = int(child.ndim)

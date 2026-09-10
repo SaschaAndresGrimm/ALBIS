@@ -7,6 +7,44 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Security
+
+- A crafted HDF5 file can no longer read files outside `data.root`. `allow_abs_paths: false` is documented in the Dockerfile and the Power User Guide as the reason a deployment cannot browse the filesystem around it, and `resolve_external_path` enforced that for h5py-level external links. Two storage mechanisms name files below h5py and so never reached it: external raw-data storage (`H5Pset_external`) and virtual dataset sources, both resolved by libhdf5 itself on read. A crafted `.h5` placed inside the data root could therefore name any file the server process could open and have its bytes returned — as pixels from `/api/frame`, as a JSON preview from `/api/hdf5/value`, or streamed as a CSV download. Both mechanisms are now confined the same way external links are, at the two chokepoints every read passes through, and the four inspector routes resolve their node through `resolve_node` instead of indexing `h5[path]` directly, which skipped the checks entirely. Confined rather than forbidden: a virtual dataset whose sources sit beside it inside the root is ordinary detector output, and a filewriter2 master stitching a series together keeps working.
+
+### Fixed
+
+- Resolution is no longer reported from a guessed beam centre. When a file carries no beam centre and none has been typed, the ring parameters substitute the image midpoint, so the coordinates are always finite and could not be used to detect the substitution. The overlay layer already respected the `centerKnown` flag — it is why the beam-centre marker stayed hidden — but the numeric path never consulted it, so peak tables and ROI radial profiles reported Ångström d-spacings measured from the midpoint, and exported them to CSV, looking exactly like calibrated ones. A real beam centre sits tens to hundreds of pixels away. Both guards now check it, and the value appears once a centre is known; the rings still draw at the default centre, which is what makes dragging it into place possible.
+
+- An undeclared detector distance between 0.5 and 10 is no longer read as millimetres. The magnitude fallback in `to_mm` broke metres from millimetres at 0.5, which is inside the range where ordinary MX and SAXS camera lengths live — 0.8 m was read as 0.8 mm, rescaling every d-spacing derived from it by a factor of a thousand. The break is now 10, matching `image_formats._distance_to_mm` and `jungfraujoch_preview._to_mm`, which have always used it. Those two disagreed with each other at exactly 10; all three are now inclusive, so the same file yields the same distance whichever path opens it.
+
+- MYTHEN counts-only frames keep every channel. The layout was chosen from the parity of the token count, and every real module has an even channel count, so a counts-only frame always took the `<channel> <count>` branch instead: half the channels were dropped, the survivors shifted to the wrong index, then zero-padded back to full width so the shape still looked correct. The counts-only fallback the code described could never be reached. Layout is now decided by the channel count declared in the `.cfg`, or by the shape of the first column when it carries none.
+
+- Six plural strings rendered non-words in shipped locales — `3 Übereinstimmunges` (de), `3 file scrittoi` (it), `1 bildrut` (sv), and frozen verb agreement in `Se detectaron 1 pico` (es) and `Detectados 1 pico` (pt).
+
+- The three "Debug:" entries in the command palette are named for what they do. They are the native file dialog, the folder browser and a `.expt` geometry opener — ordinary actions, shipped to every desktop install under a developer label.
+
+- Four `<select>` elements in the file browser carried hardcoded English `aria-label` attributes that overrode their own translated `<label>`, so a screen reader announced them in English in all thirteen languages.
+
+- The documented Linux requirement was stricter than the build. The README asked for `glibc 2.38+` while CI builds on Ubuntu 22.04 and asserts a `2.35` floor, turning away Ubuntu 22.04 and Debian 12 users who could already run it.
+
+- `.nvmrc` pinned Node 20 against an `engines` floor of 22.22.2 with `engine-strict` on, so `nvm use` followed by `npm ci` — the first commands in CONTRIBUTING.md — failed with `EBADENGINE`.
+
+### Changed
+
+- `hc` and the Bragg conversion live in one place per language. The constant was written out in nine files and the conversion in four; a refinement or an edge-case fix in one copy would have left the resolution rings and the peak table quietly disagreeing.
+
+- Locale dictionaries are no longer fetched with `cache: "no-store"`, restoring the bodyless 304 the static handler was tuned for.
+
+- `package.json` declares `"MIT"` rather than `"SEE LICENSE IN LICENSE"`, so licence scanners and GitHub's own detection stop reading the frontend as unknown-licence.
+
+- Pydantic models use `ConfigDict` instead of a class-based `Config`, which Pydantic v3 removes, and pytest now treats warnings as errors.
+
+- The CI, Security and Docker workflows declare least-privilege `permissions: contents: read` at the top level.
+
+- `scripts/setup_branch_protection.sh` requires the status checks CI actually reports: `py3.13` across all three runners, plus Frontend Lint. It asked for a `py3.10` context that could never appear.
+
+- `frontend/ressources/` is spelled `frontend/resources/`.
+
 ## [0.15.0] - 2026-09-04
 
 ### Fixed
