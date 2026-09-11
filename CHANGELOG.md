@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Exported CBF headers keep what the source stated. `_parse_pilatus_header_text` read five fields — pixel size, beam centre, distance, wavelength, energy — so converting a PILATUS frame silently dropped the rest of its miniCBF header: detector model, serial and location, the acquisition timestamp, sensor thickness, exposure time and period, tau, count cutoff, threshold setting, gain setting, start angle and angle increment. It now reads all of them, and the writer gained the four lines it was missing (timestamp, `Tau`, `Threshold_setting`, `Gain_setting`). Against `testdata/in16c_010001.cbf` the exported header now restates sixteen of the original's twenty lines, where it used to manage six.
+
+  `Threshold_setting` is the one that mattered most and was the oddest gap: it was already carried in the export metadata for TIFF and HDF5 sources and simply never written, so a multi-threshold frame lost the number saying which channel it was. Where a source carries several thresholds the frame's own channel is selected by its 1-based index; if that is unknown the line is omitted rather than guessed, because naming the wrong channel is worse than naming none.
+
+  Four kinds of line are deliberately still dropped. `N_excluded_pixels`, `Excluded_pixels`, `Flat_field` and `Trim_file` describe corrections applied to the raw pixel array, and an export has already substituted `-1` for masked gaps and `-2` for bad or saturated pixels, so carrying them would describe an array that no longer exists. `Image_path` is dropped because the provenance line records the source file's name and not its directory, and carrying the path would put back exactly what that avoids.
+
+
 ### Added
 
 - **Browse** buttons beside the two folder paths in Settings — the log directory and the data root — opening the operating system's own folder chooser, the same one the image and export paths already use. Typing a path into a settings field meant getting it exactly right with no feedback until the next restart, and these two decide where ALBIS reads data from and writes its logs to, so a typo in either was discovered late and confusingly. A dismissed chooser leaves the field untouched, and the trailing separator is stripped so the same folder does not end up spelled two ways across the config.

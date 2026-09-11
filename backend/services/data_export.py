@@ -735,6 +735,26 @@ class DataExportService:
             meta["threshold_energies_ev"] = [parsed.get("threshold_energy_ev")]
         if parsed.get("exposure_time_s") is not None:
             meta["exposure_time_s"] = parsed.get("exposure_time_s")
+        # Instrument and acquisition facts that stay true of a re-exported
+        # frame. Fields describing the pixel array's own corrections
+        # (N_excluded_pixels, Excluded_pixels, Flat_field, Trim_file) are
+        # deliberately not carried: an export substitutes -1 for masked gaps
+        # and -2 for bad or saturated pixels, so they would describe an array
+        # that no longer exists.
+        for key in (
+            "detector_description",
+            "detector_serial_number",
+            "detector_location",
+            "sensor_thickness_m",
+            "exposure_period_s",
+            "tau_s",
+            "count_cutoff",
+            "gain_setting",
+            "start_angle_deg",
+            "angle_increment_deg",
+        ):
+            if parsed.get(key) is not None:
+                meta[key] = parsed.get(key)
         if parsed.get("energy_ev") is not None:
             meta["incident_energy_ev"] = parsed.get("energy_ev")
         if parsed.get("wavelength_a") is not None:

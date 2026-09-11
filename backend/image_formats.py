@@ -532,17 +532,45 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
     return lines
 
 
+def _active_threshold_ev(metadata: dict[str, Any]) -> float | None:
+    """The threshold energy of the frame being written, in eV.
+
+    A source can carry one threshold or a list of them. With a list, the frame
+    belongs to exactly one channel, and `source_threshold` (1-based, the same
+    number the provenance line reports) says which -- writing the wrong one, or
+    all of them, would mislabel the frame.
+    """
+    energies = metadata.get("threshold_energies_ev")
+    if isinstance(energies, list | tuple) and energies:
+        index = _export_int(metadata, "source_threshold")
+        if index is not None and 1 <= index <= len(energies):
+            return _first_number(energies[index - 1])
+        if len(energies) == 1:
+            return _first_number(energies[0])
+        return None
+    return _first_number(metadata.get("threshold_energy_ev"))
+
+
 def _mini_cbf_header_text(metadata: dict[str, Any] | None) -> str:
     lines: list[str] = []
     if not metadata:
         return "\n".join(_provenance_lines(metadata))
     detector = _export_text(metadata, "detector_description")
     serial = _export_text(metadata, "detector_serial_number")
+    location = _export_text(metadata, "detector_location")
     if detector or serial:
         line = f"# Detector: {detector or 'unknown'}"
         if serial:
             line += f", S/N {serial}"
+        if location:
+            line += f", {location}"
         lines.append(line)
+
+    timestamp = _export_text(metadata, "image_datetime")
+    if timestamp:
+        # A miniCBF puts the acquisition time on its own keyless line, right
+        # after the detector, and readers expect it there.
+        lines.append(f"# {timestamp}")
 
     pixel_x = _format_header_number(metadata.get("pixel_size_x_m"))
     pixel_y = _format_header_number(metadata.get("pixel_size_y_m"))
@@ -557,9 +585,21 @@ def _mini_cbf_header_text(metadata: dict[str, Any] | None) -> str:
     period = _format_header_number(metadata.get("exposure_period_s"))
     if period:
         lines.append(f"# Exposure_period {period} s")
+    tau = _format_header_number(metadata.get("tau_s"))
+    if tau:
+        lines.append(f"# Tau = {tau} s")
     cutoff = _export_int(metadata, "count_cutoff")
     if cutoff is not None:
         lines.append(f"# Count_cutoff {cutoff} counts")
+    threshold = _active_threshold_ev(metadata)
+    if threshold is not None:
+        # The threshold this frame was counted at. Carried all along for TIFF
+        # and HDF5 sources and never written, which on a multi-threshold
+        # detector loses the one number that says which channel this is.
+        lines.append(f"# Threshold_setting: {threshold:.12g} eV")
+    gain = _export_text(metadata, "gain_setting")
+    if gain:
+        lines.append(f"# Gain_setting: {gain}")
     wavelength = _format_header_number(metadata.get("wavelength_a"))
     if wavelength:
         lines.append(f"# Wavelength {wavelength} A")
@@ -743,7 +783,24 @@ def _convert_length(value: float | None, unit: str, target: str) -> float | None
     return value
 
 
+# The bare ISO timestamp a miniCBF writes as its second line, with no key.
+_PILATUS_DATETIME_RE = re.compile(r"^\d{4}-[A-Za-z0-9]{2,3}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?$")
+
+
 def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
+    """Read what a miniCBF header states about the instrument and the exposure.
+
+    Deliberately selective. Lines describing the INSTRUMENT and the ACQUISITION
+    -- detector, geometry, exposure, thresholds -- stay true of a frame ALBIS
+    has re-exported, so they are worth carrying. Lines describing the state of
+    the PIXEL ARRAY do not: `N_excluded_pixels`, `Excluded_pixels`,
+    `Flat_field` and `Trim_file` describe corrections applied to the raw data,
+    and an export has already substituted -1 for masked gaps and -2 for bad or
+    saturated pixels, so repeating them would describe an array that no longer
+    exists. `Image_path` is skipped for a different reason: the provenance line
+    deliberately records the source file's NAME and not its directory, and
+    carrying the path here would put back what that was avoiding.
+    """
     meta: dict[str, Any] = {}
     if not text:
         return meta
@@ -754,6 +811,82 @@ def _parse_pilatus_header_text(text: str) -> dict[str, Any]:
         if line.startswith("#"):
             line = line[1:].strip()
         lower = line.lower()
+        if _PILATUS_DATETIME_RE.match(line) and "image_datetime" not in meta:
+            meta["image_datetime"] = line
+            continue
+        if lower.startswith("detector:") and "detector_description" not in meta:
+            # "Detector: PILATUS 300K, S/N 3-0118, Universite de Geneve"
+            rest = line.split(":", 1)[1].strip()
+            parts = [part.strip() for part in rest.split(",")]
+            description = parts[0] if parts else ""
+            if description:
+                meta["detector_description"] = description
+            # Everything after the model that is not the serial: on a PILATUS
+            # this is where the instrument lives, which is real provenance and
+            # is stated nowhere else in the file.
+            location_parts = []
+            for part in parts[1:]:
+                if part.lower().startswith("s/n"):
+                    serial = part[3:].strip()
+                    if serial:
+                        meta["detector_serial_number"] = serial
+                    continue
+                if part:
+                    location_parts.append(part)
+            if location_parts:
+                meta["detector_location"] = ", ".join(location_parts)
+            continue
+        if "sensor" in lower and "thickness" in lower and "sensor_thickness_m" not in meta:
+            # "Silicon sensor, thickness 0.000320 m"
+            value, unit = _parse_unit_value(line[line.lower().index("thickness") :])
+            thickness_m = _convert_length(value, unit or "m", "m")
+            if thickness_m is not None:
+                meta["sensor_thickness_m"] = float(thickness_m)
+            continue
+        if "exposure_period" in lower and "exposure_period_s" not in meta:
+            value, _unit = _parse_unit_value(line)
+            if value is not None:
+                meta["exposure_period_s"] = float(value)
+            continue
+        if "exposure_time" in lower and "exposure_time_s" not in meta:
+            value, _unit = _parse_unit_value(line)
+            if value is not None:
+                meta["exposure_time_s"] = float(value)
+            continue
+        if lower.startswith("tau") and "tau_s" not in meta:
+            value, _unit = _parse_unit_value(line)
+            if value is not None:
+                meta["tau_s"] = float(value)
+            continue
+        if "count_cutoff" in lower and "count_cutoff" not in meta:
+            value, _unit = _parse_unit_value(line)
+            if value is not None:
+                meta["count_cutoff"] = int(round(value))
+            continue
+        if "threshold_setting" in lower and "threshold_energy_ev" not in meta:
+            value, unit = _parse_unit_value(line)
+            if value is not None:
+                meta["threshold_energy_ev"] = float(
+                    value * 1000.0 if unit.lower() == "kev" else value
+                )
+            continue
+        if "gain_setting" in lower and "gain_setting" not in meta:
+            # The whole phrase, parentheses included: "high gain (vrf = -0.150)"
+            # only means anything complete.
+            meta["gain_setting"] = line.split(":", 1)[1].strip() if ":" in line else ""
+            if not meta["gain_setting"]:
+                del meta["gain_setting"]
+            continue
+        if "angle_increment" in lower and "angle_increment_deg" not in meta:
+            value, _unit = _parse_unit_value(line)
+            if value is not None:
+                meta["angle_increment_deg"] = float(value)
+            continue
+        if "start_angle" in lower and "start_angle_deg" not in meta:
+            value, _unit = _parse_unit_value(line)
+            if value is not None:
+                meta["start_angle_deg"] = float(value)
+            continue
         if "pixel_size" in lower and "pixel_size_um" not in meta:
             value, unit = _parse_unit_value(line)
             pixel_um = _convert_length(value, unit, "um")

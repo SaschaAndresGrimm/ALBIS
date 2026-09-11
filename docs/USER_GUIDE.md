@@ -242,9 +242,31 @@ and the result opens directly from the panel when it finishes.
 
 **Convert Dataset** writes all frames, the current frame, or a range. Exports
 are signed integers using the common detector convention: module gaps are `-1`,
-bad or saturated pixels are `-2`. TIFF exports carry DECTRIS-style header
-metadata; CBF exports carry a miniCBF header with detector, pixel size,
-exposure, energy, distance, beam centre and rotation where those are known.
+bad or saturated pixels are `-2`.
+
+### What the exported header keeps
+
+TIFF exports carry a DECTRIS-style private tag. CBF exports carry a miniCBF
+header with, where the source states them: detector model, serial and location,
+the acquisition timestamp, pixel size, sensor thickness, exposure time and
+period, tau, count cutoff, threshold setting, gain setting, wavelength,
+incident energy, detector distance, beam centre, start angle and angle
+increment. Three further lines record that ALBIS produced the file, which
+source and frame it came from, and the pixel substitutions above — an exported
+frame is derived data, and a header that did not say so would read to XDS or
+DIALS as raw detector output.
+
+Four kinds of line are deliberately **not** carried over from a source CBF:
+`N_excluded_pixels`, `Excluded_pixels`, `Flat_field` and `Trim_file` describe
+corrections applied to the raw pixel array, which the export has already
+altered, so repeating them would describe an array that no longer exists.
+`Image_path` is dropped too — the provenance line records the source file's
+name rather than its directory, so that a file you send to a collaborator does
+not carry your folder layout.
+
+How much survives depends on the source. HDF5 and DECTRIS TIFF carry the most.
+A CBF or EDF source gives what its own header states, which for a PILATUS
+miniCBF is nearly all of the list above.
 
 **Export Animation** renders a GIF matching the screen exactly — colour map,
 contrast, mask and saturation highlighting all apply. Choose the frame range and
