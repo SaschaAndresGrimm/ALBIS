@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-11
+
 ### Added
 
 - The GIF export can draw the overlays. **Include overlays** in the export dialog renders the resolution rings and the spot-finder markers into every exported frame; it greys out when neither is switched on. The spot finder re-runs on each exported frame rather than freezing the markers from whichever frame happened to be on screen — a marker that stays put while the diffraction underneath it moves is worse than no marker. The overlay drawing itself is now one module shared with the viewer, so the GIF and the screen cannot drift apart, and it handles anisotropic pixels in both: an exported frame is unstretched, so a ring that is a circle on screen is drawn as the ellipse it physically is.
@@ -1030,7 +1032,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.13.0...v0.14.0
