@@ -13,6 +13,7 @@ export function createMenuActionHandler({
     toggleFullscreen,
     openAboutModal,
     openFileModal,
+    duplicateWindow,
     closeCurrentFile,
     openDataExportDialog,
     openAnimationExportDialog,
@@ -46,6 +47,9 @@ export function createMenuActionHandler({
         break;
       case "new-window":
         window.open(window.location.href, "_blank");
+        break;
+      case "duplicate-window":
+        duplicateWindow();
         break;
       case "open":
         openFileModal();

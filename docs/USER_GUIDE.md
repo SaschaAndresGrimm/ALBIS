@@ -272,8 +272,25 @@ appears.
 
 ## Compare two views
 
-**File → New Window** (`⌘N`) opens a second viewer. Use it to put two datasets
-side by side, or the same dataset at two thresholds.
+**File → New Window** (`⌘N`) opens an empty second viewer. Use it to put two
+datasets side by side, or the same dataset at two thresholds.
+
+**File → Duplicate Window** (`⇧⌘N`) opens the *current* image again in a second
+window, set up the way this one is: same frame and threshold, colour map,
+contrast, zoom and position, mask, resolution rings, spot finder and ROI. It is
+the quicker way into a side-by-side comparison — duplicate, then change one
+thing in the copy.
+
+The duplicate starts **independent**: it does not follow this window unless you
+switch the link control on. That is deliberate, since the usual reason to
+duplicate a view is to make the two differ. What is not copied is anything the
+new window works out for itself — the decoded frame, and the image's position
+within a window that may be a different size.
+
+A duplicate cannot be made of a live source (SIMPLON, JUNGFRAUJOCH, or pushed
+frames): those frames arrive over a stream this window alone is subscribed to,
+and there is no file for a second window to open. The menu entry greys out and
+says so.
 
 The **link** control in the toolbar chooses what the windows share: **Position**
 (pan and zoom), **Contrast**, and **ROI**. Link position to keep both views on

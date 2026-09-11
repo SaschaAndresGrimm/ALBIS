@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canDuplicateWindow,
   canExportAnimation,
   canExportData,
   canSaveImage,
@@ -117,5 +118,56 @@ describe("canStartSeriesOperation", () => {
         isHdfFile
       )
     ).toBe(true);
+  });
+});
+
+
+describe("canDuplicateWindow", () => {
+  const isHdfFile = (name) => /\.(h5|hdf5)$/i.test(String(name || ""));
+  const base = (overrides = {}) => ({
+    hasFrame: true,
+    dataRaw: new Uint16Array(4),
+    file: "/data/frame.cbf",
+    dataset: "",
+    autoload: { running: false, mode: "file" },
+    ...overrides,
+  });
+
+  it("allows a plain image file", () => {
+    expect(canDuplicateWindow(base(), isHdfFile)).toBe(true);
+  });
+
+  it("needs a dataset chosen for HDF5", () => {
+    expect(canDuplicateWindow(base({ file: "/data/s.h5" }), isHdfFile)).toBe(false);
+    expect(
+      canDuplicateWindow(base({ file: "/data/s.h5", dataset: "/entry/data/data" }), isHdfFile)
+    ).toBe(true);
+  });
+
+  it("refuses with no frame or no file", () => {
+    expect(canDuplicateWindow(base({ hasFrame: false }), isHdfFile)).toBe(false);
+    expect(canDuplicateWindow(base({ file: "" }), isHdfFile)).toBe(false);
+  });
+
+  /**
+   * The reason this is not an alias of canSaveImage: a live source puts a
+   * label in state.file, not a path, so a second window has nothing to open --
+   * while saving a PNG of the frame on screen works fine.
+   */
+  it.each(["simplon", "remote", "jungfraujoch"])("refuses a running %s source", (mode) => {
+    const state = base({ file: "SIMPLON monitor", autoload: { running: true, mode } });
+    expect(canSaveImage(state)).toBe(true);
+    expect(canDuplicateWindow(state, isHdfFile)).toBe(false);
+  });
+
+  it("allows a watched folder, whose state.file is a real path", () => {
+    const state = base({ autoload: { running: true, mode: "file" } });
+    expect(canDuplicateWindow(state, isHdfFile)).toBe(true);
+  });
+
+  it("tolerates a state with no autoload subtree", () => {
+    const state = base();
+    delete state.autoload;
+    expect(canDuplicateWindow(state, isHdfFile)).toBe(true);
   });
 });

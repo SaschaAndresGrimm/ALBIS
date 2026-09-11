@@ -16,6 +16,23 @@ export function canSaveImage(state) {
   return Boolean(state.hasFrame && state.dataRaw);
 }
 
+/**
+ * Duplicating a window means reopening the same source in a second one, so the
+ * source has to be something a path can name.
+ *
+ * A live source deliberately puts a human-readable label in `state.file` (see
+ * file_session_controller's applyExternalFrame), not a path -- there is no file
+ * for a second window to open, and the frames are arriving over a stream only
+ * this window is subscribed to. `canSaveImage` is true in that situation,
+ * because saving a PNG of the frame on screen is perfectly possible; that is
+ * why this is its own rule rather than an alias of it.
+ */
+export function canDuplicateWindow(state, isHdfFile) {
+  if (!state.hasFrame || !state.file) return false;
+  if (state.autoload?.running && state.autoload.mode !== "file") return false;
+  return Boolean(!isHdfFile(state.file) || state.dataset);
+}
+
 // A single frame cannot be animated, and the frames have to come from
 // somewhere: a file series, or a multi-frame dataset.
 export function canExportAnimation(state) {

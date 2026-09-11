@@ -408,9 +408,14 @@ export function createViewerSyncController({
     scheduleThrottledPublish("roi", reason, publishRoi);
   }
 
-  function applyRemoteViewport(rawViewport) {
-    const current = syncState();
-    if (!current.enabled || current.viewport === false) return false;
+  /**
+   * Put the view on an image-space centre at a zoom, whatever size this window
+   * is. Separated from applyRemoteViewport because duplicating a window needs
+   * exactly this and must not be gated on the link control being switched on:
+   * a clone starts independent. One copy of the centre-to-scroll arithmetic,
+   * shared by both callers.
+   */
+  function applyViewportCenter(rawViewport) {
     if (!state.hasFrame || !state.width || !state.height) return false;
     const viewport = normalizeViewportPayload(rawViewport);
     if (!viewport) return false;
@@ -433,6 +438,12 @@ export function createViewerSyncController({
       applyingRemote = false;
     }
     return true;
+  }
+
+  function applyRemoteViewport(rawViewport) {
+    const current = syncState();
+    if (!current.enabled || current.viewport === false) return false;
+    return applyViewportCenter(rawViewport);
   }
 
   function applyRemoteContrast(rawContrast) {
@@ -676,6 +687,12 @@ export function createViewerSyncController({
   refreshUi();
 
   return {
+    // Exported so the window-duplication snapshot and the link control agree
+    // on what "the current view" is. Two copies of this arithmetic would drift,
+    // and the image-space centre it returns is precisely what survives being
+    // reopened in a window of a different size.
+    readViewport,
+    applyViewportCenter,
     handleViewportChanged,
     handleContrastChanged,
     handleRoiChanged,

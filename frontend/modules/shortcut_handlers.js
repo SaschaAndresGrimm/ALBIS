@@ -104,7 +104,9 @@ export function createShortcutHandlers({
         }
         break;
       case "n":
-        handleMenuAction("new-window");
+        // Shift picks the duplicate, matching save-full/save-visible's
+        // plain-vs-Shift pairing on the same letter.
+        handleMenuAction(isShift && !isAlt ? "duplicate-window" : "new-window");
         break;
       case ",":
         handleMenuAction("settings-open");

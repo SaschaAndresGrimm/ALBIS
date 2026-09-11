@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **File → Duplicate Window** (`⇧⌘N`) opens the current image again in a second window, set up the way the first one is: frame and threshold, colour map, contrast, zoom and position, mask, resolution rings, spot finder and ROI. `New Window` keeps its old meaning and still opens an empty viewer. The duplicate starts independent rather than linked, because the usual reason to duplicate a view is to make the two differ; the toolbar link control still joins them on request.
+
+  Only what a fresh page load cannot work out for itself travels. Decoded frames, masks and histograms do not — the new window fetches its own. Neither does anything sized to a window: a copied render offset would place the image somewhere it does not belong in a window of a different size, so the view is carried as an image-space centre plus a zoom, which is what the link control already exchanges for the same reason. The snapshot passes through a single-use `localStorage` slot named by a nonce in the URL fragment, so no filesystem path reaches the address bar, the history, or anything that logs `location.href`; the slot is deleted as it is claimed, and a slot whose window the browser blocked is swept rather than left behind.
+
+  A live source cannot be duplicated, and the entry greys out saying so: `state.file` holds a display label rather than a path for SIMPLON, JUNGFRAUJOCH and pushed frames, and those frames arrive on a stream only the original window is subscribed to. This is deliberately its own availability rule and not an alias of the image-export one, which is satisfied in exactly that situation.
+
+
 ## [0.17.1] - 2026-09-11
 
 ### Fixed

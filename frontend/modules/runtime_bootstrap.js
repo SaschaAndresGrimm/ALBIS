@@ -89,6 +89,7 @@ export function finalizeRuntimeBootstrap({
     initHelpTooltips,
     startBackendHeartbeat,
     bootstrapApp,
+    restoreCloneFromHash,
     setSplashStatus,
     setStatus,
     showSplash,
@@ -128,11 +129,16 @@ export function finalizeRuntimeBootstrap({
   initHelpTooltips();
   startBackendHeartbeat();
 
-  void bootstrapApp().catch((err) => {
-    console.error(err);
-    setSplashStatus("splash.status.initialization_failed");
-    setStatus(t("status.app.initialization_failed"), { tone: "error" });
-    showSplash();
-    setLoading(false);
-  });
+  void bootstrapApp()
+    // A window opened by File > Duplicate Window carries a token naming the
+    // snapshot to restore. It runs after bootstrap, not inside it: the restore
+    // reopens a file through the ordinary path and needs the app fully wired.
+    .then(() => restoreCloneFromHash?.())
+    .catch((err) => {
+      console.error(err);
+      setSplashStatus("splash.status.initialization_failed");
+      setStatus(t("status.app.initialization_failed"), { tone: "error" });
+      showSplash();
+      setLoading(false);
+    });
 }

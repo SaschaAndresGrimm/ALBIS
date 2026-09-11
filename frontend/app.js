@@ -40,12 +40,22 @@ import { createPointerFocusRelease } from "./modules/pointer_focus_release.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
 import { createLiveSeriesWatch } from "./modules/live_series_watch.js";
 import { createRecentFiles } from "./modules/recent_files.js";
+import {
+  CLONE_HASH_PREFIX,
+  captureWindowState,
+  claimClonePayload,
+  discardClonePayload,
+  readCloneTokenFromHash,
+  stashClonePayload,
+  sweepStaleClonePayloads,
+} from "./modules/window_clone_state.js";
 import { createRecentFilesController } from "./modules/recent_files_controller.js";
 import { createSeriesSumController } from "./modules/series_sum_controller.js";
 import { createDataExportController } from "./modules/data_export_controller.js";
 import { createAnimationExportController } from "./modules/animation_export_controller.js";
 import {
   canExportAnimation,
+  canDuplicateWindow,
   canExportData,
   canSaveImage,
 } from "./modules/command_availability.js";
@@ -638,6 +648,7 @@ const MODAL_FOCUSABLE_SELECTOR = [
 
 const PLATFORM_SHORTCUTS = {
   "new-window": { mac: "⌘N", other: "Ctrl+N" },
+  "duplicate-window": { mac: "⇧⌘N", other: "Ctrl+Shift+N" },
   open: { mac: "⌘O", other: "Ctrl+O" },
   "close-file": { mac: "⌘W", other: "Ctrl+W" },
   "save-full": { mac: "⌘S", other: "Ctrl+S" },
@@ -1659,6 +1670,12 @@ function fileCommandUnavailableReason(action) {
     case "export-data":
       if (canExportData(state, isHdfFile)) return "";
       return t(state.file ? "status.data_export.no_dataset" : "status.data_export.no_file");
+    case "duplicate-window":
+      if (canDuplicateWindow(state, isHdfFile)) return "";
+      if (state.autoload?.running && state.autoload.mode !== "file") {
+        return t("status.duplicate_window.live_source");
+      }
+      return t(state.file ? "status.data_export.no_dataset" : "status.file.no_file_loaded");
     default:
       return "";
   }
@@ -1666,6 +1683,7 @@ function fileCommandUnavailableReason(action) {
 
 const GATED_FILE_COMMANDS = [
   "close-file",
+  "duplicate-window",
   "save-full",
   "save-visible",
   "save-window",
@@ -3397,6 +3415,7 @@ const menuActionHandler = createMenuActionHandler({
     toggleFullscreen,
     openAboutModal,
     openFileModal,
+    duplicateWindow,
     closeCurrentFile,
     openDataExportDialog,
     openAnimationExportDialog,
@@ -4775,6 +4794,7 @@ finalizeRuntimeBootstrap(createRuntimeBootstrapContext({
     initHelpTooltips,
     startBackendHeartbeat,
     bootstrapApp,
+    restoreCloneFromHash,
     setSplashStatus,
     setStatus,
     showSplash,
@@ -4790,6 +4810,153 @@ finalizeRuntimeBootstrap(createRuntimeBootstrapContext({
 let handoffLastId = Number(localStorage.getItem("albis.handoff.lastId") || "0");
 let handoffPollBusy = false;
 let handoffPollTimer = null;
+
+/**
+ * File > Duplicate Window: open this image again, set up the same way.
+ *
+ * The snapshot goes through a single-use localStorage slot named by a nonce in
+ * the URL fragment, not through the URL itself -- a path in the address bar
+ * would end up in history and in anything that logs `location.href`.
+ */
+function duplicateWindow() {
+  const reason = fileCommandUnavailableReason("duplicate-window");
+  if (reason) {
+    setStatus(reason, { tone: "warning" });
+    return;
+  }
+  const payload = captureWindowState({
+    state,
+    analysisState,
+    roiState,
+    viewport: viewerSyncController?.readViewport() || null,
+  });
+  if (!payload) {
+    setStatus(t("status.duplicate_window.failed"), { tone: "warning" });
+    return;
+  }
+  // Sweep first: a slot whose popup was blocked earlier would otherwise sit
+  // there until its TTL, and one per blocked attempt adds up.
+  sweepStaleClonePayloads();
+  const token = stashClonePayload(payload);
+  if (!token) {
+    setStatus(t("status.duplicate_window.failed"), { tone: "warning" });
+    return;
+  }
+  const url = new URL(window.location.href);
+  url.hash = CLONE_HASH_PREFIX + token;
+  const opened = window.open(url.toString(), "_blank");
+  if (!opened) {
+    // Pop-up blocked: take the slot back rather than leaving the snapshot for
+    // a window that will never come.
+    discardClonePayload(token);
+    setStatus(t("status.duplicate_window.blocked"), { tone: "warning" });
+  }
+}
+
+/**
+ * The receiving half, run once at boot when the fragment names a slot.
+ *
+ * Order matters and every step is awaited: loadMetadata resets the frame and
+ * threshold indices and re-derives pixelAspect, and the mask load can force the
+ * mask on, so anything applied before them would be quietly undone. The
+ * viewport goes last because it is expressed as an image-space centre and needs
+ * the frame's real dimensions to convert into a scroll position.
+ */
+async function restoreClonedWindow(payload) {
+  const source = payload.source || {};
+  await openPathInViewer(source.file, { refreshFileList: true });
+
+  if (source.dataset && isHdfFile(source.file) && datasetSelect) {
+    const exists = Array.from(datasetSelect.options).some((opt) => opt.value === source.dataset);
+    if (exists) {
+      state.dataset = source.dataset;
+      datasetSelect.value = source.dataset;
+      await loadMetadata();
+    }
+  }
+
+  if (Number(state.thresholdCount) > 1 && Number(source.thresholdIndex) > 0) {
+    await setThresholdIndex(Number(source.thresholdIndex));
+  }
+
+  const frameIndex = Number(source.frameIndex) || 0;
+  if (frameIndex > 0 && frameIndex < Number(state.frameCount)) {
+    await requestFrame(frameIndex);
+  }
+
+  const mask = payload.mask || {};
+  state.maskAuto = Boolean(mask.auto);
+  state.maskSaturatedEnabled = Boolean(mask.saturated);
+  state.maskEnabled = Boolean(mask.enabled);
+  updateMaskUI();
+
+  if (payload.contrast) applySyncedContrast(payload.contrast);
+
+  const analysis = payload.analysis || {};
+  analysisState.ringsEnabled = Boolean(analysis.ringsEnabled);
+  analysisState.ringMode = analysis.ringMode || analysisState.ringMode;
+  if (Array.isArray(analysis.rings) && analysis.rings.length) {
+    analysisState.rings = analysis.rings.slice();
+    analysisState.ringCount = analysis.rings.length;
+  }
+  for (const key of ["distanceMm", "pixelSizeUm", "energyEv", "centerX", "centerY"]) {
+    if (analysis[key] !== null && analysis[key] !== undefined) analysisState[key] = analysis[key];
+  }
+  analysisState.geometryDistanceManual = Boolean(analysis.manual?.distance);
+  analysisState.geometryCenterXManual = Boolean(analysis.manual?.centerX);
+  analysisState.geometryCenterYManual = Boolean(analysis.manual?.centerY);
+  analysisState.geometryLocked = Boolean(analysis.geometryLocked);
+  analysisState.peaksEnabled = Boolean(analysis.peaksEnabled);
+  analysisState.peakCount = Number(analysis.peakCount) || analysisState.peakCount;
+  analysisState.peakMinSnr = Number(analysis.peakMinSnr) || 0;
+
+  if (analysis.geometryOverridePath) {
+    await applyGeometryOverridePath(analysis.geometryOverridePath);
+  }
+  // Re-stamp, never copy: hasGeometryManualOverride compares this against the
+  // geometry key THIS window loaded, and a key from the other window would
+  // never match -- so the corrected distance would show once and then be
+  // overwritten by the file's own metadata.
+  if (analysis.manual && Object.keys(analysis.manual).length) {
+    analysisState.geometryManualKey = analysisState.ringGeometryKey || "";
+  }
+  updateRingsSectionState();
+  analysisOverlayController.updatePeaksSectionState();
+  if (analysisState.peaksEnabled) analysisOverlayController.schedulePeakFinder();
+
+  if (payload.roi?.start && payload.roi?.end) applySyncedRoi(payload.roi);
+
+  if (payload.viewport) viewerSyncController?.applyViewportCenter(payload.viewport);
+
+  scheduleResolutionOverlay();
+  schedulePeakOverlay();
+}
+
+/** Consume a clone slot if this window was opened as one. */
+async function restoreCloneFromHash() {
+  const token = readCloneTokenFromHash(window.location.hash);
+  if (!token) {
+    sweepStaleClonePayloads();
+    return;
+  }
+  const payload = claimClonePayload(token);
+  // Strip the fragment either way: a reload should give a clean window rather
+  // than re-running a restore whose slot is already gone.
+  try {
+    const url = new URL(window.location.href);
+    url.hash = "";
+    window.history.replaceState(null, "", url.toString());
+  } catch {
+    // A browser that refuses replaceState is not a reason to skip the restore.
+  }
+  if (!payload) return;
+  try {
+    await restoreClonedWindow(payload);
+  } catch (err) {
+    console.warn("Failed restoring duplicated window", err);
+    setStatus(t("status.duplicate_window.restore_failed"), { tone: "warning" });
+  }
+}
 
 async function applyHandoffJob(job) {
   const targetPath = String(job?.open_path || "").trim();
