@@ -567,12 +567,14 @@ const settingsFrameCache = document.getElementById("settings-frame-cache");
 const settingsPixelLabelFormat = document.getElementById("settings-pixel-label-format");
 const settingsPixelLabelDrag = document.getElementById("settings-pixel-label-drag");
 const settingsDataRoot = document.getElementById("settings-data-root");
+const settingsDataRootBrowse = document.getElementById("settings-data-root-browse");
 const settingsAllowAbs = document.getElementById("settings-allow-abs");
 const settingsScanCache = document.getElementById("settings-scan-cache");
 const settingsMaxScanDepth = document.getElementById("settings-max-scan-depth");
 const settingsMaxUpload = document.getElementById("settings-max-upload");
 const settingsLogLevel = document.getElementById("settings-log-level");
 const settingsLogDir = document.getElementById("settings-log-dir");
+const settingsLogDirBrowse = document.getElementById("settings-log-dir-browse");
 const fileInput = document.getElementById("file-input");
 const uploadBar = document.getElementById("upload-bar");
 const uploadBarFill = document.getElementById("upload-bar-fill");
@@ -3211,12 +3213,14 @@ const settingsController = createSettingsController({
     settingsPixelLabelFormat,
     settingsPixelLabelDrag,
     settingsDataRoot,
+    settingsDataRootBrowse,
     settingsAllowAbs,
     settingsScanCache,
     settingsMaxScanDepth,
     settingsMaxUpload,
     settingsLogLevel,
     settingsLogDir,
+    settingsLogDirBrowse,
   },
   callbacks: {
     setToolHintsEnabled,

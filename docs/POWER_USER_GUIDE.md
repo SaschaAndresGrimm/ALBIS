@@ -298,8 +298,10 @@ requiring one would break that workflow without stopping an attacker.
 
 ## Logging
 
-Log level and log directory are configured in `albis.config.json` under `logging.level` and `logging.dir`.
-ALBIS writes:
+Log level and log directory are configured in `albis.config.json` under `logging.level` and `logging.dir`,
+or in **Settings → Logging**, where **Browse** beside the log directory opens the
+operating system's own folder chooser rather than asking you to type a path.
+**Settings → Data** has the same for the data root. ALBIS writes:
 
 - Backend log: `<resolved log dir>/albis.log`
 - Launcher log: `<resolved log dir>/launcher.log` (automatic rotation at ~1 MiB to `launcher.log.1`)

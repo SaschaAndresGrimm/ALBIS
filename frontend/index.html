@@ -1888,7 +1888,13 @@
             <div class="settings-grid">
               <label class="field settings-span-2">
                 <span data-i18n="settings.data.root">Data root</span>
-                <input id="settings-data-root" type="text" />
+                <div class="inline">
+                  <input id="settings-data-root" type="text" />
+                  <button id="settings-data-root-browse" class="btn btn-secondary" type="button"
+                          data-i18n="series.ui.browse"
+                          data-i18n-title="settings.browse.data_root"
+                          title="Choose the folder ALBIS reads data from">Browse</button>
+                </div>
               </label>
               <label class="field">
                 <span data-i18n="settings.data.scan_cache">Scan cache (s)</span>
@@ -1928,7 +1934,13 @@
               </label>
               <label class="field settings-span-2">
                 <span data-i18n="settings.logging.directory">Log directory</span>
-                <input id="settings-log-dir" type="text" />
+                <div class="inline">
+                  <input id="settings-log-dir" type="text" />
+                  <button id="settings-log-dir-browse" class="btn btn-secondary" type="button"
+                          data-i18n="series.ui.browse"
+                          data-i18n-title="settings.browse.log_dir"
+                          title="Choose the folder ALBIS writes logs to">Browse</button>
+                </div>
               </label>
             </div>
           </div>

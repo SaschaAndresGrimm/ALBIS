@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Browse** buttons beside the two folder paths in Settings — the log directory and the data root — opening the operating system's own folder chooser, the same one the image and export paths already use. Typing a path into a settings field meant getting it exactly right with no feedback until the next restart, and these two decide where ALBIS reads data from and writes its logs to, so a typo in either was discovered late and confusingly. A dismissed chooser leaves the field untouched, and the trailing separator is stripped so the same folder does not end up spelled two ways across the config.
+
+
 ### Fixed
 
 - Pixel value labels stay inside their pixel. At a 50× view of a detector counting around 3.6e6, the seven-digit labels ran across their cell borders into one another with the format on **auto** — and the abbreviation to `3.7M` that should have prevented it existed already and was simply never reached. The character budget divided the cell width by a flat 5.6 px, but the label font caps at 13 px, so past roughly a 25 px cell the budget kept growing while the glyphs did not: at 50 px it allowed eight characters where six fit. The budget is now derived from the font actually in use and from the measured advance of the widest digit (`8`, 0.6187 em in the interface font, constant across sizes), and the drawing code takes its font size from the same helper so the two cannot drift apart again. Below about a 20 px cell a seven-digit count still cannot be shown at any abbreviation and no label is drawn, which is unchanged and remains better than one that overruns.

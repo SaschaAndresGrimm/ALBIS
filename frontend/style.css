@@ -5151,6 +5151,20 @@ body.platform-windows select option:disabled {
   max-width: 100%;
 }
 
+/* A path field whose control is an input plus a Browse button.
+   `.settings-grid .field input` above is a DESCENDANT selector pinning any
+   input to the field's second column, which reaches inside this row too and
+   forced the input into the row's own narrow `auto` track -- leaving the
+   button stretched across the `1fr` beside it. The row is the control, so the
+   row takes column 2 and its input goes back to being auto-placed. */
+.settings-grid .field > .inline {
+  grid-column: 2;
+}
+
+.settings-grid .field > .inline > input {
+  grid-column: auto;
+}
+
 .settings-check {
   min-height: 28px;
   align-self: center;

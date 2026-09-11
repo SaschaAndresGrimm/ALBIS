@@ -54,6 +54,8 @@ export function createSettingsController({
     settingsMaxUpload,
     settingsLogLevel,
     settingsLogDir,
+    settingsDataRootBrowse,
+    settingsLogDirBrowse,
   } = elements;
 
   const {
@@ -571,6 +573,41 @@ export function createSettingsController({
     updateExternalAccessUi();
   });
   updateExternalAccessUi();
+
+  /**
+   * Fill a path field from the operating system's own folder chooser, the same
+   * one the image and export paths use.
+   *
+   * Typing a path into a settings field means getting it exactly right with no
+   * feedback until the next restart, and these two fields decide where ALBIS
+   * reads data from and writes logs to -- a typo in either is discovered late
+   * and confusingly.
+   */
+  async function browseIntoPathField(input) {
+    if (!input || input.disabled) return;
+    try {
+      const response = await fetch(`${apiBase}/choose-folder`);
+      // 204 is the picker being dismissed, which is not a failure.
+      if (response.status === 204) return;
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const picked = String(data?.path || "");
+      if (!picked) return;
+      // Trailing separator stripped to match what the other pickers store, so
+      // the same folder does not read two ways across the config.
+      input.value = picked.replace(/[\\/]+$/, "");
+      // The field is watched for edits elsewhere; a programmatic assignment
+      // fires nothing, so say so explicitly.
+      input.dispatchEvent(new window.Event("input", { bubbles: true }));
+      input.dispatchEvent(new window.Event("change", { bubbles: true }));
+    } catch (err) {
+      console.error(err);
+      setStatus(t("status.settings.browse_failed"), { tone: "error" });
+    }
+  }
+
+  settingsDataRootBrowse?.addEventListener("click", () => browseIntoPathField(settingsDataRoot));
+  settingsLogDirBrowse?.addEventListener("click", () => browseIntoPathField(settingsLogDir));
 
   return {
     applyUiSettings,
