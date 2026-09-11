@@ -1,8 +1,10 @@
 {
   "about.fact.author": "Author",
+  "about.fact.citation": "Cite as",
   "about.fact.focus": "Focus",
   "about.fact.focus_value": "Interactive analysis and overlays",
   "about.fact.formats": "Formats",
+  "about.fact.licence": "Licence",
   "about.fact.rendering": "Rendering",
   "about.lead": "ALBIS is a canvas-first image viewer for fast exploration of HDF5 stacks and other detector frames.",
   "about.repo_link": "Open ALBIS on GitHub",

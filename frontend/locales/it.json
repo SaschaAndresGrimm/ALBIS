@@ -1,8 +1,10 @@
 {
   "about.fact.author": "Autore",
+  "about.fact.citation": "Citare come",
   "about.fact.focus": "Focus",
   "about.fact.focus_value": "Analisi interattiva e overlay",
   "about.fact.formats": "Formati",
+  "about.fact.licence": "Licenza",
   "about.fact.rendering": "Rendering",
   "about.lead": "ALBIS è un visualizzatore di immagini basato su canvas per esplorare rapidamente stack HDF5 e altre immagini del rilevatore.",
   "about.repo_link": "Apri ALBIS su GitHub",

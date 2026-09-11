@@ -1,8 +1,10 @@
 {
   "about.fact.author": "Autor",
+  "about.fact.citation": "Zitiere als",
   "about.fact.focus": "Schwerpunkt",
   "about.fact.focus_value": "Interaktivi Analyse und Overlays",
   "about.fact.formats": "Format",
+  "about.fact.licence": "Lizänz",
   "about.fact.rendering": "Rendering",
   "about.lead": "ALBIS isch en Canvas-orientierte Bildbetrachter zum schnälle Erforsche vo HDF5-Stapel und andere Detektorbilder.",
   "about.repo_link": "ALBIS uf GitHub ufmache",

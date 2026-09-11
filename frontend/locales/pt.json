@@ -1,8 +1,10 @@
 {
   "about.fact.author": "Autor",
+  "about.fact.citation": "Citar como",
   "about.fact.focus": "Foco",
   "about.fact.focus_value": "Análise interativa e sobreposições",
   "about.fact.formats": "Formatos",
+  "about.fact.licence": "Licença",
   "about.fact.rendering": "Renderização",
   "about.lead": "O ALBIS é um visualizador de imagens baseado em canvas para explorar rapidamente pilhas HDF5 e outras imagens de detector.",
   "about.repo_link": "Abrir o ALBIS no GitHub",

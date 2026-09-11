@@ -1,8 +1,10 @@
 {
   "about.fact.author": "Kaituhi",
+  "about.fact.citation": "Hei tohutoro",
   "about.fact.focus": "Aronga",
   "about.fact.focus_value": "Tātaritanga tauwhitinga me ngā whakakikorua",
   "about.fact.formats": "Ngā hōputu",
+  "about.fact.licence": "Raihana",
   "about.fact.rendering": "Whakaatatanga",
   "about.lead": "He kaitirotiro atahanga kānawehi-tuatahi a ALBIS hei tūhura tere i ngā tāpae HDF5 me ētahi atu anga pūtirotiro.",
   "about.repo_link": "Whakatuwhera i a ALBIS ki GitHub",

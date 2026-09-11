@@ -1,8 +1,10 @@
 {
   "about.fact.author": "作者",
+  "about.fact.citation": "引用方法",
   "about.fact.focus": "重点",
   "about.fact.focus_value": "インタラクティブな解析とオーバーレイ",
   "about.fact.formats": "形式",
+  "about.fact.licence": "ライセンス",
   "about.fact.rendering": "レンダリング",
   "about.lead": "ALBIS は、HDF5 スタックやその他の検出器画像を高速に閲覧できる、キャンバス中心の画像ビューアです。",
   "about.repo_link": "GitHub で ALBIS を開く",

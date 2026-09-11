@@ -1,8 +1,10 @@
 {
   "about.fact.author": "作者",
+  "about.fact.citation": "引用方式",
   "about.fact.focus": "重点",
   "about.fact.focus_value": "交互式分析与叠加层",
   "about.fact.formats": "格式",
+  "about.fact.licence": "许可证",
   "about.fact.rendering": "渲染",
   "about.lead": "ALBIS 是一款以画布为核心的图像查看器，用于快速浏览 HDF5 堆栈和其他探测器图像。",
   "about.repo_link": "在 GitHub 上打开 ALBIS",

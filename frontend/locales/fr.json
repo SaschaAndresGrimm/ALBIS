@@ -1,8 +1,10 @@
 {
   "about.fact.author": "Auteur",
+  "about.fact.citation": "Citer comme",
   "about.fact.focus": "Objectif",
   "about.fact.focus_value": "Analyse interactive et superpositions",
   "about.fact.formats": "Formats",
+  "about.fact.licence": "Licence",
   "about.fact.rendering": "Rendu",
   "about.lead": "ALBIS est une visionneuse d'images orientée canvas pour explorer rapidement des piles HDF5 et d'autres images de détecteur.",
   "about.repo_link": "Ouvrir ALBIS sur GitHub",

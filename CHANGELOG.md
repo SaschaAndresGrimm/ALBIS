@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- The About dialog states the author's affiliation, the licence and how to cite ALBIS. `CITATION.cff` has always declared `DECTRIS AG` and an archived concept DOI, and `GOVERNANCE.md` names the MIT licence as the one thing a facility can rely on — but none of that was visible in the application, so a reader deciding whether they may use ALBIS, or wanting to cite it, had to go and find the repository. The formats card also read "HDF5, TIFF, CBF, EDF" while `/api/image` has always accepted MYTHEN `.cfg`/`.dat` as well. A test now holds the card to the extensions the route actually branches on, the affiliation to `CITATION.cff`, and the DOI to the one in the README.
+
+### Fixed
+
+- ROI profile plots no longer pad their axis below zero. The 3% headroom was applied symmetrically, so a profile of photon counts whose minimum was 0.18 was labelled down to -1.9 — an axis region the quantity cannot occupy, which reads as the baseline dipping negative. The clamp that already existed for logarithmic scales now applies whenever the data itself is non-negative, and a profile that really is negative keeps its negative axis: a PILATUS frame writes -1 for a module gap and -2 for a bad pixel, and an ROI covering those has a genuine negative minimum the axis must still show.
+
+
 ## [0.17.0] - 2026-09-11
 
 ### Added

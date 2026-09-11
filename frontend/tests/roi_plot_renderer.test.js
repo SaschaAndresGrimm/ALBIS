@@ -102,6 +102,51 @@ describe("roi_plot_renderer", () => {
     expect(canvasEl._roiPlot.yMax).toBeGreaterThan(4);
   });
 
+  /**
+   * A line profile of photon counts had its axis padded below zero: a series
+   * whose minimum was 0.18 was labelled down to -1.9, which reads as the
+   * baseline dipping negative. The headroom is still applied, just never past
+   * zero for a quantity that never goes there -- and a profile that really is
+   * negative (module gaps are -1, bad pixels -2) must keep its negative axis.
+   */
+  function renderLine(data, autoscale = true) {
+    const canvasEl = {
+      clientWidth: 300,
+      clientHeight: 120,
+      _roiPlotMeta: { xStart: 0, xStep: 1 },
+    };
+    const limits = { xMin: null, xMax: null, yMin: null, yMax: null };
+    renderRoiPlot({
+      canvasEl,
+      ctx: createMockContext(),
+      data,
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "line",
+      getRoiPlotLimits: () => limits,
+      autoscale,
+      formatRoiTick: (value) => value.toFixed(1),
+    });
+    return canvasEl._roiPlot;
+  }
+
+  it("never pads a non-negative line profile below zero", () => {
+    const plot = renderLine([0.18, 12, 70.5, 4]);
+    expect(plot.yMin).toBe(0);
+    // The headroom above is untouched.
+    expect(plot.yMax).toBeGreaterThan(70.5);
+  });
+
+  it("leaves zero alone when the profile starts exactly at zero", () => {
+    expect(renderLine([0, 5, 10]).yMin).toBe(0);
+  });
+
+  it("keeps the negative axis a profile over module gaps actually needs", () => {
+    // -1 is a PILATUS module gap, -2 a bad pixel; both are real values here.
+    const plot = renderLine([-2, -1, 40, 90]);
+    expect(plot.yMin).toBeLessThan(-2);
+  });
+
   it("clamps manual histogram y-min limits to zero", () => {
     const canvasEl = {
       clientWidth: 300,

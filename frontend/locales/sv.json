@@ -1,8 +1,10 @@
 {
   "about.fact.author": "Författare",
+  "about.fact.citation": "Citera som",
   "about.fact.focus": "Fokus",
   "about.fact.focus_value": "Interaktiv analys och överlägg",
   "about.fact.formats": "Format",
+  "about.fact.licence": "Licens",
   "about.fact.rendering": "Rendering",
   "about.lead": "ALBIS är en canvasbaserad bildvisare för snabb utforskning av HDF5-staplar och andra detektorbilder.",
   "about.repo_link": "Öppna ALBIS på GitHub",

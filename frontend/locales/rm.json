@@ -1,8 +1,10 @@
 {
   "about.fact.author": "Autur",
+  "about.fact.citation": "Citar sco",
   "about.fact.focus": "Focus",
   "about.fact.focus_value": "Analisa interactiva e surposiziuns",
   "about.fact.formats": "Formats",
+  "about.fact.licence": "Licenza",
   "about.fact.rendering": "Renderisaziun",
   "about.lead": "ALBIS è in visualisader d'imatges basà sin canvas per explorar svelt stacks HDF5 ed auters maletgs da detector.",
   "about.repo_link": "Avrir ALBIS sin GitHub",

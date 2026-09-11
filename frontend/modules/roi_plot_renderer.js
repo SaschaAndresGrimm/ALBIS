@@ -130,12 +130,20 @@ export function renderRoiPlot({
   }
   if (!Number.isFinite(minValue)) minValue = 0;
   if (autoscale && Number.isFinite(minValue) && Number.isFinite(maxValue)) {
+    // 3% of headroom so the extremes are not drawn on the frame.
     const baseRange = maxValue - minValue;
     if (baseRange > 0) {
+      const unpaddedMin = minValue;
       const pad = baseRange * 0.03;
       minValue -= pad;
       maxValue += pad;
-      if (logScale) {
+      // Padding below zero invents an axis region the quantity cannot occupy:
+      // a profile of photon counts whose minimum is 0.18 was labelled down to
+      // -1.9, which reads as the baseline going negative. Clamp only when the
+      // data itself is non-negative -- a PILATUS frame writes -1 for a module
+      // gap and -2 for a bad pixel, and an ROI covering those has a genuinely
+      // negative minimum that the axis must still show.
+      if (logScale || unpaddedMin >= 0) {
         minValue = Math.max(0, minValue);
       }
     }

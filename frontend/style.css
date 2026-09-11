@@ -4739,6 +4739,26 @@ body.platform-windows select option:disabled {
   color: #edf4ff;
 }
 
+/* The author's affiliation, under the name rather than beside it: at 12px a
+   "Name, Organisation" run wraps mid-organisation in the narrower locales. */
+.about-fact-sub {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--muted);
+}
+
+/* The concept DOI: long, and the one string in this dialog anyone will want to
+   select rather than read, so it breaks instead of widening the card. */
+.about-doi-link {
+  color: var(--accent-strong);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.about-doi-link:hover {
+  text-decoration: underline;
+}
+
 .about-repo-link {
   justify-self: center;
   color: #d9eaff;
