@@ -98,6 +98,48 @@ function getPixelLabelMaxChars(cellPx) {
   return Math.max(1, Math.floor((pixelWidth - 2) / 5.6));
 }
 
+/**
+ * The font size a pixel label is actually drawn at, for a given cell size.
+ *
+ * Exported so a width budget and the drawing code cannot disagree: the label
+ * overran its cell precisely because the budget was derived from the cell while
+ * the glyphs were sized by this, and the two stop tracking each other once the
+ * cap bites.
+ */
+export function pixelLabelFontPx(cellPx, { float: isFloat = false } = {}) {
+  const cell = Math.max(8, Number(cellPx) || 0);
+  return isFloat
+    ? Math.min(11.5, Math.max(6.5, cell * 0.44))
+    : Math.min(13, Math.max(7, cell * 0.52));
+}
+
+/**
+ * How many characters of an all-digit label fit across a cell.
+ *
+ * Separate from getPixelLabelMaxChars because the two labels are made of
+ * different things: an integer is digits only, while a float or a scientific
+ * label is mostly digits punctuated by "." and "e" and "-", which are far
+ * narrower than a digit, so one flat per-character width cannot serve both.
+ *
+ * 0.62em is the advance of "8" -- the widest digit in the interface font,
+ * measured rather than assumed, and constant across sizes. Budgeting the
+ * WIDEST digit means a value made entirely of wide digits fits too, not just
+ * an average-looking one.
+ *
+ * The old budget divided the cell by a flat 5.6px, which is only right for a
+ * ~9px font. The label font CAPS at 13px, so past a ~25px cell the glyphs stop
+ * growing while the cell keeps going and the budget drifts ever more
+ * optimistic: at a 50px cell it allowed 8 characters where 6 fit, which is how
+ * a seven-digit detector count came to overrun its pixel.
+ */
+function getIntegerPixelLabelMaxChars(cellPx) {
+  const cell = Math.max(8, Number(cellPx) || 0);
+  const perChar = pixelLabelFontPx(cell) * 0.62;
+  // Two pixels clear at each edge, so the label's dark halo does not run into
+  // the neighbouring cell's.
+  return Math.max(1, Math.floor((cell - 4) / perChar));
+}
+
 function compactIntegerLabel(value) {
   if (!Number.isFinite(value)) return "";
   const abs = Math.abs(value);
@@ -165,7 +207,7 @@ export function formatPixelLabelValue(value, cellPx, mode = "auto", dtype = "") 
   const isFloat = info?.kind === "f";
 
   if (mode === "integer") {
-    return formatIntegerPixelLabel(value, maxChars);
+    return formatIntegerPixelLabel(value, getIntegerPixelLabelMaxChars(cellPx));
   }
   if (mode === "scientific") {
     return formatScientificPixelLabel(value, maxChars);
@@ -175,7 +217,9 @@ export function formatPixelLabelValue(value, cellPx, mode = "auto", dtype = "") 
     return formatFloatAutoPixelLabel(value, cellPx, maxChars);
   }
 
-  return formatIntegerPixelLabel(value, maxChars, { allowScientificFallback: true });
+  return formatIntegerPixelLabel(value, getIntegerPixelLabelMaxChars(cellPx), {
+    allowScientificFallback: true,
+  });
 }
 
 export function getSaturationMax(dtype, rawMax) {

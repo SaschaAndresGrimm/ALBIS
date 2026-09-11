@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Pixel value labels stay inside their pixel. At a 50× view of a detector counting around 3.6e6, the seven-digit labels ran across their cell borders into one another with the format on **auto** — and the abbreviation to `3.7M` that should have prevented it existed already and was simply never reached. The character budget divided the cell width by a flat 5.6 px, but the label font caps at 13 px, so past roughly a 25 px cell the budget kept growing while the glyphs did not: at 50 px it allowed eight characters where six fit. The budget is now derived from the font actually in use and from the measured advance of the widest digit (`8`, 0.6187 em in the interface font, constant across sizes), and the drawing code takes its font size from the same helper so the two cannot drift apart again. Below about a 20 px cell a seven-digit count still cannot be shown at any abbreviation and no label is drawn, which is unchanged and remains better than one that overruns.
+
+
 ### Added
 
 - **File → Duplicate Window** (`⇧⌘N`) opens the current image again in a second window, set up the way the first one is: frame and threshold, colour map, contrast, zoom and position, mask, resolution rings, spot finder and ROI. `New Window` keeps its old meaning and still opens an empty viewer. The duplicate starts independent rather than linked, because the usual reason to duplicate a view is to make the two differ; the toolbar link control still joins them on request.

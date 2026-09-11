@@ -9,6 +9,7 @@ import {
   screenView,
 } from "./overlay_painters.js";
 import { canvasFont } from "./canvas_fonts.js";
+import { pixelLabelFontPx } from "./intensity_scale_utils.js";
 
 export function createOverlayRenderController({
   state,
@@ -132,9 +133,8 @@ export function createOverlayRenderController({
     }
     const formatMode = String(state.pixelLabelFormat || "auto").toLowerCase();
     const isFloatLabelMode = isFloatPixelLabelDtype(state.dtype) && formatMode !== "integer";
-    const fontSize = isFloatLabelMode
-      ? Math.min(11.5, Math.max(6.5, zoom * 0.44))
-      : Math.min(13, Math.max(7, zoom * 0.52));
+    // From the same helper the width budget uses, so the two cannot drift.
+    const fontSize = pixelLabelFontPx(zoom, { float: isFloatLabelMode });
     pixelCtx.font = canvasFont(fontSize);
     pixelCtx.textAlign = "center";
     pixelCtx.textBaseline = "middle";
