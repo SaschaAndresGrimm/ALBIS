@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import logging
 import math
 import re
@@ -61,6 +62,27 @@ def open_hdf5_read_only(h5py: Any, path: Path) -> Any:
     return handle
 
 
+# What HDF5 reports when it cannot take the file lock: EAGAIN (errno 35 on
+# macOS, 11 on Linux) or EACCES. The message is matched too, because the errno
+# HDF5 surfaces has not been consistent across versions.
+_LOCK_ERRNOS = frozenset({errno.EACCES, errno.EAGAIN, errno.EWOULDBLOCK})
+
+
+def is_hdf5_lock_failure(exc: OSError) -> bool:
+    """True when HDF5 refused a file because it could not lock it.
+
+    This is emphatically not corruption -- not one byte of the file was read.
+    Something else holds it open (a filewriter mid-acquisition, another viewer,
+    a crashed process whose handle has not been reaped), or the filesystem
+    cannot take POSIX locks at all, which is routine on the network mounts a
+    beamline serves data from. Reporting it as a damaged file sends the user
+    looking for a problem with their data that does not exist.
+    """
+    if exc.errno in _LOCK_ERRNOS:
+        return True
+    return "unable to lock file" in str(exc).lower()
+
+
 def open_hdf5_read_only_reporting_writer(h5py: Any, path: Path) -> tuple[Any, bool]:
     """Open for reading, and say whether a writer is still holding the file.
 
@@ -70,6 +92,10 @@ def open_hdf5_read_only_reporting_writer(h5py: Any, path: Path) -> tuple[Any, bo
     between a slider that follows an acquisition and one that is quietly stale.
     Needing SWMR to open the file at all is exactly that signal, and it costs
     nothing extra to report it.
+
+    Three attempts, narrowing: a plain read; SWMR, for a writer that opened the
+    file for concurrent reading; and finally, only for a lock failure, a read
+    with locking disabled.
     """
     try:
         return h5py.File(path, "r"), False
@@ -78,18 +104,54 @@ def open_hdf5_read_only_reporting_writer(h5py: Any, path: Path) -> tuple[Any, bo
     except OSError as plain_exc:
         try:
             handle = h5py.File(path, "r", swmr=True)
-        except (OSError, ValueError):
+        except (OSError, ValueError, RuntimeError):
             # ValueError is what older HDF5 raises when it cannot do SWMR at
-            # all. Either way the plain error is the better diagnosis.
+            # all; RuntimeError is what it raises for a malformed superblock,
+            # which a truncated file reaches on this second attempt even
+            # though the first failed with a plain OSError. Fall through --
+            # the plain error is the better diagnosis either way.
+            pass
+        else:
+            _log.info("Opened %s in SWMR mode: a writer still holds it open", path)
+            return handle, True
+
+        if not is_hdf5_lock_failure(plain_exc):
             raise plain_exc from None
-        _log.info("Opened %s in SWMR mode: a writer still holds it open", path)
-        return handle, True
+
+        # SWMR only helps when the writer opted into it. A file held by an
+        # ordinary writer, or sitting on a mount that cannot lock, refuses
+        # both attempts -- and a viewer that will not open a perfectly
+        # readable file is worse than one that reads it unsynchronised. For a
+        # finished file there is nothing to synchronise with anyway.
+        #
+        # Warning rather than info because it is not free: if a writer really
+        # is appending, an unlocked read can catch a chunk mid-write. That is
+        # the same exposure SWMR exists to remove, and the reason this is the
+        # last attempt rather than the first.
+        try:
+            handle = h5py.File(path, "r", locking=False)
+        except TypeError:
+            # h5py predating the `locking` argument.
+            raise plain_exc from None
+        except (OSError, ValueError, RuntimeError):
+            raise plain_exc from None
+        _log.warning(
+            "Opened %s with file locking disabled (%s). Another process holds "
+            "the file, or the filesystem cannot lock it.",
+            path,
+            plain_exc,
+        )
+        # Deliberately not reported as a writer: a refused lock says something
+        # holds the file, not that frames are still arriving, and claiming a
+        # writer would leave the client polling a static file forever.
+        return handle, False
 
 
 def open_hdf5_for_read(h5py: Any, path: Path) -> Any:
     """Open an HDF5 file for reading, reporting an undecodable file as 422.
 
-    h5py signals a truncated or corrupt file with a bare `OSError`, which would
+    h5py signals a truncated or corrupt file with a bare `OSError`, or a
+    `RuntimeError` when the superblock itself will not decode -- either would
     otherwise escape a route as a 500. That is the wrong story to tell: the
     request was fine, the bytes on disk are not -- and at a beamline the usual
     reason is a file the filewriter has not finished writing yet, which the
@@ -106,8 +168,27 @@ def open_hdf5_for_read_reporting_writer(h5py: Any, path: Path) -> tuple[Any, boo
         return open_hdf5_read_only_reporting_writer(h5py, path)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="File not found") from exc
+    except RuntimeError as exc:
+        # "Can't decode file superblock prefix" and friends: the file is not
+        # HDF5, or not intact. Same story for the caller as an OSError.
+        _log.warning("Cannot open HDF5 file %s: %s", path, exc)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot read {path.name}: not a readable HDF5 file "
+            "(it may be incomplete or corrupt)",
+        ) from exc
     except OSError as exc:
         _log.warning("Cannot open HDF5 file %s: %s", path, exc)
+        if is_hdf5_lock_failure(exc):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Cannot read {path.name}: the file is locked by another "
+                    "program. Close whatever is holding it -- a filewriter "
+                    "still running, another viewer, an open analysis session "
+                    "-- and try again. The file itself is not damaged."
+                ),
+            ) from exc
         raise HTTPException(
             status_code=422,
             detail=f"Cannot read {path.name}: not a readable HDF5 file "

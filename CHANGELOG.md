@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- A locked HDF5 file is no longer reported as a corrupt one, and now opens. `h5py` refuses a file it cannot lock with `BlockingIOError: [Errno 35] ... unable to lock file` — not one byte has been read, so the file is very probably fine — and ALBIS reported that as "not a readable HDF5 file (it may be incomplete or corrupt)", sending the user looking for damage to data that was not damaged. It happens when another process holds the file (a filewriter still running, another viewer, a crashed process whose handle has not been reaped) or when the filesystem cannot take POSIX locks at all, which is routine on the network mounts a beamline serves data from. The existing SWMR retry only covers a writer that opted into SWMR, so neither attempt succeeded. There is now a third, last-resort attempt with file locking disabled — a viewer that will not open a readable file is worse than one that reads it unsynchronised, and for a finished file there is nothing to synchronise with. It is logged at warning level, and if even that fails the error names the lock and says the file is not damaged.
+
+- An HDF5 file whose superblock will not decode no longer escapes as a 500. The first open fails with `OSError` and the SWMR retry with `RuntimeError`, which nothing caught, so a truncated file produced an unhandled traceback instead of the 422 the handler was written to give. The retry's incidental failure mode also no longer replaces the first attempt's accurate diagnosis for callers outside a route.
+
+
 ### Changed
 
 - Peak markers thin as they multiply. The shipped default is 100 peaks, and at that density each marker's dark contrast halo merged with its neighbours' into a wash over the diffraction it was annotating. The stroke weight now tapers with the count while the radius does not — the radius is the only thing on screen saying how big the spot is, so it has to keep tracking the footprint. Half the halo's weight is held absolute rather than tapered, so a marker never loses the guard that lets it read on a light frame, and an export does not thin at all: a GIF has no partial alpha to carry a thinned stroke, and the reason to thin — a view being panned and scrutinised — does not apply to a fixed artefact.
