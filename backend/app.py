@@ -543,6 +543,12 @@ series_summing = SeriesSummingService(
         read_cbf_gz=_read_cbf_gz,
         read_edf=_read_edf,
         write_tiff=_write_tiff,
+        # Resolved at call time, not now: series_summing is constructed above
+        # data_export, and borrowing its readers beats keeping a second copy of
+        # them here.
+        combined_frame_metadata=lambda *args, **kwargs: data_export.combined_frame_metadata(
+            *args, **kwargs
+        ),
         iter_sum_groups=_iter_sum_groups,
         mask_flag_value=_mask_flag_value,
         mask_slices=_mask_slices,

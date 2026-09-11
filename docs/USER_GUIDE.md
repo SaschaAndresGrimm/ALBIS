@@ -271,6 +271,15 @@ How much survives depends on the source. HDF5 and DECTRIS TIFF carry the most.
 A CBF or EDF source gives what its own header states, which for a PILATUS
 miniCBF is nearly all of the list above.
 
+A summed or averaged **TIFF** keeps the instrument facts — detector model,
+serial and location, pixel size, sensor thickness, tau, threshold setting,
+gain, wavelength, incident energy, detector distance and beam centre — and
+states what it is made of (`# Combined: sum of 10 frames 1-10`). The
+per-exposure fields are deliberately left out: a sum of ten one-second frames
+is not a one-second exposure, its values can exceed the per-frame count cutoff,
+and it spans a wedge of rotation rather than one step. The header says so
+rather than leaving you to wonder whether they were simply unknown.
+
 A summed or averaged **HDF5** output keeps the source's `/entry/instrument`
 detector and beam metadata — description, sensor thickness, `count_time`,
 `frame_time`, `saturation_value`, incident wavelength — with their units, plus

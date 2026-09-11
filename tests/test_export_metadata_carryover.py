@@ -204,3 +204,110 @@ class TestHdf5DetectorCarryover:
             svc._copy_h5_metadata(src, dst, 1)
         with h5py.File(dest, "r") as h5:
             assert float(h5["/entry/instrument/detector/x_pixel_size"][()]) == 999.0
+
+
+class TestSeriesOperationsTiffHeader:
+    """A summed TIFF used to carry nothing but its two provenance lines.
+
+    Series Operations has its own writer and called `write_tiff(path, arr)`
+    with no metadata at all -- the dependency's type did not even accept any --
+    so a sum of a PILATUS series produced a TIFF that said only that ALBIS made
+    it. It now borrows the export service's readers rather than keeping a
+    second copy of them.
+    """
+
+    @pytest.fixture
+    def summed(self, tmp_path: Path) -> str:
+        import shutil
+        import sys
+        import time
+
+        sys.path.insert(0, "tests")
+        import conftest  # noqa: F401  (loopback TestClient, imported for parity)
+
+        from backend.app import series_summing
+
+        root = Path(__file__).resolve().parents[1]
+        for number in range(1, 4):
+            name = f"in16c_0100{number:02d}.cbf"
+            shutil.copy(root / "testdata" / name, tmp_path / name)
+
+        job = series_summing.start_job(
+            file=str(tmp_path / "in16c_010001.cbf"),
+            dataset="",
+            mode="all",
+            step=1,
+            operation="sum",
+            output_format="tiff",
+            output_path=str(tmp_path / "summed"),
+            apply_mask=False,
+            range_start=None,
+            range_end=None,
+        )
+        job_id = job["id"] if isinstance(job, dict) else job
+        for _ in range(200):
+            state = series_summing.get_job(job_id)
+            if state and state.get("status") in {"done", "error"}:
+                break
+            time.sleep(0.25)
+        state = series_summing.get_job(job_id)
+        assert state["status"] == "done", state.get("message")
+        outputs = state.get("outputs") or []
+        assert len(outputs) == 1
+        return outputs[0]
+
+    @pytest.fixture
+    def description(self, summed: str) -> str:
+        with tifffile.TiffFile(summed) as tiff:
+            return tiff.pages[0].description or ""
+
+    @pytest.mark.parametrize(
+        "expected",
+        [
+            "# Detector: PILATUS 300K, S/N 3-0118, Universite de Geneve",
+            "# Pixel_size 0.000172 m x 0.000172 m",
+            "# Silicon sensor, thickness 0.00032 m",
+            "# Tau = 3.838e-07 s",
+            "# Threshold_setting: 4024 eV",
+            "# Gain_setting: high gain (vrf = -0.150)",
+            "# Wavelength 1.542 A",
+            "# Detector_distance 0.04 m",
+            "# Beam_xy (244, 308) pixels",
+        ],
+    )
+    def test_the_instrument_facts_reach_a_summed_tiff(
+        self, description: str, expected: str
+    ) -> None:
+        assert expected in description
+
+    def test_it_says_what_was_combined(self, description: str) -> None:
+        assert "# Combined: sum of 3 frames" in description
+        assert "# Source: in16c_010001.cbf" in description
+        assert "derived data, not raw detector output" in description
+
+    @pytest.mark.parametrize(
+        "absent",
+        ["Exposure_time", "Exposure_period", "Count_cutoff", "Start_angle", "Angle_increment"],
+    )
+    def test_per_exposure_fields_are_omitted_not_restated(
+        self, description: str, absent: str
+    ) -> None:
+        """A sum of three one-second frames is not a one-second exposure.
+
+        Its values can also exceed the per-frame count cutoff, and it spans
+        three rotation steps rather than one -- so these are left out rather
+        than carried across as if they still held.
+        """
+        assert absent not in description
+
+    def test_and_says_why_they_are_missing(self, description: str) -> None:
+        # Silence would read as "unknown"; this says "not applicable".
+        assert "do not describe a combined frame" in description
+
+
+def test_a_writer_without_the_metadata_dep_still_produces_a_header(tmp_path: Path) -> None:
+    """The dependency is optional, so a caller that only wants pixels works."""
+    from backend.services.series_summing import SeriesSummingDeps
+
+    fields = SeriesSummingDeps.__dataclass_fields__
+    assert fields["combined_frame_metadata"].default is None

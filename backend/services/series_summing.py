@@ -38,13 +38,17 @@ class SeriesSummingDeps:
     read_cbf: Callable[[Path], np.ndarray]
     read_cbf_gz: Callable[[Path], np.ndarray]
     read_edf: Callable[[Path], np.ndarray]
-    write_tiff: Callable[[Path, np.ndarray], None]
+    write_tiff: Callable[..., None]
     iter_sum_groups: Callable[[int, str, int, int | None, int | None], list[dict[str, Any]]]
     mask_flag_value: Callable[[np.dtype], float]
     mask_slices: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray, np.ndarray]]
     resolve_dataset_view: Callable[[Any, Path, str], tuple[dict[str, Any], list[Any]]]
     extract_frame: Callable[[dict[str, Any], int, int], np.ndarray]
     find_pixel_mask: Callable[[Any, int | None], Any | None]
+    # Instrument facts for a combined frame's header. Optional so a caller that
+    # only needs pixels -- several tests -- can leave it out and get today's
+    # provenance-only header rather than an error.
+    combined_frame_metadata: Callable[..., dict[str, Any]] | None = None
 
 
 class SeriesSummingService:
@@ -1328,7 +1332,26 @@ class SeriesSummingService:
                         else:
                             arr_tiff[gap_mask] = -1.0
                             arr_tiff[bad_mask] = -2.0
-                    self._deps.write_tiff(out_file, np.asarray(arr_tiff))
+                    if mode == "all":
+                        combined_what = f"{operation} of {frame_count_in_sum} frames"
+                    elif mode == "nth":
+                        combined_what = (
+                            f"{operation} of every {step}th frame " f"({frame_count_in_sum} frames)"
+                        )
+                    else:
+                        combined_what = (
+                            f"{operation} of {frame_count_in_sum} frames "
+                            f"{start_idx + 1}-{end_idx + 1}"
+                        )
+                    if threshold_count > 1:
+                        combined_what += f", threshold {thr + 1}/{threshold_count}"
+                    tiff_metadata = None
+                    if self._deps.combined_frame_metadata is not None:
+                        with contextlib.suppress(Exception):
+                            tiff_metadata = self._deps.combined_frame_metadata(
+                                source_path, dataset, description=combined_what
+                            )
+                    self._deps.write_tiff(out_file, np.asarray(arr_tiff), tiff_metadata)
                     outputs.append(str(out_file))
             else:
                 raise HTTPException(status_code=400, detail="Unsupported output format")

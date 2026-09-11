@@ -528,6 +528,19 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
             parts.append(f"threshold {threshold}" + (f"/{count}" if count else ""))
         lines.append(" ".join(parts))
 
+    combined = _export_text(metadata or {}, "combined_description")
+    if combined:
+        # What a combined frame is, and why the per-exposure fields are absent
+        # from its header. A sum of ten one-second frames is not a one-second
+        # exposure, its values can exceed the per-frame count cutoff, and it
+        # spans a wedge of rotation rather than a single step -- so those lines
+        # are omitted upstream rather than restated as if they still held.
+        lines.append(f"# Combined: {combined}")
+        lines.append(
+            "# Per-frame exposure, rotation and count-cutoff values are omitted: "
+            "they do not describe a combined frame"
+        )
+
     lines.append("# Pixel substitutions: masked gaps = -1, bad or saturated = -2")
     return lines
 

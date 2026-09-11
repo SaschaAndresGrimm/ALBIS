@@ -127,6 +127,64 @@ class DataExportService:
         worker.start()
         return job_id
 
+    # Fields that describe ONE exposure and stop being true of a frame made
+    # from several. Kept out of a combined frame's header rather than carried
+    # across, because each would state a number that is no longer the case.
+    COMBINED_FRAME_DROPS = frozenset(
+        {
+            "exposure_time_s",
+            "exposure_period_s",
+            "count_cutoff",
+            "start_angle_deg",
+            "angle_increment_deg",
+            "image_datetime",
+            "image_number",
+            "source_frame",
+            "source_frame_count",
+        }
+    )
+
+    def source_instrument_metadata(
+        self, path: Path, dataset: str = "", *, frame_index: int = 0
+    ) -> dict[str, Any]:
+        """The instrument facts a source states, for another service to reuse.
+
+        Series Operations writes TIFFs too and had no way to read any of this,
+        so a summed TIFF carried nothing but its provenance. Rather than give
+        that service a second copy of these readers, it borrows this one.
+        """
+        h5py = None
+        ext = self._deps.image_ext_name(path.name)
+        if ext in {".h5", ".hdf5"} and dataset:
+            with contextlib.suppress(Exception):
+                h5py = self._deps.get_h5py()
+            if h5py is not None:
+                with contextlib.suppress(Exception), h5py.File(path, "r") as h5:
+                    return self._hdf5_base_export_metadata(h5, path, dataset)
+            return {}
+        with contextlib.suppress(Exception):
+            return self._image_source_export_metadata(path, frame_index)
+        return {}
+
+    def combined_frame_metadata(
+        self, path: Path, dataset: str, *, description: str
+    ) -> dict[str, Any]:
+        """Instrument facts for a frame combined from several, plus what it is.
+
+        `description` is stated verbatim in the header ("sum of 10 frames
+        1-10"), and is what replaces the per-exposure fields dropped here.
+        """
+        meta = {
+            key: value
+            for key, value in self.source_instrument_metadata(path, dataset).items()
+            if key not in self.COMBINED_FRAME_DROPS
+        }
+        meta["source_name"] = path.name
+        if dataset:
+            meta["source_dataset"] = dataset
+        meta["combined_description"] = description
+        return meta
+
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         with self._lock:
             job = self._jobs.get(job_id)

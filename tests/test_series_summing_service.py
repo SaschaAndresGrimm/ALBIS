@@ -87,7 +87,7 @@ def test_series_summing_service_job_lifecycle_done(tmp_path: Path) -> None:
         assert index == 0
         return np.asarray(frames[path])
 
-    def write_tiff(path: Path, arr: np.ndarray) -> None:
+    def write_tiff(path: Path, arr: np.ndarray, _metadata: dict | None = None) -> None:
         written.append((Path(path), np.asarray(arr)))
 
     service = SeriesSummingService(
@@ -132,7 +132,7 @@ def test_series_summing_service_job_lifecycle_error(tmp_path: Path) -> None:
             resolve_image_file=resolve_image_file,
             resolve_series_files=lambda _source: ([], 0),
             read_tiff=lambda _path, _index: np.zeros((2, 2), dtype=np.int32),
-            write_tiff=lambda _path, _arr: None,
+            write_tiff=lambda _path, _arr, _metadata=None: None,
         )
     )
     job_id = service.start_job(
@@ -181,7 +181,7 @@ def test_series_summing_service_median_preserves_integer_dtype_when_integral(
         assert index == 0
         return np.asarray(frames[path])
 
-    def write_tiff(path: Path, arr: np.ndarray) -> None:
+    def write_tiff(path: Path, arr: np.ndarray, _metadata: dict | None = None) -> None:
         written.append((Path(path), np.asarray(arr)))
 
     service = SeriesSummingService(
@@ -232,7 +232,7 @@ def test_series_summing_service_cancel_job(tmp_path: Path) -> None:
 
     written: list[Path] = []
 
-    def write_tiff(path: Path, _arr: np.ndarray) -> None:
+    def write_tiff(path: Path, _arr: np.ndarray, _metadata: dict | None = None) -> None:
         written.append(Path(path))
 
     service = SeriesSummingService(
@@ -289,7 +289,7 @@ def test_series_summing_service_nth_mode_sum(tmp_path: Path) -> None:
         assert index == 0
         return np.asarray(frames[path])
 
-    def write_tiff(path: Path, arr: np.ndarray) -> None:
+    def write_tiff(path: Path, arr: np.ndarray, _metadata: dict | None = None) -> None:
         written.append((Path(path), np.asarray(arr)))
 
     service = SeriesSummingService(
@@ -340,7 +340,7 @@ def test_series_summing_service_range_mode_emits_multiple_chunks(tmp_path: Path)
         assert index == 0
         return np.asarray(frames[path])
 
-    def write_tiff(_path: Path, arr: np.ndarray) -> None:
+    def write_tiff(_path: Path, arr: np.ndarray, _metadata: dict | None = None) -> None:
         written.append(np.asarray(arr))
 
     service = SeriesSummingService(
@@ -393,7 +393,7 @@ def test_series_summing_service_normalize_and_mask_non_h5(tmp_path: Path) -> Non
         assert index == 0
         return np.asarray(frames[path])
 
-    def write_tiff(_path: Path, arr: np.ndarray) -> None:
+    def write_tiff(_path: Path, arr: np.ndarray, _metadata: dict | None = None) -> None:
         written.append(np.asarray(arr))
 
     service = SeriesSummingService(
@@ -448,7 +448,7 @@ def test_series_summing_service_normalize_scalar_non_h5(tmp_path: Path) -> None:
         assert index == 0
         return np.asarray(frames[path])
 
-    def write_tiff(_path: Path, arr: np.ndarray) -> None:
+    def write_tiff(_path: Path, arr: np.ndarray, _metadata: dict | None = None) -> None:
         written.append(np.asarray(arr))
 
     service = SeriesSummingService(
@@ -506,7 +506,7 @@ def test_series_summing_service_normalize_image_masks_invalid_ref_non_h5(tmp_pat
         assert index == 0
         return np.asarray(frames[path])
 
-    def write_tiff(_path: Path, arr: np.ndarray) -> None:
+    def write_tiff(_path: Path, arr: np.ndarray, _metadata: dict | None = None) -> None:
         written.append(np.asarray(arr))
 
     service = SeriesSummingService(
@@ -565,7 +565,7 @@ def test_series_summing_service_tiff_filename_reflects_operation(tmp_path: Path)
         assert index == 0
         return np.asarray(frames[path])
 
-    def write_tiff(path: Path, _arr: np.ndarray) -> None:
+    def write_tiff(path: Path, _arr: np.ndarray, _metadata: dict | None = None) -> None:
         written_paths.append(Path(path))
 
     service = SeriesSummingService(
@@ -640,7 +640,7 @@ def test_series_summing_service_embeds_effective_geometry_in_hdf5_output(tmp_pat
             resolve_image_file=resolve_image_file,
             resolve_series_files=resolve_series_files,
             read_tiff=read_tiff,
-            write_tiff=lambda _path, _arr: None,
+            write_tiff=lambda _path, _arr, _metadata=None: None,
             ensure_hdf5_stack=lambda: None,
             get_h5py=lambda: h5py,
         )
@@ -745,7 +745,7 @@ def test_a_failed_hdf5_job_leaves_no_partial_output(tmp_path: Path) -> None:
             resolve_image_file=lambda name: Path(name),
             resolve_series_files=lambda _s: (list(series_files), 0),
             read_tiff=read_tiff,
-            write_tiff=lambda _path, _arr: None,
+            write_tiff=lambda _path, _arr, _metadata=None: None,
             ensure_hdf5_stack=lambda: None,
             get_h5py=lambda: _ExplodingH5py(),
         )
@@ -799,7 +799,7 @@ def test_the_summed_output_declares_which_frame_index_base_it_uses(tmp_path: Pat
             resolve_image_file=lambda name: Path(name),
             resolve_series_files=lambda _s: (list(series_files), 0),
             read_tiff=lambda path, index: np.asarray(frames[path]),
-            write_tiff=lambda _path, _arr: None,
+            write_tiff=lambda _path, _arr, _metadata=None: None,
             ensure_hdf5_stack=lambda: None,
             get_h5py=lambda: h5py,
         )
