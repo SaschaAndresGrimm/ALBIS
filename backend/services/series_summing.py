@@ -262,6 +262,44 @@ class SeriesSummingService:
             return name
         return f"{name}_{op}"
 
+    # A detector group's own datasets are scalars and short strings; a frame
+    # stack or a pixel mask is orders of magnitude bigger. The cap is what
+    # separates "metadata worth carrying" from "the data itself", without
+    # needing a list of every name a writer might use.
+    _METADATA_DATASET_MAX_ELEMENTS = 4096
+    # Never carried: the mask is large, and it describes the source array --
+    # a summed output has its own masking applied already.
+    _METADATA_DATASET_SKIP = frozenset({"pixel_mask", "data"})
+
+    def _copy_small_datasets(self, src_group: Any, dst_group: Any) -> None:
+        """Copy a group's own scalar and short datasets, leaving bulk data alone.
+
+        `_copy_h5_metadata` used to copy only ATTRIBUTES here, so everything a
+        NeXus writer states as a dataset was dropped: the detector description,
+        sensor thickness, count_time, frame_time, saturation_value, and the
+        beam's incident wavelength. Geometry survived only because
+        `_write_analysis_geometry_metadata` writes it explicitly afterwards --
+        and, running afterwards, it still overrides whatever is copied here,
+        which is the right way round: a distance the user corrected in ALBIS
+        should win over the stale one in the file.
+        """
+        h5py = self._deps.get_h5py()
+        for name in src_group:
+            if name in self._METADATA_DATASET_SKIP or name in dst_group:
+                continue
+            try:
+                item = src_group[name]
+            except Exception:
+                continue
+            if not isinstance(item, h5py.Dataset):
+                continue
+            if item.size > self._METADATA_DATASET_MAX_ELEMENTS:
+                continue
+            with contextlib.suppress(Exception):
+                created = dst_group.create_dataset(name, data=item[()])
+                for key, val in item.attrs.items():
+                    created.attrs[key] = val
+
     def _copy_h5_metadata(self, src_h5: Any, dst_h5: Any, threshold_count: int) -> None:
         h5py = self._deps.get_h5py()
         for key, val in src_h5.attrs.items():
@@ -276,6 +314,7 @@ class SeriesSummingService:
                 if key not in dst_detector.attrs:
                     with contextlib.suppress(Exception):
                         dst_detector.attrs[key] = val
+            self._copy_small_datasets(src_detector, dst_detector)
 
             for thr in range(threshold_count):
                 channel_path = f"threshold_{thr + 1}_channel"
@@ -294,6 +333,13 @@ class SeriesSummingService:
                         if isinstance(src_item, h5py.Dataset) and item_name not in dst_channel:
                             with contextlib.suppress(Exception):
                                 dst_channel.create_dataset(item_name, data=src_item[()])
+
+        if "/entry/instrument/beam" in src_h5:
+            with contextlib.suppress(Exception):
+                self._copy_small_datasets(
+                    src_h5["/entry/instrument/beam"],
+                    dst_h5.require_group("/entry/instrument/beam"),
+                )
 
         for group_path in ("/entry/instrument", "/entry/sample", "/entry/data"):
             if group_path in src_h5 and group_path not in dst_h5:

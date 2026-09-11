@@ -246,8 +246,11 @@ bad or saturated pixels are `-2`.
 
 ### What the exported header keeps
 
-TIFF exports carry a DECTRIS-style private tag. CBF exports carry a miniCBF
-header with, where the source states them: detector model, serial and location,
+TIFF and CBF exports carry the same header text — CBF in its miniCBF header,
+TIFF in the standard `ImageDescription` tag, which `tifffile`, PIL and ImageJ
+all show. A TIFF additionally keeps the DECTRIS private tag, which holds the
+series id, image number, threshold ids and lost-pixel count that the text has
+no place for. The header states, where the source states them: detector model, serial and location,
 the acquisition timestamp, pixel size, sensor thickness, exposure time and
 period, tau, count cutoff, threshold setting, gain setting, wavelength,
 incident energy, detector distance, beam centre, start angle and angle
@@ -267,6 +270,14 @@ not carry your folder layout.
 How much survives depends on the source. HDF5 and DECTRIS TIFF carry the most.
 A CBF or EDF source gives what its own header states, which for a PILATUS
 miniCBF is nearly all of the list above.
+
+A summed or averaged **HDF5** output keeps the source's `/entry/instrument`
+detector and beam metadata — description, sensor thickness, `count_time`,
+`frame_time`, `saturation_value`, incident wavelength — with their units, plus
+the per-threshold channel groups. The pixel mask and any bulk array are not
+copied: a summed output has its own masking applied, and the mask describes the
+source frames. Geometry you have corrected in ALBIS is written afterwards and
+wins over the source's own copy of it.
 
 **Export Animation** renders a GIF matching the screen exactly — colour map,
 contrast, mask and saturation highlighting all apply. Choose the frame range and

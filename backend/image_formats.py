@@ -1003,11 +1003,16 @@ def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
             simplon_meta = _simplon_meta_from_tiff(tiff)
     except Exception:
         desc = ""
-    meta = _parse_pilatus_header_text(desc)
-    if meta:
-        return meta
-    if simplon_meta:
-        return simplon_meta
+    # Both, not one or the other. The private tag is typed and detector-written
+    # so it wins any field they share, but it has no slot for the detector
+    # model, pixel size, sensor thickness, tau, cutoff, gain or the angles --
+    # and the text header has no slot for the series id, image number,
+    # threshold ids or lost-pixel count. Returning the first non-empty one, as
+    # this did, threw away whichever half it did not pick.
+    desc_meta = _parse_pilatus_header_text(desc)
+    merged = {**desc_meta, **simplon_meta}
+    if merged:
+        return merged
     try:
         return _pilatus_meta_from_fabio(path)
     except Exception:
@@ -1542,13 +1547,21 @@ def _write_tiff(path: Path, arr: np.ndarray, metadata: dict[str, Any] | None = N
     # wrote a file and what it holds, and they cost nothing to a reader that
     # ignores them. Written unconditionally, so a summed or converted frame is
     # traceable even where no source metadata was parsed.
+    #
+    # ImageDescription carries the SAME text the CBF header does, not just the
+    # provenance lines. The private DECTRIS tag has no slot for the detector
+    # model, serial, location, pixel size, sensor thickness, tau, count cutoff,
+    # gain or the rotation angles, and inventing tag ids for them would be
+    # guessing inside someone else's numbering -- a collision with a real
+    # assignment would have DECTRIS software misread the file. A standard text
+    # tag cannot collide, and tifffile, PIL and ImageJ all surface it.
     _tifffile.imwrite(
         path,
         arr,
         photometric="minisblack",
         byteorder="<",
         software=producer_string(),
-        description="\n".join(_provenance_lines(metadata)),
+        description=_mini_cbf_header_text(metadata),
         extratags=extratags,
     )
     if dectris_payload:
