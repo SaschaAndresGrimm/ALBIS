@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-09-11
+
 ### Fixed
 
 - A locked HDF5 file is no longer reported as a corrupt one, and now opens. `h5py` refuses a file it cannot lock with `BlockingIOError: [Errno 35] ... unable to lock file` — not one byte has been read, so the file is very probably fine — and ALBIS reported that as "not a readable HDF5 file (it may be incomplete or corrupt)", sending the user looking for damage to data that was not damaged. It happens when another process holds the file (a filewriter still running, another viewer, a crashed process whose handle has not been reaped) or when the filesystem cannot take POSIX locks at all, which is routine on the network mounts a beamline serves data from. The existing SWMR retry only covers a writer that opted into SWMR, so neither attempt succeeded. There is now a third, last-resort attempt with file locking disabled — a viewer that will not open a readable file is worse than one that reads it unsynchronised, and for a finished file there is nothing to synchronise with. It is logged at warning level, and if even that fails the error names the lock and says the file is not damaged.
@@ -1061,7 +1063,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.1...HEAD
+[0.17.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.14.0...v0.15.0
