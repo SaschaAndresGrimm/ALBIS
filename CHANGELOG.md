@@ -9,6 +9,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Peak markers thin as they multiply. The shipped default is 100 peaks, and at that density each marker's dark contrast halo merged with its neighbours' into a wash over the diffraction it was annotating. The stroke weight now tapers with the count while the radius does not — the radius is the only thing on screen saying how big the spot is, so it has to keep tracking the footprint. Half the halo's weight is held absolute rather than tapered, so a marker never loses the guard that lets it read on a light frame, and an export does not thin at all: a GIF has no partial alpha to carry a thinned stroke, and the reason to thin — a view being panned and scrutinised — does not apply to a fixed artefact.
+
+- Resolution-ring labels place themselves clear of the ROI. They already avoided each other and the beam-centre marker; the ROI is drawn on its own canvas but shares the screen, and a d-spacing sitting on top of an ROI edge was the remaining collision. Deliberately a *preference*, not a veto: a circular ROI snapped to the beam centre (one click) encloses whole rings, and refusing to draw an enclosed label would leave an unlabelled ring beside labelled ones — which invites reading the wrong d-spacing off the wrong ring, and that number ends up in a figure caption. A label with nowhere clear is drawn on the ROI's translucent fill instead. Moving the ROI now also redraws the labels, which it did not at first.
+
+### Fixed
+
+- Controls no longer show two tooltips at once — again, and this time for the right reason. The previous fix took the native `title` away when our own bubble appeared, which is `HELP_DELAY_MS` (1000 ms) after the pointer arrives; browsers start their own tooltip timer on the same event and paint at roughly half that, and removing the attribute from under a tooltip already on screen does not retract it. The folder-browse button showed "Browse and select a source folder." with the browser's "Browse folder" beside it. The attribute is now taken on `mouseover`, before the browser's timer can fire. Two adjacent holes went with it: a control the pointer left for a nested one was never given its title back, and a title re-applied by a language change mid-hover was overwritten by the stashed one.
+
+- A box ROI's reserved region no longer falls a pixel short of the rectangle drawn. Box ROIs are inclusive in pixel indices, so the drawn boundary extends one full cell past the maximum index.
+
+
+### Changed
+
 - The About dialog states the author's affiliation, the licence and how to cite ALBIS. `CITATION.cff` has always declared `DECTRIS AG` and an archived concept DOI, and `GOVERNANCE.md` names the MIT licence as the one thing a facility can rely on — but none of that was visible in the application, so a reader deciding whether they may use ALBIS, or wanting to cite it, had to go and find the repository. The formats card also read "HDF5, TIFF, CBF, EDF" while `/api/image` has always accepted MYTHEN `.cfg`/`.dat` as well. A test now holds the card to the extensions the route actually branches on, the affiliation to `CITATION.cff`, and the DOI to the one in the README.
 
 ### Fixed

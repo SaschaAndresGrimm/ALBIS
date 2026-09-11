@@ -64,6 +64,7 @@ import { createOverlayRenderController } from "./modules/overlay_render_controll
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
 import { createRenderEngineController } from "./modules/render_engine_controller.js";
 import { createOverviewViewportController } from "./modules/overview_viewport_controller.js";
+import { getRoiImageBounds } from "./modules/roi_geometry_utils.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -3857,6 +3858,7 @@ const overlayRenderController = createOverlayRenderController({
     getRingParams,
     updateRingsSectionState,
     getRingInteractionState,
+    getRoiImageBounds: () => getRoiImageBounds(roiState, state.pixelAspect || 1),
   },
 });
 
@@ -4000,6 +4002,11 @@ function handleContrastChanged(reason = "change") {
 
 function handleRoiChanged(reason = "change") {
   viewerSyncController?.handleRoiChanged(reason);
+  // The resolution-ring labels place themselves clear of the ROI, so they are
+  // stale the moment it moves. Every ROI mutation funnels through here. Via
+  // the hoisted wrapper, not overlayRenderController directly: that is a const
+  // declared further down the file, and this function can run before it.
+  scheduleResolutionOverlay();
 }
 
 const roiStatsController = createRoiStatsController({

@@ -51,6 +51,54 @@ export function getCircularRoiOuterRadius(roiState, aspect = 1) {
   );
 }
 
+/**
+ * The ROI's bounding box in image pixels, or null when nothing is drawn.
+ *
+ * The resolution-ring overlay uses this to keep d-spacing labels off the ROI.
+ * The label placer already avoids sibling labels and the beam centre; the ROI
+ * lives on its own canvas but shares the screen, so it was the one remaining
+ * thing a label could land on top of.
+ */
+export function getRoiImageBounds(roiState, aspect = 1) {
+  if (!roiState?.enabled || !roiState.active) return null;
+  if (!roiState.start || !roiState.end) return null;
+  const startX = Number(roiState.start.x);
+  const startY = Number(roiState.start.y);
+  if (!Number.isFinite(startX) || !Number.isFinite(startY)) return null;
+
+  if (roiState.mode === "circle" || roiState.mode === "annulus") {
+    // The radius is stored in X-pixel-equivalent units and drawn as a true
+    // circle on the (isotropic) display, so it spans `radius` image columns
+    // but only `radius / aspect` image rows.
+    const radius = getCircularRoiOuterRadius(roiState, aspect);
+    if (!(radius > 0)) return null;
+    const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+    const radiusY = radius / safeAspect;
+    return {
+      x: startX - radius,
+      y: startY - radiusY,
+      width: radius * 2,
+      height: radiusY * 2,
+    };
+  }
+
+  const endX = Number(roiState.end.x);
+  const endY = Number(roiState.end.y);
+  if (!Number.isFinite(endX) || !Number.isFinite(endY)) return null;
+  // A line or box ROI spans the two corners. A box ROI is inclusive in pixel
+  // indices -- getBoxScreenBounds extends the drawn boundary one full cell past
+  // the maximum index -- so the box covers one more column and row than the
+  // difference of the corners. Without that the reserved region falls a pixel
+  // short of the rectangle actually on screen.
+  const inclusive = roiState.mode === "box" ? 1 : 0;
+  return {
+    x: Math.min(startX, endX),
+    y: Math.min(startY, endY),
+    width: Math.abs(endX - startX) + inclusive,
+    height: Math.abs(endY - startY) + inclusive,
+  };
+}
+
 export function clampCircularRoiCenterDelta(dx, dy) {
   return { dx, dy };
 }

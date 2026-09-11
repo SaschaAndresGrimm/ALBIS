@@ -153,6 +153,33 @@ export function peakMarkerRadius(zoom, footprintPx, minPx, maxPx) {
   return Math.max(minPx, Math.min(maxPx, footprintPx * z));
 }
 
+// Marker INK thins as markers multiply; marker RADIUS deliberately does not.
+// The radius is the only thing on screen saying how big the spot is, so it has
+// to keep tracking the footprint. What has to give at a hundred markers is the
+// weight of the stroke: each one carries a dark halo so it reads on a light or
+// dark frame, and at that density the halos merge into a wash over the very
+// pattern they are annotating.
+//
+// Full weight to 25 markers, then a taper that reaches its floor around 138.
+// Note the *shipped* default is 100 (index.html's peaks-count input, which
+// overrides the 25 in state.js), so a default session renders at about 0.70 --
+// that is the density this exists for, not an edge case.
+const MARKER_INK_FULL_UPTO = 25;
+const MARKER_INK_FLOOR = 0.55;
+const MARKER_INK_TAPER = 0.004;
+// Thinning is a SCREEN affordance and is switched off for an export. A GIF has
+// no partial alpha: the exporter keeps a pixel only where the overlay's
+// coverage clears a hard threshold, so a thinned stroke stops depositing its
+// own colour reliably and the marker quantises to whatever palette entry is
+// nearest. And the reason to thin does not apply there anyway -- merging halos
+// spoil a view you are actively scrutinising and panning; a GIF is a fixed
+// artefact where fidelity matters more than legibility under the cursor.
+export function markerInkScale(count) {
+  const n = Number(count);
+  if (!Number.isFinite(n) || n <= MARKER_INK_FULL_UPTO) return 1;
+  return Math.max(MARKER_INK_FLOOR, 1 - (n - MARKER_INK_FULL_UPTO) * MARKER_INK_TAPER);
+}
+
 /** Ring d-spacings, resolved to screen-space segments once per geometry. */
 export function buildGeometryRingCache(params) {
   const cache = new Map();
@@ -183,13 +210,25 @@ function ringLabelsOverlap(a, b) {
  * One placer per overlay pass; it accumulates the boxes already taken.
  */
 function createRingLabelPlacer(ctx, colors, uiScale) {
-  const boxes = [];
+  // HARD boxes veto a position outright: sibling labels, and the beam-centre
+  // marker. Two labels on top of each other are both unreadable, so there is
+  // nothing to gain by drawing anyway.
+  const hard = [];
+  // SOFT boxes are a preference. A label with nowhere clear of them is still
+  // drawn, because an unlabelled ring is worse than an overlapping label: it
+  // sits next to labelled ones and invites reading the wrong d-spacing off the
+  // wrong ring, and that number ends up in a figure caption. The ROI is soft
+  // for exactly this reason -- it is routinely concentric with the rings (there
+  // is a one-click "snap to beam centre" for circular ROIs), and a concentric
+  // ROI encloses whole rings, so a hard veto silently deleted every label
+  // inside it however far the label tried to slide.
+  const soft = [];
   const fontSize = 14 * uiScale;
   const padX = 6 * uiScale;
   const padY = 3 * uiScale;
 
-  function reserve(box) {
-    boxes.push(box);
+  function reserve(box, { soft: isSoft = false } = {}) {
+    (isSoft ? soft : hard).push(box);
   }
 
   function draw(screenPoint, label, direction) {
@@ -213,21 +252,32 @@ function createRingLabelPlacer(ctx, colors, uiScale) {
       tx = -tx;
       ty = -ty;
     }
-    let textX = screenPoint.x + 8 * uiScale;
-    let textY = screenPoint.y;
+    const originX = screenPoint.x + 8 * uiScale;
+    const originY = screenPoint.y;
     const step = boxH + 4 * uiScale;
     const maxSteps = 6;
     const boxAt = (bx, by) => ({ x: bx - padX, y: by - fontSize / 2 - padY, w: boxW, h: boxH });
-    let box = boxAt(textX, textY);
-    let steps = 0;
-    while (steps < maxSteps && boxes.some((other) => ringLabelsOverlap(box, other))) {
-      textX += tx * step;
-      textY += ty * step;
-      box = boxAt(textX, textY);
-      steps += 1;
+    const hits = (box, list) => list.some((other) => ringLabelsOverlap(box, other));
+
+    // Slide along the ring looking for a slot clear of everything; remember the
+    // first slot that at least clears the hard boxes, to fall back on.
+    let best = null;
+    let fallback = null;
+    for (let attempt = 0; attempt <= maxSteps; attempt += 1) {
+      const bx = originX + tx * step * attempt;
+      const by = originY + ty * step * attempt;
+      const candidate = boxAt(bx, by);
+      if (hits(candidate, hard)) continue;
+      if (!fallback) fallback = { textX: bx, textY: by, box: candidate };
+      if (!hits(candidate, soft)) {
+        best = { textX: bx, textY: by, box: candidate };
+        break;
+      }
     }
-    if (boxes.some((other) => ringLabelsOverlap(box, other))) return; // too crowded; skip
-    boxes.push(box);
+    const chosen = best || fallback;
+    if (!chosen) return; // every slot collides with another label or the centre
+    const { textX, textY, box } = chosen;
+    hard.push(box);
     ctx.fillStyle = colors.labelBox;
     ctx.fillRect(box.x, box.y, box.w, box.h);
     ctx.lineWidth = 3 * uiScale;
@@ -301,6 +351,7 @@ export function paintResolutionRings(
     uiScale = 1,
     colors = SCREEN_OVERLAY_COLORS,
     activeHandle = null,
+    avoidImageRects = [],
   } = {}
 ) {
   if (!ctx || !params) return false;
@@ -331,6 +382,31 @@ export function paintResolutionRings(
   if (Number.isFinite(centerX) && Number.isFinite(centerY)) {
     const reserve = 22 * uiScale;
     labels.reserve({ x: centerX - reserve, y: centerY - reserve, w: reserve * 2, h: reserve * 2 });
+  }
+  // Anything else on screen a label must keep off, given in image pixels so
+  // the caller need not know the transform -- today the ROI, which is drawn on
+  // its own canvas but shares the view. Inflated once transformed: a label
+  // should not sit flush against the ROI's 4px stroke, and a horizontal line
+  // ROI has zero height in image space and would otherwise reserve nothing.
+  for (const rect of avoidImageRects) {
+    if (!rect) continue;
+    const width = Number(rect.width) || 0;
+    const height = Number(rect.height) || 0;
+    const ax = viewX(view, Number(rect.x));
+    const ay = viewY(view, Number(rect.y));
+    const bx = viewX(view, Number(rect.x) + width);
+    const by = viewY(view, Number(rect.y) + height);
+    if (![ax, ay, bx, by].every(Number.isFinite)) continue;
+    const pad = 6 * uiScale;
+    labels.reserve(
+      {
+        x: Math.min(ax, bx) - pad,
+        y: Math.min(ay, by) - pad,
+        w: Math.abs(bx - ax) + pad * 2,
+        h: Math.abs(by - ay) + pad * 2,
+      },
+      { soft: true }
+    );
   }
 
   if (params.mode === "geometry" && params.geometry) {
@@ -425,6 +501,7 @@ export function paintPeakMarkers(
     height,
     uiScale = 1,
     colors = SCREEN_OVERLAY_COLORS,
+    thinWithDensity = true,
   } = {}
 ) {
   if (!ctx) return;
@@ -440,6 +517,10 @@ export function paintPeakMarkers(
     const style = typeof set?.style === "string" ? set.style : "";
     const jfjochSet = style === "jfjoch-indexed" || style === "jfjoch-unindexed";
     const points = Array.isArray(set?.points) ? set.points : [];
+    // Each set thins on its own count -- a jfjoch frame can carry hundreds.
+    // The TOTAL count, deliberately, not the number currently on canvas: a
+    // cull-dependent width would make every marker breathe as you pan.
+    const ink = thinWithDensity ? markerInkScale(points.length) : 1;
     const radius = jfjochSet
       ? peakMarkerRadius(zoom, 3.0, 8 * uiScale, 80 * uiScale)
       : peakMarkerRadius(zoom, 2.6, 7 * uiScale, 70 * uiScale);
@@ -455,13 +536,13 @@ export function paintPeakMarkers(
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-        ctx.lineWidth = 2.8 * uiScale;
+        ctx.lineWidth = 2.8 * uiScale * ink;
         ctx.strokeStyle = colors.externalHalo;
         ctx.stroke();
 
         ctx.beginPath();
         ctx.arc(sx, sy, Math.max(3 * uiScale, radius - 2 * uiScale), 0, Math.PI * 2);
-        ctx.lineWidth = 1.8 * uiScale;
+        ctx.lineWidth = 1.8 * uiScale * ink;
         ctx.strokeStyle = color;
         ctx.stroke();
 
@@ -471,20 +552,20 @@ export function paintPeakMarkers(
         ctx.lineTo(sx + cross, sy);
         ctx.moveTo(sx, sy - cross);
         ctx.lineTo(sx, sy + cross);
-        ctx.lineWidth = 1.6 * uiScale;
+        ctx.lineWidth = 1.6 * uiScale * ink;
         ctx.strokeStyle = color;
         ctx.stroke();
       } else {
         ctx.setLineDash([4 * uiScale, 3 * uiScale]);
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-        ctx.lineWidth = 2.4 * uiScale;
+        ctx.lineWidth = 2.4 * uiScale * ink;
         ctx.strokeStyle = colors.externalHalo;
         ctx.stroke();
 
         ctx.beginPath();
         ctx.arc(sx, sy, Math.max(3 * uiScale, radius - 1.5 * uiScale), 0, Math.PI * 2);
-        ctx.lineWidth = 1.35 * uiScale;
+        ctx.lineWidth = 1.35 * uiScale * ink;
         ctx.strokeStyle = color;
         ctx.stroke();
       }
@@ -495,6 +576,12 @@ export function paintPeakMarkers(
     ctx.setLineDash([]);
     return;
   }
+
+  // Selected markers keep full weight: there are a handful at most, and the
+  // point of the selection is that it stands out from everything around it.
+  // Keyed on the total count rather than the visible one, so zooming into a
+  // corner does not re-weight every marker as they leave the viewport.
+  const ink = thinWithDensity ? markerInkScale(peaks.length) : 1;
 
   peaks.forEach((peak, index) => {
     const sx = viewX(view, peak.x + 0.5);
@@ -537,16 +624,20 @@ export function paintPeakMarkers(
       ctx.stroke();
     } else {
       // Dark halo first so the marker stays readable on light or dark frames.
+      // Half of it is absolute: thinning the halo in step with the ring would
+      // spend the very contrast margin the halo exists to provide, so the
+      // proportional part shrinks and a fixed fringe always remains. Identical
+      // to the old 3.4 at full ink.
       ctx.beginPath();
       ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-      ctx.lineWidth = 3.4 * uiScale;
+      ctx.lineWidth = 1.7 * uiScale * ink + 1.7 * uiScale;
       ctx.strokeStyle = colors.peakHalo;
       ctx.stroke();
 
       // Amber ring, matching the ROI peak accent (PLOT_THEME.peak).
       ctx.beginPath();
       ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-      ctx.lineWidth = 1.7 * uiScale;
+      ctx.lineWidth = 1.7 * uiScale * ink;
       ctx.strokeStyle = colors.peakRing;
       ctx.stroke();
     }

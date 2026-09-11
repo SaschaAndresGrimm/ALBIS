@@ -419,6 +419,11 @@ export function createAnimationExportController({
         // Peak selection is a viewer notion; index N of one frame is not the
         // same spot as index N of the next, so nothing is drawn as selected.
         selectedPeaks: [],
+        // Full marker weight in an export. Thinning exists to stop merging
+        // halos washing out a view being panned and scrutinised; a GIF is a
+        // fixed artefact, and its palette has no partial alpha to carry a
+        // thinned stroke -- it would quantise to the nearest entry instead.
+        thinWithDensity: false,
         view,
         width: ow,
         height: oh,

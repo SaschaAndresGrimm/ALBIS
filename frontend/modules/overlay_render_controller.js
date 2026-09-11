@@ -45,6 +45,7 @@ export function createOverlayRenderController({
     getRingParams,
     updateRingsSectionState,
     getRingInteractionState,
+    getRoiImageBounds,
   } = callbacks;
 
   let pixelOverlayScheduled = false;
@@ -320,12 +321,16 @@ export function createOverlayRenderController({
     updateRingsSectionState();
     if (!analysisState.ringsEnabled || !state.hasFrame) return;
     const params = getRingParams();
+    // The ROI is drawn on its own canvas but shares the screen, so the ring
+    // labels are told where it is and place themselves off it.
+    const roiBounds = getRoiImageBounds?.() || null;
     paintResolutionRings(resolutionCtx, {
       params,
       view: currentView(),
       geometryCache: getGeometryRingCache(params),
       pixelAspect: state.pixelAspect || 1,
       activeHandle: getRingInteractionState?.().handle || null,
+      avoidImageRects: roiBounds ? [roiBounds] : [],
     });
   }
 

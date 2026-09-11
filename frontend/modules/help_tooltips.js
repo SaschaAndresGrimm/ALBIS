@@ -261,7 +261,10 @@ export function createHelpTooltipController({
     if (!target || !target.dataset) return;
     const stashed = target.dataset.helpNativeTitle;
     if (typeof stashed !== "string") return;
-    target.setAttribute("title", stashed);
+    // Only if nothing has put one back meanwhile: i18n re-applies every
+    // data-i18n-title on a language change, and writing the stash over that
+    // would restore the previous language's string.
+    if (!target.hasAttribute("title")) target.setAttribute("title", stashed);
     delete target.dataset.helpNativeTitle;
   }
 
@@ -282,8 +285,21 @@ export function createHelpTooltipController({
     if (!helpTooltip || !state.toolHintsEnabled) return;
     const text = getHelpText(target);
     if (!text) return;
+    // Hand the control we are abandoning its title back. mouseover fires for a
+    // nested target without a mouseout for its parent, so re-arming without
+    // this stripped the parent permanently -- and moving suppression earlier
+    // widened that from "after a full second of dwell" to "any brush past".
+    if (helpTarget && helpTarget !== target) restoreNativeTitle(helpTarget);
     helpTarget = target;
     helpLastEvent = event;
+    // Take the native title away NOW rather than when our own bubble appears.
+    // The browser starts its tooltip timer on mouseover and fires at roughly
+    // 500ms; HELP_DELAY_MS is 1000. Suppressing at reveal time therefore
+    // removed the attribute from under a tooltip the browser had already
+    // painted -- and a painted tooltip does not retract when its title goes
+    // away, so both sat on screen together. getHelpText has already run
+    // above, so a control whose title *is* its hint still reads it first.
+    suppressNativeTitle(target);
     if (helpTimer) {
       clearTimeout(helpTimer);
       helpTimer = null;
@@ -293,7 +309,6 @@ export function createHelpTooltipController({
       helpTooltip.classList.add("is-visible");
       positionHelpTooltip(event);
       describeTarget(target);
-      suppressNativeTitle(target);
     };
     if (immediate) {
       reveal();
