@@ -544,7 +544,7 @@ export function createExportSplashController({
     return normalized.includes(".") && /^[a-z0-9_.-]+$/i.test(normalized);
   }
 
-  function setSplashStatus(status, vars = {}) {
+  function setSplashStatus(status, vars = {}, options = {}) {
     if (!splashStatus) return;
     const normalized = String(status || "").trim();
     const normalizedVars = vars && typeof vars === "object" ? vars : {};
@@ -564,9 +564,16 @@ export function createExportSplashController({
     splashStatus.textContent = text;
     if (!splash) return;
     const lower = text.toLowerCase();
-    const busy = useI18nKey
-      ? !SPLASH_STATUS_TERMINAL_KEYS.has(normalized)
-      : Boolean(text) && !/\b(ready|failed|error|done|complete)\b/.test(lower);
+    // Free text is classified by looking for English words in it, which no
+    // translation carries -- so a localized failure used to keep the spinner
+    // turning as though the file were still loading. A caller that knows the
+    // answer says so, and only the rest falls back to guessing.
+    const busy =
+      typeof options.busy === "boolean"
+        ? options.busy
+        : useI18nKey
+          ? !SPLASH_STATUS_TERMINAL_KEYS.has(normalized)
+          : Boolean(text) && !/\b(ready|failed|error|done|complete)\b/.test(lower);
     splash.classList.toggle("is-busy", busy);
     updateSplashCallToAction();
   }

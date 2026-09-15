@@ -79,7 +79,7 @@ def _resolved_node(deps: HDF5RouteDeps, h5: Any, file_path: Path, path: str) -> 
                 handle.close()
 
 
-def _dead_master_detail(group: str, link_count: int, report: WalkReport) -> str:
+def _dead_master_detail(group: str, link_count: int, report: WalkReport) -> dict[str, Any]:
     """Explain a master whose linked data never resolved, in its own terms.
 
     Two different problems reach here and they need different advice. If the
@@ -88,29 +88,50 @@ def _dead_master_detail(group: str, link_count: int, report: WalkReport) -> str:
     resolved -- so the data is where they put it and something else stopped the
     read (no descriptors left, no permission, a mount that dropped out), and
     telling them to copy files they already have would waste their time.
+
+    Structured rather than a sentence, following the SIMPLON failure detail:
+    `code` lets the interface render this in the user's own language, and
+    `message` keeps a readable English line for the log and for anything
+    reading the API directly. The counts stay here in full even though the
+    localized text is deliberately short -- the wording a user reads on the
+    splash has no room for them, and the log line does.
     """
-    lead = f"{group} links to {link_count:,} data file(s), and none of them could be read. "
     if report.unreadable_external_count and not report.missing_external_count:
-        example = report.unreadable_external[0] if report.unreadable_external else None
+        example = report.unreadable_external[0] if report.unreadable_external else ""
         reason = report.unreadable_reasons[0] if report.unreadable_reasons else "unknown error"
-        return (
-            lead
-            + "The files are there but will not open"
-            + (f", starting with '{example}'" if example else "")
-            + f": {reason}"
-        )
-    example = report.missing_external[0] if report.missing_external else None
-    detail = (
-        lead
-        + "The files are not next to this master"
+        return {
+            "code": "master_data_unreadable",
+            "message": (
+                f"{group} links to {link_count:,} data file(s) and none could be read. "
+                f"They are present but will not open"
+                + (f", starting with '{example}'" if example else "")
+                + f": {reason}"
+            ),
+            "group": group,
+            "count": link_count,
+            "example": example,
+            "reason": reason,
+            "unreadable": report.unreadable_external_count,
+        }
+    example = report.missing_external[0] if report.missing_external else ""
+    message = (
+        f"{group} links to {link_count:,} data file(s) and none could be read. "
+        f"They are not next to this master"
         + (f", starting with '{example}'" if example else "")
         + ". Copy the linked data files into the same folder and open it again."
     )
     if report.unreadable_external_count:
-        detail += (
+        message += (
             f" A further {report.unreadable_external_count:,} were present but would not open."
         )
-    return detail
+    return {
+        "code": "master_data_missing",
+        "message": message,
+        "group": group,
+        "count": link_count,
+        "example": example,
+        "unreadable": report.unreadable_external_count,
+    }
 
 
 def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:

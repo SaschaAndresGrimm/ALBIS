@@ -17,20 +17,33 @@ function friendlyHttpMessage(status, detail) {
   return detail ? `${base} (${detail})` : base;
 }
 
-function httpError(status, detail) {
+function httpError(status, detail, data) {
   const err = new Error(friendlyHttpMessage(status, detail));
   err.status = status;
   if (detail) err.detail = detail;
+  // The structured half, when the server sent one, so a caller can render the
+  // failure in the user's language from `code` instead of showing `message`.
+  if (data) err.detailData = data;
   return err;
 }
 
 async function readDetail(res) {
   try {
     const body = await res.json();
-    return body?.detail ? String(body.detail) : "";
+    const detail = body?.detail;
+    // Some endpoints answer with an object rather than a sentence -- the
+    // SIMPLON probe and the dataset scan both do. `String()` on one of those
+    // yields "[object Object]", which is what the user used to be shown.
+    if (detail && typeof detail === "object") {
+      return {
+        text: typeof detail.message === "string" ? detail.message : "",
+        data: detail,
+      };
+    }
+    return { text: detail ? String(detail) : "", data: null };
   } catch {
     // Body is missing or not JSON; fall back to the status-based message.
-    return "";
+    return { text: "", data: null };
   }
 }
 
@@ -87,7 +100,8 @@ async function request(url, init = {}) {
     if (cleanupCallerAbort) cleanupCallerAbort();
   }
   if (!res.ok) {
-    throw httpError(res.status, await readDetail(res));
+    const { text, data } = await readDetail(res);
+    throw httpError(res.status, text, data);
   }
   return res.json();
 }

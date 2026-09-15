@@ -136,4 +136,56 @@ describe("readHeaderText", () => {
     // cosmetic label would be the wrong trade.
     expect(readHeaderText(headers("broken%E0%A4"), "X-Remote-Display")).toBe("broken%E0%A4");
   });
+
+  it("carries a structured server detail through as detailData", async () => {
+    // Some endpoints answer with an object rather than a sentence: the dataset
+    // scan and the SIMPLON probe both do. `String()` on one of those yields
+    // "[object Object]", which is what the message used to be built from.
+    const detail = {
+      code: "master_data_missing",
+      message: "5,000,000 data files are not next to this master.",
+      count: 5000000,
+      example: "tem_burnin_data_000001.h5",
+    };
+    globalThis.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ detail }),
+    }));
+
+    await expect(fetchJSON("/api/datasets")).rejects.toMatchObject({
+      status: 422,
+      // The readable half becomes the message, so a caller that knows nothing
+      // about the code still shows a sentence.
+      detail: detail.message,
+      detailData: detail,
+    });
+    await expect(fetchJSON("/api/datasets")).rejects.toThrow(/data files are not next/);
+  });
+
+  it("leaves a structured detail with no message as an empty detail", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 502,
+      json: async () => ({ detail: { code: "unreachable" } }),
+    }));
+
+    const err = await fetchJSON("/x").catch((e) => e);
+    expect(err.detailData).toEqual({ code: "unreachable" });
+    expect(err.detail).toBeUndefined();
+    expect(err.message).not.toContain("object Object");
+  });
+
+  it("still passes a plain string detail through untouched", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 422,
+      json: async () => ({ detail: "Dataset is not 2D, 3D, or 4D" }),
+    }));
+
+    const err = await fetchJSON("/x").catch((e) => e);
+    expect(err.detail).toBe("Dataset is not 2D, 3D, or 4D");
+    expect(err.detailData).toBeUndefined();
+  });
 });
+

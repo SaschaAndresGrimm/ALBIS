@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- The "data files are missing" message is short, and it is translated. It arrived as one long English sentence that wrapped to three lines across the splash screen, and stayed English in all thirteen languages. `/api/datasets` now answers with a code and the counts rather than prose — the shape the SIMPLON failure detail already used — so the interface composes the sentence in the user's own language: "5,000,000 linked data files are missing (e.g. tem_burnin_D036347_data_3150998.h5). Copy them into this folder." The `message` field keeps a fuller English line for the log and for anything reading the API directly, which is where the secondary counts now live. The example filename is a translated fragment appended only when the server names one, because a group of broken soft links reaches this point with a count and no filename at all.
+
+  Two things surfaced while fixing it. `fetchJSON` turned an object `detail` into its message with `String()`, so any endpoint answering with a structured failure — this one and the SIMPLON probe — showed the user "(\[object Object\])"; it now reads `message` and passes the rest to the caller as `detailData`. And the splash decided whether to keep the loading spinner turning by searching the status text for "ready", "failed", "error", "done" or "complete" — words no translation carries, and which this message does not contain even in English, so a failure would have been reported with a spinner beside it. A caller that knows it is reporting a failure now says so, and only the rest still guesses.
+
+  `.splash-sub` also gained a `72ch` measure. Every other status is a few words; this one explains itself, and unbounded it ran the full width of the viewer — on a wide monitor, a single line metres long.
+
 ### Fixed
 
 - A master file whose companion data files are missing says so, instead of taking the viewer down with it. A colleague's ARINA burn-in master was written one companion file per frame — `nimages=1000 x ntrigger=5000`, so `/entry/data` held 5,000,000 external links — and had been downloaded without any of them. The file was not corrupt; HDFView died on it too, which is what made it look that way. Opening it in ALBIS now takes about two seconds and reports which data files are missing, naming one to look for.

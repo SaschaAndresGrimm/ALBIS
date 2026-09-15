@@ -130,9 +130,13 @@ def test_orphaned_master_is_reported_as_missing_data_files(
 
     assert response.status_code == 422
     detail = response.json()["detail"]
-    assert "/entry/data" in detail
-    assert "orphan_master_data_000001.h5" in detail, "name a file the user can look for"
-    assert "same folder" in detail, "say what to do about it"
+    # Structured so the interface can say this in the user's own language; the
+    # counts live here in full even though the localized wording is short.
+    assert detail["code"] == "master_data_missing"
+    assert detail["group"] == "/entry/data"
+    assert detail["count"] == 25
+    assert detail["example"] == "orphan_master_data_000001.h5", "a file the user can look for"
+    assert "same folder" in detail["message"], "the English fallback still says what to do"
 
 
 def test_a_partly_downloaded_master_still_opens(tmp_path: Path, client: TestClient) -> None:
@@ -346,10 +350,13 @@ def test_data_files_that_are_present_but_unreadable_are_not_called_missing(
 
     assert response.status_code == 422
     detail = response.json()["detail"]
-    assert "will not open" in detail
-    assert "not next to this master" not in detail, "the files are next to it"
-    assert "Copy the linked data files" not in detail, "copying them would change nothing"
-    assert "unreadable_master_data_000001.h5" in detail
+    assert detail["code"] == "master_data_unreadable"
+    assert detail["example"] == "unreadable_master_data_000001.h5"
+    assert detail["reason"], "name what stopped the read"
+    message = detail["message"]
+    assert "will not open" in message
+    assert "not next to this master" not in message, "the files are next to it"
+    assert "Copy the linked data files" not in message, "copying them would change nothing"
 
 
 def test_a_mix_of_absent_and_unreadable_files_reports_both(
@@ -364,5 +371,9 @@ def test_a_mix_of_absent_and_unreadable_files_reports_both(
 
     detail = response.json()["detail"]
     assert response.status_code == 422
-    assert "not next to this master" in detail, "four files really are absent"
-    assert "2 were present but would not open" in detail
+    # The advice follows the four that are genuinely absent, and the two that
+    # are present but unreadable are still counted rather than dropped.
+    assert detail["code"] == "master_data_missing"
+    assert detail["unreadable"] == 2
+    assert "not next to this master" in detail["message"], "four files really are absent"
+    assert "2 were present but would not open" in detail["message"]

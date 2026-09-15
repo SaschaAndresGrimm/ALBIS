@@ -18,6 +18,77 @@ function buildFetchMock(dictionaries, handlers = {}) {
   });
 }
 
+// A controller whose dataset scan always fails with the given error shape.
+// Only the reporting callbacks matter here, so the rest are stubs.
+async function makeScanFailureController({ detail, detailData, setStatus }) {
+  const { createFileDataPipelineController } = await import(
+    "../modules/file_data_pipeline_controller.js"
+  );
+  const refusal = new Error("Request failed (422)");
+  refusal.status = 422;
+  if (detail) refusal.detail = detail;
+  if (detailData) refusal.detailData = detailData;
+
+  return createFileDataPipelineController({
+    apiBase: "/api",
+    state: {
+      file: "master.h5",
+      dataset: "",
+      seriesFiles: [],
+      hasFrame: false,
+      isLoading: false,
+      playing: false,
+      pendingFrame: null,
+      maskRaw: null,
+      maskFile: "",
+    },
+    elements: {
+      fileSelect: document.createElement("select"),
+      datasetSelect: document.createElement("select"),
+      metaShape: document.createElement("div"),
+      metaDtype: document.createElement("div"),
+    },
+    callbacks: {
+      fetchJSON: vi.fn(async () => {
+        throw refusal;
+      }),
+      option: (label, value) => {
+        const opt = document.createElement("option");
+        opt.value = value;
+        return opt;
+      },
+      fileLabel: (value) => String(value || ""),
+      isSeriesCapable: () => false,
+      isHdfFile: () => true,
+      setDataControlsForHdf5: vi.fn(),
+      setDataControlsForSeries: vi.fn(),
+      loadMetadata: vi.fn(async () => true),
+      loadImageGeometry: vi.fn(async () => {}),
+      loadInspectorRoot: vi.fn(async () => {}),
+      updateFrameControls: vi.fn(),
+      updatePlayButtons: vi.fn(),
+      requestFrame: vi.fn(),
+      parseDtype: vi.fn(),
+      parseShape: vi.fn(),
+      typedArrayFrom: vi.fn(),
+      applyImageMeta: vi.fn(),
+      applyExternalFrame: vi.fn(),
+      processPendingFrameRequest: vi.fn(),
+      currentFrameStatusText: vi.fn(() => "Ready"),
+      setLoading: vi.fn(),
+      setStatus,
+      showSplash: vi.fn(),
+      setSplashStatus: vi.fn(),
+      setDataSourceSectionState: vi.fn(),
+      showProcessingProgress: vi.fn(),
+      hideProcessingProgress: vi.fn(),
+      stopPlayback: vi.fn(),
+      loadMask: vi.fn(async () => {}),
+      updateToolbar: vi.fn(),
+    },
+  });
+}
+
 describe("file_data_pipeline_controller", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -352,14 +423,19 @@ describe("file_data_pipeline_controller frame cache", () => {
     expect(requested).toHaveLength(2);
   });
 
-  it("shows the server's reason when a dataset scan is refused", async () => {
-    // A master file whose data files are missing is answered with a 422 that
-    // names one of them. "Failed to scan datasets" is what the user used to
-    // get, and it is exactly the message that made an incomplete download look
-    // like a corrupt file.
+  it("says a refused dataset scan in the user's own language", async () => {
+    // A master file whose data files are missing is answered with a 422 code
+    // plus counts, which this composes into the active locale. "Failed to scan
+    // datasets" is what the user used to get, and it is exactly the message
+    // that made an incomplete download look like a corrupt file.
     vi.resetModules();
     global.fetch = buildFetchMock({
-      en: { "status.data.failed_scan_datasets": "Failed to scan datasets" },
+      en: {
+        "status.data.failed_scan_datasets": "Failed to scan datasets",
+        "error.master_data_missing":
+          "{{count}} linked data files are missing{{example}}. Copy them into this folder.",
+        "error.master_data_example_suffix": " (e.g. {{name}})",
+      },
     });
     const i18n = await import("../modules/i18n.js");
     await i18n.initializeI18n({ backendLanguage: "en" });
@@ -367,12 +443,19 @@ describe("file_data_pipeline_controller frame cache", () => {
       "../modules/file_data_pipeline_controller.js"
     );
 
-    const DETAIL =
-      "/entry/data links to 5,000,000 data file(s), and none of them could be read. " +
-      "The files are not next to this master, starting with 'tem_burnin_data_000001.h5'.";
+    const EXPECTED =
+      "5,000,000 linked data files are missing (e.g. tem_burnin_data_000001.h5). " +
+      "Copy them into this folder.";
     const refusal = new Error("Request failed (422)");
     refusal.status = 422;
-    refusal.detail = DETAIL;
+    refusal.detail = "the server's English, which must not be what is shown";
+    refusal.detailData = {
+      code: "master_data_missing",
+      group: "/entry/data",
+      count: 5000000,
+      example: "tem_burnin_data_000001.h5",
+      unreadable: 0,
+    };
 
     const state = {
       file: "tem_burnin_master.h5",
@@ -442,9 +525,13 @@ describe("file_data_pipeline_controller frame cache", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(controller.loadDatasets()).resolves.toBe(false);
 
-    expect(setStatus).toHaveBeenCalledWith(DETAIL, { tone: "error" });
-    // Free text, not an i18n key: `setSplashStatus` renders it verbatim.
-    expect(setSplashStatus).toHaveBeenCalledWith(DETAIL);
+    // Localized and short enough to read on the splash, and the count carries
+    // the locale's own grouping rather than the server's.
+    expect(setStatus).toHaveBeenCalledWith(EXPECTED, { tone: "error" });
+    // Free text, not an i18n key: `setSplashStatus` renders it verbatim. The
+    // explicit `busy: false` stops the loading spinner, which the English word
+    // list in the splash controller cannot infer from a translated sentence.
+    expect(setSplashStatus).toHaveBeenCalledWith(EXPECTED, {}, { busy: false });
     // The badge stays short and localized -- a whole sentence does not fit it.
     expect(setDataSourceSectionState).toHaveBeenLastCalledWith(
       "warning",
@@ -528,7 +615,66 @@ describe("file_data_pipeline_controller frame cache", () => {
     await expect(controller.loadDatasets()).resolves.toBe(false);
 
     expect(setStatus).toHaveBeenCalledWith("Failed to scan datasets", { tone: "error" });
-    expect(setSplashStatus).toHaveBeenCalledWith("splash.status.dataset_scan_failed");
+    expect(setSplashStatus).toHaveBeenCalledWith(
+      "splash.status.dataset_scan_failed",
+      {},
+      { busy: false },
+    );
+  });
+
+  it("omits the example clause when the server names no file", async () => {
+    // A group of broken soft links reaches the 422 with a count but no
+    // filename. The sentence has to still read as a sentence.
+    vi.resetModules();
+    global.fetch = buildFetchMock({
+      en: {
+        "status.data.failed_scan_datasets": "Failed to scan datasets",
+        "error.master_data_missing":
+          "{{count}} linked data files are missing{{example}}. Copy them into this folder.",
+        "error.master_data_example_suffix": " (e.g. {{name}})",
+      },
+    });
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+
+    const setStatus = vi.fn();
+    const controller = await makeScanFailureController({
+      detailData: { code: "master_data_missing", count: 12, example: "", unreadable: 0 },
+      setStatus,
+    });
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await controller.loadDatasets();
+
+    expect(setStatus).toHaveBeenCalledWith(
+      "12 linked data files are missing. Copy them into this folder.",
+      { tone: "error" },
+    );
+  });
+
+  it("shows the server's English for a code it does not know", async () => {
+    // The map is explicit, so a code added server-side degrades to the
+    // sentence the server already wrote rather than rendering a raw key.
+    vi.resetModules();
+    global.fetch = buildFetchMock({
+      en: { "status.data.failed_scan_datasets": "Failed to scan datasets" },
+    });
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+
+    const setStatus = vi.fn();
+    const controller = await makeScanFailureController({
+      detail: "Something new the server explains in English",
+      detailData: { code: "some_future_code", count: 3 },
+      setStatus,
+    });
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await controller.loadDatasets();
+
+    expect(setStatus).toHaveBeenCalledWith("Something new the server explains in English", {
+      tone: "error",
+    });
   });
 });
 

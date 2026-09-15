@@ -2067,8 +2067,8 @@ function showSplash() {
   exportSplashController?.showSplash();
 }
 
-function setSplashStatus(status, vars) {
-  exportSplashController?.setSplashStatus(status, vars);
+function setSplashStatus(status, vars, options) {
+  exportSplashController?.setSplashStatus(status, vars, options);
 }
 
 function hideSplash() {

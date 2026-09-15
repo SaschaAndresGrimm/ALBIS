@@ -5438,6 +5438,12 @@ body.platform-windows select option:disabled {
   font-size: clamp(14px, 1.6vw, 18px);
   letter-spacing: 0.03em;
   text-shadow: 0 0 8px rgba(20, 40, 90, 0.6);
+  /* Most statuses are a few words, but a failure here explains itself -- a
+     master file whose data files are missing names one of them. Unbounded,
+     that ran the full width of the viewer, which on a wide monitor is a single
+     line metres long. Capped to a readable measure it wraps centred instead. */
+  max-width: min(72ch, 100%);
+  text-align: center;
 }
 
 .splash-actions {

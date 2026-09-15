@@ -250,6 +250,33 @@ export function createFileDataPipelineController({
     return loaded;
   }
 
+  // Backend failure codes this controller can say in the user's own language.
+  // An explicit map rather than `t("error." + code)`: `t` renders an unknown
+  // key as the key itself, so a code added server-side would otherwise show
+  // the user "error.something_new" instead of the English sentence the server
+  // already wrote for exactly that case.
+  const DATASET_SCAN_ERROR_KEYS = {
+    master_data_missing: "error.master_data_missing",
+    master_data_unreadable: "error.master_data_unreadable",
+  };
+
+  function datasetScanFailureText(err) {
+    const data = err?.detailData;
+    const key = DATASET_SCAN_ERROR_KEYS[String(data?.code || "")];
+    if (key) {
+      const count = Number(data.count);
+      const name = String(data.example || "");
+      return t(key, {
+        count: Number.isFinite(count) ? count.toLocaleString() : String(data.count ?? ""),
+        // A translated fragment, appended only when there is a name to give:
+        // a group of broken soft links reaches here with no filename at all.
+        example: name ? t("error.master_data_example_suffix", { name }) : "",
+        reason: String(data.reason || ""),
+      });
+    }
+    return typeof err?.detail === "string" ? err.detail.trim() : "";
+  }
+
   async function loadDatasets() {
     if (!state.file) return false;
     resetFrameLoadState();
@@ -298,10 +325,10 @@ export function createFileDataPipelineController({
       // When the backend can name the real cause -- a master file whose data
       // files are missing, say -- that is worth far more to the user than
       // "scan failed", which is what an incomplete download used to report.
-      const detail = typeof err?.detail === "string" ? err.detail.trim() : "";
+      const detail = datasetScanFailureText(err);
       setStatus(detail || t("status.data.failed_scan_datasets"), { tone: "error" });
       showSplash();
-      setSplashStatus(detail || "splash.status.dataset_scan_failed");
+      setSplashStatus(detail || "splash.status.dataset_scan_failed", {}, { busy: false });
       setLoading(false);
       setDataSourceSectionState("warning", t("status.data.failed_scan_datasets"));
       return false;
