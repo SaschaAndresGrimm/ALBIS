@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Detector images open in ALBIS from the file manager. Double-clicking an `.h5`, `.hdf5`, `.cbf`, `.edf`, `.tif` or `.tiff` file opens it, on all three platforms, and if ALBIS is already running the file opens in the instance that is running rather than starting a second server. The launcher takes a file path as a positional argument, which is what each desktop environment substitutes into the command it registers, and passes it to the interface in the URL fragment — never sent to the server, so a local path stays out of the access log.
+
+  `.cfg` and `.cbf.gz` are deliberately not registered. `.cfg` is the extension half the software on a workstation uses for its own configuration, and claiming it would take over files that have nothing to do with ALBIS. `.cbf.gz` cannot be registered at all: every desktop environment keys associations off the last extension, so there is nothing to claim but `.gz`, and an image viewer that opened every gzip archive on the system would be a bug. Both still open through **File → Open**.
+
+  On Windows the installer offers it as a checkbox and adds ALBIS to the *Open with* list rather than taking the extension over. Since Windows 10 an installer cannot silently become the default handler anyway, so overwriting one only breaks whatever held it — usually HDFView or a Python install, which on a detector workstation the user still wants. The entries go under `HKEY_CURRENT_USER`, matching the per-user install, so no administrator rights are needed, and uninstalling removes ALBIS's own value from each extension's handler list without disturbing the others.
+
+  On macOS the bundle declares the types, and the launcher's application delegate gained `application:openFiles:` — macOS never re-launches a running application to open a document, it sends an Apple Event, so argv is empty and without this the app would come forward and open nothing. CBF and EDF are exported as ALBIS-scoped types since nothing else declares them; `public.tiff` and `org.hdfgroup.hdf5` are imported rather than redefined, which is how Launch Services ends up with two definitions of one identifier and picks the wrong handler.
+
+  On Linux the desktop entry declares the MIME types and gained the `%f` field code, and the installer registers media types for CBF and EDF, which have none anywhere — without them a file manager has nothing to match those files against.
+
+  The same list is spelled out in four places no compiler checks against each other, so `backend/file_associations.py` holds it and `tests/test_file_associations.py` asserts the four agree. Adding a format there fails until it is registered everywhere, which is the only way this stays honest: three of the four cannot be exercised on a macOS development machine.
+
 ### Changed
 
 - The "data files are missing" message is short, and it is translated. It arrived as one long English sentence that wrapped to three lines across the splash screen, and stayed English in all thirteen languages. `/api/datasets` now answers with a code and the counts rather than prose — the shape the SIMPLON failure detail already used — so the interface composes the sentence in the user's own language: "5,000,000 linked data files are missing (e.g. tem_burnin_D036347_data_3150998.h5). Copy them into this folder." The `message` field keeps a fuller English line for the log and for anything reading the API directly, which is where the secondary counts now live. The example filename is a translated fragment appended only when the server names one, because a group of broken soft links reaches this point with a count and no filename at all.

@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Transferência #{{id}} recebida sem alvo aberto.",
   "status.handoff.opened": "Transferência RUSLER aberta: {{targetPath}}",
   "status.handoff.opened_with_run": "Transferência RUSLER aberta {{runId}}: {{targetPath}}",
+  "status.launch_target.failed": "Não foi possível abrir {{path}}",
   "status.live_history.paused": "Pausado no histórico",
   "status.live_history.paused_new_frames": "Pausado no histórico · {{count}} quadros mais recentes",
   "status.log.open_failed": "Falha ao abrir o arquivo de log de back-end",

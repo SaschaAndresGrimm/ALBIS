@@ -27,6 +27,10 @@ Compression=lzma
 SolidCompression=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+; The file associations below are written under HKCU, so the shell has to be
+; told to re-read them; without this, Explorer keeps the old handler list until
+; the next sign-in.
+ChangesAssociations=yes
 AppMutex=ALBISAppMutex
 CloseApplications=yes
 RestartApplications=no
@@ -47,6 +51,42 @@ Name: "{autodesktop}\ALBIS"; Filename: "{app}\ALBIS.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"
+Name: "associate"; Description: "Add ALBIS to the ""Open with"" list for detector image files (.h5, .hdf5, .cbf, .edf, .tif, .tiff)"; GroupDescription: "File associations:"
+
+; Registered additively, under OpenWithProgids rather than by overwriting each
+; extension's default handler. Two reasons. Since Windows 10 an installer
+; cannot silently become the default anyway -- the shell protects the user's
+; choice and would show the "How do you want to open this?" prompt -- so
+; claiming the default only ever breaks what was there before without gaining
+; anything. And .h5 on a detector workstation usually already belongs to
+; HDFView or a Python install, which the user still wants: ALBIS joins the
+; "Open with" list instead of taking the extension away.
+;
+; HKCU throughout, matching the per-user install in {localappdata}: this asks
+; for no elevation, and uninstalling removes only this user's entries.
+[Registry]
+; The ProgID: one handler description, shared by every extension below.
+Root: HKCU; Subkey: "Software\Classes\ALBIS.Image"; ValueType: string; ValueName: ""; ValueData: "Detector image file"; Flags: uninsdeletekey; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\ALBIS.Image\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\ALBIS.exe,0"; Flags: uninsdeletekey; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\ALBIS.Image\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "ALBIS"; Flags: uninsdeletekey; Tasks: associate
+; "%1" quoted: a path with a space in it arrives as one argument, not two.
+Root: HKCU; Subkey: "Software\Classes\ALBIS.Image\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\ALBIS.exe"" ""%1"""; Flags: uninsdeletekey; Tasks: associate
+
+; Registered under Applications too, so ALBIS shows up in "Open with" for any
+; file type the user points at it, not only the six below.
+Root: HKCU; Subkey: "Software\Classes\Applications\ALBIS.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "ALBIS"; Flags: uninsdeletekey; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\Applications\ALBIS.exe\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\ALBIS.exe"" ""%1"""; Flags: uninsdeletekey; Tasks: associate
+
+; One OpenWithProgids entry per extension. uninsdeletevalue, not
+; uninsdeletekey: the key belongs to the extension and may list other
+; applications, so uninstalling must remove ALBIS's value and leave the rest.
+; .cfg and .cbf.gz are deliberately absent -- see backend/file_associations.py.
+Root: HKCU; Subkey: "Software\Classes\.h5\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\.hdf5\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\.cbf\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\.edf\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\.tif\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\.tiff\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
 
 [Run]
 Filename: "{app}\ALBIS.exe"; Description: "Launch ALBIS"; Flags: nowait postinstall skipifsilent

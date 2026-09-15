@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Handoff #{{id}} modtaget uden åbent mål.",
   "status.handoff.opened": "RUSLER aflevering åbnet: {{targetPath}}",
   "status.handoff.opened_with_run": "RUSLER aflevering åbnet {{runId}}: {{targetPath}}",
+  "status.launch_target.failed": "Kunne ikke åbne {{path}}",
   "status.live_history.paused": "Sat på pause i historikken",
   "status.live_history.paused_new_frames": "Sat på pause i historikken · {{count}} nyere rammer",
   "status.log.open_failed": "Kunne ikke åbne backend-logfilen",

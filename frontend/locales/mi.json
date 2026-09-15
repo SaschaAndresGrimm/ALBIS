@@ -827,6 +827,7 @@
   "status.handoff.no_target": "I tae mai te tukunga #{{id}} engari kāore he whāinga tuwhera.",
   "status.handoff.opened": "Kua tuwhera te tukunga RUSLER: {{targetPath}}",
   "status.handoff.opened_with_run": "Kua tuwhera te tukunga RUSLER {{runId}}: {{targetPath}}",
+  "status.launch_target.failed": "Kāore i taea te whakatuwhera i {{path}}",
   "status.live_history.paused": "Kua tāria ki te hītori",
   "status.live_history.paused_new_frames": "Kua tāria ki te hītori · {{count}} ngā anga hou ake",
   "status.log.open_failed": "I rahua te whakatuwhera i te kōnae rangitaki tuara",

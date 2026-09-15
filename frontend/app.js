@@ -40,6 +40,7 @@ import { createPointerFocusRelease } from "./modules/pointer_focus_release.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
 import { createLiveSeriesWatch } from "./modules/live_series_watch.js";
 import { createRecentFiles } from "./modules/recent_files.js";
+import { readLaunchTargetFromHash } from "./modules/launch_target.js";
 import {
   CLONE_HASH_PREFIX,
   captureWindowState,
@@ -4798,6 +4799,7 @@ finalizeRuntimeBootstrap(createRuntimeBootstrapContext({
     initHelpTooltips,
     startBackendHeartbeat,
     bootstrapApp,
+    openLaunchTargetFromHash,
     restoreCloneFromHash,
     setSplashStatus,
     setStatus,
@@ -4934,6 +4936,42 @@ async function restoreClonedWindow(payload) {
 
   scheduleResolutionOverlay();
   schedulePeakOverlay();
+}
+
+/** Clear one key out of the fragment, leaving any others in place. */
+function stripHashKey(prefix) {
+  try {
+    const url = new URL(window.location.href);
+    const rest = url.hash
+      .replace(/^#/, "")
+      .split("&")
+      .filter((part) => part && !part.startsWith(prefix));
+    url.hash = rest.length ? rest.join("&") : "";
+    window.history.replaceState(null, "", url.toString());
+  } catch {
+    // A browser that refuses replaceState is not a reason to skip the open.
+  }
+}
+
+/**
+ * Open the file ALBIS was launched with, if it was launched with one.
+ *
+ * Runs before the clone restore: that strips the whole fragment once it finds
+ * its own token, and the two cannot both be honoured anyway -- a duplicated
+ * window restores a file of its own.
+ */
+async function openLaunchTargetFromHash() {
+  const target = readLaunchTargetFromHash(window.location.hash);
+  if (!target) return;
+  // Strip first, so a reload gives a clean window instead of reopening the
+  // file the user may since have navigated away from.
+  stripHashKey("albis-open=");
+  try {
+    await openPathInViewer(target, { refreshFileList: true });
+  } catch (err) {
+    console.error(err);
+    setStatus(t("status.launch_target.failed", { path: target }), { tone: "error" });
+  }
 }
 
 /** Consume a clone slot if this window was opened as one. */

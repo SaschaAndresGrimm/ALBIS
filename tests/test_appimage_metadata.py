@@ -16,7 +16,10 @@ def test_appimage_desktop_template_has_expected_fields() -> None:
 
     assert entry["Type"] == "Application"
     assert entry["Name"] == "ALBIS"
-    assert entry["Exec"] == "ALBIS"
+    # `%f` is the field code the desktop environment substitutes the opened
+    # file into; `tests/test_file_associations.py` covers the association it
+    # belongs to.
+    assert entry["Exec"] == "ALBIS %f"
     assert entry["Icon"] == "ALBIS"
     assert "Science;" in entry["Categories"]
 

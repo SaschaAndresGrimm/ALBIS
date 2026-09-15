@@ -53,18 +53,40 @@ if [ -n "$ICON_SRC" ]; then
   cp "$ICON_SRC" "$ICON_DIR/albis.png"
 fi
 
+# MimeType and the %f in Exec are what make a file manager offer ALBIS for a
+# detector image. They are repeated here rather than shared with
+# packaging/linux/ALBIS.desktop because that one names the AppImage's internal
+# binary and this one an absolute launcher path; tests/test_file_associations.py
+# checks the two keep the same type list.
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
 Name=ALBIS
 Comment=ALBIS detector image viewer
-Exec=$LAUNCHER_PATH
+Exec=$LAUNCHER_PATH %f
 Icon=albis
 Categories=Science;
+MimeType=application/x-hdf5;image/x-cbf;image/x-edf;image/tiff;
 Terminal=false
 StartupNotify=true
 EOF
 chmod 644 "$DESKTOP_FILE"
+
+# CBF and EDF have no registered media type, so without this a file manager has
+# nothing to match them against and the association above never applies to them.
+MIME_SRC="$ROOT/packaging/linux/ALBIS-mime.xml"
+if [ ! -f "$MIME_SRC" ] && [ -f "$ROOT/usr/share/mime/packages/ALBIS.xml" ]; then
+  MIME_SRC="$ROOT/usr/share/mime/packages/ALBIS.xml"
+fi
+if [ -f "$MIME_SRC" ]; then
+  MIME_DIR="$PREFIX/share/mime/packages"
+  mkdir -p "$MIME_DIR"
+  cp "$MIME_SRC" "$MIME_DIR/ALBIS.xml"
+  chmod 644 "$MIME_DIR/ALBIS.xml"
+  if command -v update-mime-database >/dev/null 2>&1; then
+    update-mime-database "$PREFIX/share/mime" >/dev/null 2>&1 || true
+  fi
+fi
 
 if [ -d "$DESKTOP_DIR" ] && command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$DESKTOP_DIR" >/dev/null 2>&1 || true

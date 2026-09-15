@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Übergabe #{{id}} ohne offenes Ziel empfangen.",
   "status.handoff.opened": "RUSLER-Übergabe geöffnet: {{targetPath}}",
   "status.handoff.opened_with_run": "RUSLER-Übergabe geöffnet {{runId}}: {{targetPath}}",
+  "status.launch_target.failed": "{{path}} konnte nicht geöffnet werden",
   "status.live_history.paused": "Auf Verlauf pausiert",
   "status.live_history.paused_new_frames": "Auf Verlauf pausiert · {{count}} neuere Frames",
   "status.log.open_failed": "Backend-Protokolldatei konnte nicht geöffnet werden",

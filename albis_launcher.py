@@ -11,6 +11,7 @@ import threading
 import time
 import traceback
 import urllib.error
+import urllib.parse
 import urllib.request
 import webbrowser
 from collections.abc import Callable
@@ -33,6 +34,7 @@ from backend.config import (
     resolve_data_dir,
     resolve_log_dir,
 )
+from backend.file_associations import is_associated_path
 from backend.version import ALBIS_VERSION
 
 try:
@@ -132,10 +134,42 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="do not open a browser window on start",
     )
+    # Positional, because this is how a desktop environment says "open this":
+    # Windows substitutes it for %1 in the registered command, Linux for %f in
+    # the desktop entry, and macOS passes it on a cold launch. Optional, since
+    # every other way of starting ALBIS passes nothing.
+    parser.add_argument(
+        "path",
+        nargs="?",
+        metavar="FILE",
+        help="image or HDF5 file to open on start",
+    )
     return parser
 
 
-def _apply_cli_arguments(argv: list[str] | None = None) -> tuple[list[str], list[str]]:
+def _resolve_open_target(raw: str | None) -> Path | None:
+    """The file a desktop environment asked ALBIS to open, if it can open it.
+
+    Anything questionable returns None rather than raising. The caller here is
+    not a person who mistyped a flag -- it is the operating system, acting on a
+    double-click -- so the useful failure is to start normally and show the
+    splash, not to refuse to start at all.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    if not is_associated_path(text):
+        return None
+    try:
+        path = Path(text).expanduser()
+        if not path.is_file():
+            return None
+        return path.resolve()
+    except OSError:
+        return None
+
+
+def _apply_cli_arguments(argv: list[str] | None = None) -> tuple[list[str], list[str], Path | None]:
     """Turn command-line flags into environment overrides.
 
     Unknown arguments are returned rather than rejected. A double-clicked
@@ -160,7 +194,7 @@ def _apply_cli_arguments(argv: list[str] | None = None) -> tuple[list[str], list
     if args.no_browser:
         os.environ[env_var_name("launcher", "open_browser")] = "false"
         applied.append("--no-browser")
-    return applied, unknown
+    return applied, unknown, _resolve_open_target(getattr(args, "path", None))
 
 
 def _ensure_stdio_streams() -> None:
@@ -224,9 +258,23 @@ def _server_running(host: str, port: int) -> bool:
     return _wait_for_health(host, port, timeout=0.8)
 
 
-def _open_browser(host: str, port: int) -> None:
-    target_host = _normalize_host(host)
-    url = f"http://{target_host}:{port}"
+# The fragment the interface reads on load to open a file it was launched with.
+# A fragment rather than a query string for two reasons: it is never sent to the
+# server, so a local path stays out of the access log, and `#albis-clone=` has
+# already established the convention.
+OPEN_HASH_PREFIX = "albis-open="
+
+
+def _open_target_url(host: str, port: int, open_path: Path | None = None) -> str:
+    url = f"http://{_normalize_host(host)}:{port}"
+    if open_path is None:
+        return url
+    # quote(), not quote_plus(): a space in a path must not arrive as "+".
+    return f"{url}/#{OPEN_HASH_PREFIX}{urllib.parse.quote(str(open_path), safe='')}"
+
+
+def _open_browser(host: str, port: int, open_path: Path | None = None) -> None:
+    url = _open_target_url(host, port, open_path)
     opened = False
     try:
         opened = bool(webbrowser.open(url, new=1, autoraise=True))
@@ -263,7 +311,13 @@ if Foundation is not None:
                 return None
             return f"http://{_normalize_host(host)}:{port}"
 
-        def _open_browser_throttled(self, reason: str) -> None:
+        def _open_browser_throttled(
+            self,
+            reason: str,
+            open_path: Path | None = None,
+            *,
+            force: bool = False,
+        ) -> None:
             host, port = self._current_host_port()
             start_ts = self._start_ts()
             if not host or port <= 0:
@@ -278,14 +332,19 @@ if Foundation is not None:
             except (TypeError, ValueError):
                 last_open = 0.0
             now = time.monotonic()
-            if now - last_open < throttle_sec:
+            # The throttle exists to collapse the reopen and activate events a
+            # single Dock click delivers. A document the user asked for is not
+            # a duplicate of anything, so it is never dropped -- but it still
+            # stamps the clock, which is what suppresses the activate that
+            # follows it and would otherwise open a second, empty tab.
+            if not force and now - last_open < throttle_sec:
                 _log_macos_event(start_ts, f"{reason}: throttled")
                 return
             self.last_browser_open_mono = now
             _log_macos_event(
                 start_ts, f"{reason}: opening browser for {_normalize_host(host)}:{port}"
             )
-            _open_browser(host, port)
+            _open_browser(host, port, open_path)
 
         def openBrowser_(self, _sender):
             self._open_browser_throttled("menu")
@@ -356,6 +415,30 @@ if Foundation is not None:
             _log_macos_event(self._start_ts(), "reopen requested")
             self._open_browser_throttled("reopen")
             return True
+
+        # macOS never re-launches a running application to open a document: it
+        # sends this instead, so argv is empty and the positional `path` never
+        # arrives. Without this, double-clicking an .h5 while ALBIS is running
+        # would bring the app forward and open nothing at all -- and on a cold
+        # launch from a document, argv carries no path either, so this is the
+        # only route on this platform rather than a convenience.
+        def application_openFiles_(self, app, paths):
+            start_ts = self._start_ts()
+            targets = [_resolve_open_target(str(item)) for item in (paths or [])]
+            targets = [item for item in targets if item is not None]
+            if not targets:
+                _log_macos_event(start_ts, "open files: nothing openable in the selection")
+            else:
+                if len(targets) > 1:
+                    # One viewer, one file. Opening a tab per file would turn a
+                    # careless multi-select into dozens of them.
+                    _log_macos_event(
+                        start_ts, f"open files: {len(targets)} given, opening {targets[0]}"
+                    )
+                self._open_browser_throttled("open files", targets[0], force=True)
+            with suppress(Exception):
+                if AppKit is not None:
+                    app.replyToOpenOrPrint_(AppKit.NSApplicationDelegateReplySuccess)
 
         def applicationDidBecomeActive_(self, _notification):
             # Fallback for cases where Dock re-open is not delivered, but app activation is.
@@ -652,7 +735,7 @@ def main() -> None:
     global _MACOS_EVENT_LOGS_ENABLED
     _ensure_stdio_streams()
     start_ts = time.perf_counter()
-    cli_applied, cli_ignored = _apply_cli_arguments()
+    cli_applied, cli_ignored, open_target = _apply_cli_arguments()
     app_config, _config_path = load_config()
     _configure_launcher_logger(resolve_log_dir(app_config, _config_path) / "launcher.log")
     _launcher_log(start_ts, "starting")
@@ -661,6 +744,8 @@ def main() -> None:
         _launcher_log(start_ts, f"command line set {', '.join(cli_applied)}")
     if cli_ignored:
         _launcher_log(start_ts, f"ignored unrecognized arguments: {' '.join(cli_ignored)}")
+    if open_target:
+        _launcher_log(start_ts, f"asked to open {open_target}")
     overrides = env_override_keys()
     if overrides:
         _launcher_log(start_ts, f"environment set {', '.join(overrides)}")
@@ -679,7 +764,7 @@ def main() -> None:
     if port > 0 and _server_running(host, port):
         _launcher_log(start_ts, f"existing server detected on {host}:{port}")
         _update_server_status(host, port, "running", health=True, source="existing")
-        _open_browser(host, port)
+        _open_browser(host, port, open_target)
         return
     bound_sock: socket.socket | None = None
     if port <= 0:
@@ -691,7 +776,7 @@ def main() -> None:
                 _update_server_status(
                     last_host, last_port, "running", health=True, source="existing"
                 )
-                _open_browser(last_host, last_port)
+                _open_browser(last_host, last_port, open_target)
                 return
         bound_sock = _create_bound_socket(host, 0)
         port = int(bound_sock.getsockname()[1])
@@ -764,7 +849,7 @@ def main() -> None:
         _update_server_status(host, port, "starting", health=False)
     if get_bool(app_config, ("launcher", "open_browser"), True):
         _launcher_log(start_ts, "opening browser")
-        _open_browser(host, port)
+        _open_browser(host, port, open_target)
 
     if _should_start_macos_ui_loop() and _start_macos_menus(
         host,

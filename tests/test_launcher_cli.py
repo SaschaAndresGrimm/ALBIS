@@ -26,7 +26,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_flags_set_the_environment_for_the_same_config_key() -> None:
-    applied, ignored = _apply_cli_arguments(
+    applied, ignored, _target = _apply_cli_arguments(
         ["--host", "0.0.0.0", "--port", "9000", "--data-root", "/gpfs/beamline"]
     )
 
@@ -59,25 +59,30 @@ def test_config_points_at_a_file_and_is_expanded() -> None:
 def test_nothing_is_set_when_nothing_is_passed() -> None:
     import os
 
-    applied, ignored = _apply_cli_arguments([])
+    applied, ignored, target = _apply_cli_arguments([])
 
     assert applied == []
     assert ignored == []
+    assert target is None, "nothing passed means nothing to open"
     assert "ALBIS_SERVER_HOST" not in os.environ
 
 
 def test_arguments_the_operating_system_adds_are_ignored_not_fatal() -> None:
-    """macOS passes `-psn_0_...`, and a document path when ALBIS opens a file.
+    """macOS passes `-psn_0_...` alongside whatever else it has to say.
 
     Refusing to start over an argument nobody typed would be a worse failure
-    than ignoring it, so unknown arguments are reported and dropped.
+    than ignoring it, so unknown arguments are reported and dropped. The
+    document path is no longer among them -- it is the positional argument now,
+    and `tests/test_launcher_open_target.py` covers what becomes of it -- but a
+    path to a file that is not there must still leave ALBIS starting normally.
     """
-    applied, ignored = _apply_cli_arguments(
+    applied, ignored, target = _apply_cli_arguments(
         ["-psn_0_774931", "/Users/someone/data/frame.cbf", "--host", "127.0.0.1"]
     )
 
     assert applied == ["--host"]
-    assert ignored == ["-psn_0_774931", "/Users/someone/data/frame.cbf"]
+    assert ignored == ["-psn_0_774931"]
+    assert target is None, "a path that does not exist is not something to open"
 
 
 def test_the_help_text_names_the_other_two_layers() -> None:

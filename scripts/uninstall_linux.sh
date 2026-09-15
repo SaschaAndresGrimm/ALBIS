@@ -35,6 +35,10 @@ rm -rf "$APPIMAGE_APP_DIR"
 rm -f "$BIN_DIR/albis"
 rm -f "$DESKTOP_DIR/albis.desktop"
 rm -f "$ICON_DIR/albis.png"
+# The media types ALBIS declared for CBF and EDF. Removed with the app: they
+# exist only so its association could match, and leaving them behind would
+# claim two formats nothing on the system can open any more.
+rm -f "$PREFIX/share/mime/packages/ALBIS.xml"
 
 if [ "$PURGE_USER_DATA" = "1" ]; then
   rm -rf "$HOME/ALBIS-data"
@@ -51,6 +55,9 @@ rmdir "$BIN_DIR" 2>/dev/null || true
 
 if [ -d "$DESKTOP_DIR" ] && command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$DESKTOP_DIR" >/dev/null 2>&1 || true
+fi
+if [ -d "$PREFIX/share/mime" ] && command -v update-mime-database >/dev/null 2>&1; then
+  update-mime-database "$PREFIX/share/mime" >/dev/null 2>&1 || true
 fi
 if [ -d "$PREFIX/share/icons/hicolor" ] && command -v gtk-update-icon-cache >/dev/null 2>&1; then
   gtk-update-icon-cache -q "$PREFIX/share/icons/hicolor" >/dev/null 2>&1 || true

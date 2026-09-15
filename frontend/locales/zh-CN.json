@@ -827,6 +827,7 @@
   "status.handoff.no_target": "已收到交接 #{{id}}，但没有可打开的目标。",
   "status.handoff.opened": "已打开 RUSLER 交接：{{targetPath}}",
   "status.handoff.opened_with_run": "已打开 RUSLER 交接 {{runId}}：{{targetPath}}",
+  "status.launch_target.failed": "无法打开 {{path}}",
   "status.live_history.paused": "已暂停于历史帧",
   "status.live_history.paused_new_frames": "已暂停于历史帧 · {{count}} 个较新帧",
   "status.log.open_failed": "打开后端日志文件失败",

@@ -98,21 +98,72 @@ than accepting an edit the next start would ignore. `GET /api/settings` reports 
 ```
 albis [--config PATH] [--host ADDRESS] [--port PORT] [--allowed-hosts NAMES]
       [--data-root PATH] [--log-level LEVEL] [--language CODE] [--no-browser]
-      [--version] [--help]
+      [--version] [--help] [FILE]
 ```
 
 Each flag sets the environment variable for the same key, so there is one precedence
-order rather than two. Arguments ALBIS does not recognise are ignored and logged rather
-than refused — a desktop build is started by the operating system, which passes
-arguments of its own (macOS sends `-psn_0_...`, and a file path when ALBIS is used to
-open a document), and refusing to start over one of those would be a worse failure than
-ignoring it.
+order rather than two. `FILE` is an image or HDF5 file to open on start, which is also
+how the desktop association below hands a double-clicked file to ALBIS.
+
+Arguments ALBIS does not recognise are ignored and logged rather than refused — a
+desktop build is started by the operating system, which passes arguments of its own
+(macOS sends `-psn_0_...`) — and refusing to start over one of those would be a worse
+failure than ignoring it. The same applies to `FILE`: a path that does not exist, or
+names a format ALBIS does not read, is logged and the viewer starts normally rather
+than refusing to open.
 
 Running from source, the same flags apply:
 
 ```bash
 python albis_launcher.py --port 9000 --data-root /gpfs/beamline --no-browser
 ```
+
+## Opening Files from the Desktop
+
+ALBIS registers itself as a handler for `.h5`, `.hdf5`, `.cbf`, `.edf`, `.tif` and
+`.tiff`, so a detector image can be opened by double-clicking it in the file manager.
+If ALBIS is already running, the file opens in the instance that is running rather than
+starting a second server.
+
+`.cfg` and `.cbf.gz` are deliberately not registered. `.cfg` is the extension half the
+software on a workstation uses for its own configuration, and claiming it would take
+over files that have nothing to do with ALBIS. `.cbf.gz` cannot be registered at all:
+every desktop environment keys associations off the last extension, so there is nothing
+to claim but `.gz`. Both still open through `File -> Open`.
+
+### Windows
+
+The installer offers this as a checkbox — *Add ALBIS to the "Open with" list for
+detector image files* — which is on by default and can be declined.
+
+ALBIS is added to the **Open with** list rather than taking the extension over. Since
+Windows 10, an installer cannot silently become the default handler anyway: the shell
+protects whatever the user chose. So the first time, use *Open with → Choose another
+app*, pick ALBIS and tick *Always use this app*. On a detector workstation `.h5`
+usually already belongs to HDFView or a Python install, and this leaves that working.
+
+The entries are written under `HKEY_CURRENT_USER`, matching the per-user install, so no
+administrator rights are needed. Uninstalling removes ALBIS from each extension's
+handler list and leaves the other applications in it alone.
+
+### Linux
+
+The AppImage ships a desktop entry declaring the MIME types, and
+`scripts/install_linux_appimage.sh` installs it along with the media types for CBF and
+EDF, which have none registered anywhere. Set ALBIS as the default for a type with:
+
+```bash
+xdg-mime default ALBIS.desktop application/x-hdf5
+```
+
+Running the AppImage without installing it does not register anything — a desktop entry
+has to be on disk for the file manager to see it.
+
+### macOS
+
+The application bundle declares the types, so ALBIS appears under *Open With* in the
+Finder once it has been moved to `/Applications` and launched once. Use *Get Info → Open
+with → Change All…* to make it the default for a type.
 
 ## Data Export
 

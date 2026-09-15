@@ -224,5 +224,78 @@ if sys.platform == "darwin":
             "CFBundleName": "ALBIS",
             "CFBundleShortVersionString": bundle_version,
             "CFBundleVersion": bundle_build,
+            # What ALBIS offers to open. Launch Services reads this when the
+            # bundle is registered, which is what puts ALBIS in the Finder's
+            # "Open With" menu; the launcher's application:openFiles: delegate
+            # then receives the document, since macOS does not re-launch a
+            # running app with the path on argv.
+            #
+            # Viewer, not Editor: ALBIS never writes back to the file it opened.
+            # Kept in step with backend/file_associations.py by
+            # tests/test_file_associations.py.
+            "CFBundleDocumentTypes": [
+                {
+                    "CFBundleTypeName": "HDF5 data file",
+                    "CFBundleTypeRole": "Viewer",
+                    "LSHandlerRank": "Alternate",
+                    "LSItemContentTypes": ["org.hdfgroup.hdf5"],
+                },
+                {
+                    "CFBundleTypeName": "Crystallographic Binary Format image",
+                    "CFBundleTypeRole": "Viewer",
+                    "LSHandlerRank": "Owner",
+                    "LSItemContentTypes": ["com.saschaandresgrimm.albis.cbf"],
+                },
+                {
+                    "CFBundleTypeName": "ESRF Data Format image",
+                    "CFBundleTypeRole": "Viewer",
+                    "LSHandlerRank": "Owner",
+                    "LSItemContentTypes": ["com.saschaandresgrimm.albis.edf"],
+                },
+                {
+                    "CFBundleTypeName": "TIFF image",
+                    "CFBundleTypeRole": "Viewer",
+                    "LSHandlerRank": "Alternate",
+                    "LSItemContentTypes": ["public.tiff"],
+                },
+            ],
+            # `public.tiff` is Apple's own and `org.hdfgroup.hdf5` is declared
+            # by the HDF Group's tools, so both are imported rather than
+            # defined -- redefining a type another application owns is what
+            # makes Launch Services pick the wrong handler. Importing
+            # org.hdfgroup.hdf5 also means the association works on a machine
+            # with no HDF5 tooling installed, where nothing else declares it.
+            "UTImportedTypeDeclarations": [
+                {
+                    "UTTypeIdentifier": "org.hdfgroup.hdf5",
+                    "UTTypeDescription": "HDF5 data file",
+                    "UTTypeConformsTo": ["public.data"],
+                    "UTTypeTagSpecification": {"public.filename-extension": ["h5", "hdf5"]},
+                },
+            ],
+            # CBF and EDF have no owner anywhere, so ALBIS declares them.
+            # Extension-only tags: a CBF opens with a comment block whose first
+            # bytes vary by writer, and an EDF with an ASCII header too plain
+            # to match on without also claiming unrelated text files.
+            "UTExportedTypeDeclarations": [
+                {
+                    "UTTypeIdentifier": "com.saschaandresgrimm.albis.cbf",
+                    "UTTypeDescription": "Crystallographic Binary Format image",
+                    "UTTypeConformsTo": ["public.data", "public.image"],
+                    "UTTypeTagSpecification": {
+                        "public.filename-extension": ["cbf"],
+                        "public.mime-type": ["image/x-cbf"],
+                    },
+                },
+                {
+                    "UTTypeIdentifier": "com.saschaandresgrimm.albis.edf",
+                    "UTTypeDescription": "ESRF Data Format image",
+                    "UTTypeConformsTo": ["public.data", "public.image"],
+                    "UTTypeTagSpecification": {
+                        "public.filename-extension": ["edf"],
+                        "public.mime-type": ["image/x-edf"],
+                    },
+                },
+            ],
         },
     )

@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Handoff #{{id}} retschavì senza destinaziun averta.",
   "status.handoff.opened": "Handoff RUSLER avert: {{targetPath}}",
   "status.handoff.opened_with_run": "Handoff RUSLER avert {{runId}}: {{targetPath}}",
+  "status.launch_target.failed": "{{path}} na po betg vegnir avert",
   "status.live_history.paused": "Pausà sin la cronologia",
   "status.live_history.paused_new_frames": "Pausà sin la cronologia · {{count}} maletgs pli novs",
   "status.log.open_failed": "Betg reussì d'avrir la datoteca da protocol dal backend",

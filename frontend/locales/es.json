@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Traspaso #{{id}} recibido sin objetivo abierto.",
   "status.handoff.opened": "Se abrió el traspaso de RUSLER: {{targetPath}}",
   "status.handoff.opened_with_run": "Se abrió el traspaso de RUSLER {{runId}}: {{targetPath}}",
+  "status.launch_target.failed": "No se pudo abrir {{path}}",
   "status.live_history.paused": "En pausa sobre el historial",
   "status.live_history.paused_new_frames": "En pausa sobre el historial · {{count}} fotogramas más recientes",
   "status.log.open_failed": "No se pudo abrir el archivo de registro del backend",

@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Ibergab #{{id}} ohni offes Ziel yycho.",
   "status.handoff.opened": "RUSLER-Ibergab ufgmacht: {{targetPath}}",
   "status.handoff.opened_with_run": "RUSLER-Ibergab ufgmacht {{runId}}: {{targetPath}}",
+  "status.launch_target.failed": "{{path}} het nöd chöne göffnet werde",
   "status.live_history.paused": "Pausiert uf dr Historie",
   "status.live_history.paused_new_frames": "Pausiert uf dr Historie · {{count}} nöiieri Bilder",
   "status.log.open_failed": "Backend-Protokolldatei het nit chönne ufgmacht wärde",

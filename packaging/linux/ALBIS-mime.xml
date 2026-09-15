@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Media types for the two detector formats that have none registered.
+
+  application/x-hdf5 and image/tiff are already known to shared-mime-info, so
+  declaring them here would only risk contradicting it; ALBIS just claims them
+  in its desktop entry. CBF and EDF have no registered type at all, so without
+  this file a file manager has nothing to associate ALBIS with.
+
+  Both are matched by extension rather than by content. CBF begins with a
+  comment block whose first bytes vary by writer, and EDF with an ASCII header
+  that is not distinctive enough for a magic rule that would not also match
+  unrelated text files.
+-->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="image/x-cbf">
+    <comment>Crystallographic Binary Format image</comment>
+    <glob pattern="*.cbf"/>
+  </mime-type>
+  <mime-type type="image/x-edf">
+    <comment>ESRF Data Format image</comment>
+    <glob pattern="*.edf"/>
+  </mime-type>
+</mime-info>

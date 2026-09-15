@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Transfert #{{id}} reçu sans cible ouverte.",
   "status.handoff.opened": "Transfert RUSLER ouvert : {{targetPath}}",
   "status.handoff.opened_with_run": "Transfert RUSLER ouvert {{runId}} : {{targetPath}}",
+  "status.launch_target.failed": "Impossible d'ouvrir {{path}}",
   "status.live_history.paused": "En pause sur l'historique",
   "status.live_history.paused_new_frames": "En pause sur l'historique · {{count}} images plus récentes",
   "status.log.open_failed": "Échec de l'ouverture du fichier journal back-end",

@@ -89,6 +89,7 @@ export function finalizeRuntimeBootstrap({
     initHelpTooltips,
     startBackendHeartbeat,
     bootstrapApp,
+    openLaunchTargetFromHash,
     restoreCloneFromHash,
     setSplashStatus,
     setStatus,
@@ -130,9 +131,13 @@ export function finalizeRuntimeBootstrap({
   startBackendHeartbeat();
 
   void bootstrapApp()
-    // A window opened by File > Duplicate Window carries a token naming the
-    // snapshot to restore. It runs after bootstrap, not inside it: the restore
-    // reopens a file through the ordinary path and needs the app fully wired.
+    // Both of these read the URL fragment and both reopen a file through the
+    // ordinary path, so they run after bootstrap rather than inside it, and
+    // need the app fully wired.
+    //
+    // A file the desktop environment asked ALBIS to open comes first, because
+    // the clone restore strips the whole fragment once it finds its own token.
+    .then(() => openLaunchTargetFromHash?.())
     .then(() => restoreCloneFromHash?.())
     .catch((err) => {
       console.error(err);

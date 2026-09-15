@@ -2,9 +2,15 @@
 Type=Application
 Name=ALBIS
 Comment=Local-first diffraction image viewer for DECTRIS detectors
-Exec=ALBIS
+# %f, not %F: ALBIS opens one file per window, so the desktop environment
+# should invoke it once per file rather than hand it a list.
+Exec=ALBIS %f
 Icon=ALBIS
 Categories=Graphics;Science;
 Keywords=diffraction;detector;image;viewer;HDF5;DECTRIS;
+# Kept in step with backend/file_associations.py by
+# tests/test_file_associations.py. image/x-cbf and image/x-edf are declared by
+# ALBIS-mime.xml, since neither format has a registered media type.
+MimeType=application/x-hdf5;image/x-cbf;image/x-edf;image/tiff;
 Terminal=false
 StartupNotify=false

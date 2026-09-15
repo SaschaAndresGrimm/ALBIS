@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Handoff #{{id}} を受信しましたが、開く対象がありません。",
   "status.handoff.opened": "RUSLER handoff を開きました: {{targetPath}}",
   "status.handoff.opened_with_run": "RUSLER handoff {{runId}} を開きました: {{targetPath}}",
+  "status.launch_target.failed": "{{path}} を開けませんでした",
   "status.live_history.paused": "履歴で一時停止中",
   "status.live_history.paused_new_frames": "履歴で一時停止中 · 新しいフレーム {{count}} 件",
   "status.log.open_failed": "バックエンドログファイルを開けませんでした",

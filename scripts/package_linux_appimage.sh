@@ -23,12 +23,16 @@ rm -rf "$APPDIR"
 mkdir -p \
   "$APPDIR/usr/bin" \
   "$APPDIR/usr/share/applications" \
-  "$APPDIR/usr/share/metainfo"
+  "$APPDIR/usr/share/metainfo" \
+  "$APPDIR/usr/share/mime/packages"
 
 # Include the full PyInstaller one-folder payload (binary + _internal runtime).
 cp -a "dist/ALBIS/." "$APPDIR/usr/bin/"
 
-for metadata in "packaging/linux/ALBIS.desktop" "packaging/linux/ALBIS.metainfo.xml"; do
+for metadata in \
+  "packaging/linux/ALBIS.desktop" \
+  "packaging/linux/ALBIS.metainfo.xml" \
+  "packaging/linux/ALBIS-mime.xml"; do
   if [ ! -f "$metadata" ]; then
     echo "Missing packaging metadata file: $metadata"
     exit 1
@@ -38,6 +42,10 @@ done
 cp "packaging/linux/ALBIS.desktop" "$APPDIR/ALBIS.desktop"
 cp "packaging/linux/ALBIS.desktop" "$APPDIR/usr/share/applications/ALBIS.desktop"
 cp "packaging/linux/ALBIS.metainfo.xml" "$APPDIR/usr/share/metainfo/ALBIS.metainfo.xml"
+# Carried so the installer can register the two formats that have no media type
+# of their own. An AppImage cannot install them by running -- only the installer
+# script writes into the user's MIME database.
+cp "packaging/linux/ALBIS-mime.xml" "$APPDIR/usr/share/mime/packages/ALBIS.xml"
 
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh

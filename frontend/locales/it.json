@@ -827,6 +827,7 @@
   "status.handoff.no_target": "Handoff #{{id}} ricevuto senza target aperto.",
   "status.handoff.opened": "Handoff RUSLER aperto: {{targetPath}}",
   "status.handoff.opened_with_run": "Handoff RUSLER aperto {{runId}}: {{targetPath}}",
+  "status.launch_target.failed": "Impossibile aprire {{path}}",
   "status.live_history.paused": "In pausa sulla cronologia",
   "status.live_history.paused_new_frames": "In pausa sulla cronologia · {{count}} frame più recenti",
   "status.log.open_failed": "Impossibile aprire il file di log del backend",
