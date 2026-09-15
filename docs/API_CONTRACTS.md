@@ -121,6 +121,23 @@ reports that rather than presenting a partial answer as a complete one:
 Clients that poll should treat truncation as a standing condition to surface, not
 an error: the newest file may be one the walk never reached.
 
+`GET /api/hdf5/tree` bounds a single group the same way and reports it the same
+way: `truncated: true` alongside `childCount`, the group's real number of
+children, when the listing stopped at the cap. A filewriter told to write one
+companion file per frame can put millions of external links in one group, and
+modelling all of them is what a bounded listing exists to avoid.
+
+## Error Details
+
+`detail` on an error response is usually a sentence, but some endpoints answer
+with an object instead. Those always carry `code` — a stable, machine-readable
+classification — and `message`, a human-readable English sentence for a client
+that does not recognise the code. `GET /api/datasets` uses this for a master
+file whose linked data files cannot be read (`master_data_missing`,
+`master_data_unreadable`), and the SIMPLON endpoints for a connection that
+failed (`refused`, `timeout`, `unreachable`). A client should switch on `code`
+and fall back to `message`, never parse the sentence.
+
 ## Remote Stream Semantics
 
 - `POST /api/remote/v1/frame`: ingest a frame and metadata.

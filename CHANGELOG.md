@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-15
+
 ### Added
 
 - Detector images open in ALBIS from the file manager. Double-clicking an `.h5`, `.hdf5`, `.cbf`, `.edf`, `.tif` or `.tiff` file opens it, on all three platforms, and if ALBIS is already running the file opens in the instance that is running rather than starting a second server. The launcher takes a file path as a positional argument, which is what each desktop environment substitutes into the command it registers, and passes it to the interface in the URL fragment — never sent to the server, so a local path stays out of the access log.
@@ -1133,7 +1135,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.1...v0.18.0
 [0.17.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.15.0...v0.16.0
