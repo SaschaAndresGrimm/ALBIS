@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-09-15
+
 ### Fixed
 
 - The native folder chooser says what it is choosing, in the interface's language. One English literal — "Select Auto Load folder" — titled every chooser in ALBIS, shared by five call sites, so picking a log directory, an export folder or the data root all announced themselves as autoload. Each caller now names its purpose and the dialog is titled accordingly, in all thirteen languages, and the file chooser is titled the same way.
@@ -1163,7 +1165,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.2...HEAD
+[0.18.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.1...v0.18.0
 [0.17.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.0...v0.17.1
