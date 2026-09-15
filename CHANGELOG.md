@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-09-15
+
 ### Fixed
 
 - Double-clicking a file on macOS opens it, and opens one window doing so. Both halves of that were wrong in 0.18.0, in different ways, and a tester found both within minutes.
@@ -1143,7 +1145,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.1...v0.18.0
 [0.17.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.16.0...v0.17.0
