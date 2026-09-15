@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -144,27 +145,31 @@ def test_an_unknown_language_falls_back_to_english() -> None:
         assert resolved == _catalogue("en")[PROMPT_KEYS["log_dir"]]
 
 
-def test_a_catalogue_outside_the_locales_directory_is_not_read(tmp_path: Path) -> None:
+def test_a_catalogue_outside_the_locales_directory_is_not_read() -> None:
     """The traversal guard, exercised on a file that really is reachable.
 
     `resolve_prompt` joins the language into a path. The route normalizes it
     against the supported set first, but a path built from a parameter is worth
     confining on its own.
 
-    The relative path is computed rather than written by hand: an earlier
-    version of this test used `../<name>/evil`, which climbed one level out of
-    `frontend/locales` and pointed at nothing, so it passed with the guard
-    deleted and proved only that a missing file is missing.
+    The decoy is written inside the repository rather than in `tmp_path`, and
+    the relative path is computed rather than written by hand. Both of those
+    were learned the hard way: an earlier version used `../<name>/evil`, which
+    climbed one level out of `frontend/locales` and pointed at nothing, so it
+    passed with the guard deleted; the fix for that used `tmp_path`, which on
+    the Windows runner sits on `C:` while the checkout is on `D:` -- and no
+    relative path exists between two mounts.
     """
-    outside = tmp_path / "evil.json"
-    outside.write_text(json.dumps({PROMPT_KEYS["log_dir"]: "pwned"}), encoding="utf-8")
-    # Relative to the locales directory, so it genuinely escapes it.
-    relative = os.path.relpath(tmp_path / "evil", LOCALES)
-    assert relative.startswith(".."), relative
-    # Confirm the target really is reachable that way, or the test is vacuous.
-    assert (LOCALES / f"{relative}.json").resolve().is_file()
+    with tempfile.TemporaryDirectory(dir=ROOT) as raw_dir:
+        outside = Path(raw_dir) / "evil.json"
+        outside.write_text(json.dumps({PROMPT_KEYS["log_dir"]: "pwned"}), encoding="utf-8")
+        # Relative to the locales directory, so it genuinely escapes it.
+        relative = os.path.relpath(outside.with_suffix(""), LOCALES)
+        assert relative.startswith(".."), relative
+        # Confirm the target really is reachable that way, or this is vacuous.
+        assert (LOCALES / f"{relative}.json").resolve().is_file()
 
-    resolved = resolve_prompt(LOCALES, "log_dir", relative, "FALLBACK")
+        resolved = resolve_prompt(LOCALES, "log_dir", relative, "FALLBACK")
 
     assert resolved != "pwned"
     assert resolved == _catalogue("en")[PROMPT_KEYS["log_dir"]]
