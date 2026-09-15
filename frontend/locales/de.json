@@ -681,6 +681,7 @@
   "settings.message.loading": "Einstellungen werden geladen...",
   "settings.message.save_failed": "Einstellungen konnten nicht gespeichert werden",
   "settings.message.saving": "Einstellungen speichern...",
+  "settings.path.effective": "Verwendet aktuell {{path}}. Leer lassen, um dem Standard zu folgen.",
   "settings.restart_note": "Neustart erforderlich für: {{fields}}",
   "settings.section.application.description": "Backend-Endpunkt und Startverhalten.",
   "settings.section.data_access.description": "Dateisystemberechtigungen und Scan-Limits.",

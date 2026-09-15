@@ -601,6 +601,19 @@ def _settings_payload() -> dict[str, Any]:
     return {
         "config": runtime_state.config,
         "defaults": DEFAULT_CONFIG,
+        # Resolved here rather than in the interface: both rules depend on
+        # whether this is a frozen build and on where the config file lives,
+        # neither of which a browser can know. Reported so the fields can show
+        # the real location without writing it into the config -- pinning it
+        # would freeze a path that is meant to follow the installation.
+        "effective": {
+            "data": {
+                "root": str(resolve_data_dir(runtime_state.config, runtime_state.config_path))
+            },
+            "logging": {
+                "dir": str(resolve_log_dir(runtime_state.config, runtime_state.config_path))
+            },
+        },
         "path": str(runtime_state.config_path),
         "restart_required": True,
         "env_overrides": env_override_keys(),

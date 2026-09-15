@@ -681,6 +681,7 @@
   "settings.message.loading": "Chargement des paramètres...",
   "settings.message.save_failed": "Échec de l'enregistrement des paramètres",
   "settings.message.saving": "Enregistrement des paramètres...",
+  "settings.path.effective": "Utilise actuellement {{path}}. Laissez vide pour suivre la valeur par défaut.",
   "settings.restart_note": "Redémarrage nécessaire pour : {{fields}}",
   "settings.section.application.description": "Point de terminaison backend et comportement de lancement.",
   "settings.section.data_access.description": "Autorisations du système de fichiers et limites d'analyse.",

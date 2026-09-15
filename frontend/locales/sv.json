@@ -681,6 +681,7 @@
   "settings.message.loading": "Laddar inställningar...",
   "settings.message.save_failed": "Det gick inte att spara inställningarna",
   "settings.message.saving": "Sparar inställningar...",
+  "settings.path.effective": "Använder just nu {{path}}. Lämna tomt för att följa standardvärdet.",
   "settings.restart_note": "Starta om för att tillämpa: {{fields}}",
   "settings.section.application.description": "Backend-slutpunkt och startbeteende.",
   "settings.section.data_access.description": "Filsystembehörigheter och skanningsgränser.",

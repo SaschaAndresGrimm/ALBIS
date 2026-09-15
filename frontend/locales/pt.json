@@ -681,6 +681,7 @@
   "settings.message.loading": "Carregando configurações...",
   "settings.message.save_failed": "Falha ao salvar as configurações",
   "settings.message.saving": "Salvando configurações...",
+  "settings.path.effective": "A usar atualmente {{path}}. Deixe vazio para seguir o valor predefinido.",
   "settings.restart_note": "Reinicie para aplicar: {{fields}}",
   "settings.section.application.description": "Endpoint de back-end e comportamento de inicialização.",
   "settings.section.data_access.description": "Permissões do sistema de arquivos e limites de verificação.",

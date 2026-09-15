@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- The folder chooser opens in front of the browser on Windows. ALBIS runs its backend windowless and launches the picker with `CREATE_NO_WINDOW`, so the PowerShell process showing the dialog owned no window — and Windows makes no promise about the foreground in that case. It opened *behind* the browser, invisible, with the interface apparently doing nothing. The dialog is now owned by a window that is topmost and activated, and invisible itself: 1×1, fully transparent and off the taskbar. Both pickers were affected, the folder one and the file one.
+
+- Settings shows the data and log folders it is actually using. Both keys default to an empty string, and empty is not a missing value — it is a rule: work the location out at start, from whether this is a packaged build and where the config file sits. The dialog showed the configured value, so on a default install it showed nothing twice, for paths that plainly existed. The backend now reports what it resolved and the field shows it as a placeholder, with the full path on hover.
+
+  A placeholder rather than filling the value in, which would look the same and then pin the path on the next save — freezing a location that is meant to follow the installation. Move ALBIS, or open it with a different config, and a pinned path would still point at the old one. Choosing a folder with **Browse** still writes a real value, because that is the point of choosing one.
+
 ## [0.18.1] - 2026-09-15
 
 ### Fixed

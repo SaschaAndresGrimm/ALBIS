@@ -36,6 +36,13 @@ class UpdateCheckResponse(_StrictModel):
 class SettingsPayloadResponse(_StrictModel):
     config: dict[str, Any]
     defaults: dict[str, Any]
+    # The paths ALBIS is actually using, for the keys whose default is not a
+    # value but a rule: leaving `data.root` or `logging.dir` empty means "work
+    # it out at start", and what it works out depends on whether this is a
+    # packaged build and where the config file sits. `defaults` cannot say --
+    # it holds the empty string those keys really default to -- so the
+    # interface had nothing to show and showed nothing.
+    effective: dict[str, Any] = Field(default_factory=dict)
     path: str
     restart_required: bool
     # `section.key` names the environment is deciding. Saving the file cannot

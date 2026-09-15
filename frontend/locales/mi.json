@@ -681,6 +681,7 @@
   "settings.message.loading": "Uta ana i ngā tautuhinga...",
   "settings.message.save_failed": "I rahua te tiaki i ngā tautuhinga",
   "settings.message.saving": "Tiaki ana i ngā tautuhinga...",
+  "settings.path.effective": "Kei te whakamahi i {{path}}. Waiho kau kia whai i te taunoa.",
   "settings.restart_note": "Whakaara anō kia mana ai: {{fields}}",
   "settings.section.application.description": "Te pito mutunga me te whanonga whakarewa.",
   "settings.section.data_access.description": "Whakaaetanga punaha konae me ngā rohe matawai.",

@@ -681,6 +681,7 @@
   "settings.message.loading": "Indlæser indstillinger...",
   "settings.message.save_failed": "Indstillingerne kunne ikke gemmes",
   "settings.message.saving": "Gemmer indstillinger...",
+  "settings.path.effective": "Bruger aktuelt {{path}}. Lad feltet stå tomt for at følge standarden.",
   "settings.restart_note": "Genstart for at anvende: {{fields}}",
   "settings.section.application.description": "Backend-endepunkt og lanceringsadfærd.",
   "settings.section.data_access.description": "Filsystemtilladelser og scanningsgrænser.",

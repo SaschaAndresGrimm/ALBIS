@@ -681,6 +681,7 @@
   "settings.message.loading": "Loading settings...",
   "settings.message.save_failed": "Failed to save settings",
   "settings.message.saving": "Saving settings...",
+  "settings.path.effective": "Currently using {{path}}. Leave empty to keep following the default.",
   "settings.restart_note": "Restart to apply: {{fields}}",
   "settings.section.application.description": "Backend endpoint and launch behavior.",
   "settings.section.data_access.description": "File system permissions and scan limits.",

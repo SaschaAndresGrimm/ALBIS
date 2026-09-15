@@ -681,6 +681,7 @@
   "settings.message.loading": "設定を読み込み中...",
   "settings.message.save_failed": "設定の保存に失敗しました",
   "settings.message.saving": "設定を保存中...",
+  "settings.path.effective": "現在 {{path}} を使用しています。既定に従うには空のままにします。",
   "settings.restart_note": "再起動が必要な設定: {{fields}}",
   "settings.section.application.description": "バックエンド接続先と起動動作。",
   "settings.section.data_access.description": "ファイル権限とスキャン制限。",

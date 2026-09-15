@@ -681,6 +681,7 @@
   "settings.message.loading": "正在加载设置...",
   "settings.message.save_failed": "保存设置失败",
   "settings.message.saving": "正在保存设置...",
+  "settings.path.effective": "当前使用 {{path}}。留空以继续使用默认值。",
   "settings.restart_note": "需重启才能生效：{{fields}}",
   "settings.section.application.description": "后端端点与启动行为。",
   "settings.section.data_access.description": "文件系统权限与扫描限制。",

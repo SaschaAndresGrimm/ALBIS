@@ -681,6 +681,7 @@
   "settings.message.loading": "Chargiar parameters...",
   "settings.message.save_failed": "Betg reussì da memorisar ils parameters",
   "settings.message.saving": "Memorisar parameters...",
+  "settings.path.effective": "Utilisescha actualmain {{path}}. Laschar vid per suandar il standard.",
   "settings.restart_note": "Far in restart per applitgar: {{fields}}",
   "settings.section.application.description": "Endpoint dal backend e cumportament da lantschada.",
   "settings.section.data_access.description": "Permissiuns dal sistem da datotecas e limits da scan.",

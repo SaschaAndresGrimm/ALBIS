@@ -681,6 +681,7 @@
   "settings.message.loading": "Iistellige wärde glade...",
   "settings.message.save_failed": "Iistellige hän nit chönne gspycheret wärde",
   "settings.message.saving": "Iistellige wärde gspycheret...",
+  "settings.path.effective": "Bruucht momentan {{path}}. Leer la, damit s dä Standard folgt.",
   "settings.restart_note": "Neustart nötig für: {{fields}}",
   "settings.section.application.description": "Backend-Endpunkt und Startverhalte.",
   "settings.section.data_access.description": "Dateisystem-Berechtigunge und Scan-Limite.",

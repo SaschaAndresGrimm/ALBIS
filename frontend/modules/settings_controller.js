@@ -297,7 +297,33 @@ export function createSettingsController({
     });
   }
 
-  function fillSettingsForm(config, configPath = "") {
+  /**
+   * Show where a path field actually points when it has been left blank.
+   *
+   * Blank is meaningful for these two: it means "work it out at start", and
+   * what ALBIS works out depends on whether this is a packaged build and where
+   * the config file sits. So the field looked empty while the paths plainly
+   * existed, which is what a tester on Windows reported.
+   *
+   * The resolved path goes in the placeholder rather than the value. Filling
+   * the value in would look identical and then quietly pin it on the next
+   * save, freezing a location that is meant to follow the installation -- move
+   * ALBIS, or open a different config, and the pinned path would still point
+   * at the old one.
+   */
+  function showEffectivePath(field, resolved) {
+    if (!field) return;
+    const text = String(resolved || "").trim();
+    if (text) {
+      field.placeholder = text;
+      field.title = t("settings.path.effective", { path: text });
+    } else {
+      field.removeAttribute("placeholder");
+      field.removeAttribute("title");
+    }
+  }
+
+  function fillSettingsForm(config, configPath = "", effective = null) {
     if (!config) return;
     loadedConfig = config;
     if (settingsServerExternal) {
@@ -355,6 +381,7 @@ export function createSettingsController({
     }
 
     settingsDataRoot.value = String(config?.data?.root ?? "");
+    showEffectivePath(settingsDataRoot, effective?.data?.root);
     settingsAllowAbs.checked = Boolean(config?.data?.allow_abs_paths ?? true);
     settingsScanCache.value = String(Number(config?.data?.scan_cache_sec ?? 2.0));
     settingsMaxScanDepth.value = String(Number(config?.data?.max_scan_depth ?? -1));
@@ -362,6 +389,7 @@ export function createSettingsController({
 
     settingsLogLevel.value = String(config?.logging?.level ?? "INFO").toUpperCase();
     settingsLogDir.value = String(config?.logging?.dir ?? "");
+    showEffectivePath(settingsLogDir, effective?.logging?.dir);
     if (settingsConfigPath) {
       settingsConfigPath.textContent = configPath || "-";
     }
@@ -516,7 +544,7 @@ export function createSettingsController({
       const payload = await res.json();
       if (requestId !== settingsRequestId) return;
       const config = payload?.config || {};
-      fillSettingsForm(config, payload?.path || "");
+      fillSettingsForm(config, payload?.path || "", payload?.effective || null);
       applyEnvOverrides(payload?.env_overrides);
       applyUiSettings(config?.ui, { source: "config" });
       if (settingsToolHints) {
@@ -550,7 +578,7 @@ export function createSettingsController({
       if (!res.ok) {
         throw new Error(data?.detail || `Save failed (${res.status})`);
       }
-      fillSettingsForm(data?.config || config, data?.path || "");
+      fillSettingsForm(data?.config || config, data?.path || "", data?.effective || null);
       applyEnvOverrides(data?.env_overrides);
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
       schedulePixelOverlay();

@@ -681,6 +681,7 @@
   "settings.message.loading": "Caricamento impostazioni...",
   "settings.message.save_failed": "Impossibile salvare le impostazioni",
   "settings.message.saving": "Salvataggio delle impostazioni...",
+  "settings.path.effective": "Attualmente usa {{path}}. Lascia vuoto per seguire il valore predefinito.",
   "settings.restart_note": "Riavvia per applicare: {{fields}}",
   "settings.section.application.description": "Endpoint backend e comportamento di avvio.",
   "settings.section.data_access.description": "Autorizzazioni del file system e limiti di scansione.",

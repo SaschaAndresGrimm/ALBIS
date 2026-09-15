@@ -112,6 +112,34 @@ def _powershell_single_quote(text: str) -> str:
     return text.replace("'", "''")
 
 
+# A dialog shown by a process that owns no window of its own is not guaranteed
+# the foreground on Windows. ALBIS runs its backend windowless -- the picker is
+# launched with CREATE_NO_WINDOW -- so the chooser opened *behind* the browser,
+# where a tester could not see it at all and the interface looked frozen.
+#
+# Giving it an owner fixes that: a form that is topmost and activated pulls the
+# dialog in front of everything, and the owner stays invisible by being 1x1,
+# fully transparent and off the taskbar. It has to be shown rather than merely
+# constructed -- an unshown form has no window handle to own anything with.
+_WINDOWS_DIALOG_OWNER = """
+Add-Type -AssemblyName System.Drawing
+$owner = New-Object System.Windows.Forms.Form
+$owner.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.Opacity = 0
+$owner.ShowInTaskbar = $false
+$owner.TopMost = $true
+$owner.Show()
+$owner.Activate()
+""".strip()
+
+_WINDOWS_DIALOG_OWNER_CLEANUP = """
+$owner.Close()
+$owner.Dispose()
+""".strip()
+
+
 def _windows_dialog_runner(script: str) -> str | None:
     shell = shutil.which("powershell") or shutil.which("pwsh")
     if not shell:
@@ -147,17 +175,19 @@ def _windows_picker_filter(exts: tuple[str, ...]) -> str:
 
 
 def _windows_choose_folder() -> str | None:
-    script = """
+    script = f"""
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
+{_WINDOWS_DIALOG_OWNER}
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
 $dialog.Description = 'Select Auto Load folder'
 $dialog.ShowNewFolderButton = $false
-$result = $dialog.ShowDialog()
-if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+$result = $dialog.ShowDialog($owner)
+{_WINDOWS_DIALOG_OWNER_CLEANUP}
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
   [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
   [Console]::Write($dialog.SelectedPath)
-}
+}}
 """.strip()
     return _windows_dialog_runner(script)
 
@@ -168,6 +198,7 @@ def _windows_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
     script = f"""
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
+{_WINDOWS_DIALOG_OWNER}
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
 $dialog.Title = '{escaped_prompt}'
 $dialog.Filter = '{escaped_filter}'
@@ -175,7 +206,8 @@ $dialog.FilterIndex = 1
 $dialog.Multiselect = $false
 $dialog.CheckFileExists = $true
 $dialog.RestoreDirectory = $true
-$result = $dialog.ShowDialog()
+$result = $dialog.ShowDialog($owner)
+{_WINDOWS_DIALOG_OWNER_CLEANUP}
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
   [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
   [Console]::Write($dialog.FileName)

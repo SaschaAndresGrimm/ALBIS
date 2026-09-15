@@ -681,6 +681,7 @@
   "settings.message.loading": "Cargando configuración...",
   "settings.message.save_failed": "No se pudo guardar la configuración",
   "settings.message.saving": "Guardando configuración...",
+  "settings.path.effective": "Actualmente usa {{path}}. Déjalo vacío para seguir el valor predeterminado.",
   "settings.restart_note": "Reinicie para aplicar: {{fields}}",
   "settings.section.application.description": "Punto final de backend y comportamiento de lanzamiento.",
   "settings.section.data_access.description": "Permisos del sistema de archivos y límites de escaneo.",
