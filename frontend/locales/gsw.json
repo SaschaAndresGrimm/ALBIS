@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Inspektorbaum wird glade...",
   "inspector.tree.loading_children": "Unterchnöte wärde glade...",
   "inspector.tree.no_nodes": "Kei Chnöte verfiegbar",
+  "inspector.tree.truncated": "{{shown}} vo {{total}} Iiträg zeigt",
   "inspector.type.dataset": "Datensatz",
   "inspector.type.group": "Gruppe",
   "inspector.type.link": "Link",

@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Loading inspector tree...",
   "inspector.tree.loading_children": "Loading child nodes...",
   "inspector.tree.no_nodes": "No nodes available",
+  "inspector.tree.truncated": "Showing {{shown}} of {{total}} entries",
   "inspector.type.dataset": "dataset",
   "inspector.type.group": "group",
   "inspector.type.link": "link",

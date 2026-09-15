@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Chargement de l'arborescence de l'inspecteur...",
   "inspector.tree.loading_children": "Chargement des nœuds enfants...",
   "inspector.tree.no_nodes": "Aucun nœud disponible",
+  "inspector.tree.truncated": "Affichage de {{shown}} entrées sur {{total}}",
   "inspector.type.dataset": "ensemble de données",
   "inspector.type.group": "groupe",
   "inspector.type.link": "lien",

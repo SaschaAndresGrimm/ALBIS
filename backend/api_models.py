@@ -366,6 +366,10 @@ class HDF5TreeChild(_StrictModel):
 class HDF5TreeResponse(_StrictModel):
     path: str
     children: list[HDF5TreeChild]
+    # `children` is capped, so a group past the cap reports its real size here
+    # and the inspector says the listing is partial instead of implying it is all.
+    childCount: int | None = None
+    truncated: bool | None = None
 
 
 class HDF5AttrItem(_StrictModel):

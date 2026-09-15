@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Cargando árbol de inspectores...",
   "inspector.tree.loading_children": "Cargando nodos secundarios...",
   "inspector.tree.no_nodes": "No hay nodos disponibles",
+  "inspector.tree.truncated": "Mostrando {{shown}} de {{total}} entradas",
   "inspector.type.dataset": "conjunto de datos",
   "inspector.type.group": "grupo",
   "inspector.type.link": "enlace",

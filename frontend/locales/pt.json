@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Carregando árvore do inspetor...",
   "inspector.tree.loading_children": "Carregando nós filhos...",
   "inspector.tree.no_nodes": "Nenhum nó disponível",
+  "inspector.tree.truncated": "A mostrar {{shown}} de {{total}} entradas",
   "inspector.type.dataset": "conjunto de dados",
   "inspector.type.group": "grupo",
   "inspector.type.link": "ligação",

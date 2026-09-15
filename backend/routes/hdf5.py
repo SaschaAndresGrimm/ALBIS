@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import csv
 import io
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,7 +20,9 @@ from ..api_models import (
     HDF5TreeResponse,
     HDF5ValueResponse,
 )
-from ..services.hdf5_stack import open_hdf5_for_read
+from ..services.hdf5_stack import WalkReport, open_hdf5_for_read
+
+_log = logging.getLogger("albis.hdf5_routes")
 
 HDF5_CSV_RESPONSE_DOCS: dict[int, dict[str, Any]] = {
     200: {
@@ -41,6 +44,8 @@ class HDF5RouteDeps:
     get_h5py: Callable[[], Any]
     resolve_file: Callable[[str], Path]
     walk_datasets: Callable[..., None]
+    # Child names of one group, capped, with the group's true child count.
+    group_child_names: Callable[..., tuple[list[str], int]]
     aggregate_linked_stack_datasets: Callable[[list[dict[str, Any]]], list[dict[str, Any]]]
     collect_h5_attrs: Callable[[Any], dict[str, Any]]
     serialize_h5_value: Callable[[Any], Any]
@@ -82,18 +87,38 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
         h5py = deps.get_h5py()
         path = deps.resolve_file(file)
         results: list[dict[str, Any]] = []
+        report = WalkReport()
         with open_hdf5_for_read(h5py, path) as h5:
             file_cache: dict[Path, Any] = {path: h5}
             try:
-                deps.walk_datasets(h5["/"], "/", path, results, set(), file_cache)
+                deps.walk_datasets(h5["/"], "/", path, results, set(), file_cache, report)
             finally:
                 for cache_path, handle in file_cache.items():
                     if cache_path == path:
                         continue
                     with contextlib.suppress(Exception):
                         handle.close()
+        report.log_summary(path)
+        datasets = deps.aggregate_linked_stack_datasets(results)
 
-        return HDF5DatasetsResponse(datasets=deps.aggregate_linked_stack_datasets(results))
+        if report.dead_link_groups:
+            # A master file on its own: the group that should hold the frames
+            # holds only links, and not one of them resolved. Saying so beats
+            # opening the master and displaying its flatfield, which is what an
+            # incomplete download used to look like.
+            group, link_count = report.dead_link_groups[0]
+            example = report.missing_external[0] if report.missing_external else None
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"This looks like a master file whose data files are missing: {group} "
+                    f"links to {link_count:,} file(s) that are not next to it"
+                    + (f", starting with '{example}'" if example else "")
+                    + ". Copy the linked data files into the same folder and open it again."
+                ),
+            )
+
+        return HDF5DatasetsResponse(datasets=datasets)
 
     @app.get("/api/hdf5/tree", response_model=HDF5TreeResponse)
     def hdf5_tree(file: str = Query(..., min_length=1), path: str = Query("/")) -> HDF5TreeResponse:
@@ -108,7 +133,10 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             if not isinstance(obj, h5py.Group):
                 return HDF5TreeResponse(path=path, children=[])
             children: list[dict[str, Any]] = []
-            for name in obj.keys():
+            # Capped: a group with one external link per frame can hold millions,
+            # and modelling them all cost 7.2 GiB before this limit existed.
+            names, child_count = deps.group_child_names(obj)
+            for name in names:
                 child_path = f"{path}/{name}" if path != "/" else f"/{name}"
                 try:
                     link = obj.get(name, getlink=True)
@@ -160,8 +188,20 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                         }
                     )
             children.sort(key=lambda item: (item.get("type") != "group", item.get("name", "")))
+            truncated = child_count > len(names)
+            if truncated:
+                _log.warning(
+                    "Listing only %d of %d children of %s in %s",
+                    len(names),
+                    child_count,
+                    path,
+                    file_path,
+                )
             return HDF5TreeResponse(
-                path=path, children=[HDF5TreeChild(**item) for item in children]
+                path=path,
+                children=[HDF5TreeChild(**item) for item in children],
+                childCount=child_count,
+                truncated=truncated,
             )
 
     @app.get("/api/hdf5/node", response_model=HDF5NodeResponse)
@@ -244,7 +284,9 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             while stack and len(matches) < limit:
                 base_path, group = stack.pop()
                 try:
-                    names = sorted(group.keys())
+                    # Capped for the same reason as the tree route: `sorted` over
+                    # a million-link group materialises every name first.
+                    names = sorted(deps.group_child_names(group)[0])
                 except Exception:
                     continue
                 for name in names:

@@ -520,6 +520,7 @@ _to_ev = hdf5_stack.to_ev
 _wavelength_to_ev = hdf5_stack.wavelength_to_ev
 _read_threshold_energies = hdf5_stack.read_threshold_energies
 _walk_datasets = hdf5_stack.walk_datasets
+_group_child_names = hdf5_stack.group_child_names
 _linked_member_sort_key = hdf5_stack.linked_member_sort_key
 _aggregate_linked_stack_datasets = hdf5_stack.aggregate_linked_stack_datasets
 _resolve_node = hdf5_stack.resolve_node
@@ -727,6 +728,7 @@ register_hdf5_routes(
         get_h5py=_get_h5py,
         resolve_file=_resolve_file,
         walk_datasets=_walk_datasets,
+        group_child_names=_group_child_names,
         aggregate_linked_stack_datasets=_aggregate_linked_stack_datasets,
         collect_h5_attrs=_collect_h5_attrs,
         serialize_h5_value=_serialize_h5_value,

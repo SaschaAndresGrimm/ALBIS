@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Indlæser inspektørtræ...",
   "inspector.tree.loading_children": "Indlæser underordnede noder...",
   "inspector.tree.no_nodes": "Ingen tilgængelige noder",
+  "inspector.tree.truncated": "Viser {{shown}} af {{total}} poster",
   "inspector.type.dataset": "datasæt",
   "inspector.type.group": "gruppe",
   "inspector.type.link": "link",

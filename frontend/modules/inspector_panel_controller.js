@@ -410,6 +410,16 @@ export function createInspectorPanelController({
     li.dataset.path = node.path || "";
     li.dataset.type = node.type || "";
     const nodeType = normalizeInspectorType(node.type);
+    if (nodeType === "truncated") {
+      // A note, not a node: no path to select, nothing to expand.
+      li.classList.add("is-note");
+      li.dataset.path = "";
+      const note = document.createElement("div");
+      note.className = "inspector-row inspector-row-note";
+      note.textContent = node.name || "";
+      li.appendChild(note);
+      return li;
+    }
     if (nodeType === "link" && node.target) {
       li.dataset.target = node.target;
     }
@@ -476,7 +486,20 @@ export function createInspectorPanelController({
     const res = await fetchJSON(
       `${apiBase}/hdf5/tree?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`,
     );
-    return res.children || [];
+    const children = res.children || [];
+    if (!res.truncated) return children;
+    // The listing is capped server-side: a master written one file per frame can
+    // link millions of nodes into one group. Carried as a trailing note row so
+    // every caller that renders children shows it without knowing about it, and
+    // so the count the user sees is the group's real size, not what arrived.
+    return children.concat({
+      name: t("inspector.tree.truncated", {
+        shown: children.length.toLocaleString(),
+        total: Number(res.childCount || 0).toLocaleString(),
+      }),
+      path,
+      type: "truncated",
+    });
   }
 
   async function loadInspectorRoot() {

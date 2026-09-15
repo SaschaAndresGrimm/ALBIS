@@ -444,6 +444,7 @@
   "inspector.tree.loading": "インスペクターツリーを読み込み中...",
   "inspector.tree.loading_children": "子ノードを読み込み中...",
   "inspector.tree.no_nodes": "利用可能なノードがありません",
+  "inspector.tree.truncated": "{{total}} 件のうち {{shown}} 件を表示",
   "inspector.type.dataset": "データセット",
   "inspector.type.group": "グループ",
   "inspector.type.link": "リンク",

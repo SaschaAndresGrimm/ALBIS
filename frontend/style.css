@@ -2303,6 +2303,30 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   background: rgba(120, 170, 255, 0.15);
 }
 
+/* The "listing truncated" row states a fact about the group rather than naming
+   a node in it, so it takes none of the row affordances: no pointer, no hover,
+   no selection. Single column, because it has no name/meta split to align.
+
+   Its left padding matches a sibling row's rather than the name column's 26px:
+   `.is-hidden` is `display: none !important` globally, which beats this file's
+   `.inspector-toggle.is-hidden { visibility: hidden }`, so a leaf row's toggle
+   collapses and its name sits at the row padding. Indenting the note to where
+   the name column nominally starts put it 22px right of every entry it
+   describes, reading as a child of the last one. */
+.inspector-node > .inspector-row-note {
+  display: block;
+  grid-template-columns: none;
+  cursor: default;
+  color: var(--muted);
+  font-size: 10px;
+  font-style: italic;
+  padding: 3px 4px;
+}
+
+.inspector-row-note:hover {
+  background: transparent;
+}
+
 .inspector-row.is-selected {
   background: rgba(64, 123, 211, 0.35);
 }

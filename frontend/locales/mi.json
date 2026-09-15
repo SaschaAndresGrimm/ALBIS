@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Uta ana rakau kaitirotiro...",
   "inspector.tree.loading_children": "Uta ana i ngā pona tamariki...",
   "inspector.tree.no_nodes": "Karekau he pona e wātea ana",
+  "inspector.tree.truncated": "E whakaatu ana i te {{shown}} o te {{total}} tūemi",
   "inspector.type.dataset": "huingararaunga",
   "inspector.type.group": "roopu",
   "inspector.type.link": "hono",

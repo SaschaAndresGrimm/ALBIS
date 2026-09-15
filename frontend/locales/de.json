@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Prüfbaum wird geladen...",
   "inspector.tree.loading_children": "Untergeordnete Knoten werden geladen...",
   "inspector.tree.no_nodes": "Keine Knoten verfügbar",
+  "inspector.tree.truncated": "{{shown}} von {{total}} Einträgen angezeigt",
   "inspector.type.dataset": "Datensatz",
   "inspector.type.group": "Gruppe",
   "inspector.type.link": "Link",

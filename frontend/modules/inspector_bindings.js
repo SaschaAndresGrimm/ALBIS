@@ -31,6 +31,8 @@ export function bindInspectorInteractions({
     if (!node) return;
     const nodeType = String(node.dataset.type || "").toLowerCase();
     const nodePath = node.dataset.path || "";
+    // The "listing truncated" row is a note about the group, not a node in it.
+    if (nodeType === "truncated") return;
     selectInspectorRow(row);
     if (nodeType === "link") {
       renderInspectorLink(nodePath || "-", node.dataset.target || "-");

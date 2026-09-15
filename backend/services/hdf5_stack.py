@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import contextlib
 import errno
+import itertools
 import logging
 import math
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +39,13 @@ from .hdf5_units import (
 )
 
 _log = logging.getLogger("albis.hdf5_stack")
+
+
+def _text(value: Any) -> str:
+    """Decode a name libhdf5 handed back, which may be bytes or str."""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    return str(value or "")
 
 
 def open_hdf5_read_only(h5py: Any, path: Path) -> Any:
@@ -232,6 +240,96 @@ MASK_PATHS = (
 _LINKED_DATA_NAME_RE = re.compile(r"^data(?:[_-]?(\d+))?$")
 _THRESHOLD_GROUP_NAME_RE = re.compile(r"^threshold_(\d+)_channel$")
 
+GROUP_CHILD_LIMIT = 10_000
+"""How many children of any one group an enumeration will look at.
+
+A filewriter told to emit one companion file per frame writes one external link
+per frame into a single group, and a long burn-in run reaches millions: an ARINA
+master measured here held 5,000,000 links in `/entry/data`. Nothing downstream
+can present that many nodes -- the tree route alone needed 7.2 GiB to model them
+-- so every enumeration stops at this cap and reports the group's true size
+instead of trying to carry it.
+"""
+
+_MAX_SKIP_EXAMPLES = 5
+"""Distinct example names carried in a walk's aggregated skip summary."""
+
+
+@dataclass
+class WalkReport:
+    """What a dataset walk had to skip, aggregated rather than logged per node.
+
+    A master whose companion files are missing has every link fail for the same
+    reason. Logging each one wrote five million WARNING lines for the file that
+    prompted this class, which is its own denial of service; the walk now counts
+    reasons here and logs one line per walk.
+    """
+
+    skipped: dict[str, int] = field(default_factory=dict)
+    missing_external: list[str] = field(default_factory=list)
+    missing_external_count: int = 0
+    truncated_groups: list[tuple[str, int]] = field(default_factory=list)
+    dead_link_groups: list[tuple[str, int]] = field(default_factory=list)
+    """Groups where links were the only content and none of them resolved.
+
+    This, not "the file held no images", is what an orphaned master looks like:
+    a master carries its own calibration arrays, and `flatfield` and
+    `pixel_mask` are both 2D, so a file with no frames at all still offers
+    something displayable. Judging the group that should hold the frames keeps a
+    partly-downloaded series openable -- if any link resolved, the group is not
+    dead and whatever arrived is still served.
+    """
+
+    def note_skip(self, reason: str) -> None:
+        self.skipped[reason] = self.skipped.get(reason, 0) + 1
+
+    def note_dead_link_group(self, path: str, missing: int, total: int) -> None:
+        """Record a dead group. `total` is its real size, `missing` what we saw."""
+        if len(self.dead_link_groups) < _MAX_SKIP_EXAMPLES:
+            self.dead_link_groups.append((path, max(missing, total)))
+
+    def note_missing_external(self, filename: str | None) -> None:
+        """Record a link whose target file could not be opened."""
+        self.missing_external_count += 1
+        name = str(filename or "").strip()
+        if (
+            name
+            and len(self.missing_external) < _MAX_SKIP_EXAMPLES
+            and name not in self.missing_external
+        ):
+            self.missing_external.append(name)
+
+    def note_truncated_group(self, path: str, total: int) -> None:
+        if len(self.truncated_groups) < _MAX_SKIP_EXAMPLES:
+            self.truncated_groups.append((path, total))
+
+    def log_summary(self, file_path: Path) -> None:
+        """Emit at most one line per category for the whole walk."""
+        for path, total in self.truncated_groups:
+            _log.warning(
+                "Only the first %d of %d children of %s in %s were inspected",
+                GROUP_CHILD_LIMIT,
+                total,
+                path,
+                file_path,
+            )
+        if self.missing_external_count:
+            _log.warning(
+                "Skipped %d external link(s) in %s whose target file is missing (e.g. %s)",
+                self.missing_external_count,
+                file_path,
+                ", ".join(self.missing_external) or "unknown",
+            )
+        for path, missing in self.dead_link_groups:
+            _log.warning(
+                "%s in %s holds only links and none of its %d link(s) resolved",
+                path,
+                file_path,
+                missing,
+            )
+        for reason, count in sorted(self.skipped.items()):
+            _log.warning("Skipped %d node(s) in %s: %s", count, file_path, reason)
+
 
 @dataclass
 class HDF5StackService:
@@ -284,11 +382,6 @@ class HDF5StackService:
         own file -- is not a companion and is left out.
         """
         targets: list[str] = []
-
-        def _text(value: Any) -> str:
-            if isinstance(value, bytes):
-                return value.decode("utf-8", "replace")
-            return str(value or "")
 
         with contextlib.suppress(Exception):
             plist = dset.id.get_create_plist()
@@ -582,6 +675,64 @@ class HDF5StackService:
             energies.append(energy)
         return energies
 
+    def group_child_names(
+        self, group: Any, limit: int = GROUP_CHILD_LIMIT
+    ) -> tuple[list[str], int]:
+        """At most `limit` child names, plus the group's true number of children.
+
+        Iterating a group by name makes libhdf5 order the whole link table
+        before it yields the first name: for the 5,000,000-link group that
+        prompted this, the *first* name took 122 s and every later one was free.
+        The count itself is free -- it sits in the group header -- so a group
+        past the cap is sampled in the file's own heap order, which needs no
+        ordering pass at all and returned instantly on that same group.
+
+        Heap order is arbitrary, so the sample is an arbitrary one. That is the
+        honest trade for a view that is truncated anyway, and callers report the
+        truncation rather than presenting the sample as the whole group.
+        """
+        h5py = self.get_h5py()
+        try:
+            total = int(len(group))
+        except Exception:
+            total = 0
+        if total <= limit:
+            return list(group.keys()), total
+
+        names: list[str] = []
+
+        def collect(raw: Any) -> Any:
+            names.append(_text(raw))
+            # Any truthy return aborts H5Literate; None keeps it going.
+            return True if len(names) >= limit else None
+
+        try:
+            group.id.links.iterate(collect, idx_type=h5py.h5.INDEX_NAME, order=h5py.h5.ITER_NATIVE)
+        except Exception:
+            # Older h5py without the low-level link proxy: pay the ordering
+            # pass rather than lose the listing entirely.
+            names = list(itertools.islice(group.keys(), limit))
+        return names[:limit], total
+
+    def dangling_link_target(self, group: Any, name: str) -> str | None:
+        """The file an unresolvable external link names, or None if not external.
+
+        Reached only when `Group.get(..., getlink=True)` hands back its default.
+        It does that whenever `name not in group`, and on some libhdf5 builds
+        `__contains__` resolves the link, so a *dangling* external link reads
+        back as `None`. This asks the link table directly, which never follows
+        the link and so answers the same way on every build.
+        """
+        h5py = self.get_h5py()
+        try:
+            key = name.encode("utf-8")
+            if group.id.links.get_info(key).type != h5py.h5l.TYPE_EXTERNAL:
+                return None
+            filename, _target = group.id.links.get_val(key)
+        except Exception:
+            return None
+        return _text(filename)
+
     def walk_datasets(
         self,
         obj: Any,
@@ -590,6 +741,7 @@ class HDF5StackService:
         results: list[dict[str, Any]],
         ancestors: set[tuple[Path, Any]],
         file_cache: dict[Path, Any],
+        report: WalkReport | None = None,
     ) -> None:
         h5py = self.get_h5py()
         if isinstance(obj, h5py.Dataset):
@@ -606,40 +758,56 @@ class HDF5StackService:
         next_ancestors = set(ancestors)
         next_ancestors.add(obj_ref)
 
-        for name in obj.keys():
+        walk_report = report if report is not None else WalkReport()
+        names, total = self.group_child_names(obj)
+        if total > len(names):
+            walk_report.note_truncated_group(base_path, total)
+
+        # Counted per group so a dead stack group can be told apart from a file
+        # that simply has no frames: see `WalkReport.dead_link_groups`.
+        group_missing = 0
+        group_produced = 0
+
+        for name in names:
             try:
                 link = obj.get(name, getlink=True)
             except Exception as _exc:
-                _log.warning("Skipping node %s in %s: cannot read link: %s", name, file_path, _exc)
+                walk_report.note_skip(f"cannot read link ({_exc})")
                 continue
             child_path = f"{base_path}/{name}" if base_path != "/" else f"/{name}"
+            if link is None:
+                # `Group.get` returns its default when `name not in obj`, and on
+                # some libhdf5 builds `__contains__` resolves the link -- so a
+                # dangling external link arrives here as None. It used to fall
+                # through to the hard-link branch below and raise there, one
+                # warning per link. A hard link cannot dangle, so a name that
+                # enumerated but will not resolve is a broken soft or external
+                # link either way.
+                group_missing += 1
+                walk_report.note_missing_external(self.dangling_link_target(obj, name))
+                continue
             if isinstance(link, h5py.ExternalLink):
                 target_path = self.resolve_external_path(file_path, link.filename)
                 if not target_path:
+                    group_missing += 1
+                    walk_report.note_missing_external(link.filename)
                     continue
                 target_file = file_cache.get(target_path)
                 if target_file is None:
                     try:
                         target_file = open_hdf5_read_only(h5py, target_path)
-                    except OSError as _exc:
-                        _log.warning(
-                            "Skipping external link %s: cannot open %s: %s",
-                            child_path,
-                            link.filename,
-                            _exc,
-                        )
+                    except OSError:
+                        group_missing += 1
+                        walk_report.note_missing_external(link.filename)
                         continue
                     file_cache[target_path] = target_file
                 try:
                     target_obj = target_file[link.path]
                 except Exception as _exc:
-                    _log.warning(
-                        "Skipping external link %s: path %s not found: %s",
-                        child_path,
-                        link.path,
-                        _exc,
-                    )
+                    group_missing += 1
+                    walk_report.note_skip(f"external link path {link.path} not found ({_exc})")
                     continue
+                before = len(results)
                 self.walk_datasets(
                     target_obj,
                     child_path,
@@ -647,14 +815,19 @@ class HDF5StackService:
                     results,
                     next_ancestors,
                     file_cache,
+                    walk_report,
                 )
+                if len(results) > before:
+                    group_produced += 1
                 continue
             if isinstance(link, h5py.SoftLink):
                 try:
                     target_obj = obj[link.path]
                 except Exception as _exc:
-                    _log.warning("Skipping soft link %s -> %s: %s", child_path, link.path, _exc)
+                    group_missing += 1
+                    walk_report.note_skip(f"soft link to {link.path} is broken ({_exc})")
                     continue
+                before = len(results)
                 self.walk_datasets(
                     target_obj,
                     child_path,
@@ -662,13 +835,17 @@ class HDF5StackService:
                     results,
                     next_ancestors,
                     file_cache,
+                    walk_report,
                 )
+                if len(results) > before:
+                    group_produced += 1
                 continue
             try:
                 target_obj = obj[name]
             except Exception as _exc:
-                _log.warning("Skipping node %s in %s: %s", child_path, file_path, _exc)
+                walk_report.note_skip(f"cannot open node ({_exc})")
                 continue
+            before = len(results)
             self.walk_datasets(
                 target_obj,
                 child_path,
@@ -676,7 +853,19 @@ class HDF5StackService:
                 results,
                 next_ancestors,
                 file_cache,
+                walk_report,
             )
+            if len(results) > before:
+                group_produced += 1
+
+        if group_missing and not group_produced:
+            # `total`, not `group_missing`: past the cap we only looked at the
+            # first 10,000 of the group's links, and reporting that as the whole
+            # count would understate the file by a factor of 500.
+            walk_report.note_dead_link_group(base_path or "/", group_missing, total)
+        if report is None:
+            # Top-level call made its own report, so nothing else will log it.
+            walk_report.log_summary(file_path)
 
     @staticmethod
     def is_linked_data_member(name: str) -> bool:
@@ -833,53 +1022,62 @@ class HDF5StackService:
         dtype: str | None = None
         tail: tuple[int, ...] | None = None
 
-        for name in sorted(group.keys(), key=self.linked_member_sort_key):
+        # Capped and aggregated for the same reasons as `walk_datasets`: this is
+        # the path a partly-downloaded master reaches once the dataset is chosen,
+        # and it used to sort every one of five million member names and then log
+        # a line per member that would not open.
+        report = WalkReport()
+        member_names, member_total = self.group_child_names(group)
+        if member_total > len(member_names):
+            report.note_truncated_group(group_path, member_total)
+
+        for name in sorted(member_names, key=self.linked_member_sort_key):
             if not self.is_linked_data_member(name):
                 continue
             try:
                 link = group.get(name, getlink=True)
             except Exception as _exc:
-                _log.warning(
-                    "Skipping linked member %s in %s: cannot read link: %s", name, group_file, _exc
-                )
+                report.note_skip(f"cannot read link ({_exc})")
+                continue
+            if link is None:
+                # See the same branch in `walk_datasets`: a dangling external
+                # link reads back as None on some libhdf5 builds.
+                report.note_missing_external(self.dangling_link_target(group, name))
                 continue
             if isinstance(link, h5py.ExternalLink):
                 target_path = self.resolve_external_path(group_file, link.filename)
                 if not target_path:
+                    report.note_missing_external(link.filename)
                     continue
                 try:
                     target_file = open_hdf5_read_only(h5py, target_path)
-                except OSError as _exc:
-                    _log.warning(
-                        "Skipping linked member %s: cannot open %s: %s", name, link.filename, _exc
-                    )
+                except OSError:
+                    report.note_missing_external(link.filename)
                     continue
                 opened.append(target_file)
                 try:
                     child = target_file[link.path]
                 except Exception as _exc:
-                    _log.warning(
-                        "Skipping linked member %s: path %s not found: %s", name, link.path, _exc
-                    )
+                    report.note_skip(f"external link path {link.path} not found ({_exc})")
                     continue
             elif isinstance(link, h5py.SoftLink):
                 try:
                     child = group[link.path]
                 except Exception as _exc:
-                    _log.warning("Skipping soft-linked member %s -> %s: %s", name, link.path, _exc)
+                    report.note_skip(f"soft link to {link.path} is broken ({_exc})")
                     continue
             else:
                 try:
                     child = group[name]
                 except Exception as _exc:
-                    _log.warning("Skipping member %s in %s: %s", name, group_file, _exc)
+                    report.note_skip(f"cannot open member ({_exc})")
                     continue
             if not isinstance(child, h5py.Dataset):
                 continue
             try:
                 self.assert_dataset_storage_confined(child, group_file)
             except HTTPException as _exc:
-                _log.warning("Skipping linked member %s in %s: %s", name, group_file, _exc.detail)
+                report.note_skip(f"stores data outside the data root ({_exc.detail})")
                 continue
             child_shape = tuple(int(x) for x in child.shape)
             child_ndim = int(child.ndim)
@@ -903,6 +1101,7 @@ class HDF5StackService:
                 }
             )
 
+        report.log_summary(group_file)
         if not segments or ndim is None or tail is None or dtype is None:
             return None
         total_frames = sum(int(seg["frames"]) for seg in segments)

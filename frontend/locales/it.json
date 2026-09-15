@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Caricamento albero ispettore...",
   "inspector.tree.loading_children": "Caricamento dei nodi secondari...",
   "inspector.tree.no_nodes": "Nessun nodo disponibile",
+  "inspector.tree.truncated": "Visualizzati {{shown}} di {{total}} elementi",
   "inspector.type.dataset": "set di dati",
   "inspector.type.group": "gruppo",
   "inspector.type.link": "collegamento",

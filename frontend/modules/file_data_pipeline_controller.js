@@ -295,9 +295,13 @@ export function createFileDataPipelineController({
       }
     } catch (err) {
       console.error(err);
-      setStatus(t("status.data.failed_scan_datasets"), { tone: "error" });
+      // When the backend can name the real cause -- a master file whose data
+      // files are missing, say -- that is worth far more to the user than
+      // "scan failed", which is what an incomplete download used to report.
+      const detail = typeof err?.detail === "string" ? err.detail.trim() : "";
+      setStatus(detail || t("status.data.failed_scan_datasets"), { tone: "error" });
       showSplash();
-      setSplashStatus("splash.status.dataset_scan_failed");
+      setSplashStatus(detail || "splash.status.dataset_scan_failed");
       setLoading(false);
       setDataSourceSectionState("warning", t("status.data.failed_scan_datasets"));
       return false;

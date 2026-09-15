@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- A master file whose companion data files are missing says so, instead of taking the viewer down with it. A colleague's ARINA burn-in master was written one companion file per frame — `nimages=1000 x ntrigger=5000`, so `/entry/data` held 5,000,000 external links — and had been downloaded without any of them. The file was not corrupt; HDFView died on it too, which is what made it look that way. Opening it in ALBIS now takes about two seconds and reports which data files are missing, naming one to look for.
+
+  Three separate costs, each measured on that file. Iterating the group by name made libhdf5 order the whole link table before yielding anything: the *first* name took 122 s, every name after it was free. `/api/datasets` then spent ~213 s in `resolve_external_path`, which stats the filesystem once per link — six minutes of work to report nothing found. And the file inspector modelled every child, 5,000,000 dicts plus as many response models, 7.2 GiB and an 800 MB response, which is the crash. Group listings now stop at 10,000 children and report the group's real size alongside them; past the cap the sample is taken in the file's own heap order, which needs no ordering pass at all. The inspector shows a trailing "showing 10,000 of 5,000,000" note rather than a listing that looks complete.
+
+  The diagnosis the user got was also wrong twice over. `Group.get(..., getlink=True)` returns its default when `name not in group`, and on some libhdf5 builds `__contains__` resolves the link — so a *dangling* external link reads back as `None`, fell through to the hard-link branch and raised there, one `Skipping node ... identifier is not of specified type` per link. Five million WARNING lines is its own denial of service, so skips are now counted and logged once per walk, and a link that reads back as `None` is classified from the link table directly, which never follows the link and so answers the same on every build.
+
+  A partly-downloaded master still opens and still shows the frames that arrived: the check asks whether the group that should hold the frames produced anything, not whether any link was missing. That distinction matters because a master carries 2D calibration arrays — `flatfield` and `pixel_mask` — so "the file has no images" was never true of one, and ALBIS used to open an orphaned master and display its flatfield.
+
 ### Changed
 
 - A TIFF written by **Series Operations** carries a header at all. That service has its own writer and called `write_tiff(path, arr)` with no metadata — its dependency's type did not even accept any — so summing a PILATUS series produced a TIFF stating only that ALBIS made it. It now borrows the export service's metadata readers rather than keeping a second copy, and the summed TIFF states the detector model, serial and location, pixel size, sensor thickness, tau, threshold setting, gain, wavelength, incident energy, detector distance and beam centre.

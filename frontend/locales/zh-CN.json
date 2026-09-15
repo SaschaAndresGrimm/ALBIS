@@ -444,6 +444,7 @@
   "inspector.tree.loading": "正在加载检查器树...",
   "inspector.tree.loading_children": "正在加载子节点...",
   "inspector.tree.no_nodes": "没有可用节点",
+  "inspector.tree.truncated": "显示 {{total}} 项中的 {{shown}} 项",
   "inspector.type.dataset": "数据集",
   "inspector.type.group": "组",
   "inspector.type.link": "链接",

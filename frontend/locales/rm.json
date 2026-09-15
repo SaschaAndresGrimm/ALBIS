@@ -444,6 +444,7 @@
   "inspector.tree.loading": "Chargiar arber da l'inspectur...",
   "inspector.tree.loading_children": "Chargiar ils nods uffants...",
   "inspector.tree.no_nodes": "Nagins nods disponibels",
+  "inspector.tree.truncated": "Mussà {{shown}} da {{total}} endataziuns",
   "inspector.type.dataset": "set da datas",
   "inspector.type.group": "gruppa",
   "inspector.type.link": "colliaziun",
