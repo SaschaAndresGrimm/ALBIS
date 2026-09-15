@@ -14,8 +14,8 @@ uvicorn[standard]==0.52.4
 python-multipart==0.0.32
 hdf5plugin==7.1.0
 h5py==3.16.0
-numpy==2.5.2
-tifffile==2026.8.23
+numpy==2.5.3
+tifffile==2026.9.9
 fabio==2026.6.0
 cbor2==6.1.4
 pyzmq==27.2.0
