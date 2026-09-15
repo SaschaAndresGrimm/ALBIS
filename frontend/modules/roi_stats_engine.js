@@ -12,6 +12,28 @@ export function normalizeRoiHistogramBinCount(value) {
   return Math.max(ROI_HISTOGRAM_MIN_FIXED_BINS, Math.min(ROI_HISTOGRAM_MAX_FIXED_BINS, count));
 }
 
+/** The two values detector data uses in place of a separate mask.
+ *
+ * A PILATUS CBF marks an inter-module gap `-1` and a bad pixel `-2` in the
+ * pixel data itself, and ALBIS's own exports write the same two values. There
+ * is no mask array to consult for such a frame -- `/api/mask` only answers for
+ * HDF5 -- so a CBF's gap pixels were reported as none at all: a real frame in
+ * `testdata/` holds 16,558 of them and the panel said zero.
+ */
+export const DATA_GAP_VALUE = -1;
+export const DATA_DEFECTIVE_VALUE = -2;
+
+/** Whether this frame's values can carry the flags above.
+ *
+ * Signed integer data only. An unsigned type cannot hold either value, and a
+ * float frame is not this convention -- a flatfield or an averaged frame may
+ * hold exactly -1.0 as a real measurement, and counting that as a gap would be
+ * inventing defects.
+ */
+export function usesInDataPixelFlags(data) {
+  return data instanceof Int8Array || data instanceof Int16Array || data instanceof Int32Array;
+}
+
 export function getMaskFlags(maskValue) {
   if (!Number.isFinite(maskValue)) {
     return { gap: false, defective: false };
@@ -20,6 +42,25 @@ export function getMaskFlags(maskValue) {
     gap: Boolean(maskValue & 1),
     defective: Boolean(maskValue & 0x1e),
   };
+}
+
+/** Gap and defective flags from the mask bits and the value together.
+ *
+ * The mask wins where there is one: a frame with a real mask array is being
+ * told authoritatively, and `-1` in such a frame is a measurement rather than
+ * a marker. `gap` takes precedence over `defective` so the two counts never
+ * double-count one pixel.
+ */
+export function getPixelFlags(value, maskValue, inDataFlags = false) {
+  const flags = getMaskFlags(maskValue);
+  if (flags.gap || flags.defective) {
+    return { gap: flags.gap, defective: !flags.gap && flags.defective };
+  }
+  if (inDataFlags) {
+    if (value === DATA_GAP_VALUE) return { gap: true, defective: false };
+    if (value === DATA_DEFECTIVE_VALUE) return { gap: false, defective: true };
+  }
+  return { gap: false, defective: false };
 }
 
 export function applyMaskToValue(value, maskValue, options = {}) {
@@ -42,10 +83,16 @@ export function createRoiPixelCounters() {
   return { total: 0, gap: 0, defective: 0, saturated: 0 };
 }
 
-export function accumulateRoiPixelCounters(counters, sampled, satMax, isSaturatedValue) {
+export function accumulateRoiPixelCounters(
+  counters,
+  sampled,
+  satMax,
+  isSaturatedValue,
+  inDataFlags = false
+) {
   if (!counters || !sampled) return;
   counters.total += 1;
-  const flags = getMaskFlags(sampled.maskValue);
+  const flags = getPixelFlags(sampled.raw, sampled.maskValue, inDataFlags);
   if (flags.gap) {
     counters.gap += 1;
   } else if (flags.defective) {
@@ -267,6 +314,9 @@ export function computeGlobalStats(params) {
   let defectivePixels = 0;
   let saturatedPixels = 0;
   const hasMask = maskAvailable && maskRaw && maskShape && maskShape[0] === height && maskShape[1] === width;
+  // Resolved once: the check is a handful of instanceof tests and this loop
+  // runs per pixel per frame. Only consulted where there is no mask to trust.
+  const inDataFlags = !hasMask && usesInDataPixelFlags(dataRaw);
   const useMasking = (maskEnabled && hasMask) || maskSaturatedEnabled;
 
   // Whether pixel `i` contributes. Shared by this pass and the median pass so
@@ -292,8 +342,12 @@ export function computeGlobalStats(params) {
     // maskRaw is a Uint32Array, so its entries are always finite; absent mask
     // means no bits set, which is what getMaskFlags(null) reports.
     const maskBits = hasMask ? maskRaw[i] : 0;
-    const gap = (maskBits & 1) !== 0;
-    const defective = (maskBits & 0x1e) !== 0;
+    // Inlined rather than delegated to getPixelFlags for the same reason the
+    // mask helpers are: a fresh object per pixel was 36 million allocations a
+    // frame on a 16M detector. The parity tests hold this to that helper.
+    const gap = (maskBits & 1) !== 0 || (inDataFlags && value === DATA_GAP_VALUE);
+    const defective =
+      (maskBits & 0x1e) !== 0 || (inDataFlags && value === DATA_DEFECTIVE_VALUE);
     if (gap) {
       gapPixels += 1;
     } else if (defective) {

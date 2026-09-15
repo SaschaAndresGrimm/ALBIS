@@ -8,6 +8,7 @@ import {
   buildRoiHistogram as buildRoiHistogramEngine,
   computeGlobalStats as computeGlobalStatsEngine,
   createRoiPixelCounters as createRoiPixelCountersEngine,
+  usesInDataPixelFlags,
   getMaskFlags as getMaskFlagsEngine,
   normalizeRoiHistogramBinCount,
 } from "./roi_stats_engine.js";
@@ -587,7 +588,16 @@ function createRoiPixelCounters() {
 }
 
 function accumulateRoiPixelCounters(counters, sampled, satMax) {
-  accumulateRoiPixelCountersEngine(counters, sampled, satMax, isSaturatedValue);
+  accumulateRoiPixelCountersEngine(
+    counters,
+    sampled,
+    satMax,
+    isSaturatedValue,
+    // Without a mask, a PILATUS-style frame carries its own flags. Derived
+    // here so an ROI and the whole-image figures cannot disagree about which
+    // pixels are gaps.
+    !state.maskAvailable && usesInDataPixelFlags(state.dataRaw)
+  );
 }
 
 function updateRoiPixelCounterFields(counters) {
