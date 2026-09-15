@@ -26,7 +26,7 @@ def folder_script(monkeypatch: pytest.MonkeyPatch) -> str:
     monkeypatch.setattr(
         os_actions, "_windows_dialog_runner", lambda script: captured.append(script) or None
     )
-    os_actions._windows_choose_folder()
+    os_actions._windows_choose_folder("Select the log folder")
     return captured[0]
 
 
@@ -131,6 +131,8 @@ def test_no_literal_format_placeholder_survived(script: str) -> None:
 def test_the_folder_dialog_keeps_its_own_settings(folder_script: str) -> None:
     assert "FolderBrowserDialog" in folder_script
     assert "$dialog.ShowNewFolderButton = $false" in folder_script
+    # Titled by the caller rather than by one literal shared application-wide.
+    assert "Select the log folder" in folder_script
 
 
 def test_the_file_dialog_keeps_its_filter_and_prompt(file_script: str) -> None:

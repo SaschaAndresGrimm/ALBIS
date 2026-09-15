@@ -1,3 +1,4 @@
+import { getLanguage } from "./i18n.js";
 /**
  * Bind autoload + live-source control listeners.
  *
@@ -225,7 +226,7 @@ export function bindAutoloadControls({
   autoloadBrowse?.addEventListener("click", async () => {
     if (backendIsLocal) {
       try {
-        const res = await fetch(`${apiBase}/choose-folder`);
+        const res = await fetch(`${apiBase}/choose-folder?purpose=autoload&lang=${encodeURIComponent(getLanguage())}`);
         if (res.status === 204) {
           return;
         }

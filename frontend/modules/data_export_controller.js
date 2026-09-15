@@ -2,7 +2,7 @@
  * Data-format export workflow and UI state.
  */
 
-import { t } from "./i18n.js";
+import { t, getLanguage } from "./i18n.js";
 import { canExportData } from "./command_availability.js";
 
 function fileStem(path) {
@@ -364,7 +364,7 @@ export function createDataExportController({
   async function browseOutputDir() {
     if (state.dataExport.running) return;
     try {
-      const response = await fetch(`${apiBase}/choose-folder`);
+      const response = await fetch(`${apiBase}/choose-folder?purpose=export_output&lang=${encodeURIComponent(getLanguage())}`);
       if (response.status === 204) return;
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();

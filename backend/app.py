@@ -677,6 +677,10 @@ register_file_routes(
         data_dir=runtime_state.data_dir,
         autoload_exts=AUTOLOAD_EXTS,
         logger=logger,
+        # Resolved lazily: STATIC_DIR is defined further down this module, and
+        # the language can change without a restart.
+        get_locales_dir=lambda: STATIC_DIR / "locales",
+        get_ui_language=lambda: get_str(runtime_state.config, ("ui", "language"), "en"),
         get_allow_abs_paths=_get_allow_abs_paths,
         get_scan_cache_sec=_get_scan_cache_sec,
         get_max_scan_entries=lambda: runtime_state.max_scan_entries,

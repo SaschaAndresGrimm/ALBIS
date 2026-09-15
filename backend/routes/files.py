@@ -23,6 +23,7 @@ from ..api_models import (
     SeriesInfoResponse,
     UploadResponse,
 )
+from ..config import UI_LANGUAGES, normalize_ui_language
 from ..services.directory_scan import LatestFileResult, ScanResult
 from ..services.os_actions import (
     choose_file as _choose_file,
@@ -33,6 +34,24 @@ from ..services.os_actions import (
 from ..services.os_actions import (
     is_applescript_cancel as _is_applescript_cancel,
 )
+from ..services.ui_prompts import resolve_prompt
+
+
+def _picker_language(requested: str | None, get_ui_language: Callable[[], str]) -> str:
+    """The language for a chooser title: what the interface asks for, or the config.
+
+    The interface asks because its language can be switched for the session
+    without the config changing, so the config alone would title the dialog in
+    a language the user is not reading. Whatever arrives is normalized against
+    the fixed set of supported codes and falls back to the configured one, so
+    an unknown value cannot reach the catalogue lookup as a path component.
+    """
+    for candidate in (requested, None):
+        code = normalize_ui_language(str(candidate or "").strip()) if candidate else ""
+        if code and code in UI_LANGUAGES:
+            return code
+    configured = str(get_ui_language() or "").strip()
+    return configured if configured in UI_LANGUAGES else "en"
 
 
 @dataclass(frozen=True)
@@ -40,6 +59,10 @@ class FileRouteDeps:
     data_dir: Path
     autoload_exts: set[str]
     logger: Any
+    # Where the interface's locale catalogues live, so a native chooser can be
+    # titled in the user's language without the text being sent by the client.
+    get_locales_dir: Callable[[], Path]
+    get_ui_language: Callable[[], str]
     get_allow_abs_paths: Callable[[], bool]
     get_scan_cache_sec: Callable[[], float]
     get_max_scan_entries: Callable[[], int]
@@ -440,14 +463,30 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         return FoldersListResponse(folders=scan.as_list(), truncated=scan.truncated)
 
     @app.get("/api/choose-folder", response_model=PathSelectionResponse)
-    def choose_folder() -> Response:
-        """Show a native folder chooser and return the selected absolute path."""
+    def choose_folder(
+        purpose: str | None = Query(None, max_length=64),
+        lang: str | None = Query(None, max_length=32),
+    ) -> Response:
+        """Show a native folder chooser and return the selected absolute path.
+
+        `purpose` names what is being chosen, so the dialog can say so -- it
+        used to be titled "Select Auto Load folder" whatever the caller wanted.
+        Both parameters are looked up in fixed sets rather than used as text:
+        the title handed to PowerShell, AppleScript or zenity is always one of
+        ALBIS's own translations. See services/ui_prompts.py.
+        """
         if not deps.get_allow_abs_paths():
             raise HTTPException(status_code=403, detail="Absolute paths are disabled")
         system = platform.system()
-        deps.logger.debug("Folder picker requested (os=%s)", system)
+        deps.logger.debug("Folder picker requested (os=%s, purpose=%s)", system, purpose)
+        prompt = resolve_prompt(
+            deps.get_locales_dir(),
+            purpose,
+            _picker_language(lang, deps.get_ui_language),
+            "Select folder",
+        )
         try:
-            path = _choose_folder()
+            path = _choose_folder(prompt=prompt)
         except subprocess.CalledProcessError as exc:
             if _is_applescript_cancel(exc.stderr):
                 return Response(status_code=204)
@@ -465,7 +504,10 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         return PathSelectionResponse(path=path)
 
     @app.get("/api/choose-file", response_model=PathSelectionResponse)
-    def choose_file(exts: str | None = Query(None)) -> Response:
+    def choose_file(
+        exts: str | None = Query(None),
+        lang: str | None = Query(None, max_length=32),
+    ) -> Response:
         """Show a native file chooser and return a validated absolute file path."""
         if not deps.get_allow_abs_paths():
             raise HTTPException(status_code=403, detail="Absolute paths are disabled")
@@ -475,7 +517,13 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         picker_exts = sorted(allowed)
         if allow_expt:
             picker_exts.append(".expt")
-        prompt = "Select geometry file" if allow_expt and not allowed else "Select image file"
+        geometry_only = allow_expt and not allowed
+        prompt = resolve_prompt(
+            deps.get_locales_dir(),
+            "geometry" if geometry_only else "image",
+            _picker_language(lang, deps.get_ui_language),
+            "Select geometry file" if geometry_only else "Select image file",
+        )
         try:
             path = _choose_file(exts=picker_exts, prompt=prompt)
         except subprocess.CalledProcessError as exc:

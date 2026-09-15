@@ -98,7 +98,7 @@ def test_choose_folder_uses_windows_powershell_dialog(monkeypatch) -> None:
     )
     monkeypatch.setattr("backend.services.os_actions.subprocess.run", _fake_run)
 
-    selected = choose_folder()
+    selected = choose_folder(prompt="Select the log folder")
 
     assert selected == "C:\\Users\\test\\data"
     assert captured == [
@@ -112,4 +112,6 @@ def test_choose_folder_uses_windows_powershell_dialog(monkeypatch) -> None:
         ]
     ]
     assert "System.Windows.Forms.FolderBrowserDialog" in captured[0][5]
-    assert "Select Auto Load folder" in captured[0][5]
+    # The title is the caller's now, not one hardcoded literal for every
+    # chooser in the application. See tests/test_picker_prompts.py.
+    assert "Select the log folder" in captured[0][5]

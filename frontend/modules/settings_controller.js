@@ -2,7 +2,7 @@
  * Settings modal controller.
  */
 
-import { onLanguageChange, t } from "./i18n.js";
+import { getLanguage, onLanguageChange, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
 
 export function createSettingsController({
@@ -611,10 +611,15 @@ export function createSettingsController({
    * reads data from and writes logs to -- a typo in either is discovered late
    * and confusingly.
    */
-  async function browseIntoPathField(input) {
+  async function browseIntoPathField(input, purpose) {
     if (!input || input.disabled) return;
     try {
-      const response = await fetch(`${apiBase}/choose-folder`);
+      // `purpose` titles the chooser: both of these used to open saying
+      // "Select Auto Load folder", which is neither of them.
+      const response = await fetch(
+        `${apiBase}/choose-folder?purpose=${encodeURIComponent(purpose)}` +
+          `&lang=${encodeURIComponent(getLanguage())}`
+      );
       // 204 is the picker being dismissed, which is not a failure.
       if (response.status === 204) return;
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -634,8 +639,12 @@ export function createSettingsController({
     }
   }
 
-  settingsDataRootBrowse?.addEventListener("click", () => browseIntoPathField(settingsDataRoot));
-  settingsLogDirBrowse?.addEventListener("click", () => browseIntoPathField(settingsLogDir));
+  settingsDataRootBrowse?.addEventListener("click", () =>
+    browseIntoPathField(settingsDataRoot, "data_root")
+  );
+  settingsLogDirBrowse?.addEventListener("click", () =>
+    browseIntoPathField(settingsLogDir, "log_dir")
+  );
 
   return {
     applyUiSettings,

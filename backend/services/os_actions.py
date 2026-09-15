@@ -52,17 +52,19 @@ def _run_linux_dialog(cmd: list[str]) -> str | None:
     raise RuntimeError(stderr)
 
 
-def _linux_choose_folder() -> str | None:
+def _linux_choose_folder(prompt: str) -> str | None:
     if not _display_available():
         raise RuntimeError("No graphical display available")
+    # Passed as argv elements, never through a shell, so the title needs no
+    # escaping on this platform.
     zenity = shutil.which("zenity")
     if zenity:
-        return _run_linux_dialog(
-            [zenity, "--file-selection", "--directory", "--title=Select folder"]
-        )
+        return _run_linux_dialog([zenity, "--file-selection", "--directory", f"--title={prompt}"])
     kdialog = shutil.which("kdialog")
     if kdialog:
-        return _run_linux_dialog([kdialog, "--getexistingdirectory", str(Path.home())])
+        return _run_linux_dialog(
+            [kdialog, "--getexistingdirectory", str(Path.home()), "--title", prompt]
+        )
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
 
 
@@ -110,6 +112,18 @@ def _darwin_picker_types(exts: tuple[str, ...]) -> tuple[str, ...]:
 
 def _powershell_single_quote(text: str) -> str:
     return text.replace("'", "''")
+
+
+def _applescript_double_quote(text: str) -> str:
+    """Escape a string for an AppleScript literal.
+
+    The backslash has to go first. Escaping only the quote turns `a\\"` into
+    `a\\\\"`, which AppleScript reads as a backslash followed by the closing
+    quote -- the string ends early and whatever follows is script. Nothing
+    reaching here is client-supplied (see services/ui_prompts.py), so this is a
+    second line of defence rather than the only one.
+    """
+    return text.replace("\\", "\\\\").replace('"', '\\"')
 
 
 # A dialog shown by a process that owns no window of its own is not guaranteed
@@ -174,13 +188,14 @@ def _windows_picker_filter(exts: tuple[str, ...]) -> str:
     return f"{label_text} ({pattern_text})|{pattern_text}|All files (*.*)|*.*"
 
 
-def _windows_choose_folder() -> str | None:
+def _windows_choose_folder(prompt: str) -> str | None:
+    escaped_prompt = _powershell_single_quote(prompt)
     script = f"""
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 {_WINDOWS_DIALOG_OWNER}
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = 'Select Auto Load folder'
+$dialog.Description = '{escaped_prompt}'
 $dialog.ShowNewFolderButton = $false
 $result = $dialog.ShowDialog($owner)
 {_WINDOWS_DIALOG_OWNER_CLEANUP}
@@ -243,7 +258,7 @@ def _linux_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
 
 
-def _tk_choose_folder() -> str | None:
+def _tk_choose_folder(prompt: str) -> str | None:
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -255,7 +270,7 @@ def _tk_choose_folder() -> str | None:
     with contextlib.suppress(Exception):
         root.attributes("-topmost", True)
     try:
-        return filedialog.askdirectory(title="Select Auto Load folder") or None
+        return filedialog.askdirectory(title=prompt) or None
     finally:
         root.destroy()
 
@@ -284,12 +299,19 @@ def _tk_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
         root.destroy()
 
 
-def choose_folder() -> str | None:
+def choose_folder(prompt: str = "Select folder") -> str | None:
+    """Show the platform's folder chooser under the given title.
+
+    The title used to be the literal "Select Auto Load folder" on every
+    platform, shared by five call sites -- so choosing a log directory, an
+    export folder or the data root all announced themselves as autoload.
+    """
     system = platform.system()
     if system == "Windows":
-        return _windows_choose_folder()
+        return _windows_choose_folder(prompt)
     if system == "Darwin":
-        script = 'POSIX path of (choose folder with prompt "Select Auto Load folder")'
+        escaped_prompt = _applescript_double_quote(prompt)
+        script = f'POSIX path of (choose folder with prompt "{escaped_prompt}")'
         result = subprocess.run(
             ["osascript", "-e", script], capture_output=True, text=True, check=True
         )
@@ -297,12 +319,12 @@ def choose_folder() -> str | None:
         return picked or None
     if system == "Linux":
         try:
-            return _linux_choose_folder()
+            return _linux_choose_folder(prompt)
         except RuntimeError:
             if not _display_available():
                 raise
-            return _tk_choose_folder()
-    return _tk_choose_folder()
+            return _tk_choose_folder(prompt)
+    return _tk_choose_folder(prompt)
 
 
 def choose_file(
@@ -314,7 +336,7 @@ def choose_file(
     if system == "Windows":
         return _windows_choose_file(normalized_exts, prompt)
     if system == "Darwin":
-        escaped_prompt = prompt.replace('"', '\\"')
+        escaped_prompt = _applescript_double_quote(prompt)
         if normalized_exts == (".expt",):
             script = f'POSIX path of (choose file with prompt "{escaped_prompt}")'
         else:

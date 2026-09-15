@@ -9,6 +9,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- The native folder chooser says what it is choosing, in the interface's language. One English literal — "Select Auto Load folder" — titled every chooser in ALBIS, shared by five call sites, so picking a log directory, an export folder or the data root all announced themselves as autoload. Each caller now names its purpose and the dialog is titled accordingly, in all thirteen languages, and the file chooser is titled the same way.
+
+  The interface sends a *purpose* and a *language*, both looked up in fixed sets, and the backend reads the title out of the same locale catalogues the interface uses. Sending the localized text from the browser would have been less code and a command-injection hole in three interpreters: the title is handed to PowerShell, AppleScript and zenity. Nothing a client sends reaches any of them.
+
+  Fixing the AppleScript escaping came with it. It escaped the double quote but not the backslash, so `a\"` became `a\\"` — which AppleScript reads as an escaped backslash followed by the *closing* quote, ending the string early. Not reachable before, since every prompt was a literal, and not reachable now, but it is the kind of thing that stops being unreachable quietly.
+
 - Gap and defective pixel counts are real for CBF, TIFF and EDF frames. They read the mask array and nothing else, and `/api/mask` only answers for HDF5 — so for every other format the panel reported "Gap pixels 0, Defective pixels 0" whatever the frame held. A PILATUS CBF marks an inter-module gap `-1` and a bad pixel `-2` in the pixel data itself, which is also the convention ALBIS's own exports write. `testdata/in16c_010001.cbf` holds 16,558 gaps and 19 bad pixels, 5.5% of the frame, all of it reported as none.
 
   Those two values are now counted where there is no mask to consult, in both the whole-image figures and an ROI's, from one shared definition so the two cannot disagree. Only for signed integer data: an unsigned frame cannot hold either value, and a float frame is not this convention — a flatfield or an averaged frame may hold exactly -1.0 as a real measurement, and reading that as a defect would invent detector faults. Where a frame does have a mask, the mask still decides, because a frame with a mask is being told authoritatively and `-1` in it is a measurement.

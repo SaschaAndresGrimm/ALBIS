@@ -2,7 +2,7 @@
  * Analysis controls bindings (rings, peaks, series-sum, pixel labels).
  */
 
-import { t } from "./i18n.js";
+import { t, getLanguage } from "./i18n.js";
 import { getActiveSourceScopeKey, getGeometryScopeKey, isExptPath } from "./geometry_override_utils.js";
 
 function clampFrameIndex(rawValue, total, fallback) {
@@ -299,7 +299,7 @@ export function bindAnalysisControlInteractions({
     }
     if (backendIsLocal) {
       try {
-        const res = await fetch(`${apiBase}/choose-file?exts=.expt`);
+        const res = await fetch(`${apiBase}/choose-file?exts=.expt&lang=${encodeURIComponent(getLanguage())}`);
         if (res.status === 204) return;
         if (!res.ok) {
           setStatus(
@@ -477,7 +477,7 @@ export function bindAnalysisControlInteractions({
 
     if (backendIsLocal) {
       try {
-        const res = await fetch(`${apiBase}/choose-file`);
+        const res = await fetch(`${apiBase}/choose-file?lang=${encodeURIComponent(getLanguage())}`);
         if (res.status === 204) return;
         if (res.ok) {
           const data = await res.json();
@@ -538,7 +538,7 @@ export function bindAnalysisControlInteractions({
 
     if (backendIsLocal) {
       try {
-        const res = await fetch(`${apiBase}/choose-folder`);
+        const res = await fetch(`${apiBase}/choose-folder?purpose=series_output&lang=${encodeURIComponent(getLanguage())}`);
         if (res.status === 204) return;
         if (res.ok) {
           const data = await res.json();

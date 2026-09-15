@@ -2,7 +2,7 @@
  * File open/select flow.
  */
 
-import { t } from "./i18n.js";
+import { t, getLanguage } from "./i18n.js";
 
 export function createFileOpenController({
   apiBase,
@@ -71,7 +71,7 @@ export function createFileOpenController({
 
     if (getBackendIsLocal()) {
       try {
-        const res = await fetch(`${apiBase}/choose-file`);
+        const res = await fetch(`${apiBase}/choose-file?lang=${encodeURIComponent(getLanguage())}`);
         if (res.status === 204) return;
         if (res.ok) {
           const data = await res.json();
