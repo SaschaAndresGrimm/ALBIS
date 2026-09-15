@@ -346,7 +346,39 @@ if Foundation is not None:
             )
             _open_browser(host, port, open_path)
 
+        def _cancel_pending_open(self) -> None:
+            timer = getattr(self, "pending_open_timer", None)
+            if timer is not None:
+                with suppress(Exception):
+                    timer.cancel()
+            self.pending_open_timer = None
+
+        def _schedule_plain_open(self, reason: str) -> None:
+            """Open the viewer, but not before a document event could arrive.
+
+            Double-clicking a file on a running ALBIS delivers two things -- the
+            activation and the document -- in either order. Opening immediately
+            on the activation is what put an empty window beside the image: the
+            activation won the race, opened the viewer with nothing in it, and
+            the document then opened a second window of its own.
+
+            Deferring the plain open lets `application:openFiles:` cancel it. On
+            an ordinary Dock click nothing cancels it and it fires after a delay
+            no one can perceive.
+            """
+            self._cancel_pending_open()
+            try:
+                delay = float(getattr(self, "document_event_grace_sec", 0.45))
+            except (TypeError, ValueError):
+                delay = 0.45
+            timer = threading.Timer(delay, lambda: self._open_browser_throttled(reason))
+            timer.daemon = True
+            self.pending_open_timer = timer
+            timer.start()
+
         def openBrowser_(self, _sender):
+            # Explicit and immediate: no document can be on its way behind a
+            # menu click, so there is nothing to wait for.
             self._open_browser_throttled("menu")
 
         def copyURL_(self, _sender):
@@ -413,7 +445,7 @@ if Foundation is not None:
         # Opening the viewer URL here avoids the Dock bounce-without-action behavior in windowless apps.
         def applicationShouldHandleReopen_hasVisibleWindows_(self, _app, _has_visible_windows):
             _log_macos_event(self._start_ts(), "reopen requested")
-            self._open_browser_throttled("reopen")
+            self._schedule_plain_open("reopen")
             return True
 
         # macOS never re-launches a running application to open a document: it
@@ -428,6 +460,8 @@ if Foundation is not None:
             targets = [item for item in targets if item is not None]
             if not targets:
                 _log_macos_event(start_ts, "open files: nothing openable in the selection")
+                # Still cancel nothing here: with no file to show, the plain
+                # window the activation scheduled is the right outcome.
             else:
                 if len(targets) > 1:
                     # One viewer, one file. Opening a tab per file would turn a
@@ -435,6 +469,10 @@ if Foundation is not None:
                     _log_macos_event(
                         start_ts, f"open files: {len(targets)} given, opening {targets[0]}"
                     )
+                # Cancel first: an activation that arrived microseconds before
+                # this has a plain open already scheduled, and that is the empty
+                # window sitting next to the image.
+                self._cancel_pending_open()
                 self._open_browser_throttled("open files", targets[0], force=True)
             with suppress(Exception):
                 if AppKit is not None:
@@ -451,7 +489,7 @@ if Foundation is not None:
                 _log_macos_event(start_ts, "became active (startup grace)")
                 return
             _log_macos_event(start_ts, "became active")
-            self._open_browser_throttled("activate")
+            self._schedule_plain_open("activate")
 
 else:
     _DockMenuHandler = None
@@ -520,6 +558,8 @@ def _start_macos_menus(
         handler.last_browser_open_mono = 0.0
         handler.browser_open_throttle_sec = 0.8
         handler.activate_grace_until_mono = time.monotonic() + 2.0
+        handler.document_event_grace_sec = 0.45
+        handler.pending_open_timer = None
         handler.status_item = None
         handler.status_bar_item = None
         handler.dock_menu = None

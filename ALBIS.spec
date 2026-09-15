@@ -10,6 +10,7 @@ block_cipher = None
 bundle_version = (os.environ.get("ALBIS_BUNDLE_VERSION", "").strip() or "0.0.0")
 bundle_build = (os.environ.get("ALBIS_BUNDLE_BUILD", "").strip() or bundle_version)
 is_linux = sys.platform.startswith("linux")
+is_macos = sys.platform == "darwin"
 
 icon_path = os.environ.get("ALBIS_ICON", "").strip()
 if not icon_path:
@@ -198,6 +199,15 @@ exe = EXE(
     upx=not is_linux,
     console=False,
     disable_windowed_traceback=False,
+    # macOS does not put the path of a double-clicked document on argv: it
+    # sends an Apple Event instead, and on a cold launch that event arrives
+    # while ALBIS is still starting its server, long before there is a delegate
+    # to receive it -- so the file was silently dropped and the viewer opened
+    # empty. This makes the bootloader catch that event before Python starts
+    # and append the paths to argv, where the launcher's positional argument
+    # already handles them. A running instance still gets the document through
+    # application:openFiles:, which is the case that always worked.
+    argv_emulation=is_macos,
     icon=icon_path or None,
 )
 

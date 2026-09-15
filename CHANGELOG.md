@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Double-clicking a file on macOS opens it, and opens one window doing so. Both halves of that were wrong in 0.18.0, in different ways, and a tester found both within minutes.
+
+  With no ALBIS running, the file was dropped and an empty viewer opened. macOS does not put a document's path on `argv`: it sends an Apple Event, and on a cold launch that event arrives while ALBIS is still starting its server — long before there is an application delegate to receive it. The bundle now enables PyInstaller's `argv_emulation`, which catches the event in the bootloader before Python starts and appends the path to `argv`, where the launcher's positional argument already handled it. Verified against a real bundle: a document opened through Launch Services now reaches the launcher, filename with a space and an ampersand intact.
+
+  With ALBIS already running, the file opened — next to a second, empty window. Opening a document on a running application delivers two things, the activation and the document itself, in either order, and the activation was opening the viewer immediately. When it won the race it opened a window with nothing in it, and the document then opened one of its own. The plain open is deferred now, by less than anyone can perceive on an ordinary Dock click, so the document event can cancel it first.
+
 ## [0.18.0] - 2026-09-15
 
 ### Added
