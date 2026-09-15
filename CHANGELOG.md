@@ -17,6 +17,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
   A partly-downloaded master still opens and still shows the frames that arrived: the check asks whether the group that should hold the frames produced anything, not whether any link was missing. That distinction matters because a master carries 2D calibration arrays — `flatfield` and `pixel_mask` — so "the file has no images" was never true of one, and ALBIS used to open an orphaned master and display its flatfield.
 
+  Data files that are present but will not open are reported as that, not as missing. By the time a link's target is opened its path has already been resolved, so it existed and sat inside the data root — a failure there means no descriptors left, no permission, or a mount that dropped out. "Copy the linked data files into the same folder" is the wrong advice for files that are already in it.
+
 ### Changed
 
 - A TIFF written by **Series Operations** carries a header at all. That service has its own writer and called `write_tiff(path, arr)` with no metadata — its dependency's type did not even accept any — so summing a PILATUS series produced a TIFF stating only that ALBIS made it. It now borrows the export service's metadata readers rather than keeping a second copy, and the summed TIFF states the detector model, serial and location, pixel size, sensor thickness, tau, threshold setting, gain, wavelength, incident energy, detector distance and beam centre.

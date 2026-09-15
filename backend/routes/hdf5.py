@@ -79,6 +79,40 @@ def _resolved_node(deps: HDF5RouteDeps, h5: Any, file_path: Path, path: str) -> 
                 handle.close()
 
 
+def _dead_master_detail(group: str, link_count: int, report: WalkReport) -> str:
+    """Explain a master whose linked data never resolved, in its own terms.
+
+    Two different problems reach here and they need different advice. If the
+    files are not on disk, the user has an incomplete copy and needs to fetch
+    the rest. If they are on disk and would not open, the path was already
+    resolved -- so the data is where they put it and something else stopped the
+    read (no descriptors left, no permission, a mount that dropped out), and
+    telling them to copy files they already have would waste their time.
+    """
+    lead = f"{group} links to {link_count:,} data file(s), and none of them could be read. "
+    if report.unreadable_external_count and not report.missing_external_count:
+        example = report.unreadable_external[0] if report.unreadable_external else None
+        reason = report.unreadable_reasons[0] if report.unreadable_reasons else "unknown error"
+        return (
+            lead
+            + "The files are there but will not open"
+            + (f", starting with '{example}'" if example else "")
+            + f": {reason}"
+        )
+    example = report.missing_external[0] if report.missing_external else None
+    detail = (
+        lead
+        + "The files are not next to this master"
+        + (f", starting with '{example}'" if example else "")
+        + ". Copy the linked data files into the same folder and open it again."
+    )
+    if report.unreadable_external_count:
+        detail += (
+            f" A further {report.unreadable_external_count:,} were present but would not open."
+        )
+    return detail
+
+
 def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
     @app.get("/api/datasets", response_model=HDF5DatasetsResponse)
     def datasets(file: str = Query(..., min_length=1)) -> HDF5DatasetsResponse:
@@ -107,15 +141,8 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             # opening the master and displaying its flatfield, which is what an
             # incomplete download used to look like.
             group, link_count = report.dead_link_groups[0]
-            example = report.missing_external[0] if report.missing_external else None
             raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"This looks like a master file whose data files are missing: {group} "
-                    f"links to {link_count:,} file(s) that are not next to it"
-                    + (f", starting with '{example}'" if example else "")
-                    + ". Copy the linked data files into the same folder and open it again."
-                ),
+                status_code=422, detail=_dead_master_detail(group, link_count, report)
             )
 
         return HDF5DatasetsResponse(datasets=datasets)

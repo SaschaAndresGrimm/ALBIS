@@ -351,4 +351,184 @@ describe("file_data_pipeline_controller frame cache", () => {
 
     expect(requested).toHaveLength(2);
   });
+
+  it("shows the server's reason when a dataset scan is refused", async () => {
+    // A master file whose data files are missing is answered with a 422 that
+    // names one of them. "Failed to scan datasets" is what the user used to
+    // get, and it is exactly the message that made an incomplete download look
+    // like a corrupt file.
+    vi.resetModules();
+    global.fetch = buildFetchMock({
+      en: { "status.data.failed_scan_datasets": "Failed to scan datasets" },
+    });
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createFileDataPipelineController } = await import(
+      "../modules/file_data_pipeline_controller.js"
+    );
+
+    const DETAIL =
+      "/entry/data links to 5,000,000 data file(s), and none of them could be read. " +
+      "The files are not next to this master, starting with 'tem_burnin_data_000001.h5'.";
+    const refusal = new Error("Request failed (422)");
+    refusal.status = 422;
+    refusal.detail = DETAIL;
+
+    const state = {
+      file: "tem_burnin_master.h5",
+      dataset: "",
+      seriesFiles: [],
+      hasFrame: false,
+      isLoading: false,
+      playing: false,
+      pendingFrame: null,
+      maskRaw: null,
+      maskFile: "",
+    };
+    const setStatus = vi.fn();
+    const setSplashStatus = vi.fn();
+    const setDataSourceSectionState = vi.fn();
+
+    const controller = createFileDataPipelineController({
+      apiBase: "/api",
+      state,
+      elements: {
+        fileSelect: document.createElement("select"),
+        datasetSelect: document.createElement("select"),
+        metaShape: document.createElement("div"),
+        metaDtype: document.createElement("div"),
+      },
+      callbacks: {
+        fetchJSON: vi.fn(async () => {
+          throw refusal;
+        }),
+        option: (label, value) => {
+          const opt = document.createElement("option");
+          opt.textContent = label;
+          opt.value = value;
+          return opt;
+        },
+        fileLabel: (value) => String(value || ""),
+        isSeriesCapable: () => false,
+        isHdfFile: () => true,
+        setDataControlsForHdf5: vi.fn(),
+        setDataControlsForSeries: vi.fn(),
+        loadMetadata: vi.fn(async () => true),
+        loadImageGeometry: vi.fn(async () => {}),
+        loadInspectorRoot: vi.fn(async () => {}),
+        updateFrameControls: vi.fn(),
+        updatePlayButtons: vi.fn(),
+        requestFrame: vi.fn(),
+        parseDtype: vi.fn(),
+        parseShape: vi.fn(),
+        typedArrayFrom: vi.fn(),
+        applyImageMeta: vi.fn(),
+        applyExternalFrame: vi.fn(),
+        processPendingFrameRequest: vi.fn(),
+        currentFrameStatusText: vi.fn(() => "Ready"),
+        setLoading: vi.fn(),
+        setStatus,
+        showSplash: vi.fn(),
+        setSplashStatus,
+        setDataSourceSectionState,
+        showProcessingProgress: vi.fn(),
+        hideProcessingProgress: vi.fn(),
+        stopPlayback: vi.fn(),
+        loadMask: vi.fn(async () => {}),
+        updateToolbar: vi.fn(),
+      },
+    });
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(controller.loadDatasets()).resolves.toBe(false);
+
+    expect(setStatus).toHaveBeenCalledWith(DETAIL, { tone: "error" });
+    // Free text, not an i18n key: `setSplashStatus` renders it verbatim.
+    expect(setSplashStatus).toHaveBeenCalledWith(DETAIL);
+    // The badge stays short and localized -- a whole sentence does not fit it.
+    expect(setDataSourceSectionState).toHaveBeenLastCalledWith(
+      "warning",
+      "Failed to scan datasets",
+    );
+  });
+
+  it("falls back to the localized message when the server gives no reason", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock({
+      en: { "status.data.failed_scan_datasets": "Failed to scan datasets" },
+    });
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createFileDataPipelineController } = await import(
+      "../modules/file_data_pipeline_controller.js"
+    );
+
+    const setStatus = vi.fn();
+    const setSplashStatus = vi.fn();
+    const controller = createFileDataPipelineController({
+      apiBase: "/api",
+      state: {
+        file: "x.h5",
+        dataset: "",
+        seriesFiles: [],
+        hasFrame: false,
+        isLoading: false,
+        playing: false,
+        pendingFrame: null,
+        maskRaw: null,
+        maskFile: "",
+      },
+      elements: {
+        fileSelect: document.createElement("select"),
+        datasetSelect: document.createElement("select"),
+        metaShape: document.createElement("div"),
+        metaDtype: document.createElement("div"),
+      },
+      callbacks: {
+        fetchJSON: vi.fn(async () => {
+          throw new Error("network down");
+        }),
+        option: (label, value) => {
+          const opt = document.createElement("option");
+          opt.value = value;
+          return opt;
+        },
+        fileLabel: (value) => String(value || ""),
+        isSeriesCapable: () => false,
+        isHdfFile: () => true,
+        setDataControlsForHdf5: vi.fn(),
+        setDataControlsForSeries: vi.fn(),
+        loadMetadata: vi.fn(async () => true),
+        loadImageGeometry: vi.fn(async () => {}),
+        loadInspectorRoot: vi.fn(async () => {}),
+        updateFrameControls: vi.fn(),
+        updatePlayButtons: vi.fn(),
+        requestFrame: vi.fn(),
+        parseDtype: vi.fn(),
+        parseShape: vi.fn(),
+        typedArrayFrom: vi.fn(),
+        applyImageMeta: vi.fn(),
+        applyExternalFrame: vi.fn(),
+        processPendingFrameRequest: vi.fn(),
+        currentFrameStatusText: vi.fn(() => "Ready"),
+        setLoading: vi.fn(),
+        setStatus,
+        showSplash: vi.fn(),
+        setSplashStatus,
+        setDataSourceSectionState: vi.fn(),
+        showProcessingProgress: vi.fn(),
+        hideProcessingProgress: vi.fn(),
+        stopPlayback: vi.fn(),
+        loadMask: vi.fn(async () => {}),
+        updateToolbar: vi.fn(),
+      },
+    });
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(controller.loadDatasets()).resolves.toBe(false);
+
+    expect(setStatus).toHaveBeenCalledWith("Failed to scan datasets", { tone: "error" });
+    expect(setSplashStatus).toHaveBeenCalledWith("splash.status.dataset_scan_failed");
+  });
 });
+

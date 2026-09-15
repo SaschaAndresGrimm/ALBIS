@@ -255,6 +255,13 @@ _MAX_SKIP_EXAMPLES = 5
 """Distinct example names carried in a walk's aggregated skip summary."""
 
 
+def _remember(examples: list[str], filename: str | None) -> None:
+    """Keep up to `_MAX_SKIP_EXAMPLES` distinct names for a summary line."""
+    name = str(filename or "").strip()
+    if name and len(examples) < _MAX_SKIP_EXAMPLES and name not in examples:
+        examples.append(name)
+
+
 @dataclass
 class WalkReport:
     """What a dataset walk had to skip, aggregated rather than logged per node.
@@ -268,6 +275,9 @@ class WalkReport:
     skipped: dict[str, int] = field(default_factory=dict)
     missing_external: list[str] = field(default_factory=list)
     missing_external_count: int = 0
+    unreadable_external: list[str] = field(default_factory=list)
+    unreadable_external_count: int = 0
+    unreadable_reasons: list[str] = field(default_factory=list)
     truncated_groups: list[tuple[str, int]] = field(default_factory=list)
     dead_link_groups: list[tuple[str, int]] = field(default_factory=list)
     """Groups where links were the only content and none of them resolved.
@@ -289,15 +299,24 @@ class WalkReport:
             self.dead_link_groups.append((path, max(missing, total)))
 
     def note_missing_external(self, filename: str | None) -> None:
-        """Record a link whose target file could not be opened."""
+        """Record a link whose target file is not there to open."""
         self.missing_external_count += 1
-        name = str(filename or "").strip()
-        if (
-            name
-            and len(self.missing_external) < _MAX_SKIP_EXAMPLES
-            and name not in self.missing_external
-        ):
-            self.missing_external.append(name)
+        _remember(self.missing_external, filename)
+
+    def note_unreadable_external(self, filename: str | None, exc: BaseException) -> None:
+        """Record a link whose target file is there but would not open.
+
+        Kept apart from a missing file because by this point the path has been
+        resolved, which means it existed and sat inside the data root -- so the
+        file is on disk and something else stopped the read: no descriptors
+        left, no permission, a mount that dropped out. Telling the user those
+        files are "missing" would send them looking for data that is right
+        where they put it.
+        """
+        self.unreadable_external_count += 1
+        _remember(self.unreadable_external, filename)
+        reason = str(exc).strip() or exc.__class__.__name__
+        _remember(self.unreadable_reasons, reason)
 
     def note_truncated_group(self, path: str, total: int) -> None:
         if len(self.truncated_groups) < _MAX_SKIP_EXAMPLES:
@@ -319,6 +338,15 @@ class WalkReport:
                 self.missing_external_count,
                 file_path,
                 ", ".join(self.missing_external) or "unknown",
+            )
+        if self.unreadable_external_count:
+            _log.warning(
+                "Skipped %d external link(s) in %s whose target file is present but "
+                "would not open (e.g. %s): %s",
+                self.unreadable_external_count,
+                file_path,
+                ", ".join(self.unreadable_external) or "unknown",
+                "; ".join(self.unreadable_reasons) or "unknown",
             )
         for path, missing in self.dead_link_groups:
             _log.warning(
@@ -796,9 +824,9 @@ class HDF5StackService:
                 if target_file is None:
                     try:
                         target_file = open_hdf5_read_only(h5py, target_path)
-                    except OSError:
+                    except OSError as _exc:
                         group_missing += 1
-                        walk_report.note_missing_external(link.filename)
+                        walk_report.note_unreadable_external(link.filename, _exc)
                         continue
                     file_cache[target_path] = target_file
                 try:
@@ -1051,8 +1079,8 @@ class HDF5StackService:
                     continue
                 try:
                     target_file = open_hdf5_read_only(h5py, target_path)
-                except OSError:
-                    report.note_missing_external(link.filename)
+                except OSError as _exc:
+                    report.note_unreadable_external(link.filename, _exc)
                     continue
                 opened.append(target_file)
                 try:

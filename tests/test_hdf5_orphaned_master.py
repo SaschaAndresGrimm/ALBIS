@@ -314,12 +314,55 @@ def test_the_frame_path_of_a_partial_master_is_also_capped_and_quiet(
     assert view is not None, "the two companions that exist still form a stack"
     assert view["shape"][0] == 4, "two frames from each of the two present files"
     assert len(view["segments"]) == 2
-    assert attempts <= GROUP_CHILD_LIMIT, (
-        f"the frame path looked at {attempts} links, past the {GROUP_CHILD_LIMIT} cap"
-    )
+    assert (
+        attempts <= GROUP_CHILD_LIMIT
+    ), f"the frame path looked at {attempts} links, past the {GROUP_CHILD_LIMIT} cap"
 
     per_member = [r for r in caplog.records if "data_005000" in r.getMessage()]
     assert not per_member, "no member may get a log line of its own"
-    assert len(caplog.records) <= 4, (
-        f"expected an aggregated summary, got {len(caplog.records)} lines"
-    )
+    assert (
+        len(caplog.records) <= 4
+    ), f"expected an aggregated summary, got {len(caplog.records)} lines"
+
+
+def test_data_files_that_are_present_but_unreadable_are_not_called_missing(
+    tmp_path: Path, client: TestClient
+) -> None:
+    """ "Copy the files into this folder" is the wrong advice for files already there.
+
+    `resolve_external_path` has already confirmed the target exists and sits
+    inside the data root by the time the open is attempted, so a failure there
+    is never absence: it is no descriptors left, no permission, or a mount that
+    dropped out. Reporting it as missing would send the user looking for data
+    that is exactly where they put it.
+    """
+    master = tmp_path / "unreadable_master.h5"
+    _write_master(master, links=6)
+    # Present, right suffix, inside the root -- and not HDF5.
+    for index in range(1, 7):
+        (tmp_path / f"unreadable_master_data_{index:06d}.h5").write_bytes(b"not hdf5 at all")
+
+    response = client.get("/api/datasets", params={"file": str(master)})
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "will not open" in detail
+    assert "not next to this master" not in detail, "the files are next to it"
+    assert "Copy the linked data files" not in detail, "copying them would change nothing"
+    assert "unreadable_master_data_000001.h5" in detail
+
+
+def test_a_mix_of_absent_and_unreadable_files_reports_both(
+    tmp_path: Path, client: TestClient
+) -> None:
+    master = tmp_path / "mixed_master.h5"
+    _write_master(master, links=6)
+    for index in (1, 2):
+        (tmp_path / f"mixed_master_data_{index:06d}.h5").write_bytes(b"not hdf5 at all")
+
+    response = client.get("/api/datasets", params={"file": str(master)})
+
+    detail = response.json()["detail"]
+    assert response.status_code == 422
+    assert "not next to this master" in detail, "four files really are absent"
+    assert "2 were present but would not open" in detail
