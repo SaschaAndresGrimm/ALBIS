@@ -9,7 +9,7 @@ import {
   computeGlobalStats as computeGlobalStatsEngine,
   createRoiPixelCounters as createRoiPixelCountersEngine,
   usesInDataPixelFlags,
-  getMaskFlags as getMaskFlagsEngine,
+  getPixelFlags,
   normalizeRoiHistogramBinCount,
 } from "./roi_stats_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
@@ -471,16 +471,23 @@ function clearRoi() {
   updateRoiSectionState();
 }
 
+/** Whether this frame's own values carry the gap and defective flags.
+ *
+ * Only where there is no mask array: a frame with a mask is being told
+ * authoritatively, and -1 in it is a measurement. One definition, used by the
+ * counters, the statistics and the line plot so none of them can disagree.
+ */
+function usesValueFlags() {
+  return !state.maskAvailable && usesInDataPixelFlags(state.dataRaw);
+}
+
 function applyMaskToValue(value, maskValue, satMax = getActiveSaturationMax()) {
   return applyMaskToValueEngine(value, maskValue, {
+    inDataFlags: usesValueFlags(),
     satMax,
     maskSaturatedEnabled: state.maskSaturatedEnabled,
     isSaturatedValue,
   });
-}
-
-function getMaskFlags(maskValue) {
-  return getMaskFlagsEngine(maskValue);
 }
 
 function sampleValue(ix, iy) {
@@ -495,7 +502,8 @@ function sampleValue(ix, iy) {
     state.maskShape[0] === state.height &&
     state.maskShape[1] === state.width;
   const maskValue = hasMask ? state.maskRaw[idx] : null;
-  const useMasking = (state.maskEnabled && hasMask) || state.maskSaturatedEnabled;
+  const useMasking =
+    (state.maskEnabled && hasMask) || state.maskSaturatedEnabled || usesValueFlags();
   if (useMasking) {
     const masked = applyMaskToValue(raw, maskValue, satMax);
     return { value: masked.value, skip: masked.skip, raw, maskValue, maskingApplied: true };
@@ -505,8 +513,10 @@ function sampleValue(ix, iy) {
 
 function isGapMaskedSample(sampled) {
   if (!sampled?.maskingApplied) return false;
-  const flags = getMaskFlags(sampled.maskValue);
-  return flags.gap;
+  // getPixelFlags, not getMaskFlags: a line profile crossing a PILATUS module
+  // gap should show a break in the trace, which is what a NaN gives, rather
+  // than a plunge to -1 that looks like real signal going negative.
+  return getPixelFlags(sampled.raw, sampled.maskValue, usesValueFlags()).gap;
 }
 
 function computeGlobalStats() {
@@ -593,10 +603,7 @@ function accumulateRoiPixelCounters(counters, sampled, satMax) {
     sampled,
     satMax,
     isSaturatedValue,
-    // Without a mask, a PILATUS-style frame carries its own flags. Derived
-    // here so an ROI and the whole-image figures cannot disagree about which
-    // pixels are gaps.
-    !state.maskAvailable && usesInDataPixelFlags(state.dataRaw)
+    usesValueFlags()
   );
 }
 
@@ -656,6 +663,43 @@ function getRoiPixelSizesMm() {
   return { pxXmm: pxX, pxYmm: pxX * (state.pixelAspect || 1) };
 }
 
+/** The statistics of the whole frame, computed now if they are not cached.
+ *
+ * `state.globalStats` is filled in when a frame is applied, but the ROI panel
+ * can be asked to redraw before that has happened -- the mask arriving for a
+ * file whose frame is still loading is the usual way -- and falling back to
+ * `null` there left the panel showing "-" for a frame it could perfectly well
+ * measure.
+ */
+function getWholeImageStats() {
+  return state.globalStats || computeGlobalStats();
+}
+
+/** Fill the ROI readouts with whole-frame values.
+ *
+ * Shared by the ROI-disabled and the ROI-enabled-but-empty branches so the two
+ * cannot drift apart: both mean "no ROI area", and both are documented as
+ * showing the whole image.
+ */
+function showWholeImageStats(stats) {
+  updateRoiPixelCounterFields(
+    stats
+      ? {
+          total: stats.totalPixels ?? 0,
+          gap: stats.gapPixels ?? 0,
+          defective: stats.defectivePixels ?? 0,
+          saturated: stats.saturatedPixels ?? 0,
+        }
+      : null
+  );
+  setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
+  setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
+  setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
+  setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
+  setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
+  setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+}
+
 function updateRoiStats() {
   // This function is intentionally central: it computes ROI statistics and
   // updates all derived plots/labels in one pass to keep UI state consistent.
@@ -669,7 +713,7 @@ function updateRoiStats() {
   }
   if (!roiState.enabled) {
     roiState.active = false;
-    const stats = state.globalStats || computeGlobalStats();
+    const stats = getWholeImageStats();
     setRoiText(roiStartEl, "-");
     setRoiText(roiEndEl, "-");
     if (roiSizeLabel) {
@@ -690,22 +734,7 @@ function updateRoiStats() {
       setRoiText(roiSizeEl, "-");
       setRoiText(roiAreaEl, "-");
     }
-    updateRoiPixelCounterFields(
-      stats
-        ? {
-            total: stats.totalPixels ?? 0,
-            gap: stats.gapPixels ?? 0,
-            defective: stats.defectivePixels ?? 0,
-            saturated: stats.saturatedPixels ?? 0,
-          }
-        : null
-    );
-    setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
-    setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
-    setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
-    setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
-    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
-    setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+    showWholeImageStats(stats);
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = null;
     }
@@ -727,27 +756,12 @@ function updateRoiStats() {
     return;
   }
   if (!roiState.start || !roiState.end) {
-    const stats = state.globalStats;
+    const stats = getWholeImageStats();
     setRoiText(roiStartEl, "-");
     setRoiText(roiEndEl, "-");
     setRoiText(roiSizeEl, "-");
     setRoiText(roiAreaEl, "-");
-    updateRoiPixelCounterFields(
-      stats
-        ? {
-            total: stats.totalPixels ?? 0,
-            gap: stats.gapPixels ?? 0,
-            defective: stats.defectivePixels ?? 0,
-            saturated: stats.saturatedPixels ?? 0,
-          }
-        : null
-    );
-    setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
-    setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
-    setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
-    setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
-    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
-    setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+    showWholeImageStats(stats);
     drawRoiPlot(roiLineCanvas, roiLineCtx, null);
     drawRoiPlot(roiXCanvas, roiXCtx, null);
     drawRoiPlot(roiYCanvas, roiYCtx, null);

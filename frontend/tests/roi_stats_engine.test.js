@@ -149,7 +149,34 @@ describe("computeGlobalStats median strategies", () => {
 
   it("matches a sorted reference for signed data spanning zero", () => {
     const values = Array.from({ length: 501 }, (_, i) => ((i * 37) % 400) - 200);
-    expect(run(Int32Array.from(values)).median).toBe(referenceMedian(values));
+
+    // The reference excludes -1 and -2, because the engine does. In a signed
+    // integer frame with no mask those two are a missing pixel and a broken
+    // one, not measurements -- the PILATUS convention, and the one ALBIS's own
+    // exports write. Every other negative here is data and stays, which is why
+    // the median is still taken over signed values spanning zero: that is what
+    // this test is for, and the counting path still has to bin them correctly.
+    const measured = values.filter((value) => value !== -1 && value !== -2);
+    // The precondition that makes this test exercise the exclusion at all,
+    // asserted rather than assumed: the generated range really does hit both
+    // flag values.
+    expect(values).toContain(-1);
+    expect(values).toContain(-2);
+    expect(measured.length).toBeLessThan(values.length);
+
+    expect(run(Int32Array.from(values)).median).toBe(referenceMedian(measured));
+  });
+
+  it("keeps negatives below -2 as data in a signed frame", () => {
+    // The limit of the convention, stated: only -1 and -2 are flags. A frame
+    // that uses negatives as measurements keeps its real minimum, so the two
+    // flag values being dropped cannot distort its range.
+    const values = [-40, -9, -3, -2, -1, 0, 4, 11];
+    const stats = run(Int32Array.from(values));
+
+    expect(stats.min).toBe(-40);
+    expect(stats.count).toBe(values.length - 2);
+    expect(stats.median).toBe(referenceMedian(values.filter((v) => v !== -1 && v !== -2)));
   });
 
   it("keeps fractional float data exact even when its extremes are integers", () => {

@@ -282,4 +282,134 @@ describe("file_session_controller", () => {
     expect(toFloat32).toHaveBeenCalledWith(uintFrame);
     expect(state.dataFloat).toBe(converted);
   });
+
+  it("syncs mask availability before computing global statistics for a new frame", async () => {
+    vi.resetModules();
+    globalThis.fetch = buildFetchMock({ en: {} });
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createFileSessionController } = await import("../modules/file_session_controller.js");
+
+    const frame = new Uint32Array([1, 2, 3, 4]);
+    // A mask fetched before any frame existed: it is in state, but nothing has
+    // been able to match its shape against a frame yet, so it still reads as
+    // unavailable until syncMaskAvailability runs.
+    const state = {
+      dataRaw: null,
+      dataFloat: null,
+      width: 0,
+      height: 0,
+      dtype: "",
+      playing: false,
+      hasFrame: false,
+      stats: null,
+      histogram: null,
+      autoScale: false,
+      min: 0,
+      max: 1,
+      maskEnabled: false,
+      maskAvailable: false,
+      maskRaw: new Uint32Array([0, 1, 0, 2]),
+      maskShape: [2, 2],
+      maskSaturatedEnabled: false,
+    };
+    const analysisState = {
+      peaks: [],
+      selectedPeaks: [],
+      peakSelectionAnchor: null,
+      ringMode: "planar",
+      ringGeometry: null,
+      ringGeometrySource: "",
+      ringGeometryKey: "",
+      geometryOverridePath: "",
+      geometryOverrideScopeKey: "",
+      geometryOverrideActive: false,
+      geometryManualKey: "",
+      geometryDistanceManual: false,
+      geometryCenterXManual: false,
+      geometryCenterYManual: false,
+    };
+
+    const calls = [];
+    const syncMaskAvailability = vi.fn(() => {
+      calls.push("syncMaskAvailability");
+      state.maskAvailable = true;
+    });
+    let maskAvailableWhenStatsRan = null;
+    const updateGlobalStats = vi.fn(() => {
+      calls.push("updateGlobalStats");
+      maskAvailableWhenStatsRan = state.maskAvailable;
+    });
+
+    const controller = createFileSessionController({
+      state,
+      analysisState,
+      elements: {
+        fileSelect: document.createElement("select"),
+        datasetSelect: document.createElement("select"),
+        minInput: document.createElement("input"),
+        maxInput: document.createElement("input"),
+        metaShape: document.createElement("div"),
+        metaDtype: document.createElement("div"),
+        metaRange: document.createElement("div"),
+        canvas: null,
+      },
+      callbacks: {
+        stopPlayback: vi.fn(),
+        resetTransientFrameLoadState: vi.fn(),
+        clearImageGeometry: vi.fn(),
+        clearMaskState: vi.fn(),
+        clearImageHeader: vi.fn(),
+        updateToolbar: vi.fn(),
+        setDataSourceSectionState: vi.fn(),
+        setStatus: vi.fn(),
+        setLoading: vi.fn(),
+        hideUploadProgress: vi.fn(),
+        hideProcessingProgress: vi.fn(),
+        showSplash: vi.fn(),
+        setSplashStatus: vi.fn(),
+        updateInspectorHeaderVisibility: vi.fn(),
+        updateFrameControls: vi.fn(),
+        updateThresholdOptions: vi.fn(),
+        applyCanvasTransform: vi.fn(),
+        updatePanCapability: vi.fn(),
+        clearHistogram: vi.fn(),
+        renderPeakList: vi.fn(),
+        schedulePeakOverlay: vi.fn(),
+        syncSeriesSumOutputPath: vi.fn(),
+        clearRoi: vi.fn(),
+        updateRingsSectionState: vi.fn(),
+        updatePeaksSectionState: vi.fn(),
+        updatePlayButtons: vi.fn(),
+        option: () => document.createElement("option"),
+        setDataControlsForImage: vi.fn(),
+        setDataControlsForSeries: vi.fn(),
+        buildNegativeMask: vi.fn(),
+        updateMaskUI: vi.fn(),
+        getRenderer: () => null,
+        isWebglUnsignedRawCandidate: vi.fn(() => false),
+        toFloat32: vi.fn((data) => data),
+        computeStats: vi.fn(() => ({ min: 1, max: 4, hist: new Uint32Array([1]) })),
+        updateGlobalStats,
+        computeAutoLevels: vi.fn(() => ({ min: 1, max: 4 })),
+        formatValue: vi.fn((value) => String(value)),
+        alignMaskToFrame: vi.fn(() => calls.push("alignMaskToFrame")),
+        syncMaskAvailability,
+        redraw: vi.fn(),
+        fitImageToView: vi.fn(),
+        hideSplash: vi.fn(),
+        scheduleOverview: vi.fn(),
+        scheduleRoiUpdate: vi.fn(),
+        schedulePixelOverlay: vi.fn(),
+        scheduleResolutionOverlay: vi.fn(),
+        schedulePeakFinder: vi.fn(),
+        scheduleHistogram: vi.fn(),
+      },
+    });
+
+    controller.applyFrame(frame, 2, 2, "uint32");
+
+    expect(calls).toEqual(["alignMaskToFrame", "syncMaskAvailability", "updateGlobalStats"]);
+    expect(maskAvailableWhenStatsRan).toBe(true);
+  });
 });
