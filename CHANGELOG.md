@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-16
+
 ### Fixed
 
 - Gap and defective pixel counts are right on the first frame of a file. With no ROI area, the statistics panel shows the whole image, and for a freshly opened HDF5 every figure was correct except those two, which read 0 until the user stepped to the next frame. The mask arrives before any frame does — ALBIS fetches it while scanning datasets — and it is only marked available once there is a frame shape to match it against, which happened *after* the whole-image statistics had already been computed from it. The gap and defective counts come from the mask bits, so with the mask still reading unavailable they came out as none; the other figures survived because the mask only narrows which pixels they average. The frame now settles its mask before it measures itself, so the first frame reports what every later one did.
@@ -1181,7 +1183,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.2...v0.19.0
 [0.18.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.1...v0.18.0
