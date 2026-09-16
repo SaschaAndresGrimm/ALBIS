@@ -28,19 +28,23 @@ _LOG_VALUE_MAX = 512
 
 def sanitize_log_value(value: object, limit: int = _LOG_VALUE_MAX) -> str:
     """Return `value` as one printable line, with control characters escaped."""
-    text = str(value)
+    # The line breaks are handled here, with `str.replace`, rather than in the
+    # loop below that could do it in one pass. Two reasons, and the first is
+    # the real one: these are the only two characters that can forge an entry,
+    # so the step that stops it deserves to be legible on its own. The second
+    # is that CodeQL's log-injection query recognizes `.replace("\n", ...)` and
+    # nothing else as the barrier for this rule, so written any other way the
+    # alert stands whatever the code actually does -- and an alert that cannot
+    # be satisfied by fixing the problem gets dismissed instead of fixed.
+    text = str(value).replace("\n", "\\n").replace("\r", "\\r")
     # `unicode_escape` would also mangle every non-ASCII character, which costs
     # a Japanese dataset name its readability to fix a problem it does not have.
     # Only the C0 range, DEL and the two Unicode line separators can break a
-    # line, so only those are escaped.
+    # line, and the two above are already gone.
     out = []
     for char in text:
         code = ord(char)
-        if char == "\n":
-            out.append("\\n")
-        elif char == "\r":
-            out.append("\\r")
-        elif char == "\t":
+        if char == "\t":
             out.append("\\t")
         elif code < 0x20 or code == 0x7F or code in (0x2028, 0x2029):
             out.append(f"\\x{code:02x}")

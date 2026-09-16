@@ -48,7 +48,11 @@ def test_long_values_are_truncated_with_a_marker() -> None:
 
 
 def test_non_string_values_are_accepted() -> None:
+    """Callers pass a `Path` as often as a string, so `str()` is applied here."""
     from pathlib import Path
 
-    assert sanitize_log_value(Path("/data/scan.h5")) == "/data/scan.h5"
+    path = Path("/data/scan.h5")
+    # Compared against `str(path)` rather than a literal: Windows renders the
+    # same Path with backslashes, and the separator is not what is under test.
+    assert sanitize_log_value(path) == str(path)
     assert sanitize_log_value(7) == "7"
