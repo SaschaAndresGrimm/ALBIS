@@ -9,7 +9,7 @@ import {
   computeGlobalStats as computeGlobalStatsEngine,
   createRoiPixelCounters as createRoiPixelCountersEngine,
   usesInDataPixelFlags,
-  getMaskFlags as getMaskFlagsEngine,
+  getPixelFlags,
   normalizeRoiHistogramBinCount,
 } from "./roi_stats_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
@@ -471,16 +471,23 @@ function clearRoi() {
   updateRoiSectionState();
 }
 
+/** Whether this frame's own values carry the gap and defective flags.
+ *
+ * Only where there is no mask array: a frame with a mask is being told
+ * authoritatively, and -1 in it is a measurement. One definition, used by the
+ * counters, the statistics and the line plot so none of them can disagree.
+ */
+function usesValueFlags() {
+  return !state.maskAvailable && usesInDataPixelFlags(state.dataRaw);
+}
+
 function applyMaskToValue(value, maskValue, satMax = getActiveSaturationMax()) {
   return applyMaskToValueEngine(value, maskValue, {
+    inDataFlags: usesValueFlags(),
     satMax,
     maskSaturatedEnabled: state.maskSaturatedEnabled,
     isSaturatedValue,
   });
-}
-
-function getMaskFlags(maskValue) {
-  return getMaskFlagsEngine(maskValue);
 }
 
 function sampleValue(ix, iy) {
@@ -495,7 +502,8 @@ function sampleValue(ix, iy) {
     state.maskShape[0] === state.height &&
     state.maskShape[1] === state.width;
   const maskValue = hasMask ? state.maskRaw[idx] : null;
-  const useMasking = (state.maskEnabled && hasMask) || state.maskSaturatedEnabled;
+  const useMasking =
+    (state.maskEnabled && hasMask) || state.maskSaturatedEnabled || usesValueFlags();
   if (useMasking) {
     const masked = applyMaskToValue(raw, maskValue, satMax);
     return { value: masked.value, skip: masked.skip, raw, maskValue, maskingApplied: true };
@@ -505,8 +513,10 @@ function sampleValue(ix, iy) {
 
 function isGapMaskedSample(sampled) {
   if (!sampled?.maskingApplied) return false;
-  const flags = getMaskFlags(sampled.maskValue);
-  return flags.gap;
+  // getPixelFlags, not getMaskFlags: a line profile crossing a PILATUS module
+  // gap should show a break in the trace, which is what a NaN gives, rather
+  // than a plunge to -1 that looks like real signal going negative.
+  return getPixelFlags(sampled.raw, sampled.maskValue, usesValueFlags()).gap;
 }
 
 function computeGlobalStats() {
@@ -593,10 +603,7 @@ function accumulateRoiPixelCounters(counters, sampled, satMax) {
     sampled,
     satMax,
     isSaturatedValue,
-    // Without a mask, a PILATUS-style frame carries its own flags. Derived
-    // here so an ROI and the whole-image figures cannot disagree about which
-    // pixels are gaps.
-    !state.maskAvailable && usesInDataPixelFlags(state.dataRaw)
+    usesValueFlags()
   );
 }
 

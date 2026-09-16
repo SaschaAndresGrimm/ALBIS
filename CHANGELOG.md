@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Gap and defective pixels no longer count as measurements. `-1` is a missing pixel and `-2` a broken one, and including them put **Min: -2** on the statistics panel and pulled the mean down. On `testdata/in16c_010001.cbf` — 16,577 of 301,453 pixels, 5.5% of the frame — Min moves from -2 to 0, Mean from 6.204 to 6.623, Median from 4 to 5, and Std from 18.935 to 19.396. Every one of those now matches numpy over the same frame with the flagged pixels removed.
+
+  Not a new policy so much as an existing one reaching the formats it had missed: a frame with a mask array enables the mask when one is found, so masked pixels were already out of the statistics by default. A PILATUS frame carries the same information in its values and was the only kind still averaging its module gaps. Exclusion holds in all three passes — the counting loop, the counting median and the selection median — because the median bins values relative to the smallest *accepted* one, and a skipped pixel left in would be dropped silently by the typed array and leave the median walking the wrong order statistic.
+
+  `Total pixels` still counts the whole frame, and the gap, defective and saturated counts still account for the difference. A line profile crossing a module gap now breaks rather than plunging to -1.
+
+  Only `-1` and `-2`, and only in signed integer frames. A frame that genuinely uses negatives keeps its real minimum, since anything below `-2` is data — so the convention cannot distort a difference image's range, only omit two of its values. A float frame is left alone entirely.
+
 ## [0.18.2] - 2026-09-15
 
 ### Fixed
