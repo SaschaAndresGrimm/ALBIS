@@ -663,6 +663,43 @@ function getRoiPixelSizesMm() {
   return { pxXmm: pxX, pxYmm: pxX * (state.pixelAspect || 1) };
 }
 
+/** The statistics of the whole frame, computed now if they are not cached.
+ *
+ * `state.globalStats` is filled in when a frame is applied, but the ROI panel
+ * can be asked to redraw before that has happened -- the mask arriving for a
+ * file whose frame is still loading is the usual way -- and falling back to
+ * `null` there left the panel showing "-" for a frame it could perfectly well
+ * measure.
+ */
+function getWholeImageStats() {
+  return state.globalStats || computeGlobalStats();
+}
+
+/** Fill the ROI readouts with whole-frame values.
+ *
+ * Shared by the ROI-disabled and the ROI-enabled-but-empty branches so the two
+ * cannot drift apart: both mean "no ROI area", and both are documented as
+ * showing the whole image.
+ */
+function showWholeImageStats(stats) {
+  updateRoiPixelCounterFields(
+    stats
+      ? {
+          total: stats.totalPixels ?? 0,
+          gap: stats.gapPixels ?? 0,
+          defective: stats.defectivePixels ?? 0,
+          saturated: stats.saturatedPixels ?? 0,
+        }
+      : null
+  );
+  setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
+  setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
+  setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
+  setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
+  setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
+  setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+}
+
 function updateRoiStats() {
   // This function is intentionally central: it computes ROI statistics and
   // updates all derived plots/labels in one pass to keep UI state consistent.
@@ -676,7 +713,7 @@ function updateRoiStats() {
   }
   if (!roiState.enabled) {
     roiState.active = false;
-    const stats = state.globalStats || computeGlobalStats();
+    const stats = getWholeImageStats();
     setRoiText(roiStartEl, "-");
     setRoiText(roiEndEl, "-");
     if (roiSizeLabel) {
@@ -697,22 +734,7 @@ function updateRoiStats() {
       setRoiText(roiSizeEl, "-");
       setRoiText(roiAreaEl, "-");
     }
-    updateRoiPixelCounterFields(
-      stats
-        ? {
-            total: stats.totalPixels ?? 0,
-            gap: stats.gapPixels ?? 0,
-            defective: stats.defectivePixels ?? 0,
-            saturated: stats.saturatedPixels ?? 0,
-          }
-        : null
-    );
-    setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
-    setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
-    setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
-    setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
-    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
-    setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+    showWholeImageStats(stats);
     if (roiLineCanvas) {
       roiLineCanvas._roiPlotMeta = null;
     }
@@ -734,27 +756,12 @@ function updateRoiStats() {
     return;
   }
   if (!roiState.start || !roiState.end) {
-    const stats = state.globalStats;
+    const stats = getWholeImageStats();
     setRoiText(roiStartEl, "-");
     setRoiText(roiEndEl, "-");
     setRoiText(roiSizeEl, "-");
     setRoiText(roiAreaEl, "-");
-    updateRoiPixelCounterFields(
-      stats
-        ? {
-            total: stats.totalPixels ?? 0,
-            gap: stats.gapPixels ?? 0,
-            defective: stats.defectivePixels ?? 0,
-            saturated: stats.saturatedPixels ?? 0,
-          }
-        : null
-    );
-    setRoiText(roiMinEl, stats ? formatStat(stats.min) : "-");
-    setRoiText(roiMaxEl, stats ? formatStat(stats.max) : "-");
-    setRoiText(roiSumEl, stats ? formatStat(stats.sum) : "-");
-    setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
-    setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
-    setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+    showWholeImageStats(stats);
     drawRoiPlot(roiLineCanvas, roiLineCtx, null);
     drawRoiPlot(roiXCanvas, roiXCtx, null);
     drawRoiPlot(roiYCanvas, roiYCtx, null);

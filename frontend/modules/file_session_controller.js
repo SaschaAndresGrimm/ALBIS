@@ -180,6 +180,14 @@ export function createFileSessionController({
     state.width = width;
     state.height = height;
     state.dtype = dtype;
+    // Before the statistics, not after: `updateGlobalStats` is mask-aware, and
+    // a mask fetched while no frame was loaded yet is still marked unavailable
+    // at this point because `syncMaskAvailability` had no frame shape to match
+    // it against. Computing the global statistics first reported the first
+    // frame of a series as having no gap and no defective pixels at all, and
+    // only stepping to the next frame corrected it.
+    alignMaskToFrame();
+    syncMaskAvailability(false);
     const now = typeof performance !== "undefined" && typeof performance.now === "function"
       ? performance.now()
       : Date.now();
@@ -212,8 +220,6 @@ export function createFileSessionController({
         ? formatValue(state.stats.satMax)
         : t("common.none");
     }
-    alignMaskToFrame();
-    syncMaskAvailability(false);
     redraw();
     if (!state.hasFrame) {
       fitImageToView();
