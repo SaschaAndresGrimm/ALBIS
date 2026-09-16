@@ -21,6 +21,7 @@ from ..api_models import (
     HDF5ValueResponse,
 )
 from ..services.hdf5_stack import WalkReport, open_hdf5_for_read
+from ..services.log_safety import sanitize_log_value
 
 _log = logging.getLogger("albis.hdf5_routes")
 
@@ -238,12 +239,15 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             children.sort(key=lambda item: (item.get("type") != "group", item.get("name", "")))
             truncated = child_count > len(names)
             if truncated:
+                # The group path comes from the request and names a group in
+                # the file, and HDF5 allows a newline in a group name -- so it
+                # is escaped rather than written into the line as it stands.
                 _log.warning(
                     "Listing only %d of %d children of %s in %s",
                     len(names),
                     child_count,
-                    path,
-                    file_path,
+                    sanitize_log_value(path),
+                    sanitize_log_value(file_path),
                 )
             return HDF5TreeResponse(
                 path=path,

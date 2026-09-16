@@ -70,3 +70,58 @@ def test_parse_ext_filter_normalizes_and_intersects(tmp_path: Path) -> None:
     assert policy.parse_ext_filter("cbf") == {".cbf", ".cbf.gz"}
     assert policy.parse_ext_filter("tif,unknown") == {".tif"}
     assert policy.parse_ext_filter(None) == AUTOLOAD_EXTS
+
+
+def test_resolve_manifest_file_accepts_absolute_json(tmp_path: Path) -> None:
+    policy = _policy(tmp_path)
+    manifest = tmp_path / "handoff.json"
+    manifest.write_text("{}", encoding="utf-8")
+
+    assert policy.resolve_manifest_file(str(manifest)) == manifest.resolve()
+
+
+def test_resolve_manifest_file_honours_the_absolute_path_gate(tmp_path: Path) -> None:
+    """The gap CodeQL's py/path-injection alert pointed at.
+
+    The handoff route resolved whatever it was handed, so an operator who set
+    `data.allow_abs_paths` to false to confine what ALBIS reads got that
+    everywhere except here.
+    """
+    manifest = tmp_path / "handoff.json"
+    manifest.write_text("{}", encoding="utf-8")
+    policy = _policy(tmp_path, allow_abs_paths=False)
+
+    with pytest.raises(HTTPException) as exc:
+        policy.resolve_manifest_file(str(manifest))
+    assert exc.value.status_code == 400
+    assert "Absolute paths are disabled" in str(exc.value.detail)
+
+
+def test_resolve_manifest_file_confines_relative_names_to_the_data_dir(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}", encoding="utf-8")
+    inside = data_dir / "handoff.json"
+    inside.write_text("{}", encoding="utf-8")
+    policy = _policy(data_dir, allow_abs_paths=False)
+
+    assert policy.resolve_manifest_file("handoff.json") == inside.resolve()
+    with pytest.raises(HTTPException):
+        policy.resolve_manifest_file("../outside.json")
+
+
+def test_resolve_manifest_file_requires_an_existing_json_file(tmp_path: Path) -> None:
+    policy = _policy(tmp_path)
+    (tmp_path / "manifest.txt").write_text("{}", encoding="utf-8")
+    (tmp_path / "subdir").mkdir()
+
+    with pytest.raises(HTTPException) as missing:
+        policy.resolve_manifest_file(str(tmp_path / "absent.json"))
+    assert missing.value.status_code == 404
+    with pytest.raises(HTTPException) as directory:
+        policy.resolve_manifest_file(str(tmp_path / "subdir"))
+    assert directory.value.status_code == 404
+    with pytest.raises(HTTPException) as wrong_suffix:
+        policy.resolve_manifest_file(str(tmp_path / "manifest.txt"))
+    assert wrong_suffix.value.status_code == 400

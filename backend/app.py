@@ -667,6 +667,7 @@ register_handoff_routes(
         logger=logger,
         queue_job=handoff_queue.queue_job,
         latest_job=handoff_queue.latest_job,
+        resolve_manifest=path_policy.resolve_manifest_file,
     ),
 )
 

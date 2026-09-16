@@ -16,6 +16,10 @@ class HandoffRouteDeps:
     logger: Any
     queue_job: Callable[[dict[str, str]], dict[str, str | int]]
     latest_job: Callable[[int], dict[str, str | int] | None]
+    # The shared path policy's manifest resolver, so this route reads a file
+    # under the same rules as every other one -- including
+    # `data.allow_abs_paths`, which it used to be alone in ignoring.
+    resolve_manifest: Callable[[str], Path]
 
 
 def _extract_open_target(path: Path) -> tuple[str, str, str]:
@@ -50,11 +54,7 @@ def register_handoff_routes(app: FastAPI, deps: HandoffRouteDeps) -> None:
         manifest_path = str(payload.manifest_path or "").strip()
         if not manifest_path:
             raise HTTPException(status_code=400, detail="Missing manifest_path")
-        path = Path(manifest_path).expanduser().resolve()
-        if not path.exists() or not path.is_file():
-            raise HTTPException(status_code=404, detail="Manifest file not found")
-        if path.suffix.lower() != ".json":
-            raise HTTPException(status_code=400, detail="Manifest must be a .json file")
+        path = deps.resolve_manifest(manifest_path)
         open_path, dataset, run_id = _extract_open_target(path)
         job = deps.queue_job(
             {

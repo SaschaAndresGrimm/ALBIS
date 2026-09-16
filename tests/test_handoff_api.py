@@ -99,3 +99,57 @@ def test_handoff_queue_cap_evicts_oldest_jobs(tmp_path: Path) -> None:
     latest = client.get("/api/handoff/v1/jobs/latest", params={"after_id": 0})
     assert latest.status_code == 200
     assert int(latest.json()["id"]) == 5
+
+
+def test_handoff_create_honours_the_absolute_path_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With absolute paths disabled, a manifest outside the data directory is refused.
+
+    This route used to resolve whatever it was handed, which is what CodeQL's
+    py/path-injection alert pointed at: every other file-reading endpoint
+    honours `data.allow_abs_paths`, and this one did not.
+    """
+    client = TestClient(app)
+    manifest = tmp_path / "handoff.json"
+    _write_manifest(manifest, run_id="run-1", open_path=str(tmp_path / "scan_master.h5"))
+    monkeypatch.setattr(backend_app_module.runtime_state, "allow_abs_paths", False)
+
+    response = client.post("/api/handoff/v1/jobs", json={"manifest_path": str(manifest)})
+
+    assert response.status_code == 400
+    assert "Absolute paths are disabled" in response.json()["detail"]
+    assert backend_app_module.handoff_queue.snapshot() == []
+
+
+def test_handoff_create_still_accepts_absolute_manifests_by_default(tmp_path: Path) -> None:
+    """The default is unchanged: absolute paths are allowed unless switched off."""
+    client = TestClient(app)
+    manifest = tmp_path / "handoff.json"
+    _write_manifest(manifest, run_id="run-2", open_path=str(tmp_path / "scan_master.h5"))
+
+    response = client.post("/api/handoff/v1/jobs", json={"manifest_path": str(manifest)})
+
+    assert response.status_code == 200
+    assert response.json()["manifest_path"] == str(manifest.resolve())
+
+
+def test_handoff_create_rejects_a_manifest_that_is_not_json(tmp_path: Path) -> None:
+    client = TestClient(app)
+    manifest = tmp_path / "handoff.yaml"
+    manifest.write_text("run_id: run-3", encoding="utf-8")
+
+    response = client.post("/api/handoff/v1/jobs", json={"manifest_path": str(manifest)})
+
+    assert response.status_code == 400
+    assert "must be a .json file" in response.json()["detail"]
+
+
+def test_handoff_create_reports_a_missing_manifest_as_not_found(tmp_path: Path) -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/handoff/v1/jobs", json={"manifest_path": str(tmp_path / "absent.json")}
+    )
+
+    assert response.status_code == 404

@@ -152,6 +152,12 @@ and fall back to `message`, never parse the sentence.
 ## Handoff Semantics
 
 - `POST /api/handoff/v1/jobs`: ingest one handoff manifest path and enqueue a typed job payload.
+  - `manifest_path` is resolved under the same path policy as every other
+    file-reading endpoint: an absolute path needs `data.allow_abs_paths`
+    (`400` when it is off, as the Docker image ships it), and a relative one is
+    taken as relative to `data.root` and must stay inside it.
+  - returns `404` when the manifest does not exist or is not a file, and `400`
+    when it is not a `.json` file.
 - `GET /api/handoff/v1/jobs/latest`:
   - returns `200` with `HandoffJobResponse` when a newer job than `after_id` exists,
   - returns `204` when no newer handoff job exists.

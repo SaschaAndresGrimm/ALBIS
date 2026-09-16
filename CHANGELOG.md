@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Security
+
+- The handoff API resolves its manifest path under the same rules as every other endpoint. `POST /api/handoff/v1/jobs` resolved whatever absolute path it was handed and read it, which made it the one file-reading endpoint that ignored `data.allow_abs_paths`. The Docker image sets that key to `false` on purpose — it listens on `0.0.0.0` with no authentication, so without it anything that can reach the port can read the whole container filesystem — and this route went around it. What leaked through was narrow: the response returns only the `path`, `dataset` and `run_id` lifted out of a JSON object, so an arbitrary file is not readable in full, but any path could be tested for existence and a JSON file of the right shape could be read in part. Reported by CodeQL as `py/path-injection`.
+
+  The manifest now goes through `PathPolicy`: an absolute path needs `data.allow_abs_paths`, and a relative one resolves under `data.root` instead of the process working directory, which for a packaged build is wherever the launcher started. Desktop behaviour is unchanged, because the desktop default is `true`.
+
+- A logged HDF5 group path can no longer forge a log entry. The tree route logs the path it was asked for when a group's children are capped, and although the path has to name a group that really exists in the file, HDF5 permits a newline in a group name — so a crafted file could split one entry into two and give the second any timestamp and level it liked. ALBIS shows its own log in **View Log**, so the forged line would be read by the user; it is rendered as text, so nothing worse than deception was possible. Control characters are now escaped, by a `sanitize_log_value` sibling to the existing header sanitizer, which keeps a non-ASCII dataset name readable rather than stripping it. Reported by CodeQL as `py/log-injection`.
+
 ## [0.19.0] - 2026-09-16
 
 ### Fixed

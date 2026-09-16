@@ -96,6 +96,38 @@ class PathPolicy:
             raise HTTPException(status_code=404, detail="File not found")
         return path
 
+    def resolve_manifest_file(self, name: str) -> Path:
+        """Resolve a handoff manifest path under the same rules as the rest.
+
+        The handoff route used to resolve whatever it was given, which made it
+        the one file-reading endpoint that ignored `data.allow_abs_paths`.
+        An operator sets that to `false` to confine what ALBIS reads to the
+        data directory, and every other route honours it; a manifest is a file
+        on disk like any other, so it honours it too.
+
+        Relative names are taken as relative to the data directory rather than
+        to the process working directory, which for a packaged build is
+        wherever the launcher happened to start.
+        """
+        if not name:
+            raise HTTPException(status_code=400, detail="Invalid manifest path")
+        raw = Path(name)
+        if raw.is_absolute():
+            if not self.allow_abs_paths():
+                raise HTTPException(status_code=400, detail="Absolute paths are disabled")
+            path = raw.expanduser().resolve()
+        else:
+            safe = self.safe_rel_path(name)
+            root = self.data_dir.resolve()
+            path = (self.data_dir / safe).resolve()
+            if not self.is_within(path, root):
+                raise HTTPException(status_code=400, detail="Invalid manifest path")
+        if not path.exists() or not path.is_file():
+            raise HTTPException(status_code=404, detail="Manifest file not found")
+        if path.suffix.lower() != ".json":
+            raise HTTPException(status_code=400, detail="Manifest must be a .json file")
+        return path
+
     def parse_ext_filter(self, exts: str | None) -> set[str]:
         if not exts:
             return set(self.autoload_exts)
