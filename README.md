@@ -124,4 +124,4 @@ the **Versions** button in the bottom right, and in **Help → About**.
 ## Acknowledgements and Contributions
 
 This project stands on the shoulders of a giant: ALBULA. Thanks to Volker Pilipp for creating such an intuitive image viewer that set the benchmark.
-Thanks to Tilman Donath and Nicolas Pilet for testing, breaking, and giving useful feedback for improvements.
+Thanks to Tilman Donath, Nicolas Pilet, and Matthias Meffert for testing, breaking, and giving useful feedback for improvements.

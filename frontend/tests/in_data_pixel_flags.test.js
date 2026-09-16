@@ -205,3 +205,152 @@ describe("getPixelFlags", () => {
     expect(getPixelFlags(DATA_GAP_VALUE, null, false)).toEqual({ gap: false, defective: false });
   });
 });
+
+
+describe("flagged pixels are excluded from the statistics", () => {
+  /**
+   * `-1` is a missing pixel and `-2` a broken one. Neither is a measurement,
+   * and including them put `Min: -2` on the panel and pulled the mean down --
+   * on `testdata/in16c_010001.cbf`, 16,577 of 301,453 pixels, moving the mean
+   * from 6.623 to 6.204 and the median from 5 to 4.
+   *
+   * Excluding them is not a new policy: a frame with a mask array enables the
+   * mask when one is found, so masked pixels were already out of the
+   * statistics by default. A PILATUS frame carries the same information in its
+   * values and was the only kind still counting gaps as data.
+   */
+
+  const FLAGGED = [DATA_GAP_VALUE, DATA_DEFECTIVE_VALUE];
+
+  it("leaves the minimum at the smallest real count", () => {
+    const stats = globalStats(new Int32Array([...FLAGGED, 3, 7, 11]), { width: 5, height: 1 });
+
+    expect(stats.min).toBe(3);
+    expect(stats.max).toBe(11);
+  });
+
+  it("sums and averages only the measurements", () => {
+    const stats = globalStats(new Int32Array([...FLAGGED, 4, 6, 20]), { width: 5, height: 1 });
+
+    expect(stats.count).toBe(3);
+    expect(stats.sum).toBe(30);
+    expect(stats.mean).toBeCloseTo(10, 10);
+  });
+
+  it("still reports every pixel as a total", () => {
+    // `totalPixels` is the frame; `count` is what the statistics used. Both
+    // are shown, and the difference is the gap and defective counts.
+    const stats = globalStats(new Int32Array([...FLAGGED, 1, 2]), { width: 4, height: 1 });
+
+    expect(stats.totalPixels).toBe(4);
+    expect(stats.count).toBe(2);
+    expect(stats.gapPixels + stats.defectivePixels).toBe(stats.totalPixels - stats.count);
+  });
+
+  it("takes the median over the same pixels as the mean", () => {
+    // The counting-median path bins `value - min`, and `min` is now the
+    // smallest accepted value -- so a skipped pixel would index before the
+    // bins and be dropped silently by the typed array, leaving the bin total
+    // short of `count` and the walk on the wrong order statistic.
+    const data = new Int32Array([DATA_GAP_VALUE, DATA_GAP_VALUE, 10, 20, 30]);
+    const stats = globalStats(data, { width: 5, height: 1 });
+
+    expect(stats.count).toBe(3);
+    expect(stats.median).toBe(20);
+  });
+
+  it("agrees between the counting median and the selection fallback", () => {
+    /**
+     * Two implementations, chosen by how wide the value range is. Both have to
+     * exclude the same pixels or the median jumps when a frame happens to
+     * cross the threshold.
+     */
+    const narrow = new Int32Array([DATA_GAP_VALUE, 1, 2, 3, 4, 5, 6, 7]);
+    // Past COUNTING_MEDIAN_MAX_SPAN (1 << 21), which forces selection.
+    const wide = new Int32Array([DATA_GAP_VALUE, 1, 2, 3, 4, 5, 6, 1 << 22]);
+
+    const narrowStats = globalStats(narrow, { width: 8, height: 1 });
+    const wideStats = globalStats(wide, { width: 8, height: 1 });
+
+    expect(narrowStats.count).toBe(7);
+    expect(wideStats.count).toBe(7);
+    expect(narrowStats.median).toBe(4);
+    // Same seven accepted values but for the last, so the median is the same.
+    expect(wideStats.median).toBe(4);
+  });
+
+  it("excludes them from the standard deviation", () => {
+    const stats = globalStats(new Int32Array([...FLAGGED, 5, 5, 5, 5]), { width: 6, height: 1 });
+
+    expect(stats.count).toBe(4);
+    expect(stats.std).toBe(0);
+  });
+
+  it("keeps a float frame's negative values in the statistics", () => {
+    // The guard again, on the statistics rather than the counters: a
+    // difference image legitimately has a negative minimum.
+    const stats = globalStats(new Float32Array([-2, -1, 1, 2]), { width: 4, height: 1 });
+
+    expect(stats.count).toBe(4);
+    expect(stats.min).toBe(-2);
+    expect(stats.mean).toBeCloseTo(0, 10);
+  });
+
+  it("keeps an unsigned frame whole", () => {
+    const stats = globalStats(new Uint16Array([0, 1, 2, 3]), { width: 4, height: 1 });
+
+    expect(stats.count).toBe(4);
+    expect(stats.min).toBe(0);
+  });
+
+  it("leaves a masked frame to its mask", () => {
+    /**
+     * With a mask array present the mask decides, and it can be switched off.
+     * A `-1` in such a frame is a measurement, so turning the mask off must
+     * bring it back into the statistics rather than being overruled by its
+     * value.
+     */
+    const data = new Int32Array([DATA_GAP_VALUE, 5, 7, 9]);
+    const maskRaw = new Uint32Array([0, 0, 0, 0]);
+    const withMaskOff = globalStats(data, {
+      width: 4,
+      height: 1,
+      maskAvailable: true,
+      maskRaw,
+      maskShape: [1, 4],
+      maskEnabled: false,
+    });
+
+    expect(withMaskOff.count).toBe(4);
+    expect(withMaskOff.min).toBe(DATA_GAP_VALUE);
+  });
+
+  it("excludes a masked frame's flagged pixels when the mask is on", () => {
+    const data = new Int32Array([100, 5, 7, 9]);
+    const maskRaw = new Uint32Array([1, 0, 0, 0]);
+    const stats = globalStats(data, {
+      width: 4,
+      height: 1,
+      maskAvailable: true,
+      maskRaw,
+      maskShape: [1, 4],
+      maskEnabled: true,
+    });
+
+    expect(stats.count).toBe(3);
+    expect(stats.max).toBe(9);
+  });
+
+  it("reports zeroes rather than infinities for a frame of nothing but flags", () => {
+    // Every pixel skipped leaves `count` at 0, where `min`/`max` still hold
+    // their sentinels. The early return exists for exactly this.
+    const stats = globalStats(new Int32Array(FLAGGED), { width: 2, height: 1 });
+
+    expect(stats.count).toBe(0);
+    expect(stats.min).toBe(0);
+    expect(stats.max).toBe(0);
+    expect(stats.mean).toBe(0);
+    expect(stats.gapPixels).toBe(1);
+    expect(stats.defectivePixels).toBe(1);
+  });
+});

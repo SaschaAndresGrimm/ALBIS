@@ -7,6 +7,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-16
+
+### Fixed
+
+- Gap and defective pixel counts are right on the first frame of a file. With no ROI area, the statistics panel shows the whole image, and for a freshly opened HDF5 every figure was correct except those two, which read 0 until the user stepped to the next frame. The mask arrives before any frame does — ALBIS fetches it while scanning datasets — and it is only marked available once there is a frame shape to match it against, which happened *after* the whole-image statistics had already been computed from it. The gap and defective counts come from the mask bits, so with the mask still reading unavailable they came out as none; the other figures survived because the mask only narrows which pixels they average. The frame now settles its mask before it measures itself, so the first frame reports what every later one did.
+
+- **Clear ROI** puts the whole-image statistics back instead of blanking the panel. Clearing wipes the readouts and leaves an enabled ROI with no area — the state the panel documents as showing the whole image — but nothing recomputed it, so every field stayed at "-" until the next frame or redraw. It now refreshes in place. The two branches that render "no ROI area" share one readout function, so neither can drift from the other again.
+
+### Changed
+
+- Gap and defective pixels no longer count as measurements. `-1` is a missing pixel and `-2` a broken one, and including them put **Min: -2** on the statistics panel and pulled the mean down. On `testdata/in16c_010001.cbf` — 16,577 of 301,453 pixels, 5.5% of the frame — Min moves from -2 to 0, Mean from 6.204 to 6.623, Median from 4 to 5, and Std from 18.935 to 19.396. Every one of those now matches numpy over the same frame with the flagged pixels removed.
+
+  Not a new policy so much as an existing one reaching the formats it had missed: a frame with a mask array enables the mask when one is found, so masked pixels were already out of the statistics by default. A PILATUS frame carries the same information in its values and was the only kind still averaging its module gaps. Exclusion holds in all three passes — the counting loop, the counting median and the selection median — because the median bins values relative to the smallest *accepted* one, and a skipped pixel left in would be dropped silently by the typed array and leave the median walking the wrong order statistic.
+
+  `Total pixels` still counts the whole frame, and the gap, defective and saturated counts still account for the difference. A line profile crossing a module gap now breaks rather than plunging to -1.
+
+  Only `-1` and `-2`, and only in signed integer frames. A frame that genuinely uses negatives keeps its real minimum, since anything below `-2` is data — so the convention cannot distort a difference image's range, only omit two of its values. A float frame is left alone entirely.
+
 ## [0.18.2] - 2026-09-15
 
 ### Fixed
@@ -1165,7 +1183,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.2...v0.19.0
 [0.18.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.17.1...v0.18.0

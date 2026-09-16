@@ -64,7 +64,12 @@ export function getPixelFlags(value, maskValue, inDataFlags = false) {
 }
 
 export function applyMaskToValue(value, maskValue, options = {}) {
-  const { satMax = null, maskSaturatedEnabled = false, isSaturatedValue = () => false } = options;
+  const {
+    satMax = null,
+    maskSaturatedEnabled = false,
+    isSaturatedValue = () => false,
+    inDataFlags = false,
+  } = options;
   if (Number.isFinite(maskValue)) {
     if (maskValue & 1) {
       return { value: 0, skip: true };
@@ -72,6 +77,10 @@ export function applyMaskToValue(value, maskValue, options = {}) {
     if (maskValue & 0x1e) {
       return { value: 0, skip: true };
     }
+  } else if (inDataFlags && (value === DATA_GAP_VALUE || value === DATA_DEFECTIVE_VALUE)) {
+    // A frame whose flags live in the pixels, with no mask array to consult:
+    // -1 and -2 are a missing pixel and a broken one, not measurements.
+    return { value: 0, skip: true };
   }
   if (maskSaturatedEnabled && isSaturatedValue(value, satMax)) {
     return { value: 0, skip: true };
@@ -242,27 +251,32 @@ const MASK_SKIP_BITS = 0x1f;
  * finite by construction and needs no check.
  */
 function countingMedian(data, min, span, count, skip) {
-  const { maskBits, maskSaturatedEnabled, isSaturatedValue, satMax } = skip;
+  const { maskBits, maskSaturatedEnabled, isSaturatedValue, satMax, inDataFlags = false } = skip;
   if (!countingBins || countingBins.length < span) {
     countingBins = new Uint32Array(span);
   } else {
     countingBins.fill(0, 0, span);
   }
   const checkSaturated = maskSaturatedEnabled && satMax !== null;
-  if (maskBits === null && !checkSaturated) {
+  if (maskBits === null && !checkSaturated && !inDataFlags) {
     for (let i = 0; i < data.length; i += 1) {
       countingBins[data[i] - min] += 1;
     }
-  } else if (!checkSaturated) {
+  } else if (!checkSaturated && !inDataFlags) {
     for (let i = 0; i < data.length; i += 1) {
       if (maskBits[i] & MASK_SKIP_BITS) continue;
       countingBins[data[i] - min] += 1;
     }
   } else {
+    // `min` is the smallest *accepted* value, so a skipped pixel would index
+    // before the start of the bins. A typed array drops such a write silently,
+    // which would leave the bin total short of `count` and walk the wrong
+    // order statistic -- the skips here have to match the counting loop exactly.
     for (let i = 0; i < data.length; i += 1) {
       if (maskBits !== null && maskBits[i] & MASK_SKIP_BITS) continue;
       const value = data[i];
-      if (isSaturatedValue(value, satMax)) continue;
+      if (inDataFlags && (value === DATA_GAP_VALUE || value === DATA_DEFECTIVE_VALUE)) continue;
+      if (checkSaturated && isSaturatedValue(value, satMax)) continue;
       countingBins[value - min] += 1;
     }
   }
@@ -317,7 +331,11 @@ export function computeGlobalStats(params) {
   // Resolved once: the check is a handful of instanceof tests and this loop
   // runs per pixel per frame. Only consulted where there is no mask to trust.
   const inDataFlags = !hasMask && usesInDataPixelFlags(dataRaw);
-  const useMasking = (maskEnabled && hasMask) || maskSaturatedEnabled;
+  // `inDataFlags` switches masking on by itself. For a frame with a mask array
+  // the mask enables itself when found, so excluding flagged pixels is already
+  // the default there; a PILATUS frame carries the same information in its
+  // values and was the only kind left counting gaps as data.
+  const useMasking = (maskEnabled && hasMask) || maskSaturatedEnabled || inDataFlags;
 
   // Whether pixel `i` contributes. Shared by this pass and the median pass so
   // the two can never disagree about which pixels are in the sample.
@@ -329,6 +347,7 @@ export function computeGlobalStats(params) {
       satMax,
       maskSaturatedEnabled,
       isSaturatedValue,
+      inDataFlags,
     }).skip;
   };
 
@@ -358,7 +377,10 @@ export function computeGlobalStats(params) {
     }
     if (!Number.isFinite(value)) continue;
     if (useMasking) {
-      if (maskBits & MASK_SKIP_BITS) continue;
+      // `gap || defective` already covers every MASK_SKIP_BITS bit as well as
+      // the two in-data values, so it replaces the bit test rather than
+      // joining it.
+      if (gap || defective) continue;
       if (maskSaturatedEnabled && isSaturatedValue(value, satMax)) continue;
     }
     count += 1;
@@ -400,6 +422,7 @@ export function computeGlobalStats(params) {
       maskSaturatedEnabled,
       isSaturatedValue,
       satMax,
+      inDataFlags,
     });
   } else {
     // Wide-ranging or floating-point data: fall back to selection, but over a

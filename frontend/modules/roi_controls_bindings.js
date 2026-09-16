@@ -134,6 +134,10 @@ export function bindRoiControlInteractions({
 
   roiClearBtn?.addEventListener("click", () => {
     clearRoi();
+    // `clearRoi` only blanks the readouts; the whole-image statistics that an
+    // enabled ROI with no area shows are put back by `updateRoiStats`, so
+    // clearing has to schedule one or the panel is left reading "-".
+    scheduleRoiUpdate();
     handleRoiChanged?.("roi");
     setStatus(t("status.roi.cleared"));
   });
