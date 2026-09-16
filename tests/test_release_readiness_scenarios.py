@@ -440,9 +440,7 @@ except SystemExit:
 except BaseException:
     _DEBUG_LOG.write_text(traceback.format_exc(), encoding="utf-8")
     raise
-""".replace(
-        "__DEBUG_LOG__", str(debug_log)
-    )
+""".replace("__DEBUG_LOG__", str(debug_log))
 
     # smoke_packaged_binary launches the binary directly (no interpreter prefix),
     # so the stand-in must be natively executable on each OS. sys.executable avoids

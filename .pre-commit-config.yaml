@@ -19,7 +19,7 @@ repos:
       - id: ruff
 
   - repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 26.3.1
     hooks:
       # No `files:` filter needed: the hook's default scope and CI's now agree,
       # because backend/ and albis_launcher.py were formatted and added to the
