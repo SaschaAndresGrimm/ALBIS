@@ -23,8 +23,8 @@ here.
 | python-multipart | 0.0.32 | Apache-2.0 | © Andrew Dunham |
 | hdf5plugin | 7.1.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
 | h5py | 3.16.0 | BSD-3-Clause | © 2008 Andrew Collette and contributors |
-| NumPy | 2.5.2 | BSD-3-Clause | © 2005-2023 NumPy Developers |
-| tifffile | 2026.8.23 | BSD-3-Clause | © 2008-2025 Christoph Gohlke |
+| NumPy | 2.5.3 | BSD-3-Clause | © 2005-2023 NumPy Developers |
+| tifffile | 2026.9.9 | BSD-3-Clause | © 2008-2025 Christoph Gohlke |
 | FabIO | 2026.6.0 | MIT | © European Synchrotron Radiation Facility and FabIO contributors |
 | cbor2 | 6.1.4 | MIT | © 2016 Alex Grönholm |
 | PyZMQ | 27.2.0 | BSD-3-Clause | © 2009-2012 Brian Granger, Min Ragan-Kelley (bundles libzmq, MPL-2.0) |
