@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Every CSV export is one table with a leading comment block.** The ROI export stacked its plots as sections — a `# Title`, a header pair, the rows, a blank line, then the next plot — and the file as a whole was therefore not a table. Numbers imports the lot as a single sheet with the histogram's header sitting in the data and its intensities in the same column as the profile's indices; `pandas.read_csv` needs `skiprows` and `nrows` worked out per section before it can start.
+
+  Each plot now gets its own pair of columns, side by side. Two columns per plot rather than one shared index, because the plots do not share an x axis: a line profile is indexed along the ROI, the projections by pixel column and row, a histogram by intensity in bins that are frequently fractional. A shorter series ends early, which every CSV reader already handles, and a plot that is not on screen contributes no columns rather than an empty pair. Headers are qualified by the plot name, since the axis labels collide on their own — both projections call their y axis *Mean*, and a line profile measures *Intensity* along the axis a histogram counts it on.
+
+  The peak list was already a single table and keeps its fixed English column names, which scripts index by. `pandas.read_csv(path, comment="#")` now reads any ALBIS CSV directly.
+
+  Scalar ROI statistics are still not written, deliberately: min, max, mean, median and the rest are all recoverable from the exported columns, and they are key/value pairs rather than columns, so a table is the wrong place for them.
+
+- **Exports say who produced them.** Every CSV now leads with `# Produced by ALBIS <version> (<commit>)` and a `# Source:` line naming the file, dataset, frame and threshold, plus the ROI geometry or peak count where that applies — the same facts, in nearly the same words, that the CBF and TIFF headers already carried, which is what `COMPATIBILITY.md` promises of every written file. The HDF5 dataset preview's `# truncated` marker moved from after the last row into that block, where a reader skipping the comment prefix can still be told it is holding a preview rather than the dataset.
+
 ### Security
 
 - The handoff API resolves its manifest path under the same rules as every other endpoint. `POST /api/handoff/v1/jobs` resolved whatever absolute path it was handed and read it, which made it the one file-reading endpoint that ignored `data.allow_abs_paths`. The Docker image sets that key to `false` on purpose — it listens on `0.0.0.0` with no authentication, so without it anything that can reach the port can read the whole container filesystem — and this route went around it. What leaked through was narrow: the response returns only the `path`, `dataset` and `run_id` lifted out of a JSON object, so an arbitrary file is not readable in full, but any path could be tested for existence and a JSON file of the right shape could be read in part. Reported by CodeQL as `py/path-injection`.

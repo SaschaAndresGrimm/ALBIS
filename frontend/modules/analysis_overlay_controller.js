@@ -9,6 +9,7 @@ import {
   getGeometryResolutionAtPixel,
 } from "./ring_geometry_utils.js";
 import { setControlAvailability } from "./control_availability.js";
+import { buildCsvTable, csvProvenanceLines } from "./csv_export_utils.js";
 
 export function createAnalysisOverlayController({
   state,
@@ -735,13 +736,22 @@ export function createAnalysisOverlayController({
     }
     const csvCoord = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(3));
     const csvNum = (v) => (Number.isFinite(v) ? v : "");
-    const rows = ["index,x,y,intensity,snr,resolution_angstrom"];
-    analysisState.peaks.forEach((peak, idx) => {
-      rows.push(
-        `${idx + 1},${csvCoord(peak.x)},${csvCoord(peak.y)},${peak.intensity},${csvNum(peak.snr)},${csvNum(peak.resolution)}`,
-      );
-    });
-    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+    const peaks = analysisState.peaks;
+    // These header names are left in English and unqualified, unlike the ROI
+    // export's: a peak list is read by indexing software and by scripts that
+    // name their columns, so translating them would break the caller whose
+    // language changed. One table either way, which is what the shape change
+    // was about.
+    const rows = buildCsvTable([
+      { label: "index", values: peaks.map((_, idx) => idx + 1) },
+      { label: "x", values: peaks.map((peak) => csvCoord(peak.x)) },
+      { label: "y", values: peaks.map((peak) => csvCoord(peak.y)) },
+      { label: "intensity", values: peaks.map((peak) => peak.intensity) },
+      { label: "snr", values: peaks.map((peak) => csvNum(peak.snr)) },
+      { label: "resolution_angstrom", values: peaks.map((peak) => csvNum(peak.resolution)) },
+    ]);
+    const lines = [...csvProvenanceLines(state, [`Peaks: ${peaks.length}`]), ...rows];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     const base = (state.file || "peaks").split("/").pop().replace(/\.[^.]+$/, "");

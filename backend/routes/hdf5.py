@@ -20,6 +20,7 @@ from ..api_models import (
     HDF5TreeResponse,
     HDF5ValueResponse,
 )
+from ..image_formats import producer_string
 from ..services.hdf5_stack import WalkReport, open_hdf5_for_read
 from ..services.log_safety import sanitize_log_value
 
@@ -421,10 +422,25 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             if data is None:
                 raise HTTPException(status_code=500, detail="Unable to read dataset")
             output = io.StringIO()
+            # Every comment this file has, before the table starts. `# truncated`
+            # used to be appended after the last row, where a reader that skips a
+            # comment prefix never sees it and one that does not gets a ragged
+            # final line -- the marker matters most to whoever is about to treat
+            # a preview as the whole dataset, so it goes where it is read.
+            output.write(f"# Produced by {producer_string()}\n")
+            # Same one-line guarantee the log entries get, and for the same
+            # reason: the dataset path is whatever the file calls its groups,
+            # HDF5 permits a newline in a name, and a comment that breaks in two
+            # puts the second half in the table as a row.
+            output.write(
+                f"# Source: {sanitize_log_value(file_path.name)} {sanitize_log_value(path)}\n"
+            )
             if slice_info:
                 output.write(
                     f"# slice={slice_info.get('lead')} rows={slice_info.get('rows')} cols={slice_info.get('cols')}\n"
                 )
+            if truncated:
+                output.write("# truncated\n")
             writer = csv.writer(output)
             if data.ndim == 0:
                 writer.writerow([deps.serialize_h5_value(data.item())])
@@ -435,8 +451,6 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             else:
                 for row in data.tolist():
                     writer.writerow([deps.serialize_h5_value(v) for v in row])
-            if truncated:
-                output.write("# truncated\n")
             filename = path.strip("/").replace("/", "_") or "dataset"
             headers = {"Content-Disposition": f'attachment; filename="{filename}.csv"'}
             return Response(content=output.getvalue(), media_type="text/csv", headers=headers)

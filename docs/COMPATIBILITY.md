@@ -78,6 +78,12 @@ promise above covers every documented endpoint.
 - **TIFF and CBF layouts** stay readable by the same tools. The pixel
   conventions do not change: masked gaps are `-1`, bad or saturated pixels are
   `-2`.
+- **CSV exports are one table with a leading comment block.** Comments start
+  with `#` and only ever lead, so `comment="#"` or a skip-header setting leaves
+  a single header row and its rows. Columns are added, not renamed or
+  reordered, and a reader that selects by header name keeps working. Column
+  *headers* follow the interface language where they name a plot axis; the peak
+  list's are fixed English identifiers, because scripts index by them.
 - **Provenance stays present.** Every written file names the ALBIS build that
   produced it, the source it came from, and the substitutions applied. The
   wording may improve; the facts stay.

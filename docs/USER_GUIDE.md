@@ -160,7 +160,16 @@ stepping through frames, so the shape you are watching does not rescale
 underneath you. Drag on a plot to pan, wheel over an axis to zoom, double-click
 to reset.
 
-**Export CSV** writes the current statistics and profile for use elsewhere.
+**Export CSV** writes the plots you are looking at, for use elsewhere. Every
+plot gets its own pair of columns side by side — a line profile its distance
+and intensity, a histogram its intensity and count — because they do not share
+an x axis and stacking them would stop the file being one table. Shorter series
+simply end early. The file opens as a single table in Excel, Numbers and Origin,
+and `pandas.read_csv(path, comment="#")` gives you a DataFrame directly.
+
+The leading `#` lines name the ALBIS build, the file and frame, and the ROI the
+numbers were measured over. Scalar statistics are not written: every one of them
+can be recomputed from the exported columns.
 
 ---
 

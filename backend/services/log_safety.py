@@ -1,4 +1,8 @@
-"""Make a caller-influenced string safe to write into the log file.
+"""Make a caller-influenced string safe to write as one line.
+
+Named for the log, which is where it is mostly needed, but the guarantee --
+one printable line, whatever the value contains -- is what the leading comment
+block of a CSV export needs too, for the same reason and from the same values.
 
 A log line is a line: the reader -- `journalctl`, an editor, or ALBIS's own
 **View Log** dialog, which tails the file and shows it verbatim -- has nothing

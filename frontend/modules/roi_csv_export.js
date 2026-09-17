@@ -2,27 +2,26 @@
  * Build ROI CSV payloads independently from DOM/browser download side effects.
  */
 
+import { buildCsvTable, csvProvenanceLines, plotSeriesColumns } from "./csv_export_utils.js";
 import { t } from "./i18n.js";
 
-function formatCsvNumber(value) {
-  return Number.isFinite(value) ? String(value) : "";
-}
-
-function addCsvSection(lines, title, data, meta, allowEmpty = false) {
-  if (!allowEmpty && (!data || !data.length)) return;
-  const xLabel = meta?.xLabel || t("csv.axis.index");
-  const yLabel = meta?.yLabel || t("csv.axis.value");
-  const xStart = Number.isFinite(meta?.xStart) ? meta.xStart : 0;
-  const xStep = Number.isFinite(meta?.xStep) && meta.xStep !== 0 ? meta.xStep : 1;
-  lines.push(`# ${title}`);
-  lines.push(`${xLabel},${yLabel}`);
-  if (data && data.length) {
-    data.forEach((value, idx) => {
-      const xValue = xStart + idx * xStep;
-      lines.push(`${formatCsvNumber(xValue)},${formatCsvNumber(value)}`);
-    });
+/** The ROI itself, for the provenance block: what these numbers were measured over. */
+function roiGeometryNote(roiState) {
+  const mode = roiState?.mode || "";
+  const point = (p) =>
+    p && Number.isFinite(p.x) && Number.isFinite(p.y) ? `${Math.round(p.x)} ${Math.round(p.y)}` : "";
+  if (mode === "circle" || mode === "annulus") {
+    const centre = point(roiState.start);
+    const radii =
+      mode === "annulus"
+        ? `r ${roiState.innerRadius ?? 0} to ${roiState.outerRadius ?? 0}`
+        : `r ${roiState.outerRadius ?? 0}`;
+    return `ROI: ${mode} centre ${centre} ${radii}`.trim();
   }
-  lines.push("");
+  const start = point(roiState?.start);
+  const end = point(roiState?.end);
+  if (!start || !end) return `ROI: ${mode}`.trim();
+  return `ROI: ${mode} from ${start} to ${end}`;
 }
 
 /**
@@ -51,36 +50,44 @@ export function buildRoiCsvExportPayload({
     return null;
   }
 
-  const lines = [];
-  if (roiState.lineProfile && roiState.lineProfile.length) {
-    addCsvSection(
-      lines,
-      roiState.mode === "line" ? t("roi.plot.line_profile") : t("roi.plot.radial_profile"),
-      roiState.lineProfile,
-      lineMeta,
-    );
-  }
+  // Every plot the panel is currently showing, in the order it shows them, so
+  // the columns come out in the order the eye already reads.
+  // The axis fallbacks were localized before this export was columnar and stay
+  // so; a plot meta without labels is not a case that happens, but an English
+  // "x" appearing in an otherwise translated header would be a visible seam.
+  const axisFallbacks = { fallbackX: t("csv.axis.index"), fallbackY: t("csv.axis.value") };
+  const columns = [
+    ...plotSeriesColumns({
+      ...axisFallbacks,
+      title: roiState.mode === "line" ? t("roi.plot.line_profile") : t("roi.plot.radial_profile"),
+      data: roiState.lineProfile,
+      meta: lineMeta,
+    }),
+    ...plotSeriesColumns({
+      ...axisFallbacks,
+      title: t("csv.section.x_projection"),
+      data: roiState.xProjection,
+      meta: xMeta,
+    }),
+    ...plotSeriesColumns({
+      ...axisFallbacks,
+      title: t("csv.section.y_projection"),
+      data: roiState.yProjection,
+      meta: yMeta,
+    }),
+    ...plotSeriesColumns({
+      ...axisFallbacks,
+      title: t("analysis.roi.plot.histogram"),
+      data: roiState.histogramDistribution,
+      meta: histMeta,
+    }),
+  ];
 
-  const allowBoxEmpty = roiState.mode === "box";
-  if (roiState.xProjection && roiState.xProjection.length) {
-    addCsvSection(lines, t("csv.section.x_projection"), roiState.xProjection, xMeta, allowBoxEmpty);
-  } else if (allowBoxEmpty) {
-    addCsvSection(lines, t("csv.section.x_projection"), roiState.xProjection || [], xMeta, true);
-  }
-
-  if (roiState.yProjection && roiState.yProjection.length) {
-    addCsvSection(lines, t("csv.section.y_projection"), roiState.yProjection, yMeta, allowBoxEmpty);
-  } else if (allowBoxEmpty) {
-    addCsvSection(lines, t("csv.section.y_projection"), roiState.yProjection || [], yMeta, true);
-  }
-
-  if (roiState.histogramDistribution && roiState.histogramDistribution.length) {
-    addCsvSection(lines, t("analysis.roi.plot.histogram"), roiState.histogramDistribution, histMeta);
-  }
-
-  if (!lines.length) {
+  const table = buildCsvTable(columns);
+  if (!table.length) {
     return null;
   }
+  const lines = [...csvProvenanceLines(state, [roiGeometryNote(roiState)]), ...table];
 
   const base = (state.file || "roi").split("/").pop().replace(/\.[^.]+$/, "");
   const thresholdSuffix = state.thresholdCount > 1 ? `_thr${state.thresholdIndex + 1}` : "";
