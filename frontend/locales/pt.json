@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Quadro final",
   "series.ui.range_start_label": "Quadro inicial",
   "series.ui.section_title": "Operações em série",
+  "settings.application.allow_update_apply": "Instalar atualizações pelo ALBIS (Linux e Windows)",
+  "settings.application.allow_update_download": "Baixar e verificar atualizações no ALBIS",
   "settings.application.auto_check_updates": "Verificar atualizações ao iniciar",
   "settings.browse.data_root": "Escolha a pasta de onde o ALBIS lê os dados",
   "settings.browse.log_dir": "Escolha a pasta onde o ALBIS escreve os registos",

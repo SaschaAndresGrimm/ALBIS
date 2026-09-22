@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Enderamme",
   "series.ui.range_start_label": "Startramme",
   "series.ui.section_title": "Seriedrift",
+  "settings.application.allow_update_apply": "Installér opdateringer fra ALBIS (Linux og Windows)",
+  "settings.application.allow_update_download": "Hent og kontrollér opdateringer i ALBIS",
   "settings.application.auto_check_updates": "Søg efter opdateringer ved start",
   "settings.browse.data_root": "Vælg mappen, som ALBIS læser data fra",
   "settings.browse.log_dir": "Vælg mappen, som ALBIS skriver logfiler til",

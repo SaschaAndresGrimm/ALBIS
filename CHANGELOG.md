@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **The two update settings are in the interface, not only in the config file.** `ui.allow_update_download` and `ui.allow_update_apply` shipped in 0.20.0 as configuration keys alone, which left them discoverable only by someone reading the Power User Guide — while `auto_check_updates`, the key they sit beside, has had a checkbox all along. Both now appear in **Settings → Connection** under it, and like every other field there they are disabled and marked when the environment is deciding the value, so a managed deployment can still pin them with `ALBIS_UI_ALLOW_UPDATE_APPLY=false`. Installing stays off by default, and a configuration written before the keys existed reads as off rather than inheriting its neighbour's default.
+
 ## [0.20.0] - 2026-09-22
 
 ### Added

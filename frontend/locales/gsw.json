@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Ändbild",
   "series.ui.range_start_label": "Startbild",
   "series.ui.section_title": "Serie-Aktione",
+  "settings.application.allow_update_apply": "Updates us ALBIS installiere (Linux und Windows)",
+  "settings.application.allow_update_download": "Updates in ALBIS abelade und prüefe",
   "settings.application.auto_check_updates": "Bim Start nach Updates sueche",
   "settings.browse.data_root": "Wähl de Orner, us dem ALBIS Date liest",
   "settings.browse.log_dir": "Wähl de Orner, wo ALBIS d Protokoll inä schribt",

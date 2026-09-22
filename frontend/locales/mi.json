@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Anga mutu",
   "series.ui.range_start_label": "Anga tīmata",
   "series.ui.section_title": "Ngā Mahi Rangatū",
+  "settings.application.allow_update_apply": "Tāuta whakahou mai i ALBIS (Linux me Windows)",
+  "settings.application.allow_update_download": "Tikiake me te manatoko whakahou i roto i ALBIS",
   "settings.application.auto_check_updates": "Tirohia ngā whakahou i te tīmatanga",
   "settings.browse.data_root": "Kōwhiria te kōpaki e pānui ana a ALBIS i ngā raraunga",
   "settings.browse.log_dir": "Kōwhiria te kōpaki e tuhi ana a ALBIS i ngā rangitaki",

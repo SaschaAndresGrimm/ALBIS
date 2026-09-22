@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Maletg final",
   "series.ui.range_start_label": "Maletg da cumenzament",
   "series.ui.section_title": "Operaziuns da seria",
+  "settings.application.allow_update_apply": "Installar actualisaziuns ord ALBIS (Linux e Windows)",
+  "settings.application.allow_update_download": "Telechargiar e controllar actualisaziuns en ALBIS",
   "settings.application.auto_check_updates": "Controllar actualisaziuns al cumenzament",
   "settings.browse.data_root": "Tscherna l'ordinatur da nua che ALBIS legia las datas",
   "settings.browse.log_dir": "Tscherna l'ordinatur nua che ALBIS scriva ils protocols",

@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Image de fin",
   "series.ui.range_start_label": "Image de début",
   "series.ui.section_title": "Opérations en série",
+  "settings.application.allow_update_apply": "Installer les mises à jour depuis ALBIS (Linux et Windows)",
+  "settings.application.allow_update_download": "Télécharger et vérifier les mises à jour dans ALBIS",
   "settings.application.auto_check_updates": "Rechercher des mises à jour au démarrage",
   "settings.browse.data_root": "Choisissez le dossier depuis lequel ALBIS lit les données",
   "settings.browse.log_dir": "Choisissez le dossier où ALBIS écrit les journaux",

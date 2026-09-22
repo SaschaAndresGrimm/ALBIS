@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Slutbildruta",
   "series.ui.range_start_label": "Startbildruta",
   "series.ui.section_title": "Serieoperationer",
+  "settings.application.allow_update_apply": "Installera uppdateringar från ALBIS (Linux och Windows)",
+  "settings.application.allow_update_download": "Hämta och verifiera uppdateringar i ALBIS",
   "settings.application.auto_check_updates": "Sök efter uppdateringar vid start",
   "settings.browse.data_root": "Välj mappen som ALBIS läser data från",
   "settings.browse.log_dir": "Välj mappen där ALBIS skriver loggar",

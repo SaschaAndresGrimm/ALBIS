@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Frame finale",
   "series.ui.range_start_label": "Frame iniziale",
   "series.ui.section_title": "Operazioni in serie",
+  "settings.application.allow_update_apply": "Installa gli aggiornamenti da ALBIS (Linux e Windows)",
+  "settings.application.allow_update_download": "Scarica e verifica gli aggiornamenti in ALBIS",
   "settings.application.auto_check_updates": "Controlla aggiornamenti all'avvio",
   "settings.browse.data_root": "Scegli la cartella da cui ALBIS legge i dati",
   "settings.browse.log_dir": "Scegli la cartella in cui ALBIS scrive i registri",

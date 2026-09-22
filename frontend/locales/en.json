@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "End frame",
   "series.ui.range_start_label": "Start frame",
   "series.ui.section_title": "Series Operations",
+  "settings.application.allow_update_apply": "Install updates from ALBIS (Linux and Windows)",
+  "settings.application.allow_update_download": "Download and verify updates in ALBIS",
   "settings.application.auto_check_updates": "Check for updates on startup",
   "settings.browse.data_root": "Choose the folder ALBIS reads data from",
   "settings.browse.log_dir": "Choose the folder ALBIS writes logs to",

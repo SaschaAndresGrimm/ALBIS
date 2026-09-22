@@ -574,6 +574,8 @@ const settingsServerReload = document.getElementById("settings-server-reload");
 const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
 const settingsOpenBrowser = document.getElementById("settings-open-browser");
 const settingsAutoCheckUpdates = document.getElementById("settings-auto-check-updates");
+const settingsAllowUpdateDownload = document.getElementById("settings-allow-update-download");
+const settingsAllowUpdateApply = document.getElementById("settings-allow-update-apply");
 const settingsToolHints = document.getElementById("settings-tool-hints");
 const settingsLanguage = document.getElementById("settings-language");
 const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
@@ -3220,6 +3222,8 @@ const settingsController = createSettingsController({
     settingsStartupTimeout,
     settingsOpenBrowser,
     settingsAutoCheckUpdates,
+    settingsAllowUpdateDownload,
+    settingsAllowUpdateApply,
     settingsToolHints,
     settingsLanguage,
     settingsPixelLabelMin,

@@ -86,7 +86,8 @@ GET https://github.com/SaschaAndresGrimm/ALBIS/releases/download/<tag>/SHA256SUM
   thing ALBIS does is open the folder the file landed in, and you apply the
   update. See below for the setting that changes that.
 
-To switch the download off and keep the dialog to a link only, uncheck it in
+To switch the download off and keep the dialog to a link only, uncheck
+**Settings → Connection → Download and verify updates in ALBIS**, or set it in
 `albis.config.json` before first launch:
 
 ```jsonc
@@ -102,10 +103,10 @@ ALBIS writes no installer to disk.
 
 ### Installing the update
 
-Off unless the setting below is switched on. With
-`ui.allow_update_apply: true`, a verified download gains an **Install Update**
-button, which makes no further network request — it acts on the file already on
-disk:
+Off unless switched on, in **Settings → Connection → Install updates from
+ALBIS** or in `albis.config.json`. With `ui.allow_update_apply: true`, a
+verified download gains an **Install Update** button, which makes no further
+network request — it acts on the file already on disk:
 
 - **On Linux** ALBIS replaces the AppImage it is running from, at the path the
   AppImage runtime reports in `APPIMAGE`, by staging a copy beside it and

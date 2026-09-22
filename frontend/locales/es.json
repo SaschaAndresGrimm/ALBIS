@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "Fotograma final",
   "series.ui.range_start_label": "Fotograma inicial",
   "series.ui.section_title": "Operaciones en serie",
+  "settings.application.allow_update_apply": "Instalar actualizaciones desde ALBIS (Linux y Windows)",
+  "settings.application.allow_update_download": "Descargar y verificar actualizaciones en ALBIS",
   "settings.application.auto_check_updates": "Buscar actualizaciones al iniciar",
   "settings.browse.data_root": "Elija la carpeta desde la que ALBIS lee los datos",
   "settings.browse.log_dir": "Elija la carpeta donde ALBIS escribe los registros",

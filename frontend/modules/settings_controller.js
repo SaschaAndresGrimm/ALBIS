@@ -40,6 +40,8 @@ export function createSettingsController({
     settingsStartupHealthTimeout,
     settingsOpenBrowser,
     settingsAutoCheckUpdates,
+    settingsAllowUpdateDownload,
+    settingsAllowUpdateApply,
     settingsToolHints,
     settingsLanguage,
     settingsPixelLabelMin,
@@ -209,6 +211,8 @@ export function createSettingsController({
       "logging.dir": settingsLogDir,
       "ui.tool_hints": settingsToolHints,
       "ui.auto_check_updates": settingsAutoCheckUpdates,
+      "ui.allow_update_download": settingsAllowUpdateDownload,
+      "ui.allow_update_apply": settingsAllowUpdateApply,
       "ui.language": settingsLanguage,
       "ui.pixel_label_min_cell_px": settingsPixelLabelMin,
       "ui.pixel_label_max_labels": settingsPixelLabelMax,
@@ -349,6 +353,14 @@ export function createSettingsController({
     if (settingsAutoCheckUpdates) {
       settingsAutoCheckUpdates.checked = Boolean(config?.ui?.auto_check_updates ?? state.autoCheckUpdates ?? true);
     }
+    if (settingsAllowUpdateDownload) {
+      settingsAllowUpdateDownload.checked = Boolean(config?.ui?.allow_update_download ?? true);
+    }
+    if (settingsAllowUpdateApply) {
+      // Defaults false, unlike its neighbours: a viewer that replaces itself
+      // is not something a shared workstation should do unasked.
+      settingsAllowUpdateApply.checked = Boolean(config?.ui?.allow_update_apply ?? false);
+    }
     if (settingsToolHints) {
       const toolHints = config?.ui?.tool_hints;
       settingsToolHints.checked = Boolean(toolHints ?? state.toolHintsEnabled);
@@ -450,6 +462,8 @@ export function createSettingsController({
         ...(loadedConfig?.ui || {}),
         tool_hints: Boolean(settingsToolHints?.checked),
         auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
+        allow_update_download: Boolean(settingsAllowUpdateDownload?.checked),
+        allow_update_apply: Boolean(settingsAllowUpdateApply?.checked),
         pixel_label_min_cell_px: Math.max(
           8,
           Math.min(64, asInt(settingsPixelLabelMin?.value, state.pixelLabelMinCellPx || pixelLabelDefaultMinCellPx))

@@ -416,12 +416,13 @@ arrived against the checksum the release published for it, and tells you the
 result: a file that does not match is deleted rather than handed over. When it
 does match, the dialog shows the SHA-256, where the file was saved, and a
 **Show in Folder** button. Nothing is downloaded until you click, and the whole
-step can be switched off with `ui.allow_update_download`, which leaves the
-dialog offering the download link only.
+step can be switched off in **Settings → Connection**, which leaves the dialog
+offering the download link only.
 
 By default you apply the update yourself from that folder. If your installation
-has `ui.allow_update_apply` switched on — it is off unless someone turned it on
-— a verified download also gets an **Install Update** button. On Linux that
+has **Settings → Connection → Install updates from ALBIS** switched on — it is
+off unless someone turned it on — a verified download also gets an **Install
+Update** button. On Linux that
 replaces the AppImage you are running; on Windows it runs the installer, which
 closes ALBIS and updates it in place. Either way ALBIS closes when it is done
 and you start it again; it does not restart itself. It will not install an

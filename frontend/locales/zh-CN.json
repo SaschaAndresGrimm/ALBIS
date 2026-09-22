@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "结束帧",
   "series.ui.range_start_label": "起始帧",
   "series.ui.section_title": "序列操作",
+  "settings.application.allow_update_apply": "从 ALBIS 安装更新（Linux 和 Windows）",
+  "settings.application.allow_update_download": "在 ALBIS 中下载并校验更新",
   "settings.application.auto_check_updates": "启动时检查更新",
   "settings.browse.data_root": "选择 ALBIS 读取数据的文件夹",
   "settings.browse.log_dir": "选择 ALBIS 写入日志的文件夹",

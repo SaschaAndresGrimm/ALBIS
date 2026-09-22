@@ -654,6 +654,8 @@
   "series.ui.range_end_label": "終了フレーム",
   "series.ui.range_start_label": "開始フレーム",
   "series.ui.section_title": "シリーズ操作",
+  "settings.application.allow_update_apply": "ALBIS から更新をインストールする (Linux と Windows)",
+  "settings.application.allow_update_download": "ALBIS で更新をダウンロードして検証する",
   "settings.application.auto_check_updates": "起動時にアップデートを確認",
   "settings.browse.data_root": "ALBIS がデータを読み込むフォルダーを選択します",
   "settings.browse.log_dir": "ALBIS がログを書き込むフォルダーを選択します",
