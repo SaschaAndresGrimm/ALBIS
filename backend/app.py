@@ -58,6 +58,13 @@ from .image_formats import (
     _write_cbf,
     _write_tiff,
 )
+from .install_kind import (
+    ALBIS_INSTALL_KIND,
+    ALBIS_TARGET_ARCH,
+    INSTALL_KIND_ENV_VAR,
+    install_kind_override,
+)
+from .lifecycle import shutdown_controller
 from .request_guard import (
     RequestGuardMiddleware,
     is_loopback_host,
@@ -133,7 +140,9 @@ from .services.simplon import (
 from .services.simplon import (
     simplon_set_mode as _simplon_set_mode,
 )
+from .services.update_apply import UpdateApplyService
 from .services.update_check import ReleaseCheckService
+from .services.update_download import UpdateDownloadService
 from .version import ALBIS_VERSION
 
 CONFIG, CONFIG_PATH = load_config()
@@ -153,6 +162,8 @@ class RuntimeState:
     max_scan_seconds: float = 5.0
     max_upload_mb: int = 0
     max_upload_bytes: int = 0
+    allow_update_download: bool = True
+    allow_update_apply: bool = False
     bind_host: str = "127.0.0.1"
     allowed_hosts: list[str] = field(default_factory=list)
 
@@ -172,6 +183,7 @@ class RuntimeState:
         self.max_scan_seconds = max(0.0, get_float(self.config, ("data", "max_scan_seconds"), 5.0))
         self.max_upload_mb = max(0, get_int(self.config, ("data", "max_upload_mb"), 0))
         self.max_upload_bytes = self.max_upload_mb * 1024 * 1024 if self.max_upload_mb > 0 else 0
+        self.allow_update_download = get_bool(self.config, ("ui", "allow_update_download"), True)
 
 
 runtime_state = RuntimeState(
@@ -281,7 +293,23 @@ def _init_logging() -> logging.Logger:
 
 
 logger = _init_logging()
-update_check_service = ReleaseCheckService(current_version=ALBIS_VERSION, logger=logger)
+if install_kind_override():
+    # Logged rather than silent: a forced install kind changes which update a
+    # user is offered, and nothing else in the interface says it is in effect.
+    logger.warning("Install kind forced to %r by %s", ALBIS_INSTALL_KIND, INSTALL_KIND_ENV_VAR)
+update_check_service = ReleaseCheckService(
+    current_version=ALBIS_VERSION,
+    logger=logger,
+    install_kind=ALBIS_INSTALL_KIND,
+    target_arch=ALBIS_TARGET_ARCH,
+)
+update_download_service = UpdateDownloadService(logger=logger)
+update_apply_service = UpdateApplyService(
+    logger=logger,
+    shutdown=shutdown_controller,
+    ready_download=update_download_service.ready_path,
+    download_status=update_download_service.status,
+)
 _startup_banner_logged = False
 handoff_queue = HandoffQueueService(max_jobs=1024)
 scan_cache = ScanCacheService()
@@ -632,6 +660,27 @@ def _check_update():
     return update_check_service.check_for_update()
 
 
+def _get_allow_update_download() -> bool:
+    return runtime_state.allow_update_download
+
+
+def _get_allow_update_apply() -> bool:
+    return runtime_state.allow_update_apply
+
+
+def _get_backend_busy() -> list[str]:
+    """Work of the backend's own that closing ALBIS would abandon.
+
+    The interface reports what it has open; this reports what it cannot see. A
+    series sum writes its output over minutes, so ending the process midway
+    would leave a truncated file.
+    """
+    busy: list[str] = []
+    if series_summing.has_running_job():
+        busy.append("series_sum")
+    return busy
+
+
 def _get_allow_abs_paths() -> bool:
     return runtime_state.allow_abs_paths
 
@@ -658,6 +707,12 @@ register_system_routes(
         apply_runtime_config=_apply_runtime_config,
         get_log_path=_get_log_path,
         check_update=_check_update,
+        allow_update_download=_get_allow_update_download,
+        update_download=update_download_service,
+        allow_update_apply=_get_allow_update_apply,
+        update_apply=update_apply_service,
+        install_kind=ALBIS_INSTALL_KIND,
+        backend_busy=_get_backend_busy,
     ),
 )
 

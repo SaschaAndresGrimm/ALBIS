@@ -60,6 +60,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "ui": {
         "tool_hints": False,
         "auto_check_updates": True,
+        "allow_update_download": True,
+        "allow_update_apply": False,
         "pixel_label_min_cell_px": 18,
         "pixel_label_max_labels": 4000,
         "frame_cache_mb": 256,
@@ -99,6 +101,8 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("logging", "dir"): (str,),
     ("ui", "tool_hints"): (bool, int, float, str),
     ("ui", "auto_check_updates"): (bool, int, float, str),
+    ("ui", "allow_update_download"): (bool, int, float, str),
+    ("ui", "allow_update_apply"): (bool, int, float, str),
     ("ui", "pixel_label_min_cell_px"): (int, float, str),
     ("ui", "pixel_label_max_labels"): (int, float, str),
     ("ui", "frame_cache_mb"): (int, float, str),
@@ -408,6 +412,8 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
         "ui": {
             "tool_hints": get_bool(merged, ("ui", "tool_hints"), False),
             "auto_check_updates": get_bool(merged, ("ui", "auto_check_updates"), True),
+            "allow_update_download": get_bool(merged, ("ui", "allow_update_download"), True),
+            "allow_update_apply": get_bool(merged, ("ui", "allow_update_apply"), False),
             "pixel_label_min_cell_px": pixel_label_min_cell_px,
             "pixel_label_max_labels": pixel_label_max_labels,
             "frame_cache_mb": frame_cache_mb,

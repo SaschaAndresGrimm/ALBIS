@@ -31,6 +31,68 @@ class UpdateCheckResponse(_StrictModel):
     latest_version: str
     release_url: str
     message: str = ""
+    # How ALBIS was installed, so the interface can tell the user what to do
+    # rather than only that something is available. One of the values in
+    # `backend/install_kind.py`; an interface that does not recognise it falls
+    # back to the releases page.
+    install_kind: str = ""
+    # The single release asset for this install, resolved from the release's
+    # asset list. Empty when nothing matched, when the install updates by
+    # command instead (Docker, a checkout), or when there is no update.
+    download_url: str = ""
+    download_name: str = ""
+    # The copyable shell line for installs a download cannot update.
+    update_command: str = ""
+    # Whether this build will fetch the asset itself and verify it, or only
+    # hand over the link. Follows `ui.allow_update_download`, and is false
+    # whenever there is no asset to fetch in the first place.
+    download_supported: bool = False
+    # Whether this build could apply a verified download and close itself.
+    # Says nothing about whether one is ready now -- only that the platform,
+    # the setting and the launcher all allow it, so the interface knows
+    # whether to offer the step at all.
+    apply_supported: bool = False
+
+
+class UpdateDownloadStartRequest(_StrictModel):
+    # The interface echoes back the asset the check offered rather than naming
+    # its own: both are validated again here, because a request body is not
+    # evidence that the backend ever proposed this file.
+    url: str
+    name: str
+
+
+class UpdateApplyStatusResponse(_StrictModel):
+    status: Literal["idle", "applying", "applied", "failed"]
+    message: str = ""
+    # Why applying is not available right now, as a code the interface
+    # translates: "disabled", "unsupported_install", "no_verified_download",
+    # "unverified_download", "busy", "target_unknown", "shutdown_unavailable".
+    # Empty when an apply would be accepted.
+    refusal: str = ""
+
+
+class UpdateApplyStartRequest(_StrictModel):
+    # What the interface has in progress, so the backend can refuse over live
+    # work. Sent rather than inferred because the session lives in the browser:
+    # which file is open and whether a watch is running are not facts the
+    # backend holds.
+    busy: list[str] = Field(default_factory=list)
+
+
+class UpdateDownloadStatusResponse(_StrictModel):
+    status: Literal["idle", "downloading", "verifying", "ready", "failed", "cancelled"]
+    name: str = ""
+    # The file's location on this machine once it is ready, for display. The
+    # interface never sends a path back; opening the file goes through the
+    # backend's own record of what it downloaded.
+    path: str = ""
+    bytes_downloaded: int = 0
+    bytes_total: int = 0
+    sha256: str = ""
+    checksum: Literal["pending", "verified", "mismatch", "unavailable"] = "pending"
+    signature: Literal["pending", "verified", "invalid", "unavailable"] = "pending"
+    message: str = ""
 
 
 class SettingsPayloadResponse(_StrictModel):

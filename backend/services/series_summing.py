@@ -154,6 +154,18 @@ class SeriesSummingService:
                 return None
             return dict(job)
 
+    def has_running_job(self) -> bool:
+        """Whether any job is still working.
+
+        Asked by the update-apply flow, which closes ALBIS: a series sum writes
+        an output file over minutes, and ending the process midway leaves a
+        truncated one behind.
+        """
+        with self._lock:
+            return any(
+                str(job.get("status") or "") in {"queued", "running"} for job in self._jobs.values()
+            )
+
     def cancel_job(self, job_id: str) -> bool:
         with self._lock:
             job = self._jobs.get(job_id)

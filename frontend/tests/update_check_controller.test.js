@@ -47,6 +47,15 @@ function renderModalShell() {
             <strong id="update-check-latest-version"></strong>
           </div>
         </div>
+        <div id="update-check-instruction" hidden></div>
+        <div id="update-check-download-row" hidden>
+          <code id="update-check-download-name"></code>
+        </div>
+        <div id="update-check-command-row" hidden>
+          <code id="update-check-command"></code>
+          <button id="update-check-command-copy" type="button">Copy</button>
+        </div>
+        <button id="update-check-release-notes" type="button" hidden></button>
         <button id="update-check-action" type="button" hidden></button>
         <button id="update-check-close" type="button">close</button>
       </div>
@@ -67,6 +76,15 @@ async function initializeModules({ updateJson }) {
       "update_check.status.unavailable": "Could not check for updates right now.",
       "update_check.action.open_release_page": "Open Release Page",
       "update_check.action.view_releases": "View Releases",
+      "update_check.action.download": "Download Update",
+      "update_check.action.release_notes": "Release Notes",
+      "update_check.action.copy_command": "Copy",
+      "update_check.action.copied": "Copied",
+      "update_check.action.copy_unavailable": "Copy Unavailable",
+      "update_check.download_label": "File for your installation",
+      "update_check.instruction.macos_app": "Drag ALBIS to Applications.",
+      "update_check.instruction.docker": "Pull the new image, then recreate your container.",
+      "update_check.instruction.appimage": "Replace your installed AppImage.",
     },
   };
 
@@ -99,6 +117,13 @@ async function initializeModules({ updateJson }) {
       updateCheckCurrentVersionValue: document.getElementById("update-check-current-version"),
       updateCheckLatestRow: document.getElementById("update-check-latest-row"),
       updateCheckLatestVersionValue: document.getElementById("update-check-latest-version"),
+      updateCheckInstruction: document.getElementById("update-check-instruction"),
+      updateCheckDownloadRow: document.getElementById("update-check-download-row"),
+      updateCheckDownloadName: document.getElementById("update-check-download-name"),
+      updateCheckCommandRow: document.getElementById("update-check-command-row"),
+      updateCheckCommand: document.getElementById("update-check-command"),
+      updateCheckCommandCopy: document.getElementById("update-check-command-copy"),
+      updateCheckReleaseNotes: document.getElementById("update-check-release-notes"),
       updateCheckAction: document.getElementById("update-check-action"),
       updateCheckClose: document.getElementById("update-check-close"),
     },
@@ -284,5 +309,190 @@ describe("update check controller", () => {
       "_blank",
       "noopener",
     );
+  });
+  const DOWNLOAD_URL =
+    "https://github.com/SaschaAndresGrimm/ALBIS/releases/download/v0.9.3/ALBIS-macos-arm64-v0.9.3-abc1234.dmg";
+
+  function macosUpdatePayload(overrides = {}) {
+    return {
+      status: "update_available",
+      current_version: "0.9.2",
+      latest_version: "0.9.3",
+      release_url: "https://example.invalid/releases/v0.9.3",
+      message: "",
+      install_kind: "macos_app",
+      download_url: DOWNLOAD_URL,
+      download_name: "ALBIS-macos-arm64-v0.9.3-abc1234.dmg",
+      update_command: "",
+      ...overrides,
+    };
+  }
+
+  it("offers the asset built for this install and names the file", async () => {
+    const { controller } = await initializeModules({ updateJson: macosUpdatePayload() });
+
+    await controller.openAndCheck();
+
+    expect(document.getElementById("update-check-instruction")?.hidden).toBe(false);
+    expect(document.getElementById("update-check-instruction")?.textContent).toBe(
+      "Drag ALBIS to Applications.",
+    );
+    expect(document.getElementById("update-check-download-row")?.hidden).toBe(false);
+    expect(document.getElementById("update-check-download-name")?.textContent).toBe(
+      "ALBIS-macos-arm64-v0.9.3-abc1234.dmg",
+    );
+    expect(document.getElementById("update-check-action")?.textContent).toBe("Download Update");
+    // The release page stays one click away when the primary button is a download.
+    expect(document.getElementById("update-check-release-notes")?.hidden).toBe(false);
+    expect(document.getElementById("update-check-command-row")?.hidden).toBe(true);
+
+    document.getElementById("update-check-action")?.click();
+    expect(window.open).toHaveBeenCalledWith(DOWNLOAD_URL, "_blank", "noopener");
+
+    document.getElementById("update-check-release-notes")?.click();
+    expect(window.open).toHaveBeenLastCalledWith(
+      "https://example.invalid/releases/v0.9.3",
+      "_blank",
+      "noopener",
+    );
+  });
+
+  it("refuses a download URL that does not point at GitHub", async () => {
+    // The URL arrives in a JSON body and ends up in window.open, so anything
+    // but a GitHub release download must fall back to the release page.
+    const { controller } = await initializeModules({
+      updateJson: macosUpdatePayload({ download_url: "https://example.invalid/evil.dmg" }),
+    });
+
+    await controller.openAndCheck();
+
+    expect(document.getElementById("update-check-download-row")?.hidden).toBe(true);
+    expect(document.getElementById("update-check-action")?.textContent).toBe("Open Release Page");
+
+    document.getElementById("update-check-action")?.click();
+    expect(window.open).toHaveBeenCalledWith(
+      "https://example.invalid/releases/v0.9.3",
+      "_blank",
+      "noopener",
+    );
+    expect(window.open).not.toHaveBeenCalledWith(
+      "https://example.invalid/evil.dmg",
+      "_blank",
+      "noopener",
+    );
+  });
+
+  it("shows a copyable command instead of a download inside Docker", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { controller } = await initializeModules({
+      updateJson: macosUpdatePayload({
+        install_kind: "docker",
+        download_url: "",
+        download_name: "",
+        update_command: "docker pull ghcr.io/saschaandresgrimm/albis:v0.9.3",
+      }),
+    });
+
+    await controller.openAndCheck();
+
+    expect(document.getElementById("update-check-download-row")?.hidden).toBe(true);
+    expect(document.getElementById("update-check-command-row")?.hidden).toBe(false);
+    expect(document.getElementById("update-check-command")?.textContent).toBe(
+      "docker pull ghcr.io/saschaandresgrimm/albis:v0.9.3",
+    );
+    expect(document.getElementById("update-check-instruction")?.textContent).toBe(
+      "Pull the new image, then recreate your container.",
+    );
+    // A container cannot apply a desktop installer, so no download is offered.
+    expect(document.getElementById("update-check-action")?.textContent).toBe("Open Release Page");
+    expect(document.getElementById("update-check-release-notes")?.hidden).toBe(true);
+
+    document.getElementById("update-check-command-copy")?.click();
+    await vi.waitFor(() => {
+      expect(document.getElementById("update-check-command-copy")?.textContent).toBe("Copied");
+    });
+    expect(writeText).toHaveBeenCalledWith("docker pull ghcr.io/saschaandresgrimm/albis:v0.9.3");
+  });
+
+  it("reports a refused copy on the button rather than doing nothing", async () => {
+    Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+    document.execCommand = vi.fn(() => false);
+
+    const { controller } = await initializeModules({
+      updateJson: macosUpdatePayload({
+        install_kind: "docker",
+        download_url: "",
+        download_name: "",
+        update_command: "docker pull ghcr.io/saschaandresgrimm/albis:v0.9.3",
+      }),
+    });
+
+    await controller.openAndCheck();
+    document.getElementById("update-check-command-copy")?.click();
+
+    await vi.waitFor(() => {
+      expect(document.getElementById("update-check-command-copy")?.textContent).toBe(
+        "Copy Unavailable",
+      );
+    });
+  });
+
+  it("withholds the instruction, download and command when already up to date", async () => {
+    const { controller } = await initializeModules({
+      updateJson: macosUpdatePayload({
+        status: "up_to_date",
+        latest_version: "0.9.2",
+        download_url: "",
+        download_name: "",
+      }),
+    });
+
+    await controller.openAndCheck();
+
+    expect(document.getElementById("update-check-instruction")?.hidden).toBe(true);
+    expect(document.getElementById("update-check-download-row")?.hidden).toBe(true);
+    expect(document.getElementById("update-check-command-row")?.hidden).toBe(true);
+    expect(document.getElementById("update-check-action")?.textContent).toBe("View Releases");
+  });
+
+  it("still offers the download when the install kind has no instruction text", async () => {
+    // A backend newer than this interface can report a kind it does not know.
+    const { controller } = await initializeModules({
+      updateJson: macosUpdatePayload({ install_kind: "something_new" }),
+    });
+
+    await controller.openAndCheck();
+
+    expect(document.getElementById("update-check-instruction")?.hidden).toBe(true);
+    expect(document.getElementById("update-check-download-row")?.hidden).toBe(false);
+    expect(document.getElementById("update-check-action")?.textContent).toBe("Download Update");
+  });
+
+  it("clears a stale download offer when a later check finds none", async () => {
+    const { controller } = await initializeModules({ updateJson: macosUpdatePayload() });
+
+    await controller.openAndCheck();
+    expect(document.getElementById("update-check-download-row")?.hidden).toBe(false);
+
+    global.fetch = buildFetchMock({
+      dictionaries: {},
+      updateJson: macosUpdatePayload({
+        status: "unavailable",
+        latest_version: "",
+        download_url: "",
+        download_name: "",
+        message: "GitHub release metadata was unavailable.",
+      }),
+    });
+    await controller.openAndCheck();
+
+    expect(document.getElementById("update-check-download-row")?.hidden).toBe(true);
+    expect(document.getElementById("update-check-download-name")?.textContent).toBe("");
+    expect(document.getElementById("update-check-action")?.textContent).toBe("View Releases");
   });
 });

@@ -36,10 +36,15 @@ WORKDIR /app
 # reports no commit and shows its version alone.
 ARG ALBIS_BUILD_COMMIT=""
 
+# ALBIS_IN_DOCKER tells the update notification that this install is a
+# container, so it offers a `docker pull` rather than a desktop installer a
+# container could not apply. Set here rather than probed at runtime because
+# /.dockerenv does not exist under Podman and other runtimes.
 ENV HOME=/home/albis \
     HDF5_PLUGIN_PATH=/usr/local/lib/python3.13/site-packages/hdf5plugin/plugins \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    ALBIS_IN_DOCKER=1 \
     ALBIS_BUILD_COMMIT=${ALBIS_BUILD_COMMIT}
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \

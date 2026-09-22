@@ -1511,9 +1511,33 @@
               <strong id="update-check-latest-version"></strong>
             </div>
           </div>
+          <div class="update-check-instruction" id="update-check-instruction" hidden></div>
+          <div class="update-check-download" id="update-check-download-row" hidden>
+            <span data-i18n="update_check.download_label">File for your installation</span>
+            <code id="update-check-download-name"></code>
+          </div>
+          <div class="update-check-command-row" id="update-check-command-row" hidden>
+            <code id="update-check-command"></code>
+            <button
+              class="btn btn-secondary update-check-command-copy"
+              id="update-check-command-copy"
+              data-i18n="update_check.action.copy_command"
+            >
+              Copy
+            </button>
+          </div>
+          <div class="update-check-progress" id="update-check-progress" hidden>
+            <div class="update-check-progress-fill" id="update-check-progress-fill"></div>
+            <div class="update-check-progress-text" id="update-check-progress-text"></div>
+          </div>
+          <div class="update-check-verify" id="update-check-verify" hidden></div>
+          <div class="update-check-apply-note" id="update-check-apply-note" hidden></div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" id="update-check-close" data-i18n="common.close">Close</button>
+          <button class="btn btn-secondary" id="update-check-cancel" hidden></button>
+          <button class="btn btn-secondary" id="update-check-reveal" hidden></button>
+          <button class="btn btn-secondary" id="update-check-release-notes" hidden></button>
           <button class="btn btn-primary" id="update-check-action" hidden></button>
         </div>
       </div>

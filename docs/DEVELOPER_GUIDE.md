@@ -379,6 +379,69 @@ Public release inputs are pinned:
 The unpacked app payload is created under `dist/ALBIS/` (and on macOS additionally `dist/ALBIS.app`).
 Use `albis.config.json` to change data path, host/port, logging, and launcher behavior.
 
+## Testing the Update Flow by Hand
+
+The update dialog is unreachable until a release newer than the running build
+exists, which makes it the one feature that cannot be exercised before it
+ships. Two environment variables exist so it can be, against the real latest
+release on GitHub:
+
+| Variable | Effect |
+| --- | --- |
+| `ALBIS_UPDATE_CHECK_VERSION` | The version the check compares against GitHub. Nothing else — the About dialog, the footer, export provenance and bug reports keep reporting the build that is really running. |
+| `ALBIS_INSTALL_KIND` | Forces the detected install kind: `appimage`, `windows_installer`, `windows_portable`, `macos_app`, `docker` or `source`. |
+
+Both log a warning when in effect, so neither can be quietly on. An
+unparseable version or an unrecognised install kind is ignored rather than
+obeyed.
+
+### What each step needs
+
+**The notification and the right asset** (works anywhere, including a
+checkout). Set the compared version below the latest release and the install
+kind to the platform you want to see:
+
+```bash
+ALBIS_UPDATE_CHECK_VERSION=0.18.0 ALBIS_INSTALL_KIND=macos_app \
+  .venv/bin/python -m uvicorn backend.app:app --port 8000
+```
+
+Open **Help → Check for Updates**. The dialog should name one real asset for
+that platform and architecture. Try `docker` and `source` too: those show a
+copyable command instead of a file. Note that the architecture is *not*
+overridden, so `appimage` on an arm64 machine correctly matches nothing — the
+AppImage is published for `x86_64` only.
+
+**The download and its verification** (works anywhere). With
+`ui.allow_update_download` left at its default, click **Download Update**. It
+should report the SHA-256, `Checksum verified`, and where it saved the file.
+`signature` stays `unavailable` until `SIGNING_KEY.asc` is committed — see
+[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). To watch a failure, plant a
+throwaway public key as `SIGNING_KEY.asc`: the signature will not verify
+against the real release signature, and the download should be **refused and
+deleted** rather than offered.
+
+**Applying it** needs more than an override, by design:
+
+- `ui.allow_update_apply: true` in the config.
+- A packaged install kind that supports it: `appimage` or `windows_installer`.
+- A launcher that can stop the process, so run `albis_launcher.py`, not
+  `uvicorn` — a source run reports `shutdown_unavailable` and the step is not
+  offered.
+- For `appimage`, `APPIMAGE` pointing at a real file ALBIS may overwrite. Point
+  it at a throwaway copy rather than your installed AppImage the first time:
+
+```bash
+cp ~/.local/share/albis/ALBIS.AppImage /tmp/throwaway.AppImage
+ALBIS_UPDATE_CHECK_VERSION=0.18.0 ALBIS_INSTALL_KIND=appimage \
+  APPIMAGE=/tmp/throwaway.AppImage .venv/bin/python albis_launcher.py
+```
+
+**Install Update** should replace `/tmp/throwaway.AppImage` with the downloaded
+one, keep its mode, and close ALBIS about a second later. Check the refusals
+too: start a live watch or a series sum and the button should be withheld with
+a reason.
+
 ## Versioning and Releases
 
 - Repository release version source of truth: `VERSION`

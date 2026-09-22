@@ -485,6 +485,20 @@ const updateCheckDetail = document.getElementById("update-check-detail");
 const updateCheckCurrentVersionValue = document.getElementById("update-check-current-version");
 const updateCheckLatestRow = document.getElementById("update-check-latest-row");
 const updateCheckLatestVersionValue = document.getElementById("update-check-latest-version");
+const updateCheckInstruction = document.getElementById("update-check-instruction");
+const updateCheckDownloadRow = document.getElementById("update-check-download-row");
+const updateCheckDownloadName = document.getElementById("update-check-download-name");
+const updateCheckCommandRow = document.getElementById("update-check-command-row");
+const updateCheckCommand = document.getElementById("update-check-command");
+const updateCheckCommandCopy = document.getElementById("update-check-command-copy");
+const updateCheckProgress = document.getElementById("update-check-progress");
+const updateCheckProgressFill = document.getElementById("update-check-progress-fill");
+const updateCheckProgressText = document.getElementById("update-check-progress-text");
+const updateCheckVerify = document.getElementById("update-check-verify");
+const updateCheckApplyNote = document.getElementById("update-check-apply-note");
+const updateCheckCancel = document.getElementById("update-check-cancel");
+const updateCheckReveal = document.getElementById("update-check-reveal");
+const updateCheckReleaseNotes = document.getElementById("update-check-release-notes");
 const updateCheckAction = document.getElementById("update-check-action");
 const updateCheckClose = document.getElementById("update-check-close");
 const logViewerModal = document.getElementById("log-viewer-modal");
@@ -3250,6 +3264,26 @@ const {
   focusableSelector: MODAL_FOCUSABLE_SELECTOR,
 });
 
+/**
+ * Work in progress that applying an update would abandon.
+ *
+ * Applying closes ALBIS, so anything mid-flight is a reason not to: a live
+ * watch is following a running acquisition, and the three exports are writing
+ * files. An open file on its own is not listed -- it is reopened in a second,
+ * and the dialog already says ALBIS will close.
+ *
+ * Returned as codes rather than sentences because the backend is sent this
+ * list and takes the same view of it.
+ */
+function collectUpdateApplyBlockers() {
+  const blockers = [];
+  if (state.autoload?.watchEnabled) blockers.push("live_watch");
+  if (state.seriesSum?.running) blockers.push("series_sum");
+  if (state.dataExport?.running) blockers.push("data_export");
+  if (state.animationExport?.running) blockers.push("animation_export");
+  return blockers;
+}
+
 updateCheckController = createUpdateCheckController({
   apiBase: API,
   state,
@@ -3261,12 +3295,27 @@ updateCheckController = createUpdateCheckController({
     updateCheckCurrentVersionValue,
     updateCheckLatestRow,
     updateCheckLatestVersionValue,
+    updateCheckInstruction,
+    updateCheckDownloadRow,
+    updateCheckDownloadName,
+    updateCheckCommandRow,
+    updateCheckCommand,
+    updateCheckCommandCopy,
+    updateCheckProgress,
+    updateCheckProgressFill,
+    updateCheckProgressText,
+    updateCheckVerify,
+    updateCheckApplyNote,
+    updateCheckCancel,
+    updateCheckReveal,
+    updateCheckReleaseNotes,
     updateCheckAction,
     updateCheckClose,
   },
   callbacks: {
     openModal: (...args) => openModal(...args),
     closeModal: (...args) => closeModal(...args),
+    getApplyBlockers: () => collectUpdateApplyBlockers(),
   },
 });
 

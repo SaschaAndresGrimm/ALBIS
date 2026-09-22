@@ -152,6 +152,16 @@
           "default": true,
           "description": "Check for ALBIS updates on frontend startup and notify when a newer version is available."
         },
+        "allow_update_download": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow the update dialog to download the matching release asset and verify it against the release's SHA256SUMS.txt. Set false to keep the dialog to a link only, so ALBIS never writes a downloaded installer to disk."
+        },
+        "allow_update_apply": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow the update dialog to apply a verified download and close ALBIS. Off by default. Only ever acts on a Linux AppImage (replaced in place) or the Windows installer (run silently), only on a download whose checksum verified, and never while a live watch, series sum or export is running."
+        },
         "pixel_label_min_cell_px": {
           "type": "integer",
           "minimum": 8,
@@ -238,6 +248,8 @@
     "ui": {
       "tool_hints": false,
       "auto_check_updates": true,
+      "allow_update_download": true,
+      "allow_update_apply": false,
       "pixel_label_min_cell_px": 18,
       "pixel_label_max_labels": 4000,
       "frame_cache_mb": 256,

@@ -44,6 +44,12 @@ datas = [("frontend", "frontend"), ("VERSION", ".")]
 # and shows its version alone, which is better than failing to package.
 if os.path.exists(os.path.abspath("BUILD_COMMIT")):
     datas.append((os.path.abspath("BUILD_COMMIT"), "."))
+# The public key that signs SHA256SUMS.txt, used to check the signature over a
+# downloaded release's checksum list. Bundled only when present: a build
+# without it verifies checksums and reports the signature as unavailable,
+# rather than failing to package.
+if os.path.exists(os.path.abspath("SIGNING_KEY.asc")):
+    datas.append((os.path.abspath("SIGNING_KEY.asc"), "."))
 # License and third-party attribution files (required for redistribution).
 for license_file in (
     "LICENSE",

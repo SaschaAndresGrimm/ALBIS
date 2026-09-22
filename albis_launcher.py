@@ -847,6 +847,7 @@ def main() -> None:
     # Use a direct object reference so frozen builds do not rely on dynamic module import strings.
     _launcher_log(start_ts, "importing backend app")
     from backend.app import app as asgi_app
+    from backend.lifecycle import shutdown_controller
 
     _launcher_log(start_ts, "backend app imported")
 
@@ -859,14 +860,23 @@ def main() -> None:
     uvicorn_config = uvicorn.Config(asgi_app, host=host, port=port, log_level=uvicorn_level)
     server = uvicorn.Server(uvicorn_config)
 
-    def _request_windows_shutdown() -> None:
-        _update_server_status(host, port, "stopping", source="windows-installer")
+    def _request_shutdown(source: str) -> None:
+        _update_server_status(host, port, "stopping", source=source)
         server.should_exit = True
+
+    def _request_windows_shutdown() -> None:
+        _request_shutdown("windows-installer")
 
     _install_windows_shutdown_listener(
         start_ts,
         _request_windows_shutdown,
     )
+
+    # Lets the backend end this process cleanly, which is what applying an
+    # update needs: on Linux the replaced AppImage only takes effect on the
+    # next start, and nothing else can stop the server the launcher owns. A
+    # source run registers nothing, so the apply step is not offered there.
+    shutdown_controller.register(lambda: _request_shutdown("update-apply"))
     _sockets = [bound_sock] if bound_sock is not None else []
     thread = threading.Thread(target=server.run, kwargs={"sockets": _sockets}, daemon=True)
     thread.start()

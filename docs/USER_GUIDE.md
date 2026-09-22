@@ -405,6 +405,30 @@ version you are running and nothing else — no file names, no identifier of you
 or your machine. If the machine is offline or firewalled the check fails quietly
 and everything else keeps working.
 
+When a newer release exists, the dialog names the one file that matches how your
+copy of ALBIS was installed, so you do not have to pick it out of the release
+page yourself — the AppImage, the Windows installer or portable archive, or the
+macOS disk image for your processor. Running in Docker or from a source
+checkout, it shows the command to run instead, with a button to copy it.
+
+**Download Update** fetches that file and checks it. ALBIS compares what
+arrived against the checksum the release published for it, and tells you the
+result: a file that does not match is deleted rather than handed over. When it
+does match, the dialog shows the SHA-256, where the file was saved, and a
+**Show in Folder** button. Nothing is downloaded until you click, and the whole
+step can be switched off with `ui.allow_update_download`, which leaves the
+dialog offering the download link only.
+
+By default you apply the update yourself from that folder. If your installation
+has `ui.allow_update_apply` switched on — it is off unless someone turned it on
+— a verified download also gets an **Install Update** button. On Linux that
+replaces the AppImage you are running; on Windows it runs the installer, which
+closes ALBIS and updates it in place. Either way ALBIS closes when it is done
+and you start it again; it does not restart itself. It will not install an
+update it could not verify, and it will not install one while a live watch,
+series sum or export is running — the dialog says so and offers the folder
+instead.
+
 To stop it, uncheck **Settings → Connection → Check for updates on startup**.
 ALBIS then makes no outbound request of its own accord at all.
 

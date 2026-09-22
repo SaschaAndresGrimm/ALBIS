@@ -721,17 +721,36 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           notes_file="release-notes/${tag}.md"
 
+          # GitHub does not infer prerelease status from a semver tag. Without
+          # this, `v1.0.0-rc1` would be published as the repository's *latest*
+          # release, the update check -- which asks for /releases/latest --
+          # would return it, and every stable install would be told to
+          # "update" to a release candidate. Stable tags say --latest
+          # explicitly so a stable release published after an rc takes the
+          # pointer back.
+          if printf '%s' "$tag" | grep -Eq -- '-(rc|alpha|beta|pre)'; then
+            release_stage=(--prerelease)
+            echo "Publishing ${tag} as a pre-release."
+          else
+            release_stage=(--latest)
+            echo "Publishing ${tag} as the latest stable release."
+          fi
+
           publish_release() {
             if gh release view "$tag" >/dev/null 2>&1; then
               if [ -f "$notes_file" ]; then
-                gh release edit "$tag" --notes-file "$notes_file"
+                gh release edit "$tag" "${release_stage[@]}" --notes-file "$notes_file"
+              else
+                gh release edit "$tag" "${release_stage[@]}"
               fi
               gh release upload "$tag" "${assets[@]}" --clobber
             else
               if [ -f "$notes_file" ]; then
-                gh release create "$tag" "${assets[@]}" --notes-file "$notes_file" --verify-tag
+                gh release create "$tag" "${assets[@]}" "${release_stage[@]}" \
+                  --notes-file "$notes_file" --verify-tag
               else
-                gh release create "$tag" "${assets[@]}" --generate-notes --verify-tag
+                gh release create "$tag" "${assets[@]}" "${release_stage[@]}" \
+                  --generate-notes --verify-tag
               fi
             fi
           }

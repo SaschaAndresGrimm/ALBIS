@@ -73,6 +73,32 @@ Use the `Build Artifacts` workflow for branch testing without creating a tag/rel
    - macOS arm64/x64 each include `.zip`, `.dmg`, and `SHA256SUMS.txt`.
    - Local install/run behavior is still correct.
 
+## 3b. Release Signing Key for In-App Download Verification (one-off)
+
+The update dialog downloads a release asset and verifies it against the
+release's `SHA256SUMS.txt`. Where `gpg` is available it also verifies the GPG
+signature over that checksum list — but only if the build ships the public key
+to check it against, as `SIGNING_KEY.asc` in the repository root. Until that
+file exists the dialog verifies checksums and reports the signature as
+`unavailable`, which is correct but weaker than it needs to be on Linux, where
+nothing else vouches for an AppImage.
+
+Export the public half of the key behind `LINUX_GPG_PRIVATE_KEY_B64` and commit
+it:
+
+```bash
+gpg --armor --export "$LINUX_GPG_KEY_ID" > SIGNING_KEY.asc
+git add SIGNING_KEY.asc
+```
+
+A public key is meant to be public; committing it rather than injecting it in
+CI is deliberate, because it puts the key ALBIS trusts in reviewable git
+history instead of behind a secret. `ALBIS.spec` bundles the file when it is
+present, so no packaging change is needed. Rotating the signing key means
+re-exporting this file in the same commit that changes the secret — otherwise
+released builds will report `invalid` rather than `unavailable`, which reads to
+users as tampering.
+
 ## 4. Create and Publish Release Tag
 
 ```bash
@@ -86,6 +112,12 @@ Expected result:
 
 - `Release` workflow runs from the tag.
 - Tag/version check passes (`v1.0.0` equals `VERSION` content `1.0.0`).
+- **The tag decides whether GitHub calls the release "latest".** A tag carrying `-rc`, `-alpha`,
+  `-beta` or `-pre` publishes as a pre-release; anything else publishes as the latest stable
+  release. This matters beyond the release page: the in-app update check asks GitHub for
+  `/releases/latest`, so a release candidate published as a stable release would prompt every
+  installed copy of ALBIS to "update" to it. The publish step prints which of the two it chose —
+  check that line on an rc.
 - Linux signing secrets are present before tagging.
 - **macOS signing credentials are required on every tag.** README.md tells macOS users their
   build is signed and notarized without qualification, so the release workflow refuses to publish

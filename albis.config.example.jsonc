@@ -74,6 +74,18 @@
     // it sends nothing but the running version in the User-Agent. Set false for
     // offline or managed installs. See docs/NETWORK_AND_PRIVACY.md.
     "auto_check_updates": true,
+    // Let the update dialog fetch the release asset that matches this install and
+    // check it against the release's SHA256SUMS.txt before handing it over. Nothing
+    // is fetched without a click, and nothing is ever installed automatically. Set
+    // false to keep the dialog to a link only, so ALBIS writes no installer to disk.
+    "allow_update_download": true,
+    // Let the dialog apply a verified download and close ALBIS: on Linux by
+    // replacing the installed AppImage, on Windows by running the installer
+    // silently. Off by default, because a viewer that replaces itself is not
+    // something a beamline workstation should do without being asked. Never
+    // acts on an unverified download, and never while a live watch, series sum
+    // or export is running. macOS, Docker and source checkouts ignore it.
+    "allow_update_apply": false,
     "pixel_label_min_cell_px": 18,
     "pixel_label_max_labels": 4000,
     // Memory budget in MB for keeping recently viewed frames, so stepping back to

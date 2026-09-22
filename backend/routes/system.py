@@ -17,11 +17,20 @@ from ..api_models import (
     SettingsPayloadResponse,
     SettingsSaveRequest,
     StatusResponse,
+    UpdateApplyStartRequest,
+    UpdateApplyStatusResponse,
     UpdateCheckResponse,
+    UpdateDownloadStartRequest,
+    UpdateDownloadStatusResponse,
 )
 from ..response_compression import available_encodings
 from ..services.log_tail import read_log_tail
 from ..services.os_actions import open_in_system
+from ..services.update_apply import ApplyRefusedError, UpdateApplyService
+from ..services.update_download import (
+    DownloadRefusedError,
+    UpdateDownloadService,
+)
 
 
 @dataclass(frozen=True)
@@ -37,6 +46,18 @@ class SystemRouteDeps:
     apply_runtime_config: Callable[[dict[str, Any]], None]
     get_log_path: Callable[[], Path | None]
     check_update: Callable[[], UpdateCheckResponse]
+    # Read per request rather than captured: the setting can be changed in the
+    # interface while ALBIS runs, and the release check's answer is cached for
+    # five minutes, so baking the policy into that answer would keep offering
+    # a download after it had been switched off.
+    allow_update_download: Callable[[], bool]
+    update_download: UpdateDownloadService
+    allow_update_apply: Callable[[], bool]
+    update_apply: UpdateApplyService
+    install_kind: str
+    # What the backend itself has running, which the interface cannot see. Its
+    # own jobs count as live work exactly as a live watch does.
+    backend_busy: Callable[[], list[str]]
 
 
 def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
@@ -62,7 +83,110 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
 
     @app.get("/api/update-check", response_model=UpdateCheckResponse)
     def update_check() -> UpdateCheckResponse:
-        return deps.check_update()
+        response = deps.check_update()
+        # There is nothing to download when no asset matched this install --
+        # Docker and source checkouts update by command -- so the capability is
+        # reported as the conjunction rather than as the setting alone.
+        supported = bool(response.download_url) and deps.allow_update_download()
+        # "Could this build ever apply an update", not "is one ready": the
+        # interface needs to know whether to show the step at all, and the
+        # readiness of a particular download is the apply status endpoint's
+        # answer.
+        apply_supported = deps.update_apply.refusal_code(
+            install_kind=deps.install_kind,
+            allowed=deps.allow_update_apply(),
+        ) not in (
+            "disabled",
+            "unsupported_install",
+            "shutdown_unavailable",
+            "target_unknown",
+        )
+        return response.model_copy(
+            update={"download_supported": supported, "apply_supported": apply_supported}
+        )
+
+    def _download_status() -> UpdateDownloadStatusResponse:
+        return UpdateDownloadStatusResponse(**deps.update_download.status())
+
+    @app.post("/api/update-download/start", response_model=UpdateDownloadStatusResponse)
+    def update_download_start(
+        payload: UpdateDownloadStartRequest,
+    ) -> UpdateDownloadStatusResponse:
+        if not deps.allow_update_download():
+            raise HTTPException(status_code=403, detail="In-app update downloads are disabled")
+        try:
+            deps.update_download.start(url=payload.url, name=payload.name)
+        except DownloadRefusedError as exc:
+            # 409 for "one at a time", 400 for a request that would never be
+            # acted on whenever it arrived.
+            status_code = 409 if "in progress" in str(exc) else 400
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+        return _download_status()
+
+    @app.get("/api/update-download/status", response_model=UpdateDownloadStatusResponse)
+    def update_download_status() -> UpdateDownloadStatusResponse:
+        return _download_status()
+
+    @app.post("/api/update-download/cancel", response_model=UpdateDownloadStatusResponse)
+    def update_download_cancel() -> UpdateDownloadStatusResponse:
+        deps.update_download.cancel()
+        return _download_status()
+
+    @app.post("/api/update-download/reset", response_model=UpdateDownloadStatusResponse)
+    def update_download_reset() -> UpdateDownloadStatusResponse:
+        deps.update_download.reset()
+        return _download_status()
+
+    def _apply_status(busy: list[str] | None = None) -> UpdateApplyStatusResponse:
+        payload = deps.update_apply.status()
+        refusal = deps.update_apply.refusal_code(
+            install_kind=deps.install_kind,
+            allowed=deps.allow_update_apply(),
+            busy=list(busy or []) + deps.backend_busy(),
+        )
+        return UpdateApplyStatusResponse(**payload, refusal=refusal or "")
+
+    @app.get("/api/update-apply/status", response_model=UpdateApplyStatusResponse)
+    def update_apply_status() -> UpdateApplyStatusResponse:
+        return _apply_status()
+
+    @app.post("/api/update-apply/start", response_model=UpdateApplyStatusResponse)
+    def update_apply_start(payload: UpdateApplyStartRequest) -> UpdateApplyStatusResponse:
+        """Apply a verified download, then close ALBIS.
+
+        The response is sent before the process stops: the shutdown is deferred
+        by a moment precisely so the interface can be told what is about to
+        happen.
+        """
+        busy = [str(entry) for entry in payload.busy if str(entry).strip()]
+        busy.extend(deps.backend_busy())
+        try:
+            deps.update_apply.apply(
+                install_kind=deps.install_kind,
+                allowed=deps.allow_update_apply(),
+                busy=busy,
+            )
+        except ApplyRefusedError as exc:
+            raise HTTPException(status_code=409, detail=exc.code) from exc
+        return _apply_status(busy)
+
+    @app.post("/api/update-download/reveal", response_model=PathStatusResponse)
+    def update_download_reveal() -> PathStatusResponse:
+        """Show the downloaded file in the platform file manager.
+
+        The containing folder, never the file itself: opening a `.exe` is
+        running it, and ALBIS does not launch installers. The user applies the
+        update. The path comes from the service's own record of what it wrote,
+        so no client-supplied path is ever opened.
+        """
+        ready = deps.update_download.ready_path()
+        if ready is None:
+            raise HTTPException(status_code=404, detail="No verified download available")
+        try:
+            opened = open_in_system(ready.parent)
+        except Exception:
+            opened = False
+        return PathStatusResponse(status="ok", path=str(ready), opened=opened)
 
     @app.get("/api/settings", response_model=SettingsPayloadResponse)
     def get_settings() -> SettingsPayloadResponse:

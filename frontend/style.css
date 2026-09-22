@@ -4842,6 +4842,18 @@ body.platform-windows select option:disabled {
   gap: 8px;
 }
 
+/* The `hidden` attribute is a user-agent `display: none`, which an
+   author-level `display: grid` or `flex` on the same element silently
+   outranks. Every row in this dialog that the controller hides carries one, so
+   each has to opt back out by hand -- without this the loading state shows an
+   empty "latest version" box, and a Docker install is shown an empty download
+   row next to its `docker pull` line. */
+.update-check-version-row[hidden],
+.update-check-download[hidden],
+.update-check-command-row[hidden] {
+  display: none;
+}
+
 .update-check-version-row {
   display: grid;
   gap: 3px;
@@ -4861,6 +4873,138 @@ body.platform-windows select option:disabled {
 .update-check-version-row > strong {
   font-size: 13px;
   color: #edf4ff;
+}
+
+.update-check-instruction {
+  font-size: 12px;
+  color: #c6d8f5;
+  line-height: 1.5;
+}
+
+.update-check-download {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(81, 104, 142, 0.42);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 34, 0.72);
+  padding: 8px 9px;
+}
+
+.update-check-download > span {
+  font-size: 10px;
+  color: #9fb8df;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.update-check-download > code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: #edf4ff;
+  /* Asset names run to ~40 characters and must not widen the dialog. */
+  overflow-wrap: anywhere;
+}
+
+.update-check-command-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(81, 104, 142, 0.42);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 34, 0.72);
+  padding: 8px 9px;
+}
+
+.update-check-command-row > code {
+  flex: 1 1 auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: #edf4ff;
+  /* The command is meant to be selected and copied by hand as well. */
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.update-check-command-copy {
+  flex: 0 0 auto;
+}
+
+/* Mirrors .data-export-progress: same geometry and fill, so a download reads
+   the same way as an export. */
+.update-check-progress {
+  position: relative;
+  height: 22px;
+  border: 1px solid rgba(78, 100, 137, 0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(13, 19, 28, 0.92);
+  overflow: hidden;
+}
+
+.update-check-progress[hidden] {
+  display: none;
+}
+
+.update-check-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, #2b78d4, #6eb5ff);
+  transition: width var(--motion-med) linear;
+}
+
+.update-check-progress-text {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  color: #f0f0f0;
+  font-size: 11px;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+}
+
+.update-check-verify {
+  display: grid;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #9fb8df;
+}
+
+.update-check-verify[hidden] {
+  display: none;
+}
+
+.update-check-verify .is-verified {
+  color: #7fd6a0;
+}
+
+.update-check-verify .is-warning {
+  color: #e8c66a;
+}
+
+.update-check-verify code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: #cfe0f8;
+  overflow-wrap: anywhere;
+}
+
+/* What applying will do, or why it will not. Sits below the verification
+   lines, since it is about the step the user is being offered next. */
+.update-check-apply-note {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #9fb8df;
+}
+
+.update-check-apply-note.is-warning {
+  color: #e8c66a;
 }
 
 .log-viewer-modal-card {

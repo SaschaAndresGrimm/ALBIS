@@ -7,6 +7,36 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **The update notification says what to do about the update, not only that there is one.** ALBIS told you a newer release existed and handed you the release page, which lists an AppImage, an AppImage installer bundle, a Linux tarball, a Windows installer, a Windows portable zip, two macOS disk images and a signed checksum list — nine files, none of them labelled as yours. Picking the right one was left to the user, and getting it wrong is easy: the two `.dmg` files differ only by processor, and a portable-zip user who runs the installer ends up with two ALBIS installations rather than a newer one.
+
+  The check now works out how this copy was installed and offers the one thing that applies to it. A packaged build gets the matching asset by name, with a **Download Update** button and the release page still one click away. A container gets `docker pull` with the new tag and a copy button, because a container cannot replace its own image from inside. A source checkout gets `git pull` and the dependency reinstall. Each comes with one line saying how to apply it.
+
+  Detection is local and costs no extra request: an environment variable in the container image, whether this is a packaged build, the platform, the CPU architecture, and on Windows the installer's own uninstall entry — which is what tells an installed copy apart from a portable one. An architecture ALBIS does not recognise deliberately matches no asset and falls back to the release page, because a download for the wrong processor is worse than no download. The asset URL is required to be a GitHub release download, checked in the backend and again in the interface before anything is opened.
+
+  The check itself still makes the one request it always made, switchable off with `ui.auto_check_updates`, and still sends nothing but the running version. What happens after it is the entry below.
+
+- **The update dialog can fetch the release file and check it.** Naming the right asset still left the user to download it in a browser, and nobody verifies a browser download: a truncated 180 MB disk image looks exactly like a complete one until it fails to mount, and the `SHA256SUMS.txt` published beside every release is a file almost nobody opens.
+
+  **Download Update** now streams the asset, hashes it as it arrives, and compares it against the checksum the release published for that filename. A file that does not match is deleted and the dialog says so — that is the case the feature exists for. A release that publishes no checksum list, or does not cover this file, is reported as unverified rather than withheld, because a file ALBIS cannot vouch for is no worse than the browser download it replaces. On success the dialog shows the SHA-256, where the file landed, and a **Show in Folder** button.
+
+  Where `gpg` and the release public key are both available — in practice Linux, where nothing else vouches for an AppImage — the GPG signature over the checksum list is verified too, in a throwaway keyring holding nothing but the bundled key, so a signature trusted by the user's own keyring is not trusted by ALBIS. Being unable to check is reported and nothing more: a build that ships no key says `unavailable` rather than pretending, and on macOS and Windows the operating system checks notarization and Authenticode itself at install time. A signature that is present and does *not* verify is the opposite, and fails the download outright — a digest taken from a list ALBIS cannot trust is not evidence of anything, and handing over a possibly substituted installer labelled "checksum verified" would be worse than handing over nothing.
+
+  ALBIS still installs nothing. The last step is opening the folder the file landed in — never the file, because opening a `.exe` is running it. Nothing is fetched without a click, only `https://github.com/` URLs are ever requested, a redirect that is not HTTPS is refused, the asset name is validated as a bare filename rather than sanitised into one, and the transfer is capped in both size and time. `ui.allow_update_download` (default `true`) turns the whole step off, leaving the previous behaviour: the button opens the link in the browser.
+
+  Closing the dialog stops the progress polling, not the transfer; reopening it resumes onto the progress bar. A finished download is remembered until a newer release makes it the wrong file.
+
+- **A verified download can be installed from the dialog, where that is safe, and only if asked.** Showing someone the folder their installer landed in is the last step ALBIS could take without making a decision on their behalf. Taking the next one is worth it on exactly two platforms, and not worth it on the rest.
+
+  On **Linux** the whole application is one file, at the path the AppImage runtime reports in `APPIMAGE`, under the user's own home. **Install Update** stages a copy of the verified download beside it and renames it into place, which is atomic: either the old AppImage or the new one is there, never half of either. The file's mode is carried over from the file being replaced rather than assumed, because an AppImage that is not executable is not an application. On **Windows** the installer already knows how to do this — `scripts/installer_windows.iss` signals `ALBISShutdownEvent`, which the launcher listens for, waits fifteen seconds and falls back to `taskkill` — so applying is running it silently and letting it drive, rather than reimplementing any of that.
+
+  Nowhere else. macOS is excluded because replacing a running `.app` bundle needs a detached helper and risks invalidating the notarization the user is relying on; a container cannot replace its own image; a source checkout is the user's working tree. All three keep the download-and-show-the-folder behaviour, whatever the setting says.
+
+  `ui.allow_update_apply` defaults to **false**. A viewer that replaces itself is not something a beamline workstation should do unasked, and the default is the answer for every installation that never thinks about it. Three refusals are built in on top of that: a download whose checksum did not verify is never installed, although it is still offered as a file — handing someone something to run is not the same act as running it for them; nothing is installed while a live watch, series sum or export is running, which the interface reports and the backend checks again for its own jobs; and a failed swap leaves the old version in place, removes the staged copy, and does not close ALBIS, because closing for an update that did not happen is the worst of both outcomes.
+
+  ALBIS does not restart itself. It closes — cleanly, through a shutdown hook the launcher registers, so the JUNGFRAUJOCH bridge and the log handlers still get to shut down — and the dialog says to start it again. A source run registers no hook and is therefore never offered the step, which is correct: it has no launcher to stop the process.
+
 ### Changed
 
 - **Every CSV export is one table with a leading comment block.** The ROI export stacked its plots as sections — a `# Title`, a header pair, the rows, a blank line, then the next plot — and the file as a whole was therefore not a table. Numbers imports the lot as a single sheet with the histogram's header sitting in the data and its intensities in the same column as the profile's indices; `pandas.read_csv` needs `skiprows` and `nrows` worked out per section before it can start.
@@ -18,6 +48,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   Scalar ROI statistics are still not written, deliberately: min, max, mean, median and the rest are all recoverable from the exported columns, and they are key/value pairs rather than columns, so a table is the wrong place for them.
 
 - **Exports say who produced them.** Every CSV now leads with `# Produced by ALBIS <version> (<commit>)` and a `# Source:` line naming the file, dataset, frame and threshold, plus the ROI geometry or peak count where that applies — the same facts, in nearly the same words, that the CBF and TIFF headers already carried, which is what `COMPATIBILITY.md` promises of every written file. The HDF5 dataset preview's `# truncated` marker moved from after the last row into that block, where a reader skipping the comment prefix can still be told it is holding a preview rather than the dataset.
+
+### Fixed
+
+- **A release candidate is no longer published as the latest stable release.** The release workflow called `gh release create` without `--prerelease`, and GitHub does not infer prerelease status from a semver tag — so tagging `v1.0.0-rc1` would have made it the repository's *latest* release. The update check asks GitHub for `/releases/latest`, which means every installed copy of ALBIS would have been prompted to "update" to a release candidate. Tags carrying `-rc`, `-alpha`, `-beta` or `-pre` now publish as pre-releases, and stable tags say `--latest` explicitly so a stable release published after a candidate takes the pointer back. The flag is applied on the `gh release edit` path too, which is the one a re-run of the publish job takes.
 
 ### Security
 
