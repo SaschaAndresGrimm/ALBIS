@@ -73,31 +73,35 @@ Use the `Build Artifacts` workflow for branch testing without creating a tag/rel
    - macOS arm64/x64 each include `.zip`, `.dmg`, and `SHA256SUMS.txt`.
    - Local install/run behavior is still correct.
 
-## 3b. Release Signing Key for In-App Download Verification (one-off)
+## 3b. Release Signing Key
 
-The update dialog downloads a release asset and verifies it against the
-release's `SHA256SUMS.txt`. Where `gpg` is available it also verifies the GPG
-signature over that checksum list — but only if the build ships the public key
-to check it against, as `SIGNING_KEY.asc` in the repository root. Until that
-file exists the dialog verifies checksums and reports the signature as
-`unavailable`, which is correct but weaker than it needs to be on Linux, where
-nothing else vouches for an AppImage.
-
-Export the public half of the key behind `LINUX_GPG_PRIVATE_KEY_B64` and commit
-it:
-
-```bash
-gpg --armor --export "$LINUX_GPG_KEY_ID" > SIGNING_KEY.asc
-git add SIGNING_KEY.asc
-```
+`SIGNING_KEY.asc` in the repository root is the public half of the key behind
+`LINUX_GPG_PRIVATE_KEY_B64`, fingerprint `F96C C112 D6B4 9230 3C8D  1324 F282 F53D 4BBB 5E98`. The
+update dialog verifies the GPG signature over a downloaded release's
+`SHA256SUMS.txt` against it, and `ALBIS.spec` bundles it into packaged builds
+the same way it bundles `VERSION`.
 
 A public key is meant to be public; committing it rather than injecting it in
 CI is deliberate, because it puts the key ALBIS trusts in reviewable git
-history instead of behind a secret. `ALBIS.spec` bundles the file when it is
-present, so no packaging change is needed. Rotating the signing key means
-re-exporting this file in the same commit that changes the secret — otherwise
-released builds will report `invalid` rather than `unavailable`, which reads to
-users as tampering.
+history instead of behind a secret.
+
+**Rotating the signing key means re-exporting this file in the same commit that
+changes the secret.** A mismatch does not degrade gracefully: the dialog
+reports `invalid` rather than `unavailable`, which is treated as tampering and
+refuses the download outright, for everyone. To re-export:
+
+```bash
+gpg --armor --export "$LINUX_GPG_KEY_ID" > SIGNING_KEY.asc
+```
+
+Then confirm it is the key that actually signs releases, rather than assuming:
+
+```bash
+gpg --verify SHA256SUMS.txt.sig SHA256SUMS.txt   # against a published release
+```
+
+The key currently expires 2028-03-11. Renewing the expiry changes the public
+key material, so it needs re-exporting here too.
 
 ## 4. Create and Publish Release Tag
 

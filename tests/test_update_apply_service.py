@@ -221,6 +221,11 @@ def test_applying_an_appimage_swaps_the_file_and_keeps_its_mode(tmp_path, monkey
     appimage.parent.mkdir()
     appimage.write_bytes(b"old version")
     appimage.chmod(0o755)
+    # Read back rather than assumed to be 0o755: Windows does not implement
+    # Unix modes and reports 0o666 whatever chmod was given. The contract
+    # under test is that the mode is *carried over* from the file being
+    # replaced, which is the same promise on every platform.
+    original_mode = stat.S_IMODE(appimage.stat().st_mode)
     monkeypatch.setenv(module.APPIMAGE_PATH_ENV, str(appimage))
 
     downloaded = tmp_path / "Downloads" / "ALBIS-1.0.0-x86_64.AppImage"
@@ -235,8 +240,9 @@ def test_applying_an_appimage_swaps_the_file_and_keeps_its_mode(tmp_path, monkey
     _wait_for(lambda: service.status()["status"] == STATUS_APPLIED)
     assert appimage.read_bytes() == b"new version"
     # An AppImage that is not executable is not an application; the mode is
-    # carried over from the file being replaced rather than assumed.
-    assert stat.S_IMODE(appimage.stat().st_mode) == 0o755
+    # carried over from the file being replaced rather than assumed. The
+    # downloaded file's own mode (0o644 here) must not survive the swap.
+    assert stat.S_IMODE(appimage.stat().st_mode) == original_mode
     # Staged beside the target, then renamed: nothing is left behind.
     assert sorted(p.name for p in appimage.parent.iterdir()) == ["ALBIS.AppImage"]
     # The downloaded file is copied, not consumed.

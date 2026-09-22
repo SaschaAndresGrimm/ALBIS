@@ -69,6 +69,16 @@ For the full walkthrough — opening data, contrast, ROI statistics, resolution 
 You can download ready-to-use standalone binaries for your operating system. No Python installation is required for these.
 Public releases include signed desktop artifacts where the platform supports them, plus `SHA256SUMS.txt` for download verification.
 
+To check a download yourself, verify the checksum list's signature against the ALBIS release key — `SIGNING_KEY.asc` in this repository, fingerprint `F96C C112 D6B4 9230 3C8D  1324 F282 F53D 4BBB 5E98` — and then the file against the list:
+
+```bash
+gpg --import SIGNING_KEY.asc
+gpg --verify SHA256SUMS.txt.sig SHA256SUMS.txt
+sha256sum --check --ignore-missing SHA256SUMS.txt
+```
+
+ALBIS does the same two checks for you when you use **Help → Check for Updates**.
+
 Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page for the latest packages:
 
 - **macOS Apple Silicon (arm64)**: `ALBIS-macos-arm64-v<version>-<commit>.dmg` (installer) or `.zip` (portable).

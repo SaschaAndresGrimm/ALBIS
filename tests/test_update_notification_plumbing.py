@@ -176,3 +176,30 @@ def test_both_testing_overrides_are_documented_where_a_developer_looks() -> None
     guide = (REPO_ROOT / "docs" / "DEVELOPER_GUIDE.md").read_text(encoding="utf-8")
     for name in (UPDATE_CHECK_VERSION_ENV, INSTALL_KIND_ENV_VAR):
         assert name in guide, f"{name} is not documented in the Developer Guide"
+
+
+def test_the_committed_signing_key_is_a_public_key_and_only_that() -> None:
+    """A private key committed here would be a disclosure, not a bug.
+
+    The export is a one-line command a keystroke away from
+    `--export-secret-keys`, and the result looks similar enough at a glance.
+    This refuses to let that reach a commit.
+    """
+    from backend.services.update_download import SIGNING_KEY_NAME
+
+    key = (REPO_ROOT / SIGNING_KEY_NAME).read_text(encoding="utf-8")
+    assert key.startswith("-----BEGIN PGP PUBLIC KEY BLOCK-----")
+    assert "PRIVATE KEY BLOCK" not in key
+
+
+def test_the_signing_key_fingerprint_is_documented_where_users_verify() -> None:
+    """A key nobody can identify is not much of a trust anchor.
+
+    Someone checking a download by hand needs to know which key to expect, so
+    the fingerprint is stated where they will look rather than only living in
+    the file.
+    """
+    fingerprint_start = "F96C C112 D6B4 9230"
+    for name in ("README.md", "docs/RELEASE_CHECKLIST.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        assert fingerprint_start in text, f"{name} does not state the signing key fingerprint"
