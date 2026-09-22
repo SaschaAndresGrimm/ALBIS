@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-09-22
+
 ### Added
 
 - **The update notification says what to do about the update, not only that there is one.** ALBIS told you a newer release existed and handed you the release page, which lists an AppImage, an AppImage installer bundle, a Linux tarball, a Windows installer, a Windows portable zip, two macOS disk images and a signed checksum list — nine files, none of them labelled as yours. Picking the right one was left to the user, and getting it wrong is easy: the two `.dmg` files differ only by processor, and a portable-zip user who runs the installer ends up with two ALBIS installations rather than a newer one.
@@ -1237,7 +1239,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.2...v0.19.0
 [0.18.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.0...v0.18.1
