@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-09-24
+
 ### Fixed
 
 - **The macOS DMG ships an app with its notarization ticket stapled.** It did not in 0.20.0. `scripts/sign_macos.sh` signed the app, built the DMG from it, notarized the DMG and *then* stapled the app — but a DMG is a sealed copy, so the ticket never reached the app inside it. Anyone installing from the DMG got a bundle that had to ask Apple for a ticket on every launch instead of validating offline: fine on a fast connection, an apparent hang needing Force Quit on a slow or filtered one. The ZIP was unaffected, because it happens to be built after stapling.
@@ -1249,7 +1251,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.2...v0.19.0
 [0.18.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.1...v0.18.2
