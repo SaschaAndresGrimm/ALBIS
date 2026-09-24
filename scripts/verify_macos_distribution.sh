@@ -21,6 +21,7 @@ require_command() {
 
 require_command codesign
 require_command spctl
+require_command hdiutil
 
 if [ "$REQUIRE_NOTARIZATION" = "1" ]; then
   require_command xcrun
@@ -81,6 +82,36 @@ verify_dmg() {
   fi
 }
 
+# The DMG's own signature and ticket say nothing about the app sealed inside
+# it, and the app inside is the only thing a user ever runs. Checking the
+# container and not its contents is how v0.20.0 shipped a DMG whose app had no
+# stapled ticket while every check here passed.
+MOUNTED_DMG=""
+detach_mounted_dmg() {
+  if [ -n "$MOUNTED_DMG" ]; then
+    hdiutil detach "$MOUNTED_DMG" -quiet >/dev/null 2>&1 || true
+    rmdir "$MOUNTED_DMG" 2>/dev/null || true
+    MOUNTED_DMG=""
+  fi
+}
+# On EXIT as well as RETURN: verify_app calls die() on failure, which exits
+# without unwinding, and a leaked mount would outlive the script.
+trap detach_mounted_dmg EXIT
+
+verify_dmg_contents() {
+  local dmg_path="$1" dmg_app
+
+  MOUNTED_DMG="$(mktemp -d)"
+  log "Mounting DMG to verify the app it ships: $dmg_path"
+  hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$MOUNTED_DMG" >/dev/null
+
+  dmg_app="$(find "$MOUNTED_DMG" -maxdepth 1 -type d -name '*.app' | head -n1 || true)"
+  [ -n "$dmg_app" ] && [ -d "$dmg_app" ] || die "No .app bundle found in DMG: $dmg_path"
+
+  verify_app "$dmg_app"
+  detach_mounted_dmg
+}
+
 verify_zip() {
   local zip_path="$1"
   local temp_dir zip_app
@@ -115,6 +146,7 @@ verify_app "$APP_PATH"
 
 if [ -n "$DMG_PATH" ]; then
   verify_dmg "$DMG_PATH"
+  verify_dmg_contents "$DMG_PATH"
 fi
 
 if [ -n "$ZIP_PATH" ]; then

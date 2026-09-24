@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The macOS DMG ships an app with its notarization ticket stapled.** It did not in 0.20.0. `scripts/sign_macos.sh` signed the app, built the DMG from it, notarized the DMG and *then* stapled the app — but a DMG is a sealed copy, so the ticket never reached the app inside it. Anyone installing from the DMG got a bundle that had to ask Apple for a ticket on every launch instead of validating offline: fine on a fast connection, an apparent hang needing Force Quit on a slow or filtered one. The ZIP was unaffected, because it happens to be built after stapling.
+
+  The app is now notarized in its own right, stapled, and only then sealed into the DMG, which is notarized and stapled in turn. `scripts/verify_macos_distribution.sh` now mounts the DMG and runs the full signature, hardened-runtime and stapler checks against the app it actually ships — it previously checked `dist/ALBIS.app` and the DMG container, which is why every check passed while the shipped app had no ticket. `tests/test_macos_distribution_scripts.py` pins the ordering, and fails against the 0.20.0 scripts.
+
 ### Added
 
 - **The two update settings are in the interface, not only in the config file.** `ui.allow_update_download` and `ui.allow_update_apply` shipped in 0.20.0 as configuration keys alone, which left them discoverable only by someone reading the Power User Guide — while `auto_check_updates`, the key they sit beside, has had a checkbox all along. Both now appear in **Settings → Connection** under it, and like every other field there they are disabled and marked when the environment is deciding the value, so a managed deployment can still pin them with `ALBIS_UI_ALLOW_UPDATE_APPLY=false`. Installing stays off by default, and a configuration written before the keys existed reads as off rather than inheriting its neighbour's default.

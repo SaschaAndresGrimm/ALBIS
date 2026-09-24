@@ -195,14 +195,20 @@ if [ -n "$KEYCHAIN_PATH" ]; then
   KEYCHAIN_ARGS+=(--keychain "$KEYCHAIN_PATH")
 fi
 
-create_zip() {
+make_app_zip() {
+  # Absolute, because the `zip` fallback runs from inside the app's directory.
+  local dest
+  dest="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+  rm -f "$dest"
   if command -v ditto >/dev/null 2>&1; then
-    rm -f "$ZIP_OUT"
-    ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_OUT"
+    ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$dest"
   else
-    rm -f "$ZIP_OUT"
-    (cd dist && zip -r "$(basename "$ZIP_OUT")" "$(basename "$APP_PATH")")
+    (cd "$(dirname "$APP_PATH")" && zip -r -q "$dest" "$(basename "$APP_PATH")")
   fi
+}
+
+create_zip() {
+  make_app_zip "$ZIP_OUT"
 }
 
 echo "[sign_macos] Signing app bundle: $APP_PATH"
@@ -214,28 +220,46 @@ if ! command -v hdiutil >/dev/null 2>&1; then
   exit 1
 fi
 
-DMG_STAGE="$TEMP_DIR/dmg-stage"
-mkdir -p "$DMG_STAGE"
-cp -R "$APP_PATH" "$DMG_STAGE/$(basename "$APP_PATH")"
-ln -s "/Applications" "$DMG_STAGE/Applications"
-rm -f "$DMG_OUT"
-for attempt in 1 2 3; do
-  hdi_log="$TEMP_DIR/hdiutil-create-${attempt}.log"
-  if hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG_OUT" >"$hdi_log" 2>&1; then
-    break
-  fi
-  if grep -q "Resource busy" "$hdi_log" && [ "$attempt" -lt 3 ]; then
-    sleep $((attempt * 5))
-    rm -f "$DMG_OUT"
-    continue
-  fi
-  cat "$hdi_log"
-  exit 1
-done
+# A DMG is a sealed copy of the app, so whatever the app is missing when this
+# runs is missing for everyone who installs from it. That is why this is a
+# function called late rather than a block run here: a notarization ticket
+# stapled to $APP_PATH afterwards never reaches the copy inside the DMG, which
+# is how v0.20.0 shipped a DMG whose app had no ticket and therefore asked
+# Apple for one on every launch.
+build_dmg() {
+  local stage="$TEMP_DIR/dmg-stage"
+  rm -rf "$stage"
+  mkdir -p "$stage"
+  cp -R "$APP_PATH" "$stage/$(basename "$APP_PATH")"
+  ln -s "/Applications" "$stage/Applications"
+  rm -f "$DMG_OUT"
+  local attempt hdi_log
+  for attempt in 1 2 3; do
+    hdi_log="$TEMP_DIR/hdiutil-create-${attempt}.log"
+    if hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$stage" -ov -format UDZO "$DMG_OUT" >"$hdi_log" 2>&1; then
+      break
+    fi
+    if grep -q "Resource busy" "$hdi_log" && [ "$attempt" -lt 3 ]; then
+      sleep $((attempt * 5))
+      rm -f "$DMG_OUT"
+      continue
+    fi
+    cat "$hdi_log"
+    exit 1
+  done
 
-echo "[sign_macos] Signing DMG: $DMG_OUT"
-codesign --force --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$SIGN_IDENTITY" "$DMG_OUT"
-codesign --verify --verbose=2 "$DMG_OUT"
+  echo "[sign_macos] Signing DMG: $DMG_OUT"
+  codesign --force --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$SIGN_IDENTITY" "$DMG_OUT"
+  codesign --verify --verbose=2 "$DMG_OUT"
+}
+
+notarize() {
+  xcrun notarytool submit "$1" \
+    --apple-id "$APPLE_ID" \
+    --team-id "$APPLE_TEAM_ID" \
+    --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+    --wait
+}
 
 APPLE_ID="${APPLE_ID:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
@@ -243,6 +267,7 @@ APPLE_APP_SPECIFIC_PASSWORD="${APPLE_APP_SPECIFIC_PASSWORD:-}"
 
 if [ -z "$APPLE_ID" ] && [ -z "$APPLE_TEAM_ID" ] && [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
   echo "[sign_macos] Apple notarization credentials not set; skipping notarization."
+  build_dmg
   create_zip
   exit 0
 fi
@@ -257,16 +282,26 @@ if ! command -v xcrun >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[sign_macos] Submitting DMG for notarization: $DMG_OUT"
-xcrun notarytool submit "$DMG_OUT" \
-  --apple-id "$APPLE_ID" \
-  --team-id "$APPLE_TEAM_ID" \
-  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-  --wait
-
+# The app is notarized on its own first. Notarizing only the DMG would still
+# let `stapler staple` attach a ticket to $APP_PATH -- the ticket covers the
+# nested code -- but by then the DMG has already sealed an unstapled copy.
+echo "[sign_macos] Submitting app for notarization: $APP_PATH"
+APP_NOTARIZE_ZIP="$TEMP_DIR/notarize-app.zip"
+make_app_zip "$APP_NOTARIZE_ZIP"
+notarize "$APP_NOTARIZE_ZIP"
 xcrun stapler staple "$APP_PATH"
-xcrun stapler staple "$DMG_OUT"
+xcrun stapler validate "$APP_PATH"
 
+# Now the copy sealed into the DMG carries its own ticket, so an app dragged
+# out of it validates offline instead of asking Apple on every launch.
+build_dmg
+
+echo "[sign_macos] Submitting DMG for notarization: $DMG_OUT"
+notarize "$DMG_OUT"
+xcrun stapler staple "$DMG_OUT"
+xcrun stapler validate "$DMG_OUT"
+
+# Built last, from the stapled app, so the zip ships a ticket too.
 create_zip
 
 echo "[sign_macos] Signing and notarization completed."
