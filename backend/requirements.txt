@@ -10,12 +10,12 @@ starlette==1.6.0
 # holding 4.14.2 and failed on all three CI runners the same afternoon.
 # Pinning it is also what makes a local run and a CI run agree.
 anyio==4.15.1
-uvicorn[standard]==0.52.4
+uvicorn[standard]==0.53.0
 python-multipart==0.0.32
 hdf5plugin==7.1.0
 h5py==3.16.0
 numpy==2.5.3
-tifffile==2026.9.9
+tifffile==2026.9.15
 fabio==2026.6.0
 cbor2==6.1.4
 pyzmq==27.2.0
