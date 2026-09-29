@@ -22,6 +22,7 @@ This checklist is intended for production releases, including `v1.0.0`.
   - pinned Docker base image digest
   - pinned AppImage tool version/checksum
   - pinned `create-dmg` version (`scripts/vendor/create-dmg/VENDORED.md`)
+  - pinned Inno Setup version (`scripts/package_windows_innosetup.ps1` and both workflows; `tests/test_installer_images.py` keeps them in step)
 
 ## 2. Run Local Quality Gates
 
@@ -220,6 +221,9 @@ Expected result:
   - note any Gatekeeper/SmartScreen/signature prompts
   - open the macOS DMG and confirm the background/layout rendered (see `## 3c`
     above for why this is a human step rather than a CI gate)
+  - run the Windows installer interactively and confirm the ALBIS banner and
+    corner icon show instead of Inno Setup's stock images. CI only ever runs
+    it with `/SILENT`, so nothing automated has seen the wizard
 - Move next development cycle notes into `Unreleased` in `CHANGELOG.md`.
 
 ## 6. Refresh AppImageHub Listing

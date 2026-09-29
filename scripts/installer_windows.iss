@@ -17,6 +17,17 @@ DisableDirPage=no
 #ifexist "..\dist\ALBIS.ico"
 SetupIconFile=..\dist\ALBIS.ico
 #endif
+; ALBIS artwork instead of Inno Setup's stock images, in the same light
+; palette as the macOS DMG window. `modern` gives a white page matching the
+; top panel; with no appearance mode it stays light, which is what the art
+; is drawn for. Each wildcard matches one file per DPI step and Setup picks
+; the closest. Regenerate them with scripts/generate_installer_images.py.
+; These need Inno Setup 6.6.0 or later: 6.6.0 changed the image sizes and
+; added the styles. CI pins the version -- see
+; scripts/package_windows_innosetup.ps1.
+WizardStyle=modern
+WizardImageFile=..\albis_assets\installer\wizard_image_*.png
+WizardSmallImageFile=..\albis_assets\installer\wizard_small_image_*.png
 UninstallDisplayIcon={app}\ALBIS.exe
 OutputDir=..\dist
 #ifndef OutputBaseFilename

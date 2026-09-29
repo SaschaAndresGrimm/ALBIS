@@ -341,7 +341,11 @@ jobs:
 
       - name: Install Inno Setup
         shell: pwsh
-        run: choco install innosetup --no-progress -y
+        # Pinned: the runner image already has a copy, and whichever it has would
+        # otherwise be the one that builds the installer. --allow-downgrade because
+        # that copy may be newer. Keep in step with $pinnedInnoVersion in
+        # scripts/package_windows_innosetup.ps1.
+        run: choco install innosetup --version=6.7.1 --allow-downgrade --no-progress -y
 
       - name: Build portable package
         shell: pwsh
