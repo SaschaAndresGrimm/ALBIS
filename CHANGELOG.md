@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-09-29
+
 ### Added
 
 - **The Windows installer carries ALBIS artwork instead of Inno Setup's stock images.** The wizard showed Inno Setup's generic blue banner and box icon in the classic style; the only ALBIS branding was the icon of `Setup.exe` itself. A background image now runs behind every page, the button row included, carrying the macOS DMG window's light gradient and faceted ridge, so the two installers look like the same product. The Welcome and Finished pages show the ALBIS icon over the ridge. The other pages show it in the top-right corner, and so does the progress window the in-app **Install Update** shows when it runs the installer with `/SILENT`.
@@ -24,6 +26,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   Built with a vendored, pinned copy of [create-dmg](https://github.com/create-dmg/create-dmg) (`scripts/vendor/create-dmg/`, MIT-licensed, never shipped in the app or the DMG's own contents — the same category as PyInstaller and the AppImage tool, neither of which appears in `THIRD_PARTY_LICENSES.md` for that reason) rather than hand-rolled Finder AppleScript, because getting that scripting reliably right across macOS versions is exactly the hard-won part such a tool exists for. The window/icon geometry lives in one place, `scripts/dmg_layout.py`, which the packaging scripts and the background-art generator both read, so the two cannot silently drift apart — `tests/test_dmg_styling.py` pins that the 1x image is exactly the window size and the 2x exactly twice that, without needing Pillow (not a project dependency; the art tool that uses it, `scripts/generate_dmg_background.py`, is a dev-only script that regenerates the committed pair, the same way `albis_assets/icon.icns` is committed rather than rebuilt at package time) or a macOS runner.
 
   `scripts/sign_macos.sh` (the release path) and `scripts/build_mac.sh` (the unsigned local/dev path) both call the same `scripts/build_styled_dmg.sh`, replacing two independently-maintained `hdiutil create -srcfolder` staging blocks that could drift from each other — a local dev build now looks the same as a signed release. The one behavior worth naming: Finder's own scripting can time out cold on its very first invocation in a session and succeed cleanly on retry, observed directly while building this rather than theorized. The wrapper retries automatically and, if styling still does not apply, emits a loud `::warning::` rather than shipping a silently-plain DMG — that DMG is still a fully valid installer either way, so this never fails a release over cosmetics, but a quietly-degraded release is exactly the failure mode `0.20.0`'s unstapled DMG already cost a Force Quit to discover once.
+
+### Fixed
+
+- **The live-writer test that failed once on Windows CI now waits for the writer to exit.** `test_writer_presence_drops_when_the_run_ends` signalled the writer to stop and then polled `/api/metadata` every 100 ms while the writer closed the file. The CI log showed the writer's own `close()` failing with `errno 13 Permission denied` as it rewrote the superblock. Every ALBIS read takes an HDF5 file lock. On Windows that lock is mandatory, so a read landing during the close blocks the writer's write, and the writer died with the file still flagged as open for write. The test now stops the writer, waits for it to exit, requires a clean exit, and only then reads. The same interaction can happen outside the test: an HDF5 writer on Windows, or one writing to an SMB share, can have its final close refused while ALBIS is reading the file. Linux and macOS locks are advisory and never block a writer.
 
 ## [0.20.1] - 2026-09-24
 
@@ -1269,7 +1275,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.18.2...v0.19.0
