@@ -21,42 +21,13 @@ if (-not $iscc) {
 
 # The Inno Setup version CI builds with. .github/workflows/release.yml and
 # artifacts.yml install exactly this; tests/test_installer_images.py keeps the
-# three in step. It is checked here too because `choco install` reports a
-# copy already on the runner image as "already installed" and moves on, so
-# the pin alone does not prove which compiler ran.
+# three in step. It is checked again after compiling, below, because
+# `choco install` reports a copy already on the runner image as "already
+# installed" and moves on, so the pin alone does not prove which compiler ran.
 $pinnedInnoVersion = [version]"6.7.1"
 # The wizard images and WizardStyle in installer_windows.iss need this: 6.6.0
 # changed the image sizes and added the styles.
 $minimumInnoVersion = [version]"6.6.0"
-
-$isccInfo = (Get-Item $iscc.Source).VersionInfo
-$foundInnoVersion = $null
-foreach ($candidate in @($isccInfo.ProductVersion, $isccInfo.FileVersion)) {
-  if ($candidate -match '^\d+(\.\d+){1,3}') {
-    $foundInnoVersion = [version]$Matches[0]
-    break
-  }
-}
-if (-not $foundInnoVersion) {
-  throw "Could not read the Inno Setup version from $($iscc.Source) (ProductVersion '$($isccInfo.ProductVersion)', FileVersion '$($isccInfo.FileVersion)')."
-}
-$foundInnoRelease = [version]::new($foundInnoVersion.Major, $foundInnoVersion.Minor, [Math]::Max(0, $foundInnoVersion.Build))
-Write-Host "Using Inno Setup $foundInnoRelease ($($iscc.Source))"
-
-if ($env:GITHUB_ACTIONS -eq "true") {
-  # CI: exactly the pinned version, so a release is built the same way twice.
-  if ($foundInnoRelease -ne $pinnedInnoVersion) {
-    throw "CI must build with Inno Setup $pinnedInnoVersion, found $foundInnoRelease. Update the pin in this script and both workflows together."
-  }
-} else {
-  # A local build: anything new enough works, but say so if it differs.
-  if ($foundInnoRelease -lt $minimumInnoVersion) {
-    throw "Inno Setup $minimumInnoVersion or later is required for the wizard styling, found $foundInnoRelease."
-  }
-  if ($foundInnoRelease -ne $pinnedInnoVersion) {
-    Write-Warning "Building with Inno Setup $foundInnoRelease; CI uses $pinnedInnoVersion."
-  }
-}
 
 function Get-ConfiguredSigningVarNames {
   param(
@@ -127,5 +98,43 @@ if ($windowsSigningEnabled) {
 }
 
 $isccArgs += ".\\scripts\\installer_windows.iss"
-& $iscc.Path @isccArgs
+# Tee rather than capture, so the compile log still streams to the console.
+# stdout only: `2>&1` would turn any stderr line into a terminating error
+# under Windows PowerShell 5.1 with $ErrorActionPreference = "Stop".
+& $iscc.Path @isccArgs | Tee-Object -Variable isccOutput
+$isccExit = $LASTEXITCODE
+if ($isccExit -ne 0) {
+  throw "ISCC failed with exit code $isccExit."
+}
+
+# The version comes from the compiler's own report, not from ISCC.exe's file
+# metadata: on a GitHub runner `iscc` resolves to a Chocolatey shim
+# (C:\ProgramData\Chocolatey\bin\ISCC.exe) whose version info reads 0.0.0,
+# which is what the first version of this check read. The engine line names
+# the compiler that actually built this installer.
+$engineLine = $isccOutput |
+  ForEach-Object { "$_" } |
+  Select-String -Pattern 'Compiler engine version: Inno Setup (\d+\.\d+\.\d+)' |
+  Select-Object -First 1
+if (-not $engineLine) {
+  throw "ISCC did not report its engine version, so the Inno Setup that built the installer is unknown."
+}
+$foundInnoVersion = [version]$engineLine.Matches[0].Groups[1].Value
+Write-Host "Built with Inno Setup $foundInnoVersion"
+
+if ($env:GITHUB_ACTIONS -eq "true") {
+  # CI: exactly the pinned version, so a release is built the same way twice.
+  if ($foundInnoVersion -ne $pinnedInnoVersion) {
+    throw "CI must build with Inno Setup $pinnedInnoVersion, but $foundInnoVersion built it. Update the pin in this script and both workflows together."
+  }
+} else {
+  # A local build: anything new enough works, but say so if it differs.
+  if ($foundInnoVersion -lt $minimumInnoVersion) {
+    throw "Inno Setup $minimumInnoVersion or later is required for the wizard styling, but $foundInnoVersion built it."
+  }
+  if ($foundInnoVersion -ne $pinnedInnoVersion) {
+    Write-Warning "Built with Inno Setup $foundInnoVersion; CI uses $pinnedInnoVersion."
+  }
+}
+
 Write-Host ("Output: dist\\" + $outBase + ".exe")
