@@ -361,8 +361,8 @@ Installer defaults:
 
 - Per-user install scope under `%LOCALAPPDATA%\Programs\ALBIS`.
 - Interactive installs show the standard Inno Setup destination page, so users can choose a custom install directory.
-- The wizard uses `WizardStyle=modern` with ALBIS artwork in the macOS DMG's light palette: a banner on the Welcome and Finished pages and the icon in the top-right corner of the others, one image per DPI step in `albis_assets/installer/`. Regenerate them with `scripts/generate_installer_images.py`.
-- Needs Inno Setup 6.6.0 or later, since 6.6.0 changed the image sizes and added the styles. CI builds with exactly the version pinned in `scripts/package_windows_innosetup.ps1`; a local build accepts any 6.6.0 or later and warns if it differs from the pin.
+- The wizard carries ALBIS artwork in the macOS DMG's light palette: a background image behind every page, the icon over it on the Welcome and Finished pages, and the icon in the top-right corner of the others. There is one image per DPI step in `albis_assets/installer/`; regenerate them with `scripts/generate_installer_images.py`.
+- Needs Inno Setup 6.7.0 or later, the first with `WizardBackImageFile`. CI builds with exactly the version pinned in `scripts/package_windows_innosetup.ps1`; a local build accepts any 6.7.0 or later and warns if it differs from the pin.
 - Windows Add/Remove Programs uses the stable `AppId=ALBIS`, shows the ALBIS icon, and links support/updates to the GitHub project.
 - Installer and uninstaller try to stop a running `ALBIS.exe` gracefully before falling back to forced termination, so upgrades and removals work better for the background-process model.
 - No admin rights required (`PrivilegesRequired=lowest`).

@@ -221,8 +221,9 @@ Expected result:
   - note any Gatekeeper/SmartScreen/signature prompts
   - open the macOS DMG and confirm the background/layout rendered (see `## 3c`
     above for why this is a human step rather than a CI gate)
-  - run the Windows installer interactively and confirm the ALBIS banner and
-    corner icon show instead of Inno Setup's stock images. CI only ever runs
+  - run the Windows installer interactively and confirm the ALBIS background,
+    icon and corner icon show instead of Inno Setup's stock images, with the
+    corner icon clear of the window frame. CI only ever runs
     it with `/SILENT`, so nothing automated has seen the wizard
 - Move next development cycle notes into `Unreleased` in `CHANGELOG.md`.
 

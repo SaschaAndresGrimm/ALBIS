@@ -18,14 +18,25 @@ DisableDirPage=no
 SetupIconFile=..\dist\ALBIS.ico
 #endif
 ; ALBIS artwork instead of Inno Setup's stock images, in the same light
-; palette as the macOS DMG window. `modern` gives a white page matching the
-; top panel; with no appearance mode it stays light, which is what the art
-; is drawn for. Each wildcard matches one file per DPI step and Setup picks
-; the closest. Regenerate them with scripts/generate_installer_images.py.
-; These need Inno Setup 6.6.0 or later: 6.6.0 changed the image sizes and
-; added the styles. CI pins the version -- see
-; scripts/package_windows_innosetup.ps1.
-WizardStyle=modern
+; palette as the macOS DMG window. The background image runs behind every
+; page, the button row included, and carries the gradient and the faceted
+; ridge. The banner on the Welcome and Finished pages is only the icon, on
+; transparency, so those pages read as one canvas rather than a panel whose
+; ridge stops at the button row. The corner image has its own margin because
+; Inno Setup's area for it is flush with the window frame.
+;
+; The style is spelled out rather than left to Inno Setup's automatic choice
+; for a background image, which is the same: `windows11` for the transparent
+; panels, `excludelightcontrols` so buttons and fields stay native, and
+; `hidebevels` so no divider cuts across the background. No appearance mode,
+; so it stays light, which is what the art is drawn for.
+;
+; Each wildcard matches one file per DPI step and Setup picks the closest.
+; Regenerate them with scripts/generate_installer_images.py. These need Inno
+; Setup 6.7.0 or later, which added WizardBackImageFile. CI pins the
+; version -- see scripts/package_windows_innosetup.ps1.
+WizardStyle=modern windows11 excludelightcontrols hidebevels
+WizardBackImageFile=..\albis_assets\installer\wizard_back_image_*.png
 WizardImageFile=..\albis_assets\installer\wizard_image_*.png
 WizardSmallImageFile=..\albis_assets\installer\wizard_small_image_*.png
 UninstallDisplayIcon={app}\ALBIS.exe

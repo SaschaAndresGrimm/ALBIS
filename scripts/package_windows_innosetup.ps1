@@ -25,9 +25,9 @@ if (-not $iscc) {
 # `choco install` reports a copy already on the runner image as "already
 # installed" and moves on, so the pin alone does not prove which compiler ran.
 $pinnedInnoVersion = [version]"6.7.1"
-# The wizard images and WizardStyle in installer_windows.iss need this: 6.6.0
-# changed the image sizes and added the styles.
-$minimumInnoVersion = [version]"6.6.0"
+# installer_windows.iss needs this: WizardBackImageFile arrived in 6.7.0, and
+# the image sizes and styles it relies on in 6.6.0.
+$minimumInnoVersion = [version]"6.7.0"
 
 function Get-ConfiguredSigningVarNames {
   param(
