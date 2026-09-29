@@ -2,7 +2,7 @@ fastapi==0.141.1
 # Pinned explicitly: fastapi allows starlette>=0.46.0 unbounded, and
 # backend/response_compression.py subclasses starlette's compression responder,
 # whose apply_compression hook became a coroutine in 1.6.
-starlette==1.6.0
+starlette==1.7.0
 # Pinned for the same reason starlette is: starlette allows anyio<5 unbounded,
 # and 4.15 began deprecating the `anyio.abc.*` aliases its own testclient
 # touches at import. With pytest treating warnings as errors that turned an
@@ -10,12 +10,12 @@ starlette==1.6.0
 # holding 4.14.2 and failed on all three CI runners the same afternoon.
 # Pinning it is also what makes a local run and a CI run agree.
 anyio==4.15.1
-uvicorn[standard]==0.53.0
+uvicorn[standard]==0.54.0
 python-multipart==0.0.32
 hdf5plugin==7.1.0
 h5py==3.16.0
 numpy==2.5.3
-tifffile==2026.9.15
+tifffile==2026.9.20
 fabio==2026.6.0
 cbor2==6.1.4
 pyzmq==27.2.0
