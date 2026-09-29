@@ -220,7 +220,12 @@ This produces versioned artifacts in `dist/`, e.g.:
 - `ALBIS-macos-<arch>-v<version>-<commit>.dmg`
 
 `build_mac.sh` also attempts to create a macOS `.app` bundle with icon support (from `frontend/resources/icon.png`).
-DMG images include an `Applications` shortcut for drag-and-drop installation.
+DMG images get their layout — background image, icon positions, an `Applications`
+shortcut for drag-and-drop installation — from `scripts/build_styled_dmg.sh`, which
+both this script and `scripts/sign_macos.sh` call so a local dev build and a signed
+release look the same. See `docs/RELEASE_CHECKLIST.md`'s "macOS DMG Layout" section
+to change the background or verify it looks right; the geometry itself lives in
+`scripts/dmg_layout.py`.
 
 To sign on build, set your Developer ID certificate and password before running the build:
 

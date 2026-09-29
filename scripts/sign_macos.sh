@@ -227,26 +227,11 @@ fi
 # is how v0.20.0 shipped a DMG whose app had no ticket and therefore asked
 # Apple for one on every launch.
 build_dmg() {
-  local stage="$TEMP_DIR/dmg-stage"
-  rm -rf "$stage"
-  mkdir -p "$stage"
-  cp -R "$APP_PATH" "$stage/$(basename "$APP_PATH")"
-  ln -s "/Applications" "$stage/Applications"
-  rm -f "$DMG_OUT"
-  local attempt hdi_log
-  for attempt in 1 2 3; do
-    hdi_log="$TEMP_DIR/hdiutil-create-${attempt}.log"
-    if hdiutil create -volname "ALBIS ${VERSION}" -srcfolder "$stage" -ov -format UDZO "$DMG_OUT" >"$hdi_log" 2>&1; then
-      break
-    fi
-    if grep -q "Resource busy" "$hdi_log" && [ "$attempt" -lt 3 ]; then
-      sleep $((attempt * 5))
-      rm -f "$DMG_OUT"
-      continue
-    fi
-    cat "$hdi_log"
-    exit 1
-  done
+  # The window/icon layout and background live in scripts/build_styled_dmg.sh
+  # (via scripts/dmg_layout.py and albis_assets/dmg_background.png), shared
+  # with the unsigned dev build in scripts/build_mac.sh so both produce the
+  # same installer window rather than two independently-maintained layouts.
+  "$ROOT/scripts/build_styled_dmg.sh" "$APP_PATH" "$DMG_OUT" "ALBIS ${VERSION}"
 
   echo "[sign_macos] Signing DMG: $DMG_OUT"
   codesign --force --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$SIGN_IDENTITY" "$DMG_OUT"

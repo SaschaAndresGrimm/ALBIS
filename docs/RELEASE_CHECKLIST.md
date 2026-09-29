@@ -21,6 +21,7 @@ This checklist is intended for production releases, including `v1.0.0`.
   - `backend/requirements.txt`
   - pinned Docker base image digest
   - pinned AppImage tool version/checksum
+  - pinned `create-dmg` version (`scripts/vendor/create-dmg/VENDORED.md`)
 
 ## 2. Run Local Quality Gates
 
@@ -103,6 +104,64 @@ gpg --verify SHA256SUMS.txt.sig SHA256SUMS.txt   # against a published release
 The key currently expires 2028-03-11. Renewing the expiry changes the public
 key material, so it needs re-exporting here too.
 
+## 3c. macOS DMG Layout (one-off, plus after any change)
+
+The macOS DMG's window — background image, icon size, the position of
+`ALBIS.app` and the Applications alias — is built by
+`scripts/build_styled_dmg.sh` using the vendored `create-dmg`
+(`scripts/vendor/create-dmg/`, pinned per its own `VENDORED.md`). The geometry
+lives in one place, `scripts/dmg_layout.py`, which both the packaging scripts
+and `scripts/generate_dmg_background.py` read — see that module's docstring
+for why a shared source of truth matters here specifically: the background
+art and the icon positions are only correct for each other, and nothing
+enforces that at a glance the way `tests/test_dmg_styling.py` does in CI.
+
+**Changing the background or the layout:**
+
+1. Edit `scripts/dmg_layout.py` (geometry) and/or
+   `scripts/generate_dmg_background.py` (the art itself — a dev-only tool;
+   install Pillow into a throwaway venv, it is not a project dependency).
+2. Regenerate the committed pair: `python scripts/generate_dmg_background.py`.
+   It writes `dmg_background.png` (1x, exactly the window size) and
+   `dmg_background@2x.png`. Both are needed: Finder draws a background at one
+   image pixel per window point and never scales it, so a lone 2x image shows
+   only its top-left quarter. `scripts/build_styled_dmg.sh` combines the two
+   into a multi-resolution TIFF with `tiffutil -cathidpicheck`.
+3. Run `pytest tests/test_dmg_styling.py` — it catches the pair's sizes
+   drifting from the window geometry, among other things, without needing a
+   macOS runner.
+
+**Look at it before committing.** Build a preview and open it:
+
+```bash
+python scripts/generate_dmg_background.py --output-dir /tmp/bg   # or edit in place
+./scripts/build_styled_dmg.sh path/to/ALBIS.app ~/Desktop/preview.dmg "ALBIS preview" /tmp/bg
+open ~/Desktop/preview.dmg
+```
+
+The fourth argument points at an uncommitted pair; leave it off to use
+`albis_assets/`. `--theme dark` renders the original navy design for
+comparison. Check that the arrow sits between the two icons and that both
+labels are readable. Finder draws label text dark on any custom background,
+Dark Mode included, which is why the default theme is light.
+
+A human has to do this step. Reading Finder's state back —
+`get bounds of window`, `icon size of icon view options`, `position of item`
+— confirms the window geometry, and that is how this feature was first
+checked. But it says nothing about how the background renders. The first
+version passed every one of those checks while showing its art at double
+size, with the arrow pushed out of frame. (Finder's `background picture`
+property also fails on `get` even when it is correctly set, so it cannot
+stand in either.)
+
+**A known, observed transient:** the very first Finder-scripting call in a
+fresh session can fail with `AppleEvent timed out (-1712)` and then succeed
+cleanly on retry. `build_styled_dmg.sh` already retries this automatically
+(up to 3 attempts) and emits a `::warning::` if it still could not style the
+DMG — that DMG is still a valid installer, just with Finder's default
+layout, so this is not a release blocker on its own, but the warning should
+not be ignored either.
+
 ## 4. Create and Publish Release Tag
 
 ```bash
@@ -159,6 +218,8 @@ Expected result:
   - close/relaunch
   - uninstall
   - note any Gatekeeper/SmartScreen/signature prompts
+  - open the macOS DMG and confirm the background/layout rendered (see `## 3c`
+    above for why this is a human step rather than a CI gate)
 - Move next development cycle notes into `Unreleased` in `CHANGELOG.md`.
 
 ## 6. Refresh AppImageHub Listing
