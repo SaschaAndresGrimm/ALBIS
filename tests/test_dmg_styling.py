@@ -13,6 +13,7 @@ that they still agree, without needing Pillow (not a project dependency; see
 from __future__ import annotations
 
 import importlib.util
+import re
 import struct
 import subprocess
 import sys
@@ -160,26 +161,49 @@ def test_hidpi_background_is_exactly_twice_the_standard_one() -> None:
 # -- scripts/vendor/create-dmg -----------------------------------------------
 
 
-def test_vendored_create_dmg_is_present_and_executable() -> None:
-    script = VENDOR_DIR / "create-dmg"
-    assert script.is_file()
-    assert script.stat().st_mode & 0o111, "vendored create-dmg lost its executable bit"
+@pytest.mark.parametrize(
+    "relative_path",
+    ["scripts/vendor/create-dmg/create-dmg", "scripts/build_styled_dmg.sh"],
+)
+def test_scripts_the_macos_build_executes_are_committed_executable(
+    relative_path: str,
+) -> None:
+    """Both are run directly, so a lost executable bit breaks the macOS build.
+
+    Checked through git rather than the filesystem: Windows has no Unix mode
+    bits and reports 0o666 for everything, so `stat()` there says nothing.
+    The mode git records is what the macOS runner actually checks out, and
+    it reads the same on every platform.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--stage", "--", relative_path],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        pytest.skip("not running from a git checkout")
+    assert result.stdout, f"{relative_path} is not tracked by git"
+    mode = result.stdout.split()[0]
+    assert mode == "100755", f"{relative_path} is committed as {mode}, not executable"
 
 
-def test_vendored_create_dmg_reports_the_pinned_version() -> None:
-    # Guards against the file being silently replaced by a different version
-    # without the pin in VENDORED.md being updated to match.
-    result = subprocess.run(
-        [str(VENDOR_DIR / "create-dmg"), "--version"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    # "create-dmg 1.3.0" -> "1.3.0", to compare against VENDORED.md's own
-    # "Pinned tag: `v1.3.0`" phrasing rather than requiring identical text.
-    version = result.stdout.strip().rsplit(" ", 1)[-1]
+def test_vendored_create_dmg_declares_the_pinned_version() -> None:
+    """Guards against the file being replaced without VENDORED.md following.
+
+    Read from the source rather than by running `create-dmg --version`: the
+    script calls macOS-only `sw_vers` before it parses its arguments, so it
+    cannot run on the Linux or Windows runners at all.
+    """
+    source = (VENDOR_DIR / "create-dmg").read_text(encoding="utf-8")
+    match = re.search(r"^CDMG_VERSION='([^']+)'$", source, re.MULTILINE)
+    assert match, "create-dmg no longer declares CDMG_VERSION"
     vendored_doc = (VENDOR_DIR / "VENDORED.md").read_text(encoding="utf-8")
-    assert version in vendored_doc
+    assert (
+        f"`v{match.group(1)}`" in vendored_doc
+    ), f"create-dmg declares {match.group(1)} but VENDORED.md pins something else"
 
 
 def test_vendored_support_files_are_present() -> None:
