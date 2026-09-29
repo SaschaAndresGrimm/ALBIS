@@ -19,7 +19,9 @@ from __future__ import annotations
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 import h5py
 import numpy as np
@@ -95,6 +97,12 @@ def _wait_for(path: Path, expected: str, what: str, timeout: float = 30.0) -> No
     raise AssertionError(f"timed out waiting for {what}")
 
 
+class LiveSeries(NamedTuple):
+    path: Path
+    append_to: Callable[[int], None]
+    end_run: Callable[[], None]
+
+
 @pytest.fixture
 def live_series(tmp_path: Path):
     """A live SWMR series plus a handle to grow it, as an external writer would."""
@@ -113,9 +121,23 @@ def live_series(tmp_path: Path):
         grow.write_text(str(total), encoding="utf-8")
         _wait_for(ready, str(total), f"the writer to reach {total} frames")
 
+    def end_run() -> None:
+        """Stop the writer and wait until it has closed the file.
+
+        Waiting matters on Windows. Every read takes an HDF5 file lock, and a
+        Windows lock is mandatory: a read that lands while the writer's close
+        rewrites the superblock makes that write fail with EACCES. The writer
+        then dies with the file still flagged as open for write, and it reads
+        as live forever. That was this suite's one flaky failure, so nothing
+        reads between the stop and the writer's exit.
+        """
+        stop.write_text("1", encoding="utf-8")
+        writer.wait(timeout=30)
+        assert writer.returncode == 0, "the writer did not close the file cleanly"
+
     try:
         _wait_for(ready, "1", "the writer to create the series")
-        yield path, append_to
+        yield LiveSeries(path, append_to, end_run)
     finally:
         stop.write_text("1", encoding="utf-8")
         try:
@@ -127,7 +149,7 @@ def live_series(tmp_path: Path):
 
 def test_plain_open_is_refused_so_the_retry_is_doing_the_work(live_series) -> None:
     """Guards the arrangement: if a plain open worked, the rest would prove nothing."""
-    path, _ = live_series
+    path = live_series.path
 
     with pytest.raises(OSError) as caught:
         h5py.File(path, "r")
@@ -136,7 +158,7 @@ def test_plain_open_is_refused_so_the_retry_is_doing_the_work(live_series) -> No
 
 
 def test_open_hdf5_read_only_opens_a_file_a_writer_holds(live_series) -> None:
-    path, _ = live_series
+    path = live_series.path
 
     with open_hdf5_read_only(h5py, path) as handle:
         assert handle[DATASET].shape == (1, HEIGHT, WIDTH)
@@ -144,7 +166,7 @@ def test_open_hdf5_read_only_opens_a_file_a_writer_holds(live_series) -> None:
 
 
 def test_reopening_sees_frames_written_since(live_series) -> None:
-    path, append_to = live_series
+    path, append_to = live_series.path, live_series.append_to
 
     with open_hdf5_read_only(h5py, path) as handle:
         assert handle[DATASET].shape[0] == 1
@@ -157,7 +179,7 @@ def test_reopening_sees_frames_written_since(live_series) -> None:
 
 
 def test_live_series_is_navigable_through_the_api(live_series) -> None:
-    path, append_to = live_series
+    path, append_to = live_series.path, live_series.append_to
     append_to(4)
     params = {"file": str(path), "dataset": DATASET}
 
@@ -173,7 +195,7 @@ def test_live_series_is_navigable_through_the_api(live_series) -> None:
 
 
 def test_frame_count_grows_with_the_acquisition(live_series) -> None:
-    path, append_to = live_series
+    path, append_to = live_series.path, live_series.append_to
     params = {"file": str(path), "dataset": DATASET}
 
     assert client.get("/api/metadata", params=params).json()["shape"][0] == 1
@@ -185,7 +207,7 @@ def test_frame_count_grows_with_the_acquisition(live_series) -> None:
 
 def test_datasets_are_discoverable_in_a_live_file(live_series) -> None:
     """Opening the file at all is the gate: dataset discovery shares the path."""
-    path, _ = live_series
+    path = live_series.path
 
     response = client.get("/api/datasets", params={"file": str(path)})
 
@@ -222,7 +244,7 @@ def test_metadata_says_a_writer_still_holds_the_file(live_series) -> None:
     Without it a client has to choose between polling every open file forever
     and never noticing a series grow.
     """
-    path, _ = live_series
+    path = live_series.path
 
     payload = client.get("/api/metadata", params={"file": str(path), "dataset": DATASET}).json()
 
@@ -240,21 +262,15 @@ def test_metadata_says_nothing_holds_a_finished_file(tmp_path: Path) -> None:
     assert payload["shape"] == [2, HEIGHT, WIDTH]
 
 
-def test_writer_presence_drops_when_the_run_ends(live_series, tmp_path: Path) -> None:
+def test_writer_presence_drops_when_the_run_ends(live_series) -> None:
     """A watch that never stops is a poll on every finished file forever."""
-    path, append_to = live_series
+    path, append_to = live_series.path, live_series.append_to
     params = {"file": str(path), "dataset": DATASET}
     append_to(3)
 
     assert client.get("/api/metadata", params=params).json()["writer_present"] is True
 
-    # End the run the way the fixture's teardown does, then read again.
-    (tmp_path / "stop").write_text("1", encoding="utf-8")
-    deadline = time.monotonic() + 30
-    while time.monotonic() < deadline:
-        if client.get("/api/metadata", params=params).json()["writer_present"] is False:
-            break
-        time.sleep(0.1)
+    live_series.end_run()
 
     payload = client.get("/api/metadata", params=params).json()
     assert payload["writer_present"] is False
