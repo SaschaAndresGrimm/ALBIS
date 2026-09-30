@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The Linux AppImage and tarball run on RHEL 8 and 9.** They needed glibc 2.35, which shut out RHEL, Rocky and AlmaLinux 8 (glibc 2.28) and 9 (2.34), the systems many beamline workstations run. Nothing in ALBIS needed 2.35. Every pinned wheel runs on 2.28, and ALBIS on Linux opens the system browser rather than bundling a GUI toolkit. The requirement came from the build machine alone, because a bundle needs a glibc at least as new as the one it was built on, and the build ran on Ubuntu 22.04.
+
+  The Linux build now runs inside the `manylinux_2_28` image (AlmaLinux 8), and `scripts/check_glibc_floor.sh` fails it if anything in the bundle asks for more than 2.28. It uses a pinned python-build-standalone interpreter (`scripts/install_python_standalone.sh`), because PyInstaller needs a shared `libpython`, the image's own interpreters have none, and `actions/setup-python` does not run there. A new `smoke_linux` job starts the finished tarball on Rocky Linux 8, Ubuntu 22.04 and Ubuntu 24.04, each a bare container with only the Python the harness needs, and the release waits for it. Newer systems run a binary built on older glibc unchanged, so Ubuntu 22.04 and later lose nothing.
+
+  The AppImage still needs FUSE 2 on the host. On a managed workstation without it, the tarball needs nothing installed and can be unpacked once to shared software storage for every user.
+
 ## [0.20.2] - 2026-09-29
 
 ### Added

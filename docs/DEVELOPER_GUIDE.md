@@ -269,6 +269,30 @@ Optional build env controls:
 
 `scripts/package_linux_appimage.sh` requires `appimagetool` on `PATH`.
 
+The bundle only runs on a glibc at least as new as the one it was built against,
+so a build on your own distribution may not start on older ones. Release builds
+run inside the `manylinux_2_28` image (AlmaLinux 8, glibc 2.28) with a
+python-build-standalone interpreter, because PyInstaller needs a shared
+`libpython` and the image's own interpreters have none. To reproduce one:
+
+```bash
+docker run --rm -it --platform linux/amd64 -v "$PWD:/src" -w /src \
+  quay.io/pypa/manylinux_2_28_x86_64 bash
+# inside the container:
+git config --global --add safe.directory /src
+./scripts/install_python_standalone.sh /opt/albis-python
+export PYTHON_BIN=/opt/albis-python/bin/python3 CC=gcc CXX=g++
+# keep the Linux build venv out of the checkout you mounted
+export ALBIS_BUILD_VENV=/tmp/albis-build-venv
+./scripts/build_linux.sh
+./scripts/check_glibc_floor.sh 2.28 dist/ALBIS
+```
+
+`CC=gcc` is needed because the interpreter records clang as its compiler, and
+`dectris-compression` is built from source. `./scripts/smoke_linux_distro.sh IMAGE TARBALL`
+then starts the tarball in another distribution's container, the way the
+`smoke_linux` CI job does for Rocky Linux 8, Ubuntu 22.04 and Ubuntu 24.04.
+
 Public GitHub Releases publish a Linux bundle:
 
 - `ALBIS-<version>-<appimage-arch>-appimage-bundle.tar.gz`
@@ -379,6 +403,8 @@ Public release inputs are pinned:
 - runtime dependencies in `backend/requirements.txt`
 - PyInstaller via the build scripts
 - Docker base image by digest
+- Linux build image (`manylinux_2_28`) and the distribution images `smoke_linux` runs on, by digest
+- the Linux build's Python (python-build-standalone) by release + checksum in `scripts/install_python_standalone.sh`
 - AppImage tooling by explicit version + checksum in CI
 
 ### Output

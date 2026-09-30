@@ -65,10 +65,15 @@ jobs:
   build_linux:
     name: Build Linux Artifact (${{ matrix.target }})
     if: ${{ always() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
-    # Pin to the oldest supported target (glibc 2.35). AppImages are only
-    # forward-compatible, so building on a newer glibc (ubuntu-latest = 24.04,
-    # glibc 2.39) breaks the artifact on Ubuntu 22.04 and older.
-    runs-on: ubuntu-22.04
+    # The oldest supported target is glibc 2.28 (RHEL/Rocky/AlmaLinux 8). A
+    # bundle only runs on a glibc at least as new as the one it was built
+    # against, so the build runs inside a manylinux_2_28 (AlmaLinux 8)
+    # container rather than on the runner's own Ubuntu (22.04 is glibc 2.35).
+    # `smoke_linux` then starts the result on the oldest target and on current
+    # Ubuntu.
+    runs-on: ubuntu-24.04
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64@sha256:407f771c51a2c3e83ebe5a7970b4289ead3a6db21d9b9c089168775cad11d328
     needs: verify
     strategy:
       fail-fast: false
@@ -84,17 +89,25 @@ jobs:
       LINUX_GPG_PRIVATE_KEY_B64: ${{ secrets.LINUX_GPG_PRIVATE_KEY_B64 }}
       LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
       LINUX_GPG_KEY_ID: ${{ secrets.LINUX_GPG_KEY_ID }}
+      PYTHON_BIN: /opt/albis-python/bin/python3
+      # python-build-standalone records clang as the compiler for extensions;
+      # the image has GCC. dectris-compression is built from its sdist.
+      CC: gcc
+      CXX: g++
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-          cache: pip
-          cache-dependency-path: |
-            backend/requirements.txt
-            scripts/build_linux.sh
-            scripts/package_linux_appimage.sh
+      # The container runs as root over a checkout the runner's user owns, and
+      # git refuses a repository owned by someone else. Without this the
+      # commit stamp and the artifact names silently fall back to `nogit`.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # actions/setup-python's builds target Ubuntu and do not run here.
+      - name: Install Python
+        run: |
+          ./scripts/install_python_standalone.sh /opt/albis-python
+          echo "/opt/albis-python/bin" >> "$GITHUB_PATH"
 
       - name: Assert runner architecture
         run: |
@@ -105,13 +118,13 @@ jobs:
           fi
 
       - name: Install appimagetool
-        run: sudo bash ./scripts/install_appimagetool.sh
+        run: bash ./scripts/install_appimagetool.sh
 
       - name: Build tarball package
         run: ./scripts/build_linux.sh
 
-      - name: Assert glibc floor (<= 2.35 / Ubuntu 22.04)
-        run: ./scripts/check_glibc_floor.sh 2.35 dist/ALBIS
+      - name: Assert glibc floor (<= 2.28 / RHEL 8)
+        run: ./scripts/check_glibc_floor.sh 2.28 dist/ALBIS
 
       - name: Build AppImage package
         run: ./scripts/package_linux_appimage.sh
@@ -193,6 +206,43 @@ jobs:
             dist/uninstall_linux.sh
             dist/SHA256SUMS.txt
           retention-days: 14
+
+  smoke_linux:
+    name: Smoke Linux Artifact (${{ matrix.distro }})
+    # build_linux can only show the bundle starts where it was built. This
+    # starts it on the oldest supported target, on the previous floor, and on
+    # current Ubuntu, each with nothing installed but the harness's Python.
+    runs-on: ubuntu-24.04
+    needs: build_linux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: Rocky Linux 8
+            image: rockylinux/rockylinux:8@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
+          - distro: Ubuntu 22.04
+            image: ubuntu:22.04@sha256:b8b6ee6aa931ecd9d0d952abc34dc0e5f7c6a30c6bb71b079fe399fde0329c02
+          - distro: Ubuntu 24.04
+            image: ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: artifacts-linux-x64-${{ github.run_id }}
+          path: dist
+
+      - name: Smoke test packaged binary on ${{ matrix.distro }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tarballs=(dist/ALBIS-linux-x64-v*.tar.gz)
+          if [ "${#tarballs[@]}" -ne 1 ]; then
+            echo "Expected one Linux tarball, found ${#tarballs[@]}: ${tarballs[*]}"
+            exit 1
+          fi
+          ./scripts/smoke_linux_distro.sh "${{ matrix.image }}" "${tarballs[0]}"
 
   build_windows:
     name: Build Windows Artifact (${{ matrix.target }})

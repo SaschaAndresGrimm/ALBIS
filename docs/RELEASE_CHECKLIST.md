@@ -20,6 +20,8 @@ This checklist is intended for production releases, including `v1.0.0`.
 - Confirm runtime/build input bumps are explicit and reviewed:
   - `backend/requirements.txt`
   - pinned Docker base image digest
+  - pinned Linux build image digest (`manylinux_2_28`, both workflows) and the `smoke_linux` distribution image digests
+  - pinned python-build-standalone release/checksum (`scripts/install_python_standalone.sh`)
   - pinned AppImage tool version/checksum
   - pinned `create-dmg` version (`scripts/vendor/create-dmg/VENDORED.md`)
   - pinned Inno Setup version (`scripts/package_windows_innosetup.ps1` and both workflows; `tests/test_installer_images.py` keeps them in step)
