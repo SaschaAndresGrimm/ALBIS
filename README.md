@@ -88,7 +88,7 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 
 macOS release binaries are supported on macOS 14+ on Apple Silicon and macOS 15+ on Intel Macs. Use the native `arm64` build on Apple Silicon and the native `x64` build on Intel Macs.
 Windows release binaries are supported on Windows 10 x64 and Windows 11 x64. Windows 8.1 x64 may work but is not part of the supported/tested release matrix; Windows 7, Windows 8.0, 32-bit Windows, and Windows ARM are not supported.
-Linux desktop release binaries are currently published for `x86_64` only. The AppImage and tarball require `glibc 2.28+` — RHEL/Rocky/AlmaLinux 8 and 9, Ubuntu 20.04+, Debian 10+, Fedora 29+. Every release is started on Rocky Linux 8, Ubuntu 22.04 and Ubuntu 24.04 before it is published. The AppImage also needs FUSE 2 (`libfuse.so.2`); on a managed workstation without it, use the tarball, which needs nothing installed and can be unpacked once to a shared location for all users. Distributions below that floor, and `linux/arm64`, can use the published Docker images.
+Linux desktop release binaries are currently published for `x86_64` only. The AppImage and tarball require `glibc 2.28+` — RHEL/Rocky/AlmaLinux 8 and 9, Ubuntu 20.04+, Debian 10+, Fedora 29+. Every release is started on Rocky Linux 8 and 9, Ubuntu 22.04 and Ubuntu 24.04 before it is published. The AppImage also needs FUSE 2 (`libfuse.so.2`); on a managed workstation without it, use the tarball, which needs nothing installed and can be unpacked once to a shared location for all users. Distributions below that floor, and `linux/arm64`, can use the published Docker images.
 
 ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 

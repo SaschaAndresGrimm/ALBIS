@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The packaged Linux ALBIS opens the browser again on current systems.** On Rocky Linux 9 the launcher printed "opening browser" and nothing opened. PyInstaller's bootloader points `LD_LIBRARY_PATH` at the bundle's `_internal/` directory, and every program ALBIS starts inherits it: the browser `xdg-open` launches, the file manager, the zenity and kdialog pickers. They then loaded the bundle's copies of system libraries. Since 0.21.0 builds on AlmaLinux 8, the bundled `libstdc++` stops at `GLIBCXX_3.4.25`, and Rocky 9's Firefox died on ``version `GLIBCXX_3.4.26' not found``. A browser that links the system `libstdc++` was likely hit the same way on other current distributions.
+
+  - The launcher now restores the host's `LD_LIBRARY_PATH` at startup (`backend/host_env.py`), using the value PyInstaller keeps in `LD_LIBRARY_PATH_ORIG`, as PyInstaller documents. That covers every program ALBIS starts. ALBIS itself is unaffected, since the dynamic loader reads the variable only when a process starts.
+  - The bundle no longer ships `libstdc++.so.6` or `libgcc_s.so.1`. Everything bundled already ran against the build image's `GLIBCXX_3.4.25` copy, and RHEL 8 ships the same. `scripts/check_glibc_floor.sh` now also fails the build if a bundled library asks for more than `GLIBCXX_3.4.25`; the bundle needs at most 3.4.21.
+  - When no browser can be started at all, for example with no `DISPLAY` or `WAYLAND_DISPLAY` over SSH, the launcher says so and prints the URL. Before, it went quiet. The "opening browser" line now shows the URL too.
+  - `smoke_linux` now also runs on Rocky Linux 9. On every distribution it launches ALBIS with a display and a stand-in `xdg-open`, and fails if the browser is not started, would inherit the bundle's library path, or the bundle carries its own `libstdc++`. It fails on the published 0.21.0 tarball. On Rocky 9, a real Firefox started this way now loads, where it crashed before.
+
 ## [0.21.0] - 2026-09-30
 
 ### Added

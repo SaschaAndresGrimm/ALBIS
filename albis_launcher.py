@@ -35,6 +35,7 @@ from backend.config import (
     resolve_log_dir,
 )
 from backend.file_associations import is_associated_path
+from backend.host_env import restore_host_library_path
 from backend.version import ALBIS_VERSION
 
 try:
@@ -273,7 +274,7 @@ def _open_target_url(host: str, port: int, open_path: Path | None = None) -> str
     return f"{url}/#{OPEN_HASH_PREFIX}{urllib.parse.quote(str(open_path), safe='')}"
 
 
-def _open_browser(host: str, port: int, open_path: Path | None = None) -> None:
+def _open_browser(host: str, port: int, open_path: Path | None = None) -> bool:
     url = _open_target_url(host, port, open_path)
     opened = False
     try:
@@ -282,7 +283,13 @@ def _open_browser(host: str, port: int, open_path: Path | None = None) -> None:
         opened = False
     if not opened and sys.platform == "darwin":
         with suppress(Exception):
-            subprocess.run(["open", url], check=False)
+            opened = subprocess.run(["open", url], check=False).returncode == 0
+    if not opened:
+        # webbrowser finds nothing to run without DISPLAY or WAYLAND_DISPLAY --
+        # an SSH session, a service -- and ALBIS used to go quiet after
+        # "opening browser". Say so, and where to point one.
+        print(f"[ALBIS launcher] no web browser could be opened; open {url}", flush=True)
+    return opened
 
 
 if Foundation is not None:
@@ -775,11 +782,15 @@ def main() -> None:
     global _MACOS_EVENT_LOGS_ENABLED
     _ensure_stdio_streams()
     start_ts = time.perf_counter()
+    # Before anything can start a child process: see backend/host_env.py.
+    host_env_restored = restore_host_library_path()
     cli_applied, cli_ignored, open_target = _apply_cli_arguments()
     app_config, _config_path = load_config()
     _configure_launcher_logger(resolve_log_dir(app_config, _config_path) / "launcher.log")
     _launcher_log(start_ts, "starting")
     _launcher_log(start_ts, f"config loaded ({_config_path})")
+    if host_env_restored:
+        _launcher_log(start_ts, "restored the host LD_LIBRARY_PATH for programs ALBIS starts")
     if cli_applied:
         _launcher_log(start_ts, f"command line set {', '.join(cli_applied)}")
     if cli_ignored:
@@ -898,7 +909,7 @@ def main() -> None:
         _launcher_log(start_ts, "health check timed out")
         _update_server_status(host, port, "starting", health=False)
     if get_bool(app_config, ("launcher", "open_browser"), True):
-        _launcher_log(start_ts, "opening browser")
+        _launcher_log(start_ts, f"opening browser at {_open_target_url(host, port, open_target)}")
         _open_browser(host, port, open_target)
 
     if _should_start_macos_ui_loop() and _start_macos_menus(

@@ -187,6 +187,19 @@ a = Analysis(
     noarchive=False,
 )
 
+if is_linux:
+    # Use the host's C++ runtime rather than bundling the build image's. The
+    # bundle is built on glibc 2.28 (AlmaLinux 8), whose libstdc++ stops at
+    # GLIBCXX_3.4.25, and a program ALBIS started on a newer system could load
+    # that copy instead of its own: Rocky 9's Firefox died on
+    # `GLIBCXX_3.4.26' not found (see backend/host_env.py). Nothing is lost by
+    # leaving them out. Everything bundled already runs against that 3.4.25
+    # copy, RHEL 8 ships the same, every newer target ships more, and
+    # scripts/check_glibc_floor.sh fails the build if a bundled library asks
+    # for more than 3.4.25.
+    _host_runtime = {"libstdc++.so.6", "libgcc_s.so.1"}
+    a.binaries = [entry for entry in a.binaries if os.path.basename(entry[0]) not in _host_runtime]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(

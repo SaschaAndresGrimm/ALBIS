@@ -291,7 +291,9 @@ export ALBIS_BUILD_VENV=/tmp/albis-build-venv
 `CC=gcc` is needed because the interpreter records clang as its compiler, and
 `dectris-compression` is built from source. `./scripts/smoke_linux_distro.sh IMAGE TARBALL`
 then starts the tarball in another distribution's container, the way the
-`smoke_linux` CI job does for Rocky Linux 8, Ubuntu 22.04 and Ubuntu 24.04.
+`smoke_linux` CI job does for Rocky Linux 8 and 9, Ubuntu 22.04 and Ubuntu 24.04. It also starts
+ALBIS with a stand-in `xdg-open` and fails if the browser would inherit the bundle's
+`LD_LIBRARY_PATH`, or if the bundle ships its own `libstdc++` (see `backend/host_env.py`).
 
 Public GitHub Releases publish a Linux bundle:
 

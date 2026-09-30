@@ -210,8 +210,10 @@ jobs:
   smoke_linux:
     name: Smoke Linux Artifact (${{ matrix.distro }})
     # build_linux can only show the bundle starts where it was built. This
-    # starts it on the oldest supported target, on the previous floor, and on
-    # current Ubuntu, each with nothing installed but the harness's Python.
+    # starts it on the oldest supported target, on RHEL 9, on the previous
+    # floor, and on current Ubuntu, each with nothing installed but the
+    # harness's Python, and checks the browser it launches does not inherit
+    # the bundle's library path.
     # `verify` is skipped unless asked for, and a skipped ancestor skips every
     # job downstream of it unless that job opts out with always().
     if: ${{ always() && needs.build_linux.result == 'success' }}
@@ -223,6 +225,8 @@ jobs:
         include:
           - distro: Rocky Linux 8
             image: rockylinux/rockylinux:8@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
+          - distro: Rocky Linux 9
+            image: rockylinux/rockylinux:9@sha256:8101994123cf3d0a8fee517bee7f39e555c7d92bd2d9eb3303cc988a0eeed00f
           - distro: Ubuntu 22.04
             image: ubuntu:22.04@sha256:b8b6ee6aa931ecd9d0d952abc34dc0e5f7c6a30c6bb71b079fe399fde0329c02
           - distro: Ubuntu 24.04
