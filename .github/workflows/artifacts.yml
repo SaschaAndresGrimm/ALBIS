@@ -212,6 +212,9 @@ jobs:
     # build_linux can only show the bundle starts where it was built. This
     # starts it on the oldest supported target, on the previous floor, and on
     # current Ubuntu, each with nothing installed but the harness's Python.
+    # `verify` is skipped unless asked for, and a skipped ancestor skips every
+    # job downstream of it unless that job opts out with always().
+    if: ${{ always() && needs.build_linux.result == 'success' }}
     runs-on: ubuntu-24.04
     needs: build_linux
     strategy:

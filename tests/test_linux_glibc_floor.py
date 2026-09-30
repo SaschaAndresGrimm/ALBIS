@@ -74,6 +74,23 @@ def test_the_tarball_is_started_on_other_distributions(workflow: Path) -> None:
     assert "smoke_linux_distro.sh" in _run_text(job)
 
 
+@pytest.mark.parametrize("workflow", WORKFLOWS, ids=lambda path: path.name)
+def test_the_smoke_test_is_not_skipped_along_with_verify(workflow: Path) -> None:
+    """A skipped ancestor skips every job below it unless the job uses always().
+
+    build_linux opts out that way where `verify` can be skipped, and the first
+    run of smoke_linux did not: the build passed and the smoke test never ran.
+    """
+    jobs = _jobs(workflow)
+    if "always()" not in str(jobs["build_linux"].get("if", "")):
+        return
+    condition = str(jobs["smoke_linux"].get("if", ""))
+
+    assert (
+        "always()" in condition and "needs.build_linux.result == 'success'" in condition
+    ), f"{workflow.name} skips smoke_linux whenever verify is skipped"
+
+
 def test_a_release_waits_for_the_distribution_smoke_test() -> None:
     needs = _jobs(WORKFLOWS[0])["publish"]["needs"]
 
