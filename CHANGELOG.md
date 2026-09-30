@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-09-30
+
 ### Added
 
 - **The I23 PILATUS 12M's resolution rings work without a geometry file.** The detector at Diamond beamline I23 (S/N 120-0100) has 24 module rows on a half cylinder around the sample. Its header describes a flat detector, so ALBIS drew its rings only once a DIALS `imported.expt` had been loaded by hand or sat next to the data. ALBIS now recognises the detector by its serial number in CBF files and DECTRIS TIFFs, and uses the detector's fixed geometry. That geometry is built from the same blueprint constants as dxtbx's `FormatCBFMiniPilatusDLS12M`, and `tests/test_detector_profiles.py` checks it against an `imported.expt` that `dials.import` wrote for real I23 data. The rings panel reads *Auto geometry: DLS I23 PILATUS 12M 120-0100*. A geometry file next to the data, or one loaded by hand, still takes precedence. Other detectors, including any other PILATUS 12M, are unaffected.
@@ -1291,7 +1293,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.19.0...v0.20.0
