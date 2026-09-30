@@ -14,6 +14,7 @@ from ..api_models import (
     SeriesSumStartRequest,
     SeriesSumStartResponse,
 )
+from ..detector_profiles import ring_meta
 from ..services.hdf5_stack import open_hdf5_for_read
 
 
@@ -178,7 +179,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         }
 
     def _analysis_payload_from_source_image(path: Path) -> dict[str, Any]:
-        meta = deps.pilatus_meta_from_image(path)
+        meta = ring_meta(deps.pilatus_meta_from_image(path))
         beam_center = meta.get("beam_center_px")
         center_x_px = (
             beam_center[0]

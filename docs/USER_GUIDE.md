@@ -183,6 +183,17 @@ metadata when they are there. Where they are not — or where they are wrong —
 type over them; **Reset to live** restores the values from the data. A DIALS
 `.expt` **geometry file** can supply them instead.
 
+The **PILATUS 12M at Diamond beamline I23** needs no geometry file. Its 24
+module rows sit on a half cylinder around the sample, which a file header cannot
+describe, so ALBIS recognises the detector by its serial number (S/N 120-0100)
+in CBF and DECTRIS TIFF files and uses the detector's fixed geometry. The rings
+panel then reads *Auto geometry: DLS I23 PILATUS 12M 120-0100*. The distance
+field shows the sample-to-detector distance along the beam, about 260 mm: the
+header's `Detector_distance` (0.010 m at I23) is an offset from the detector's
+fixed position, and ALBIS reads it the way DIALS does. Only the energy changes
+from frame to frame. An `imported.expt` next to the data, or one loaded by hand,
+still takes precedence.
+
 Enter the ring positions you want in **Rings (Å)**. Once rings are on, the
 cursor readout gains a **d** value, so pointing at a feature tells you its
 resolution.

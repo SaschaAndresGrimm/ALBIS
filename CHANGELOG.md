@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **The I23 PILATUS 12M's resolution rings work without a geometry file.** The detector at Diamond beamline I23 (S/N 120-0100) has 24 module rows on a half cylinder around the sample. Its header describes a flat detector, so ALBIS drew its rings only once a DIALS `imported.expt` had been loaded by hand or sat next to the data. ALBIS now recognises the detector by its serial number in CBF files and DECTRIS TIFFs, and uses the detector's fixed geometry. That geometry is built from the same blueprint constants as dxtbx's `FormatCBFMiniPilatusDLS12M`, and `tests/test_detector_profiles.py` checks it against an `imported.expt` that `dials.import` wrote for real I23 data. The rings panel reads *Auto geometry: DLS I23 PILATUS 12M 120-0100*. A geometry file next to the data, or one loaded by hand, still takes precedence. Other detectors, including any other PILATUS 12M, are unaffected.
+
 ### Changed
 
 - **The Linux AppImage and tarball run on RHEL 8 and 9.** They needed glibc 2.35, which shut out RHEL, Rocky and AlmaLinux 8 (glibc 2.28) and 9 (2.34), the systems many beamline workstations run. Nothing in ALBIS needed 2.35. Every pinned wheel runs on 2.28, and ALBIS on Linux opens the system browser rather than bundling a GUI toolkit. The requirement came from the build machine alone, because a bundle needs a glibc at least as new as the one it was built on, and the build ran on Ubuntu 22.04.
@@ -14,6 +18,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   The Linux build now runs inside the `manylinux_2_28` image (AlmaLinux 8), and `scripts/check_glibc_floor.sh` fails it if anything in the bundle asks for more than 2.28. It uses a pinned python-build-standalone interpreter (`scripts/install_python_standalone.sh`), because PyInstaller needs a shared `libpython`, the image's own interpreters have none, and `actions/setup-python` does not run there. A new `smoke_linux` job starts the finished tarball on Rocky Linux 8, Ubuntu 22.04 and Ubuntu 24.04, each a bare container with only the Python the harness needs, and the release waits for it. Newer systems run a binary built on older glibc unchanged, so Ubuntu 22.04 and later lose nothing.
 
   The AppImage still needs FUSE 2 on the host. On a managed workstation without it, the tarball needs nothing installed and can be unpacked once to shared software storage for every user.
+
+### Fixed
+
+- **I23 rings no longer collapse onto the beam centre.** The I23 header's `Detector_distance` (0.010 m) is not the sample-to-detector distance. dxtbx reads it as how far the detector is displaced along the beam from its fixed position, 250.13 mm away. ALBIS took the 10 mm as the distance, so even with the geometry file next to the data, the rings came out as though the detector were 10 mm from the sample. For this detector, `/api/image` and the parameters an HDF5 sum inherits from its source image now report 250.13 mm plus the offset: 260.13 mm on the frame the tests use. The header, and the header an export writes, keep the detector's own value, since that is what DIALS reads. Checked against dxtbx, `frontend/tests/dls_i23_p12m_rings.test.js` finds the d-spacing at nine pixels across the detector within 0.18%. With the raw 10 mm it was off by up to 85%, and the pose a hand-loaded `.expt` seeded, which ignores the offset, by up to 3.9%. The remaining 0.18% is half a pixel of beam centre: ALBIS reads `Beam_xy` as pixel-centre coordinates for every PILATUS header, and dxtbx as pixel-corner ones.
 
 ## [0.20.2] - 2026-09-29
 

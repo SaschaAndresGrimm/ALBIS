@@ -23,6 +23,7 @@ import numpy as np
 from fastapi import HTTPException
 
 from .build_info import ALBIS_COMMIT
+from .detector_profiles import DLS_I23_P12M_DETECTOR, dls_i23_pilatus_12m_geometry
 from .services.hdf5_units import wavelength_to_ev
 from .version import ALBIS_VERSION
 
@@ -1276,7 +1277,7 @@ def _pilatus_image_geometry_internal(
             return geometry
         return {
             "mode": "geometry",
-            "detector": "pilatus-12m-dls-cshape",
+            "detector": DLS_I23_P12M_DETECTOR,
             "source": str(geometry_path),
             "panels": panels,
         }
@@ -1296,20 +1297,22 @@ def _pilatus_image_geometry_internal(
         if source_path and source_path.exists():
             return _pilatus_image_geometry_internal(source_path, None, visited)
         return geometry
-    if ext not in {".cbf", ".cbf.gz"}:
+    # The DECTRIS TIFF carries the same text header as the miniCBF, in its
+    # ImageDescription tag.
+    if ext not in {".cbf", ".cbf.gz", ".tif", ".tiff"}:
         return geometry
     header_text = _pilatus_header_text(path)
     if not _pilatus_is_12m_header_text(header_text):
         return geometry
+    # A geometry file next to the data still wins, so a site that keeps its own
+    # there goes on using it. Otherwise the detector's fixed blueprint geometry.
     geometry_path = _resolve_pilatus_12m_geometry_file(path)
-    if geometry_path is None:
-        return geometry
-    panels = _load_dials_expt_geometry(geometry_path)
+    panels = _load_dials_expt_geometry(geometry_path) if geometry_path is not None else []
     if not panels:
-        return geometry
+        return dls_i23_pilatus_12m_geometry()
     return {
         "mode": "geometry",
-        "detector": "pilatus-12m-dls-cshape",
+        "detector": DLS_I23_P12M_DETECTOR,
         "source": str(geometry_path),
         "panels": panels,
     }

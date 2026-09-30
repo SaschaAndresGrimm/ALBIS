@@ -10,11 +10,21 @@ from fastapi.testclient import TestClient
 
 from backend.app import app
 
-PILATUS_HEADER = """# Detector: PILATUS 12M, S/N 120-0100
+# Any PILATUS but the I23 12M, whose header distance means something else --
+# see test_an_i23_source_image_reports_the_distance_the_rings_need.
+PILATUS_HEADER = """# Detector: PILATUS 6M, S/N 60-0001
 # Pixel_size 172e-6 m x 172e-6 m
 # Photon_energy 7118 eV
 # Detector_distance 0.25013 m
 # Beam_xy (1083.9, 2593.48) pixels
+"""
+
+# The header lines that matter here, as the I23 PILATUS 12M writes them.
+I23_HEADER = """# Detector: PILATUS 12M, S/N 120-0100
+# Pixel_size 172e-6 m x 172e-6 m
+# Wavelength 2.75520 A
+# Detector_distance 0.01000 m
+# Beam_xy (1080.00, 2595.00) pixels
 """
 
 
@@ -52,6 +62,30 @@ def test_analysis_params_inherits_missing_values_from_source_image(tmp_path: Pat
     # Square source detector: per-axis sizes mirror the scalar.
     assert payload["pixel_size_x_um"] == pytest.approx(172.0)
     assert payload["pixel_size_y_um"] == pytest.approx(172.0)
+
+
+def test_an_i23_source_image_reports_the_distance_the_rings_need(tmp_path: Path) -> None:
+    """A sum of I23 frames inherits the corrected distance, not the header's offset."""
+    client = TestClient(app)
+    source_path = tmp_path / "thau_00001.cbf"
+    h5_path = tmp_path / "thau_00001_series_sum.h5"
+    _write_cbf(source_path, I23_HEADER)
+    with h5py.File(h5_path, "w") as h5:
+        entry = h5.create_group("entry")
+        data_group = entry.create_group("data")
+        data_group.create_dataset("data", data=np.arange(12, dtype=np.uint16).reshape(3, 4))
+        h5.attrs["source_file"] = str(source_path)
+
+    response = client.get(
+        "/api/analysis/params",
+        params={"file": str(h5_path), "dataset": "/entry/data/data"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["distance_mm"] == pytest.approx(250.1346 + 10.0, abs=1e-3)
+    assert payload["center_x_px"] == pytest.approx(1080.0)
+    assert payload["center_y_px"] == pytest.approx(2595.0)
 
 
 def test_analysis_params_preserves_anisotropic_strixel_pixel_sizes(tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 import pytest
+import tifffile
 from fabio.cbfimage import CbfImage
 from fastapi.testclient import TestClient
 
@@ -110,7 +111,8 @@ def test_image_geometry_endpoint_returns_geometry_for_pilatus_12m_cbf(tmp_path: 
     assert payload["panels"][1]["raw_offset_px"] == pytest.approx([0, 212])
 
 
-def test_image_geometry_endpoint_falls_back_to_planar_without_geometry_file(tmp_path: Path) -> None:
+def test_image_geometry_endpoint_uses_the_built_in_geometry_without_a_file(tmp_path: Path) -> None:
+    """The I23 detector's rings need no geometry file next to the data any more."""
     client = TestClient(app)
     image_path = tmp_path / "scan_0001.cbf"
     _write_cbf(image_path, P12M_HEADER)
@@ -118,12 +120,72 @@ def test_image_geometry_endpoint_falls_back_to_planar_without_geometry_file(tmp_
     response = client.get("/api/image/geometry", params={"file": str(image_path)})
 
     assert response.status_code == 200
-    assert response.json() == {
-        "mode": "planar",
-        "detector": "",
-        "source": "",
-        "panels": [],
-    }
+    payload = response.json()
+    assert payload["mode"] == "geometry"
+    assert payload["detector"] == "pilatus-12m-dls-cshape"
+    assert payload["source"] == "DLS I23 PILATUS 12M 120-0100"
+    assert [panel["name"] for panel in payload["panels"]] == [f"row-{i:02d}" for i in range(24)]
+
+
+def test_image_geometry_endpoint_uses_the_built_in_geometry_for_a_dectris_tiff(
+    tmp_path: Path,
+) -> None:
+    """A DECTRIS TIFF carries the same header, in its ImageDescription tag."""
+    client = TestClient(app)
+    image_path = tmp_path / "scan_0001.tif"
+    tifffile.imwrite(image_path, np.zeros((2, 2), dtype=np.uint32), description=P12M_HEADER)
+
+    response = client.get("/api/image/geometry", params={"file": str(image_path)})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "geometry"
+    assert payload["source"] == "DLS I23 PILATUS 12M 120-0100"
+    assert len(payload["panels"]) == 24
+
+
+def test_an_unreadable_geometry_file_next_to_the_data_falls_back_to_the_built_in_one(
+    tmp_path: Path,
+) -> None:
+    client = TestClient(app)
+    image_path = tmp_path / "scan_0001.cbf"
+    _write_cbf(image_path, P12M_HEADER)
+    (tmp_path / "imported.expt").write_text("not json", encoding="utf-8")
+
+    response = client.get("/api/image/geometry", params={"file": str(image_path)})
+
+    assert response.status_code == 200
+    assert response.json()["source"] == "DLS I23 PILATUS 12M 120-0100"
+
+
+def test_another_pilatus_12m_is_not_taken_for_the_i23_one(tmp_path: Path) -> None:
+    client = TestClient(app)
+    image_path = tmp_path / "scan_0001.cbf"
+    _write_cbf(image_path, P12M_HEADER.replace("S/N 120-0100", "S/N 120-0199"))
+
+    response = client.get("/api/image/geometry", params={"file": str(image_path)})
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "planar"
+
+
+def test_a_manual_override_still_wins_over_the_built_in_geometry(tmp_path: Path) -> None:
+    client = TestClient(app)
+    image_path = tmp_path / "scan_0001.cbf"
+    override = tmp_path / "elsewhere" / "refined.expt"
+    override.parent.mkdir()
+    _write_cbf(image_path, P12M_HEADER)
+    _write_geometry(override)
+
+    response = client.get(
+        "/api/image/geometry",
+        params={"file": str(image_path), "geometry_file": str(override)},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == str(override)
+    assert len(payload["panels"]) == 2
 
 
 def test_image_geometry_endpoint_ignores_non_12m_images_even_with_geometry_file(

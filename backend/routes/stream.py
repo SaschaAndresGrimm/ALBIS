@@ -21,6 +21,7 @@ from ..api_models import (
     SimplonModeResponse,
     SimplonProbeResponse,
 )
+from ..detector_profiles import ring_meta
 from .binary_response_utils import (
     add_optional_header,
     build_binary_headers,
@@ -33,7 +34,13 @@ IMAGE_RESPONSE_DOCS = octet_stream_responses(
         "X-Dtype": "NumPy dtype string for decoding the payload.",
         "X-Shape": "Comma-separated image dimensions.",
         "X-Frame": "0-based frame index returned by this request.",
-        "X-Image-DetectorDistance-MM": "Optional detector distance in millimeters.",
+        "X-Image-DetectorDistance-MM": (
+            "Optional detector distance in millimeters. For the DLS I23 PILATUS 12M"
+            " (S/N 120-0100), whose header states an offset from the detector's"
+            " fixed position, this is that position's distance along the beam plus"
+            " the offset, as the resolution rings need it; the header itself is"
+            " unchanged."
+        ),
         "X-Image-PixelSize-UM": "Optional detector pixel size in micrometers.",
         "X-Image-Energy-Ev": "Optional beam energy in electron volts.",
         "X-Image-Wavelength-A": "Optional wavelength in Angstrom.",
@@ -161,6 +168,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape, frame=0)
         if meta:
             deps.logger.debug("Image meta (%s): %s", path.name, meta)
+            meta = ring_meta(meta)
             add_optional_header(headers, "X-Image-DetectorDistance-MM", meta.get("distance_mm"))
             add_optional_header(headers, "X-Image-PixelSize-UM", meta.get("pixel_size_um"))
             add_optional_header(headers, "X-Image-Energy-Ev", meta.get("energy_ev"))
@@ -199,7 +207,14 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         file: str = Query(..., min_length=1),
         geometry_file: str | None = Query(None),
     ) -> ImageGeometryResponse:
-        """Resolve optional detector geometry metadata for supported image files."""
+        """Resolve optional detector geometry metadata for supported image files.
+
+        In order: `geometry_file` when given; for the DLS I23 PILATUS 12M, an
+        `imported.expt` next to the image or in `P12M_geometry/` beside it, then
+        the detector's built-in geometry (CBF and DECTRIS TIFF); for HDF5, the
+        geometry an ALBIS sum embedded, then that of its source image. Anything
+        else is planar.
+        """
         path = deps.resolve_image_file(file)
         geometry_path = None
         if geometry_file:
