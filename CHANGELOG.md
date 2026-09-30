@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-09-30
+
 ### Fixed
 
 - **The packaged Linux ALBIS opens the browser again on current systems.** On Rocky Linux 9 the launcher printed "opening browser" and nothing opened. PyInstaller's bootloader points `LD_LIBRARY_PATH` at the bundle's `_internal/` directory, and every program ALBIS starts inherits it: the browser `xdg-open` launches, the file manager, the zenity and kdialog pickers. They then loaded the bundle's copies of system libraries. Since 0.21.0 builds on AlmaLinux 8, the bundled `libstdc++` stops at `GLIBCXX_3.4.25`, and Rocky 9's Firefox died on ``version `GLIBCXX_3.4.26' not found``. A browser that links the system `libstdc++` was likely hit the same way on other current distributions.
@@ -1302,7 +1304,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.0...v0.20.1
