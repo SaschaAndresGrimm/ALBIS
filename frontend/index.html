@@ -826,37 +826,49 @@
               <div class="section-state is-empty" id="geometry-state" role="status" aria-live="polite" data-i18n="geometry.state.no_file">
                 Load an image to see its detector geometry.
               </div>
-              <label class="geometry-override-toggle">
-                <input id="geometry-override" type="checkbox" />
-                <span data-i18n="geometry.override_toggle">Override manually</span>
-              </label>
-              <div class="geometry-override-hint" data-i18n="geometry.override_hint">
+              <div class="geometry-override-row">
+                <label class="geometry-override-toggle">
+                  <input id="geometry-override" type="checkbox" />
+                  <span data-i18n="geometry.override_toggle">Override manually</span>
+                </label>
+                <button
+                  id="geometry-reset"
+                  class="btn btn-secondary geometry-reset"
+                  type="button"
+                  data-i18n="geometry.reset"
+                  data-i18n-title="geometry.reset_title"
+                  data-i18n-aria-label="geometry.reset_title"
+                >
+                  Reset to metadata
+                </button>
+              </div>
+              <div class="geometry-override-hint" id="geometry-override-hint" data-i18n="geometry.override_hint">
                 Values you enter replace the image metadata for every image, and are kept until you switch this off.
               </div>
               <div class="rings-grid geometry-grid">
                 <label class="field">
                   <span data-i18n="analysis.rings.detector_distance">Detector distance (mm)</span>
-                  <input id="geometry-distance" type="number" min="0" step="0.1" placeholder="e.g. 250" data-i18n-placeholder="analysis.rings.placeholder.distance" />
+                  <input id="geometry-distance" type="number" min="0" step="0.1" placeholder="—" />
                   <div class="field-hint is-hidden" id="geometry-distance-hint"></div>
                 </label>
                 <label class="field">
                   <span data-i18n="analysis.rings.pixel_size">Pixel size (µm)</span>
                   <div class="ring-center">
-                    <input id="geometry-pixel-x" type="number" min="0" step="0.1" placeholder="X" data-i18n-placeholder="analysis.rings.placeholder.center_x" />
-                    <input id="geometry-pixel-y" type="number" min="0" step="0.1" placeholder="Y" data-i18n-placeholder="analysis.rings.placeholder.center_y" />
+                    <span class="geometry-axis"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-pixel-x" type="number" min="0" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-pixel-y" type="number" min="0" step="0.1" placeholder="—" /></span>
                   </div>
                   <div class="field-hint is-hidden" id="geometry-pixel-hint"></div>
                 </label>
                 <label class="field">
                   <span data-i18n="analysis.rings.photon_energy">Photon energy (eV)</span>
-                  <input id="geometry-energy" type="number" min="0" step="1" placeholder="e.g. 12000" data-i18n-placeholder="analysis.rings.placeholder.photon_energy" />
+                  <input id="geometry-energy" type="number" min="0" step="1" placeholder="—" />
                   <div class="field-hint is-hidden" id="geometry-energy-hint"></div>
                 </label>
                 <label class="field">
                   <span data-i18n="analysis.rings.beam_center">Beam center (px)</span>
                   <div class="ring-center">
-                    <input id="geometry-center-x" type="number" step="0.1" placeholder="X" data-i18n-placeholder="analysis.rings.placeholder.center_x" />
-                    <input id="geometry-center-y" type="number" step="0.1" placeholder="Y" data-i18n-placeholder="analysis.rings.placeholder.center_y" />
+                    <span class="geometry-axis"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_x">X</span><input id="geometry-center-x" type="number" step="0.1" placeholder="—" /></span>
+                    <span class="geometry-axis"><span class="geometry-axis-label" aria-hidden="true" data-i18n="analysis.rings.placeholder.center_y">Y</span><input id="geometry-center-y" type="number" step="0.1" placeholder="—" /></span>
                   </div>
                   <div class="field-hint is-hidden" id="geometry-center-hint"></div>
                 </label>
@@ -893,18 +905,6 @@
                 </label>
               </div>
               <div class="field-hint rings-geometry-status is-hidden" id="geometry-file-status"></div>
-              <div class="geometry-actions">
-                <button
-                  id="geometry-reset"
-                  class="btn btn-secondary"
-                  type="button"
-                  data-i18n="geometry.reset"
-                  data-i18n-title="geometry.reset_title"
-                  data-i18n-aria-label="geometry.reset_title"
-                >
-                  Reset to metadata
-                </button>
-              </div>
             </section>
             <section class="panel-section inspector is-collapsed" data-section="inspector">
               <button class="section-title" type="button" data-section-toggle>

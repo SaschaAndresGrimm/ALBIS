@@ -61,6 +61,7 @@ export function createGeometryParamsController({
     sectionStateEl,
     summaryChipEl,
     overrideToggle,
+    overrideHint,
     inputs = {},
     hints = {},
     resetButton,
@@ -74,7 +75,7 @@ export function createGeometryParamsController({
 
   const {
     onParamsChanged,
-    redraw,
+    onPixelAspectChanged,
     reloadGeometry,
     revealSection,
     setSectionBadgeState,
@@ -131,8 +132,11 @@ export function createGeometryParamsController({
     render();
     if (!notify) return;
     onParamsChanged?.();
+    // The image is drawn stretched by the pixel aspect. A new one has to lay
+    // the canvas out again, not only repaint it: before, a changed pixel size
+    // showed only after the image was panned.
     if (state.pixelAspect !== previousAspect && state.hasFrame) {
-      redraw?.();
+      onPixelAspectChanged?.();
     }
   }
 
@@ -254,15 +258,10 @@ export function createGeometryParamsController({
       showHint(hintEl, inputEls, t(VALIDATION_KEYS[badKey]), { isInvalid: true });
       return;
     }
+    // Only an overridden field needs a line of its own, to say what the
+    // metadata had. A value the metadata lacks shows as "—" in the field.
     const overridden = keys.some((key) => resolved.origins[key] === "override");
-    const missing = keys.every((key) => resolved.values[key] === null);
-    if (overridden) {
-      showHint(hintEl, inputEls, sourceText(keys));
-    } else if (missing && hasSource()) {
-      showHint(hintEl, inputEls, t("geometry.field.not_in_metadata"));
-    } else {
-      showHint(hintEl, inputEls, "");
-    }
+    showHint(hintEl, inputEls, overridden ? sourceText(keys) : "");
   }
 
   function hasSource() {
@@ -331,6 +330,9 @@ export function createGeometryParamsController({
 
   function renderState() {
     if (overrideToggle) overrideToggle.checked = override().enabled;
+    // What the switch does is worth saying while it is off; once it is on,
+    // the state line above says the same thing.
+    overrideHint?.classList.toggle("is-hidden", override().enabled);
     if (resetButton) resetButton.disabled = !overrideInEffect();
     if (overrideInEffect()) {
       setSectionBadgeState?.(sectionStateEl, "active", t("geometry.state.override"));

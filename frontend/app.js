@@ -408,6 +408,7 @@ const geometrySection = document.getElementById("detector-geometry-section");
 const geometryStateEl = document.getElementById("geometry-state");
 const geometrySummaryEl = document.getElementById("summary-geometry");
 const geometryOverrideToggle = document.getElementById("geometry-override");
+const geometryOverrideHint = document.getElementById("geometry-override-hint");
 const geometryResetButton = document.getElementById("geometry-reset");
 const geometryFileInput = document.getElementById("geometry-file");
 const geometryFileHint = document.getElementById("geometry-file-hint");
@@ -2461,6 +2462,7 @@ geometryParamsController = createGeometryParamsController({
     sectionStateEl: geometryStateEl,
     summaryChipEl: geometrySummaryEl,
     overrideToggle: geometryOverrideToggle,
+    overrideHint: geometryOverrideHint,
     inputs: geometryInputs,
     hints: geometryHints,
     resetButton: geometryResetButton,
@@ -2477,7 +2479,12 @@ geometryParamsController = createGeometryParamsController({
       scheduleResolutionOverlay();
       refreshPeakResolutions();
     },
-    redraw: () => redraw(),
+    // Same zoom, new aspect: recomputes the centring, the canvas transform,
+    // the pan limits and the overlays drawn over the image.
+    onPixelAspectChanged: () => {
+      setZoom(state.zoom);
+      scheduleOverview();
+    },
     reloadGeometry: () => reloadGeometryForCurrentFile(),
     revealSection: () => revealGeometrySection(),
     setSectionBadgeState,

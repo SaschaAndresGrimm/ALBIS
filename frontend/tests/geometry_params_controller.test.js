@@ -40,6 +40,7 @@ function buildElements() {
     sectionStateEl: div(),
     summaryChipEl: div(),
     overrideToggle,
+    overrideHint: div(),
     inputs: {
       distanceMm: input(),
       pixelSizeXUm: input(),
@@ -69,7 +70,7 @@ async function setup({ storage = memoryStorage(), state = { file: "a.cbf", hasFr
   const analysisState = createAnalysisState();
   const callbacks = {
     onParamsChanged: vi.fn(),
-    redraw: vi.fn(),
+    onPixelAspectChanged: vi.fn(),
     reloadGeometry: vi.fn(),
     revealSection: vi.fn(),
     setSectionBadgeState: (el, tone, message) => {
@@ -119,7 +120,7 @@ describe("geometry_params_controller", () => {
     const { analysisState, callbacks } = await setup({ storage });
 
     expect(callbacks.onParamsChanged).not.toHaveBeenCalled();
-    expect(callbacks.redraw).not.toHaveBeenCalled();
+    expect(callbacks.onPixelAspectChanged).not.toHaveBeenCalled();
     expect(analysisState.distanceMm).toBe(305);
   });
 
@@ -166,12 +167,32 @@ describe("geometry_params_controller", () => {
     controller.setSource({ energyEv: 8048 }, "image");
 
     expect(elements.summaryChipEl.textContent).toBe("Incomplete");
-    expect(elements.hints.distanceMm.textContent).toBe("Not in the metadata");
+    // A missing value shows as "—" in its field, so it needs no hint line.
+    expect(elements.inputs.distanceMm.value).toBe("");
+    expect(elements.hints.distanceMm.classList.contains("is-hidden")).toBe(true);
 
     controller.setOverrideValues({ distanceMm: 120, pixelSizeXUm: 75, centerX: 500, centerY: 510 });
     expect(analysisState.distanceMm).toBe(120);
     expect(analysisState.pixelSizeUm).toBe(75);
     expect(analysisState.pixelSizeYUm).toBe(75);
+  });
+
+  it("says what the switch does only while it is off", async () => {
+    const { controller, elements } = await setup();
+    controller.setSource(HEADER, "image");
+    expect(elements.overrideHint.classList.contains("is-hidden")).toBe(false);
+
+    controller.setOverrideEnabled(true);
+    expect(elements.overrideHint.classList.contains("is-hidden")).toBe(true);
+  });
+
+  it("says the metadata has nothing when an overridden value had no counterpart", async () => {
+    const { controller, elements } = await setup();
+    controller.setSource({ energyEv: 8048 }, "image");
+
+    controller.setOverrideValues({ distanceMm: 120 });
+
+    expect(elements.hints.distanceMm.textContent).toBe("Not in the metadata");
   });
 
   it("returns an emptied field to the file's value", async () => {
@@ -263,15 +284,21 @@ describe("geometry_params_controller", () => {
     expect(callbacks.revealSection).toHaveBeenCalledTimes(1);
   });
 
-  it("redraws the image when a pixel size changes its aspect", async () => {
-    const { controller, state, callbacks } = await setup({ state: { file: "a.h5", hasFrame: true } });
+  it("lays the image out again as soon as a pixel size changes its aspect", async () => {
+    const { controller, elements, state, callbacks } = await setup({ state: { file: "a.h5", hasFrame: true } });
     controller.setSource({ ...HEADER, pixelSizeXUm: 75, pixelSizeYUm: 75 }, "hdf5");
-    callbacks.redraw.mockClear();
+    controller.setOverrideEnabled(true);
+    callbacks.onPixelAspectChanged.mockClear();
 
-    controller.setOverrideValues({ pixelSizeYUm: 225 });
+    // Typing is enough: no Enter, no panning the image afterwards.
+    type(elements.inputs.pixelSizeYUm, "225");
 
     expect(state.pixelAspect).toBe(3);
-    expect(callbacks.redraw).toHaveBeenCalledTimes(1);
+    expect(callbacks.onPixelAspectChanged).toHaveBeenCalledTimes(1);
+
+    // A change that keeps the aspect needs no new layout.
+    type(elements.inputs.energyEv, "9000");
+    expect(callbacks.onPixelAspectChanged).toHaveBeenCalledTimes(1);
   });
 
   it("follows an override changed in another window", async () => {
