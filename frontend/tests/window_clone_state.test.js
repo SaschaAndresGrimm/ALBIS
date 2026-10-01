@@ -169,30 +169,42 @@ describe("captureWindowState carries the settings", () => {
     expect(JSON.stringify(payload).length).toBeLessThan(4096);
   });
 
-  it("omits a manual geometry override that is not in force", () => {
-    const payload = captureWindowState({
-      state: fullState(),
-      analysisState: { ...createAnalysisState(), geometryDistanceManual: false },
-      roiState: createRoiState(),
-      viewport: VIEWPORT,
-    });
-    expect(payload.analysis.manual).toEqual({});
-  });
-
-  it("records which manual overrides are in force, but never their key", () => {
+  it("carries no detector geometry: the clone reads the file's and shares the override", () => {
+    // The values in effect would freeze in the clone if they travelled, so it
+    // would stop following the file's metadata. The override lives in
+    // localStorage, which both windows share.
     const payload = captureWindowState({
       state: fullState(),
       analysisState: {
         ...createAnalysisState(),
-        geometryDistanceManual: true,
-        geometryCenterXManual: true,
-        geometryManualKey: "a-key-from-the-other-window",
+        distanceMm: 250,
+        pixelSizeUm: 75,
+        energyEv: 12000,
+        centerX: 1000,
+        centerY: 1100,
+        geometryOverride: {
+          enabled: true,
+          values: { distanceMm: 305 },
+          geometryFile: "/data/refined.expt",
+        },
       },
       roiState: createRoiState(),
       viewport: VIEWPORT,
     });
-    expect(payload.analysis.manual).toEqual({ distance: true, centerX: true });
-    expect(JSON.stringify(payload)).not.toContain("a-key-from-the-other-window");
+    for (const key of [
+      "distanceMm",
+      "pixelSizeUm",
+      "energyEv",
+      "centerX",
+      "centerY",
+      "manual",
+      "geometryLocked",
+      "geometryOverridePath",
+      "geometryOverride",
+    ]) {
+      expect(payload.analysis).not.toHaveProperty(key);
+    }
+    expect(JSON.stringify(payload)).not.toContain("refined.expt");
   });
 
   it("refuses to capture a window with no file", () => {
@@ -206,33 +218,27 @@ describe("captureWindowState carries the settings", () => {
     ).toBeNull();
   });
 
-  it("keeps an unknown geometry unknown instead of calling it zero", () => {
-    // createAnalysisState leaves these null until a file or the user supplies
-    // them. Number(null) is 0, so a naive capture turns "no detector distance"
-    // into "a detector distance of 0 mm" and the clone reports d-spacings the
-    // original never showed.
+  it("keeps an unset contrast limit unset instead of calling it zero", () => {
+    // Number(null) is 0, so a naive capture turns "scale automatically" into
+    // "clip at zero" and the clone shows a different image.
     const payload = captureWindowState({
-      state: fullState(),
+      state: fullState({ min: null, max: null }),
       analysisState: createAnalysisState(),
       roiState: createRoiState(),
       viewport: VIEWPORT,
     });
-    expect(payload.analysis.distanceMm).toBeNull();
-    expect(payload.analysis.pixelSizeUm).toBeNull();
-    expect(payload.analysis.energyEv).toBeNull();
-    expect(payload.analysis.centerX).toBeNull();
-    expect(payload.analysis.centerY).toBeNull();
+    expect(payload.contrast.min).toBeNull();
+    expect(payload.contrast.max).toBeNull();
   });
 
   it("still carries a real zero when the value genuinely is zero", () => {
     const payload = captureWindowState({
-      state: fullState(),
-      analysisState: { ...createAnalysisState(), distanceMm: 0, centerX: 0 },
+      state: fullState({ min: 0 }),
+      analysisState: createAnalysisState(),
       roiState: createRoiState(),
       viewport: VIEWPORT,
     });
-    expect(payload.analysis.distanceMm).toBe(0);
-    expect(payload.analysis.centerX).toBe(0);
+    expect(payload.contrast.min).toBe(0);
   });
 
   it("survives a missing viewport rather than inventing one", () => {

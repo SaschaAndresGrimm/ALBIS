@@ -38,11 +38,7 @@ describe("frame_metadata_controller", () => {
       centerY: null,
     };
     const loadImageGeometry = vi.fn(async () => {});
-    const ringsDistance = document.createElement("input");
-    const ringsPixel = document.createElement("input");
-    const ringsEnergy = document.createElement("input");
-    const ringsCenterX = document.createElement("input");
-    const ringsCenterY = document.createElement("input");
+    const geometryParams = { setSource: vi.fn() };
     const ringInputs = [document.createElement("input"), document.createElement("input"), document.createElement("input")];
 
     const controller = createFrameMetadataController({
@@ -60,17 +56,14 @@ describe("frame_metadata_controller", () => {
         fileSelect: null,
         metaShape: null,
         metaDtype: null,
-        ringsDistance,
-        ringsPixel,
-        ringsEnergy,
-        ringsCenterX,
-        ringsCenterY,
         ringInputs,
       },
       callbacks: {
         fetchJSON: vi.fn(async () => ({
           distance_mm: 240,
-          pixel_size_um: 172,
+          pixel_size_um: 75,
+          pixel_size_x_um: 75,
+          pixel_size_y_um: 225,
           energy_ev: 7118,
           center_x_px: 1080,
           center_y_px: 2603,
@@ -94,7 +87,7 @@ describe("frame_metadata_controller", () => {
         loadMask: async () => {},
         loadFrame: async () => {},
         isHdf5File: () => true,
-        getDefaultCenter: () => ({ x: 0, y: 0 }),
+        geometryParams,
         loadImageGeometry,
         resetTransientFrameLoadState: () => {},
         scheduleResolutionOverlay: () => {},
@@ -104,9 +97,19 @@ describe("frame_metadata_controller", () => {
     await controller.loadAnalysisParams();
 
     expect(loadImageGeometry).toHaveBeenCalledWith("sum_0001.h5", "file:sum_0001.h5");
-    expect(analysisState.distanceMm).toBe(240);
-    expect(analysisState.centerX).toBe(1080);
-    expect(ringsCenterY.value).toBe("2603");
+    // The file's values go to the geometry controller as its source, per-axis
+    // pixel sizes included; the controller decides what is in effect.
+    expect(geometryParams.setSource).toHaveBeenCalledWith(
+      {
+        distanceMm: 240,
+        pixelSizeXUm: 75,
+        pixelSizeYUm: 225,
+        energyEv: 7118,
+        centerX: 1080,
+        centerY: 2603,
+      },
+      "hdf5",
+    );
   });
 
   it("stops playback and clears transient frame-load state before loading dataset metadata", async () => {

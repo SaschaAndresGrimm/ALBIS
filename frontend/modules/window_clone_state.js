@@ -33,10 +33,9 @@ const PAYLOAD_VERSION = 1;
 
 function numberOrNull(value) {
   // null must survive as null. Number(null) is 0, and for these fields the two
-  // mean entirely different things: a null detector distance is "not known and
-  // so no d-spacing is reported", a zero is "calibrated to zero millimetres".
-  // Copying the first as the second would hand the clone a geometry the
-  // original never had.
+  // mean entirely different things: a null contrast limit is "not set, scale
+  // automatically", a zero is "clip at zero". Copying the first as the second
+  // would hand the clone a display the original never had.
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "boolean") return null;
   const n = Number(value);
@@ -64,15 +63,6 @@ function pointOrNull(point) {
  */
 export function captureWindowState({ state, analysisState, roiState, viewport }) {
   if (!state?.file) return null;
-
-  const manual = {};
-  // Only the overrides actually in force. The KEY these are scoped to is
-  // deliberately absent: it is re-stamped on the far side once the clone's own
-  // geometry has loaded, because it is compared against that geometry's key
-  // and a copied one would never match.
-  if (analysisState?.geometryDistanceManual) manual.distance = true;
-  if (analysisState?.geometryCenterXManual) manual.centerX = true;
-  if (analysisState?.geometryCenterYManual) manual.centerY = true;
 
   return {
     v: PAYLOAD_VERSION,
@@ -115,14 +105,10 @@ export function captureWindowState({ state, analysisState, roiState, viewport })
         ? analysisState.rings.map(numberOrNull).filter((v) => v !== null)
         : [],
       ringCount: Math.max(0, Math.round(Number(analysisState?.ringCount) || 0)),
-      distanceMm: numberOrNull(analysisState?.distanceMm),
-      pixelSizeUm: numberOrNull(analysisState?.pixelSizeUm),
-      energyEv: numberOrNull(analysisState?.energyEv),
-      centerX: numberOrNull(analysisState?.centerX),
-      centerY: numberOrNull(analysisState?.centerY),
-      geometryOverridePath: String(analysisState?.geometryOverridePath || ""),
-      geometryLocked: boolOf(analysisState?.geometryLocked),
-      manual,
+      // No detector geometry: the clone reads its own from the file it opens,
+      // and the user's override from localStorage, which both windows share.
+      // Copying the values in effect would freeze them in the clone, so it
+      // would stop following the file's metadata frame by frame.
       peaksEnabled: boolOf(analysisState?.peaksEnabled),
       peakCount: Math.max(1, Math.round(Number(analysisState?.peakCount) || 25)),
       peakMinSnr: Math.max(0, Number(analysisState?.peakMinSnr) || 0),

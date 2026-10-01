@@ -3,7 +3,6 @@
  */
 
 import { t, getLanguage } from "./i18n.js";
-import { getActiveSourceScopeKey, getGeometryScopeKey, isExptPath } from "./geometry_override_utils.js";
 
 function clampFrameIndex(rawValue, total, fallback) {
   const parsed = Number(rawValue);
@@ -24,19 +23,6 @@ export function bindAnalysisControlInteractions({
 
   const {
     ringsToggle,
-    ringsDistance,
-    ringsDistanceHint,
-    ringsPixel,
-    ringsPixelHint,
-    ringsEnergy,
-    ringsEnergyHint,
-    ringsCenterX,
-    ringsCenterY,
-    ringsGeometryFile,
-    ringsGeometryFileHint,
-    ringsGeometryBrowse,
-    ringsGeometryClear,
-    ringsGeometryLockReset,
     ringInputs,
     peaksCountInput,
     peaksCountHint,
@@ -78,10 +64,6 @@ export function bindAnalysisControlInteractions({
     handleLocalFileSelection,
     openFileBrowser,
     openFileDialog,
-    applyGeometryOverridePath,
-    clearGeometryOverridePath,
-    updateGeometryLockUi,
-    resetGeometryLock,
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,
@@ -93,95 +75,13 @@ export function bindAnalysisControlInteractions({
     return lower.endsWith(".tif") || lower.endsWith(".tiff");
   }
 
-  function currentGeometryScopeKey() {
-    return getGeometryScopeKey(state, state.file || "");
-  }
-
-  function parsePositiveNumberInput(inputEl, hintEl, messageKey) {
-    if (!inputEl) return null;
-    const raw = String(inputEl.value || "").trim();
-    if (!raw) {
-      setFieldHint(inputEl, hintEl, "");
-      return null;
-    }
-    const value = Number(raw);
-    if (!Number.isFinite(value) || value <= 0) {
-      setFieldHint(inputEl, hintEl, t(messageKey));
-      return null;
-    }
-    setFieldHint(inputEl, hintEl, "");
-    return value;
-  }
-
-  function updateRingsFromInputs(evt) {
-    const userEdit = Boolean(evt && evt.type);
-    const geometryDriven = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
+  // Distance, pixel size, energy and beam centre are edited in Data → Detector
+  // Geometry (geometry_params_controller). This section only owns the rings.
+  function updateRingsFromInputs() {
     if (ringsToggle) {
       analysisState.ringsEnabled = ringsToggle.checked;
     }
     analysisState.ringCount = Math.max(1, Math.min(defaultRingCount, Math.max(1, ringInputs.length)));
-    if (ringsDistance) {
-      const parsedDistance = parsePositiveNumberInput(
-        ringsDistance,
-        ringsDistanceHint,
-        "validation.rings.distance_positive",
-      );
-      if (geometryDriven) {
-        if (Number.isFinite(parsedDistance)) {
-          analysisState.distanceMm = parsedDistance;
-          analysisState.geometryDistanceManual = true;
-          analysisState.geometryManualKey = String(
-            analysisState.ringGeometryKey || analysisState.ringGeometrySource || "",
-          );
-        }
-      } else {
-        analysisState.distanceMm = parsedDistance;
-      }
-    }
-    if (ringsPixel && !geometryDriven) {
-      analysisState.pixelSizeUm = parsePositiveNumberInput(
-        ringsPixel,
-        ringsPixelHint,
-        "validation.rings.pixel_size_positive",
-      );
-    }
-    if (ringsEnergy) {
-      analysisState.energyEv = parsePositiveNumberInput(
-        ringsEnergy,
-        ringsEnergyHint,
-        "validation.rings.photon_energy_positive",
-      );
-    }
-    if (ringsCenterX) {
-      const raw = String(ringsCenterX.value ?? "").trim();
-      const value = raw ? Number(raw) : null;
-      if (geometryDriven) {
-        if (Number.isFinite(value)) {
-          analysisState.centerX = value;
-          analysisState.geometryCenterXManual = true;
-          analysisState.geometryManualKey = String(
-            analysisState.ringGeometryKey || analysisState.ringGeometrySource || "",
-          );
-        }
-      } else {
-        analysisState.centerX = Number.isFinite(value) ? value : analysisState.centerX;
-      }
-    }
-    if (ringsCenterY) {
-      const raw = String(ringsCenterY.value ?? "").trim();
-      const value = raw ? Number(raw) : null;
-      if (geometryDriven) {
-        if (Number.isFinite(value)) {
-          analysisState.centerY = value;
-          analysisState.geometryCenterYManual = true;
-          analysisState.geometryManualKey = String(
-            analysisState.ringGeometryKey || analysisState.ringGeometrySource || "",
-          );
-        }
-      } else {
-        analysisState.centerY = Number.isFinite(value) ? value : analysisState.centerY;
-      }
-    }
     if (ringInputs.length) {
       analysisState.rings = ringInputs
         .map((input, idx) => {
@@ -195,19 +95,8 @@ export function bindAnalysisControlInteractions({
       const visible = idx < analysisState.ringCount;
       input.style.display = visible ? "" : "none";
     });
-    // A manual correction to any geometry field while a live source is running
-    // locks the whole geometry block so incoming frames stop overwriting it.
-    // Geometry-file mode keeps its own per-field override handling above.
-    if (userEdit && evt?.target !== ringsToggle && !geometryDriven && state.autoload?.running) {
-      analysisState.geometryLocked = true;
-      analysisState.geometryLockKey = getActiveSourceScopeKey(state);
-      updateGeometryLockUi?.();
-    }
     updateRingsSectionState();
     scheduleResolutionOverlay();
-    // Geometry (distance/center/energy) drives each peak's d-spacing. Refresh
-    // just that column in place — no re-detection — so the peak list stays in
-    // sync with the rings without a full image pass.
     refreshPeakResolutions?.();
   }
 
@@ -262,109 +151,12 @@ export function bindAnalysisControlInteractions({
 
   updateRingsFromInputs();
 
-  [ringsToggle, ringsDistance, ringsPixel, ringsEnergy, ringsCenterX, ringsCenterY, ...ringInputs]
+  [ringsToggle, ...ringInputs]
     .filter(Boolean)
     .forEach((input) => {
       const eventName = input.type === "checkbox" ? "change" : "input";
       input.addEventListener(eventName, updateRingsFromInputs);
     });
-
-  ringsGeometryFile?.addEventListener("change", async () => {
-    const raw = String(ringsGeometryFile.value || "").trim();
-    if (!raw) {
-      setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
-      await clearGeometryOverridePath();
-      return;
-    }
-    if (!currentGeometryScopeKey()) {
-      setStatus(t("status.file.no_file_loaded"), { tone: "warning" });
-      return;
-    }
-    if (!isExptPath(raw)) {
-      setFieldHint(
-        ringsGeometryFile,
-        ringsGeometryFileHint,
-        t("validation.rings.geometry_expt_required"),
-      );
-      return;
-    }
-    setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
-    await applyGeometryOverridePath(raw);
-  });
-
-  ringsGeometryBrowse?.addEventListener("click", async () => {
-    if (!currentGeometryScopeKey()) {
-      setStatus(t("status.file.no_file_loaded"), { tone: "warning" });
-      return;
-    }
-    if (backendIsLocal) {
-      try {
-        const res = await fetch(`${apiBase}/choose-file?exts=.expt&lang=${encodeURIComponent(getLanguage())}`);
-        if (res.status === 204) return;
-        if (!res.ok) {
-          setStatus(
-            res.status === 409
-              ? t("status.file_picker.unavailable")
-              : t("status.analysis.geometry_picker_failed"),
-          );
-          return;
-        }
-        const data = await res.json();
-        const pickedPath = String(data?.path || "");
-        if (!pickedPath) return;
-        if (!isExptPath(pickedPath)) {
-          setFieldHint(
-            ringsGeometryFile,
-            ringsGeometryFileHint,
-            t("validation.rings.geometry_expt_required"),
-          );
-          return;
-        }
-        if (ringsGeometryFile) {
-          ringsGeometryFile.value = pickedPath;
-        }
-        setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
-        await applyGeometryOverridePath(pickedPath);
-        return;
-      } catch (err) {
-        console.error(err);
-        setStatus(t("status.analysis.geometry_picker_failed"), { tone: "error" });
-        return;
-      }
-    }
-    try {
-      const selectedPath = await openFileDialog({ exts: ".expt" });
-      if (!selectedPath) return;
-      if (!isExptPath(selectedPath)) {
-        setFieldHint(
-          ringsGeometryFile,
-          ringsGeometryFileHint,
-          t("validation.rings.geometry_expt_required"),
-        );
-        return;
-      }
-      if (ringsGeometryFile) {
-        ringsGeometryFile.value = String(selectedPath);
-      }
-      setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
-      await applyGeometryOverridePath(String(selectedPath));
-    } catch (err) {
-      console.error(err);
-      setStatus(t("status.analysis.geometry_picker_failed"), { tone: "error" });
-    }
-  });
-
-  ringsGeometryClear?.addEventListener("click", async () => {
-    if (ringsGeometryFile) {
-      ringsGeometryFile.value = "";
-    }
-    setFieldHint(ringsGeometryFile, ringsGeometryFileHint, "");
-    await clearGeometryOverridePath();
-  });
-
-  ringsGeometryLockReset?.addEventListener("click", () => {
-    resetGeometryLock?.();
-  });
 
   if (peaksCountInput) {
     const initial = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || 25))));

@@ -3,11 +3,6 @@
  */
 
 import { t } from "./i18n.js";
-import {
-  getActiveGeometryOverridePath,
-  getGeometryScopeKey,
-  isGeometryLockActive,
-} from "./geometry_override_utils.js";
 import { readHeaderText } from "./http.js";
 import {
   HC_EV_ANGSTROM,
@@ -51,62 +46,11 @@ export function createSourceMetadataController({
     jfjochReflectionsEl,
     jfjochChannelMetaEl,
     jfjochBridgeStatusEl,
-    ringsDistance,
-    ringsPixel,
-    ringsEnergy,
-    ringsCenterX,
-    ringsCenterY,
-    ringsGeometryFile,
-    ringsGeometryFileHint,
-    ringsGeometryBrowse,
-    ringsGeometryClear,
-    ringsGeometryStatusEl,
-    ringsGeometryLockEl,
-    ringsGeometryLockLabel,
-    ringsGeometryLockReset,
   } = elements;
 
-  const { scheduleResolutionOverlay, schedulePeakOverlay, refreshPeakResolutions } = callbacks;
-
-  // Any geometry change (distance/center/energy or a geometry file) repaints the
-  // resolution rings and must also refresh the peak-list d-spacings, which are
-  // geometry-derived. refreshPeakResolutions is lightweight (no re-detection)
-  // and no-ops when nothing actually changed.
-  function scheduleGeometryDependentOverlays() {
-    scheduleResolutionOverlay();
-    refreshPeakResolutions?.();
-  }
-
-  function formatNumberInput(value, digits = 2) {
-    if (!Number.isFinite(value)) return "";
-    const rounded = Number(value.toFixed(digits));
-    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
-  }
-
-  function hasGeometryManualOverride(flagName) {
-    const activeKey = String(analysisState.ringGeometryKey || "");
-    const manualKey = String(analysisState.geometryManualKey || "");
-    return Boolean(analysisState[flagName] && activeKey && manualKey && activeKey === manualKey);
-  }
-
-  function setDistanceInputValue(value) {
-    if (ringsDistance && Number.isFinite(value)) {
-      ringsDistance.value = formatNumberInput(value, 2);
-    }
-  }
-
-  function setCenterInputValue(inputEl, value) {
-    if (inputEl && Number.isFinite(value)) {
-      inputEl.value = formatNumberInput(value, 2);
-    }
-  }
-
-  function clearGeometryManualOverrides() {
-    analysisState.geometryManualKey = "";
-    analysisState.geometryDistanceManual = false;
-    analysisState.geometryCenterXManual = false;
-    analysisState.geometryCenterYManual = false;
-  }
+  // What the values mean, and what overrides them, lives in
+  // geometry_params_controller: this only reports what each source states.
+  const { geometryParams, schedulePeakOverlay } = callbacks;
 
   function parseHeaderFloat(headers, key) {
     if (!headers) return null;
@@ -168,61 +112,8 @@ export function createSourceMetadataController({
     return String(value);
   }
 
-  function formatGeometrySource(raw) {
-    const text = String(raw || "").trim();
-    if (!text) return "";
-    const normalized = text.replace(/\\/g, "/");
-    const parts = normalized.split("/").filter(Boolean);
-    if (parts.length <= 2) return parts.join("/");
-    return parts.slice(-2).join("/");
-  }
-
-  function currentGeometryScopeKey() {
-    return getGeometryScopeKey(state, state.file || "");
-  }
-
-  function visibleGeometryOverridePath() {
-    return getActiveGeometryOverridePath(analysisState, currentGeometryScopeKey());
-  }
-
   function updateGeometryUi() {
-    const geometryActive = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
-    const scopeKey = currentGeometryScopeKey();
-    const overridePath = visibleGeometryOverridePath();
-    if (ringsPixel) {
-      ringsPixel.disabled = Boolean(geometryActive);
-    }
-    if (ringsGeometryFile) {
-      ringsGeometryFile.value = overridePath;
-    }
-    if (ringsGeometryFileHint && !overridePath) {
-      ringsGeometryFileHint.classList.add("is-hidden");
-      ringsGeometryFileHint.textContent = "";
-    }
-    if (ringsGeometryBrowse) {
-      ringsGeometryBrowse.disabled = !scopeKey;
-    }
-    if (ringsGeometryClear) {
-      ringsGeometryClear.disabled = !overridePath;
-    }
-    if (!ringsGeometryStatusEl) return;
-    if (!geometryActive) {
-      ringsGeometryStatusEl.classList.add("is-hidden");
-      ringsGeometryStatusEl.textContent = "";
-      ringsGeometryStatusEl.removeAttribute("title");
-      return;
-    }
-    const source = formatGeometrySource(analysisState.ringGeometrySource) || t("common.ready");
-    const statusKey = analysisState.geometryOverrideActive
-      ? "rings.geometry.status_manual"
-      : "rings.geometry.status_auto";
-    ringsGeometryStatusEl.textContent = t(statusKey, { source });
-    if (analysisState.ringGeometrySource) {
-      ringsGeometryStatusEl.title = analysisState.ringGeometrySource;
-    } else {
-      ringsGeometryStatusEl.removeAttribute("title");
-    }
-    ringsGeometryStatusEl.classList.remove("is-hidden");
+    geometryParams?.render();
   }
 
   function updateSimplonMetaUI(meta) {
@@ -306,95 +197,14 @@ export function createSourceMetadataController({
     }
   }
 
-  function applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY }) {
-    // Image/remote sources expose a single pixel size and are treated as
-    // square; per-axis ("strixel") aspect only comes from HDF master files.
-    state.pixelAspect = 1;
-    if (isGeometryLockActive(analysisState, state)) {
-      updateGeometryLockUi();
-      return;
-    }
-    let updated = false;
-    if (Number.isFinite(distanceMm) && ringsDistance && !hasGeometryManualOverride("geometryDistanceManual")) {
-      analysisState.distanceMm = distanceMm;
-      setDistanceInputValue(distanceMm);
-      updated = true;
-    }
-    if (Number.isFinite(pixelSizeUm) && ringsPixel) {
-      analysisState.pixelSizeUm = pixelSizeUm;
-      ringsPixel.value = pixelSizeUm.toFixed(2);
-      updated = true;
-    }
-    if (Number.isFinite(energyEv) && ringsEnergy) {
-      analysisState.energyEv = energyEv;
-      ringsEnergy.value = String(Math.round(energyEv));
-      updated = true;
-    }
-    if (Number.isFinite(centerX) && ringsCenterX && !hasGeometryManualOverride("geometryCenterXManual")) {
-      analysisState.centerX = centerX;
-      setCenterInputValue(ringsCenterX, centerX);
-      updated = true;
-    }
-    if (Number.isFinite(centerY) && ringsCenterY && !hasGeometryManualOverride("geometryCenterYManual")) {
-      analysisState.centerY = centerY;
-      setCenterInputValue(ringsCenterY, centerY);
-      updated = true;
-    }
-    if (updated) {
-      scheduleGeometryDependentOverlays();
-    }
-    updateGeometryLockUi();
-  }
-
-  function liveSourceActive() {
-    return Boolean(state.autoload?.running) && analysisState.ringMode !== "geometry";
-  }
-
-  function updateGeometryLockUi() {
-    if (!ringsGeometryLockEl) return;
-    if (!liveSourceActive()) {
-      ringsGeometryLockEl.classList.add("is-hidden");
-      ringsGeometryLockEl.classList.remove("is-locked");
-      return;
-    }
-    const locked = isGeometryLockActive(analysisState, state);
-    ringsGeometryLockEl.classList.remove("is-hidden");
-    ringsGeometryLockEl.classList.toggle("is-locked", locked);
-    if (ringsGeometryLockLabel) {
-      ringsGeometryLockLabel.textContent = locked ? t("rings.lock.locked") : t("rings.lock.live");
-    }
-    if (ringsGeometryLockReset) {
-      ringsGeometryLockReset.classList.toggle("is-hidden", !locked);
-    }
-  }
-
-  // Re-apply the most recent live metadata so locked fields snap back to the
-  // values currently arriving from the source.
-  function reapplyLiveAnalysis() {
-    const auto = state.autoload || {};
-    const mode = String(auto.mode || "");
-    let meta = null;
-    if (mode === "simplon") meta = auto.simplonMeta;
-    else if (mode === "remote") meta = auto.remoteMeta;
-    else if (mode === "jungfraujoch") meta = auto.jfjochMeta;
-    if (!meta || typeof meta !== "object") return;
-    applyAnalysisMeta(
-      normalizeAnalysis({
-        distanceMm: meta.distanceMm,
-        pixelSizeUm: meta.pixelSizeUm ?? null,
-        energyEv: meta.energyEv,
-        centerX: meta.centerX,
-        centerY: meta.centerY,
-      }),
+  function applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY }, origin, { live = false } = {}) {
+    // Image and live sources state one pixel size and are square; per-axis
+    // ("strixel") sizes only come from HDF5 files.
+    geometryParams?.setSource(
+      { distanceMm, pixelSizeXUm: pixelSizeUm, pixelSizeYUm: pixelSizeUm, energyEv, centerX, centerY },
+      origin,
+      { live },
     );
-  }
-
-  function resetGeometryLock() {
-    analysisState.geometryLocked = false;
-    analysisState.geometryLockKey = "";
-    reapplyLiveAnalysis();
-    updateGeometryLockUi();
-    scheduleGeometryDependentOverlays();
   }
 
   function parseSimplonMeta(headers) {
@@ -486,7 +296,7 @@ export function createSourceMetadataController({
   function applyLiveSourceSnapshot(snapshot) {
     const source = snapshot && typeof snapshot === "object" ? snapshot : {};
     const sourceKind = String(source.sourceKind || "");
-    applyAnalysisMeta(normalizeAnalysis(source.analysis));
+    applyAnalysisMeta(normalizeAnalysis(source.analysis), sourceKind, { live: true });
 
     if (sourceKind === "simplon") {
       const meta = cloneMetaObject(source.simplonMeta);
@@ -516,12 +326,10 @@ export function createSourceMetadataController({
     analysisState.ringGeometry = null;
     analysisState.ringGeometrySource = "";
     analysisState.geometryOverrideActive = false;
-    clearGeometryManualOverrides();
     if (clearKey) {
       analysisState.ringGeometryKey = "";
     }
-    updateGeometryUi();
-    scheduleGeometryDependentOverlays();
+    geometryParams?.setGeometryReference(null);
   }
 
   function applyImageGeometry(payload, cacheKey = "", { overrideActive = false } = {}) {
@@ -532,43 +340,18 @@ export function createSourceMetadataController({
       analysisState.ringGeometry = null;
       analysisState.ringGeometrySource = "";
       analysisState.geometryOverrideActive = false;
-      clearGeometryManualOverrides();
-      updateGeometryUi();
-      scheduleGeometryDependentOverlays();
+      geometryParams?.setGeometryReference(null);
       return;
     }
-    const reference = getGeometryReferencePose(prepared);
     analysisState.ringMode = "geometry";
     analysisState.ringGeometry = prepared;
     analysisState.ringGeometrySource = String(prepared.source || "");
     analysisState.geometryOverrideActive = Boolean(overrideActive);
-    const shouldSeedFromManualOverride = Boolean(overrideActive);
-    if (
-      reference &&
-      !hasGeometryManualOverride("geometryDistanceManual") &&
-      (shouldSeedFromManualOverride || !Number.isFinite(analysisState.distanceMm) || analysisState.distanceMm <= 0)
-    ) {
-      analysisState.distanceMm = reference.distanceMm;
-      setDistanceInputValue(reference.distanceMm);
-    }
-    if (
-      reference &&
-      !hasGeometryManualOverride("geometryCenterXManual") &&
-      (shouldSeedFromManualOverride || !Number.isFinite(analysisState.centerX))
-    ) {
-      analysisState.centerX = reference.centerX;
-      setCenterInputValue(ringsCenterX, reference.centerX);
-    }
-    if (
-      reference &&
-      !hasGeometryManualOverride("geometryCenterYManual") &&
-      (shouldSeedFromManualOverride || !Number.isFinite(analysisState.centerY))
-    ) {
-      analysisState.centerY = reference.centerY;
-      setCenterInputValue(ringsCenterY, reference.centerY);
-    }
-    updateGeometryUi();
-    scheduleGeometryDependentOverlays();
+    // Where the file does not say, the geometry's own pose fills in. A
+    // geometry the user chose is a calibration, so its pose wins outright.
+    geometryParams?.setGeometryReference(getGeometryReferencePose(prepared), {
+      poseFromGeometry: Boolean(overrideActive),
+    });
   }
 
   function applyImageMeta(headers) {
@@ -582,7 +365,7 @@ export function createSourceMetadataController({
     if (!Number.isFinite(energyEv) && Number.isFinite(wavelengthA) && wavelengthA > 0) {
       energyEv = HC_EV_ANGSTROM / wavelengthA;
     }
-    applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY });
+    applyAnalysisMeta({ distanceMm, pixelSizeUm, energyEv, centerX, centerY }, "image");
   }
 
   function applySimplonMeta(headers) {
@@ -617,8 +400,6 @@ export function createSourceMetadataController({
     updateRemoteMetaUI,
     updateJfjochMetaUI,
     updateGeometryUi,
-    updateGeometryLockUi,
-    resetGeometryLock,
     parseSimplonMeta,
     parseRemoteMeta,
     createLiveSourceSnapshot,

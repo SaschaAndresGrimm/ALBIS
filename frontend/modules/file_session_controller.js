@@ -26,6 +26,7 @@ export function createFileSessionController({
     stopPlayback,
     resetTransientFrameLoadState,
     clearImageGeometry,
+    clearGeometrySource,
     clearMaskState,
     clearImageHeader,
     updateToolbar,
@@ -113,13 +114,10 @@ export function createFileSessionController({
     analysisState.ringGeometry = null;
     analysisState.ringGeometrySource = "";
     analysisState.ringGeometryKey = "";
-    analysisState.geometryOverridePath = "";
-    analysisState.geometryOverrideScopeKey = "";
     analysisState.geometryOverrideActive = false;
-    analysisState.geometryManualKey = "";
-    analysisState.geometryDistanceManual = false;
-    analysisState.geometryCenterXManual = false;
-    analysisState.geometryCenterYManual = false;
+    // The closed file's metadata goes; the user's geometry override stays,
+    // since it is meant for every file until switched off.
+    clearGeometrySource?.();
     clearImageGeometry();
     clearMaskState();
     clearImageHeader();

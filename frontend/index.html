@@ -815,6 +815,97 @@
                 </div>
               </details>
             </section>
+            <section class="panel-section is-collapsed" data-section="detector-geometry" id="detector-geometry-section">
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main">
+                  <span data-i18n="geometry.section_title">Detector Geometry</span>
+                  <span class="section-summary" id="summary-geometry"></span>
+                </span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="section-state is-empty" id="geometry-state" role="status" aria-live="polite" data-i18n="geometry.state.no_file">
+                Load an image to see its detector geometry.
+              </div>
+              <label class="geometry-override-toggle">
+                <input id="geometry-override" type="checkbox" />
+                <span data-i18n="geometry.override_toggle">Override manually</span>
+              </label>
+              <div class="geometry-override-hint" data-i18n="geometry.override_hint">
+                Values you enter replace the image metadata for every image, and are kept until you switch this off.
+              </div>
+              <div class="rings-grid geometry-grid">
+                <label class="field">
+                  <span data-i18n="analysis.rings.detector_distance">Detector distance (mm)</span>
+                  <input id="geometry-distance" type="number" min="0" step="0.1" placeholder="e.g. 250" data-i18n-placeholder="analysis.rings.placeholder.distance" />
+                  <div class="field-hint is-hidden" id="geometry-distance-hint"></div>
+                </label>
+                <label class="field">
+                  <span data-i18n="analysis.rings.pixel_size">Pixel size (µm)</span>
+                  <div class="ring-center">
+                    <input id="geometry-pixel-x" type="number" min="0" step="0.1" placeholder="X" data-i18n-placeholder="analysis.rings.placeholder.center_x" />
+                    <input id="geometry-pixel-y" type="number" min="0" step="0.1" placeholder="Y" data-i18n-placeholder="analysis.rings.placeholder.center_y" />
+                  </div>
+                  <div class="field-hint is-hidden" id="geometry-pixel-hint"></div>
+                </label>
+                <label class="field">
+                  <span data-i18n="analysis.rings.photon_energy">Photon energy (eV)</span>
+                  <input id="geometry-energy" type="number" min="0" step="1" placeholder="e.g. 12000" data-i18n-placeholder="analysis.rings.placeholder.photon_energy" />
+                  <div class="field-hint is-hidden" id="geometry-energy-hint"></div>
+                </label>
+                <label class="field">
+                  <span data-i18n="analysis.rings.beam_center">Beam center (px)</span>
+                  <div class="ring-center">
+                    <input id="geometry-center-x" type="number" step="0.1" placeholder="X" data-i18n-placeholder="analysis.rings.placeholder.center_x" />
+                    <input id="geometry-center-y" type="number" step="0.1" placeholder="Y" data-i18n-placeholder="analysis.rings.placeholder.center_y" />
+                  </div>
+                  <div class="field-hint is-hidden" id="geometry-center-hint"></div>
+                </label>
+                <label class="field rings-geometry-file-field">
+                  <span data-i18n="analysis.rings.geometry_file">Geometry file</span>
+                  <div class="rings-geometry-file-row">
+                    <input
+                      id="geometry-file"
+                      type="text"
+                      placeholder="path/to/imported.expt"
+                      data-i18n-placeholder="analysis.rings.placeholder.geometry_file"
+                    />
+                    <button
+                      id="geometry-file-browse"
+                      class="btn btn-secondary rings-geometry-icon-btn"
+                      type="button"
+                      title="Browse"
+                      aria-label="Browse"
+                      data-i18n-title="series.ui.browse"
+                      data-i18n-aria-label="series.ui.browse"
+                    >
+                      📁
+                    </button>
+                    <button
+                      id="geometry-file-clear"
+                      class="btn btn-secondary rings-geometry-clear-btn"
+                      type="button"
+                      data-i18n="analysis.rings.geometry_clear"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div class="field-hint is-hidden" id="geometry-file-hint"></div>
+                </label>
+              </div>
+              <div class="field-hint rings-geometry-status is-hidden" id="geometry-file-status"></div>
+              <div class="geometry-actions">
+                <button
+                  id="geometry-reset"
+                  class="btn btn-secondary"
+                  type="button"
+                  data-i18n="geometry.reset"
+                  data-i18n-title="geometry.reset_title"
+                  data-i18n-aria-label="geometry.reset_title"
+                >
+                  Reset to metadata
+                </button>
+              </div>
+            </section>
             <section class="panel-section inspector is-collapsed" data-section="inspector">
               <button class="section-title" type="button" data-section-toggle>
                 <span data-i18n="inspector.title">File Inspector</span>
@@ -1301,94 +1392,18 @@
               <div class="section-state is-empty" id="rings-state" role="status" aria-live="polite" data-i18n="rings.state.enable_hint">
                 Enable rings to show resolution guides.
               </div>
-              <div class="rings-grid rings-grid-top">
-                <label class="field">
-                  <span data-i18n="analysis.rings.detector_distance">Detector distance (mm)</span>
-                  <input
-                    id="rings-distance"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    placeholder="e.g. 250"
-                    data-i18n-placeholder="analysis.rings.placeholder.distance"
-                  />
-                  <div class="field-hint is-hidden" id="rings-distance-hint"></div>
-                </label>
-                <label class="field">
-                  <span data-i18n="analysis.rings.pixel_size">Pixel size (µm)</span>
-                  <input
-                    id="rings-pixel"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    placeholder="e.g. 75"
-                    data-i18n-placeholder="analysis.rings.placeholder.pixel_size"
-                  />
-                  <div class="field-hint is-hidden" id="rings-pixel-hint"></div>
-                </label>
-                <label class="field">
-                  <span data-i18n="analysis.rings.photon_energy">Photon energy (eV)</span>
-                  <input
-                    id="rings-energy"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="e.g. 12000"
-                    data-i18n-placeholder="analysis.rings.placeholder.photon_energy"
-                  />
-                  <div class="field-hint is-hidden" id="rings-energy-hint"></div>
-                </label>
-                <label class="field">
-                  <span data-i18n="analysis.rings.beam_center">Beam center (px)</span>
-                  <div class="ring-center">
-                    <input id="rings-center-x" type="number" step="0.1" placeholder="X" data-i18n-placeholder="analysis.rings.placeholder.center_x" />
-                    <input id="rings-center-y" type="number" step="0.1" placeholder="Y" data-i18n-placeholder="analysis.rings.placeholder.center_y" />
-                  </div>
-                </label>
-                <label class="field rings-geometry-file-field">
-                  <span data-i18n="analysis.rings.geometry_file">Geometry file</span>
-                  <div class="rings-geometry-file-row">
-                    <input
-                      id="rings-geometry-file"
-                      type="text"
-                      placeholder="path/to/imported.expt"
-                      data-i18n-placeholder="analysis.rings.placeholder.geometry_file"
-                    />
-                    <button
-                      id="rings-geometry-browse"
-                      class="btn btn-secondary rings-geometry-icon-btn"
-                      type="button"
-                      title="Browse"
-                      aria-label="Browse"
-                      data-i18n-title="series.ui.browse"
-                      data-i18n-aria-label="series.ui.browse"
-                    >
-                      📁
-                    </button>
-                    <button
-                      id="rings-geometry-clear"
-                      class="btn btn-secondary rings-geometry-clear-btn"
-                      type="button"
-                      data-i18n="analysis.rings.geometry_clear"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <div class="field-hint is-hidden" id="rings-geometry-file-hint"></div>
-                </label>
-              </div>
-              <div class="field-hint rings-geometry-status is-hidden" id="rings-geometry-status"></div>
-              <div class="rings-geometry-lock is-hidden" id="rings-geometry-lock">
-                <span class="rings-geometry-lock-state" id="rings-geometry-lock-label"></span>
+              <div class="geometry-inline" data-geometry-inline>
+                <span class="geometry-inline-values" data-geometry-inline-values></span>
+                <span class="geometry-inline-manual is-hidden" data-geometry-inline-manual data-i18n="geometry.inline.manual">manual</span>
                 <button
-                  id="rings-geometry-lock-reset"
-                  class="btn btn-secondary rings-geometry-lock-reset is-hidden"
                   type="button"
-                  data-i18n="rings.lock.reset"
-                  data-i18n-title="rings.lock.reset_title"
-                  data-i18n-aria-label="rings.lock.reset_title"
+                  class="btn btn-secondary geometry-inline-edit"
+                  data-geometry-edit
+                  data-i18n="geometry.edit"
+                  data-i18n-title="geometry.edit_title"
+                  data-i18n-aria-label="geometry.edit_title"
                 >
-                  Reset to live
+                  Edit
                 </button>
               </div>
               <div class="rings-grid rings-grid-bottom">
@@ -1418,6 +1433,20 @@
               </button>
               <div class="section-state is-empty" id="peaks-state" role="status" aria-live="polite" data-i18n="peaks.state.enable_hint">
                 Enable Peak Finder to detect peaks.
+              </div>
+              <div class="geometry-inline" data-geometry-inline>
+                <span class="geometry-inline-values" data-geometry-inline-values></span>
+                <span class="geometry-inline-manual is-hidden" data-geometry-inline-manual data-i18n="geometry.inline.manual">manual</span>
+                <button
+                  type="button"
+                  class="btn btn-secondary geometry-inline-edit"
+                  data-geometry-edit
+                  data-i18n="geometry.edit"
+                  data-i18n-title="geometry.edit_title"
+                  data-i18n-aria-label="geometry.edit_title"
+                >
+                  Edit
+                </button>
               </div>
               <div class="peaks-controls">
                 <label class="field peaks-count-field">

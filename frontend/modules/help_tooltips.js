@@ -118,6 +118,12 @@ export function createHelpTooltipController({
       "invert-color": "hint.overlay.invert",
       "roi-enable": "hint.roi.enable",
       "rings-toggle": "hint.rings.toggle",
+      // The X and Y fields share one label, so without these both would
+      // describe themselves only as "Pixel size" or "Beam center".
+      "geometry-pixel-x": "hint.geometry.pixel_size_x",
+      "geometry-pixel-y": "hint.geometry.pixel_size_y",
+      "geometry-center-x": "hint.geometry.beam_center_x",
+      "geometry-center-y": "hint.geometry.beam_center_y",
       "roi-mode": "hint.roi.mode",
       "roi-histogram": "hint.roi.histogram",
       "roi-clear-btn": "hint.roi.clear",

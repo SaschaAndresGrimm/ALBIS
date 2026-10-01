@@ -1,3 +1,5 @@
+import { createGeometryOverride, emptyGeometryValues } from "./geometry_params.js";
+
 export function createRoiState() {
   return {
     // Active ROI geometry and derived plot configuration.
@@ -36,28 +38,27 @@ export function createAnalysisState() {
   return {
     // Analysis overlays rendered on top of the current frame.
     ringsEnabled: false,
+    // The geometry in effect. Written only by geometry_params_controller,
+    // from geometrySource, geometryReference and geometryOverride below.
     distanceMm: null,
     pixelSizeUm: null,
+    pixelSizeYUm: null,
     energyEv: null,
     centerX: null,
     centerY: null,
+    // What the open file or live stream states, and which kind of source it was.
+    geometrySource: { values: emptyGeometryValues(), origin: "" },
+    // The pose of the detector geometry in use; null for a flat detector.
+    geometryReference: null,
+    // True when that geometry is a file the user chose, whose pose then wins.
+    geometryPoseFromFile: false,
+    // The user's values, kept across files and sessions until switched off.
+    geometryOverride: createGeometryOverride(),
     ringMode: "planar",
     ringGeometry: null,
     ringGeometrySource: "",
     ringGeometryKey: "",
-    geometryOverridePath: "",
-    geometryOverrideScopeKey: "",
     geometryOverrideActive: false,
-    geometryManualKey: "",
-    geometryDistanceManual: false,
-    geometryCenterXManual: false,
-    geometryCenterYManual: false,
-    // Live-source geometry lock: when engaged, incoming frame metadata is
-    // ignored so manually corrected geometry persists. Scoped to the source
-    // that was active when the lock engaged (see getActiveSourceScopeKey),
-    // so it clears automatically on a source/file switch.
-    geometryLocked: false,
-    geometryLockKey: "",
     rings: [1, 3.67, 11.01],
     ringCount: 3,
     peaksEnabled: false,

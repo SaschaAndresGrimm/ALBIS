@@ -13,10 +13,9 @@ function setup({ params, ringValues = [], getResolutionAtPixel = () => null } = 
   const analysisState = { ringsEnabled: true };
   const canvasWrap = document.createElement("div");
   canvasWrap.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 400 });
-  const ringsCenterX = document.createElement("input");
-  const ringsCenterY = document.createElement("input");
   const ringInputs = ringValues.map(makeRingInput);
   const scheduleResolutionOverlay = vi.fn();
+  const setBeamCenter = vi.fn();
 
   const defaultParams = {
     mode: "planar",
@@ -32,8 +31,9 @@ function setup({ params, ringValues = [], getResolutionAtPixel = () => null } = 
   const controller = createResolutionRingInteractionController({
     state,
     analysisState,
-    elements: { canvasWrap, ringsCenterX, ringsCenterY, ringInputs },
+    elements: { canvasWrap, ringInputs },
     callbacks: {
+      setBeamCenter,
       getEffectiveScrollLeft: () => 0,
       getEffectiveScrollTop: () => 0,
       getRingParams: () => ({ ...defaultParams, ...params }),
@@ -42,7 +42,7 @@ function setup({ params, ringValues = [], getResolutionAtPixel = () => null } = 
     },
   });
 
-  return { controller, state, ringsCenterX, ringsCenterY, ringInputs, canvasWrap };
+  return { controller, state, setBeamCenter, ringInputs, canvasWrap };
 }
 
 describe("resolution_ring_interaction_controller", () => {
@@ -84,20 +84,17 @@ describe("resolution_ring_interaction_controller", () => {
     expect(handle).toBeNull();
   });
 
-  it("writes both center inputs and fires a single input event on drag", () => {
-    const { controller, ringsCenterX, ringsCenterY } = setup();
-    const xEvents = vi.fn();
-    const yEvents = vi.fn();
-    ringsCenterX.addEventListener("input", xEvents);
-    ringsCenterY.addEventListener("input", yEvents);
+  it("sets the beam centre as a manual override, in whole pixels, on drag", () => {
+    // Dragging the centre is a manual geometry edit like typing it, so it goes
+    // to the override and stays across files instead of being replaced by the
+    // next frame's header.
+    const { controller, setBeamCenter } = setup();
 
     controller.startRingEdit({ type: "center" });
     controller.applyRingEdit({ x: 123.4, y: 56.6 });
 
-    expect(ringsCenterX.value).toBe("123");
-    expect(ringsCenterY.value).toBe("57");
-    expect(xEvents).toHaveBeenCalledTimes(1);
-    expect(yEvents).toHaveBeenCalledTimes(0);
+    expect(setBeamCenter).toHaveBeenCalledTimes(1);
+    expect(setBeamCenter).toHaveBeenCalledWith(123, 57);
   });
 
   it("writes the resolved d-spacing into the dragged ring input", () => {

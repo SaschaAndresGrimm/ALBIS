@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildGeometryRequestKey,
-  getActiveGeometryOverridePath,
   getGeometryScopeKey,
   isExptPath,
 } from "../modules/geometry_override_utils.js";
@@ -18,18 +17,6 @@ describe("geometry_override_utils", () => {
     expect(getGeometryScopeKey({ ...state, file: "series_0003.tiff" }, "series_0003.tiff")).toBe(
       "series:series_0001.tiff:3",
     );
-  });
-
-  it("matches overrides only when the stored scope key is active", () => {
-    const analysisState = {
-      geometryOverridePath: "P12M_geometry/imported.expt",
-      geometryOverrideScopeKey: "series:series_0001.tiff:3",
-    };
-
-    expect(getActiveGeometryOverridePath(analysisState, "series:series_0001.tiff:3")).toBe(
-      "P12M_geometry/imported.expt",
-    );
-    expect(getActiveGeometryOverridePath(analysisState, "file:other.h5")).toBe("");
   });
 
   it("validates .expt overrides and request keys", () => {

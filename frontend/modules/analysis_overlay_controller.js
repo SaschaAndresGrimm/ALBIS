@@ -19,11 +19,6 @@ export function createAnalysisOverlayController({
   callbacks,
 }) {
   const {
-    ringsDistance,
-    ringsPixel,
-    ringsEnergy,
-    ringsCenterX,
-    ringsCenterY,
     ringInputs,
     ringsSectionStateEl,
     ringsSummaryEl,
@@ -62,14 +57,6 @@ export function createAnalysisOverlayController({
 
   let peakFinderScheduled = false;
 
-  function parseNumericInputValue(inputEl) {
-    if (!inputEl) return null;
-    const raw = String(inputEl.value ?? "").trim();
-    if (!raw) return null;
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : null;
-  }
-
   function getDefaultCenter() {
     if (Array.isArray(state.shape) && state.shape.length >= 2) {
       const width = state.shape[state.shape.length - 1];
@@ -86,22 +73,15 @@ export function createAnalysisOverlayController({
 
   function getRingParams() {
     const geometryActive = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
-    const distanceInput = parseNumericInputValue(ringsDistance);
-    const pixelInput = parseNumericInputValue(ringsPixel);
-    const energyInput = parseNumericInputValue(ringsEnergy);
-    const centerX = parseNumericInputValue(ringsCenterX);
-    const centerY = parseNumericInputValue(ringsCenterY);
-    const distanceMm = Number.isFinite(distanceInput) ? distanceInput : analysisState.distanceMm;
-    const pixelSizeUm = Number.isFinite(pixelInput) ? pixelInput : analysisState.pixelSizeUm;
-    const energyEv = Number.isFinite(energyInput) ? energyInput : analysisState.energyEv;
-    const centerKnown =
-      Number.isFinite(centerX) ||
-      Number.isFinite(centerY) ||
-      Number.isFinite(analysisState.centerX) ||
-      Number.isFinite(analysisState.centerY);
+    // The values in effect, from geometry_params_controller: the source's,
+    // or the user's override. Nothing here reads a form field any more.
+    const distanceMm = analysisState.distanceMm;
+    const pixelSizeUm = analysisState.pixelSizeUm;
+    const energyEv = analysisState.energyEv;
+    const centerKnown = Number.isFinite(analysisState.centerX) || Number.isFinite(analysisState.centerY);
     const center = {
-      x: Number.isFinite(centerX) ? centerX : analysisState.centerX,
-      y: Number.isFinite(centerY) ? centerY : analysisState.centerY,
+      x: analysisState.centerX,
+      y: analysisState.centerY,
     };
     const fallback = getDefaultCenter();
     if (!Number.isFinite(center.x)) center.x = fallback.x;

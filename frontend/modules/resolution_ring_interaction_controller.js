@@ -3,12 +3,11 @@
  * resize individual rings directly on the canvas.
  *
  * The ring geometry has no canvas-side state of its own — it is derived every
- * frame from the geometry input fields by getRingParams(). So a drag does not
- * mutate a private model; it writes the new value back into the same input
- * field and dispatches a native "input" event. The existing field listener then
- * does everything for us: validation, engaging the live-source geometry lock,
- * and scheduling the overlay redraw. This keeps the input fields the single
- * source of truth and means dragging behaves exactly like typing.
+ * frame by getRingParams(). A ring drag writes the new d-spacing into that
+ * ring's input and dispatches a native "input" event, so it behaves exactly
+ * like typing. A beam-centre drag is a manual geometry override, the same as
+ * typing a centre in Data → Detector Geometry, so it goes to setBeamCenter,
+ * which switches the override on and keeps the centre across files.
  */
 
 import { braggTwoTheta, wavelengthFromEnergy } from "./ring_geometry_utils.js";
@@ -22,8 +21,9 @@ export function createResolutionRingInteractionController({
   elements,
   callbacks,
 }) {
-  const { canvasWrap, ringsCenterX, ringsCenterY, ringInputs } = elements;
+  const { canvasWrap, ringInputs } = elements;
   const {
+    setBeamCenter,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
     getRingParams,
@@ -120,10 +120,7 @@ export function createResolutionRingInteractionController({
   function applyRingEdit(point) {
     if (!ringEditing || !activeHandle || !point) return;
     if (activeHandle.type === "center") {
-      // One dispatch is enough — the field listener re-reads both center
-      // inputs, so set both values and fire a single input event.
-      if (ringsCenterY) ringsCenterY.value = String(Math.round(point.y));
-      commitInput(ringsCenterX, String(Math.round(point.x)));
+      setBeamCenter?.(Math.round(point.x), Math.round(point.y));
       return;
     }
     if (activeHandle.type === "ring") {

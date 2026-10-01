@@ -18,11 +18,6 @@ export function createFrameMetadataController({
     fileSelect,
     metaShape,
     metaDtype,
-    ringsDistance,
-    ringsPixel,
-    ringsEnergy,
-    ringsCenterX,
-    ringsCenterY,
     ringInputs,
   } = elements;
 
@@ -48,7 +43,7 @@ export function createFrameMetadataController({
     loadMask,
     loadFrame,
     isHdf5File,
-    getDefaultCenter,
+    geometryParams,
     loadImageGeometry,
     resetTransientFrameLoadState,
     scheduleResolutionOverlay,
@@ -247,9 +242,6 @@ export function createFrameMetadataController({
   }
 
   async function loadAnalysisParams() {
-    // Reset the display aspect to square first; only HDF master files with
-    // per-axis pixel sizes override it below.
-    state.pixelAspect = 1;
     if (!state.file || !isHdf5File(state.file)) {
       return;
     }
@@ -259,33 +251,21 @@ export function createFrameMetadataController({
           state.dataset || "",
         )}`,
       );
-      if (Number.isFinite(data.distance_mm) && ringsDistance) {
-        analysisState.distanceMm = data.distance_mm;
-        ringsDistance.value = String(Math.round(data.distance_mm));
-      }
-      if (Number.isFinite(data.pixel_size_um) && ringsPixel) {
-        analysisState.pixelSizeUm = data.pixel_size_um;
-        ringsPixel.value = data.pixel_size_um.toFixed(2);
-      }
-      // Derive the display aspect ratio from the per-axis pixel sizes so
-      // anisotropic ("strixel") detectors render with the correct geometry.
-      // X is the reference axis; Y is stretched by y/x. Defaults to 1 (square)
-      // whenever the per-axis sizes are missing or equal.
-      const pxX = Number(data.pixel_size_x_um);
-      const pxY = Number(data.pixel_size_y_um);
-      state.pixelAspect =
-        Number.isFinite(pxX) && pxX > 0 && Number.isFinite(pxY) && pxY > 0 ? pxY / pxX : 1;
-      if (Number.isFinite(data.energy_ev) && ringsEnergy) {
-        analysisState.energyEv = data.energy_ev;
-        ringsEnergy.value = String(Math.round(data.energy_ev));
-      }
-      const fallback = getDefaultCenter();
-      const centerX = Number.isFinite(data.center_x_px) ? data.center_x_px : fallback.x;
-      const centerY = Number.isFinite(data.center_y_px) ? data.center_y_px : fallback.y;
-      analysisState.centerX = centerX;
-      analysisState.centerY = centerY;
-      if (ringsCenterX) ringsCenterX.value = Math.round(centerX).toString();
-      if (ringsCenterY) ringsCenterY.value = Math.round(centerY).toString();
+      // Per-axis pixel sizes come from HDF master files of anisotropic
+      // ("strixel") detectors; the display aspect follows from them. A file
+      // with no beam centre has none: drawing the rings around the image
+      // midpoint would look calibrated and is not.
+      geometryParams?.setSource(
+        {
+          distanceMm: data.distance_mm,
+          pixelSizeXUm: data.pixel_size_x_um ?? data.pixel_size_um,
+          pixelSizeYUm: data.pixel_size_y_um ?? data.pixel_size_um,
+          energyEv: data.energy_ev,
+          centerX: data.center_x_px,
+          centerY: data.center_y_px,
+        },
+        "hdf5",
+      );
       if (ringInputs.length && ringInputs.every((input) => !input.value)) {
         ringInputs.forEach((input, idx) => {
           const value = analysisState.rings[idx] ?? "";
@@ -298,6 +278,8 @@ export function createFrameMetadataController({
       await loadImageGeometry(state.file, getGeometryScopeKey(state, state.file));
     } catch (err) {
       console.error(err);
+      // What the previous file said must not stand in for this one.
+      geometryParams?.setSource({}, "hdf5");
     }
   }
 

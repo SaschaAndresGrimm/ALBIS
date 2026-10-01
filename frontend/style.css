@@ -2623,43 +2623,97 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-top: 4px;
 }
 
-.rings-geometry-lock {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 6px;
+/* Data → Detector Geometry, and the one-line summary of it that the Rings and
+   Peak Finder sections show. */
+.panel-section[data-section="detector-geometry"] {
+  gap: 6px;
 }
 
-.rings-geometry-lock-state {
+.geometry-override-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.geometry-override-toggle input {
+  width: auto;
+  margin: 0;
+}
+
+.geometry-override-hint {
+  font-size: 11px;
+  line-height: 1.3;
   color: var(--muted, #9aa7b8);
 }
 
-.rings-geometry-lock-state::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent-live, #4caf50);
-  flex: 0 0 auto;
+.panel-section[data-section="detector-geometry"] .geometry-grid {
+  gap: 6px 8px;
 }
 
-.rings-geometry-lock.is-locked .rings-geometry-lock-state {
-  color: var(--warn, #e0a83b);
+.panel-section[data-section="detector-geometry"] .ring-center {
+  max-width: none;
+  width: 100%;
+  gap: 6px;
 }
 
-.rings-geometry-lock.is-locked .rings-geometry-lock-state::before {
-  background: var(--warn, #e0a83b);
+/* Off: the values are the file's, shown but not editable. The section scope
+   outranks the Data tab's generic `.field input` rule. */
+.panel-section[data-section="detector-geometry"] .geometry-grid input[readonly] {
+  background: transparent;
+  border-style: dashed;
+  cursor: default;
 }
 
-.rings-geometry-lock-reset {
+/* On: what the user changed stands out from what still follows the file. */
+.panel-section[data-section="detector-geometry"] .geometry-grid input.is-overridden {
+  border-color: var(--warn, #e0a83b);
+  box-shadow: 0 0 0 1px rgba(224, 168, 59, 0.25);
+}
+
+.field-hint.is-info {
+  color: var(--muted, #9aa7b8);
+}
+
+.geometry-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.geometry-actions .btn {
   padding: 4px 8px;
   min-width: 0;
-  white-space: nowrap;
+}
+
+.geometry-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 12px;
+  color: var(--muted, #9aa7b8);
+  margin-bottom: 4px;
+}
+
+.geometry-inline-values {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.geometry-inline-manual {
+  color: var(--warn, #e0a83b);
+  font-weight: 600;
+}
+
+.geometry-inline-manual.is-hidden {
+  display: none;
+}
+
+.geometry-inline-edit {
+  padding: 2px 8px;
+  min-width: 0;
   flex: 0 0 auto;
 }
 

@@ -14,6 +14,7 @@ reference of the same material.
 - [Move through a series](#move-through-a-series)
 - [Make the image readable](#make-the-image-readable)
 - [Measure a region](#measure-a-region)
+- [Detector geometry](#detector-geometry)
 - [Resolution rings and reflections](#resolution-rings-and-reflections)
 - [Follow a running experiment](#follow-a-running-experiment)
 - [Combine a series into one image](#combine-a-series-into-one-image)
@@ -173,26 +174,50 @@ can be recomputed from the exported columns.
 
 ---
 
-## Resolution rings and reflections
+## Detector geometry
 
-Also in the **Overlay** tab.
+In the **Data** tab, **Detector Geometry** shows the numbers ALBIS calculates
+with: detector distance (mm), pixel size X and Y (µm), photon energy (eV), beam
+centre (px), and a DIALS `.expt` **geometry file** if one is in use. They drive
+the resolution rings, the cursor's **d** readout, the d column of the peak
+table, and the geometry a series sum records. ALBIS reads them from the image
+metadata: the file header, the HDF5 master file, or the live stream. The
+badge says whether they came from the metadata, are incomplete, or are manual.
 
-**Resolution Rings** needs four numbers: detector distance (mm), pixel size
-(µm), photon energy (eV) and beam centre (px). ALBIS fills these from the file's
-metadata when they are there. Where they are not — or where they are wrong —
-type over them; **Reset to live** restores the values from the data. A DIALS
-`.expt` **geometry file** can supply them instead.
+When the metadata is missing a value, or states a wrong one that you cannot fix
+at the detector, switch on **Override manually** and type the value in. A
+changed field is outlined, and the hint below it shows what the metadata says.
+Your values replace the metadata **for every image**, from file to file and
+from one session to the next, until you switch the override off. Fields you
+leave alone keep following the metadata, so the energy still changes with each
+frame, for example. Empty a field to hand it back to the metadata. **Reset to
+metadata** discards all your values at once, and a geometry file with them.
+Dragging the beam centre on the image is the same as typing it, and switches
+the override on.
+
+Because the override outlasts the image you set it for, the **Resolution Rings**
+and **Peak Finder** sections repeat the values in effect in one line, marked
+*manual* while the override is on. **Edit** there opens this section.
 
 The **PILATUS 12M at Diamond beamline I23** needs no geometry file. Its 24
 module rows sit on a half cylinder around the sample, which a file header cannot
 describe, so ALBIS recognises the detector by its serial number (S/N 120-0100)
-in CBF and DECTRIS TIFF files and uses the detector's fixed geometry. The rings
-panel then reads *Auto geometry: DLS I23 PILATUS 12M 120-0100*. The distance
-field shows the sample-to-detector distance along the beam, about 260 mm: the
-header's `Detector_distance` (0.010 m at I23) is an offset from the detector's
-fixed position, and ALBIS reads it the way DIALS does. Only the energy changes
-from frame to frame. An `imported.expt` next to the data, or one loaded by hand,
-still takes precedence.
+in CBF and DECTRIS TIFF files and uses the detector's fixed geometry, shown as
+*Auto geometry: DLS I23 PILATUS 12M 120-0100*. The distance shows the
+sample-to-detector distance along the beam, about 260 mm: the header's
+`Detector_distance` (0.010 m at I23) is an offset from the detector's fixed
+position, and ALBIS reads it the way DIALS does. An `imported.expt` next to the
+data, or one chosen as the geometry file, still takes precedence.
+
+---
+
+## Resolution rings and reflections
+
+Also in the **Overlay** tab.
+
+**Resolution Rings** draws rings at the d-spacings you choose, from the values
+in [Detector geometry](#detector-geometry); the line at the top of the section
+shows them, and **Edit** goes there.
 
 Enter the ring positions you want in **Rings (Å)**. Once rings are on, the
 cursor readout gains a **d** value, so pointing at a feature tells you its

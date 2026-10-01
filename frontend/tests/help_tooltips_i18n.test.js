@@ -69,6 +69,36 @@ describe("help tooltip i18n refresh", () => {
     expect(commandPaletteItem?.dataset.help).toBe(readLocale("ja")["hint.command.palette_shortcut"].replace("{{shortcut}}", "⌘K"));
   });
 
+  it("tells the X and Y fields of pixel size and beam center apart", async () => {
+    // Each pair shares one label, so the label alone would describe both
+    // fields the same way.
+    vi.resetModules();
+    global.fetch = buildFetchMock({ en: readLocale("en") });
+    document.body.innerHTML = `
+      <label class="field"><span>Pixel size (µm)</span>
+        <input id="geometry-pixel-x" /><input id="geometry-pixel-y" /></label>
+      <label class="field"><span>Beam center (px)</span>
+        <input id="geometry-center-x" /><input id="geometry-center-y" /></label>
+    `;
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createHelpTooltipController } = await import("../modules/help_tooltips.js");
+    const controller = createHelpTooltipController({
+      state: { toolHintsEnabled: true },
+      platformShortcutLabel: () => "",
+      roiCanvases: [],
+    });
+
+    controller.initHelpTooltips();
+
+    const help = (id) => document.getElementById(id).dataset.help;
+    expect(help("geometry-pixel-x")).toContain("X");
+    expect(help("geometry-pixel-y")).toContain("Y");
+    expect(help("geometry-center-x")).toContain("X");
+    expect(help("geometry-center-y")).toContain("Y");
+    expect(new Set(["geometry-pixel-x", "geometry-pixel-y", "geometry-center-x", "geometry-center-y"].map(help)).size).toBe(4);
+  });
+
   it("keeps an unavailability reason that a managed hint would otherwise bury", async () => {
     vi.resetModules();
     global.fetch = buildFetchMock({ en: readLocale("en") });

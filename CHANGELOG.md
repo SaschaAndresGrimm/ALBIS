@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Detector distance, pixel size, photon energy, beam centre and the geometry file moved to Data → Detector Geometry, with an explicit manual override.** They describe the experiment, not the rings. Besides the rings, they feed the cursor's d readout, the peak table's d column and the geometry a series sum records. ALBIS reads them from the image metadata: file header, HDF5 master file or live stream. The section shows them read-only, with a badge saying whether they came from the metadata, are incomplete, or are manual. **Override manually** makes them editable. A changed field is outlined, and its hint shows what the metadata says. **Reset to metadata** discards the manual values and the geometry file. Pixel size now has separate X and Y fields. One typed X value applies to both axes unless the data really has non-square pixels. The help overlay names the axis for each of the X and Y fields of pixel size and beam centre, which share one label.
+
+  Manual values now replace the metadata for every image, across files and sessions, until the override is switched off. That is for metadata that is missing, or wrong in a way the user cannot fix at the detector. Fields left alone keep following the metadata, so the energy still changes frame by frame. The override is kept in the browser's `localStorage`, and other ALBIS windows follow a change to it. A cloned window no longer copies the values; it reads them from the file and shares the override. Because the override outlasts the image it was set for, Resolution Rings and Peak Finder show the values in effect in one line, marked *manual* while it is on, with an **Edit** link to the section. Dragging the beam centre on the image counts as a manual edit.
+
+  This replaces three behaviours a typed value used to have, depending on the source. With a geometry file, each field was remembered as manual separately. During a live stream, the whole block locked, with **Reset to live**. On plain files, the next frame's header overwrote the typed value without notice. One rule now applies to all of them. The model is in `frontend/modules/geometry_params.js` and the section in `frontend/modules/geometry_params_controller.js`, which is the only writer of the values in effect. The ring overlay no longer reads form fields.
+
+  What the metadata states is also taken per file now. A file that lacks a value shows it as missing, where before the previous file's value lingered. A geometry file the user chose still supplies its own distance and beam centre, as before. A geometry ALBIS finds by itself, such as the built-in I23 one or an `imported.expt` beside the data, fills in only what the metadata lacks. An HDF5 file without a beam centre no longer centres the rings on the image midpoint, which looked calibrated and was not. Live frames that lack a field keep the last value from the same stream.
+
 ## [0.21.1] - 2026-09-30
 
 ### Fixed

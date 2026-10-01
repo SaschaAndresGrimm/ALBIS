@@ -94,10 +94,10 @@ import { createFileSessionController } from "./modules/file_session_controller.j
 import { createLiveHistoryController } from "./modules/live_history_controller.js";
 import {
   buildGeometryRequestKey,
-  getActiveGeometryOverridePath,
   getGeometryScopeKey,
 } from "./modules/geometry_override_utils.js";
 import { applyGeometryOverrides, serializeGeometryPayload } from "./modules/ring_geometry_utils.js";
+import { createGeometryParamsController } from "./modules/geometry_params_controller.js";
 import { initializeMainUiBindings as initializeMainUiBindingsBootstrap } from "./modules/main_ui_bindings_bootstrap.js";
 import { initializePostFilePickerBindings } from "./modules/post_file_picker_bindings.js";
 import {
@@ -404,22 +404,30 @@ const roiEnableToggle = document.getElementById("roi-enable");
 const roiSectionStateEl = document.getElementById("roi-state");
 const roiSummaryEl = document.getElementById("summary-roi");
 const ringsToggle = document.getElementById("rings-toggle");
-const ringsDistance = document.getElementById("rings-distance");
-const ringsDistanceHint = document.getElementById("rings-distance-hint");
-const ringsPixel = document.getElementById("rings-pixel");
-const ringsPixelHint = document.getElementById("rings-pixel-hint");
-const ringsEnergy = document.getElementById("rings-energy");
-const ringsEnergyHint = document.getElementById("rings-energy-hint");
-const ringsCenterX = document.getElementById("rings-center-x");
-const ringsCenterY = document.getElementById("rings-center-y");
-const ringsGeometryFile = document.getElementById("rings-geometry-file");
-const ringsGeometryFileHint = document.getElementById("rings-geometry-file-hint");
-const ringsGeometryBrowse = document.getElementById("rings-geometry-browse");
-const ringsGeometryClear = document.getElementById("rings-geometry-clear");
-const ringsGeometryStatusEl = document.getElementById("rings-geometry-status");
-const ringsGeometryLockEl = document.getElementById("rings-geometry-lock");
-const ringsGeometryLockLabel = document.getElementById("rings-geometry-lock-label");
-const ringsGeometryLockReset = document.getElementById("rings-geometry-lock-reset");
+const geometrySection = document.getElementById("detector-geometry-section");
+const geometryStateEl = document.getElementById("geometry-state");
+const geometrySummaryEl = document.getElementById("summary-geometry");
+const geometryOverrideToggle = document.getElementById("geometry-override");
+const geometryResetButton = document.getElementById("geometry-reset");
+const geometryFileInput = document.getElementById("geometry-file");
+const geometryFileHint = document.getElementById("geometry-file-hint");
+const geometryFileBrowse = document.getElementById("geometry-file-browse");
+const geometryFileClear = document.getElementById("geometry-file-clear");
+const geometryFileStatusEl = document.getElementById("geometry-file-status");
+const geometryInputs = {
+  distanceMm: document.getElementById("geometry-distance"),
+  pixelSizeXUm: document.getElementById("geometry-pixel-x"),
+  pixelSizeYUm: document.getElementById("geometry-pixel-y"),
+  energyEv: document.getElementById("geometry-energy"),
+  centerX: document.getElementById("geometry-center-x"),
+  centerY: document.getElementById("geometry-center-y"),
+};
+const geometryHints = {
+  distanceMm: document.getElementById("geometry-distance-hint"),
+  pixelSize: document.getElementById("geometry-pixel-hint"),
+  energyEv: document.getElementById("geometry-energy-hint"),
+  center: document.getElementById("geometry-center-hint"),
+};
 const ringsSectionStateEl = document.getElementById("rings-state");
 const ringsSummaryEl = document.getElementById("summary-rings");
 const ringInputs = [
@@ -629,6 +637,7 @@ let framePlaybackController = null;
 let frameMetadataController = null;
 let exportSplashController = null;
 let sourceMetadataController = null;
+let geometryParamsController = null;
 let chromeToolbarController = null;
 let panelLayoutController = null;
 let thresholdPlaybackController = null;
@@ -1326,11 +1335,6 @@ const analysisOverlayController = createAnalysisOverlayController({
   state,
   analysisState,
   elements: {
-    ringsDistance,
-    ringsPixel,
-    ringsEnergy,
-    ringsCenterX,
-    ringsCenterY,
     ringInputs,
     ringsSectionStateEl,
     ringsSummaryEl,
@@ -1358,10 +1362,6 @@ const analysisOverlayController = createAnalysisOverlayController({
   },
 });
 
-function getDefaultCenter() {
-  return analysisOverlayController.getDefaultCenter();
-}
-
 function getRingParams() {
   return analysisOverlayController.getRingParams();
 }
@@ -1375,11 +1375,10 @@ const resolutionRingInteractionController = createResolutionRingInteractionContr
   analysisState,
   elements: {
     canvasWrap,
-    ringsCenterX,
-    ringsCenterY,
     ringInputs,
   },
   callbacks: {
+    setBeamCenter: (x, y) => geometryParamsController?.setBeamCenter(x, y),
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
     getRingParams,
@@ -2451,6 +2450,43 @@ autoloadStatusController = createAutoloadStatusController({
   },
 });
 
+// The geometry ALBIS calculates with, and the user's override of it. Created
+// before anything that reports metadata, since all of that goes through it.
+geometryParamsController = createGeometryParamsController({
+  apiBase: API,
+  state,
+  analysisState,
+  isBackendLocal: () => backendIsLocal,
+  elements: {
+    sectionStateEl: geometryStateEl,
+    summaryChipEl: geometrySummaryEl,
+    overrideToggle: geometryOverrideToggle,
+    inputs: geometryInputs,
+    hints: geometryHints,
+    resetButton: geometryResetButton,
+    geometryFile: geometryFileInput,
+    geometryFileHint,
+    geometryBrowse: geometryFileBrowse,
+    geometryClear: geometryFileClear,
+    geometryStatusEl: geometryFileStatusEl,
+    inlineSummaries: Array.from(document.querySelectorAll("[data-geometry-inline]")),
+  },
+  callbacks: {
+    onParamsChanged: () => {
+      updateRingsSectionState();
+      scheduleResolutionOverlay();
+      refreshPeakResolutions();
+    },
+    redraw: () => redraw(),
+    reloadGeometry: () => reloadGeometryForCurrentFile(),
+    revealSection: () => revealGeometrySection(),
+    setSectionBadgeState,
+    setSummaryChip,
+    setStatus,
+    openFileDialog: (...args) => openFileDialog(...args),
+  },
+});
+
 sourceMetadataController = createSourceMetadataController({
   state,
   analysisState,
@@ -2484,28 +2520,13 @@ sourceMetadataController = createSourceMetadataController({
     jfjochReflectionsEl,
     jfjochChannelMetaEl,
     jfjochBridgeStatusEl,
-    ringsDistance,
-    ringsPixel,
-    ringsEnergy,
-    ringsCenterX,
-    ringsCenterY,
-    ringsGeometryFile,
-    ringsGeometryFileHint,
-    ringsGeometryBrowse,
-    ringsGeometryClear,
-    ringsGeometryStatusEl,
-    ringsGeometryLockEl,
-    ringsGeometryLockLabel,
-    ringsGeometryLockReset,
   },
   callbacks: {
-    scheduleResolutionOverlay,
+    geometryParams: geometryParamsController,
     schedulePeakOverlay,
-    refreshPeakResolutions,
   },
 });
 sourceMetadataController.updateGeometryUi();
-sourceMetadataController.updateGeometryLockUi();
 
 panelLayoutController = createPanelLayoutController({
   state,
@@ -2671,6 +2692,7 @@ fileSessionController = createFileSessionController({
     stopPlayback,
     resetTransientFrameLoadState,
     clearImageGeometry,
+    clearGeometrySource: () => geometryParamsController?.clearSource(),
     clearMaskState,
     clearImageHeader,
     updateToolbar,
@@ -2892,7 +2914,7 @@ function persistAutoloadSettings() {
 
 function updateAutoloadUI() {
   autoloadSettingsController.updateAutoloadUI();
-  sourceMetadataController?.updateGeometryLockUi?.();
+  geometryParamsController?.render();
 }
 
 function loadAutoloadSettings() {
@@ -3073,11 +3095,6 @@ frameMetadataController = createFrameMetadataController({
     fileSelect,
     metaShape,
     metaDtype,
-    ringsDistance,
-    ringsPixel,
-    ringsEnergy,
-    ringsCenterX,
-    ringsCenterY,
     ringInputs,
   },
   callbacks: {
@@ -3102,7 +3119,7 @@ frameMetadataController = createFrameMetadataController({
     loadMask,
     loadFrame,
     isHdf5File,
-    getDefaultCenter,
+    geometryParams: geometryParamsController,
     loadImageGeometry,
     resetTransientFrameLoadState,
     scheduleResolutionOverlay,
@@ -3606,7 +3623,7 @@ function clearImageGeometry(options = {}) {
 
 async function loadImageGeometry(file, scopeKey = getGeometryScopeKey(state, file)) {
   const key = String(scopeKey || getGeometryScopeKey(state, file) || "");
-  const overridePath = getActiveGeometryOverridePath(analysisState, key);
+  const overridePath = geometryParamsController?.getActiveGeometryFile() || "";
   const requestKey = buildGeometryRequestKey(key || file || "", overridePath);
   if (!file) {
     applyImageGeometry({ mode: "planar", panels: [] }, requestKey);
@@ -3636,32 +3653,24 @@ async function loadImageGeometry(file, scopeKey = getGeometryScopeKey(state, fil
   }
 }
 
-async function applyGeometryOverridePath(path) {
-  const scopeKey = getGeometryScopeKey(state, state.file || "");
-  if (!scopeKey) {
-    setStatus(t("status.file.no_file_loaded"), { tone: "warning" });
+/** Fetch the open file's geometry again, after the geometry override changed. */
+async function reloadGeometryForCurrentFile() {
+  if (!state.file) return;
+  if (isHdf5File(state.file)) {
+    await frameMetadataController?.loadAnalysisParams();
     return;
   }
-  analysisState.geometryOverridePath = String(path || "").trim();
-  analysisState.geometryOverrideScopeKey = scopeKey;
-  analysisState.geometryOverrideActive = false;
-  sourceMetadataController?.updateGeometryUi();
-  if (state.file) {
-    if (isHdf5File(state.file)) {
-      await frameMetadataController?.loadAnalysisParams();
-      return;
-    }
-    await loadImageGeometry(state.file, scopeKey);
-  }
+  await loadImageGeometry(state.file, getGeometryScopeKey(state, state.file));
 }
 
-async function clearGeometryOverridePath() {
-  analysisState.geometryOverridePath = "";
-  analysisState.geometryOverrideScopeKey = "";
-  analysisState.geometryOverrideActive = false;
-  sourceMetadataController?.updateGeometryUi();
-  if (state.file) {
-    await loadImageGeometry(state.file, getGeometryScopeKey(state, state.file));
+/** The Rings and Peak Finder summaries' "Edit": open Data → Detector Geometry. */
+function revealGeometrySection() {
+  setPanelTab("data");
+  if (geometrySection) {
+    setSectionState(geometrySection, false);
+    geometrySection.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const firstField = geometryOverrideToggle?.checked ? geometryInputs.distanceMm : geometryOverrideToggle;
+    firstField?.focus({ preventScroll: true });
   }
 }
 
@@ -4758,19 +4767,6 @@ bindAnalysisControlInteractions({
   },
   elements: {
     ringsToggle,
-    ringsDistance,
-    ringsDistanceHint,
-    ringsPixel,
-    ringsPixelHint,
-    ringsEnergy,
-    ringsEnergyHint,
-    ringsCenterX,
-    ringsCenterY,
-    ringsGeometryFile,
-    ringsGeometryFileHint,
-    ringsGeometryBrowse,
-    ringsGeometryClear,
-    ringsGeometryLockReset,
     ringInputs,
     peaksCountInput,
     peaksCountHint,
@@ -4811,10 +4807,6 @@ bindAnalysisControlInteractions({
     handleLocalFileSelection,
     openFileBrowser,
     openFileDialog,
-    applyGeometryOverridePath,
-    clearGeometryOverridePath,
-    updateGeometryLockUi: () => sourceMetadataController.updateGeometryLockUi(),
-    resetGeometryLock: () => sourceMetadataController.resetGeometryLock(),
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,
@@ -4958,27 +4950,12 @@ async function restoreClonedWindow(payload) {
     analysisState.rings = analysis.rings.slice();
     analysisState.ringCount = analysis.rings.length;
   }
-  for (const key of ["distanceMm", "pixelSizeUm", "energyEv", "centerX", "centerY"]) {
-    if (analysis[key] !== null && analysis[key] !== undefined) analysisState[key] = analysis[key];
-  }
-  analysisState.geometryDistanceManual = Boolean(analysis.manual?.distance);
-  analysisState.geometryCenterXManual = Boolean(analysis.manual?.centerX);
-  analysisState.geometryCenterYManual = Boolean(analysis.manual?.centerY);
-  analysisState.geometryLocked = Boolean(analysis.geometryLocked);
+  // The detector geometry does not travel: the file the clone just opened
+  // states its own, and the geometry override lives in localStorage, which
+  // the clone shares with this window.
   analysisState.peaksEnabled = Boolean(analysis.peaksEnabled);
   analysisState.peakCount = Number(analysis.peakCount) || analysisState.peakCount;
   analysisState.peakMinSnr = Number(analysis.peakMinSnr) || 0;
-
-  if (analysis.geometryOverridePath) {
-    await applyGeometryOverridePath(analysis.geometryOverridePath);
-  }
-  // Re-stamp, never copy: hasGeometryManualOverride compares this against the
-  // geometry key THIS window loaded, and a key from the other window would
-  // never match -- so the corrected distance would show once and then be
-  // overwritten by the file's own metadata.
-  if (analysis.manual && Object.keys(analysis.manual).length) {
-    analysisState.geometryManualKey = analysisState.ringGeometryKey || "";
-  }
   updateRingsSectionState();
   analysisOverlayController.updatePeaksSectionState();
   if (analysisState.peaksEnabled) analysisOverlayController.schedulePeakFinder();
