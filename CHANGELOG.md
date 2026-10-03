@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-03
+
 ### Changed
 
 - **Detector distance, pixel size, photon energy, beam centre and the geometry file moved to Data → Detector Geometry, with an explicit manual override.** They describe the experiment, not the rings. Besides the rings, they feed the cursor's d readout, the peak table's d column and the geometry a series sum records. ALBIS reads them from the image metadata: file header, HDF5 master file or live stream. The section shows them read-only, with a badge saying whether they came from the metadata, are incomplete, or are manual. **Override manually** makes them editable. A changed field is outlined, and its hint shows what the metadata says. **Reset to metadata** discards the manual values and the geometry file. Pixel size now has separate X and Y fields, each with its axis shown inside the field, as the beam centre's are. A value the metadata lacks shows as "—". Values apply as they are typed; a pixel size that changes the aspect lays the image out again at once. One typed X value applies to both axes unless the data really has non-square pixels. The help overlay names the axis for each of the X and Y fields of pixel size and beam centre, which share one label.
@@ -1314,7 +1316,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.1...v0.20.2
