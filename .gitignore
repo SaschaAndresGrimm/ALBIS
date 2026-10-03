@@ -37,8 +37,10 @@ htmlcov/
 /data/
 albis.config.json
 
-# AI assistant / nanoclaw files
-.claude/
+# AI assistant / nanoclaw files. Local settings and worktrees stay private;
+# project skills (.claude/skills/) are shared with the repo.
+.claude/*
+!.claude/skills/
 ALBIS_REVIEW.md
 IMPROVEMENTS_SUMMARY.md
 ROI_PLOT_ANALYSIS.md

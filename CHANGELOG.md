@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/bump_version.py` sets a release's version and date everywhere they are stated.** That is `VERSION`, `package.json`, both places in `package-lock.json`, `pyproject.toml` and `CITATION.cff`, plus the dated `CHANGELOG.md` section and its compare link. `tests/test_version_consistency.py` caught a version left behind, but nothing caught the rest: the lockfile had gone two releases stale, and the citation date and changelog links had to be remembered. Each edit must match exactly once, so a file whose layout has changed stops the bump and is named, rather than being skipped. It refuses an empty `Unreleased` section and a version that is not newer. `--dry-run` shows the diff. `tests/test_bump_version.py` runs it on copies of the real files, so a layout change fails there first.
+- **A `/release` skill for Claude Code** (`.claude/skills/release/`) runs `docs/RELEASE_CHECKLIST.md` end to end: pre-flight checks (in sync with origin, CI green, no open Dependabot alerts, licence table current), the bump, release notes in the established style, the commit and annotated tag, and following the release build to a published release. It includes what to do when Apple's notary service answers 403 because a new developer agreement needs accepting. It never starts on its own. `.gitignore` now shares `.claude/skills/` with the repo and keeps the rest of `.claude/` private.
+
 ## [0.22.0] - 2026-10-03
 
 ### Changed
