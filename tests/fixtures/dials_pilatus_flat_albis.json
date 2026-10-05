@@ -1,0 +1,68 @@
+{
+ "source": "dxtbx (conda-forge) on testdata/in16c_010001.cbf: ExperimentListFactory.from_filenames, then Panel.get_two_theta_at_pixel at pixel centres",
+ "wavelength_a": 1.542,
+ "dxtbx_d_spacings": [
+  [
+   100,
+   100,
+   0,
+   1.9220682721243818
+  ],
+  [
+   244,
+   308,
+   0,
+   507.95791273801825
+  ],
+  [
+   400,
+   50,
+   0,
+   1.749044192373178
+  ],
+  [
+   10,
+   400,
+   0,
+   1.9270055826081887
+  ],
+  [
+   480,
+   600,
+   0,
+   1.5840718332665507
+  ]
+ ],
+ "albis_panels": [
+  {
+   "name": "Panel",
+   "origin_mm": [
+    41.967999999999996,
+    52.976,
+    40.0
+   ],
+   "fast_axis": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "slow_axis": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "pixel_size_mm": [
+    0.17200000000000001,
+    0.17200000000000001
+   ],
+   "image_size_px": [
+    487,
+    619
+   ],
+   "raw_offset_px": [
+    0,
+    0
+   ]
+  }
+ ]
+}

@@ -3244,6 +3244,71 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   opacity: 1;
 }
 
+/* "?" buttons that explain an option where it is (info_tips.js). */
+.field-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--muted, #9aa7b8);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted, #9aa7b8);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  opacity: 0.8;
+}
+
+.info-tip::before {
+  content: "?";
+}
+
+.info-tip:hover,
+.info-tip:focus-visible,
+.info-tip[aria-expanded="true"] {
+  opacity: 1;
+  color: #f2f2f2;
+  border-color: #f2f2f2;
+}
+
+.info-tip-bubble {
+  position: fixed;
+  z-index: 3001;
+  max-width: 300px;
+  padding: 7px 9px;
+  background: rgba(13, 19, 28, 0.97);
+  border: 1px solid rgba(78, 100, 137, 0.62);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  color: #f2f2f2;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-line;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--motion-ease-standard);
+}
+
+.info-tip-bubble.is-visible {
+  opacity: 1;
+}
+
+.view-check-row .info-tip {
+  align-self: center;
+}
+
 .range-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

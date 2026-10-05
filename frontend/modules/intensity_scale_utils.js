@@ -5,6 +5,14 @@
 const AUTO_CONTRAST_LOW = 0.001;
 const AUTO_CONTRAST_HIGH = 0.999;
 const AUTO_CONTRAST_BINS = 4096;
+// A frame whose signal -- pixels above the background -- is under 1% of it
+// (cosmics, a dark run with a few hits) takes its foreground from the signal
+// alone, at its 90th percentile. At exactly 1% that is the same point the
+// 99.9th percentile of the whole frame picks, so the two rules meet without a
+// jump; below it, the whole-frame percentile slides down onto the weakest hits
+// and then onto the background itself (FG 0 = BG 0, every hit saturated).
+const AUTO_CONTRAST_SPARSE_FRAC = 0.01;
+const AUTO_CONTRAST_SPARSE_HIGH = 1 - (1 - 0.999) / AUTO_CONTRAST_SPARSE_FRAC;
 // Detached extreme-pixel cluster rejection for auto-contrast. Summed gap/dead-pixel
 // sentinels (e.g. 65535 x frames) form a spike far above the real signal; left in,
 // they dominate the upper percentile and blow the foreground out to absurd values.
@@ -423,6 +431,19 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
       break;
     }
   }
+  let signalCount = 0;
+  for (let i = lowBin + 1; i <= cutBin; i += 1) signalCount += hist[i];
+  if (signalCount > 0 && signalCount < keptCount * AUTO_CONTRAST_SPARSE_FRAC) {
+    const signalTarget = signalCount * AUTO_CONTRAST_SPARSE_HIGH;
+    cumulative = 0;
+    for (let i = lowBin + 1; i <= cutBin; i += 1) {
+      cumulative += hist[i];
+      if (cumulative >= signalTarget) {
+        highBin = i;
+        break;
+      }
+    }
+  }
   if (highBin <= lowBin) {
     highBin = Math.min(cutBin, lowBin + 1);
   }
@@ -430,7 +451,13 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
   const lowLog = minLog + (lowBin / (bins - 1)) * range;
   const highLog = minLog + (highBin / (bins - 1)) * range;
   const minVal = Math.expm1(lowLog);
-  const maxVal = Math.expm1(highLog);
+  let maxVal = Math.expm1(highLog);
+  // Counts are whole numbers: a foreground less than one count above the
+  // background has no pixel value between the two, and displays as equal.
+  const kind = getDtypeInfo(dtype)?.kind;
+  if ((kind === "u" || kind === "i") && maxVal - minVal < 1) {
+    maxVal = minVal + 1;
+  }
   if (!Number.isFinite(minVal) || !Number.isFinite(maxVal) || minVal >= maxVal) {
     return { min: fallbackStats?.min ?? 0, max: fallbackStats?.max ?? 1 };
   }

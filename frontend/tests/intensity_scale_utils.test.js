@@ -30,6 +30,64 @@ describe("intensity_scale_utils", () => {
   });
 });
 
+describe("computeAutoLevels on sparse frames", () => {
+  // A cosmics frame: a Pollux-sized detector, all zeros but for a few hits.
+  function makeCosmics() {
+    const data = new Uint32Array(1544 * 96);
+    const hits = [3, 5, 8, 12, 20, 35, 60, 120, 250, 400, 800, 1500, 3000, 4800];
+    hits.forEach((value, i) => {
+      for (let k = 0; k < 6; k += 1) data[(i * 977 + k * 131) % data.length] = value;
+    });
+    return data;
+  }
+
+  it("does not collapse the foreground onto the background", () => {
+    const { min, max } = computeAutoLevels(makeCosmics(), undefined, { min: 0, max: 1 }, "<u4");
+
+    expect(min).toBe(0);
+    // Was about 0.002: shown as FG 0, with every hit saturated.
+    expect(max).toBeGreaterThan(100);
+    expect(max).toBeLessThan(4801);
+  });
+
+  it("puts the foreground among the hits, not on the weakest of them", () => {
+    // Hits on 0.11% of the pixels: just over the 0.1% the whole-frame
+    // percentile skips, which then landed on about the 15th-weakest hit.
+    const data = new Uint32Array(96 * 1544);
+    const hits = [];
+    for (let i = 0; i < 163; i += 1) hits.push(3 + Math.round((2994 - 3) * (i / 162)));
+    hits.forEach((value, i) => {
+      data[(i * 911) % data.length] = value;
+    });
+    const sorted = [...hits].sort((a, b) => a - b);
+
+    const { max } = computeAutoLevels(data, undefined, { min: 0, max: 1 }, "<u4");
+
+    // Near the 90th percentile of the hits.
+    expect(max).toBeGreaterThan(sorted[Math.floor(0.8 * sorted.length)]);
+    expect(max).toBeLessThan(sorted[sorted.length - 1] + 1);
+  });
+
+  it("keeps integer limits at least one count apart", () => {
+    const data = new Uint16Array(10000);
+    data[17] = 1;
+
+    const { min, max } = computeAutoLevels(data, undefined, { min: 0, max: 1 }, "<u2");
+
+    expect(max - min).toBeGreaterThanOrEqual(1);
+  });
+
+  it("leaves a dense frame's levels as they were", () => {
+    const data = new Uint32Array(100000);
+    for (let i = 0; i < data.length; i += 1) data[i] = 1 + (i % 1000);
+
+    const { max } = computeAutoLevels(data, undefined, { min: 0, max: 1 }, "<u4");
+
+    expect(max).toBeGreaterThan(800);
+    expect(max).toBeLessThanOrEqual(1000);
+  });
+});
+
 describe("computeAutoLevels", () => {
   const N = 100000;
   function makeBulk() {

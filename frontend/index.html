@@ -463,6 +463,7 @@
                         <input type="checkbox" id="mask-saturated-toggle" checked disabled />
                         <span data-i18n="view.mask_saturated">Mask saturated</span>
                       </label>
+                      <button type="button" class="info-tip" data-info-key="info.mask" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
                     </div>
                   </div>
                 </details>
@@ -873,7 +874,7 @@
                   <div class="field-hint is-hidden" id="geometry-center-hint"></div>
                 </label>
                 <label class="field rings-geometry-file-field">
-                  <span data-i18n="analysis.rings.geometry_file">Geometry file</span>
+                  <span class="field-label-row"><span data-i18n="analysis.rings.geometry_file">Geometry file</span><button type="button" class="info-tip" data-info-key="info.geometry_file" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
                   <div class="rings-geometry-file-row">
                     <input
                       id="geometry-file"
@@ -958,7 +959,7 @@
                   <div class="series-sum-card-title" data-i18n="series.ui.compute_title">Compute</div>
                   <div class="series-sum-core">
                     <label class="field" id="series-sum-mode-field">
-                      <span data-i18n="series.ui.mode_label">Mode</span>
+                      <span class="field-label-row"><span data-i18n="series.ui.mode_label">Mode</span><button type="button" class="info-tip" data-info-key="info.series.mode" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
                       <select id="series-sum-mode">
                         <option value="all" data-i18n="series.ui.mode.all">All frames</option>
                         <option value="step" data-i18n="series.ui.mode.step">Chunks of N frames</option>
@@ -967,7 +968,7 @@
                       </select>
                     </label>
                     <label class="field" id="series-sum-operation-field">
-                      <span data-i18n="series.ui.operation_label">Operation</span>
+                      <span class="field-label-row"><span data-i18n="series.ui.operation_label">Operation</span><button type="button" class="info-tip" data-info-key="info.series.operation" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
                       <select id="series-sum-operation">
                         <option value="sum" data-i18n="series.ui.operation.sum">Sum</option>
                         <option value="mean" data-i18n="series.ui.operation.mean">Mean</option>
@@ -982,7 +983,7 @@
                       </select>
                     </label>
                     <label class="field" id="series-sum-normalize-method-field">
-                      <span data-i18n="series.ui.normalization_label">Normalization</span>
+                      <span class="field-label-row"><span data-i18n="series.ui.normalization_label">Normalization</span><button type="button" class="info-tip" data-info-key="info.series.normalization" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
                       <select id="series-sum-normalize-method">
                         <option value="none" data-i18n="series.ui.normalize.none">None</option>
                         <option value="frame" data-i18n="series.ui.normalize.frame">Frame</option>

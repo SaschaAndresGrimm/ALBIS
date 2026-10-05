@@ -193,7 +193,8 @@ leave alone keep following the metadata, so the energy still changes with each
 frame, for example. Empty a field to hand it back to the metadata. **Reset to
 metadata** discards all your values at once, and a geometry file with them.
 Dragging the beam centre on the image is the same as typing it, and switches
-the override on.
+the override on. What a geometry file has to contain, and how to make one, is
+in the [Power User Guide](POWER_USER_GUIDE.md#geometry-files).
 
 Because the override outlasts the image you set it for, the **Resolution Rings**
 and **Peak Finder** sections repeat the values in effect in one line, marked
@@ -269,7 +270,9 @@ lets you examine a frame without losing the stream.
 
 Choose what to combine — all frames, chunks of N, every Nth frame, or a start
 and end range — and optionally normalise first, by a reference frame, a scalar,
-or a flat-field TIFF. **Apply mask** keeps masked pixels out of the result.
+or a flat-field TIFF. **Apply mask** keeps masked pixels out of the result. The
+**?** next to Mode, Operation and Normalization explains each choice; hover
+over it, or click or tap it to keep the explanation open.
 
 Long runs report progress and can be cancelled. The output path is prefilled
 and the result opens directly from the panel when it finishes.

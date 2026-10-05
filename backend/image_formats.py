@@ -1126,7 +1126,95 @@ def _normalize_geometry_panel(payload: Any) -> dict[str, Any] | None:
     }
 
 
+def _expt_frame(node: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    if not isinstance(node, dict):
+        return None
+    fast = _coerce_float_vector(node.get("fast_axis"), 3)
+    slow = _coerce_float_vector(node.get("slow_axis"), 3)
+    origin = _coerce_float_vector(node.get("origin"), 3)
+    if not (fast and slow and origin):
+        return None
+    return np.asarray(fast), np.asarray(slow), np.asarray(origin)
+
+
+def _compose_expt_frame(
+    parent: tuple[np.ndarray, np.ndarray, np.ndarray],
+    local: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """A child's frame in its parent's coordinates, as dxtbx composes them."""
+    p_fast, p_slow, p_origin = parent
+    p_normal = np.cross(p_fast, p_slow)
+    basis = np.stack([p_fast, p_slow, p_normal])  # rows: parent axes
+
+    def to_parent(vector: np.ndarray) -> np.ndarray:
+        return vector @ basis
+
+    l_fast, l_slow, l_origin = local
+    return to_parent(l_fast), to_parent(l_slow), p_origin + to_parent(l_origin)
+
+
+def _expt_lab_frames(detector: dict[str, Any], panels: list[Any]) -> dict[int, tuple]:
+    """Each panel's frame in the lab, composed through the detector hierarchy.
+
+    dxtbx serialises a panel's frame relative to the group it sits in; the
+    hierarchy's root and groups carry the rest. A panel the hierarchy does not
+    reach keeps its own frame.
+    """
+    frames: dict[int, tuple] = {}
+    identity = (np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.zeros(3))
+
+    def walk(node: Any, parent: tuple) -> None:
+        if not isinstance(node, dict):
+            return
+        index = node.get("panel")
+        if isinstance(index, int) and 0 <= index < len(panels):
+            local = _expt_frame(panels[index])
+            if local is not None:
+                frames[index] = _compose_expt_frame(parent, local)
+            return
+        group = _expt_frame(node)
+        here = _compose_expt_frame(parent, group) if group is not None else parent
+        for child in node.get("children") or []:
+            walk(child, here)
+
+    walk(detector.get("hierarchy"), identity)
+    return frames
+
+
+def _rotation_to_albis(beam_direction: list[float]) -> np.ndarray:
+    """Rotate the lab so the X-rays travel along +z, as ALBIS's rings assume.
+
+    dxtbx's beam `direction` points from the sample back to the source, so the
+    X-rays travel along its negative. Any rotation that takes that onto +z
+    gives the same scattering angles; this is the shortest one.
+    """
+    travel = -np.asarray(beam_direction, dtype=float)
+    travel /= np.linalg.norm(travel)
+    target = np.array([0.0, 0.0, 1.0])
+    cos_angle = float(np.clip(travel @ target, -1.0, 1.0))
+    if cos_angle > 1 - 1e-12:
+        return np.eye(3)
+    if cos_angle < -1 + 1e-12:
+        return np.diag([-1.0, 1.0, -1.0])  # half a turn about y
+    axis = np.cross(travel, target)
+    axis /= np.linalg.norm(axis)
+    k = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+    sin_angle = np.sqrt(1 - cos_angle**2)
+    return np.eye(3) + sin_angle * k + (1 - cos_angle) * (k @ k)
+
+
 def _load_dials_expt_geometry(path: Path) -> list[dict[str, Any]]:
+    """The first detector's panels, in ALBIS's frame: sample at the origin,
+    X-rays travelling along +z.
+
+    A DIALS file states a beam and a hierarchy, and needs both: its panel
+    frames are relative to their group, and its lab has the X-rays travelling
+    along -z. Read as they stood, a flat detector's panel sat behind the
+    sample and its rings came out wrong (d 0.84 A where dxtbx gives 1.92 A).
+    So the frames are composed through the hierarchy and turned to face the
+    beam. A file without a beam -- written for ALBIS, not by DIALS -- is taken
+    to be in ALBIS's frame already, as before.
+    """
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
@@ -1140,6 +1228,27 @@ def _load_dials_expt_geometry(path: Path) -> list[dict[str, Any]]:
     panels = detector.get("panels")
     if not isinstance(panels, list):
         return []
+
+    beams = payload.get("beam")
+    direction = None
+    if isinstance(beams, list) and beams and isinstance(beams[0], dict):
+        direction = _coerce_float_vector(beams[0].get("direction"), 3)
+    if direction is not None and np.linalg.norm(direction) > 0:
+        rotation = _rotation_to_albis(direction)
+        lab = _expt_lab_frames(detector, panels)
+        oriented: list[Any] = []
+        for index, panel in enumerate(panels):
+            if index in lab and isinstance(panel, dict):
+                fast, slow, origin = (rotation @ vector for vector in lab[index])
+                panel = {
+                    **panel,
+                    "fast_axis": fast.tolist(),
+                    "slow_axis": slow.tolist(),
+                    "origin": origin.tolist(),
+                }
+            oriented.append(panel)
+        panels = oriented
+
     normalized = []
     for panel in panels:
         item = _normalize_geometry_panel(panel)

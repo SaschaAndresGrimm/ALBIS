@@ -25,6 +25,7 @@ import { applyPanelTab, loadStoredPanelTab } from "./modules/ui_panels.js";
 import { createFileBrowserController } from "./modules/file_browser.js";
 import { bindAnalysisControlInteractions } from "./modules/analysis_controls_bindings.js";
 import { createHelpTooltipController } from "./modules/help_tooltips.js";
+import { createInfoTips } from "./modules/info_tips.js";
 import { finalizeRuntimeBootstrap, initializeUiDefaults } from "./modules/runtime_bootstrap.js";
 import { bindClientLogging } from "./modules/client_logging_bindings.js";
 import { createCommandPaletteController } from "./modules/command_palette.js";
@@ -1014,6 +1015,7 @@ const {
 });
 
 window.addEventListener("DOMContentLoaded", initHelpTooltips, { once: true });
+const infoTips = createInfoTips();
 
 function quickSelect(values, k) {
   let left = 0;
@@ -4828,6 +4830,7 @@ setDataExportProgress(0, t("data_export.progress.idle"));
 updateDataExportUi();
 onLanguageChange(() => {
   refreshLocalizedUi();
+  infoTips.refresh();
   updateDataExportUi();
   if (isHdf5File(state.file)) {
     void loadInspectorRoot();

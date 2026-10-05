@@ -286,6 +286,93 @@ what a given build can actually produce.
 - `pixel_label_format` (`auto|integer|scientific`, default `auto`)
 - `pixel_label_show_during_drag` (`boolean`, default `false`)
 
+## Geometry Files
+
+Most detectors are flat, and distance, pixel size and beam centre describe them
+completely. A detector that is not flat — the half-cylinder PILATUS 12M at
+Diamond I23, a detector made of tilted modules — needs a description of each
+panel. ALBIS reads that from a DIALS experiment file (`.expt`).
+
+### Where ALBIS gets a geometry
+
+In this order:
+
+1. The file chosen as **Geometry file** in **Data → Detector Geometry**, while
+   **Override manually** is on. It applies to every image until removed.
+2. For the I23 PILATUS 12M (S/N 120-0100) only: an `imported.expt` next to the
+   image, or in a `P12M_geometry/` folder beside it, and otherwise the
+   detector's built-in geometry.
+3. For an HDF5 sum written by ALBIS: the geometry it embedded when it was made.
+
+Anything else is treated as a flat detector.
+
+### Making one
+
+```bash
+dials.import /path/to/images_00001.cbf
+```
+
+writes `imported.expt` for the detector that recorded the images. Any later
+DIALS file works too, such as `refined.expt` after indexing and refinement,
+which carries the refined detector position.
+
+### What ALBIS reads
+
+From the first detector in the file:
+
+- each entry of `panels`: `origin`, `fast_axis` and `slow_axis` (mm),
+  `pixel_size` (mm, fast then slow), `image_size` (pixels, fast then slow) and
+  `raw_image_offset` (where the panel's pixels start in the image);
+- the `hierarchy`: panels are stated relative to the group they belong to, and
+  ALBIS composes the groups the way dxtbx does;
+- `beam[0].direction`, to know which way the X-rays travel.
+
+Everything else is ignored: the wavelength (the photon energy comes from the
+image metadata, or from the override), the goniometer, scan, crystal, masks,
+trusted range, gain, and sensor thickness. ALBIS applies no parallax
+correction.
+
+The distance and beam centre from a file you choose are used as they are: that
+file is a calibration. For the I23 detector's automatic geometry they come from
+the image header instead, which states them per frame. Either can be
+overridden in **Data → Detector Geometry**.
+
+### A minimal file
+
+A single flat panel of 1000 × 1000 pixels of 75 µm, 200 mm from the sample,
+with the beam at its centre, in DIALS's convention (the beam `direction` points
+from the sample back to the source):
+
+```json
+{
+  "beam": [{"direction": [0.0, 0.0, 1.0]}],
+  "detector": [
+    {
+      "hierarchy": {
+        "fast_axis": [1.0, 0.0, 0.0],
+        "slow_axis": [0.0, 1.0, 0.0],
+        "origin": [0.0, 0.0, 0.0],
+        "children": [{"panel": 0}]
+      },
+      "panels": [
+        {
+          "name": "Panel",
+          "origin": [-37.5, 37.5, -200.0],
+          "fast_axis": [1.0, 0.0, 0.0],
+          "slow_axis": [0.0, -1.0, 0.0],
+          "pixel_size": [0.075, 0.075],
+          "image_size": [1000, 1000],
+          "raw_image_offset": [0, 0]
+        }
+      ]
+    }
+  ]
+}
+```
+
+A file without `beam` is taken to be in ALBIS's own frame already: sample at
+the origin, X-rays travelling along +z, panel frames absolute.
+
 ## Reverse Proxies and Remote Access
 
 ALBIS has no authentication: it assumes the only person who can reach it is the

@@ -326,6 +326,9 @@ export function createHelpTooltipController({
   function findHelpTarget(node) {
     if (!node) return null;
     if (node.closest(".help-tooltip")) return null;
+    // A "?" explains itself in its own bubble (info_tips.js); a hover hint on
+    // top of it would only repeat its label.
+    if (node.closest(".info-tip")) return null;
     return node.closest(HELP_SELECTORS);
   }
 

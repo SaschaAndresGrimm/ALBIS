@@ -1,11 +1,13 @@
 """The DLS I23 PILATUS 12M's built-in geometry, and the distance its rings use.
 
-`tests/fixtures/dls_i23_p12m_imported_panels.json` is the detector section of
-an `imported.expt` that `dials.import` wrote for real I23 data
-(`DLS_I23_P12M_thau_00001.cbf.gz` from dials_data), supplied by the beamline and
-reduced to the fields ALBIS reads by `_load_dials_expt_geometry`. The built-in
-geometry has to reproduce it; `frontend/tests/dls_i23_p12m_rings.test.js` then
-checks that the rings drawn from it land where dxtbx puts them.
+`tests/fixtures/dls_i23_p12m_imported_panels.json` holds the 24 panel frames
+of an `imported.expt` that `dials.import` wrote for real I23 data
+(`DLS_I23_P12M_thau_00001.cbf.gz` from dials_data), supplied by the beamline,
+as its `panels` list states them: relative to the detector's root frame, which
+carries the frame's pose (`_load_dials_expt_geometry` composes the two). Those
+local frames are the blueprint, so the built-in geometry has to reproduce them;
+`frontend/tests/dls_i23_p12m_rings.test.js` then checks that the rings drawn
+from them, posed by the header, land where dxtbx puts them.
 """
 
 from __future__ import annotations
