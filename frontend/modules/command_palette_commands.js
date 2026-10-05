@@ -33,6 +33,7 @@ export function buildCommandPaletteCommands({
     exportViewerWindow,
     openDataExportDialog,
     openAnimationExportDialog,
+    openImageExportDialog,
     startSeriesSumming,
     openSeriesSumOutputTarget,
     cancelSeriesSumming,
@@ -202,6 +203,14 @@ export function buildCommandPaletteCommands({
       search: "export save viewer window screenshot",
       when: canSaveCurrentImage,
       run: () => exportViewerWindow({ saveAs: true }),
+    },
+    {
+      id: "export-image",
+      label: t("command.label.export_image"),
+      shortcut: platformShortcutLabel("export-image"),
+      search: "export image png figure slide paper journal print resolution dpi",
+      when: canSaveCurrentImage,
+      run: () => openImageExportDialog?.(),
     },
     {
       id: "export-animation",

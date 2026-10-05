@@ -17,6 +17,7 @@ import {
   OPAQUE_OVERLAY_RGB,
   buildGeometryRingCache,
   nearestOverlayColorIndex,
+  overlayUiScale,
   paintPeakMarkers,
   paintResolutionRings,
   regionView,
@@ -34,21 +35,9 @@ const OVERLAY_COLORMAP_STEPS = COLORMAP_STEPS - OPAQUE_OVERLAY_RGB.length;
 // An anti-aliased overlay edge either reaches a pixel or it does not: a GIF
 // frame has no alpha channel to hold a partial one.
 const OVERLAY_ALPHA_CUTOFF = 128;
-// Overlay line widths and label text are sized for a viewport, so they scale
-// with the output; without this a ring in a 4000 px wide GIF is a hairline.
-// Clamped so a thumbnail-sized export keeps legible decorations and a huge one
-// does not end up all label.
-const OVERLAY_UI_REFERENCE_PX = 900;
-const OVERLAY_UI_SCALE_MIN = 0.75;
-const OVERLAY_UI_SCALE_MAX = 4;
 const MASK_BLACK_RGB = [0, 0, 0];
 const MASK_FLAG_RGB = [25, 50, 120];
 const GIF_TYPES = [{ accept: { "image/gif": [".gif"] } }];
-
-function overlayUiScale(ow, oh) {
-  const raw = Math.min(ow, oh) / OVERLAY_UI_REFERENCE_PX;
-  return Math.max(OVERLAY_UI_SCALE_MIN, Math.min(OVERLAY_UI_SCALE_MAX, raw));
-}
 
 export function createAnimationExportController({
   apiBase,

@@ -76,7 +76,8 @@ import { createOverlayRenderController } from "./modules/overlay_render_controll
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
 import { createRenderEngineController } from "./modules/render_engine_controller.js";
 import { createOverviewViewportController } from "./modules/overview_viewport_controller.js";
-import { getRoiImageBounds } from "./modules/roi_geometry_utils.js";
+import { getCircularRoiOuterRadius, getRoiImageBounds } from "./modules/roi_geometry_utils.js";
+import { createImageExportController } from "./modules/image_export_controller.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -543,6 +544,16 @@ const dataExportCancel = document.getElementById("data-export-cancel");
 const dataExportProgress = document.getElementById("data-export-progress");
 const dataExportProgressFill = document.getElementById("data-export-progress-fill");
 const dataExportProgressText = document.getElementById("data-export-progress-text");
+const imageExportModal = document.getElementById("image-export-modal");
+const imageExportClose = document.getElementById("image-export-close");
+const imageExportSource = document.getElementById("image-export-source");
+const imageExportRegion = document.getElementById("image-export-region");
+const imageExportScale = document.getElementById("image-export-scale");
+const imageExportDpi = document.getElementById("image-export-dpi");
+const imageExportOverlays = document.getElementById("image-export-overlays");
+const imageExportOverlaysField = document.getElementById("image-export-overlays-field");
+const imageExportSummary = document.getElementById("image-export-summary");
+const imageExportStart = document.getElementById("image-export-start");
 const animationExportModal = document.getElementById("animation-export-modal");
 const animationExportClose = document.getElementById("animation-export-close");
 const animationExportSource = document.getElementById("animation-export-source");
@@ -684,6 +695,7 @@ const PLATFORM_SHORTCUTS = {
   "save-full": { mac: "⌘S", other: "Ctrl+S" },
   "save-visible": { mac: "⇧⌘S", other: "Shift+Ctrl+S" },
   "save-window": { mac: "⌥⌘S", other: "Alt+Ctrl+S" },
+  "export-image": { mac: "⇧⌘E", other: "Shift+Ctrl+E" },
   "export-animation": { mac: "⌘G", other: "Ctrl+G" },
   "export-data": { mac: "⇧⌘X", other: "Shift+Ctrl+X" },
   "settings-open": { mac: "⌘,", other: "Ctrl+," },
@@ -1670,6 +1682,49 @@ function openAnimationExportDialog() {
   animationExportController.openDialog();
 }
 
+const imageExportController = createImageExportController({
+  state,
+  elements: {
+    modal: imageExportModal,
+    closeBtn: imageExportClose,
+    source: imageExportSource,
+    regionSelect: imageExportRegion,
+    scaleSelect: imageExportScale,
+    dpiSelect: imageExportDpi,
+    overlaysCheckbox: imageExportOverlays,
+    overlaysField: imageExportOverlaysField,
+    summary: imageExportSummary,
+    startBtn: imageExportStart,
+  },
+  callbacks: {
+    getVisibleRegion: () => exportSplashController?.getVisibleRegion(),
+    renderRegionToCanvas: (region) => exportSplashController?.renderRegionToCanvas(region),
+    canvasToBlob: (canvas) => exportSplashController?.canvasToBlob(canvas),
+    saveBlobAs: (name, produce) => exportSplashController?.saveBlobAs(name, produce),
+    defaultExportName: (kind) => exportSplashController?.defaultExportName(kind),
+    // What the viewer draws over the image right now: the rings with their
+    // parameters, the peaks found in this frame, and an ROI that is in use.
+    getOverlaySnapshot: () => {
+      const roiInUse = roiState.enabled && roiState.active && roiState.start && roiState.end;
+      return {
+        ringParams: analysisState.ringsEnabled ? analysisOverlayController.getRingParams() : null,
+        peaks: analysisState.peaksEnabled && Array.isArray(analysisState.peaks) ? analysisState.peaks : [],
+        roi: roiInUse ? { ...roiState } : null,
+        outerRadius: roiInUse ? getCircularRoiOuterRadius(roiState, state.pixelAspect || 1) : 0,
+      };
+    },
+    // Wrapped: both are defined further down, and a plain reference here
+    // would be read before they exist.
+    openModal: (...args) => openModal(...args),
+    closeModal: (...args) => closeModal(...args),
+    setStatus,
+  },
+});
+
+function openImageExportDialog() {
+  imageExportController.openDialog();
+}
+
 // Why a File menu command cannot run right now, or "" when it can. The rules
 // themselves live in command_availability.js, shared with the command palette
 // (which leaves these commands out instead of greying them) and with each
@@ -1682,6 +1737,7 @@ function fileCommandUnavailableReason(action) {
     case "save-full":
     case "save-visible":
     case "save-window":
+    case "export-image":
       return canSaveImage(state) ? "" : t("status.export.no_image");
     case "export-animation":
       if (canExportAnimation(state)) return "";
@@ -1708,6 +1764,7 @@ const GATED_FILE_COMMANDS = [
   "save-full",
   "save-visible",
   "save-window",
+  "export-image",
   "export-animation",
   "export-data",
 ];
@@ -3442,6 +3499,7 @@ function getCommandPaletteCommands() {
       exportViewerWindow,
       openDataExportDialog,
       openAnimationExportDialog,
+      openImageExportDialog,
       startSeriesSumming,
       openSeriesSumOutputTarget,
       cancelSeriesSumming,
@@ -3503,6 +3561,7 @@ const menuActionHandler = createMenuActionHandler({
     closeCurrentFile,
     openDataExportDialog,
     openAnimationExportDialog,
+    openImageExportDialog,
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,

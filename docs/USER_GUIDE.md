@@ -284,9 +284,22 @@ and the result opens directly from the panel when it finishes.
 | You want | Use |
 | --- | --- |
 | The frames as TIFF or CBF | **File → Convert Dataset…** (`⇧⌘X`) |
+| A figure for a slide or a paper | **File → Export Image…** (`⇧⌘E`) |
 | An animation of a series | **File → Export Animation…** (`⌘G`) |
-| A picture of what is on screen | **File → Full Image / Visible Area / Viewer Window** |
+| A quick picture of what is on screen | **File → Save As → Full Image / Visible Area / Viewer Window** |
 | ROI numbers for analysis | **Export CSV** in the Overlay tab |
+
+**Export Image** writes the frame, or the visible area, as a PNG made for
+slides and papers. **Size** enlarges it by 1×, 2×, 4× or 8×, turning each
+detector pixel into a sharp square; the default is the smallest size at least
+2000 pixels wide. Without that, a small image is enlarged by whichever program
+shows it, and looks blurry. Sizes too large for a browser to create are greyed
+out. Non-square detector pixels are drawn at their true proportions. **Print
+resolution** (300 dpi by default) is stored in the file, so a layout program
+gives it the right printed size; the dialog shows that size. **Include
+overlays** draws the resolution rings, found peaks and the ROI as the viewer
+shows them. The quick exports under **Save As** stay at one image pixel per
+detector pixel.
 
 **Convert Dataset** writes all frames, the current frame, or a range. Exports
 are signed integers using the common detector convention: module gaps are `-1`,
@@ -423,7 +436,7 @@ appears and `Alt` where `⌥` appears.
 | `⌘O` / `⌘W` / `⌘N` | Open… / Close file / New window |
 | `←` `→` | Previous / next frame |
 | `⌘S` / `⇧⌘S` / `⌥⌘S` | Save full image / visible area / viewer window |
-| `⌘G` / `⇧⌘X` | Export animation… / Convert dataset… |
+| `⇧⌘E` / `⌘G` / `⇧⌘X` | Export image… / Export animation… / Convert dataset… |
 | `⌘,` | Preferences… |
 | `F` / `F1` | Full screen / this documentation |
 

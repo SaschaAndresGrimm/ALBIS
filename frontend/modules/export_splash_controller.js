@@ -46,15 +46,17 @@ export function createExportSplashController({
 
   let html2canvasLoadPromise = null;
 
+  function downloadBlob(blob, filename) {
+    if (!blob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   function downloadCanvasImage(sourceCanvas, filename) {
-    sourceCanvas.toBlob((blob) => {
-      if (!blob) return;
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    });
+    sourceCanvas.toBlob((blob) => downloadBlob(blob, filename));
   }
 
   function canvasToBlob(canvas) {
@@ -76,12 +78,12 @@ export function createExportSplashController({
     return `${base}_frame_${frame}.png`;
   }
 
-  // Save a rendered canvas to a user-chosen location. Prefers the File System
-  // Access API (a real native Save panel with folder navigation); falls back to
-  // a filename-only download for browsers without it. `produceCanvas` is only
+  // Save an image to a user-chosen location. Prefers the File System Access API
+  // (a real native Save panel with folder navigation); falls back to a
+  // filename-only download for browsers without it. `produceBlob` is only
   // invoked once a destination is chosen, and is deferred until after the picker
   // so the picker call keeps the click's user activation.
-  async function saveCanvasAs(suggestedName, produceCanvas) {
+  async function saveBlobAs(suggestedName, produceBlob) {
     if (typeof window.showSaveFilePicker === "function") {
       let handle;
       try {
@@ -92,8 +94,7 @@ export function createExportSplashController({
       }
       if (handle) {
         try {
-          const canvas = await produceCanvas();
-          const blob = canvas && (await canvasToBlob(canvas));
+          const blob = await produceBlob();
           if (!blob) return;
           const writable = await handle.createWritable();
           await writable.write(blob);
@@ -112,8 +113,15 @@ export function createExportSplashController({
       confirmLabel: t("common.save"),
     });
     if (!name) return;
-    const canvas = await produceCanvas();
-    if (canvas) downloadCanvasImage(canvas, name);
+    downloadBlob(await produceBlob(), name);
+  }
+
+  // A rendered canvas to a user-chosen location; see saveBlobAs.
+  function saveCanvasAs(suggestedName, produceCanvas) {
+    return saveBlobAs(suggestedName, async () => {
+      const canvas = await produceCanvas();
+      return canvas ? canvasToBlob(canvas) : null;
+    });
   }
 
   function renderRegionToCanvas(region) {
@@ -585,6 +593,10 @@ export function createExportSplashController({
 
   return {
     exportFullImage,
+    renderRegionToCanvas,
+    canvasToBlob,
+    saveBlobAs,
+    defaultExportName,
     exportVisibleArea,
     exportViewerWindow,
     getVisibleRegion,

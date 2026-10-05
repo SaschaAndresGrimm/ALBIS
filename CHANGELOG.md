@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **File → Export Image… (⇧⌘E) writes a PNG made for slides and papers.** The quick exports under Save As write one image pixel per detector pixel. That is exact, but a Pollux frame is 1544 × 96 pixels, and the program showing it on a slide or in a PDF enlarges and smooths it, so it looked blurry. The dialog enlarges by 1×, 2×, 4× or 8× without smoothing, so every detector pixel stays a sharp square. The default is the smallest size at least 2000 pixels wide. Sizes a browser cannot create are listed but greyed out, past 16384 px per side or 100 megapixels. Non-square pixels are drawn at their true proportions. A print resolution (300 dpi by default) is written into the PNG's `pHYs` chunk, and the dialog shows the printed size, so a journal's layout program sizes the figure correctly. **Include overlays** draws the resolution rings, found peaks and the ROI as the viewer shows them, anti-aliased, since a PNG has no palette limit. The entry sits at the top of the File menu and in the command palette. Checked on an exported file: a 2× export consists of uniform 2 × 2 blocks, matches the 1× export pixel for pixel, and states 300 dpi.
+
 ## [0.22.1] - 2026-10-05
 
 ### Added

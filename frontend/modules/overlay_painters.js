@@ -132,6 +132,98 @@ export function screenView({ zoom, zoomY, scrollX, scrollY, offsetX, offsetY }) 
   };
 }
 
+// Overlay line widths and label text are sized for a viewport, so they scale
+// with an export's output; without this a ring in a 4000 px wide image is a
+// hairline. Clamped so a thumbnail keeps legible decorations and a huge
+// export does not end up all label.
+const OVERLAY_UI_REFERENCE_PX = 900;
+const OVERLAY_UI_SCALE_MIN = 0.75;
+const OVERLAY_UI_SCALE_MAX = 4;
+
+/** Line width and label scale for an export of ow x oh pixels. */
+export function overlayUiScale(ow, oh) {
+  const raw = Math.min(ow, oh) / OVERLAY_UI_REFERENCE_PX;
+  return Math.max(OVERLAY_UI_SCALE_MIN, Math.min(OVERLAY_UI_SCALE_MAX, raw));
+}
+
+/**
+ * The ROI outline, as the viewer draws it, into an export.
+ *
+ * Same conventions as roi_interaction_controller's drawRoiOverlay: a line runs
+ * between pixel centres, a box covers its pixels inclusively, and a circle or
+ * annulus is centred on `start` with its radius in X-pixel units, so it stays
+ * round when the pixels are not square.
+ */
+export function paintRoiOutline(ctx, { roi, view, outerRadius = 0, uiScale = 1 } = {}) {
+  if (!ctx || !roi || !roi.start || !roi.end || !view) return false;
+  const x0 = viewX(view, roi.start.x);
+  const y0 = viewY(view, roi.start.y);
+  const x1 = viewX(view, roi.end.x);
+  const y1 = viewY(view, roi.end.y);
+  ctx.save();
+  ctx.setLineDash([6 * uiScale, 4 * uiScale]);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  const strokeWithHalo = () => {
+    ctx.lineWidth = 4 * uiScale;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.stroke();
+    ctx.lineWidth = 2 * uiScale;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.stroke();
+  };
+  const fillFaint = (path) => {
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(160, 160, 160, 0.08)";
+    path();
+    ctx.restore();
+  };
+  if (roi.mode === "line") {
+    ctx.beginPath();
+    ctx.moveTo(x0 + view.scaleX * 0.5, y0 + view.scaleY * 0.5);
+    ctx.lineTo(x1 + view.scaleX * 0.5, y1 + view.scaleY * 0.5);
+    strokeWithHalo();
+  } else if (roi.mode === "box") {
+    const left = Math.min(x0, x1);
+    const top = Math.min(y0, y1);
+    const width = Math.max(x0, x1) + view.scaleX - left;
+    const height = Math.max(y0, y1) + view.scaleY - top;
+    fillFaint(() => ctx.fillRect(left, top, width, height));
+    ctx.beginPath();
+    ctx.rect(left, top, width, height);
+    strokeWithHalo();
+  } else if (roi.mode === "circle" || roi.mode === "annulus") {
+    const radius = outerRadius * view.scaleX;
+    const inner = (roi.mode === "annulus" ? Number(roi.innerRadius) || 0 : 0) * view.scaleX;
+    if (!(radius > 0)) {
+      ctx.restore();
+      return false;
+    }
+    fillFaint(() => {
+      ctx.beginPath();
+      ctx.arc(x0, y0, radius, 0, Math.PI * 2);
+      if (inner > 0) {
+        ctx.moveTo(x0 + inner, y0);
+        ctx.arc(x0, y0, inner, 0, Math.PI * 2);
+        ctx.fill("evenodd");
+      } else {
+        ctx.fill();
+      }
+    });
+    ctx.beginPath();
+    ctx.arc(x0, y0, radius, 0, Math.PI * 2);
+    strokeWithHalo();
+    if (inner > 0) {
+      ctx.beginPath();
+      ctx.arc(x0, y0, inner, 0, Math.PI * 2);
+      strokeWithHalo();
+    }
+  }
+  ctx.restore();
+  return true;
+}
+
 /** The exporter's image->output map for a crop region drawn at ow x oh. */
 export function regionView(region, ow, oh) {
   const scaleX = ow / Math.max(1, region.width);

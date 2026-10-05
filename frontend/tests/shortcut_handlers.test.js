@@ -70,6 +70,29 @@ describe("shortcut_handlers", () => {
   });
 });
 
+describe("image export shortcut", () => {
+  it("maps Mod+Shift+E to Export Image, and leaves Mod+E alone", () => {
+    const { handleShortcut, handleMenuAction } = makeHandlers();
+    const exportEvent = new KeyboardEvent("keydown", {
+      key: "E",
+      metaKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    handleShortcut(exportEvent);
+
+    expect(exportEvent.defaultPrevented).toBe(true);
+    expect(handleMenuAction).toHaveBeenCalledWith("export-image");
+
+    const plain = new KeyboardEvent("keydown", { key: "e", metaKey: true, bubbles: true, cancelable: true });
+    handleShortcut(plain);
+    expect(plain.defaultPrevented).toBe(false);
+    expect(handleMenuAction).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("Tab must not swallow keyboard focus traversal", () => {
   function tabEvent(target, { shiftKey = false } = {}) {
     const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true });
