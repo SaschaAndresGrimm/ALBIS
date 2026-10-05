@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-10-05
+
 ### Added
 
 - **A "?" next to options that need more than a label.** Series Operations' Mode, Operation and Normalization, the mask options and the geometry file each carry one. Hovering or focusing it shows what each choice does, for example what the normalizations divide by and that Median ignores cosmic-ray hits. A click or tap keeps it open, and Escape closes it. It works whether or not hover hints are switched on in the settings, takes no room until asked, and is translated into all 13 languages. `frontend/modules/info_tips.js`; the existing hover hints skip these buttons.
@@ -1329,7 +1331,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.1...HEAD
+[0.22.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.20.2...v0.21.0
