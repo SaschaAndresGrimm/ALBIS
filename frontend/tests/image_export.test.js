@@ -7,6 +7,8 @@ import {
   defaultExportScale,
   exportScaleOptions,
   exportSize,
+  formatZoom,
+  pixelValuesAvailability,
   printSizeCm,
   readPngDpi,
   setPngDpi,
@@ -115,5 +117,30 @@ describe("the PNG's resolution", () => {
   it("returns bytes that are not a PNG unchanged", () => {
     const notPng = new Uint8Array([1, 2, 3, 4, 5]);
     expect(setPngDpi(notPng, 300)).toBe(notPng);
+  });
+});
+
+describe("export at the viewer's zoom", () => {
+  it("writes the zoom short enough for a label and a file name", () => {
+    expect(formatZoom(23.684)).toBe("23.7");
+    expect(formatZoom(4)).toBe("4");
+    expect(formatZoom(0.254)).toBe("0.25");
+    expect(formatZoom(0)).toBe("1");
+  });
+});
+
+describe("pixel values in an export", () => {
+  const on = { enabled: true, minCellPx: 18 };
+
+  it("needs the viewer to show them", () => {
+    expect(pixelValuesAvailability({ enabled: false, minCellPx: 18 }, 24)).toEqual({ available: false, reason: "off" });
+    expect(pixelValuesAvailability(null, 24).reason).toBe("off");
+  });
+
+  it("needs each pixel at least the viewer's label cell on both axes", () => {
+    expect(pixelValuesAvailability(on, 18).available).toBe(true);
+    expect(pixelValuesAvailability(on, 8)).toEqual({ available: false, reason: "too_small" });
+    expect(pixelValuesAvailability(on, 24, 0.5).reason).toBe("too_small");
+    expect(pixelValuesAvailability(on, 24, 2).available).toBe(true);
   });
 });

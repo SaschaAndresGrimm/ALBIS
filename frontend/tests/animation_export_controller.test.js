@@ -124,7 +124,15 @@ function stubOverlayCanvas(ow, oh) {
   return { width: ow, height: oh, getContext: () => ctx };
 }
 
-async function runExport({ overlays, overlayState, detectPeaksInFrame } = {}) {
+async function runExport({
+  overlays,
+  overlayState,
+  detectPeaksInFrame,
+  stateOverrides = {},
+  scale = null,
+  pixelValues = false,
+  labelSettings = { enabled: false, minCellPx: 18 },
+} = {}) {
   vi.resetModules();
   const encoded = { palette: null, frames: [], size: null };
   vi.doMock("../modules/gif_encoder.js", () => ({
@@ -164,13 +172,26 @@ async function runExport({ overlays, overlayState, detectPeaksInFrame } = {}) {
     "../modules/animation_export_controller.js"
   );
 
-  const state = seriesState();
+  const state = seriesState(stateOverrides);
   const overlaysCheckbox = checkbox(Boolean(overlays));
+  const pixelValuesCheckbox = checkbox(Boolean(pixelValues));
+  const scaleSelect = scale === null ? undefined : document.createElement("select");
+  const labelFrames = [];
+  const pixelLabelsForFrame = vi.fn((frame, cellPx) => {
+    labelFrames.push({ first: frame.data[0], cellPx });
+    return { float: false, labelAt: (idx) => String(frame.data[idx]) };
+  });
   const detect = detectPeaksInFrame || vi.fn((frame) => [{ x: frame.data[0], y: 1 }]);
   const controller = createAnimationExportController({
     apiBase: "/api",
     state,
-    elements: { overlaysCheckbox, overlaysField: document.createElement("label") },
+    elements: {
+      overlaysCheckbox,
+      overlaysField: document.createElement("label"),
+      pixelValuesCheckbox,
+      pixelValuesField: document.createElement("label"),
+      scaleSelect,
+    },
     callbacks: {
       buildPalette: () => new Uint8Array(256 * 4).fill(200),
       getPaletteColorCount: () => 256,
@@ -188,6 +209,8 @@ async function runExport({ overlays, overlayState, detectPeaksInFrame } = {}) {
           pixelAspect: 1,
         },
       detectPeaksInFrame: detect,
+      getPixelLabelSettings: () => labelSettings,
+      pixelLabelsForFrame,
       createOverlayCanvas: stubOverlayCanvas,
       openModal: vi.fn(),
       closeModal: vi.fn(),
@@ -206,8 +229,23 @@ async function runExport({ overlays, overlayState, detectPeaksInFrame } = {}) {
     }),
   }));
   controller.openDialog();
+  if (scaleSelect) {
+    scaleSelect.value = scale;
+    scaleSelect.dispatchEvent(new Event("change"));
+  }
+  const offered = scaleSelect ? [...scaleSelect.options].map((o) => o.textContent) : [];
   await controller.startExport();
-  return { encoded, detect, controller, overlaysCheckbox, state, written };
+  return {
+    encoded,
+    detect,
+    controller,
+    overlaysCheckbox,
+    pixelValuesCheckbox,
+    labelFrames,
+    offered,
+    state,
+    written,
+  };
 }
 
 describe("GIF export with overlays", () => {
@@ -295,5 +333,101 @@ describe("GIF export with overlays", () => {
     });
     expect(overlaysCheckbox.disabled).toBe(true);
     expect(overlaysCheckbox.checked).toBe(false);
+  });
+});
+
+describe("GIF export size", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.doUnmock("../modules/gif_encoder.js");
+    delete global.fetch;
+    delete window.showSaveFilePicker;
+  });
+
+  it("keeps non-square pixels in proportion", async () => {
+    const { encoded } = await runExport({ overlays: false, stateOverrides: { pixelAspect: 2 } });
+    expect(encoded.size).toEqual({ width: FRAME_W, height: FRAME_H * 2 });
+    // Each detector row fills two output rows.
+    const { encoded: square } = await runExport({ overlays: false });
+    expect(square.size).toEqual({ width: FRAME_W, height: FRAME_H });
+  });
+
+  it("offers enlargements and the viewer's zoom, each with its size", async () => {
+    const { offered, encoded } = await runExport({ overlays: false, scale: "4", stateOverrides: { zoom: 20 } });
+    expect(offered).toEqual([
+      "4× — 32 × 32 px",
+      "2× — 16 × 16 px",
+      "1× — 8 × 8 px",
+      "50% — 4 × 4 px",
+      "25% — 2 × 2 px",
+      "10% — 1 × 1 px",
+      "As on screen (20×) — 160 × 160 px",
+    ]);
+    expect(encoded.size).toEqual({ width: 32, height: 32 });
+    // Nearest neighbour: every detector pixel is a 4 x 4 block.
+    const frame = encoded.frames[0];
+    expect(frame[0]).toBe(frame[3 * 32 + 3]);
+  });
+});
+
+describe("GIF export with pixel values", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.doUnmock("../modules/gif_encoder.js");
+    delete global.fetch;
+    delete window.showSaveFilePicker;
+  });
+
+  const ON = { enabled: true, minCellPx: 18 };
+
+  it("draws each frame's own values when exported as on screen", async () => {
+    const steps = 252 - OPAQUE_OVERLAY_RGB.length;
+    const { encoded, labelFrames, pixelValuesCheckbox } = await runExport({
+      pixelValues: true,
+      labelSettings: ON,
+      scale: "screen",
+      stateOverrides: { zoom: 20 },
+    });
+    expect(pixelValuesCheckbox.disabled).toBe(false);
+    expect(encoded.size).toEqual({ width: 160, height: 160 });
+    expect(labelFrames).toEqual([
+      { first: 0, cellPx: 20 },
+      { first: 1, cellPx: 20 },
+      { first: 2, cellPx: 20 },
+    ]);
+    // The stub's opaque white pixel is quantised to the overlay white.
+    expect(encoded.frames[0][0]).toBe(steps + 3);
+  });
+
+  it("is unavailable when pixels come out too small", async () => {
+    const { labelFrames, pixelValuesCheckbox } = await runExport({
+      pixelValues: true,
+      labelSettings: ON,
+      scale: "4",
+      stateOverrides: { zoom: 20 },
+    });
+    expect(pixelValuesCheckbox.disabled).toBe(true);
+    expect(pixelValuesCheckbox.checked).toBe(false);
+    expect(labelFrames).toEqual([]);
+  });
+
+  it("is unavailable when the viewer does not show pixel values", async () => {
+    const { labelFrames, pixelValuesCheckbox } = await runExport({
+      pixelValues: true,
+      scale: "screen",
+      stateOverrides: { zoom: 20 },
+    });
+    expect(pixelValuesCheckbox.disabled).toBe(true);
+    expect(labelFrames).toEqual([]);
+  });
+
+  it("counts the smaller side of a non-square pixel", async () => {
+    const { pixelValuesCheckbox } = await runExport({
+      pixelValues: true,
+      labelSettings: ON,
+      scale: "screen",
+      stateOverrides: { zoom: 20, pixelAspect: 0.5 },
+    });
+    expect(pixelValuesCheckbox.disabled).toBe(true);
   });
 });

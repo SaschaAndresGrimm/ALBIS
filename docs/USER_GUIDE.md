@@ -294,12 +294,17 @@ slides and papers. **Size** enlarges it by 1×, 2×, 4× or 8×, turning each
 detector pixel into a sharp square; the default is the smallest size at least
 2000 pixels wide. Without that, a small image is enlarged by whichever program
 shows it, and looks blurry. Sizes too large for a browser to create are greyed
-out. Non-square detector pixels are drawn at their true proportions. **Print
-resolution** (300 dpi by default) is stored in the file, so a layout program
-gives it the right printed size; the dialog shows that size. **Include
-overlays** draws the resolution rings, found peaks and the ROI as the viewer
-shows them. The quick exports under **Save As** stay at one image pixel per
-detector pixel.
+out. **As on screen** uses the viewer's zoom instead: zoom in, choose
+**Visible area** and **As on screen**, and the PNG is what you see. Non-square
+detector pixels are drawn at their true proportions. **Print resolution** (300
+dpi by default) is stored in the file, so a layout program gives it the right
+printed size; the dialog shows that size. **Include overlays** draws the
+resolution rings, found peaks and the ROI as the viewer shows them. **Pixel
+values** draws each pixel's value into it, as the viewer does when zoomed in.
+It needs the pixel values switched on in the viewer, and a size at which each
+pixel is at least as large as the viewer's minimum for them (18 px unless
+changed in Settings) — in practice **As on screen** while zoomed in. The quick
+exports under **Save As** stay at one image pixel per detector pixel.
 
 **Convert Dataset** writes all frames, the current frame, or a range. Exports
 are signed integers using the common detector convention: module gaps are `-1`,
@@ -350,10 +355,19 @@ source frames. Geometry you have corrected in ALBIS is written afterwards and
 wins over the source's own copy of it.
 
 **Export Animation** renders a GIF matching the screen exactly — colour map,
-contrast, mask and saturation highlighting all apply. Choose the frame range and
-step, the full image or just the visible area, a scale, and the frame rate. A
-live summary estimates the file size before you commit; frame count, region and
-scale are the levers that control it.
+contrast, mask and saturation highlighting all apply, and non-square pixels
+keep their proportions. Choose the frame range and step, the full image or just
+the visible area, a scale, and the frame rate. Scales above 100% (2×, 4×)
+enlarge each detector pixel into a sharp block; **As on screen** uses the
+viewer's zoom. A live summary estimates the file size before you commit; frame
+count, region and scale are the levers that control it.
+
+Tick **Pixel values** to write each pixel's value into every frame, read from
+that frame. It has the same conditions as in Export Image: pixel values shown
+in the viewer, and pixels exported at least as large as the viewer draws them,
+so typically **Visible area** with **As on screen** while zoomed in. Labels in
+a GIF have a heavier dark outline than on screen, so the digits stay readable
+with only two colours to draw them in.
 
 Tick **Include overlays** to draw the resolution rings and the spot finder into
 the GIF as well. The option is only available when at least one of them is

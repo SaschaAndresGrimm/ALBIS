@@ -1750,12 +1750,7 @@
             </label>
             <label class="field">
               <span data-i18n="animation_export.scale">Scale</span>
-              <select id="animation-export-scale">
-                <option value="1">100%</option>
-                <option value="0.5" selected>50%</option>
-                <option value="0.25">25%</option>
-                <option value="0.1">10%</option>
-              </select>
+              <select id="animation-export-scale"></select>
             </label>
             <label class="field">
               <span data-i18n="animation_export.fps">Speed</span>
@@ -1775,6 +1770,10 @@
             <label class="checkbox data-export-overwrite" id="animation-export-overlays-field">
               <input id="animation-export-overlays" type="checkbox" />
               <span data-i18n="animation_export.overlays">Include overlays</span>
+            </label>
+            <label class="checkbox data-export-overwrite" id="animation-export-pixel-values-field">
+              <input id="animation-export-pixel-values" type="checkbox" />
+              <span data-i18n="export.pixel_values">Pixel values</span>
             </label>
           </div>
           <div class="data-export-source" id="animation-export-summary" data-i18n="animation_export.summary.empty">No frames selected</div>
@@ -1818,6 +1817,10 @@
             <label class="checkbox data-export-overwrite" id="image-export-overlays-field">
               <input id="image-export-overlays" type="checkbox" checked />
               <span data-i18n="image_export.overlays">Include overlays (rings, peaks, ROI)</span>
+            </label>
+            <label class="checkbox data-export-overwrite" id="image-export-pixel-values-field">
+              <input id="image-export-pixel-values" type="checkbox" checked />
+              <span data-i18n="export.pixel_values">Pixel values</span>
             </label>
           </div>
           <div class="data-export-source" id="image-export-summary">-</div>

@@ -4,8 +4,9 @@
  * The quick exports under Save As write one detector pixel per PNG pixel. That
  * is exact, and on a slide it is blurry: the program showing it enlarges it and
  * smooths the pixels together. This dialog enlarges by whole factors without
- * smoothing (image_export.js), applies the pixel aspect, can draw the overlays
- * the viewer shows, and stamps a print resolution into the file.
+ * smoothing (image_export.js), or at the viewer's zoom, applies the pixel
+ * aspect, can draw the overlays and pixel values the viewer shows, and stamps a
+ * print resolution into the file.
  */
 
 import { t } from "./i18n.js";
@@ -13,16 +14,21 @@ import { canSaveImage } from "./command_availability.js";
 import {
   DEFAULT_EXPORT_DPI,
   EXPORT_DPI_CHOICES,
+  SCREEN_SCALE,
   defaultExportScale,
   exportScaleOptions,
   exportSize,
+  formatZoom,
+  pixelValuesAvailability,
   printSizeCm,
   setPngDpi,
+  withinExportLimits,
 } from "./image_export.js";
 import {
   buildGeometryRingCache,
   overlayUiScale,
   paintPeakMarkers,
+  paintPixelLabels,
   paintResolutionRings,
   paintRoiOutline,
   regionView,
@@ -38,6 +44,8 @@ export function createImageExportController({ state, elements, callbacks }) {
     dpiSelect,
     overlaysCheckbox,
     overlaysField,
+    pixelValuesCheckbox,
+    pixelValuesField,
     summary,
     startBtn,
   } = elements;
@@ -49,11 +57,17 @@ export function createImageExportController({ state, elements, callbacks }) {
     saveBlobAs,
     defaultExportName,
     getOverlaySnapshot,
+    getPixelLabelSettings,
+    pixelLabelsForFrame,
     createCanvas = (width, height) => Object.assign(document.createElement("canvas"), { width, height }),
     openModal,
     closeModal,
     setStatus,
   } = callbacks;
+
+  // What the user last chose for pixel values; a size too small for them
+  // unticks the box without forgetting the choice.
+  let pixelValuesWanted = Boolean(pixelValuesCheckbox?.checked);
 
   function pixelAspect() {
     return Number(state.pixelAspect) > 0 ? Number(state.pixelAspect) : 1;
@@ -67,7 +81,12 @@ export function createImageExportController({ state, elements, callbacks }) {
     return { x: 0, y: 0, width: state.width, height: state.height };
   }
 
+  function screenZoom() {
+    return Number(state.zoom) > 0 ? Number(state.zoom) : 1;
+  }
+
   function selectedScale() {
+    if (scaleSelect?.value === SCREEN_SCALE) return screenZoom();
     const value = Number(scaleSelect?.value || 1);
     return Number.isFinite(value) && value > 0 ? value : 1;
   }
@@ -89,24 +108,41 @@ export function createImageExportController({ state, elements, callbacks }) {
 
   // The scale list states each option's size, so the choice is made knowing
   // what it produces; a size a browser cannot produce is shown, but disabled.
+  // "As on screen" exports at the viewer's zoom: a zoomed-in view comes out as
+  // it looks, pixel values included.
   function populateScales({ resetToDefault = false } = {}) {
     if (!scaleSelect) return;
     const region = selectedRegion();
-    const options = exportScaleOptions(region, pixelAspect());
-    const previous = selectedScale();
+    const previous = scaleSelect.value;
     scaleSelect.innerHTML = "";
-    options.forEach(({ scale, width, height, allowed }) => {
+    const add = (value, label, allowed) => {
       const option = document.createElement("option");
-      option.value = String(scale);
-      option.textContent = t("image_export.scale.option", { scale, width, height });
+      option.value = value;
+      option.textContent = label;
       option.disabled = !allowed;
       if (!allowed) option.title = t("image_export.scale.too_large");
       scaleSelect.appendChild(option);
+    };
+    exportScaleOptions(region, pixelAspect()).forEach(({ scale, width, height, allowed }) => {
+      add(String(scale), t("image_export.scale.option", { scale, width, height }), allowed);
     });
-    const keep = options.find((option) => option.scale === previous && option.allowed);
-    scaleSelect.value = String(
-      !resetToDefault && keep ? previous : defaultExportScale(region, pixelAspect()),
+    const screen = exportSize(region, screenZoom(), pixelAspect());
+    add(
+      SCREEN_SCALE,
+      t("export.scale.screen", { zoom: formatZoom(screenZoom()), ...screen }),
+      withinExportLimits(screen.width, screen.height),
     );
+    const keep = Array.from(scaleSelect.options).find((option) => option.value === previous && !option.disabled);
+    scaleSelect.value = !resetToDefault && keep ? previous : String(defaultExportScale(region, pixelAspect()));
+  }
+
+  function pixelValuesState(scale = selectedScale()) {
+    const settings = typeof pixelLabelsForFrame === "function" ? getPixelLabelSettings?.() : null;
+    const result = pixelValuesAvailability(settings, scale, pixelAspect());
+    return {
+      available: result.available,
+      reason: result.available ? "" : t(`export.pixel_values.${result.reason}`, { min: settings?.minCellPx }),
+    };
   }
 
   function updateSummary() {
@@ -147,12 +183,19 @@ export function createImageExportController({ state, elements, callbacks }) {
     if (overlaysField) {
       overlaysField.title = overlaysAvailable ? "" : t("image_export.overlays.unavailable");
     }
+    const pixelValues = pixelValuesState();
+    if (pixelValuesCheckbox) {
+      pixelValuesCheckbox.disabled = !ready || !pixelValues.available;
+      pixelValuesCheckbox.checked = pixelValues.available && pixelValuesWanted;
+    }
+    pixelValuesField?.classList.toggle("is-disabled", !pixelValues.available);
+    if (pixelValuesField) pixelValuesField.title = pixelValues.reason;
     if (startBtn) startBtn.disabled = !ready;
     updateSummary();
   }
 
   /** The PNG, enlarged without smoothing, with overlays and a resolution. */
-  async function renderPng({ region, scale, dpi, withOverlays }) {
+  async function renderPng({ region, scale, dpi, withOverlays, withPixelValues = false }) {
     const native = renderRegionToCanvas(region);
     if (!native) return null;
     const { width, height } = exportSize(region, scale, pixelAspect());
@@ -163,9 +206,9 @@ export function createImageExportController({ state, elements, callbacks }) {
     ctx.drawImage(native, 0, 0, width, height);
 
     const snap = withOverlays ? overlaySnapshot() : null;
+    const view = regionView(region, width, height);
+    const uiScale = overlayUiScale(width, height);
     if (snap) {
-      const view = regionView(region, width, height);
-      const uiScale = overlayUiScale(width, height);
       if (snap.ringParams) {
         paintResolutionRings(ctx, {
           params: snap.ringParams,
@@ -187,9 +230,25 @@ export function createImageExportController({ state, elements, callbacks }) {
           uiScale,
         });
       }
-      if (snap.roi) {
-        paintRoiOutline(ctx, { roi: snap.roi, view, outerRadius: snap.outerRadius, uiScale });
-      }
+    }
+    // Stacked as in the viewer: pixel values above rings and markers, the ROI
+    // on top.
+    if (withPixelValues && pixelValuesState(scale).available && state.dataRaw) {
+      const frame = { data: state.dataRaw, width: state.width, height: state.height, dtype: state.dtype };
+      const { labelAt, float } = pixelLabelsForFrame(frame, view.scaleX);
+      paintPixelLabels(ctx, {
+        view,
+        x0: region.x,
+        y0: region.y,
+        x1: region.x + region.width,
+        y1: region.y + region.height,
+        frameWidth: state.width,
+        labelAt,
+        float,
+      });
+    }
+    if (snap?.roi) {
+      paintRoiOutline(ctx, { roi: snap.roi, view, outerRadius: snap.outerRadius, uiScale });
     }
 
     const blob = await canvasToBlob(canvas);
@@ -201,7 +260,7 @@ export function createImageExportController({ state, elements, callbacks }) {
   function suggestedName(region, scale) {
     const visible = region.x !== 0 || region.y !== 0 || region.width !== state.width || region.height !== state.height;
     const base = defaultExportName(visible ? "view" : "full");
-    return scale > 1 ? base.replace(/\.png$/i, `_${scale}x.png`) : base;
+    return scale !== 1 ? base.replace(/\.png$/i, `_${formatZoom(scale)}x.png`) : base;
   }
 
   function startExport() {
@@ -211,7 +270,13 @@ export function createImageExportController({ state, elements, callbacks }) {
     }
     const region = selectedRegion();
     const scale = selectedScale();
-    const options = { region, scale, dpi: selectedDpi(), withOverlays: Boolean(overlaysCheckbox?.checked) };
+    const options = {
+      region,
+      scale,
+      dpi: selectedDpi(),
+      withOverlays: Boolean(overlaysCheckbox?.checked),
+      withPixelValues: Boolean(pixelValuesCheckbox?.checked),
+    };
     closeModal(modal);
     // saveBlobAs opens the native Save panel before rendering, so it keeps the
     // click's user activation; the image is only made once a place is chosen.
@@ -247,9 +312,13 @@ export function createImageExportController({ state, elements, callbacks }) {
   });
   regionSelect?.addEventListener("change", () => {
     populateScales({ resetToDefault: true });
-    updateSummary();
+    updateUi();
   });
-  [scaleSelect, dpiSelect].forEach((el) => el?.addEventListener("change", updateSummary));
+  scaleSelect?.addEventListener("change", updateUi);
+  dpiSelect?.addEventListener("change", updateSummary);
+  pixelValuesCheckbox?.addEventListener("change", () => {
+    pixelValuesWanted = pixelValuesCheckbox.checked;
+  });
   startBtn?.addEventListener("click", () => {
     void startExport();
   });

@@ -9,6 +9,8 @@
  * program to blur.
  */
 
+import { pixelLabelsFit } from "./overlay_painters.js";
+
 export const EXPORT_SCALES = Object.freeze([1, 2, 4, 8]);
 // Browsers refuse or silently blank canvases past these: Safari and Chrome
 // both stop at 16384 px per side on common setups, and the RGBA buffer of a
@@ -29,13 +31,40 @@ export function exportSize(region, scale, pixelAspect = 1) {
   };
 }
 
+/** Whether a browser can produce a canvas of this size. */
+export function withinExportLimits(width, height) {
+  return width <= MAX_EXPORT_SIDE_PX && height <= MAX_EXPORT_SIDE_PX && width * height <= MAX_EXPORT_PIXELS;
+}
+
 /** Each scale with its output size and whether a browser can produce it. */
-export function exportScaleOptions(region, pixelAspect = 1) {
-  return EXPORT_SCALES.map((scale) => {
+export function exportScaleOptions(region, pixelAspect = 1, scales = EXPORT_SCALES) {
+  return scales.map((scale) => {
     const { width, height } = exportSize(region, scale, pixelAspect);
-    const allowed = width <= MAX_EXPORT_SIDE_PX && height <= MAX_EXPORT_SIDE_PX && width * height <= MAX_EXPORT_PIXELS;
-    return { scale, width, height, allowed };
+    return { scale, width, height, allowed: withinExportLimits(width, height) };
   });
+}
+
+// The size option that exports at the viewer's zoom, so an enlarged view comes
+// out as it looks, pixel values included. Its select value; the scale itself is
+// the zoom when the dialog opens.
+export const SCREEN_SCALE = "screen";
+
+/** A zoom for a label and a file name: 23.68 -> "23.7", 0.25 -> "0.25", 4 -> "4". */
+export function formatZoom(zoom) {
+  const value = Number(zoom) > 0 ? Number(zoom) : 1;
+  return String(Number(value.toFixed(value >= 10 ? 1 : 2)));
+}
+
+/**
+ * Whether an export at `scale` can carry pixel values: the viewer must show
+ * them, and each exported pixel must be at least the cell size the viewer
+ * draws them into, on both axes. `reason` is "off" or "too_small" when not.
+ */
+export function pixelValuesAvailability(settings, scale, pixelAspect = 1) {
+  if (!settings?.enabled) return { available: false, reason: "off" };
+  const aspect = Number(pixelAspect) > 0 ? Number(pixelAspect) : 1;
+  if (!pixelLabelsFit(scale, scale * aspect, settings.minCellPx)) return { available: false, reason: "too_small" };
+  return { available: true, reason: "" };
 }
 
 /** The smallest allowed scale reaching the target width, else the largest allowed. */

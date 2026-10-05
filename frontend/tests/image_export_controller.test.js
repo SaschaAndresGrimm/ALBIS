@@ -31,7 +31,12 @@ function pngBlob() {
   return new Blob([bytes], { type: "image/png" });
 }
 
-async function setup({ overlays = {} } = {}) {
+async function setup({
+  overlays = {},
+  labels = { enabled: false, minCellPx: 18 },
+  zoom = 1,
+  visible = { x: 100, y: 0, width: 400, height: 96 },
+} = {}) {
   vi.resetModules();
   global.fetch = vi.fn(async () => ({ ok: true, json: async () => EN }));
   const i18n = await import("../modules/i18n.js");
@@ -42,19 +47,32 @@ async function setup({ overlays = {} } = {}) {
     <select id="region"><option value="full">Full</option><option value="visible">Visible</option></select>
     <select id="scale"></select><select id="dpi"></select>
     <label id="of"><input id="ov" type="checkbox" checked /></label>
+    <label id="pf"><input id="pv" type="checkbox" checked /></label>
     <div id="sum"></div><button id="go"></button>`;
   const $ = (id) => document.getElementById(id);
-  const drawn = { smoothing: null, drawImage: null };
-  const ctx = {
+  const drawn = { smoothing: null, drawImage: null, text: [] };
+  const target = {
     set imageSmoothingEnabled(value) {
       drawn.smoothing = value;
     },
     drawImage: (...args) => {
       drawn.drawImage = args;
     },
+    fillText: (text, x, y) => drawn.text.push([text, x, y]),
+    measureText: () => ({ width: 10 }),
   };
+  const ctx = new Proxy(target, {
+    get: (obj, key) => (key in obj ? obj[key] : () => {}),
+    set: (obj, key, value) => {
+      if (key === "imageSmoothingEnabled") obj.imageSmoothingEnabled = value;
+      return true;
+    },
+  });
   const canvases = [];
-  const state = { hasFrame: true, dataRaw: new Uint32Array(1544 * 96), width: 1544, height: 96, pixelAspect: 1, file: "/data/pollux_00001.tif" };
+  const state = { hasFrame: true, dataRaw: new Uint32Array(1544 * 96), width: 1544, height: 96, pixelAspect: 1, zoom, file: "/data/pollux_00001.tif" };
+  state.dataRaw.forEach((_, i) => {
+    state.dataRaw[i] = i;
+  });
   const saveBlobAs = vi.fn(async (name, produce) => ({ name, blob: await produce() }));
   const controller = createImageExportController({
     state,
@@ -65,16 +83,20 @@ async function setup({ overlays = {} } = {}) {
       dpiSelect: $("dpi"),
       overlaysCheckbox: $("ov"),
       overlaysField: $("of"),
+      pixelValuesCheckbox: $("pv"),
+      pixelValuesField: $("pf"),
       summary: $("sum"),
       startBtn: $("go"),
     },
     callbacks: {
-      getVisibleRegion: () => ({ x: 100, y: 0, width: 400, height: 96 }),
+      getVisibleRegion: () => visible,
       renderRegionToCanvas: (region) => ({ native: true, region }),
       canvasToBlob: async () => pngBlob(),
       saveBlobAs,
       defaultExportName: (kind) => (kind === "view" ? "pollux_00001_view_1.png" : "pollux_00001_frame_1.png"),
       getOverlaySnapshot: () => ({ ringParams: null, peaks: [], roi: null, outerRadius: 0, ...overlays }),
+      getPixelLabelSettings: () => labels,
+      pixelLabelsForFrame: (frame) => ({ float: false, labelAt: (idx) => String(frame.data[idx]) }),
       createCanvas: (width, height) => {
         const canvas = { width, height, getContext: () => ctx };
         canvases.push(canvas);
@@ -105,6 +127,7 @@ describe("image export dialog", () => {
       "2× — 3088 × 192 px",
       "4× — 6176 × 384 px",
       "8× — 12352 × 768 px",
+      "As on screen (1×) — 1544 × 96 px",
     ]);
     expect($("scale").value).toBe("2");
     expect($("dpi").value).toBe("300");
@@ -158,5 +181,59 @@ describe("image export dialog", () => {
     await controller.startExport();
 
     expect(saveBlobAs.mock.calls[0][0]).toMatch(/^pollux_00001_view_1(_\dx)?\.png$/);
+  });
+
+  it("exports a zoomed-in view as it looks, pixel values included", async () => {
+    const view = { x: 10, y: 20, width: 3, height: 2 };
+    const { controller, $, drawn, canvases, saveBlobAs } = await setup({
+      labels: { enabled: true, minCellPx: 18 },
+      zoom: 24,
+      visible: view,
+    });
+    controller.openDialog();
+    $("region").value = "visible";
+    $("region").dispatchEvent(new Event("change"));
+    $("scale").value = "screen";
+    $("scale").dispatchEvent(new Event("change"));
+    expect($("pv").disabled).toBe(false);
+    expect($("pv").checked).toBe(true);
+
+    await controller.startExport();
+    await saveBlobAs.mock.results[0].value;
+
+    expect(saveBlobAs.mock.calls[0][0]).toBe("pollux_00001_view_1_24x.png");
+    expect(canvases[0]).toMatchObject({ width: 72, height: 48 });
+    // One label per detector pixel, centred in its 24 px cell.
+    expect(drawn.text).toHaveLength(6);
+    expect(drawn.text[0]).toEqual([String(20 * 1544 + 10), 12, 12]);
+    expect(drawn.text[5]).toEqual([String(21 * 1544 + 12), 60, 36]);
+  });
+
+  it("offers pixel values only at a size they fit, and says why not", async () => {
+    const { controller, $ } = await setup({ labels: { enabled: true, minCellPx: 18 }, zoom: 24 });
+    controller.openDialog();
+    $("scale").value = "8";
+    $("scale").dispatchEvent(new Event("change"));
+    expect($("pv").disabled).toBe(true);
+    expect($("pv").checked).toBe(false);
+    expect($("pf").title).toBe(EN["export.pixel_values.too_small"].replace("{{min}}", "18"));
+
+    // Back at a size that fits, the earlier choice returns.
+    $("scale").value = "screen";
+    $("scale").dispatchEvent(new Event("change"));
+    expect($("pv").checked).toBe(true);
+  });
+
+  it("does not offer pixel values the viewer is not showing", async () => {
+    const { controller, $, drawn, saveBlobAs } = await setup({ zoom: 24 });
+    controller.openDialog();
+    $("scale").value = "screen";
+    $("scale").dispatchEvent(new Event("change"));
+    expect($("pv").disabled).toBe(true);
+    expect($("pf").title).toBe(EN["export.pixel_values.off"]);
+
+    await controller.startExport();
+    await saveBlobAs.mock.results[0].value;
+    expect(drawn.text).toEqual([]);
   });
 });

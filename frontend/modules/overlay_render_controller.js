@@ -5,11 +5,11 @@
 import {
   buildGeometryRingCache,
   paintPeakMarkers,
+  paintPixelLabels,
+  pixelLabelsAreFloat,
   paintResolutionRings,
   screenView,
 } from "./overlay_painters.js";
-import { canvasFont } from "./canvas_fonts.js";
-import { pixelLabelFontPx } from "./intensity_scale_utils.js";
 
 export function createOverlayRenderController({
   state,
@@ -65,11 +65,6 @@ export function createOverlayRenderController({
   function isPixelOverlayInteractionActive() {
     if (state.pixelLabelShowDuringDrag) return false;
     return Date.now() < pixelOverlayInteractionUntil;
-  }
-
-  function isFloatPixelLabelDtype(dtype) {
-    const normalized = String(dtype || "").toLowerCase();
-    return normalized.startsWith("float") || /^[<>|]f\d+$/.test(normalized);
   }
 
   function deferPixelOverlayRedraw(delayMs = pixelLabelInteractionIdleMs) {
@@ -132,13 +127,7 @@ export function createOverlayRenderController({
       return;
     }
     const formatMode = String(state.pixelLabelFormat || "auto").toLowerCase();
-    const isFloatLabelMode = isFloatPixelLabelDtype(state.dtype) && formatMode !== "integer";
-    // From the same helper the width budget uses, so the two cannot drift.
-    const fontSize = pixelLabelFontPx(zoom, { float: isFloatLabelMode });
-    pixelCtx.font = canvasFont(fontSize);
-    pixelCtx.textAlign = "center";
-    pixelCtx.textBaseline = "middle";
-    pixelCtx.fillStyle = "rgba(248, 252, 255, 0.95)";
+    const isFloatLabelMode = pixelLabelsAreFloat(state.dtype, formatMode);
     const maxLabels = Math.max(
       100,
       Number.isFinite(state.pixelLabelMaxLabels) ? Number(state.pixelLabelMaxLabels) : pixelLabelDefaultMaxLabels,
@@ -166,51 +155,24 @@ export function createOverlayRenderController({
       return text;
     }
 
-    if (isFloatLabelMode) {
-      const sampleCols = Math.min(6, Math.max(1, cols));
-      const sampleRows = Math.min(4, Math.max(1, rows));
-      const stepX = Math.max(1, Math.ceil(cols / sampleCols));
-      const stepY = Math.max(1, Math.ceil(rows / sampleRows));
-      const widthBudget = Math.max(1, zoom * 0.82);
-      let maxTextWidth = 0;
-      let sampleCount = 0;
-      for (let y = startY; y < endY && sampleCount < 24; y += stepY) {
-        const rowOffset = y * state.width;
-        for (let x = startX; x < endX && sampleCount < 24; x += stepX) {
-          const idx = rowOffset + x;
-          const text = resolvePixelLabelText(idx);
-          if (!text) continue;
-          maxTextWidth = Math.max(maxTextWidth, pixelCtx.measureText(text).width);
-          sampleCount += 1;
-        }
-      }
-      if (maxTextWidth > widthBudget) {
-        return;
-      }
-    }
-
-    const useHalo = cells <= pixelLabelHaloMaxLabels;
-    if (useHalo) {
-      pixelCtx.strokeStyle = isFloatLabelMode ? "rgba(4, 8, 14, 0.96)" : "rgba(6, 10, 16, 0.9)";
-      pixelCtx.lineWidth = Math.max(1, Math.min(isFloatLabelMode ? 2.4 : 2, fontSize * (isFloatLabelMode ? 0.28 : 0.2)));
-      pixelCtx.lineJoin = "round";
-      pixelCtx.miterLimit = 2;
-    }
-
-    for (let y = startY; y < endY; y += 1) {
-      const rowOffset = y * state.width;
-      const screenY = (y - viewY) * zoomY + zoomY / 2 + offsetY;
-      for (let x = startX; x < endX; x += 1) {
-        const idx = rowOffset + x;
-        const text = resolvePixelLabelText(idx);
-        if (!text) continue;
-        const screenX = (x - viewX) * zoom + zoom / 2 + offsetX;
-        if (useHalo) {
-          pixelCtx.strokeText(text, screenX, screenY);
-        }
-        pixelCtx.fillText(text, screenX, screenY);
-      }
-    }
+    paintPixelLabels(pixelCtx, {
+      view: screenView({
+        zoom,
+        zoomY,
+        scrollX: getEffectiveScrollLeft(),
+        scrollY: getEffectiveScrollTop(),
+        offsetX,
+        offsetY,
+      }),
+      x0: startX,
+      y0: startY,
+      x1: endX,
+      y1: endY,
+      frameWidth: state.width,
+      labelAt: resolvePixelLabelText,
+      float: isFloatLabelMode,
+      halo: cells <= pixelLabelHaloMaxLabels,
+    });
   }
 
   function schedulePixelOverlay() {
