@@ -73,7 +73,8 @@ export function createShortcutHandlers({
     const isAlt = event.altKey;
     if (
       ["o", "s", "n", "w", ",", "k", "g"].includes(key) ||
-      (key === "x" && isShift && !isAlt)
+      (key === "x" && isShift && !isAlt) ||
+      (key === "e" && isShift && !isAlt)
     ) {
       event.preventDefault();
     }
@@ -101,6 +102,11 @@ export function createShortcutHandlers({
       case "x":
         if (isShift && !isAlt) {
           handleMenuAction("export-data");
+        }
+        break;
+      case "e":
+        if (isShift && !isAlt) {
+          handleMenuAction("export-image");
         }
         break;
       case "n":

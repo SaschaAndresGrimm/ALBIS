@@ -5,6 +5,7 @@
 import { t } from "./i18n.js";
 import { canSaveImage } from "./command_availability.js";
 import { showPromptDialog } from "./dialogs.js";
+import { exportSize, withinExportLimits } from "./image_export.js";
 import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
 
 const SAVE_FILE_TYPES = [{ accept: { "image/png": [".png"] } }];
@@ -17,6 +18,50 @@ const SPLASH_STATUS_TERMINAL_KEYS = new Set([
   "splash.status.no_image_files_found",
   "splash.status.ready_open_file",
 ]);
+
+function rendersPixelated(source) {
+  if (source?.nodeName !== "CANVAS") return false;
+  try {
+    const view = source.ownerDocument?.defaultView;
+    const rendering = view?.getComputedStyle(source).imageRendering || source.style?.imageRendering || "";
+    return rendering === "pixelated" || rendering === "crisp-edges";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Runs `capture` with 2D canvas drawing honouring CSS `image-rendering:
+ * pixelated` on canvas sources, then restores drawImage.
+ *
+ * The viewer's image canvas holds one pixel per detector pixel and is enlarged
+ * by a CSS transform, kept sharp on screen by `image-rendering: pixelated`.
+ * html2canvas copies that canvas and draws it through the same transform with
+ * smoothing on, so a Viewer Window capture at 20x showed every pixel as a
+ * blurred blob. Canvases without the property are drawn as before.
+ */
+export async function withPixelatedCanvasesSharp(
+  capture,
+  proto = globalThis.CanvasRenderingContext2D?.prototype,
+) {
+  const original = proto?.drawImage;
+  if (typeof original !== "function") return capture();
+  proto.drawImage = function drawImageSharp(source, ...rest) {
+    if (!rendersPixelated(source)) return original.call(this, source, ...rest);
+    const smoothing = this.imageSmoothingEnabled;
+    this.imageSmoothingEnabled = false;
+    try {
+      return original.call(this, source, ...rest);
+    } finally {
+      this.imageSmoothingEnabled = smoothing;
+    }
+  };
+  try {
+    return await capture();
+  } finally {
+    proto.drawImage = original;
+  }
+}
 
 export function createExportSplashController({
   state,
@@ -46,15 +91,17 @@ export function createExportSplashController({
 
   let html2canvasLoadPromise = null;
 
+  function downloadBlob(blob, filename) {
+    if (!blob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   function downloadCanvasImage(sourceCanvas, filename) {
-    sourceCanvas.toBlob((blob) => {
-      if (!blob) return;
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    });
+    sourceCanvas.toBlob((blob) => downloadBlob(blob, filename));
   }
 
   function canvasToBlob(canvas) {
@@ -76,12 +123,12 @@ export function createExportSplashController({
     return `${base}_frame_${frame}.png`;
   }
 
-  // Save a rendered canvas to a user-chosen location. Prefers the File System
-  // Access API (a real native Save panel with folder navigation); falls back to
-  // a filename-only download for browsers without it. `produceCanvas` is only
+  // Save an image to a user-chosen location. Prefers the File System Access API
+  // (a real native Save panel with folder navigation); falls back to a
+  // filename-only download for browsers without it. `produceBlob` is only
   // invoked once a destination is chosen, and is deferred until after the picker
   // so the picker call keeps the click's user activation.
-  async function saveCanvasAs(suggestedName, produceCanvas) {
+  async function saveBlobAs(suggestedName, produceBlob) {
     if (typeof window.showSaveFilePicker === "function") {
       let handle;
       try {
@@ -92,8 +139,7 @@ export function createExportSplashController({
       }
       if (handle) {
         try {
-          const canvas = await produceCanvas();
-          const blob = canvas && (await canvasToBlob(canvas));
+          const blob = await produceBlob();
           if (!blob) return;
           const writable = await handle.createWritable();
           await writable.write(blob);
@@ -112,8 +158,15 @@ export function createExportSplashController({
       confirmLabel: t("common.save"),
     });
     if (!name) return;
-    const canvas = await produceCanvas();
-    if (canvas) downloadCanvasImage(canvas, name);
+    downloadBlob(await produceBlob(), name);
+  }
+
+  // A rendered canvas to a user-chosen location; see saveBlobAs.
+  function saveCanvasAs(suggestedName, produceCanvas) {
+    return saveBlobAs(suggestedName, async () => {
+      const canvas = await produceCanvas();
+      return canvas ? canvasToBlob(canvas) : null;
+    });
   }
 
   function renderRegionToCanvas(region) {
@@ -224,6 +277,29 @@ export function createExportSplashController({
     return undefined;
   }
 
+  /**
+   * The visible area as it looks: at the viewer's zoom and pixel aspect, each
+   * detector pixel a sharp block. At one pixel per detector pixel, a view
+   * zoomed to 20x saved as a stamp of a few dozen pixels, which every program
+   * then enlarged and blurred. A zoom below 1 keeps one pixel per detector
+   * pixel rather than dropping pixels, as does a size no browser can create.
+   */
+  function renderVisibleAsShown(region) {
+    const native = renderRegionToCanvas(region);
+    if (!native) return null;
+    const scale = Math.max(1, Number(state.zoom) || 1);
+    const { width, height } = exportSize(region, scale, state.pixelAspect || 1);
+    if ((width === region.width && height === region.height) || !withinExportLimits(width, height)) return native;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return native;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(native, 0, 0, width, height);
+    return canvas;
+  }
+
   function exportVisibleArea(options = {}) {
     const region = canSaveImage(state) ? getVisibleRegion() : null;
     if (!region) {
@@ -232,9 +308,9 @@ export function createExportSplashController({
     }
     const suggested = defaultExportName("view");
     if (options.saveAs) {
-      return saveCanvasAs(suggested, () => renderRegionToCanvas(region));
+      return saveCanvasAs(suggested, () => renderVisibleAsShown(region));
     }
-    const image = renderRegionToCanvas(region);
+    const image = renderVisibleAsShown(region);
     if (image) downloadCanvasImage(image, suggested);
     return undefined;
   }
@@ -289,11 +365,13 @@ export function createExportSplashController({
     const suggested = defaultExportName("window");
     const produce = async () => {
       try {
-        return await html2canvasFn(target, {
-          backgroundColor: null,
-          scale: window.devicePixelRatio || 1,
-          useCORS: true,
-        });
+        return await withPixelatedCanvasesSharp(() =>
+          html2canvasFn(target, {
+            backgroundColor: null,
+            scale: window.devicePixelRatio || 1,
+            useCORS: true,
+          }),
+        );
       } catch (err) {
         console.error(err);
         setStatus(t("status.export.viewer_failed"), { tone: "error" });
@@ -585,6 +663,10 @@ export function createExportSplashController({
 
   return {
     exportFullImage,
+    renderRegionToCanvas,
+    canvasToBlob,
+    saveBlobAs,
+    defaultExportName,
     exportVisibleArea,
     exportViewerWindow,
     getVisibleRegion,

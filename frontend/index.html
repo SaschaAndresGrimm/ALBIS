@@ -66,6 +66,10 @@
                 </button>
               </div>
             </div>
+            <button class="dropdown-item" role="menuitem" data-action="export-image">
+              <span data-i18n="menu.file.export_image">Export Image…</span>
+              <span class="shortcut">⇧⌘E</span>
+            </button>
             <button class="dropdown-item" role="menuitem" data-action="export-animation">
               <span data-i18n="menu.file.export_animation">Export Animation…</span>
               <span class="shortcut">⌘G</span>
@@ -1745,13 +1749,8 @@
               </select>
             </label>
             <label class="field">
-              <span data-i18n="animation_export.scale">Scale</span>
-              <select id="animation-export-scale">
-                <option value="1">100%</option>
-                <option value="0.5" selected>50%</option>
-                <option value="0.25">25%</option>
-                <option value="0.1">10%</option>
-              </select>
+              <span class="field-label-row"><span data-i18n="image_export.size">Size</span><button type="button" class="info-tip" data-info-key="info.animation_export.size" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
+              <select id="animation-export-scale"></select>
             </label>
             <label class="field">
               <span data-i18n="animation_export.fps">Speed</span>
@@ -1768,10 +1767,22 @@
               <input id="animation-export-loop" type="checkbox" checked />
               <span data-i18n="animation_export.loop">Loop forever</span>
             </label>
-            <label class="checkbox data-export-overwrite" id="animation-export-overlays-field">
-              <input id="animation-export-overlays" type="checkbox" />
-              <span data-i18n="animation_export.overlays">Include overlays</span>
-            </label>
+            <div class="data-export-options data-export-span-2">
+              <div>
+                <label class="checkbox data-export-overwrite" id="animation-export-overlays-field">
+                  <input id="animation-export-overlays" type="checkbox" />
+                  <span data-i18n="animation_export.overlays">Include overlays</span>
+                </label>
+                <div class="data-export-option-hint" id="animation-export-overlays-hint"></div>
+              </div>
+              <div>
+                <label class="checkbox data-export-overwrite" id="animation-export-pixel-values-field">
+                  <input id="animation-export-pixel-values" type="checkbox" />
+                  <span data-i18n="export.pixel_values">Pixel values</span>
+                </label>
+                <div class="data-export-option-hint" id="animation-export-pixel-values-hint"></div>
+              </div>
+            </div>
           </div>
           <div class="data-export-source" id="animation-export-summary" data-i18n="animation_export.summary.empty">No frames selected</div>
           <div class="data-export-progress" id="animation-export-progress">
@@ -1782,6 +1793,56 @@
         <div class="modal-footer">
           <button class="btn btn-secondary is-hidden" id="animation-export-cancel" type="button" data-i18n="animation_export.button.cancel">Cancel</button>
           <button class="btn btn-primary" id="animation-export-start" type="button" data-i18n="animation_export.button.export">Export GIF</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="image-export-modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card data-export-modal-card" role="dialog" aria-modal="true" aria-labelledby="image-export-title">
+        <div class="modal-header">
+          <div id="image-export-title" data-i18n="image_export.title">Export Image</div>
+          <button class="modal-close" id="image-export-close" data-i18n-aria-label="common.close" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body data-export-modal-body">
+          <div class="data-export-source" id="image-export-source">-</div>
+          <div class="data-export-grid">
+            <label class="field">
+              <span data-i18n="animation_export.region">Region</span>
+              <select id="image-export-region">
+                <option value="full" data-i18n="animation_export.region.full">Full image</option>
+                <option value="visible" data-i18n="animation_export.region.visible">Visible area</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label-row"><span data-i18n="image_export.size">Size</span><button type="button" class="info-tip" data-info-key="info.image_export.size" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
+              <select id="image-export-scale"></select>
+            </label>
+            <label class="field">
+              <span class="field-label-row"><span data-i18n="image_export.dpi">Print resolution</span><button type="button" class="info-tip" data-info-key="info.image_export.dpi" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
+              <select id="image-export-dpi"></select>
+            </label>
+            <div class="data-export-options data-export-span-2">
+              <div>
+                <label class="checkbox data-export-overwrite" id="image-export-overlays-field">
+                  <input id="image-export-overlays" type="checkbox" checked />
+                  <span data-i18n="image_export.overlays">Include overlays (rings, peaks, ROI)</span>
+                </label>
+                <div class="data-export-option-hint" id="image-export-overlays-hint"></div>
+              </div>
+              <div>
+                <label class="checkbox data-export-overwrite" id="image-export-pixel-values-field">
+                  <input id="image-export-pixel-values" type="checkbox" checked />
+                  <span data-i18n="export.pixel_values">Pixel values</span>
+                </label>
+                <div class="data-export-option-hint" id="image-export-pixel-values-hint"></div>
+              </div>
+            </div>
+          </div>
+          <div class="data-export-source" id="image-export-summary">-</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="image-export-start" type="button" data-i18n="image_export.button.export">Export PNG</button>
         </div>
       </div>
     </div>

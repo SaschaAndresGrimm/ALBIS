@@ -28,6 +28,7 @@ import {
   wavelengthFromEnergy,
 } from "./ring_geometry_utils.js";
 import { canvasFont } from "./canvas_fonts.js";
+import { formatPixelLabelValue, pixelLabelFontPx } from "./intensity_scale_utils.js";
 
 // Translucent on screen: halos are meant to darken or lighten whatever is
 // underneath rather than replace it.
@@ -130,6 +131,195 @@ export function screenView({ zoom, zoomY, scrollX, scrollY, offsetX, offsetY }) 
     offsetX: offsetX - scrollX,
     offsetY: offsetY - scrollY,
   };
+}
+
+// Overlay line widths and label text are sized for a viewport, so they scale
+// with an export's output; without this a ring in a 4000 px wide image is a
+// hairline. Clamped so a thumbnail keeps legible decorations and a huge
+// export does not end up all label.
+const OVERLAY_UI_REFERENCE_PX = 900;
+const OVERLAY_UI_SCALE_MIN = 0.75;
+const OVERLAY_UI_SCALE_MAX = 4;
+
+/** Line width and label scale for an export of ow x oh pixels. */
+export function overlayUiScale(ow, oh) {
+  const raw = Math.min(ow, oh) / OVERLAY_UI_REFERENCE_PX;
+  return Math.max(OVERLAY_UI_SCALE_MIN, Math.min(OVERLAY_UI_SCALE_MAX, raw));
+}
+
+/**
+ * The ROI outline, as the viewer draws it, into an export.
+ *
+ * Same conventions as roi_interaction_controller's drawRoiOverlay: a line runs
+ * between pixel centres, a box covers its pixels inclusively, and a circle or
+ * annulus is centred on `start` with its radius in X-pixel units, so it stays
+ * round when the pixels are not square.
+ */
+export function paintRoiOutline(ctx, { roi, view, outerRadius = 0, uiScale = 1 } = {}) {
+  if (!ctx || !roi || !roi.start || !roi.end || !view) return false;
+  const x0 = viewX(view, roi.start.x);
+  const y0 = viewY(view, roi.start.y);
+  const x1 = viewX(view, roi.end.x);
+  const y1 = viewY(view, roi.end.y);
+  ctx.save();
+  ctx.setLineDash([6 * uiScale, 4 * uiScale]);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  const strokeWithHalo = () => {
+    ctx.lineWidth = 4 * uiScale;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.stroke();
+    ctx.lineWidth = 2 * uiScale;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.stroke();
+  };
+  const fillFaint = (path) => {
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(160, 160, 160, 0.08)";
+    path();
+    ctx.restore();
+  };
+  if (roi.mode === "line") {
+    ctx.beginPath();
+    ctx.moveTo(x0 + view.scaleX * 0.5, y0 + view.scaleY * 0.5);
+    ctx.lineTo(x1 + view.scaleX * 0.5, y1 + view.scaleY * 0.5);
+    strokeWithHalo();
+  } else if (roi.mode === "box") {
+    const left = Math.min(x0, x1);
+    const top = Math.min(y0, y1);
+    const width = Math.max(x0, x1) + view.scaleX - left;
+    const height = Math.max(y0, y1) + view.scaleY - top;
+    fillFaint(() => ctx.fillRect(left, top, width, height));
+    ctx.beginPath();
+    ctx.rect(left, top, width, height);
+    strokeWithHalo();
+  } else if (roi.mode === "circle" || roi.mode === "annulus") {
+    const radius = outerRadius * view.scaleX;
+    const inner = (roi.mode === "annulus" ? Number(roi.innerRadius) || 0 : 0) * view.scaleX;
+    if (!(radius > 0)) {
+      ctx.restore();
+      return false;
+    }
+    fillFaint(() => {
+      ctx.beginPath();
+      ctx.arc(x0, y0, radius, 0, Math.PI * 2);
+      if (inner > 0) {
+        ctx.moveTo(x0 + inner, y0);
+        ctx.arc(x0, y0, inner, 0, Math.PI * 2);
+        ctx.fill("evenodd");
+      } else {
+        ctx.fill();
+      }
+    });
+    ctx.beginPath();
+    ctx.arc(x0, y0, radius, 0, Math.PI * 2);
+    strokeWithHalo();
+    if (inner > 0) {
+      ctx.beginPath();
+      ctx.arc(x0, y0, inner, 0, Math.PI * 2);
+      strokeWithHalo();
+    }
+  }
+  ctx.restore();
+  return true;
+}
+
+// Smallest cell, in output pixels, a pixel value is drawn into; the viewer
+// shows labels from the same default (Settings can raise it).
+export const PIXEL_LABEL_MIN_CELL_PX = 18;
+
+/** Whether pixel values fit at x and y cell sizes, for a label minimum. */
+export function pixelLabelsFit(cellX, cellY, minCellPx = PIXEL_LABEL_MIN_CELL_PX) {
+  return Math.min(Number(cellX) || 0, Number(cellY) || 0) >= Math.max(8, Number(minCellPx) || 0);
+}
+
+/** Whether labels for this dtype and format are float labels (narrower font, width check). */
+export function pixelLabelsAreFloat(dtype, format = "auto") {
+  const normalized = String(dtype || "").toLowerCase();
+  const isFloat = normalized.startsWith("float") || /^[<>|]f\d+$/.test(normalized);
+  return isFloat && String(format || "auto").toLowerCase() !== "integer";
+}
+
+/**
+ * The text a pixel's label shows: "G" for a gap, "D" for another masked pixel,
+ * "S" for a saturated one, else its value formatted for the cell width.
+ */
+export function pixelLabelResolver({ data, mask = null, cellPx, format = "auto", dtype = "", isSaturated = null }) {
+  return (idx) => {
+    if (mask) {
+      const flags = mask[idx];
+      if (flags & 1) return "G";
+      if (flags & 0x1e) return "D";
+    }
+    if (isSaturated?.(data[idx])) return "S";
+    return formatPixelLabelValue(data[idx], cellPx, format, dtype);
+  };
+}
+
+/**
+ * Pixel values, centred in their cells, for image columns x0..x1-1 and rows
+ * y0..y1-1. The font follows the cell width exactly as on screen, so an export
+ * at the viewer's zoom carries the labels the viewer shows. `haloWidth`
+ * overrides the halo's line width. Returns false, and draws nothing, when a
+ * float label would overrun its cell.
+ */
+export function paintPixelLabels(
+  ctx,
+  { view, x0, y0, x1, y1, frameWidth, labelAt, float = false, halo = true, haloWidth = null, colors = null } = {},
+) {
+  if (!ctx || !view || typeof labelAt !== "function") return false;
+  const cols = Math.max(0, x1 - x0);
+  const rows = Math.max(0, y1 - y0);
+  if (!cols || !rows) return false;
+  const fontSize = pixelLabelFontPx(view.scaleX, { float });
+  ctx.save();
+  ctx.font = canvasFont(fontSize);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  if (float) {
+    // A float label is cut to fit its cell by character count; sample a few to
+    // catch a font whose glyphs still run wider than the cell.
+    const stepX = Math.max(1, Math.ceil(cols / Math.min(6, cols)));
+    const stepY = Math.max(1, Math.ceil(rows / Math.min(4, rows)));
+    const widthBudget = Math.max(1, view.scaleX * 0.82);
+    let widest = 0;
+    let samples = 0;
+    for (let y = y0; y < y1 && samples < 24; y += stepY) {
+      for (let x = x0; x < x1 && samples < 24; x += stepX) {
+        const text = labelAt(y * frameWidth + x);
+        if (!text) continue;
+        widest = Math.max(widest, ctx.measureText(text).width);
+        samples += 1;
+      }
+    }
+    if (widest > widthBudget) {
+      ctx.restore();
+      return false;
+    }
+  }
+
+  ctx.fillStyle = colors?.text || "rgba(248, 252, 255, 0.95)";
+  if (halo) {
+    ctx.strokeStyle = colors?.halo || (float ? "rgba(4, 8, 14, 0.96)" : "rgba(6, 10, 16, 0.9)");
+    ctx.lineWidth = haloWidth || Math.max(1, Math.min(float ? 2.4 : 2, fontSize * (float ? 0.28 : 0.2)));
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+  }
+  for (let y = y0; y < y1; y += 1) {
+    const rowOffset = y * frameWidth;
+    const cy = viewY(view, y) + view.scaleY / 2;
+    for (let x = x0; x < x1; x += 1) {
+      const text = labelAt(rowOffset + x);
+      if (!text) continue;
+      const cx = viewX(view, x) + view.scaleX / 2;
+      if (halo) ctx.strokeText(text, cx, cy);
+      ctx.fillText(text, cx, cy);
+    }
+  }
+  ctx.restore();
+  return true;
 }
 
 /** The exporter's image->output map for a crop region drawn at ow x oh. */

@@ -168,3 +168,128 @@ describe("export_splash_controller availability", () => {
     expect(setStatus).toHaveBeenCalledWith(EN["status.export.no_image"], { tone: "warning" });
   });
 });
+
+describe("Viewer Window capture keeps enlarged pixels sharp", () => {
+  function fakeContextProto() {
+    const calls = [];
+    const proto = {
+      imageSmoothingEnabled: true,
+      drawImage(source) {
+        calls.push({ id: source.id, smoothing: this.imageSmoothingEnabled });
+      },
+    };
+    return { proto, calls };
+  }
+
+  it("draws pixelated canvases without smoothing, and others as before", async () => {
+    const { withPixelatedCanvasesSharp } = await import("../modules/export_splash_controller.js");
+    const { proto, calls } = fakeContextProto();
+    const original = proto.drawImage;
+    const image = Object.assign(document.createElement("canvas"), { id: "image" });
+    image.style.imageRendering = "pixelated";
+    const histogram = Object.assign(document.createElement("canvas"), { id: "histogram" });
+    document.body.append(image, histogram);
+    const ctx = Object.create(proto);
+
+    const result = await withPixelatedCanvasesSharp(async () => {
+      ctx.drawImage(image, 0, 0);
+      ctx.drawImage(histogram, 0, 0);
+      return "shot";
+    }, proto);
+
+    expect(result).toBe("shot");
+    expect(calls).toEqual([
+      { id: "image", smoothing: false },
+      { id: "histogram", smoothing: true },
+    ]);
+    // Smoothing is restored after the call, and drawImage after the capture.
+    expect(ctx.imageSmoothingEnabled).toBe(true);
+    expect(proto.drawImage).toBe(original);
+    image.remove();
+    histogram.remove();
+  });
+
+  it("restores drawImage when the capture fails", async () => {
+    const { withPixelatedCanvasesSharp } = await import("../modules/export_splash_controller.js");
+    const { proto } = fakeContextProto();
+    const original = proto.drawImage;
+    await expect(
+      withPixelatedCanvasesSharp(async () => {
+        throw new Error("tainted");
+      }, proto),
+    ).rejects.toThrow("tainted");
+    expect(proto.drawImage).toBe(original);
+  });
+});
+
+describe("Save As -> Visible Area", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  async function saveVisible(stateOverrides) {
+    vi.resetModules();
+    global.fetch = buildFetchMock({ en: {} });
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createExportSplashController } = await import("../modules/export_splash_controller.js");
+    const originalCreateElement = document.createElement.bind(document);
+    const canvases = [];
+    vi.spyOn(document, "createElement").mockImplementation((tagName, options) => {
+      if (String(tagName).toLowerCase() !== "canvas") return originalCreateElement(tagName, options);
+      const canvas = createMockCanvas();
+      canvas._ctx.drawImage = (...args) => {
+        canvas.drawn = { args: args.slice(1), smoothing: canvas._ctx.imageSmoothingEnabled };
+      };
+      canvases.push(canvas);
+      return canvas;
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const url = global.URL;
+    global.URL = { createObjectURL: vi.fn(() => "blob:mock"), revokeObjectURL: vi.fn() };
+    try {
+      const controller = createExportSplashController({
+        state: {
+          hasFrame: true,
+          dataRaw: new Uint16Array(100),
+          colormap: "gray",
+          width: 10,
+          height: 10,
+          frameIndex: 0,
+          ...stateOverrides,
+        },
+        // 40 x 80 CSS px of viewport.
+        elements: { canvasWrap: { clientWidth: 40, clientHeight: 80 } },
+        callbacks: {
+          buildPalette: () => new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]),
+          getPaletteColorCount: () => 2,
+          mapValueToNorm: () => 0,
+          getActiveSaturationMax: () => null,
+          getEffectiveScrollLeft: () => 0,
+          getEffectiveScrollTop: () => 0,
+          isSaturatedValue: () => false,
+          setStatus: () => {},
+        },
+      });
+      controller.exportVisibleArea();
+    } finally {
+      global.URL = url;
+    }
+    return canvases;
+  }
+
+  it("saves what is on screen: the viewer's zoom and pixel aspect, without smoothing", async () => {
+    // At 20x with pixels twice as tall, 40 x 80 px show 2 x 2 detector pixels.
+    const canvases = await saveVisible({ zoom: 20, pixelAspect: 2 });
+    const out = canvases[canvases.length - 1];
+    expect([out.width, out.height]).toEqual([40, 80]);
+    expect(out.drawn).toEqual({ args: [0, 0, 40, 80], smoothing: false });
+  });
+
+  it("keeps one pixel per detector pixel when zoomed out", async () => {
+    const canvases = await saveVisible({ zoom: 0.5, pixelAspect: 1 });
+    expect(canvases).toHaveLength(1);
+    expect([canvases[0].width, canvases[0].height]).toEqual([10, 10]);
+  });
+});

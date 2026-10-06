@@ -7,6 +7,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **File → Export Image… (⇧⌘E) writes a PNG made for slides and papers.** The quick exports under Save As write one image pixel per detector pixel. That is exact, but a Pollux frame is 1544 × 96 pixels, and the program showing it on a slide or in a PDF enlarges and smooths it, so it looked blurry. The dialog enlarges by 1×, 2×, 4× or 8× without smoothing, so every detector pixel stays a sharp square. The default is the smallest size at least 2000 pixels wide. Sizes a browser cannot create are listed but greyed out, past 16384 px per side or 100 megapixels. Non-square pixels are drawn at their true proportions. A print resolution (300 dpi by default) is written into the PNG's `pHYs` chunk, and the dialog shows the printed size, so a journal's layout program sizes the figure correctly. **Include overlays** draws the resolution rings, found peaks and the ROI as the viewer shows them, anti-aliased, since a PNG has no palette limit. The entry sits at the top of the File menu and in the command palette. Checked on an exported file: a 2× export consists of uniform 2 × 2 blocks, matches the 1× export pixel for pixel, and states 300 dpi.
+- **Pixel values and "As on screen" in Export Image and Export Animation.** A new **As on screen** size exports at the viewer's zoom, so a zoomed-in visible area comes out as it looks. A separate **Pixel values** checkbox draws each pixel's value into the PNG, or into every GIF frame from that frame's own data. It is available when the viewer shows pixel values and each exported pixel is at least the viewer's minimum label cell (18 px by default, Settings → Viewer) on both axes; otherwise it is greyed out and says why. Before, zoomed-in pixel values could not be exported at all, and the overlays checkbox did not cover them. The viewer and both exports now draw labels with one painter (`overlay_painters.paintPixelLabels`). In a GIF the labels get a heavier outline and are quantised to white and black by brightness, since a grey anti-aliased edge would otherwise land on the ring blue.
+- **Export Animation enlarges: 2× and 4×,** without smoothing, as Export Image does. Each scale lists its output size, and sizes a browser cannot create are greyed out.
+
+
+### Changed
+
+- **Save As → Visible Area writes what you see.** It wrote one image pixel per detector pixel, so a view zoomed to 20× saved as a stamp of a few dozen pixels that every program then enlarged and blurred. It now saves at the viewer's zoom and pixel proportions, each detector pixel a sharp block: 1520 × 1020 px instead of 76 × 51 for a 20× view. Zoomed out below 1×, it keeps one pixel per detector pixel rather than dropping pixels. Full Image is unchanged: the exact data, one pixel per detector pixel.
+- **Export Animation's sizes match Export Image's.** The field is called Size, has a "?" explanation, and lists 0.1× to 4× and As on screen, each with its pixel size. The default is the largest size up to 1600 px on its longer side, instead of a fixed 50%: a 1544 × 96 Pollux frame stays 1544 px wide rather than becoming a 772 × 48 strip, a PILATUS 300K is 2× (974 × 1238), and an EIGER2 16M 0.25×.
+- **Export dialogs say why an option is unavailable.** A greyed-out Include overlays or Pixel values box now has the reason written underneath, for example "zoom in to 25× or more, then choose As on screen", instead of only in a hover nobody tries. The two boxes share one row.
+- **No hover hint that only repeats a label.** A button or checkbox without a hint of its own showed its own text as one, so hovering Export PNG covered the button with "Export PNG". Those are gone; hints that say more are unchanged.
+
+### Fixed
+
+- **File → Save As → Viewer Window blurred the image when zoomed in.** The capture (html2canvas) draws the viewer's image canvas, one pixel per detector pixel, through its zoom transform with smoothing on, ignoring the `image-rendering: pixelated` that keeps it sharp on screen. At 20× each pixel became a blurred blob. During the capture, canvases with that property are now drawn without smoothing (`withPixelatedCanvasesSharp`), and each detector pixel is a sharp block as on screen.
+- **Export Animation drew non-square pixels square.** The GIF's height ignored the pixel aspect, so a detector with pixels twice as tall as wide came out squashed to half height. The GIF now has the same proportions as the viewer and the PNG export. Checked on exported files with 172 × 344 µm pixels: every detector row is exactly two rows in both the GIF and the PNG.
+
 ## [0.22.1] - 2026-10-05
 
 ### Added

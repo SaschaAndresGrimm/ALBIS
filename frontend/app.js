@@ -11,6 +11,7 @@
  */
 
 import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
+import { PIXEL_LABEL_MIN_CELL_PX, pixelLabelResolver, pixelLabelsAreFloat } from "./modules/overlay_painters.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import {
   applyI18nToDom,
@@ -76,7 +77,8 @@ import { createOverlayRenderController } from "./modules/overlay_render_controll
 import { createHistogramRenderController } from "./modules/histogram_render_controller.js";
 import { createRenderEngineController } from "./modules/render_engine_controller.js";
 import { createOverviewViewportController } from "./modules/overview_viewport_controller.js";
-import { getRoiImageBounds } from "./modules/roi_geometry_utils.js";
+import { getCircularRoiOuterRadius, getRoiImageBounds } from "./modules/roi_geometry_utils.js";
+import { createImageExportController } from "./modules/image_export_controller.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -543,6 +545,20 @@ const dataExportCancel = document.getElementById("data-export-cancel");
 const dataExportProgress = document.getElementById("data-export-progress");
 const dataExportProgressFill = document.getElementById("data-export-progress-fill");
 const dataExportProgressText = document.getElementById("data-export-progress-text");
+const imageExportModal = document.getElementById("image-export-modal");
+const imageExportClose = document.getElementById("image-export-close");
+const imageExportSource = document.getElementById("image-export-source");
+const imageExportRegion = document.getElementById("image-export-region");
+const imageExportScale = document.getElementById("image-export-scale");
+const imageExportDpi = document.getElementById("image-export-dpi");
+const imageExportOverlays = document.getElementById("image-export-overlays");
+const imageExportOverlaysField = document.getElementById("image-export-overlays-field");
+const imageExportPixelValues = document.getElementById("image-export-pixel-values");
+const imageExportPixelValuesField = document.getElementById("image-export-pixel-values-field");
+const imageExportOverlaysHint = document.getElementById("image-export-overlays-hint");
+const imageExportPixelValuesHint = document.getElementById("image-export-pixel-values-hint");
+const imageExportSummary = document.getElementById("image-export-summary");
+const imageExportStart = document.getElementById("image-export-start");
 const animationExportModal = document.getElementById("animation-export-modal");
 const animationExportClose = document.getElementById("animation-export-close");
 const animationExportSource = document.getElementById("animation-export-source");
@@ -558,6 +574,10 @@ const animationExportFps = document.getElementById("animation-export-fps");
 const animationExportLoop = document.getElementById("animation-export-loop");
 const animationExportOverlays = document.getElementById("animation-export-overlays");
 const animationExportOverlaysField = document.getElementById("animation-export-overlays-field");
+const animationExportPixelValues = document.getElementById("animation-export-pixel-values");
+const animationExportPixelValuesField = document.getElementById("animation-export-pixel-values-field");
+const animationExportOverlaysHint = document.getElementById("animation-export-overlays-hint");
+const animationExportPixelValuesHint = document.getElementById("animation-export-pixel-values-hint");
 const animationExportSummary = document.getElementById("animation-export-summary");
 const animationExportProgress = document.getElementById("animation-export-progress");
 const animationExportProgressFill = document.getElementById("animation-export-progress-fill");
@@ -684,6 +704,7 @@ const PLATFORM_SHORTCUTS = {
   "save-full": { mac: "⌘S", other: "Ctrl+S" },
   "save-visible": { mac: "⇧⌘S", other: "Shift+Ctrl+S" },
   "save-window": { mac: "⌥⌘S", other: "Alt+Ctrl+S" },
+  "export-image": { mac: "⇧⌘E", other: "Shift+Ctrl+E" },
   "export-animation": { mac: "⌘G", other: "Ctrl+G" },
   "export-data": { mac: "⇧⌘X", other: "Shift+Ctrl+X" },
   "settings-open": { mac: "⌘,", other: "Ctrl+," },
@@ -773,7 +794,7 @@ const MAX_ZOOM = 50;
 const DEFAULT_RING_COUNT = 3;
 const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
-const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = 18;
+const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = PIXEL_LABEL_MIN_CELL_PX;
 const PIXEL_LABEL_DEFAULT_MAX_LABELS = 4000;
 const PIXEL_LABEL_DENSE_ZOOM_PX = 24;
 const PIXEL_LABEL_INTERACTION_IDLE_MS = 140;
@@ -1628,6 +1649,10 @@ const animationExportController = createAnimationExportController({
     loopCheckbox: animationExportLoop,
     overlaysCheckbox: animationExportOverlays,
     overlaysField: animationExportOverlaysField,
+    pixelValuesCheckbox: animationExportPixelValues,
+    pixelValuesField: animationExportPixelValuesField,
+    overlaysHint: animationExportOverlaysHint,
+    pixelValuesHint: animationExportPixelValuesHint,
     scaleSelect: animationExportScale,
     summary: animationExportSummary,
     progress: animationExportProgress,
@@ -1654,6 +1679,8 @@ const animationExportController = createAnimationExportController({
     }),
     // Re-runs the spot finder on an exported frame with the settings the panel
     // is showing, so the markers in the GIF belong to the frame they sit on.
+    getPixelLabelSettings,
+    pixelLabelsForFrame,
     detectPeaksInFrame: (frame) =>
       analysisOverlayController.detectPeaks(
         Math.max(1, Math.min(1000, Math.round(Number(analysisState.peakCount) || 25))),
@@ -1670,6 +1697,55 @@ function openAnimationExportDialog() {
   animationExportController.openDialog();
 }
 
+const imageExportController = createImageExportController({
+  state,
+  elements: {
+    modal: imageExportModal,
+    closeBtn: imageExportClose,
+    source: imageExportSource,
+    regionSelect: imageExportRegion,
+    scaleSelect: imageExportScale,
+    dpiSelect: imageExportDpi,
+    overlaysCheckbox: imageExportOverlays,
+    overlaysField: imageExportOverlaysField,
+    pixelValuesCheckbox: imageExportPixelValues,
+    pixelValuesField: imageExportPixelValuesField,
+    overlaysHint: imageExportOverlaysHint,
+    pixelValuesHint: imageExportPixelValuesHint,
+    summary: imageExportSummary,
+    startBtn: imageExportStart,
+  },
+  callbacks: {
+    getVisibleRegion: () => exportSplashController?.getVisibleRegion(),
+    renderRegionToCanvas: (region) => exportSplashController?.renderRegionToCanvas(region),
+    canvasToBlob: (canvas) => exportSplashController?.canvasToBlob(canvas),
+    saveBlobAs: (name, produce) => exportSplashController?.saveBlobAs(name, produce),
+    defaultExportName: (kind) => exportSplashController?.defaultExportName(kind),
+    // What the viewer draws over the image right now: the rings with their
+    // parameters, the peaks found in this frame, and an ROI that is in use.
+    getOverlaySnapshot: () => {
+      const roiInUse = roiState.enabled && roiState.active && roiState.start && roiState.end;
+      return {
+        ringParams: analysisState.ringsEnabled ? analysisOverlayController.getRingParams() : null,
+        peaks: analysisState.peaksEnabled && Array.isArray(analysisState.peaks) ? analysisState.peaks : [],
+        roi: roiInUse ? { ...roiState } : null,
+        outerRadius: roiInUse ? getCircularRoiOuterRadius(roiState, state.pixelAspect || 1) : 0,
+      };
+    },
+    getPixelLabelSettings,
+    pixelLabelsForFrame,
+    // Wrapped: both are defined further down, and a plain reference here
+    // would be read before they exist.
+    openModal: (...args) => openModal(...args),
+    closeModal: (...args) => closeModal(...args),
+    setStatus,
+  },
+});
+
+function openImageExportDialog() {
+  imageExportController.openDialog();
+}
+
 // Why a File menu command cannot run right now, or "" when it can. The rules
 // themselves live in command_availability.js, shared with the command palette
 // (which leaves these commands out instead of greying them) and with each
@@ -1682,6 +1758,7 @@ function fileCommandUnavailableReason(action) {
     case "save-full":
     case "save-visible":
     case "save-window":
+    case "export-image":
       return canSaveImage(state) ? "" : t("status.export.no_image");
     case "export-animation":
       if (canExportAnimation(state)) return "";
@@ -1708,6 +1785,7 @@ const GATED_FILE_COMMANDS = [
   "save-full",
   "save-visible",
   "save-window",
+  "export-image",
   "export-animation",
   "export-data",
 ];
@@ -3442,6 +3520,7 @@ function getCommandPaletteCommands() {
       exportViewerWindow,
       openDataExportDialog,
       openAnimationExportDialog,
+      openImageExportDialog,
       startSeriesSumming,
       openSeriesSumOutputTarget,
       cancelSeriesSumming,
@@ -3503,6 +3582,7 @@ const menuActionHandler = createMenuActionHandler({
     closeCurrentFile,
     openDataExportDialog,
     openAnimationExportDialog,
+    openImageExportDialog,
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,
@@ -3779,6 +3859,38 @@ function getWebglUnsignedUploadInfo(gl, key) {
 
 function getDtypeInfo(dtype) {
   return getDtypeInfoUtil(dtype);
+}
+
+// Pixel values for an export, as the viewer shows them: whether they are on,
+// the smallest cell they are drawn into, and each pixel's label in a frame.
+function getPixelLabelSettings() {
+  return {
+    enabled: Boolean(state.pixelLabels),
+    minCellPx: Math.max(8, Number(state.pixelLabelMinCellPx) || PIXEL_LABEL_DEFAULT_MIN_CELL_PX),
+  };
+}
+
+function pixelLabelsForFrame({ data, width, height, dtype = state.dtype }, cellPx) {
+  const format = String(state.pixelLabelFormat || "auto").toLowerCase();
+  const maskReady =
+    state.maskEnabled &&
+    state.maskAvailable &&
+    state.maskRaw &&
+    state.maskShape &&
+    state.maskShape[0] === height &&
+    state.maskShape[1] === width;
+  const satMax = getActiveSaturationMax();
+  return {
+    float: pixelLabelsAreFloat(dtype, format),
+    labelAt: pixelLabelResolver({
+      data,
+      mask: maskReady ? state.maskRaw : null,
+      cellPx,
+      format,
+      dtype,
+      isSaturated: state.maskSaturatedEnabled ? (value) => isSaturatedValue(value, satMax) : null,
+    }),
+  };
 }
 
 function getActiveSaturationMax() {

@@ -13,11 +13,21 @@ import { t } from "./i18n.js";
 import { canExportAnimation } from "./command_availability.js";
 import { GifWriter } from "./gif_encoder.js";
 import {
+  SCREEN_SCALE,
+  exportScaleOptions,
+  exportSize,
+  formatZoom,
+  pixelValuesAvailability,
+  withinExportLimits,
+} from "./image_export.js";
+import {
   OPAQUE_OVERLAY_COLORS,
   OPAQUE_OVERLAY_RGB,
   buildGeometryRingCache,
   nearestOverlayColorIndex,
+  overlayUiScale,
   paintPeakMarkers,
+  paintPixelLabels,
   paintResolutionRings,
   regionView,
 } from "./overlay_painters.js";
@@ -34,21 +44,28 @@ const OVERLAY_COLORMAP_STEPS = COLORMAP_STEPS - OPAQUE_OVERLAY_RGB.length;
 // An anti-aliased overlay edge either reaches a pixel or it does not: a GIF
 // frame has no alpha channel to hold a partial one.
 const OVERLAY_ALPHA_CUTOFF = 128;
-// Overlay line widths and label text are sized for a viewport, so they scale
-// with the output; without this a ring in a 4000 px wide GIF is a hairline.
-// Clamped so a thumbnail-sized export keeps legible decorations and a huge one
-// does not end up all label.
-const OVERLAY_UI_REFERENCE_PX = 900;
-const OVERLAY_UI_SCALE_MIN = 0.75;
-const OVERLAY_UI_SCALE_MAX = 4;
 const MASK_BLACK_RGB = [0, 0, 0];
 const MASK_FLAG_RGB = [25, 50, 120];
 const GIF_TYPES = [{ accept: { "image/gif": [".gif"] } }];
-
-function overlayUiScale(ow, oh) {
-  const raw = Math.min(ow, oh) / OVERLAY_UI_REFERENCE_PX;
-  return Math.max(OVERLAY_UI_SCALE_MIN, Math.min(OVERLAY_UI_SCALE_MAX, raw));
-}
+// Enlarged frames repeat each detector pixel (nearest neighbour), as the PNG
+// export does; a GIF has no print resolution to set instead.
+const GIF_SCALES = Object.freeze([0.1, 0.25, 0.5, 1, 2, 4]);
+// The default is the largest size whose longer side stays within this: enough
+// for a slide, while a GIF's file grows with every pixel of every frame. A
+// fixed 50% made a 1544 x 96 Pollux frame a 772 x 48 strip; "at least 1000 px
+// wide" made a 487 x 619 PILATUS 4x, 1948 x 2476 and ~23 MB for ten frames.
+const DEFAULT_GIF_MAX_SIDE_PX = 1600;
+// Pixel values are text on a palette image: anti-aliased glyph edges between
+// the white fill and the dark halo would land on whichever overlay colour is
+// nearest (a grey edge is nearer the ring blue than black), so the label layer
+// is quantised to these two alone, by brightness.
+const LABEL_WHITE_INDEX = nearestOverlayColorIndex(255, 255, 255);
+const LABEL_BLACK_INDEX = nearestOverlayColorIndex(0, 0, 0);
+// The viewer's 2 px halo is mostly anti-aliased edge; cut at half alpha it
+// breaks into dots and white digits vanish on a light image. A heavier halo,
+// kept from a lower alpha, gives every digit a solid dark outline.
+const LABEL_HALO_PX = 3;
+const LABEL_ALPHA_CUTOFF = 64;
 
 export function createAnimationExportController({
   apiBase,
@@ -71,6 +88,10 @@ export function createAnimationExportController({
     loopCheckbox,
     overlaysCheckbox,
     overlaysField,
+    pixelValuesCheckbox,
+    pixelValuesField,
+    overlaysHint,
+    pixelValuesHint,
     scaleSelect,
     summary,
     progress,
@@ -92,6 +113,8 @@ export function createAnimationExportController({
     getVisibleRegion,
     getOverlayState,
     detectPeaksInFrame,
+    getPixelLabelSettings,
+    pixelLabelsForFrame,
     createOverlayCanvas,
     openModal,
     closeModal,
@@ -99,6 +122,9 @@ export function createAnimationExportController({
   } = callbacks;
 
   let activeController = null;
+  // What the user last chose for pixel values; a size too small for them
+  // unticks the box without forgetting the choice.
+  let pixelValuesWanted = Boolean(pixelValuesCheckbox?.checked);
 
   function isReady() {
     return canExportAnimation(state);
@@ -135,15 +161,73 @@ export function createAnimationExportController({
     return { x: 0, y: 0, width: state.width, height: state.height };
   }
 
+  function pixelAspect() {
+    return Number(state.pixelAspect) > 0 ? Number(state.pixelAspect) : 1;
+  }
+
+  function screenZoom() {
+    return Number(state.zoom) > 0 ? Number(state.zoom) : 1;
+  }
+
   function selectedScale() {
+    if (scaleSelect?.value === SCREEN_SCALE) return screenZoom();
     const value = Number(scaleSelect?.value || 1);
     return Number.isFinite(value) && value > 0 ? value : 1;
   }
 
+  // Non-square pixels keep their proportions, as on screen: the height carries
+  // the pixel aspect, and frames are sampled to that size.
   function outputSize(region, scale) {
-    const width = Math.max(1, Math.round(region.width * scale));
-    const height = Math.max(1, Math.round(region.height * scale));
-    return { width, height };
+    return exportSize(region, scale, pixelAspect());
+  }
+
+  function defaultGifScale(region) {
+    const allowed = exportScaleOptions(region, pixelAspect(), GIF_SCALES).filter((option) => option.allowed);
+    const fitting = allowed.filter((option) => Math.max(option.width, option.height) <= DEFAULT_GIF_MAX_SIDE_PX);
+    return (fitting[fitting.length - 1] || allowed[0])?.scale ?? 1;
+  }
+
+  // Each size states what it produces; one a browser cannot hold is disabled.
+  function populateScales({ resetToDefault = false } = {}) {
+    if (!scaleSelect) return;
+    const region = selectedRegion();
+    const previous = scaleSelect.value;
+    scaleSelect.innerHTML = "";
+    const add = (value, scale, label) => {
+      const { width, height } = outputSize(region, scale);
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label({ width, height });
+      option.disabled = !withinExportLimits(width, height);
+      if (option.disabled) option.title = t("image_export.scale.too_large");
+      scaleSelect.appendChild(option);
+    };
+    GIF_SCALES.forEach((scale) => {
+      add(String(scale), scale, ({ width, height }) => t("image_export.scale.option", { scale, width, height }));
+    });
+    add(SCREEN_SCALE, screenZoom(), ({ width, height }) =>
+      t("export.scale.screen", { zoom: formatZoom(screenZoom()), width, height }),
+    );
+    const keep = Array.from(scaleSelect.options).find((option) => option.value === previous && !option.disabled);
+    scaleSelect.value =
+      !resetToDefault && keep
+        ? previous
+        : String(defaultGifScale(region));
+  }
+
+  // Pixel values can go into the GIF when the viewer shows them and each
+  // exported pixel is at least as big as the viewer needs to draw one.
+  function pixelValuesState(scale = selectedScale()) {
+    const settings = typeof pixelLabelsForFrame === "function" ? getPixelLabelSettings?.() : null;
+    const result = pixelValuesAvailability(settings, scale, pixelAspect());
+    return {
+      available: result.available,
+      reason: result.available ? "" : t(`export.pixel_values.${result.reason}`, { min: settings?.minCellPx }),
+    };
+  }
+
+  function pixelValuesRequested(scale) {
+    return Boolean(pixelValuesCheckbox?.checked) && pixelValuesState(scale).available;
   }
 
   function formatBytes(bytes) {
@@ -224,6 +308,17 @@ export function createAnimationExportController({
     }
   }
 
+  // Why an option is unavailable, written under it rather than left to a
+  // hover nobody tries on a greyed-out box.
+  function showReason(field, hint, reason) {
+    if (hint) {
+      hint.textContent = reason;
+      if (field) field.title = "";
+    } else if (field) {
+      field.title = reason;
+    }
+  }
+
   function updateUi() {
     const ready = isReady();
     const running = Boolean(state.animationExport.running);
@@ -250,6 +345,13 @@ export function createAnimationExportController({
     [frameMode, frameStep, regionSelect, fpsSelect, loopCheckbox, scaleSelect].forEach((el) => {
       if (el) el.disabled = running || !ready;
     });
+    const pixelValues = pixelValuesState();
+    if (pixelValuesCheckbox) {
+      pixelValuesCheckbox.disabled = running || !ready || !pixelValues.available;
+      pixelValuesCheckbox.checked = pixelValues.available && pixelValuesWanted;
+    }
+    pixelValuesField?.classList.toggle("is-disabled", !pixelValues.available);
+    showReason(pixelValuesField, pixelValuesHint, pixelValues.reason);
     // Nothing to draw means nothing to offer: the checkbox greys out and says
     // why, rather than exporting a GIF that looks identical when ticked.
     const overlaysAvailable = Boolean(overlaySources());
@@ -258,9 +360,7 @@ export function createAnimationExportController({
       if (!overlaysAvailable) overlaysCheckbox.checked = false;
     }
     overlaysField?.classList.toggle("is-disabled", !overlaysAvailable);
-    if (overlaysField) {
-      overlaysField.title = overlaysAvailable ? "" : t("animation_export.overlays.unavailable");
-    }
+    showReason(overlaysField, overlaysHint, overlaysAvailable ? "" : t("animation_export.overlays.unavailable"));
     if (rangeStart) rangeStart.disabled = running || !ready || !showRange;
     if (rangeEnd) rangeEnd.disabled = running || !ready || !showRange;
     if (startBtn) {
@@ -379,7 +479,7 @@ export function createAnimationExportController({
     const buffer = await res.arrayBuffer();
     const dtype = parseDtype(res.headers.get("X-Dtype"));
     const shape = parseShape(res.headers.get("X-Shape"));
-    return { data: typedArrayFrom(buffer, dtype), height: shape[0], width: shape[1] };
+    return { data: typedArrayFrom(buffer, dtype), height: shape[0], width: shape[1], dtype };
   }
 
   /**
@@ -391,15 +491,17 @@ export function createAnimationExportController({
    * whichever frame happened to be on screen would put spots where this frame
    * has none.
    */
-  function createOverlayCompositor(sources, region, ow, oh, layout) {
-    const canvas = createOverlayCanvas
-      ? createOverlayCanvas(ow, oh)
-      : Object.assign(document.createElement("canvas"), { width: ow, height: oh });
-    const ctx = canvas?.getContext?.("2d");
-    if (!ctx) return null;
+  function createOverlayCompositor(sources, labels, region, ow, oh, layout) {
+    const newCanvas = () =>
+      createOverlayCanvas
+        ? createOverlayCanvas(ow, oh)
+        : Object.assign(document.createElement("canvas"), { width: ow, height: oh });
+    const ctx = sources ? newCanvas()?.getContext?.("2d") : null;
+    const labelCtx = labels ? newCanvas()?.getContext?.("2d") : null;
+    if (!ctx && !labelCtx) return null;
     const view = regionView(region, ow, oh);
     const uiScale = overlayUiScale(ow, oh);
-    const geometryCache = sources.rings ? buildGeometryRingCache(sources.ringParams) : null;
+    const geometryCache = sources?.rings ? buildGeometryRingCache(sources.ringParams) : null;
     let staticRgba = null;
 
     function paint(peaks) {
@@ -433,25 +535,58 @@ export function createAnimationExportController({
       return ctx.getImageData(0, 0, ow, oh).data;
     }
 
+    // Pixel values change with every frame, so they are drawn from each
+    // frame's own data, above the rings and markers as in the viewer.
+    function paintLabels(frame) {
+      labelCtx.clearRect(0, 0, ow, oh);
+      const { labelAt, float } = pixelLabelsForFrame(frame, view.scaleX);
+      paintPixelLabels(labelCtx, {
+        view,
+        x0: region.x,
+        y0: region.y,
+        x1: region.x + region.width,
+        y1: region.y + region.height,
+        frameWidth: frame.width,
+        labelAt,
+        float,
+        haloWidth: LABEL_HALO_PX,
+        colors: { text: OPAQUE_OVERLAY_COLORS.labelText, halo: OPAQUE_OVERLAY_COLORS.labelHalo },
+      });
+      return labelCtx.getImageData(0, 0, ow, oh).data;
+    }
+
     return function apply(indices, frame) {
-      let rgba;
-      if (sources.peaks) {
-        rgba = paint(detectPeaksInFrame(frame) || []);
-      } else {
-        if (!staticRgba) staticRgba = paint([]);
-        rgba = staticRgba;
+      const n = ow * oh;
+      if (ctx) {
+        let rgba;
+        if (sources.peaks) {
+          rgba = paint(detectPeaksInFrame(frame) || []);
+        } else {
+          if (!staticRgba) staticRgba = paint([]);
+          rgba = staticRgba;
+        }
+        for (let p = 0; p < n; p += 1) {
+          const o = p * 4;
+          if (rgba[o + 3] < OVERLAY_ALPHA_CUTOFF) continue;
+          indices[p] = layout.overlayBase + nearestOverlayColorIndex(rgba[o], rgba[o + 1], rgba[o + 2]);
+        }
       }
-      for (let p = 0, n = ow * oh; p < n; p += 1) {
-        const o = p * 4;
-        if (rgba[o + 3] < OVERLAY_ALPHA_CUTOFF) continue;
-        indices[p] = layout.overlayBase + nearestOverlayColorIndex(rgba[o], rgba[o + 1], rgba[o + 2]);
+      if (labelCtx) {
+        const rgba = paintLabels(frame);
+        for (let p = 0; p < n; p += 1) {
+          const o = p * 4;
+          if (rgba[o + 3] < LABEL_ALPHA_CUTOFF) continue;
+          const bright = rgba[o] * 0.299 + rgba[o + 1] * 0.587 + rgba[o + 2] * 0.114 >= 128;
+          indices[p] = layout.overlayBase + (bright ? LABEL_WHITE_INDEX : LABEL_BLACK_INDEX);
+        }
       }
     };
   }
 
   async function renderFrames(frames, region, scale, fps, loop) {
     const sources = overlaysRequested() ? overlaySources() : null;
-    const layout = paletteLayout(Boolean(sources));
+    const labels = pixelValuesRequested(scale);
+    const layout = paletteLayout(Boolean(sources) || labels);
     const palette = buildGifPalette(layout);
     let writer = null;
     let compositeOverlay = null;
@@ -482,8 +617,8 @@ export function createAnimationExportController({
         oh = size.height;
         indices = new Uint8Array(ow * oh);
         writer = new GifWriter({ width: ow, height: oh, palette, loop });
-        if (sources) {
-          compositeOverlay = createOverlayCompositor(sources, safeRegion, ow, oh, layout);
+        if (sources || labels) {
+          compositeOverlay = createOverlayCompositor(sources, labels, safeRegion, ow, oh, layout);
         }
       }
       frameToIndices(frame.data, frame.width, frame.height, safeRegion, indices, ow, oh, layout);
@@ -610,6 +745,7 @@ export function createAnimationExportController({
     }
     if (!state.animationExport.running) {
       setProgress(0, t("animation_export.progress.idle"));
+      populateScales({ resetToDefault: true });
     }
     updateUi();
     openModal(modal, { focusTarget: startBtn });
@@ -626,7 +762,15 @@ export function createAnimationExportController({
     }
   });
   frameMode?.addEventListener("change", updateUi);
-  [rangeStart, rangeEnd, frameStep, regionSelect, scaleSelect].forEach((el) => {
+  regionSelect?.addEventListener("change", () => {
+    populateScales({ resetToDefault: true });
+    updateUi();
+  });
+  scaleSelect?.addEventListener("change", updateUi);
+  pixelValuesCheckbox?.addEventListener("change", () => {
+    pixelValuesWanted = pixelValuesCheckbox.checked;
+  });
+  [rangeStart, rangeEnd, frameStep].forEach((el) => {
     el?.addEventListener("change", updateSummary);
     el?.addEventListener("input", updateSummary);
   });

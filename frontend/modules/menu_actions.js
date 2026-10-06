@@ -17,6 +17,7 @@ export function createMenuActionHandler({
     closeCurrentFile,
     openDataExportDialog,
     openAnimationExportDialog,
+    openImageExportDialog,
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,
@@ -62,6 +63,9 @@ export function createMenuActionHandler({
         break;
       case "export-animation":
         openAnimationExportDialog();
+        break;
+      case "export-image":
+        openImageExportDialog?.();
         break;
       case "save-full":
         await exportFullImage({ saveAs: true });

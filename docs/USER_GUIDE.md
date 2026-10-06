@@ -284,9 +284,34 @@ and the result opens directly from the panel when it finishes.
 | You want | Use |
 | --- | --- |
 | The frames as TIFF or CBF | **File → Convert Dataset…** (`⇧⌘X`) |
+| A figure for a slide or a paper | **File → Export Image…** (`⇧⌘E`) |
 | An animation of a series | **File → Export Animation…** (`⌘G`) |
-| A picture of what is on screen | **File → Full Image / Visible Area / Viewer Window** |
+| A quick picture of what is on screen | **File → Save As → Full Image / Visible Area / Viewer Window** |
 | ROI numbers for analysis | **Export CSV** in the Overlay tab |
+
+**Export Image** writes the frame, or the visible area, as a PNG made for
+slides and papers. **Size** enlarges it by 1×, 2×, 4× or 8×, turning each
+detector pixel into a sharp square; the default is the smallest size at least
+2000 pixels wide. Without that, a small image is enlarged by whichever program
+shows it, and looks blurry. Sizes too large for a browser to create are greyed
+out. **As on screen** uses the viewer's zoom instead: zoom in, choose
+**Visible area** and **As on screen**, and the PNG is what you see. Non-square
+detector pixels are drawn at their true proportions. **Print resolution** (300
+dpi by default) is stored in the file, so a layout program gives it the right
+printed size; the dialog shows that size. **Include overlays** draws the
+resolution rings, found peaks and the ROI as the viewer shows them. **Pixel
+values** draws each pixel's value into it, as the viewer does when zoomed in.
+It needs the pixel values switched on in the viewer, and a size at which each
+pixel is at least as large as the viewer's minimum for them (18 px unless
+changed in Settings) — in practice **As on screen** while zoomed in. An option
+that cannot be used right now says why underneath it.
+
+The quick exports under **Save As** need no dialog. **Full Image** writes one
+image pixel per detector pixel: the exact data, for analysis or another
+program. **Visible Area** writes what you see, without the interface: at the
+viewer's zoom and pixel proportions, each detector pixel a sharp block (zoomed
+out below 1×, it keeps one pixel per detector pixel). **Viewer Window** is a
+screenshot of the whole window, the image in it as sharp as on screen.
 
 **Convert Dataset** writes all frames, the current frame, or a range. Exports
 are signed integers using the common detector convention: module gaps are `-1`,
@@ -337,10 +362,21 @@ source frames. Geometry you have corrected in ALBIS is written afterwards and
 wins over the source's own copy of it.
 
 **Export Animation** renders a GIF matching the screen exactly — colour map,
-contrast, mask and saturation highlighting all apply. Choose the frame range and
-step, the full image or just the visible area, a scale, and the frame rate. A
-live summary estimates the file size before you commit; frame count, region and
-scale are the levers that control it.
+contrast, mask and saturation highlighting all apply, and non-square pixels
+keep their proportions. Choose the frame range and step, the full image or just
+the visible area, a size, and the frame rate. Sizes above 1× (2×, 4×) enlarge
+each detector pixel into a sharp block; **As on screen** uses the viewer's
+zoom. The default is the largest size up to 1600 pixels on its longer side —
+enough for a slide without an outsized file. A live summary estimates the file
+size before you commit; frame count, region and size are the levers that
+control it.
+
+Tick **Pixel values** to write each pixel's value into every frame, read from
+that frame. It has the same conditions as in Export Image: pixel values shown
+in the viewer, and pixels exported at least as large as the viewer draws them,
+so typically **Visible area** with **As on screen** while zoomed in. Labels in
+a GIF have a heavier dark outline than on screen, so the digits stay readable
+with only two colours to draw them in.
 
 Tick **Include overlays** to draw the resolution rings and the spot finder into
 the GIF as well. The option is only available when at least one of them is
@@ -423,7 +459,7 @@ appears and `Alt` where `⌥` appears.
 | `⌘O` / `⌘W` / `⌘N` | Open… / Close file / New window |
 | `←` `→` | Previous / next frame |
 | `⌘S` / `⇧⌘S` / `⌥⌘S` | Save full image / visible area / viewer window |
-| `⌘G` / `⇧⌘X` | Export animation… / Convert dataset… |
+| `⇧⌘E` / `⌘G` / `⇧⌘X` | Export image… / Export animation… / Convert dataset… |
 | `⌘,` | Preferences… |
 | `F` / `F1` | Full screen / this documentation |
 
