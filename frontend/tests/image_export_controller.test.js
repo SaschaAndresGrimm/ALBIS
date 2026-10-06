@@ -47,7 +47,7 @@ async function setup({
     <select id="region"><option value="full">Full</option><option value="visible">Visible</option></select>
     <select id="scale"></select><select id="dpi"></select>
     <label id="of"><input id="ov" type="checkbox" checked /></label>
-    <label id="pf"><input id="pv" type="checkbox" checked /></label>
+    <label id="pf"><input id="pv" type="checkbox" checked /></label><div id="ph"></div>
     <div id="sum"></div><button id="go"></button>`;
   const $ = (id) => document.getElementById(id);
   const drawn = { smoothing: null, drawImage: null, text: [] };
@@ -85,6 +85,7 @@ async function setup({
       overlaysField: $("of"),
       pixelValuesCheckbox: $("pv"),
       pixelValuesField: $("pf"),
+      pixelValuesHint: $("ph"),
       summary: $("sum"),
       startBtn: $("go"),
     },
@@ -216,12 +217,15 @@ describe("image export dialog", () => {
     $("scale").dispatchEvent(new Event("change"));
     expect($("pv").disabled).toBe(true);
     expect($("pv").checked).toBe(false);
-    expect($("pf").title).toBe(EN["export.pixel_values.too_small"].replace("{{min}}", "18"));
+    // Written under the box, not left to a hover over a greyed-out control.
+    expect($("ph").textContent).toBe(EN["export.pixel_values.too_small"].replaceAll("{{min}}", "18"));
+    expect($("pf").title).toBe("");
 
     // Back at a size that fits, the earlier choice returns.
     $("scale").value = "screen";
     $("scale").dispatchEvent(new Event("change"));
     expect($("pv").checked).toBe(true);
+    expect($("ph").textContent).toBe("");
   });
 
   it("does not offer pixel values the viewer is not showing", async () => {
@@ -230,7 +234,7 @@ describe("image export dialog", () => {
     $("scale").value = "screen";
     $("scale").dispatchEvent(new Event("change"));
     expect($("pv").disabled).toBe(true);
-    expect($("pf").title).toBe(EN["export.pixel_values.off"]);
+    expect($("ph").textContent).toBe(EN["export.pixel_values.off"]);
 
     await controller.startExport();
     await saveBlobAs.mock.results[0].value;

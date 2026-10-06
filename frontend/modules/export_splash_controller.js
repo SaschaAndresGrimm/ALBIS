@@ -5,6 +5,7 @@
 import { t } from "./i18n.js";
 import { canSaveImage } from "./command_availability.js";
 import { showPromptDialog } from "./dialogs.js";
+import { exportSize, withinExportLimits } from "./image_export.js";
 import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
 
 const SAVE_FILE_TYPES = [{ accept: { "image/png": [".png"] } }];
@@ -276,6 +277,29 @@ export function createExportSplashController({
     return undefined;
   }
 
+  /**
+   * The visible area as it looks: at the viewer's zoom and pixel aspect, each
+   * detector pixel a sharp block. At one pixel per detector pixel, a view
+   * zoomed to 20x saved as a stamp of a few dozen pixels, which every program
+   * then enlarged and blurred. A zoom below 1 keeps one pixel per detector
+   * pixel rather than dropping pixels, as does a size no browser can create.
+   */
+  function renderVisibleAsShown(region) {
+    const native = renderRegionToCanvas(region);
+    if (!native) return null;
+    const scale = Math.max(1, Number(state.zoom) || 1);
+    const { width, height } = exportSize(region, scale, state.pixelAspect || 1);
+    if ((width === region.width && height === region.height) || !withinExportLimits(width, height)) return native;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return native;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(native, 0, 0, width, height);
+    return canvas;
+  }
+
   function exportVisibleArea(options = {}) {
     const region = canSaveImage(state) ? getVisibleRegion() : null;
     if (!region) {
@@ -284,9 +308,9 @@ export function createExportSplashController({
     }
     const suggested = defaultExportName("view");
     if (options.saveAs) {
-      return saveCanvasAs(suggested, () => renderRegionToCanvas(region));
+      return saveCanvasAs(suggested, () => renderVisibleAsShown(region));
     }
-    const image = renderRegionToCanvas(region);
+    const image = renderVisibleAsShown(region);
     if (image) downloadCanvasImage(image, suggested);
     return undefined;
   }

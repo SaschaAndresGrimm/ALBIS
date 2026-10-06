@@ -229,11 +229,12 @@ async function runExport({
     }),
   }));
   controller.openDialog();
-  if (scaleSelect) {
+  if (scaleSelect && scale) {
     scaleSelect.value = scale;
     scaleSelect.dispatchEvent(new Event("change"));
   }
   const offered = scaleSelect ? [...scaleSelect.options].map((o) => o.textContent) : [];
+  const chosen = scaleSelect?.value;
   await controller.startExport();
   return {
     encoded,
@@ -243,6 +244,7 @@ async function runExport({
     pixelValuesCheckbox,
     labelFrames,
     offered,
+    chosen,
     state,
     written,
   };
@@ -352,15 +354,29 @@ describe("GIF export size", () => {
     expect(square.size).toEqual({ width: FRAME_W, height: FRAME_H });
   });
 
+  it("defaults to the largest size whose longer side is at most 1600 px", async () => {
+    const pick = async (width, height) => {
+      const { chosen } = await runExport({ overlays: false, scale: "", stateOverrides: { width, height } });
+      return chosen;
+    };
+    // A Pollux strip stays whole instead of halving to 772 x 48.
+    expect(await pick(1544, 96)).toBe("1");
+    // A PILATUS 300K: 974 x 1238, not 4x at 1948 x 2476.
+    expect(await pick(487, 619)).toBe("2");
+    // An EIGER2 16M: 1037 x 1091.
+    expect(await pick(4148, 4362)).toBe("0.25");
+    expect(await pick(100, 50)).toBe("4");
+  });
+
   it("offers enlargements and the viewer's zoom, each with its size", async () => {
     const { offered, encoded } = await runExport({ overlays: false, scale: "4", stateOverrides: { zoom: 20 } });
     expect(offered).toEqual([
-      "4× — 32 × 32 px",
-      "2× — 16 × 16 px",
+      "0.1× — 1 × 1 px",
+      "0.25× — 2 × 2 px",
+      "0.5× — 4 × 4 px",
       "1× — 8 × 8 px",
-      "50% — 4 × 4 px",
-      "25% — 2 × 2 px",
-      "10% — 1 × 1 px",
+      "2× — 16 × 16 px",
+      "4× — 32 × 32 px",
       "As on screen (20×) — 160 × 160 px",
     ]);
     expect(encoded.size).toEqual({ width: 32, height: 32 });

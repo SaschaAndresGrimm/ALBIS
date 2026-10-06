@@ -53,7 +53,7 @@ describe("help tooltip announcement", () => {
       document.body.appendChild(root);
     }
     root.innerHTML = `
-      <button id="btn-prev">◀</button>
+      <button id="btn-prev" aria-label="Previous frame">◀</button>
       <div id="standing-note">Something else entirely</div>
       <button id="already-described" data-help="Own hint"
               aria-describedby="standing-note">described</button>
@@ -113,5 +113,27 @@ describe("help tooltip announcement", () => {
 
     controller.setToolHintsEnabled(false);
     expect(button.hasAttribute("aria-describedby")).toBe(false);
+  });
+});
+
+describe("hints that would only repeat a label", () => {
+  it("are not shown over a button or checkbox that already says it", async () => {
+    await buildController();
+    const root = document.getElementById("fixture");
+    root.innerHTML = `
+      <button id="export-btn">Export PNG</button>
+      <label class="checkbox" id="loop"><input id="loop-box" type="checkbox" /><span>Loop forever</span></label>
+      <label class="field"><span>Region</span><select id="region"><option>Full image</option></select></label>`;
+    const tooltip = document.querySelector(".help-tooltip");
+
+    focus(document.getElementById("export-btn"));
+    expect(tooltip.classList.contains("is-visible")).toBe(false);
+    focus(document.getElementById("loop-box"));
+    expect(tooltip.classList.contains("is-visible")).toBe(false);
+
+    // A field's label is not on the select itself, so it still helps there.
+    focus(document.getElementById("region"));
+    expect(tooltip.classList.contains("is-visible")).toBe(true);
+    expect(tooltip.textContent).toBe("Region");
   });
 });

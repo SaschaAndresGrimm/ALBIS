@@ -555,6 +555,8 @@ const imageExportOverlays = document.getElementById("image-export-overlays");
 const imageExportOverlaysField = document.getElementById("image-export-overlays-field");
 const imageExportPixelValues = document.getElementById("image-export-pixel-values");
 const imageExportPixelValuesField = document.getElementById("image-export-pixel-values-field");
+const imageExportOverlaysHint = document.getElementById("image-export-overlays-hint");
+const imageExportPixelValuesHint = document.getElementById("image-export-pixel-values-hint");
 const imageExportSummary = document.getElementById("image-export-summary");
 const imageExportStart = document.getElementById("image-export-start");
 const animationExportModal = document.getElementById("animation-export-modal");
@@ -574,6 +576,8 @@ const animationExportOverlays = document.getElementById("animation-export-overla
 const animationExportOverlaysField = document.getElementById("animation-export-overlays-field");
 const animationExportPixelValues = document.getElementById("animation-export-pixel-values");
 const animationExportPixelValuesField = document.getElementById("animation-export-pixel-values-field");
+const animationExportOverlaysHint = document.getElementById("animation-export-overlays-hint");
+const animationExportPixelValuesHint = document.getElementById("animation-export-pixel-values-hint");
 const animationExportSummary = document.getElementById("animation-export-summary");
 const animationExportProgress = document.getElementById("animation-export-progress");
 const animationExportProgressFill = document.getElementById("animation-export-progress-fill");
@@ -1647,6 +1651,8 @@ const animationExportController = createAnimationExportController({
     overlaysField: animationExportOverlaysField,
     pixelValuesCheckbox: animationExportPixelValues,
     pixelValuesField: animationExportPixelValuesField,
+    overlaysHint: animationExportOverlaysHint,
+    pixelValuesHint: animationExportPixelValuesHint,
     scaleSelect: animationExportScale,
     summary: animationExportSummary,
     progress: animationExportProgress,
@@ -1704,6 +1710,8 @@ const imageExportController = createImageExportController({
     overlaysField: imageExportOverlaysField,
     pixelValuesCheckbox: imageExportPixelValues,
     pixelValuesField: imageExportPixelValuesField,
+    overlaysHint: imageExportOverlaysHint,
+    pixelValuesHint: imageExportPixelValuesHint,
     summary: imageExportSummary,
     startBtn: imageExportStart,
   },

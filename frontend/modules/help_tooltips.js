@@ -63,10 +63,11 @@ function getHelpText(target) {
     const text = target.querySelector("span")?.textContent?.trim() || "";
     if (text) return text;
   }
+  // A hint that only repeats what the control already shows -- an "Export
+  // PNG" bubble over the Export PNG button -- is noise, and covers it.
+  const visible = ((target.closest?.("label.checkbox") || target).textContent || "").replace(/\s+/g, " ").trim();
   const labelText = getHelpLabelText(target);
-  if (labelText) return labelText;
-  const text = (target.textContent || "").replace(/\s+/g, " ").trim();
-  if (text) return text;
+  if (labelText && labelText !== visible) return labelText;
   return "";
 }
 

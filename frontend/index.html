@@ -1749,7 +1749,7 @@
               </select>
             </label>
             <label class="field">
-              <span data-i18n="animation_export.scale">Scale</span>
+              <span class="field-label-row"><span data-i18n="image_export.size">Size</span><button type="button" class="info-tip" data-info-key="info.animation_export.size" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
               <select id="animation-export-scale"></select>
             </label>
             <label class="field">
@@ -1767,14 +1767,22 @@
               <input id="animation-export-loop" type="checkbox" checked />
               <span data-i18n="animation_export.loop">Loop forever</span>
             </label>
-            <label class="checkbox data-export-overwrite" id="animation-export-overlays-field">
-              <input id="animation-export-overlays" type="checkbox" />
-              <span data-i18n="animation_export.overlays">Include overlays</span>
-            </label>
-            <label class="checkbox data-export-overwrite" id="animation-export-pixel-values-field">
-              <input id="animation-export-pixel-values" type="checkbox" />
-              <span data-i18n="export.pixel_values">Pixel values</span>
-            </label>
+            <div class="data-export-options data-export-span-2">
+              <div>
+                <label class="checkbox data-export-overwrite" id="animation-export-overlays-field">
+                  <input id="animation-export-overlays" type="checkbox" />
+                  <span data-i18n="animation_export.overlays">Include overlays</span>
+                </label>
+                <div class="data-export-option-hint" id="animation-export-overlays-hint"></div>
+              </div>
+              <div>
+                <label class="checkbox data-export-overwrite" id="animation-export-pixel-values-field">
+                  <input id="animation-export-pixel-values" type="checkbox" />
+                  <span data-i18n="export.pixel_values">Pixel values</span>
+                </label>
+                <div class="data-export-option-hint" id="animation-export-pixel-values-hint"></div>
+              </div>
+            </div>
           </div>
           <div class="data-export-source" id="animation-export-summary" data-i18n="animation_export.summary.empty">No frames selected</div>
           <div class="data-export-progress" id="animation-export-progress">
@@ -1814,14 +1822,22 @@
               <span class="field-label-row"><span data-i18n="image_export.dpi">Print resolution</span><button type="button" class="info-tip" data-info-key="info.image_export.dpi" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
               <select id="image-export-dpi"></select>
             </label>
-            <label class="checkbox data-export-overwrite" id="image-export-overlays-field">
-              <input id="image-export-overlays" type="checkbox" checked />
-              <span data-i18n="image_export.overlays">Include overlays (rings, peaks, ROI)</span>
-            </label>
-            <label class="checkbox data-export-overwrite" id="image-export-pixel-values-field">
-              <input id="image-export-pixel-values" type="checkbox" checked />
-              <span data-i18n="export.pixel_values">Pixel values</span>
-            </label>
+            <div class="data-export-options data-export-span-2">
+              <div>
+                <label class="checkbox data-export-overwrite" id="image-export-overlays-field">
+                  <input id="image-export-overlays" type="checkbox" checked />
+                  <span data-i18n="image_export.overlays">Include overlays (rings, peaks, ROI)</span>
+                </label>
+                <div class="data-export-option-hint" id="image-export-overlays-hint"></div>
+              </div>
+              <div>
+                <label class="checkbox data-export-overwrite" id="image-export-pixel-values-field">
+                  <input id="image-export-pixel-values" type="checkbox" checked />
+                  <span data-i18n="export.pixel_values">Pixel values</span>
+                </label>
+                <div class="data-export-option-hint" id="image-export-pixel-values-hint"></div>
+              </div>
+            </div>
           </div>
           <div class="data-export-source" id="image-export-summary">-</div>
         </div>

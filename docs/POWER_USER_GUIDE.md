@@ -184,11 +184,12 @@ The dialog lets you choose:
 
 - **Frames** - all frames or a start/end range, plus a **Use every Nth frame** step to subsample long series.
 - **Region** - the full image or just the currently visible area.
-- **Scale** - downscale the output (100% / 50% / 25% / 10%) to reduce file size.
+- **Size** - 0.1× to 4×, or **As on screen** (the viewer's zoom). Enlargements repeat each detector pixel without smoothing; non-square pixels keep their proportions. The default is the largest size up to 1600 px on its longer side.
 - **Speed** - playback rate in frames per second (prefilled from the toolbar playback speed).
 - **Loop forever** - repeat indefinitely, or play once when unchecked.
+- **Include overlays** / **Pixel values** - draw the rings and spot finder, or each pixel's value, into every frame. Each says underneath why it is unavailable when it is.
 
-A live summary shows the resulting frame count, pixel dimensions, and an estimated file size. The GIF is rendered to match the on-screen view exactly - active colormap, contrast (BG/FG), invert, mask, and saturation highlighting are all applied. Frame count, region, and scale are the levers that control the file size; GIF size depends on image content, so the size figure is an estimate.
+A live summary shows the resulting frame count, pixel dimensions, and an estimated file size. The GIF is rendered to match the on-screen view exactly - active colormap, contrast (BG/FG), invert, mask, and saturation highlighting are all applied. Frame count, region, and size are the levers that control the file size; GIF size depends on image content, so the size figure is an estimate.
 
 ### Rules
 

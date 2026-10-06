@@ -303,8 +303,15 @@ resolution rings, found peaks and the ROI as the viewer shows them. **Pixel
 values** draws each pixel's value into it, as the viewer does when zoomed in.
 It needs the pixel values switched on in the viewer, and a size at which each
 pixel is at least as large as the viewer's minimum for them (18 px unless
-changed in Settings) — in practice **As on screen** while zoomed in. The quick
-exports under **Save As** stay at one image pixel per detector pixel.
+changed in Settings) — in practice **As on screen** while zoomed in. An option
+that cannot be used right now says why underneath it.
+
+The quick exports under **Save As** need no dialog. **Full Image** writes one
+image pixel per detector pixel: the exact data, for analysis or another
+program. **Visible Area** writes what you see, without the interface: at the
+viewer's zoom and pixel proportions, each detector pixel a sharp block (zoomed
+out below 1×, it keeps one pixel per detector pixel). **Viewer Window** is a
+screenshot of the whole window, the image in it as sharp as on screen.
 
 **Convert Dataset** writes all frames, the current frame, or a range. Exports
 are signed integers using the common detector convention: module gaps are `-1`,
@@ -357,10 +364,12 @@ wins over the source's own copy of it.
 **Export Animation** renders a GIF matching the screen exactly — colour map,
 contrast, mask and saturation highlighting all apply, and non-square pixels
 keep their proportions. Choose the frame range and step, the full image or just
-the visible area, a scale, and the frame rate. Scales above 100% (2×, 4×)
-enlarge each detector pixel into a sharp block; **As on screen** uses the
-viewer's zoom. A live summary estimates the file size before you commit; frame
-count, region and scale are the levers that control it.
+the visible area, a size, and the frame rate. Sizes above 1× (2×, 4×) enlarge
+each detector pixel into a sharp block; **As on screen** uses the viewer's
+zoom. The default is the largest size up to 1600 pixels on its longer side —
+enough for a slide without an outsized file. A live summary estimates the file
+size before you commit; frame count, region and size are the levers that
+control it.
 
 Tick **Pixel values** to write each pixel's value into every frame, read from
 that frame. It has the same conditions as in Export Image: pixel values shown

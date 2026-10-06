@@ -46,6 +46,8 @@ export function createImageExportController({ state, elements, callbacks }) {
     overlaysField,
     pixelValuesCheckbox,
     pixelValuesField,
+    overlaysHint,
+    pixelValuesHint,
     summary,
     startBtn,
   } = elements;
@@ -164,6 +166,17 @@ export function createImageExportController({ state, elements, callbacks }) {
       : t("image_export.summary", { width, height });
   }
 
+  // Why an option is unavailable, written under it rather than left to a
+  // hover nobody tries on a greyed-out box.
+  function showReason(field, hint, reason) {
+    if (hint) {
+      hint.textContent = reason;
+      if (field) field.title = "";
+    } else if (field) {
+      field.title = reason;
+    }
+  }
+
   function updateUi() {
     const ready = canSaveImage(state);
     if (source) {
@@ -180,16 +193,14 @@ export function createImageExportController({ state, elements, callbacks }) {
       if (!overlaysAvailable) overlaysCheckbox.checked = false;
     }
     overlaysField?.classList.toggle("is-disabled", !overlaysAvailable);
-    if (overlaysField) {
-      overlaysField.title = overlaysAvailable ? "" : t("image_export.overlays.unavailable");
-    }
+    showReason(overlaysField, overlaysHint, overlaysAvailable ? "" : t("image_export.overlays.unavailable"));
     const pixelValues = pixelValuesState();
     if (pixelValuesCheckbox) {
       pixelValuesCheckbox.disabled = !ready || !pixelValues.available;
       pixelValuesCheckbox.checked = pixelValues.available && pixelValuesWanted;
     }
     pixelValuesField?.classList.toggle("is-disabled", !pixelValues.available);
-    if (pixelValuesField) pixelValuesField.title = pixelValues.reason;
+    showReason(pixelValuesField, pixelValuesHint, pixelValues.reason);
     if (startBtn) startBtn.disabled = !ready;
     updateSummary();
   }

@@ -14,6 +14,7 @@ import { canExportAnimation } from "./command_availability.js";
 import { GifWriter } from "./gif_encoder.js";
 import {
   SCREEN_SCALE,
+  exportScaleOptions,
   exportSize,
   formatZoom,
   pixelValuesAvailability,
@@ -48,8 +49,12 @@ const MASK_FLAG_RGB = [25, 50, 120];
 const GIF_TYPES = [{ accept: { "image/gif": [".gif"] } }];
 // Enlarged frames repeat each detector pixel (nearest neighbour), as the PNG
 // export does; a GIF has no print resolution to set instead.
-const GIF_SCALES = Object.freeze([4, 2, 1, 0.5, 0.25, 0.1]);
-const DEFAULT_GIF_SCALE = 0.5;
+const GIF_SCALES = Object.freeze([0.1, 0.25, 0.5, 1, 2, 4]);
+// The default is the largest size whose longer side stays within this: enough
+// for a slide, while a GIF's file grows with every pixel of every frame. A
+// fixed 50% made a 1544 x 96 Pollux frame a 772 x 48 strip; "at least 1000 px
+// wide" made a 487 x 619 PILATUS 4x, 1948 x 2476 and ~23 MB for ten frames.
+const DEFAULT_GIF_MAX_SIDE_PX = 1600;
 // Pixel values are text on a palette image: anti-aliased glyph edges between
 // the white fill and the dark halo would land on whichever overlay colour is
 // nearest (a grey edge is nearer the ring blue than black), so the label layer
@@ -85,6 +90,8 @@ export function createAnimationExportController({
     overlaysField,
     pixelValuesCheckbox,
     pixelValuesField,
+    overlaysHint,
+    pixelValuesHint,
     scaleSelect,
     summary,
     progress,
@@ -174,11 +181,17 @@ export function createAnimationExportController({
     return exportSize(region, scale, pixelAspect());
   }
 
+  function defaultGifScale(region) {
+    const allowed = exportScaleOptions(region, pixelAspect(), GIF_SCALES).filter((option) => option.allowed);
+    const fitting = allowed.filter((option) => Math.max(option.width, option.height) <= DEFAULT_GIF_MAX_SIDE_PX);
+    return (fitting[fitting.length - 1] || allowed[0])?.scale ?? 1;
+  }
+
   // Each size states what it produces; one a browser cannot hold is disabled.
-  function populateScales() {
+  function populateScales({ resetToDefault = false } = {}) {
     if (!scaleSelect) return;
     const region = selectedRegion();
-    const previous = scaleSelect.value || String(DEFAULT_GIF_SCALE);
+    const previous = scaleSelect.value;
     scaleSelect.innerHTML = "";
     const add = (value, scale, label) => {
       const { width, height } = outputSize(region, scale);
@@ -190,19 +203,16 @@ export function createAnimationExportController({
       scaleSelect.appendChild(option);
     };
     GIF_SCALES.forEach((scale) => {
-      add(String(scale), scale, ({ width, height }) =>
-        scale >= 1
-          ? t("image_export.scale.option", { scale, width, height })
-          : t("animation_export.scale.percent", { percent: Math.round(scale * 100), width, height }),
-      );
+      add(String(scale), scale, ({ width, height }) => t("image_export.scale.option", { scale, width, height }));
     });
     add(SCREEN_SCALE, screenZoom(), ({ width, height }) =>
       t("export.scale.screen", { zoom: formatZoom(screenZoom()), width, height }),
     );
-    const usable = Array.from(scaleSelect.options).filter((option) => !option.disabled);
-    const keep = usable.find((option) => option.value === previous);
-    const fallback = usable.find((option) => option.value === String(DEFAULT_GIF_SCALE)) || usable[usable.length - 1];
-    scaleSelect.value = (keep || fallback)?.value ?? String(DEFAULT_GIF_SCALE);
+    const keep = Array.from(scaleSelect.options).find((option) => option.value === previous && !option.disabled);
+    scaleSelect.value =
+      !resetToDefault && keep
+        ? previous
+        : String(defaultGifScale(region));
   }
 
   // Pixel values can go into the GIF when the viewer shows them and each
@@ -298,6 +308,17 @@ export function createAnimationExportController({
     }
   }
 
+  // Why an option is unavailable, written under it rather than left to a
+  // hover nobody tries on a greyed-out box.
+  function showReason(field, hint, reason) {
+    if (hint) {
+      hint.textContent = reason;
+      if (field) field.title = "";
+    } else if (field) {
+      field.title = reason;
+    }
+  }
+
   function updateUi() {
     const ready = isReady();
     const running = Boolean(state.animationExport.running);
@@ -330,7 +351,7 @@ export function createAnimationExportController({
       pixelValuesCheckbox.checked = pixelValues.available && pixelValuesWanted;
     }
     pixelValuesField?.classList.toggle("is-disabled", !pixelValues.available);
-    if (pixelValuesField) pixelValuesField.title = pixelValues.reason;
+    showReason(pixelValuesField, pixelValuesHint, pixelValues.reason);
     // Nothing to draw means nothing to offer: the checkbox greys out and says
     // why, rather than exporting a GIF that looks identical when ticked.
     const overlaysAvailable = Boolean(overlaySources());
@@ -339,9 +360,7 @@ export function createAnimationExportController({
       if (!overlaysAvailable) overlaysCheckbox.checked = false;
     }
     overlaysField?.classList.toggle("is-disabled", !overlaysAvailable);
-    if (overlaysField) {
-      overlaysField.title = overlaysAvailable ? "" : t("animation_export.overlays.unavailable");
-    }
+    showReason(overlaysField, overlaysHint, overlaysAvailable ? "" : t("animation_export.overlays.unavailable"));
     if (rangeStart) rangeStart.disabled = running || !ready || !showRange;
     if (rangeEnd) rangeEnd.disabled = running || !ready || !showRange;
     if (startBtn) {
@@ -726,7 +745,7 @@ export function createAnimationExportController({
     }
     if (!state.animationExport.running) {
       setProgress(0, t("animation_export.progress.idle"));
-      populateScales();
+      populateScales({ resetToDefault: true });
     }
     updateUi();
     openModal(modal, { focusTarget: startBtn });
@@ -744,7 +763,7 @@ export function createAnimationExportController({
   });
   frameMode?.addEventListener("change", updateUi);
   regionSelect?.addEventListener("change", () => {
-    populateScales();
+    populateScales({ resetToDefault: true });
     updateUi();
   });
   scaleSelect?.addEventListener("change", updateUi);
