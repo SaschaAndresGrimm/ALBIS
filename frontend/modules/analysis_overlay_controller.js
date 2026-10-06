@@ -333,6 +333,15 @@ export function createAnalysisOverlayController({
   // ever reach the candidate pool.
   const PEAK_MIN_FOOTPRINT = 2;
   const PEAK_FOOTPRINT_FRACTION = 0.3;
+  // ...or stand clearly above the local background. The fraction alone rejects
+  // a sharp, strong spot: a 104002-count EIGER peak with neighbours of
+  // 15000-31500 has one neighbour at 30 %, and was dropped as a zinger while
+  // thousands of counts sat around it. A zinger's neighbours are background, so
+  // it still fails both. A neighbour this far above a background b >= 0 holds at
+  // least b + 3 >= 3 counts, which lets pixels without two such neighbours --
+  // nearly every single-photon pixel -- skip the background lookup.
+  const PEAK_SHOULDER_SIGMA = 3;
+  const PEAK_SHOULDER_MIN_COUNTS = 3;
 
   // Build a padded summed-area table (integral image) so the sum/count over any
   // rectangle is four lookups regardless of window size. Invalid pixels (masked,
@@ -555,6 +564,7 @@ export function createAnalysisOverlayController({
       return nv;
     };
 
+    const neighbours = new Float64Array(8);
     for (let y = 1; y < height - 1; y += 1) {
       const row = y * width;
       for (let x = 1; x < width - 1; x += 1) {
@@ -584,16 +594,31 @@ export function createAnalysisOverlayController({
         // maximum test but have no shoulder. Real spots share intensity with
         // their neighbours; a high background lifts every neighbour and passes
         // trivially, so this never penalises faint spots on a bright field.
+        neighbours[0] = neighborValue(up - 1);
+        neighbours[1] = neighborValue(up);
+        neighbours[2] = neighborValue(up + 1);
+        neighbours[3] = neighborValue(idx - 1);
+        neighbours[4] = neighborValue(idx + 1);
+        neighbours[5] = neighborValue(dn - 1);
+        neighbours[6] = neighborValue(dn);
+        neighbours[7] = neighborValue(dn + 1);
         const footThresh = v * PEAK_FOOTPRINT_FRACTION;
         let footprint = 0;
-        if (neighborValue(up - 1) >= footThresh) footprint += 1;
-        if (neighborValue(up) >= footThresh) footprint += 1;
-        if (neighborValue(up + 1) >= footThresh) footprint += 1;
-        if (neighborValue(idx - 1) >= footThresh) footprint += 1;
-        if (neighborValue(idx + 1) >= footThresh) footprint += 1;
-        if (neighborValue(dn - 1) >= footThresh) footprint += 1;
-        if (neighborValue(dn) >= footThresh) footprint += 1;
-        if (neighborValue(dn + 1) >= footThresh) footprint += 1;
+        let raised = 0;
+        for (let k = 0; k < 8; k += 1) {
+          if (neighbours[k] >= footThresh) footprint += 1;
+          if (neighbours[k] >= PEAK_SHOULDER_MIN_COUNTS) raised += 1;
+        }
+        if (footprint < PEAK_MIN_FOOTPRINT && raised >= PEAK_MIN_FOOTPRINT && integrals) {
+          const bg = localBackground(x, y);
+          if (bg) {
+            const shoulder = bg.mean + PEAK_SHOULDER_SIGMA * Math.sqrt(bg.mean > 1 ? bg.mean : 1);
+            footprint = 0;
+            for (let k = 0; k < 8; k += 1) {
+              if (neighbours[k] >= footThresh || neighbours[k] >= shoulder) footprint += 1;
+            }
+          }
+        }
         if (footprint < PEAK_MIN_FOOTPRINT) continue;
 
         const score = scorePeak(x, y, v);

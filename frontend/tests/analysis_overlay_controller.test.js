@@ -189,6 +189,44 @@ describe("analysis_overlay_controller", () => {
     expect(spot.resolution).toBeNull();
   });
 
+  it("keeps a sharp, strong spot that the 30 % footprint alone would reject, and still drops zingers", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAnalysisOverlayController } = await import("../modules/analysis_overlay_controller.js");
+
+    const W = 41;
+    const H = 41;
+    // A flat background of 2 counts per pixel.
+    const data = new Float32Array(W * H).fill(2);
+    const at = (x, y) => y * W + x;
+    // Shaped like the EIGER reflection that went missing: 104002 counts in the
+    // centre, one neighbour above 30 % of it, the others far above background
+    // but below 30 %.
+    data[at(10, 10)] = 104002;
+    data[at(11, 9)] = 31547;
+    data[at(10, 9)] = 16384;
+    data[at(9, 10)] = 15026;
+    data[at(11, 10)] = 18791;
+    data[at(10, 11)] = 17148;
+    data[at(9, 11)] = 7214;
+    data[at(9, 9)] = 4588;
+    data[at(11, 11)] = 3748;
+    // A zinger: brighter still, with neighbours at background.
+    data[at(30, 30)] = 200000;
+
+    const { controller } = buildController(createAnalysisOverlayController, {
+      dataRaw: data,
+      width: W,
+      height: H,
+    });
+    const peaks = controller.detectPeaks(10, 3);
+
+    expect(peaks.some((p) => p.px === 10 && p.py === 10)).toBe(true);
+    expect(peaks.some((p) => p.px === 30 && p.py === 30)).toBe(false);
+  });
+
   it("reports a finite SNR for each peak when the SNR gate is active", async () => {
     vi.resetModules();
     global.fetch = buildFetchMock();
