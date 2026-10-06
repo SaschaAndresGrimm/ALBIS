@@ -48,7 +48,7 @@ cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
 Name=ALBIS
-Comment=ALBIS detector image viewer
+Comment=ALBULA-style viewer for DECTRIS detector data
 Exec=$LAUNCHER_PATH
 Icon=albis
 Categories=Science;

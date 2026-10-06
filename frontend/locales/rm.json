@@ -6,7 +6,7 @@
   "about.fact.formats": "Formats",
   "about.fact.licence": "Licenza",
   "about.fact.rendering": "Renderisaziun",
-  "about.lead": "ALBIS è in visualisader d'imatges basà sin canvas per explorar svelt stacks HDF5 ed auters maletgs da detector.",
+  "about.lead": "ALBIS è in viewer liber e open source per datas da detecturs DECTRIS, en il stil dad ALBULA. El avra pigns HDF5, TIFF, CBF, EDF ed acquisiziuns MYTHEN, suonda in experiment en curs live e funcziuna sin l'agen computer u sin la maschina che tegna las datas, mussà en in navigatur in auter lieu.",
   "about.repo_link": "Avrir ALBIS sin GitHub",
   "about.title": "Davart ALBIS",
   "about.version": "Versiun {{version}}",

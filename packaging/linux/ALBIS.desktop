@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=ALBIS
-Comment=Local-first diffraction image viewer for DECTRIS detectors
+Comment=ALBULA-style viewer for DECTRIS detector data
 # %f, not %F: ALBIS opens one file per window, so the desktop environment
 # should invoke it once per file rather than hand it a list.
 Exec=ALBIS %f

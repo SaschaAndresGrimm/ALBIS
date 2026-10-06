@@ -1,7 +1,7 @@
 [Setup]
 AppName=ALBIS
 AppId=ALBIS
-AppPublisher=Sascha Grimm
+AppPublisher=Sascha Andres Grimm
 AppPublisherURL=https://github.com/SaschaAndresGrimm/ALBIS
 AppSupportURL=https://github.com/SaschaAndresGrimm/ALBIS/issues
 AppUpdatesURL=https://github.com/SaschaAndresGrimm/ALBIS/releases

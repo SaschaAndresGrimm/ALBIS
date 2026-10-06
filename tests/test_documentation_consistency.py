@@ -248,3 +248,60 @@ def test_albis_is_citable() -> None:
     """Scientific software that cannot be cited does not get credited."""
     assert (ROOT / "CITATION.cff").is_file(), "CITATION.cff is missing"
     assert "CITATION.cff" in README, "the README does not point users at how to cite ALBIS"
+
+
+# What ALBIS is, said once. Ten places described it, and no two agreed: an
+# "ALBULA-style" viewer for "synchrotron detector data" in the README, a
+# "canvas-first" one in About, "local-first diffraction" on Linux, "fast" in
+# package.json. These hold every place to the same words.
+ALBIS_TAGLINE = "ALBULA-style viewer for DECTRIS detector data"
+ALBIS_LEAD = (
+    "ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. "
+    "It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment "
+    "live, and runs on your own computer or on the machine that holds the data, viewed from a "
+    "browser elsewhere."
+)
+
+
+def _flat(text: str) -> str:
+    """Markdown/HTML prose with tags, emphasis and line breaks taken out."""
+    text = re.sub(r"<[^>]+>", "", text).replace("**", "")
+    return re.sub(r"\s+", " ", text)
+
+
+@pytest.mark.parametrize(
+    "relpath",
+    [
+        "pyproject.toml",
+        "package.json",
+        "CITATION.cff",
+        "backend/app.py",
+        "packaging/linux/ALBIS.desktop",
+        "packaging/linux/ALBIS.metainfo.xml",
+        "scripts/install_linux.sh",
+        "scripts/install_linux_appimage.sh",
+    ],
+)
+def test_every_short_description_uses_the_tagline(relpath: str) -> None:
+    text = (ROOT / relpath).read_text(encoding="utf-8")
+    assert ALBIS_TAGLINE in text, f"{relpath} describes ALBIS differently from the tagline"
+
+
+@pytest.mark.parametrize(
+    "relpath",
+    [
+        "README.md",
+        "docs/USER_GUIDE.md",
+        "frontend/docs.html",
+        "frontend/index.html",
+        "packaging/linux/ALBIS.metainfo.xml",
+    ],
+)
+def test_every_introduction_uses_the_lead(relpath: str) -> None:
+    text = _flat((ROOT / relpath).read_text(encoding="utf-8"))
+    assert ALBIS_LEAD in text, f"{relpath} introduces ALBIS differently from the lead"
+
+
+def test_the_about_dialog_leads_with_the_same_words() -> None:
+    en = json.loads((ROOT / "frontend" / "locales" / "en.json").read_text(encoding="utf-8"))
+    assert en["about.lead"] == ALBIS_LEAD

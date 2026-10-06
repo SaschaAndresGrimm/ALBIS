@@ -6,7 +6,7 @@
   "about.fact.formats": "Formats",
   "about.fact.licence": "Licence",
   "about.fact.rendering": "Rendu",
-  "about.lead": "ALBIS est une visionneuse d'images orientée canvas pour explorer rapidement des piles HDF5 et d'autres images de détecteur.",
+  "about.lead": "ALBIS est une visionneuse libre et open source pour les données des détecteurs DECTRIS, dans le style d'ALBULA. Elle ouvre les piles HDF5, les images TIFF, CBF et EDF et les acquisitions MYTHEN, suit une expérience en cours en direct, et fonctionne sur votre propre ordinateur ou sur la machine qui contient les données, affichée dans un navigateur ailleurs.",
   "about.repo_link": "Ouvrir ALBIS sur GitHub",
   "about.title": "À propos d'ALBIS",
   "about.version": "Version {{version}}",

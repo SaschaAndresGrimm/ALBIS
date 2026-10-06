@@ -6,7 +6,7 @@
   "about.fact.formats": "Formatos",
   "about.fact.licence": "Licença",
   "about.fact.rendering": "Renderização",
-  "about.lead": "O ALBIS é um visualizador de imagens baseado em canvas para explorar rapidamente pilhas HDF5 e outras imagens de detector.",
+  "about.lead": "O ALBIS é um visualizador livre e de código aberto para dados de detetores DECTRIS, ao estilo do ALBULA. Abre pilhas HDF5, TIFF, CBF, EDF e aquisições MYTHEN, acompanha uma experiência em curso em direto, e corre no seu próprio computador ou na máquina que guarda os dados, visto num navegador noutro local.",
   "about.repo_link": "Abrir o ALBIS no GitHub",
   "about.title": "Sobre o ALBIS",
   "about.version": "Versão {{version}}",

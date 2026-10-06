@@ -2,7 +2,7 @@
 
 ## How ALBIS is run today
 
-One maintainer: Sascha Grimm ([@SaschaAndresGrimm](https://github.com/SaschaAndresGrimm)),
+One maintainer: Sascha Andres Grimm ([@SaschaAndresGrimm](https://github.com/SaschaAndresGrimm)),
 listed in [`CODEOWNERS`](CODEOWNERS). Every commit in the project's history is
 his or Dependabot's. Decisions about scope, design and releases are his, made in
 the open on issues and pull requests.

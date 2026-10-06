@@ -6,7 +6,7 @@
   "about.fact.formats": "形式",
   "about.fact.licence": "ライセンス",
   "about.fact.rendering": "レンダリング",
-  "about.lead": "ALBIS は、HDF5 スタックやその他の検出器画像を高速に閲覧できる、キャンバス中心の画像ビューアです。",
+  "about.lead": "ALBIS は、DECTRIS 検出器データ用の無料・オープンソースのビューアで、ALBULA のスタイルを踏襲しています。HDF5 スタック、TIFF、CBF、EDF、MYTHEN の測定データを開き、実行中の実験をライブで追跡し、手元のコンピューター上でも、データのあるマシン上でも動作し、別の場所のブラウザから表示できます。",
   "about.repo_link": "GitHub で ALBIS を開く",
   "about.title": "ALBIS について",
   "about.version": "バージョン {{version}}",

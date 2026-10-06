@@ -6,7 +6,7 @@
   "about.fact.formats": "Formati",
   "about.fact.licence": "Licenza",
   "about.fact.rendering": "Rendering",
-  "about.lead": "ALBIS è un visualizzatore di immagini basato su canvas per esplorare rapidamente stack HDF5 e altre immagini del rilevatore.",
+  "about.lead": "ALBIS è un visualizzatore libero e open source per i dati dei rivelatori DECTRIS, nello stile di ALBULA. Apre stack HDF5, TIFF, CBF, EDF e acquisizioni MYTHEN, segue un esperimento in corso dal vivo, e funziona sul tuo computer o sulla macchina che contiene i dati, visualizzato da un browser altrove.",
   "about.repo_link": "Apri ALBIS su GitHub",
   "about.title": "Informazioni su ALBIS",
   "about.version": "Versione {{version}}",

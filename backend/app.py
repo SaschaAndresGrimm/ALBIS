@@ -204,7 +204,11 @@ def _register_static_mime_types() -> None:
 
 _register_static_mime_types()
 
-app = FastAPI(title="ALBIS — ALBIS WEB VIEW", version=ALBIS_VERSION)
+app = FastAPI(
+    title="ALBIS",
+    description="ALBULA-style viewer for DECTRIS detector data.",
+    version=ALBIS_VERSION,
+)
 
 # Registered first so it ends up innermost: Starlette inserts each added
 # middleware at the head of the stack, so the first one registered sits closest

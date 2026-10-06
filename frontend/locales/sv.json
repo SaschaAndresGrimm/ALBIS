@@ -6,7 +6,7 @@
   "about.fact.formats": "Format",
   "about.fact.licence": "Licens",
   "about.fact.rendering": "Rendering",
-  "about.lead": "ALBIS är en canvasbaserad bildvisare för snabb utforskning av HDF5-staplar och andra detektorbilder.",
+  "about.lead": "ALBIS är en fri visare med öppen källkod för data från DECTRIS-detektorer, i ALBULA:s stil. Den öppnar HDF5-stackar, TIFF, CBF, EDF och MYTHEN-mätningar, följer ett pågående experiment live och körs på din egen dator eller på maskinen som har datan, visad i en webbläsare någon annanstans.",
   "about.repo_link": "Öppna ALBIS på GitHub",
   "about.title": "Om ALBIS",
   "about.version": "Version {{version}}",

@@ -6,7 +6,7 @@
   "about.fact.formats": "Format",
   "about.fact.licence": "Lizänz",
   "about.fact.rendering": "Rendering",
-  "about.lead": "ALBIS isch en Canvas-orientierte Bildbetrachter zum schnälle Erforsche vo HDF5-Stapel und andere Detektorbilder.",
+  "about.lead": "ALBIS isch en freie, quelloffene Viewer für DECTRIS-Detektordate im Stil vo ALBULA. Er macht HDF5-Stäpel, TIFF, CBF, EDF und MYTHEN-Ufnahme uf, verfolgt es laufends Experiment live und lauft uf em eigete Computer oder uf em Rächner, wo d Date druf sind, aazeigt imene Browser anderswo.",
   "about.repo_link": "ALBIS uf GitHub ufmache",
   "about.title": "Über ALBIS",
   "about.version": "Version {{version}}",

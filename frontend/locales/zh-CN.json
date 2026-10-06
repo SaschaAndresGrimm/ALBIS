@@ -6,7 +6,7 @@
   "about.fact.formats": "格式",
   "about.fact.licence": "许可证",
   "about.fact.rendering": "渲染",
-  "about.lead": "ALBIS 是一款以画布为核心的图像查看器，用于快速浏览 HDF5 堆栈和其他探测器图像。",
+  "about.lead": "ALBIS 是一款免费开源的 DECTRIS 探测器数据查看器，沿袭 ALBULA 的风格。它可打开 HDF5 堆栈、TIFF、CBF、EDF 和 MYTHEN 采集数据，实时跟踪正在进行的实验，可在您自己的计算机上运行，也可在存放数据的机器上运行并从其他地方的浏览器查看。",
   "about.repo_link": "在 GitHub 上打开 ALBIS",
   "about.title": "关于 ALBIS",
   "about.version": "版本 {{version}}",

@@ -4,11 +4,11 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>ALBIS</name>
-  <summary>Local-first diffraction image viewer for DECTRIS detectors</summary>
+  <summary>ALBULA-style viewer for DECTRIS detector data</summary>
   <developer_name>Sascha Andres Grimm</developer_name>
   <description>
-    <p>ALBIS is an ALBULA-style, browser-based desktop viewer for large HDF5 stacks and common DECTRIS detector image formats.</p>
-    <p>It supports local files, live detector streams, ROI tools, overlays, and workstation-focused review workflows for beamline and lab use.</p>
+    <p>ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or on the machine that holds the data, viewed from a browser elsewhere.</p>
+    <p>Resolution rings follow the true detector geometry, zoomed-in pixels show their values, series can be summed or averaged, and figures export sharp for slides and papers.</p>
   </description>
   <launchable type="desktop-id">ALBIS.desktop</launchable>
   <provides>

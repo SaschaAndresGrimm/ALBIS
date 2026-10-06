@@ -1,4 +1,4 @@
-# ALBIS (**AL**bula-style, **B**rowser-based **I**mage viewer for **S**ynchrotron Images)
+# ALBIS (**AL**BULA-style **B**rowser-based **I**mage viewer for **S**cientific detectors)
 
 [![CI](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml/badge.svg)](https://github.com/SaschaAndresGrimm/ALBIS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -7,7 +7,7 @@
 
 ![ALBIS screenshot](frontend/resources/albis.png)
 
-ALBIS is an **ALBULA‑style**, browser‑based image viewer for large HDF5 stacks and other common DECTRIS camera formats. It is platform‑independent, free, and open source.
+ALBIS is a free, open-source viewer for **DECTRIS detector data**, in the style of ALBULA. It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or on the machine that holds the data, viewed from a browser elsewhere.
 
 It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX, and JUNGFRAU — including rectangular "strixel" pixels) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
@@ -18,8 +18,6 @@ Image sources can be:
 - The detector **SIMPLON monitor** stream for live viewing.
 - **JUNGFRAUJOCH Preview** ZeroMQ PUB stream (CBOR image messages + reflection spots).
 - The **Remote Stream API** (`/api/remote/v1/*`) for externally pushed frames + metadata.
-
-ALBIS includes quick statistics tools, an HDF5 dataset inspector, and many small workflow optimizations.
 
 Official public support covers:
 
@@ -51,18 +49,17 @@ For the full walkthrough — opening data, contrast, ROI statistics, resolution 
 
 ## Highlights
 
-- ALBULA‑style UI with fast navigation and contrast control.
-- Built for remote use: server backend, browser frontend.
-- Full support for DECTRIS filewriter1 and filewriter2 (multi‑threshold data with selector).
-- Live SIMPLON monitor mode with mask prefetch.
-- JUNGFRAUJOCH Preview mode (ZeroMQ CBOR stream bridge with reflection overlays).
-- Remote Stream mode for live external producers (with optional ring parameters and colored peak overlays).
-- MYTHEN(2) strip-detector acquisitions rendered as a single channel‑vs‑frame intensity map.
-- ROI tools (line, box, circle, annulus) with statistics and plots.
-- Pixel mask support (gaps and defective pixels).
-- Spot finding and resolution ring overlays.
-- Export to TIFF or CBF, and animated GIF export of a series.
-- Interface available in 13 languages.
+- **ALBULA-style interface** with fast frame navigation and contrast control.
+- **Every DECTRIS layout:** filewriter1 and filewriter2 HDF5 with a selector for multi-threshold data, numbered TIFF/CBF/EDF series, and MYTHEN(2) strip acquisitions as one channel-vs-frame map.
+- **Live data:** the SIMPLON monitor, JUNGFRAUJOCH Preview with its reflections, the Remote Stream API for external producers, and series that are still being written.
+- **True detector geometry:** resolution rings from the image metadata or a DIALS geometry file, including multi-panel and tilted detectors and non-square pixels, with a manual override for metadata that is missing or wrong.
+- **Every pixel readable:** zoom in and each pixel shows its value, with gap, defective and saturated pixels marked; pixel mask support.
+- **Analysis:** ROI tools (line, box, circle, annulus) with statistics and plots, spot finding, and series combine (sum, average, median over a whole series, chunks or every Nth frame).
+- **Side-by-side comparison:** duplicate a window and link position, contrast and ROI between the two.
+- **Exports that are sharp and honest:** PNG figures for slides and papers (sharp enlargement, print resolution, overlays, pixel values), animated GIFs of a series, and TIFF or CBF that keep the source metadata and say they are derived data.
+- **Works where the data is:** run ALBIS on the machine that holds the data and view it from a browser on a trusted network, without copying terabytes; Docker images for lab deployments.
+- **Easy to approve:** no telemetry, signed release checksums and verified updates, and every release smoke-tested on Rocky Linux 8 and 9 and Ubuntu before it is published.
+- **Interface available in 13 languages.**
 
 ## Downloads / Installation
 

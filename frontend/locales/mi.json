@@ -6,7 +6,7 @@
   "about.fact.formats": "Ngā hōputu",
   "about.fact.licence": "Raihana",
   "about.fact.rendering": "Whakaatatanga",
-  "about.lead": "He kaitirotiro atahanga kānawehi-tuatahi a ALBIS hei tūhura tere i ngā tāpae HDF5 me ētahi atu anga pūtirotiro.",
+  "about.lead": "He kaitiro kore utu, puna tuwhera a ALBIS mō ngā raraunga pūtirotiro DECTRIS, i te kāhua o ALBULA. Ka whakatuwhera i ngā tāpae HDF5, i ngā TIFF, CBF, EDF me ngā kohinga MYTHEN, ka whai i tētahi whakamātau e haere ana, ā, ka rere i tō ake rorohiko, i te mīhini rānei e pupuri ana i ngā raraunga, ka tirohia mai i tētahi pūtirotiro tukutuku i wāhi kē.",
   "about.repo_link": "Whakatuwhera i a ALBIS ki GitHub",
   "about.title": "Mō ALBIS",
   "about.version": "Putanga {{version}}",

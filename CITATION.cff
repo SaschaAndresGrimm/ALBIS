@@ -12,16 +12,21 @@
 
 cff-version: 1.2.0
 message: "If you use ALBIS in work that leads to a publication, please cite it as below."
-title: "ALBIS: an ALBULA-style, browser-based image viewer for synchrotron detector data"
+title: "ALBIS: an ALBULA-style viewer for DECTRIS detector data"
 abstract: >-
-  ALBIS is a platform-independent, browser-based viewer for large HDF5 detector
-  stacks and common area-detector image formats. It targets DECTRIS detectors
-  (SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX, JUNGFRAU), reads both
-  filewriter1 and filewriter2 layouts including multi-threshold data, and can
-  follow a running experiment through the SIMPLON monitor stream, a
-  JUNGFRAUJOCH preview stream, or externally pushed frames. It provides
-  region-of-interest statistics, resolution ring and spot overlays, pixel mask
-  handling, an HDF5 dataset inspector, and export to TIFF, CBF and animated GIF.
+  ALBIS is a free, open-source viewer for DECTRIS detector data, in the style
+  of ALBULA. It opens HDF5 stacks in the filewriter1 and filewriter2 layouts,
+  including multi-threshold data, TIFF, CBF and EDF images, and MYTHEN(2)
+  acquisitions, from SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX and
+  JUNGFRAU detectors. It follows a running experiment through the SIMPLON
+  monitor stream, a JUNGFRAUJOCH preview stream or externally pushed frames,
+  and runs on the user's computer or on the machine that holds the data,
+  viewed from a browser elsewhere. It draws resolution rings from the detector
+  geometry, including multi-panel detectors and non-square pixels, shows pixel
+  values when zoomed in, and provides region-of-interest statistics, spot
+  finding, pixel mask handling, series summation, an HDF5 dataset inspector,
+  and export to TIFF and CBF with the source metadata, to PNG figures and to
+  animated GIF.
 type: software
 authors:
   - family-names: Grimm

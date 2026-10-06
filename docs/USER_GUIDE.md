@@ -1,5 +1,7 @@
 # ALBIS User Guide
 
+ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or on the machine that holds the data, viewed from a browser elsewhere.
+
 This guide is organised by what you are trying to do, not by where the buttons
 live. Each section is self-contained — jump to the one that matches your task.
 
@@ -437,6 +439,11 @@ locally, with two differences worth knowing:
 - The frame cache matters more. Revisiting a frame you have already seen costs
   no transfer at all, so raising **Settings → Viewer → Frame cache** helps most
   over a slow link.
+
+To look at a file from your own computer, drag it onto the image: ALBIS uploads
+a copy into the server's data folder and opens it. On the machine that runs ALBIS, dropping is
+switched off, since **File → Open…** reads the file where it is without copying
+it.
 
 Serving other machines needs **Settings → Connection → Allow external
 connections**, and behind a reverse proxy you also need to add the proxy's
