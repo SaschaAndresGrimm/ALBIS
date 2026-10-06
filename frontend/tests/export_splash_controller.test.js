@@ -169,56 +169,48 @@ describe("export_splash_controller availability", () => {
   });
 });
 
-describe("Viewer Window capture keeps enlarged pixels sharp", () => {
-  function fakeContextProto() {
+describe("Viewer Window capture draws the image where the viewer shows it", () => {
+  it("uses the overlays' transform: zoom, pixel aspect, render offset and scroll, at the device ratio", async () => {
+    const { composeViewerImage } = await import("../modules/export_splash_controller.js");
+    const { screenView } = await import("../modules/overlay_painters.js");
     const calls = [];
-    const proto = {
+    const ctx = {
       imageSmoothingEnabled: true,
-      drawImage(source) {
-        calls.push({ id: source.id, smoothing: this.imageSmoothingEnabled });
-      },
+      setTransform: (...args) => calls.push(["setTransform", ...args]),
+      drawImage: (source, x, y) => calls.push(["drawImage", source.id, x, y, ctx.imageSmoothingEnabled]),
     };
-    return { proto, calls };
-  }
+    const created = [];
+    const source = { id: "image-canvas" };
+    // 34.5x, pixels twice as tall, scrolled 8413 / 10684 px into the image.
+    const view = screenView({ zoom: 34.5, zoomY: 69, scrollX: 8413, scrollY: 10684, offsetX: 12, offsetY: 0 });
 
-  it("draws pixelated canvases without smoothing, and others as before", async () => {
-    const { withPixelatedCanvasesSharp } = await import("../modules/export_splash_controller.js");
-    const { proto, calls } = fakeContextProto();
-    const original = proto.drawImage;
-    const image = Object.assign(document.createElement("canvas"), { id: "image" });
-    image.style.imageRendering = "pixelated";
-    const histogram = Object.assign(document.createElement("canvas"), { id: "histogram" });
-    document.body.append(image, histogram);
-    const ctx = Object.create(proto);
+    const out = composeViewerImage({
+      source,
+      viewportWidth: 750,
+      viewportHeight: 500,
+      dpr: 2,
+      view,
+      createCanvas: (width, height) => {
+        created.push([width, height]);
+        return { width, height, getContext: () => ctx };
+      },
+    });
 
-    const result = await withPixelatedCanvasesSharp(async () => {
-      ctx.drawImage(image, 0, 0);
-      ctx.drawImage(histogram, 0, 0);
-      return "shot";
-    }, proto);
-
-    expect(result).toBe("shot");
+    expect(out).not.toBeNull();
+    expect(created).toEqual([[1500, 1000]]);
     expect(calls).toEqual([
-      { id: "image", smoothing: false },
-      { id: "histogram", smoothing: true },
+      ["setTransform", 69, 0, 0, 138, 2 * (12 - 8413), 2 * (0 - 10684)],
+      ["drawImage", "image-canvas", 0, 0, false],
     ]);
-    // Smoothing is restored after the call, and drawImage after the capture.
-    expect(ctx.imageSmoothingEnabled).toBe(true);
-    expect(proto.drawImage).toBe(original);
-    image.remove();
-    histogram.remove();
   });
 
-  it("restores drawImage when the capture fails", async () => {
-    const { withPixelatedCanvasesSharp } = await import("../modules/export_splash_controller.js");
-    const { proto } = fakeContextProto();
-    const original = proto.drawImage;
-    await expect(
-      withPixelatedCanvasesSharp(async () => {
-        throw new Error("tainted");
-      }, proto),
-    ).rejects.toThrow("tainted");
-    expect(proto.drawImage).toBe(original);
+  it("draws nothing without an image or a viewport", async () => {
+    const { composeViewerImage } = await import("../modules/export_splash_controller.js");
+    const view = { scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 };
+    const createCanvas = vi.fn();
+    expect(composeViewerImage({ source: null, viewportWidth: 10, viewportHeight: 10, view, createCanvas })).toBeNull();
+    expect(composeViewerImage({ source: {}, viewportWidth: 0, viewportHeight: 10, view, createCanvas })).toBeNull();
+    expect(createCanvas).not.toHaveBeenCalled();
   });
 });
 

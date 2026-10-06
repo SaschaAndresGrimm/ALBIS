@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Save As → Viewer Window put the image off its pixel values when scrolled.** The capture (html2canvas) re-creates the scrolled image area in its own copy of the page, and did so imperfectly: zoomed in and scrolled, the image came out shifted against the pixel values and other overlays, or was missing, while the overlays themselves were right. The capture now draws the visible image itself, with the transform the overlays use, in place of the scrolled one. Checked against the live viewer, zoomed to 34.5× and scrolled to mid-image, no pixel of the viewer area differs; zoomed out to 0.8× with 1:2 pixels, 0.12 % differ, along pixel edges. This replaces 0.23.0's smoothing workaround, which the composite makes unnecessary.
+
 ## [0.23.0] - 2026-10-06
 
 ### Added
