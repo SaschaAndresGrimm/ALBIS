@@ -6,6 +6,7 @@ import { t } from "./i18n.js";
 import { canSaveImage } from "./command_availability.js";
 import { showPromptDialog } from "./dialogs.js";
 import { exportSize, withinExportLimits } from "./image_export.js";
+import { screenView } from "./overlay_painters.js";
 import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
 
 const SAVE_FILE_TYPES = [{ accept: { "image/png": [".png"] } }];
@@ -19,48 +20,27 @@ const SPLASH_STATUS_TERMINAL_KEYS = new Set([
   "splash.status.ready_open_file",
 ]);
 
-function rendersPixelated(source) {
-  if (source?.nodeName !== "CANVAS") return false;
-  try {
-    const view = source.ownerDocument?.defaultView;
-    const rendering = view?.getComputedStyle(source).imageRendering || source.style?.imageRendering || "";
-    return rendering === "pixelated" || rendering === "crisp-edges";
-  } catch {
-    return false;
-  }
-}
-
 /**
- * Runs `capture` with 2D canvas drawing honouring CSS `image-rendering:
- * pixelated` on canvas sources, then restores drawImage.
+ * The image as the viewer shows it, on a canvas covering the viewport.
  *
- * The viewer's image canvas holds one pixel per detector pixel and is enlarged
- * by a CSS transform, kept sharp on screen by `image-rendering: pixelated`.
- * html2canvas copies that canvas and draws it through the same transform with
- * smoothing on, so a Viewer Window capture at 20x showed every pixel as a
- * blurred blob. Canvases without the property are drawn as before.
+ * html2canvas re-creates a scrolled container's scroll position in its own copy
+ * of the page, and does it imperfectly: a Viewer Window capture of a scrolled,
+ * zoomed view put the image off its pixel values, or left it out, while the
+ * overlays -- outside the scrolled container -- came out right. Drawing the
+ * image here with the transform the overlays use (screenView) lines the two up
+ * by construction. The source canvas holds the whole frame, one pixel per
+ * detector pixel; smoothing is off, as `image-rendering: pixelated` keeps it on
+ * screen.
  */
-export async function withPixelatedCanvasesSharp(
-  capture,
-  proto = globalThis.CanvasRenderingContext2D?.prototype,
-) {
-  const original = proto?.drawImage;
-  if (typeof original !== "function") return capture();
-  proto.drawImage = function drawImageSharp(source, ...rest) {
-    if (!rendersPixelated(source)) return original.call(this, source, ...rest);
-    const smoothing = this.imageSmoothingEnabled;
-    this.imageSmoothingEnabled = false;
-    try {
-      return original.call(this, source, ...rest);
-    } finally {
-      this.imageSmoothingEnabled = smoothing;
-    }
-  };
-  try {
-    return await capture();
-  } finally {
-    proto.drawImage = original;
-  }
+export function composeViewerImage({ source, viewportWidth, viewportHeight, dpr = 1, view, createCanvas }) {
+  if (!source || !view || !(viewportWidth > 0) || !(viewportHeight > 0)) return null;
+  const canvas = createCanvas(Math.max(1, Math.round(viewportWidth * dpr)), Math.max(1, Math.round(viewportHeight * dpr)));
+  const ctx = canvas?.getContext?.("2d");
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(dpr * view.scaleX, 0, 0, dpr * view.scaleY, dpr * view.offsetX, dpr * view.offsetY);
+  ctx.drawImage(source, 0, 0);
+  return canvas;
 }
 
 export function createExportSplashController({
@@ -344,6 +324,44 @@ export function createExportSplashController({
     return html2canvasLoadPromise;
   }
 
+  // In html2canvas's copy of the page, swap the scrolled image canvas for the
+  // viewport-sized composite, placed where the viewport is: unscrolled, under
+  // the overlays.
+  function replaceImageInClone(clonedDoc, dpr) {
+    const source = canvasWrap?.querySelector("#image-canvas");
+    const clonedWrap = clonedDoc.getElementById(canvasWrap?.id || "canvas-wrap");
+    const clonedImage = clonedDoc.getElementById("image-canvas");
+    if (!source || !clonedWrap || !clonedImage) return;
+    const zoom = state.zoom || 1;
+    const composite = composeViewerImage({
+      source,
+      viewportWidth: canvasWrap.clientWidth,
+      viewportHeight: canvasWrap.clientHeight,
+      dpr,
+      view: screenView({
+        zoom,
+        zoomY: zoom * (state.pixelAspect || 1),
+        scrollX: getEffectiveScrollLeft(),
+        scrollY: getEffectiveScrollTop(),
+        offsetX: state.renderOffsetX || 0,
+        offsetY: state.renderOffsetY || 0,
+      }),
+      createCanvas: (width, height) => Object.assign(clonedDoc.createElement("canvas"), { width, height }),
+    });
+    if (!composite) return;
+    clonedImage.style.visibility = "hidden";
+    Object.assign(composite.style, {
+      position: "absolute",
+      left: `${canvasWrap.offsetLeft || 0}px`,
+      top: `${canvasWrap.offsetTop || 0}px`,
+      width: `${canvasWrap.clientWidth}px`,
+      height: `${canvasWrap.clientHeight}px`,
+      zIndex: "1",
+      pointerEvents: "none",
+    });
+    clonedWrap.insertAdjacentElement("afterend", composite);
+  }
+
   async function exportViewerWindow(options = {}) {
     // Screenshotting the page would technically work with only the splash on
     // screen; refused all the same, so the shortcut agrees with the greyed-out
@@ -365,13 +383,13 @@ export function createExportSplashController({
     const suggested = defaultExportName("window");
     const produce = async () => {
       try {
-        return await withPixelatedCanvasesSharp(() =>
-          html2canvasFn(target, {
-            backgroundColor: null,
-            scale: window.devicePixelRatio || 1,
-            useCORS: true,
-          }),
-        );
+        const dpr = window.devicePixelRatio || 1;
+        return await html2canvasFn(target, {
+          backgroundColor: null,
+          scale: dpr,
+          useCORS: true,
+          onclone: (clonedDoc) => replaceImageInClone(clonedDoc, dpr),
+        });
       } catch (err) {
         console.error(err);
         setStatus(t("status.export.viewer_failed"), { tone: "error" });
