@@ -15,6 +15,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **File → Save As → Viewer Window blurred the image when zoomed in.** The capture (html2canvas) draws the viewer's image canvas, one pixel per detector pixel, through its zoom transform with smoothing on, ignoring the `image-rendering: pixelated` that keeps it sharp on screen. At 20× each pixel became a blurred blob. During the capture, canvases with that property are now drawn without smoothing (`withPixelatedCanvasesSharp`), and each detector pixel is a sharp block as on screen.
 - **Export Animation drew non-square pixels square.** The GIF's height ignored the pixel aspect, so a detector with pixels twice as tall as wide came out squashed to half height. The GIF now has the same proportions as the viewer and the PNG export. Checked on exported files with 172 × 344 µm pixels: every detector row is exactly two rows in both the GIF and the PNG.
 
 ## [0.22.1] - 2026-10-05

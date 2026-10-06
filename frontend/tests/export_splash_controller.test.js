@@ -168,3 +168,56 @@ describe("export_splash_controller availability", () => {
     expect(setStatus).toHaveBeenCalledWith(EN["status.export.no_image"], { tone: "warning" });
   });
 });
+
+describe("Viewer Window capture keeps enlarged pixels sharp", () => {
+  function fakeContextProto() {
+    const calls = [];
+    const proto = {
+      imageSmoothingEnabled: true,
+      drawImage(source) {
+        calls.push({ id: source.id, smoothing: this.imageSmoothingEnabled });
+      },
+    };
+    return { proto, calls };
+  }
+
+  it("draws pixelated canvases without smoothing, and others as before", async () => {
+    const { withPixelatedCanvasesSharp } = await import("../modules/export_splash_controller.js");
+    const { proto, calls } = fakeContextProto();
+    const original = proto.drawImage;
+    const image = Object.assign(document.createElement("canvas"), { id: "image" });
+    image.style.imageRendering = "pixelated";
+    const histogram = Object.assign(document.createElement("canvas"), { id: "histogram" });
+    document.body.append(image, histogram);
+    const ctx = Object.create(proto);
+
+    const result = await withPixelatedCanvasesSharp(async () => {
+      ctx.drawImage(image, 0, 0);
+      ctx.drawImage(histogram, 0, 0);
+      return "shot";
+    }, proto);
+
+    expect(result).toBe("shot");
+    expect(calls).toEqual([
+      { id: "image", smoothing: false },
+      { id: "histogram", smoothing: true },
+    ]);
+    // Smoothing is restored after the call, and drawImage after the capture.
+    expect(ctx.imageSmoothingEnabled).toBe(true);
+    expect(proto.drawImage).toBe(original);
+    image.remove();
+    histogram.remove();
+  });
+
+  it("restores drawImage when the capture fails", async () => {
+    const { withPixelatedCanvasesSharp } = await import("../modules/export_splash_controller.js");
+    const { proto } = fakeContextProto();
+    const original = proto.drawImage;
+    await expect(
+      withPixelatedCanvasesSharp(async () => {
+        throw new Error("tainted");
+      }, proto),
+    ).rejects.toThrow("tainted");
+    expect(proto.drawImage).toBe(original);
+  });
+});

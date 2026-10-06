@@ -18,6 +18,50 @@ const SPLASH_STATUS_TERMINAL_KEYS = new Set([
   "splash.status.ready_open_file",
 ]);
 
+function rendersPixelated(source) {
+  if (source?.nodeName !== "CANVAS") return false;
+  try {
+    const view = source.ownerDocument?.defaultView;
+    const rendering = view?.getComputedStyle(source).imageRendering || source.style?.imageRendering || "";
+    return rendering === "pixelated" || rendering === "crisp-edges";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Runs `capture` with 2D canvas drawing honouring CSS `image-rendering:
+ * pixelated` on canvas sources, then restores drawImage.
+ *
+ * The viewer's image canvas holds one pixel per detector pixel and is enlarged
+ * by a CSS transform, kept sharp on screen by `image-rendering: pixelated`.
+ * html2canvas copies that canvas and draws it through the same transform with
+ * smoothing on, so a Viewer Window capture at 20x showed every pixel as a
+ * blurred blob. Canvases without the property are drawn as before.
+ */
+export async function withPixelatedCanvasesSharp(
+  capture,
+  proto = globalThis.CanvasRenderingContext2D?.prototype,
+) {
+  const original = proto?.drawImage;
+  if (typeof original !== "function") return capture();
+  proto.drawImage = function drawImageSharp(source, ...rest) {
+    if (!rendersPixelated(source)) return original.call(this, source, ...rest);
+    const smoothing = this.imageSmoothingEnabled;
+    this.imageSmoothingEnabled = false;
+    try {
+      return original.call(this, source, ...rest);
+    } finally {
+      this.imageSmoothingEnabled = smoothing;
+    }
+  };
+  try {
+    return await capture();
+  } finally {
+    proto.drawImage = original;
+  }
+}
+
 export function createExportSplashController({
   state,
   elements,
@@ -297,11 +341,13 @@ export function createExportSplashController({
     const suggested = defaultExportName("window");
     const produce = async () => {
       try {
-        return await html2canvasFn(target, {
-          backgroundColor: null,
-          scale: window.devicePixelRatio || 1,
-          useCORS: true,
-        });
+        return await withPixelatedCanvasesSharp(() =>
+          html2canvasFn(target, {
+            backgroundColor: null,
+            scale: window.devicePixelRatio || 1,
+            useCORS: true,
+          }),
+        );
       } catch (err) {
         console.error(err);
         setStatus(t("status.export.viewer_failed"), { tone: "error" });
