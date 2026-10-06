@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-06
+
 ### Added
 
 - **File → Export Image… (⇧⌘E) writes a PNG made for slides and papers.** The quick exports under Save As write one image pixel per detector pixel. That is exact, but a Pollux frame is 1544 × 96 pixels, and the program showing it on a slide or in a PDF enlarges and smooths it, so it looked blurry. The dialog enlarges by 1×, 2×, 4× or 8× without smoothing, so every detector pixel stays a sharp square. The default is the smallest size at least 2000 pixels wide. Sizes a browser cannot create are listed but greyed out, past 16384 px per side or 100 megapixels. Non-square pixels are drawn at their true proportions. A print resolution (300 dpi by default) is written into the PNG's `pHYs` chunk, and the dialog shows the printed size, so a journal's layout program sizes the figure correctly. **Include overlays** draws the resolution rings, found peaks and the ROI as the viewer shows them, anti-aliased, since a PNG has no palette limit. The entry sits at the top of the File menu and in the command palette. Checked on an exported file: a 2× export consists of uniform 2 × 2 blocks, matches the 1× export pixel for pixel, and states 300 dpi.
@@ -1350,7 +1352,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.1...v0.23.0
 [0.22.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.0...v0.21.1
