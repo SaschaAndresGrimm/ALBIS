@@ -641,14 +641,35 @@ def _start_macos_menus(
     return True
 
 
-def _create_bound_socket(host: str, port: int = 0) -> socket.socket:
-    """Bind a socket and return it live so the port cannot be claimed before uvicorn starts."""
+def _bind_socket(host: str, port: int, *, exclusive: bool = False) -> socket.socket:
+    """Bind the server socket: the one place ALBIS binds it.
+
+    It listens on every interface only when `server.host` is set to 0.0.0.0 or
+    :: -- an operator's choice for LAN access, guarded by `server.allowed_hosts`
+    and the Host check; the default is 127.0.0.1. `exclusive` asks Windows for
+    SO_EXCLUSIVEADDRUSE, so the bind cannot take over a port another program
+    listens on; elsewhere, and otherwise, SO_REUSEADDR lets a restart reuse a
+    port whose old connections are still in TIME_WAIT.
+    """
     family = socket.AF_INET6 if (":" in host and host != "0.0.0.0") else socket.AF_INET
     bind_host = "" if host in {"0.0.0.0", "::"} else host
     sock = socket.socket(family, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((bind_host, port))
+    try:
+        option = getattr(socket, "SO_EXCLUSIVEADDRUSE", None) if exclusive else None
+        if option is not None:
+            sock.setsockopt(socket.SOL_SOCKET, option, 1)
+        else:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((bind_host, port))
+    except OSError:
+        sock.close()
+        raise
     return sock
+
+
+def _create_bound_socket(host: str, port: int = 0) -> socket.socket:
+    """Bind a socket and return it live so the port cannot be claimed before uvicorn starts."""
+    return _bind_socket(host, port)
 
 
 def _port_answers(host: str, port: int) -> bool:
@@ -678,20 +699,10 @@ def _bind_last_port(host: str, port: int) -> socket.socket | None:
     """
     if port <= 0 or port > 65535 or _port_answers(host, port):
         return None
-    family = socket.AF_INET6 if (":" in host and host != "0.0.0.0") else socket.AF_INET
-    bind_host = "" if host in {"0.0.0.0", "::"} else host
-    sock = socket.socket(family, socket.SOCK_STREAM)
     try:
-        exclusive = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
-        if exclusive is not None:
-            sock.setsockopt(socket.SOL_SOCKET, exclusive, 1)
-        else:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((bind_host, port))
+        return _bind_socket(host, port, exclusive=True)
     except OSError:
-        sock.close()
         return None
-    return sock
 
 
 def _bind_auto_port(host: str, last_port: int) -> tuple[socket.socket, bool]:
