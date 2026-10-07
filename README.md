@@ -9,7 +9,7 @@
 
 ALBIS is a free, open-source viewer for **DECTRIS detector data**, in the style of ALBULA. It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or on the machine that holds the data, viewed from a browser elsewhere.
 
-It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX, and JUNGFRAU — including rectangular "strixel" pixels) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
+It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX, and JUNGFRAU — including rectangular "strixel" pixels — and the electron-microscopy detectors ARINA, SINGLA, QUADRO and ELA) and supports **filewriter1** and **filewriter2** layouts, including multi‑threshold (multi‑channel) data.
 
 Image sources can be:
 

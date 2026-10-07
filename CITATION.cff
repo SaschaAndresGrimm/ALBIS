@@ -18,7 +18,8 @@ abstract: >-
   of ALBULA. It opens HDF5 stacks in the filewriter1 and filewriter2 layouts,
   including multi-threshold data, TIFF, CBF and EDF images, and MYTHEN(2)
   acquisitions, from SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX and
-  JUNGFRAU detectors. It follows a running experiment through the SIMPLON
+  JUNGFRAU detectors and the electron-microscopy detectors ARINA, SINGLA,
+  QUADRO and ELA. It follows a running experiment through the SIMPLON
   monitor stream, a JUNGFRAUJOCH preview stream or externally pushed frames,
   and runs on the user's computer or on the machine that holds the data,
   viewed from a browser elsewhere. It draws resolution rings from the detector
@@ -43,6 +44,7 @@ keywords:
   - image viewer
   - synchrotron
   - X-ray detector
+  - electron microscopy
   - DECTRIS
   - HDF5
   - crystallography

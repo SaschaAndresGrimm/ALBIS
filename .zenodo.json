@@ -1,6 +1,6 @@
 {
   "title": "ALBIS: an ALBULA-style viewer for DECTRIS detector data",
-  "description": "ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. It opens HDF5 stacks in the filewriter1 and filewriter2 layouts, including multi-threshold data, TIFF, CBF and EDF images, and MYTHEN(2) acquisitions, from SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX and JUNGFRAU detectors. It follows a running experiment through the SIMPLON monitor stream, a JUNGFRAUJOCH preview stream or externally pushed frames, and runs on the user's computer or on the machine that holds the data, viewed from a browser elsewhere. It draws resolution rings from the detector geometry, including multi-panel detectors and non-square pixels, shows pixel values when zoomed in, and provides region-of-interest statistics, spot finding, pixel mask handling, series summation, an HDF5 dataset inspector, and export to TIFF and CBF with the source metadata, to PNG figures and to animated GIF.",
+  "description": "ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. It opens HDF5 stacks in the filewriter1 and filewriter2 layouts, including multi-threshold data, TIFF, CBF and EDF images, and MYTHEN(2) acquisitions, from SELUN, EIGER(2), PILATUS(4), MYTHEN(2), POLLUX and JUNGFRAU detectors and the electron-microscopy detectors ARINA, SINGLA, QUADRO and ELA. It follows a running experiment through the SIMPLON monitor stream, a JUNGFRAUJOCH preview stream or externally pushed frames, and runs on the user's computer or on the machine that holds the data, viewed from a browser elsewhere. It draws resolution rings from the detector geometry, including multi-panel detectors and non-square pixels, shows pixel values when zoomed in, and provides region-of-interest statistics, spot finding, pixel mask handling, series summation, an HDF5 dataset inspector, and export to TIFF and CBF with the source metadata, to PNG figures and to animated GIF.",
   "upload_type": "software",
   "creators": [
     {
@@ -13,6 +13,7 @@
     "image viewer",
     "synchrotron",
     "X-ray detector",
+    "electron microscopy",
     "DECTRIS",
     "HDF5",
     "crystallography",

@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **The electron-microscopy detectors ARINA, SINGLA, QUADRO and ELA are listed as supported**, in the README and the citation (and with it the Zenodo record, which also gains the keyword "electron microscopy"). Nothing in ALBIS changes: it recognises DECTRIS HDF5 by its layout, not by detector name, and ARINA masters were already handled (`tests/test_hdf5_orphaned_master.py`).
+
 - **DECTRIS is named where people look for who stands behind ALBIS.** The splash screen reads "developed at DECTRIS" under the ALBIS title ("by" will follow once ALBIS is a DECTRIS product, as GOVERNANCE.md describes), translated into all 13 languages. The About dialog and the help page end with the copyright line, "© 2026 Sascha Andres Grimm and DECTRIS AG", and the macOS app (Finder → Get Info) and the Windows installer now state it too. `tests/test_about_dialog_claims.py` keeps all four in step with LICENSE. Help → About also shows the DECTRIS logo, linking to dectris.com: the wordmark exactly as dectris.com publishes it, in its one navy on a light plate, since recolouring it for a dark background is DECTRIS marketing's call. It ships with the installers (`ALBIS.spec`), and GOVERNANCE.md notes that it is a DECTRIS trademark outside the MIT licence. No branding in the working view or in exported files.
 
 ## [0.23.1] - 2026-10-07
