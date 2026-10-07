@@ -14,7 +14,8 @@ published work.
 ## Relationship to DECTRIS
 
 **Today:** ALBIS is developed by an employee of DECTRIS AG and reads DECTRIS
-detector formats, but it is not yet a DECTRIS product. It carries no DECTRIS
+detector formats, but it is not yet a DECTRIS product. Its copyright is held by
+Sascha Andres Grimm and DECTRIS AG, who release it under the MIT licence. It carries no DECTRIS
 support commitment and no warranty, and it is maintained on one person's
 best effort.
 
