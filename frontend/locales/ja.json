@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "リモートストリーム ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "SIMPLON モニター",
   "splash.action.open_file": "ファイルを開く",
+  "splash.byline": "DECTRIS で開発",
   "splash.hint.open_file_only": "ファイル -> 開く... で画像ファイルを選択してください。",
   "splash.hint.open_or_drop": "ファイル -> 開く...、またはドラッグ&ドロップでファイルをアップロードしてください。",
   "splash.status.dataset_scan_failed": "データセットスキャンに失敗しました",

@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "Remote-Stream ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "SIMPLON-Monitor",
   "splash.action.open_file": "Datei uufmache",
+  "splash.byline": "entwicklet bi DECTRIS",
   "splash.hint.open_file_only": "Bruuch Datei -> Ufmache..., zum e Bilddatei uuswähle.",
   "splash.hint.open_or_drop": "Bruuch Datei -> Ufmache... oder zieh Dateie do ane, zum si uufezlade.",
   "splash.status.dataset_scan_failed": "Dataset-Scan het nit glunge",

@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "Remote-Stream ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "SIMPLON-Monitor",
   "splash.action.open_file": "Datei öffnen",
+  "splash.byline": "entwickelt bei DECTRIS",
   "splash.hint.open_file_only": "Verwende Datei -> Öffnen..., um eine Bilddatei auszuwählen.",
   "splash.hint.open_or_drop": "Verwende Datei -> Öffnen... oder ziehe Dateien hierher, um sie hochzuladen.",
   "splash.status.dataset_scan_failed": "Der Scan des Datensatzes ist fehlgeschlagen",

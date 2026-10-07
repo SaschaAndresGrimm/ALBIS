@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "Transmisión remota ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "monitor SIMPLON",
   "splash.action.open_file": "Abrir archivo",
+  "splash.byline": "desarrollado en DECTRIS",
   "splash.hint.open_file_only": "Utilice Archivo -> Abrir... para elegir un archivo de imagen.",
   "splash.hint.open_or_drop": "Utilice Archivo -> Abrir... o arrastre y suelte para subir archivos.",
   "splash.status.dataset_scan_failed": "Error en el análisis del conjunto de datos",

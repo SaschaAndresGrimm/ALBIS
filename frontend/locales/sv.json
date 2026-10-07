@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "Fjärrström ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "SIMPLON-övervakning",
   "splash.action.open_file": "Öppna fil",
+  "splash.byline": "utvecklad på DECTRIS",
   "splash.hint.open_file_only": "Använd Arkiv -> Öppna... för att välja en bildfil.",
   "splash.hint.open_or_drop": "Använd Arkiv -> Öppna... eller dra och släpp för att ladda upp filer.",
   "splash.status.dataset_scan_failed": "Datasetgenomsökning misslyckades",

@@ -3,6 +3,8 @@ AppName=ALBIS
 AppId=ALBIS
 AppPublisher=Sascha Andres Grimm
 AppPublisherURL=https://github.com/SaschaAndresGrimm/ALBIS
+; "(C)", not the symbol: plain ASCII whatever encoding Inno Setup reads this in.
+AppCopyright=Copyright (C) 2026 Sascha Andres Grimm and DECTRIS AG
 AppSupportURL=https://github.com/SaschaAndresGrimm/ALBIS/issues
 AppUpdatesURL=https://github.com/SaschaAndresGrimm/ALBIS/releases
 #ifndef AppVersion

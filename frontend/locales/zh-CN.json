@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "远程流 ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "SIMPLON 监视器",
   "splash.action.open_file": "打开文件",
+  "splash.byline": "在 DECTRIS 开发",
   "splash.hint.open_file_only": "使用 文件 -> 打开... 选择图像文件。",
   "splash.hint.open_or_drop": "使用 文件 -> 打开...，或拖放以上传文件。",
   "splash.status.dataset_scan_failed": "数据集扫描失败",

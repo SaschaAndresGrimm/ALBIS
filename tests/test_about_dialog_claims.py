@@ -106,3 +106,33 @@ def test_the_cited_doi_is_the_concept_doi_from_the_readme() -> None:
     assert shown in CITATION.read_text(
         encoding="utf-8"
     ), f"About cites {shown}, which CITATION.cff does not declare"
+
+
+def _license_holders() -> str:
+    """'2026 Sascha Andres Grimm and DECTRIS AG', from LICENSE's copyright line."""
+    match = re.search(
+        r"^Copyright \(c\) (.+)$", (ROOT / "LICENSE").read_text(encoding="utf-8"), re.M
+    )
+    assert match, "LICENSE has no copyright line"
+    return match.group(1).strip()
+
+
+def test_every_copyright_statement_names_the_licence_holders() -> None:
+    """About, the help page and the app metadata repeat LICENSE's copyright line.
+
+    They are literal strings far from LICENSE, so a change of holders or year
+    would otherwise leave them stating someone else's copyright.
+    """
+    holders = _license_holders()
+    places = {
+        "About dialog": INDEX.read_text(encoding="utf-8"),
+        "help page": (ROOT / "frontend" / "docs.html").read_text(encoding="utf-8"),
+        "macOS bundle": (ROOT / "ALBIS.spec").read_text(encoding="utf-8"),
+        "Windows installer": (ROOT / "scripts" / "installer_windows.iss").read_text(
+            encoding="utf-8"
+        ),
+    }
+    for place, text in places.items():
+        assert (
+            f"© {holders}" in text or f"Copyright (C) {holders}" in text
+        ), f"the {place} does not state the copyright holders LICENSE names ({holders})"

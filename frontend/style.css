@@ -4960,6 +4960,13 @@ body.platform-windows select option:disabled {
   font-weight: 600;
 }
 
+.about-copyright {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
 .about-repo-link:hover {
   background: linear-gradient(to bottom, rgba(58, 94, 152, 0.82), rgba(35, 65, 108, 0.82));
 }
@@ -5754,6 +5761,19 @@ body.platform-windows select option:disabled {
   font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 4px;
+}
+
+/* Who stands behind ALBIS, under its name. Small and quiet: the status line
+   below is what the eye needs while the backend starts. "developed at", not
+   "by", while ALBIS is not yet a DECTRIS product (GOVERNANCE.md). */
+.splash-byline {
+  margin: -2px 0 10px;
+  color: #9db2d9;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2.4px;
+  text-shadow: none;
 }
 
 .splash-sub {

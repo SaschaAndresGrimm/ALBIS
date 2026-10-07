@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "Remote stream ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "SIMPLON monitor",
   "splash.action.open_file": "Open file",
+  "splash.byline": "developed at DECTRIS",
   "splash.hint.open_file_only": "Use File -> Open... to choose an image file.",
   "splash.hint.open_or_drop": "Use File -> Open... or drag and drop to upload files.",
   "splash.status.dataset_scan_failed": "Dataset scan failed",

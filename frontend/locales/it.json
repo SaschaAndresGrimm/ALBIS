@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "Flusso remoto ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "Monitor SIMPLON",
   "splash.action.open_file": "Apri file",
+  "splash.byline": "sviluppato presso DECTRIS",
   "splash.hint.open_file_only": "Utilizza File -> Apri... per scegliere un file immagine.",
   "splash.hint.open_or_drop": "Utilizza File -> Apri... o trascina e rilascia per caricare file.",
   "splash.status.dataset_scan_failed": "La scansione del set di dati non è riuscita",

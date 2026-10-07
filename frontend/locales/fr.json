@@ -799,6 +799,7 @@
   "source.label.remote_stream_with_seq": "Flux distant ({{sourceId}}){{seqSuffix}}",
   "source.label.simplon_monitor": "Moniteur SIMPLON",
   "splash.action.open_file": "Ouvrir le fichier",
+  "splash.byline": "développé chez DECTRIS",
   "splash.hint.open_file_only": "Utilisez Fichier -> Ouvrir... pour choisir un fichier image.",
   "splash.hint.open_or_drop": "Utilisez Fichier -> Ouvrir... ou glissez-déposez pour téléverser des fichiers.",
   "splash.status.dataset_scan_failed": "Échec de l'analyse de l'ensemble de données",

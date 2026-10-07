@@ -253,6 +253,9 @@ if sys.platform == "darwin":
             "CFBundleName": "ALBIS",
             "CFBundleShortVersionString": bundle_version,
             "CFBundleVersion": bundle_build,
+            # Finder's Get Info shows this; kept in step with LICENSE by
+            # tests/test_about_dialog_claims.py.
+            "NSHumanReadableCopyright": "© 2026 Sascha Andres Grimm and DECTRIS AG",
             # What ALBIS offers to open. Launch Services reads this when the
             # bundle is registered, which is what puts ALBIS in the Finder's
             # "Open With" menu; the launcher's application:openFiles: delegate

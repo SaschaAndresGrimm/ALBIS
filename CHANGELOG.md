@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **DECTRIS is named where people look for who stands behind ALBIS.** The splash screen reads "developed at DECTRIS" under the ALBIS title ("by" will follow once ALBIS is a DECTRIS product, as GOVERNANCE.md describes), translated into all 13 languages. The About dialog and the help page end with the copyright line, "© 2026 Sascha Andres Grimm and DECTRIS AG", and the macOS app (Finder → Get Info) and the Windows installer now state it too. `tests/test_about_dialog_claims.py` keeps all four in step with LICENSE. No logo yet, and none in the working view or in exported files.
+
 ## [0.23.1] - 2026-10-07
 
 ### Changed
