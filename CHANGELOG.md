@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-10-07
+
 ### Changed
 
 - **The Zenodo record links to the installers and the documentation.** Zenodo archived the source with metadata from `CITATION.cff`, linking only the GitHub tag. A new `.zenodo.json` adds links to the GitHub releases (`isSourceOf`) and to the User Guide and Power User Guide (`isDocumentedBy`); every link type is checked against Zenodo's vocabulary. Zenodo reads `.zenodo.json` instead of `CITATION.cff` when both exist, so `tests/test_zenodo_metadata.py` keeps their title, description, authors, keywords and licence identical. Binaries stay on GitHub Releases only: about 700 MB per release, derived from the archived source.
@@ -1369,7 +1371,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.1...HEAD
+[0.23.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.1...v0.23.0
 [0.22.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.21.1...v0.22.0
