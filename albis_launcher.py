@@ -117,7 +117,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"ALBIS {ALBIS_VERSION}")
     parser.add_argument("--config", metavar="PATH", help="configuration file to read")
     parser.add_argument("--host", metavar="ADDRESS", help="address to listen on")
-    parser.add_argument("--port", metavar="PORT", help="port to listen on (0 picks a free one)")
+    parser.add_argument(
+        "--port",
+        metavar="PORT",
+        help="port to listen on (0 reuses the last start's port if free, else picks a free one)",
+    )
     parser.add_argument(
         "--allowed-hosts",
         metavar="NAMES",
@@ -647,6 +651,60 @@ def _create_bound_socket(host: str, port: int = 0) -> socket.socket:
     return sock
 
 
+def _port_answers(host: str, port: int) -> bool:
+    """Whether something already accepts connections on this port."""
+    target_host = host if host not in {"0.0.0.0", "::"} else "127.0.0.1"
+    try:
+        with socket.create_connection((target_host, port), timeout=0.3):
+            return True
+    except OSError:
+        return False
+
+
+def _bind_last_port(host: str, port: int) -> socket.socket | None:
+    """Bind the port of the previous start again, or None if it is not free.
+
+    With `server.port` 0 a new free port was picked on every start, and the
+    browser keeps `localStorage` per origin -- scheme, host and port -- so Open
+    Recent, the geometry override, the language and the panel layout all came
+    back empty after a restart. Reusing the last port keeps the origin.
+
+    A remembered port is treated more carefully than a random one: whatever
+    holds it now is not ours. Anything that answers on it is left alone, and on
+    Windows the bind is exclusive, since SO_REUSEADDR there would let this
+    socket take over a port another program is listening on. Elsewhere
+    SO_REUSEADDR stays, so the previous run's connections in TIME_WAIT do not
+    block an immediate restart.
+    """
+    if port <= 0 or port > 65535 or _port_answers(host, port):
+        return None
+    family = socket.AF_INET6 if (":" in host and host != "0.0.0.0") else socket.AF_INET
+    bind_host = "" if host in {"0.0.0.0", "::"} else host
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    try:
+        exclusive = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
+        if exclusive is not None:
+            sock.setsockopt(socket.SOL_SOCKET, exclusive, 1)
+        else:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((bind_host, port))
+    except OSError:
+        sock.close()
+        return None
+    return sock
+
+
+def _bind_auto_port(host: str, last_port: int) -> tuple[socket.socket, bool]:
+    """The socket for `server.port` 0: the last start's port if free, else any.
+
+    Returns the bound socket and whether it is the last port.
+    """
+    sock = _bind_last_port(host, last_port) if last_port > 0 else None
+    if sock is not None:
+        return sock, True
+    return _create_bound_socket(host, 0), False
+
+
 def _wait_for_server(host: str, port: int, timeout: float = 5.0) -> bool:
     deadline = time.time() + timeout
     target_host = host if host not in {"0.0.0.0", "::"} else "127.0.0.1"
@@ -820,6 +878,7 @@ def main() -> None:
     bound_sock: socket.socket | None = None
     if port <= 0:
         last = _load_last_server()
+        last_port = 0
         if last:
             last_host, last_port = last
             if _server_running(last_host, last_port):
@@ -829,8 +888,10 @@ def main() -> None:
                 )
                 _open_browser(last_host, last_port, open_target)
                 return
-        bound_sock = _create_bound_socket(host, 0)
+        bound_sock, reused = _bind_auto_port(host, last_port)
         port = int(bound_sock.getsockname()[1])
+        if reused:
+            _launcher_log(start_ts, f"reusing port {port} from the last start")
     else:
         try:
             bound_sock = _create_bound_socket(host, port)

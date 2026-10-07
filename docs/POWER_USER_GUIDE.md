@@ -18,7 +18,7 @@ pip install -r backend/requirements.txt
 python albis_launcher.py
 ```
 
-By default `server.port` is `0`, so ALBIS auto-selects a free port at startup.
+By default `server.port` is `0`: ALBIS picks a free port on the first start and reuses it on later starts while it is free. A stable port matters because the browser keeps ALBIS's settings per address, port included — Open Recent, the geometry override, the language and the panel layout would otherwise come back empty after every restart. If another program holds the port, ALBIS takes a free one and leaves that program alone.
 For `python albis_launcher.py` or packaged app runs, ALBIS opens the browser automatically.
 Running the backend alone with `python -m uvicorn backend.app:app` prints a startup URL
 (for example `http://127.0.0.1:51243`) to open yourself.
@@ -203,7 +203,7 @@ A live summary shows the resulting frame count, pixel dimensions, and an estimat
 #### `server`
 
 - `host` (`string`, default `127.0.0.1`): Set to `"0.0.0.0"` to enable LAN access.
-- `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means auto-select a free port at startup.
+- `port` (`integer`, default `0`, clamped `0..65535`): Single port used by backend + launcher. `0` means reuse the last start's port if it is free, otherwise pick a free one.
 - `reload` (`boolean`, default `false`)
 - `compression` (`auto|on|off`, default `auto`): Compress responses for remote clients.
 - `allowed_hosts` (`array of string`, default `[]`, also in **Settings -> Connection**): Extra `Host` header names ALBIS answers to. Empty derives them from `host`: a loopback bind answers only to this machine, and a `0.0.0.0` bind answers to any IP address plus this machine's own hostnames. Set this when clients arrive under a name ALBIS cannot derive — a reverse proxy's hostname, a LAN DNS name, a container alias — see [Reverse Proxies and Remote Access](#reverse-proxies-and-remote-access). `["*"]` accepts any host and turns the check off.
@@ -588,7 +588,8 @@ ALBIS can ingest externally generated frames and metadata when Data Source is se
 ### Minimal sender example
 
 The example below targets port `8000`. Note that the default `server.port` is `0`
-(auto-select), so a source-mode server picks a random free port at startup. Either set
+(auto-select): the launcher keeps the port of its last start while it is free, but the
+first start, or a port taken in the meantime, gives a new one. Either set
 `server.port` to a fixed value in `albis.config.json`, or read the port ALBIS prints at
 startup and use that here.
 
