@@ -16,7 +16,7 @@ here.
 
 | Component | Version | License | Copyright |
 |---|---|---|---|
-| FastAPI | 0.141.1 | MIT | © 2018 Sebastián Ramírez |
+| FastAPI | 0.142.2 | MIT | © 2018 Sebastián Ramírez |
 | Uvicorn | 0.54.0 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
 | Starlette | 1.7.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
 | AnyIO | 4.15.1 | MIT | © 2018 Alex Grönholm |
@@ -26,7 +26,7 @@ here.
 | NumPy | 2.5.3 | BSD-3-Clause | © 2005-2023 NumPy Developers |
 | tifffile | 2026.9.20 | BSD-3-Clause | © 2008-2025 Christoph Gohlke |
 | FabIO | 2026.6.0 | MIT | © European Synchrotron Radiation Facility and FabIO contributors |
-| cbor2 | 6.1.4 | MIT | © 2016 Alex Grönholm |
+| cbor2 | 6.1.5 | MIT | © 2016 Alex Grönholm |
 | PyZMQ | 27.2.0 | BSD-3-Clause | © 2009-2012 Brian Granger, Min Ragan-Kelley (bundles libzmq, MPL-2.0) |
 | dectris-compression | 0.3.1 | MIT | © 2020 DECTRIS Ltd. |
 | zstandard | 0.25.0 | BSD-3-Clause | © 2016 Gregory Szorc (bundles libzstd, © Meta Platforms, Inc., dual BSD-3-Clause/GPL-2.0 — used under BSD-3-Clause) |
