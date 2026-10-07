@@ -61,7 +61,6 @@ async function runTick({ failureBody, ok = false, status = 502 }) {
       parseDtype: (value) => value,
       parseShape: (value) => String(value).split(",").map(Number),
       typedArrayFrom: (buffer) => new Uint16Array(buffer),
-      hashBufferSample: vi.fn(() => "hash"),
       parseSimplonMeta: vi.fn(() => ({ analysis: {}, meta: {} })),
       createLiveSourceSnapshot: vi.fn((value) => value),
       appendLiveFrame: vi.fn(() => ({ appended: true, rendered: true })),

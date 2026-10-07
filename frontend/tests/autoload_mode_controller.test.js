@@ -85,7 +85,6 @@ describe("autoload_mode_controller", () => {
         parseDtype: vi.fn(),
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
-        hashBufferSample: vi.fn(),
         parseSimplonMeta: vi.fn(() => ({ analysis: {}, meta: {} })),
         createLiveSourceSnapshot: vi.fn((value) => value),
         appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
@@ -153,7 +152,6 @@ describe("autoload_mode_controller", () => {
         parseDtype: vi.fn(),
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
-        hashBufferSample: vi.fn(),
         parseSimplonMeta: vi.fn(() => ({ analysis: {}, meta: {} })),
         createLiveSourceSnapshot: vi.fn((value) => value),
         appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
@@ -216,7 +214,6 @@ describe("autoload_mode_controller", () => {
         parseDtype: vi.fn(),
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
-        hashBufferSample: vi.fn(),
         parseSimplonMeta: vi.fn(() => ({ analysis: {}, meta: {} })),
         createLiveSourceSnapshot: vi.fn((value) => value),
         appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
@@ -303,7 +300,6 @@ describe("autoload_mode_controller", () => {
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint16Array(buffer),
-        hashBufferSample: vi.fn(() => "same-hash"),
         parseSimplonMeta: vi.fn(() => ({
           analysis: {},
           meta: { series: "7", image: "8", date: "2026-04-02T12:00:00Z" },
@@ -321,6 +317,88 @@ describe("autoload_mode_controller", () => {
 
     expect(appendLiveFrame).toHaveBeenCalledTimes(1);
     expect(updateAutoloadMeta).toHaveBeenCalledTimes(1);
+  });
+
+  async function pollSparseFrames(metaFor) {
+    vi.resetModules();
+    // Two sparse 4 MB frames that differ only at a pixel between the bytes a
+    // 2048-byte sample reads -- as a few photons on a mostly empty EIGER do.
+    const frames = [new Uint32Array(1 << 20), new Uint32Array(1 << 20)];
+    frames[1][3] = 1;
+    let call = 0;
+    global.fetch = buildFetchMock(
+      { en: { "autoload.status.simplon.updated": "Updated", "source.label.simplon_monitor": "SIMPLON monitor" } },
+      async (url) => {
+        if (!url.includes("/simplon/monitor")) throw new Error(`Unexpected fetch: ${url}`);
+        const index = Math.min(call, frames.length - 1);
+        call += 1;
+        return {
+          ok: true,
+          status: 200,
+          headers: {
+            get: (name) => ({ "X-Dtype": "<u4", "X-Shape": "1024,1024" })[name] ?? null,
+            entries: () => [][Symbol.iterator](),
+          },
+          arrayBuffer: async () => frames[index].buffer.slice(0),
+          index,
+        };
+      },
+    );
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createAutoloadModeController } = await import("../modules/autoload_mode_controller.js");
+    const appendLiveFrame = vi.fn(() => ({ appended: true, rendered: true }));
+    let polled = 0;
+    const controller = createAutoloadModeController({
+      apiBase: "/api",
+      state: {
+        maskAvailable: true,
+        autoload: {
+          simplonUrl: "http://simplon.example",
+          simplonVersion: "1.8.0",
+          simplonTimeout: 500,
+          simplonEnable: true,
+          livePaused: false,
+          lastMonitorSig: "",
+          lastUpdate: 0,
+        },
+      },
+      callbacks: {
+        setAutoloadStatus: vi.fn(),
+        setAutoloadLatest: vi.fn(),
+        updateAutoloadMeta: vi.fn(),
+        loadAutoloadFile: vi.fn(),
+        fetchSimplonMask: vi.fn(),
+        parseDtype: (value) => value,
+        parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
+        typedArrayFrom: (buffer) => new Uint32Array(buffer),
+        parseSimplonMeta: vi.fn(() => {
+          const meta = metaFor(polled);
+          polled += 1;
+          return { analysis: {}, meta };
+        }),
+        createLiveSourceSnapshot: vi.fn((value) => value),
+        appendLiveFrame,
+        logClient: vi.fn(),
+        formatSimplonTimestamp: vi.fn(() => ""),
+        updateLiveBadge: vi.fn(),
+      },
+    });
+    await controller.autoloadSimplonTick();
+    await controller.autoloadSimplonTick();
+    await controller.autoloadSimplonTick();
+    return appendLiveFrame;
+  }
+
+  it("shows each new frame of a sparse acquisition, by the detector's image number", async () => {
+    const appendLiveFrame = await pollSparseFrames((poll) => ({ series: "157", image: String(48 + Math.min(poll, 1)), date: "" }));
+    // Frame 48, frame 49, then frame 49 again: two frames shown, not one.
+    expect(appendLiveFrame).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows each new frame of a sparse acquisition without detector numbering", async () => {
+    const appendLiveFrame = await pollSparseFrames(() => ({}));
+    expect(appendLiveFrame).toHaveBeenCalledTimes(2);
   });
 
   it("drops an in-flight SIMPLON frame when live browsing is paused", async () => {
@@ -396,7 +474,6 @@ describe("autoload_mode_controller", () => {
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint16Array(buffer),
-        hashBufferSample: vi.fn(() => "new-hash"),
         parseSimplonMeta: vi.fn(() => ({
           analysis: {},
           meta: { series: "7", image: "8", date: "2026-04-02T12:00:00Z" },

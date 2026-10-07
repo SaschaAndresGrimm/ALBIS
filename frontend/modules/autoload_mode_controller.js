@@ -4,6 +4,25 @@
 
 import { t } from "./i18n.js";
 import { describeSimplonFailure, readSimplonFailure } from "./simplon_diagnostics.js";
+import { hashBuffer } from "./buffer_hash.js";
+
+/**
+ * Which SIMPLON frame this is: the series, image number and timestamp the
+ * detector gives it, plus a hash of every pixel.
+ *
+ * A hash of 2048 sampled bytes used to decide this alone. On a sparse frame --
+ * a few photons on a mostly empty EIGER -- those bytes were the same zeros from
+ * one frame to the next, so each new frame was taken for the one on screen and
+ * never shown, while a newly opened window, with nothing to compare against,
+ * showed the latest. The detector's own numbering tells frames apart whatever
+ * they hold; the full hash covers firmware that sends no numbers.
+ */
+function simplonFrameIdentity(meta, buffer) {
+  const known = (value) => value !== "" && value != null;
+  const numbered = known(meta?.series) || known(meta?.image) || known(meta?.date);
+  const id = numbered ? `${meta.series ?? ""}/${meta.image ?? ""}/${meta.date ?? ""}` : "";
+  return `${id}|${hashBuffer(buffer)}`;
+}
 
 export function createAutoloadModeController({
   apiBase,
@@ -19,7 +38,6 @@ export function createAutoloadModeController({
     parseDtype,
     parseShape,
     typedArrayFrom,
-    hashBufferSample,
     parseSimplonMeta,
     createLiveSourceSnapshot,
     appendLiveFrame,
@@ -175,10 +193,10 @@ export function createAutoloadModeController({
     const dtype = parseDtype(res.headers.get("X-Dtype"));
     const shape = parseShape(res.headers.get("X-Shape"));
     const data = typedArrayFrom(buffer, dtype);
-    const sig = hashBufferSample(buffer);
-    const changed = Boolean(sig) && sig !== state.autoload.lastMonitorSig;
     const parsed = parseSimplonMeta(res.headers);
     const simplonMeta = parsed.meta || {};
+    const sig = simplonFrameIdentity(simplonMeta, buffer);
+    const changed = sig !== state.autoload.lastMonitorSig;
     if (!state.autoload.loggedSimplonHeaders) {
       state.autoload.loggedSimplonHeaders = true;
       logClient("info", "SIMPLON response headers", {

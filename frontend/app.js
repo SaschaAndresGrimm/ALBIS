@@ -3084,7 +3084,6 @@ const autoloadModeController = createAutoloadModeController({
     parseDtype,
     parseShape,
     typedArrayFrom,
-    hashBufferSample,
     parseSimplonMeta,
     createLiveSourceSnapshot,
     appendLiveFrame,
@@ -3640,20 +3639,6 @@ function fileLabel(path) {
   if (!path) return "";
   const parts = path.split(/[/\\\\]/);
   return parts[parts.length - 1] || path;
-}
-
-function hashBufferSample(buffer) {
-  if (!buffer) return "";
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.length;
-  if (!len) return "0";
-  const stride = Math.max(1, Math.floor(len / 2048));
-  let hash = 2166136261;
-  for (let i = 0; i < len; i += stride) {
-    hash ^= bytes[i];
-    hash = (hash * 16777619) >>> 0;
-  }
-  return `${len}-${hash}`;
 }
 
 let renderEngineController = null;
