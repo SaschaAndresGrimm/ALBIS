@@ -1,5 +1,5 @@
 {
-  "name": "albis-web-view",
+  "name": "dectris-albis",
   "private": true,
   "version": "0.23.1",
   "description": "ALBIS — ALBULA-style viewer for DECTRIS detector data: HDF5, TIFF, CBF, EDF, MYTHEN and live streams. Free and open source, for Windows, macOS and Linux.",

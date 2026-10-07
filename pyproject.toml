@@ -1,5 +1,7 @@
 [project]
-name = "albis"
+# "albis" on PyPI is an unrelated project, so the distribution name carries the
+# vendor prefix. ALBIS is not published on PyPI; the product name stays ALBIS.
+name = "dectris-albis"
 version = "0.23.1"
 description = "ALBIS — ALBULA-style viewer for DECTRIS detector data: HDF5, TIFF, CBF, EDF, MYTHEN and live streams. Free and open source, for Windows, macOS and Linux."
 readme = "README.md"
