@@ -236,8 +236,21 @@ Expected result:
 
 **This setup is complete — there is nothing to do here per release.** Zenodo is linked
 to the repository and archives every published tag on its own, reading its metadata from
-`CITATION.cff`. Only `version` and `date-released` in that file need updating, which
-section 1 already covers.
+`.zenodo.json`. When that file exists Zenodo ignores `CITATION.cff` entirely, so the two
+must say the same things: `.zenodo.json` copies the title, description, authors, keywords
+and licence from `CITATION.cff` and adds what `CITATION.cff` cannot express, the links to
+the installers and the user documentation. `tests/test_zenodo_metadata.py` fails when they
+drift. `.zenodo.json` pins no version: Zenodo takes it from the release tag. Only
+`version` and `date-released` in `CITATION.cff` need updating, which section 1 already
+covers.
+
+A value Zenodo does not recognise in `.zenodo.json` makes the archive of that release fail.
+After a release that changed it, check the Zenodo record; if the version is missing,
+**Account -> GitHub** on Zenodo shows the error and can retry the release.
+
+Zenodo archives the source only. The installers stay on GitHub Releases, which the record
+links to: they are about 700 MB per release, derived from the archived source, and nobody
+downloads them from Zenodo.
 
 - Concept DOI (always resolves to the newest release): [10.5281/zenodo.22046648](https://doi.org/10.5281/zenodo.22046648)
 - Each release also gets its own version DOI, listed on the Zenodo record.
