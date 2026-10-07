@@ -104,17 +104,17 @@ ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_G
 
 For power users looking to configure the server, use the advanced Stream API, or run ALBIS from source:
 
-- [Power User Guide](docs/POWER_USER_GUIDE.md)
+- [Power User Guide](docs/POWER_USER_GUIDE.md) — running from source or Docker, configuration, remote access, and the APIs
 - [Network Behaviour and Privacy](docs/NETWORK_AND_PRIVACY.md) — what leaves your machine, and how to stop it
 - [Compatibility Policy](docs/COMPATIBILITY.md) — what a version number promises, and what it does not
 
 For developers looking to build, test, and contribute:
 
-- [Developer Guide](docs/DEVELOPER_GUIDE.md)
-- [Contributing](CONTRIBUTING.md)
+- [Developer Guide](docs/DEVELOPER_GUIDE.md) — how ALBIS is built, tested, packaged and organised
+- [Contributing](CONTRIBUTING.md) — how to report a problem or propose a change
 - [Support](SUPPORT.md) — where to ask, and what to expect
 - [Governance](GOVERNANCE.md) — who maintains ALBIS, and what you can rely on
-- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md) — how we treat each other, and whom to tell if that fails
 
 ## Citing ALBIS
 

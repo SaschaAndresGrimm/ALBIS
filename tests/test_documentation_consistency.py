@@ -275,6 +275,8 @@ def _flat(text: str) -> str:
         "pyproject.toml",
         "package.json",
         "CITATION.cff",
+        "CONTRIBUTING.md",
+        "albis_launcher.py",
         "backend/app.py",
         "packaging/linux/ALBIS.desktop",
         "packaging/linux/ALBIS.metainfo.xml",

@@ -107,7 +107,7 @@ _CLI_TO_ENV: dict[str, tuple[str, str]] = {
 def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="albis",
-        description="ALBIS - browser-based image viewer for detector data.",
+        description="ALBIS - ALBULA-style viewer for DECTRIS detector data.",
         epilog=(
             "Every setting can also come from the environment (ALBIS_SERVER_HOST, "
             "ALBIS_DATA_ROOT, ...) or from albis.config.json. Precedence: these "
