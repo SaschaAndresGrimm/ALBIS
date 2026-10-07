@@ -4960,6 +4960,24 @@ body.platform-windows select option:disabled {
   font-weight: 600;
 }
 
+/* The DECTRIS wordmark exactly as dectris.com publishes it: one navy, which
+   on ALBIS's dark card needs a light ground. Recolouring it for a dark
+   background is DECTRIS marketing's call, not ours. */
+.about-dectris {
+  display: block;
+  width: fit-content;
+  margin: 12px auto 0;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+}
+
+.about-dectris img {
+  display: block;
+  width: 120px;
+  height: auto;
+}
+
 .about-copyright {
   margin: 10px 0 0;
   color: var(--muted);

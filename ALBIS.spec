@@ -74,6 +74,8 @@ for asset_name in (
     "icon_256x256.png",
     "icon_512x512.png",
     "icon_1024x1024.png",
+    # Shown in Help -> About; without it the installed app shows a broken image.
+    "dectris_logo.svg",
 ):
     asset_path = os.path.abspath(os.path.join("albis_assets", asset_name))
     if os.path.exists(asset_path):

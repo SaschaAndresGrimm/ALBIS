@@ -136,3 +136,14 @@ def test_every_copyright_statement_names_the_licence_holders() -> None:
         assert (
             f"© {holders}" in text or f"Copyright (C) {holders}" in text
         ), f"the {place} does not state the copyright holders LICENSE names ({holders})"
+
+
+def test_the_dectris_logo_ships_with_the_app() -> None:
+    """About shows the logo from /assets; the installers bundle only listed assets."""
+    html = INDEX.read_text(encoding="utf-8")
+    assert 'src="assets/dectris_logo.svg"' in html
+    logo = ROOT / "albis_assets" / "dectris_logo.svg"
+    assert logo.is_file()
+    text = logo.read_text(encoding="utf-8")
+    assert "<script" not in text and "href=" not in text, "the logo must be a plain image"
+    assert '"dectris_logo.svg"' in (ROOT / "ALBIS.spec").read_text(encoding="utf-8")
