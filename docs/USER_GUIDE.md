@@ -22,6 +22,7 @@ reference of the same material.
 - [Combine a series into one image](#combine-a-series-into-one-image)
 - [Get data back out](#get-data-back-out)
 - [Compare two views](#compare-two-views)
+- [Control a detector (beta)](#control-a-detector-beta)
 - [Work from another machine](#work-from-another-machine)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [What ALBIS sends over the network](#what-albis-sends-over-the-network)
@@ -426,6 +427,46 @@ the same feature while you navigate; unlink to look at different regions with
 the same contrast.
 
 ---
+
+## Control a detector (beta)
+
+The **Detector** tab sets up and runs a DECTRIS detector over its SIMPLON API
+(version 1.8.0 or later), without writing any code. It is a beta feature and
+hidden by default: switch it on under **Settings → Viewer → Beta: detector
+control**. While it is off, ALBIS cannot drive a detector at all.
+
+Enter the detector's address and press **Connect**. The tab reads what the
+detector says about each of its settings, so every field shows that detector's
+own units, limits and choices, whichever model it is:
+
+- **The state, and the one next step.** A coloured badge says what the detector
+  is doing (not initialized, idle, armed, acquiring, error), and the main
+  button offers what makes sense now: **Initialize** after power-up or an
+  error (this can take up to two minutes), **Acquire** when the detector is
+  idle, **Stop** while a series runs. Temperature, humidity and high voltage
+  are shown underneath.
+- **Acquisition.** Energy, threshold(s), count and frame time, images per
+  trigger, triggers and trigger mode. A value outside the detector's range is
+  refused before anything is sent. When a change makes the detector adjust
+  another setting — a longer count time raises the frame time — that setting
+  flashes and says so. Settings are locked while the detector is busy.
+- **Data output.** Switch the file writer, the stream and the monitor on or off.
+  The file writer shows its name pattern, the name the next series gets, how
+  much storage is left and the files on the detector, each downloadable; **Delete
+  all files on the detector** clears them, after asking. If nothing would be
+  saved, the tab says so and asks before acquiring. **Watch live images** shows
+  the monitor's images in ALBIS.
+- **Activity** lists what was done and what the detector changed, including
+  changes made by another program, such as a beamline control system using the
+  same detector.
+- **Advanced** holds every other setting the detector documents, read-only
+  information, and the raw commands (Arm, Trigger, Disarm, Cancel).
+
+Anyone who can open ALBIS can use the tab while it is switched on, so leave it
+off on a shared instance unless that is intended.
+
+To try it without a detector, `python test_scripts/fake_simplon_dcu.py` runs a
+simulated one at `http://127.0.0.1:8100`.
 
 ## Work from another machine
 

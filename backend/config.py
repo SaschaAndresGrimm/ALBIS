@@ -68,6 +68,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "pixel_label_format": "auto",
         "pixel_label_show_during_drag": False,
         "language": "en",
+        # Beta: the Detector tab, which drives a detector over SIMPLON. Off
+        # unless switched on, so a default installation cannot control one.
+        "detector_control": False,
     },
 }
 
@@ -109,6 +112,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("ui", "pixel_label_format"): (str,),
     ("ui", "pixel_label_show_during_drag"): (bool, int, float, str),
     ("ui", "language"): (str,),
+    ("ui", "detector_control"): (bool, int, float, str),
 }
 
 
@@ -422,6 +426,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
                 merged, ("ui", "pixel_label_show_during_drag"), False
             ),
             "language": ui_language,
+            "detector_control": get_bool(merged, ("ui", "detector_control"), False),
         },
     }
 

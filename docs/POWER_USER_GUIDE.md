@@ -286,6 +286,7 @@ what a given build can actually produce.
   Frames are never cached while autoload is running or a watch is armed, because the file may still be growing under the filewriter. Live sources (SIMPLON, Remote Stream, JUNGFRAUJOCH) are never cached either. Multi-file image series are not cached yet — this applies to HDF5 stacks.
 - `pixel_label_format` (`auto|integer|scientific`, default `auto`)
 - `pixel_label_show_during_drag` (`boolean`, default `false`)
+- `detector_control` (`boolean`, default `false`): beta. Shows the **Detector** tab, which controls a DECTRIS detector over the SIMPLON API (settings, commands, file writer, stream, monitor, file downloads). While it is off, the `/api/detector/*` endpoints answer 404. Anyone who can open ALBIS can use it once it is on.
 
 ## Geometry Files
 

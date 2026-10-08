@@ -1,0 +1,352 @@
+"""A simulated DECTRIS detector control unit speaking SIMPLON 1.8.
+
+Follows the SIMPLON 1.8 API reference (v3.11): parameters describe themselves
+(value, value_type, unit, min, max, allowed_values, access_mode); a PUT answers
+with the parameters it changed; only the state is readable before `initialize`;
+commands are PUT on /<subsystem>/api/<version>/command/<name>; the file writer
+lists files at /filewriter/api/<version>/files/ and serves them from /data/.
+
+Used by the tests and, through `scripts/fake_simplon.py`, to try the Detector
+tab without hardware. The values are plausible, not a real detector's.
+"""
+
+from __future__ import annotations
+
+import copy
+import json
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
+
+READOUT_S = 1e-7
+
+
+def _param(
+    value: Any, value_type: str, unit: str = "", access: str = "rw", **extra: Any
+) -> dict[str, Any]:
+    out = {"value": value, "value_type": value_type, "unit": unit, "access_mode": access}
+    out.update(extra)
+    return out
+
+
+def _default_params() -> dict[str, dict[str, dict[str, Any]]]:
+    return {
+        "detector": {
+            "description": _param("Dectris EIGER2 Si 4M (simulated)", "string", access="r"),
+            "detector_number": _param("E-08-0123", "string", access="r"),
+            "sensor_material": _param("Si", "string", access="r"),
+            "photon_energy": _param(12400.0, "float", "eV", min=3500.0, max=40000.0),
+            "incident_energy": _param(12400.0, "float", "eV", min=3500.0, max=40000.0),
+            "threshold_energy": _param(6200.0, "float", "eV", min=1750.0, max=20000.0),
+            "threshold/1/energy": _param(6200.0, "float", "eV", min=1750.0, max=20000.0),
+            "threshold/1/mode": _param("enabled", "string", allowed_values=["enabled", "disabled"]),
+            "count_time": _param(0.0099999, "float", "s", min=0.0001999, max=3600.0),
+            "frame_time": _param(0.01, "float", "s", min=0.0002, max=3600.0),
+            "nimages": _param(10, "uint", min=1, max=2000000000),
+            "ntrigger": _param(1, "uint", min=1, max=1000000),
+            "trigger_mode": _param(
+                "ints", "string", allowed_values=["ints", "inte", "exts", "exte"]
+            ),
+            "compression": _param("bslz4", "string", allowed_values=["bslz4", "lz4"]),
+            "countrate_correction_applied": _param(True, "bool"),
+            "number_of_excluded_pixels": _param(412, "uint", access="r"),
+        },
+        "monitor": {
+            "mode": _param("disabled", "string", allowed_values=["enabled", "disabled"]),
+            "buffer_size": _param(100, "uint", min=1, max=1000),
+            "discard_new": _param(True, "bool"),
+        },
+        "filewriter": {
+            "mode": _param("disabled", "string", allowed_values=["enabled", "disabled"]),
+            "name_pattern": _param("series_$id", "string"),
+            "nimages_per_file": _param(1000, "uint", min=0, max=1000000),
+            "compression_enabled": _param(True, "bool"),
+        },
+        "stream": {
+            "mode": _param("disabled", "string", allowed_values=["enabled", "disabled"]),
+            "header_detail": _param("basic", "string", allowed_values=["all", "basic", "none"]),
+            "format": _param("cbor", "string", allowed_values=["legacy", "cbor"]),
+        },
+    }
+
+
+class FakeDCU:
+    """State and behaviour of one simulated detector control unit."""
+
+    def __init__(self, *, init_delay: float = 0.2, max_series_s: float = 0.3) -> None:
+        self.lock = threading.Lock()
+        self.params = _default_params()
+        self.state = "na"
+        self.init_delay = init_delay
+        self.max_series_s = max_series_s
+        self.sequence_id = 0
+        self.files: dict[str, bytes] = {}
+        self.stream_dropped = 0
+        self.monitor_dropped = 0
+        self.abort_flag = threading.Event()
+        self.requests: list[tuple[str, str]] = []
+
+    # ---- configuration ----
+    def describe(self, subsystem: str, key: str) -> dict[str, Any] | None:
+        if self.state == "na" and not (subsystem == "detector" and key == "state"):
+            return None
+        param = self.params.get(subsystem, {}).get(key)
+        return copy.deepcopy(param) if param else None
+
+    def put_config(self, subsystem: str, key: str, value: Any) -> tuple[int, Any]:
+        with self.lock:
+            if self.state == "na":
+                return 404, f"Parameter {key} does not exist"
+            param = self.params.get(subsystem, {}).get(key)
+            if param is None:
+                return 404, f"Parameter {key} does not exist"
+            if "w" not in param["access_mode"]:
+                return 400, f"{key} is read-only"
+            if self.state in ("acquire", "initialize"):
+                return 400, "Not allowed while the detector is busy"
+            vtype = param["value_type"]
+            ok = (
+                (vtype == "bool" and isinstance(value, bool))
+                or (
+                    vtype == "uint"
+                    and isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and value >= 0
+                )
+                or (
+                    vtype == "float"
+                    and isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                )
+                or (vtype == "string" and isinstance(value, str))
+            )
+            if not ok:
+                return 400, f"Wrong type for {key}"
+            if "min" in param and value < param["min"] or "max" in param and value > param["max"]:
+                return 400, f"{key} out of range"
+            if param.get("allowed_values") and value not in param["allowed_values"]:
+                return 400, f"{key} not allowed"
+            param["value"] = float(value) if vtype == "float" else value
+            changed = [key]
+            det = self.params["detector"]
+            if subsystem == "detector" and key == "count_time":
+                det["frame_time"]["value"] = max(det["frame_time"]["value"], value + READOUT_S)
+                changed += ["frame_time", "frame_count_time"]
+            if subsystem == "detector" and key == "frame_time":
+                det["count_time"]["value"] = value - READOUT_S
+                changed += ["count_time", "frame_count_time"]
+            if subsystem == "detector" and key in ("photon_energy", "incident_energy"):
+                det["photon_energy"]["value"] = det["incident_energy"]["value"] = float(value)
+                det["threshold_energy"]["value"] = det["threshold/1/energy"]["value"] = value / 2
+                changed += [
+                    "photon_energy",
+                    "incident_energy",
+                    "threshold_energy",
+                    "threshold/1/energy",
+                ]
+            return 200, sorted(set(changed))
+
+    # ---- commands ----
+    def command(self, subsystem: str, name: str) -> tuple[int, Any]:
+        if subsystem == "detector":
+            if name == "initialize":
+                with self.lock:
+                    self.state = "initialize"
+                time.sleep(self.init_delay)
+                with self.lock:
+                    self.state = "idle"
+                return 200, None
+            if self.state == "na":
+                return 400, "Detector not initialized"
+            if name == "arm":
+                with self.lock:
+                    self.sequence_id += 1
+                    self.state = "ready"
+                    self.stream_dropped = 0
+                return 200, {"sequence id": self.sequence_id}
+            if name == "trigger":
+                if self.state != "ready":
+                    return 400, "Detector not armed"
+                det = self.params["detector"]
+                if not str(det["trigger_mode"]["value"]).startswith("int"):
+                    return 400, "Trigger is not used in external trigger modes"
+                self.abort_flag.clear()
+                with self.lock:
+                    self.state = "acquire"
+                total = det["nimages"]["value"] * det["ntrigger"]["value"]
+                duration = min(total * det["frame_time"]["value"], self.max_series_s)
+                aborted = self.abort_flag.wait(duration)
+                with self.lock:
+                    if not aborted:
+                        self._write_series(total)
+                    self.state = "idle"
+                return 200, None
+            if name in ("disarm", "cancel", "abort"):
+                self.abort_flag.set()
+                with self.lock:
+                    self.state = "idle"
+                return 200, {"sequence id": self.sequence_id}
+        if subsystem == "filewriter" and name == "clear":
+            with self.lock:
+                self.files.clear()
+            return 200, None
+        if subsystem == "monitor" and name == "clear":
+            self.monitor_dropped = 0
+            return 200, None
+        return 404, f"Command {name} does not exist"
+
+    def _write_series(self, total: int) -> None:
+        if self.params["filewriter"]["mode"]["value"] == "enabled":
+            name = str(self.params["filewriter"]["name_pattern"]["value"]).replace(
+                "$id", str(self.sequence_id)
+            )
+            self.files[f"{name}_master.h5"] = b"\x89HDF\r\n\x1a\n" + b"m" * 1000
+            self.files[f"{name}_data_000001.h5"] = b"\x89HDF\r\n\x1a\n" + b"d" * (2000 + total)
+        if self.params["stream"]["mode"]["value"] == "enabled":
+            self.stream_dropped += total
+
+    # ---- status ----
+    def status(self, subsystem: str, key: str) -> Any:
+        if subsystem == "detector":
+            if key == "state":
+                return self.state
+            if self.state == "na":
+                return None
+            return {"temperature": 25.1, "humidity": 3.4, "high_voltage/state": "READY"}.get(key)
+        mode = self.params.get(subsystem, {}).get("mode", {}).get("value")
+        busy = self.state == "acquire"
+        if subsystem == "filewriter":
+            return {
+                "state": "disabled" if mode != "enabled" else ("acquire" if busy else "ready"),
+                "buffer_free": 800_000_000_000 - sum(map(len, self.files.values())),
+                "error": [],
+                "files": sorted(self.files),
+            }.get(key)
+        if subsystem == "stream":
+            return {
+                "state": "disabled" if mode != "enabled" else ("acquire" if busy else "ready"),
+                "dropped": self.stream_dropped,
+            }.get(key)
+        if subsystem == "monitor":
+            return {
+                "state": "normal",
+                "dropped": self.monitor_dropped,
+                "buffer_fill_level": [0, 100],
+            }.get(key)
+        return None
+
+
+def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args: Any) -> None:  # quiet
+            pass
+
+        def _send(
+            self, code: int, payload: Any = None, *, raw: bytes | None = None, head: bool = False
+        ) -> None:
+            body = (
+                raw
+                if raw is not None
+                else (b"" if payload is None else json.dumps(payload).encode())
+            )
+            self.send_response(code)
+            self.send_header(
+                "Content-Type",
+                "application/octet-stream" if raw is not None else "application/json",
+            )
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            if not head:
+                self.wfile.write(body)
+
+        def _route(self) -> tuple[str, str, str, str] | None:
+            parts = self.path.split("?", 1)[0].strip("/").split("/")
+            # <subsystem>/api/<version>/<task>/<key...>
+            if len(parts) >= 4 and parts[1] == "api":
+                return parts[0], parts[2], parts[3], "/".join(parts[4:])
+            return None
+
+        def _data(self, head: bool) -> bool:
+            path = self.path.split("?", 1)[0]
+            if not path.startswith("/data/"):
+                return False
+            name = path[len("/data/") :]
+            blob = dcu.files.get(name)
+            if blob is None:
+                self._send(404, "not found")
+            else:
+                self._send(200, raw=blob, head=head)
+            return True
+
+        def do_HEAD(self) -> None:  # noqa: N802
+            if not self._data(head=True):
+                self._send(404, head=True)
+
+        def do_GET(self) -> None:  # noqa: N802
+            dcu.requests.append(("GET", self.path))
+            if self._data(head=False):
+                return
+            route = self._route()
+            if not route:
+                self._send(404, "not found")
+                return
+            subsystem, _version, task, key = route
+            if task == "config":
+                param = dcu.describe(subsystem, key)
+                (
+                    self._send(200, param)
+                    if param
+                    else self._send(404, f"Parameter {key} does not exist")
+                )
+            elif task == "status":
+                value = dcu.status(subsystem, key)
+                if value is None and not (subsystem == "detector" and key == "state"):
+                    self._send(404, f"Parameter {key} does not exist")
+                else:
+                    self._send(200, {"value": value, "value_type": "string"})
+            elif task == "files" and subsystem == "filewriter":
+                self._send(200, sorted(dcu.files))
+            else:
+                self._send(404, "not found")
+
+        def do_PUT(self) -> None:  # noqa: N802
+            dcu.requests.append(("PUT", self.path))
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length) if length else b""
+            body = json.loads(raw) if raw else {}
+            route = self._route()
+            if not route:
+                self._send(404, "not found")
+                return
+            subsystem, _version, task, key = route
+            if task == "config":
+                code, payload = dcu.put_config(subsystem, key, body.get("value"))
+            elif task == "command":
+                code, payload = dcu.command(subsystem, key)
+            else:
+                code, payload = 404, "not found"
+            self._send(code, payload)
+
+    return Handler
+
+
+class FakeDCUServer:
+    """Runs a FakeDCU on 127.0.0.1 in a background thread."""
+
+    def __init__(self, port: int = 0, **kwargs: Any) -> None:
+        self.dcu = FakeDCU(**kwargs)
+        self.server = ThreadingHTTPServer(("127.0.0.1", port), _handler(self.dcu))
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self.server.server_address[1]}"
+
+    def __enter__(self) -> FakeDCUServer:
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.server.shutdown()
+        self.server.server_close()

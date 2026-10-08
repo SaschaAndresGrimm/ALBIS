@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Beta: control a DECTRIS detector from ALBIS.** A new **Detector** tab, hidden until Settings → Viewer → Beta: detector control is switched on (`ui.detector_control`, off by default; the `/api/detector/*` endpoints answer 404 while it is off). Enter the detector's address and connect; every field is built from what the detector says about the parameter over SIMPLON (1.8.0 or later) — value, unit, limits, allowed values, access — so each model gets its own form. It shows the detector state with the one sensible next step (Initialize, Acquire, Stop) and temperature, humidity and high voltage; refuses out-of-range values before sending them; shows what the detector adjusted alongside a change; switches the file writer, stream and monitor, with their status, the next file name, free storage and dropped images; lists the files on the detector for download and clears them on request; warns when nothing would be saved; flags changes made by another program; and logs what happened. Initialize (up to two minutes) and Trigger (until the series ends) run in the background, one command at a time, with Abort, Cancel and Disarm always getting through. Only documented SIMPLON keys and a whitelist of commands are used, writes and commands go through the cross-site guard, and file names are kept on the detector's data directory. Built and tested against a simulated detector control unit (`tests/fake_simplon.py`, runnable as `test_scripts/fake_simplon_dcu.py`) that follows the SIMPLON 1.8 reference; not yet tried on hardware.
+
 ### Changed
 
 - **The electron-microscopy detectors ARINA, SINGLA, QUADRO and ELA are listed as supported**, in the README and the citation (and with it the Zenodo record, which also gains the keyword "electron microscopy"). Nothing in ALBIS changes: it recognises DECTRIS HDF5 by its layout, not by detector name, and ARINA masters were already handled (`tests/test_hdf5_orphaned_master.py`).

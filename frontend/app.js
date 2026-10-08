@@ -79,6 +79,7 @@ import { createRenderEngineController } from "./modules/render_engine_controller
 import { createOverviewViewportController } from "./modules/overview_viewport_controller.js";
 import { getCircularRoiOuterRadius, getRoiImageBounds } from "./modules/roi_geometry_utils.js";
 import { createImageExportController } from "./modules/image_export_controller.js";
+import { createDetectorControlController } from "./modules/detector_control_controller.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -607,6 +608,7 @@ const settingsAutoCheckUpdates = document.getElementById("settings-auto-check-up
 const settingsAllowUpdateDownload = document.getElementById("settings-allow-update-download");
 const settingsAllowUpdateApply = document.getElementById("settings-allow-update-apply");
 const settingsToolHints = document.getElementById("settings-tool-hints");
+const settingsDetectorControl = document.getElementById("settings-detector-control");
 const settingsLanguage = document.getElementById("settings-language");
 const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
 const settingsPixelLabelMax = document.getElementById("settings-pixel-label-max");
@@ -683,6 +685,7 @@ const overviewInteractionState = {
 let sectionStateStore = {};
 let roiDragging = false;
 let panelTabState = "view";
+let detectorControlController = null;
 const coarsePointerQuery = window.matchMedia("(hover: none), (pointer: coarse)");
 const overlayCanvasMetrics = new WeakMap();
 const modalFocusRestore = new WeakMap();
@@ -3328,6 +3331,7 @@ const settingsController = createSettingsController({
     settingsAllowUpdateDownload,
     settingsAllowUpdateApply,
     settingsToolHints,
+    settingsDetectorControl,
     settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
@@ -3352,8 +3356,69 @@ const settingsController = createSettingsController({
     setStatus,
     schedulePixelOverlay,
     applyLanguagePreference,
+    // Late-bound: settings can be applied before the controller below exists.
+    setDetectorControlEnabled: (enabled) => detectorControlController?.setEnabled(enabled),
   },
 });
+
+// Beta: the Detector tab. Hidden until ui.detector_control is on; the
+// backend refuses its endpoints until then too.
+const $detector = (id) => document.getElementById(id);
+detectorControlController = createDetectorControlController({
+  apiBase: API,
+  elements: {
+    tab: $detector("panel-tab-detector"),
+    content: $detector("detector-content"),
+    urlInput: $detector("detector-url"),
+    connectBtn: $detector("detector-connect"),
+    message: $detector("detector-message"),
+    summary: $detector("detector-summary"),
+    live: $detector("detector-live"),
+    model: $detector("detector-model"),
+    serial: $detector("detector-serial"),
+    statePill: $detector("detector-state"),
+    stateText: $detector("detector-state-text"),
+    progress: $detector("detector-progress"),
+    progressBar: $detector("detector-bar"),
+    progressLeft: $detector("detector-progress-left"),
+    progressRight: $detector("detector-progress-right"),
+    confirm: $detector("detector-confirm"),
+    confirmText: $detector("detector-confirm-text"),
+    confirmYes: $detector("detector-confirm-yes"),
+    confirmNo: $detector("detector-confirm-no"),
+    primaryBtn: $detector("detector-primary"),
+    stopBtn: $detector("detector-stop"),
+    sensors: $detector("detector-sensors"),
+    notice: $detector("detector-notice"),
+    noticeText: $detector("detector-notice-text"),
+    noticeDismiss: $detector("detector-notice-dismiss"),
+    sections: document.querySelectorAll("#detector-content .detector-extra"),
+    paramsHost: $detector("detector-params"),
+    lockNote: $detector("detector-lock"),
+    outputsHost: $detector("detector-outputs"),
+    filesHost: $detector("detector-files"),
+    logHost: $detector("detector-log"),
+    advancedHost: $detector("detector-advanced"),
+    commandsHost: $detector("detector-commands"),
+  },
+  callbacks: {
+    getPanelTab: () => panelTabState,
+    setPanelTab: (tabId) => setPanelTab(tabId),
+    // The monitor's images are what ALBIS's SIMPLON data source shows: point it
+    // at the same detector and switch to it.
+    watchLive: (detectorUrl) => {
+      if (simplonUrl) {
+        simplonUrl.value = detectorUrl;
+        simplonUrl.dispatchEvent(new window.Event("change"));
+      }
+      if (autoloadMode && autoloadMode.value !== "simplon") {
+        autoloadMode.value = "simplon";
+        autoloadMode.dispatchEvent(new window.Event("change"));
+      }
+    },
+  },
+});
+detectorControlController.setEnabled(state.detectorControl);
 
 function applyUiSettings(uiConfig, options = {}) {
   settingsController.applyUiSettings(uiConfig, options);

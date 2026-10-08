@@ -108,6 +108,7 @@ function createUiPreferencesState() {
     language: "en",
     toolHintsEnabled: false,
     autoCheckUpdates: true,
+    detectorControl: false,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,
     frameCacheMb: 256,

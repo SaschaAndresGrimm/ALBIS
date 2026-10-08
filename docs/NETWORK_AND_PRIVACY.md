@@ -159,6 +159,7 @@ None of it happens by default:
 | Traffic | Destination | Starts when |
 | --- | --- | --- |
 | SIMPLON monitor polling | the detector control server you enter | you connect to a SIMPLON source |
+| Detector control (beta) | the detector control server you enter | you switch on Settings → Viewer → Beta: detector control and press Connect in the Detector tab |
 | JUNGFRAUJOCH preview | the ZeroMQ endpoint you enter | you connect to a JFJoch preview source |
 | Remote Stream API | inbound only — ALBIS receives, never calls out | an external producer posts frames to ALBIS |
 | Health probe | `127.0.0.1` (the bundled launcher checking its own backend) | ALBIS starts |

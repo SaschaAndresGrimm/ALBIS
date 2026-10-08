@@ -74,12 +74,17 @@ from .request_guard import (
 from .response_compression import ResponseCompressionMiddleware
 from .routes.analysis import AnalysisRouteDeps, register_analysis_routes
 from .routes.data_export import DataExportRouteDeps, register_data_export_routes
+from .routes.detector_control import (
+    DetectorControlRouteDeps,
+    register_detector_control_routes,
+)
 from .routes.files import FileRouteDeps, register_file_routes
 from .routes.frames import FrameRouteDeps, register_frame_routes
 from .routes.handoff import HandoffRouteDeps, register_handoff_routes
 from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
 from .routes.stream import StreamRouteDeps, register_stream_routes
 from .routes.system import SystemRouteDeps, register_system_routes
+from .services import simplon_control
 from .services.data_export import DataExportDeps, DataExportService
 from .services.directory_scan import (
     LatestFileResult,
@@ -164,6 +169,7 @@ class RuntimeState:
     max_upload_bytes: int = 0
     allow_update_download: bool = True
     allow_update_apply: bool = False
+    detector_control: bool = False
     bind_host: str = "127.0.0.1"
     allowed_hosts: list[str] = field(default_factory=list)
 
@@ -184,6 +190,7 @@ class RuntimeState:
         self.max_upload_mb = max(0, get_int(self.config, ("data", "max_upload_mb"), 0))
         self.max_upload_bytes = self.max_upload_mb * 1024 * 1024 if self.max_upload_mb > 0 else 0
         self.allow_update_download = get_bool(self.config, ("ui", "allow_update_download"), True)
+        self.detector_control = get_bool(self.config, ("ui", "detector_control"), False)
 
 
 runtime_state = RuntimeState(
@@ -758,6 +765,16 @@ register_file_routes(
         image_ext_name=_image_ext_name,
         split_series_name=_split_series_name,
         strip_image_ext=_strip_image_ext,
+    ),
+)
+
+
+register_detector_control_routes(
+    app,
+    DetectorControlRouteDeps(
+        logger=logger,
+        enabled=lambda: runtime_state.detector_control,
+        runner=simplon_control.CommandRunner(),
     ),
 )
 

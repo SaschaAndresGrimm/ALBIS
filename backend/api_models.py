@@ -483,3 +483,23 @@ class FrameMetadataResponse(_StrictModel):
     # rather than the count. A client watching an acquisition asks again; one
     # looking at a finished file does not need to.
     writer_present: bool = False
+
+
+class DetectorConfigRequest(_StrictModel):
+    """Write one SIMPLON parameter (beta detector control)."""
+
+    url: str
+    version: str = "1.8.0"
+    subsystem: str
+    key: str
+    value: bool | int | float | str
+
+
+class DetectorCommandRequest(_StrictModel):
+    """Send one SIMPLON command (beta detector control)."""
+
+    url: str
+    version: str = "1.8.0"
+    subsystem: str
+    command: str
+    value: bool | int | float | str | None = None

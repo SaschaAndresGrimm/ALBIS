@@ -198,6 +198,11 @@
           "default": false,
           "description": "Render pixel labels while panning/dragging."
         },
+        "detector_control": {
+          "type": "boolean",
+          "default": false,
+          "description": "Beta: show the Detector tab, which controls a DECTRIS detector over the SIMPLON API."
+        },
         "language": {
           "type": "string",
           "enum": [
@@ -255,7 +260,8 @@
       "frame_cache_mb": 256,
       "pixel_label_format": "auto",
       "pixel_label_show_during_drag": false,
-      "language": "en"
+      "language": "en",
+      "detector_control": false
     }
   }
 }

@@ -421,6 +421,10 @@
               <button class="panel-tab is-active" data-panel-tab="view" type="button" data-i18n="panel.tab.view">View</button>
               <button class="panel-tab" data-panel-tab="data" type="button" data-i18n="panel.tab.data">Data</button>
               <button class="panel-tab" data-panel-tab="analysis" type="button" data-i18n="panel.tab.overlay">Overlay</button>
+              <button class="panel-tab detector-tab" data-panel-tab="detector" type="button" id="panel-tab-detector" hidden>
+                <span data-i18n="panel.tab.detector">Detector</span>
+                <span class="detector-beta" data-i18n="detector.beta">Beta</span>
+              </button>
             </div>
             <button
               class="panel-collapse-btn"
@@ -1483,6 +1487,108 @@
             </section>
           </div>
 
+          <div class="panel-tab-content detector-content" data-panel-tab="detector" id="detector-content">
+            <section class="panel-section" data-section="detector-connection">
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main">
+                  <span data-i18n="detector.section.detector">Detector</span>
+                  <span class="section-summary" id="detector-summary" data-i18n="detector.summary.not_connected">Not connected</span>
+                </span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <label class="field">
+                <span data-i18n="data_source.field.base_url">Base URL</span>
+                <div class="inline autoload-source-inline">
+                  <input
+                    id="detector-url"
+                    type="text"
+                    list="simplon-url-list"
+                    autocomplete="off"
+                    placeholder="192.168.1.10 or detector.example.com"
+                    data-i18n-placeholder="data_source.placeholder.simplon_url"
+                  />
+                  <button class="btn btn-secondary" id="detector-connect" type="button" data-i18n="detector.action.connect">Connect</button>
+                </div>
+              </label>
+              <p class="simplon-probe-message is-hidden" id="detector-message" role="status" aria-live="polite"></p>
+              <div class="detector-live" id="detector-live" hidden>
+                <div class="detector-ident">
+                  <strong id="detector-model"></strong>
+                  <span id="detector-serial"></span>
+                </div>
+                <div class="detector-state-row">
+                  <span class="detector-state" id="detector-state" data-tone="idle" role="status" aria-live="polite"></span>
+                  <span class="detector-state-text" id="detector-state-text"></span>
+                </div>
+                <div class="detector-progress" id="detector-progress" hidden>
+                  <div class="detector-bar"><i id="detector-bar"></i></div>
+                  <div class="detector-progress-text"><span id="detector-progress-left"></span><span id="detector-progress-right"></span></div>
+                </div>
+                <div class="detector-notice" id="detector-notice" hidden>
+                  <span id="detector-notice-text"></span>
+                  <button class="linkish" type="button" id="detector-notice-dismiss" data-i18n="detector.action.ok">OK</button>
+                </div>
+                <div class="detector-confirm" id="detector-confirm" hidden>
+                  <span id="detector-confirm-text"></span>
+                  <div class="detector-actions">
+                    <button class="btn btn-secondary" type="button" id="detector-confirm-no"></button>
+                    <button class="btn detector-btn-danger" type="button" id="detector-confirm-yes"></button>
+                  </div>
+                </div>
+                <div class="detector-actions">
+                  <button class="btn btn-primary detector-primary" type="button" id="detector-primary"></button>
+                  <button class="btn detector-btn-danger" type="button" id="detector-stop" hidden data-i18n="detector.action.stop">Stop</button>
+                </div>
+                <div class="detector-sensors" id="detector-sensors"></div>
+              </div>
+            </section>
+
+            <section class="panel-section detector-extra" data-section="detector-acquisition" hidden>
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main">
+                  <span data-i18n="detector.section.acquisition">Acquisition</span>
+                  <span class="section-summary" id="detector-lock" data-i18n="detector.locked" hidden>Locked while the detector is busy</span>
+                </span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div id="detector-params"></div>
+            </section>
+
+            <section class="panel-section detector-extra" data-section="detector-output" hidden>
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main"><span data-i18n="detector.section.output">Data output</span></span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div id="detector-outputs"></div>
+              <div id="detector-files"></div>
+            </section>
+
+            <section class="panel-section detector-extra" data-section="detector-activity" hidden>
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main"><span data-i18n="detector.section.activity">Activity</span></span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <ol class="detector-log" id="detector-log"></ol>
+            </section>
+
+            <section class="panel-section detector-extra is-collapsed" data-section="detector-advanced" hidden>
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main"><span data-i18n="detector.section.advanced">Advanced</span></span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div id="detector-advanced"></div>
+              <div class="detector-group-label" data-i18n="detector.advanced.commands">Commands</div>
+              <div class="detector-commands" id="detector-commands">
+                <button class="btn btn-secondary" type="button" data-detector-command="refresh" data-i18n="detector.action.refresh">Re-read settings</button>
+                <button class="btn btn-secondary" type="button" data-detector-command="initialize" data-i18n="detector.action.initialize_ellipsis">Initialize…</button>
+                <button class="btn btn-secondary" type="button" data-detector-command="arm" data-i18n="detector.action.arm">Arm</button>
+                <button class="btn btn-secondary" type="button" data-detector-command="trigger" data-i18n="detector.action.trigger">Trigger</button>
+                <button class="btn btn-secondary" type="button" data-detector-command="disarm" data-i18n="detector.action.disarm">Disarm</button>
+                <button class="btn btn-secondary" type="button" data-detector-command="cancel" data-i18n="detector.action.cancel_series">Cancel series</button>
+              </div>
+            </section>
+          </div>
+
           </div>
         </aside>
       </div>
@@ -1932,6 +2038,10 @@
               <label class="checkbox settings-check settings-span-2">
                 <input id="settings-tool-hints" type="checkbox" />
                 <span data-i18n="settings.viewer.tool_hints">Enable tool hints</span>
+              </label>
+              <label class="checkbox settings-check settings-span-2">
+                <input id="settings-detector-control" type="checkbox" />
+                <span data-i18n="settings.viewer.detector_control">Beta: detector control (shows the Detector tab)</span>
               </label>
             </div>
           </div>

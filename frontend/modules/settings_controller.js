@@ -43,6 +43,7 @@ export function createSettingsController({
     settingsAllowUpdateDownload,
     settingsAllowUpdateApply,
     settingsToolHints,
+    settingsDetectorControl,
     settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
@@ -68,6 +69,7 @@ export function createSettingsController({
     setStatus,
     schedulePixelOverlay,
     applyLanguagePreference,
+    setDetectorControlEnabled,
   } = callbacks;
 
   // The config last loaded into the form. Saving rebuilds each section from the
@@ -210,6 +212,7 @@ export function createSettingsController({
       "logging.level": settingsLogLevel,
       "logging.dir": settingsLogDir,
       "ui.tool_hints": settingsToolHints,
+      "ui.detector_control": settingsDetectorControl,
       "ui.auto_check_updates": settingsAutoCheckUpdates,
       "ui.allow_update_download": settingsAllowUpdateDownload,
       "ui.allow_update_apply": settingsAllowUpdateApply,
@@ -365,6 +368,9 @@ export function createSettingsController({
       const toolHints = config?.ui?.tool_hints;
       settingsToolHints.checked = Boolean(toolHints ?? state.toolHintsEnabled);
     }
+    if (settingsDetectorControl) {
+      settingsDetectorControl.checked = Boolean(config?.ui?.detector_control ?? state.detectorControl ?? false);
+    }
     if (settingsLanguage) {
       settingsLanguage.value = String(config?.ui?.language ?? state.language ?? "en");
     }
@@ -461,6 +467,7 @@ export function createSettingsController({
       ui: {
         ...(loadedConfig?.ui || {}),
         tool_hints: Boolean(settingsToolHints?.checked),
+        detector_control: Boolean(settingsDetectorControl?.checked),
         auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
         allow_update_download: Boolean(settingsAllowUpdateDownload?.checked),
         allow_update_apply: Boolean(settingsAllowUpdateApply?.checked),
@@ -494,6 +501,10 @@ export function createSettingsController({
     }
     if (typeof cfg.auto_check_updates !== "undefined") {
       state.autoCheckUpdates = Boolean(cfg.auto_check_updates);
+    }
+    if (typeof cfg.detector_control !== "undefined") {
+      state.detectorControl = Boolean(cfg.detector_control);
+      setDetectorControlEnabled?.(state.detectorControl);
     }
     const minCell = Number(cfg.pixel_label_min_cell_px);
     if (Number.isFinite(minCell)) {
