@@ -7018,11 +7018,6 @@ button.browse-details-header-cell[aria-sort="descending"] {
   grid-template-columns: auto 1fr;
   gap: 8px 10px;
   align-items: center;
-  margin-top: 10px;
-}
-
-.detector-fixes > .detector-group-label {
-  grid-column: 1 / -1;
 }
 
 .detector-fix {

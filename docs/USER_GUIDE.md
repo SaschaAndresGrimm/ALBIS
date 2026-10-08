@@ -439,7 +439,8 @@ Enter the detector's address and press **Connect**. The tab reads what the
 detector says about each of its settings, so every field shows that detector's
 own units, limits and choices, whichever model it is. Each setting's **?** explains it in a few words and
 names its SIMPLON key (for example `detector/config/count_time`), the name to
-use when scripting the detector; Advanced shows the keys directly:
+use when scripting the detector. Settings without an explanation, all under
+Advanced, show the key as their name:
 
 - **The state, and the one next step.** A coloured badge says what the detector
   is doing (not initialized, idle, armed, acquiring, error), and the main
@@ -450,9 +451,9 @@ use when scripting the detector; Advanced shows the keys directly:
   ALBIS switches the monitor on if needed and shows its images live, as from
   Data → SIMPLON monitor. It is a preview of the newest image, not every frame;
   the complete data is in the files or the stream. Untick it to keep the image
-  you have open. Temperature, humidity and high voltage
-  are shown underneath, with **Re-initialize…** for when the detector misbehaves;
-  it explains itself when high voltage is not ready or a command failed.
+  you have open. Temperature, humidity and high voltage are shown underneath;
+  when high voltage is not ready or a command failed, a note there explains it
+  and offers **Re-initialize…**.
 - **Acquisition.** Images per trigger, triggers and trigger mode; frame and
   count time; then energy and threshold(s), in the order they usually change. A value outside the detector's range is
   refused before anything is sent. When a change makes the detector adjust
@@ -471,8 +472,8 @@ use when scripting the detector; Advanced shows the keys directly:
   changes made by another program, such as a beamline control system using the
   same detector.
 - **Advanced** holds every other setting the detector documents, read-only
-  information, the raw commands (Arm, Trigger, Disarm, Cancel), and
-  **Troubleshooting**: re-initialize the detector, reset the stream (clears
+  information and the raw commands (Arm, Trigger, Disarm, Cancel).
+- **Troubleshooting**: re-initialize the detector, reset the stream (clears
   dropped images and stream errors; the stream stays on if it was on), and
   delete all files on the detector, each with a line on when to use it.
 

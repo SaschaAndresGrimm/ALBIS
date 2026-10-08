@@ -60,7 +60,7 @@ function buildElements() {
       </div>
       <span id="lock" hidden></span>
       <div id="params"></div><div id="outputs"></div><div id="files"></div>
-      <ol id="log"></ol><div id="advanced"></div><div id="commands"></div>
+      <ol id="log"></ol><div id="advanced"></div><div id="commands"></div><div id="troubleshooting"></div>
     </div>`;
   const $ = (id) => document.getElementById(id);
   return {
@@ -71,7 +71,7 @@ function buildElements() {
     confirmNo: $("no"), primaryBtn: $("primary"), stopBtn: $("stop"), followToggle: $("follow"), sensors: $("sensors"), notice: $("notice"),
     noticeText: $("notice-text"), noticeDismiss: $("notice-ok"), sections: [], paramsHost: $("params"),
     lockNote: $("lock"), outputsHost: $("outputs"), filesHost: $("files"), logHost: $("log"),
-    advancedHost: $("advanced"), commandsHost: $("commands"),
+    advancedHost: $("advanced"), commandsHost: $("commands"), troubleshootingHost: $("troubleshooting"),
   };
 }
 
@@ -369,10 +369,10 @@ describe("detector control panel, recovery", () => {
   };
   const recoverText = (elements) => elements.sensors.nextElementSibling.textContent;
 
-  it("offers re-initialize quietly, and explains when high voltage is not ready", async () => {
+  it("offers re-initialize in the detector card only when high voltage is not ready", async () => {
     const { controller, elements } = await setup();
     controller._setStatus({ detector: { state: "idle", "high_voltage/state": "READY" } });
-    expect(recoverText(elements)).toBe("Re-initialize…");
+    expect(recoverText(elements)).toBe("");
     controller._setStatus({ detector: { state: "idle", "high_voltage/state": "RAMP" } });
     expect(recoverText(elements)).toContain("High voltage is RAMP");
     // In "na" the main button already says Initialize.
@@ -417,12 +417,12 @@ describe("detector control panel, recovery", () => {
     expect(elements.confirmText.textContent).toBe(EN["detector.confirm.delete_unlisted"]);
   });
 
-  it("gathers all three under Troubleshooting", async () => {
+  it("gathers all three in their own Troubleshooting section", async () => {
     const { controller, elements } = await setup();
     controller._setParams(enabledOutputs());
     controller._renderAll();
-    const box = elements.advancedHost.querySelector(".detector-fixes");
-    expect(box.querySelector(".detector-group-label").textContent).toBe("Troubleshooting");
+    expect(elements.advancedHost.querySelector(".detector-fixes")).toBeNull();
+    const box = elements.troubleshootingHost.querySelector(".detector-fixes");
     expect([...box.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
       "Re-initialize…",
       "Reset stream…",
@@ -559,8 +559,12 @@ describe("detector control panel, explanations", () => {
     // The data interfaces too, by their mode.
     expect(elements.outputsHost.querySelector(".detector-output .info-tip").dataset.infoDetail).toBe("SIMPLON: filewriter/config/mode");
     // Advanced keeps the key for experts.
-    expect(elements.advancedHost.querySelector('[data-key="detector:incident_energy"] code').textContent).toBe("incident_energy");
-    expect(elements.advancedHost.querySelector(".info-tip")).toBeNull();
+    // In Advanced, a setting with an explanation gets the "?" too, not its key...
+    const incident = elements.advancedHost.querySelector('[data-key="detector:incident_energy"]');
+    expect(incident.querySelector("code")).toBeNull();
+    expect(incident.querySelector(".info-tip").dataset.infoKey).toBe("detector.help.incident_energy");
+    // ...and the others, mostly untranslated, show the key as their name.
+    expect(elements.advancedHost.querySelector('[data-key="detector:countrate_correction_applied"] label').textContent).toBe("countrate_correction_applied");
     // Thresholds share one explanation.
     expect(mod.helpKey("detector", "threshold/3/energy")).toBe("detector.help.threshold_energy");
     expect(mod.helpKey("detector", "threshold/2/mode")).toBe("detector.help.threshold_mode");

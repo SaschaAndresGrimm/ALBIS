@@ -305,6 +305,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     filesHost,
     logHost,
     advancedHost,
+    troubleshootingHost,
     commandsHost,
   } = elements;
   const { getPanelTab, setPanelTab, watchLive, refreshInfoTips } = callbacks;
@@ -431,6 +432,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderParams();
     renderOutputs();
     renderAdvanced();
+    renderTroubleshooting();
   }
 
   // ---------- polling ----------
@@ -591,10 +593,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return button;
   }
 
-  // Under the sensors: a quiet "Re-initialize…" while all is well, a short
-  // explanation with it when high voltage is not ready or a command failed.
-  // Not while busy, and not in "na" or "error", where the main button already
-  // says Initialize.
+  // Under the sensors, only when something is wrong: high voltage not ready
+  // or a failed command, with Re-initialize… next to the explanation. Not
+  // while busy, and not in "na" or "error", where the main button already
+  // says Initialize. Otherwise it lives under Troubleshooting.
   function renderRecovery(value) {
     if (!recoverHost) return;
     recoverHost.replaceChildren();
@@ -607,14 +609,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     } else if (hv && hv.toUpperCase() !== "READY") {
       text = t("detector.recover.high_voltage", { state: hv });
     }
+    if (!text) return;
     const button = recoveryButton(t("detector.action.reinitialize"), askInitialize);
-    if (text) {
-      const note = el("div", "detector-warning is-caution", text);
-      note.append(" ", button);
-      recoverHost.append(note);
-    } else {
-      recoverHost.append(button);
-    }
+    const note = el("div", "detector-warning is-caution", text);
+    note.append(" ", button);
+    recoverHost.append(note);
   }
 
   function startAcquire() {
@@ -780,10 +779,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return button;
   }
 
-  // In the main view a setting shows its name and a "?" that explains it and
-  // names its SIMPLON key; in Advanced, for experts and for settings without a
-  // translated name, the key stays visible under the name.
-  function paramRow(subsystem, key, descriptor, { explained = false } = {}) {
+  // A setting with an explanation shows its name and a "?" that explains it
+  // and names its SIMPLON key; the others, all in Advanced and mostly without
+  // a translated name, show the key itself.
+  function paramRow(subsystem, key, descriptor) {
     const row = el("div", "detector-param");
     row.dataset.key = `${subsystem}:${key}`;
     const id = `detector-p-${subsystem}-${key.replace(/[^a-z0-9]/gi, "_")}`;
@@ -791,7 +790,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const labelText = labelFor(subsystem, key);
     const label = el("label", "", labelText);
     label.htmlFor = id;
-    const help = explained ? helpKey(subsystem, key) : "";
+    const help = helpKey(subsystem, key);
     if (help) {
       const line = el("span", "detector-param-label");
       line.append(label, infoTip(help, `${subsystem}/config/${key}`));
@@ -978,7 +977,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     paramsHost.replaceChildren();
     for (const group of coreKeys()) {
       paramsHost.append(el("div", "detector-group-label", t(`detector.group.${group.id}`)));
-      for (const key of group.keys) paramsHost.append(paramRow("detector", key, params.detector[key], { explained: true }));
+      for (const key of group.keys) paramsHost.append(paramRow("detector", key, params.detector[key]));
     }
     refreshInfoTips?.();
     renderState();
@@ -1037,7 +1036,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       });
       if (mode.value === "enabled") {
         for (const key of OUTPUT_MAIN[name]) {
-          if (params[name][key]) block.append(paramRow(name, key, params[name][key], { explained: true }));
+          if (params[name][key]) block.append(paramRow(name, key, params[name][key]));
         }
         if (name === "filewriter" && params.filewriter.name_pattern) {
           const pattern = String(params.filewriter.name_pattern.value || "");
@@ -1208,7 +1207,6 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key])));
     const empty = el("p", "detector-note", t("detector.advanced.no_match"));
     advancedHost.append(empty);
-    advancedHost.append(troubleshooting());
 
     const applyFilter = () => {
       const needle = advancedFilter.trim().toLowerCase();
@@ -1230,13 +1228,15 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       applyFilter();
     });
     applyFilter();
+    refreshInfoTips?.();
     renderState();
   }
 
-  // The three recovery steps in one place, each with what it is for.
-  function troubleshooting() {
-    const box = el("div", "detector-adv-group detector-fixes");
-    box.append(el("div", "detector-group-label", t("detector.advanced.troubleshooting")));
+  // The three recovery steps in their own section, each with what it is for.
+  function renderTroubleshooting() {
+    if (!troubleshootingHost) return;
+    troubleshootingHost.replaceChildren();
+    const box = el("div", "detector-fixes");
     const items = [[t("detector.action.reinitialize"), t("detector.fix.initialize"), askInitialize]];
     if (params.stream?.mode) items.push([t("detector.action.reset_stream"), t("detector.fix.stream"), askResetStream]);
     if (params.filewriter?.mode) items.push([t("detector.action.delete_files"), t("detector.fix.files"), askDeleteFiles]);
@@ -1248,7 +1248,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       row.append(button, el("p", "detector-note", text));
       box.append(row);
     }
-    return box;
+    troubleshootingHost.append(box);
   }
 
   function bindCommands() {
@@ -1332,6 +1332,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       renderParams();
       renderOutputs();
       renderAdvanced();
+      renderTroubleshooting();
     },
     _setStatus(next) {
       status = next;
