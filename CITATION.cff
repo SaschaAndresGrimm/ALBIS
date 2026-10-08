@@ -38,8 +38,8 @@ authors:
 repository-code: "https://github.com/SaschaAndresGrimm/ALBIS"
 url: "https://github.com/SaschaAndresGrimm/ALBIS"
 license: MIT
-version: 0.23.1
-date-released: 2026-10-07
+version: 0.24.0
+date-released: 2026-10-08
 keywords:
   - image viewer
   - synchrotron
