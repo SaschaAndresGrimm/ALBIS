@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **On Windows, Show in folder after downloading an update opened Explorer behind the browser.** The ALBIS server is not the foreground program, and Windows does not let a background program raise a window. Explorer now opens with the downloaded installer selected (shown, never run) and is brought to the front. Help → Open log, which opened Notepad behind the browser for the same reason, comes to the front too.
+
 ## [0.24.0] - 2026-10-08
 
 ### Added

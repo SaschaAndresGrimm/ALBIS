@@ -7,7 +7,14 @@ import os
 import platform
 import shutil
 import subprocess
+import threading
+import time
+from collections.abc import Callable
 from pathlib import Path
+
+# How long to look for the window a Windows file manager or editor opens.
+_RAISE_TIMEOUT_S = 5.0
+_RAISE_POLL_S = 0.1
 
 
 def open_in_system(path: Path) -> bool:
@@ -18,12 +25,110 @@ def open_in_system(path: Path) -> bool:
     system = platform.system()
     if system == "Windows":
         os.startfile(str(path))  # type: ignore[attr-defined]
+        # "albis.log - Notepad", or the folder's name for Explorer.
+        name = path.name
+        _raise_when_shown(lambda title, _cls: name in title)
         return True
     if system == "Darwin":
         result = subprocess.run(["open", str(path)], check=False)
         return result.returncode == 0
     result = subprocess.run(["xdg-open", str(path)], check=False)
     return result.returncode == 0
+
+
+def reveal_in_file_manager(path: Path) -> bool:
+    """Show a file in the platform file manager without opening it.
+
+    Windows selects it in Explorer (`/select` shows, it never runs: opening an
+    installer is running it). Elsewhere the containing folder opens.
+    """
+    if platform.system() == "Windows":
+        # One string, not a list: Explorer wants `/select,"<path>"` with only
+        # the path quoted, which list quoting would not produce. The path is
+        # ALBIS's own, and Windows file names cannot contain a quote.
+        subprocess.Popen(f'explorer /select,"{path}"')  # noqa: S602 -- no shell, fixed form
+        folder = path.parent
+        _raise_when_shown(
+            lambda title, cls: cls == "CabinetWClass" and title in {folder.name, str(folder)}
+        )
+        return True
+    return open_in_system(path.parent)
+
+
+def _raise_when_shown(matches: Callable[[str, str], bool]) -> None:
+    """Bring the window the opener just showed to the front, in the background.
+
+    The ALBIS server is not the foreground program -- the browser is, where the
+    click happened -- and Windows does not let a background program raise a
+    window. So Explorer or Notepad opens behind the browser. Attaching to the
+    foreground window's input for the moment of the call is the documented
+    way around that (see AttachThreadInput).
+    """
+    threading.Thread(
+        target=_raise_window, args=(matches,), name="raise-window", daemon=True
+    ).start()
+
+
+def _raise_window(matches: Callable[[str, str], bool]) -> bool:
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    # Handles are pointer-sized: without these, 64-bit handles are truncated.
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    for name in ("IsWindowVisible", "IsIconic", "BringWindowToTop", "SetForegroundWindow"):
+        getattr(user32, name).argtypes = [wintypes.HWND]
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+    user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+    enum_proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    found: list[int] = []
+
+    def visit(hwnd: int, _lparam: int) -> bool:
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        title = ctypes.create_unicode_buffer(user32.GetWindowTextLengthW(hwnd) + 1)
+        user32.GetWindowTextW(hwnd, title, len(title))
+        cls = ctypes.create_unicode_buffer(256)
+        user32.GetClassNameW(hwnd, cls, len(cls))
+        if matches(title.value, cls.value):
+            found.append(hwnd)
+            return False
+        return True
+
+    callback = enum_proc(visit)
+    deadline = time.monotonic() + _RAISE_TIMEOUT_S
+    while time.monotonic() < deadline:
+        found.clear()
+        user32.EnumWindows(callback, 0)
+        if found:
+            hwnd = found[0]
+            foreground = user32.GetForegroundWindow()
+            if foreground == hwnd:
+                return True
+            this_thread = kernel32.GetCurrentThreadId()
+            fg_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+            attached = bool(
+                fg_thread
+                and fg_thread != this_thread
+                and user32.AttachThreadInput(this_thread, fg_thread, True)
+            )
+            try:
+                if user32.IsIconic(hwnd):
+                    user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                user32.BringWindowToTop(hwnd)
+                return bool(user32.SetForegroundWindow(hwnd))
+            finally:
+                if attached:
+                    user32.AttachThreadInput(this_thread, fg_thread, False)
+        time.sleep(_RAISE_POLL_S)
+    return False
 
 
 def is_applescript_cancel(stderr: str | None) -> bool:

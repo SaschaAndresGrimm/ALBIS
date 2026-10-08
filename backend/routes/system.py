@@ -25,7 +25,7 @@ from ..api_models import (
 )
 from ..response_compression import available_encodings
 from ..services.log_tail import read_log_tail
-from ..services.os_actions import open_in_system
+from ..services.os_actions import open_in_system, reveal_in_file_manager
 from ..services.update_apply import ApplyRefusedError, UpdateApplyService
 from ..services.update_download import (
     DownloadRefusedError,
@@ -174,8 +174,9 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
     def update_download_reveal() -> PathStatusResponse:
         """Show the downloaded file in the platform file manager.
 
-        The containing folder, never the file itself: opening a `.exe` is
-        running it, and ALBIS does not launch installers. The user applies the
+        Shown, never opened: opening a `.exe` is running it, and ALBIS does
+        not launch installers. Windows selects it in Explorer; elsewhere its
+        folder opens. The user applies the
         update. The path comes from the service's own record of what it wrote,
         so no client-supplied path is ever opened.
         """
@@ -183,7 +184,7 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
         if ready is None:
             raise HTTPException(status_code=404, detail="No verified download available")
         try:
-            opened = open_in_system(ready.parent)
+            opened = reveal_in_file_manager(ready)
         except Exception:
             opened = False
         return PathStatusResponse(status="ok", path=str(ready), opened=opened)

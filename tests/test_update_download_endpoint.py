@@ -124,7 +124,7 @@ def test_reveal_is_a_404_until_a_verified_download_exists(monkeypatch) -> None:
     assert _client().post("/api/update-download/reveal").status_code == 404
 
 
-def test_reveal_opens_the_containing_folder_not_the_installer(monkeypatch, tmp_path) -> None:
+def test_reveal_shows_the_installer_without_opening_it(monkeypatch, tmp_path) -> None:
     _reset(monkeypatch)
     downloaded = tmp_path / ASSET_NAME
     downloaded.write_bytes(b"installer")
@@ -132,13 +132,13 @@ def test_reveal_opens_the_containing_folder_not_the_installer(monkeypatch, tmp_p
 
     opened: list[str] = []
     monkeypatch.setattr(
-        system_routes, "open_in_system", lambda path: opened.append(str(path)) or True
+        system_routes, "reveal_in_file_manager", lambda path: opened.append(str(path)) or True
     )
 
     payload = _client().post("/api/update-download/reveal").json()
 
-    # Opening a .exe is running it. ALBIS shows the folder and lets the user
+    # Opening a .exe is running it. ALBIS shows the file and lets the user
     # apply the update.
-    assert opened == [str(tmp_path)]
+    assert opened == [str(downloaded)]
     assert payload["path"] == str(downloaded)
     assert payload["opened"] is True
