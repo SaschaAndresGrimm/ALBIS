@@ -726,3 +726,15 @@ describe("detector control panel, compact cards", () => {
     expect(del.classList.contains("is-danger")).toBe(true);
   });
 });
+
+describe("detector control panel, safe links", () => {
+  it("links the data page only for an http(s) detector address", async () => {
+    const { detectorDataPage } = await loadModule();
+    expect(detectorDataPage("http://192.168.30.90")).toBe("http://192.168.30.90/data/");
+    expect(detectorDataPage("https://dcu.example.org/")).toBe("https://dcu.example.org/data/");
+    expect(detectorDataPage("javascript://%0aalert(1)")).toBe("");
+    expect(detectorDataPage("data:text/html,<script>alert(1)</script>")).toBe("");
+    expect(detectorDataPage("")).toBe("");
+    delete global.fetch;
+  });
+});

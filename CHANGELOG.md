@@ -18,6 +18,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **Scrolled content showed through the tab bar** (View, Data, Overlay, …), whose background was 72% opaque. It is now opaque with a blur.
 - **On Windows, Show in folder after downloading an update opened Explorer behind the browser.** The ALBIS server is not the foreground program, and Windows does not let a background program raise a window. Explorer now opens with the downloaded installer selected (shown, never run) and is brought to the front. Help → Open log, which opened Notepad behind the browser for the same reason, comes to the front too.
 
+### Security
+
+- **The Detector tab's "Data page" link is made only from an http(s) address.** It was built from the typed detector address, which the address cleanup passes through unchanged when it carries another scheme, so `javascript://…` could have become a link that runs script when clicked (CodeQL `js/xss-through-dom`; only someone typing into their own ALBIS could set it up).
+- **The SIMPLON API version is checked without a regular expression**: one to four dot-separated runs of ASCII digits, so a long run of digits cannot make the check backtrack (CodeQL `py/polynomial-redos`).
+
 ## [0.24.0] - 2026-10-08
 
 ### Added

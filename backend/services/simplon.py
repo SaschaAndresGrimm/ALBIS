@@ -24,7 +24,6 @@ _MALFORMED_SCHEME_RE = re.compile(r"^(https?)(?::/*|/+)", re.IGNORECASE)
 # SIMPLON sub-API roots, e.g. `/monitor/api/1.8.0/images/monitor`.
 # [0-9] rather than \\d: for a str pattern \\d matches any Unicode decimal,
 # so "\u0661.\u0668.\u0660" would have passed as a version number and gone into the URL.
-_API_VERSION_RE = re.compile(r"[0-9]+(?:\.[0-9]+){0,3}")
 _API_PATH_RE = re.compile(r"/(monitor|detector|stream|filewriter|system)/api(/|$)", re.IGNORECASE)
 # A dangling sub-API segment without the `/api` part, e.g. `http://host/monitor`.
 _TRAILING_API_ROOT_RE = re.compile(
@@ -118,12 +117,22 @@ def _simplon_api_base(url: str, version: str, section: str) -> str:
     # detector -- `1.8.0/../../../admin/shutdown?x=` reached
     # `/admin/shutdown?x=/config/mode` once the caller appended its own suffix.
     # A SIMPLON API version is a dotted number and nothing else.
-    if not _API_VERSION_RE.fullmatch(ver):
+    if not _is_api_version(ver):
         raise HTTPException(
             status_code=400,
             detail="Invalid SIMPLON API version. Use a version number such as 1.8.0.",
         )
     return f"{base}/{section}/api/{ver}"
+
+
+def _is_api_version(text: str) -> bool:
+    """One to four dot-separated runs of ASCII digits, such as 1.8.0.
+
+    Checked without a regular expression, so a long run of digits from the
+    caller cannot make it backtrack.
+    """
+    parts = text.split(".")
+    return 1 <= len(parts) <= 4 and all(part.isascii() and part.isdigit() for part in parts)
 
 
 def simplon_base(url: str, version: str) -> str:

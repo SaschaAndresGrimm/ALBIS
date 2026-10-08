@@ -256,6 +256,18 @@ function fmtLimit(value, unit) {
   return unit ? `${n} ${unit}` : n;
 }
 
+/** The detector's data page, `http(s)://<dcu>/data/`, or "" for any other address. */
+export function detectorDataPage(base) {
+  let parsed;
+  try {
+    parsed = new URL(`${String(base || "").replace(/\/+$/, "")}/data/`);
+  } catch {
+    return "";
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+  return /^https?:\/\//i.test(parsed.href) ? parsed.href : "";
+}
+
 /** A read-only value with its unit; a length in metres in µm or mm. */
 export function readableValue(descriptor) {
   const unit = String(descriptor?.unit || "").toLowerCase();
@@ -1267,13 +1279,17 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const free = status?.filewriter?.buffer_free;
     if (free !== undefined && free !== null) parts.push(el("span", "", t("detector.output.free", { free: formatBytes(free) })));
     // The DCU serves the files it wrote at /data/ (SIMPLON reference), which
-    // is also where its own web interface lists them.
-    const page = el("a", "linkish detector-external", t("detector.output.data_page_short"));
-    page.href = `${url.replace(/\/+$/, "")}/data/`;
-    page.target = "_blank";
-    page.rel = "noopener";
-    page.title = t("detector.output.data_page");
-    parts.push(page);
+    // is also where its own web interface lists them. The address is typed
+    // text: only an http(s) one becomes a link, never `javascript:` and the like.
+    const dataPage = detectorDataPage(url);
+    if (dataPage) {
+      const page = el("a", "linkish detector-external", t("detector.output.data_page_short"));
+      page.href = dataPage;
+      page.target = "_blank";
+      page.rel = "noopener";
+      page.title = t("detector.output.data_page");
+      parts.push(page);
+    }
     const line = el("div", "detector-meta");
     parts.forEach((part, index) => line.append(...(index ? [" · ", part] : [part])));
     out.unshift(line);
