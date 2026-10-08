@@ -444,7 +444,8 @@ own units, limits and choices, whichever model it is:
   button offers what makes sense now: **Initialize** after power-up or an
   error (this can take up to two minutes), **Acquire** when the detector is
   idle, **Stop** while a series runs. Temperature, humidity and high voltage
-  are shown underneath.
+  are shown underneath, with **Re-initialize…** for when the detector misbehaves;
+  it explains itself when high voltage is not ready or a command failed.
 - **Acquisition.** Energy, threshold(s), count and frame time, images per
   trigger, triggers and trigger mode. A value outside the detector's range is
   refused before anything is sent. When a change makes the detector adjust
@@ -453,14 +454,20 @@ own units, limits and choices, whichever model it is:
 - **Data output.** Switch the file writer, the stream and the monitor on or off.
   The file writer shows its name pattern, the name the next series gets, how
   much storage is left and the files on the detector, each downloadable; **Delete
-  all files on the detector** clears them, after asking. If nothing would be
-  saved, the tab says so and asks before acquiring. **Watch live images** shows
-  the monitor's images in ALBIS.
+  all files on the detector** clears them, after asking, and is offered on its
+  own when the detector's storage runs low. The stream shows how many images of
+  the last series no program picked up: expected when nothing receives the
+  stream, and counted afresh with each series. If nothing would be saved, the
+  tab says so and asks before acquiring. **Watch live images** shows the
+  monitor's images in ALBIS.
 - **Activity** lists what was done and what the detector changed, including
   changes made by another program, such as a beamline control system using the
   same detector.
 - **Advanced** holds every other setting the detector documents, read-only
-  information, and the raw commands (Arm, Trigger, Disarm, Cancel).
+  information, the raw commands (Arm, Trigger, Disarm, Cancel), and
+  **Troubleshooting**: re-initialize the detector, reset the stream (clears
+  dropped images and stream errors; the stream stays on if it was on), and
+  delete all files on the detector, each with a line on when to use it.
 
 Anyone who can open ALBIS can use the tab while it is switched on, so leave it
 off on a shared instance unless that is intended.

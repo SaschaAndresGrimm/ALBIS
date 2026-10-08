@@ -6696,6 +6696,12 @@ button.browse-details-header-cell[aria-sort="descending"] {
   display: none !important;
 }
 
+/* Room after the last row, so scrolled to the end the list visibly ends
+   instead of stopping flush against the panel's edge. */
+.detector-content {
+  padding-bottom: 16px;
+}
+
 .detector-tab {
   display: inline-flex;
   align-items: center;
@@ -6962,6 +6968,52 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 .detector-output .detector-warning {
+  margin: 0;
+}
+
+/* A hint rather than a fault: amber, like the "changed elsewhere" notice. */
+.detector-warning.is-caution {
+  background: rgba(242, 184, 75, 0.14);
+  color: #ffe1a3;
+}
+
+/* Recovery under the sensors: a quiet link at the right while all is well. */
+.detector-recover {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detector-recover:empty {
+  display: none;
+}
+
+.detector-recover .detector-warning {
+  flex: 1;
+  margin: 0;
+}
+
+/* One grid for all three rows, so the buttons share a width. */
+.detector-fixes {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.detector-fixes > .detector-group-label {
+  grid-column: 1 / -1;
+}
+
+.detector-fix {
+  display: contents;
+}
+
+.detector-fix .btn {
+  white-space: nowrap;
+}
+
+.detector-fix .detector-note {
   margin: 0;
 }
 

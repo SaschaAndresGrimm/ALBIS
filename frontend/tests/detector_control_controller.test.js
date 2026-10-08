@@ -349,3 +349,82 @@ describe("detector control panel, after the first hardware test", () => {
     expect(visible).toEqual(["filewriter:format", "stream:format"]);
   });
 });
+
+describe("detector control panel, recovery", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  const enabledOutputs = () => {
+    const params = structuredClone(DESCRIPTORS);
+    params.filewriter.mode.value = "enabled";
+    params.stream.mode.value = "enabled";
+    return params;
+  };
+  const recoverText = (elements) => elements.sensors.nextElementSibling.textContent;
+
+  it("offers re-initialize quietly, and explains when high voltage is not ready", async () => {
+    const { controller, elements } = await setup();
+    controller._setStatus({ detector: { state: "idle", "high_voltage/state": "READY" } });
+    expect(recoverText(elements)).toBe("Re-initialize…");
+    controller._setStatus({ detector: { state: "idle", "high_voltage/state": "RAMP" } });
+    expect(recoverText(elements)).toContain("High voltage is RAMP");
+    // In "na" the main button already says Initialize.
+    controller._setStatus({ detector: { state: "na" } });
+    expect(recoverText(elements)).toBe("");
+  });
+
+  it("asks before re-initializing, and names a failed command", async () => {
+    const { controller, elements } = await setup();
+    controller._setStatus({
+      detector: { state: "idle" },
+      command: { subsystem: "detector", command: "arm", running: false, ok: false },
+    });
+    expect(recoverText(elements)).toContain("The last command (arm) failed");
+    elements.sensors.nextElementSibling.querySelector("button").click();
+    expect(elements.confirm.hidden).toBe(false);
+    expect(elements.confirmText.textContent).toBe(EN["detector.confirm.initialize"]);
+  });
+
+  it("explains dropped stream images and offers a reset only on a stream error", async () => {
+    const { controller, elements } = await setup();
+    controller._setParams(enabledOutputs());
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "idle" }, stream: { state: "ready", dropped: 3, mode: "enabled" } });
+    expect(elements.outputsHost.textContent).toContain("3 images of the last series were not picked up");
+    expect(elements.outputsHost.textContent).not.toContain("Reset stream…");
+    controller._setStatus({ detector: { state: "idle" }, stream: { state: "error", dropped: 0, mode: "enabled" } });
+    expect(elements.outputsHost.textContent).toContain(EN["detector.output.stream_error"]);
+    [...elements.outputsHost.querySelectorAll("button")].find((b) => b.textContent === "Reset stream…").click();
+    expect(elements.confirmText.textContent).toBe(EN["detector.confirm.reset_stream"]);
+  });
+
+  it("warns when the detector's storage runs low and offers to clear it", async () => {
+    const { controller, elements } = await setup();
+    controller._setParams(enabledOutputs());
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", state: "ready", buffer_free: 3.2e9 } });
+    expect(elements.outputsHost.textContent).not.toContain(EN["detector.output.storage_low"]);
+    controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", state: "ready", buffer_free: 3.2e9, critical: ["buffer_free"] } });
+    expect(elements.outputsHost.textContent).toContain(EN["detector.output.storage_low"]);
+    [...elements.outputsHost.querySelectorAll("button")].find((b) => b.textContent === EN["detector.action.delete_files"]).click();
+    expect(elements.confirmText.textContent).toBe(EN["detector.confirm.delete_unlisted"]);
+  });
+
+  it("gathers all three under Troubleshooting", async () => {
+    const { controller, elements } = await setup();
+    controller._setParams(enabledOutputs());
+    controller._renderAll();
+    const box = elements.advancedHost.querySelector(".detector-fixes");
+    expect(box.querySelector(".detector-group-label").textContent).toBe("Troubleshooting");
+    expect([...box.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+      "Re-initialize…",
+      "Reset stream…",
+      EN["detector.action.delete_files"],
+    ]);
+  });
+});

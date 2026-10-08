@@ -86,6 +86,8 @@ class FakeDCU:
         self.monitor_dropped = 0
         self.abort_flag = threading.Event()
         self.requests: list[tuple[str, str]] = []
+        # Status values reported with "state": "critical", as (subsystem, key).
+        self.critical: set[tuple[str, str]] = set()
 
     # ---- configuration ----
     def describe(self, subsystem: str, key: str) -> dict[str, Any] | None:
@@ -190,6 +192,11 @@ class FakeDCU:
         if subsystem == "filewriter" and name == "clear":
             with self.lock:
                 self.files.clear()
+            return 200, None
+        if subsystem == "stream" and name == "initialize":
+            with self.lock:
+                self.stream_dropped = 0
+                self.params["stream"]["mode"]["value"] = "disabled"
             return 200, None
         if subsystem == "monitor" and name == "clear":
             self.monitor_dropped = 0
@@ -304,7 +311,10 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
                 if value is None and not (subsystem == "detector" and key == "state"):
                     self._send(404, f"Parameter {key} does not exist")
                 else:
-                    self._send(200, {"value": value, "value_type": "string"})
+                    answer = {"value": value, "value_type": "string"}
+                    if (subsystem, key) in dcu.critical:
+                        answer["state"] = "critical"
+                    self._send(200, answer)
             elif task == "files" and subsystem == "filewriter":
                 self._send(200, sorted(dcu.files))
             else:

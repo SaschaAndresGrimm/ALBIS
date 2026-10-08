@@ -196,7 +196,8 @@ def test_one_command_at_a_time_but_abort_always_gets_through(client: TestClient)
     ("subsystem", "command"),
     [
         ("system", "reboot"),
-        ("stream", "initialize"),
+        ("filewriter", "initialize"),
+        ("monitor", "initialize"),
         ("detector", "hv_reset"),
         ("detector", "retract_sensor"),
     ],
@@ -207,6 +208,31 @@ def test_only_whitelisted_commands_are_sent(
     response = _command(client, dcu.url, subsystem, command)
     assert response.status_code == 400
     assert not any(method == "PUT" for method, _ in dcu.dcu.requests)
+
+
+@pytest.mark.parametrize("was_on", [True, False])
+def test_resetting_the_stream_keeps_it_as_it_was(
+    client: TestClient, dcu: FakeDCUServer, was_on: bool
+) -> None:
+    _initialize(client, dcu.url)
+    if was_on:
+        _set(client, dcu.url, "stream", "mode", "enabled")
+    dcu.dcu.stream_dropped = 3
+    assert _command(client, dcu.url, "stream", "initialize").status_code == 200
+    job = _wait_for_command(client, dcu.url)
+    assert job["ok"] is True
+    assert job["result"] == {"mode": "enabled" if was_on else "disabled"}
+    stream = client.get("/api/detector/status", params={"url": dcu.url}).json()["stream"]
+    assert stream["dropped"] == 0
+    assert stream["mode"] == ("enabled" if was_on else "disabled")
+
+
+def test_critical_status_values_are_flagged(client: TestClient, dcu: FakeDCUServer) -> None:
+    _initialize(client, dcu.url)
+    dcu.dcu.critical.add(("filewriter", "buffer_free"))
+    status = client.get("/api/detector/status", params={"url": dcu.url}).json()
+    assert status["filewriter"]["critical"] == ["buffer_free"]
+    assert "critical" not in status["stream"]
 
 
 def test_a_cross_site_page_cannot_drive_the_detector(

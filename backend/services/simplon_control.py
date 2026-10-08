@@ -150,13 +150,16 @@ STATUS_KEYS: dict[str, tuple[str, ...]] = {
     "stream": ("state", "dropped"),
 }
 
-# Commands the panel may send. `initialize` of the monitor, file writer and
-# stream is left out: it resets an interface another program may be using
-# (the stream's initialize even switches the stream off).
+# Commands the panel may send. `initialize` of the monitor and file writer is
+# left out: it resets an interface another program may be using. The stream's
+# is in, as a recovery step -- it clears dropped images and errors -- but it
+# also switches the stream off, so it runs through `_reset_stream`, which puts
+# the stream back on when it was on.
 COMMANDS: dict[str, tuple[str, ...]] = {
     "detector": ("initialize", "arm", "trigger", "disarm", "cancel", "abort"),
     "filewriter": ("clear",),
     "monitor": ("clear",),
+    "stream": ("initialize",),
 }
 # These interrupt a running command rather than wait behind it.
 INTERRUPTS = frozenset({("detector", "abort"), ("detector", "cancel"), ("detector", "disarm")})
@@ -288,6 +291,10 @@ def status(url: str, version: str) -> dict[str, Any]:
     out: dict[str, dict[str, Any]] = {name: {} for name in SUBSYSTEMS}
     for (subsystem, key, _), payload in zip(jobs, answers, strict=True):
         out[subsystem][key] = _value_of(payload)
+        # SIMPLON marks a status value it considers an error condition with
+        # "state": "critical" (a nearly full disk, a sensor out of range).
+        if isinstance(payload, dict) and str(payload.get("state") or "").lower() == "critical":
+            out[subsystem].setdefault("critical", []).append(key)
     if out["detector"].get("state") is None:
         # Nothing answered at all: report it rather than an empty dashboard.
         detector_state(url, version)
@@ -407,7 +414,10 @@ class CommandRunner:
         def run() -> None:
             outcome: dict[str, Any] = {}
             try:
-                outcome["result"] = _put(target, payload, timeout)
+                if (subsystem, command) == ("stream", "initialize"):
+                    outcome["result"] = _reset_stream(url, version, target, timeout)
+                else:
+                    outcome["result"] = _put(target, payload, timeout)
                 outcome["ok"] = True
             except HTTPException as exc:
                 outcome.update(ok=False, error=exc.detail)
@@ -426,6 +436,21 @@ class CommandRunner:
             return dict(job)
         threading.Thread(target=run, name=f"simplon-{command}", daemon=True).start()
         return dict(job)
+
+
+def _reset_stream(url: str, version: str, target: str, timeout: float) -> dict[str, Any]:
+    """Initialize the stream, then switch it back on if it was on.
+
+    SIMPLON's stream initialize resets dropped images and errors "and mode is
+    set to disabled". Someone pressing "reset" expects the stream to keep
+    working afterwards, not to find it off.
+    """
+    mode_url = f"{_base(url, version, 'stream')}/config/mode"
+    was_on = _value_of(_get(mode_url)) == "enabled"
+    _put(target, None, timeout)
+    if was_on:
+        _put(mode_url, {"value": "enabled"}, _DEFAULT_COMMAND_TIMEOUT_S)
+    return {"mode": "enabled" if was_on else "disabled"}
 
 
 def list_files(url: str, version: str) -> list[dict[str, Any]]:
