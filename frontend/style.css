@@ -1629,8 +1629,10 @@ body.canvas-first .panel.is-collapsed {
   pointer-events: none;
 }
 
+/* Content scrolls under the sticky tab bar: at 72% it showed through. */
 body.canvas-first .panel-topbar {
-  background: linear-gradient(to bottom, rgba(44, 58, 82, 0.72), rgba(24, 34, 49, 0.72));
+  background: linear-gradient(to bottom, rgba(44, 58, 82, 0.97), rgba(24, 34, 49, 0.97));
+  backdrop-filter: blur(9px);
 }
 
 body.canvas-first .panel-section {
@@ -2062,14 +2064,16 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding-bottom: 6px;
 }
 
+/* An open section is as tall as its content: a fixed cap (it was 2000px, for
+   the height animation) cut off long ones, such as a detector's Advanced
+   settings. Opening and closing fade instead of sliding. */
 .panel-section > .section-content {
-  max-height: 2000px;
+  max-height: none;
   opacity: 1;
   transform: translateY(0);
   overflow: hidden;
-  will-change: max-height, opacity, transform;
+  will-change: opacity, transform;
   transition:
-    max-height var(--motion-fast) var(--motion-ease-standard),
     opacity 90ms var(--motion-ease-standard),
     transform 90ms var(--motion-ease-standard);
 }
@@ -6928,6 +6932,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 .detector-param {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 140px);
   gap: 1px 10px;
@@ -6950,6 +6955,145 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .detector-param.is-wide .detector-field input {
   text-align: left;
+}
+
+/* The acquisition groups -- series, timing, energy -- side by side when the
+   panel is wide, each a compact column, so a name stays close to its field. */
+.detector-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 0 24px;
+  align-items: start;
+}
+
+.detector-group {
+  min-width: 0;
+}
+
+/* On/off settings are switches, at the field's right edge. */
+.detector-field.is-switch {
+  justify-content: flex-end;
+}
+
+/* Which images the detector delivers: one chip per threshold, and the
+   difference image. */
+.detector-images {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.detector-images-label {
+  font-weight: 600;
+}
+
+.detector-images .detector-hint {
+  grid-column: 1;
+}
+
+.detector-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.detector-chip {
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: rgba(13, 19, 28, 0.6);
+  color: var(--muted-strong);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.detector-chip:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.detector-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--toolbar-blue);
+  color: #f6fbff;
+}
+
+.detector-chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.detector-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.detector-images-block .detector-warning {
+  margin: 4px 0 0;
+}
+
+/* Connected: the address as a line under the detector's name. */
+.detector-where {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+/* Facts on one line: the next file, free storage, a link. */
+.detector-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.detector-output .detector-meta {
+  margin-top: 2px;
+}
+
+.detector-files-line {
+  margin-top: 8px;
+}
+
+.detector-output-head.has-action {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+/* Advanced: one line per setting, with room for longer choices. */
+.detector-adv-group .detector-param {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 200px);
+}
+
+/* Detector information is reference: a dense table, in two columns when the
+   panel is wide enough. */
+.detector-adv-group.is-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  column-gap: 24px;
+}
+
+.detector-adv-group.is-info > .detector-group-label {
+  grid-column: 1 / -1;
+}
+
+.detector-adv-group.is-info .detector-param {
+  padding-top: 1px;
+  padding-bottom: 1px;
+  font-size: 11.5px;
+}
+
+.detector-adv-group.is-info .detector-param-name label {
+  font-weight: 500;
+}
+
+.detector-adv-group.is-info .detector-readonly {
+  font-weight: 500;
+}
+
+/* The one step that cannot be undone. */
+.detector-fix .btn.is-danger {
+  border-color: rgba(255, 107, 107, 0.55);
+  color: #ffb4b4;
 }
 
 .detector-adv-group + .detector-adv-group {
@@ -6976,20 +7120,12 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .detector-follow {
   display: flex;
   gap: 8px;
-  align-items: flex-start;
+  align-items: center;
   font-size: 12px;
   cursor: pointer;
 }
 
-.detector-follow input {
-  margin-top: 2px;
-}
 
-.detector-follow small {
-  display: block;
-  color: var(--muted);
-  font-size: 11px;
-}
 
 /* A hint rather than a fault: amber, like the "changed elsewhere" notice. */
 .detector-warning.is-caution {
@@ -7113,11 +7249,33 @@ button.browse-details-header-cell[aria-sort="descending"] {
   pointer-events: none;
 }
 
+/* One line per setting: the range shows while the field is being edited,
+   floating under it, and is always in the "?"; a refusal or an adjustment by
+   the detector shows in the row. */
 .detector-hint {
+  display: none;
   grid-column: 2;
   color: var(--muted);
   font-size: 10.5px;
   text-align: right;
+}
+
+.detector-hint.is-error,
+.detector-hint.is-changed {
+  display: block;
+}
+
+.detector-param:focus-within .detector-hint:not(:empty):not(.is-error):not(.is-changed) {
+  position: absolute;
+  top: calc(100% - 3px);
+  right: 6px;
+  z-index: 3;
+  display: block;
+  padding: 1px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(13, 19, 28, 0.97);
+  pointer-events: none;
 }
 
 .detector-hint.is-error {

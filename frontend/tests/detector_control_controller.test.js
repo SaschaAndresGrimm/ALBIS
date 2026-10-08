@@ -46,7 +46,7 @@ function buildElements() {
   document.body.innerHTML = `
     <button id="tab" hidden></button>
     <div id="content">
-      <input id="url" /><button id="connect"></button><p id="message" class="is-hidden"></p>
+      <label id="address"><input id="url" /><button id="connect"></button></label><p id="message" class="is-hidden"></p>
       <span id="summary"></span>
       <div id="live" hidden>
         <strong id="model"></strong><span id="serial"></span>
@@ -64,7 +64,7 @@ function buildElements() {
     </div>`;
   const $ = (id) => document.getElementById(id);
   return {
-    tab: $("tab"), content: $("content"), urlInput: $("url"), connectBtn: $("connect"), message: $("message"),
+    tab: $("tab"), content: $("content"), urlInput: $("url"), connectBtn: $("connect"), addressHost: $("address"), message: $("message"),
     summary: $("summary"), live: $("live"), model: $("model"), serial: $("serial"), statePill: $("state"),
     stateText: $("state-text"), progress: $("progress"), progressBar: $("bar"), progressLeft: $("pl"),
     progressRight: $("pr"), confirm: $("confirm"), confirmText: $("confirm-text"), confirmYes: $("yes"),
@@ -271,38 +271,127 @@ describe("detector control panel, after the first hardware test", () => {
     expect(threshold.textContent).not.toBe(EN["detector.hint.adjusted"]);
   });
 
-  it("shows each threshold with its mode, and the alias only once", async () => {
-    const mod = await loadModule();
+  // One row per threshold energy, then which images the detector delivers: a
+  // POLLUX has two thresholds, a PILATUS4 four, an EIGER2 one -- whose mode
+  // stays in Advanced, since switching the only threshold off would switch off
+  // the images.
+  const mode = (value) => ({ value, value_type: "string", access_mode: "rw", allowed_values: ["enabled", "disabled"] });
+  const energy = (value) => ({ value, value_type: "float", unit: "eV", access_mode: "rw", min: 1000, max: 20000 });
+  async function thresholds(detector, routes = {}) {
+    const mod = await loadModule(routes);
     const elements = buildElements();
     const controller = mod.createDetectorControlController({ apiBase: "/api", elements, callbacks: {} });
-    const mode = (value) => ({ value, value_type: "string", access_mode: "rw", allowed_values: ["enabled", "disabled"] });
-    const energy = (value) => ({ value, value_type: "float", unit: "eV", access_mode: "rw", min: 1000, max: 20000 });
-    controller._setParams({
-      detector: {
-        photon_energy: energy(8047.7798),
-        threshold_energy: energy(4023.8899),
-        "threshold/1/energy": energy(4023.8899),
-        "threshold/1/mode": mode("disabled"),
-        "threshold/2/energy": energy(9254.9468),
-        "threshold/2/mode": mode("disabled"),
-        "threshold/difference/mode": mode("enabled"),
-      },
-    });
+    controller._setConnection("http://192.168.1.10");
+    controller._setParams({ detector: { photon_energy: energy(8047.7798), ...detector } });
     controller._renderAll();
-    const labels = [...elements.paramsHost.querySelectorAll(".detector-param label")].map((l) => l.textContent);
-    expect(labels).toEqual([
-      "Photon energy",
-      "Threshold 1",
-      "Threshold 1 images",
-      "Threshold 2",
-      "Threshold 2 images",
-      "Difference image (1 − 2)",
-    ]);
-    const modeSelect = elements.paramsHost.querySelector("#detector-p-detector-threshold_1_mode");
-    expect([...modeSelect.options].map((o) => o.textContent)).toEqual(["On", "Off"]);
-    // A dropdown needs no "2 options" hint.
-    expect(modeSelect.closest(".detector-param").querySelector(".detector-hint").textContent).toBe("");
-    expect(elements.advancedHost.querySelector('[data-key="detector:threshold/1/energy"]')).toBeNull();
+    const host = elements.paramsHost;
+    const labels = [...host.querySelectorAll(".detector-param:not(.detector-images) .detector-param-label > label")].map((l) => l.textContent);
+    const chips = () => [...host.querySelectorAll(".detector-chip")].map((c) => `${c.textContent}:${c.getAttribute("aria-pressed")}`);
+    return { mod, elements, host, labels, chips };
+  }
+
+  it("shows two thresholds' energies, and their images as chips", async () => {
+    const { elements, host, labels, chips } = await thresholds({
+      threshold_energy: energy(4023.8899),
+      "threshold/1/energy": energy(4023.8899),
+      "threshold/1/mode": mode("disabled"),
+      "threshold/2/energy": energy(9254.9468),
+      "threshold/2/mode": mode("disabled"),
+      "threshold/difference/mode": mode("enabled"),
+    });
+    expect(labels).toEqual(["Photon energy", "Threshold 1", "Threshold 2"]);
+    // As on a POLLUX: only the difference image, from both thresholds.
+    expect(chips()).toEqual(["Threshold 1:false", "Threshold 2:false", "Difference (1 − 2):true"]);
+    // The energies are in use either way: nothing is dimmed or switched.
+    expect(host.querySelector(".is-off, .detector-param-label .detector-switch")).toBeNull();
+    expect(host.textContent).not.toContain(EN["detector.images.none"]);
+    const tip = host.querySelector(".detector-images .info-tip");
+    expect(tip.dataset.infoKey).toBe("detector.help.images");
+    expect(tip.dataset.infoDetail).toContain("SIMPLON: detector/config/threshold/difference/mode");
+    // Neither the alias nor the modes are repeated in Advanced.
+    for (const key of ["threshold/1/energy", "threshold/1/mode", "threshold/2/mode", "threshold/difference/mode"]) {
+      expect(elements.advancedHost.querySelector(`[data-key="detector:${key}"]`)).toBeNull();
+    }
+  });
+
+  it("shows all four thresholds of a PILATUS4, and warns when no image is selected", async () => {
+    const detector = { threshold_energy: energy(5000) };
+    for (const n of [1, 2, 3, 4]) {
+      detector[`threshold/${n}/energy`] = energy(4000 + n * 1000);
+      detector[`threshold/${n}/mode`] = mode("disabled");
+    }
+    const { host, labels, chips } = await thresholds(detector);
+    expect(labels).toEqual(["Photon energy", "Threshold 1", "Threshold 2", "Threshold 3", "Threshold 4"]);
+    expect(chips()).toEqual(["Threshold 1:false", "Threshold 2:false", "Threshold 3:false", "Threshold 4:false"]);
+    expect(host.textContent).toContain(EN["detector.images.none"]);
+  });
+
+  it("shows a single threshold without a choice of images, its mode left to Advanced", async () => {
+    const { elements, labels, chips } = await thresholds({
+      threshold_energy: energy(4023.8899),
+      "threshold/1/energy": energy(4023.8899),
+      "threshold/1/mode": mode("enabled"),
+    });
+    expect(labels).toEqual(["Photon energy", "Threshold"]);
+    expect(chips()).toEqual([]);
+    // ...as a switch, like every on/off setting.
+    expect(elements.advancedHost.querySelector('[data-key="detector:threshold/1/mode"] .detector-switch input').checked).toBe(true);
+    const bare = await thresholds({ "threshold/1/energy": energy(4000) });
+    expect(bare.labels).toEqual(["Photon energy", "Threshold"]);
+  });
+
+  it("selects an image through the detector, and shows what it has if refused", async () => {
+    const put = vi.fn(async () => ({ ok: false, status: 400, json: async () => ({ detail: "not now" }) }));
+    const { host } = await thresholds(
+      {
+        "threshold/1/energy": energy(4000),
+        "threshold/1/mode": mode("enabled"),
+        "threshold/2/energy": energy(9000),
+        "threshold/2/mode": mode("disabled"),
+      },
+      { "/detector/config": put },
+    );
+    host.querySelector('.detector-chip[data-key="threshold/2/mode"]').click();
+    await vi.waitFor(() => expect(put).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(put.mock.calls[0][1].body)).toMatchObject({ key: "threshold/2/mode", value: "enabled" });
+    await vi.waitFor(() => expect(host.querySelector(".detector-images .detector-hint").textContent).toBe("not now"));
+    expect(host.querySelector('.detector-chip[data-key="threshold/2/mode"]').getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("makes every on/off setting a switch", async () => {
+    const put = vi.fn(async (_url, init) => {
+      const body = JSON.parse(init.body);
+      return { ok: true, json: async () => ({ changed: [body.key], params: { [body.key]: { ...DESCRIPTORS.detector.countrate_correction_applied, value: body.value } } }) };
+    });
+    const { elements } = await setup({ "/detector/config": put });
+    const box = elements.advancedHost.querySelector('[data-key="detector:countrate_correction_applied"] .detector-switch input');
+    expect(box.checked).toBe(true);
+    box.checked = false;
+    box.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(put).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(put.mock.calls[0][1].body)).toMatchObject({ key: "countrate_correction_applied", value: false });
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain("set to Off"));
+  });
+
+  it("lays the groups out as columns and sums up the series in the header", async () => {
+    const { mod, controller, elements } = await setup();
+    const groups = [...elements.paramsHost.querySelectorAll(".detector-groups > .detector-group")].map((group) => group.dataset.group);
+    expect(groups).toEqual(["series", "timing", "energy"]);
+    expect(mod.thresholdRows({})).toEqual({ energies: [], images: [] });
+    const summary = document.createElement("span");
+    const params = structuredClone(DESCRIPTORS);
+    const ctl = mod.createDetectorControlController({ apiBase: "/api", elements: { ...elements, seriesSummary: summary }, callbacks: {} });
+    ctl._setParams(params);
+    ctl._setStatus({ detector: { state: "idle" } });
+    // 10 images × 1 trigger at 0.01 s, internally triggered.
+    expect(summary.textContent).toBe("10 images · 100 ms");
+    params.detector.trigger_mode.value = "exts";
+    ctl._setParams(params);
+    ctl._setStatus({ detector: { state: "idle" } });
+    expect(summary.textContent).toBe("10 images");
+    ctl._setStatus({ detector: { state: "acquire" } });
+    expect(summary.hidden).toBe(true);
+    void controller;
   });
 
   it("names the next file honestly", async () => {
@@ -397,7 +486,8 @@ describe("detector control panel, recovery", () => {
     controller._setParams(enabledOutputs());
     controller._renderAll();
     controller._setStatus({ detector: { state: "idle" }, stream: { state: "ready", dropped: 3, mode: "enabled" } });
-    expect(elements.outputsHost.textContent).toContain("3 images of the last series were not picked up");
+    expect(elements.outputsHost.textContent).toContain("Last series: 3 images not received");
+    expect(elements.outputsHost.querySelector(".detector-meta .info-tip").dataset.infoKey).toBe("detector.help.dropped");
     expect(elements.outputsHost.textContent).not.toContain("Reset stream…");
     controller._setStatus({ detector: { state: "idle" }, stream: { state: "error", dropped: 0, mode: "enabled" } });
     expect(elements.outputsHost.textContent).toContain(EN["detector.output.stream_error"]);
@@ -551,7 +641,7 @@ describe("detector control panel, explanations", () => {
     expect(count.querySelector("code")).toBeNull();
     const tip = count.querySelector(".info-tip");
     expect(tip.dataset.infoKey).toBe("detector.help.count_time");
-    expect(tip.dataset.infoDetail).toBe("SIMPLON: detector/config/count_time");
+    expect(tip.dataset.infoDetail).toBe(`SIMPLON: detector/config/count_time\nAllowed: ${"200 µs – 60:00 min"}`);
     expect(EN[tip.dataset.infoKey]).toMatch(/Exposure time/);
     // Every setting in the main view has an explanation.
     const rows = [...elements.paramsHost.querySelectorAll(".detector-param"), ...elements.outputsHost.querySelectorAll(".detector-param")];
@@ -569,5 +659,70 @@ describe("detector control panel, explanations", () => {
     expect(mod.helpKey("detector", "threshold/3/energy")).toBe("detector.help.threshold_energy");
     expect(mod.helpKey("detector", "threshold/2/mode")).toBe("detector.help.threshold_mode");
     expect(mod.helpKey("detector", "flatfield_correction_applied")).toBe("");
+  });
+});
+
+describe("detector control panel, compact cards", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("shrinks the address to a line under the detector's name once connected", async () => {
+    const routes = {
+      "/detector/describe": async () => ({ ok: true, json: async () => ({ state: "idle", params: structuredClone(DESCRIPTORS) }) }),
+      "/detector/status": async () => ({ ok: true, json: async () => ({ detector: { state: "idle" } }) }),
+      "/detector/files": async () => ({ ok: true, json: async () => ({ files: [] }) }),
+    };
+    const { controller, elements } = await setup(routes);
+    elements.urlInput.value = "192.168.30.90";
+    await controller.connect();
+    expect(elements.addressHost.hidden).toBe(true);
+    // The name says it connected; no second "Connected to ..." line.
+    expect(elements.message.textContent).toBe("");
+    const where = elements.model.parentElement.nextElementSibling;
+    expect(where.textContent).toBe("192.168.30.90 · Change");
+    where.querySelector("button").click();
+    expect(elements.addressHost.hidden).toBe(false);
+    expect(where.hidden).toBe(true);
+  });
+
+  it("puts the file writer's facts on one line, and an empty file list too", async () => {
+    const { controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    params.filewriter.mode.value = "enabled";
+    params.monitor.mode.value = "enabled";
+    controller._setParams(params);
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", state: "ready", buffer_free: 3.2e9 }, monitor: { mode: "enabled", state: "normal" } });
+    const meta = elements.outputsHost.querySelector(".detector-output .detector-meta");
+    expect(meta.textContent).toBe("Next: series_$id_master.h5 · 3.2 GB free · Data page");
+    expect(meta.querySelector("a").href).toBe("http://192.168.1.10/data/");
+    // Watch live sits in the monitor's header line.
+    const monitorHead = [...elements.outputsHost.querySelectorAll(".detector-output-head")].pop();
+    expect(monitorHead.textContent).toContain("Watch live images");
+    expect(elements.filesHost.textContent).toBe("Files on the detector: none · Refresh");
+  });
+
+  it("lays out Advanced on single lines, with readable values", async () => {
+    const { mod, controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    params.detector.sensor_thickness = { value: 0.00045, value_type: "float", unit: "m", access_mode: "r" };
+    params.detector.test_image_mode = { value: "", value_type: "string", access_mode: "rw", allowed_values: ["gates", "pattern"] };
+    params.stream.header_appendix = { value: "", value_type: "string", access_mode: "rw" };
+    controller._setParams(params);
+    controller._renderAll();
+    const host = elements.advancedHost;
+    expect(host.querySelector('[data-key="detector:sensor_thickness"] .detector-readonly').textContent).toBe("450 µm");
+    expect(mod.readableValue({ value: 0.075, unit: "m" })).toBe("75 mm");
+    expect(mod.readableValue({ value: 2, unit: "m" })).toBe("2 m");
+    const mode = host.querySelector("#detector-p-detector-test_image_mode");
+    expect(mode.selectedOptions[0].textContent).toBe("(none)");
+    // Free text shares the line in Advanced.
+    expect(host.querySelector('[data-key="stream:header_appendix"]').classList.contains("is-wide")).toBe(false);
+    expect(host.querySelector(".detector-adv-group.is-info .detector-group-label").textContent).toBe("Detector information");
+    // Deleting the files is the step that cannot be undone.
+    const del = [...elements.troubleshootingHost.querySelectorAll("button")].find((b) => b.textContent === EN["detector.action.delete_files"]);
+    expect(del.classList.contains("is-danger")).toBe(true);
   });
 });

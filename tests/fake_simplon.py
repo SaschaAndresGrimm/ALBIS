@@ -36,6 +36,21 @@ def _param(
     return out
 
 
+def _add_thresholds(detector: dict[str, dict[str, Any]], count: int) -> None:
+    """Thresholds 2..count, as a POLLUX (two) or a PILATUS4 (four) has them."""
+    for n in range(2, count + 1):
+        detector[f"threshold/{n}/energy"] = _param(
+            6200.0 + 2000.0 * (n - 1), "float", "eV", min=1750.0, max=20000.0
+        )
+        detector[f"threshold/{n}/mode"] = _param(
+            "disabled", "string", allowed_values=["enabled", "disabled"]
+        )
+    if count > 1:
+        detector["threshold/difference/mode"] = _param(
+            "disabled", "string", allowed_values=["enabled", "disabled"]
+        )
+
+
 def _default_params() -> dict[str, dict[str, dict[str, Any]]]:
     return {
         "detector": {
@@ -80,9 +95,12 @@ def _default_params() -> dict[str, dict[str, dict[str, Any]]]:
 class FakeDCU:
     """State and behaviour of one simulated detector control unit."""
 
-    def __init__(self, *, init_delay: float = 0.2, max_series_s: float = 0.3) -> None:
+    def __init__(
+        self, *, init_delay: float = 0.2, max_series_s: float = 0.3, thresholds: int = 1
+    ) -> None:
         self.lock = threading.Lock()
         self.params = _default_params()
+        _add_thresholds(self.params["detector"], max(1, min(4, thresholds)))
         self.state = "na"
         self.init_delay = init_delay
         self.max_series_s = max_series_s

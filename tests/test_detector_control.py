@@ -251,3 +251,16 @@ def test_an_unreachable_detector_is_diagnosed(client: TestClient) -> None:
     response = client.get("/api/detector/status", params={"url": "127.0.0.1:9"})
     assert response.status_code == 502
     assert response.json()["detail"]["code"] == "refused"
+
+
+def test_a_four_threshold_detector_describes_every_threshold(client: TestClient) -> None:
+    """A PILATUS4 has four thresholds; each, with its mode, reaches the panel."""
+    with FakeDCUServer(init_delay=0.05, thresholds=4) as pilatus4:
+        _initialize(client, pilatus4.url)
+        params = client.get("/api/detector/describe", params={"url": pilatus4.url}).json()[
+            "params"
+        ]["detector"]
+        for n in range(1, 5):
+            assert f"threshold/{n}/energy" in params
+            assert f"threshold/{n}/mode" in params
+        assert "threshold/difference/mode" in params

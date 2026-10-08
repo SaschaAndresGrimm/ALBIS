@@ -28,31 +28,16 @@ const LOW_STORAGE_BYTES = 1024 ** 3;
 
 // The main view: what an acquisition needs, if the detector has it, ordered
 // by how often it changes -- the series and its timing from one measurement to
-// the next, the energy and thresholds once per experiment. A tuple lists
-// alternatives, the first present one wins: X-ray detectors call the energy
-// photon_energy, electron-microscopy ones incident_energy.
+// the next, the energy and thresholds once per experiment. On a wide panel the
+// groups sit side by side, each a compact column. A row is a key; `oneOf` takes
+// the first key the detector has (X-ray detectors call the energy
+// photon_energy, electron-microscopy ones incident_energy); `thresholds` is one
+// row per threshold energy, one to four, then the images the detector delivers.
 const CORE_GROUPS = [
-  { id: "series", keys: ["nimages", "ntrigger", "trigger_mode"] },
+  { id: "series", rows: ["nimages", "ntrigger", "trigger_mode"] },
   // Frame time first: it sets the rate, and the count time fits inside it.
-  { id: "timing", keys: ["frame_time", "count_time"] },
-  {
-    id: "energy",
-    keys: [
-      ["photon_energy", "incident_energy"],
-      // threshold_energy is threshold/1/energy under another name (SIMPLON
-      // reference); each threshold's mode decides whether its images are
-      // taken at all, so it sits next to the energy, not in Advanced.
-      "threshold_energy",
-      "threshold/1/mode",
-      "threshold/2/energy",
-      "threshold/2/mode",
-      "threshold/3/energy",
-      "threshold/3/mode",
-      "threshold/4/energy",
-      "threshold/4/mode",
-      "threshold/difference/mode",
-    ],
-  },
+  { id: "timing", rows: ["frame_time", "count_time"] },
+  { id: "energy", rows: [{ oneOf: ["photon_energy", "incident_energy"] }, { thresholds: true }] },
 ];
 // The progress bar runs on the clock, not on the status polls: a poll to a
 // real detector takes a variable time, and the bar jumped with it.
@@ -74,6 +59,43 @@ const PARAM_HELP = {
   "filewriter:nimages_per_file": "nimages_per_file",
   "stream:header_detail": "header_detail",
 };
+
+/**
+ * The thresholds a detector has, one to four: each one's energy, and the images
+ * it can deliver. The energies are always in use -- they decide what is
+ * counted, and the difference image is calculated from thresholds 1 and 2 --
+ * while each mode only decides whether that threshold's images are delivered.
+ * With a single threshold there is no choice to offer (switching it off would
+ * switch off the images), so its mode stays in Advanced. threshold_energy is
+ * threshold/1/energy under another name (SIMPLON reference), preferred for the
+ * first.
+ */
+export function thresholdRows(detectorParams) {
+  const energies = [];
+  for (let n = 1; n <= 4; n += 1) {
+    const energy = n === 1 && detectorParams.threshold_energy ? "threshold_energy" : `threshold/${n}/energy`;
+    if (detectorParams[energy]) energies.push({ n, energy });
+  }
+  const images = [];
+  if (energies.length > 1) {
+    for (const { n } of energies) {
+      if (detectorParams[`threshold/${n}/mode`]) images.push({ key: `threshold/${n}/mode`, n });
+    }
+    if (detectorParams["threshold/difference/mode"]) images.push({ key: "threshold/difference/mode", n: null });
+  }
+  return { energies, images };
+}
+
+// An on/off setting, whichever way the detector types it.
+function isBinary(descriptor) {
+  if (descriptor?.value_type === "bool") return true;
+  const allowed = descriptor?.allowed_values;
+  return Array.isArray(allowed) && allowed.length === 2 && allowed.includes("enabled") && allowed.includes("disabled");
+}
+
+function isOn(descriptor) {
+  return descriptor?.value_type === "bool" ? Boolean(descriptor.value) : descriptor?.value === "enabled";
+}
 
 export function helpKey(subsystem, key) {
   if (subsystem === "detector" && /^threshold\/\d\/energy$/.test(key)) return "detector.help.threshold_energy";
@@ -234,6 +256,18 @@ function fmtLimit(value, unit) {
   return unit ? `${n} ${unit}` : n;
 }
 
+/** A read-only value with its unit; a length in metres in µm or mm. */
+export function readableValue(descriptor) {
+  const unit = String(descriptor?.unit || "").toLowerCase();
+  const v = descriptor?.value;
+  if (typeof v === "number" && ["m", "meter", "meters", "metre", "metres"].includes(unit) && v !== 0 && Math.abs(v) < 1) {
+    const mm = Math.abs(v) >= 1e-3;
+    return `${+(v * (mm ? 1e3 : 1e6)).toPrecision(6)} ${mm ? "mm" : "µm"}`;
+  }
+  const symbol = descriptor?.unit ? ` ${unitSymbol(descriptor.unit)}` : "";
+  return `${displayValue(descriptor)}${symbol}`;
+}
+
 export function rangeText(descriptor) {
   const { min, max, unit } = descriptor || {};
   if (Array.isArray(descriptor?.allowed_values) && descriptor.allowed_values.length) {
@@ -276,6 +310,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     content,
     urlInput,
     connectBtn,
+    addressHost,
     message,
     summary,
     live,
@@ -301,6 +336,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     sections,
     paramsHost,
     lockNote,
+    seriesSummary,
     outputsHost,
     filesHost,
     logHost,
@@ -325,6 +361,28 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   let filesError = "";
   let followedBefore = false;
   let progressTimer = null;
+  // Once connected, the address shrinks to a line under the detector's name,
+  // with Change to bring the field back: the name already says it connected.
+  const whereLine = model ? el("div", "detector-where") : null;
+  model?.parentElement?.after?.(whereLine);
+
+  function showAddress(show) {
+    if (addressHost) addressHost.hidden = !show;
+    if (whereLine) whereLine.hidden = show;
+  }
+
+  function renderWhere() {
+    if (!whereLine) return;
+    whereLine.replaceChildren();
+    const change = el("button", "linkish", t("detector.action.change"));
+    change.type = "button";
+    change.addEventListener("click", () => {
+      showAddress(true);
+      urlInput?.focus?.();
+    });
+    whereLine.append(el("span", "", url.replace(/^https?:\/\//, "").replace(/\/+$/, "")), " · ", change);
+  }
+
   // Recovery hints sit right under the sensors, in the detector card.
   const recoverHost = sensors ? el("div", "detector-recover") : null;
   sensors?.after?.(recoverHost);
@@ -412,7 +470,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       await refreshDescription();
       await poll();
       const name = displayValue(params.detector.description) || url;
-      setMessage(t("detector.message.connected", { detector: name }), "ok");
+      setMessage("");
+      renderWhere();
+      showAddress(false);
       log(t("detector.log.connected", { detector: name }));
       if (live) live.hidden = false;
       sections?.forEach((section) => { section.hidden = false; });
@@ -718,9 +778,31 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderRecovery(value);
     const locked = isBusy() || acquiring;
     if (lockNote) lockNote.hidden = !locked;
+    renderSeriesSummary(locked);
     content?.querySelectorAll("[data-param-input]").forEach((input) => {
       input.disabled = locked || input.dataset.readonly === "true";
     });
+  }
+
+  // What the next series will be, in the Acquisition header: visible with
+  // the section closed, and it ties the numbers together. The duration only
+  // where this panel's settings decide it, an internally triggered series.
+  function renderSeriesSummary(locked) {
+    if (!seriesSummary) return;
+    const det = params.detector;
+    const perTrigger = Number(det.nimages?.value);
+    const triggers = Number(det.ntrigger?.value ?? 1);
+    const count = perTrigger * (triggers > 0 ? triggers : 1);
+    if (locked || !det.nimages || !Number.isFinite(count) || count <= 0) {
+      seriesSummary.hidden = true;
+      return;
+    }
+    const frame = Number(det.frame_time?.value);
+    const internal = String(det.trigger_mode?.value || "") === "ints";
+    seriesSummary.textContent = internal && frame > 0
+      ? t("detector.summary.series", { count, duration: formatDuration(count * frame) })
+      : t("detector.summary.series_images", { count });
+    seriesSummary.hidden = false;
   }
 
   function renderProgress(value) {
@@ -767,14 +849,20 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     if (subsystem === "detector" && key === "threshold_energy" && params.detector["threshold/2/energy"]) {
       return t("detector.param.threshold_n", { n: 1 });
     }
+    // ...and a lone threshold is "Threshold", whichever name it goes by.
+    if (subsystem === "detector" && key === "threshold/1/energy" && !params.detector["threshold/2/energy"]) {
+      return t("detector.param.threshold_energy");
+    }
     return paramLabel(key);
   }
 
-  function infoTip(infoKey, simplonPath) {
+  function infoTip(infoKey, simplonPaths, extra = "") {
     const button = el("button", "info-tip");
     button.type = "button";
     button.dataset.infoKey = infoKey;
-    button.dataset.infoDetail = `SIMPLON: ${simplonPath}`;
+    const lines = [].concat(simplonPaths).map((path) => `SIMPLON: ${path}`);
+    if (extra) lines.push(extra);
+    button.dataset.infoDetail = lines.join("\n");
     button.setAttribute("aria-label", t("info.button_label"));
     return button;
   }
@@ -782,7 +870,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // A setting with an explanation shows its name and a "?" that explains it
   // and names its SIMPLON key; the others, all in Advanced and mostly without
   // a translated name, show the key itself.
-  function paramRow(subsystem, key, descriptor) {
+  function paramRow(subsystem, key, descriptor, { help: helpOverride = "", alsoKeys = [], inline = false } = {}) {
     const row = el("div", "detector-param");
     row.dataset.key = `${subsystem}:${key}`;
     const id = `detector-p-${subsystem}-${key.replace(/[^a-z0-9]/gi, "_")}`;
@@ -790,10 +878,13 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const labelText = labelFor(subsystem, key);
     const label = el("label", "", labelText);
     label.htmlFor = id;
-    const help = helpKey(subsystem, key);
+    const help = helpOverride || helpKey(subsystem, key);
     if (help) {
       const line = el("span", "detector-param-label");
-      line.append(label, infoTip(help, `${subsystem}/config/${key}`));
+      // The range is in the "?" too, since the row shows it only while editing.
+      const range = rangeText(descriptor);
+      const paths = [key, ...alsoKeys].map((name) => `${subsystem}/config/${name}`);
+      line.append(label, infoTip(help, paths, range ? t("detector.help.range", { range }) : ""));
       name.append(line);
     } else {
       name.append(label);
@@ -804,13 +895,13 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     row.append(name);
     const readonly = !String(descriptor.access_mode || "rw").includes("w");
     if (readonly) {
-      const unit = descriptor.unit ? ` ${unitSymbol(descriptor.unit)}` : "";
-      const value = el("div", "detector-readonly", `${displayValue(descriptor)}${unit}`);
+      const value = el("div", "detector-readonly", readableValue(descriptor));
       value.id = id;
       row.append(value);
       return row;
     }
     const field = el("div", "detector-field");
+    if (isBinary(descriptor)) return switchRow(subsystem, key, descriptor, row, field, id);
     let input;
     const allowed = Array.isArray(descriptor.allowed_values) ? descriptor.allowed_values : null;
     if (descriptor.value_type === "bool") {
@@ -823,12 +914,15 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       input.value = String(Boolean(descriptor.value));
     } else if (allowed) {
       input = el("select");
-      for (const value of allowed) {
-        const option = el("option", "", optionLabel(key, value));
-        option.value = String(value);
+      // A value outside the list (an empty test image mode) is still shown,
+      // rather than a blank dropdown.
+      const values = allowed.map(String).includes(String(descriptor.value)) ? allowed : [descriptor.value, ...allowed];
+      for (const value of values) {
+        const option = el("option", "", value === "" || value === null ? t("detector.value.none") : optionLabel(key, value));
+        option.value = String(value ?? "");
         input.append(option);
       }
-      input.value = String(descriptor.value);
+      input.value = String(descriptor.value ?? "");
     } else {
       input = el("input");
       input.type = "text";
@@ -840,8 +934,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         field.append(el("span", "detector-unit", unit));
         input.style.paddingRight = `${16 + unit.length * 7}px`;
       }
-      if (descriptor.value_type === "string") {
-        // Free text (a name pattern, a sample name) needs the whole row.
+      if (descriptor.value_type === "string" && !inline) {
+        // Free text (a name pattern) needs the whole row; in Advanced it
+        // shares the line, as the other settings there do.
         row.classList.add("is-wide");
       } else {
         input.classList.add("is-number");
@@ -863,6 +958,29 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         if (event.key === "Enter") input.blur();
       });
     }
+    return row;
+  }
+
+  // On/off as a switch: one click, and the same control as the data outputs.
+  function switchRow(subsystem, key, descriptor, row, field, id) {
+    const toggle = el("label", "detector-switch");
+    const box = el("input");
+    box.type = "checkbox";
+    box.id = id;
+    box.checked = isOn(descriptor);
+    box.dataset.paramInput = "";
+    toggle.append(box, el("span"));
+    field.classList.add("is-switch");
+    field.append(toggle);
+    const hint = el("div", "detector-hint", "");
+    hint.dataset.range = "";
+    row.append(field, hint);
+    box.addEventListener("change", async () => {
+      const value = descriptor.value_type === "bool" ? box.checked : box.checked ? "enabled" : "disabled";
+      await sendParam(subsystem, key, value, { value: "" }, hint, row);
+      // Refused: the switch shows what the detector has.
+      box.checked = isOn(params[subsystem]?.[key]);
+    });
     return row;
   }
 
@@ -910,8 +1028,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       // An output's mode reads as "File writer: On", not "mode set to enabled".
       const isMode = key === "mode" && subsystem !== "detector";
       const label = isMode ? t(`detector.output.${subsystem}`) : paramLabel(key);
-      const shown = isMode
-        ? t(value === "enabled" ? "detector.value.on" : "detector.value.off")
+      const shown = isMode || isBinary(params[subsystem][key])
+        ? t(isOn(params[subsystem][key]) || value === "enabled" || value === true ? "detector.value.on" : "detector.value.off")
         : optionLabel(key, displayValue(params[subsystem][key]));
       log(t("detector.log.set", { label, value: shown }));
       if (isMode && status?.[subsystem]) {
@@ -958,27 +1076,88 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }
   }
 
-  function coreKeys() {
-    const out = [];
+  // The main view's rows for this detector: the groups, each with its rows
+  // (a key, a threshold energy, or the images row), and every key they show.
+  function coreLayout() {
+    const det = params.detector;
+    const groups = [];
+    const keys = [];
     for (const group of CORE_GROUPS) {
-      const keys = [];
-      for (const entry of group.keys) {
-        const options = Array.isArray(entry) ? entry : [entry];
-        const found = options.find((key) => params.detector[key]);
-        if (found) keys.push(found);
+      const rows = [];
+      for (const entry of group.rows) {
+        if (typeof entry === "string") {
+          if (det[entry]) rows.push({ keys: [entry] });
+        } else if (entry.oneOf) {
+          const found = entry.oneOf.find((key) => det[key]);
+          if (found) rows.push({ keys: [found] });
+        } else if (entry.thresholds) {
+          const { energies, images } = thresholdRows(det);
+          for (const { energy } of energies) rows.push({ keys: [energy] });
+          if (images.length) rows.push({ keys: images.map((image) => image.key), images });
+        }
       }
-      if (keys.length) out.push({ id: group.id, keys });
+      if (rows.length) groups.push({ id: group.id, rows });
+      for (const row of rows) keys.push(...row.keys);
     }
-    return out;
+    return { groups, keys };
+  }
+
+  function coreKeys() {
+    return coreLayout().keys;
+  }
+
+  // Which images the detector delivers, as chips: each threshold's own, and
+  // the difference image. The energies above stay in use either way.
+  function imagesRow(images) {
+    const row = el("div", "detector-param detector-images");
+    row.dataset.key = "detector:images";
+    const name = el("div", "detector-param-name");
+    const line = el("span", "detector-param-label");
+    const label = el("span", "detector-images-label", t("detector.images.label"));
+    line.append(label, infoTip("detector.help.images", images.map((image) => `detector/config/${image.key}`)));
+    name.append(line);
+    const chips = el("div", "detector-chips");
+    chips.setAttribute("role", "group");
+    chips.setAttribute("aria-label", t("detector.images.label"));
+    for (const image of images) {
+      const descriptor = params.detector[image.key];
+      const chip = el("button", "detector-chip", image.n ? t("detector.param.threshold_n", { n: image.n }) : t("detector.images.difference"));
+      chip.type = "button";
+      chip.dataset.key = image.key;
+      chip.dataset.paramInput = "";
+      if (!String(descriptor.access_mode || "rw").includes("w")) chip.dataset.readonly = "true";
+      chip.setAttribute("aria-pressed", String(isOn(descriptor)));
+      chip.addEventListener("click", async () => {
+        const next = isOn(params.detector[image.key]) ? "disabled" : "enabled";
+        await sendParam("detector", image.key, next, { value: "" }, hint, row);
+      });
+      chips.append(chip);
+    }
+    const hint = el("div", "detector-hint", "");
+    hint.dataset.range = "";
+    row.append(name, chips, hint);
+    const box = el("div", "detector-images-block");
+    box.append(row);
+    if (!images.some((image) => isOn(params.detector[image.key]))) {
+      box.append(el("div", "detector-warning", t("detector.images.none")));
+    }
+    return box;
   }
 
   function renderParams() {
     if (!paramsHost) return;
     paramsHost.replaceChildren();
-    for (const group of coreKeys()) {
-      paramsHost.append(el("div", "detector-group-label", t(`detector.group.${group.id}`)));
-      for (const key of group.keys) paramsHost.append(paramRow("detector", key, params.detector[key]));
+    const columns = el("div", "detector-groups");
+    for (const group of coreLayout().groups) {
+      const column = el("div", "detector-group");
+      column.dataset.group = group.id;
+      column.append(el("div", "detector-group-label", t(`detector.group.${group.id}`)));
+      for (const row of group.rows) {
+        column.append(row.images ? imagesRow(row.images) : paramRow("detector", row.keys[0], params.detector[row.keys[0]]));
+      }
+      columns.append(column);
     }
+    paramsHost.append(columns);
     refreshInfoTips?.();
     renderState();
   }
@@ -1038,58 +1217,72 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         for (const key of OUTPUT_MAIN[name]) {
           if (params[name][key]) block.append(paramRow(name, key, params[name][key]));
         }
-        if (name === "filewriter" && params.filewriter.name_pattern) {
-          const pattern = String(params.filewriter.name_pattern.value || "");
-          if (!pattern.includes("$id")) {
-            block.append(el("div", "detector-warning", t("detector.output.no_id")));
-          } else if (series !== null && Number.isFinite(Number(series))) {
-            // Known only once a series was armed here; SIMPLON numbers them in turn.
-            const next = pattern.replace("$id", String(Number(series) + 1));
-            block.append(el("div", "detector-note", t("detector.output.next_file", { name: `${next}_master.h5` })));
-          } else {
-            block.append(el("div", "detector-note", t("detector.output.next_file_pattern", { name: `${pattern}_master.h5` })));
-          }
-        }
-        if (name === "filewriter" && status?.filewriter?.buffer_free !== undefined && status?.filewriter?.buffer_free !== null) {
-          block.append(el("div", "detector-note", t("detector.output.storage_free", { free: formatBytes(status.filewriter.buffer_free) })));
-        }
-        if (name === "filewriter" && storageLow()) {
-          const warning = el("div", "detector-warning", t("detector.output.storage_low"));
-          warning.append(" ", recoveryButton(t("detector.action.delete_files"), askDeleteFiles));
-          block.append(warning);
-        }
-        if (name === "filewriter") {
-          // The DCU serves the files it wrote at /data/ (SIMPLON reference),
-          // which is also where its own web interface lists them.
-          const page = el("a", "linkish detector-external", t("detector.output.data_page"));
-          page.href = `${url.replace(/\/+$/, "")}/data/`;
-          page.target = "_blank";
-          page.rel = "noopener";
-          block.append(page);
-        }
+        if (name === "filewriter") block.append(...fileWriterNotes());
         if (name === "stream") {
-          block.append(el("div", "detector-note", t("detector.output.stream_note")));
           // SIMPLON counts images nobody picked up and resets the count at
-          // each arm: with no receiver, a non-zero count is expected, not a fault.
-          if (status?.stream?.dropped) block.append(el("div", "detector-note", t("detector.output.dropped", { count: status.stream.dropped })));
+          // each arm: with no receiver, a non-zero count is expected, not a
+          // fault -- the short line says what, its "?" why.
+          if (status?.stream?.dropped) {
+            const dropped = el("div", "detector-meta", t("detector.output.dropped", { count: status.stream.dropped }));
+            dropped.append(" ", infoTip("detector.help.dropped", "stream/status/dropped"));
+            block.append(dropped);
+          }
           if (String(status?.stream?.state || "") === "error") {
             const warning = el("div", "detector-warning", t("detector.output.stream_error"));
             warning.append(" ", recoveryButton(t("detector.action.reset_stream"), askResetStream));
             block.append(warning);
           }
         }
-        if (name === "monitor") {
-          const watch = el("button", "linkish", t("detector.action.watch_live"));
-          watch.type = "button";
-          watch.addEventListener("click", () => watchLive?.(url, version));
-          block.append(watch);
-        }
+      }
+      if (name === "monitor" && mode.value === "enabled") {
+        // In the header line: the monitor has no settings of its own here.
+        const watch = el("button", "linkish", t("detector.action.watch_live"));
+        watch.type = "button";
+        watch.addEventListener("click", () => watchLive?.(url, version));
+        dot.before(watch);
+        head.classList.add("has-action");
       }
       outputsHost.append(block);
     }
     renderFiles();
     refreshInfoTips?.();
     renderState();
+  }
+
+  // The file writer's facts on one line -- the next file, the free storage,
+  // the detector's data page -- and a warning of its own when one is needed.
+  function fileWriterNotes() {
+    const out = [];
+    const parts = [];
+    const pattern = String(params.filewriter.name_pattern?.value ?? "");
+    if (params.filewriter.name_pattern && !pattern.includes("$id")) {
+      out.push(el("div", "detector-warning", t("detector.output.no_id")));
+    } else if (params.filewriter.name_pattern) {
+      // The number is known only once a series was armed here; SIMPLON
+      // numbers them in turn. Until then $id stands in, as the "?" explains.
+      const known = series !== null && Number.isFinite(Number(series));
+      const next = known ? pattern.replace("$id", String(Number(series) + 1)) : pattern;
+      parts.push(el("span", "", t("detector.output.next_file", { name: `${next}_master.h5` })));
+    }
+    const free = status?.filewriter?.buffer_free;
+    if (free !== undefined && free !== null) parts.push(el("span", "", t("detector.output.free", { free: formatBytes(free) })));
+    // The DCU serves the files it wrote at /data/ (SIMPLON reference), which
+    // is also where its own web interface lists them.
+    const page = el("a", "linkish detector-external", t("detector.output.data_page_short"));
+    page.href = `${url.replace(/\/+$/, "")}/data/`;
+    page.target = "_blank";
+    page.rel = "noopener";
+    page.title = t("detector.output.data_page");
+    parts.push(page);
+    const line = el("div", "detector-meta");
+    parts.forEach((part, index) => line.append(...(index ? [" · ", part] : [part])));
+    out.unshift(line);
+    if (storageLow()) {
+      const warning = el("div", "detector-warning", t("detector.output.storage_low"));
+      warning.append(" ", recoveryButton(t("detector.action.delete_files"), askDeleteFiles));
+      out.push(warning);
+    }
+    return out;
   }
 
   async function setMode(name, value) {
@@ -1120,18 +1313,21 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     if (!filesHost) return;
     filesHost.replaceChildren();
     if (!params.filewriter?.mode) return;
-    const head = el("div", "detector-group-label", t("detector.files.title"));
     const refresh = el("button", "linkish", t("detector.action.refresh_files"));
     refresh.type = "button";
     refresh.addEventListener("click", () => void refreshFiles());
+    if (!filesError && !files.length) {
+      // Nothing to list: heading and "none" on one line.
+      const line = el("div", "detector-meta detector-files-line", t("detector.files.none_inline"));
+      line.append(" · ", refresh);
+      filesHost.append(line);
+      return;
+    }
+    const head = el("div", "detector-group-label", t("detector.files.title"));
     head.append(" ", refresh);
     filesHost.append(head);
     if (filesError) {
       filesHost.append(el("p", "detector-warning", t("detector.files.error", { reason: filesError })));
-      return;
-    }
-    if (!files.length) {
-      filesHost.append(el("p", "detector-note", t("detector.files.none")));
       return;
     }
     const list = el("ul", "detector-files");
@@ -1174,7 +1370,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     filter.value = advancedFilter;
     advancedHost.append(filter);
 
-    const shown = new Set(coreKeys().flatMap((group) => group.keys));
+    const shown = new Set(coreKeys());
     if (shown.has("threshold_energy")) shown.add("threshold/1/energy");
     const buckets = new Map([...ADVANCED_GROUPS.map(([id]) => [id, []]), ["other", []]]);
     const info = [];
@@ -1194,17 +1390,19 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       box.append(el("div", "detector-group-label", title), ...rows);
       advancedHost.append(box);
       groups.push(box);
+      return box;
     };
     for (const [id, keys] of buckets) {
-      addGroup(t(`detector.advanced.group.${id}`), keys.sort().map((key) => paramRow("detector", key, params.detector[key])));
+      addGroup(t(`detector.advanced.group.${id}`), keys.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })));
     }
     for (const name of ["filewriter", "stream", "monitor"]) {
       const rows = Object.entries(params[name] || {})
         .filter(([key]) => key !== "mode" && !OUTPUT_MAIN[name].includes(key))
-        .map(([key, descriptor]) => paramRow(name, key, descriptor));
+        .map(([key, descriptor]) => paramRow(name, key, descriptor, { inline: true }));
       addGroup(t(`detector.output.${name}`), rows);
     }
-    addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key])));
+    // Reference, not settings: a dense table, two columns when there is room.
+    addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })))?.classList.add("is-info");
     const empty = el("p", "detector-note", t("detector.advanced.no_match"));
     advancedHost.append(empty);
 
@@ -1244,6 +1442,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       const row = el("div", "detector-fix");
       const button = el("button", "btn btn-secondary", label);
       button.type = "button";
+      if (onClick === askDeleteFiles) button.classList.add("is-danger");
       button.addEventListener("click", onClick);
       row.append(button, el("p", "detector-note", text));
       box.append(row);

@@ -1496,7 +1496,7 @@
                 </span>
                 <span class="section-chevron">▾</span>
               </button>
-              <label class="field">
+              <label class="field" id="detector-address">
                 <span data-i18n="data_source.field.base_url">Base URL</span>
                 <div class="inline autoload-source-inline">
                   <input
@@ -1541,8 +1541,8 @@
                 </div>
                 <label class="detector-follow">
                   <input type="checkbox" id="detector-follow" checked />
-                  <span><span data-i18n="detector.follow.label">Show images while acquiring</span>
-                    <small data-i18n="detector.follow.hint">The newest image, as a preview; the complete data is in the files or the stream.</small></span>
+                  <span data-i18n="detector.follow.label">Show images while acquiring</span>
+                  <button type="button" class="info-tip" data-info-key="detector.follow.hint" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
                 </label>
                 <div class="detector-sensors" id="detector-sensors"></div>
               </div>
@@ -1552,6 +1552,7 @@
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
                   <span data-i18n="detector.section.acquisition">Acquisition</span>
+                  <span class="section-summary" id="detector-series-summary" hidden></span>
                   <span class="section-summary" id="detector-lock" data-i18n="detector.locked" hidden>Locked while the detector is busy</span>
                 </span>
                 <span class="section-chevron">▾</span>

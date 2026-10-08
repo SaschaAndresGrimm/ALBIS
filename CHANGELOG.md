@@ -7,8 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The Detector tab's settings take less than half the room, and say what the detector delivers.** Every setting is one line: its range shows while the field is being edited and in its **?**, and a refusal or an adjustment by the detector still shows in the row. The groups — series, timing, energy — sit side by side as compact columns when the panel is wide enough, so each name stays close to its field. Each threshold is one row with its energy, for detectors with one to four thresholds; an **Images** row of chips (Threshold 1 … 4, Difference 1 − 2) says which images the detector delivers, and warns when none is selected. The threshold energies are no longer shown as unused when their own images are off: they decide what is counted, and the difference image is calculated from them. A single threshold offers no choice, since switching it off would switch off the images; its mode stays in Advanced. Every on/off setting, in Advanced too, is a switch instead of an On/Off dropdown. The Acquisition header sums up the next series ("100 images · 10 s"), and the explanation of Show images while acquiring moved into a **?**. The simulated detector takes `--thresholds 1-4`, to try a PILATUS4-like layout without hardware.
+- **The Detector tab's cards are shorter.** Once connected, the address shrinks to a line under the detector's name, with **Change** to bring the field back, instead of a "Connected to …" line repeating the name. The file writer shows the next file, the free storage and the detector's data page on one line; the stream's description is left to its **?**, and the dropped-images count reads "Last series: 26 images not received", explained in its own **?**; **Watch live images** sits in the monitor's header line; an empty file list is one line. In Advanced, free-text settings share the line like the others, dropdowns have room for longer choices, a value outside the detector's list shows as "(none)" rather than a blank, lengths in metres read in µm or mm, and Detector information is a dense table in two columns when there is room. **Delete all files on the detector…** is marked as the step that cannot be undone.
+
 ### Fixed
 
+- **Long panel sections were cut off.** An open section was capped at 2000 pixels for its open/close animation, so on a real detector the end of Advanced could not be reached. Sections now take their full height and fade open and closed.
+- **Scrolled content showed through the tab bar** (View, Data, Overlay, …), whose background was 72% opaque. It is now opaque with a blur.
 - **On Windows, Show in folder after downloading an update opened Explorer behind the browser.** The ALBIS server is not the foreground program, and Windows does not let a background program raise a window. Explorer now opens with the downloaded installer selected (shown, never run) and is brought to the front. Help → Open log, which opened Notepad behind the browser for the same reason, comes to the front too.
 
 ## [0.24.0] - 2026-10-08
