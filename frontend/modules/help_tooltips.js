@@ -330,6 +330,9 @@ export function createHelpTooltipController({
     // A "?" explains itself in its own bubble (info_tips.js); a hover hint on
     // top of it would only repeat its label.
     if (node.closest(".info-tip")) return null;
+    // Areas that label every control inline (the Detector tab) opt out: a
+    // bubble there would only repeat the label and cover the field.
+    if (node.closest("[data-no-hover-help]")) return null;
     return node.closest(HELP_SELECTORS);
   }
 

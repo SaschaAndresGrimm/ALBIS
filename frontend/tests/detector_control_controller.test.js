@@ -225,3 +225,127 @@ describe("detector control panel", () => {
     expect(elements.outputsHost.textContent).toContain(EN["detector.output.nothing_saved"]);
   });
 });
+
+describe("detector control panel, after the first hardware test", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("rounds for display only, and shortens units", async () => {
+    const { displayValue, unitSymbol } = await loadModule();
+    expect(displayValue({ value: 8047.7798, value_type: "float", unit: "eV" })).toBe("8047.8");
+    expect(displayValue({ value: 9.9999999, value_type: "float", unit: "s" })).toBe("10");
+    expect(displayValue({ value: 1.5406013, value_type: "float", unit: "angstrom" })).toBe("1.5406");
+    expect(displayValue({ value: 2000000000, value_type: "uint" })).toBe("2000000000");
+    expect(unitSymbol("angstrom")).toBe("Å");
+    expect(unitSymbol("eV")).toBe("eV");
+  });
+
+  it("flags only the values the detector really moved", async () => {
+    const put = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        // "changed, or may have been changed": threshold and frame time are listed,
+        // but only the frame time moved.
+        changed: ["count_time", "frame_time", "threshold_energy"],
+        params: {
+          count_time: { ...DESCRIPTORS.detector.count_time, value: 0.05 },
+          frame_time: { ...DESCRIPTORS.detector.frame_time, value: 0.0500001 },
+          threshold_energy: { ...DESCRIPTORS.detector.threshold_energy },
+        },
+      }),
+    }));
+    const { elements } = await setup({ "/detector/config": put });
+    const input = elements.paramsHost.querySelector("#detector-p-detector-count_time");
+    input.value = "0.05";
+    input.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain("Frame time adjusted"));
+    expect(elements.logHost.textContent).not.toContain("Threshold adjusted");
+    const threshold = elements.paramsHost.querySelector('[data-key="detector:threshold_energy"] .detector-hint');
+    expect(threshold.textContent).not.toBe(EN["detector.hint.adjusted"]);
+  });
+
+  it("shows each threshold with its mode, and the alias only once", async () => {
+    const mod = await loadModule();
+    const elements = buildElements();
+    const controller = mod.createDetectorControlController({ apiBase: "/api", elements, callbacks: {} });
+    const mode = (value) => ({ value, value_type: "string", access_mode: "rw", allowed_values: ["enabled", "disabled"] });
+    const energy = (value) => ({ value, value_type: "float", unit: "eV", access_mode: "rw", min: 1000, max: 20000 });
+    controller._setParams({
+      detector: {
+        photon_energy: energy(8047.7798),
+        threshold_energy: energy(4023.8899),
+        "threshold/1/energy": energy(4023.8899),
+        "threshold/1/mode": mode("disabled"),
+        "threshold/2/energy": energy(9254.9468),
+        "threshold/2/mode": mode("disabled"),
+        "threshold/difference/mode": mode("enabled"),
+      },
+    });
+    controller._renderAll();
+    const labels = [...elements.paramsHost.querySelectorAll(".detector-param label")].map((l) => l.textContent);
+    expect(labels).toEqual([
+      "Photon energy",
+      "Threshold 1",
+      "Threshold 1 images",
+      "Threshold 2",
+      "Threshold 2 images",
+      "Difference image (1 − 2)",
+    ]);
+    const modeSelect = elements.paramsHost.querySelector("#detector-p-detector-threshold_1_mode");
+    expect([...modeSelect.options].map((o) => o.textContent)).toEqual(["On", "Off"]);
+    // A dropdown needs no "2 options" hint.
+    expect(modeSelect.closest(".detector-param").querySelector(".detector-hint").textContent).toBe("");
+    expect(elements.advancedHost.querySelector('[data-key="detector:threshold/1/energy"]')).toBeNull();
+  });
+
+  it("names the next file honestly", async () => {
+    const { controller, elements } = await setup();
+    const fw = (pattern) => ({
+      ...structuredClone(DESCRIPTORS),
+      filewriter: {
+        mode: { value: "enabled", value_type: "string", access_mode: "rw", allowed_values: ["enabled", "disabled"] },
+        name_pattern: { value: pattern, value_type: "string", access_mode: "rw" },
+      },
+    });
+    controller._setParams(fw("scan_$id"));
+    controller._renderAll();
+    // The series number is not known before this panel has armed one.
+    expect(elements.outputsHost.textContent).toContain("Next: scan_$id_master.h5");
+    controller._setParams(fw("fixed_name"));
+    controller._renderAll();
+    expect(elements.outputsHost.textContent).toContain(EN["detector.output.no_id"]);
+    // Free text gets the whole row.
+    expect(elements.outputsHost.querySelector('[data-key="filewriter:name_pattern"]').classList.contains("is-wide")).toBe(true);
+  });
+
+  it("groups Advanced and filters it as you type", async () => {
+    const { controller, elements } = await setup();
+    controller._setParams({
+      ...structuredClone(DESCRIPTORS),
+      detector: {
+        ...structuredClone(DESCRIPTORS.detector),
+        test_image_value: { value: 1, value_type: "uint", access_mode: "rw" },
+        flatfield_correction_applied: { value: true, value_type: "bool", access_mode: "rw" },
+      },
+      filewriter: { ...structuredClone(DESCRIPTORS.filewriter), format: { value: "a", value_type: "string", access_mode: "rw", allowed_values: ["a", "b"] } },
+      stream: { ...structuredClone(DESCRIPTORS.stream), format: { value: "cbor", value_type: "string", access_mode: "rw", allowed_values: ["legacy", "cbor"] } },
+    });
+    controller._renderAll();
+    const headings = [...elements.advancedHost.querySelectorAll(".detector-group-label")].map((h) => h.textContent);
+    expect(headings).toEqual(expect.arrayContaining(["Corrections", "Test images", "File writer", "Stream", "Detector information"]));
+    // An untranslated setting shows its key once, not twice.
+    const testRow = elements.advancedHost.querySelector('[data-key="detector:test_image_value"]');
+    expect(testRow.querySelector("code")).toBeNull();
+
+    const filter = elements.advancedHost.querySelector(".detector-filter");
+    filter.value = "format";
+    filter.dispatchEvent(new Event("input"));
+    const visible = [...elements.advancedHost.querySelectorAll(".detector-param")].filter((r) => !r.hidden).map((r) => r.dataset.key);
+    expect(visible).toEqual(["filewriter:format", "stream:format"]);
+  });
+});

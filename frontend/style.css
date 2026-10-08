@@ -6931,6 +6931,40 @@ button.browse-details-header-cell[aria-sort="descending"] {
   transition: background 600ms ease;
 }
 
+/* Free text needs the width: name above, field below across the row. */
+.detector-param.is-wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.detector-param.is-wide .detector-field,
+.detector-param.is-wide .detector-hint {
+  grid-column: 1;
+}
+
+.detector-param.is-wide .detector-field input {
+  text-align: left;
+}
+
+.detector-adv-group + .detector-adv-group {
+  margin-top: 4px;
+}
+
+.detector-filter {
+  width: 100%;
+  min-height: 28px;
+  margin: 4px 0 2px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  color: #f2f7ff;
+  font-size: 12px;
+}
+
+.detector-output .detector-warning {
+  margin: 0;
+}
+
 .detector-param.is-flash {
   background: var(--accent-soft);
   transition: none;

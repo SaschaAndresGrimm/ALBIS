@@ -26,7 +26,24 @@ const LOG_LIMIT = 12;
 // it. A tuple lists alternatives, the first present one wins: X-ray detectors
 // call the energy photon_energy, electron-microscopy ones incident_energy.
 const CORE_GROUPS = [
-  { id: "energy", keys: [["photon_energy", "incident_energy"], "threshold_energy", "threshold/2/energy", "threshold/3/energy", "threshold/4/energy"] },
+  {
+    id: "energy",
+    keys: [
+      ["photon_energy", "incident_energy"],
+      // threshold_energy is threshold/1/energy under another name (SIMPLON
+      // reference); each threshold's mode decides whether its images are
+      // taken at all, so it sits next to the energy, not in Advanced.
+      "threshold_energy",
+      "threshold/1/mode",
+      "threshold/2/energy",
+      "threshold/2/mode",
+      "threshold/3/energy",
+      "threshold/3/mode",
+      "threshold/4/energy",
+      "threshold/4/mode",
+      "threshold/difference/mode",
+    ],
+  },
   { id: "timing", keys: ["count_time", "frame_time"] },
   { id: "series", keys: ["nimages", "ntrigger", "trigger_mode"] },
 ];
@@ -108,12 +125,27 @@ export function formatBytes(bytes) {
   return `${Math.max(1, Math.round(b / 1e3))} kB`;
 }
 
-/** The value as the field shows it: numbers to a sensible precision. */
+/**
+ * The value as the field shows it. Whole numbers exactly; energies to 0.1 eV
+ * (8047.7798 -> 8047.8); other decimals to six significant digits. Only the
+ * display is rounded: nothing is written unless the user edits the field.
+ */
 export function displayValue(descriptor) {
   const v = descriptor?.value;
-  if (typeof v === "number") return String(+v.toPrecision(8));
   if (v === null || v === undefined) return "";
-  return String(v);
+  if (typeof v !== "number") return String(v);
+  const type = String(descriptor?.value_type || "");
+  if (type === "uint" || type === "int" || Number.isInteger(v)) return String(v);
+  if (descriptor?.unit === "eV") return String(+v.toFixed(1));
+  return String(+v.toPrecision(6));
+}
+
+const UNIT_SYMBOLS = { angstrom: "Å", degree: "°", degrees: "°", deg: "°", micrometer: "µm", um: "µm", percent: "%" };
+
+/** The short form of a SIMPLON unit, so it fits beside the value ("angstrom" -> "Å"). */
+export function unitSymbol(unit) {
+  const text = String(unit || "");
+  return UNIT_SYMBOLS[text.toLowerCase()] || text;
 }
 
 /**
@@ -174,11 +206,16 @@ export function primaryAction(stateValue, triggerMode) {
 export function paramLabel(key) {
   const threshold = /^threshold\/(\d+)\/energy$/.exec(key);
   if (threshold) return t("detector.param.threshold_n", { n: threshold[1] });
+  const thresholdMode = /^threshold\/(\d+)\/mode$/.exec(key);
+  if (thresholdMode) return t("detector.param.threshold_n_mode", { n: thresholdMode[1] });
+  if (key === "threshold/difference/mode") return t("detector.param.difference_mode");
   return LABELLED_PARAMS.has(key) ? t(`detector.param.${key}`) : key;
 }
 
 function optionLabel(key, value) {
   if (key === "trigger_mode" && TRIGGER_MODE_KEYS.has(value)) return t(`detector.trigger_mode.${value}`);
+  if (value === "enabled") return t("detector.value.on");
+  if (value === "disabled") return t("detector.value.off");
   return String(value);
 }
 
@@ -564,18 +601,30 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   // ---------- rendering: parameters ----------
+  function labelFor(subsystem, key) {
+    // With several thresholds, the first one is "Threshold 1", not "Threshold".
+    if (subsystem === "detector" && key === "threshold_energy" && params.detector["threshold/2/energy"]) {
+      return t("detector.param.threshold_n", { n: 1 });
+    }
+    return paramLabel(key);
+  }
+
   function paramRow(subsystem, key, descriptor) {
     const row = el("div", "detector-param");
     row.dataset.key = `${subsystem}:${key}`;
     const id = `detector-p-${subsystem}-${key.replace(/[^a-z0-9]/gi, "_")}`;
     const name = el("div", "detector-param-name");
-    const label = el("label", "", paramLabel(key));
+    const labelText = labelFor(subsystem, key);
+    const label = el("label", "", labelText);
     label.htmlFor = id;
-    name.append(label, el("code", "", key));
+    name.append(label);
+    // The SIMPLON key under a translated name; once is enough when they match.
+    if (labelText !== key) name.append(el("code", "", key));
+    row.dataset.search = `${labelText} ${key}`.toLowerCase();
     row.append(name);
     const readonly = !String(descriptor.access_mode || "rw").includes("w");
     if (readonly) {
-      const unit = descriptor.unit ? ` ${descriptor.unit}` : "";
+      const unit = descriptor.unit ? ` ${unitSymbol(descriptor.unit)}` : "";
       const value = el("div", "detector-readonly", `${displayValue(descriptor)}${unit}`);
       value.id = id;
       row.append(value);
@@ -606,14 +655,26 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       input.autocomplete = "off";
       input.inputMode = descriptor.value_type === "string" ? "text" : "decimal";
       input.value = displayValue(descriptor);
-      if (descriptor.unit) field.append(el("span", "detector-unit", descriptor.unit));
-      if (descriptor.value_type !== "string") input.classList.add("is-number");
+      const unit = unitSymbol(descriptor.unit);
+      if (unit) {
+        field.append(el("span", "detector-unit", unit));
+        input.style.paddingRight = `${16 + unit.length * 7}px`;
+      }
+      if (descriptor.value_type === "string") {
+        // Free text (a name pattern, a sample name) needs the whole row.
+        row.classList.add("is-wide");
+      } else {
+        input.classList.add("is-number");
+      }
     }
     input.id = id;
     input.dataset.paramInput = "";
     field.prepend(input);
     row.append(field);
-    const hint = el("div", "detector-hint", rangeText(descriptor));
+    // A range says something about a number; a dropdown already shows its options.
+    const numeric = !allowed && descriptor.value_type !== "bool" && descriptor.value_type !== "string";
+    const hint = el("div", "detector-hint", numeric ? rangeText(descriptor) : "");
+    hint.dataset.range = hint.textContent;
     row.append(hint);
     const commit = () => void writeParam(subsystem, key, input, hint, row);
     input.addEventListener("change", commit);
@@ -656,9 +717,16 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, version, subsystem, key, value }),
       });
+      // SIMPLON lists what changed "or may have been changed"; flag only the
+      // values that really moved.
+      const before = {};
+      for (const name of Object.keys(result?.params || {})) before[name] = params[subsystem][name]?.value;
       for (const [name, descriptor] of Object.entries(result?.params || {})) {
         params[subsystem][name] = descriptor;
       }
+      const moved = Object.keys(result?.params || {}).filter(
+        (name) => name !== key && JSON.stringify(before[name]) !== JSON.stringify(params[subsystem][name]?.value),
+      );
       // An output's mode reads as "File writer: On", not "mode set to enabled".
       const isMode = key === "mode" && subsystem !== "detector";
       const label = isMode ? t(`detector.output.${subsystem}`) : paramLabel(key);
@@ -673,11 +741,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         status[subsystem].state =
           value !== "enabled" ? "disabled" : subsystem === "monitor" ? "normal" : "ready";
       }
-      for (const name of Object.keys(result?.params || {})) {
-        if (name === key) continue;
-        log(t("detector.log.adjusted", { label: paramLabel(name), value: displayValue(params[subsystem][name]) }));
+      for (const name of moved) {
+        log(t("detector.log.adjusted", { label: labelFor(subsystem, name), value: displayValue(params[subsystem][name]) }));
       }
-      rerenderAfterWrite(subsystem, key, Object.keys(result?.params || {}));
+      rerenderAfterWrite(subsystem, key, moved);
     } catch (err) {
       hint.textContent = err.message;
       hint.className = "detector-hint is-error";
@@ -701,6 +768,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       if (hint) {
         hint.textContent = t("detector.hint.adjusted");
         hint.className = "detector-hint is-changed";
+        window.setTimeout(() => {
+          if (!hint.classList.contains("is-changed")) return;
+          hint.textContent = hint.dataset.range || "";
+          hint.className = "detector-hint";
+        }, 3500);
       }
       window.setTimeout(() => row.classList.remove("is-flash"), 1600);
     }
@@ -784,8 +856,16 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
           if (params[name][key]) block.append(paramRow(name, key, params[name][key]));
         }
         if (name === "filewriter" && params.filewriter.name_pattern) {
-          const next = String(params.filewriter.name_pattern.value || "").replace("$id", String((Number(series) || 0) + 1));
-          block.append(el("div", "detector-note", t("detector.output.next_file", { name: `${next}_master.h5` })));
+          const pattern = String(params.filewriter.name_pattern.value || "");
+          if (!pattern.includes("$id")) {
+            block.append(el("div", "detector-warning", t("detector.output.no_id")));
+          } else if (series !== null && Number.isFinite(Number(series))) {
+            // Known only once a series was armed here; SIMPLON numbers them in turn.
+            const next = pattern.replace("$id", String(Number(series) + 1));
+            block.append(el("div", "detector-note", t("detector.output.next_file", { name: `${next}_master.h5` })));
+          } else {
+            block.append(el("div", "detector-note", t("detector.output.next_file_pattern", { name: `${pattern}_master.h5` })));
+          }
         }
         if (name === "filewriter" && status?.filewriter?.buffer_free !== undefined && status?.filewriter?.buffer_free !== null) {
           block.append(el("div", "detector-note", t("detector.output.storage_free", { free: formatBytes(status.filewriter.buffer_free) })));
@@ -868,31 +948,82 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   // ---------- advanced ----------
+  // Everything else the detector documents, grouped so it can be found:
+  // corrections, readout, geometry and metadata, test images, the rest; then
+  // the data interfaces by name, then read-only information. A filter narrows
+  // the list as you type.
+  const ADVANCED_GROUPS = [
+    ["corrections", /correction|mask|auto_sum|virtual_pixel/],
+    ["readout", /bit_depth|roi_|binning|compression|pixel_format|counting_mode|extg|nexpi|ntriggers_skipped|trigger_start_delay|sensor_movement|threshold\//],
+    ["geometry", /beam_center|distance|orientation|_start$|_increment$|sample_name|source_name|instrument_name|element|flux|wavelength|energy/],
+    ["test", /^test_image/],
+  ];
+  let advancedFilter = "";
+
   function renderAdvanced() {
     if (!advancedHost) return;
     advancedHost.replaceChildren();
+    const filter = el("input", "detector-filter");
+    filter.type = "search";
+    filter.placeholder = t("detector.advanced.filter");
+    filter.setAttribute("aria-label", t("detector.advanced.filter"));
+    filter.value = advancedFilter;
+    advancedHost.append(filter);
+
     const shown = new Set(coreKeys().flatMap((group) => group.keys));
-    const writable = [];
+    if (shown.has("threshold_energy")) shown.add("threshold/1/energy");
+    const buckets = new Map([...ADVANCED_GROUPS.map(([id]) => [id, []]), ["other", []]]);
     const info = [];
     for (const [key, descriptor] of Object.entries(params.detector)) {
       if (shown.has(key)) continue;
-      (String(descriptor.access_mode || "rw").includes("w") ? writable : info).push(key);
-    }
-    const section = (title, rows) => {
-      if (!rows.length) return;
-      advancedHost.append(el("div", "detector-group-label", title));
-      rows.forEach((row) => advancedHost.append(row));
-    };
-    section(t("detector.advanced.detector_settings"), writable.sort().map((key) => paramRow("detector", key, params.detector[key])));
-    const outputRows = [];
-    for (const name of ["filewriter", "stream", "monitor"]) {
-      for (const [key, descriptor] of Object.entries(params[name] || {})) {
-        if (key === "mode" || OUTPUT_MAIN[name].includes(key)) continue;
-        outputRows.push(paramRow(name, key, descriptor));
+      if (!String(descriptor.access_mode || "rw").includes("w")) {
+        info.push(key);
+        continue;
       }
+      const group = ADVANCED_GROUPS.find(([, pattern]) => pattern.test(key));
+      buckets.get(group ? group[0] : "other").push(key);
     }
-    section(t("detector.advanced.output_settings"), outputRows);
-    section(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key])));
+    const groups = [];
+    const addGroup = (title, rows) => {
+      if (!rows.length) return;
+      const box = el("div", "detector-adv-group");
+      box.append(el("div", "detector-group-label", title), ...rows);
+      advancedHost.append(box);
+      groups.push(box);
+    };
+    for (const [id, keys] of buckets) {
+      addGroup(t(`detector.advanced.group.${id}`), keys.sort().map((key) => paramRow("detector", key, params.detector[key])));
+    }
+    for (const name of ["filewriter", "stream", "monitor"]) {
+      const rows = Object.entries(params[name] || {})
+        .filter(([key]) => key !== "mode" && !OUTPUT_MAIN[name].includes(key))
+        .map(([key, descriptor]) => paramRow(name, key, descriptor));
+      addGroup(t(`detector.output.${name}`), rows);
+    }
+    addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key])));
+    const empty = el("p", "detector-note", t("detector.advanced.no_match"));
+    advancedHost.append(empty);
+
+    const applyFilter = () => {
+      const needle = advancedFilter.trim().toLowerCase();
+      let any = false;
+      for (const box of groups) {
+        let visible = 0;
+        box.querySelectorAll(".detector-param").forEach((row) => {
+          const match = !needle || (row.dataset.search || "").includes(needle);
+          row.hidden = !match;
+          if (match) visible += 1;
+        });
+        box.hidden = visible === 0;
+        any = any || visible > 0;
+      }
+      empty.hidden = any;
+    };
+    filter.addEventListener("input", () => {
+      advancedFilter = filter.value;
+      applyFilter();
+    });
+    applyFilter();
     renderState();
   }
 
