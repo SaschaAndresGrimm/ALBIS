@@ -314,7 +314,9 @@ def test_classify_uses_the_default_port_when_none_is_given() -> None:
         ".8",
         "1.8.0.0.1",
         "\u0661.\u0668",  # Arabic-Indic digits: digits to str.isdigit, not to a URL
-        "0" * 50_000 + "x",  # once a slow case for the regular expression
+        # Once a slow case for the regular expression. A short id: pytest puts
+        # the test id in an environment variable, which Windows caps at 32767.
+        pytest.param("0" * 50_000 + "x", id="50k-zeros"),
     ],
 )
 def test_a_version_that_is_not_a_version_is_refused(version: str) -> None:
