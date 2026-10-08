@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-10-08
+
 ### Changed
 
 - **The Detector tab's settings take less than half the room, and say what the detector delivers.** Every setting is one line: its range shows while the field is being edited and in its **?**, and a refusal or an adjustment by the detector still shows in the row. The groups — series, timing, energy — sit side by side as compact columns when the panel is wide enough, so each name stays close to its field. Each threshold is one row with its energy, for detectors with one to four thresholds; an **Images** row of chips (Threshold 1 … 4, Difference 1 − 2) says which images the detector delivers, and warns when none is selected. The threshold energies are no longer shown as unused when their own images are off: they decide what is counted, and the difference image is calculated from them. A single threshold offers no choice, since switching it off would switch off the images; its mode stays in Advanced. Every on/off setting, in Advanced too, is a switch instead of an On/Off dropdown. The Acquisition header sums up the next series ("100 images · 10 s"), and the explanation of Show images while acquiring moved into a **?**. The simulated detector takes `--thresholds 1-4`, to try a PILATUS4-like layout without hardware.
@@ -1409,7 +1411,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.1...v0.24.0
 [0.23.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.22.1...v0.23.0
