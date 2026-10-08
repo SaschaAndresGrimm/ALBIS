@@ -53,11 +53,18 @@ export function createInfoTips({ root = document } = {}) {
     if (active && active !== button) active.setAttribute("aria-expanded", "false");
     active = button;
     pinned = pin;
-    bubble.textContent = t(button.dataset.infoKey);
+    bubble.textContent = text(button);
     bubble.classList.add("is-visible");
     button.setAttribute("aria-expanded", "true");
     button.setAttribute("aria-describedby", BUBBLE_ID);
     position(button);
+  }
+
+  // An optional second paragraph that is not translated, such as the API key
+  // a setting is stored under.
+  function text(button) {
+    const detail = button.dataset.infoDetail;
+    return detail ? `${t(button.dataset.infoKey)}\n\n${detail}` : t(button.dataset.infoKey);
   }
 
   function hide() {
@@ -98,8 +105,19 @@ export function createInfoTips({ root = document } = {}) {
   }
 
   function refresh() {
-    root.querySelectorAll(".info-tip[data-info-key]").forEach(bind);
-    if (active && bubble) bubble.textContent = t(active.dataset.infoKey);
+    const buttons = [...root.querySelectorAll(".info-tip[data-info-key]")];
+    buttons.forEach(bind);
+    if (active && !active.isConnected) {
+      // A panel that rebuilds its rows (a live status) replaced the button:
+      // stay open on its replacement rather than point at nothing.
+      const twin = buttons.find(
+        (button) =>
+          button.dataset.infoKey === active.dataset.infoKey && button.dataset.infoDetail === active.dataset.infoDetail,
+      );
+      if (twin) show(twin, { pin: pinned });
+      else hide();
+    }
+    if (active && bubble) bubble.textContent = text(active);
   }
 
   document.addEventListener("keydown", (event) => {

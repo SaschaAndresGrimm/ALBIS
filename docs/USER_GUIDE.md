@@ -437,17 +437,24 @@ control**. While it is off, ALBIS cannot drive a detector at all.
 
 Enter the detector's address and press **Connect**. The tab reads what the
 detector says about each of its settings, so every field shows that detector's
-own units, limits and choices, whichever model it is:
+own units, limits and choices, whichever model it is. Each setting's **?** explains it in a few words and
+names its SIMPLON key (for example `detector/config/count_time`), the name to
+use when scripting the detector; Advanced shows the keys directly:
 
 - **The state, and the one next step.** A coloured badge says what the detector
   is doing (not initialized, idle, armed, acquiring, error), and the main
   button offers what makes sense now: **Initialize** after power-up or an
   error (this can take up to two minutes), **Acquire** when the detector is
-  idle, **Stop** while a series runs. Temperature, humidity and high voltage
+  idle, **Stop** while a series runs. With **Show images while acquiring**
+  (on by default) the viewer follows each series: once the detector is armed,
+  ALBIS switches the monitor on if needed and shows its images live, as from
+  Data → SIMPLON monitor. It is a preview of the newest image, not every frame;
+  the complete data is in the files or the stream. Untick it to keep the image
+  you have open. Temperature, humidity and high voltage
   are shown underneath, with **Re-initialize…** for when the detector misbehaves;
   it explains itself when high voltage is not ready or a command failed.
-- **Acquisition.** Energy, threshold(s), count and frame time, images per
-  trigger, triggers and trigger mode. A value outside the detector's range is
+- **Acquisition.** Images per trigger, triggers and trigger mode; frame and
+  count time; then energy and threshold(s), in the order they usually change. A value outside the detector's range is
   refused before anything is sent. When a change makes the detector adjust
   another setting — a longer count time raises the frame time — that setting
   flashes and says so. Settings are locked while the detector is busy.

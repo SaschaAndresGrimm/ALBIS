@@ -3388,6 +3388,7 @@ detectorControlController = createDetectorControlController({
     confirmNo: $detector("detector-confirm-no"),
     primaryBtn: $detector("detector-primary"),
     stopBtn: $detector("detector-stop"),
+    followToggle: $detector("detector-follow"),
     sensors: $detector("detector-sensors"),
     notice: $detector("detector-notice"),
     noticeText: $detector("detector-notice-text"),
@@ -3404,16 +3405,28 @@ detectorControlController = createDetectorControlController({
   callbacks: {
     getPanelTab: () => panelTabState,
     setPanelTab: (tabId) => setPanelTab(tabId),
+    // The "?" of each setting is created with the rows, so it is bound then.
+    refreshInfoTips: () => infoTips.refresh(),
     // The monitor's images are what ALBIS's SIMPLON data source shows: point it
     // at the same detector and switch to it.
-    watchLive: (detectorUrl) => {
+    // Already following this detector: leave it be, so each new series does
+    // not restart the live view. Selected but stopped, or another detector:
+    // (re)start it.
+    watchLive: (detectorUrl, version) => {
+      const before = state.autoload.simplonUrl;
       if (simplonUrl) {
         simplonUrl.value = detectorUrl;
         simplonUrl.dispatchEvent(new window.Event("change"));
       }
+      if (simplonVersion && version && simplonVersion.value !== version) {
+        simplonVersion.value = version;
+        simplonVersion.dispatchEvent(new window.Event("change"));
+      }
       if (autoloadMode && autoloadMode.value !== "simplon") {
         autoloadMode.value = "simplon";
         autoloadMode.dispatchEvent(new window.Event("change"));
+      } else if (!state.autoload.running || before !== state.autoload.simplonUrl) {
+        void startAutoload();
       }
     },
   },

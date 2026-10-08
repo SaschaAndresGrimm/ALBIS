@@ -54,6 +54,7 @@ function buildElements() {
         <div id="progress" hidden><i id="bar"></i><span id="pl"></span><span id="pr"></span></div>
         <div id="confirm" hidden><span id="confirm-text"></span><button id="no"></button><button id="yes"></button></div>
         <button id="primary"></button><button id="stop" hidden></button>
+        <input id="follow" type="checkbox" checked />
         <div id="sensors"></div>
         <div id="notice" hidden><span id="notice-text"></span><button id="notice-ok"></button></div>
       </div>
@@ -67,7 +68,7 @@ function buildElements() {
     summary: $("summary"), live: $("live"), model: $("model"), serial: $("serial"), statePill: $("state"),
     stateText: $("state-text"), progress: $("progress"), progressBar: $("bar"), progressLeft: $("pl"),
     progressRight: $("pr"), confirm: $("confirm"), confirmText: $("confirm-text"), confirmYes: $("yes"),
-    confirmNo: $("no"), primaryBtn: $("primary"), stopBtn: $("stop"), sensors: $("sensors"), notice: $("notice"),
+    confirmNo: $("no"), primaryBtn: $("primary"), stopBtn: $("stop"), followToggle: $("follow"), sensors: $("sensors"), notice: $("notice"),
     noticeText: $("notice-text"), noticeDismiss: $("notice-ok"), sections: [], paramsHost: $("params"),
     lockNote: $("lock"), outputsHost: $("outputs"), filesHost: $("files"), logHost: $("log"),
     advancedHost: $("advanced"), commandsHost: $("commands"),
@@ -79,15 +80,16 @@ async function setup(routes = {}) {
   const elements = buildElements();
   const setPanelTab = vi.fn();
   let tab = "detector";
+  const watchLive = vi.fn();
   const controller = mod.createDetectorControlController({
     apiBase: "/api",
     elements,
-    callbacks: { getPanelTab: () => tab, setPanelTab: (id) => { tab = id; setPanelTab(id); }, watchLive: vi.fn() },
+    callbacks: { getPanelTab: () => tab, setPanelTab: (id) => { tab = id; setPanelTab(id); }, watchLive },
   });
   controller._setConnection("http://192.168.1.10");
   controller._setParams(structuredClone(DESCRIPTORS));
   controller._renderAll();
-  return { mod, controller, elements, setPanelTab };
+  return { mod, controller, elements, setPanelTab, watchLive };
 }
 
 describe("detector control helpers", () => {
@@ -151,9 +153,9 @@ describe("detector control panel", () => {
   it("builds the form from what the detector describes", async () => {
     const { elements } = await setup();
     const params = elements.paramsHost;
-    const keys = [...params.querySelectorAll(".detector-param code")].map((c) => c.textContent);
+    const keys = [...params.querySelectorAll(".detector-param")].map((row) => row.dataset.key.split(":")[1]);
     // X-ray detector: photon_energy wins over its incident_energy alias.
-    expect(keys).toEqual(["photon_energy", "threshold_energy", "count_time", "frame_time", "nimages", "ntrigger", "trigger_mode"]);
+    expect(keys).toEqual(["nimages", "ntrigger", "trigger_mode", "frame_time", "count_time", "photon_energy", "threshold_energy"]);
     const trigger = params.querySelector("#detector-p-detector-trigger_mode");
     expect([...trigger.options].map((o) => o.textContent)).toEqual([
       EN["detector.trigger_mode.ints"],
@@ -426,5 +428,142 @@ describe("detector control panel, recovery", () => {
       "Reset stream…",
       EN["detector.action.delete_files"],
     ]);
+  });
+});
+
+describe("detector control panel, following a series", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  // An externally triggered series: arm, then wait for triggers -- no trigger command.
+  async function armed({ armOk = true, monitorOn = false } = {}) {
+    const calls = [];
+    let job = null;
+    const routes = {
+      "/detector/command": async (_url, init) => {
+        const body = JSON.parse(init.body);
+        calls.push(`command ${body.subsystem}/${body.command}`);
+        job = { subsystem: body.subsystem, command: body.command, running: false, ok: armOk, result: armOk ? { "sequence id": 7 } : null, error: armOk ? null : "refused" };
+        return { ok: true, json: async () => ({ ...job, running: true }) };
+      },
+      "/detector/status": async () => ({ ok: true, json: async () => ({ detector: { state: armOk ? "ready" : "idle" }, command: job }) }),
+      "/detector/config": async (_url, init) => {
+        const body = JSON.parse(init.body);
+        calls.push(`config ${body.subsystem}/${body.key}=${body.value}`);
+        return { ok: true, json: async () => ({ changed: [body.key], params: { [body.key]: { ...DESCRIPTORS.monitor.mode, value: body.value } } }) };
+      },
+    };
+    const ctx = await setup(routes);
+    const params = structuredClone(DESCRIPTORS);
+    params.detector.trigger_mode.value = "exts";
+    params.filewriter.mode.value = "enabled";
+    params.monitor.mode.value = monitorOn ? "enabled" : "disabled";
+    ctx.controller._setParams(params);
+    ctx.controller._renderAll();
+    ctx.controller._setStatus({ detector: { state: "idle" } });
+    return { ...ctx, calls };
+  }
+
+  it("switches the monitor on and the viewer to it once the series is armed", async () => {
+    const { elements, watchLive, calls } = await armed();
+    elements.primaryBtn.click();
+    await vi.waitFor(() => expect(watchLive).toHaveBeenCalledWith("http://192.168.1.10", "1.8.0"), { timeout: 3000 });
+    expect(calls).toEqual(["command detector/arm", "config monitor/mode=enabled"]);
+    expect(elements.logHost.textContent).toContain(EN["detector.log.following"]);
+  });
+
+  it("leaves the viewer alone when unticked, and remembers that", async () => {
+    const { elements, watchLive, calls } = await armed({ monitorOn: true });
+    elements.followToggle.checked = false;
+    elements.followToggle.dispatchEvent(new Event("change"));
+    expect(localStorage.getItem("albis.detectorControl.followLive")).toBe("0");
+    elements.primaryBtn.click();
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain("arm done"), { timeout: 3000 });
+    expect(watchLive).not.toHaveBeenCalled();
+    expect(calls).toEqual(["command detector/arm"]);
+  });
+
+  it("does not switch when the detector refuses to arm", async () => {
+    const { elements, watchLive, calls } = await armed({ armOk: false });
+    elements.primaryBtn.click();
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain("arm failed"), { timeout: 3000 });
+    expect(watchLive).not.toHaveBeenCalled();
+    expect(calls).toEqual(["command detector/arm"]);
+  });
+});
+
+describe("detector control panel, progress", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("moves the progress bar on the clock, between status polls", async () => {
+    let job = null;
+    const routes = {
+      "/detector/command": async (_url, init) => {
+        const body = JSON.parse(init.body);
+        job = { subsystem: "detector", command: body.command, running: true, ok: null };
+        return { ok: true, json: async () => job };
+      },
+      // The trigger never finishes during this test; the detector is acquiring.
+      "/detector/status": async () => ({ ok: true, json: async () => ({ detector: { state: "acquire" }, command: job }) }),
+    };
+    const { controller, elements } = await setup(routes);
+    const params = structuredClone(DESCRIPTORS);
+    params.detector.nimages.value = 100;
+    params.detector.frame_time.value = 0.1; // a 10 s series
+    controller._setParams(params);
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "ready" } });
+    vi.useFakeTimers();
+    elements.primaryBtn.click(); // in "ready" with an internal trigger mode: Trigger
+    await vi.advanceTimersByTimeAsync(250);
+    const early = parseFloat(elements.progressBar.style.width);
+    await vi.advanceTimersByTimeAsync(300);
+    const later = parseFloat(elements.progressBar.style.width);
+    expect(elements.progress.hidden).toBe(false);
+    // 300 ms of a 10 s series is 3 %, shown without waiting for the next poll.
+    expect(later - early).toBeCloseTo(3, 0);
+  });
+});
+
+describe("detector control panel, explanations", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("explains the main settings with a ? that names the SIMPLON key, and keeps keys in Advanced", async () => {
+    const { mod, controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    params.filewriter.mode.value = "enabled";
+    controller._setParams(params);
+    controller._renderAll();
+    // Main view: a name and a "?", no key under it.
+    const count = elements.paramsHost.querySelector('[data-key="detector:count_time"]');
+    expect(count.querySelector("code")).toBeNull();
+    const tip = count.querySelector(".info-tip");
+    expect(tip.dataset.infoKey).toBe("detector.help.count_time");
+    expect(tip.dataset.infoDetail).toBe("SIMPLON: detector/config/count_time");
+    expect(EN[tip.dataset.infoKey]).toMatch(/Exposure time/);
+    // Every setting in the main view has an explanation.
+    const rows = [...elements.paramsHost.querySelectorAll(".detector-param"), ...elements.outputsHost.querySelectorAll(".detector-param")];
+    for (const row of rows) expect(EN[row.querySelector(".info-tip")?.dataset.infoKey], row.dataset.key).toBeTruthy();
+    // The data interfaces too, by their mode.
+    expect(elements.outputsHost.querySelector(".detector-output .info-tip").dataset.infoDetail).toBe("SIMPLON: filewriter/config/mode");
+    // Advanced keeps the key for experts.
+    expect(elements.advancedHost.querySelector('[data-key="detector:incident_energy"] code').textContent).toBe("incident_energy");
+    expect(elements.advancedHost.querySelector(".info-tip")).toBeNull();
+    // Thresholds share one explanation.
+    expect(mod.helpKey("detector", "threshold/3/energy")).toBe("detector.help.threshold_energy");
+    expect(mod.helpKey("detector", "threshold/2/mode")).toBe("detector.help.threshold_mode");
+    expect(mod.helpKey("detector", "flatfield_correction_applied")).toBe("");
   });
 });

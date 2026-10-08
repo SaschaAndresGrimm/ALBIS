@@ -4,7 +4,8 @@ Follows the SIMPLON 1.8 API reference (v3.11): parameters describe themselves
 (value, value_type, unit, min, max, allowed_values, access_mode); a PUT answers
 with the parameters it changed; only the state is readable before `initialize`;
 commands are PUT on /<subsystem>/api/<version>/command/<name>; the file writer
-lists files at /filewriter/api/<version>/files/ and serves them from /data/.
+lists files at /filewriter/api/<version>/files/ and serves them from /data/;
+the monitor serves its newest image as TIFF at /monitor/api/<version>/images/monitor.
 
 Used by the tests and, through `scripts/fake_simplon.py`, to try the Detector
 tab without hardware. The values are plausible, not a real detector's.
@@ -12,12 +13,17 @@ tab without hardware. The values are plausible, not a real detector's.
 
 from __future__ import annotations
 
+import base64
 import copy
+import io
 import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+
+import numpy as np
+import tifffile
 
 READOUT_S = 1e-7
 
@@ -84,6 +90,7 @@ class FakeDCU:
         self.files: dict[str, bytes] = {}
         self.stream_dropped = 0
         self.monitor_dropped = 0
+        self.last_monitor: bytes | None = None
         self.abort_flag = threading.Event()
         self.requests: list[tuple[str, str]] = []
         # Status values reported with "state": "critical", as (subsystem, key).
@@ -105,7 +112,10 @@ class FakeDCU:
                 return 404, f"Parameter {key} does not exist"
             if "w" not in param["access_mode"]:
                 return 400, f"{key} is read-only"
-            if self.state in ("acquire", "initialize"):
+            # The panel locks the detector's settings during a series; the
+            # reference documents no such lock for the data interfaces, and the
+            # live view re-sends the monitor's mode with each poll.
+            if subsystem == "detector" and self.state in ("acquire", "initialize"):
                 return 400, "Not allowed while the detector is busy"
             vtype = param["value_type"]
             ok = (
@@ -202,6 +212,47 @@ class FakeDCU:
             self.monitor_dropped = 0
             return 200, None
         return 404, f"Command {name} does not exist"
+
+    def pixel_mask(self) -> dict[str, Any] | None:
+        """The pixel mask as SIMPLON sends arrays: a base64 `__darray__`.
+
+        Same size as the monitor image, with a dead column and a gap row.
+        """
+        if self.state == "na":
+            return None
+        mask = np.zeros((256, 256), dtype="<u4")
+        mask[:, 40] = 2
+        mask[128, :] = 1
+        return {
+            "value": {
+                "__darray__": [1, 0, 0],
+                "type": "<u4",
+                "shape": list(mask.shape),
+                "filters": [],
+                "data": base64.b64encode(mask.tobytes()).decode("ascii"),
+            },
+            "value_type": "uint",
+            "access_mode": "rw",
+        }
+
+    def monitor_image(self) -> bytes | None:
+        """The monitor's newest image: a ring pattern that moves with time.
+
+        None (HTTP 204) while the monitor is off or nothing was acquired yet,
+        as a real monitor answers when it has no image.
+        """
+        if self.params["monitor"]["mode"]["value"] != "enabled" or not self.sequence_id:
+            return None
+        if self.state != "acquire" and self.last_monitor is not None:
+            return self.last_monitor
+        y, x = np.mgrid[0:256, 0:256]
+        r = np.hypot(x - 128, y - 128)
+        phase = time.time() * 3.0
+        image = (200 * (1 + np.cos(r / 6.0 - phase)) * np.exp(-r / 120)).astype(np.uint32)
+        buffer = io.BytesIO()
+        tifffile.imwrite(buffer, image)
+        self.last_monitor = buffer.getvalue()
+        return self.last_monitor
 
     def _write_series(self, total: int) -> None:
         if self.params["filewriter"]["mode"]["value"] == "enabled":
@@ -300,7 +351,11 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
                 return
             subsystem, _version, task, key = route
             if task == "config":
-                param = dcu.describe(subsystem, key)
+                param = (
+                    dcu.pixel_mask()
+                    if (subsystem, key) == ("detector", "pixel_mask")
+                    else dcu.describe(subsystem, key)
+                )
                 (
                     self._send(200, param)
                     if param
@@ -315,6 +370,12 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
                     if (subsystem, key) in dcu.critical:
                         answer["state"] = "critical"
                     self._send(200, answer)
+            elif task == "images" and subsystem == "monitor":
+                image = dcu.monitor_image()
+                if image is None:
+                    self._send(204)
+                else:
+                    self._send(200, raw=image)
             elif task == "files" and subsystem == "filewriter":
                 self._send(200, sorted(dcu.files))
             else:

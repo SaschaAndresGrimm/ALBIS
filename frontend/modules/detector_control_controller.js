@@ -18,6 +18,7 @@ import { describeSimplonFailure } from "./simplon_diagnostics.js";
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 
 const STORAGE_KEY = "albis.detectorControl.url";
+const FOLLOW_KEY = "albis.detectorControl.followLive";
 const POLL_ACTIVE_MS = 1000;
 const POLL_IDLE_MS = 3000;
 const LOG_LIMIT = 12;
@@ -25,10 +26,15 @@ const LOG_LIMIT = 12;
 // does not (yet) flag buffer_free as critical.
 const LOW_STORAGE_BYTES = 1024 ** 3;
 
-// The main view: what an acquisition needs, in this order, if the detector has
-// it. A tuple lists alternatives, the first present one wins: X-ray detectors
-// call the energy photon_energy, electron-microscopy ones incident_energy.
+// The main view: what an acquisition needs, if the detector has it, ordered
+// by how often it changes -- the series and its timing from one measurement to
+// the next, the energy and thresholds once per experiment. A tuple lists
+// alternatives, the first present one wins: X-ray detectors call the energy
+// photon_energy, electron-microscopy ones incident_energy.
 const CORE_GROUPS = [
+  { id: "series", keys: ["nimages", "ntrigger", "trigger_mode"] },
+  // Frame time first: it sets the rate, and the count time fits inside it.
+  { id: "timing", keys: ["frame_time", "count_time"] },
   {
     id: "energy",
     keys: [
@@ -47,9 +53,35 @@ const CORE_GROUPS = [
       "threshold/difference/mode",
     ],
   },
-  { id: "timing", keys: ["count_time", "frame_time"] },
-  { id: "series", keys: ["nimages", "ntrigger", "trigger_mode"] },
 ];
+// The progress bar runs on the clock, not on the status polls: a poll to a
+// real detector takes a variable time, and the bar jumped with it.
+const PROGRESS_TICK_MS = 100;
+// What the main view's settings mean, written from the SIMPLON reference: the
+// detector describes a value's type, unit and limits, not what it is for.
+// Each "?" also names the SIMPLON key, the bridge to scripting the detector.
+const PARAM_HELP = {
+  "detector:nimages": "nimages",
+  "detector:ntrigger": "ntrigger",
+  "detector:trigger_mode": "trigger_mode",
+  "detector:frame_time": "frame_time",
+  "detector:count_time": "count_time",
+  "detector:photon_energy": "photon_energy",
+  "detector:incident_energy": "incident_energy",
+  "detector:threshold_energy": "threshold_energy",
+  "detector:threshold/difference/mode": "difference_mode",
+  "filewriter:name_pattern": "name_pattern",
+  "filewriter:nimages_per_file": "nimages_per_file",
+  "stream:header_detail": "header_detail",
+};
+
+export function helpKey(subsystem, key) {
+  if (subsystem === "detector" && /^threshold\/\d\/energy$/.test(key)) return "detector.help.threshold_energy";
+  if (subsystem === "detector" && /^threshold\/\d\/mode$/.test(key)) return "detector.help.threshold_mode";
+  const id = PARAM_HELP[`${subsystem}:${key}`];
+  return id ? `detector.help.${id}` : "";
+}
+
 const OUTPUT_MAIN = {
   filewriter: ["name_pattern", "nimages_per_file"],
   stream: ["header_detail"],
@@ -97,6 +129,22 @@ function readStored() {
     return window.localStorage.getItem(STORAGE_KEY) || "";
   } catch {
     return "";
+  }
+}
+
+function readFollow() {
+  try {
+    return window.localStorage?.getItem(FOLLOW_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function writeFollow(on) {
+  try {
+    window.localStorage?.setItem(FOLLOW_KEY, on ? "1" : "0");
+  } catch {
+    // A remembered preference only.
   }
 }
 
@@ -245,6 +293,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     confirmNo,
     primaryBtn,
     stopBtn,
+    followToggle,
     sensors,
     notice,
     noticeText,
@@ -258,7 +307,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     advancedHost,
     commandsHost,
   } = elements;
-  const { getPanelTab, setPanelTab, watchLive } = callbacks;
+  const { getPanelTab, setPanelTab, watchLive, refreshInfoTips } = callbacks;
 
   let enabled = false;
   let url = "";
@@ -273,6 +322,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   let confirmAction = null;
   let files = [];
   let filesError = "";
+  let followedBefore = false;
+  let progressTimer = null;
   // Recovery hints sit right under the sensors, in the detector card.
   const recoverHost = sensors ? el("div", "detector-recover") : null;
   sensors?.after?.(recoverHost);
@@ -582,6 +633,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       const arm = await runCommand("detector", "arm", 130000);
       if (!arm?.ok) return;
       series = arm.result?.["sequence id"] ?? arm.result?.sequence_id ?? null;
+      if (followToggle?.checked) await follow();
       const mode = String(params.detector.trigger_mode?.value || "");
       if (mode.startsWith("int")) await trigger();
       else renderState();
@@ -591,12 +643,33 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }
   }
 
+  // Show the series as it is taken: switch the viewer to this detector's
+  // monitor, switching the monitor on first if needed. Only after a
+  // successful arm, so a refused series leaves the open image alone.
+  async function follow() {
+    if (!params.monitor?.mode) return;
+    if (params.monitor.mode.value !== "enabled") await setMode("monitor", "enabled");
+    if (params.monitor.mode.value !== "enabled") return;
+    watchLive?.(url, version);
+    if (!followedBefore) {
+      followedBefore = true;
+      log(t("detector.log.following"));
+    }
+  }
+
   async function trigger() {
     seriesStarted = Date.now();
     acquiring = true;
-    const job = await runCommand("detector", "trigger", 24 * 3600 * 1000);
-    acquiring = false;
-    seriesStarted = 0;
+    progressTimer = window.setInterval(() => renderProgress(detectorState()), PROGRESS_TICK_MS);
+    let job;
+    try {
+      job = await runCommand("detector", "trigger", 24 * 3600 * 1000);
+    } finally {
+      window.clearInterval(progressTimer);
+      progressTimer = null;
+      acquiring = false;
+      seriesStarted = 0;
+    }
     if (job?.ok) log(t("detector.log.series_done", { series: series ?? "-" }));
     await poll();
     await refreshFiles();
@@ -653,7 +726,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
   function renderProgress(value) {
     if (!progress) return;
-    const running = seriesStarted && (value === "acquire" || status?.command?.running);
+    const running = seriesStarted && (value === "acquire" || acquiring || status?.command?.running);
     progress.hidden = !running;
     if (!running) return;
     const det = params.detector;
@@ -698,7 +771,19 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return paramLabel(key);
   }
 
-  function paramRow(subsystem, key, descriptor) {
+  function infoTip(infoKey, simplonPath) {
+    const button = el("button", "info-tip");
+    button.type = "button";
+    button.dataset.infoKey = infoKey;
+    button.dataset.infoDetail = `SIMPLON: ${simplonPath}`;
+    button.setAttribute("aria-label", t("info.button_label"));
+    return button;
+  }
+
+  // In the main view a setting shows its name and a "?" that explains it and
+  // names its SIMPLON key; in Advanced, for experts and for settings without a
+  // translated name, the key stays visible under the name.
+  function paramRow(subsystem, key, descriptor, { explained = false } = {}) {
     const row = el("div", "detector-param");
     row.dataset.key = `${subsystem}:${key}`;
     const id = `detector-p-${subsystem}-${key.replace(/[^a-z0-9]/gi, "_")}`;
@@ -706,9 +791,16 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const labelText = labelFor(subsystem, key);
     const label = el("label", "", labelText);
     label.htmlFor = id;
-    name.append(label);
-    // The SIMPLON key under a translated name; once is enough when they match.
-    if (labelText !== key) name.append(el("code", "", key));
+    const help = explained ? helpKey(subsystem, key) : "";
+    if (help) {
+      const line = el("span", "detector-param-label");
+      line.append(label, infoTip(help, `${subsystem}/config/${key}`));
+      name.append(line);
+    } else {
+      name.append(label);
+      // The SIMPLON key under a translated name; once is enough when they match.
+      if (labelText !== key) name.append(el("code", "", key));
+    }
     row.dataset.search = `${labelText} ${key}`.toLowerCase();
     row.append(name);
     const readonly = !String(descriptor.access_mode || "rw").includes("w");
@@ -886,8 +978,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     paramsHost.replaceChildren();
     for (const group of coreKeys()) {
       paramsHost.append(el("div", "detector-group-label", t(`detector.group.${group.id}`)));
-      for (const key of group.keys) paramsHost.append(paramRow("detector", key, params.detector[key]));
+      for (const key of group.keys) paramsHost.append(paramRow("detector", key, params.detector[key], { explained: true }));
     }
+    refreshInfoTips?.();
     renderState();
   }
 
@@ -925,7 +1018,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       toggle.setAttribute("aria-label", t(`detector.output.${name}`));
       switchLabel.append(toggle, el("span"));
       const title = el("div", "detector-param-name");
-      title.append(el("strong", "", t(`detector.output.${name}`)), el("code", "", name));
+      const titleLine = el("span", "detector-param-label");
+      titleLine.append(el("strong", "", t(`detector.output.${name}`)), infoTip(`detector.help.output.${name}`, `${name}/config/mode`));
+      title.append(titleLine);
       const state = outputState(name);
       const dot = el("span", "detector-dot", state.text);
       dot.dataset.tone = state.tone;
@@ -942,7 +1037,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       });
       if (mode.value === "enabled") {
         for (const key of OUTPUT_MAIN[name]) {
-          if (params[name][key]) block.append(paramRow(name, key, params[name][key]));
+          if (params[name][key]) block.append(paramRow(name, key, params[name][key], { explained: true }));
         }
         if (name === "filewriter" && params.filewriter.name_pattern) {
           const pattern = String(params.filewriter.name_pattern.value || "");
@@ -994,6 +1089,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       outputsHost.append(block);
     }
     renderFiles();
+    refreshInfoTips?.();
     renderState();
   }
 
@@ -1178,6 +1274,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     else if (action === "trigger") void trigger();
   });
   stopBtn?.addEventListener("click", stop);
+  if (followToggle) {
+    followToggle.checked = readFollow();
+    followToggle.addEventListener("change", () => writeFollow(followToggle.checked));
+  }
   connectBtn?.addEventListener("click", () => void connect());
   urlInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {

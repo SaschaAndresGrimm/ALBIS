@@ -91,4 +91,20 @@ describe("info tips", () => {
       for (const key of keys) expect(dict[key], `${file} ${key}`).toBeTruthy();
     }
   });
+  it("adds an untranslated detail, and stays open when a live panel rebuilds its button", async () => {
+    const { tips, button, bubble } = await setup();
+    button.dataset.infoDetail = "SIMPLON: detector/config/count_time";
+    button.click();
+    expect(bubble().textContent).toBe(`${EN["info.series.normalization"]}\n\nSIMPLON: detector/config/count_time`);
+    // The row is rebuilt: same explanation, new button.
+    const twin = button.cloneNode(true);
+    delete twin.dataset.infoBound;
+    button.replaceWith(twin);
+    tips.refresh();
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+    expect(twin.getAttribute("aria-expanded")).toBe("true");
+    // Pinned still: a click elsewhere closes it.
+    document.getElementById("elsewhere").click();
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
 });

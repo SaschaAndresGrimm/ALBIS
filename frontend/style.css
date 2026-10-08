@@ -6829,7 +6829,8 @@ button.browse-details-header-cell[aria-sort="descending"] {
   width: 0;
   height: 100%;
   background: #4fd18b;
-  transition: width 300ms linear;
+  /* Matches the 100 ms tick, so the bar glides between updates. */
+  transition: width 100ms linear;
 }
 
 .detector-progress-text {
@@ -6971,6 +6972,25 @@ button.browse-details-header-cell[aria-sort="descending"] {
   margin: 0;
 }
 
+/* Under Acquire: follow the series in the viewer. */
+.detector-follow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.detector-follow input {
+  margin-top: 2px;
+}
+
+.detector-follow small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 /* A hint rather than a fault: amber, like the "changed elsewhere" notice. */
 .detector-warning.is-caution {
   background: rgba(242, 184, 75, 0.14);
@@ -7034,6 +7054,13 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .detector-param-name label,
 .detector-param-name strong {
   font-weight: 600;
+}
+
+.detector-param-label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
 }
 
 .detector-param-name code {
