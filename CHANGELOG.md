@@ -16,6 +16,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **Long panel sections were cut off.** An open section was capped at 2000 pixels for its open/close animation, so on a real detector the end of Advanced could not be reached. Sections now take their full height and fade open and closed.
 - **Scrolled content showed through the tab bar** (View, Data, Overlay, …), whose background was 72% opaque. It is now opaque with a blur.
+- **Help → View Backend Log wobbled while following the log.** Each automatic reload, every three seconds, showed a "Loading…" line above the controls and removed it again, pushing the log down and back; with a log shorter than the window, the whole dialog grew and shrank. Follow now reloads quietly, and the log is only rewritten and scrolled when it changed. Opening, Refresh and a new line count still say they are loading.
 - **On Windows, Show in folder after downloading an update opened Explorer behind the browser.** The ALBIS server is not the foreground program, and Windows does not let a background program raise a window. Explorer now opens with the downloaded installer selected (shown, never run) and is brought to the front. Help → Open log, which opened Notepad behind the browser for the same reason, comes to the front too.
 
 ### Security

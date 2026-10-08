@@ -223,10 +223,21 @@ describe("backend_log_viewer_controller", () => {
     await flushAsyncWork();
     expect(globalThis.fetch.mock.calls.filter(([url]) => String(url).includes("/api/log-tail")).length).toBe(1);
 
+    // A follow reload is quiet: no "Loading..." line appearing above the log
+    // and pushing it down and back every three seconds.
+    const message = document.getElementById("log-viewer-message");
+    const refresh = document.getElementById("log-viewer-refresh");
+    const shown = [];
+    const watcher = new MutationObserver(() => shown.push(!message.hidden || refresh.disabled));
+    watcher.observe(message, { attributes: true, childList: true, characterData: true, subtree: true });
+    watcher.observe(refresh, { attributes: true });
     await vi.advanceTimersByTimeAsync(3000);
     await flushAsyncWork();
+    watcher.disconnect();
     expect(globalThis.fetch.mock.calls.filter(([url]) => String(url).includes("/api/log-tail")).length).toBe(2);
     expect(document.getElementById("log-viewer-content")?.textContent).toBe("second batch\n");
+    expect(shown.includes(true)).toBe(false);
+    expect(message.hidden).toBe(true);
 
     controller.close();
     expect(closeModal).toHaveBeenCalledOnce();

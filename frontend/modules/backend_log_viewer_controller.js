@@ -93,7 +93,7 @@ export function createBackendLogViewerController({
     clearPoll();
     if (!isOpen() || !follow) return;
     pollTimer = window.setTimeout(() => {
-      void loadTail();
+      void loadTail({ quiet: true });
     }, POLL_INTERVAL_MS);
   }
 
@@ -128,7 +128,10 @@ export function createBackendLogViewerController({
       logViewerMessage.classList.toggle("is-error", modalMessageState === "error");
     }
     if (logViewerContent) {
-      logViewerContent.textContent = payload.text || t("log_viewer.empty");
+      // Replaced only when it changed: rewriting the same 500 lines every few
+      // seconds re-lays out the log for nothing.
+      const text = payload.text || t("log_viewer.empty");
+      if (logViewerContent.textContent !== text) logViewerContent.textContent = text;
       logViewerContent.classList.toggle("is-empty", !payload.text);
     }
     if (logViewerOpenHost) {
@@ -144,13 +147,20 @@ export function createBackendLogViewerController({
     logViewerContent.scrollTop = logViewerContent.scrollHeight;
   }
 
-  async function loadTail() {
+  // Follow reloads quietly. A "Loading..." line above the controls on every
+  // reload pushed the log down and back every three seconds, and a log
+  // shorter than the window made the centred dialog grow and shrink with it.
+  // Opening, Refresh and a new line count still say they are loading.
+  async function loadTail({ quiet = false } = {}) {
     requestSerial += 1;
     const activeRequest = requestSerial;
-    modalMessage = t("log_viewer.loading");
-    modalMessageState = "loading";
-    setBusy(true);
-    render();
+    const previousText = payload.text;
+    if (!quiet) {
+      modalMessage = t("log_viewer.loading");
+      modalMessageState = "loading";
+      setBusy(true);
+      render();
+    }
 
     try {
       const params = new URLSearchParams({ lines: String(lineCount) });
@@ -162,7 +172,8 @@ export function createBackendLogViewerController({
       modalMessage = "";
       modalMessageState = "";
       render();
-      if (follow) {
+      // Nothing new: leave the scroll position be.
+      if (follow && payload.text !== previousText) {
         window.requestAnimationFrame(() => {
           scrollToBottom();
         });
