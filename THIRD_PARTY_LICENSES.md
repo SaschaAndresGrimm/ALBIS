@@ -34,6 +34,7 @@ here.
 | pyobjc (macOS only) | 12.2.2 | MIT | © 2002-2025 Ronald Oussoren et al. |
 | html2canvas | 1.4.1 | MIT | © 2022 Niklas von Hertzen |
 | Inter | 4.1 | OFL-1.1 | © 2016 The Inter Project Authors |
+| Michroma | 1.100 | OFL-1.1 | © 2011 The Michroma Project Authors |
 
 Transitive dependencies pulled in by `uvicorn[standard]` (h11, httptools,
 websockets, uvloop, watchfiles, python-dotenv) are all under MIT or BSD-3-Clause
@@ -223,3 +224,20 @@ alongside it in `frontend/vendor/InterVariable-OFL.txt`.
 
 Inter carries no Reserved Font Name, so the OFL's renaming requirement does not
 apply; the font is nevertheless shipped byte-for-byte as released.
+
+---
+
+## Frontend — Michroma 1.100
+
+```
+Michroma 1.100 <https://github.com/googlefonts/Michroma-font>
+Copyright 2011 The Michroma Project Authors
+Licensed under the SIL Open Font License, Version 1.1
+```
+
+The face of the ALBIS wordmark (the title on the start screen and in Help →
+About), shipped as `frontend/vendor/Michroma-Regular.ttf` — `ofl/michroma/Michroma-Regular.ttf`
+from the Google Fonts repository, unmodified. The OFL-1.1 text as distributed with it
+is kept verbatim alongside it in `frontend/vendor/Michroma-OFL.txt`.
+
+Michroma carries no Reserved Font Name; it is shipped byte-for-byte as released.

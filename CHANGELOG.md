@@ -9,6 +9,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **The ALBIS wordmark is set in Michroma,** a wide, squared face that sits with the DECTRIS wordmark in the splash picture: the title on the start screen, and a new wordmark under the icon in Help → About. Only the wordmark: the interface stays in Inter. Michroma 1.100 (SIL Open Font License, no reserved font name) ships unmodified in `frontend/vendor/` with its licence text, listed in THIRD_PARTY_LICENSES.md; `tests/test_bundled_font.py` checks the file, its licence and that only the two wordmarks use it.
 - **A new splash picture.** The start screen shows DECTRIS's wave picture with the DECTRIS wordmark instead of the diffraction rings, fading into the black on every side rather than ending in straight lines (a CSS mask). Shipped as a 137 kB WebP at 1920 px, where the rings were a 943 kB PNG. With the wordmark in the picture, the "developed at DECTRIS" line under the ALBIS title is gone. GOVERNANCE.md lists the picture with the logo as a DECTRIS trademark outside the MIT licence. The text under the title is simpler too: once ALBIS is ready, the "Ready. Open a file to begin." line gives way to the **Open file** button alone, and the hint under it adds only what the button does not say — "or press ⌘O" (Ctrl+O elsewhere), or, with ALBIS on another machine, "or drop files here to upload them". Starting, loading and failures still show their status line.
 
 ### Fixed

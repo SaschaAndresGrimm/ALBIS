@@ -64,6 +64,7 @@
      system-ui stays behind it as the fallback: if the woff2 fails to load the
      interface should land on the platform's own hinted UI face, not on Arial. */
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-wordmark: "Michroma", "Inter", system-ui, sans-serif;
 }
 
 /* One variable file covers 100-900, which is every weight the interface uses.
@@ -73,6 +74,18 @@
   font-family: "Inter";
   src: url("vendor/InterVariable.woff2") format("woff2");
   font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* The ALBIS wordmark -- the title on the start screen and in Help -> About --
+   in Michroma: wide and squared like the DECTRIS wordmark it sits next to in
+   the splash picture. Only the wordmark: the interface stays in Inter, made
+   for small text and numbers. One weight exists, so it is never set bold. */
+@font-face {
+  font-family: "Michroma";
+  src: url("vendor/Michroma-Regular.ttf") format("truetype");
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
@@ -4891,6 +4904,16 @@ body.platform-windows select option:disabled {
   filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.48));
 }
 
+.about-wordmark {
+  margin: 0 0 6px;
+  color: #f5f7ff;
+  font-family: var(--font-wordmark);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
 .about-lead {
   margin: 0;
   text-align: center;
@@ -5789,10 +5812,12 @@ body.platform-windows select option:disabled {
 }
 
 .splash-title {
-  font-size: clamp(36px, 5.2vw, 56px);
-  font-weight: 700;
+  font-family: var(--font-wordmark);
+  font-size: clamp(34px, 4.8vw, 52px);
+  font-weight: 400;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .splash-sub {

@@ -75,3 +75,44 @@ def test_the_build_carries_the_frontend_directory() -> None:
     assert '("frontend", "frontend")' in spec.read_text(
         encoding="utf-8"
     ), "the spec no longer bundles frontend/ wholesale; the font needs its own rule"
+
+
+# -- The wordmark face -------------------------------------------------------
+# Michroma sets the ALBIS wordmark (start screen, Help -> About) and nothing
+# else. `ofl/michroma/Michroma-Regular.ttf` from the Google Fonts repository,
+# version 1.100, unmodified.
+WORDMARK = ROOT / "frontend" / "vendor" / "Michroma-Regular.ttf"
+WORDMARK_OFL = ROOT / "frontend" / "vendor" / "Michroma-OFL.txt"
+WORDMARK_SHA256 = "b62301163788bc5b7f8fcac0b74b184e34e1827e577b499ecb724da065098f87"
+
+
+def test_the_wordmark_font_is_present_and_unmodified() -> None:
+    import hashlib
+
+    assert WORDMARK.is_file(), f"{WORDMARK.relative_to(ROOT)} is missing"
+    raw = WORDMARK.read_bytes()
+    assert raw[:4] == b"\x00\x01\x00\x00", "not a TrueType font"
+    assert hashlib.sha256(raw).hexdigest() == WORDMARK_SHA256, (
+        "the bundled Michroma is not the released 1.100 file. If this was an "
+        "intentional upgrade, update WORDMARK_SHA256 and THIRD_PARTY_LICENSES.md together."
+    )
+
+
+def test_the_wordmark_face_is_used_for_the_wordmark_only() -> None:
+    css = STYLE.read_text(encoding="utf-8")
+    face = re.search(
+        r'@font-face\s*\{[^}]*font-family:\s*"Michroma"[^}]*url\("([^"]+)"\)', css, re.S
+    )
+    assert face, "no @font-face for Michroma"
+    assert (STYLE.parent / face.group(1)).resolve() == WORDMARK.resolve()
+    # Through --font-wordmark, and that only on the two wordmarks.
+    users = re.findall(r"([^{}]+)\{[^}]*var\(--font-wordmark\)", css)
+    assert sorted(sel.strip() for sel in users) == [".about-wordmark", ".splash-title"]
+
+
+def test_the_wordmark_licence_travels_with_the_font() -> None:
+    text = WORDMARK_OFL.read_text(encoding="utf-8")
+    assert "SIL OPEN FONT LICENSE VERSION 1.1" in text.upper()
+    assert "The Michroma Project Authors" in text
+    table = LICENSES.read_text(encoding="utf-8")
+    assert re.search(r"^\|\s*Michroma\s*\|\s*1\.100\s*\|\s*OFL-1\.1\s*\|", table, re.M)
