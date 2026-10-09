@@ -13,6 +13,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **Snap and Continuous no longer make the Detector tab jump.** Their own temporary settings — the file writer and stream briefly off, the detector idle between steps — flashed the pre-flight warning ("Nothing will be saved") and made the buttons appear and disappear. While a quick action runs, the pre-flight line holds as it was, the buttons stay put and the settings are locked; the check works as before for your own Acquire.
 - **A file opened with ALBIS replaces a live source.** Double-clicking a file (or Open With) while the SIMPLON monitor was the data source opened a new window that restored the saved source and kept following the monitor. The file now becomes the source, as with File → Open. The detector's monitor itself is left on: another ALBIS window may still be showing it live.
 
 ## [0.25.1] - 2026-10-09

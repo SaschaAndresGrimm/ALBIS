@@ -1018,6 +1018,12 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
   it("runs Continuous until Stop, saving nothing, then puts everything back", async () => {
     const fake = fakeDetector({ triggerRuns: true });
     const { elements, button } = await panel(fake);
+    // The pre-flight line must hold still: no warning about the action's own
+    // temporary settings (file writer and stream off) flashing up.
+    const preflightLine = elements.primaryBtn.parentElement.nextElementSibling;
+    const seen = [];
+    const watcher = new MutationObserver(() => seen.push(preflightLine.textContent));
+    watcher.observe(preflightLine, { childList: true, subtree: true, characterData: true });
     button("Continuous · 10 Hz").click();
     await vi.waitFor(() => expect(fake.calls).toContain("command trigger"), { timeout: 4000 });
     // 10 Hz for at most 10 hours: inside a detector's one-week limit.
@@ -1039,6 +1045,8 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
       "detector/frame_time=0.01",
     ]);
     expect(elements.logHost.textContent).not.toContain("changed by another program");
+    watcher.disconnect();
+    expect(seen.some((text) => text.includes(EN["detector.output.nothing_saved"]))).toBe(false);
   });
 
   it("says what a series needs before it starts, and asks when something is off", async () => {

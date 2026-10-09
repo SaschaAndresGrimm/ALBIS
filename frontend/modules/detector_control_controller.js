@@ -459,6 +459,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   let lastResult = null;
   let armedPrefix = "";
   let continuous = false;
+  // A quick action from its first temporary change to its last restore. Its
+  // own writes pass through states the panel would otherwise react to -- the
+  // file writer and stream briefly off, the detector idle between steps -- so
+  // the buttons and the pre-flight line hold still until it is done.
+  let quickRunning = false;
   let quick = readQuick();
   let progressTimer = null;
   // Internal enable: each Trigger sends its own exposure, chosen here, next to
@@ -905,12 +910,18 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
   // One image of SNAP_EXPOSURE_S now, shown live.
   async function snap() {
+    quickRunning = true;
+    renderState();
     log(t("detector.log.snap"));
-    await withTemporarySettings(
-      [["detector", "trigger_mode", "ints"], ...timingFor(quick.snapExposure), ["detector", "nimages", 1], ["detector", "ntrigger", 1]],
-      () => acquire({ forceFollow: true }),
-    );
-    await poll();
+    try {
+      await withTemporarySettings(
+        [["detector", "trigger_mode", "ints"], ...timingFor(quick.snapExposure), ["detector", "nimages", 1], ["detector", "ntrigger", 1]],
+        () => acquire({ forceFollow: true }),
+      );
+    } finally {
+      quickRunning = false;
+      await poll();
+    }
   }
 
   // Images one after another, shown live, until Stop: an alignment view. It
@@ -919,6 +930,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const wanted = Math.max(1, Math.round(quick.continuousRate * quick.continuousHours * 3600));
     const most = Math.min(wanted, Number(params.detector.nimages?.max) || wanted);
     continuous = true;
+    quickRunning = true;
+    renderState();
     log(t("detector.log.continuous"));
     try {
       await withTemporarySettings(
@@ -936,6 +949,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       );
     } finally {
       continuous = false;
+      quickRunning = false;
       await poll();
     }
   }
@@ -985,7 +999,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   function renderPreflight(show) {
-    if (!preflightHost) return;
+    // Held as it was while a quick action switches settings back and forth:
+    // it would only report the action's own, deliberate temporary state.
+    if (!preflightHost || quickRunning) return;
     preflightHost.replaceChildren();
     if (!show) return;
     const { issues, estimate, free, qualifier } = preflight();
@@ -1191,12 +1207,12 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       exposureInput.disabled = Boolean(job?.running);
     }
     if (primaryBtn) {
-      primaryBtn.disabled = !action || Boolean(job?.running && job.command !== "trigger");
+      primaryBtn.disabled = !action || quickRunning || Boolean(job?.running && job.command !== "trigger");
       primaryBtn.textContent = action ? t(`detector.action.${action}`) : statePill?.textContent || "";
       primaryBtn.dataset.action = action || "";
     }
     if (stopBtn) stopBtn.hidden = !(value === "acquire" || value === "ready" || value === "configure" || (job?.running && job.command === "trigger"));
-    const idle = action === "acquire" && !acquiring && !job?.running;
+    const idle = action === "acquire" && !acquiring && !quickRunning && !job?.running;
     if (snapBtn) snapBtn.hidden = !idle;
     if (continuousBtn) continuousBtn.hidden = !idle || !params.detector.nimages;
     renderPreflight(idle);
@@ -1204,7 +1220,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderProgress(value);
     renderSensors();
     renderRecovery(value);
-    const locked = isBusy() || acquiring;
+    const locked = isBusy() || acquiring || quickRunning;
     if (lockNote) lockNote.hidden = !locked;
     renderSeriesSummary(locked);
     content?.querySelectorAll("[data-param-input]").forEach((input) => {
