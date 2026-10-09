@@ -1896,9 +1896,18 @@ function localizePlaybackOptionLabels() {
   localizeFpsSelect(toolbarMoreFps);
 }
 
+// Under the Open file button, only what the button does not already say: the
+// keyboard shortcut, or -- with ALBIS on another machine -- that files can be
+// dropped here to upload them.
 function syncSplashHintMode() {
   if (!splashHint) return;
-  splashHint.dataset.i18n = backendIsLocal ? "splash.hint.open_file_only" : "splash.hint.open_or_drop";
+  if (backendIsLocal) {
+    splashHint.dataset.i18n = "splash.hint.shortcut";
+    splashHint.dataset.i18nVars = JSON.stringify({ key: platformShortcutLabel("open", "⌘O") });
+  } else {
+    splashHint.dataset.i18n = "splash.hint.drop";
+    delete splashHint.dataset.i18nVars;
+  }
 }
 
 function refreshLocalizedUi() {

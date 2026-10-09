@@ -659,6 +659,9 @@ export function createExportSplashController({
     }
     splashStatus.textContent = text;
     if (!splash) return;
+    // Ready needs no words: the Open file button says it. The line returns
+    // for anything else -- starting, loading, a failure.
+    splash.classList.toggle("is-ready", normalized === "splash.status.ready_open_file");
     const lower = text.toLowerCase();
     // Free text is classified by looking for English words in it, which no
     // translation carries -- so a localized failure used to keep the spinner

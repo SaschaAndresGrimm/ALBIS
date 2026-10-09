@@ -5760,8 +5760,18 @@ body.platform-windows select option:disabled {
   max-height: 68vh;
   border-radius: 12px;
   border: none;
-  background: #04070d url("resources/image.png") center/cover no-repeat;
-  box-shadow: 0 26px 48px rgba(0, 0, 0, 0.68);
+  background: #000 url("resources/splash.webp") center/cover no-repeat;
+  /* The picture fades into the black splash on every side, instead of ending
+     in a straight line where the waves run off its edges. Narrow enough at
+     the top and right to leave the DECTRIS wordmark untouched. */
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 9%, #000 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 8%, #000 80%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 9%, #000 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 8%, #000 80%, transparent 100%);
+  mask-composite: intersect;
 }
 
 .splash-label {
@@ -5783,19 +5793,6 @@ body.platform-windows select option:disabled {
   font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 4px;
-}
-
-/* Who stands behind ALBIS, under its name. Small and quiet: the status line
-   below is what the eye needs while the backend starts. "developed at", not
-   "by", while ALBIS is not yet a DECTRIS product (GOVERNANCE.md). */
-.splash-byline {
-  margin: -2px 0 10px;
-  color: #9db2d9;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 2.4px;
-  text-shadow: none;
 }
 
 .splash-sub {
@@ -5846,6 +5843,11 @@ body.platform-windows select option:disabled {
   animation: splash-spin 0.8s linear infinite;
   opacity: 0;
   transition: opacity var(--motion-fast) var(--motion-ease-standard);
+}
+
+/* Ready needs no words: the Open file button says it. */
+.splash.is-ready .splash-sub {
+  display: none;
 }
 
 .splash.is-busy .splash-sub::before {
