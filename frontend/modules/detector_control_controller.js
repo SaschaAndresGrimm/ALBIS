@@ -121,6 +121,16 @@ const STATE_TONES = {
   error: "error",
 };
 const TRIGGER_MODE_KEYS = new Set(["ints", "inte", "exts", "exte"]);
+// Enable modes take one image per trigger, exposed for as long as the trigger
+// says: the value sent with Trigger (inte) or the length of the external
+// signal (exte). The detector refuses them unless images per trigger is 1
+// ("number_of_images must be 1 for trigger mode inte"), and refuses raising
+// it while one is set; an armed exte detector goes straight to "acquire".
+const ENABLE_MODES = new Set(["inte", "exte"]);
+
+export function isEnableMode(mode) {
+  return ENABLE_MODES.has(String(mode || ""));
+}
 // Parameters with a translated label; every other one is shown by its SIMPLON
 // key, which is also what the API documentation calls it.
 const LABELLED_PARAMS = new Set([
@@ -187,6 +197,22 @@ export function formatDuration(seconds) {
   if (s < 120) return `${+s.toPrecision(3)} s`;
   const m = Math.floor(s / 60);
   return `${m}:${String(Math.round(s % 60)).padStart(2, "0")} min`;
+}
+
+/**
+ * Elapsed and total time of a running series, in one fixed format chosen by
+ * the total, so the text does not change width as the seconds tick: two
+ * decimals under a second, one under a minute, minutes and seconds above.
+ */
+export function formatProgress(elapsed, total) {
+  const e = Math.max(0, Number(elapsed) || 0);
+  const t = Math.max(0, Number(total) || 0);
+  if (t >= 60) {
+    const clock = (v) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, "0")}`;
+    return { elapsed: clock(e), total: `${clock(t)} min` };
+  }
+  const digits = t < 1 ? 2 : 1;
+  return { elapsed: `${e.toFixed(digits)} s`, total: `${t.toFixed(digits)} s` };
 }
 
 export function formatBytes(bytes) {
@@ -381,7 +407,33 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   let files = [];
   let filesError = "";
   let followedBefore = false;
+  // Internal enable: images triggered since arm, and the exposure being taken.
+  let triggered = 0;
+  let triggerExposure = 0;
   let progressTimer = null;
+  // Internal enable: each Trigger sends its own exposure, chosen here, next to
+  // the button, while the detector is armed.
+  const exposureBox = primaryBtn ? el("label", "detector-exposure") : null;
+  const exposureInput = exposureBox ? el("input") : null;
+  const exposureHint = exposureBox ? el("span", "detector-hint is-error") : null;
+  if (exposureBox) {
+    exposureInput.type = "text";
+    exposureInput.inputMode = "decimal";
+    exposureInput.autocomplete = "off";
+    exposureInput.classList.add("is-number");
+    const field = el("span", "detector-field");
+    field.append(exposureInput, el("span", "detector-unit", "s"));
+    exposureBox.append(el("span", "", t("detector.exposure.label")), field, exposureHint);
+    exposureBox.hidden = true;
+    primaryBtn.before?.(exposureBox);
+    exposureInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && primaryBtn.dataset.action === "trigger") {
+        event.preventDefault();
+        void trigger();
+      }
+    });
+  }
+
   // Once connected, the address shrinks to a line under the detector's name,
   // with Change to bring the field back: the name already says it connected.
   const whereLine = model ? el("div", "detector-where") : null;
@@ -452,6 +504,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
   function reason(detail) {
     if (detail && typeof detail === "object") {
+      // The detector's own explanation says more than the status code.
+      if (detail.detector_message) return t("detector.failure.detector_says", { message: detail.detector_message });
       return detail.code ? describeSimplonFailure({ api_version: version, ...detail }) : detail.summary || "";
     }
     return String(detail || "");
@@ -611,13 +665,13 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // "initialize" alone would read as the detector's; name other subsystems.
   const commandName = (subsystem, command) => (subsystem === "detector" ? command : `${subsystem} ${command}`);
 
-  async function sendCommand(subsystem, command, { quiet = false } = {}) {
+  async function sendCommand(subsystem, command, { quiet = false, value = undefined } = {}) {
     if (!quiet) log(t("detector.log.sent", { command: commandName(subsystem, command) }));
     try {
       return await request("/detector/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, version, subsystem, command }),
+        body: JSON.stringify(value === undefined ? { url, version, subsystem, command } : { url, version, subsystem, command, value }),
       });
     } catch (err) {
       log(t("detector.log.failed", { command: commandName(subsystem, command), reason: err.message }), "error");
@@ -625,8 +679,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }
   }
 
-  async function runCommand(subsystem, command, timeoutMs = 60000) {
-    await sendCommand(subsystem, command);
+  async function runCommand(subsystem, command, timeoutMs = 60000, value = undefined) {
+    await sendCommand(subsystem, command, { value });
     schedulePoll();
     const job = await waitForCommand(command, timeoutMs);
     if (!job) return null;
@@ -730,10 +784,16 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       const arm = await runCommand("detector", "arm", 130000);
       if (!arm?.ok) return;
       series = arm.result?.["sequence id"] ?? arm.result?.sequence_id ?? null;
+      triggered = 0;
       if (followToggle?.checked) await follow();
       const mode = String(params.detector.trigger_mode?.value || "");
-      if (mode.startsWith("int")) await trigger();
-      else renderState();
+      // Internal series starts at once; internal enable waits for the first
+      // Trigger, so its exposure can be chosen too.
+      if (mode === "ints") await trigger();
+      else {
+        await poll();
+        if (mode === "inte") exposureInput?.focus?.();
+      }
     } finally {
       acquiring = false;
       schedulePoll();
@@ -755,20 +815,42 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   async function trigger() {
+    const mode = String(params.detector.trigger_mode?.value || "");
+    let value;
+    if (mode === "inte" && exposureInput) {
+      // The exposure goes with the trigger, checked against the count time's limits.
+      const checked = validateInput(params.detector.count_time || { value_type: "float" }, exposureInput.value);
+      exposureInput.setAttribute("aria-invalid", String(!checked.ok));
+      exposureHint.textContent = checked.ok ? "" : checked.error;
+      if (!checked.ok) return;
+      value = checked.value;
+      triggerExposure = value;
+    }
     seriesStarted = Date.now();
     acquiring = true;
     progressTimer = window.setInterval(() => renderProgress(detectorState()), PROGRESS_TICK_MS);
     let job;
     try {
-      job = await runCommand("detector", "trigger", 24 * 3600 * 1000);
+      job = await runCommand("detector", "trigger", 24 * 3600 * 1000, value);
     } finally {
       window.clearInterval(progressTimer);
       progressTimer = null;
       acquiring = false;
       seriesStarted = 0;
     }
-    if (job?.ok) log(t("detector.log.series_done", { series: series ?? "-" }));
     await poll();
+    if (job?.ok && mode === "inte") {
+      triggered += 1;
+      const total = Number(params.detector.ntrigger?.value || 1);
+      log(t("detector.log.image_done", { n: triggered, total, exposure: formatDuration(value) }));
+      // The detector ends the series by itself after the last trigger.
+      if (detectorState() !== "idle") {
+        renderState();
+        exposureInput?.focus?.();
+        return;
+      }
+    }
+    if (job?.ok) log(t("detector.log.series_done", { series: series ?? "-" }));
     await refreshFiles();
   }
 
@@ -797,14 +879,27 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       if (value === "initialize" || (job?.running && job.command === "initialize")) {
         const elapsed = Math.max(0, (Date.now() / 1000) - (job?.started || Date.now() / 1000));
         text = t("detector.state_text.initialize", { elapsed: formatDuration(elapsed) });
+      } else if (value === "ready" && triggerMode === "inte") {
+        text = t("detector.state_text.ready_enable", { n: triggered + 1, total: Number(params.detector.ntrigger?.value || 1) });
       } else if (value === "ready") {
         text = t(String(triggerMode || "").startsWith("int") ? "detector.state_text.ready_internal" : "detector.state_text.ready_external");
+      } else if (value === "acquire" && String(triggerMode || "").startsWith("ext") && !(job?.running && job.command === "trigger")) {
+        // An armed detector in an external mode waits in "acquire" for its signals.
+        text = triggerMode === "exte"
+          ? t("detector.state_text.waiting_enable", { total: Number(params.detector.ntrigger?.value || 1) })
+          : t("detector.state_text.ready_external");
       } else {
         text = STATE_TEXTS.has(value) ? t(`detector.state_text.${value}`) : "";
       }
       stateText.textContent = text;
     }
     const action = job?.running && job.command !== "trigger" ? null : primaryAction(value, triggerMode);
+    if (exposureBox) {
+      const show = action === "trigger" && triggerMode === "inte";
+      if (show && exposureBox.hidden && !exposureInput.value) exposureInput.value = displayValue(params.detector.count_time);
+      exposureBox.hidden = !show;
+      exposureInput.disabled = Boolean(job?.running);
+    }
     if (primaryBtn) {
       primaryBtn.disabled = !action || Boolean(job?.running && job.command !== "trigger");
       primaryBtn.textContent = action ? t(`detector.action.${action}`) : statePill?.textContent || "";
@@ -836,10 +931,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       return;
     }
     const frame = Number(det.frame_time?.value);
-    const internal = String(det.trigger_mode?.value || "") === "ints";
-    seriesSummary.textContent = internal && frame > 0
-      ? t("detector.summary.series", { count, duration: formatDuration(count * frame) })
-      : t("detector.summary.series_images", { count });
+    const mode = String(det.trigger_mode?.value || "");
+    if (mode === "inte") seriesSummary.textContent = t("detector.summary.series_by_trigger", { count });
+    else if (mode === "exte") seriesSummary.textContent = t("detector.summary.series_by_signal", { count });
+    else if (mode === "ints" && frame > 0) seriesSummary.textContent = t("detector.summary.series", { count, duration: formatDuration(count * frame) });
+    else seriesSummary.textContent = t("detector.summary.series_images", { count });
     seriesSummary.hidden = false;
   }
 
@@ -849,17 +945,14 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     progress.hidden = !running;
     if (!running) return;
     const det = params.detector;
-    const total = Number(det.nimages?.value || 1) * Number(det.ntrigger?.value || 1) * Number(det.frame_time?.value || 0);
+    const total = det.trigger_mode?.value === "inte"
+      ? triggerExposure
+      : Number(det.nimages?.value || 1) * Number(det.ntrigger?.value || 1) * Number(det.frame_time?.value || 0);
     const elapsed = (Date.now() - seriesStarted) / 1000;
     const fraction = total > 0 ? Math.min(1, elapsed / total) : 0;
     if (progressBar) progressBar.style.width = `${(fraction * 100).toFixed(1)}%`;
     if (progressLeft) progressLeft.textContent = series !== null ? t("detector.progress.series", { series }) : "";
-    if (progressRight) {
-      progressRight.textContent = t("detector.progress.elapsed", {
-        elapsed: formatDuration(elapsed),
-        total: formatDuration(total),
-      });
-    }
+    if (progressRight) progressRight.textContent = t("detector.progress.elapsed", formatProgress(elapsed, total));
   }
 
   function renderSensors() {
@@ -1042,6 +1135,12 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       hint.className = "detector-hint";
       return;
     }
+    if (subsystem === "detector" && key === "trigger_mode" && isEnableMode(checked.value) && params.detector.nimages && Number(params.detector.nimages.value) !== 1) {
+      // The detector refuses an enable mode otherwise.
+      await sendParam("detector", "nimages", 1, { value: "" }, hint, row, { quiet: true });
+      if (Number(params.detector.nimages?.value) !== 1) return;
+      log(t("detector.log.enable_one_image"));
+    }
     if (subsystem === "filewriter" && key === "name_pattern" && !String(checked.value).includes("$id")) {
       ask(t("detector.confirm.no_id"), t("detector.confirm.use_anyway"), t("detector.action.cancel"), () => sendParam(subsystem, key, checked.value, input, hint, row));
       input.value = displayValue(descriptor);
@@ -1050,7 +1149,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     await sendParam(subsystem, key, checked.value, input, hint, row);
   }
 
-  async function sendParam(subsystem, key, value, input, hint, row) {
+  async function sendParam(subsystem, key, value, input, hint, row, { quiet = false } = {}) {
     row.classList.add("is-pending");
     try {
       const result = await request("/detector/config", {
@@ -1074,7 +1173,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       const shown = isMode || isBinary(params[subsystem][key])
         ? t(isOn(params[subsystem][key]) || value === "enabled" || value === true ? "detector.value.on" : "detector.value.off")
         : optionLabel(key, displayValue(params[subsystem][key]));
-      log(t("detector.log.set", { label, value: shown }));
+      if (!quiet) log(t("detector.log.set", { label, value: shown }));
       if (isMode && status?.[subsystem]) {
         // The status poll would say so only on its next round; until then the
         // row must not contradict the switch just flipped.
@@ -1125,11 +1224,17 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const det = params.detector;
     const groups = [];
     const keys = [];
+    // In an enable mode the trigger sets the exposure: internal enable keeps
+    // the count time as the default exposure, external enable needs neither
+    // time. What does not apply moves to Advanced, still within reach.
+    const mode = String(det.trigger_mode?.value || "");
+    const unused = mode === "inte" ? new Set(["frame_time"]) : mode === "exte" ? new Set(["frame_time", "count_time"]) : new Set();
+    const notes = { inte: "detector.enable.count_time_note", exte: "detector.enable.signal_note" };
     for (const group of CORE_GROUPS) {
       const rows = [];
       for (const entry of group.rows) {
         if (typeof entry === "string") {
-          if (det[entry]) rows.push({ keys: [entry] });
+          if (det[entry] && !unused.has(entry)) rows.push({ keys: [entry] });
         } else if (entry.oneOf) {
           const found = entry.oneOf.find((key) => det[key]);
           if (found) rows.push({ keys: [found] });
@@ -1139,7 +1244,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
           if (images.length) rows.push({ keys: images.map((image) => image.key), images });
         }
       }
-      if (rows.length) groups.push({ id: group.id, rows });
+      const note = group.id === "timing" ? notes[mode] : "";
+      if (rows.length || note) groups.push({ id: group.id, rows, note });
       for (const row of rows) keys.push(...row.keys);
     }
     return { groups, keys };
@@ -1187,6 +1293,14 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return box;
   }
 
+  // Images per trigger in an enable mode: one, fixed by the mode.
+  function oneImageRow() {
+    const row = paramRow("detector", "nimages", { ...params.detector.nimages, access_mode: "r" });
+    const value = row.querySelector(".detector-readonly");
+    if (value) value.textContent = t("detector.enable.one_per_trigger");
+    return row;
+  }
+
   function renderParams() {
     if (!paramsHost) return;
     paramsHost.replaceChildren();
@@ -1196,8 +1310,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       column.dataset.group = group.id;
       column.append(el("div", "detector-group-label", t(`detector.group.${group.id}`)));
       for (const row of group.rows) {
-        column.append(row.images ? imagesRow(row.images) : paramRow("detector", row.keys[0], params.detector[row.keys[0]]));
+        if (row.images) column.append(imagesRow(row.images));
+        else if (row.keys[0] === "nimages" && isEnableMode(params.detector.trigger_mode?.value)) column.append(oneImageRow());
+        else column.append(paramRow("detector", row.keys[0], params.detector[row.keys[0]]));
       }
+      if (group.note) column.append(el("p", "detector-note detector-group-note", t(group.note)));
       columns.append(column);
     }
     paramsHost.append(columns);

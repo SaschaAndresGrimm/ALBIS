@@ -308,3 +308,51 @@ def _command_v(client: TestClient, url: str, version: str, subsystem: str, comma
         "/api/detector/command",
         json={"url": url, "version": version, "subsystem": subsystem, "command": command},
     )
+
+
+def test_enable_modes_take_one_image_per_trigger_with_its_own_exposure(
+    client: TestClient, dcu: FakeDCUServer
+) -> None:
+    """As on an EIGER2: an enable mode needs images per trigger at 1, and in
+    internal enable each trigger carries its own exposure."""
+    _initialize(client, dcu.url)
+    assert _set(client, dcu.url, "detector", "nimages", 3).status_code == 200
+    refused = _set(client, dcu.url, "detector", "trigger_mode", "inte")
+    # The detector's own reason reaches the panel, without its generic lead-ins.
+    assert refused.json()["detail"]["detector_message"] == (
+        'number_of_images must be 1 for trigger mode "inte"'
+    )
+    assert _set(client, dcu.url, "detector", "nimages", 1).status_code == 200
+    assert _set(client, dcu.url, "detector", "trigger_mode", "inte").status_code == 200
+    assert _set(client, dcu.url, "detector", "ntrigger", 2).status_code == 200
+
+    _command(client, dcu.url, "detector", "arm")
+    _wait_for_command(client, dcu.url)
+    for exposure in (0.2, 0.05):
+        response = client.post(
+            "/api/detector/command",
+            json={
+                "url": dcu.url,
+                "subsystem": "detector",
+                "command": "trigger",
+                "value": exposure,
+            },
+        )
+        assert response.status_code == 200
+        assert _wait_for_command(client, dcu.url)["ok"] is True
+    assert dcu.dcu.last_exposures == [0.2, 0.05]
+    # After the last trigger the detector ends the series by itself.
+    status = client.get("/api/detector/status", params={"url": dcu.url}).json()
+    assert status["detector"]["state"] == "idle"
+
+
+def test_external_enable_waits_in_acquire_once_armed(
+    client: TestClient, dcu: FakeDCUServer
+) -> None:
+    _initialize(client, dcu.url)
+    _set(client, dcu.url, "detector", "nimages", 1)
+    assert _set(client, dcu.url, "detector", "trigger_mode", "exte").status_code == 200
+    _command(client, dcu.url, "detector", "arm")
+    _wait_for_command(client, dcu.url)
+    status = client.get("/api/detector/status", params={"url": dcu.url}).json()
+    assert status["detector"]["state"] == "acquire"

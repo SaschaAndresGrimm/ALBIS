@@ -781,3 +781,137 @@ describe("detector control panel, older detectors", () => {
     controller.setEnabled(false);
   });
 });
+
+describe("detector control panel, enable modes", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  const withMode = (mode, nimages = 1) => {
+    const params = structuredClone(DESCRIPTORS);
+    params.detector.trigger_mode = { ...params.detector.trigger_mode, value: mode, allowed_values: ["ints", "inte", "exts", "exte"] };
+    params.detector.nimages.value = nimages;
+    return params;
+  };
+
+  it("names the enable modes, and sets images per trigger to 1 before choosing one", async () => {
+    const calls = [];
+    const put = vi.fn(async (_url, init) => {
+      const body = JSON.parse(init.body);
+      calls.push(`${body.key}=${body.value}`);
+      const base = body.key === "nimages" ? DESCRIPTORS.detector.nimages : DESCRIPTORS.detector.trigger_mode;
+      return { ok: true, json: async () => ({ changed: [body.key], params: { [body.key]: { ...base, value: body.value } } }) };
+    });
+    const { controller, elements } = await setup({ "/detector/config": put });
+    controller._setParams(withMode("ints", 10));
+    controller._renderAll();
+    const select = elements.paramsHost.querySelector("#detector-p-detector-trigger_mode");
+    expect([...select.options].map((o) => o.textContent)).toEqual(["Internal, series", "Internal, enable", "External, series", "External, enable"]);
+    select.value = "inte";
+    select.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(calls).toEqual(["nimages=1", "trigger_mode=inte"]));
+    expect(elements.logHost.textContent).toContain(EN["detector.log.enable_one_image"]);
+  });
+
+  it("shows what applies in each enable mode", async () => {
+    const { controller, elements } = await setup();
+    controller._setParams(withMode("inte"));
+    controller._renderAll();
+    const host = elements.paramsHost;
+    // Images per trigger is fixed by the mode.
+    expect(host.querySelector('[data-key="detector:nimages"] .detector-readonly').textContent).toBe("1 (one per trigger)");
+    // Internal enable: count time is the default exposure; frame time does not apply.
+    expect(host.querySelector('[data-key="detector:count_time"]')).not.toBeNull();
+    expect(host.querySelector('[data-key="detector:frame_time"]')).toBeNull();
+    expect(elements.advancedHost.querySelector('[data-key="detector:frame_time"]')).not.toBeNull();
+    expect(host.textContent).toContain(EN["detector.enable.count_time_note"]);
+    // External enable: the signal sets the exposure, no times in the main view.
+    controller._setParams(withMode("exte"));
+    controller._renderAll();
+    expect(host.querySelector('[data-key="detector:count_time"]')).toBeNull();
+    expect(host.textContent).toContain(EN["detector.enable.signal_note"]);
+  });
+
+  it("sends each internal-enable Trigger with its own exposure", async () => {
+    const sent = [];
+    let job = null;
+    const routes = {
+      "/detector/command": async (_url, init) => {
+        const body = JSON.parse(init.body);
+        sent.push(body);
+        job = { subsystem: "detector", command: body.command, running: false, ok: true };
+        return { ok: true, json: async () => ({ ...job, running: true }) };
+      },
+      "/detector/status": async () => ({ ok: true, json: async () => ({ detector: { state: "ready" }, command: job }) }),
+      "/detector/files": async () => ({ ok: true, json: async () => ({ files: [] }) }),
+    };
+    const summary = document.createElement("span");
+    const mod = await loadModule(routes);
+    const elements = buildElements();
+    const controller = mod.createDetectorControlController({ apiBase: "/api", elements: { ...elements, seriesSummary: summary }, callbacks: {} });
+    controller._setConnection("http://192.168.20.88");
+    const params = withMode("inte");
+    params.detector.ntrigger.value = 100;
+    controller._setParams(params);
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "ready" } });
+    expect(summary.textContent).toBe("100 images · exposure per trigger");
+    expect(elements.stateText.textContent).toBe("Armed. Image 1 of 100: set its exposure, then Trigger.");
+    const exposure = elements.primaryBtn.previousElementSibling;
+    expect(exposure.hidden).toBe(false);
+    const input = exposure.querySelector("input");
+    // Starts at the count time.
+    expect(input.value).toBe("0.0099999");
+    input.value = "99999";
+    elements.primaryBtn.click();
+    expect(sent).toEqual([]);
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    input.value = "0.25";
+    elements.primaryBtn.click();
+    await vi.waitFor(() => expect(sent.length).toBe(1), { timeout: 3000 });
+    expect(sent[0]).toMatchObject({ command: "trigger", value: 0.25 });
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain("Image 1 of 100 taken (250 ms)"), { timeout: 3000 });
+  });
+
+  it("explains an armed external-enable detector waiting for its signals", async () => {
+    const { controller, elements } = await setup();
+    const params = withMode("exte");
+    params.detector.ntrigger.value = 5;
+    controller._setParams(params);
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "acquire" } });
+    expect(elements.stateText.textContent).toBe("Armed. Waiting for 5 trigger signals; the length of each sets its exposure.");
+    expect(elements.primaryBtn.previousElementSibling.hidden).toBe(true);
+  });
+
+  it("shows the detector's own reason when it refuses", async () => {
+    const put = vi.fn(async () => ({
+      ok: false,
+      status: 502,
+      json: async () => ({ detail: { code: "http_error", http_status: 400, detector_message: 'number_of_images must be 1 for trigger mode "inte"' } }),
+    }));
+    const { controller, elements } = await setup({ "/detector/config": put });
+    controller._setParams(withMode("inte"));
+    controller._renderAll();
+    const input = elements.paramsHost.querySelector("#detector-p-detector-ntrigger");
+    input.value = "3";
+    input.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(elements.paramsHost.textContent).toContain('The detector refused: number_of_images must be 1 for trigger mode "inte"'));
+  });
+});
+
+describe("detector control panel, progress text", () => {
+  it("keeps one format for the whole series, so the text does not jump", async () => {
+    const { formatProgress } = await loadModule();
+    // About 10 s: one decimal, also on whole seconds.
+    expect(formatProgress(6.5, 10)).toEqual({ elapsed: "6.5 s", total: "10.0 s" });
+    expect(formatProgress(6, 10)).toEqual({ elapsed: "6.0 s", total: "10.0 s" });
+    expect(formatProgress(6.56, 10).elapsed).toBe("6.6 s");
+    // A single short exposure: two decimals.
+    expect(formatProgress(0.1, 0.25)).toEqual({ elapsed: "0.10 s", total: "0.25 s" });
+    // Minutes: m:ss.
+    expect(formatProgress(65.4, 300)).toEqual({ elapsed: "1:05", total: "5:00 min" });
+    delete global.fetch;
+  });
+});

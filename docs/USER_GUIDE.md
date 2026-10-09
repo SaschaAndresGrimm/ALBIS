@@ -458,7 +458,11 @@ detector reports, so units, limits and choices are that detector's own:
   live as it is taken: a preview of the newest image, not every frame.
 - **Acquisition** holds the series, timing, energy and thresholds, and **Images**
   chooses which images the detector delivers. A value outside the detector's
-  range is refused before it is sent.
+  range is refused before it is sent, and when the detector refuses one, it
+  says why. In the **enable** trigger modes each trigger takes one image (ALBIS
+  sets images per trigger to 1 for you): with **Internal, enable** you set each
+  image's exposure next to **Trigger**; with **External, enable** the length of
+  the trigger signal sets it.
 - **Data output** switches the file writer, stream and monitor, and lists the
   files on the detector for download.
 - **Advanced** holds every other documented setting; **Troubleshooting** has

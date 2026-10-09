@@ -143,6 +143,42 @@ def simplon_detector_base(url: str, version: str) -> str:
     return _simplon_api_base(url, version, "detector")
 
 
+# Generic lead-ins a DCU puts before the reason, e.g. "error during request:
+# argument error: failed precondition: number_of_images must be 1 ...".
+_DCU_ERROR_PREFIX_RE = re.compile(
+    r"^(?:error during request|argument error|failed precondition)\s*:\s*", re.IGNORECASE
+)
+
+
+def _detector_message(exc: urllib.error.HTTPError) -> str:
+    """What the detector said about a refused request, short and plain.
+
+    A DCU explains a refusal in the body ("number_of_images must be 1 for
+    trigger mode inte"), which says more than the status code. Plain text only,
+    first line, at most 240 characters.
+    """
+    try:
+        raw = exc.read(4096)
+    except Exception:
+        return ""
+    text = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+    text = text.strip()
+    # Plain text from a real DCU; a JSON-encoded string from some.
+    if text.startswith('"'):
+        try:
+            decoded = json.loads(text)
+        except ValueError:
+            decoded = None
+        if isinstance(decoded, str):
+            text = decoded.strip()
+    text = text.splitlines()[0].strip() if text else ""
+    if text.startswith(("{", "[", "<")):
+        return ""
+    for _ in range(4):
+        text = _DCU_ERROR_PREFIX_RE.sub("", text)
+    return text[:240]
+
+
 def classify_simplon_failure(exc: BaseException, base_url: str) -> dict[str, Any]:
     """Turn a transport/HTTP error into a diagnosis the UI can act on.
 
@@ -163,11 +199,15 @@ def classify_simplon_failure(exc: BaseException, base_url: str) -> dict[str, Any
                 "http_status": 404,
                 "message": f"{host} answered, but no SIMPLON API was found at this path",
             }
-        return {
+        out: dict[str, Any] = {
             "code": "http_error",
             "http_status": int(exc.code),
             "message": f"{host} answered with HTTP {exc.code}",
         }
+        said = _detector_message(exc)
+        if said:
+            out["detector_message"] = said
+        return out
 
     reason = getattr(exc, "reason", None)
     causes = [exc] + ([reason] if isinstance(reason, BaseException) else [])

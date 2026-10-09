@@ -6838,6 +6838,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 .detector-progress-text {
+  font-variant-numeric: tabular-nums;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -7029,6 +7030,34 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .detector-images-block .detector-warning {
   margin: 4px 0 0;
+}
+
+/* Internal enable: the exposure for the next Trigger, beside the button. */
+.detector-exposure {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.detector-exposure .detector-field {
+  width: 96px;
+}
+
+.detector-exposure .detector-hint {
+  display: block;
+  grid-column: auto;
+}
+
+.detector-group-note {
+  margin: 2px 0 6px;
+}
+
+/* The Detector tab's section labels ("Locked while busy", "100 images ·
+   exposure per trigger") are longer than most; give them room. */
+.detector-content .section-summary {
+  max-width: min(260px, 60vw);
 }
 
 /* What the tab is for, under the address until connected. */

@@ -85,3 +85,34 @@ def test_simplon_base_rejects_unusable_input(raw: str) -> None:
             helper(raw, "1.8.0")
         assert excinfo.value.status_code == 400
         assert "hostname or IP address" in excinfo.value.detail
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # As an EIGER2 (SIMPLON 1.8) answers a refused setting: plain text.
+        b'error during request: argument error: failed precondition: number_of_images must be 1 for trigger mode "inte"',
+        # The same as a JSON-encoded string, as some answer.
+        b'"error during request: argument error: failed precondition: number_of_images must be 1 for trigger mode \\"inte\\""',
+    ],
+)
+def test_a_refusal_carries_the_detectors_own_reason(body: bytes) -> None:
+    import io
+    import urllib.error
+
+    from backend.services.simplon import classify_simplon_failure
+
+    exc = urllib.error.HTTPError("http://dcu/x", 400, "Bad Request", {}, io.BytesIO(body))
+    diagnosis = classify_simplon_failure(exc, "http://dcu")
+    assert diagnosis["code"] == "http_error"
+    assert diagnosis["detector_message"] == 'number_of_images must be 1 for trigger mode "inte"'
+
+
+def test_a_refusal_without_a_readable_reason_stays_generic() -> None:
+    import io
+    import urllib.error
+
+    from backend.services.simplon import classify_simplon_failure
+
+    exc = urllib.error.HTTPError("http://dcu/x", 500, "Error", {}, io.BytesIO(b"<html>oops</html>"))
+    assert "detector_message" not in classify_simplon_failure(exc, "http://dcu")

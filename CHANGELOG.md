@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The enable trigger modes work as the detector means them.** They are named "Internal, enable" and "External, enable" (they read "per image"). Choosing one sets images per trigger to 1 first, which the detector requires (it refuses the mode otherwise); while one is set, images per trigger shows a fixed 1. In internal enable, an **Exposure** field sits next to **Trigger** once armed, and each press sends its own exposure, as SIMPLON's trigger command allows; the tab counts "Image 2 of 3", and frame time, which plays no part, moves to Advanced. In external enable, the armed detector waits for its signals, whose length sets each exposure, and the tab says so; frame and count time move to Advanced. The Acquisition header reads "100 images · exposure per trigger" or "· exposure by signal". Tried on an EIGER2: an exposure longer than the frame time is accepted, a trigger without one uses the count time, and the series ends by itself after the last trigger.
+- **A refused setting says why.** When the detector refuses a value, the Detector tab shows the detector's own reason ("number_of_images must be 1 for trigger mode inte") instead of only the HTTP status; SIMPLON failure details carry it as `detector_message`.
+
+### Fixed
+
+- **The Detector tab's progress time no longer jumps.** It switched between no, one and two decimals as the seconds ticked ("6.5 s", "6.56 s"); it now keeps one format for the whole series — one decimal under a minute, two under a second, minutes and seconds above — in fixed-width digits.
+- **"Locked while busy" fits its label.** The Acquisition header's note was cut off ("Locked while the detector is bus…"); it is shorter in every language, and the Detector tab's section labels have more room.
+
 ## [0.24.2] - 2026-10-09
 
 ### Added

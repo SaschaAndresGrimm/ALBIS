@@ -118,6 +118,8 @@ class FakeDCU:
         self.stream_dropped = 0
         self.monitor_dropped = 0
         self.last_monitor: bytes | None = None
+        self.triggers_taken = 0
+        self.last_exposures: list[float] = []
         self.abort_flag = threading.Event()
         self.requests: list[tuple[str, str]] = []
         # Status values reported with "state": "critical", as (subsystem, key).
@@ -144,6 +146,18 @@ class FakeDCU:
             # live view re-sends the monitor's mode with each poll.
             if subsystem == "detector" and self.state in ("acquire", "initialize"):
                 return 400, "Not allowed while the detector is busy"
+            # As an EIGER2 answers: enable modes take exactly one image per trigger.
+            det = self.params["detector"]
+            enable = ("inte", "exte")
+            if subsystem == "detector" and (
+                (key == "trigger_mode" and value in enable and det["nimages"]["value"] != 1)
+                or (key == "nimages" and value != 1 and det["trigger_mode"]["value"] in enable)
+            ):
+                mode = value if key == "trigger_mode" else det["trigger_mode"]["value"]
+                return 400, (
+                    "error during request: argument error: failed precondition: "
+                    f'number_of_images must be 1 for trigger mode "{mode}"'
+                )
             vtype = param["value_type"]
             ok = (
                 (vtype == "bool" and isinstance(value, bool))
@@ -187,7 +201,7 @@ class FakeDCU:
             return 200, sorted(set(changed))
 
     # ---- commands ----
-    def command(self, subsystem: str, name: str) -> tuple[int, Any]:
+    def command(self, subsystem: str, name: str, value: Any = None) -> tuple[int, Any]:
         if subsystem == "detector":
             if name == "initialize":
                 with self.lock:
@@ -201,8 +215,11 @@ class FakeDCU:
             if name == "arm":
                 with self.lock:
                     self.sequence_id += 1
-                    self.state = "ready"
+                    # External enable waits for its signals in "acquire".
+                    exte = self.params["detector"]["trigger_mode"]["value"] == "exte"
+                    self.state = "acquire" if exte else "ready"
                     self.stream_dropped = 0
+                    self.triggers_taken = 0
                 return 200, {"sequence id": self.sequence_id}
             if name == "trigger":
                 if self.state != "ready":
@@ -210,6 +227,22 @@ class FakeDCU:
                 det = self.params["detector"]
                 if not str(det["trigger_mode"]["value"]).startswith("int"):
                     return 400, "Trigger is not used in external trigger modes"
+                if det["trigger_mode"]["value"] == "inte":
+                    # One image per trigger, exposed for the value sent with it
+                    # (or the count time); the series ends after the last one.
+                    exposure = float(value) if value is not None else det["count_time"]["value"]
+                    with self.lock:
+                        self.state = "acquire"
+                        self.last_exposures.append(exposure)
+                    time.sleep(min(exposure, self.max_series_s))
+                    with self.lock:
+                        self.triggers_taken += 1
+                        if self.triggers_taken >= det["ntrigger"]["value"]:
+                            self._write_series(det["ntrigger"]["value"])
+                            self.state = "idle"
+                        else:
+                            self.state = "ready"
+                    return 200, None
                 self.abort_flag.clear()
                 with self.lock:
                     self.state = "acquire"
@@ -445,7 +478,7 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
             if task == "config":
                 code, payload = dcu.put_config(subsystem, key, body.get("value"))
             elif task == "command":
-                code, payload = dcu.command(subsystem, key)
+                code, payload = dcu.command(subsystem, key, body.get("value"))
             else:
                 code, payload = 404, "not found"
             self._send(code, payload)
