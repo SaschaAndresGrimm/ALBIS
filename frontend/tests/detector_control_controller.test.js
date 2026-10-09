@@ -995,8 +995,8 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
   it("snaps one image and puts the series settings back", async () => {
     const fake = fakeDetector();
     const { elements, buttons, button, watchLive } = await panel(fake);
-    expect(buttons()).toEqual(["Acquire", "Snap · 1 s", "Continuous · 10 Hz"]);
-    button("Snap · 1 s").click();
+    expect(buttons()).toEqual(["Acquire", "Snap", "Continuous"]);
+    button("Snap").click();
     await vi.waitFor(() => expect(elements.logHost.textContent).toContain(EN["detector.log.restored"]), { timeout: 4000 });
     // A fixed 1 s exposure, not the series' count time; only what differs is
     // changed, and put back in reverse order.
@@ -1024,7 +1024,7 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const seen = [];
     const watcher = new MutationObserver(() => seen.push(preflightLine.textContent));
     watcher.observe(preflightLine, { childList: true, subtree: true, characterData: true });
-    button("Continuous · 10 Hz").click();
+    button("Continuous").click();
     await vi.waitFor(() => expect(fake.calls).toContain("command trigger"), { timeout: 4000 });
     // 10 Hz for at most 10 hours: inside a detector's one-week limit.
     expect(fake.calls.slice(0, 4)).toEqual([
@@ -1113,12 +1113,17 @@ describe("detector control panel, quick action settings", () => {
     localStorage.clear();
   });
 
-  it("sets Snap's exposure and Continuous' rate under Advanced, remembered per browser", async () => {
+  it("sets Snap's exposure and Continuous' rate under the buttons, remembered per browser", async () => {
     localStorage.clear();
     const { controller, elements } = await setup();
     controller._setStatus({ detector: { state: "idle" } });
-    const host = elements.advancedHost.querySelector(".detector-quick-settings");
-    expect(host.querySelector(".detector-group-label").textContent).toBe("Quick actions");
+    expect(elements.advancedHost.querySelector(".detector-quick-settings")).toBeNull();
+    const host = elements.primaryBtn.parentElement.parentElement.querySelector("details.detector-quick-settings");
+    expect(host.querySelector("summary").textContent).toBe("Snap and Continuous settings");
+    expect(host.open).toBe(false);
+    host.open = true;
+    host.dispatchEvent(new Event("toggle"));
+    expect(localStorage.getItem("albis.detectorControl.quickOpen")).toBe("1");
     const exposure = host.querySelector("#detector-quick-snapExposure");
     expect(exposure.value).toBe("1");
     exposure.value = "0.5";
@@ -1127,9 +1132,27 @@ describe("detector control panel, quick action settings", () => {
     rate.value = "100000000";
     rate.dispatchEvent(new Event("change"));
     expect(rate.getAttribute("aria-invalid")).toBe("true");
-    const labels = [...elements.primaryBtn.parentElement.querySelectorAll(".detector-quick")].map((b) => b.textContent);
-    expect(labels).toEqual(["Snap · 500 ms", "Continuous · 10 Hz"]);
+    const quickButtons = [...elements.primaryBtn.parentElement.querySelectorAll(".detector-quick")];
+    expect(quickButtons.map((b) => b.textContent)).toEqual(["Snap", "Continuous"]);
+    expect(quickButtons[0].title).toContain("One 500 ms image now");
     expect(JSON.parse(localStorage.getItem("albis.detectorControl.quick"))).toMatchObject({ snapExposure: 0.5, continuousRate: 10 });
+  });
+
+  it("says what the next series is instead of \"these settings\"", async () => {
+    const { controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    params.detector.trigger_mode = { value: "ints", value_type: "string", access_mode: "rw", allowed_values: ["ints", "exts"] };
+    params.detector.nimages = { value: 20, value_type: "uint", access_mode: "rw" };
+    params.detector.ntrigger = { value: 1, value_type: "uint", access_mode: "rw" };
+    params.detector.frame_time = { value: 1, value_type: "float", access_mode: "rw", unit: "s" };
+    controller._setParams(params);
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "idle" } });
+    expect(elements.stateText.textContent).toBe("Next series: 20 images · 20 s");
+    delete params.detector.nimages;
+    controller._setParams(params);
+    controller._setStatus({ detector: { state: "idle" } });
+    expect(elements.stateText.textContent).toBe("Ready to acquire.");
   });
 
   it("leaves compression out of the estimate when the file writer does not compress", async () => {

@@ -459,8 +459,10 @@ detector reports, so units, limits and choices are that detector's own:
   Beside Acquire, **Snap** takes one image now (1 s) and **Continuous** takes
   images at 10 Hz, shown live, until **Stop** or for at most 10 hours (for
   aligning; it saves nothing). Both put the series settings back afterwards;
-  their exposure, rate and longest run are set under **Advanced → Quick
-  actions**. Before a series, a line says it is ready, with about how much it
+  their exposure, rate and longest run are set under **Snap and Continuous
+  settings**, below the buttons. When the detector is ready, the line beside
+  its state says what Acquire takes ("Next series: 20 images · 20 s"). Before a
+  series, a line says it is ready, with about how much it
   writes (estimated with the detector's compression, about 4× for bslz4)
   against the free storage, or what would make it fail; after it, **Open in ALBIS** copies the series from
   the detector into ALBIS's data folder and opens the full data.

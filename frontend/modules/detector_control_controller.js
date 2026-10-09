@@ -46,7 +46,7 @@ const PROGRESS_TICK_MS = 100;
 // count time made a 10 s snap). Continuous: an alignment view at its own rate
 // for a bounded time, inside the one-week limit a detector puts on a series
 // ("trigger sequence duration exceeds maximum allowed duration"). Set under
-// Advanced -> Quick actions, remembered per browser.
+// the buttons (Snap and Continuous settings), remembered per browser.
 const QUICK_DEFAULTS = { snapExposure: 1, continuousRate: 10, continuousHours: 10 };
 const QUICK_LIMITS = {
   snapExposure: { min: 1e-6, max: 3600, unit: "s" },
@@ -66,6 +66,24 @@ function readQuick() {
     return out;
   } catch {
     return { ...QUICK_DEFAULTS };
+  }
+}
+
+const QUICK_OPEN_KEY = "albis.detectorControl.quickOpen";
+
+function readQuickOpen() {
+  try {
+    return window.localStorage?.getItem(QUICK_OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeQuickOpen(open) {
+  try {
+    window.localStorage?.setItem(QUICK_OPEN_KEY, open ? "1" : "0");
+  } catch {
+    // A remembered preference only.
   }
 }
 
@@ -507,14 +525,17 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     snapBtn.addEventListener("click", () => void snap());
     continuousBtn.addEventListener("click", () => void runContinuous());
   }
+  const quickBox = actionsRow ? quickSettings() : null;
+  if (quickBox) (followToggle?.closest?.(".detector-follow") || resultHost).after(quickBox);
 
-  // The buttons say what they take: "Snap · 1 s", "Continuous · 10 Hz".
+  // Plain names on the buttons, to keep the row narrow; the timings are in
+  // their tooltips and in the settings under the buttons.
   function labelQuickButtons() {
     if (!snapBtn) return;
     const exposure = formatDuration(quick.snapExposure);
     const rate = `${+quick.continuousRate.toPrecision(3)} Hz`;
-    snapBtn.textContent = `${t("detector.action.snap")} · ${exposure}`;
-    continuousBtn.textContent = `${t("detector.action.continuous")} · ${rate}`;
+    snapBtn.textContent = t("detector.action.snap");
+    continuousBtn.textContent = t("detector.action.continuous");
     snapBtn.title = t("detector.snap.hint", { exposure });
     continuousBtn.title = t("detector.continuous.hint", { rate, hours: +quick.continuousHours.toPrecision(3) });
   }
@@ -1194,6 +1215,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         text = triggerMode === "exte"
           ? t("detector.state_text.waiting_enable", { total: Number(params.detector.ntrigger?.value || 1) })
           : t("detector.state_text.ready_external");
+      } else if (value === "idle" && seriesText()) {
+        // What Acquire will take, rather than "these settings".
+        text = t("detector.state_text.idle_series", { series: seriesText() });
       } else {
         text = STATE_TEXTS.has(value) ? t(`detector.state_text.${value}`) : "";
       }
@@ -1222,6 +1246,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderRecovery(value);
     const locked = isBusy() || acquiring || quickRunning;
     if (lockNote) lockNote.hidden = !locked;
+    quickBox?.querySelectorAll("input").forEach((input) => {
+      input.disabled = quickRunning;
+    });
     renderSeriesSummary(locked);
     content?.querySelectorAll("[data-param-input]").forEach((input) => {
       input.disabled = locked || input.dataset.readonly === "true";
@@ -1233,21 +1260,24 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // where this panel's settings decide it, an internally triggered series.
   function renderSeriesSummary(locked) {
     if (!seriesSummary) return;
+    const text = locked ? "" : seriesText();
+    seriesSummary.textContent = text;
+    seriesSummary.hidden = !text;
+  }
+
+  // "20 images · 20 s", or "" when the detector does not say.
+  function seriesText() {
     const det = params.detector;
     const perTrigger = Number(det.nimages?.value);
     const triggers = Number(det.ntrigger?.value ?? 1);
     const count = perTrigger * (triggers > 0 ? triggers : 1);
-    if (locked || !det.nimages || !Number.isFinite(count) || count <= 0) {
-      seriesSummary.hidden = true;
-      return;
-    }
+    if (!det.nimages || !Number.isFinite(count) || count <= 0) return "";
     const frame = Number(det.frame_time?.value);
     const mode = String(det.trigger_mode?.value || "");
-    if (mode === "inte") seriesSummary.textContent = t("detector.summary.series_by_trigger", { count });
-    else if (mode === "exte") seriesSummary.textContent = t("detector.summary.series_by_signal", { count });
-    else if (mode === "ints" && frame > 0) seriesSummary.textContent = t("detector.summary.series", { count, duration: formatDuration(count * frame) });
-    else seriesSummary.textContent = t("detector.summary.series_images", { count });
-    seriesSummary.hidden = false;
+    if (mode === "inte") return t("detector.summary.series_by_trigger", { count });
+    if (mode === "exte") return t("detector.summary.series_by_signal", { count });
+    if (mode === "ints" && frame > 0) return t("detector.summary.series", { count, duration: formatDuration(count * frame) });
+    return t("detector.summary.series_images", { count });
   }
 
   function renderProgress(value) {
@@ -1937,10 +1967,6 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }
     // Reference, not settings: a dense table, two columns when there is room.
     addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })))?.classList.add("is-info");
-    // ALBIS's own quick-action settings, found by the filter like the rest.
-    const quickBox = quickSettings();
-    advancedHost.append(quickBox);
-    groups.push(quickBox);
     const empty = el("p", "detector-note", t("detector.advanced.no_match"));
     advancedHost.append(empty);
 
@@ -1969,40 +1995,41 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   // Snap's exposure and Continuous' rate and longest run: ALBIS settings, not
-  // the detector's, so they live here, remembered per browser.
+  // the detector's, so they sit under the buttons they belong to, closed like
+  // the other tabs' advanced controls and remembered per browser.
   function quickSettings() {
-    const box = el("div", "detector-adv-group detector-quick-settings");
-    box.append(el("div", "detector-group-label", t("detector.quick.title")));
+    const box = el("details", "advanced-details detector-quick-settings");
+    box.open = readQuickOpen();
+    box.addEventListener("toggle", () => writeQuickOpen(box.open));
+    box.append(el("summary", "", t("detector.quick.summary")));
+    const inner = el("div", "advanced-inner detector-quick-fields");
     for (const key of Object.keys(QUICK_DEFAULTS)) {
       const { min, max, unit } = QUICK_LIMITS[key];
-      const row = el("div", "detector-param");
-      row.dataset.search = `${t(`detector.quick.${key}`)} ${key}`.toLowerCase();
       const id = `detector-quick-${key}`;
-      const name = el("div", "detector-param-name");
+      const row = el("div", "detector-quick-field");
       const label = el("label", "", t(`detector.quick.${key}`));
       label.htmlFor = id;
-      name.append(label);
       const field = el("div", "detector-field");
       const input = el("input", "is-number");
       input.type = "text";
       input.inputMode = "decimal";
       input.id = id;
       input.value = String(+quick[key].toPrecision(6));
+      input.title = rangeText({ value_type: "float", min, max, unit: unit === "s" ? "s" : "" });
       field.append(input, el("span", "detector-unit", unit));
-      const hint = el("div", "detector-hint", rangeText({ value_type: "float", min, max, unit: unit === "s" ? "s" : "" }));
-      row.append(name, field, hint);
+      row.append(label, field);
       input.addEventListener("change", () => {
         const value = Number(String(input.value).replace(",", "."));
         const ok = Number.isFinite(value) && value >= min && value <= max;
         input.setAttribute("aria-invalid", String(!ok));
-        hint.className = ok ? "detector-hint" : "detector-hint is-error";
         if (!ok) return;
         quick = { ...quick, [key]: value };
         writeQuick(quick);
         labelQuickButtons();
       });
-      box.append(row);
+      inner.append(row);
     }
+    box.append(inner);
     return box;
   }
 

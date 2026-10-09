@@ -7037,6 +7037,22 @@ button.browse-details-header-cell[aria-sort="descending"] {
   margin: 0;
 }
 
+/* Their timings, closed under the buttons: three small fields side by side,
+   stacking when the panel is narrow. */
+.detector-quick-fields {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 12px;
+  padding-top: 8px;
+}
+
+.detector-quick-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .detector-ready .detector-ok {
   color: #4fd18b;
 }

@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **The Detector tab says what Acquire takes.** "Ready. Acquire takes a series with these settings" becomes "Next series: 20 images · 20 s", the same summary as in the Acquisition header ("Ready to acquire." when the detector does not report its series).
+- **Snap and Continuous are just that,** without "· 1 s" and "· 10 Hz" on the buttons, which kept the row wide; their tooltips still say both. Snap's exposure and Continuous' rate and longest run move from Advanced → Quick actions to **Snap and Continuous settings** right below the buttons: closed by default, like the other tabs' advanced controls, its open state remembered per browser, and locked while a quick action runs.
 - **Each threshold has its images switch beside it.** The row of image chips under the thresholds is replaced by an on/off switch next to each threshold's energy (what it does is said on hover), and the difference image is a row of its own with the same switch, labelled simply "Difference image" (its "?" says it is threshold 1 minus threshold 2) — the control every other on/off setting uses. The energies stay as they are whatever is switched: they decide what is counted. The switch sits inside the field column, right of the energy, so the fields still line up with those of Series and Timing. A single threshold still has no switch.
 
 ### Fixed
