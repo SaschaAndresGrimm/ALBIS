@@ -482,6 +482,7 @@
   "detector.value.none": "(ninguno)",
   "detector.value.off": "Desactivado",
   "detector.value.on": "Activado",
+  "detector.where.web_ui": "Abrir la interfaz web del detector",
   "drop_overlay.local.detail": "Utilice Archivo -> Abrir... para abrir sin copiar.",
   "drop_overlay.local.title": "Arrastrar archivos desactivado",
   "drop_overlay.upload.detail": "Suelte archivos de imagen aquí para subirlos y abrirlos.",

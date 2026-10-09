@@ -7,9 +7,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Quick access to the detector's web interface.** Once connected, the address under the detector's name is a link (↗) to the control unit's own web interface, opened in a new tab. Only an http(s) address becomes a link, as for the Data page link.
+
 ### Changed
 
 - **The Detector tab is described as what it is: a quick-test tool, not a control system.** The README mentions it once, at the end of Highlights; the User Guide section is now "Test a detector (beta)" and starts with what it is for (a first image, checking a detector, demos, learning the SIMPLON keys) and what not (experiments under a beamline control system, scans, sequences, unattended or shared use), with a shorter feature list; the help page and the `ui.detector_control` description say the same. In the app, the tab says so under the address until connected, and the Settings checkbox reads "Beta: detector control, for quick tests". The Compatibility Policy now lists beta features — the Detector tab, `/api/detector/*` and `ui.detector_control` — as not covered, so they can change in any release; API Contracts lists the endpoints under that heading.
+
+### Fixed
+
+- **The Detector tab works with an EIGER1 and other SIMPLON 1.6 detectors.** It always spoke SIMPLON 1.8.0, which a 1.6 detector refuses ("Incompatible version"), so connecting failed. ALBIS now reads the detector's own API version when it connects and uses it. On 1.6 it also reads temperature, humidity and high voltage under their 1.6 names (high voltage shown in volts), converts the free storage, which 1.6 reports in KB, and sends one request at a time: an EIGER1's control unit answers them in turn, and twelve at once left a third of the settings, sometimes the detector's name, timed out. Requests that time out or fail on the server are now asked again once, on any detector. The simulated detector takes `--api-version 1.6.0`.
 
 ## [0.24.1] - 2026-10-08
 

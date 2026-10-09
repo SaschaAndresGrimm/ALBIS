@@ -482,6 +482,7 @@
   "detector.value.none": "(nagin)",
   "detector.value.off": "Inactiv",
   "detector.value.on": "Activ",
+  "detector.where.web_ui": "Avrir l'interfatscha web dal detectur",
   "drop_overlay.local.detail": "Utilisai Datoteca -> Avrir... per avrir senza copiar.",
   "drop_overlay.local.title": "Deponer datotecas è deactivà",
   "drop_overlay.upload.detail": "Laschai crudar datotecas da maletgs qua per chargiar si ed avrir ellas.",

@@ -482,6 +482,7 @@
   "detector.value.none": "(なし)",
   "detector.value.off": "オフ",
   "detector.value.on": "オン",
+  "detector.where.web_ui": "検出器の Web インターフェースを開く",
   "drop_overlay.local.detail": "コピーせずに開くには、ファイル -> 開く... を使ってください。",
   "drop_overlay.local.title": "ファイルドロップは無効です",
   "drop_overlay.upload.detail": "画像ファイルをここにドロップするとアップロードして開きます。",

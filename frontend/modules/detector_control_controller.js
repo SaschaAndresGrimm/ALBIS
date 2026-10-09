@@ -256,16 +256,25 @@ function fmtLimit(value, unit) {
   return unit ? `${n} ${unit}` : n;
 }
 
-/** The detector's data page, `http(s)://<dcu>/data/`, or "" for any other address. */
-export function detectorDataPage(base) {
+/**
+ * A page on the detector control unit, `http(s)://<dcu>/<path>`, or "" for an
+ * address that is not http(s): the address is typed text, and only an http(s)
+ * one may become a link, never `javascript:` and the like.
+ */
+export function detectorPage(base, path = "") {
   let parsed;
   try {
-    parsed = new URL(`${String(base || "").replace(/\/+$/, "")}/data/`);
+    parsed = new URL(`${String(base || "").replace(/\/+$/, "")}/${path}`);
   } catch {
     return "";
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
   return /^https?:\/\//i.test(parsed.href) ? parsed.href : "";
+}
+
+/** The detector's data page, `http(s)://<dcu>/data/`, or "" for any other address. */
+export function detectorDataPage(base) {
+  return detectorPage(base, "data/");
 }
 
 /** A read-only value with its unit; a length in metres in µm or mm. */
@@ -392,7 +401,21 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       showAddress(true);
       urlInput?.focus?.();
     });
-    whereLine.append(el("span", "", url.replace(/^https?:\/\//, "").replace(/\/+$/, "")), " · ", change);
+    // The address opens the control unit's own web interface, served at its
+    // root by every DCU (an EIGER1's: "EIGER Detector Control Unit").
+    const shown = url.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    const webUi = detectorPage(url);
+    let address;
+    if (webUi) {
+      address = el("a", "linkish detector-external", `${shown} ↗`);
+      address.href = webUi;
+      address.target = "_blank";
+      address.rel = "noopener";
+      address.title = t("detector.where.web_ui");
+    } else {
+      address = el("span", "", shown);
+    }
+    whereLine.append(address, " · ", change);
   }
 
   // Recovery hints sit right under the sensors, in the detector card.
@@ -498,6 +521,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
   async function refreshDescription() {
     const payload = await request(`/detector/describe?${query()}`);
+    // The detector says which SIMPLON it speaks (an EIGER1: 1.6.0); every
+    // request from here on uses that.
+    if (payload?.api_version) version = String(payload.api_version);
     params = { detector: {}, monitor: {}, filewriter: {}, stream: {}, ...(payload?.params || {}) };
     if (model) model.textContent = displayValue(params.detector.description) || t("detector.section.detector");
     if (serial) serial.textContent = displayValue(params.detector.detector_number);
@@ -843,13 +869,18 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const items = [
       ["temperature", det.temperature, (v) => `${Number(v).toFixed(1)} °C`],
       ["humidity", det.humidity, (v) => `${Number(v).toFixed(1)} %`],
-      ["high_voltage", det["high_voltage/state"], (v) => String(v)],
+      // SIMPLON 1.8 reports a state (READY); 1.6 a module's voltage.
+      ["high_voltage", det["high_voltage/state"] ?? det.high_voltage, (v) => (typeof v === "number" ? `${Math.round(v)} V` : String(v))],
     ];
     for (const [key, value, fmt] of items) {
       if (value === null || value === undefined || value === "") continue;
       const box = el("div", "detector-sensor");
       const strong = el("strong", "", fmt(value));
-      if (key === "high_voltage") strong.dataset.tone = String(value).toUpperCase() === "READY" ? "ok" : "warn";
+      if (key === "high_voltage") {
+        const critical = Array.isArray(det.critical) && det.critical.includes("high_voltage");
+        const ready = typeof value === "number" ? !critical : String(value).toUpperCase() === "READY";
+        strong.dataset.tone = ready ? "ok" : "warn";
+      }
       box.append(el("span", "", t(`detector.sensor.${key}`)), strong);
       sensors.append(box);
     }

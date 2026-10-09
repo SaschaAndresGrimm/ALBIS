@@ -3,6 +3,7 @@
     python test_scripts/fake_simplon_dcu.py            # http://127.0.0.1:8100
     python test_scripts/fake_simplon_dcu.py --port 9000
     python test_scripts/fake_simplon_dcu.py --thresholds 4   # like a PILATUS4
+    python test_scripts/fake_simplon_dcu.py --api-version 1.6.0   # like an EIGER1
 
 Enter the printed address in ALBIS's Detector tab (Settings -> Viewer -> Beta:
 detector control). The detector starts uninitialized, as a real one does after
@@ -29,12 +30,16 @@ def main() -> None:
     parser.add_argument(
         "--thresholds", type=int, default=1, choices=range(1, 5), help="energy thresholds, 1-4"
     )
+    parser.add_argument(
+        "--api-version", default="1.8.0", help="the SIMPLON version served (1.6.0 for an EIGER1)"
+    )
     args = parser.parse_args()
     with FakeDCUServer(
         args.port,
         init_delay=args.init_delay,
         max_series_s=args.max_series,
         thresholds=args.thresholds,
+        api_version=args.api_version,
     ) as server:
         print(f"Simulated detector at {server.url} (Ctrl+C to stop)", flush=True)
         try:

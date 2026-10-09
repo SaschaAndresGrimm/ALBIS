@@ -482,6 +482,7 @@
   "detector.value.none": "(inget)",
   "detector.value.off": "Av",
   "detector.value.on": "På",
+  "detector.where.web_ui": "Öppna detektorns webbgränssnitt",
   "drop_overlay.local.detail": "Använd Arkiv -> Öppna... för att öppna utan att kopiera.",
   "drop_overlay.local.title": "Filsläpp är inaktiverat",
   "drop_overlay.upload.detail": "Släpp bildfiler här för att ladda upp och öppna dem.",

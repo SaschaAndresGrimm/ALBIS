@@ -432,7 +432,8 @@ the same contrast.
 
 The **Detector** tab is a quick way to check a DECTRIS detector: connect, take a
 test series and watch it live, without writing code. It works with any detector
-that speaks SIMPLON 1.8.0 or later. It is a convenience for first tests, not a
+that speaks SIMPLON 1.6 or later, from an EIGER1 to a PILATUS4; ALBIS reads the
+detector's API version when it connects. It is a convenience for first tests, not a
 replacement for a beamline control system or scripted acquisition.
 
 **Good for:** a first image after installing or moving a detector, checking that

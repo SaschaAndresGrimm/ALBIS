@@ -4,7 +4,10 @@ Reads, writes and commands for the detector, monitor, file writer and stream
 subsystems of a DECTRIS detector control unit (DCU), plus listing and
 downloading the files its file writer wrote. Built only on what the SIMPLON 1.8
 API reference documents (v3.11, 2026-03-12): the DCU has undocumented keys too,
-and DECTRIS discourages using them.
+and DECTRIS discourages using them. Older DCUs work too: the detector's own API
+version is read on connect and used (an EIGER1 serves 1.6.0 and refuses 1.8.0),
+and the few places where 1.6 differs -- sensor names, the free buffer in KB, one
+request at a time -- are handled where they occur.
 
 The interface is generated from what the detector says about each parameter --
 value, type, unit, limits, allowed values, access -- so a PILATUS4, an EIGER2
@@ -178,6 +181,30 @@ _DESCRIBE_WORKERS = 12
 _FILE_SEGMENT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
+# Before SIMPLON 1.8 (an EIGER1 runs 1.6.0) the detector reports its
+# environment per board and module, under other names; the panel shows them in
+# the same places. high_voltage is then a voltage, not a state.
+_LEGACY_SENSOR_KEYS = {
+    "temperature": "board_000/th0_temp",
+    "humidity": "board_000/th0_humidity",
+    "high_voltage": "module_000/hv",
+}
+# Sizes as SIMPLON states them; 1.6 gives the file writer's free buffer in KB.
+_SIZE_UNITS = {"": 1, "b": 1, "bytes": 1, "kb": 1024, "mb": 1024**2, "gb": 1024**3}
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in version.split("."))
+    except ValueError:
+        return ()
+
+
+def _is_legacy(version: str) -> bool:
+    parsed = _version_tuple(version)
+    return bool(parsed) and parsed < (1, 8)
+
+
 def _base(url: str, version: str, subsystem: str) -> str:
     if subsystem not in SUBSYSTEMS:
         raise HTTPException(status_code=400, detail=f"Unknown SIMPLON subsystem: {subsystem}")
@@ -234,6 +261,40 @@ def _try_get(url: str) -> Any:
         return None
 
 
+def _workers(version: str) -> int:
+    """How many requests to have in flight at once.
+
+    A SIMPLON 1.8 DCU answers them in parallel. An EIGER1's (1.6) handles one
+    at a time: twelve at once queue until a third of them time out, while one
+    at a time answers all in about 65 ms each.
+    """
+    return 1 if _is_legacy(version) else _DESCRIBE_WORKERS
+
+
+def _get_all(urls: list[str], version: str) -> list[Any]:
+    """GET each URL, parsed, or None where the detector has no such key.
+
+    A timeout or a server error is asked again once, on its own: a busy DCU
+    drops some of a burst of requests, and a missing setting would otherwise
+    simply vanish from the panel.
+    """
+
+    def attempt(target: str) -> tuple[Any, bool]:
+        try:
+            return _get(target), False
+        except urllib.error.HTTPError as exc:
+            return None, exc.code >= 500
+        except Exception:
+            return None, True
+
+    with ThreadPoolExecutor(max_workers=_workers(version)) as pool:
+        first = list(pool.map(attempt, urls))
+    return [
+        attempt(target)[0] if failed else payload
+        for target, (payload, failed) in zip(urls, first, strict=True)
+    ]
+
+
 def detector_state(url: str, version: str) -> str:
     """The detector's state, or raise a classified failure if it cannot be read."""
     base = _base(url, version, "detector")
@@ -245,15 +306,35 @@ def detector_state(url: str, version: str) -> str:
     return str(value or "").strip().lower()
 
 
+def api_version(url: str, requested: str) -> str:
+    """The SIMPLON version the detector serves, or `requested` if it does not say.
+
+    Each subsystem answers `/<subsystem>/api/version/` with its version, and a
+    detector refuses any other one ("Incompatible version"): an EIGER1 serves
+    1.6.0 and nothing else.
+    """
+    root = _base(url, requested, "detector").rsplit("/", 1)[0]
+    value = _value_of(_try_get(f"{root}/version/"))
+    text = str(value or "").strip()
+    return text if text and _version_tuple(text) and len(text) <= 32 else requested
+
+
 def describe(url: str, version: str) -> dict[str, Any]:
     """Every documented scalar parameter the detector answers for, with its limits.
 
-    Before `initialize` only the state is readable ("Before initializing the
-    detector only the detector state is available!"), so the parameters come
-    back empty and `state` says why.
+    The detector's own API version is read first and used, and returned as
+    `api_version` for the panel to use from then on. Before `initialize` only
+    the state is readable ("Before initializing the detector only the detector
+    state is available!"), so the parameters come back empty and `state` says
+    why.
     """
+    version = api_version(url, version)
     state = detector_state(url, version)
-    result: dict[str, Any] = {"state": state, "params": {name: {} for name in SUBSYSTEMS}}
+    result: dict[str, Any] = {
+        "state": state,
+        "api_version": version,
+        "params": {name: {} for name in SUBSYSTEMS},
+    }
     if state == "na":
         return result
     jobs = [
@@ -261,8 +342,7 @@ def describe(url: str, version: str) -> dict[str, Any]:
         for subsystem, keys in CONFIG_KEYS.items()
         for key in keys
     ]
-    with ThreadPoolExecutor(max_workers=_DESCRIBE_WORKERS) as pool:
-        answers = list(pool.map(lambda job: _try_get(job[2]), jobs))
+    answers = _get_all([job[2] for job in jobs], version)
     for (subsystem, key, _), payload in zip(jobs, answers, strict=True):
         descriptor = _descriptor(payload)
         if descriptor is not None:
@@ -281,16 +361,29 @@ def status(url: str, version: str) -> dict[str, Any]:
     control system) can switch it, and the panel must show what is true now.
     """
     jobs: list[tuple[str, str, str]] = []
+    legacy = _is_legacy(version)
     for subsystem, keys in STATUS_KEYS.items():
         base = _base(url, version, subsystem)
-        jobs += [(subsystem, key, f"{base}/status/{key}") for key in keys]
+        for key in keys:
+            if legacy and subsystem == "detector" and key != "state":
+                continue
+            jobs.append((subsystem, key, f"{base}/status/{key}"))
+    if legacy:
+        base = _base(url, version, "detector")
+        jobs += [
+            ("detector", name, f"{base}/status/{key}") for name, key in _LEGACY_SENSOR_KEYS.items()
+        ]
     for subsystem in ("monitor", "filewriter", "stream"):
         jobs.append((subsystem, "mode", f"{_base(url, version, subsystem)}/config/mode"))
-    with ThreadPoolExecutor(max_workers=_DESCRIBE_WORKERS) as pool:
-        answers = list(pool.map(lambda job: _try_get(job[2]), jobs))
+    answers = _get_all([job[2] for job in jobs], version)
     out: dict[str, dict[str, Any]] = {name: {} for name in SUBSYSTEMS}
     for (subsystem, key, _), payload in zip(jobs, answers, strict=True):
         out[subsystem][key] = _value_of(payload)
+        if key == "buffer_free" and isinstance(out[subsystem][key], (int, float)):
+            unit = (
+                str(payload.get("unit") or "").strip().lower() if isinstance(payload, dict) else ""
+            )
+            out[subsystem][key] = out[subsystem][key] * _SIZE_UNITS.get(unit, 1)
         # SIMPLON marks a status value it considers an error condition with
         # "state": "critical" (a nearly full disk, a sensor out of range).
         if isinstance(payload, dict) and str(payload.get("state") or "").lower() == "critical":
@@ -475,7 +568,7 @@ def list_files(url: str, version: str) -> list[dict[str, Any]]:
         except Exception:
             return None
 
-    with ThreadPoolExecutor(max_workers=_DESCRIBE_WORKERS) as pool:
+    with ThreadPoolExecutor(max_workers=_workers(version)) as pool:
         sizes = list(pool.map(size_of, names[:500]))
     return [
         {"name": name, "size": sizes[i] if i < len(sizes) else None} for i, name in enumerate(names)

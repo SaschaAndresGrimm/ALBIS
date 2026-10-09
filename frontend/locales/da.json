@@ -482,6 +482,7 @@
   "detector.value.none": "(ingen)",
   "detector.value.off": "Fra",
   "detector.value.on": "Til",
+  "detector.where.web_ui": "Åbn detektorens webgrænseflade",
   "drop_overlay.local.detail": "Brug Filer -> Åbn... for at åbne uden at kopiere.",
   "drop_overlay.local.title": "Filtræk er deaktiveret",
   "drop_overlay.upload.detail": "Slip billedfiler her for at uploade og åbne dem.",

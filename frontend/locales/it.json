@@ -482,6 +482,7 @@
   "detector.value.none": "(nessuno)",
   "detector.value.off": "Disattivo",
   "detector.value.on": "Attivo",
+  "detector.where.web_ui": "Apri l'interfaccia web del rivelatore",
   "drop_overlay.local.detail": "Utilizza File -> Apri... per aprire senza copiare.",
   "drop_overlay.local.title": "Rilascio file disattivato",
   "drop_overlay.upload.detail": "Rilascia qui i file immagine per caricarli e aprirli.",

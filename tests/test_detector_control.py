@@ -264,3 +264,47 @@ def test_a_four_threshold_detector_describes_every_threshold(client: TestClient)
             assert f"threshold/{n}/energy" in params
             assert f"threshold/{n}/mode" in params
         assert "threshold/difference/mode" in params
+
+
+def test_an_eiger1_on_simplon_1_6_is_driven_in_its_own_version(client: TestClient) -> None:
+    """An EIGER1 serves SIMPLON 1.6.0 only and refuses 1.8.0 ("Incompatible version").
+
+    The panel asks for 1.8.0; describe reads the detector's own version and
+    returns it, and everything after uses it. 1.6 names its sensors per board
+    and module and gives the free buffer in KB.
+    """
+    with FakeDCUServer(init_delay=0.05, api_version="1.6.0") as eiger1:
+        url = eiger1.url
+        described = client.get("/api/detector/describe", params={"url": url}).json()
+        assert described["api_version"] == "1.6.0"
+        assert described["state"] == "na"
+        job = _command_v(client, url, "1.6.0", "detector", "initialize")
+        assert job.status_code == 200
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            current = client.get("/api/detector/status", params={"url": url, "version": "1.6.0"})
+            if current.json()["command"] and not current.json()["command"]["running"]:
+                break
+            time.sleep(0.05)
+        status = current.json()
+        assert status["command"]["ok"] is True
+        assert status["detector"]["temperature"] == pytest.approx(27.2)
+        assert status["detector"]["humidity"] == pytest.approx(2.1)
+        assert status["detector"]["high_voltage"] == pytest.approx(197.7)
+        # KB on the wire, bytes to the panel.
+        assert status["filewriter"]["buffer_free"] == pytest.approx(800e9, rel=1e-3)
+        params = client.get(
+            "/api/detector/describe", params={"url": url, "version": "1.6.0"}
+        ).json()["params"]
+        assert params["detector"]["photon_energy"]["unit"] == "eV"
+        # Nothing was ever sent in a version the detector does not serve.
+        assert not any(
+            "/api/1.8.0/" in path and method == "PUT" for method, path in eiger1.dcu.requests
+        )
+
+
+def _command_v(client: TestClient, url: str, version: str, subsystem: str, command: str) -> Any:
+    return client.post(
+        "/api/detector/command",
+        json={"url": url, "version": version, "subsystem": subsystem, "command": command},
+    )

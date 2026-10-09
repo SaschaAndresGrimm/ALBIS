@@ -482,6 +482,7 @@
   "detector.value.none": "（无）",
   "detector.value.off": "关",
   "detector.value.on": "开",
+  "detector.where.web_ui": "打开探测器的 Web 界面",
   "drop_overlay.local.detail": "使用 文件 -> 打开... 直接打开而不复制。",
   "drop_overlay.local.title": "文件拖放已禁用",
   "drop_overlay.upload.detail": "将图像文件拖放到此处即可上传并打开。",

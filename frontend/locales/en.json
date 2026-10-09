@@ -482,6 +482,7 @@
   "detector.value.none": "(none)",
   "detector.value.off": "Off",
   "detector.value.on": "On",
+  "detector.where.web_ui": "Open the detector's web interface",
   "drop_overlay.local.detail": "Use File -> Open... to open without copying.",
   "drop_overlay.local.title": "File drops disabled",
   "drop_overlay.upload.detail": "Drop image files here to upload and open them.",

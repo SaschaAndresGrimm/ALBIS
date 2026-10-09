@@ -482,6 +482,7 @@
   "detector.value.none": "(keine)",
   "detector.value.off": "Aus",
   "detector.value.on": "Ein",
+  "detector.where.web_ui": "Weboberfläche des Detektors öffnen",
   "drop_overlay.local.detail": "Verwende Datei -> Öffnen..., um ohne Kopieren zu öffnen.",
   "drop_overlay.local.title": "Dateiablage deaktiviert",
   "drop_overlay.upload.detail": "Lege Bilddateien hier ab, um sie hochzuladen und zu öffnen.",

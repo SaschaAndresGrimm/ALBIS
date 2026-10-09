@@ -96,10 +96,19 @@ class FakeDCU:
     """State and behaviour of one simulated detector control unit."""
 
     def __init__(
-        self, *, init_delay: float = 0.2, max_series_s: float = 0.3, thresholds: int = 1
+        self,
+        *,
+        init_delay: float = 0.2,
+        max_series_s: float = 0.3,
+        thresholds: int = 1,
+        api_version: str = "1.8.0",
     ) -> None:
         self.lock = threading.Lock()
         self.params = _default_params()
+        # The one SIMPLON version this DCU serves; any other is "Incompatible
+        # version", as on a real one. An EIGER1 serves 1.6.0.
+        self.api_version = api_version
+        self.legacy = tuple(int(x) for x in api_version.split(".")) < (1, 8)
         _add_thresholds(self.params["detector"], max(1, min(4, thresholds)))
         self.state = "na"
         self.init_delay = init_delay
@@ -289,13 +298,21 @@ class FakeDCU:
                 return self.state
             if self.state == "na":
                 return None
+            if self.legacy:
+                # SIMPLON 1.6 names: per board and module, high voltage in volts.
+                return {
+                    "board_000/th0_temp": 27.2,
+                    "board_000/th0_humidity": 2.1,
+                    "module_000/hv": 197.7,
+                }.get(key)
             return {"temperature": 25.1, "humidity": 3.4, "high_voltage/state": "READY"}.get(key)
         mode = self.params.get(subsystem, {}).get("mode", {}).get("value")
         busy = self.state == "acquire"
         if subsystem == "filewriter":
             return {
                 "state": "disabled" if mode != "enabled" else ("acquire" if busy else "ready"),
-                "buffer_free": 800_000_000_000 - sum(map(len, self.files.values())),
+                "buffer_free": (800_000_000_000 - sum(map(len, self.files.values())))
+                // (1024 if self.legacy else 1),
                 "error": [],
                 "files": sorted(self.files),
             }.get(key)
@@ -359,15 +376,27 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
             if not self._data(head=True):
                 self._send(404, head=True)
 
+        def _version_ok(self, version: str) -> bool:
+            if version == dcu.api_version:
+                return True
+            self._send(400, "Incompatible version")
+            return False
+
         def do_GET(self) -> None:  # noqa: N802
             dcu.requests.append(("GET", self.path))
             if self._data(head=False):
+                return
+            parts = self.path.split("?", 1)[0].strip("/").split("/")
+            if len(parts) == 3 and parts[1:] == ["api", "version"]:
+                self._send(200, {"value": dcu.api_version, "value_type": "string"})
                 return
             route = self._route()
             if not route:
                 self._send(404, "not found")
                 return
-            subsystem, _version, task, key = route
+            subsystem, version, task, key = route
+            if not self._version_ok(version):
+                return
             if task == "config":
                 param = (
                     dcu.pixel_mask()
@@ -385,6 +414,8 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
                     self._send(404, f"Parameter {key} does not exist")
                 else:
                     answer = {"value": value, "value_type": "string"}
+                    if dcu.legacy and (subsystem, key) == ("filewriter", "buffer_free"):
+                        answer["unit"] = "KB"
                     if (subsystem, key) in dcu.critical:
                         answer["state"] = "critical"
                     self._send(200, answer)
@@ -408,7 +439,9 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
             if not route:
                 self._send(404, "not found")
                 return
-            subsystem, _version, task, key = route
+            subsystem, version, task, key = route
+            if not self._version_ok(version):
+                return
             if task == "config":
                 code, payload = dcu.put_config(subsystem, key, body.get("value"))
             elif task == "command":

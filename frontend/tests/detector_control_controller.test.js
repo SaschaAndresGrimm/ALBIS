@@ -681,7 +681,12 @@ describe("detector control panel, compact cards", () => {
     // The name says it connected; no second "Connected to ..." line.
     expect(elements.message.textContent).toBe("");
     const where = elements.model.parentElement.nextElementSibling;
-    expect(where.textContent).toBe("192.168.30.90 · Change");
+    expect(where.textContent).toBe("192.168.30.90 ↗ · Change");
+    // The address opens the detector's own web interface, in a new tab.
+    const webUi = where.querySelector("a");
+    expect(webUi.href).toBe("http://192.168.30.90/");
+    expect(webUi.target).toBe("_blank");
+    expect(webUi.title).toBe(EN["detector.where.web_ui"]);
     where.querySelector("button").click();
     expect(elements.addressHost.hidden).toBe(false);
     expect(where.hidden).toBe(true);
@@ -735,6 +740,44 @@ describe("detector control panel, safe links", () => {
     expect(detectorDataPage("javascript://%0aalert(1)")).toBe("");
     expect(detectorDataPage("data:text/html,<script>alert(1)</script>")).toBe("");
     expect(detectorDataPage("")).toBe("");
+    const { detectorPage } = await loadModule();
+    expect(detectorPage("http://192.168.20.181")).toBe("http://192.168.20.181/");
+    expect(detectorPage("javascript://%0aalert(1)")).toBe("");
     delete global.fetch;
+  });
+});
+
+describe("detector control panel, older detectors", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("uses the SIMPLON version the detector reports, and shows a 1.6 high voltage in volts", async () => {
+    const versions = [];
+    const routes = {
+      "/detector/describe": async (url) => {
+        versions.push(new URL(url, "http://x").searchParams.get("version"));
+        return { ok: true, json: async () => ({ state: "idle", api_version: "1.6.0", params: structuredClone(DESCRIPTORS) }) };
+      },
+      "/detector/status": async (url) => {
+        versions.push(new URL(url, "http://x").searchParams.get("version"));
+        return { ok: true, json: async () => ({ detector: { state: "idle", temperature: 27.2, humidity: 2.1, high_voltage: 197.7 } }) };
+      },
+      "/detector/files": async () => ({ ok: true, json: async () => ({ files: [] }) }),
+    };
+    const { controller, elements } = await setup(routes);
+    controller.setEnabled(true);
+    elements.urlInput.value = "192.168.20.181";
+    await controller.connect();
+    // Asked once in the default version; from then on in the detector's own.
+    expect(versions[0]).toBe("1.8.0");
+    expect(versions.length).toBeGreaterThan(1);
+    expect(versions.slice(1).every((v) => v === "1.6.0")).toBe(true);
+    const sensors = elements.sensors.textContent;
+    expect(sensors).toContain("27.2 °C");
+    expect(sensors).toContain("198 V");
+    expect(elements.sensors.querySelector('[data-tone="ok"]').textContent).toBe("198 V");
+    controller.setEnabled(false);
   });
 });

@@ -482,6 +482,7 @@
   "detector.value.none": "(keis)",
   "detector.value.off": "Us",
   "detector.value.on": "Ii",
+  "detector.where.web_ui": "Weboberflächi vom Detektor öffne",
   "drop_overlay.local.detail": "Bruuch Datei -> Ufmache..., zum ohni Kopie ufzmache.",
   "drop_overlay.local.title": "Dateie-Ablege isch deaktiviert",
   "drop_overlay.upload.detail": "Leg Bilddateie do ab, zum si uufezlade und uufzmache.",
