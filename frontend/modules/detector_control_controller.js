@@ -1537,6 +1537,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const notes = { inte: "detector.enable.count_time_note", exte: "detector.enable.signal_note" };
     for (const group of CORE_GROUPS) {
       const rows = [];
+      let groupImages = null;
       for (const entry of group.rows) {
         if (typeof entry === "string") {
           if (det[entry] && !unused.has(entry)) rows.push({ keys: [entry] });
@@ -1544,13 +1545,21 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
           const found = entry.oneOf.find((key) => det[key]);
           if (found) rows.push({ keys: [found] });
         } else if (entry.thresholds) {
+          // Each threshold's energy, with the switch for its images beside it
+          // when there is a choice; then the difference image on its own row.
           const { energies, images } = thresholdRows(det);
-          for (const { energy } of energies) rows.push({ keys: [energy] });
-          if (images.length) rows.push({ keys: images.map((image) => image.key), images });
+          const switchFor = (n) => images.find((image) => image.n === n)?.key || null;
+          for (const { n, energy } of energies) {
+            const mode = switchFor(n);
+            rows.push({ keys: mode ? [energy, mode] : [energy], imageSwitch: mode });
+          }
+          const difference = images.find((image) => image.n === null);
+          if (difference) rows.push({ keys: [difference.key], imageSwitch: difference.key, switchOnly: true });
+          if (images.length) groupImages = images;
         }
       }
       const note = group.id === "timing" ? notes[mode] : "";
-      if (rows.length || note) groups.push({ id: group.id, rows, note });
+      if (rows.length || note) groups.push({ id: group.id, rows, note, images: groupImages });
       for (const row of rows) keys.push(...row.keys);
     }
     return { groups, keys };
@@ -1560,42 +1569,62 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return coreLayout().keys;
   }
 
-  // Which images the detector delivers, as chips: each threshold's own, and
-  // the difference image. The energies above stay in use either way.
-  function imagesRow(images) {
-    const row = el("div", "detector-param detector-images");
-    row.dataset.key = "detector:images";
-    const name = el("div", "detector-param-name");
-    const line = el("span", "detector-param-label");
-    const label = el("span", "detector-images-label", t("detector.images.label"));
-    line.append(label, infoTip("detector.help.images", images.map((image) => `detector/config/${image.key}`)));
-    name.append(line);
-    const chips = el("div", "detector-chips");
-    chips.setAttribute("role", "group");
-    chips.setAttribute("aria-label", t("detector.images.label"));
-    for (const image of images) {
-      const descriptor = params.detector[image.key];
-      const chip = el("button", "detector-chip", image.n ? t("detector.param.threshold_n", { n: image.n }) : t("detector.images.difference"));
-      chip.type = "button";
-      chip.dataset.key = image.key;
-      chip.dataset.paramInput = "";
-      if (!String(descriptor.access_mode || "rw").includes("w")) chip.dataset.readonly = "true";
-      chip.setAttribute("aria-pressed", String(isOn(descriptor)));
-      chip.addEventListener("click", async () => {
-        const next = isOn(params.detector[image.key]) ? "disabled" : "enabled";
-        await sendParam("detector", image.key, next, { value: "" }, hint, row);
-      });
-      chips.append(chip);
+  // The switch deciding whether a threshold's images (or the difference
+  // image) are delivered. The energies stay in use either way: they decide
+  // what is counted, and the difference image is calculated from them.
+  function imageSwitch(key, row) {
+    const descriptor = params.detector[key];
+    const cell = el("div", "detector-image-switch");
+    const toggle = el("label", "detector-switch");
+    const box = el("input");
+    box.type = "checkbox";
+    box.checked = isOn(descriptor);
+    box.dataset.paramInput = "";
+    box.dataset.imageKey = key;
+    if (!String(descriptor.access_mode || "rw").includes("w")) box.dataset.readonly = "true";
+    box.setAttribute("aria-label", paramLabel(key));
+    // No column heading: what the switch does is said on hover, and by the
+    // tab's help.
+    toggle.title = t("detector.help.images");
+    toggle.append(box, el("span"));
+    cell.append(toggle);
+    box.addEventListener("change", async () => {
+      const hint = row.querySelector(".detector-hint") || el("div");
+      await sendParam("detector", key, box.checked ? "enabled" : "disabled", { value: "" }, hint, row);
+      // Refused: the switch shows what the detector has.
+      box.checked = isOn(params.detector[key]);
+    });
+    return cell;
+  }
+
+  // A row of the energy group, its images switch inside the field column
+  // right of the energy: the column stays as wide as in Series and Timing, so
+  // the fields line up across the groups.
+  function switchedRow(row) {
+    const key = row.keys[0];
+    let line;
+    let slot;
+    if (row.switchOnly) {
+      // The difference image: a name and a switch, no value of its own here.
+      line = el("div", "detector-param");
+      line.dataset.key = `detector:${key}`;
+      const name = el("div", "detector-param-name");
+      const label = el("span", "detector-param-label");
+      label.append(el("label", "", paramLabel(key)), infoTip("detector.help.difference_mode", `detector/config/${key}`));
+      name.append(label);
+      slot = el("div", "detector-field-with-switch");
+      line.append(name, slot, el("div", "detector-hint"));
+    } else {
+      line = paramRow("detector", key, params.detector[key], { alsoKeys: row.keys.slice(1) });
+      const field = line.querySelector(".detector-field");
+      if (row.imageSwitch && field) {
+        slot = el("div", "detector-field-with-switch");
+        field.replaceWith(slot);
+        slot.append(field);
+      }
     }
-    const hint = el("div", "detector-hint", "");
-    hint.dataset.range = "";
-    row.append(name, chips, hint);
-    const box = el("div", "detector-images-block");
-    box.append(row);
-    if (!images.some((image) => isOn(params.detector[image.key]))) {
-      box.append(el("div", "detector-warning", t("detector.images.none")));
-    }
-    return box;
+    if (row.imageSwitch && slot) slot.append(imageSwitch(row.imageSwitch, line));
+    return line;
   }
 
   // How fast a series runs, from frame and count time: "100 Hz · 0.1 µs
@@ -1624,11 +1653,16 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     for (const group of coreLayout().groups) {
       const column = el("div", "detector-group");
       column.dataset.group = group.id;
-      column.append(el("div", "detector-group-label", t(`detector.group.${group.id}`)));
+      const heading = el("div", "detector-group-label", t(`detector.group.${group.id}`));
+      column.append(heading);
+      if (group.images) column.classList.add("has-image-switches");
       for (const row of group.rows) {
-        if (row.images) column.append(imagesRow(row.images));
+        if (group.images) column.append(switchedRow(row));
         else if (row.keys[0] === "nimages" && isEnableMode(params.detector.trigger_mode?.value)) column.append(oneImageRow());
         else column.append(paramRow("detector", row.keys[0], params.detector[row.keys[0]]));
+      }
+      if (group.images && !group.images.some((image) => isOn(params.detector[image.key]))) {
+        column.append(el("div", "detector-warning", t("detector.images.none")));
       }
       if (group.note) column.append(el("p", "detector-note detector-group-note", t(group.note)));
       if (group.id === "timing" && !group.note) {

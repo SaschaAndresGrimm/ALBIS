@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Each threshold has its images switch beside it.** The row of image chips under the thresholds is replaced by an on/off switch next to each threshold's energy (what it does is said on hover), and the difference image is a row of its own with the same switch, labelled simply "Difference image" (its "?" says it is threshold 1 minus threshold 2) — the control every other on/off setting uses. The energies stay as they are whatever is switched: they decide what is counted. The switch sits inside the field column, right of the energy, so the fields still line up with those of Series and Timing. A single threshold still has no switch.
+
 ### Fixed
 
 - **A file opened with ALBIS replaces a live source.** Double-clicking a file (or Open With) while the SIMPLON monitor was the data source opened a new window that restored the saved source and kept following the monitor. The file now becomes the source, as with File → Open. The detector's monitor itself is left on: another ALBIS window may still be showing it live.

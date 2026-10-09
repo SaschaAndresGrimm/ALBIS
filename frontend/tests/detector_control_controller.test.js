@@ -285,12 +285,13 @@ describe("detector control panel, after the first hardware test", () => {
     controller._setParams({ detector: { photon_energy: energy(8047.7798), ...detector } });
     controller._renderAll();
     const host = elements.paramsHost;
-    const labels = [...host.querySelectorAll(".detector-param:not(.detector-images) .detector-param-label > label")].map((l) => l.textContent);
-    const chips = () => [...host.querySelectorAll(".detector-chip")].map((c) => `${c.textContent}:${c.getAttribute("aria-pressed")}`);
+    const labels = [...host.querySelectorAll(".detector-param .detector-param-label > label")].map((l) => l.textContent);
+    // The images switches, by what they switch: "Threshold 1 images:true".
+    const chips = () => [...host.querySelectorAll(".detector-image-switch input")].map((b) => `${b.getAttribute("aria-label")}:${b.checked}`);
     return { mod, elements, host, labels, chips };
   }
 
-  it("shows two thresholds' energies, and their images as chips", async () => {
+  it("shows two thresholds' energies, each with a switch for its images", async () => {
     const { elements, host, labels, chips } = await thresholds({
       threshold_energy: energy(4023.8899),
       "threshold/1/energy": energy(4023.8899),
@@ -299,15 +300,18 @@ describe("detector control panel, after the first hardware test", () => {
       "threshold/2/mode": mode("disabled"),
       "threshold/difference/mode": mode("enabled"),
     });
-    expect(labels).toEqual(["Photon energy", "Threshold 1", "Threshold 2"]);
+    expect(labels).toEqual(["Photon energy", "Threshold 1", "Threshold 2", "Difference image"]);
     // As on a POLLUX: only the difference image, from both thresholds.
-    expect(chips()).toEqual(["Threshold 1:false", "Threshold 2:false", "Difference (1 − 2):true"]);
-    // The energies are in use either way: nothing is dimmed or switched.
-    expect(host.querySelector(".is-off, .detector-param-label .detector-switch")).toBeNull();
+    expect(chips()).toEqual(["Threshold 1 images:false", "Threshold 2 images:false", "Difference image:true"]);
+    // Each switch sits in its threshold's row, beside the energy.
+    const row = host.querySelector('[data-key="detector:threshold/2/energy"]');
+    expect(row.querySelector(".detector-image-switch input").dataset.imageKey).toBe("threshold/2/mode");
+    // The energies are in use either way: nothing is dimmed.
+    expect(host.querySelector(".is-off")).toBeNull();
     expect(host.textContent).not.toContain(EN["detector.images.none"]);
-    const tip = host.querySelector(".detector-images .info-tip");
-    expect(tip.dataset.infoKey).toBe("detector.help.images");
-    expect(tip.dataset.infoDetail).toContain("SIMPLON: detector/config/threshold/difference/mode");
+    // No column heading: each switch says what it does on hover.
+    expect(host.querySelector(".detector-images-head")).toBeNull();
+    expect(row.querySelector(".detector-switch").title).toBe(EN["detector.help.images"]);
     // Neither the alias nor the modes are repeated in Advanced.
     for (const key of ["threshold/1/energy", "threshold/1/mode", "threshold/2/mode", "threshold/difference/mode"]) {
       expect(elements.advancedHost.querySelector(`[data-key="detector:${key}"]`)).toBeNull();
@@ -322,7 +326,7 @@ describe("detector control panel, after the first hardware test", () => {
     }
     const { host, labels, chips } = await thresholds(detector);
     expect(labels).toEqual(["Photon energy", "Threshold 1", "Threshold 2", "Threshold 3", "Threshold 4"]);
-    expect(chips()).toEqual(["Threshold 1:false", "Threshold 2:false", "Threshold 3:false", "Threshold 4:false"]);
+    expect(chips()).toEqual(["Threshold 1 images:false", "Threshold 2 images:false", "Threshold 3 images:false", "Threshold 4 images:false"]);
     expect(host.textContent).toContain(EN["detector.images.none"]);
   });
 
@@ -351,11 +355,14 @@ describe("detector control panel, after the first hardware test", () => {
       },
       { "/detector/config": put },
     );
-    host.querySelector('.detector-chip[data-key="threshold/2/mode"]').click();
+    const box = host.querySelector('.detector-image-switch input[data-image-key="threshold/2/mode"]');
+    box.checked = true;
+    box.dispatchEvent(new Event("change"));
     await vi.waitFor(() => expect(put).toHaveBeenCalledTimes(1));
     expect(JSON.parse(put.mock.calls[0][1].body)).toMatchObject({ key: "threshold/2/mode", value: "enabled" });
-    await vi.waitFor(() => expect(host.querySelector(".detector-images .detector-hint").textContent).toBe("not now"));
-    expect(host.querySelector('.detector-chip[data-key="threshold/2/mode"]').getAttribute("aria-pressed")).toBe("false");
+    const row = host.querySelector('[data-key="detector:threshold/2/energy"]');
+    await vi.waitFor(() => expect(row.querySelector(".detector-hint").textContent).toBe("not now"));
+    expect(box.checked).toBe(false);
   });
 
   it("makes every on/off setting a switch", async () => {
