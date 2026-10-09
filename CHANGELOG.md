@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **A file opened with ALBIS replaces a live source.** Double-clicking a file (or Open With) while the SIMPLON monitor was the data source opened a new window that restored the saved source and kept following the monitor. The file now becomes the source, as with File → Open. The detector's monitor itself is left on: another ALBIS window may still be showing it live.
+
 ## [0.25.1] - 2026-10-09
 
 ### Changed

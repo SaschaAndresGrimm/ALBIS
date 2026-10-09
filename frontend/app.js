@@ -5200,6 +5200,11 @@ async function openLaunchTargetFromHash() {
   // file the user may since have navigated away from.
   stripHashKey("albis-open=");
   try {
+    // The window restored the saved data source, which may be a live one --
+    // the SIMPLON monitor, still running. A file opened with ALBIS is the
+    // source now, as with File -> Open. The detector's monitor is left alone:
+    // another ALBIS window may still be showing it live.
+    await ensureFileMode({ disableMonitor: false });
     await openPathInViewer(target, { refreshFileList: true });
   } catch (err) {
     console.error(err);
