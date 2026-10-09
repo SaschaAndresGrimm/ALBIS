@@ -1520,10 +1520,6 @@
                   <span class="detector-state" id="detector-state" data-tone="idle" role="status" aria-live="polite"></span>
                   <span class="detector-state-text" id="detector-state-text"></span>
                 </div>
-                <div class="detector-progress" id="detector-progress" hidden>
-                  <div class="detector-bar"><i id="detector-bar"></i></div>
-                  <div class="detector-progress-text"><span id="detector-progress-left"></span><span id="detector-progress-right"></span></div>
-                </div>
                 <div class="detector-notice" id="detector-notice" hidden>
                   <span id="detector-notice-text"></span>
                   <button class="linkish" type="button" id="detector-notice-dismiss" data-i18n="detector.action.ok">OK</button>
@@ -1538,6 +1534,11 @@
                 <div class="detector-actions">
                   <button class="btn btn-primary detector-primary" type="button" id="detector-primary"></button>
                   <button class="btn detector-btn-danger" type="button" id="detector-stop" hidden data-i18n="detector.action.stop">Stop</button>
+                </div>
+                <div class="detector-progress" id="detector-progress" hidden>
+                  <span id="detector-progress-left"></span>
+                  <div class="detector-bar"><i id="detector-bar"></i></div>
+                  <span id="detector-progress-right"></span>
                 </div>
                 <label class="detector-follow">
                   <input type="checkbox" id="detector-follow" checked />

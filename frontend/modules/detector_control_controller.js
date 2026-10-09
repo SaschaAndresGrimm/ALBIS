@@ -512,6 +512,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   const actionsRow = primaryBtn?.parentElement || null;
   const snapBtn = actionsRow ? el("button", "btn btn-secondary detector-quick", t("detector.action.snap")) : null;
   const continuousBtn = actionsRow ? el("button", "btn btn-secondary detector-quick", t("detector.action.continuous")) : null;
+  const slot = actionsRow ? el("div", "detector-slot") : null;
   const preflightHost = actionsRow ? el("div", "detector-preflight") : null;
   const resultHost = actionsRow ? el("div", "detector-result") : null;
   if (actionsRow) {
@@ -521,12 +522,17 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     snapBtn.hidden = true;
     continuousBtn.hidden = true;
     primaryBtn.after(snapBtn, continuousBtn);
-    actionsRow.after(preflightHost, resultHost);
+    // One slot under the buttons, at least a line high even while a series
+    // is armed and nothing shows: the check before a series, its progress
+    // while it runs, the result after. The buttons stay where they are.
+    slot.append(preflightHost, resultHost);
+    if (progress) slot.append(progress);
+    actionsRow.after(slot);
     snapBtn.addEventListener("click", () => void snap());
     continuousBtn.addEventListener("click", () => void runContinuous());
   }
   const quickBox = actionsRow ? quickSettings() : null;
-  if (quickBox) (followToggle?.closest?.(".detector-follow") || resultHost).after(quickBox);
+  if (quickBox) (followToggle?.closest?.(".detector-follow") || slot).after(quickBox);
 
   // Plain names on the buttons, to keep the row narrow; the timings are in
   // their tooltips and in the settings under the buttons.

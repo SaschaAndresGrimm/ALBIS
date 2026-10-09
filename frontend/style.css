@@ -6843,12 +6843,25 @@ button.browse-details-header-cell[aria-sort="descending"] {
   font-size: 12px;
 }
 
+/* Under the buttons, in the pre-flight line's place and of its height:
+   "Series 91 ━━━━── 15.5 s of about 20.0 s" on one line. */
 .detector-progress {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.detector-progress[hidden] {
+  display: none;
 }
 
 .detector-bar {
+  flex: 1 1 auto;
+  min-width: 40px;
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
@@ -6864,15 +6877,6 @@ button.browse-details-header-cell[aria-sort="descending"] {
   transition: width 100ms linear;
 }
 
-.detector-progress-text {
-  font-variant-numeric: tabular-nums;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 11.5px;
-}
 
 .detector-notice,
 .detector-confirm,
@@ -7061,6 +7065,15 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .detector-result:empty {
   display: none;
 }
+
+/* The slot under the buttons: a line high when empty (a series being armed),
+   so what follows does not move up and down. */
+.detector-slot {
+  display: grid;
+  gap: 8px;
+  min-height: 17px;
+}
+
 
 /* Internal enable: the exposure for the next Trigger, beside the button. */
 .detector-exposure {

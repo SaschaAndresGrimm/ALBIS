@@ -1020,7 +1020,7 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const { elements, button } = await panel(fake);
     // The pre-flight line must hold still: no warning about the action's own
     // temporary settings (file writer and stream off) flashing up.
-    const preflightLine = elements.primaryBtn.parentElement.nextElementSibling;
+    const preflightLine = elements.live.querySelector(".detector-preflight");
     const seen = [];
     const watcher = new MutationObserver(() => seen.push(preflightLine.textContent));
     watcher.observe(preflightLine, { childList: true, subtree: true, characterData: true });
@@ -1056,7 +1056,7 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     fake.store.detector.bit_depth_image = { value: 32, value_type: "uint", access_mode: "r" };
     fake.store.detector.compression = { value: "bslz4", value_type: "string", access_mode: "rw", allowed_values: ["bslz4", "lz4", "none"] };
     const { controller, elements } = await panel(fake);
-    const preflight = () => elements.primaryBtn.parentElement.nextElementSibling.textContent;
+    const preflight = () => elements.live.querySelector(".detector-preflight").textContent;
     // 10 images x 4.47 Mpx x 4 bytes, against 800 GB free.
     // bslz4 at an estimated 4x: 178.8 MB raw.
     expect(preflight()).toBe("✓ Ready · about 44.7 MB with bslz4, estimated, 800.0 GB free");
@@ -1084,7 +1084,7 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const fake = fakeDetector();
     const { elements, button, openPath } = await panel(fake);
     button("Acquire").click();
-    const result = () => elements.primaryBtn.parentElement.nextElementSibling.nextElementSibling;
+    const result = () => elements.live.querySelector(".detector-result");
     await vi.waitFor(() => expect(result().textContent).toContain("Series 7: 10 images"), { timeout: 4000 });
     expect(result().textContent).toContain("2 files, 5 kB");
     [...result().querySelectorAll("button")].find((b) => b.textContent === "Open in ALBIS").click();
@@ -1138,6 +1138,13 @@ describe("detector control panel, quick action settings", () => {
     expect(JSON.parse(localStorage.getItem("albis.detectorControl.quick"))).toMatchObject({ snapExposure: 0.5, continuousRate: 10 });
   });
 
+  it("keeps the check, the progress and the result in one slot under the buttons", async () => {
+    const { elements } = await setup();
+    const slot = elements.primaryBtn.parentElement.nextElementSibling;
+    expect(slot.className).toBe("detector-slot");
+    expect([...slot.children].map((child) => child.className || child.id)).toEqual(["detector-preflight", "detector-result", "progress"]);
+  });
+
   it("says what the next series is instead of \"these settings\"", async () => {
     const { controller, elements } = await setup();
     const params = structuredClone(DESCRIPTORS);
@@ -1166,6 +1173,6 @@ describe("detector control panel, quick action settings", () => {
     controller._setParams(params);
     controller._renderAll();
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 8e11 } });
-    expect(elements.primaryBtn.parentElement.nextElementSibling.textContent).toBe("✓ Ready · about 40.0 MB uncompressed, 800.0 GB free");
+    expect(elements.live.querySelector(".detector-preflight").textContent).toBe("✓ Ready · about 40.0 MB uncompressed, 800.0 GB free");
   });
 });
