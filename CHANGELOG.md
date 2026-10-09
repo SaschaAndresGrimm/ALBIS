@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-09
+
 ### Added
 
 - **The Detector tab closes the loop from a test series to its data.** After a series, a line sums it up ("Series 15: 1000 images · 10 s · 2 files, 48 MB") with **Open in ALBIS**, which copies the series from the detector into a `detector/<address>/` folder in ALBIS's data directory and opens it like any file — the full data, with every tool, not the live preview (`POST /api/detector/series/fetch`, beta).
@@ -1443,7 +1445,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.1...v0.24.0
