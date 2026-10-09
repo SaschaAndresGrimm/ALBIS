@@ -10,12 +10,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-from ..api_models import DetectorCommandRequest, DetectorConfigRequest
+from ..api_models import DetectorCommandRequest, DetectorConfigRequest, DetectorSeriesFetchRequest
 from ..services import simplon_control
 
 OFF_MESSAGE = (
@@ -30,6 +31,10 @@ class DetectorControlRouteDeps:
     # Read per request: the setting can be changed while ALBIS runs.
     enabled: Callable[[], bool]
     runner: simplon_control.CommandRunner
+    # Where a series copied from the detector goes: inside the data root, so
+    # it opens like any file there.
+    data_dir: Callable[[], Path]
+    invalidate_scans: Callable[[], None]
 
 
 def register_detector_control_routes(app: FastAPI, deps: DetectorControlRouteDeps) -> None:
@@ -87,6 +92,22 @@ def register_detector_control_routes(app: FastAPI, deps: DetectorControlRouteDep
         """The files the detector's file writer holds, with sizes where known."""
         require_enabled()
         return {"files": simplon_control.list_files(url, version)}
+
+    @app.post("/api/detector/series/fetch")
+    def detector_series_fetch(payload: DetectorSeriesFetchRequest) -> dict[str, Any]:
+        """Copy one series from the detector into the data root, to open in ALBIS."""
+        require_enabled()
+        root = deps.data_dir().resolve()
+        written = simplon_control.fetch_series(payload.url, payload.version, payload.prefix, root)
+        deps.invalidate_scans()
+        deps.logger.info(
+            "Detector control: series %s copied (%d files)", payload.prefix, len(written)
+        )
+        return {
+            "path": written[0].relative_to(root).as_posix(),
+            "files": [path.name for path in written],
+            "bytes": sum(path.stat().st_size for path in written),
+        }
 
     @app.get("/api/detector/files/download")
     def detector_file_download(

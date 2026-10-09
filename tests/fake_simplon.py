@@ -17,11 +17,14 @@ import base64
 import copy
 import io
 import json
+import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 
+import h5py
 import numpy as np
 import tifffile
 
@@ -49,6 +52,31 @@ def _add_thresholds(detector: dict[str, dict[str, Any]], count: int) -> None:
         detector["threshold/difference/mode"] = _param(
             "disabled", "string", allowed_values=["enabled", "disabled"]
         )
+
+
+def _series_files(name: str, total: int) -> tuple[bytes, bytes]:
+    """A small but real filewriter2 series: a master linking one data file.
+
+    Real HDF5, so ALBIS can open a series copied from the simulated detector;
+    at most 20 frames of 64 x 64, a ring pattern that moves frame to frame.
+    """
+    frames = max(1, min(int(total), 20))
+    y, x = np.mgrid[0:64, 0:64]
+    r = np.hypot(x - 32, y - 32)
+    stack = np.stack([(100 * (1 + np.cos(r / 3.0 - k))).astype(np.uint32) for k in range(frames)])
+    with tempfile.TemporaryDirectory() as tmp:
+        data_path = Path(tmp) / f"{Path(name).name}_data_000001.h5"
+        master_path = Path(tmp) / f"{Path(name).name}_master.h5"
+        with h5py.File(data_path, "w") as h5:
+            h5.create_dataset("entry/data/data", data=stack)
+        with h5py.File(master_path, "w") as h5:
+            group = h5.create_group("entry/data")
+            group["data_000001"] = h5py.ExternalLink(data_path.name, "/entry/data/data")
+            det = h5.create_group("entry/instrument/detector")
+            det["x_pixel_size"] = 75e-6
+            det["y_pixel_size"] = 75e-6
+            det["description"] = "Dectris EIGER2 Si 4M (simulated)"
+        return master_path.read_bytes(), data_path.read_bytes()
 
 
 def _default_params() -> dict[str, dict[str, dict[str, Any]]]:
@@ -120,6 +148,8 @@ class FakeDCU:
         self.last_monitor: bytes | None = None
         self.triggers_taken = 0
         self.last_exposures: list[float] = []
+        # Answer /files/ as a parameter ({"value": [...]}), as a PILATUS4 does.
+        self.wrapped_file_list = False
         self.abort_flag = threading.Event()
         self.requests: list[tuple[str, str]] = []
         # Status values reported with "state": "critical", as (subsystem, key).
@@ -213,6 +243,16 @@ class FakeDCU:
             if self.state == "na":
                 return 400, "Detector not initialized"
             if name == "arm":
+                det = self.params["detector"]
+                span = (
+                    det["nimages"]["value"] * det["ntrigger"]["value"] * det["frame_time"]["value"]
+                )
+                if span > 604800:
+                    # As an EIGER2 or PILATUS4 refuses it.
+                    return 400, (
+                        "configured trigger sequence duration (frame_time * number_of_images = "
+                        f"{span:.1f}s) exceeds maximum allowed duration of 604800.0s (1 week)"
+                    )
                 with self.lock:
                     self.sequence_id += 1
                     # External enable waits for its signals in "acquire".
@@ -319,8 +359,9 @@ class FakeDCU:
             name = str(self.params["filewriter"]["name_pattern"]["value"]).replace(
                 "$id", str(self.sequence_id)
             )
-            self.files[f"{name}_master.h5"] = b"\x89HDF\r\n\x1a\n" + b"m" * 1000
-            self.files[f"{name}_data_000001.h5"] = b"\x89HDF\r\n\x1a\n" + b"d" * (2000 + total)
+            master, data = _series_files(name, total)
+            self.files[f"{name}_master.h5"] = master
+            self.files[f"{name}_data_000001.h5"] = data
         if self.params["stream"]["mode"]["value"] == "enabled":
             self.stream_dropped += total
 
@@ -459,7 +500,11 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
                 else:
                     self._send(200, raw=image)
             elif task == "files" and subsystem == "filewriter":
-                self._send(200, sorted(dcu.files))
+                # A plain list, as the reference shows; a PILATUS4 wraps it.
+                names = sorted(dcu.files)
+                self._send(
+                    200, {"access_mode": "r", "value": names} if dcu.wrapped_file_list else names
+                )
             else:
                 self._send(404, "not found")
 

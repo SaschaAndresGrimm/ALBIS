@@ -495,6 +495,15 @@ class DetectorConfigRequest(_StrictModel):
     value: bool | int | float | str
 
 
+class DetectorSeriesFetchRequest(_StrictModel):
+    """Copy one series' files from the detector to open them (beta detector control)."""
+
+    url: str
+    version: str = "1.8.0"
+    # The series' file name stem: the name pattern with $id replaced.
+    prefix: str
+
+
 class DetectorCommandRequest(_StrictModel):
     """Send one SIMPLON command (beta detector control)."""
 

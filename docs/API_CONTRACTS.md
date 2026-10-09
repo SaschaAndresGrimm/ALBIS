@@ -201,6 +201,8 @@ guard as the rest of the API.
 - `GET /api/detector/describe`, `GET /api/detector/status`
 - `PUT /api/detector/config`, `POST /api/detector/command`
 - `GET /api/detector/files`, `GET /api/detector/files/download`
+- `POST /api/detector/series/fetch`: copy one series into `detector/<address>/` in the data
+  root and return its master file's path, to open like any file
 
 ## JUNGFRAUJOCH Endpoint Diagnostics
 

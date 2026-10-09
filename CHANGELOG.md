@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **The Detector tab closes the loop from a test series to its data.** After a series, a line sums it up ("Series 15: 1000 images · 10 s · 2 files, 48 MB") with **Open in ALBIS**, which copies the series from the detector into a `detector/<address>/` folder in ALBIS's data directory and opens it like any file — the full data, with every tool, not the live preview (`POST /api/detector/series/fetch`, beta).
+- **Snap and Continuous beside Acquire.** Snap takes one 1 s image now, whatever the series is set to; Continuous takes images at 10 Hz, shown live, until Stop or for at most 10 hours — an alignment view that saves nothing (the file writer and stream are off while it runs, and Stop asks no question) and stays inside the one-week limit a detector puts on a series. Both change the series settings only for themselves and put back what was there before the first change, also after Stop or an error, in an order that keeps the detector's enable-mode rule satisfied at every step; their temporary writes stay out of the activity log. Tried on a PILATUS4: its settings were identical afterwards, value by value. The buttons say what they take ("Snap · 1 s", "Continuous · 10 Hz"), and Advanced → Quick actions sets Snap's exposure and Continuous' rate and longest run, remembered per browser.
+- **A pre-flight line before a series.** "✓ Ready · about 33.5 MB with bslz4, estimated, 155.2 GB free" — images × pixels × bit depth × delivered images, divided by an estimated compression factor (4 for bslz4, 2 for lz4, none when the file writer does not compress) — or what would make the series fail or useless: not enough storage for it, a name pattern without `$id`, high voltage not ready, a threshold above the photon energy, nothing saved. Acquire then asks once, listing them.
+- **The timing reads as a rate:** "100 Hz · 0.1 µs between images" under frame and count time.
+
 ### Changed
 
 - **The enable trigger modes work as the detector means them.** They are named "Internal, enable" and "External, enable" (they read "per image"). Choosing one sets images per trigger to 1 first, which the detector requires (it refuses the mode otherwise); while one is set, images per trigger shows a fixed 1. In internal enable, an **Exposure** field sits next to **Trigger** once armed, and each press sends its own exposure, as SIMPLON's trigger command allows; the tab counts "Image 2 of 3", and frame time, which plays no part, moves to Advanced. In external enable, the armed detector waits for its signals, whose length sets each exposure, and the tab says so; frame and count time move to Advanced. The Acquisition header reads "100 images · exposure per trigger" or "· exposure by signal". Tried on an EIGER2: an exposure longer than the frame time is accepted, a trigger without one uses the count time, and the series ends by itself after the last trigger.
@@ -14,6 +21,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **The Detector tab lists the files on a PILATUS4.** Its control unit answers the file list as a parameter, `{"access_mode": "r", "value": [...]}`, not the plain list the SIMPLON reference shows, so the tab said "Files on the detector: none" with 47 files there. Both forms are read now.
 - **The Detector tab's progress time no longer jumps.** It switched between no, one and two decimals as the seconds ticked ("6.5 s", "6.56 s"); it now keeps one format for the whole series — one decimal under a minute, two under a second, minutes and seconds above — in fixed-width digits.
 - **"Locked while busy" fits its label.** The Acquisition header's note was cut off ("Locked while the detector is bus…"); it is shorter in every language, and the Detector tab's section labels have more room.
 

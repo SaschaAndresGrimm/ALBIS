@@ -53,7 +53,7 @@ function buildElements() {
         <span id="state"></span><span id="state-text"></span>
         <div id="progress" hidden><i id="bar"></i><span id="pl"></span><span id="pr"></span></div>
         <div id="confirm" hidden><span id="confirm-text"></span><button id="no"></button><button id="yes"></button></div>
-        <button id="primary"></button><button id="stop" hidden></button>
+        <div class="detector-actions"><button id="primary"></button><button id="stop" hidden></button></div>
         <input id="follow" type="checkbox" checked />
         <div id="sensors"></div>
         <div id="notice" hidden><span id="notice-text"></span><button id="notice-ok"></button></div>
@@ -913,5 +913,221 @@ describe("detector control panel, progress text", () => {
     // Minutes: m:ss.
     expect(formatProgress(65.4, 300)).toEqual({ elapsed: "1:05", total: "5:00 min" });
     delete global.fetch;
+  });
+});
+
+describe("detector control panel, quick actions, pre-flight and results", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  // A small detector: settings it stores, commands it runs at once.
+  function fakeDetector({ triggerRuns = false } = {}) {
+    const store = structuredClone(DESCRIPTORS);
+    store.filewriter.mode.value = "enabled";
+    store.detector.nimages.value = 10;
+    const calls = [];
+    let state = "idle";
+    let job = null;
+    let files = [];
+    let opened = null;
+    const routes = {
+      "/detector/config": async (_url, init) => {
+        const body = JSON.parse(init.body);
+        calls.push(`${body.subsystem}/${body.key}=${body.value}`);
+        store[body.subsystem][body.key] = { ...store[body.subsystem][body.key], value: body.value };
+        return { ok: true, json: async () => ({ changed: [body.key], params: { [body.key]: store[body.subsystem][body.key] } }) };
+      },
+      "/detector/command": async (_url, init) => {
+        const body = JSON.parse(init.body);
+        calls.push(`command ${body.command}`);
+        if (body.command === "arm") state = "ready";
+        if (body.command === "trigger") {
+          if (triggerRuns) {
+            state = "acquire";
+            job = { subsystem: "detector", command: "trigger", running: true, ok: null };
+            return { ok: true, json: async () => job };
+          }
+          state = "idle";
+          files = [{ name: "series_7_master.h5", size: 1000 }, { name: "series_7_data_000001.h5", size: 4000 }];
+        }
+        if (body.command === "abort") {
+          state = "idle";
+          job = { subsystem: "detector", command: "trigger", running: false, ok: true };
+          return { ok: true, json: async () => ({ ok: true }) };
+        }
+        job = { subsystem: "detector", command: body.command, running: false, ok: true, result: body.command === "arm" ? { "sequence id": 7 } : null };
+        return { ok: true, json: async () => ({ ...job, running: true }) };
+      },
+      "/detector/status": async () => ({ ok: true, json: async () => ({ detector: { state }, filewriter: { mode: store.filewriter.mode.value, buffer_free: 8e11 }, command: job }) }),
+      "/detector/files": async () => ({ ok: true, json: async () => ({ files }) }),
+      "/detector/series/fetch": async (_url, init) => {
+        opened = JSON.parse(init.body);
+        return { ok: true, json: async () => ({ path: "detector/192.168.1.10/series_7_master.h5", files: ["series_7_master.h5"], bytes: 1000 }) };
+      },
+    };
+    return { store, calls, routes, opened: () => opened };
+  }
+
+  async function panel(fake) {
+    const mod = await loadModule(fake.routes);
+    const elements = buildElements();
+    const openPath = vi.fn(async () => {});
+    const watchLive = vi.fn();
+    const controller = mod.createDetectorControlController({ apiBase: "/api", elements, callbacks: { openPath, watchLive } });
+    controller._setConnection("http://192.168.1.10");
+    controller._setParams(fake.store);
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 8e11 } });
+    const buttons = () => [...elements.primaryBtn.parentElement.querySelectorAll("button")].filter((b) => !b.hidden).map((b) => b.textContent);
+    const button = (label) => [...elements.primaryBtn.parentElement.querySelectorAll("button")].find((b) => b.textContent === label);
+    return { mod, controller, elements, openPath, watchLive, buttons, button };
+  }
+
+  it("snaps one image and puts the series settings back", async () => {
+    const fake = fakeDetector();
+    const { elements, buttons, button, watchLive } = await panel(fake);
+    expect(buttons()).toEqual(["Acquire", "Snap · 1 s", "Continuous · 10 Hz"]);
+    button("Snap · 1 s").click();
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain(EN["detector.log.restored"]), { timeout: 4000 });
+    // A fixed 1 s exposure, not the series' count time; only what differs is
+    // changed, and put back in reverse order.
+    expect(fake.calls).toEqual([
+      "detector/frame_time=1",
+      "detector/count_time=1",
+      "detector/nimages=1",
+      "command arm",
+      "command trigger",
+      "detector/nimages=10",
+      "detector/count_time=0.0099999",
+      "detector/frame_time=0.01",
+    ]);
+    expect(watchLive).toHaveBeenCalled();
+    expect(fake.store.detector.nimages.value).toBe(10);
+    expect(elements.logHost.textContent).not.toContain("adjusted by the detector");
+  });
+
+  it("runs Continuous until Stop, saving nothing, then puts everything back", async () => {
+    const fake = fakeDetector({ triggerRuns: true });
+    const { elements, button } = await panel(fake);
+    button("Continuous · 10 Hz").click();
+    await vi.waitFor(() => expect(fake.calls).toContain("command trigger"), { timeout: 4000 });
+    // 10 Hz for at most 10 hours: inside a detector's one-week limit.
+    expect(fake.calls.slice(0, 4)).toEqual([
+      "detector/frame_time=0.1",
+      "detector/count_time=0.1",
+      "detector/nimages=360000",
+      "filewriter/mode=disabled",
+    ]);
+    // No question: Continuous saves nothing that Stop could lose.
+    elements.stopBtn.hidden = false;
+    elements.stopBtn.click();
+    expect(elements.confirm.hidden).toBe(true);
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain(EN["detector.log.restored"]), { timeout: 4000 });
+    expect(fake.calls.slice(-4)).toEqual([
+      "filewriter/mode=enabled",
+      "detector/nimages=10",
+      "detector/count_time=0.0099999",
+      "detector/frame_time=0.01",
+    ]);
+    expect(elements.logHost.textContent).not.toContain("changed by another program");
+  });
+
+  it("says what a series needs before it starts, and asks when something is off", async () => {
+    const fake = fakeDetector();
+    fake.store.detector.x_pixels_in_detector = { value: 2068, value_type: "uint", access_mode: "r" };
+    fake.store.detector.y_pixels_in_detector = { value: 2162, value_type: "uint", access_mode: "r" };
+    fake.store.detector.bit_depth_image = { value: 32, value_type: "uint", access_mode: "r" };
+    fake.store.detector.compression = { value: "bslz4", value_type: "string", access_mode: "rw", allowed_values: ["bslz4", "lz4", "none"] };
+    const { controller, elements } = await panel(fake);
+    const preflight = () => elements.primaryBtn.parentElement.nextElementSibling.textContent;
+    // 10 images x 4.47 Mpx x 4 bytes, against 800 GB free.
+    // bslz4 at an estimated 4x: 178.8 MB raw.
+    expect(preflight()).toBe("✓ Ready · about 44.7 MB with bslz4, estimated, 800.0 GB free");
+    controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 4e7 } });
+    expect(preflight()).toContain("This series needs about 44.7 MB with bslz4, estimated; the detector has 40.0 MB free.");
+    fake.store.detector.threshold_energy.value = 13000;
+    controller._setParams(fake.store);
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 4e7 } });
+    expect(preflight()).toContain("The threshold (13000 eV) is above the photon energy (12400 eV)");
+    elements.primaryBtn.click();
+    expect(elements.confirm.hidden).toBe(false);
+    expect(elements.confirmText.textContent).toMatch(/needs about .* Acquire anyway\?$/);
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("states how fast a series runs", async () => {
+    const fake = fakeDetector();
+    const { elements } = await panel(fake);
+    const timing = elements.paramsHost.querySelector('[data-group="timing"]');
+    expect(timing.textContent).toContain("100 Hz · 0.1 µs between images");
+  });
+
+  it("offers the finished series to open in ALBIS", async () => {
+    const fake = fakeDetector();
+    const { elements, button, openPath } = await panel(fake);
+    button("Acquire").click();
+    const result = () => elements.primaryBtn.parentElement.nextElementSibling.nextElementSibling;
+    await vi.waitFor(() => expect(result().textContent).toContain("Series 7: 10 images"), { timeout: 4000 });
+    expect(result().textContent).toContain("2 files, 5 kB");
+    [...result().querySelectorAll("button")].find((b) => b.textContent === "Open in ALBIS").click();
+    await vi.waitFor(() => expect(openPath).toHaveBeenCalledWith("detector/192.168.1.10/series_7_master.h5"));
+    expect(fake.opened()).toMatchObject({ prefix: "series_7" });
+    expect(elements.logHost.textContent).toContain("Series 7 opened in ALBIS");
+  });
+});
+
+describe("detector control panel, comparing values", () => {
+  it("treats a detector's rounding as the same value", async () => {
+    const { sameValue } = await loadModule();
+    expect(sameValue(0.1, 0.1)).toBe(true);
+    expect(sameValue(0.099999999, 0.1)).toBe(true);
+    expect(sameValue(0.0999, 0.1)).toBe(false);
+    expect(sameValue("ints", "ints")).toBe(true);
+    expect(sameValue(10, 10)).toBe(true);
+    delete global.fetch;
+  });
+});
+
+describe("detector control panel, quick action settings", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+    localStorage.clear();
+  });
+
+  it("sets Snap's exposure and Continuous' rate under Advanced, remembered per browser", async () => {
+    localStorage.clear();
+    const { controller, elements } = await setup();
+    controller._setStatus({ detector: { state: "idle" } });
+    const host = elements.advancedHost.querySelector(".detector-quick-settings");
+    expect(host.querySelector(".detector-group-label").textContent).toBe("Quick actions");
+    const exposure = host.querySelector("#detector-quick-snapExposure");
+    expect(exposure.value).toBe("1");
+    exposure.value = "0.5";
+    exposure.dispatchEvent(new Event("change"));
+    const rate = host.querySelector("#detector-quick-continuousRate");
+    rate.value = "100000000";
+    rate.dispatchEvent(new Event("change"));
+    expect(rate.getAttribute("aria-invalid")).toBe("true");
+    const labels = [...elements.primaryBtn.parentElement.querySelectorAll(".detector-quick")].map((b) => b.textContent);
+    expect(labels).toEqual(["Snap · 500 ms", "Continuous · 10 Hz"]);
+    expect(JSON.parse(localStorage.getItem("albis.detectorControl.quick"))).toMatchObject({ snapExposure: 0.5, continuousRate: 10 });
+  });
+
+  it("leaves compression out of the estimate when the file writer does not compress", async () => {
+    const { controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    params.filewriter.mode.value = "enabled";
+    params.filewriter.compression_enabled = { value: false, value_type: "bool", access_mode: "rw" };
+    params.detector.compression = { value: "bslz4", value_type: "string", access_mode: "rw", allowed_values: ["bslz4", "lz4", "none"] };
+    params.detector.x_pixels_in_detector = { value: 1000, value_type: "uint", access_mode: "r" };
+    params.detector.y_pixels_in_detector = { value: 1000, value_type: "uint", access_mode: "r" };
+    controller._setParams(params);
+    controller._renderAll();
+    controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 8e11 } });
+    expect(elements.primaryBtn.parentElement.nextElementSibling.textContent).toBe("✓ Ready · about 40.0 MB uncompressed, 800.0 GB free");
   });
 });

@@ -775,6 +775,8 @@ register_detector_control_routes(
         logger=logger,
         enabled=lambda: runtime_state.detector_control,
         runner=simplon_control.CommandRunner(),
+        data_dir=lambda: runtime_state.data_dir,
+        invalidate_scans=scan_cache.clear,
     ),
 )
 

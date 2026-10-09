@@ -42,6 +42,44 @@ const CORE_GROUPS = [
 // The progress bar runs on the clock, not on the status polls: a poll to a
 // real detector takes a variable time, and the bar jumped with it.
 const PROGRESS_TICK_MS = 100;
+// Snap: one image of its own exposure, whatever the series is set to (a 10 s
+// count time made a 10 s snap). Continuous: an alignment view at its own rate
+// for a bounded time, inside the one-week limit a detector puts on a series
+// ("trigger sequence duration exceeds maximum allowed duration"). Set under
+// Advanced -> Quick actions, remembered per browser.
+const QUICK_DEFAULTS = { snapExposure: 1, continuousRate: 10, continuousHours: 10 };
+const QUICK_LIMITS = {
+  snapExposure: { min: 1e-6, max: 3600, unit: "s" },
+  continuousRate: { min: 0.01, max: 100000, unit: "Hz" },
+  continuousHours: { min: 0.01, max: 167, unit: "h" },
+};
+const QUICK_KEY = "albis.detectorControl.quick";
+
+function readQuick() {
+  try {
+    const stored = JSON.parse(window.localStorage?.getItem(QUICK_KEY) || "{}");
+    const out = { ...QUICK_DEFAULTS };
+    for (const [key, { min, max }] of Object.entries(QUICK_LIMITS)) {
+      const value = Number(stored?.[key]);
+      if (Number.isFinite(value) && value >= min && value <= max) out[key] = value;
+    }
+    return out;
+  } catch {
+    return { ...QUICK_DEFAULTS };
+  }
+}
+
+function writeQuick(values) {
+  try {
+    window.localStorage?.setItem(QUICK_KEY, JSON.stringify(values));
+  } catch {
+    // A remembered preference only.
+  }
+}
+
+// How much smaller compressed images come out: a guesstimate, for the
+// pre-flight's storage estimate. bslz4 on detector data: about 4.
+const COMPRESSION_FACTOR = { bslz4: 4, lz4: 2 };
 // What the main view's settings mean, written from the SIMPLON reference: the
 // detector describes a value's type, unit and limits, not what it is for.
 // Each "?" also names the SIMPLON key, the bridge to scripting the detector.
@@ -127,6 +165,13 @@ const TRIGGER_MODE_KEYS = new Set(["ints", "inte", "exts", "exte"]);
 // ("number_of_images must be 1 for trigger mode inte"), and refuses raising
 // it while one is set; an armed exte detector goes straight to "acquire".
 const ENABLE_MODES = new Set(["inte", "exte"]);
+
+// Equal for the detector's purposes: a float may come back rounded
+// (0.1 as 0.099999999).
+export function sameValue(a, b) {
+  if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) <= Math.max(1e-9, Math.abs(b) * 1e-6);
+  return a === b;
+}
 
 export function isEnableMode(mode) {
   return ENABLE_MODES.has(String(mode || ""));
@@ -391,7 +436,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     troubleshootingHost,
     commandsHost,
   } = elements;
-  const { getPanelTab, setPanelTab, watchLive, refreshInfoTips } = callbacks;
+  const { getPanelTab, setPanelTab, watchLive, refreshInfoTips, openPath } = callbacks;
 
   let enabled = false;
   let url = "";
@@ -410,6 +455,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // Internal enable: images triggered since arm, and the exposure being taken.
   let triggered = 0;
   let triggerExposure = 0;
+  // The series last taken here, for the result line; Continuous while it runs.
+  let lastResult = null;
+  let armedPrefix = "";
+  let continuous = false;
+  let quick = readQuick();
   let progressTimer = null;
   // Internal enable: each Trigger sends its own exposure, chosen here, next to
   // the button, while the detector is armed.
@@ -432,6 +482,36 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         void trigger();
       }
     });
+  }
+
+  // Beside Acquire: Snap (one image now) and Continuous (until Stop); under
+  // the buttons, the pre-flight check before a series and the result after.
+  const actionsRow = primaryBtn?.parentElement || null;
+  const snapBtn = actionsRow ? el("button", "btn btn-secondary detector-quick", t("detector.action.snap")) : null;
+  const continuousBtn = actionsRow ? el("button", "btn btn-secondary detector-quick", t("detector.action.continuous")) : null;
+  const preflightHost = actionsRow ? el("div", "detector-preflight") : null;
+  const resultHost = actionsRow ? el("div", "detector-result") : null;
+  if (actionsRow) {
+    snapBtn.type = "button";
+    continuousBtn.type = "button";
+    labelQuickButtons();
+    snapBtn.hidden = true;
+    continuousBtn.hidden = true;
+    primaryBtn.after(snapBtn, continuousBtn);
+    actionsRow.after(preflightHost, resultHost);
+    snapBtn.addEventListener("click", () => void snap());
+    continuousBtn.addEventListener("click", () => void runContinuous());
+  }
+
+  // The buttons say what they take: "Snap · 1 s", "Continuous · 10 Hz".
+  function labelQuickButtons() {
+    if (!snapBtn) return;
+    const exposure = formatDuration(quick.snapExposure);
+    const rate = `${+quick.continuousRate.toPrecision(3)} Hz`;
+    snapBtn.textContent = `${t("detector.action.snap")} · ${exposure}`;
+    continuousBtn.textContent = `${t("detector.action.continuous")} · ${rate}`;
+    snapBtn.title = t("detector.snap.hint", { exposure });
+    continuousBtn.title = t("detector.continuous.hint", { rate, hours: +quick.continuousHours.toPrecision(3) });
   }
 
   // Once connected, the address shrinks to a line under the detector's name,
@@ -769,23 +849,217 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   function startAcquire() {
-    const fw = params.filewriter?.mode?.value;
-    const st = params.stream?.mode?.value;
-    if (fw !== "enabled" && st !== "enabled") {
-      ask(t("detector.confirm.nothing_saved"), t("detector.confirm.acquire_anyway"), t("detector.action.cancel"), acquire);
+    const { issues } = preflight();
+    if (issues.length) {
+      ask(`${issues.join(" ")} ${t("detector.preflight.ask")}`, t("detector.confirm.acquire_anyway"), t("detector.action.cancel"), () => acquire());
       return;
     }
     void acquire();
   }
 
-  async function acquire() {
+  // ---------- quick actions ----------
+  // Snap and Continuous change the series settings only for themselves and
+  // put them back afterwards, also after Stop or an error. Applied in order,
+  // put back in reverse: that keeps the detector's rule that an enable mode
+  // needs images per trigger at 1 satisfied at every step.
+  async function withTemporarySettings(changes, run) {
+    // Recorded before the first change: writing one time can make the
+    // detector adjust another (a frame time pulls the count time along), so
+    // what to put back is what was there at the start, compared with a
+    // tolerance for the detector's own rounding.
+    const before = changes.map(([subsystem, key]) => [subsystem, key, params[subsystem]?.[key]?.value]);
+    const setOne = async (subsystem, key, value) => {
+      await sendParam(subsystem, key, value, { value: "" }, el("div"), el("div"), { quiet: true });
+      // Our own switch, not "changed by another program".
+      if (key === "mode") lastModes = { ...(lastModes || {}), [subsystem]: value };
+      return sameValue(params[subsystem]?.[key]?.value, value);
+    };
+    try {
+      for (const [subsystem, key, value] of changes) {
+        if (!params[subsystem]?.[key] || sameValue(params[subsystem][key].value, value)) continue;
+        if (!(await setOne(subsystem, key, value))) {
+          log(t("detector.log.failed", { command: paramLabel(key), reason: "" }), "error");
+          return;
+        }
+      }
+      await run();
+    } finally {
+      let changed = false;
+      for (const [subsystem, key, value] of before.reverse()) {
+        if (value === undefined || sameValue(params[subsystem]?.[key]?.value, value)) continue;
+        changed = true;
+        if (!(await setOne(subsystem, key, value))) {
+          log(t("detector.log.restore_failed", { label: subsystem === "detector" ? paramLabel(key) : t(`detector.output.${subsystem}`) }), "error");
+        }
+      }
+      if (changed) log(t("detector.log.restored"));
+    }
+  }
+
+  // The timing for a quick action: frame time first, which the detector
+  // follows with the count time, then the count time itself.
+  const timingFor = (exposure) => [
+    ["detector", "frame_time", exposure],
+    ["detector", "count_time", exposure],
+  ];
+
+  // One image of SNAP_EXPOSURE_S now, shown live.
+  async function snap() {
+    log(t("detector.log.snap"));
+    await withTemporarySettings(
+      [["detector", "trigger_mode", "ints"], ...timingFor(quick.snapExposure), ["detector", "nimages", 1], ["detector", "ntrigger", 1]],
+      () => acquire({ forceFollow: true }),
+    );
+    await poll();
+  }
+
+  // Images one after another, shown live, until Stop: an alignment view. It
+  // saves nothing: the file writer and the stream are off while it runs.
+  async function runContinuous() {
+    const wanted = Math.max(1, Math.round(quick.continuousRate * quick.continuousHours * 3600));
+    const most = Math.min(wanted, Number(params.detector.nimages?.max) || wanted);
+    continuous = true;
+    log(t("detector.log.continuous"));
+    try {
+      await withTemporarySettings(
+        [
+          ["detector", "trigger_mode", "ints"],
+          // Times before the image count: a long series at the old frame
+          // time could pass the detector's one-week limit in between.
+          ...timingFor(1 / quick.continuousRate),
+          ["detector", "nimages", most],
+          ["detector", "ntrigger", 1],
+          ["filewriter", "mode", "disabled"],
+          ["stream", "mode", "disabled"],
+        ],
+        () => acquire({ forceFollow: true }),
+      );
+    } finally {
+      continuous = false;
+      await poll();
+    }
+  }
+
+  // ---------- pre-flight ----------
+  // What would make the next series fail or useless, as plain sentences, and
+  // how much it writes: images x pixels x bit depth x images per frame, before
+  // compression, so an upper bound.
+  function preflight() {
+    const det = params.detector;
+    const issues = [];
+    const fwOn = params.filewriter?.mode?.value === "enabled";
+    const stOn = params.stream?.mode?.value === "enabled";
+    if ((params.filewriter?.mode || params.stream?.mode) && !fwOn && !stOn) issues.push(t("detector.output.nothing_saved"));
+    let estimate = null;
+    let method = "";
+    const pixels = Number(det.x_pixels_in_detector?.value) * Number(det.y_pixels_in_detector?.value);
+    if (fwOn && pixels > 0) {
+      const images = Number(det.nimages?.value || 1) * Number(det.ntrigger?.value || 1);
+      const bytes = (Number(det.bit_depth_image?.value) || 32) / 8;
+      const { images: kinds } = thresholdRows(det);
+      const channels = kinds.length ? Math.max(1, kinds.filter((kind) => isOn(det[kind.key])).length) : 1;
+      estimate = images * pixels * bytes * channels;
+      // Compressed by the file writer unless it is told not to.
+      const compressing = params.filewriter?.compression_enabled ? isOn(params.filewriter.compression_enabled) : true;
+      const kind = String(det.compression?.value || "");
+      if (compressing && COMPRESSION_FACTOR[kind]) {
+        estimate /= COMPRESSION_FACTOR[kind];
+        method = kind;
+      }
+    }
+    const free = status?.filewriter?.buffer_free;
+    const qualifier = method ? t("detector.preflight.compressed", { method }) : t("detector.preflight.uncompressed");
+    if (estimate !== null && free !== undefined && free !== null && estimate > Number(free)) {
+      issues.push(t("detector.preflight.storage", { need: formatBytes(estimate), qualifier, free: formatBytes(free) }));
+    }
+    const pattern = String(params.filewriter?.name_pattern?.value ?? "");
+    if (fwOn && params.filewriter?.name_pattern && !pattern.includes("$id")) issues.push(t("detector.preflight.overwrite"));
+    const hv = status?.detector?.["high_voltage/state"];
+    if (hv && String(hv).toUpperCase() !== "READY") issues.push(t("detector.preflight.high_voltage", { state: hv }));
+    const energy = det.photon_energy;
+    const threshold = det.threshold_energy ?? det["threshold/1/energy"];
+    if (energy && threshold && Number(threshold.value) > Number(energy.value)) {
+      issues.push(t("detector.preflight.threshold", { threshold: displayValue(threshold), energy: displayValue(energy) }));
+    }
+    return { issues, estimate, free, qualifier };
+  }
+
+  function renderPreflight(show) {
+    if (!preflightHost) return;
+    preflightHost.replaceChildren();
+    if (!show) return;
+    const { issues, estimate, free, qualifier } = preflight();
+    if (issues.length) {
+      const box = el("div", "detector-warning is-caution");
+      for (const issue of issues) box.append(el("div", "", issue));
+      preflightHost.append(box);
+      return;
+    }
+    const line = el("div", "detector-meta detector-ready");
+    line.append(el("span", "detector-ok", `✓ ${t("detector.preflight.ready")}`));
+    if (estimate !== null && free !== undefined && free !== null) {
+      line.append(" · ", t("detector.preflight.estimate", { size: formatBytes(estimate), qualifier, free: formatBytes(free) }));
+    }
+    preflightHost.append(line);
+  }
+
+  // ---------- result ----------
+  function renderResult(show) {
+    if (!resultHost) return;
+    resultHost.replaceChildren();
+    if (!show || !lastResult) return;
+    const { series: id, count, seconds, prefix } = lastResult;
+    const line = el("div", "detector-meta");
+    const parts = [t("detector.result.series", { series: id ?? "-", count })];
+    if (seconds !== null) parts.push(formatDuration(seconds));
+    const written = prefix ? files.filter((file) => file.name === `${prefix}_master.h5` || file.name.startsWith(`${prefix}_data_`)) : [];
+    if (written.length) {
+      const size = written.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
+      parts.push(t("detector.result.files", { count: written.length, size: formatBytes(size) }));
+    } else if (!prefix) {
+      parts.push(t("detector.result.not_saved"));
+    }
+    line.append(`✓ ${parts.join(" · ")}`);
+    if (prefix && openPath) {
+      const open = el("button", "linkish", t("detector.action.open_in_albis"));
+      open.type = "button";
+      open.addEventListener("click", () => void openSeries(prefix, id));
+      line.append(" ", open);
+    }
+    resultHost.append(line);
+  }
+
+  // Copy the series from the detector into ALBIS's data folder, then open it
+  // like any file: the full data, not the live preview.
+  async function openSeries(prefix, id) {
+    setMessage(t("detector.message.fetching", { series: id ?? "-" }), "busy");
+    try {
+      const fetched = await request("/detector/series/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, version, prefix }),
+      });
+      setMessage("");
+      await openPath?.(fetched.path);
+      log(t("detector.log.opened", { series: id ?? "-" }));
+    } catch (err) {
+      setMessage(err.message || t("simplon.probe.request_failed"), "error");
+    }
+  }
+
+  async function acquire({ forceFollow = false } = {}) {
     acquiring = true;
+    lastResult = null;
     try {
       const arm = await runCommand("detector", "arm", 130000);
       if (!arm?.ok) return;
       series = arm.result?.["sequence id"] ?? arm.result?.sequence_id ?? null;
       triggered = 0;
-      if (followToggle?.checked) await follow();
+      // The files this series writes: the name pattern with $id as its number.
+      armedPrefix = params.filewriter?.mode?.value === "enabled"
+        ? String(params.filewriter.name_pattern?.value ?? "").replace("$id", String(series ?? ""))
+        : "";
+      if (forceFollow || followToggle?.checked) await follow();
       const mode = String(params.detector.trigger_mode?.value || "");
       // Internal series starts at once; internal enable waits for the first
       // Trigger, so its exposure can be chosen too.
@@ -827,6 +1101,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       triggerExposure = value;
     }
     seriesStarted = Date.now();
+    const startedAt = seriesStarted;
     acquiring = true;
     progressTimer = window.setInterval(() => renderProgress(detectorState()), PROGRESS_TICK_MS);
     let job;
@@ -850,11 +1125,26 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         return;
       }
     }
+    const seconds = (Date.now() - startedAt) / 1000;
     if (job?.ok) log(t("detector.log.series_done", { series: series ?? "-" }));
     await refreshFiles();
+    if (job?.ok && !continuous) {
+      const det = params.detector;
+      lastResult = {
+        series,
+        count: Number(det.nimages?.value || 1) * Number(det.ntrigger?.value || 1),
+        seconds: mode === "ints" ? seconds : null,
+        prefix: armedPrefix,
+      };
+      renderState();
+    }
   }
 
   function stop() {
+    if (continuous) {
+      void sendCommand("detector", "abort").finally(() => poll());
+      return;
+    }
     ask(t("detector.confirm.abort"), t("detector.action.abort"), t("detector.action.keep_running"), async () => {
       try {
         await sendCommand("detector", "abort");
@@ -906,6 +1196,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       primaryBtn.dataset.action = action || "";
     }
     if (stopBtn) stopBtn.hidden = !(value === "acquire" || value === "ready" || value === "configure" || (job?.running && job.command === "trigger"));
+    const idle = action === "acquire" && !acquiring && !job?.running;
+    if (snapBtn) snapBtn.hidden = !idle;
+    if (continuousBtn) continuousBtn.hidden = !idle || !params.detector.nimages;
+    renderPreflight(idle);
+    renderResult(idle || value === "ready");
     renderProgress(value);
     renderSensors();
     renderRecovery(value);
@@ -945,6 +1240,13 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     progress.hidden = !running;
     if (!running) return;
     const det = params.detector;
+    if (continuous) {
+      const elapsed = (Date.now() - seriesStarted) / 1000;
+      if (progressBar) progressBar.style.width = "100%";
+      if (progressLeft) progressLeft.textContent = t("detector.action.continuous");
+      if (progressRight) progressRight.textContent = t("detector.progress.continuous", { elapsed: formatProgress(elapsed, elapsed).elapsed });
+      return;
+    }
     const total = det.trigger_mode?.value === "inte"
       ? triggerExposure
       : Number(det.nimages?.value || 1) * Number(det.ntrigger?.value || 1) * Number(det.frame_time?.value || 0);
@@ -1181,8 +1483,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         status[subsystem].state =
           value !== "enabled" ? "disabled" : subsystem === "monitor" ? "normal" : "ready";
       }
-      for (const name of moved) {
-        log(t("detector.log.adjusted", { label: labelFor(subsystem, name), value: displayValue(params[subsystem][name]) }));
+      // A quick action's temporary writes are its own business, not news.
+      if (!quiet) {
+        for (const name of moved) {
+          log(t("detector.log.adjusted", { label: labelFor(subsystem, name), value: displayValue(params[subsystem][name]) }));
+        }
       }
       rerenderAfterWrite(subsystem, key, moved);
     } catch (err) {
@@ -1293,6 +1598,17 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return box;
   }
 
+  // How fast a series runs, from frame and count time: "100 Hz · 0.1 µs
+  // between images". Makes plain how the two times relate.
+  function timingSummary(det) {
+    const frame = Number(det.frame_time?.value);
+    if (!(frame > 0)) return "";
+    const hz = 1 / frame;
+    const rate = hz >= 1 ? `${+hz.toPrecision(3)} Hz` : t("detector.timing.every", { interval: formatDuration(frame) });
+    const gap = frame - Number(det.count_time?.value);
+    return det.count_time && gap > 0 ? t("detector.timing.summary", { rate, gap: formatDuration(gap) }) : rate;
+  }
+
   // Images per trigger in an enable mode: one, fixed by the mode.
   function oneImageRow() {
     const row = paramRow("detector", "nimages", { ...params.detector.nimages, access_mode: "r" });
@@ -1315,6 +1631,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         else column.append(paramRow("detector", row.keys[0], params.detector[row.keys[0]]));
       }
       if (group.note) column.append(el("p", "detector-note detector-group-note", t(group.note)));
+      if (group.id === "timing" && !group.note) {
+        const rate = timingSummary(params.detector);
+        if (rate) column.append(el("p", "detector-note detector-group-note", rate));
+      }
       columns.append(column);
     }
     paramsHost.append(columns);
@@ -1567,6 +1887,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }
     // Reference, not settings: a dense table, two columns when there is room.
     addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })))?.classList.add("is-info");
+    // ALBIS's own quick-action settings, found by the filter like the rest.
+    const quickBox = quickSettings();
+    advancedHost.append(quickBox);
+    groups.push(quickBox);
     const empty = el("p", "detector-note", t("detector.advanced.no_match"));
     advancedHost.append(empty);
 
@@ -1592,6 +1916,44 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     applyFilter();
     refreshInfoTips?.();
     renderState();
+  }
+
+  // Snap's exposure and Continuous' rate and longest run: ALBIS settings, not
+  // the detector's, so they live here, remembered per browser.
+  function quickSettings() {
+    const box = el("div", "detector-adv-group detector-quick-settings");
+    box.append(el("div", "detector-group-label", t("detector.quick.title")));
+    for (const key of Object.keys(QUICK_DEFAULTS)) {
+      const { min, max, unit } = QUICK_LIMITS[key];
+      const row = el("div", "detector-param");
+      row.dataset.search = `${t(`detector.quick.${key}`)} ${key}`.toLowerCase();
+      const id = `detector-quick-${key}`;
+      const name = el("div", "detector-param-name");
+      const label = el("label", "", t(`detector.quick.${key}`));
+      label.htmlFor = id;
+      name.append(label);
+      const field = el("div", "detector-field");
+      const input = el("input", "is-number");
+      input.type = "text";
+      input.inputMode = "decimal";
+      input.id = id;
+      input.value = String(+quick[key].toPrecision(6));
+      field.append(input, el("span", "detector-unit", unit));
+      const hint = el("div", "detector-hint", rangeText({ value_type: "float", min, max, unit: unit === "s" ? "s" : "" }));
+      row.append(name, field, hint);
+      input.addEventListener("change", () => {
+        const value = Number(String(input.value).replace(",", "."));
+        const ok = Number.isFinite(value) && value >= min && value <= max;
+        input.setAttribute("aria-invalid", String(!ok));
+        hint.className = ok ? "detector-hint" : "detector-hint is-error";
+        if (!ok) return;
+        quick = { ...quick, [key]: value };
+        writeQuick(quick);
+        labelQuickButtons();
+      });
+      box.append(row);
+    }
+    return box;
   }
 
   // The three recovery steps in their own section, each with what it is for.

@@ -32,6 +32,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException
@@ -546,7 +547,7 @@ def _reset_stream(url: str, version: str, target: str, timeout: float) -> dict[s
     return {"mode": "enabled" if was_on else "disabled"}
 
 
-def list_files(url: str, version: str) -> list[dict[str, Any]]:
+def list_files(url: str, version: str, *, sizes: bool = True) -> list[dict[str, Any]]:
     """The files on the DCU, with sizes where the DCU states them."""
     base = _base(url, version, "filewriter")
     try:
@@ -556,6 +557,10 @@ def list_files(url: str, version: str) -> list[dict[str, Any]]:
             payload = _value_of(_get(f"{base}/status/files"))
         except Exception as exc:
             _raise_simplon_failure(exc, base, "Failed to list the files on the detector")
+    # The reference shows a plain list; a PILATUS4 DCU answers like any
+    # parameter, {"access_mode": "r", "value": [...]}.
+    if isinstance(payload, dict):
+        payload = payload.get("value")
     names = [str(name) for name in payload] if isinstance(payload, list) else []
     names = [name for name in names if _safe_file_name(name)]
 
@@ -568,11 +573,57 @@ def list_files(url: str, version: str) -> list[dict[str, Any]]:
         except Exception:
             return None
 
+    if not sizes:
+        return [{"name": name, "size": None} for name in names]
     with ThreadPoolExecutor(max_workers=_workers(version)) as pool:
-        sizes = list(pool.map(size_of, names[:500]))
+        found = list(pool.map(size_of, names[:500]))
     return [
-        {"name": name, "size": sizes[i] if i < len(sizes) else None} for i, name in enumerate(names)
+        {"name": name, "size": found[i] if i < len(found) else None} for i, name in enumerate(names)
     ]
+
+
+def series_files(url: str, version: str, prefix: str) -> list[str]:
+    """The files of one series on the DCU: its master file first, then its data files."""
+    if not _safe_file_name(f"{prefix}_master.h5"):
+        raise HTTPException(status_code=400, detail="Not a series name the detector writes.")
+    names = [entry["name"] for entry in list_files(url, version, sizes=False)]
+    master = f"{prefix}_master.h5"
+    if master not in names:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{master} is not on the detector. Was the file writer on for this series?",
+        )
+    data = sorted(name for name in names if name.startswith(f"{prefix}_data_"))
+    return [master, *data]
+
+
+def fetch_series(url: str, version: str, prefix: str, dest_root: Path) -> list[Path]:
+    """Copy one series from the DCU into `dest_root/<detector>/`, master first.
+
+    Written to a temporary name and renamed when complete, so an interrupted
+    copy never leaves a truncated file that looks whole. The master file links
+    its data files by relative name, so they go into the same folder.
+    """
+    host = urllib.parse.urlparse(normalize_simplon_base_url(url)).netloc
+    folder = (dest_root / "detector" / re.sub(r"[^A-Za-z0-9._-]", "_", host)).resolve()
+    written: list[Path] = []
+    for name in series_files(url, version, prefix):
+        target = (folder / name).resolve()
+        if folder not in target.parents:
+            raise HTTPException(status_code=400, detail="Not a series name the detector writes.")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        partial = target.with_name(target.name + ".part")
+        body, _headers = open_download(url, name)
+        try:
+            with partial.open("wb") as handle:
+                for block in body:
+                    handle.write(block)
+            partial.replace(target)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
+        written.append(target)
+    return written
 
 
 def _safe_file_name(name: str) -> bool:

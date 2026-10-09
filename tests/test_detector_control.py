@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -356,3 +357,44 @@ def test_external_enable_waits_in_acquire_once_armed(
     _wait_for_command(client, dcu.url)
     status = client.get("/api/detector/status", params={"url": dcu.url}).json()
     assert status["detector"]["state"] == "acquire"
+
+
+def test_a_series_is_copied_into_the_data_root_to_open_in_albis(
+    client: TestClient, dcu: FakeDCUServer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(runtime_state, "data_dir", tmp_path)
+    _initialize(client, dcu.url)
+    _set(client, dcu.url, "filewriter", "mode", "enabled")
+    _command(client, dcu.url, "detector", "arm")
+    _wait_for_command(client, dcu.url)
+    _command(client, dcu.url, "detector", "trigger")
+    _wait_for_command(client, dcu.url)
+
+    fetched = client.post(
+        "/api/detector/series/fetch", json={"url": dcu.url, "prefix": "series_1"}
+    ).json()
+    # A path relative to the data root, so the viewer opens it like any file.
+    assert fetched["path"].endswith("/series_1_master.h5")
+    assert fetched["path"].startswith("detector/")
+    assert fetched["files"] == ["series_1_master.h5", "series_1_data_000001.h5"]
+    master = tmp_path / fetched["path"]
+    assert master.read_bytes() == dcu.dcu.files["series_1_master.h5"]
+    assert (master.parent / "series_1_data_000001.h5").exists()
+    assert not list(master.parent.glob("*.part"))
+
+    missing = client.post("/api/detector/series/fetch", json={"url": dcu.url, "prefix": "series_9"})
+    assert missing.status_code == 404
+    assert "file writer" in missing.json()["detail"]
+    for bad in ("../x", "/etc/x", "a b"):
+        refused = client.post("/api/detector/series/fetch", json={"url": dcu.url, "prefix": bad})
+        assert refused.status_code == 400
+
+
+def test_files_are_listed_when_the_dcu_wraps_the_list(
+    client: TestClient, dcu: FakeDCUServer
+) -> None:
+    """A PILATUS4 answers /files/ as {"access_mode": "r", "value": [...]}."""
+    dcu.dcu.wrapped_file_list = True
+    dcu.dcu.files["s_1_master.h5"] = b"m"
+    files = client.get("/api/detector/files", params={"url": dcu.url}).json()["files"]
+    assert [entry["name"] for entry in files] == ["s_1_master.h5"]

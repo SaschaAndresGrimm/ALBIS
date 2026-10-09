@@ -456,6 +456,14 @@ detector reports, so units, limits and choices are that detector's own:
   power-up (up to two minutes), **Acquire** when ready, **Stop** while a series
   runs. With **Show images while acquiring** on, the viewer shows the series
   live as it is taken: a preview of the newest image, not every frame.
+  Beside Acquire, **Snap** takes one image now (1 s) and **Continuous** takes
+  images at 10 Hz, shown live, until **Stop** or for at most 10 hours (for
+  aligning; it saves nothing). Both put the series settings back afterwards;
+  their exposure, rate and longest run are set under **Advanced → Quick
+  actions**. Before a series, a line says it is ready, with about how much it
+  writes (estimated with the detector's compression, about 4× for bslz4)
+  against the free storage, or what would make it fail; after it, **Open in ALBIS** copies the series from
+  the detector into ALBIS's data folder and opens the full data.
 - **Acquisition** holds the series, timing, energy and thresholds, and **Images**
   chooses which images the detector delivers. A value outside the detector's
   range is refused before it is sent, and when the detector refuses one, it

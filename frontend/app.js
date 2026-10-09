@@ -3410,6 +3410,8 @@ detectorControlController = createDetectorControlController({
     setPanelTab: (tabId) => setPanelTab(tabId),
     // The "?" of each setting is created with the rows, so it is bound then.
     refreshInfoTips: () => infoTips.refresh(),
+    // A series copied from the detector opens like any file.
+    openPath: (path) => openPathInViewer(path),
     // The monitor's images are what ALBIS's SIMPLON data source shows: point it
     // at the same detector and switch to it.
     // Already following this detector: leave it be, so each new series does

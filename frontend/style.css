@@ -7032,6 +7032,24 @@ button.browse-details-header-cell[aria-sort="descending"] {
   margin: 4px 0 0;
 }
 
+/* Snap and Continuous beside Acquire: smaller, secondary. */
+.detector-actions .btn.detector-quick {
+  flex: 0 0 auto;
+}
+
+.detector-preflight .detector-warning {
+  margin: 0;
+}
+
+.detector-ready .detector-ok {
+  color: #4fd18b;
+}
+
+.detector-preflight:empty,
+.detector-result:empty {
+  display: none;
+}
+
 /* Internal enable: the exposure for the next Trigger, beside the button. */
 .detector-exposure {
   display: flex;
