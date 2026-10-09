@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Open in ALBIS switches the data source to File.** After a series watched live, the copied series opened while the data source stayed on the SIMPLON monitor; it now switches to File, as File → Open does. The detector's monitor stays on: the Detector tab manages it, and its next live view needs it.
+
 ## [0.25.0] - 2026-10-09
 
 ### Added

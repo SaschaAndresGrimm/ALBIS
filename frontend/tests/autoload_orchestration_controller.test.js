@@ -162,4 +162,40 @@ describe("autoload_orchestration_controller", () => {
       warnSpy.mockRestore();
     }
   });
+
+  it("leaves the detector's monitor on when the Detector tab opens a series", async () => {
+    const { createAutoloadOrchestrationController } = await import(
+      "../modules/autoload_orchestration_controller.js"
+    );
+    const setSimplonMode = vi.fn(async () => {});
+    const make = () => {
+      const state = { autoload: { running: true, timer: null, mode: "simplon", watchEnabled: false, livePaused: false, lastPoll: 0 } };
+      const noop = vi.fn();
+      const controller = createAutoloadOrchestrationController({
+        state,
+        analysisState: { externalPeakSets: [] },
+        elements: {},
+        callbacks: {
+          updateAutoloadUI: noop, updateAutoloadMeta: noop, setAutoloadStatus: noop, setStatus: noop,
+          persistAutoloadSettings: noop, resetLiveHistory: noop, setSimplonMode,
+          fetchSimplonMask: vi.fn(async () => {}), updateLiveBadge: noop,
+          stopJfjochPreviewBridge: vi.fn(async () => {}), updateRemoteMetaUI: noop, updateJfjochMetaUI: noop,
+          schedulePeakOverlay: noop, autoloadWatchTick: vi.fn(async () => {}), autoloadSimplonTick: vi.fn(async () => {}),
+          autoloadJfjochTick: vi.fn(async () => {}), autoloadRemoteTick: vi.fn(async () => {}),
+        },
+      });
+      return { state, controller };
+    };
+    // The Detector tab: to File, monitor left as it is.
+    const kept = make();
+    await kept.controller.ensureFileMode({ disableMonitor: false });
+    expect(kept.state.autoload.mode).toBe("file");
+    expect(kept.state.autoload.running).toBe(false);
+    expect(setSimplonMode).not.toHaveBeenCalled();
+    // File -> Open: as before, the monitor ALBIS switched on is switched off.
+    const usual = make();
+    await usual.controller.ensureFileMode();
+    expect(usual.state.autoload.mode).toBe("file");
+    expect(setSimplonMode).toHaveBeenCalledWith(false);
+  });
 });

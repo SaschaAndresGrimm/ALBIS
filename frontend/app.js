@@ -3067,8 +3067,8 @@ async function stopAutoload(options = {}) {
   await autoloadOrchestrationController.stopAutoload(options);
 }
 
-async function ensureFileMode() {
-  await autoloadOrchestrationController.ensureFileMode();
+async function ensureFileMode(options) {
+  await autoloadOrchestrationController.ensureFileMode(options);
 }
 
 async function autoloadTick() {
@@ -3410,8 +3410,12 @@ detectorControlController = createDetectorControlController({
     setPanelTab: (tabId) => setPanelTab(tabId),
     // The "?" of each setting is created with the rows, so it is bound then.
     refreshInfoTips: () => infoTips.refresh(),
-    // A series copied from the detector opens like any file.
-    openPath: (path) => openPathInViewer(path),
+    // A series copied from the detector opens like any file: the data source
+    // becomes File, as with File -> Open, instead of staying on the live view.
+    openPath: async (path) => {
+      await ensureFileMode({ disableMonitor: false });
+      await openPathInViewer(path);
+    },
     // The monitor's images are what ALBIS's SIMPLON data source shows: point it
     // at the same detector and switch to it.
     // Already following this detector: leave it be, so each new series does

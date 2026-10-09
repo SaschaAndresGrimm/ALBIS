@@ -185,12 +185,14 @@ export function createAutoloadOrchestrationController({
     state.autoload.timer = window.setInterval(autoloadTick, state.autoload.interval);
   }
 
-  async function ensureFileMode() {
+  // `disableMonitor: false` leaves the detector's monitor as it is: the
+  // Detector tab manages it itself and its next live view needs it.
+  async function ensureFileMode({ disableMonitor = true } = {}) {
     if (state.autoload.watchEnabled) {
       state.autoload.watchEnabled = false;
     }
     if (state.autoload.running || state.autoload.mode !== "file") {
-      await stopAutoload({ keepMode: false, disableMonitor: true });
+      await stopAutoload({ keepMode: false, disableMonitor });
     } else {
       updateAutoloadUI();
       setAutoloadStatus(t("autoload.status.idle"));
