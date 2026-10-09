@@ -523,8 +523,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     continuousBtn.hidden = true;
     primaryBtn.after(snapBtn, continuousBtn);
     // One slot under the buttons, at least a line high even while a series
-    // is armed and nothing shows: the check before a series, its progress
-    // while it runs, the result after. The buttons stay where they are.
+    // is armed and nothing shows: a question or notice, the check before a
+    // series, its progress while it runs, the result after. Nothing above
+    // the buttons comes and goes, so they stay where they are.
+    if (confirm) slot.append(confirm);
+    if (notice) slot.append(notice);
     slot.append(preflightHost, resultHost);
     if (progress) slot.append(progress);
     actionsRow.after(slot);
@@ -611,7 +614,19 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     confirmNo.textContent = noLabel;
     confirmAction = onYes;
     confirm.hidden = false;
+    // The question stands in for the check: "Acquire anyway?" repeats it.
+    if (preflightHost) preflightHost.hidden = true;
     confirmYes.focus?.();
+    // Asked from Data output or Troubleshooting, further down the tab.
+    confirm.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }
+
+  function closeConfirm() {
+    confirm.hidden = true;
+    if (preflightHost) preflightHost.hidden = false;
+    const action = confirmAction;
+    confirmAction = null;
+    return action;
   }
 
   function reason(detail) {
@@ -2094,13 +2109,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }
   });
   confirmNo?.addEventListener("click", () => {
-    confirm.hidden = true;
-    confirmAction = null;
+    closeConfirm();
   });
   confirmYes?.addEventListener("click", () => {
-    confirm.hidden = true;
-    const action = confirmAction;
-    confirmAction = null;
+    const action = closeConfirm();
     void action?.();
   });
   noticeDismiss?.addEventListener("click", () => {

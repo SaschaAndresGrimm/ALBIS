@@ -1070,6 +1070,13 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     elements.primaryBtn.click();
     expect(elements.confirm.hidden).toBe(false);
     expect(elements.confirmText.textContent).toMatch(/needs about .* Acquire anyway\?$/);
+    // The question stands in for the warning it repeats, under the buttons.
+    const preflightHost = elements.live.querySelector(".detector-preflight");
+    expect(preflightHost.hidden).toBe(true);
+    expect(elements.primaryBtn.parentElement.nextElementSibling.contains(elements.confirm)).toBe(true);
+    elements.confirmNo.click();
+    expect(elements.confirm.hidden).toBe(true);
+    expect(preflightHost.hidden).toBe(false);
     expect(fake.calls).toEqual([]);
   });
 
@@ -1138,11 +1145,11 @@ describe("detector control panel, quick action settings", () => {
     expect(JSON.parse(localStorage.getItem("albis.detectorControl.quick"))).toMatchObject({ snapExposure: 0.5, continuousRate: 10 });
   });
 
-  it("keeps the check, the progress and the result in one slot under the buttons", async () => {
+  it("keeps questions, notices, the check, the progress and the result in one slot under the buttons", async () => {
     const { elements } = await setup();
     const slot = elements.primaryBtn.parentElement.nextElementSibling;
     expect(slot.className).toBe("detector-slot");
-    expect([...slot.children].map((child) => child.className || child.id)).toEqual(["detector-preflight", "detector-result", "progress"]);
+    expect([...slot.children].map((child) => child.className || child.id)).toEqual(["confirm", "notice", "detector-preflight", "detector-result", "progress"]);
   });
 
   it("says what the next series is instead of \"these settings\"", async () => {
