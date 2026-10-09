@@ -7031,6 +7031,15 @@ button.browse-details-header-cell[aria-sort="descending"] {
   margin: 4px 0 0;
 }
 
+/* What the tab is for, under the address until connected. */
+.detector-purpose {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
 /* Connected: the address as a line under the detector's name. */
 .detector-where {
   color: var(--muted);

@@ -190,6 +190,18 @@ and fall back to `message`, never parse the sentence.
 - `url` accepts a bare hostname or IP; `http://` and port 80 are assumed when omitted, and a pasted
   `/monitor/api/<version>` path is normalized away.
 
+## Detector Control (beta)
+
+Not a contract: these endpoints exist for the beta Detector tab, a quick-test
+tool, and may change or go away in any release (see
+[Compatibility Policy](COMPATIBILITY.md#not-covered)). They answer `404` unless
+`ui.detector_control` is on, and writes and commands pass the same cross-site
+guard as the rest of the API.
+
+- `GET /api/detector/describe`, `GET /api/detector/status`
+- `PUT /api/detector/config`, `POST /api/detector/command`
+- `GET /api/detector/files`, `GET /api/detector/files/download`
+
 ## JUNGFRAUJOCH Endpoint Diagnostics
 
 - `GET /api/jfjoch/probe`: reachability check for a preview endpoint. `endpoint` accepts a bare

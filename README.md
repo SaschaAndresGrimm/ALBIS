@@ -59,6 +59,7 @@ For the full walkthrough — opening data, contrast, ROI statistics, resolution 
 - **Exports that are sharp and honest:** PNG figures for slides and papers (sharp enlargement, print resolution, overlays, pixel values), animated GIFs of a series, and TIFF or CBF that keep the source metadata and say they are derived data.
 - **Works where the data is:** run ALBIS on the machine that holds the data and view it from a browser on a trusted network, without copying terabytes; Docker images for lab deployments.
 - **Easy to approve:** no telemetry, signed release checksums and verified updates, and every release smoke-tested on Rocky Linux 8 and 9 and Ubuntu before it is published.
+- **Quick detector check (beta, off by default):** connect to a DECTRIS detector over SIMPLON, take a test series and watch it live, without writing code. Meant for first tests and demos, not as a replacement for a beamline control system. See [Test a detector](docs/USER_GUIDE.md#test-a-detector-beta).
 - **Interface available in 13 languages.**
 
 ## Downloads / Installation

@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The Detector tab is described as what it is: a quick-test tool, not a control system.** The README mentions it once, at the end of Highlights; the User Guide section is now "Test a detector (beta)" and starts with what it is for (a first image, checking a detector, demos, learning the SIMPLON keys) and what not (experiments under a beamline control system, scans, sequences, unattended or shared use), with a shorter feature list; the help page and the `ui.detector_control` description say the same. In the app, the tab says so under the address until connected, and the Settings checkbox reads "Beta: detector control, for quick tests". The Compatibility Policy now lists beta features — the Detector tab, `/api/detector/*` and `ui.detector_control` — as not covered, so they can change in any release; API Contracts lists the endpoints under that heading.
+
 ## [0.24.1] - 2026-10-08
 
 ### Changed

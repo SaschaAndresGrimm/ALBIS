@@ -22,7 +22,7 @@ reference of the same material.
 - [Combine a series into one image](#combine-a-series-into-one-image)
 - [Get data back out](#get-data-back-out)
 - [Compare two views](#compare-two-views)
-- [Control a detector (beta)](#control-a-detector-beta)
+- [Test a detector (beta)](#test-a-detector-beta)
 - [Work from another machine](#work-from-another-machine)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [What ALBIS sends over the network](#what-albis-sends-over-the-network)
@@ -428,60 +428,45 @@ the same contrast.
 
 ---
 
-## Control a detector (beta)
+## Test a detector (beta)
 
-The **Detector** tab sets up and runs a DECTRIS detector over its SIMPLON API
-(version 1.8.0 or later), without writing any code. It is a beta feature and
-hidden by default: switch it on under **Settings → Viewer → Beta: detector
-control**. While it is off, ALBIS cannot drive a detector at all.
+The **Detector** tab is a quick way to check a DECTRIS detector: connect, take a
+test series and watch it live, without writing code. It works with any detector
+that speaks SIMPLON 1.8.0 or later. It is a convenience for first tests, not a
+replacement for a beamline control system or scripted acquisition.
 
-Enter the detector's address and press **Connect**. The tab reads what the
-detector says about each of its settings, so every field shows that detector's
-own units, limits and choices, whichever model it is. Each setting's **?** explains it in a few words and
-names its SIMPLON key (for example `detector/config/count_time`), the name to
-use when scripting the detector. Settings without an explanation, all under
-Advanced, show the key as their name:
+**Good for:** a first image after installing or moving a detector, checking that
+it responds and what it is set to, demonstrations and training, and learning the
+SIMPLON API: every setting's **?** names its key (for example
+`detector/config/count_time`), the name to use when you later script it.
 
-- **The state, and the one next step.** A coloured badge says what the detector
-  is doing (not initialized, idle, armed, acquiring, error), and the main
-  button offers what makes sense now: **Initialize** after power-up or an
-  error (this can take up to two minutes), **Acquire** when the detector is
-  idle, **Stop** while a series runs. With **Show images while acquiring**
-  (on by default) the viewer follows each series: once the detector is armed,
-  ALBIS switches the monitor on if needed and shows its images live, as from
-  Data → SIMPLON monitor. It is a preview of the newest image, not every frame;
-  the complete data is in the files or the stream. Untick it to keep the image
-  you have open. Temperature, humidity and high voltage are shown underneath;
-  when high voltage is not ready or a command failed, a note there explains it
-  and offers **Re-initialize…**.
-- **Acquisition.** Images per trigger, triggers and trigger mode; frame and
-  count time; then energy and threshold(s), in the order they usually change. A value outside the detector's range is
-  refused before anything is sent. When a change makes the detector adjust
-  another setting — a longer count time raises the frame time — that setting
-  flashes and says so. Settings are locked while the detector is busy.
-- **Data output.** Switch the file writer, the stream and the monitor on or off.
-  The file writer shows its name pattern, the name the next series gets, how
-  much storage is left and the files on the detector, each downloadable; **Delete
-  all files on the detector** clears them, after asking, and is offered on its
-  own when the detector's storage runs low. The stream shows how many images of
-  the last series no program picked up: expected when nothing receives the
-  stream, and counted afresh with each series. If nothing would be saved, the
-  tab says so and asks before acquiring. **Watch live images** shows the
-  monitor's images in ALBIS.
-- **Activity** lists what was done and what the detector changed, including
-  changes made by another program, such as a beamline control system using the
-  same detector.
-- **Advanced** holds every other setting the detector documents, read-only
-  information and the raw commands (Arm, Trigger, Disarm, Cancel).
-- **Troubleshooting**: re-initialize the detector, reset the stream (clears
-  dropped images and stream errors; the stream stays on if it was on), and
-  delete all files on the detector, each with a line on when to use it.
+**Not meant for:** experiments run by a beamline control system (the tab can be
+used alongside one, and flags changes it makes, but does not coordinate with
+it), scans or synchronisation with motors, sequences of series, unattended
+operation, or an ALBIS shared with others: anyone who can open ALBIS can use the
+tab while it is switched on.
 
-Anyone who can open ALBIS can use the tab while it is switched on, so leave it
-off on a shared instance unless that is intended.
+It is off by default. Switch it on under **Settings → Viewer → Beta: detector
+control**; while it is off, ALBIS cannot drive a detector at all. Then enter the
+detector's address and press **Connect**. Every field is built from what the
+detector reports, so units, limits and choices are that detector's own:
+
+- **The main button** offers the one sensible next step: **Initialize** after
+  power-up (up to two minutes), **Acquire** when ready, **Stop** while a series
+  runs. With **Show images while acquiring** on, the viewer shows the series
+  live as it is taken: a preview of the newest image, not every frame.
+- **Acquisition** holds the series, timing, energy and thresholds, and **Images**
+  chooses which images the detector delivers. A value outside the detector's
+  range is refused before it is sent.
+- **Data output** switches the file writer, stream and monitor, and lists the
+  files on the detector for download.
+- **Advanced** holds every other documented setting; **Troubleshooting** has
+  re-initialize, reset the stream and delete the files on the detector, each
+  behind a confirmation that says what it does.
 
 To try it without a detector, `python test_scripts/fake_simplon_dcu.py` runs a
-simulated one at `http://127.0.0.1:8100`.
+simulated one at `http://127.0.0.1:8100` (`--thresholds 4` for a
+PILATUS4-like detector).
 
 ## Work from another machine
 
