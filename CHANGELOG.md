@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.24.2] - 2026-10-09
+
 ### Added
 
 - **Quick access to the detector's web interface.** Once connected, the address under the detector's name is a link (↗) to the control unit's own web interface, opened in a new tab. Only an http(s) address becomes a link, as for the Data page link.
@@ -1423,7 +1425,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.2...HEAD
+[0.24.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.1...v0.24.0
 [0.23.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.23.0...v0.23.1
