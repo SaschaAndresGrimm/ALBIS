@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.25.1] - 2026-10-09
+
 ### Changed
 
 - **The ALBIS wordmark is set in Michroma,** a wide, squared face that sits with the DECTRIS wordmark in the splash picture: the title on the start screen, and a new wordmark under the icon in Help → About. Only the wordmark: the interface stays in Inter. Michroma 1.100 (SIL Open Font License, no reserved font name) ships unmodified in `frontend/vendor/` with its licence text, listed in THIRD_PARTY_LICENSES.md; `tests/test_bundled_font.py` checks the file, its licence and that only the two wordmarks use it.
@@ -1454,7 +1456,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.1...HEAD
+[0.25.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.1...v0.24.2
 [0.24.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.0...v0.24.1
