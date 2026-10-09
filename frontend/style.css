@@ -6923,6 +6923,14 @@ button.browse-details-header-cell[aria-sort="descending"] {
   color: #ffd6d6;
 }
 
+/* The Detector and Acquisition header chips sum up a closed section; open,
+   the state line and "Next series" say the same right below. "Locked while
+   busy" stays: it explains the disabled fields. */
+.panel-section:not(.is-collapsed) > .section-title #detector-summary,
+.panel-section:not(.is-collapsed) > .section-title #detector-series-summary {
+  display: none;
+}
+
 .detector-sensors {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7037,8 +7045,9 @@ button.browse-details-header-cell[aria-sort="descending"] {
   flex: 0 0 auto;
 }
 
-.detector-preflight .detector-warning {
-  margin: 0;
+.detector-preflight {
+  display: grid;
+  gap: 2px;
 }
 
 /* Their timings, closed under the buttons: three small fields side by side,
@@ -7049,6 +7058,10 @@ button.browse-details-header-cell[aria-sort="descending"] {
   padding-top: 8px;
 }
 
+.detector-quick-fields > .detector-follow {
+  grid-column: 1 / -1;
+}
+
 .detector-quick-field {
   display: grid;
   gap: 4px;
@@ -7057,8 +7070,16 @@ button.browse-details-header-cell[aria-sort="descending"] {
   font-size: 12px;
 }
 
-.detector-ready .detector-ok {
-  color: #4fd18b;
+/* What would make a series fail: a line each, amber, no box, as tall as
+   the progress and result lines that take the same place. */
+.detector-issue {
+  color: #ffe1a3;
+  font-size: 11.5px;
+}
+
+.detector-issue::before {
+  content: "⚠ ";
+  color: #f2b84b;
 }
 
 .detector-preflight:empty,
@@ -7116,6 +7137,17 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .detector-where {
   color: var(--muted);
   font-size: 11.5px;
+}
+
+.detector-ident-side {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.detector-ident-side > :not(:empty) + .detector-where::before {
+  content: "·";
+  margin: 0 6px;
 }
 
 /* Facts on one line: the next file, free storage, a link. */

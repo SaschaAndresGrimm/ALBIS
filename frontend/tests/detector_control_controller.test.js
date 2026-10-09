@@ -687,7 +687,9 @@ describe("detector control panel, compact cards", () => {
     expect(elements.addressHost.hidden).toBe(true);
     // The name says it connected; no second "Connected to ..." line.
     expect(elements.message.textContent).toBe("");
-    const where = elements.model.parentElement.nextElementSibling;
+    const where = elements.live.querySelector(".detector-where");
+    // Beside the serial number, on the name's line.
+    expect(where.previousElementSibling).toBe(elements.serial);
     expect(where.textContent).toBe("192.168.30.90 ↗ · Change");
     // The address opens the detector's own web interface, in a new tab.
     const webUi = where.querySelector("a");
@@ -1059,7 +1061,9 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const preflight = () => elements.live.querySelector(".detector-preflight").textContent;
     // 10 images x 4.47 Mpx x 4 bytes, against 800 GB free.
     // bslz4 at an estimated 4x: 178.8 MB raw.
-    expect(preflight()).toBe("✓ Ready · about 44.7 MB with bslz4, estimated, 800.0 GB free");
+    // All well: the line beside the state says it; the slot stays quiet.
+    expect(elements.stateText.textContent).toMatch(/^Next series: 10 images · .* · about 44\.7 MB with bslz4, estimated, 800\.0 GB free$/);
+    expect(preflight()).toBe("");
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 4e7 } });
     expect(preflight()).toContain("This series needs about 44.7 MB with bslz4, estimated; the detector has 40.0 MB free.");
     fake.store.detector.threshold_energy.value = 13000;
@@ -1085,6 +1089,22 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const { elements } = await panel(fake);
     const timing = elements.paramsHost.querySelector('[data-group="timing"]');
     expect(timing.textContent).toContain("100 Hz · 0.1 µs between images");
+  });
+
+  it("says a stopped series stopped, not how many images it was set to", async () => {
+    const fake = fakeDetector({ triggerRuns: true });
+    const { elements, button } = await panel(fake);
+    button("Acquire").click();
+    await vi.waitFor(() => expect(fake.calls).toContain("command trigger"), { timeout: 4000 });
+    elements.stopBtn.hidden = false;
+    elements.stopBtn.click();
+    expect(elements.confirm.hidden).toBe(false);
+    elements.confirmYes.click();
+    const result = () => elements.live.querySelector(".detector-result").textContent;
+    await vi.waitFor(() => expect(result()).toMatch(/^Series 7: stopped after /), { timeout: 4000 });
+    expect(result()).not.toContain("10 images");
+    expect(result()).not.toContain("✓");
+    expect(elements.logHost.textContent).not.toContain("Series 7 done");
   });
 
   it("offers the finished series to open in ALBIS", async () => {
@@ -1126,11 +1146,13 @@ describe("detector control panel, quick action settings", () => {
     controller._setStatus({ detector: { state: "idle" } });
     expect(elements.advancedHost.querySelector(".detector-quick-settings")).toBeNull();
     const host = elements.primaryBtn.parentElement.parentElement.querySelector("details.detector-quick-settings");
-    expect(host.querySelector("summary").textContent).toBe("Snap and Continuous settings");
+    expect(host.querySelector("summary").textContent).toBe("Options");
     expect(host.open).toBe(false);
     host.open = true;
     host.dispatchEvent(new Event("toggle"));
     expect(localStorage.getItem("albis.detectorControl.quickOpen")).toBe("1");
+    // Continuous' longest run is fixed at 10 hours, not a setting.
+    expect([...host.querySelectorAll("input[id^=detector-quick-]")].map((input) => input.id)).toEqual(["detector-quick-snapExposure", "detector-quick-continuousRate"]);
     const exposure = host.querySelector("#detector-quick-snapExposure");
     expect(exposure.value).toBe("1");
     exposure.value = "0.5";
@@ -1180,6 +1202,7 @@ describe("detector control panel, quick action settings", () => {
     controller._setParams(params);
     controller._renderAll();
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 8e11 } });
-    expect(elements.live.querySelector(".detector-preflight").textContent).toBe("✓ Ready · about 40.0 MB uncompressed, 800.0 GB free");
+    expect(elements.stateText.textContent).toMatch(/ · about 40\.0 MB uncompressed, 800\.0 GB free$/);
+    expect(elements.live.querySelector(".detector-preflight").textContent).toBe("");
   });
 });

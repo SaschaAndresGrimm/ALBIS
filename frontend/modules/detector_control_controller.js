@@ -45,13 +45,14 @@ const PROGRESS_TICK_MS = 100;
 // Snap: one image of its own exposure, whatever the series is set to (a 10 s
 // count time made a 10 s snap). Continuous: an alignment view at its own rate
 // for a bounded time, inside the one-week limit a detector puts on a series
-// ("trigger sequence duration exceeds maximum allowed duration"). Set under
-// the buttons (Snap and Continuous settings), remembered per browser.
-const QUICK_DEFAULTS = { snapExposure: 1, continuousRate: 10, continuousHours: 10 };
+// ("trigger sequence duration exceeds maximum allowed duration"). Exposure
+// and rate are set under the buttons (Options), remembered per browser; the
+// longest run is fixed: long enough for any alignment, well inside the week.
+const QUICK_DEFAULTS = { snapExposure: 1, continuousRate: 10 };
+const CONTINUOUS_HOURS = 10;
 const QUICK_LIMITS = {
   snapExposure: { min: 1e-6, max: 3600, unit: "s" },
   continuousRate: { min: 0.01, max: 100000, unit: "Hz" },
-  continuousHours: { min: 0.01, max: 167, unit: "h" },
 };
 const QUICK_KEY = "albis.detectorControl.quick";
 
@@ -476,6 +477,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // The series last taken here, for the result line; Continuous while it runs.
   let lastResult = null;
   let armedPrefix = "";
+  // Stop was confirmed for the running series: its result says so, rather
+  // than the image count it was set to.
+  let stopRequested = false;
   let continuous = false;
   // A quick action from its first temporary change to its last restore. Its
   // own writes pass through states the panel would otherwise react to -- the
@@ -535,7 +539,13 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     continuousBtn.addEventListener("click", () => void runContinuous());
   }
   const quickBox = actionsRow ? quickSettings() : null;
-  if (quickBox) (followToggle?.closest?.(".detector-follow") || slot).after(quickBox);
+  if (quickBox) {
+    // Set once and left: whether to show the series, and the quick actions'
+    // timings, behind one closed line under the buttons.
+    const followRow = followToggle?.closest?.(".detector-follow");
+    if (followRow) quickBox.querySelector(".detector-quick-fields").prepend(followRow);
+    slot.after(quickBox);
+  }
 
   // Plain names on the buttons, to keep the row narrow; the timings are in
   // their tooltips and in the settings under the buttons.
@@ -546,13 +556,20 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     snapBtn.textContent = t("detector.action.snap");
     continuousBtn.textContent = t("detector.action.continuous");
     snapBtn.title = t("detector.snap.hint", { exposure });
-    continuousBtn.title = t("detector.continuous.hint", { rate, hours: +quick.continuousHours.toPrecision(3) });
+    continuousBtn.title = t("detector.continuous.hint", { rate, hours: CONTINUOUS_HOURS });
   }
 
-  // Once connected, the address shrinks to a line under the detector's name,
+  // Once connected, the address shrinks to a link beside the serial number,
   // with Change to bring the field back: the name already says it connected.
-  const whereLine = model ? el("div", "detector-where") : null;
-  model?.parentElement?.after?.(whereLine);
+  // "D029661 · 192.168.20.191 ↗ · Change", on the name's line.
+  const whereLine = model ? el("span", "detector-where") : null;
+  if (whereLine && serial?.before) {
+    const side = el("span", "detector-ident-side");
+    serial.before(side);
+    side.append(serial, whereLine);
+  } else if (whereLine) {
+    model.parentElement?.after?.(whereLine);
+  }
 
   function showAddress(show) {
     if (addressHost) addressHost.hidden = !show;
@@ -969,7 +986,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // Images one after another, shown live, until Stop: an alignment view. It
   // saves nothing: the file writer and the stream are off while it runs.
   async function runContinuous() {
-    const wanted = Math.max(1, Math.round(quick.continuousRate * quick.continuousHours * 3600));
+    const wanted = Math.max(1, Math.round(quick.continuousRate * CONTINUOUS_HOURS * 3600));
     const most = Math.min(wanted, Number(params.detector.nimages?.max) || wanted);
     continuous = true;
     quickRunning = true;
@@ -1046,19 +1063,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     if (!preflightHost || quickRunning) return;
     preflightHost.replaceChildren();
     if (!show) return;
-    const { issues, estimate, free, qualifier } = preflight();
-    if (issues.length) {
-      const box = el("div", "detector-warning is-caution");
-      for (const issue of issues) box.append(el("div", "", issue));
-      preflightHost.append(box);
-      return;
-    }
-    const line = el("div", "detector-meta detector-ready");
-    line.append(el("span", "detector-ok", `✓ ${t("detector.preflight.ready")}`));
-    if (estimate !== null && free !== undefined && free !== null) {
-      line.append(" · ", t("detector.preflight.estimate", { size: formatBytes(estimate), qualifier, free: formatBytes(free) }));
-    }
-    preflightHost.append(line);
+    // Only what would make the series fail, one amber line each; when all
+    // is well the line beside the state says what the series takes.
+    for (const issue of preflight().issues) preflightHost.append(el("div", "detector-issue", issue));
   }
 
   // ---------- result ----------
@@ -1066,10 +1073,14 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     if (!resultHost) return;
     resultHost.replaceChildren();
     if (!show || !lastResult) return;
-    const { series: id, count, seconds, prefix } = lastResult;
+    const { series: id, count, seconds, prefix, stopped } = lastResult;
     const line = el("div", "detector-meta");
-    const parts = [t("detector.result.series", { series: id ?? "-", count })];
-    if (seconds !== null) parts.push(formatDuration(seconds));
+    // A stopped series took fewer images than it was set to, and how many
+    // only its files tell: say when it stopped instead.
+    const parts = stopped
+      ? [t("detector.result.stopped", { series: id ?? "-", elapsed: formatDuration(seconds) })]
+      : [t("detector.result.series", { series: id ?? "-", count })];
+    if (seconds !== null && !stopped) parts.push(formatDuration(seconds));
     const written = prefix ? files.filter((file) => file.name === `${prefix}_master.h5` || file.name.startsWith(`${prefix}_data_`)) : [];
     if (written.length) {
       const size = written.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
@@ -1077,7 +1088,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     } else if (!prefix) {
       parts.push(t("detector.result.not_saved"));
     }
-    line.append(`✓ ${parts.join(" · ")}`);
+    line.append(`${stopped ? "" : "✓ "}${parts.join(" · ")}`);
     if (prefix && openPath) {
       const open = el("button", "linkish", t("detector.action.open_in_albis"));
       open.type = "button";
@@ -1161,6 +1172,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     seriesStarted = Date.now();
     const startedAt = seriesStarted;
     acquiring = true;
+    stopRequested = false;
     progressTimer = window.setInterval(() => renderProgress(detectorState()), PROGRESS_TICK_MS);
     let job;
     try {
@@ -1184,15 +1196,18 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       }
     }
     const seconds = (Date.now() - startedAt) / 1000;
-    if (job?.ok) log(t("detector.log.series_done", { series: series ?? "-" }));
+    const stopped = stopRequested;
+    stopRequested = false;
+    if (job?.ok && !stopped) log(t("detector.log.series_done", { series: series ?? "-" }));
     await refreshFiles();
-    if (job?.ok && !continuous) {
+    if ((job?.ok || stopped) && !continuous) {
       const det = params.detector;
       lastResult = {
         series,
         count: Number(det.nimages?.value || 1) * Number(det.ntrigger?.value || 1),
-        seconds: mode === "ints" ? seconds : null,
+        seconds: mode === "ints" || stopped ? seconds : null,
         prefix: armedPrefix,
+        stopped,
       };
       renderState();
     }
@@ -1204,6 +1219,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       return;
     }
     ask(t("detector.confirm.abort"), t("detector.action.abort"), t("detector.action.keep_running"), async () => {
+      stopRequested = Boolean(seriesStarted);
       try {
         await sendCommand("detector", "abort");
       } finally {
@@ -1222,7 +1238,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       statePill.textContent = value in STATE_TONES ? t(`detector.state.${value}`) : value;
     }
     if (summary) summary.textContent = url ? statePill?.textContent || "" : t("detector.summary.not_connected");
-    if (stateText) {
+    // Between a quick action's steps the detector is idle with the action's
+    // temporary settings: the line keeps what it said.
+    if (stateText && !(quickRunning && value === "idle")) {
       let text;
       if (value === "initialize" || (job?.running && job.command === "initialize")) {
         const elapsed = Math.max(0, (Date.now() / 1000) - (job?.started || Date.now() / 1000));
@@ -1237,8 +1255,14 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
           ? t("detector.state_text.waiting_enable", { total: Number(params.detector.ntrigger?.value || 1) })
           : t("detector.state_text.ready_external");
       } else if (value === "idle" && seriesText()) {
-        // What Acquire will take, rather than "these settings".
-        text = t("detector.state_text.idle_series", { series: seriesText() });
+        // What Acquire will take, and the room it needs: the check under the
+        // buttons then only speaks up when something is wrong.
+        const parts = [t("detector.state_text.idle_series", { series: seriesText() })];
+        const { estimate, free, qualifier } = preflight();
+        if (estimate !== null && free !== undefined && free !== null) {
+          parts.push(t("detector.preflight.estimate", { size: formatBytes(estimate), qualifier, free: formatBytes(free) }));
+        }
+        text = parts.join(" · ");
       } else {
         text = STATE_TEXTS.has(value) ? t(`detector.state_text.${value}`) : "";
       }
@@ -2017,7 +2041,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
   // Snap's exposure and Continuous' rate and longest run: ALBIS settings, not
   // the detector's, so they sit under the buttons they belong to, closed like
-  // the other tabs' advanced controls and remembered per browser.
+  // the other tabs' advanced controls and remembered per browser. "Show
+  // images while acquiring" joins them (see above).
   function quickSettings() {
     const box = el("details", "advanced-details detector-quick-settings");
     box.open = readQuickOpen();
