@@ -16,6 +16,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **Long durations read as hours.** A 10-hour series read "600:00 min" in the Acquisition header and the progress line; it now reads "10 h" ("1:30 h" with minutes), and the progress "0:00:13 of about 10:00:00 h". The count time's limit reads "1 h", not "60:00 min". Seconds are rounded on the whole, so 179.7 s is "3:00 min", not "2:60 min".
 - **Disarm and Cancel series no longer hang while a series runs.** Sent during a running trigger, they are carried out at once and answered with their result, but the panel waited for them to appear in the detector's status, which went on showing the trigger: the button kept spinning until a two-minute timeout. Their answer now counts. A series ended this way says "stopped after …", and a series armed from Commands reports its number ("Series 12 done", not "Series - done").
 - **A switch just flipped is no longer "changed by another program".** A status poll asked before an output was switched and answered after it carried the old state: the panel logged the change as made elsewhere and showed the output as it was before, off when it was on. An answer whose request overlapped a write is now set aside; the next poll brings the state after it.
 - **A field in Data output no longer loses what you are typing.** The status poll rebuilt Data output every few seconds, wiping a half-typed name pattern; it now rebuilds only when something shown changed, and never while you are in one of its fields.

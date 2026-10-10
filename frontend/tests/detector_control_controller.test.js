@@ -116,7 +116,7 @@ describe("detector control helpers", () => {
   it("states ranges in the parameter's own unit", async () => {
     const { rangeText } = await loadModule();
     expect(rangeText(DESCRIPTORS.detector.photon_energy)).toBe("3500 eV – 40000 eV");
-    expect(rangeText(DESCRIPTORS.detector.count_time)).toBe("200 µs – 60:00 min");
+    expect(rangeText(DESCRIPTORS.detector.count_time)).toBe("200 µs – 1 h");
     expect(rangeText(DESCRIPTORS.detector.nimages)).toBe("1 or more");
     expect(rangeText(DESCRIPTORS.detector.trigger_mode)).toBe("2 options");
   });
@@ -686,7 +686,7 @@ describe("detector control panel, explanations", () => {
     expect(count.querySelector("code")).toBeNull();
     const tip = count.querySelector(".info-tip");
     expect(tip.dataset.infoKey).toBe("detector.help.count_time");
-    expect(tip.dataset.infoDetail).toBe(`SIMPLON: detector/config/count_time\nAllowed: ${"200 µs – 60:00 min"}`);
+    expect(tip.dataset.infoDetail).toBe(`SIMPLON: detector/config/count_time\nAllowed: ${"200 µs – 1 h"}`);
     expect(EN[tip.dataset.infoKey]).toMatch(/Exposure time/);
     // Every setting in the main view has an explanation.
     const rows = [...elements.paramsHost.querySelectorAll(".detector-param"), ...elements.outputsHost.querySelectorAll(".detector-param")];
@@ -1057,6 +1057,21 @@ describe("detector control panel, progress text", () => {
     expect(formatProgress(0.1, 0.25)).toEqual({ elapsed: "0.10 s", total: "0.25 s" });
     // Minutes: m:ss.
     expect(formatProgress(65.4, 300)).toEqual({ elapsed: "1:05", total: "5:00 min" });
+    // Hours: h:mm:ss, not 600:00 min.
+    expect(formatProgress(13.2, 36000)).toEqual({ elapsed: "0:00:13", total: "10:00:00 h" });
+    expect(formatProgress(3725, 7200)).toEqual({ elapsed: "1:02:05", total: "2:00:00 h" });
+    delete global.fetch;
+  });
+
+  it("writes long durations in minutes or hours, never 60 seconds or 600 minutes", async () => {
+    const { formatDuration } = await loadModule();
+    expect(formatDuration(90)).toBe("90 s");
+    expect(formatDuration(179.7)).toBe("3:00 min");
+    expect(formatDuration(300)).toBe("5:00 min");
+    expect(formatDuration(3599.6)).toBe("1 h");
+    expect(formatDuration(3600)).toBe("1 h");
+    expect(formatDuration(5400)).toBe("1:30 h");
+    expect(formatDuration(36000)).toBe("10 h");
     delete global.fetch;
   });
 });

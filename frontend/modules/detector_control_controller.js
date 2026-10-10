@@ -278,20 +278,32 @@ export function formatDuration(seconds) {
   if (s < 1e-3) return `${+(s * 1e6).toPrecision(3)} µs`;
   if (s < 1) return `${+(s * 1e3).toPrecision(3)} ms`;
   if (s < 120) return `${+s.toPrecision(3)} s`;
-  const m = Math.floor(s / 60);
-  return `${m}:${String(Math.round(s % 60)).padStart(2, "0")} min`;
+  // Rounded as a whole first: 179.7 s is 3:00 min, not 2:60.
+  const whole = Math.round(s);
+  if (whole < 3600) return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")} min`;
+  // From an hour on, hours and minutes: 10 h, not 600:00 min.
+  const minutes = Math.round(s / 60);
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h}:${String(m).padStart(2, "0")} h` : `${h} h`;
 }
 
 /**
  * Elapsed and total time of a running series, in one fixed format chosen by
  * the total, so the text does not change width as the seconds tick: two
- * decimals under a second, one under a minute, minutes and seconds above.
+ * decimals under a second, one under a minute, minutes and seconds under an
+ * hour, hours, minutes and seconds above.
  */
 export function formatProgress(elapsed, total) {
   const e = Math.max(0, Number(elapsed) || 0);
   const t = Math.max(0, Number(total) || 0);
+  const pad = (v) => String(Math.floor(v)).padStart(2, "0");
+  if (t >= 3600) {
+    const clock = (v) => `${Math.floor(v / 3600)}:${pad((v % 3600) / 60)}:${pad(v % 60)}`;
+    return { elapsed: clock(e), total: `${clock(t)} h` };
+  }
   if (t >= 60) {
-    const clock = (v) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, "0")}`;
+    const clock = (v) => `${Math.floor(v / 60)}:${pad(v % 60)}`;
     return { elapsed: clock(e), total: `${clock(t)} min` };
   }
   const digits = t < 1 ? 2 : 1;
