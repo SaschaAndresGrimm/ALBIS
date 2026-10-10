@@ -369,6 +369,34 @@ export function displayValue(descriptor) {
 
 const UNIT_SYMBOLS = { angstrom: "Å", degree: "°", degrees: "°", deg: "°", micrometer: "µm", um: "µm", percent: "%" };
 
+// Units the SIMPLON reference gives but a detector may not report (a
+// PILATUS4 sends none for these): without them a distance or an angle is a
+// bare number. Only filled in where the detector says nothing.
+const KNOWN_UNITS = {
+  beam_center_x: "px",
+  beam_center_y: "px",
+  detector_distance: "m",
+  trigger_start_delay: "s",
+  x_pixel_size: "m",
+  y_pixel_size: "m",
+  sensor_thickness: "m",
+  detector_readout_time: "s",
+  frame_count_time: "s",
+};
+
+export function knownUnit(key, descriptor) {
+  if (!descriptor || typeof descriptor !== "object" || descriptor.unit) return descriptor;
+  const unit = KNOWN_UNITS[key] || (/^(chi|kappa|omega|phi|two_theta)_(start|increment)$/.test(key) ? "deg" : "");
+  return unit ? { ...descriptor, unit } : descriptor;
+}
+
+function withKnownUnits(all) {
+  for (const subsystem of Object.keys(all)) {
+    for (const [key, descriptor] of Object.entries(all[subsystem] || {})) all[subsystem][key] = knownUnit(key, descriptor);
+  }
+  return all;
+}
+
 /** The short form of a SIMPLON unit, so it fits beside the value ("angstrom" -> "Å"). */
 export function unitSymbol(unit) {
   const text = String(unit || "");
@@ -439,6 +467,8 @@ export function readableValue(descriptor) {
     const mm = Math.abs(v) >= 1e-3;
     return `${+(v * (mm ? 1e3 : 1e6)).toPrecision(6)} ${mm ? "mm" : "µm"}`;
   }
+  // A time as one: 0.1 µs, not 1e-7 s.
+  if (typeof v === "number" && unit === "s" && v > 0) return formatDuration(v);
   const symbol = descriptor?.unit ? ` ${unitSymbol(descriptor.unit)}` : "";
   return `${displayValue(descriptor)}${symbol}`;
 }
@@ -792,7 +822,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     // The detector says which SIMPLON it speaks (an EIGER1: 1.6.0); every
     // request from here on uses that.
     if (payload?.api_version) version = String(payload.api_version);
-    params = { detector: {}, monitor: {}, filewriter: {}, stream: {}, ...(payload?.params || {}) };
+    params = withKnownUnits({ detector: {}, monitor: {}, filewriter: {}, stream: {}, ...(payload?.params || {}) });
     if (model) model.textContent = displayValue(params.detector.description) || t("detector.section.detector");
     if (serial) serial.textContent = displayValue(params.detector.detector_number);
     renderParams();
@@ -1786,7 +1816,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       const before = {};
       for (const name of Object.keys(result?.params || {})) before[name] = params[subsystem][name]?.value;
       for (const [name, descriptor] of Object.entries(result?.params || {})) {
-        params[subsystem][name] = descriptor;
+        params[subsystem][name] = knownUnit(name, descriptor);
       }
       const moved = Object.keys(result?.params || {}).filter(
         (name) => name !== key && JSON.stringify(before[name]) !== JSON.stringify(params[subsystem][name]?.value),
@@ -2166,7 +2196,15 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   function disclosure(id, title, children, className = "") {
     const box = el("details", `advanced-details detector-disclosure ${className}`.trim());
     box.open = readOpen(id);
-    box.addEventListener("toggle", () => writeOpen(id, box.open));
+    box.dataset.openId = id;
+    box.addEventListener("toggle", () => {
+      // Opened or closed by the Advanced filter, not by hand: not remembered.
+      if (box.dataset.auto) {
+        delete box.dataset.auto;
+        return;
+      }
+      writeOpen(id, box.open);
+    });
     const summary = el("summary");
     summary.append(...[].concat(title));
     const inner = el("div", "advanced-inner");
@@ -2284,6 +2322,36 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   ];
   let advancedFilter = "";
 
+  // Geometry and metadata, with the goniometer's start and increment of each
+  // axis side by side on one row under "Start" and "Increment": five rows
+  // instead of ten, mostly empty ones.
+  function geometryRows(keys) {
+    const axes = ["chi", "kappa", "omega", "phi", "two_theta"].filter((axis) => keys.includes(`${axis}_start`) && keys.includes(`${axis}_increment`));
+    const paired = new Set(axes.flatMap((axis) => [`${axis}_start`, `${axis}_increment`]));
+    const rows = keys.filter((key) => !paired.has(key)).sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true }));
+    if (!axes.length) return rows;
+    const head = el("div", "detector-axis-head");
+    head.append(el("span", "", t("detector.advanced.goniometer")), el("span", "", t("detector.advanced.start")), el("span", "", t("detector.advanced.increment")));
+    const axisRows = axes.map((axis) => {
+      const parts = [`${axis}_start`, `${axis}_increment`].map((key) => paramRow("detector", key, params.detector[key], { inline: true }));
+      const row = el("div", "detector-param detector-axis-row has-tip");
+      row.dataset.key = `detector:${axis}`;
+      row.dataset.search = `${axis} ${axis}_start ${axis}_increment`;
+      row.dataset.count = "2";
+      const name = el("div", "detector-param-name");
+      name.append(el("label", "", axis));
+      // The fields keep their own writing and hints; only the row is shared.
+      const fields = parts.map((part) => part.querySelector(":scope > .detector-field, :scope > .detector-readonly"));
+      const hints = parts.map((part) => part.querySelector(":scope > .detector-hint")).filter(Boolean);
+      const tip = el("div", "detector-tip");
+      tip.append(infoTip("detector.help.adv.goniometer", [`detector/config/${axis}_start`, `detector/config/${axis}_increment`]));
+      row.append(name, ...fields, tip, ...hints);
+      return row;
+    });
+    // The goniometer after the other geometry, as one block.
+    return [...rows, head, ...axisRows];
+  }
+
   function renderAdvanced() {
     if (!advancedHost) return;
     advancedHost.replaceChildren();
@@ -2310,23 +2378,32 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       const group = ADVANCED_GROUPS.find(([, pattern]) => pattern.test(key));
       buckets.get(group ? group[0] : "other").push(key);
     }
+    // Each group a closed section with its count, open state remembered; the
+    // filter opens the ones with matches while it holds text.
     const groups = [];
-    const addGroup = (title, rows) => {
-      if (!rows.length) return;
-      const box = el("div", "detector-adv-group");
-      box.append(el("div", "detector-group-label", title), ...rows);
+    const addGroup = (id, title, rows, className = "") => {
+      if (!rows.length) return null;
+      // Settings, not lines: an axis row is two, the goniometer's heads none.
+      const count = rows.filter((row) => row.classList.contains("detector-param")).reduce((sum, row) => sum + (Number(row.dataset.count) || 1), 0);
+      const box = disclosure(`adv.${id}`, `${title} (${count})`, rows, `detector-adv-group ${className}`.trim());
       advancedHost.append(box);
       groups.push(box);
       return box;
     };
     for (const [id, keys] of buckets) {
-      addGroup(t(`detector.advanced.group.${id}`), keys.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })));
+      const rows = id === "geometry" ? geometryRows(keys) : keys.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true }));
+      addGroup(id, t(`detector.advanced.group.${id}`), rows);
     }
     // Reference, not settings: a dense table, two columns when there is room.
-    addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true, info: true })))?.classList.add("is-info");
+    addGroup("info", t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true, info: true })), "is-info");
     const empty = el("p", "detector-note", t("detector.advanced.no_match"));
     advancedHost.append(empty);
 
+    const setOpen = (box, open) => {
+      if (box.open === open) return;
+      box.dataset.auto = "1";
+      box.open = open;
+    };
     const applyFilter = () => {
       const needle = advancedFilter.trim().toLowerCase();
       let any = false;
@@ -2337,7 +2414,11 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
           row.hidden = !match;
           if (match) visible += 1;
         });
+        // The goniometer's column heads go with its rows.
+        const head = box.querySelector(".detector-axis-head");
+        if (head) head.hidden = !box.querySelector(".detector-axis-row:not([hidden])");
         box.hidden = visible === 0;
+        setOpen(box, needle ? visible > 0 : readOpen(box.dataset.openId));
         any = any || visible > 0;
       }
       empty.hidden = any;
@@ -2510,7 +2591,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       renderOutputs();
     },
     _setParams(next) {
-      params = { detector: {}, monitor: {}, filewriter: {}, stream: {}, ...next };
+      params = withKnownUnits({ detector: {}, monitor: {}, filewriter: {}, stream: {}, ...next });
     },
     _pollRender(next) {
       status = next;

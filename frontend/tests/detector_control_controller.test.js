@@ -449,8 +449,12 @@ describe("detector control panel, after the first hardware test", () => {
       stream: { ...structuredClone(DESCRIPTORS.stream), format: { value: "cbor", value_type: "string", access_mode: "rw", allowed_values: ["legacy", "cbor"] } },
     });
     controller._renderAll();
-    const headings = [...elements.advancedHost.querySelectorAll(".detector-group-label")].map((h) => h.textContent);
+    // Each group a closed section titled with its count.
+    const headings = [...elements.advancedHost.querySelectorAll(".detector-adv-group > summary")].map((h) => h.textContent.replace(/ \(\d+\)$/, ""));
     expect(headings).toEqual(expect.arrayContaining(["Corrections", "Test images", "Detector information"]));
+    const tests = [...elements.advancedHost.querySelectorAll(".detector-adv-group")].find((box) => box.querySelector("summary").textContent.startsWith("Test images"));
+    expect(tests.querySelector("summary").textContent).toBe("Test images (1)");
+    expect(tests.open).toBe(false);
     // The outputs' settings live in Data output now, not here.
     expect(headings).not.toContain("File writer");
     expect(headings).not.toContain("Stream");
@@ -463,6 +467,11 @@ describe("detector control panel, after the first hardware test", () => {
     filter.dispatchEvent(new Event("input"));
     const visible = [...elements.advancedHost.querySelectorAll(".detector-param")].filter((r) => !r.hidden).map((r) => r.dataset.key);
     expect(visible).toEqual(["detector:test_image_value"]);
+    // Typing opens the sections with matches; clearing closes them again.
+    expect(tests.open).toBe(true);
+    filter.value = "";
+    filter.dispatchEvent(new Event("input"));
+    expect(tests.open).toBe(false);
   });
 });
 
@@ -723,7 +732,7 @@ describe("detector control panel, explanations", () => {
     controller._setParams(params);
     controller._renderAll();
     const row = elements.advancedHost.querySelector('[data-key="detector:counting_mode"]');
-    expect(row.closest(".detector-adv-group").querySelector(".detector-group-label").textContent).toBe("Corrections");
+    expect(row.closest(".detector-adv-group").querySelector("summary").textContent).toMatch(/^Corrections \(\d+\)$/);
   });
 });
 
@@ -798,7 +807,63 @@ describe("detector control panel, compact cards", () => {
     expect(mode.selectedOptions[0].textContent).toBe("(none)");
     // Free text shares the line in Advanced.
     expect(host.querySelector('[data-key="detector:readout_mode"]').classList.contains("is-wide")).toBe(false);
-    expect(host.querySelector(".detector-adv-group.is-info .detector-group-label").textContent).toBe("Detector information");
+    expect(host.querySelector(".detector-adv-group.is-info > summary").textContent).toMatch(/^Detector information \(\d+\)$/);
+  });
+
+  it("adds the units the SIMPLON reference gives when a detector reports none", async () => {
+    const { mod, controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    // As a PILATUS4 sends them: no unit.
+    params.detector.x_pixel_size = { value: 0.00015, value_type: "float", access_mode: "r" };
+    params.detector.detector_readout_time = { value: 1e-7, value_type: "float", access_mode: "r" };
+    params.detector.detector_distance = { value: 0.15, value_type: "float", access_mode: "rw" };
+    params.detector.beam_center_x = { value: 512, value_type: "float", access_mode: "rw" };
+    params.detector.omega_start = { value: null, value_type: "float", access_mode: "rw" };
+    controller._setParams(params);
+    controller._renderAll();
+    const host = elements.advancedHost;
+    expect(host.querySelector('[data-key="detector:x_pixel_size"] .detector-readonly').textContent).toBe("150 µm");
+    expect(host.querySelector('[data-key="detector:detector_readout_time"] .detector-readonly').textContent).toBe("0.1 µs");
+    expect(host.querySelector('[data-key="detector:detector_distance"] .detector-unit').textContent).toBe("m");
+    expect(host.querySelector('[data-key="detector:beam_center_x"] .detector-unit').textContent).toBe("px");
+    // A detector's own unit wins.
+    expect(mod.knownUnit("detector_distance", { value: 150, unit: "mm" }).unit).toBe("mm");
+    expect(mod.knownUnit("omega_increment", { value: 0.1 }).unit).toBe("deg");
+  });
+
+  it("puts each goniometer axis on one row: start and increment side by side", async () => {
+    const { controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    for (const axis of ["omega", "phi"]) {
+      params.detector[`${axis}_start`] = { value: 0, value_type: "float", access_mode: "rw" };
+      params.detector[`${axis}_increment`] = { value: 0.1, value_type: "float", access_mode: "rw" };
+    }
+    params.detector.sample_name = { value: "", value_type: "string", access_mode: "rw" };
+    controller._setParams(params);
+    controller._renderAll();
+    const host = elements.advancedHost;
+    const omega = host.querySelector('[data-key="detector:omega"]');
+    expect(omega.querySelector("label").textContent).toBe("omega");
+    expect([...omega.querySelectorAll("input")].map((input) => input.id)).toEqual(["detector-p-detector-omega_start", "detector-p-detector-omega_increment"]);
+    expect([...omega.querySelectorAll(".detector-unit")].map((unit) => unit.textContent)).toEqual(["°", "°"]);
+    expect(omega.querySelector(".detector-tip .info-tip").dataset.infoKey).toBe("detector.help.adv.goniometer");
+    expect(host.querySelector('[data-key="detector:omega_start"]')).toBeNull();
+    expect(host.querySelector(".detector-axis-head").textContent).toBe("GoniometerStartIncrement");
+    // Counted by their settings: an axis row is two.
+    const geometry = omega.closest(".detector-adv-group");
+    const rows = [...geometry.querySelectorAll(".detector-param")];
+    const settings = rows.length + rows.filter((row) => row.classList.contains("detector-axis-row")).length;
+    expect(geometry.querySelector("summary").textContent).toBe(`Geometry and metadata (${settings})`);
+    expect(rows.filter((row) => row.classList.contains("detector-axis-row"))).toHaveLength(2);
+    // Filtering for one axis keeps its heads; for something else hides them.
+    const filter = host.querySelector(".detector-filter");
+    filter.value = "phi";
+    filter.dispatchEvent(new Event("input"));
+    expect(omega.hidden).toBe(true);
+    expect(host.querySelector(".detector-axis-head").hidden).toBe(false);
+    filter.value = "sample";
+    filter.dispatchEvent(new Event("input"));
+    expect(host.querySelector(".detector-axis-head").hidden).toBe(true);
   });
 
   it("ignores a status answer that predates a write: a switch just flipped is not news", async () => {

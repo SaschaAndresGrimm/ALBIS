@@ -487,7 +487,8 @@ detector reports, so units, limits and choices are that detector's own:
   on its button and "Done", or why it failed, beside it. Initialize resets the
   output for every program using it. **Delete all files** takes a second click
   on the same button within a few seconds: it cannot be undone.
-- **Advanced** holds the detector's other documented settings. **Commands**
+- **Advanced** holds the detector's other documented settings, in closed groups
+  with a filter, each setting with a **?**. **Commands**
   sends the detector's commands by hand, each with a **?** that says what it
   does: **Arm**, **Trigger**, **Disarm** and **Cancel series** for a series,
   **Re-read settings** and **Re-initialize** for the detector.

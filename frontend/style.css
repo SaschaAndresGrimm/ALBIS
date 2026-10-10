@@ -7342,14 +7342,41 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 /* Detector information is reference: a dense table, in two columns when the
    panel is wide enough. */
-.detector-adv-group.is-info {
-  display: grid;
+.detector-adv-group.is-info > .advanced-inner {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-  column-gap: 24px;
+  gap: 0 24px;
 }
 
-.detector-adv-group.is-info > .detector-group-label {
-  grid-column: 1 / -1;
+/* Advanced's groups as closed sections: rows close together, as before. */
+.detector-adv-group:not(.is-info) > .advanced-inner {
+  gap: 0;
+  padding-top: 6px;
+}
+
+/* The goniometer: one row per axis, start and increment side by side in the
+   200 px a field has elsewhere, under their column heads. */
+.detector-adv-group .detector-param.detector-axis-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 97px) minmax(0, 97px) 16px;
+}
+
+.detector-axis-row .detector-hint {
+  grid-column: 2 / 4;
+}
+
+.detector-axis-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 97px) minmax(0, 97px) 16px;
+  column-gap: 6px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detector-axis-head > span:not(:first-child) {
+  text-align: right;
+  padding-right: 8px;
 }
 
 .detector-adv-group.is-info .detector-param {
@@ -7367,7 +7394,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 .detector-adv-group + .detector-adv-group {
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .detector-filter {
