@@ -3,34 +3,72 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="ALBIS, the ALBULA-style viewer for DECTRIS detector data: quick start, interaction, shortcuts, data sources and troubleshooting." />
     <title>ALBIS Documentation</title>
     <style>
+      /* The app's own faces, shipped with it: no font is fetched from the
+         internet. Michroma sets the ALBIS wordmark only, as on the start
+         screen and in Help -> About. */
+      @font-face {
+        font-family: "Inter";
+        src: url("vendor/InterVariable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Michroma";
+        src: url("vendor/Michroma-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
       :root {
         color-scheme: dark;
-        --surface-0: #121721;
-        --surface-1: #181f2b;
-        --surface-2: #20293a;
-        --surface-3: #2a3448;
+        --page: #0b0f16;
+        --surface-1: #121925;
+        --surface-2: #182132;
         --text: #edf3ff;
-        --muted: #aebad1;
-        --border: rgba(82, 103, 138, 0.45);
+        --body: #d3def2;
+        --muted: #98a8c4;
+        --border: rgba(82, 103, 138, 0.38);
         --accent: #4ea1ff;
         --radius-sm: 4px;
-        --radius-md: 7px;
-        --radius-lg: 10px;
+        --radius-md: 8px;
+        --font-ui: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        --font-wordmark: "Michroma", var(--font-ui);
       }
 
       * {
         box-sizing: border-box;
       }
 
-      body {
-        margin: 0;
-        background: radial-gradient(circle at 12% 0%, #273346 0%, #1a2130 38%, #121721 100%);
-        color: var(--text);
-        font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 64px;
       }
 
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--text);
+        font-family: var(--font-ui);
+        font-size: 15px;
+        line-height: 1.6;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      /* ---- Top bar: the wordmark small, the way back to the viewer ---- */
       .topbar {
         position: sticky;
         top: 0;
@@ -38,147 +76,351 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 14px;
-        background: linear-gradient(to bottom, #273246, #151922);
+        gap: 12px;
+        padding: 10px 20px;
+        background: rgba(11, 15, 22, 0.86);
+        backdrop-filter: blur(8px);
         border-bottom: 1px solid var(--border);
       }
 
-      .brand {
-        font-size: 13px;
-        font-weight: 700;
+      .topbar-brand {
+        color: #f5f7ff;
+        font-family: var(--font-wordmark);
+        font-size: 15px;
         letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #6cb2ff;
+      }
+
+      .topbar-brand span {
+        margin-left: 10px;
+        color: var(--muted);
+        font-family: var(--font-ui);
+        font-size: 13px;
+        letter-spacing: 0;
       }
 
       .topbar-actions {
         display: flex;
-        align-items: center;
         gap: 8px;
       }
 
-      .topbar a {
-        color: #dce8ff;
-        text-decoration: none;
-        font-size: 12px;
+      .topbar-actions a {
+        padding: 5px 10px;
         border: 1px solid rgba(95, 124, 174, 0.45);
         border-radius: var(--radius-sm);
-        padding: 4px 8px;
         background: rgba(22, 33, 49, 0.65);
+        color: #dce8ff;
+        font-size: 13px;
       }
 
-      .page {
-        max-width: 1020px;
+      .topbar-actions a:hover {
+        text-decoration: none;
+        border-color: rgba(120, 156, 214, 0.7);
+      }
+
+      /* ---- Masthead: the start screen's wave picture as a header across the
+         whole page, the DECTRIS wordmark it carries at the top right, ALBIS
+         in the dark above the contours, fading into the page ---- */
+      /* The picture at most 1400 px wide, centred, fading at its sides into
+         the near-black page, so it reads as one header at any width. The
+         band shown is the same at every width: from just above the DECTRIS
+         wordmark (10-16 % of the picture) to the wave line (57 %), with the
+         dark between for the ALBIS text. */
+      .masthead {
+        position: relative;
+        height: min(31.5vw, 441px);
+        min-height: 200px;
+        background: url("resources/splash.webp") center 13.6% / min(100%, 1400px) auto no-repeat;
+        -webkit-mask-image:
+          linear-gradient(to right, transparent calc(50% - 700px), #000 calc(50% - 540px), #000 calc(50% + 540px), transparent calc(50% + 700px)),
+          linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+        -webkit-mask-composite: source-in;
+        mask-image:
+          linear-gradient(to right, transparent calc(50% - 700px), #000 calc(50% - 540px), #000 calc(50% + 540px), transparent calc(50% + 700px)),
+          linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+        mask-composite: intersect;
+      }
+
+      .masthead-text {
+        max-width: 1180px;
         margin: 0 auto;
-        padding: 24px 18px 44px;
-        display: grid;
-        gap: 12px;
+        padding: clamp(18px, 3vw, 40px) 24px 0;
       }
 
-      .doc-footer {
-        color: var(--muted);
-        font-size: 12px;
-        text-align: center;
-      }
-
-      .hero,
-      .doc-card {
-        background: linear-gradient(to bottom, rgba(31, 41, 58, 0.92), rgba(22, 30, 43, 0.92));
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 14px 16px;
-        box-shadow: 0 10px 24px rgba(4, 8, 16, 0.3);
-      }
-
-      h1,
-      h2 {
+      .wordmark {
         margin: 0;
-        font-weight: 700;
-        letter-spacing: 0.01em;
+        color: #f5f7ff;
+        font-family: var(--font-wordmark);
+        font-size: clamp(34px, 4.6vw, 60px);
+        font-weight: 400;
+        letter-spacing: 0.08em;
+        line-height: 1.1;
+        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7);
       }
 
-      h1 {
-        font-size: 22px;
-      }
-
-      h2 {
-        font-size: 16px;
-        margin-bottom: 8px;
-      }
-
-      p {
-        line-height: 1.55;
+      .tagline {
         margin: 8px 0 0;
-        color: #dce8ff;
+        color: var(--body);
+        font-size: clamp(15px, 1.4vw, 18px);
+        text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8);
       }
 
-      ul {
-        margin: 6px 0 0 16px;
-        padding: 0;
+      .version {
+        margin: 4px 0 0;
+        color: #9ec2ff;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
       }
 
-      li {
-        margin: 6px 0;
-        color: #dce8ff;
+      /* ---- Contents beside the text, sticky; a row on top when narrow ---- */
+      .layout {
+        display: grid;
+        grid-template-columns: 210px minmax(0, 1fr);
+        gap: 40px;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 24px 48px;
       }
 
-      code {
-        background: rgba(12, 18, 27, 0.96);
-        padding: 2px 6px;
-        border-radius: var(--radius-sm);
-        border: 1px solid rgba(47, 64, 89, 0.9);
-        font-size: 12px;
-        color: #e8f2ff;
+      .toc {
+        position: sticky;
+        top: 72px;
+        align-self: start;
+        display: grid;
+        gap: 2px;
+        font-size: 13px;
       }
 
-      .pill {
-        display: inline-block;
-        padding: 4px 8px;
-        background: rgba(12, 19, 29, 0.95);
-        border: 1px solid rgba(20, 32, 49, 0.92);
-        border-radius: var(--radius-sm);
-        font-size: 12px;
-        margin-right: 8px;
+      .toc-title {
+        margin: 0 0 6px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
-      a {
-        color: var(--accent);
+      .toc a {
+        display: block;
+        padding: 5px 10px;
+        border-left: 2px solid transparent;
+        color: var(--muted);
+      }
+
+      .toc a:hover {
+        color: var(--text);
+        text-decoration: none;
+      }
+
+      .toc a.is-current {
+        border-left-color: var(--accent);
+        color: var(--text);
+      }
+
+      .content {
+        max-width: 760px;
+      }
+
+      .lead {
+        margin: 0;
+        color: var(--body);
+        font-size: 16px;
       }
 
       .note {
-        background: rgba(13, 19, 28, 0.92);
-        border: 1px solid rgba(78, 100, 137, 0.35);
-        padding: 10px 12px;
+        margin: 18px 0 0;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
         border-radius: var(--radius-md);
-        margin-top: 12px;
-        font-size: 12px;
-        color: #d8e6ff;
+        background: var(--surface-1);
+        color: var(--body);
+        font-size: 14px;
       }
 
-      @media (max-width: 700px) {
-        .page {
-          padding: 14px 10px 30px;
+      section {
+        margin-top: 44px;
+      }
+
+      h2 {
+        margin: 0 0 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        font-size: 21px;
+        font-weight: 650;
+        letter-spacing: 0.005em;
+      }
+
+      p {
+        margin: 10px 0 0;
+        color: var(--body);
+      }
+
+      ul {
+        margin: 8px 0 0;
+        padding-left: 20px;
+      }
+
+      li {
+        margin: 8px 0;
+        color: var(--body);
+      }
+
+      li::marker {
+        color: var(--accent);
+      }
+
+      strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      code {
+        padding: 1px 6px;
+        border: 1px solid rgba(47, 64, 89, 0.9);
+        border-radius: var(--radius-sm);
+        background: #0f1622;
+        color: #e8f2ff;
+        font-family: var(--font-ui);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      /* Keys and mouse gestures as keycaps, like the app's shortcut chips. */
+      kbd {
+        display: inline-block;
+        min-width: 22px;
+        padding: 1px 7px;
+        border: 1px solid rgba(95, 124, 174, 0.55);
+        border-bottom-width: 2px;
+        border-radius: var(--radius-sm);
+        background: var(--surface-2);
+        color: #e8f2ff;
+        font-family: var(--font-ui);
+        font-size: 13px;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .keys {
+        list-style: none;
+        padding: 0;
+      }
+
+      .keys li {
+        display: grid;
+        grid-template-columns: 170px minmax(0, 1fr);
+        gap: 12px;
+        align-items: baseline;
+      }
+
+      .more {
+        margin-top: 14px;
+        font-size: 14px;
+      }
+
+      /* ---- Footer: version, licence, citation, and DECTRIS ---- */
+      .footer {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 22px 24px 40px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 24px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .footer-facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+      }
+
+      /* The DECTRIS logo white on the dark page, as on the start screen. */
+      .footer-dectris img {
+        display: block;
+        width: 120px;
+        height: auto;
+        filter: brightness(0) invert(1);
+        opacity: 0.92;
+      }
+
+      @media (max-width: 860px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 8px;
         }
 
-        .hero,
-        .doc-card {
-          padding: 12px;
+        .toc {
+          position: static;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+        }
+
+        .toc-title {
+          width: 100%;
+        }
+
+        .toc a {
+          padding: 4px 10px;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+        }
+
+        .toc a.is-current {
+          border-color: var(--accent);
+        }
+
+        .keys li {
+          grid-template-columns: 140px minmax(0, 1fr);
+        }
+      }
+
+      @media (max-width: 520px) {
+        .keys li {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 2px;
         }
       }
     </style>
   </head>
   <body>
-    <div class="topbar">
-      <div class="brand">ALBIS Docs</div>
-      <div class="topbar-actions">
-        <a href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">GitHub Repository</a>
+    <header class="topbar">
+      <div class="topbar-brand">ALBIS<span>Documentation</span></div>
+      <nav class="topbar-actions">
+        <a href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">GitHub</a>
         <a href="/" title="Back to ALBIS">Back to Viewer</a>
+      </nav>
+    </header>
+
+    <div class="masthead">
+      <div class="masthead-text">
+        <h1 class="wordmark">ALBIS</h1>
+        <p class="tagline">ALBULA-style viewer for DECTRIS detector data</p>
+        <p class="version" id="version" hidden></p>
       </div>
     </div>
-    <div class="page">
-      <div class="hero">
-        <h1>ALBIS — Viewer for DECTRIS Detector Data</h1>
-        <p>
+
+    <div class="layout">
+      <nav class="toc" aria-label="Contents">
+        <p class="toc-title">Contents</p>
+        <a href="#quick-start">Quick start</a>
+        <a href="#interaction">Interaction</a>
+        <a href="#shortcuts">Keyboard shortcuts</a>
+        <a href="#sources">Data sources</a>
+        <a href="#detector">Test a detector</a>
+        <a href="#network">Network and privacy</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#links">Project links</a>
+      </nav>
+
+      <main class="content">
+        <p class="lead">
           ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. It opens HDF5 stacks,
           TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or
           on the machine that holds the data, viewed from a browser elsewhere.
@@ -188,186 +430,219 @@
           regions, series can be summed or averaged, and figures export sharp for slides and papers.
         </p>
         <div class="note">
-          New users: start with <strong>File -&gt; Open</strong> and then use the right panel tabs (<strong>View</strong>,
-          <strong>Data</strong>, <strong>Overlay</strong>) for analysis controls.
+          New here? Start with <strong>File → Open</strong>, then use the tabs on the right: <strong>View</strong>
+          for contrast and zoom, <strong>Data</strong> for source, dataset and metadata, <strong>Overlay</strong>
+          for ROI, rings and peaks.
         </div>
-      </div>
 
-      <section class="doc-card">
-        <h2>Quick Start</h2>
-        <ul>
-          <li>Open data: <code>File -> Open</code> to load HDF5, TIFF, CBF(.gz) or EDF files, or a MYTHEN
-              acquisition by picking its <code>.cfg</code> file.</li>
-          <li>Reopen data: <code>File -> Open Recent</code> lists the last ten files you opened,
-              newest first. Watched folders and live streams are not listed.</li>
-          <li>Open from the file manager: double-click an <code>.h5</code>, <code>.hdf5</code>,
-              <code>.cbf</code>, <code>.edf</code>, <code>.tif</code> or <code>.tiff</code> file.
-              On Windows, pick ALBIS once under <em>Open with</em> to make it the default; on macOS
-              use <em>Get Info -&gt; Open with</em>. If ALBIS is already running, the file opens
-              there instead of starting a second copy.</li>
-          <li>Navigate frames with slider, index field, play/pause, and keyboard arrows.</li>
-          <li>Use the <strong>Data</strong> tab to select data source, dataset, threshold, and inspect file metadata.</li>
-          <li>Use the <strong>Overlay</strong> tab for ROI stats, resolution rings, and peak finder.</li>
-          <li>Export what you see: <code>File -> Convert Dataset…</code> writes TIFF or CBF,
-              <code>File -> Export Animation…</code> writes an animated GIF.</li>
-          <li><code>Settings -> Preferences…</code> opens the Settings dialog, grouped into
-              <strong>Viewer</strong>, <strong>Connection</strong>, <strong>Data</strong> and
-              <strong>Logging</strong>. Fields that only take effect on the next start say so as you change them.</li>
-        </ul>
-      </section>
+        <section id="quick-start">
+          <h2>Quick start</h2>
+          <ul>
+            <li>Open data: <code>File → Open</code> to load HDF5, TIFF, CBF(.gz) or EDF files, or a MYTHEN
+                acquisition by picking its <code>.cfg</code> file.</li>
+            <li>Reopen data: <code>File → Open Recent</code> lists the last ten files you opened,
+                newest first. Watched folders and live streams are not listed.</li>
+            <li>Open from the file manager: double-click an <code>.h5</code>, <code>.hdf5</code>,
+                <code>.cbf</code>, <code>.edf</code>, <code>.tif</code> or <code>.tiff</code> file.
+                On Windows, pick ALBIS once under <em>Open with</em> to make it the default; on macOS
+                use <em>Get Info → Open with</em>. If ALBIS is already running, the file opens
+                there instead of starting a second copy.</li>
+            <li>Navigate frames with the slider, the index field, play/pause, and the arrow keys.</li>
+            <li>Use the <strong>Data</strong> tab to select the data source, dataset and threshold, and to inspect
+                file metadata.</li>
+            <li>Use the <strong>Overlay</strong> tab for ROI statistics, resolution rings and the peak finder.</li>
+            <li>Export what you see: <code>File → Convert Dataset…</code> writes TIFF or CBF,
+                <code>File → Export Animation…</code> writes an animated GIF.</li>
+            <li><code>Settings → Preferences…</code> opens the Settings dialog, grouped into
+                <strong>Viewer</strong>, <strong>Connection</strong>, <strong>Data</strong> and
+                <strong>Logging</strong>. Fields that only take effect on the next start say so as you change them.</li>
+          </ul>
+          <p class="more"><a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md#open-your-data" target="_blank" rel="noopener">More in the User Guide →</a></p>
+        </section>
 
-      <section class="doc-card">
-        <h2>Interaction Basics</h2>
-        <ul>
-          <li><span class="pill">Mouse wheel</span> zoom at cursor.</li>
-          <li><span class="pill">Left-drag</span> pan image (also works while zoomed out).</li>
-          <li>
-            <span class="pill">Shift + Left-drag</span> adjust contrast/brightness (horizontal = contrast, vertical =
-            brightness).
-          </li>
-          <li><span class="pill">Right-drag</span> define ROI (when ROI mode is active).</li>
-          <li><span class="pill">Double-click</span> quick zoom in.</li>
-          <li><span class="pill">F</span> toggle full screen.</li>
-          <li><span class="pill">F1</span> open this documentation page.</li>
-        </ul>
-      </section>
+        <section id="interaction">
+          <h2>Interaction</h2>
+          <ul class="keys">
+            <li><span><kbd>Mouse wheel</kbd></span> zoom at the cursor.</li>
+            <li><span><kbd>Left-drag</kbd></span> pan the image (also while zoomed out).</li>
+            <li><span><kbd>Shift</kbd> + <kbd>Left-drag</kbd></span> contrast and brightness: horizontal is contrast, vertical is brightness.</li>
+            <li><span><kbd>Right-drag</kbd></span> draw an ROI (when ROI mode is on).</li>
+            <li><span><kbd>Double-click</kbd></span> quick zoom in.</li>
+            <li><span><kbd>F</kbd></span> full screen.</li>
+            <li><span><kbd>F1</kbd></span> this page.</li>
+          </ul>
+          <p class="more"><a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md#make-the-image-readable" target="_blank" rel="noopener">More in the User Guide →</a></p>
+        </section>
 
-      <section class="doc-card">
-        <h2>Keyboard Shortcuts</h2>
-        <p class="note">
-          Shown with the macOS modifier. On Windows and Linux use <code>Ctrl</code> where
-          <code>⌘</code> appears and <code>Alt</code> where <code>⌥</code> appears.
-        </p>
-        <ul>
-          <li><code>⌘K</code> Command Palette — the fastest way to reach anything below.</li>
-          <li><code>⌘O</code> Open…&nbsp;&nbsp;<code>⌘W</code> Close File&nbsp;&nbsp;<code>⌘N</code> New Window&nbsp;&nbsp;<code>⇧⌘N</code> Duplicate Window</li>
-          <li><code>←</code> / <code>→</code> previous / next frame</li>
-          <li><code>⌘S</code> save full image&nbsp;&nbsp;<code>⇧⌘S</code> save visible area&nbsp;&nbsp;<code>⌥⌘S</code> save viewer window</li>
-          <li><code>⇧⌘E</code> Export Image…&nbsp;&nbsp;<code>⌘G</code> Export Animation…&nbsp;&nbsp;<code>⇧⌘X</code> Convert Dataset…</li>
-          <li><code>⌘,</code> Preferences…&nbsp;&nbsp;<code>F</code> full screen&nbsp;&nbsp;<code>F1</code> this page</li>
-        </ul>
-      </section>
+        <section id="shortcuts">
+          <h2>Keyboard shortcuts</h2>
+          <p>
+            Shown with the macOS modifier. On Windows and Linux use <kbd>Ctrl</kbd> where <kbd>⌘</kbd> appears and
+            <kbd>Alt</kbd> where <kbd>⌥</kbd> appears.
+          </p>
+          <ul class="keys">
+            <li><span><kbd>⌘K</kbd></span> Command Palette — the fastest way to reach anything below.</li>
+            <li><span><kbd>⌘O</kbd></span> Open…</li>
+            <li><span><kbd>⌘W</kbd></span> Close File</li>
+            <li><span><kbd>⌘N</kbd> <kbd>⇧⌘N</kbd></span> New Window, Duplicate Window</li>
+            <li><span><kbd>←</kbd> <kbd>→</kbd></span> previous / next frame</li>
+            <li><span><kbd>⌘S</kbd></span> save the full image</li>
+            <li><span><kbd>⇧⌘S</kbd> <kbd>⌥⌘S</kbd></span> save the visible area, save the viewer window</li>
+            <li><span><kbd>⇧⌘E</kbd></span> Export Image…</li>
+            <li><span><kbd>⌘G</kbd></span> Export Animation…</li>
+            <li><span><kbd>⇧⌘X</kbd></span> Convert Dataset…</li>
+            <li><span><kbd>⌘,</kbd></span> Preferences…</li>
+          </ul>
+          <p class="more"><a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md#keyboard-shortcuts" target="_blank" rel="noopener">More in the User Guide →</a></p>
+        </section>
 
-      <section class="doc-card">
-        <h2>Data Sources and Streaming</h2>
-        <ul>
-          <li><strong>File:</strong> load local files from disk.</li>
-          <li><strong>MYTHEN acquisition:</strong> a folder holding one <code>.cfg</code> descriptor and one
-              <code>FrameNNNN.dat</code> per exposure. Open the <code>.cfg</code> and the whole acquisition is
-              assembled into a single image — channel across, frame down, counts as intensity.</li>
-          <li><strong>Watch Folder:</strong> poll folders for new files.</li>
-          <li><strong>SIMPLON Monitor:</strong> monitor live TIFF updates. Enter the detector hostname or IP address (for example <code>192.168.1.10</code>); <code>http://</code> and the default port 80 are filled in automatically. Press <strong>Test</strong> (or Enter in the address field) to check the connection — it names the detector on success, or the reason on failure (unknown host, refused port, wrong API version).</li>
-          <li><strong>JUNGFRAUJOCH Preview:</strong> subscribe to ZeroMQ preview CBOR stream with reflection overlays. Enter <code>host:port</code> and <code>tcp://</code> is filled in; there is no default preview port, so the port is required. <strong>Test</strong> checks that the port accepts connections — frames are confirmed once the preview starts.</li>
-          <li><strong>Remote Stream:</strong> consume pushed frames via API source ids.</li>
-          <li><strong>Detector tab (beta, off by default):</strong> a quick way to check a DECTRIS detector —
-              connect over SIMPLON, take a test series and watch it live, without writing code. Meant for
-              first tests and demos, not as a replacement for a beamline control system. Switch it on under
-              <strong>Settings → Viewer → Beta: detector control</strong>; the User Guide's "Test a detector"
-              section says what it is for and what not.</li>
-          <li>For the Remote Stream API and every configuration key, see the Power User Guide (linked below).</li>
-        </ul>
-      </section>
+        <section id="sources">
+          <h2>Data sources</h2>
+          <ul>
+            <li><strong>File:</strong> load local files from disk.</li>
+            <li><strong>MYTHEN acquisition:</strong> a folder holding one <code>.cfg</code> descriptor and one
+                <code>FrameNNNN.dat</code> per exposure. Open the <code>.cfg</code> and the whole acquisition is
+                assembled into a single image — channel across, frame down, counts as intensity.</li>
+            <li><strong>Watch Folder:</strong> poll folders for new files.</li>
+            <li><strong>SIMPLON Monitor:</strong> live images from a detector. Enter its hostname or IP address (for
+                example <code>192.168.1.10</code>); <code>http://</code> and the default port 80 are filled in. Press
+                <strong>Test</strong> (or Enter in the address field) to check the connection — it names the detector
+                on success, or the reason on failure (unknown host, refused port, wrong API version).</li>
+            <li><strong>JUNGFRAUJOCH Preview:</strong> subscribe to the ZeroMQ preview CBOR stream, with reflection
+                overlays. Enter <code>host:port</code> and <code>tcp://</code> is filled in; there is no default preview
+                port, so the port is required. <strong>Test</strong> checks that the port accepts connections — frames
+                are confirmed once the preview starts.</li>
+            <li><strong>Remote Stream:</strong> frames pushed to ALBIS through its API, by source id. For this API and
+                every configuration key, see the Power User Guide (in Project links).</li>
+          </ul>
+          <p class="more"><a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md#follow-a-running-experiment" target="_blank" rel="noopener">More in the User Guide →</a></p>
+        </section>
 
-      <section class="doc-card">
-        <h2>Network Use and Privacy</h2>
-        <p>
-          ALBIS has no telemetry and no analytics. Your images, file paths and the datasets you
-          browse are read from disk and sent to your own browser — they are never uploaded
-          anywhere, and the interface loads no fonts or scripts from the internet.
-        </p>
-        <p>
-          One exception: at startup ALBIS asks GitHub whether a newer release exists, so it can
-          tell you when to update. That request carries the version you are running and nothing
-          else. Uncheck <strong>Settings -&gt; Connection -&gt; Check for updates on startup</strong>
-          and ALBIS makes no outbound request of its own accord at all. An offline machine is fully
-          functional; the check simply fails quietly.
-        </p>
-        <p>
-          Live sources are the only other traffic, and they go only to the SIMPLON or JUNGFRAUJOCH
-          address you entered. Full details:
-          <a
-            href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/NETWORK_AND_PRIVACY.md"
-            target="_blank"
-            rel="noopener"
-          >
-            docs/NETWORK_AND_PRIVACY.md
-          </a>
-        </p>
-      </section>
+        <section id="detector">
+          <h2>Test a detector (beta)</h2>
+          <p>
+            The <strong>Detector</strong> tab is a quick way to check a DECTRIS detector: connect over SIMPLON, take a
+            test series and watch it live, without writing code. It is off by default; switch it on under
+            <strong>Settings → Viewer → Beta: detector control</strong>. Meant for first tests and demos, not as a
+            replacement for a beamline control system.
+          </p>
+          <p>
+            Every setting and command has a <strong>?</strong> that says what it does and names its SIMPLON key, the
+            name to use when you later script it.
+          </p>
+          <p class="more"><a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md#test-a-detector-beta" target="_blank" rel="noopener">More in the User Guide →</a></p>
+        </section>
 
-      <section class="doc-card">
-        <h2>Troubleshooting</h2>
-        <ul>
-          <li>If the viewer shows <code>OFFLINE</code>, wait for backend startup or restart the launcher.</li>
-          <li>If no image appears, check selected dataset and threshold in the Data tab.</li>
-          <li>If overlays look stale in playback, pause and re-enable the overlay tool once.</li>
-          <li>If a file will not open, ALBIS names the reason — a file still being written by the
-              filewriter is the usual cause, and retrying once it is complete normally works.</li>
-          <li>If every request fails with <code>403</code> and a message about allowed hosts, you are
-              reaching ALBIS under a name it does not answer to. This happens behind a reverse proxy:
-              add the proxy's hostname to <strong>Settings -> Connection -> Allowed hosts</strong>.</li>
-          <li>If your settings appear to have reset, ALBIS could not read its configuration file and
-              started on defaults rather than refusing to start. The log says which file and why;
-              saving from the Settings dialog replaces it.</li>
-          <li>On first launch, Windows may show “Windows protected your PC” (choose <em>More info -&gt;
-              Run anyway</em>). macOS builds are signed and notarized and should open normally.</li>
-          <li>If ALBIS asks you to reload, the server was upgraded or restarted on a different
-              build while this tab stayed open, so this page is running older code than the server.
-              Reloading clears it.</li>
-          <li>Use <code>Help -> View Backend Log</code> for runtime diagnostics, and the
-              <strong>Versions</strong> button in the bottom right to copy the exact build you are
-              running into a bug report — a version number alone cannot tell two builds of the same
-              release apart.</li>
-        </ul>
-      </section>
+        <section id="network">
+          <h2>Network and privacy</h2>
+          <p>
+            ALBIS has no telemetry and no analytics. Your images, file paths and the datasets you
+            browse are read from disk and sent to your own browser — they are never uploaded
+            anywhere, and the interface loads no fonts or scripts from the internet.
+          </p>
+          <p>
+            One exception: at startup ALBIS asks GitHub whether a newer release exists, so it can
+            tell you when to update. That request carries the version you are running and nothing
+            else. Uncheck <strong>Settings → Connection → Check for updates on startup</strong>
+            and ALBIS makes no outbound request of its own accord at all. An offline machine is fully
+            functional; the check simply fails quietly.
+          </p>
+          <p>
+            Live sources are the only other traffic, and they go only to the SIMPLON or JUNGFRAUJOCH
+            address you entered.
+          </p>
+          <p class="more"><a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/NETWORK_AND_PRIVACY.md" target="_blank" rel="noopener">Full details in Network and Privacy →</a></p>
+        </section>
 
-      <section class="doc-card">
-        <h2>Project Links</h2>
-        <p>
-          Repository and source code:
-          <a href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">
-            github.com/SaschaAndresGrimm/ALBIS
-          </a>
-        </p>
-        <p>
-          User Guide — a walkthrough of each task: opening data, contrast, ROI statistics,
-          resolution rings, live sources, and exporting:
-          <a
-            href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md"
-            target="_blank"
-            rel="noopener"
-          >
-            docs/USER_GUIDE.md
-          </a>
-        </p>
-        <p>
-          Citing ALBIS — if it contributed to work you are publishing, the repository's
-          <strong>Cite this repository</strong> button gives you APA and BibTeX. Cite the version
-          shown under <code>Help -&gt; About</code>:
-          <a
-            href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/CITATION.cff"
-            target="_blank"
-            rel="noopener"
-          >
-            CITATION.cff
-          </a>
-        </p>
-        <p>
-          Power User Guide — every configuration key, the Remote Stream and Handoff APIs,
-          Docker, and running behind a reverse proxy:
-          <a
-            href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/POWER_USER_GUIDE.md"
-            target="_blank"
-            rel="noopener"
-          >
-            docs/POWER_USER_GUIDE.md
-          </a>
-        </p>
-        <p>
-          Issues and improvement requests can be created in the GitHub Issues section.
-        </p>
-      </section>
-      <footer class="doc-footer">© 2026 Sascha Andres Grimm and DECTRIS AG · MIT licence</footer>
+        <section id="troubleshooting">
+          <h2>Troubleshooting</h2>
+          <ul>
+            <li>If the viewer shows <code>OFFLINE</code>, wait for the backend to start or restart the launcher.</li>
+            <li>If no image appears, check the selected dataset and threshold in the Data tab.</li>
+            <li>If overlays look stale during playback, pause and switch the overlay tool off and on once.</li>
+            <li>If a file will not open, ALBIS names the reason — a file still being written by the
+                filewriter is the usual cause, and retrying once it is complete normally works.</li>
+            <li>If every request fails with <code>403</code> and a message about allowed hosts, you are
+                reaching ALBIS under a name it does not answer to. This happens behind a reverse proxy:
+                add the proxy's hostname to <strong>Settings → Connection → Allowed hosts</strong>.</li>
+            <li>If your settings appear to have reset, ALBIS could not read its configuration file and
+                started on defaults rather than refusing to start. The log says which file and why;
+                saving from the Settings dialog replaces it.</li>
+            <li>On first launch, Windows may show “Windows protected your PC” (choose <em>More info →
+                Run anyway</em>). macOS builds are signed and notarized and should open normally.</li>
+            <li>If ALBIS asks you to reload, the server was upgraded or restarted on a different
+                build while this tab stayed open, so this page is running older code than the server.
+                Reloading clears it.</li>
+            <li>Use <code>Help → View Backend Log</code> for runtime diagnostics, and the
+                <strong>Versions</strong> button in the bottom right to copy the exact build you are
+                running into a bug report — a version number alone cannot tell two builds of the same
+                release apart.</li>
+          </ul>
+          <p class="more"><a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md#when-something-looks-wrong" target="_blank" rel="noopener">More in the User Guide →</a></p>
+        </section>
+
+        <section id="links">
+          <h2>Project links</h2>
+          <ul>
+            <li><strong>Source code:</strong>
+                <a href="https://github.com/SaschaAndresGrimm/ALBIS" target="_blank" rel="noopener">github.com/SaschaAndresGrimm/ALBIS</a>;
+                issues and improvement requests go to its Issues section.</li>
+            <li><strong>User Guide</strong> — a walkthrough of each task: opening data, contrast, ROI statistics,
+                resolution rings, live sources, exporting and testing a detector:
+                <a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener">docs/USER_GUIDE.md</a></li>
+            <li><strong>Power User Guide</strong> — every configuration key, the Remote Stream and Handoff APIs,
+                Docker, and running behind a reverse proxy:
+                <a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/POWER_USER_GUIDE.md" target="_blank" rel="noopener">docs/POWER_USER_GUIDE.md</a></li>
+            <li><strong>Citing ALBIS</strong> — if it contributed to work you are publishing, the repository's
+                <strong>Cite this repository</strong> button gives you APA and BibTeX. Cite the version shown under
+                <code>Help → About</code>:
+                <a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a></li>
+          </ul>
+        </section>
+      </main>
     </div>
+
+    <footer class="footer">
+      <div class="footer-facts">
+        <span id="footer-version" hidden></span>
+        <span>MIT licence</span>
+        <span>Cite as <a href="https://doi.org/10.5281/zenodo.22046648" target="_blank" rel="noopener">10.5281/zenodo.22046648</a></span>
+        <span>© 2026 Sascha Andres Grimm and DECTRIS AG</span>
+      </div>
+      <a class="footer-dectris" href="https://www.dectris.com" target="_blank" rel="noopener">
+        <img src="assets/dectris_logo.svg" alt="DECTRIS" width="120" height="14" />
+      </a>
+    </footer>
+
+    <script>
+      // The version this server runs, as in Help -> About; nothing shows if
+      // the backend does not answer.
+      fetch("/api/health")
+        .then((response) => (response.ok ? response.json() : null))
+        .then((health) => {
+          if (!health?.version) return;
+          for (const id of ["version", "footer-version"]) {
+            const el = document.getElementById(id);
+            el.textContent = `Version ${health.version}`;
+            el.hidden = false;
+          }
+        })
+        .catch(() => {});
+
+      // The contents follow the reading: the section at the top is marked.
+      const links = [...document.querySelectorAll(".toc a")];
+      const byId = new Map(links.map((link) => [link.getAttribute("href").slice(1), link]));
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            links.forEach((link) => link.classList.remove("is-current"));
+            byId.get(entry.target.id)?.classList.add("is-current");
+          }
+        },
+        { rootMargin: "-80px 0px -70% 0px" },
+      );
+      document.querySelectorAll("main section[id]").forEach((section) => observer.observe(section));
+    </script>
   </body>
 </html>

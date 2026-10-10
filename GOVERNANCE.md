@@ -27,7 +27,7 @@ as DECTRIS.
 Product names such as ALBULA, EIGER, PILATUS, MYTHEN, JUNGFRAU and SIMPLON are
 trademarks of DECTRIS and are used here only to say which
 hardware and formats ALBIS works with. The DECTRIS logo
-(`albis_assets/dectris_logo.svg`, shown in Help → About) and the splash
+(`albis_assets/dectris_logo.svg`, shown in Help → About and on the help page) and the splash
 picture with the DECTRIS wordmark (`frontend/resources/splash.webp`) are
 trademarks of DECTRIS AG and are not covered by the MIT licence: a fork may
 keep the code but not the logo or the picture.

@@ -78,8 +78,8 @@ def test_the_build_carries_the_frontend_directory() -> None:
 
 
 # -- The wordmark face -------------------------------------------------------
-# Michroma sets the ALBIS wordmark (start screen, Help -> About) and nothing
-# else. `ofl/michroma/Michroma-Regular.ttf` from the Google Fonts repository,
+# Michroma sets the ALBIS wordmark (start screen, Help -> About, the help
+# page) and nothing else. `ofl/michroma/Michroma-Regular.ttf` from the Google Fonts repository,
 # version 1.100, unmodified.
 WORDMARK = ROOT / "frontend" / "vendor" / "Michroma-Regular.ttf"
 WORDMARK_OFL = ROOT / "frontend" / "vendor" / "Michroma-OFL.txt"
@@ -108,6 +108,20 @@ def test_the_wordmark_face_is_used_for_the_wordmark_only() -> None:
     # Through --font-wordmark, and that only on the two wordmarks.
     users = re.findall(r"([^{}]+)\{[^}]*var\(--font-wordmark\)", css)
     assert sorted(sel.strip() for sel in users) == [".about-wordmark", ".splash-title"]
+
+
+def test_the_help_page_uses_the_shipped_faces_and_michroma_for_its_wordmarks_only() -> None:
+    """docs.html has its own styles; it loads the same two files, nothing else."""
+    docs = ROOT / "frontend" / "docs.html"
+    html = docs.read_text(encoding="utf-8")
+    faces = dict(
+        re.findall(r'@font-face\s*\{[^}]*font-family:\s*"([^"]+)"[^}]*url\("([^"]+)"\)', html, re.S)
+    )
+    assert (docs.parent / faces["Inter"]).resolve() == FONT.resolve()
+    assert (docs.parent / faces["Michroma"]).resolve() == WORDMARK.resolve()
+    assert "fonts.googleapis" not in html and "@import" not in html
+    users = re.findall(r"([^{}]+)\{[^}]*var\(--font-wordmark\)", html)
+    assert sorted(sel.strip() for sel in users) == [".topbar-brand", ".wordmark"]
 
 
 def test_the_wordmark_licence_travels_with_the_font() -> None:

@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The help page (F1) has the start screen's look.** The wave picture as a header across the page, fading into it at the sides, with the DECTRIS wordmark it carries and, in the dark above the contours, the ALBIS wordmark in Michroma, the tagline and the running version; a contents column that stays beside the text and marks the section you are reading (a row of chips on a narrow window); the app's own Inter at a readable width, keys as keycaps, arrows as → rather than ->, a "More in the User Guide →" link under each section, a short section on the beta Detector tab, and a footer with version, licence, citation and the DECTRIS logo. It loads only fonts shipped with ALBIS, as before nothing from the internet.
+- **About opens with a banner** of the wave picture, the ALBIS wordmark in the dark above the contours, instead of a 340 px icon taking half the dialog, and shows the DECTRIS logo in white on the dark card, as the start screen does, instead of navy on a white box.
+
 ## [0.26.0] - 2026-10-10
 
 ### Changed

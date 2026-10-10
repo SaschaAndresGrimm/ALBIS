@@ -4896,22 +4896,32 @@ body.platform-windows select option:disabled {
   gap: 10px;
 }
 
-.about-logo {
-  width: min(340px, 78vw);
-  height: auto;
-  margin: 4px auto 2px;
-  display: block;
-  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.48));
+/* The top of About as the start screen: the wave picture, fading into the
+   card, the wordmark in the dark above the contours. */
+.about-banner {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 170px;
+  margin: -12px -12px 4px;
+  padding: 16px 24px;
+  /* From below the picture's DECTRIS wordmark (10-16 %) to past the wave
+     line (57 %): the ALBIS wordmark sits in the dark above the first
+     contour (37 %). */
+  background: #000 url("resources/splash.webp") 50% 38% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
 }
 
 .about-wordmark {
-  margin: 0 0 6px;
+  margin: 0;
   color: #f5f7ff;
   font-family: var(--font-wordmark);
-  font-size: 26px;
+  font-size: 34px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  text-align: center;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
 }
 
 .about-lead {
@@ -4987,22 +4997,21 @@ body.platform-windows select option:disabled {
   font-weight: 600;
 }
 
-/* The DECTRIS wordmark exactly as dectris.com publishes it: one navy, which
-   on ALBIS's dark card needs a light ground. Recolouring it for a dark
-   background is DECTRIS marketing's call, not ours. */
+/* The DECTRIS logo white on the dark card, as DECTRIS's own start-screen
+   picture shows it (asked for by DECTRIS, 2026-10): the published navy
+   artwork, turned white here rather than shipped as a second file. */
 .about-dectris {
   display: block;
   width: fit-content;
   margin: 12px auto 0;
-  padding: 7px 12px;
-  border-radius: var(--radius-sm);
-  background: #ffffff;
 }
 
 .about-dectris img {
   display: block;
   width: 120px;
   height: auto;
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
 }
 
 .about-copyright {
