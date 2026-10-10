@@ -494,7 +494,7 @@ describe("detector control panel, recovery", () => {
     expect(recoverText(elements)).toBe("");
   });
 
-  it("asks before re-initializing, and names a failed command", async () => {
+  it("re-initializes at once, without a question at the top, and names a failed command", async () => {
     const { controller, elements } = await setup();
     controller._setStatus({
       detector: { state: "idle" },
@@ -502,8 +502,8 @@ describe("detector control panel, recovery", () => {
     });
     expect(recoverText(elements)).toContain("The last command (arm) failed");
     elements.sensors.nextElementSibling.querySelector("button").click();
-    expect(elements.confirm.hidden).toBe(false);
-    expect(elements.confirmText.textContent).toBe(EN["detector.confirm.initialize"]);
+    expect(elements.confirm.hidden).toBe(true);
+    expect(elements.logHost.textContent).toContain("initialize sent");
   });
 
   it("explains dropped stream images and offers a reset only on a stream error", async () => {
@@ -518,8 +518,9 @@ describe("detector control panel, recovery", () => {
     controller._setStatus({ detector: { state: "idle" }, stream: { state: "error", dropped: 0, mode: "enabled" } });
     const warning = elements.outputsHost.querySelector(".detector-warning");
     expect(warning.textContent).toContain(EN["detector.output.stream_error"]);
-    [...warning.querySelectorAll("button")].find((b) => b.textContent === "Reset stream…").click();
-    expect(elements.confirmText.textContent).toBe(EN["detector.confirm.reset_stream"]);
+    [...warning.querySelectorAll("button")].find((b) => b.textContent === "Reset stream").click();
+    expect(elements.confirm.hidden).toBe(true);
+    expect(elements.logHost.textContent).toContain("stream initialize sent");
   });
 
   it("warns when the detector's storage runs low and offers to clear it", async () => {
@@ -530,8 +531,14 @@ describe("detector control panel, recovery", () => {
     expect(elements.outputsHost.textContent).not.toContain(EN["detector.output.storage_low"]);
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", state: "ready", buffer_free: 3.2e9, critical: ["buffer_free"] } });
     expect(elements.outputsHost.textContent).toContain(EN["detector.output.storage_low"]);
-    [...elements.outputsHost.querySelectorAll("button")].find((b) => b.textContent === EN["detector.action.delete_files"]).click();
-    expect(elements.confirmText.textContent).toBe(EN["detector.confirm.delete_unlisted"]);
+    // Deleting loses data: a second click on the same spot, no question at the top.
+    const link = () => [...elements.outputsHost.querySelectorAll(".detector-warning button")].find((b) => b.textContent.startsWith(EN["detector.action.delete_files"]) || b.textContent.startsWith("Click again"));
+    link().click();
+    expect(elements.confirm.hidden).toBe(true);
+    expect(link().textContent).toBe(EN["detector.action.delete_again_unlisted"]);
+    expect(elements.logHost.textContent).not.toContain("filewriter clear sent");
+    link().click();
+    expect(elements.logHost.textContent).toContain("filewriter clear sent");
   });
 
   it("gives each recovery step one home: the detector's in Troubleshooting, the outputs' with them", async () => {
@@ -541,9 +548,9 @@ describe("detector control panel, recovery", () => {
     controller._setFiles([{ name: "series_1_master.h5", size: 1000 }]);
     expect(elements.advancedHost.querySelector(".detector-fixes")).toBeNull();
     const box = elements.troubleshootingHost.querySelector(".detector-fixes");
-    expect([...box.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Re-initialize…"]);
+    expect([...box.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Re-initialize"]);
     const stream = elements.outputsHost.querySelector('[data-output="stream"]');
-    expect([...stream.querySelectorAll(".detector-output-commands button")].map((b) => b.textContent)).toEqual(["Reset stream…"]);
+    expect([...stream.querySelectorAll(".detector-output-commands button")].map((b) => b.textContent)).toEqual(["Reset stream"]);
     const del = [...elements.filesHost.querySelectorAll("button")].find((b) => b.textContent === EN["detector.action.delete_files"]);
     expect(del.classList.contains("is-danger")).toBe(true);
     expect(elements.outputsHost.querySelector('[data-output="filewriter"]').contains(elements.filesHost)).toBe(true);
@@ -765,6 +772,39 @@ describe("detector control panel, compact cards", () => {
     expect(host.querySelector(".detector-adv-group.is-info .detector-group-label").textContent).toBe("Detector information");
   });
 
+  it("ignores a status answer that predates a write: a switch just flipped is not news", async () => {
+    let release;
+    const held = new Promise((resolve) => {
+      release = resolve;
+    });
+    const routes = {
+      // Asked before the switch flipped, answered after: the monitor still off.
+      "/detector/status": async () => {
+        await held;
+        return { ok: true, json: async () => ({ detector: { state: "idle" }, monitor: { mode: "disabled" } }) };
+      },
+      "/detector/config": async (_url, init) => {
+        const body = JSON.parse(init.body);
+        return { ok: true, json: async () => ({ params: { mode: { ...DESCRIPTORS.monitor.mode, value: body.value } } }) };
+      },
+    };
+    const { controller, elements } = await setup(routes);
+    controller._setConnection("http://192.168.1.10");
+    const params = structuredClone(DESCRIPTORS);
+    params.monitor.mode.value = "disabled";
+    controller._setParams(params);
+    controller._renderAll();
+    controller.setEnabled(true);
+    const polling = controller.poll();
+    elements.outputsHost.querySelector('[data-output="monitor"] .detector-output-head input').click();
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain("Monitor set to On"));
+    release();
+    await polling;
+    expect(elements.logHost.textContent).not.toContain("changed by another program");
+    expect(controller.params.monitor.mode.value).toBe("enabled");
+    controller.setEnabled(false);
+  });
+
   it("keeps each output's other settings and commands under its closed More settings", async () => {
     localStorage.clear();
     const { controller, elements } = await setup();
@@ -783,11 +823,11 @@ describe("detector control panel, compact cards", () => {
     expect(elements.advancedHost.querySelector('[data-key="detector:compression"]')).toBeNull();
     expect(more("filewriter").querySelector('[data-key="detector:compression"] label').textContent).toBe("Compression");
     expect(more("monitor").querySelector('[data-key="monitor:buffer_size"] label').textContent).toBe("Buffer size");
-    expect([...more("monitor").querySelectorAll(".detector-output-commands button")].map((b) => b.textContent)).toEqual(["Clear buffer", "Initialize monitor…"]);
-    // Initialize asks first: it resets the interface for every program.
-    [...more("filewriter").querySelectorAll("button")].find((b) => b.textContent === "Initialize file writer…").click();
-    expect(elements.confirm.hidden).toBe(false);
-    expect(elements.confirmText.textContent).toBe(EN["detector.confirm.initialize_filewriter"]);
+    expect([...more("monitor").querySelectorAll(".detector-output-commands button")].map((b) => b.textContent)).toEqual(["Clear buffer", "Initialize monitor"]);
+    // Initialize runs at once, its progress beside it: no question at the top.
+    [...more("filewriter").querySelectorAll("button")].find((b) => b.textContent === "Initialize file writer").click();
+    expect(elements.confirm.hidden).toBe(true);
+    expect(elements.logHost.textContent).toContain("filewriter initialize sent");
     // The open state is remembered.
     more("stream").open = true;
     more("stream").dispatchEvent(new Event("toggle"));
@@ -1019,7 +1059,7 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
   });
 
   // A small detector: settings it stores, commands it runs at once.
-  function fakeDetector({ triggerRuns = false } = {}) {
+  function fakeDetector({ triggerRuns = false, fail = "" } = {}) {
     const store = structuredClone(DESCRIPTORS);
     store.filewriter.mode.value = "enabled";
     store.detector.nimages.value = 10;
@@ -1052,6 +1092,10 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
           state = "idle";
           job = { subsystem: "detector", command: "trigger", running: false, ok: true };
           return { ok: true, json: async () => ({ ok: true }) };
+        }
+        if (body.command === fail) {
+          job = { subsystem: body.subsystem, command: body.command, running: false, ok: false, error: { detector_message: "not supported here" } };
+          return { ok: true, json: async () => ({ ...job, running: true }) };
         }
         job = { subsystem: "detector", command: body.command, running: false, ok: true, result: body.command === "arm" ? { "sequence id": 7 } : null };
         return { ok: true, json: async () => ({ ...job, running: true }) };
@@ -1215,6 +1259,43 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     expect(fake.calls).not.toContain("command trigger");
     // What it had changed is put back.
     expect(fake.store.detector.frame_time.value).toBe(0.01);
+  });
+
+  it("shows a command's progress where it was clicked: busy, then done or why not", async () => {
+    const fake = fakeDetector({ fail: "initialize" });
+    fake.store.monitor.mode.value = "enabled";
+    const { elements } = await panel(fake);
+    const monitor = () => elements.outputsHost.querySelector('[data-output="monitor"]');
+    const button = (label) => [...monitor().querySelectorAll(".detector-output-commands button")].find((b) => b.textContent === label);
+    const note = () => monitor().querySelector(".detector-feedback");
+    button("Clear buffer").click();
+    // At once: a spinner on the button, and what is going on beside it.
+    expect(button("Clear buffer").disabled).toBe(true);
+    expect(button("Clear buffer").classList.contains("is-busy")).toBe(true);
+    expect(note().textContent).toBe("Working…");
+    await vi.waitFor(() => expect(note().textContent).toBe("✓ Done"), { timeout: 4000 });
+    expect(button("Clear buffer").disabled).toBe(false);
+    // A refusal stays, with the detector's reason, until the next try.
+    button("Initialize monitor").click();
+    await vi.waitFor(() => expect(note().dataset.state).toBe("error"), { timeout: 4000 });
+    expect(note().textContent).toContain("not supported here");
+  });
+
+  it("deletes the files on a second click on the same button", async () => {
+    const fake = fakeDetector();
+    const { controller, elements } = await panel(fake);
+    controller._setFiles([{ name: "series_1_master.h5", size: 1000 }]);
+    const del = () => [...elements.filesHost.querySelectorAll("button")].find((b) => b.classList.contains("is-danger"));
+    const note = () => elements.filesHost.querySelector(".detector-feedback");
+    del().click();
+    // Armed: red, and the note says what the next click does; nothing sent.
+    expect(del().classList.contains("is-armed")).toBe(true);
+    expect(note().textContent).toBe("Click again to delete 1 file");
+    expect(fake.calls).not.toContain("command clear");
+    expect(elements.confirm.hidden).toBe(true);
+    del().click();
+    await vi.waitFor(() => expect(fake.calls).toContain("command clear"));
+    await vi.waitFor(() => expect(note().textContent).toBe("✓ Done"), { timeout: 4000 });
   });
 
   it("says a stopped series stopped, not how many images it was set to", async () => {

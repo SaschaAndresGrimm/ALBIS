@@ -7257,6 +7257,73 @@ button.browse-details-header-cell[aria-sort="descending"] {
   white-space: nowrap;
 }
 
+/* A command running: a spinner in place of the label, the button disabled
+   and exactly as wide as before, so nothing beside it moves. The note
+   beside the row says "Working…". */
+.btn.is-busy {
+  position: relative;
+  color: transparent !important;
+}
+
+.btn.is-busy::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid var(--muted-strong);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: detector-spin 0.8s linear infinite;
+}
+
+@keyframes detector-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.is-busy::before {
+    animation: none;
+    border-right-color: var(--muted-strong);
+    opacity: 0.6;
+  }
+}
+
+/* Beside a row of commands: working, done for a moment, or why it failed. */
+.detector-feedback {
+  align-self: center;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.detector-feedback:empty {
+  display: none;
+}
+
+.detector-feedback[data-state="done"] {
+  color: #4fd18b;
+}
+
+.detector-feedback[data-state="error"] {
+  color: #ff8f8f;
+}
+
+/* Delete all files, armed by a first click: solid red until the second
+   click or a few seconds pass; the note beside it says "Click again…". */
+.btn.is-danger.is-armed {
+  border-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.35);
+  color: #fff;
+}
+
+.detector-feedback[data-state="armed"] {
+  color: #ffb4b4;
+}
+
 .detector-output-commands .btn.is-danger {
   border-color: rgba(255, 107, 107, 0.55);
   color: #ffb4b4;

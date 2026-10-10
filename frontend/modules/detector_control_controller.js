@@ -771,10 +771,18 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }, isBusy() || acquiring ? POLL_ACTIVE_MS : POLL_IDLE_MS);
   }
 
+  // Counts writes started and finished. A status answer whose request
+  // overlapped a write may predate it: taken as news, a switch just flipped
+  // on would read as "changed by another program" and show as off.
+  let writeSeq = 0;
+
   async function poll() {
     if (!enabled || !url) return;
     try {
+      const seq = writeSeq;
       const next = await request(`/detector/status?${query()}`);
+      // The next round brings the state after the write.
+      if (seq !== writeSeq) return;
       const before = detectorState();
       status = next;
       noticeExternalChanges();
@@ -865,6 +873,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const job = await runCommand("detector", "initialize", 260000);
     if (job?.ok) await refreshDescription();
     await poll();
+    return job;
   }
 
   // ---------- recovery ----------
@@ -872,12 +881,81 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // everyday ones: each is offered next to what it fixes when the detector
   // reports that problem, always behind a confirmation that says what it does,
   // and all three together under Advanced -> Troubleshooting.
-  function askInitialize() {
-    ask(t("detector.confirm.initialize"), t("detector.action.initialize"), t("detector.action.cancel"), initialize);
+  // ---------- command feedback ----------
+  // What a command button started, shown where it was clicked: a spinner on
+  // the button while it runs, then "Done" for a moment or why it failed until
+  // the next try. Kept here, not on the button: a re-render can replace the
+  // button while its command is still running.
+  const FEEDBACK_DONE_MS = 4000;
+  const feedback = {};
+  // Order of the commands' starts: a row's note speaks for its latest.
+  let feedbackSeq = 0;
+
+  function renderFeedback() {
+    renderOutputs();
+    renderTroubleshooting();
   }
 
-  function askResetStream() {
-    ask(t("detector.confirm.reset_stream"), t("detector.confirm.reset"), t("detector.action.cancel"), async () => {
+  async function track(id, work) {
+    feedbackSeq += 1;
+    const seq = feedbackSeq;
+    feedback[id] = { state: "busy", seq };
+    renderFeedback();
+    try {
+      const job = await work();
+      feedback[id] = job && job.ok === false ? { state: "error", text: reason(job.error) || "", seq } : { state: "done", seq };
+    } catch (err) {
+      feedback[id] = { state: "error", text: err.message || "", seq };
+    }
+    renderFeedback();
+    if (feedback[id].state === "done") {
+      window.setTimeout(() => {
+        if (feedback[id]?.state !== "done") return;
+        delete feedback[id];
+        renderFeedback();
+      }, FEEDBACK_DONE_MS);
+    }
+  }
+
+  // A button that shows its command's state.
+  function commandButton(id, label, onClick, { title = "", danger = false } = {}) {
+    const button = el("button", `btn btn-secondary${danger ? " is-danger" : ""}`, label);
+    button.type = "button";
+    button.dataset.command = id;
+    if (title) button.title = title;
+    if (feedback[id]?.state === "busy") {
+      button.disabled = true;
+      button.classList.add("is-busy");
+      button.setAttribute("aria-busy", "true");
+    }
+    if (feedback[id]?.state === "armed") button.classList.add("is-armed");
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  // Beside a row of command buttons: what the latest of them did.
+  function feedbackNote(ids) {
+    const note = el("span", "detector-feedback");
+    note.setAttribute("role", "status");
+    const entry = ids.map((each) => feedback[each]).filter(Boolean).sort((a, b) => b.seq - a.seq)[0] || null;
+    if (entry?.state === "busy") note.textContent = t("detector.feedback.working");
+    else if (entry?.state === "done") note.textContent = `✓ ${t("detector.feedback.done")}`;
+    else if (entry?.state === "error") note.textContent = `✗ ${entry.text || t("simplon.probe.request_failed")}`;
+    else if (entry?.state === "armed") note.textContent = deleteArmedText();
+    if (entry) note.dataset.state = entry.state;
+    return note;
+  }
+
+  // The recovery commands run at once, with their progress beside the
+  // button: no question at the top of the tab, far from where they were
+  // clicked. Only deleting the files, which cannot be undone, takes a second
+  // click on the same spot (see deleteFiles).
+  function reinitialize() {
+    void track("detector.initialize", initialize);
+  }
+
+  function resetStream() {
+    void track("stream.initialize", async () => {
       const job = await runCommand("stream", "initialize", 60000);
       if (job?.ok) {
         log(t("detector.log.stream_reset"));
@@ -886,20 +964,39 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         lastModes = { ...(lastModes || {}), stream: mode || lastModes?.stream };
       }
       await poll();
+      return job;
     });
   }
 
-  function askDeleteFiles() {
-    const size = files.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
-    const text = files.length
-      ? t("detector.confirm.delete_files", { count: files.length, size: formatBytes(size) })
-      : t("detector.confirm.delete_unlisted");
-    ask(text, t("detector.confirm.delete"), t("detector.action.cancel"), async () => {
+  // The first click arms it for a few seconds ("Click again to delete 35
+  // files"), the second deletes: the one command that loses data.
+  const DELETE_ARMED_MS = 4000;
+
+  function deleteFiles() {
+    const id = "filewriter.clear";
+    if (feedback[id]?.state !== "armed") {
+      feedbackSeq += 1;
+      const seq = feedbackSeq;
+      feedback[id] = { state: "armed", seq };
+      renderFeedback();
+      window.setTimeout(() => {
+        if (feedback[id]?.seq !== seq || feedback[id].state !== "armed") return;
+        delete feedback[id];
+        renderFeedback();
+      }, DELETE_ARMED_MS);
+      return;
+    }
+    void track(id, async () => {
       const job = await runCommand("filewriter", "clear", 60000);
       if (job?.ok) log(t("detector.log.files_deleted"));
       await refreshFiles();
       await poll();
+      return job;
     });
+  }
+
+  function deleteArmedText() {
+    return files.length ? t("detector.action.delete_again", { count: files.length }) : t("detector.action.delete_again_unlisted");
   }
 
   function storageLow() {
@@ -932,7 +1029,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       text = t("detector.recover.high_voltage", { state: hv });
     }
     if (!text) return;
-    const button = recoveryButton(t("detector.action.reinitialize"), askInitialize);
+    const button = recoveryButton(t("detector.action.reinitialize"), reinitialize);
     const note = el("div", "detector-warning is-caution", text);
     note.append(" ", button);
     recoverHost.append(note);
@@ -1623,6 +1720,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
   async function sendParam(subsystem, key, value, input, hint, row, { quiet = false } = {}) {
     row.classList.add("is-pending");
+    writeSeq += 1;
     try {
       const result = await request("/detector/config", {
         method: "PUT",
@@ -1665,6 +1763,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       hint.className = "detector-hint is-error";
       input.value = displayValue(params[subsystem]?.[key]);
     } finally {
+      writeSeq += 1;
       row.classList.remove("is-pending");
     }
   }
@@ -1891,7 +1990,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         if (name === "stream") block.append(...streamNotes());
         if (name === "filewriter" && storageLow()) {
           const warning = el("div", "detector-warning", t("detector.output.storage_low"));
-          warning.append(" ", recoveryButton(t("detector.action.delete_files"), askDeleteFiles));
+          const armed = feedback["filewriter.clear"]?.state === "armed";
+          warning.append(" ", recoveryButton(armed ? deleteArmedText() : t("detector.action.delete_files"), deleteFiles));
           block.append(warning);
         }
       }
@@ -1975,7 +2075,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }
     if (String(status?.stream?.state || "") === "error") {
       const warning = el("div", "detector-warning", t("detector.output.stream_error"));
-      warning.append(" ", recoveryButton(t("detector.action.reset_stream"), askResetStream));
+      warning.append(" ", recoveryButton(t("detector.action.reset_stream"), resetStream));
       out.push(warning);
     }
     return out;
@@ -1993,19 +2093,18 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       rows.push(paramRow(name, key, params[name][key]));
     }
     const commands = el("div", "detector-output-commands");
-    const command = (label, title, onClick) => {
-      const button = el("button", "btn btn-secondary", label);
-      button.type = "button";
-      if (title) button.title = title;
-      button.addEventListener("click", onClick);
-      commands.append(button);
+    const ids = [];
+    const command = (id, label, title, onClick) => {
+      ids.push(id);
+      commands.append(commandButton(id, label, onClick, { title }));
     };
-    if (name === "filewriter") command(t("detector.action.initialize_filewriter"), t("detector.fix.initialize_filewriter"), () => askInitializeOutput("filewriter"));
-    if (name === "stream") command(t("detector.action.reset_stream"), t("detector.fix.stream"), askResetStream);
+    if (name === "filewriter") command("filewriter.initialize", t("detector.action.initialize_filewriter"), t("detector.fix.initialize_filewriter"), () => initializeOutput("filewriter"));
+    if (name === "stream") command("stream.initialize", t("detector.action.reset_stream"), t("detector.fix.stream"), resetStream);
     if (name === "monitor") {
-      command(t("detector.action.clear_monitor"), t("detector.fix.clear_monitor"), () => void clearMonitor());
-      command(t("detector.action.initialize_monitor"), t("detector.fix.initialize_monitor"), () => askInitializeOutput("monitor"));
+      command("monitor.clear", t("detector.action.clear_monitor"), t("detector.fix.clear_monitor"), clearMonitor);
+      command("monitor.initialize", t("detector.action.initialize_monitor"), t("detector.fix.initialize_monitor"), () => initializeOutput("monitor"));
     }
+    commands.append(feedbackNote(ids));
     return disclosure(`more.${name}`, t("detector.output.more"), [...rows, commands]);
   }
 
@@ -2022,20 +2121,25 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return box;
   }
 
-  // Initialize resets an interface any other program may be using too: asked
-  // first, and the settings re-read afterwards, since they may have changed.
-  function askInitializeOutput(name) {
-    ask(t(`detector.confirm.initialize_${name}`), t("detector.action.initialize"), t("detector.action.cancel"), async () => {
+  // Initialize resets an interface any other program may be using too, as
+  // its tooltip says; the settings are re-read afterwards, since they may
+  // have changed.
+  function initializeOutput(name) {
+    void track(`${name}.initialize`, async () => {
       const job = await runCommand(name, "initialize", 60000);
       if (job?.ok) await refreshDescription();
       await poll();
+      return job;
     });
   }
 
   // Emptying the monitor's buffer loses nothing that is saved: no question.
-  async function clearMonitor() {
-    await runCommand("monitor", "clear", 30000);
-    await poll();
+  function clearMonitor() {
+    void track("monitor.clear", async () => {
+      const job = await runCommand("monitor", "clear", 30000);
+      await poll();
+      return job;
+    });
   }
 
   async function setMode(name, value) {
@@ -2068,16 +2172,21 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     if (!filesHost) return;
     filesHost.replaceChildren();
     if (!params.filewriter?.mode) return;
-    const refresh = el("button", "btn btn-secondary", t("detector.action.refresh_files"));
-    refresh.type = "button";
-    refresh.addEventListener("click", () => void refreshFiles());
+    const refreshTracked = () => void track("files.refresh", async () => {
+      await refreshFiles();
+      return { ok: !filesError, error: filesError };
+    });
+    const refresh = commandButton("files.refresh", t("detector.action.refresh_files"), refreshTracked);
     if (!filesError && !files.length) {
       // Nothing to list: one line, no section to open.
       const link = el("button", "linkish", t("detector.action.refresh_files"));
       link.type = "button";
-      link.addEventListener("click", () => void refreshFiles());
+      link.addEventListener("click", refreshTracked);
       const line = el("div", "detector-meta detector-files-line", t("detector.files.none_inline"));
       line.append(" · ", link);
+      // Also where "Done" lands after deleting them all.
+      const note = feedbackNote(["files.refresh", "filewriter.clear"]);
+      if (note.dataset.state) line.append(" ", note);
       filesHost.append(line);
       return;
     }
@@ -2100,13 +2209,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     }
     const actions = el("div", "detector-output-commands");
     actions.append(refresh);
-    if (files.length) {
-      const clear = el("button", "btn btn-secondary is-danger", t("detector.action.delete_files"));
-      clear.type = "button";
-      clear.title = t("detector.fix.files");
-      clear.addEventListener("click", askDeleteFiles);
-      actions.append(clear);
-    }
+    if (files.length) actions.append(commandButton("filewriter.clear", t("detector.action.delete_files"), deleteFiles, { title: t("detector.fix.files"), danger: true }));
+    actions.append(feedbackNote(["files.refresh", "filewriter.clear"]));
     children.push(actions);
     const title = filesError ? t("detector.files.title") : t("detector.files.summary", { count: files.length });
     filesHost.append(disclosure("files", title, children, "detector-files-section"));
@@ -2238,29 +2342,60 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const box = el("div", "detector-fixes");
     // The detector's own recovery; resetting the stream and deleting the
     // files live with their outputs in Data output.
-    const items = [[t("detector.action.reinitialize"), t("detector.fix.initialize"), askInitialize]];
-    for (const [label, text, onClick] of items) {
-      const row = el("div", "detector-fix");
-      const button = el("button", "btn btn-secondary", label);
-      button.type = "button";
-      if (onClick === askDeleteFiles) button.classList.add("is-danger");
-      button.addEventListener("click", onClick);
-      row.append(button, el("p", "detector-note", text));
-      box.append(row);
-    }
+    const row = el("div", "detector-fix");
+    const note = el("p", "detector-note", t("detector.fix.initialize"));
+    const status = feedbackNote(["detector.initialize"]);
+    if (status.dataset.state) note.append(" ", status);
+    row.append(commandButton("detector.initialize", t("detector.action.reinitialize"), reinitialize), note);
+    box.append(row);
     troubleshootingHost.append(box);
   }
 
+  // Advanced's commands are fixed buttons: each shows its own spinner while
+  // it runs, and one note after the row says how the last one went.
   function bindCommands() {
-    commandsHost?.querySelectorAll("[data-detector-command]").forEach((button) => {
-      button.addEventListener("click", () => {
+    if (!commandsHost) return;
+    const note = el("span", "detector-feedback");
+    note.setAttribute("role", "status");
+    commandsHost.append(note);
+    let doneTimer = null;
+    const show = (state, text) => {
+      window.clearTimeout(doneTimer);
+      note.dataset.state = state;
+      note.textContent = text;
+      if (state === "done") {
+        doneTimer = window.setTimeout(() => {
+          note.textContent = "";
+          delete note.dataset.state;
+        }, FEEDBACK_DONE_MS);
+      }
+    };
+    commandsHost.querySelectorAll("[data-detector-command]").forEach((button) => {
+      button.addEventListener("click", async () => {
         const command = button.dataset.detectorCommand;
-        if (command === "refresh") {
-          void refreshDescription().then(() => log(t("detector.log.reread")));
-        } else if (command === "trigger") {
-          void trigger();
-        } else {
-          void runCommand("detector", command, 130000).then(() => poll());
+        button.disabled = true;
+        button.classList.add("is-busy");
+        button.setAttribute("aria-busy", "true");
+        show("busy", t("detector.feedback.working"));
+        let job = null;
+        try {
+          if (command === "refresh") {
+            await refreshDescription();
+            log(t("detector.log.reread"));
+          } else if (command === "trigger") {
+            await trigger();
+          } else {
+            job = await runCommand("detector", command, 130000);
+            await poll();
+          }
+          if (job && job.ok === false) show("error", `✗ ${reason(job.error) || t("simplon.probe.request_failed")}`);
+          else show("done", `✓ ${t("detector.feedback.done")}`);
+        } catch (err) {
+          show("error", `✗ ${err.message || t("simplon.probe.request_failed")}`);
+        } finally {
+          button.disabled = false;
+          button.classList.remove("is-busy");
+          button.removeAttribute("aria-busy");
         }
       });
     });
