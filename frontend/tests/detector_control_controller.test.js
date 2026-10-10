@@ -698,12 +698,32 @@ describe("detector control panel, explanations", () => {
     const incident = elements.advancedHost.querySelector('[data-key="detector:incident_energy"]');
     expect(incident.querySelector("code")).toBeNull();
     expect(incident.querySelector(".info-tip").dataset.infoKey).toBe("detector.help.incident_energy");
-    // ...and the others, mostly untranslated, show the key as their name.
-    expect(elements.advancedHost.querySelector('[data-key="detector:countrate_correction_applied"] label').textContent).toBe("countrate_correction_applied");
-    // Thresholds share one explanation.
+    // ...and the others show the key as their name, with a "?" at the right
+    // like the main view: what it does where known, else its SIMPLON path.
+    const countrate = elements.advancedHost.querySelector('[data-key="detector:countrate_correction_applied"]');
+    expect(countrate.querySelector("label").textContent).toBe("countrate_correction_applied");
+    expect(countrate.classList.contains("has-tip")).toBe(true);
+    expect(countrate.querySelector(".detector-tip .info-tip").dataset.infoKey).toBe("detector.help.adv.countrate_correction");
+    const settings = [...elements.advancedHost.querySelectorAll(".detector-adv-group:not(.is-info) .detector-param")];
+    for (const row of settings) expect(EN[row.querySelector(".detector-tip .info-tip")?.dataset.infoKey], row.dataset.key).toBeTruthy();
+    // The information table stays a dense table.
+    expect(elements.advancedHost.querySelector(".is-info .info-tip")).toBeNull();
+    // Thresholds share one explanation; goniometer axes too; the unknown get the generic one.
     expect(mod.helpKey("detector", "threshold/3/energy")).toBe("detector.help.threshold_energy");
     expect(mod.helpKey("detector", "threshold/2/mode")).toBe("detector.help.threshold_mode");
-    expect(mod.helpKey("detector", "flatfield_correction_applied")).toBe("");
+    expect(mod.helpKey("detector", "flatfield_correction_applied")).toBe("detector.help.adv.flatfield");
+    expect(mod.helpKey("detector", "omega_increment")).toBe("detector.help.adv.goniometer_increment");
+    expect(mod.helpKey("detector", "auto_sum_strict")).toBe("");
+  });
+
+  it("puts counting_mode with the corrections", async () => {
+    const { controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    params.detector.counting_mode = { value: "retrigger", value_type: "string", access_mode: "rw", allowed_values: ["normal", "retrigger"] };
+    controller._setParams(params);
+    controller._renderAll();
+    const row = elements.advancedHost.querySelector('[data-key="detector:counting_mode"]');
+    expect(row.closest(".detector-adv-group").querySelector(".detector-group-label").textContent).toBe("Corrections");
   });
 });
 

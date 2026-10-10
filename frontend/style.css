@@ -7334,6 +7334,12 @@ button.browse-details-header-cell[aria-sort="descending"] {
   grid-template-columns: minmax(0, 1fr) minmax(0, 200px);
 }
 
+/* With the "?" right of the field, as in Acquisition. */
+.detector-adv-group .detector-param.has-tip {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 200px) 16px;
+  column-gap: 6px;
+}
+
 /* Detector information is reference: a dense table, in two columns when the
    panel is wide enough. */
 .detector-adv-group.is-info {

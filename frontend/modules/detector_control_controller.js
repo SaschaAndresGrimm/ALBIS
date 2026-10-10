@@ -170,8 +170,41 @@ export function helpKey(subsystem, key) {
   if (subsystem === "detector" && /^threshold\/\d\/energy$/.test(key)) return "detector.help.threshold_energy";
   if (subsystem === "detector" && /^threshold\/\d\/mode$/.test(key)) return "detector.help.threshold_mode";
   const id = PARAM_HELP[`${subsystem}:${key}`];
-  return id ? `detector.help.${id}` : "";
+  if (id) return `detector.help.${id}`;
+  if (subsystem === "detector") {
+    const known = ADVANCED_HELP.find(([pattern]) => pattern.test(key));
+    if (known) return `detector.help.adv.${known[1]}`;
+  }
+  return "";
 }
+
+// Advanced's settings, from the SIMPLON reference, where what they do can be
+// said in a sentence. The rest get a "?" with their SIMPLON path and range
+// (detector.help.adv.generic) rather than a guess.
+const ADVANCED_HELP = [
+  [/^auto_summation$/, "auto_summation"],
+  [/^countrate_correction_applied$/, "countrate_correction"],
+  [/^flatfield_correction_applied$/, "flatfield"],
+  [/^mask_to_zero$/, "mask_to_zero"],
+  [/^pixel_mask_applied$/, "pixel_mask"],
+  [/^virtual_pixel_correction_applied$/, "virtual_pixel"],
+  [/^counting_mode$/, "counting_mode"],
+  [/^nexpi$/, "nexpi"],
+  [/^roi_mode$/, "roi_mode"],
+  [/^trigger_start_delay$/, "trigger_start_delay"],
+  [/^test_image_mode$/, "test_image_mode"],
+  [/^test_image_value$/, "test_image_value"],
+  [/^beam_center_[xy]$/, "beam_center"],
+  [/^detector_distance$/, "detector_distance"],
+  [/^wavelength$/, "wavelength"],
+  [/^element$/, "element"],
+  [/^(chi|kappa|omega|phi|two_theta)_start$/, "goniometer_start"],
+  [/^(chi|kappa|omega|phi|two_theta)_increment$/, "goniometer_increment"],
+  [/^(chi|kappa|omega|phi|two_theta)_axis$/, "goniometer_axis"],
+  [/^(sample_name|source_name|instrument_name)$/, "metadata_name"],
+  [/^(detector_orientation|detector_orientation_angle|detector_orientation_axis|detector_translation|transformation_order)$/, "geometry"],
+  [/^flux_(type|value)$/, "flux"],
+];
 
 const OUTPUT_MAIN = {
   filewriter: ["name_pattern", "nimages_per_file"],
@@ -1576,14 +1609,13 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // a translated name, show the key itself.
   function paramRow(subsystem, key, descriptor, options = {}) {
     const row = buildParamRow(subsystem, key, descriptor, options);
-    return options.inline ? row : tipRight(row);
+    return options.info ? row : tipRight(row);
   }
 
-  // In the main view the "?" has a column of its own right of the field: one
-  // aligned column down the section, whatever the length of the names. Rows
-  // without one keep the column, empty, so the fields line up all the same.
-  // Advanced keeps it beside the name: its rows show SIMPLON keys, mostly
-  // without a "?".
+  // The "?" has a column of its own right of the field: one aligned column
+  // down the section, whatever the length of the names, in Advanced too.
+  // Rows without one keep the column, empty, so the fields line up all the
+  // same. Advanced's Detector information is a dense table: no "?".
   function tipRight(row) {
     const value = row.querySelector(":scope > .detector-field, :scope > .detector-readonly");
     if (!value) return row;
@@ -1595,7 +1627,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return row;
   }
 
-  function buildParamRow(subsystem, key, descriptor, { help: helpOverride = "", alsoKeys = [], inline = false } = {}) {
+  function buildParamRow(subsystem, key, descriptor, { help: helpOverride = "", alsoKeys = [], inline = false, info = false } = {}) {
     const row = el("div", "detector-param");
     row.dataset.key = `${subsystem}:${key}`;
     const id = `detector-p-${subsystem}-${key.replace(/[^a-z0-9]/gi, "_")}`;
@@ -1603,7 +1635,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     const labelText = labelFor(subsystem, key);
     const label = el("label", "", labelText);
     label.htmlFor = id;
-    const help = helpOverride || helpKey(subsystem, key);
+    // Every setting has a "?": what it does where known, else its SIMPLON
+    // path and range. Not the information table.
+    const help = helpOverride || helpKey(subsystem, key) || (info ? "" : "detector.help.adv.generic");
     if (help) {
       const line = el("span", "detector-param-label");
       // The range is in the "?" too, since the row shows it only while editing.
@@ -2242,9 +2276,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // the data interfaces by name, then read-only information. A filter narrows
   // the list as you type.
   const ADVANCED_GROUPS = [
-    ["corrections", /correction|mask|auto_sum|virtual_pixel/],
-    ["readout", /bit_depth|roi_|binning|compression|pixel_format|counting_mode|extg|nexpi|ntriggers_skipped|trigger_start_delay|sensor_movement|threshold\//],
-    ["geometry", /beam_center|distance|orientation|_start$|_increment$|sample_name|source_name|instrument_name|element|flux|wavelength|energy/],
+    // Counting mode decides what a pixel counts, as the corrections do.
+    ["corrections", /correction|mask|auto_sum|virtual_pixel|counting_mode/],
+    ["readout", /bit_depth|roi_|binning|compression|pixel_format|extg|nexpi|ntriggers_skipped|trigger_start_delay|sensor_movement|fast_arm|threshold\//],
+    ["geometry", /beam_center|distance|orientation|translation|transformation|_start$|_increment$|_axis$|sample_name|source_name|instrument_name|element|flux|wavelength|energy/],
     ["test", /^test_image/],
   ];
   let advancedFilter = "";
@@ -2288,7 +2323,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       addGroup(t(`detector.advanced.group.${id}`), keys.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })));
     }
     // Reference, not settings: a dense table, two columns when there is room.
-    addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })))?.classList.add("is-info");
+    addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true, info: true })))?.classList.add("is-info");
     const empty = el("p", "detector-note", t("detector.advanced.no_match"));
     advancedHost.append(empty);
 
