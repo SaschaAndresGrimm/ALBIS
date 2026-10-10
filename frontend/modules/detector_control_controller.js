@@ -70,6 +70,28 @@ function readQuick() {
   }
 }
 
+// Which of Data output's closed sections are open: the files and each
+// output's other settings. Remembered per browser.
+const OPEN_KEY = "albis.detectorControl.open";
+
+function readOpen(id) {
+  try {
+    return Boolean(JSON.parse(window.localStorage?.getItem(OPEN_KEY) || "{}")?.[id]);
+  } catch {
+    return false;
+  }
+}
+
+function writeOpen(id, open) {
+  try {
+    const all = JSON.parse(window.localStorage?.getItem(OPEN_KEY) || "{}") || {};
+    all[id] = open;
+    window.localStorage?.setItem(OPEN_KEY, JSON.stringify(all));
+  } catch {
+    // A remembered preference only.
+  }
+}
+
 function writeQuick(values) {
   try {
     window.localStorage?.setItem(QUICK_KEY, JSON.stringify(values));
@@ -97,6 +119,14 @@ const PARAM_HELP = {
   "filewriter:name_pattern": "name_pattern",
   "filewriter:nimages_per_file": "nimages_per_file",
   "stream:header_detail": "header_detail",
+  // In Data output's More settings.
+  "detector:compression": "compression",
+  "filewriter:compression_enabled": "compression_enabled",
+  "stream:format": "stream_format",
+  "stream:header_appendix": "header_appendix",
+  "stream:image_appendix": "image_appendix",
+  "monitor:buffer_size": "buffer_size",
+  "monitor:discard_new": "discard_new",
 };
 
 /**
@@ -191,6 +221,13 @@ const LABELLED_PARAMS = new Set([
   "name_pattern",
   "nimages_per_file",
   "header_detail",
+  "compression",
+  "compression_enabled",
+  "format",
+  "header_appendix",
+  "image_appendix",
+  "buffer_size",
+  "discard_new",
 ]);
 const STATE_TEXTS = new Set(["na", "configure", "acquire", "test", "error"]);
 const OUTPUT_STATES = new Set(["disabled", "ready", "acquire", "error", "normal", "overflow"]);
@@ -745,7 +782,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       // only now are the parameters readable.
       if (before === "na" && detectorState() !== "na") await refreshDescription();
       renderState();
-      renderOutputs();
+      renderOutputs({ fromPoll: true });
     } catch (err) {
       if (stateText) stateText.textContent = err.message;
       if (statePill) {
@@ -1819,74 +1856,50 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return { tone, text };
   }
 
-  function renderOutputs() {
+  // What Data output shows, to skip a poll's re-render when nothing in it
+  // changed: a rebuild would pull a field from under the cursor.
+  let outputsKey = "";
+
+  function renderOutputs({ fromPoll = false } = {}) {
     if (!outputsHost) return;
-    outputsHost.replaceChildren();
-    const fw = params.filewriter?.mode?.value;
-    const st = params.stream?.mode?.value;
-    if (params.filewriter?.mode || params.stream?.mode) {
-      if (fw !== "enabled" && st !== "enabled") {
-        outputsHost.append(el("p", "detector-warning", t("detector.output.nothing_saved")));
-      }
+    const key = JSON.stringify([
+      ["filewriter", "stream", "monitor"].map((name) => [params[name], status?.[name]]),
+      params.detector.compression,
+      series,
+      storageLow(),
+    ]);
+    if (fromPoll) {
+      if (key === outputsKey) return;
+      // Typing in a field: the next poll after it is left catches up.
+      if (outputsHost.contains(document.activeElement) && document.activeElement.matches?.("input, select")) return;
     }
+    outputsKey = key;
+    outputsHost.replaceChildren();
     for (const name of ["filewriter", "stream", "monitor"]) {
       const mode = params[name]?.mode;
       if (!mode) continue;
+      const on = mode.value === "enabled";
       const block = el("div", "detector-output");
-      const head = el("div", "detector-output-head");
-      const switchLabel = el("label", "detector-switch");
-      const toggle = el("input");
-      toggle.type = "checkbox";
-      toggle.checked = mode.value === "enabled";
-      toggle.dataset.paramInput = "";
-      toggle.setAttribute("aria-label", t(`detector.output.${name}`));
-      switchLabel.append(toggle, el("span"));
-      const title = el("div", "detector-param-name");
-      const titleLine = el("span", "detector-param-label");
-      titleLine.append(el("strong", "", t(`detector.output.${name}`)), infoTip(`detector.help.output.${name}`, `${name}/config/mode`));
-      title.append(titleLine);
-      const state = outputState(name);
-      const dot = el("span", "detector-dot", state.text);
-      dot.dataset.tone = state.tone;
-      head.append(switchLabel, title, dot);
-      block.append(head);
-      toggle.addEventListener("change", () => {
-        const next = toggle.checked ? "enabled" : "disabled";
-        if (name === "stream" && next === "disabled") {
-          toggle.checked = true;
-          ask(t("detector.confirm.stream_off"), t("detector.confirm.turn_off"), t("detector.confirm.keep_on"), () => setMode(name, next));
-          return;
-        }
-        void setMode(name, next);
-      });
-      if (mode.value === "enabled") {
+      block.dataset.output = name;
+      block.append(outputHead(name, mode));
+      if (on) {
         for (const key of OUTPUT_MAIN[name]) {
-          if (params[name][key]) block.append(paramRow(name, key, params[name][key]));
+          if (!params[name][key]) continue;
+          block.append(paramRow(name, key, params[name][key]));
+          if (name === "filewriter" && key === "name_pattern") block.append(...nextFileNote());
         }
-        if (name === "filewriter") block.append(...fileWriterNotes());
-        if (name === "stream") {
-          // SIMPLON counts images nobody picked up and resets the count at
-          // each arm: with no receiver, a non-zero count is expected, not a
-          // fault -- the short line says what, its "?" why.
-          if (status?.stream?.dropped) {
-            const dropped = el("div", "detector-meta", t("detector.output.dropped", { count: status.stream.dropped }));
-            dropped.append(" ", infoTip("detector.help.dropped", "stream/status/dropped"));
-            block.append(dropped);
-          }
-          if (String(status?.stream?.state || "") === "error") {
-            const warning = el("div", "detector-warning", t("detector.output.stream_error"));
-            warning.append(" ", recoveryButton(t("detector.action.reset_stream"), askResetStream));
-            block.append(warning);
-          }
+        if (name === "stream") block.append(...streamNotes());
+        if (name === "filewriter" && storageLow()) {
+          const warning = el("div", "detector-warning", t("detector.output.storage_low"));
+          warning.append(" ", recoveryButton(t("detector.action.delete_files"), askDeleteFiles));
+          block.append(warning);
         }
       }
-      if (name === "monitor" && mode.value === "enabled") {
-        // In the header line: the monitor has no settings of its own here.
-        const watch = el("button", "linkish", t("detector.action.watch_live"));
-        watch.type = "button";
-        watch.addEventListener("click", () => watchLive?.(url, version));
-        dot.before(watch);
-        head.classList.add("has-action");
+      // The files stay listed with the writer off: they are still there.
+      if (name === "filewriter" && filesHost) block.append(filesHost);
+      if (on) {
+        const more = moreSettings(name);
+        if (more) block.append(more);
       }
       outputsHost.append(block);
     }
@@ -1895,44 +1908,134 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderState();
   }
 
-  // The file writer's facts on one line -- the next file, the free storage,
-  // the detector's data page -- and a warning of its own when one is needed.
-  function fileWriterNotes() {
-    const out = [];
-    const parts = [];
-    const pattern = String(params.filewriter.name_pattern?.value ?? "");
-    if (params.filewriter.name_pattern && !pattern.includes("$id")) {
-      out.push(el("div", "detector-warning", t("detector.output.no_id")));
-    } else if (params.filewriter.name_pattern) {
-      // The number is known only once a series was armed here; SIMPLON
-      // numbers them in turn. Until then $id stands in, as the "?" explains.
-      const known = series !== null && Number.isFinite(Number(series));
-      const next = known ? pattern.replace("$id", String(Number(series) + 1)) : pattern;
-      parts.push(el("span", "", t("detector.output.next_file", { name: `${next}_master.h5` })));
-    }
-    const free = status?.filewriter?.buffer_free;
-    if (free !== undefined && free !== null) parts.push(el("span", "", t("detector.output.free", { free: formatBytes(free) })));
+  // Switch, name and "?", the file writer's data page, and the state.
+  function outputHead(name, mode) {
+    const head = el("div", "detector-output-head");
+    const switchLabel = el("label", "detector-switch");
+    const toggle = el("input");
+    toggle.type = "checkbox";
+    toggle.checked = mode.value === "enabled";
+    toggle.dataset.paramInput = "";
+    toggle.setAttribute("aria-label", t(`detector.output.${name}`));
+    switchLabel.append(toggle, el("span"));
+    const title = el("div", "detector-param-name");
+    const titleLine = el("span", "detector-param-label");
+    titleLine.append(el("strong", "", t(`detector.output.${name}`)), infoTip(`detector.help.output.${name}`, `${name}/config/mode`));
+    title.append(titleLine);
+    const state = outputState(name);
+    const dot = el("span", "detector-dot", state.text);
+    dot.dataset.tone = state.tone;
+    head.append(switchLabel, title, dot);
     // The DCU serves the files it wrote at /data/ (SIMPLON reference), which
     // is also where its own web interface lists them. The address is typed
     // text: only an http(s) one becomes a link, never `javascript:` and the like.
-    const dataPage = detectorDataPage(url);
+    const dataPage = name === "filewriter" ? detectorDataPage(url) : "";
     if (dataPage) {
       const page = el("a", "linkish detector-external", t("detector.output.data_page_short"));
       page.href = dataPage;
       page.target = "_blank";
       page.rel = "noopener";
       page.title = t("detector.output.data_page");
-      parts.push(page);
+      dot.before(page);
+      head.classList.add("has-action");
     }
-    const line = el("div", "detector-meta");
-    parts.forEach((part, index) => line.append(...(index ? [" · ", part] : [part])));
-    out.unshift(line);
-    if (storageLow()) {
-      const warning = el("div", "detector-warning", t("detector.output.storage_low"));
-      warning.append(" ", recoveryButton(t("detector.action.delete_files"), askDeleteFiles));
+    toggle.addEventListener("change", () => {
+      const next = toggle.checked ? "enabled" : "disabled";
+      if (name === "stream" && next === "disabled") {
+        toggle.checked = true;
+        ask(t("detector.confirm.stream_off"), t("detector.confirm.turn_off"), t("detector.confirm.keep_on"), () => setMode(name, next));
+        return;
+      }
+      void setMode(name, next);
+    });
+    return head;
+  }
+
+  // Under the name pattern: the file the next series writes, or why the
+  // pattern overwrites. The number is known only once a series was armed
+  // here; SIMPLON numbers them in turn. Until then $id stands in, as the "?"
+  // explains.
+  function nextFileNote() {
+    const pattern = String(params.filewriter.name_pattern?.value ?? "");
+    if (!pattern.includes("$id")) return [el("div", "detector-warning", t("detector.output.no_id"))];
+    const known = series !== null && Number.isFinite(Number(series));
+    const next = known ? pattern.replace("$id", String(Number(series) + 1)) : pattern;
+    return [el("div", "detector-meta detector-output-note", t("detector.output.next_file", { name: `${next}_master.h5` }))];
+  }
+
+  function streamNotes() {
+    const out = [];
+    // SIMPLON counts images nobody picked up and resets the count at each
+    // arm: with no receiver, a non-zero count is expected, not a fault -- the
+    // short line says what, its "?" why.
+    if (status?.stream?.dropped) {
+      const dropped = el("div", "detector-meta detector-output-note", t("detector.output.dropped", { count: status.stream.dropped }));
+      dropped.append(" ", infoTip("detector.help.dropped", "stream/status/dropped"));
+      out.push(dropped);
+    }
+    if (String(status?.stream?.state || "") === "error") {
+      const warning = el("div", "detector-warning", t("detector.output.stream_error"));
+      warning.append(" ", recoveryButton(t("detector.action.reset_stream"), askResetStream));
       out.push(warning);
     }
     return out;
+  }
+
+  // Everything else the output has, closed until wanted: its other settings
+  // (for the file writer also the detector's compression, which the stream
+  // uses too) and its SIMPLON commands. One home each: Reset stream and
+  // Delete files are no longer in Troubleshooting.
+  function moreSettings(name) {
+    const rows = [];
+    if (name === "filewriter" && params.detector.compression) rows.push(paramRow("detector", "compression", params.detector.compression));
+    for (const key of Object.keys(params[name]).sort()) {
+      if (key === "mode" || OUTPUT_MAIN[name].includes(key)) continue;
+      rows.push(paramRow(name, key, params[name][key]));
+    }
+    const commands = el("div", "detector-output-commands");
+    const command = (label, title, onClick) => {
+      const button = el("button", "btn btn-secondary", label);
+      button.type = "button";
+      if (title) button.title = title;
+      button.addEventListener("click", onClick);
+      commands.append(button);
+    };
+    if (name === "filewriter") command(t("detector.action.initialize_filewriter"), t("detector.fix.initialize_filewriter"), () => askInitializeOutput("filewriter"));
+    if (name === "stream") command(t("detector.action.reset_stream"), t("detector.fix.stream"), askResetStream);
+    if (name === "monitor") {
+      command(t("detector.action.clear_monitor"), t("detector.fix.clear_monitor"), () => void clearMonitor());
+      command(t("detector.action.initialize_monitor"), t("detector.fix.initialize_monitor"), () => askInitializeOutput("monitor"));
+    }
+    return disclosure(`more.${name}`, t("detector.output.more"), [...rows, commands]);
+  }
+
+  // A closed section in Data output, its open state remembered per browser.
+  function disclosure(id, title, children, className = "") {
+    const box = el("details", `advanced-details detector-disclosure ${className}`.trim());
+    box.open = readOpen(id);
+    box.addEventListener("toggle", () => writeOpen(id, box.open));
+    const summary = el("summary");
+    summary.append(...[].concat(title));
+    const inner = el("div", "advanced-inner");
+    inner.append(...children);
+    box.append(summary, inner);
+    return box;
+  }
+
+  // Initialize resets an interface any other program may be using too: asked
+  // first, and the settings re-read afterwards, since they may have changed.
+  function askInitializeOutput(name) {
+    ask(t(`detector.confirm.initialize_${name}`), t("detector.action.initialize"), t("detector.action.cancel"), async () => {
+      const job = await runCommand(name, "initialize", 60000);
+      if (job?.ok) await refreshDescription();
+      await poll();
+    });
+  }
+
+  // Emptying the monitor's buffer loses nothing that is saved: no question.
+  async function clearMonitor() {
+    await runCommand("monitor", "clear", 30000);
+    await poll();
   }
 
   async function setMode(name, value) {
@@ -1959,42 +2062,54 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderFiles();
   }
 
+  // The file writer's files, in a closed section of its own: newest first,
+  // to download one by one, and Delete all files as a button.
   function renderFiles() {
     if (!filesHost) return;
     filesHost.replaceChildren();
     if (!params.filewriter?.mode) return;
-    const refresh = el("button", "linkish", t("detector.action.refresh_files"));
+    const refresh = el("button", "btn btn-secondary", t("detector.action.refresh_files"));
     refresh.type = "button";
     refresh.addEventListener("click", () => void refreshFiles());
     if (!filesError && !files.length) {
-      // Nothing to list: heading and "none" on one line.
+      // Nothing to list: one line, no section to open.
+      const link = el("button", "linkish", t("detector.action.refresh_files"));
+      link.type = "button";
+      link.addEventListener("click", () => void refreshFiles());
       const line = el("div", "detector-meta detector-files-line", t("detector.files.none_inline"));
-      line.append(" · ", refresh);
+      line.append(" · ", link);
       filesHost.append(line);
       return;
     }
-    const head = el("div", "detector-group-label", t("detector.files.title"));
-    head.append(" ", refresh);
-    filesHost.append(head);
+    const children = [];
     if (filesError) {
-      filesHost.append(el("p", "detector-warning", t("detector.files.error", { reason: filesError })));
-      return;
+      children.push(el("p", "detector-warning", t("detector.files.error", { reason: filesError })));
+    } else {
+      const list = el("ul", "detector-files");
+      for (const file of files.slice(-12).reverse()) {
+        const li = el("li");
+        const link = el("a", "", file.name);
+        link.href = `${apiBase}/detector/files/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(file.name)}`;
+        link.download = file.name.split("/").pop();
+        link.title = t("detector.action.download");
+        li.append(link, el("span", "", formatBytes(file.size)));
+        list.append(li);
+      }
+      children.push(list);
+      if (files.length > 12) children.push(el("p", "detector-note", t("detector.files.more", { count: files.length - 12 })));
     }
-    const list = el("ul", "detector-files");
-    for (const file of files.slice(-12).reverse()) {
-      const li = el("li");
-      const link = el("a", "", file.name);
-      link.href = `${apiBase}/detector/files/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(file.name)}`;
-      link.download = file.name.split("/").pop();
-      link.title = t("detector.action.download");
-      li.append(link, el("span", "", formatBytes(file.size)));
-      list.append(li);
+    const actions = el("div", "detector-output-commands");
+    actions.append(refresh);
+    if (files.length) {
+      const clear = el("button", "btn btn-secondary is-danger", t("detector.action.delete_files"));
+      clear.type = "button";
+      clear.title = t("detector.fix.files");
+      clear.addEventListener("click", askDeleteFiles);
+      actions.append(clear);
     }
-    filesHost.append(list);
-    if (files.length > 12) filesHost.append(el("p", "detector-note", t("detector.files.more", { count: files.length - 12 })));
-    const clear = recoveryButton(t("detector.action.delete_files"), askDeleteFiles);
-    clear.classList.add("is-danger");
-    filesHost.append(clear);
+    children.push(actions);
+    const title = filesError ? t("detector.files.title") : t("detector.files.summary", { count: files.length });
+    filesHost.append(disclosure("files", title, children, "detector-files-section"));
   }
 
   // ---------- advanced ----------
@@ -2022,6 +2137,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
     const shown = new Set(coreKeys());
     if (shown.has("threshold_energy")) shown.add("threshold/1/energy");
+    // With the file writer's settings in Data output, which the stream's
+    // compression follows too. The outputs' own settings are all there.
+    shown.add("compression");
     const buckets = new Map([...ADVANCED_GROUPS.map(([id]) => [id, []]), ["other", []]]);
     const info = [];
     for (const [key, descriptor] of Object.entries(params.detector)) {
@@ -2044,12 +2162,6 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     };
     for (const [id, keys] of buckets) {
       addGroup(t(`detector.advanced.group.${id}`), keys.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })));
-    }
-    for (const name of ["filewriter", "stream", "monitor"]) {
-      const rows = Object.entries(params[name] || {})
-        .filter(([key]) => key !== "mode" && !OUTPUT_MAIN[name].includes(key))
-        .map(([key, descriptor]) => paramRow(name, key, descriptor, { inline: true }));
-      addGroup(t(`detector.output.${name}`), rows);
     }
     // Reference, not settings: a dense table, two columns when there is room.
     addGroup(t("detector.advanced.info"), info.sort().map((key) => paramRow("detector", key, params.detector[key], { inline: true })))?.classList.add("is-info");
@@ -2124,9 +2236,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     if (!troubleshootingHost) return;
     troubleshootingHost.replaceChildren();
     const box = el("div", "detector-fixes");
+    // The detector's own recovery; resetting the stream and deleting the
+    // files live with their outputs in Data output.
     const items = [[t("detector.action.reinitialize"), t("detector.fix.initialize"), askInitialize]];
-    if (params.stream?.mode) items.push([t("detector.action.reset_stream"), t("detector.fix.stream"), askResetStream]);
-    if (params.filewriter?.mode) items.push([t("detector.action.delete_files"), t("detector.fix.files"), askDeleteFiles]);
     for (const [label, text, onClick] of items) {
       const row = el("div", "detector-fix");
       const button = el("button", "btn btn-secondary", label);
@@ -2226,6 +2338,15 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     },
     _setParams(next) {
       params = { detector: {}, monitor: {}, filewriter: {}, stream: {}, ...next };
+    },
+    _pollRender(next) {
+      status = next;
+      renderState();
+      renderOutputs({ fromPoll: true });
+    },
+    _setFiles(next) {
+      files = next;
+      renderFiles();
     },
   };
 }

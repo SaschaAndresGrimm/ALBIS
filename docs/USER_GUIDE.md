@@ -477,11 +477,17 @@ detector reports, so units, limits and choices are that detector's own:
   sets images per trigger to 1 for you): with **Internal, enable** you set each
   image's exposure next to **Trigger**; with **External, enable** the length of
   the trigger signal sets it.
-- **Data output** switches the file writer, stream and monitor, and lists the
-  files on the detector for download.
-- **Advanced** holds every other documented setting; **Troubleshooting** has
-  re-initialize, reset the stream and delete the files on the detector, each
-  behind a confirmation that says what it does.
+- **Data output** switches the file writer, stream and monitor, each with its
+  main settings (the file writer's name pattern, with the next file's name
+  under it). **Files on the detector** lists them for download, with **Delete
+  all files**, and each output's **More settings** holds the rest of its
+  settings and its commands: compression and **Initialize file writer**,
+  **Reset stream**, **Clear buffer** and **Initialize monitor**. Both stay
+  closed until you open them. Initialize resets the output for every program
+  using it, so it asks first; so does deleting the files.
+- **Advanced** holds the detector's other documented settings;
+  **Troubleshooting** re-initializes the detector, behind a confirmation that
+  says what it does.
 
 To try it without a detector, `python test_scripts/fake_simplon_dcu.py` runs a
 simulated one at `http://127.0.0.1:8100` (`--thresholds 4` for a

@@ -154,15 +154,16 @@ STATUS_KEYS: dict[str, tuple[str, ...]] = {
     "stream": ("state", "dropped"),
 }
 
-# Commands the panel may send. `initialize` of the monitor and file writer is
-# left out: it resets an interface another program may be using. The stream's
-# is in, as a recovery step -- it clears dropped images and errors -- but it
-# also switches the stream off, so it runs through `_reset_stream`, which puts
-# the stream back on when it was on.
+# Commands the panel may send. `initialize` of the monitor and file writer
+# resets an interface another program may be using: the panel offers it under
+# each output's More settings, behind a question that says so. The stream's is
+# a recovery step -- it clears dropped images and errors -- but it also
+# switches the stream off, so it runs through `_reset_stream`, which puts the
+# stream back on when it was on.
 COMMANDS: dict[str, tuple[str, ...]] = {
     "detector": ("initialize", "arm", "trigger", "disarm", "cancel", "abort"),
-    "filewriter": ("clear",),
-    "monitor": ("clear",),
+    "filewriter": ("clear", "initialize"),
+    "monitor": ("clear", "initialize"),
     "stream": ("initialize",),
 }
 # These interrupt a running command rather than wait behind it.

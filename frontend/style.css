@@ -7228,6 +7228,40 @@ button.browse-details-header-cell[aria-sort="descending"] {
   grid-template-columns: auto minmax(0, 1fr) auto auto;
 }
 
+/* Under the name pattern, the next file: tucked up to its field. */
+.detector-output .detector-output-note {
+  margin-top: -6px;
+}
+
+/* Data output's closed sections: the files, each output's More settings. */
+.detector-output .detector-disclosure > .advanced-inner {
+  padding-top: 8px;
+}
+
+.detector-output .detector-disclosure .detector-files {
+  margin: 0;
+}
+
+.detector-output .detector-disclosure .detector-note {
+  margin: 0;
+}
+
+/* An output's SIMPLON commands, and the files' Refresh and Delete. */
+.detector-output-commands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detector-output-commands .btn {
+  white-space: nowrap;
+}
+
+.detector-output-commands .btn.is-danger {
+  border-color: rgba(255, 107, 107, 0.55);
+  color: #ffb4b4;
+}
+
 /* Advanced: one line per setting, with room for longer choices. */
 .detector-adv-group .detector-param {
   grid-template-columns: minmax(0, 1fr) minmax(0, 200px);

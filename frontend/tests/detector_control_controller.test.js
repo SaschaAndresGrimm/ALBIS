@@ -222,9 +222,11 @@ describe("detector control panel", () => {
     expect(elements.paramsHost.querySelector("#detector-p-detector-nimages").disabled).toBe(true);
   });
 
-  it("warns when nothing will be saved", async () => {
-    const { elements } = await setup();
-    expect(elements.outputsHost.textContent).toContain(EN["detector.output.nothing_saved"]);
+  it("says nothing will be saved once, under Acquire, not again in Data output", async () => {
+    const { controller, elements } = await setup();
+    controller._setStatus({ detector: { state: "idle" } });
+    expect(elements.outputsHost.textContent).not.toContain(EN["detector.output.nothing_saved"]);
+    expect(elements.live.querySelector(".detector-preflight").textContent).toContain(EN["detector.output.nothing_saved"]);
   });
 });
 
@@ -448,16 +450,19 @@ describe("detector control panel, after the first hardware test", () => {
     });
     controller._renderAll();
     const headings = [...elements.advancedHost.querySelectorAll(".detector-group-label")].map((h) => h.textContent);
-    expect(headings).toEqual(expect.arrayContaining(["Corrections", "Test images", "File writer", "Stream", "Detector information"]));
+    expect(headings).toEqual(expect.arrayContaining(["Corrections", "Test images", "Detector information"]));
+    // The outputs' settings live in Data output now, not here.
+    expect(headings).not.toContain("File writer");
+    expect(headings).not.toContain("Stream");
     // An untranslated setting shows its key once, not twice.
     const testRow = elements.advancedHost.querySelector('[data-key="detector:test_image_value"]');
     expect(testRow.querySelector("code")).toBeNull();
 
     const filter = elements.advancedHost.querySelector(".detector-filter");
-    filter.value = "format";
+    filter.value = "test_image";
     filter.dispatchEvent(new Event("input"));
     const visible = [...elements.advancedHost.querySelectorAll(".detector-param")].filter((r) => !r.hidden).map((r) => r.dataset.key);
-    expect(visible).toEqual(["filewriter:format", "stream:format"]);
+    expect(visible).toEqual(["detector:test_image_value"]);
   });
 });
 
@@ -508,10 +513,12 @@ describe("detector control panel, recovery", () => {
     controller._setStatus({ detector: { state: "idle" }, stream: { state: "ready", dropped: 3, mode: "enabled" } });
     expect(elements.outputsHost.textContent).toContain("Last series: 3 images not received");
     expect(elements.outputsHost.querySelector(".detector-meta .info-tip").dataset.infoKey).toBe("detector.help.dropped");
-    expect(elements.outputsHost.textContent).not.toContain("Reset stream…");
+    // Dropped images are no fault: no warning, Reset stream only under More settings.
+    expect(elements.outputsHost.querySelector(".detector-warning")).toBeNull();
     controller._setStatus({ detector: { state: "idle" }, stream: { state: "error", dropped: 0, mode: "enabled" } });
-    expect(elements.outputsHost.textContent).toContain(EN["detector.output.stream_error"]);
-    [...elements.outputsHost.querySelectorAll("button")].find((b) => b.textContent === "Reset stream…").click();
+    const warning = elements.outputsHost.querySelector(".detector-warning");
+    expect(warning.textContent).toContain(EN["detector.output.stream_error"]);
+    [...warning.querySelectorAll("button")].find((b) => b.textContent === "Reset stream…").click();
     expect(elements.confirmText.textContent).toBe(EN["detector.confirm.reset_stream"]);
   });
 
@@ -527,17 +534,19 @@ describe("detector control panel, recovery", () => {
     expect(elements.confirmText.textContent).toBe(EN["detector.confirm.delete_unlisted"]);
   });
 
-  it("gathers all three in their own Troubleshooting section", async () => {
+  it("gives each recovery step one home: the detector's in Troubleshooting, the outputs' with them", async () => {
     const { controller, elements } = await setup();
     controller._setParams(enabledOutputs());
     controller._renderAll();
+    controller._setFiles([{ name: "series_1_master.h5", size: 1000 }]);
     expect(elements.advancedHost.querySelector(".detector-fixes")).toBeNull();
     const box = elements.troubleshootingHost.querySelector(".detector-fixes");
-    expect([...box.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
-      "Re-initialize…",
-      "Reset stream…",
-      EN["detector.action.delete_files"],
-    ]);
+    expect([...box.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Re-initialize…"]);
+    const stream = elements.outputsHost.querySelector('[data-output="stream"]');
+    expect([...stream.querySelectorAll(".detector-output-commands button")].map((b) => b.textContent)).toEqual(["Reset stream…"]);
+    const del = [...elements.filesHost.querySelectorAll("button")].find((b) => b.textContent === EN["detector.action.delete_files"]);
+    expect(del.classList.contains("is-danger")).toBe(true);
+    expect(elements.outputsHost.querySelector('[data-output="filewriter"]').contains(elements.filesHost)).toBe(true);
   });
 });
 
@@ -722,12 +731,18 @@ describe("detector control panel, compact cards", () => {
     controller._setParams(params);
     controller._renderAll();
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", state: "ready", buffer_free: 3.2e9 }, monitor: { mode: "enabled", state: "normal" } });
-    const meta = elements.outputsHost.querySelector(".detector-output .detector-meta");
-    expect(meta.textContent).toBe("Next: series_$id_master.h5 · 3.2 GB free · Data page");
-    expect(meta.querySelector("a").href).toBe("http://192.168.1.10/data/");
-    // Watch live sits in the monitor's header line.
-    const monitorHead = [...elements.outputsHost.querySelectorAll(".detector-output-head")].pop();
-    expect(monitorHead.textContent).toContain("Watch live images");
+    const writer = elements.outputsHost.querySelector('[data-output="filewriter"]');
+    // Under the name pattern, the next file alone: the free space is in the
+    // section header, the data page in the file writer's header line.
+    const note = writer.querySelector(".detector-output-note");
+    expect(note.previousElementSibling.dataset.key).toBe("filewriter:name_pattern");
+    expect(note.textContent).toBe("Next: series_$id_master.h5");
+    const head = writer.querySelector(".detector-output-head");
+    expect(head.querySelector("a").textContent).toBe("Data page");
+    expect(head.querySelector("a").href).toBe("http://192.168.1.10/data/");
+    expect(elements.outputsHost.textContent).not.toContain("GB free");
+    // Live images are under the buttons (Live view): no second way here.
+    expect(elements.outputsHost.textContent).not.toContain("Watch live images");
     expect(elements.filesHost.textContent).toBe("Files on the detector: none · Refresh");
   });
 
@@ -736,7 +751,7 @@ describe("detector control panel, compact cards", () => {
     const params = structuredClone(DESCRIPTORS);
     params.detector.sensor_thickness = { value: 0.00045, value_type: "float", unit: "m", access_mode: "r" };
     params.detector.test_image_mode = { value: "", value_type: "string", access_mode: "rw", allowed_values: ["gates", "pattern"] };
-    params.stream.header_appendix = { value: "", value_type: "string", access_mode: "rw" };
+    params.detector.readout_mode = { value: "", value_type: "string", access_mode: "rw" };
     controller._setParams(params);
     controller._renderAll();
     const host = elements.advancedHost;
@@ -746,11 +761,70 @@ describe("detector control panel, compact cards", () => {
     const mode = host.querySelector("#detector-p-detector-test_image_mode");
     expect(mode.selectedOptions[0].textContent).toBe("(none)");
     // Free text shares the line in Advanced.
-    expect(host.querySelector('[data-key="stream:header_appendix"]').classList.contains("is-wide")).toBe(false);
+    expect(host.querySelector('[data-key="detector:readout_mode"]').classList.contains("is-wide")).toBe(false);
     expect(host.querySelector(".detector-adv-group.is-info .detector-group-label").textContent).toBe("Detector information");
-    // Deleting the files is the step that cannot be undone.
-    const del = [...elements.troubleshootingHost.querySelectorAll("button")].find((b) => b.textContent === EN["detector.action.delete_files"]);
-    expect(del.classList.contains("is-danger")).toBe(true);
+  });
+
+  it("keeps each output's other settings and commands under its closed More settings", async () => {
+    localStorage.clear();
+    const { controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    for (const name of ["filewriter", "stream", "monitor"]) params[name].mode.value = "enabled";
+    params.detector.compression = { value: "bslz4", value_type: "string", access_mode: "rw", allowed_values: ["bslz4", "lz4"] };
+    params.filewriter.compression_enabled = { value: true, value_type: "bool", access_mode: "rw" };
+    params.monitor.buffer_size = { value: 100, value_type: "uint", access_mode: "rw", min: 1, max: 1000 };
+    controller._setParams(params);
+    controller._renderAll();
+    const more = (name) => elements.outputsHost.querySelector(`[data-output="${name}"] details.detector-disclosure`);
+    expect(more("filewriter").open).toBe(false);
+    expect(more("filewriter").querySelector("summary").textContent).toBe("More settings");
+    // The detector's compression goes with the file writer; not in Advanced.
+    expect([...more("filewriter").querySelectorAll(".detector-param")].map((row) => row.dataset.key)).toEqual(["detector:compression", "filewriter:compression_enabled"]);
+    expect(elements.advancedHost.querySelector('[data-key="detector:compression"]')).toBeNull();
+    expect(more("filewriter").querySelector('[data-key="detector:compression"] label').textContent).toBe("Compression");
+    expect(more("monitor").querySelector('[data-key="monitor:buffer_size"] label').textContent).toBe("Buffer size");
+    expect([...more("monitor").querySelectorAll(".detector-output-commands button")].map((b) => b.textContent)).toEqual(["Clear buffer", "Initialize monitor…"]);
+    // Initialize asks first: it resets the interface for every program.
+    [...more("filewriter").querySelectorAll("button")].find((b) => b.textContent === "Initialize file writer…").click();
+    expect(elements.confirm.hidden).toBe(false);
+    expect(elements.confirmText.textContent).toBe(EN["detector.confirm.initialize_filewriter"]);
+    // The open state is remembered.
+    more("stream").open = true;
+    more("stream").dispatchEvent(new Event("toggle"));
+    controller._renderAll();
+    expect(more("stream").open).toBe(true);
+  });
+
+  it("lists the files in a closed section titled with their count", async () => {
+    localStorage.clear();
+    const { controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    params.filewriter.mode.value = "enabled";
+    controller._setParams(params);
+    controller._renderAll();
+    controller._setFiles(Array.from({ length: 14 }, (_, i) => ({ name: `series_${i}_master.h5`, size: 1000 })));
+    const section = elements.filesHost.querySelector("details");
+    expect(section.open).toBe(false);
+    expect(section.querySelector("summary").textContent).toBe("Files on the detector (14)");
+    // Newest first, twelve of them, and how many more.
+    expect(section.querySelector(".detector-files a").textContent).toBe("series_13_master.h5");
+    expect(section.textContent).toContain("and 2 more");
+    expect([...section.querySelectorAll(".detector-output-commands button")].map((b) => b.textContent)).toEqual(["Refresh", EN["detector.action.delete_files"]]);
+  });
+
+  it("does not rebuild Data output on a poll while a field in it is being edited", async () => {
+    const { controller, elements } = await setup();
+    const params = structuredClone(DESCRIPTORS);
+    params.filewriter.mode.value = "enabled";
+    controller._setParams(params);
+    controller._renderAll();
+    const input = elements.outputsHost.querySelector("#detector-p-filewriter-name_pattern");
+    input.focus();
+    input.value = "half typed";
+    // A poll with a changed state would rebuild, but not from under the cursor.
+    controller._pollRender({ detector: { state: "idle" }, filewriter: { mode: "enabled", state: "acquire" } });
+    expect(elements.outputsHost.querySelector("#detector-p-filewriter-name_pattern")).toBe(input);
+    expect(input.value).toBe("half typed");
   });
 });
 

@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **A tidier Data output in the beta Detector tab.** Each output — file writer, stream, monitor — shows its switch, its main settings and its state; the rest is in closed sections, their open state remembered per browser. The file writer's **Data page ↗** is in its header line, the next file's name sits under the name pattern, and the free storage is only in the section header. **Files on the detector (35)** is a closed section with the list, Refresh and **Delete all files…** as a real button. Each output's **More settings** holds all its other settings, moved from Advanced — for the file writer also the detector's compression, which the stream uses too — with labels and a **?** each, and its SIMPLON commands: **Initialize file writer…**, **Reset stream…**, **Clear buffer** and **Initialize monitor…**. Initialize resets the output for every program using it, so it asks first; the backend now accepts it for the file writer and the monitor. Each action has one home: Reset stream and Delete all files left Troubleshooting, which keeps re-initializing the detector. The monitor's Watch live images link is gone (Live view under Acquire does it), and so is the second "Nothing will be saved" warning: the one under Acquire stays.
+
+### Fixed
+
+- **A field in Data output no longer loses what you are typing.** The status poll rebuilt Data output every few seconds, wiping a half-typed name pattern; it now rebuilds only when something shown changed, and never while you are in one of its fields.
+
 ## [0.25.2] - 2026-10-10
 
 ### Changed

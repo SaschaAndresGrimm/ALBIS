@@ -311,6 +311,15 @@ class FakeDCU:
         if subsystem == "monitor" and name == "clear":
             self.monitor_dropped = 0
             return 200, None
+        if subsystem in ("filewriter", "monitor") and name == "initialize":
+            # Back to the start-up settings, as a freshly started interface.
+            with self.lock:
+                fresh = _default_params()[subsystem]
+                for key, descriptor in fresh.items():
+                    self.params[subsystem][key]["value"] = descriptor["value"]
+                if subsystem == "monitor":
+                    self.monitor_dropped = 0
+            return 200, None
         return 404, f"Command {name} does not exist"
 
     def pixel_mask(self) -> dict[str, Any] | None:

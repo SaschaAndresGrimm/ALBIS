@@ -197,8 +197,7 @@ def test_one_command_at_a_time_but_abort_always_gets_through(client: TestClient)
     ("subsystem", "command"),
     [
         ("system", "reboot"),
-        ("filewriter", "initialize"),
-        ("monitor", "initialize"),
+        ("filewriter", "rewrite"),
         ("detector", "hv_reset"),
         ("detector", "retract_sensor"),
     ],
@@ -209,6 +208,24 @@ def test_only_whitelisted_commands_are_sent(
     response = _command(client, dcu.url, subsystem, command)
     assert response.status_code == 400
     assert not any(method == "PUT" for method, _ in dcu.dcu.requests)
+
+
+@pytest.mark.parametrize(
+    ("subsystem", "key", "changed"),
+    [("filewriter", "name_pattern", "run_$id"), ("monitor", "buffer_size", 7)],
+)
+def test_initializing_an_output_is_sent_and_resets_it(
+    client: TestClient, dcu: FakeDCUServer, subsystem: str, key: str, changed: Any
+) -> None:
+    # Offered under the output's More settings, behind a question: it resets
+    # the interface for every program using it.
+    _initialize(client, dcu.url)
+    dcu.dcu.params[subsystem][key]["value"] = changed
+    assert _command(client, dcu.url, subsystem, "initialize").status_code == 200
+    job = _wait_for_command(client, dcu.url)
+    assert job["ok"] is True
+    assert ("PUT", f"/{subsystem}/api/1.8.0/command/initialize") in dcu.dcu.requests
+    assert dcu.dcu.params[subsystem][key]["value"] != changed
 
 
 @pytest.mark.parametrize("was_on", [True, False])
