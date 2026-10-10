@@ -6923,11 +6923,9 @@ button.browse-details-header-cell[aria-sort="descending"] {
   color: #ffd6d6;
 }
 
-/* The Detector and Acquisition header chips sum up a closed section; open,
-   the state line and "Next series" say the same right below. "Locked while
-   busy" stays: it explains the disabled fields. */
-.panel-section:not(.is-collapsed) > .section-title #detector-summary,
-.panel-section:not(.is-collapsed) > .section-title #detector-series-summary {
+/* The Detector header chip sums up a closed section; open, the state pill
+   right below says the same. */
+.panel-section:not(.is-collapsed) > .section-title #detector-summary {
   display: none;
 }
 
@@ -7041,8 +7039,35 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 /* Snap and Continuous beside Acquire: smaller, secondary. */
-.detector-actions .btn.detector-quick {
+/* Snap and Continuous as one block of equal widths beside Acquire; while
+   anything runs, Stop covers exactly that block (the two keep their room,
+   invisible), so Acquire never changes size or position. */
+.detector-actions > .detector-side {
+  display: grid;
   flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.detector-side > .btn {
+  grid-row: 1;
+  white-space: nowrap;
+}
+
+.detector-side > .detector-quick:first-child {
+  grid-column: 1;
+}
+
+.detector-side > .detector-quick:nth-child(2) {
+  grid-column: 2;
+}
+
+.detector-side > .btn:not(.detector-quick) {
+  grid-column: 1 / -1;
+}
+
+.detector-side.is-running > .detector-quick {
+  visibility: hidden;
 }
 
 .detector-preflight {
@@ -7050,24 +7075,29 @@ button.browse-details-header-cell[aria-sort="descending"] {
   gap: 2px;
 }
 
-/* Their timings, closed under the buttons: three small fields side by side,
-   stacking when the panel is narrow. */
-.detector-quick-fields {
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px 12px;
-  padding-top: 8px;
+/* Under the buttons, one line: Live view, then Snap's exposure and
+   Continuous' rate, each a short label and a small field; wraps when narrow. */
+.detector-quick-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: center;
 }
 
-.detector-quick-fields > .detector-follow {
-  grid-column: 1 / -1;
+.detector-quick-settings > .detector-follow {
+  margin-right: auto;
 }
 
 .detector-quick-field {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
   color: var(--muted);
   font-size: 12px;
+}
+
+.detector-quick-field .detector-field {
+  width: 84px;
 }
 
 /* What would make a series fail: a line each, amber, no box, as tall as

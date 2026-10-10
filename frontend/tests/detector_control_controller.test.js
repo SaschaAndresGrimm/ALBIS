@@ -58,7 +58,7 @@ function buildElements() {
         <div id="sensors"></div>
         <div id="notice" hidden><span id="notice-text"></span><button id="notice-ok"></button></div>
       </div>
-      <span id="lock" hidden></span>
+      <span id="lock" hidden></span><span id="series-summary" hidden></span><span id="output-summary" hidden></span>
       <div id="params"></div><div id="outputs"></div><div id="files"></div>
       <ol id="log"></ol><div id="advanced"></div><div id="commands"></div><div id="troubleshooting"></div>
     </div>`;
@@ -70,7 +70,7 @@ function buildElements() {
     progressRight: $("pr"), confirm: $("confirm"), confirmText: $("confirm-text"), confirmYes: $("yes"),
     confirmNo: $("no"), primaryBtn: $("primary"), stopBtn: $("stop"), followToggle: $("follow"), sensors: $("sensors"), notice: $("notice"),
     noticeText: $("notice-text"), noticeDismiss: $("notice-ok"), sections: [], paramsHost: $("params"),
-    lockNote: $("lock"), outputsHost: $("outputs"), filesHost: $("files"), logHost: $("log"),
+    lockNote: $("lock"), seriesSummary: $("series-summary"), outputSummary: $("output-summary"), outputsHost: $("outputs"), filesHost: $("files"), logHost: $("log"),
     advancedHost: $("advanced"), commandsHost: $("commands"), troubleshootingHost: $("troubleshooting"),
   };
 }
@@ -1061,8 +1061,12 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const preflight = () => elements.live.querySelector(".detector-preflight").textContent;
     // 10 images x 4.47 Mpx x 4 bytes, against 800 GB free.
     // bslz4 at an estimated 4x: 178.8 MB raw.
-    // All well: the line beside the state says it; the slot stays quiet.
-    expect(elements.stateText.textContent).toMatch(/^Next series: 10 images · .* · about 44\.7 MB with bslz4, estimated, 800\.0 GB free$/);
+    // All well: the headers say what the series takes and where it goes; the
+    // slot under the buttons stays quiet, and so does the line beside the pill.
+    expect(elements.seriesSummary.textContent).toMatch(/^10 images · .* · ≈ 44\.7 MB$/);
+    expect(elements.seriesSummary.title).toBe("The files of this series: about 44.7 MB with bslz4, estimated.");
+    expect(elements.outputSummary.textContent).toBe("800.0 GB free");
+    expect(elements.stateText.textContent).toBe("");
     expect(preflight()).toBe("");
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 4e7 } });
     expect(preflight()).toContain("This series needs about 44.7 MB with bslz4, estimated; the detector has 40.0 MB free.");
@@ -1089,6 +1093,41 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const { elements } = await panel(fake);
     const timing = elements.paramsHost.querySelector('[data-group="timing"]');
     expect(timing.textContent).toContain("100 Hz · 0.1 µs between images");
+  });
+
+  it("keeps the button row's shape: Stop takes Snap's and Continuous' place while anything runs", async () => {
+    const fake = fakeDetector({ triggerRuns: true });
+    const { elements, button } = await panel(fake);
+    const side = elements.snapBtn?.parentElement || elements.stopBtn.parentElement;
+    expect(side.className).toBe("detector-side");
+    expect([...side.children].map((b) => b.id || b.textContent)).toEqual(["Snap", "Continuous", "stop"]);
+    button("Continuous").click();
+    // At once, before the detector does anything: the big button names the
+    // action, Stop covers the two quick buttons, which keep their room.
+    expect(elements.primaryBtn.textContent).toBe("Continuous");
+    expect(elements.primaryBtn.disabled).toBe(true);
+    expect(elements.stopBtn.hidden).toBe(false);
+    expect(side.classList.contains("is-running")).toBe(true);
+    expect([...side.querySelectorAll(".detector-quick")].every((b) => !b.hidden && b.disabled)).toBe(true);
+    await vi.waitFor(() => expect(fake.calls).toContain("command trigger"), { timeout: 4000 });
+    expect(elements.primaryBtn.textContent).toBe("Continuous");
+    elements.stopBtn.click();
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain(EN["detector.log.restored"]), { timeout: 4000 });
+    expect(elements.primaryBtn.textContent).toBe("Acquire");
+    expect(side.classList.contains("is-running")).toBe(false);
+    expect(elements.stopBtn.hidden).toBe(true);
+  });
+
+  it("stops a quick action that is still setting up before it takes a series", async () => {
+    const fake = fakeDetector({ triggerRuns: true });
+    const { elements, button } = await panel(fake);
+    button("Continuous").click();
+    elements.stopBtn.click();
+    await vi.waitFor(() => expect(elements.primaryBtn.textContent).toBe("Acquire"), { timeout: 4000 });
+    expect(fake.calls).not.toContain("command arm");
+    expect(fake.calls).not.toContain("command trigger");
+    // What it had changed is put back.
+    expect(fake.store.detector.frame_time.value).toBe(0.01);
   });
 
   it("says a stopped series stopped, not how many images it was set to", async () => {
@@ -1140,20 +1179,19 @@ describe("detector control panel, quick action settings", () => {
     localStorage.clear();
   });
 
-  it("sets Snap's exposure and Continuous' rate under the buttons, remembered per browser", async () => {
+  it("sets Snap's exposure and Continuous' rate on one line under the buttons, remembered per browser", async () => {
     localStorage.clear();
     const { controller, elements } = await setup();
     controller._setStatus({ detector: { state: "idle" } });
     expect(elements.advancedHost.querySelector(".detector-quick-settings")).toBeNull();
-    const host = elements.primaryBtn.parentElement.parentElement.querySelector("details.detector-quick-settings");
-    expect(host.querySelector("summary").textContent).toBe("Options");
-    expect(host.open).toBe(false);
-    host.open = true;
-    host.dispatchEvent(new Event("toggle"));
-    expect(localStorage.getItem("albis.detectorControl.quickOpen")).toBe("1");
+    const host = elements.primaryBtn.parentElement.parentElement.querySelector(".detector-quick-settings");
+    // Labelled with the buttons' names; always visible, no section to open.
+    expect([...host.querySelectorAll("label")].map((label) => label.textContent)).toEqual(["Snap", "Continuous"]);
+    expect(host.querySelector("details")).toBeNull();
     // Continuous' longest run is fixed at 10 hours, not a setting.
     expect([...host.querySelectorAll("input[id^=detector-quick-]")].map((input) => input.id)).toEqual(["detector-quick-snapExposure", "detector-quick-continuousRate"]);
     const exposure = host.querySelector("#detector-quick-snapExposure");
+    expect(exposure.getAttribute("aria-label")).toBe("Snap exposure");
     expect(exposure.value).toBe("1");
     exposure.value = "0.5";
     exposure.dispatchEvent(new Event("change"));
@@ -1174,7 +1212,7 @@ describe("detector control panel, quick action settings", () => {
     expect([...slot.children].map((child) => child.className || child.id)).toEqual(["confirm", "notice", "detector-preflight", "detector-result", "progress"]);
   });
 
-  it("says what the next series is instead of \"these settings\"", async () => {
+  it("sums up the next series in the Acquisition header, open or closed, and says nothing beside an idle pill", async () => {
     const { controller, elements } = await setup();
     const params = structuredClone(DESCRIPTORS);
     params.detector.trigger_mode = { value: "ints", value_type: "string", access_mode: "rw", allowed_values: ["ints", "exts"] };
@@ -1184,11 +1222,11 @@ describe("detector control panel, quick action settings", () => {
     controller._setParams(params);
     controller._renderAll();
     controller._setStatus({ detector: { state: "idle" } });
-    expect(elements.stateText.textContent).toBe("Next series: 20 images · 20 s");
-    delete params.detector.nimages;
-    controller._setParams(params);
-    controller._setStatus({ detector: { state: "idle" } });
-    expect(elements.stateText.textContent).toBe("Ready to acquire.");
+    // File writer off: no size, nothing to say about free space.
+    expect(elements.seriesSummary.textContent).toBe("20 images · 20 s");
+    expect(elements.seriesSummary.hidden).toBe(false);
+    expect(elements.outputSummary.hidden).toBe(true);
+    expect(elements.stateText.textContent).toBe("");
   });
 
   it("leaves compression out of the estimate when the file writer does not compress", async () => {
@@ -1202,7 +1240,7 @@ describe("detector control panel, quick action settings", () => {
     controller._setParams(params);
     controller._renderAll();
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 8e11 } });
-    expect(elements.stateText.textContent).toMatch(/ · about 40\.0 MB uncompressed, 800\.0 GB free$/);
+    expect(elements.seriesSummary.title).toBe("The files of this series: about 40.0 MB uncompressed.");
     expect(elements.live.querySelector(".detector-preflight").textContent).toBe("");
   });
 });

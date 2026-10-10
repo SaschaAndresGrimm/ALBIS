@@ -11,8 +11,6 @@ const EXACT_KEY_ALLOWLIST = new Set([
   // translation.
   "command.label.export_animation",
   "cursor.resolution",
-  // "Options" is the French word as well as the English one: a cognate.
-  "detector.quick.summary",
   "roi.mode.default",
   "series.ui.norm_image_placeholder",
   "series.ui.output_placeholder",

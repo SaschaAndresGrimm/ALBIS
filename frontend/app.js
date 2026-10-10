@@ -3407,6 +3407,7 @@ detectorControlController = createDetectorControlController({
     paramsHost: $detector("detector-params"),
     lockNote: $detector("detector-lock"),
     seriesSummary: $detector("detector-series-summary"),
+    outputSummary: $detector("detector-output-summary"),
     outputsHost: $detector("detector-outputs"),
     filesHost: $detector("detector-files"),
     logHost: $detector("detector-log"),

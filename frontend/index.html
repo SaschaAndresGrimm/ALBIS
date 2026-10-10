@@ -1542,7 +1542,7 @@
                 </div>
                 <label class="detector-follow">
                   <input type="checkbox" id="detector-follow" checked />
-                  <span data-i18n="detector.follow.label">Show images while acquiring</span>
+                  <span data-i18n="detector.follow.label">Live view</span>
                   <button type="button" class="info-tip" data-info-key="detector.follow.hint" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
                 </label>
                 <div class="detector-sensors" id="detector-sensors"></div>
@@ -1563,7 +1563,10 @@
 
             <section class="panel-section detector-extra" data-section="detector-output" hidden>
               <button class="section-title" type="button" data-section-toggle>
-                <span class="section-title-main"><span data-i18n="detector.section.output">Data output</span></span>
+                <span class="section-title-main">
+                  <span data-i18n="detector.section.output">Data output</span>
+                  <span class="section-summary" id="detector-output-summary" hidden></span>
+                </span>
                 <span class="section-chevron">▾</span>
               </button>
               <div id="detector-outputs"></div>
