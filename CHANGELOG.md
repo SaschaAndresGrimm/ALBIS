@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.25.2] - 2026-10-10
+
 ### Changed
 
 - **A leaner Detector tab that holds still.** The section is six compact rows: name, serial and address ("D029661 · 192.168.20.191 ↗ · Change"); the state; the buttons; one line under them; Live view with Snap's and Continuous' timings; the sensor tiles. Beside an idle state there are no words: the **Acquisition** header sums up the series with its estimated size ("20 images · 20 s · ≈ 22 MB", how it is estimated on hover), open or closed, and the **Data output** header the free storage ("161.0 GB free"). The line under the buttons shows one thing at a time: what would make the series fail (in amber, a line per problem, instead of a yellow box), its progress while it runs (on one line, where it used to push the buttons down from above), the result after it, or a question ("Acquire anyway?" takes the place of the warning it repeats; Stop, Initialize, Delete files… and the "changed elsewhere" notice appear there too, and a question asked from further down scrolls into view). It keeps a line's height when empty, so nothing below it moves.
@@ -1470,7 +1472,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.2...HEAD
+[0.25.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.1...v0.25.2
 [0.25.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.1...v0.24.2
