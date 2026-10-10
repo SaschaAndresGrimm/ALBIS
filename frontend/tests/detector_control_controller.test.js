@@ -60,7 +60,7 @@ function buildElements() {
       </div>
       <span id="lock" hidden></span><span id="series-summary" hidden></span><span id="output-summary" hidden></span>
       <div id="params"></div><div id="outputs"></div><div id="files"></div>
-      <ol id="log"></ol><div id="advanced"></div><div id="commands"></div><div id="troubleshooting"></div>
+      <ol id="log"></ol><div id="advanced"></div><div id="commands"></div>
     </div>`;
   const $ = (id) => document.getElementById(id);
   return {
@@ -71,7 +71,7 @@ function buildElements() {
     confirmNo: $("no"), primaryBtn: $("primary"), stopBtn: $("stop"), followToggle: $("follow"), sensors: $("sensors"), notice: $("notice"),
     noticeText: $("notice-text"), noticeDismiss: $("notice-ok"), sections: [], paramsHost: $("params"),
     lockNote: $("lock"), seriesSummary: $("series-summary"), outputSummary: $("output-summary"), outputsHost: $("outputs"), filesHost: $("files"), logHost: $("log"),
-    advancedHost: $("advanced"), commandsHost: $("commands"), troubleshootingHost: $("troubleshooting"),
+    advancedHost: $("advanced"), commandsHost: $("commands"),
   };
 }
 
@@ -541,14 +541,23 @@ describe("detector control panel, recovery", () => {
     expect(elements.logHost.textContent).toContain("filewriter clear sent");
   });
 
-  it("gives each recovery step one home: the detector's in Troubleshooting, the outputs' with them", async () => {
+  it("gives each command one home: the detector's under Commands, the outputs' with them", async () => {
     const { controller, elements } = await setup();
     controller._setParams(enabledOutputs());
     controller._renderAll();
     controller._setFiles([{ name: "series_1_master.h5", size: 1000 }]);
     expect(elements.advancedHost.querySelector(".detector-fixes")).toBeNull();
-    const box = elements.troubleshootingHost.querySelector(".detector-fixes");
-    expect([...box.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Re-initialize"]);
+    const box = elements.commandsHost;
+    // Series commands, then the detector's, each with a "?" saying what it does.
+    expect([...box.querySelectorAll(".detector-group-label")].map((h) => h.textContent)).toEqual(["Series", "Detector"]);
+    expect([...box.querySelectorAll(".detector-command > .btn")].map((b) => b.textContent)).toEqual(["Arm", "Trigger", "Disarm", "Cancel series", "Re-read settings", "Re-initialize"]);
+    expect([...box.querySelectorAll(".detector-command .info-tip")].map((tip) => tip.dataset.infoKey)).toEqual([
+      "detector.fix.arm", "detector.fix.trigger", "detector.fix.disarm", "detector.fix.cancel", "detector.fix.refresh", "detector.fix.initialize",
+    ]);
+    expect(box.querySelector('.info-tip[data-info-key="detector.fix.disarm"]').dataset.infoDetail).toBe("SIMPLON: detector/command/disarm");
+    expect(box.querySelector(".detector-note")).toBeNull();
+    // Nothing left in Advanced but settings.
+    expect(elements.advancedHost.querySelector("button[data-command]")).toBeNull();
     const stream = elements.outputsHost.querySelector('[data-output="stream"]');
     expect([...stream.querySelectorAll(".detector-output-commands button")].map((b) => b.textContent)).toEqual(["Reset stream"]);
     const del = [...elements.filesHost.querySelectorAll("button")].find((b) => b.textContent === EN["detector.action.delete_files"]);
@@ -1093,6 +1102,14 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
           job = { subsystem: "detector", command: "trigger", running: false, ok: true };
           return { ok: true, json: async () => ({ ok: true }) };
         }
+        // As the backend: sent while a trigger runs, disarm and cancel are
+        // carried out at once and answered with their result; the status
+        // goes on showing the trigger, until it ends.
+        if ((body.command === "disarm" || body.command === "cancel") && job?.running) {
+          state = "idle";
+          job = { ...job, running: false, ok: true };
+          return { ok: true, json: async () => ({ subsystem: "detector", command: body.command, running: false, ok: true }) };
+        }
         if (body.command === fail) {
           job = { subsystem: body.subsystem, command: body.command, running: false, ok: false, error: { detector_message: "not supported here" } };
           return { ok: true, json: async () => ({ ...job, running: true }) };
@@ -1279,6 +1296,37 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     button("Initialize monitor").click();
     await vi.waitFor(() => expect(note().dataset.state).toBe("error"), { timeout: 4000 });
     expect(note().textContent).toContain("not supported here");
+  });
+
+  it("runs a command from Commands and says how it went in its own row", async () => {
+    const fake = fakeDetector();
+    const { controller, elements } = await panel(fake);
+    controller._renderAll();
+    const arm = () => [...elements.commandsHost.querySelectorAll("button")].find((b) => b.textContent === "Arm");
+    arm().click();
+    expect(arm().classList.contains("is-busy")).toBe(true);
+    await vi.waitFor(() => expect(fake.calls).toContain("command arm"));
+    const note = () => arm().closest(".detector-command-row").querySelector(".detector-feedback");
+    await vi.waitFor(() => expect(note().textContent).toBe("✓ Done"), { timeout: 4000 });
+  });
+
+  it("does not hang on Disarm while a trigger runs: it is answered at once", async () => {
+    const fake = fakeDetector({ triggerRuns: true });
+    const { controller, elements } = await panel(fake);
+    controller._renderAll();
+    const button = (label) => [...elements.commandsHost.querySelectorAll(".detector-command > .btn")].find((b) => b.textContent === label);
+    const note = () => elements.commandsHost.querySelector(".detector-command-row .detector-feedback");
+    button("Arm").click();
+    await vi.waitFor(() => expect(note().textContent).toBe("✓ Done"), { timeout: 4000 });
+    button("Trigger").click();
+    await vi.waitFor(() => expect(fake.calls).toContain("command trigger"));
+    button("Disarm").click();
+    // The status still shows the trigger; the answer to Disarm is enough.
+    await vi.waitFor(() => expect(elements.logHost.textContent).toContain("disarm done"), { timeout: 2000 });
+    expect(button("Disarm").classList.contains("is-busy")).toBe(false);
+    // The series Arm opened has its number, and says it was ended early.
+    const result = () => elements.live.querySelector(".detector-result").textContent;
+    await vi.waitFor(() => expect(result()).toMatch(/^Series 7: stopped after /), { timeout: 4000 });
   });
 
   it("deletes the files on a second click on the same button", async () => {

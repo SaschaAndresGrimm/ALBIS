@@ -1573,12 +1573,12 @@
               <div id="detector-files"></div>
             </section>
 
-            <section class="panel-section detector-extra" data-section="detector-activity" hidden>
+            <section class="panel-section detector-extra is-collapsed" data-section="detector-commands" hidden>
               <button class="section-title" type="button" data-section-toggle>
-                <span class="section-title-main"><span data-i18n="detector.section.activity">Activity</span></span>
+                <span class="section-title-main"><span data-i18n="detector.section.commands">Commands</span></span>
                 <span class="section-chevron">▾</span>
               </button>
-              <ol class="detector-log" id="detector-log"></ol>
+              <div id="detector-commands"></div>
             </section>
 
             <section class="panel-section detector-extra is-collapsed" data-section="detector-advanced" hidden>
@@ -1587,22 +1587,14 @@
                 <span class="section-chevron">▾</span>
               </button>
               <div id="detector-advanced"></div>
-              <div class="detector-group-label" data-i18n="detector.advanced.commands">Commands</div>
-              <div class="detector-commands" id="detector-commands">
-                <button class="btn btn-secondary" type="button" data-detector-command="refresh" data-i18n="detector.action.refresh">Re-read settings</button>
-                <button class="btn btn-secondary" type="button" data-detector-command="arm" data-i18n="detector.action.arm">Arm</button>
-                <button class="btn btn-secondary" type="button" data-detector-command="trigger" data-i18n="detector.action.trigger">Trigger</button>
-                <button class="btn btn-secondary" type="button" data-detector-command="disarm" data-i18n="detector.action.disarm">Disarm</button>
-                <button class="btn btn-secondary" type="button" data-detector-command="cancel" data-i18n="detector.action.cancel_series">Cancel series</button>
-              </div>
             </section>
 
-            <section class="panel-section detector-extra is-collapsed" data-section="detector-troubleshooting" hidden>
+            <section class="panel-section detector-extra" data-section="detector-activity" hidden>
               <button class="section-title" type="button" data-section-toggle>
-                <span class="section-title-main"><span data-i18n="detector.section.troubleshooting">Troubleshooting</span></span>
+                <span class="section-title-main"><span data-i18n="detector.section.activity">Activity</span></span>
                 <span class="section-chevron">▾</span>
               </button>
-              <div id="detector-troubleshooting"></div>
+              <ol class="detector-log" id="detector-log"></ol>
             </section>
           </div>
 

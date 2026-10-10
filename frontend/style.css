@@ -7360,12 +7360,6 @@ button.browse-details-header-cell[aria-sort="descending"] {
   font-weight: 500;
 }
 
-/* The one step that cannot be undone. */
-.detector-fix .btn.is-danger {
-  border-color: rgba(255, 107, 107, 0.55);
-  color: #ffb4b4;
-}
-
 .detector-adv-group + .detector-adv-group {
   margin-top: 4px;
 }
@@ -7418,24 +7412,15 @@ button.browse-details-header-cell[aria-sort="descending"] {
   margin: 0;
 }
 
-/* One grid for all three rows, so the buttons share a width. */
-.detector-fixes {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px 10px;
+/* Commands: each button with its "?" right beside it. */
+.detector-command {
+  display: inline-flex;
+  gap: 4px;
   align-items: center;
 }
 
-.detector-fix {
-  display: contents;
-}
-
-.detector-fix .btn {
-  white-space: nowrap;
-}
-
-.detector-fix .detector-note {
-  margin: 0;
+#detector-commands > .detector-group-label:first-child {
+  margin-top: 0;
 }
 
 .detector-param.is-flash {
@@ -7744,12 +7729,6 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .detector-log li.is-error span {
   color: #ffb3b3;
-}
-
-.detector-commands {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

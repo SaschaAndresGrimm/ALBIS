@@ -3412,7 +3412,6 @@ detectorControlController = createDetectorControlController({
     filesHost: $detector("detector-files"),
     logHost: $detector("detector-log"),
     advancedHost: $detector("detector-advanced"),
-    troubleshootingHost: $detector("detector-troubleshooting"),
     commandsHost: $detector("detector-commands"),
   },
   callbacks: {

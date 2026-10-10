@@ -472,7 +472,6 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     filesHost,
     logHost,
     advancedHost,
-    troubleshootingHost,
     commandsHost,
   } = elements;
   const { getPanelTab, setPanelTab, watchLive, refreshInfoTips, openPath } = callbacks;
@@ -660,7 +659,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     // The question stands in for the check: "Acquire anyway?" repeats it.
     if (preflightHost) preflightHost.hidden = true;
     confirmYes.focus?.();
-    // Asked from Data output or Troubleshooting, further down the tab.
+    // Asked from Data output, further down the tab.
     confirm.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }
 
@@ -754,7 +753,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderParams();
     renderOutputs();
     renderAdvanced();
-    renderTroubleshooting();
+    renderCommands();
   }
 
   // ---------- polling ----------
@@ -858,9 +857,12 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   async function runCommand(subsystem, command, timeoutMs = 60000, value = undefined) {
-    await sendCommand(subsystem, command, { value });
+    const sent = await sendCommand(subsystem, command, { value });
     schedulePoll();
-    const job = await waitForCommand(command, timeoutMs);
+    // Disarm, cancel or abort sent while a trigger runs is carried out at
+    // once and answered with its result; the status keeps showing the
+    // trigger, so waiting for it there would wait until the timeout.
+    const job = sent && sent.command === command && sent.running === false ? sent : await waitForCommand(command, timeoutMs);
     if (!job) return null;
     const name = commandName(subsystem, command);
     if (job.ok) log(t("detector.log.done", { command: name }));
@@ -879,8 +881,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // ---------- recovery ----------
   // Initialize, stream reset and deleting the files are recovery steps, not
   // everyday ones: each is offered next to what it fixes when the detector
-  // reports that problem, always behind a confirmation that says what it does,
-  // and all three together under Advanced -> Troubleshooting.
+  // reports that problem, and under Commands (the detector's) or with its
+  // output in Data output (the stream's and the files').
   // ---------- command feedback ----------
   // What a command button started, shown where it was clicked: a spinner on
   // the button while it runs, then "Done" for a moment or why it failed until
@@ -893,7 +895,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
   function renderFeedback() {
     renderOutputs();
-    renderTroubleshooting();
+    renderCommands();
   }
 
   async function track(id, work) {
@@ -1015,7 +1017,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // Under the sensors, only when something is wrong: high voltage not ready
   // or a failed command, with Re-initialize… next to the explanation. Not
   // while busy, and not in "na" or "error", where the main button already
-  // says Initialize. Otherwise it lives under Troubleshooting.
+  // says Initialize. Otherwise it lives under Commands.
   function renderRecovery(value) {
     if (!recoverHost) return;
     recoverHost.replaceChildren();
@@ -1255,12 +1257,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         await sendCommand("detector", "abort");
         return;
       }
-      series = arm.result?.["sequence id"] ?? arm.result?.sequence_id ?? null;
-      triggered = 0;
-      // The files this series writes: the name pattern with $id as its number.
-      armedPrefix = params.filewriter?.mode?.value === "enabled"
-        ? String(params.filewriter.name_pattern?.value ?? "").replace("$id", String(series ?? ""))
-        : "";
+      rememberArmed(arm);
       if (forceFollow || followToggle?.checked) await follow();
       const mode = String(params.detector.trigger_mode?.value || "");
       // Internal series starts at once; internal enable waits for the first
@@ -1274,6 +1271,17 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       acquiring = false;
       schedulePoll();
     }
+  }
+
+  // The series an arm opened: its number, and the files it writes (the name
+  // pattern with $id as that number). Also for an Arm from Commands, so a
+  // Trigger after it reports "Series 12 done", not "Series - done".
+  function rememberArmed(job) {
+    series = job.result?.["sequence id"] ?? job.result?.sequence_id ?? null;
+    triggered = 0;
+    armedPrefix = params.filewriter?.mode?.value === "enabled"
+      ? String(params.filewriter.name_pattern?.value ?? "").replace("$id", String(series ?? ""))
+      : "";
   }
 
   // Show the series as it is taken: switch the viewer to this detector's
@@ -2084,7 +2092,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // Everything else the output has, closed until wanted: its other settings
   // (for the file writer also the detector's compression, which the stream
   // uses too) and its SIMPLON commands. One home each: Reset stream and
-  // Delete files are no longer in Troubleshooting.
+  // Delete files are not repeated under Commands.
   function moreSettings(name) {
     const rows = [];
     if (name === "filewriter" && params.detector.compression) rows.push(paramRow("detector", "compression", params.detector.compression));
@@ -2335,70 +2343,54 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return box;
   }
 
-  // The three recovery steps in their own section, each with what it is for.
-  function renderTroubleshooting() {
-    if (!troubleshootingHost) return;
-    troubleshootingHost.replaceChildren();
-    const box = el("div", "detector-fixes");
-    // The detector's own recovery; resetting the stream and deleting the
-    // files live with their outputs in Data output.
-    const row = el("div", "detector-fix");
-    const note = el("p", "detector-note", t("detector.fix.initialize"));
-    const status = feedbackNote(["detector.initialize"]);
-    if (status.dataset.state) note.append(" ", status);
-    row.append(commandButton("detector.initialize", t("detector.action.reinitialize"), reinitialize), note);
-    box.append(row);
-    troubleshootingHost.append(box);
-  }
-
-  // Advanced's commands are fixed buttons: each shows its own spinner while
-  // it runs, and one note after the row says how the last one went.
-  function bindCommands() {
+  // Every command the panel sends by hand: the series ones, then the
+  // detector's, each group a row of buttons with a "?" each (what it does,
+  // and its SIMPLON path) and one note for how the latest went. Re-initialize
+  // is also offered under the sensors when something is wrong.
+  function renderCommands() {
     if (!commandsHost) return;
-    const note = el("span", "detector-feedback");
-    note.setAttribute("role", "status");
-    commandsHost.append(note);
-    let doneTimer = null;
-    const show = (state, text) => {
-      window.clearTimeout(doneTimer);
-      note.dataset.state = state;
-      note.textContent = text;
-      if (state === "done") {
-        doneTimer = window.setTimeout(() => {
-          note.textContent = "";
-          delete note.dataset.state;
-        }, FEEDBACK_DONE_MS);
-      }
+    commandsHost.replaceChildren();
+    const series = (command) => async () => {
+      // Ending a running series early: its result says it stopped, as after Stop.
+      if ((command === "disarm" || command === "cancel") && seriesStarted) stopRequested = true;
+      const job = await runCommand("detector", command, 130000);
+      if (command === "arm" && job?.ok) rememberArmed(job);
+      await poll();
+      return job;
     };
-    commandsHost.querySelectorAll("[data-detector-command]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const command = button.dataset.detectorCommand;
-        button.disabled = true;
-        button.classList.add("is-busy");
-        button.setAttribute("aria-busy", "true");
-        show("busy", t("detector.feedback.working"));
-        let job = null;
-        try {
-          if (command === "refresh") {
-            await refreshDescription();
-            log(t("detector.log.reread"));
-          } else if (command === "trigger") {
-            await trigger();
-          } else {
-            job = await runCommand("detector", command, 130000);
-            await poll();
-          }
-          if (job && job.ok === false) show("error", `✗ ${reason(job.error) || t("simplon.probe.request_failed")}`);
-          else show("done", `✓ ${t("detector.feedback.done")}`);
-        } catch (err) {
-          show("error", `✗ ${err.message || t("simplon.probe.request_failed")}`);
-        } finally {
-          button.disabled = false;
-          button.classList.remove("is-busy");
-          button.removeAttribute("aria-busy");
-        }
-      });
-    });
+    const groups = [
+      ["detector.group.series", [
+        ["arm", "detector.action.arm", series("arm")],
+        ["trigger", "detector.action.trigger", () => trigger()],
+        ["disarm", "detector.action.disarm", series("disarm")],
+        ["cancel", "detector.action.cancel_series", series("cancel")],
+      ]],
+      ["detector.section.detector", [
+        ["refresh", "detector.action.refresh", async () => {
+          await refreshDescription();
+          log(t("detector.log.reread"));
+        }],
+        ["initialize", "detector.action.reinitialize", null],
+      ]],
+    ];
+    for (const [heading, items] of groups) {
+      commandsHost.append(el("div", "detector-group-label", t(heading)));
+      const row = el("div", "detector-output-commands detector-command-row");
+      const ids = [];
+      for (const [command, label, work] of items) {
+        const id = `detector.${command}`;
+        ids.push(id);
+        const pair = el("span", "detector-command");
+        const onClick = work ? () => void track(id, work) : reinitialize;
+        // Re-read settings is ALBIS's own: no SIMPLON command behind it.
+        const path = command === "refresh" ? [] : [`detector/command/${command}`];
+        pair.append(commandButton(id, t(label), onClick), infoTip(`detector.fix.${command}`, path));
+        row.append(pair);
+      }
+      row.append(feedbackNote(ids));
+      commandsHost.append(row);
+    }
+    refreshInfoTips?.();
   }
 
   // ---------- wiring ----------
@@ -2430,7 +2422,6 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   noticeDismiss?.addEventListener("click", () => {
     notice.hidden = true;
   });
-  bindCommands();
   if (urlInput && !urlInput.value) urlInput.value = readStored();
 
   /** Show or hide the whole feature; a hidden tab cannot stay open. */
@@ -2464,7 +2455,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       renderParams();
       renderOutputs();
       renderAdvanced();
-      renderTroubleshooting();
+      renderCommands();
     },
     _setStatus(next) {
       status = next;

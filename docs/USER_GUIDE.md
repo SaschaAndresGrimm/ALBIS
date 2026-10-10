@@ -487,8 +487,10 @@ detector reports, so units, limits and choices are that detector's own:
   on its button and "Done", or why it failed, beside it. Initialize resets the
   output for every program using it. **Delete all files** takes a second click
   on the same button within a few seconds: it cannot be undone.
-- **Advanced** holds the detector's other documented settings;
-  **Troubleshooting** re-initializes the detector.
+- **Advanced** holds the detector's other documented settings. **Commands**
+  sends the detector's commands by hand, each with a **?** that says what it
+  does: **Arm**, **Trigger**, **Disarm** and **Cancel series** for a series,
+  **Re-read settings** and **Re-initialize** for the detector.
 
 To try it without a detector, `python test_scripts/fake_simplon_dcu.py` runs a
 simulated one at `http://127.0.0.1:8100` (`--thresholds 4` for a
