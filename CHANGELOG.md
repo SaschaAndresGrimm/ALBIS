@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-10
+
 ### Changed
 
 - **A tidier Data output in the beta Detector tab.** Each output — file writer, stream, monitor — shows its switch, its main settings and its state; the rest is in closed sections, their open state remembered per browser. The file writer's **Data page ↗** is in its header line, the next file's name sits under the name pattern, and the free storage is only in the section header. **Files on the detector (35)** is a closed section with the list, Refresh and **Delete all files** as a real button. Each output's **More settings** holds all its other settings, moved from Advanced — for the file writer also the detector's compression, which the stream uses too — with labels and a **?** each, and its SIMPLON commands: **Initialize file writer**, **Reset stream**, **Clear buffer** and **Initialize monitor**. Initialize resets the output for every program using it, as its tooltip says; the backend now accepts it for the file writer and the monitor. Each action has one home: Reset stream and Delete all files left Troubleshooting (now **Commands**, see below). The monitor's Watch live images link is gone (Live view under Acquire does it), and so is the second "Nothing will be saved" warning: the one under Acquire stays.
@@ -1488,7 +1490,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.2...v0.26.0
 [0.25.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.1...v0.25.2
 [0.25.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.24.2...v0.25.0
