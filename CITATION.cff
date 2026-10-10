@@ -38,7 +38,7 @@ authors:
 repository-code: "https://github.com/SaschaAndresGrimm/ALBIS"
 url: "https://github.com/SaschaAndresGrimm/ALBIS"
 license: MIT
-version: 0.26.0
+version: 0.26.1
 date-released: 2026-10-10
 keywords:
   - image viewer

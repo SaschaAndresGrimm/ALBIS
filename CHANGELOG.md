@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-10-10
+
 ### Changed
 
 - **The help page (F1) has the start screen's look.** The wave picture as a header across the page, fading into it at the sides, with the DECTRIS wordmark it carries and, in the dark above the contours, the ALBIS wordmark in Michroma, the tagline and the running version; a contents column that stays beside the text and marks the section you are reading (a row of chips on a narrow window); the app's own Inter at a readable width, keys as keycaps, arrows as → rather than ->, a "More in the User Guide →" link under each section, a short section on the beta Detector tab, and a footer with version, licence, citation and the DECTRIS logo. It loads only fonts shipped with ALBIS, as before nothing from the internet.
@@ -1495,7 +1497,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.1...HEAD
+[0.26.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.2...v0.26.0
 [0.25.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.1...v0.25.2
 [0.25.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.0...v0.25.1
