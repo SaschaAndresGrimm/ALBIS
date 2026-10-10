@@ -450,7 +450,8 @@ tab while it is switched on.
 It is off by default. Switch it on under **Settings → Viewer → Beta: detector
 control**; while it is off, ALBIS cannot drive a detector at all. Then enter the
 detector's address and press **Connect**. Every field is built from what the
-detector reports, so units, limits and choices are that detector's own:
+detector reports, so limits and choices are that detector's own (where it
+reports no unit, ALBIS adds the one from the SIMPLON reference):
 
 - **The main button** offers the one sensible next step: **Initialize** after
   power-up (up to two minutes), **Acquire** when ready. Beside it, **Snap**
@@ -470,8 +471,9 @@ detector reports, so units, limits and choices are that detector's own:
   and about how much it writes ("20 images · 20 s · ≈ 22 MB", estimated with
   the detector's compression, about 4× for bslz4), Data output the free storage
   on the detector.
-- **Acquisition** holds the series, timing, energy and thresholds, and **Images**
-  chooses which images the detector delivers. A value outside the detector's
+- **Acquisition** holds the series, timing, energy and thresholds; the switch
+  beside each threshold, and the one for **Difference**, chooses which images
+  the detector delivers. A value outside the detector's
   range is refused before it is sent, and when the detector refuses one, it
   says why. In the **enable** trigger modes each trigger takes one image (ALBIS
   sets images per trigger to 1 for you): with **Internal, enable** you set each
@@ -487,11 +489,14 @@ detector reports, so units, limits and choices are that detector's own:
   on its button and "Done", or why it failed, beside it. Initialize resets the
   output for every program using it. **Delete all files** takes a second click
   on the same button within a few seconds: it cannot be undone.
+- **Commands** sends the detector's commands by hand, each with a **?** that
+  says what it does: **Arm**, **Trigger**, **Disarm** and **Cancel series** for
+  a series, **Re-read settings** and **Re-initialize** for the detector.
 - **Advanced** holds the detector's other documented settings, in closed groups
-  with a filter, each setting with a **?**. **Commands**
-  sends the detector's commands by hand, each with a **?** that says what it
-  does: **Arm**, **Trigger**, **Disarm** and **Cancel series** for a series,
-  **Re-read settings** and **Re-initialize** for the detector.
+  with a filter, each setting with a **?**; the goniometer's start and
+  increment share a row per axis.
+- **Activity**, at the bottom, logs what the tab sent and what the detector
+  answered, and flags changes another program made.
 
 To try it without a detector, `python test_scripts/fake_simplon_dcu.py` runs a
 simulated one at `http://127.0.0.1:8100` (`--thresholds 4` for a

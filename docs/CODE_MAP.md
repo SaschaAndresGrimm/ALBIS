@@ -53,6 +53,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Autoload mode, settings persistence/UI sync, orchestration, and status/meta control.
 - `frontend/modules/file_browser.js`:
   - File browser modal state and filesystem browsing interactions.
+- `frontend/modules/detector_control_controller.js`:
+  - The beta Detector tab: connect, state and buttons (Acquire, Snap, Continuous), pre-flight check, progress and result, Acquisition and Data output built from the detector's own descriptors, Commands, Advanced, Activity; command feedback and the status poll.
 
 ## Backend Route Modules
 
@@ -70,6 +72,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Analysis and series-summing endpoints (`/api/analysis/*`).
 - `backend/routes/stream.py`:
   - Single-image decoding, SIMPLON monitor/mask, remote stream ingest/latest/meta, JUNGFRAUJOCH preview controls.
+- `backend/routes/detector_control.py`:
+  - Beta Detector tab endpoints (`/api/detector/*`): describe, status, config writes, commands, files and series fetch; 404 unless `ui.detector_control` is on.
 
 ## Backend Services
 
@@ -88,6 +92,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 - `backend/services/simplon.py`:
   - SIMPLON endpoint URL/mode helpers and monitor/mask fetch logic.
   - Base-URL normalization (bare host/IP accepted), failure classification, and connection probe.
+- `backend/services/simplon_control.py`:
+  - SIMPLON reads and writes for the Detector tab: API version detection, descriptors and status (including SIMPLON 1.6 keys), the allowed commands and the background command runner, the detector's file list and series download.
 - `backend/services/path_policy.py`:
   - Shared path safety policy and extension filtering helpers.
 - `backend/services/directory_scan.py`:
@@ -118,6 +124,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Remote stream metadata and decode helper tests.
 - `tests/test_path_policy.py`, `tests/test_binary_response_utils.py`, `tests/test_hdf5_units.py`, `tests/test_os_actions_helpers.py`:
   - Focused utility-level regression coverage for extracted shared modules.
+- `tests/test_detector_control.py`, `tests/fake_simplon.py`:
+  - Detector tab endpoints against a simulated SIMPLON detector control unit; `test_scripts/fake_simplon_dcu.py` runs the same simulation by hand (`--thresholds 1-4`, `--api-version 1.6.0`).
 - `tests/test_openapi_key_contract_baseline.py`:
   - Key OpenAPI contract snapshot parity check for compatibility-sensitive endpoints.
 
