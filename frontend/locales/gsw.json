@@ -440,6 +440,7 @@
   "detector.output.stream_error": "De Stream meldet en Fähler. Zrüggsetze behebt das meischtens.",
   "detector.param.count_time": "Zählziit",
   "detector.param.difference_mode": "Differenzbild",
+  "detector.param.difference_short": "Differenz",
   "detector.param.frame_time": "Bildziit",
   "detector.param.header_detail": "Header-Umfang",
   "detector.param.incident_energy": "Iifallsenergie",

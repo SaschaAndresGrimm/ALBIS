@@ -440,6 +440,7 @@
   "detector.output.stream_error": "El flujo informa de un error. Restablecerlo suele solucionarlo.",
   "detector.param.count_time": "Tiempo de conteo",
   "detector.param.difference_mode": "Imagen de diferencia",
+  "detector.param.difference_short": "Diferencia",
   "detector.param.frame_time": "Tiempo por imagen",
   "detector.param.header_detail": "Detalle de cabecera",
   "detector.param.incident_energy": "Energía incidente",

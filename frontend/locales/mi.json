@@ -440,6 +440,7 @@
   "detector.output.stream_error": "Kei te pūrongo hapa te rerenga. Mā te tautuhi anō e whakatika i te nuinga o te wā.",
   "detector.param.count_time": "Wā tatau",
   "detector.param.difference_mode": "Atahanga rerekētanga",
+  "detector.param.difference_short": "Rerekētanga",
   "detector.param.frame_time": "Wā anga",
   "detector.param.header_detail": "Taipitopito pane",
   "detector.param.incident_energy": "Pūngao taka",

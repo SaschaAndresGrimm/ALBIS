@@ -440,6 +440,7 @@
   "detector.output.stream_error": "ストリームがエラーを報告しています。通常はリセットで解消します。",
   "detector.param.count_time": "計数時間",
   "detector.param.difference_mode": "差分画像",
+  "detector.param.difference_short": "差分",
   "detector.param.frame_time": "フレーム時間",
   "detector.param.header_detail": "ヘッダーの詳細度",
   "detector.param.incident_energy": "入射エネルギー",

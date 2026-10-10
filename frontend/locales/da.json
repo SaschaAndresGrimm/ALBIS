@@ -440,6 +440,7 @@
   "detector.output.stream_error": "Streamen melder en fejl. En nulstilling løser det som regel.",
   "detector.param.count_time": "Tælletid",
   "detector.param.difference_mode": "Differensbillede",
+  "detector.param.difference_short": "Differens",
   "detector.param.frame_time": "Billedtid",
   "detector.param.header_detail": "Header-detaljer",
   "detector.param.incident_energy": "Indfaldsenergi",

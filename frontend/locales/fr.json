@@ -440,6 +440,7 @@
   "detector.output.stream_error": "Le flux signale une erreur. Une réinitialisation la corrige généralement.",
   "detector.param.count_time": "Temps de comptage",
   "detector.param.difference_mode": "Image de différence",
+  "detector.param.difference_short": "Différence",
   "detector.param.frame_time": "Temps par image",
   "detector.param.header_detail": "Détail de l'en-tête",
   "detector.param.incident_energy": "Énergie incidente",

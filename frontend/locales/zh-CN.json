@@ -440,6 +440,7 @@
   "detector.output.stream_error": "数据流报告错误。重置通常可以解决。",
   "detector.param.count_time": "计数时间",
   "detector.param.difference_mode": "差分图像",
+  "detector.param.difference_short": "差分",
   "detector.param.frame_time": "帧时间",
   "detector.param.header_detail": "头信息详细程度",
   "detector.param.incident_energy": "入射能量",

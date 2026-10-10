@@ -440,6 +440,7 @@
   "detector.output.stream_error": "Der Stream meldet einen Fehler. Zurücksetzen behebt das meist.",
   "detector.param.count_time": "Zählzeit",
   "detector.param.difference_mode": "Differenzbild",
+  "detector.param.difference_short": "Differenz",
   "detector.param.frame_time": "Bildzeit",
   "detector.param.header_detail": "Header-Umfang",
   "detector.param.incident_energy": "Einfallsenergie",

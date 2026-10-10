@@ -1420,7 +1420,28 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // A setting with an explanation shows its name and a "?" that explains it
   // and names its SIMPLON key; the others, all in Advanced and mostly without
   // a translated name, show the key itself.
-  function paramRow(subsystem, key, descriptor, { help: helpOverride = "", alsoKeys = [], inline = false } = {}) {
+  function paramRow(subsystem, key, descriptor, options = {}) {
+    const row = buildParamRow(subsystem, key, descriptor, options);
+    return options.inline ? row : tipRight(row);
+  }
+
+  // In the main view the "?" has a column of its own right of the field: one
+  // aligned column down the section, whatever the length of the names. Rows
+  // without one keep the column, empty, so the fields line up all the same.
+  // Advanced keeps it beside the name: its rows show SIMPLON keys, mostly
+  // without a "?".
+  function tipRight(row) {
+    const value = row.querySelector(":scope > .detector-field, :scope > .detector-readonly");
+    if (!value) return row;
+    const cell = el("div", "detector-tip");
+    const tip = row.querySelector(".detector-param-name .info-tip");
+    if (tip) cell.append(tip);
+    value.after(cell);
+    row.classList.add("has-tip");
+    return row;
+  }
+
+  function buildParamRow(subsystem, key, descriptor, { help: helpOverride = "", alsoKeys = [], inline = false } = {}) {
     const row = el("div", "detector-param");
     row.dataset.key = `${subsystem}:${key}`;
     const id = `detector-p-${subsystem}-${key.replace(/[^a-z0-9]/gi, "_")}`;
@@ -1709,33 +1730,32 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return cell;
   }
 
-  // A row of the energy group, its images switch inside the field column
-  // right of the energy: the column stays as wide as in Series and Timing, so
-  // the fields line up across the groups.
+  // A row of the energy group: name, images switch, energy. The switch has a
+  // column of its own left of the field, so every field in the tab keeps the
+  // same width and the switches line up, the difference image's included.
   function switchedRow(row) {
     const key = row.keys[0];
     let line;
-    let slot;
     if (row.switchOnly) {
       // The difference image: a name and a switch, no value of its own here.
+      // "Difference", short enough for one line beside the switch when the
+      // groups sit side by side; the switch and the log say "Difference image".
       line = el("div", "detector-param");
       line.dataset.key = `detector:${key}`;
       const name = el("div", "detector-param-name");
       const label = el("span", "detector-param-label");
-      label.append(el("label", "", paramLabel(key)), infoTip("detector.help.difference_mode", `detector/config/${key}`));
+      label.append(el("label", "", t("detector.param.difference_short")), infoTip("detector.help.difference_mode", `detector/config/${key}`));
       name.append(label);
-      slot = el("div", "detector-field-with-switch");
-      line.append(name, slot, el("div", "detector-hint"));
+      line.append(name, el("div", "detector-field is-empty"), el("div", "detector-hint"));
+      tipRight(line);
     } else {
       line = paramRow("detector", key, params.detector[key], { alsoKeys: row.keys.slice(1) });
-      const field = line.querySelector(".detector-field");
-      if (row.imageSwitch && field) {
-        slot = el("div", "detector-field-with-switch");
-        field.replaceWith(slot);
-        slot.append(field);
-      }
     }
-    if (row.imageSwitch && slot) slot.append(imageSwitch(row.imageSwitch, line));
+    const field = line.querySelector(".detector-field");
+    if (row.imageSwitch && field) {
+      line.classList.add("has-switch");
+      field.before(imageSwitch(row.imageSwitch, line));
+    }
     return line;
   }
 
@@ -2065,6 +2085,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // settings, not the detector's, remembered per browser.
   function quickSettings() {
     const box = el("div", "detector-quick-settings");
+    // The two timings wrap together, under Live view, when the panel is narrow.
+    const fields = el("div", "detector-quick-fields");
+    box.append(fields);
     for (const key of Object.keys(QUICK_DEFAULTS)) {
       const { min, max, unit } = QUICK_LIMITS[key];
       const id = `detector-quick-${key}`;
@@ -2091,7 +2114,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         writeQuick(quick);
         labelQuickButtons();
       });
-      box.append(row);
+      fields.append(row);
     }
     return box;
   }

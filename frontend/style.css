@@ -7013,19 +7013,43 @@ button.browse-details-header-cell[aria-sort="descending"] {
   justify-content: flex-end;
 }
 
-/* The energy group's images switches: inside the field column, right of each
-   energy, so the column stays as wide as in Series and Timing and the fields
-   line up. */
-.detector-field-with-switch {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 0;
+/* The "?" in a column of its own right of the field, in the main view: the
+   question marks line up down the section, whatever the names' lengths. */
+.detector-param.has-tip {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 140px) 16px;
+  column-gap: 6px;
 }
 
-.detector-field-with-switch .detector-field {
-  flex: 1 1 auto;
+.detector-param.has-tip.is-wide {
+  grid-template-columns: minmax(0, 1fr) 16px;
+}
+
+.detector-param.has-tip.is-wide > .detector-param-name {
+  grid-column: 1 / -1;
+}
+
+.detector-tip {
+  display: flex;
+  justify-content: center;
+}
+
+/* The energy group's images switches: a column of their own left of the
+   fields, so every field in the tab is equally wide and the fields and the
+   switches each line up, the difference image's switch included. */
+.detector-param.has-switch {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 140px);
+}
+
+.detector-param.has-switch.has-tip {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 140px) 16px;
+}
+
+/* A refusal or adjustment runs from the name to the field's right edge,
+   right-aligned under the field. Spanning the 1fr name column keeps a long
+   message out of the sizing of the switch column, which it would otherwise
+   stretch, pushing the switch over the name. */
+.detector-param.has-tip .detector-hint {
+  grid-column: 1 / -2;
   min-width: 0;
 }
 
@@ -7084,8 +7108,10 @@ button.browse-details-header-cell[aria-sort="descending"] {
   align-items: center;
 }
 
-.detector-quick-settings > .detector-follow {
-  margin-right: auto;
+.detector-quick-fields {
+  display: flex;
+  gap: 6px 18px;
+  margin-left: auto;
 }
 
 .detector-quick-field {
@@ -7408,7 +7434,9 @@ button.browse-details-header-cell[aria-sort="descending"] {
   display: block;
 }
 
-.detector-param:focus-within .detector-hint:not(:empty):not(.is-error):not(.is-changed) {
+/* Only while the field itself is edited: a click on a row's images switch
+   focuses the switch, and is no reason to show the energy's range. */
+.detector-field:focus-within ~ .detector-hint:not(:empty):not(.is-error):not(.is-changed) {
   position: absolute;
   top: calc(100% - 3px);
   right: 6px;

@@ -440,6 +440,7 @@
   "detector.output.stream_error": "Strömmen rapporterar ett fel. En återställning brukar lösa det.",
   "detector.param.count_time": "Räknetid",
   "detector.param.difference_mode": "Differensbild",
+  "detector.param.difference_short": "Differens",
   "detector.param.frame_time": "Bildtid",
   "detector.param.header_detail": "Header-detalj",
   "detector.param.incident_energy": "Infallande energi",

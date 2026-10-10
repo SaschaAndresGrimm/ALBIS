@@ -440,6 +440,7 @@
   "detector.output.stream_error": "The stream reports an error. Resetting it usually clears it.",
   "detector.param.count_time": "Count time",
   "detector.param.difference_mode": "Difference image",
+  "detector.param.difference_short": "Difference",
   "detector.param.frame_time": "Frame time",
   "detector.param.header_detail": "Header detail",
   "detector.param.incident_energy": "Incident energy",

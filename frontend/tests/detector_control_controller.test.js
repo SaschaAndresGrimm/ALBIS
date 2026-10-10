@@ -300,12 +300,25 @@ describe("detector control panel, after the first hardware test", () => {
       "threshold/2/mode": mode("disabled"),
       "threshold/difference/mode": mode("enabled"),
     });
-    expect(labels).toEqual(["Photon energy", "Threshold 1", "Threshold 2", "Difference image"]);
+    // "Difference" on the row, short enough beside its switch; the switch
+    // itself (below) keeps the full name.
+    expect(labels).toEqual(["Photon energy", "Threshold 1", "Threshold 2", "Difference"]);
     // As on a POLLUX: only the difference image, from both thresholds.
     expect(chips()).toEqual(["Threshold 1 images:false", "Threshold 2 images:false", "Difference image:true"]);
-    // Each switch sits in its threshold's row, beside the energy.
+    // Each switch sits in its threshold's row, in a column of its own left of
+    // the energy, so the field is as wide as every other; the difference
+    // image's switch in the same column, before an empty field.
     const row = host.querySelector('[data-key="detector:threshold/2/energy"]');
     expect(row.querySelector(".detector-image-switch input").dataset.imageKey).toBe("threshold/2/mode");
+    expect(row.classList.contains("has-switch")).toBe(true);
+    expect(row.querySelector(".detector-image-switch").nextElementSibling.classList.contains("detector-field")).toBe(true);
+    const difference = host.querySelector('[data-key="detector:threshold/difference/mode"]');
+    expect([...difference.children].map((child) => child.className)).toEqual(["detector-param-name", "detector-image-switch", "detector-field is-empty", "detector-tip", "detector-hint"]);
+    // Every "?" in a column of its own right of the field, so they line up;
+    // none left beside a name.
+    expect(host.querySelectorAll(".detector-param-name .info-tip")).toHaveLength(0);
+    expect(row.querySelector(".detector-field").nextElementSibling.querySelector(".info-tip")).not.toBeNull();
+    expect([...host.querySelectorAll(".detector-param")].every((line) => line.classList.contains("has-tip"))).toBe(true);
     // The energies are in use either way: nothing is dimmed.
     expect(host.querySelector(".is-off")).toBeNull();
     expect(host.textContent).not.toContain(EN["detector.images.none"]);

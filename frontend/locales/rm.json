@@ -440,6 +440,7 @@
   "detector.output.stream_error": "Il stream annunzia in sbagl. Reinizialisar al rimedia per il solit.",
   "detector.param.count_time": "Temp da dumbrar",
   "detector.param.difference_mode": "Maletg da differenza",
+  "detector.param.difference_short": "Differenza",
   "detector.param.frame_time": "Temp per maletg",
   "detector.param.header_detail": "Detagl dal header",
   "detector.param.incident_energy": "Energia incidenta",
