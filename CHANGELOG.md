@@ -7,7 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **A detector address that does not answer no longer half-switches the Detector tab.** Connecting to a new address took it over before trying it: when it failed, the tab kept the previous detector's name, settings, files and buttons while polling the new address and showing it unreachable, so Acquire or Stop went to an address with nothing behind it. The new address is now tried on its own and taken over only once it answers. Until then the detector already connected stays connected and polled — it may be in the middle of a series, and a typo must not take its Stop button away — the error shows under the address, which keeps what you typed, and **Cancel** beside Connect goes back to it. A first connect that fails leaves the tab in its starting state, with nothing polled in the background.
+
 ## [0.26.3] - 2026-10-12
+
+Tagged but not published: the macOS x64 build could not fetch its notarization ticket from Apple (see 0.26.2). Its changes ship in the next release.
 
 ### Fixed
 
@@ -15,7 +21,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [0.26.2] - 2026-10-12
 
-Tagged but not published: the macOS x64 build failed to staple its notarization ticket five times (see 0.26.3). Its changes ship in 0.26.3.
+Tagged but not published: the macOS x64 build failed to staple its notarization ticket five times. Its changes ship in the next published release.
 
 ### Added
 

@@ -20,6 +20,9 @@ import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 const STORAGE_KEY = "albis.detectorControl.url";
 const FOLLOW_KEY = "albis.detectorControl.followLive";
 const POLL_ACTIVE_MS = 1000;
+// The SIMPLON version a new detector is first asked in; its answer says
+// which one it speaks.
+const DEFAULT_API_VERSION = "1.8.0";
 const POLL_IDLE_MS = 3000;
 const LOG_LIMIT = 12;
 // Below this much free detector storage, offer to clear it even if SIMPLON
@@ -553,7 +556,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
 
   let enabled = false;
   let url = "";
-  let version = "1.8.0";
+  let version = DEFAULT_API_VERSION;
   let params = { detector: {}, monitor: {}, filewriter: {}, stream: {} };
   let status = null;
   let lastModes = null;
@@ -671,9 +674,23 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     model.parentElement?.after?.(whereLine);
   }
 
+  // Whether the panel is connected: a detector answered, and its view shows.
+  const isConnected = () => Boolean(url) && live?.hidden === false;
+
+  // Beside Connect while the address of a connected detector is being
+  // changed: back to that detector without connecting anywhere.
+  const cancelBtn = connectBtn ? el("button", "btn btn-secondary", t("detector.action.cancel")) : null;
+  if (cancelBtn) {
+    cancelBtn.type = "button";
+    cancelBtn.hidden = true;
+    cancelBtn.addEventListener("click", () => cancelChange());
+    connectBtn.after?.(cancelBtn);
+  }
+
   function showAddress(show) {
     if (addressHost) addressHost.hidden = !show;
     if (whereLine) whereLine.hidden = show;
+    if (cancelBtn) cancelBtn.hidden = !(show && isConnected());
   }
 
   function renderWhere() {
@@ -782,6 +799,12 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   // ---------- connecting ----------
+  // The new address is tried on its own, with its own requests: the panel
+  // takes it over only once it answers. Until then the detector already
+  // connected stays connected and polled -- it may be in the middle of a
+  // series, and a typo in the address must not take its Stop button away.
+  // A first connect that fails leaves the panel in its starting state, with
+  // nothing polled in the background.
   async function connect() {
     const normalized = normalizeSimplonBaseUrl(urlInput?.value || "");
     if (!normalized) {
@@ -790,38 +813,67 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       return;
     }
     if (urlInput) urlInput.value = normalized;
-    url = normalized;
-    writeStored(url);
-    stopPolling();
-    setMessage(t("detector.message.connecting", { url }), "busy");
+    setMessage(t("detector.message.connecting", { url: normalized }), "busy");
     if (connectBtn) connectBtn.disabled = true;
+    let described;
+    let answered;
     try {
       // Not the monitor's connection test: that reads a monitor setting, and
       // before initialize a detector answers only its state ("Before
       // initializing the detector only the detector state is available!") --
       // a freshly switched-on detector would look like no detector at all.
-      await refreshDescription();
-      await poll();
-      const name = displayValue(params.detector.description) || url;
-      setMessage("");
-      renderWhere();
-      showAddress(false);
-      log(t("detector.log.connected", { detector: name }));
-      if (live) live.hidden = false;
-      sections?.forEach((section) => { section.hidden = false; });
-      await refreshFiles();
+      // Asked in the default version; the answer says which it speaks.
+      const at = (path, apiVersion) => `${path}?url=${encodeURIComponent(normalized)}&version=${encodeURIComponent(apiVersion)}`;
+      described = await request(at("/detector/describe", DEFAULT_API_VERSION));
+      answered = await request(at("/detector/status", String(described?.api_version || DEFAULT_API_VERSION)));
     } catch (err) {
       setMessage(err.message || t("simplon.probe.request_failed"), "error");
+      // The address stays open with what was typed, to correct it.
+      showAddress(true);
+      if (!isConnected()) {
+        url = "";
+        stopPolling();
+      }
+      return;
     } finally {
       if (connectBtn) connectBtn.disabled = false;
     }
+    // It answered: from here on this is the detector.
+    stopPolling();
+    url = normalized;
+    writeStored(url);
+    status = answered;
+    lastModes = null;
+    files = [];
+    lastResult = null;
+    applyDescription(described);
+    renderState();
+    const name = displayValue(params.detector.description) || url;
+    setMessage("");
+    renderWhere();
+    showAddress(false);
+    log(t("detector.log.connected", { detector: name }));
+    if (live) live.hidden = false;
+    sections?.forEach((section) => { section.hidden = false; });
+    schedulePoll();
+    await refreshFiles();
+  }
+
+  // Back to the detector already connected, the address as it was.
+  function cancelChange() {
+    if (urlInput) urlInput.value = url;
+    setMessage("");
+    showAddress(false);
   }
 
   async function refreshDescription() {
-    const payload = await request(`/detector/describe?${query()}`);
+    applyDescription(await request(`/detector/describe?${query()}`));
+  }
+
+  function applyDescription(payload) {
     // The detector says which SIMPLON it speaks (an EIGER1: 1.6.0); every
     // request from here on uses that.
-    if (payload?.api_version) version = String(payload.api_version);
+    version = payload?.api_version ? String(payload.api_version) : DEFAULT_API_VERSION;
     params = withKnownUnits({ detector: {}, monitor: {}, filewriter: {}, stream: {}, ...(payload?.params || {}) });
     if (model) model.textContent = displayValue(params.detector.description) || t("detector.section.detector");
     if (serial) serial.textContent = displayValue(params.detector.detector_number);

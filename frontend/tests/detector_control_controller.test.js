@@ -1012,6 +1012,84 @@ describe("detector control panel, older detectors", () => {
   });
 });
 
+describe("detector control panel, switching detectors", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  // The PILATUS4 answers at .191; nothing answers at .19.
+  function routes() {
+    const asked = [];
+    const answers = (url) => {
+      const address = new URL(url, "http://x").searchParams.get("url");
+      asked.push(address);
+      return address.endsWith("192.168.20.191");
+    };
+    return {
+      asked,
+      routes: {
+        "/detector/describe": async (url) =>
+          answers(url)
+            ? { ok: true, json: async () => ({ state: "idle", params: structuredClone(DESCRIPTORS) }) }
+            : { ok: false, status: 502, json: async () => ({ detail: "Cannot reach the detector." }) },
+        "/detector/status": async (url) =>
+          answers(url)
+            ? { ok: true, json: async () => ({ detector: { state: "idle" } }) }
+            : { ok: false, status: 502, json: async () => ({ detail: "Cannot reach the detector." }) },
+        "/detector/files": async () => ({ ok: true, json: async () => ({ files: [] }) }),
+      },
+    };
+  }
+
+  it("keeps the connected detector when the new address does not answer", async () => {
+    const { routes: r, asked } = routes();
+    const { controller, elements } = await setup(r);
+    controller.setEnabled(true);
+    elements.urlInput.value = "192.168.20.191";
+    await controller.connect();
+    expect(elements.live.hidden).toBe(false);
+    const name = elements.model.textContent;
+    // Change -> a typo.
+    elements.live.querySelector(".detector-where button").click();
+    const cancel = [...elements.addressHost.querySelectorAll("button")].find((b) => b.textContent === "Cancel");
+    expect(cancel.hidden).toBe(false);
+    elements.urlInput.value = "192.168.20.19";
+    await controller.connect();
+    // The error, the typed address left to correct, and the PILATUS4 as it was:
+    // still shown, still the one polled.
+    expect(elements.message.textContent).toContain("Cannot reach the detector");
+    expect(elements.addressHost.hidden).toBe(false);
+    expect(elements.urlInput.value).toBe("http://192.168.20.19");
+    expect(elements.model.textContent).toBe(name);
+    expect(elements.live.hidden).toBe(false);
+    asked.length = 0;
+    await controller.poll();
+    expect(asked).toEqual(["http://192.168.20.191"]);
+    // Cancel: back to it, the address as it was.
+    cancel.click();
+    expect(elements.addressHost.hidden).toBe(true);
+    expect(elements.urlInput.value).toBe("http://192.168.20.191");
+    expect(elements.message.textContent).toBe("");
+    controller.setEnabled(false);
+  });
+
+  it("stays in its starting state when a first connect fails, polling nothing", async () => {
+    const { routes: r, asked } = routes();
+    const { controller, elements } = await setup(r);
+    controller.setEnabled(true);
+    elements.urlInput.value = "192.168.20.19";
+    await controller.connect();
+    expect(elements.message.textContent).toContain("Cannot reach the detector");
+    expect(elements.live.hidden).toBe(true);
+    expect(elements.addressHost.hidden).toBe(false);
+    asked.length = 0;
+    await controller.poll();
+    expect(asked).toEqual([]);
+    controller.setEnabled(false);
+  });
+});
+
 describe("detector control panel, enable modes", () => {
   afterEach(() => {
     vi.restoreAllMocks();

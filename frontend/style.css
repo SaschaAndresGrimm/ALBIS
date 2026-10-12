@@ -4112,6 +4112,12 @@ body.platform-windows select option:disabled {
   align-items: stretch;
 }
 
+/* The Detector tab's address while changing a connected detector: Cancel
+   beside Connect, not on a line of its own. */
+#detector-address .autoload-source-inline:has(> .btn + .btn:not([hidden])) {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 .autoload-source-inline > input,
 .autoload-source-inline > select {
   min-width: 0;
@@ -6549,7 +6555,8 @@ button.browse-details-header-cell[aria-sort="descending"] {
     grid-column: 1;
   }
 
-  .autoload-source-inline {
+  .autoload-source-inline,
+  #detector-address .autoload-source-inline:has(> .btn + .btn:not([hidden])) {
     grid-template-columns: minmax(0, 1fr);
   }
 
