@@ -7258,6 +7258,34 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 /* Data output's closed sections: the files, each output's More settings. */
+/* The detector's data page, a small ↗ at the right of the files' heading,
+   before the chevron. */
+.detector-data-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 13px;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.detector-data-page:hover,
+.detector-data-page:focus-visible {
+  background: rgba(78, 161, 255, 0.16);
+}
+
+.detector-files-section > summary .detector-data-page {
+  margin-left: auto;
+}
+
+.detector-files-section > summary:has(.detector-data-page)::after {
+  margin-left: 6px;
+}
+
 .detector-output .detector-disclosure > .advanced-inner {
   padding-top: 8px;
 }

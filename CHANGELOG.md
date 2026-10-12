@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The detector's data page sits with the files.** The "Data page" link in the file writer's header line is now a small ↗ in the **Files on the detector** heading, beside the count (or after "Files on the detector: none · Refresh"), so the two ways to the files are together. Its tooltip says what it opens; clicking it opens the page in a new tab without opening or closing the list.
+
 ### Fixed
 
 - **A detector address that does not answer no longer half-switches the Detector tab.** Connecting to a new address took it over before trying it: when it failed, the tab kept the previous detector's name, settings, files and buttons while polling the new address and showing it unreachable, so Acquire or Stop went to an address with nothing behind it. The new address is now tried on its own and taken over only once it answers. Until then the detector already connected stays connected and polled — it may be in the middle of a series, and a typo must not take its Stop button away — the error shows under the address, which keeps what you typed, and **Cancel** beside Connect goes back to it. A first connect that fails leaves the tab in its starting state, with nothing polled in the background.

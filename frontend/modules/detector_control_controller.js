@@ -2144,7 +2144,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderState();
   }
 
-  // Switch, name and "?", the file writer's data page, and the state.
+  // Switch, name and "?", and the state.
   function outputHead(name, mode) {
     const head = el("div", "detector-output-head");
     const switchLabel = el("label", "detector-switch");
@@ -2165,16 +2165,6 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     // The DCU serves the files it wrote at /data/ (SIMPLON reference), which
     // is also where its own web interface lists them. The address is typed
     // text: only an http(s) one becomes a link, never `javascript:` and the like.
-    const dataPage = name === "filewriter" ? detectorDataPage(url) : "";
-    if (dataPage) {
-      const page = el("a", "linkish detector-external", t("detector.output.data_page_short"));
-      page.href = dataPage;
-      page.target = "_blank";
-      page.rel = "noopener";
-      page.title = t("detector.output.data_page");
-      dot.before(page);
-      head.classList.add("has-action");
-    }
     toggle.addEventListener("change", () => {
       const next = toggle.checked ? "enabled" : "disabled";
       if (name === "stream" && next === "disabled") {
@@ -2328,6 +2318,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       link.addEventListener("click", refreshTracked);
       const line = el("div", "detector-meta detector-files-line", t("detector.files.none_inline"));
       line.append(" · ", link);
+      const page = dataPageLink();
+      if (page) line.append(" ", page);
       // Also where "Done" lands after deleting them all.
       const note = feedbackNote(["files.refresh", "filewriter.clear"]);
       if (note.dataset.state) line.append(" ", note);
@@ -2357,7 +2349,27 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     actions.append(feedbackNote(["files.refresh", "filewriter.clear"]));
     children.push(actions);
     const title = filesError ? t("detector.files.title") : t("detector.files.summary", { count: files.length });
-    filesHost.append(disclosure("files", title, children, "detector-files-section"));
+    const page = dataPageLink();
+    filesHost.append(disclosure("files", page ? [title, page] : title, children, "detector-files-section"));
+  }
+
+  // The detector's own list of these files, as a small ↗ beside their
+  // heading. The DCU serves the files it wrote at /data/ (SIMPLON
+  // reference), which is also where its web interface lists them. The
+  // address is typed text: only an http(s) one becomes a link, never
+  // `javascript:` and the like.
+  function dataPageLink() {
+    const href = detectorDataPage(url);
+    if (!href) return null;
+    const link = el("a", "detector-data-page", "↗");
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.title = t("detector.output.data_page");
+    link.setAttribute("aria-label", t("detector.output.data_page"));
+    // Opens the page; the section it sits in stays as it was.
+    link.addEventListener("click", (event) => event.stopPropagation());
+    return link;
   }
 
   // ---------- advanced ----------

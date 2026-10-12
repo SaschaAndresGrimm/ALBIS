@@ -778,17 +778,28 @@ describe("detector control panel, compact cards", () => {
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", state: "ready", buffer_free: 3.2e9 }, monitor: { mode: "enabled", state: "normal" } });
     const writer = elements.outputsHost.querySelector('[data-output="filewriter"]');
     // Under the name pattern, the next file alone: the free space is in the
-    // section header, the data page in the file writer's header line.
+    // section header, the data page beside the files.
     const note = writer.querySelector(".detector-output-note");
     expect(note.previousElementSibling.dataset.key).toBe("filewriter:name_pattern");
     expect(note.textContent).toBe("Next: series_$id_master.h5");
-    const head = writer.querySelector(".detector-output-head");
-    expect(head.querySelector("a").textContent).toBe("Data page");
-    expect(head.querySelector("a").href).toBe("http://192.168.1.10/data/");
+    expect(writer.querySelector(".detector-output-head a")).toBeNull();
     expect(elements.outputsHost.textContent).not.toContain("GB free");
     // Live images are under the buttons (Live view): no second way here.
     expect(elements.outputsHost.textContent).not.toContain("Watch live images");
-    expect(elements.filesHost.textContent).toBe("Files on the detector: none · Refresh");
+    expect(elements.filesHost.textContent).toBe("Files on the detector: none · Refresh ↗");
+    const page = elements.filesHost.querySelector("a.detector-data-page");
+    expect(page.href).toBe("http://192.168.1.10/data/");
+    expect(page.target).toBe("_blank");
+    expect(page.getAttribute("aria-label")).toBe(EN["detector.output.data_page"]);
+    // With files: in their heading, beside the count; a click does not
+    // open or close the list.
+    controller._setFiles([{ name: "series_1_master.h5", size: 1000 }]);
+    const summary = elements.filesHost.querySelector("details > summary");
+    expect(summary.textContent).toBe("Files on the detector (1)↗");
+    const details = summary.parentElement;
+    const open = details.open;
+    summary.querySelector("a.detector-data-page").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(details.open).toBe(open);
   });
 
   it("lays out Advanced on single lines, with readable values", async () => {
@@ -939,7 +950,7 @@ describe("detector control panel, compact cards", () => {
     controller._setFiles(Array.from({ length: 14 }, (_, i) => ({ name: `series_${i}_master.h5`, size: 1000 })));
     const section = elements.filesHost.querySelector("details");
     expect(section.open).toBe(false);
-    expect(section.querySelector("summary").textContent).toBe("Files on the detector (14)");
+    expect(section.querySelector("summary").firstChild.textContent).toBe("Files on the detector (14)");
     // Newest first, twelve of them, and how many more.
     expect(section.querySelector(".detector-files a").textContent).toBe("series_13_master.h5");
     expect(section.textContent).toContain("and 2 more");
