@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.26.4] - 2026-10-12
+
 ### Changed
 
 - **An ROI no longer gets in the way of panning, and its centre is easy to see.** A left-drag inside an ROI moved it, so with a large ROI the only way to move the image was to zoom out and find a spot outside it. Inside the ROI a drag now pans the image like anywhere else; the ROI moves by its **centre handle**, which a box now has too (a line still moves by dragging the line, which covers nothing). The centre — for a circle or annulus a thin white cross that vanished on a bright image — is a crosshair with the outline's dark halo and a handle like the others, readable on white and black. The cursor says what a drag does: move over the centre or a line, resize over a corner, a pointer over the radius and end handles.
@@ -16,6 +18,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Fixed
 
 - **Large ROIs move and resize smoothly.** Every pointer move recalculated the ROI's statistics over every pixel inside it — about 22 ms for a circle around a whole 1M detector, more than a frame — so the outline lagged the pointer. A box felt fine only because boxes are usually smaller. The outline is now redrawn on every frame and the statistics follow at most every three times their own computation time: a small ROI still updates on every frame, a large one about 15 times a second, and the numbers always end on the last position. The statistics themselves are also about 3.5 times faster: they built about five small objects per pixel and collected every value in a growing list, and now run in one allocation-free pass with a counting median for integer data (an annulus of 5.6 million pixels on a 9M frame: 315 ms per update before, 91 ms now). The numbers are unchanged; a test compares both paths over random data with and without masks, in-data flags, saturation masking and float NaN.
+- **The macOS release check retries validating the notarization ticket,** as signing now does: one dropped connection to Apple there failed 0.26.3's first macOS x64 build although the ticket was fine.
 - **A detector address that does not answer no longer half-switches the Detector tab.** Connecting to a new address took it over before trying it: when it failed, the tab kept the previous detector's name, settings, files and buttons while polling the new address and showing it unreachable, so Acquire or Stop went to an address with nothing behind it. The new address is now tried on its own and taken over only once it answers. Until then the detector already connected stays connected and polled — it may be in the middle of a series, and a typo must not take its Stop button away — the error shows under the address, which keeps what you typed, and **Cancel** beside Connect goes back to it. A first connect that fails leaves the tab in its starting state, with nothing polled in the background.
 
 ## [0.26.3] - 2026-10-12
@@ -1532,7 +1535,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.3...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.4...HEAD
+[0.26.4]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.3...v0.26.4
 [0.26.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.2...v0.26.3
 [0.26.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.1...v0.26.2
 [0.26.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.0...v0.26.1
