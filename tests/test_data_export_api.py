@@ -268,3 +268,150 @@ def test_data_export_tiff_series_to_cbf(tmp_path: Path) -> None:
     assert outputs[1].name == "scan_f000002.cbf"
     assert np.array_equal(CbfImage().read(str(outputs[0])).data, frame_a)
     assert np.array_equal(CbfImage().read(str(outputs[1])).data, frame_b)
+
+
+# ---- Live frames: sent by the browser from its live history -----------------
+
+
+def _post_live_frame(client: TestClient, data: np.ndarray, config: dict[str, Any]) -> Any:
+    import json
+
+    meta = {"dtype": data.dtype.str, "shape": list(data.shape), **config}
+    return client.post(
+        "/api/export/data/frame",
+        data={"meta": json.dumps(meta)},
+        files={"pixels": ("frame.bin", data.tobytes(), "application/octet-stream")},
+    )
+
+
+def test_live_frame_is_written_with_its_metadata_in_the_header(tmp_path: Path) -> None:
+    client = _client()
+    data = np.arange(8, dtype=np.uint32).reshape(2, 4)
+    data[1, 3] = np.iinfo(np.uint32).max
+    response = _post_live_frame(
+        client,
+        data,
+        {
+            "name": "monitor s189/i0009",
+            "format": "cbf",
+            "output_dir": str(tmp_path),
+            "overwrite": False,
+            "metadata": {
+                "source_name": "SIMPLON monitor (192.168.1.10)",
+                "incident_energy_ev": 8040,
+                "wavelength_a": 1.5421,
+                "detector_distance_m": 0.15,
+                "beam_center_x_px": 512.5,
+                "beam_center_y_px": "600",
+                "series_number": 189,
+                "image_number": 9,
+                "image_datetime": "2026-10-12T10:41:14",
+                "threshold_energy_ev": 4020,
+                "not_a_header_field": "dropped",
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    path = Path(response.json()["path"])
+    # The name is made safe for a file system.
+    assert path.name == "monitor_s189_i0009.cbf"
+    image = CbfImage()
+    image.read(str(path))
+    assert image.data.tolist() == [[0, 1, 2, 3], [4, 5, 6, -2]]
+    header = image.header["_array_data.header_contents"]
+    for line in (
+        "# Incident_energy 8040 eV",
+        "# Wavelength 1.5421 A",
+        "# Detector_distance 0.15 m",
+        "# Beam_xy (512.5, 600) pixels",
+        "# Threshold_setting: 4020 eV",
+        "# Source: SIMPLON monitor (192.168.1.10)",
+    ):
+        assert line in header
+    assert "not_a_header_field" not in header and "dropped" not in header
+
+
+def test_live_frame_keeps_an_existing_file_unless_overwrite(tmp_path: Path) -> None:
+    client = _client()
+    data = np.ones((3, 3), dtype="<f4")
+    config = {"name": "live", "format": "tiff", "output_dir": str(tmp_path)}
+    first = Path(_post_live_frame(client, data, {**config, "overwrite": False}).json()["path"])
+    second = Path(_post_live_frame(client, data, {**config, "overwrite": False}).json()["path"])
+    third = Path(_post_live_frame(client, data, {**config, "overwrite": True}).json()["path"])
+    assert first.name == "live.tiff"
+    assert second.name == "live_001.tiff"
+    assert third == first
+    assert tifffile.imread(str(first)).tolist() == [[1, 1, 1]] * 3
+
+
+@pytest.mark.parametrize(
+    ("dtype", "shape", "body_bytes", "detail"),
+    [
+        ("<u4", [2, 4], 31, "Pixel data does not match"),
+        ("<c8", [2, 2], 32, "Unsupported pixel type"),
+        ("nonsense", [2, 2], 16, "Unknown pixel type"),
+        ("<u2", [2, 2, 2], 16, "A frame must be 2D"),
+        ("<u2", "2x2", 8, "A frame must be 2D"),
+    ],
+)
+def test_live_frame_refuses_what_does_not_add_up(
+    tmp_path: Path, dtype: str, shape: Any, body_bytes: int, detail: str
+) -> None:
+    import json
+
+    client = _client()
+    meta = {
+        "dtype": dtype,
+        "shape": shape,
+        "name": "x",
+        "format": "tiff",
+        "output_dir": str(tmp_path),
+    }
+    response = client.post(
+        "/api/export/data/frame",
+        data={"meta": json.dumps(meta)},
+        files={"pixels": ("frame.bin", b"\x00" * body_bytes, "application/octet-stream")},
+    )
+    assert response.status_code == 400
+    assert detail in response.json()["detail"]
+    assert not any(tmp_path.iterdir())
+
+
+def test_live_frame_refuses_invalid_meta(tmp_path: Path) -> None:
+    client = _client()
+    response = client.post(
+        "/api/export/data/frame",
+        data={"meta": "{not json"},
+        files={"pixels": ("frame.bin", b"\x00" * 8, "application/octet-stream")},
+    )
+    assert response.status_code == 400
+
+
+def test_live_frame_header_leaves_out_what_is_not_known(tmp_path: Path) -> None:
+    """A live source reports unknowns as 0; the header states nothing for them."""
+    client = _client()
+    data = np.zeros((2, 2), dtype=np.uint16)
+    response = _post_live_frame(
+        client,
+        data,
+        {
+            "name": "x",
+            "format": "cbf",
+            "output_dir": str(tmp_path),
+            "metadata": {
+                "incident_energy_ev": 0,
+                "detector_distance_m": 0,
+                "pixel_size_x_m": 0,
+                "pixel_size_y_m": 0,
+                "beam_center_x_px": 0,
+                "beam_center_y_px": 0,
+                "source_name": "SIMPLON monitor",
+            },
+        },
+    )
+    image = CbfImage()
+    image.read(response.json()["path"])
+    header = image.header["_array_data.header_contents"]
+    for absent in ("Incident_energy", "Detector_distance", "Pixel_size", "Beam_xy"):
+        assert absent not in header
+    assert "# Source: SIMPLON monitor" in header

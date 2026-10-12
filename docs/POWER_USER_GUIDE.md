@@ -169,6 +169,7 @@ with → Change All…* to make it the default for a type.
 
 Use **File -> Convert Dataset...** or `Ctrl+Shift+X` (`Cmd+Shift+X` on macOS) to batch-export the currently selected dataset or image series to TIFF or CBF.
 For HDF5 inputs, select the dataset first, then choose all frames, the current frame, or a frame range.
+A live source (SIMPLON monitor, JUNGFRAUJOCH preview, Remote Stream) converts the current image or the whole live history; the browser sends each frame to `POST /api/export/data/frame` (multipart: `pixels`, raw little-endian data, and `meta`, JSON with `dtype`, `shape`, `name`, `format`, `output_dir`, `overwrite` and `metadata`), and it is written as a converted file would be, by default to `live_export` in the data folder.
 
 Exported detector frames are written as signed integer images.
 ALBIS follows the common detector convention where module-gap pixels are `-1` and bad or saturated pixels are `-2`.

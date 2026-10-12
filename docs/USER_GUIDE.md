@@ -320,6 +320,15 @@ screenshot of the whole window, the image in it as sharp as on screen.
 are signed integers using the common detector convention: module gaps are `-1`,
 bad or saturated pixels are `-2`.
 
+It works for a live source too — the SIMPLON monitor, a JUNGFRAUJOCH preview or
+the Remote Stream: choose **Current image** or **All images in the live
+history**, the frames ALBIS keeps of what it has shown. They are written to
+`live_export` in the data folder unless you choose another, named by series and
+image number where the source gives them (`simplon_monitor_s189_i0009.cbf`),
+with the energy, distance and beam centre the source reported. These are the
+preview images: a SIMPLON monitor need not show every frame, and the complete
+series is in the detector's files.
+
 ### What the exported header keeps
 
 TIFF and CBF exports carry the same header text — CBF in its miniCBF header,

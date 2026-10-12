@@ -863,6 +863,7 @@ register_data_export_routes(
         start_data_export_job=data_export.start_job,
         get_data_export_job=data_export.get_job,
         cancel_data_export_job=data_export.cancel_job,
+        write_live_frame=data_export.write_live_frame,
     ),
 )
 

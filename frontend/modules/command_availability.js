@@ -42,14 +42,36 @@ export function canExportAnimation(state) {
   return Boolean(state.file && (hasSeries || state.dataset));
 }
 
-// Converting reads frames from the source, so an HDF5 file needs its dataset
-// chosen first; any other format is a single image and needs nothing.
-export function canExportData(state, isHdfFile) {
+// Sources whose frames arrive over a stream and are kept only in the
+// browser's live history: no file to read them from again.
+export const LIVE_EXPORT_MODES = new Set(["simplon", "remote", "jungfraujoch"]);
+
+export function isLiveExportSource(state) {
+  return LIVE_EXPORT_MODES.has(String(state?.autoload?.mode || ""));
+}
+
+// The frames a live source can be converted from: its live history.
+export function liveExportEntries(state) {
+  if (!isLiveExportSource(state)) return [];
+  const entries = state.autoload?.historyEntries;
+  return Array.isArray(entries) ? entries : [];
+}
+
+// Reading frames from a file, so an HDF5 file needs its dataset chosen first;
+// any other format is a single image and needs nothing.
+export function canConvertFile(state, isHdfFile) {
+  if (isLiveExportSource(state)) return false;
   return Boolean(state.file && (!isHdfFile(state.file) || state.dataset));
 }
 
-// Series operations read the same frames a conversion does, and only one job
-// runs at a time.
+// Converting: a file as above, or a live source's history once it holds an
+// image. A live source puts a label in `state.file`, not a path.
+export function canExportData(state, isHdfFile) {
+  if (isLiveExportSource(state)) return liveExportEntries(state).length > 0;
+  return canConvertFile(state, isHdfFile);
+}
+
+// Series operations read frames from files, and only one job runs at a time.
 export function canStartSeriesOperation(state, isHdfFile) {
-  return canExportData(state, isHdfFile) && !state.seriesSum.running;
+  return canConvertFile(state, isHdfFile) && !state.seriesSum.running;
 }

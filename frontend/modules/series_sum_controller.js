@@ -3,7 +3,7 @@
  */
 
 import { t } from "./i18n.js";
-import { canExportData, canStartSeriesOperation } from "./command_availability.js";
+import { canConvertFile, canStartSeriesOperation } from "./command_availability.js";
 import { showConfirmDialog } from "./dialogs.js";
 
 export function createSeriesSumController({
@@ -274,7 +274,7 @@ export function createSeriesSumController({
       const nextNorm = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumNormalizeFrame.value || 1))));
       seriesSumNormalizeFrame.value = String(nextNorm);
     }
-    const ready = canExportData(state, isHdfFile);
+    const ready = canConvertFile(state, isHdfFile);
     if (seriesSumStart) {
       seriesSumStart.disabled = !ready || state.seriesSum.running;
       seriesSumStart.textContent = state.seriesSum.cancelling

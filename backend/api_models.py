@@ -228,6 +228,10 @@ class DataExportStartResponse(_StrictModel):
     status: str
 
 
+class DataExportFrameResponse(_StrictModel):
+    path: str
+
+
 class DataExportCancelRequest(_StrictModel):
     job_id: str
 

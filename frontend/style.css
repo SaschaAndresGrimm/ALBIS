@@ -5372,6 +5372,14 @@ body.platform-windows select option:disabled {
   overflow-wrap: anywhere;
 }
 
+/* A live source: what its images are, under the source line. */
+.data-export-live-note {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
 .data-export-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

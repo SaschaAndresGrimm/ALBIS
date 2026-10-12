@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canDuplicateWindow,
   canExportAnimation,
+  canConvertFile,
   canExportData,
   canSaveImage,
   canStartSeriesOperation,
@@ -169,5 +170,26 @@ describe("canDuplicateWindow", () => {
     const state = base();
     delete state.autoload;
     expect(canDuplicateWindow(state, isHdfFile)).toBe(true);
+  });
+});
+
+
+describe("live sources", () => {
+  const live = (entries) => ({ file: "SIMPLON monitor (1.2.3.4) S1 Img2", dataset: "", autoload: { mode: "simplon", historyEntries: entries }, seriesSum: { running: false } });
+
+  it("converts a live source once its history holds an image", () => {
+    expect(canExportData(live([]), isHdfFile)).toBe(false);
+    expect(canExportData(live([{}]), isHdfFile)).toBe(true);
+  });
+
+  it("never treats a live source's label as a file to read", () => {
+    expect(canConvertFile(live([{}]), isHdfFile)).toBe(false);
+    expect(canStartSeriesOperation(live([{}]), isHdfFile)).toBe(false);
+  });
+
+  it("leaves a file opened in file mode as it was", () => {
+    const state = { file: "/data/frame.cbf", dataset: "", autoload: { mode: "file" }, seriesSum: { running: false } };
+    expect(canExportData(state, isHdfFile)).toBe(true);
+    expect(canConvertFile(state, isHdfFile)).toBe(true);
   });
 });

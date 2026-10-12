@@ -60,6 +60,7 @@ import {
   canExportAnimation,
   canDuplicateWindow,
   canExportData,
+  isLiveExportSource,
   canSaveImage,
 } from "./modules/command_availability.js";
 import { createBackendStatusController } from "./modules/backend_status_controller.js";
@@ -1770,6 +1771,7 @@ function fileCommandUnavailableReason(action) {
       );
     case "export-data":
       if (canExportData(state, isHdfFile)) return "";
+      if (isLiveExportSource(state)) return t("status.data_export.no_live_image");
       return t(state.file ? "status.data_export.no_dataset" : "status.data_export.no_file");
     case "duplicate-window":
       if (canDuplicateWindow(state, isHdfFile)) return "";

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 
 from ..api_models import (
     DataExportCancelRequest,
     DataExportCancelResponse,
+    DataExportFrameResponse,
     DataExportStartRequest,
     DataExportStartResponse,
 )
@@ -20,6 +22,7 @@ class DataExportRouteDeps:
     start_data_export_job: Callable[..., str]
     get_data_export_job: Callable[[str], dict[str, Any] | None]
     cancel_data_export_job: Callable[[str], bool]
+    write_live_frame: Callable[..., Path]
 
 
 def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None:
@@ -71,6 +74,40 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             overwrite=overwrite,
         )
         return DataExportStartResponse(job_id=job_id, status="queued")
+
+    # Plain `def`: writing a frame is file I/O and numpy work, kept off the
+    # event loop as `/api/upload` and the remote ingest are.
+    @app.post("/api/export/data/frame", response_model=DataExportFrameResponse)
+    def data_export_frame(
+        meta: str = Form("{}"),
+        pixels: UploadFile = File(...),
+    ) -> DataExportFrameResponse:
+        """Write one frame of a live source, sent by the browser, as TIFF or CBF.
+
+        A live source has no file to convert; its frames are in the browser's
+        live history. `meta` is JSON: `dtype`, `shape`, `name`, `format`,
+        `output_dir`, `overwrite`, and `metadata` for the header.
+        """
+        try:
+            config = json.loads(meta or "{}")
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid meta JSON") from exc
+        if not isinstance(config, dict):
+            raise HTTPException(status_code=400, detail="Invalid meta JSON")
+        payload = pixels.file.read()
+        if not payload:
+            raise HTTPException(status_code=400, detail="Empty pixel data")
+        path = deps.write_live_frame(
+            payload=payload,
+            dtype=str(config.get("dtype") or ""),
+            shape=config.get("shape") or [],
+            name=str(config.get("name") or ""),
+            output_format=str(config.get("format") or "tiff").strip().lower(),
+            output_dir=str(config.get("output_dir") or "").strip() or None,
+            overwrite=bool(config.get("overwrite")),
+            metadata=config.get("metadata") if isinstance(config.get("metadata"), dict) else {},
+        )
+        return DataExportFrameResponse(path=str(path))
 
     @app.get("/api/export/data/status")
     def data_export_status(job_id: str = Query(..., min_length=1)) -> dict[str, Any]:

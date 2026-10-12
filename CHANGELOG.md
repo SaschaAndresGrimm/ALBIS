@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Convert Dataset works for live sources.** With the SIMPLON monitor, a JUNGFRAUJOCH preview or the Remote Stream as the source, **File → Convert Dataset** saves the **Current image** or **All images in the live history** as TIFF or CBF. Before, it sent the source's label as if it were a file and failed with "File not found". The browser sends each frame to a new endpoint, `POST /api/export/data/frame`, which writes it as a converted file would be: the same pixel conventions, the same header with the energy, distance, beam centre, threshold, series and image number the source reported (values a source leaves at 0 are left out rather than stated as 0), and ALBIS's provenance line naming the source. Files go to `live_export` in the data folder by default, named by series and image number where known (`simplon_monitor_s189_i0009.cbf`); a note says these are the live preview images, and the complete series is in the detector's files. Convert Dataset stays greyed out, with the reason, until a live source has shown an image; Open Image after the export keeps the detector's monitor on.
+
 ### Changed
 
 - **Wording for any lab or facility, not only beamlines.** ALBIS runs wherever a DECTRIS detector does, so the Detector tab now points to "your instrument's control software" rather than "your beamline's control system", and turning the stream off warns about "a data pipeline" rather than "a beamline pipeline" (in all 13 languages). The README, User Guide, help page, Power User Guide, Network and Privacy, Security, Contributing and Governance documents say "instrument control system", "lab or instrument network", "a detector's data folder" and "your organisation's IT group" where they assumed a beamline or a facility. Diamond I23 stays as the worked example of a tilted multi-panel detector.
