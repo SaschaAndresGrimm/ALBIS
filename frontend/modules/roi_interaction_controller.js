@@ -153,6 +153,8 @@ export function createRoiInteractionController({
     }
     if (roiState.mode === "box") {
       const { left, top, right, bottom } = getBoxScreenBounds(x0, y0, x1, y1, zoom, zoomY);
+      // The centre moves the box; its inside pans the image like anywhere.
+      if (hit((left + right) / 2, (top + bottom) / 2)) return "center";
       if (hit(left, top)) return "box-nw";
       if (hit(right, top)) return "box-ne";
       if (hit(right, bottom)) return "box-se";
@@ -372,16 +374,25 @@ export function createRoiInteractionController({
       ctx.strokeRect(x - half, y - half, handleSize, handleSize);
     };
 
-    const drawCross = (x, y) => {
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-      ctx.lineWidth = 1.5;
+    // The centre: a crosshair with the outline's dark halo, so it reads on a
+    // white image as on a black one, and a handle like the others on it --
+    // the one place a drag moves the ROI.
+    const drawCenter = (x, y) => {
+      ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(x - 6, y);
-      ctx.lineTo(x + 6, y);
-      ctx.moveTo(x, y - 6);
-      ctx.lineTo(x, y + 6);
+      ctx.moveTo(x - 9, y);
+      ctx.lineTo(x + 9, y);
+      ctx.moveTo(x, y - 9);
+      ctx.lineTo(x, y + 9);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.7)";
       ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.stroke();
+      ctx.lineWidth = 1;
       ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+      drawHandle(x, y);
     };
 
     if (roiState.mode === "line") {
@@ -394,8 +405,9 @@ export function createRoiInteractionController({
       drawHandle(right, top);
       drawHandle(right, bottom);
       drawHandle(left, bottom);
+      drawCenter((left + right) / 2, (top + bottom) / 2);
     } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
-      drawCross(x0, y0);
+      drawCenter(x0, y0);
       const handles = getCircularHandleScreenPoints(x0, y0, x1, y1, zoom, canvasWidth, canvasHeight);
       if (handles.outer) {
         drawHandle(handles.outer.x, handles.outer.y);

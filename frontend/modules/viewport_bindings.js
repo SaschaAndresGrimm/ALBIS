@@ -399,9 +399,10 @@ export function bindViewportInteractions({
       roiPoint = getImagePointFromEvent(event, { allowOutside: allowCircularOutside });
       if (roiPoint) roiHandle = getRoiHandleAt(event);
     }
-    // Precise ROI handles win first, then precise ring handles, and only then
-    // the broad "click anywhere inside the ROI to move it" fallback — so a ring
-    // handle that sits inside an active ROI stays grabbable.
+    // Precise ROI handles win first (the centre handle moves the ROI, the
+    // others resize it), then precise ring handles. Inside the ROI a drag pans
+    // the image like anywhere else, so a large ROI never hides the image from
+    // the hand; only a line, which covers nothing, moves by dragging it.
     if (roiHandle) {
       startRoiEdit(roiHandle, roiPoint);
       canvasWrap.setPointerCapture(event.pointerId);
@@ -422,7 +423,7 @@ export function bindViewportInteractions({
       return;
     }
 
-    if (roiPoint && isPointInRoi(roiPoint)) {
+    if (roiPoint && roiState.mode === "line" && isPointInRoi(roiPoint)) {
       startRoiEdit("move", roiPoint);
       canvasWrap.setPointerCapture(event.pointerId);
       event.preventDefault();
@@ -488,6 +489,7 @@ export function bindViewportInteractions({
     if (!panning) {
       // Hover affordance for the resolution-ring handles when idle.
       updateRingHover?.(event);
+      updateRoiHover(event);
       return;
     }
 
@@ -514,6 +516,31 @@ export function bindViewportInteractions({
     stopRoi(event);
     stopPan(event);
   });
+
+  // The cursor says what a drag does: move over the ROI's centre (or a
+  // line), resize over its other handles; elsewhere the hand pans.
+  const ROI_HOVER_CURSORS = {
+    center: "move",
+    move: "move",
+    "box-nw": "nwse",
+    "box-se": "nwse",
+    "box-ne": "nesw",
+    "box-sw": "nesw",
+  };
+  function updateRoiHover(event) {
+    let hover = "";
+    if (roiState.enabled && roiState.active) {
+      const handle = getRoiHandleAt(event);
+      if (handle) {
+        hover = ROI_HOVER_CURSORS[handle] || "point";
+      } else if (roiState.mode === "line") {
+        const point = getImagePointFromEvent(event, { allowOutside: false });
+        if (point && isPointInRoi(point)) hover = "move";
+      }
+    }
+    if (hover) canvasWrap.dataset.roiHover = hover;
+    else delete canvasWrap.dataset.roiHover;
+  }
 
   canvasWrap.addEventListener("pointerleave", (event) => {
     const hasCapture =

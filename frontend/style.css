@@ -1150,6 +1150,23 @@ body {
   cursor: grabbing;
 }
 
+/* Over an ROI handle: what a drag there does. */
+.canvas-wrap[data-roi-hover="move"] {
+  cursor: move;
+}
+
+.canvas-wrap[data-roi-hover="nwse"] {
+  cursor: nwse-resize;
+}
+
+.canvas-wrap[data-roi-hover="nesw"] {
+  cursor: nesw-resize;
+}
+
+.canvas-wrap[data-roi-hover="point"] {
+  cursor: pointer;
+}
+
 .canvas-wrap.is-roi {
   cursor: crosshair;
 }

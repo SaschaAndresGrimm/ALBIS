@@ -91,4 +91,31 @@ describe("roi_interaction_controller", () => {
 
     expect(handle).toBe("outer");
   });
+
+  it("gives a box a centre handle that moves it", () => {
+    const state = { width: 200, height: 200, zoom: 1, renderOffsetX: 0, renderOffsetY: 0 };
+    const roiState = { enabled: true, active: true, mode: "box", start: { x: 20, y: 40 }, end: { x: 120, y: 100 } };
+    const canvasWrap = document.createElement("div");
+    canvasWrap.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 200 });
+    const controller = createRoiInteractionController({
+      state,
+      roiState,
+      elements: { canvasWrap, roiOverlay: null, roiCtx: null },
+      callbacks: {
+        getEffectiveScrollLeft: () => 0,
+        getEffectiveScrollTop: () => 0,
+        syncOverlayCanvas: () => null,
+        updateRoiCenterInputs: vi.fn(),
+        updateRoiStats: vi.fn(),
+      },
+    });
+    const at = (x, y) => ({ clientX: x, clientY: y });
+    // The box spans 20..120 x 40..100 on screen: its centre is 70, 70.
+    expect(controller.getRoiHandleAt(at(70, 70))).toBe("center");
+    expect(controller.getRoiHandleAt(at(60, 60))).toBeNull();
+    controller.startRoiEdit("center", { x: 70, y: 70 });
+    controller.applyRoiEdit({ x: 80, y: 75 });
+    expect(roiState.start).toEqual({ x: 30, y: 45 });
+    expect(roiState.end).toEqual({ x: 130, y: 105 });
+  });
 });

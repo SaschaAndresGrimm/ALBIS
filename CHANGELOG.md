@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **An ROI no longer gets in the way of panning, and its centre is easy to see.** A left-drag inside an ROI moved it, so with a large ROI the only way to move the image was to zoom out and find a spot outside it. Inside the ROI a drag now pans the image like anywhere else; the ROI moves by its **centre handle**, which a box now has too (a line still moves by dragging the line, which covers nothing). The centre — for a circle or annulus a thin white cross that vanished on a bright image — is a crosshair with the outline's dark halo and a handle like the others, readable on white and black. The cursor says what a drag does: move over the centre or a line, resize over a corner, a pointer over the radius and end handles.
+
 - **The detector's data page sits with the files.** The "Data page" link in the file writer's header line is now a small ↗ in the **Files on the detector** heading, beside the count (or after "Files on the detector: none · Refresh"), so the two ways to the files are together. Its tooltip says what it opens; clicking it opens the page in a new tab without opening or closing the list.
 
 ### Fixed
