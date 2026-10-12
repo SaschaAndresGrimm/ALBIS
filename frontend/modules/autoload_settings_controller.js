@@ -4,7 +4,7 @@
 
 import { t } from "./i18n.js";
 import { normalizeJfjochEndpoint } from "./jfjoch_endpoint_utils.js";
-import { renderSimplonHostOptions, sanitizeRecentSimplonHosts } from "./simplon_host_history.js";
+import { knownDetectors } from "./known_detectors.js";
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 
 export function createAutoloadSettingsController({
@@ -48,7 +48,6 @@ export function createAutoloadSettingsController({
     autoloadTypeCbf,
     autoloadPattern,
     simplonUrl,
-    simplonUrlList,
     simplonVersion,
     simplonTimeout,
     simplonEnable,
@@ -96,7 +95,6 @@ export function createAutoloadSettingsController({
         types: state.autoload.types,
         pattern: state.autoload.pattern,
         simplonUrl: state.autoload.simplonUrl,
-        simplonRecentHosts: state.autoload.simplonRecentHosts,
         simplonVersion: state.autoload.simplonVersion,
         simplonTimeout: state.autoload.simplonTimeout,
         simplonEnable: state.autoload.simplonEnable,
@@ -235,7 +233,8 @@ export function createAutoloadSettingsController({
           state.autoload.pattern = stored.pattern || "";
           // Settings persisted before URL normalization may hold a bare host.
           state.autoload.simplonUrl = normalizeSimplonBaseUrl(stored.simplonUrl);
-          state.autoload.simplonRecentHosts = sanitizeRecentSimplonHosts(stored.simplonRecentHosts);
+          // Older versions kept the addresses alone, here.
+          knownDetectors.adoptLegacy(stored.simplonRecentHosts);
           state.autoload.simplonVersion = stored.simplonVersion || state.autoload.simplonVersion;
           state.autoload.simplonTimeout = Number(stored.simplonTimeout || state.autoload.simplonTimeout);
           state.autoload.simplonEnable =
@@ -266,7 +265,6 @@ export function createAutoloadSettingsController({
     if (autoloadTypeCbf) autoloadTypeCbf.checked = state.autoload.types.cbf;
     if (autoloadPattern) autoloadPattern.value = state.autoload.pattern;
     if (simplonUrl) simplonUrl.value = state.autoload.simplonUrl;
-    renderSimplonHostOptions(simplonUrlList, state.autoload.simplonRecentHosts);
     if (simplonVersion) simplonVersion.value = state.autoload.simplonVersion;
     if (simplonTimeout) simplonTimeout.value = String(state.autoload.simplonTimeout || 500);
     if (simplonEnable) simplonEnable.checked = Boolean(state.autoload.simplonEnable);

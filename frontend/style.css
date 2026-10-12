@@ -4141,6 +4141,142 @@ body.platform-windows select option:disabled {
   width: 100%;
 }
 
+/* Known detectors: a ▾ inside the address field, and the list under the
+   field and its buttons, in the page flow. */
+.detector-picker-field {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.detector-picker-field > input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 28px;
+}
+
+.detector-picker-toggle {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.detector-picker-toggle:hover {
+  color: var(--text);
+}
+
+.detector-picker-list {
+  /* Under the field, where a field puts its label beside it (Data source). */
+  grid-column: -2 / -1;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+}
+
+.detector-picker-head {
+  padding: 6px 8px 2px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detector-picker-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 2px 6px;
+  padding: 5px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.detector-picker-row:hover,
+.detector-picker-row.is-active {
+  background: var(--accent-soft);
+}
+
+.detector-picker-text {
+  display: grid;
+  min-width: 0;
+}
+
+.detector-picker-name,
+.detector-picker-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detector-picker-name {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.detector-picker-meta {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.detector-picker-rename {
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12.5px;
+}
+
+.detector-picker-icon {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.detector-picker-icon:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* Rename and remove only on the row under the pointer or keys; the star
+   always, it says whether the detector is kept. */
+.detector-picker-row:not(:hover, .is-active) .detector-picker-icon:not(:first-child) {
+  visibility: hidden;
+}
+
+.detector-picker-icon.is-kept,
+.detector-content .detector-keep.is-kept {
+  color: #f4c752;
+}
+
+@media (hover: none) {
+  .detector-picker-row .detector-picker-icon:not(:first-child) {
+    visibility: visible;
+  }
+}
+
 .autoload-action-btn {
   width: var(--control-h);
   min-width: var(--control-h);
@@ -6813,6 +6949,26 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .detector-ident span {
   color: var(--muted);
   font-size: 12px;
+}
+
+/* The name and its star (keep in the known detectors). */
+.detector-ident .detector-ident-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: inherit;
+  font-size: inherit;
+}
+
+.detector-content .detector-keep {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.detector-content .detector-keep:hover {
+  color: var(--text);
+  text-decoration: none;
 }
 
 .detector-state-row {

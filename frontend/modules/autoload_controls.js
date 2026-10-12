@@ -5,6 +5,7 @@ import { getLanguage } from "./i18n.js";
  * This module keeps event wiring separate from app-level orchestration logic.
  */
 
+import { attachDetectorPicker } from "./detector_picker.js";
 import { createJfjochProbeController } from "./jfjoch_probe_controller.js";
 import { normalizeJfjochEndpointInput } from "./jfjoch_endpoint_utils.js";
 import { createSimplonProbeController } from "./simplon_probe_controller.js";
@@ -40,7 +41,6 @@ export function bindAutoloadControls({
     autoloadSelectFile,
     filesystemMode,
     simplonUrl,
-    simplonUrlList,
     simplonTest,
     simplonProbeMessage,
     simplonVersion,
@@ -264,8 +264,18 @@ export function bindAutoloadControls({
   const simplonProbeController = createSimplonProbeController({
     apiBase,
     state,
-    elements: { simplonUrl, simplonVersion, simplonTest, simplonProbeMessage, simplonUrlList },
+    elements: { simplonUrl, simplonVersion, simplonTest, simplonProbeMessage },
     callbacks: { persistAutoloadSettings, logClient },
+  });
+
+  // The detectors used before, under the address: picking one tests it.
+  attachDetectorPicker({
+    input: simplonUrl,
+    onPick: () => {
+      state.autoload.simplonUrl = normalizeSimplonUrlInput(simplonUrl);
+      persistAutoloadSettings();
+      void simplonProbeController.probeSimplonConnection();
+    },
   });
 
   simplonUrl?.addEventListener("change", () => {
@@ -282,7 +292,8 @@ export function bindAutoloadControls({
   });
 
   simplonUrl?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+    // Enter on a highlighted known detector was taken by the list.
+    if (event.key === "Enter" && !event.defaultPrevented) {
       event.preventDefault();
       state.autoload.simplonUrl = normalizeSimplonUrlInput(simplonUrl);
       persistAutoloadSettings();

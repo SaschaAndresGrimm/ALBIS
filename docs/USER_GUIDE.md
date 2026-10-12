@@ -252,8 +252,8 @@ detector. Enter the hostname or IP — `http://` and port 80 are filled in for
 you — and press **Test** (or Enter in the address field). On success it names
 the detector and serial number, so you can confirm you are pointed at the right
 instrument; on failure it tells you which failure it was: unknown host, refused
-port, wrong API version, or timeout. Addresses that have answered before are
-offered as autocomplete.
+port, wrong API version, or timeout. Detectors that have answered before are
+listed under the field — see [Known detectors](#known-detectors).
 
 **JUNGFRAUJOCH Preview** subscribes to a JUNGFRAUJOCH ZeroMQ preview stream and
 draws its indexed and unindexed reflections over the image. Enter `host:port`;
@@ -473,7 +473,8 @@ tab while it is switched on.
 
 It is off by default. Switch it on under **Settings → Viewer → Beta: detector
 control**; while it is off, ALBIS cannot drive a detector at all. Then enter the
-detector's address and press **Connect**. Every field is built from what the
+detector's address and press **Connect** (or pick it from the
+[known detectors](#known-detectors)). Every field is built from what the
 detector reports, so limits and choices are that detector's own (where it
 reports no unit, ALBIS adds the one from the SIMPLON reference):
 
@@ -525,6 +526,27 @@ reports no unit, ALBIS adds the one from the SIMPLON reference):
 To try it without a detector, `python test_scripts/fake_simplon_dcu.py` runs a
 simulated one at `http://127.0.0.1:8100` (`--thresholds 4` for a
 PILATUS4-like detector).
+
+
+### Known detectors
+
+Every detector that answers — a Connect in the Detector tab, a Test or a started
+SIMPLON monitor in the Data tab — is remembered with its address, model and
+serial number. Both address fields offer the same list: it opens when you click
+into the field, with **▾**, or with **↓**, and typing narrows it by name,
+address, model or serial. Pick a row to connect (Detector tab) or test (Data
+tab).
+
+- **☆ Keep** a detector to have it stay at the top of the list; the others are
+  the last eight used. The ☆ beside a connected detector's name does the same.
+- **✎ Rename** gives it a name of your own ("Lab 2 – P4"); without one it is
+  listed by its model.
+- **× Remove** takes it off the list.
+
+A detector is recognised by its serial number: found at a new address, its
+entry moves there instead of appearing twice; a different detector at a known
+address takes that entry over, without the old name. The list is kept in this
+browser, like the other ALBIS settings, and never leaves it.
 
 ## Work from another machine
 

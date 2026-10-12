@@ -10,11 +10,11 @@
 
 import { t } from "./i18n.js";
 import { describeSimplonFailure } from "./simplon_diagnostics.js";
-import { recordSimplonHost, renderSimplonHostOptions } from "./simplon_host_history.js";
+import { knownDetectors } from "./known_detectors.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
 export function createSimplonProbeController({ apiBase, state, elements, callbacks = {} }) {
-  const { simplonUrl, simplonVersion, simplonTest, simplonProbeMessage, simplonUrlList } = elements;
+  const { simplonUrl, simplonVersion, simplonTest, simplonProbeMessage } = elements;
   const { persistAutoloadSettings, logClient } = callbacks;
 
   let inFlight = false;
@@ -81,11 +81,9 @@ export function createSimplonProbeController({ apiBase, state, elements, callbac
       const payload = await res.json();
       logClient?.("info", "SIMPLON probe result", payload);
       if (payload?.status === "ok") {
-        // A working address is worth offering back next time.
-        if (state && recordSimplonHost(state, url)) {
-          renderSimplonHostOptions(simplonUrlList, state.autoload.simplonRecentHosts);
-          persistAutoloadSettings?.();
-        }
+        // A working address is worth offering back next time, with what
+        // answered there.
+        knownDetectors.record({ address: url, model: payload.detector, serial: payload.serial });
         const parts = [describeSuccess(payload)];
         const detected = String(payload.api_version || "").trim();
         // The configured version was absent but another one answered: adopt it,

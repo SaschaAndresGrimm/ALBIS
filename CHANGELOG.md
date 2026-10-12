@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Known detectors under the address field.** A lab has a few detectors at fixed addresses, and an IP does not say which one it is. Every detector that answers — Connect in the Detector tab, Test or a started SIMPLON monitor in the Data tab — is now remembered with its model and serial number, with no save step, and both address fields offer the same list. It opens on a click into the field, with ▾ or ↓; typing narrows it by name, address, model or serial; picking a row connects (or tests). ☆ keeps a detector at the top (also beside a connected detector's name), ✎ names it ("Lab 2 – P4"), × removes it; the others are the last eight used. The serial follows a detector to a new address instead of listing it twice. The list replaces the browser's address suggestions, which showed bare IPs and could not be edited; addresses remembered by earlier versions are taken over. It stays in the browser, like the other settings.
+
 ## [0.26.5] - 2026-10-12
 
 ### Fixed

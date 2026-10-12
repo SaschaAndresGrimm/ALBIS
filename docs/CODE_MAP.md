@@ -53,6 +53,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Autoload mode, settings persistence/UI sync, orchestration, and status/meta control.
 - `frontend/modules/file_browser.js`:
   - File browser modal state and filesystem browsing interactions.
+- `frontend/modules/known_detectors.js` + `frontend/modules/detector_picker.js`:
+  - The known-detectors list shared by the SIMPLON address fields (Detector tab, SIMPLON monitor): entries by address with model, serial, name and a keep star, followed by serial; and the dropdown under each field.
 - `frontend/modules/detector_control_controller.js`:
   - The beta Detector tab: connect, state and buttons (Acquire, Snap, Continuous), pre-flight check, progress and result, Acquisition and Data output built from the detector's own descriptors, Commands, Advanced, Activity; command feedback and the status poll.
 

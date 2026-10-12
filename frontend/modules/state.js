@@ -212,7 +212,6 @@ function createAutoloadState() {
     // Last classified poll failure code, so a repeating failure logs once.
     lastSimplonFailure: "",
     // Addresses that have answered, offered back as autocomplete suggestions.
-    simplonRecentHosts: [],
     remoteSourceId: "default",
     jfjochEndpoint: "",
     jfjochSourceId: "jungfraujoch",

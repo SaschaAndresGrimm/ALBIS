@@ -14,6 +14,8 @@
  */
 
 import { t } from "./i18n.js";
+import { attachDetectorPicker } from "./detector_picker.js";
+import { knownDetectors } from "./known_detectors.js";
 import { describeSimplonFailure } from "./simplon_diagnostics.js";
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 
@@ -687,6 +689,36 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     connectBtn.after?.(cancelBtn);
   }
 
+  // The detectors connected before, under the address: picking one connects.
+  attachDetectorPicker({ input: urlInput, onPick: () => void connect() });
+
+  // Beside the detector's name: keep it in that list (☆ -> ★).
+  const keepBtn = model ? el("button", "linkish detector-keep") : null;
+  if (keepBtn) {
+    keepBtn.type = "button";
+    keepBtn.addEventListener("click", () => {
+      const entry = knownDetectors.find(url);
+      if (entry) knownDetectors.setKept(url, !entry.kept);
+    });
+    // With the name on one side of the line, the serial and address on the other.
+    const main = el("span", "detector-ident-main");
+    model.before(main);
+    main.append(model, keepBtn);
+    knownDetectors.subscribe(() => renderKeep());
+  }
+
+  function renderKeep() {
+    if (!keepBtn) return;
+    const entry = url ? knownDetectors.find(url) : null;
+    keepBtn.hidden = !entry;
+    const kept = Boolean(entry?.kept);
+    keepBtn.textContent = kept ? "★" : "☆";
+    keepBtn.classList.toggle("is-kept", kept);
+    keepBtn.setAttribute("aria-pressed", kept ? "true" : "false");
+    keepBtn.title = kept ? t("known_detectors.unkeep") : t("known_detectors.keep");
+    keepBtn.setAttribute("aria-label", keepBtn.title);
+  }
+
   function showAddress(show) {
     if (addressHost) addressHost.hidden = !show;
     if (whereLine) whereLine.hidden = show;
@@ -849,6 +881,12 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     applyDescription(described);
     renderState();
     const name = displayValue(params.detector.description) || url;
+    knownDetectors.record({
+      address: url,
+      model: displayValue(params.detector.description),
+      serial: displayValue(params.detector.detector_number),
+    });
+    renderKeep();
     setMessage("");
     renderWhere();
     showAddress(false);
@@ -2599,7 +2637,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
   connectBtn?.addEventListener("click", () => void connect());
   urlInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+    // Enter on a highlighted known detector was taken by the list.
+    if (event.key === "Enter" && !event.defaultPrevented) {
       event.preventDefault();
       void connect();
     }

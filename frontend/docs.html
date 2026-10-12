@@ -507,7 +507,8 @@
             <li><strong>SIMPLON Monitor:</strong> live images from a detector. Enter its hostname or IP address (for
                 example <code>192.168.1.10</code>); <code>http://</code> and the default port 80 are filled in. Press
                 <strong>Test</strong> (or Enter in the address field) to check the connection — it names the detector
-                on success, or the reason on failure (unknown host, refused port, wrong API version).</li>
+                on success, or the reason on failure (unknown host, refused port, wrong API version). Detectors that
+                answered before are listed under the field.</li>
             <li><strong>JUNGFRAUJOCH Preview:</strong> subscribe to the ZeroMQ preview CBOR stream, with reflection
                 overlays. Enter <code>host:port</code> and <code>tcp://</code> is filled in; there is no default preview
                 port, so the port is required. <strong>Test</strong> checks that the port accepts connections — frames
@@ -529,6 +530,12 @@
           <p>
             Every setting and command has a <strong>?</strong> that says what it does and names its SIMPLON key, the
             name to use when you later script it.
+          </p>
+          <p>
+            Detectors you connected to are listed under the address field, with their model and serial number:
+            click into the field or press <kbd>↓</kbd> and pick one. <strong>☆</strong> keeps a detector at the top,
+            <strong>✎</strong> gives it a name of your own, <strong>×</strong> removes it. The Data tab's SIMPLON
+            monitor offers the same list.
           </p>
           <p class="more"><a href="https://github.com/SaschaAndresGrimm/ALBIS/blob/main/docs/USER_GUIDE.md#test-a-detector-beta" target="_blank" rel="noopener">More in the User Guide →</a></p>
         </section>

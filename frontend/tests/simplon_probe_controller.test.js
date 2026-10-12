@@ -241,7 +241,7 @@ describe("simplon_probe_controller", () => {
       }),
     }));
     const elements = buildElements("det.local");
-    const state = { autoload: { simplonRecentHosts: [], simplonVersion: "1.8.0" } };
+    const state = { autoload: { simplonVersion: "1.8.0" } };
     const persistAutoloadSettings = vi.fn();
     const controller = create({
       apiBase: "/api",
@@ -267,7 +267,7 @@ describe("simplon_probe_controller", () => {
       json: async () => ({ status: "ok", code: "ok", api_version: "1.8.0" }),
     }));
     const elements = buildElements("det.local");
-    const state = { autoload: { simplonRecentHosts: [], simplonVersion: "1.8.0" } };
+    const state = { autoload: { simplonVersion: "1.8.0" } };
     const controller = create({ apiBase: "/api", state, elements, callbacks: {} });
 
     await controller.probeSimplonConnection();
@@ -276,30 +276,23 @@ describe("simplon_probe_controller", () => {
     expect(elements.simplonProbeMessage.textContent).not.toContain("switched");
   });
 
-  it("remembers a working address and offers it back", async () => {
+  it("remembers a working address with the detector that answered", async () => {
+    localStorage.clear();
     const create = await loadController(async () => ({
       ok: true,
       status: 200,
-      json: async () => ({ status: "ok", code: "ok" }),
+      json: async () => ({ status: "ok", code: "ok", detector: "EIGER2 X 1M", serial: "E-01-0001" }),
     }));
     const elements = buildElements("192.168.1.10");
-    elements.simplonUrlList = document.createElement("datalist");
-    const state = { autoload: { simplonRecentHosts: [] } };
-    const persistAutoloadSettings = vi.fn();
-    const controller = create({
-      apiBase: "/api",
-      state,
-      elements,
-      callbacks: { persistAutoloadSettings },
-    });
+    const state = { autoload: { simplonVersion: "1.8.0" } };
+    const controller = create({ apiBase: "/api", state, elements, callbacks: {} });
 
     await controller.probeSimplonConnection();
 
-    expect(state.autoload.simplonRecentHosts).toEqual(["http://192.168.1.10"]);
-    expect([...elements.simplonUrlList.querySelectorAll("option")].map((o) => o.value)).toEqual([
-      "http://192.168.1.10",
+    const { knownDetectors } = await import("../modules/known_detectors.js");
+    expect(knownDetectors.list()).toEqual([
+      expect.objectContaining({ address: "http://192.168.1.10", model: "EIGER2 X 1M", serial: "E-01-0001" }),
     ]);
-    expect(persistAutoloadSettings).toHaveBeenCalled();
   });
 
   it("does not remember an address that failed", async () => {
@@ -308,13 +301,15 @@ describe("simplon_probe_controller", () => {
       status: 200,
       json: async () => ({ status: "error", code: "dns" }),
     }));
+    localStorage.clear();
     const elements = buildElements("typo.invalid");
-    const state = { autoload: { simplonRecentHosts: [] } };
+    const state = { autoload: {} };
     const controller = create({ apiBase: "/api", state, elements, callbacks: {} });
 
     await controller.probeSimplonConnection();
 
-    expect(state.autoload.simplonRecentHosts).toEqual([]);
+    const { knownDetectors } = await import("../modules/known_detectors.js");
+    expect(knownDetectors.list()).toEqual([]);
   });
 
   it("clears a stale result when asked", async () => {
