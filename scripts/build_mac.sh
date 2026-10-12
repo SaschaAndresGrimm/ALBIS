@@ -114,5 +114,11 @@ fi
 echo "Output:"
 echo "  dist/ALBIS"
 [ -d "dist/ALBIS.app" ] && echo "  dist/ALBIS.app"
-echo "  ${ZIP_OUT}"
-[ -f "$DMG_OUT" ] && echo "  ${DMG_OUT}"
+# Each listed only if made: in the notarize phase (ALBIS_MACOS_PHASE) the zip
+# and DMG are made on another runner, and a bare `[ -f ] && echo` as the last
+# line would fail the build with its false.
+for out in "$ZIP_OUT" "$DMG_OUT" "dist/ALBIS-${TARGET}-${TAG}-notarized-app.zip"; do
+  if [ -f "$out" ]; then
+    echo "  ${out}"
+  fi
+done
