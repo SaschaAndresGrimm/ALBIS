@@ -277,6 +277,66 @@ class DataExportService:
                 return candidate
         raise HTTPException(status_code=500, detail="Unable to allocate output file name")
 
+    # ---- Names -------------------------------------------------------------
+    # `<name>[_thr<n>]_<number>`: the number last, as on a detector's own
+    # images, so ALBIS, XDS (`name_?????.cbf`), DIALS and ALBULA read the
+    # export as a series; each threshold its own series.
+    STANDARD_DATASETS = frozenset({"entry/data/data", "data"})
+
+    @classmethod
+    def default_export_base(cls, source_path: Path, dataset: str = "") -> str:
+        """`series_190` for `series_190_master.h5`, `image` for `image_00007.cbf`."""
+        name = source_path.name
+        lower = name.lower()
+        stem = name[:-7] if lower.endswith(".cbf.gz") else source_path.stem
+        stem = re.sub(r"_master$", "", stem, flags=re.IGNORECASE)
+        if not dataset:
+            # A numbered image: its series' name without the number.
+            stem = re.sub(r"[_.-]*\d+$", "", stem) or stem
+        tag = str(dataset or "").strip().strip("/")
+        if tag and tag.lower() not in cls.STANDARD_DATASETS:
+            stem = f"{stem}_{tag}"
+        return cls._safe_name(stem, "dataset")
+
+    @staticmethod
+    def frame_name(base: str, number: int, threshold: int | None = None) -> str:
+        parts = [base]
+        if threshold is not None:
+            parts.append(f"thr{threshold}")
+        parts.append(f"{max(0, int(number)):05d}")
+        return "_".join(parts)
+
+    @staticmethod
+    def source_frame_number(path: Path, fallback: int) -> int:
+        """The number in a source image's own name: `image_00007.cbf` is 7."""
+        name = path.name
+        stem = name[:-7] if name.lower().endswith(".cbf.gz") else path.stem
+        match = re.search(r"(\d+)\D*$", stem)
+        return int(match.group(1)) if match else fallback
+
+    def _free_base(
+        self,
+        out_dir: Path,
+        base: str,
+        planned: list[tuple[int, int | None]],
+        suffix: str,
+        overwrite: bool,
+    ) -> str:
+        """One name for the whole export: `base`, or `base_2`, `base_3`... if
+        any of its files exists and overwrite is off, so the files stay one
+        series instead of a counter landing after some of their numbers."""
+        if overwrite:
+            return base
+        candidate = base
+        for run in range(2, 10000):
+            if not any(
+                (out_dir / f"{self.frame_name(candidate, number, thr)}{suffix}").exists()
+                for number, thr in planned
+            ):
+                return candidate
+            candidate = f"{base}_{run}"
+        raise HTTPException(status_code=500, detail="Unable to allocate output file name")
+
     @staticmethod
     def _cast_frame_to_int(frame: np.ndarray) -> np.ndarray:
         if np.issubdtype(frame.dtype, np.integer):
@@ -947,9 +1007,21 @@ class DataExportService:
         arr = np.frombuffer(payload, dtype=parsed).reshape(dims)
         # No source file: an empty folder means live_export in the data folder.
         out_dir = self._resolve_output_dir(output_dir, self._deps.data_dir / "live")
+        safe = self._safe_name(name, "live")
+        suffix = ".cbf" if normalized_format == "cbf" else ".tiff"
+        if not overwrite and (out_dir / f"{safe}{suffix}").exists():
+            # Frames arrive one by one, so the run counter goes in per frame,
+            # before the number: simplon_monitor_2_00009, still a series.
+            match = re.match(r"^(.*)_(\d+)$", safe)
+            head, number = (match.group(1), f"_{match.group(2)}") if match else (safe, "")
+            for run in range(2, 10000):
+                candidate = f"{head}_{run}{number}"
+                if not (out_dir / f"{candidate}{suffix}").exists():
+                    safe = candidate
+                    break
         return self._write_frame(
             out_dir=out_dir,
-            name=self._safe_name(name, "live"),
+            name=safe,
             output_format=normalized_format,
             arr=arr,
             metadata=self.live_frame_metadata(metadata),
@@ -1065,25 +1137,26 @@ class DataExportService:
                     mask_bits_by_thr[thr_idx] = (
                         np.asarray(mask_dset, dtype=np.uint32) if mask_dset is not None else None
                     )
-                prefix = (
+                base = (
                     self._safe_name(output_prefix)
                     if output_prefix
-                    else self._safe_name(
-                        f"{source_path.stem}_{dataset}", fallback=source_path.stem or "dataset"
-                    )
+                    else self.default_export_base(source_path, dataset)
                 )
                 base_metadata = self._hdf5_base_export_metadata(h5, source_path, dataset)
-                include_frame_tag = frame_count > 1
-                include_threshold_tag = threshold_count > 1
+
+                # The frame's number in the dataset, 1-based; the threshold
+                # whenever the detector has more than one, even if only the
+                # current one is exported, so the name says which.
+                def thr_tag(index: int) -> int | None:
+                    return index + 1 if threshold_count > 1 else None
+
+                planned = [(f + 1, thr_tag(t)) for f in frames for t in thresholds]
+                suffix = ".cbf" if output_format == "cbf" else ".tiff"
+                base = self._free_base(out_dir, base, planned, suffix, overwrite)
                 for frame_idx in frames:
                     for thr_idx in thresholds:
                         self._raise_if_cancelled(job_id)
-                        parts = [prefix]
-                        if include_frame_tag:
-                            parts.append(f"f{frame_idx + 1:06d}")
-                        if include_threshold_tag:
-                            parts.append(f"thr{thr_idx + 1:02d}")
-                        name = "_".join(parts)
+                        name = self.frame_name(base, frame_idx + 1, thr_tag(thr_idx))
                         arr = self._deps.extract_frame(view, frame_idx, thr_idx)
                         metadata = self._hdf5_frame_export_metadata(
                             h5,
@@ -1136,16 +1209,21 @@ class DataExportService:
         )
         total = max(1, len(frames))
         outputs: list[str] = []
-        prefix = (
-            self._safe_name(output_prefix) if output_prefix else self._safe_name(source_path.stem)
+        base = (
+            self._safe_name(output_prefix)
+            if output_prefix
+            else self.default_export_base(source_path)
         )
-        include_frame_tag = len(series_files) > 1
+        # Each frame keeps its source's own number: image_00007.cbf -> _00007.
+        numbers = {idx: self.source_frame_number(series_files[idx], idx + 1) for idx in frames}
+        suffix = ".cbf" if output_format == "cbf" else ".tiff"
+        base = self._free_base(
+            out_dir, base, [(n, None) for n in numbers.values()], suffix, overwrite
+        )
         for completed, frame_idx in enumerate(frames, start=1):
             self._raise_if_cancelled(job_id)
             src = series_files[frame_idx]
-            name = prefix
-            if include_frame_tag:
-                name = f"{prefix}_f{frame_idx + 1:06d}"
+            name = self.frame_name(base, numbers[frame_idx])
             arr = self._read_non_h5_image(src)
             metadata = self._image_source_export_metadata(src, frame_idx, len(series_files))
             out_file = self._write_frame(

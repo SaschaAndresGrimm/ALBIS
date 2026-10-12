@@ -36,10 +36,17 @@ function defaultOutputDir(path) {
   return dir ? `${dir}/${base}_export` : `${base}_export`;
 }
 
-function defaultOutputPrefix(path, dataset) {
-  const source = fileStem(path);
-  const datasetTag = safeName(dataset || "", "");
-  return datasetTag ? safeName(`${source}_${datasetTag}`) : safeName(source);
+// The name an export's files share, as the backend makes it: `series_190` for
+// series_190_master.h5, `image` for image_00007.cbf, the dataset added only
+// when it is not the standard one. The number goes last, after it.
+const STANDARD_DATASETS = new Set(["entry/data/data", "data"]);
+
+export function defaultOutputPrefix(path, dataset) {
+  let stem = fileStem(path).replace(/_master$/i, "");
+  if (!dataset) stem = stem.replace(/[_.-]*\d+$/, "") || stem;
+  const tag = String(dataset || "").trim().replace(/^\/+|\/+$/g, "");
+  if (tag && !STANDARD_DATASETS.has(tag.toLowerCase())) stem = `${stem}_${tag}`;
+  return safeName(stem);
 }
 
 // ---- Live sources --------------------------------------------------------
@@ -94,18 +101,18 @@ export function liveFrameMetadata(entry) {
   return Object.fromEntries(Object.entries(out).filter(([, value]) => value !== undefined && value !== ""));
 }
 
-// "simplon_monitor_s189_i0009" when the source numbers its images, else by
-// position in what is being exported: "simplon_monitor_001".
+// The number last, as for any export: "simplon_monitor_s189_00009" when the
+// source numbers its images, else by position: "simplon_monitor_00001".
 export function liveFrameName(prefix, entry, index) {
   const meta = liveFrameMetadata(entry);
   const base = safeName(prefix, "live");
+  const number = (value) => String(Math.max(0, Math.round(value))).padStart(5, "0");
   const series = meta.series_number;
   const image = meta.image_number;
   if (image !== undefined) {
-    const imagePart = `i${String(Math.round(image)).padStart(4, "0")}`;
-    return series !== undefined ? `${base}_s${Math.round(series)}_${imagePart}` : `${base}_${imagePart}`;
+    return series !== undefined ? `${base}_s${Math.round(series)}_${number(image)}` : `${base}_${number(image)}`;
   }
-  return `${base}_${String(index + 1).padStart(3, "0")}`;
+  return `${base}_${number(index + 1)}`;
 }
 
 const DTYPE_OF_ARRAY = new Map([

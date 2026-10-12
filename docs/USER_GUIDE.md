@@ -320,11 +320,21 @@ screenshot of the whole window, the image in it as sharp as on screen.
 are signed integers using the common detector convention: module gaps are `-1`,
 bad or saturated pixels are `-2`.
 
+The files are named so they read back as a series, in ALBIS as in XDS, DIALS
+or ALBULA: `<name>[_thr<n>]_<number>`, the number last and 5 digits wide, like
+a detector's own images. `<name>` is the source's (`series_190` for
+`series_190_master.h5`) unless you give a prefix; a detector with several
+thresholds gets one series per threshold (`series_190_thr2_00007.cbf`, template
+`series_190_thr2_?????.cbf`). A frame keeps its number: its place in the
+dataset, or the number in a source image's name. With **Overwrite existing
+files** off and files of that name already there, the whole export takes a new
+name (`series_190_2_…`) rather than numbering some files twice.
+
 It works for a live source too — the SIMPLON monitor, a JUNGFRAUJOCH preview or
 the Remote Stream: choose **Current image** or **All images in the live
 history**, the frames ALBIS keeps of what it has shown. They are written to
 `live_export` in the data folder unless you choose another, named by series and
-image number where the source gives them (`simplon_monitor_s189_i0009.cbf`),
+image number where the source gives them (`simplon_monitor_s189_00009.cbf`),
 with the energy, distance and beam centre the source reported. These are the
 preview images: a SIMPLON monitor need not show every frame, and the complete
 series is in the detector's files.

@@ -189,8 +189,9 @@ def test_data_export_hdf5_4d_all_thresholds_to_cbf(tmp_path: Path) -> None:
     assert job["status"] == "done"
     outputs = [Path(path) for path in job["outputs"]]
     assert len(outputs) == 2
-    assert outputs[0].name == "threshold_export_f000002_thr01.cbf"
-    assert outputs[1].name == "threshold_export_f000002_thr02.cbf"
+    # The number last, the threshold before it: each threshold its own series.
+    assert outputs[0].name == "threshold_export_thr1_00002.cbf"
+    assert outputs[1].name == "threshold_export_thr2_00002.cbf"
     assert np.array_equal(CbfImage().read(str(outputs[0])).data, data[1, 0])
     assert np.array_equal(CbfImage().read(str(outputs[1])).data, data[1, 1])
 
@@ -264,8 +265,9 @@ def test_data_export_tiff_series_to_cbf(tmp_path: Path) -> None:
     assert job["status"] == "done"
     outputs = [Path(path) for path in job["outputs"]]
     assert len(outputs) == 2
-    assert outputs[0].name == "scan_f000001.cbf"
-    assert outputs[1].name == "scan_f000002.cbf"
+    # Each frame keeps its source's own number.
+    assert outputs[0].name == "scan_00001.cbf"
+    assert outputs[1].name == "scan_00002.cbf"
     assert np.array_equal(CbfImage().read(str(outputs[0])).data, frame_a)
     assert np.array_equal(CbfImage().read(str(outputs[1])).data, frame_b)
 
@@ -339,8 +341,16 @@ def test_live_frame_keeps_an_existing_file_unless_overwrite(tmp_path: Path) -> N
     second = Path(_post_live_frame(client, data, {**config, "overwrite": False}).json()["path"])
     third = Path(_post_live_frame(client, data, {**config, "overwrite": True}).json()["path"])
     assert first.name == "live.tiff"
-    assert second.name == "live_001.tiff"
+    assert second.name == "live_2.tiff"
     assert third == first
+    # A numbered frame keeps its number last: the run goes before it.
+    numbered = {**config, "name": "simplon_monitor_s189_00009"}
+    a = Path(_post_live_frame(client, data, {**numbered, "overwrite": False}).json()["path"])
+    b = Path(_post_live_frame(client, data, {**numbered, "overwrite": False}).json()["path"])
+    assert (a.name, b.name) == (
+        "simplon_monitor_s189_00009.tiff",
+        "simplon_monitor_s189_2_00009.tiff",
+    )
     assert tifffile.imread(str(first)).tolist() == [[1, 1, 1]] * 3
 
 
@@ -415,3 +425,42 @@ def test_live_frame_header_leaves_out_what_is_not_known(tmp_path: Path) -> None:
     for absent in ("Incident_energy", "Detector_distance", "Pixel_size", "Beam_xy"):
         assert absent not in header
     assert "# Source: SIMPLON monitor" in header
+
+
+def test_export_names_read_back_as_a_series(tmp_path: Path) -> None:
+    """The number last, as on a detector's images, so the export is one series."""
+    from backend.image_formats import _resolve_series_files
+
+    source = tmp_path / "series_190_master.h5"
+    data = np.arange(3 * 2 * 2 * 2, dtype=np.uint32).reshape(3, 2, 2, 2)
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=data)
+    client = _client()
+    payload = {
+        "file": str(source),
+        "dataset": "/entry/data/data",
+        "format": "cbf",
+        "output_dir": str(tmp_path / "out"),
+        "frame_mode": "all",
+        "threshold_mode": "all",
+        "overwrite": False,
+    }
+    first = _wait_for_job(
+        client, client.post("/api/export/data/start", json=payload).json()["job_id"]
+    )
+    names = sorted(Path(p).name for p in first["outputs"])
+    # Default name: the master file's without _master, the standard dataset left out.
+    assert names == [f"series_190_thr{t}_{n:05d}.cbf" for t in (1, 2) for n in (1, 2, 3)]
+    files, _ = _resolve_series_files(tmp_path / "out" / "series_190_thr2_00002.cbf")
+    assert [f.name for f in files] == [
+        "series_190_thr2_00001.cbf",
+        "series_190_thr2_00002.cbf",
+        "series_190_thr2_00003.cbf",
+    ]
+    # Again, overwrite off: a new name for the whole export, not a counter per file.
+    second = _wait_for_job(
+        client, client.post("/api/export/data/start", json=payload).json()["job_id"]
+    )
+    assert sorted(Path(p).name for p in second["outputs"]) == [
+        f"series_190_2_thr{t}_{n:05d}.cbf" for t in (1, 2) for n in (1, 2, 3)
+    ]

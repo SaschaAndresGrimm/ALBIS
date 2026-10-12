@@ -179,12 +179,20 @@ describe("data_export_controller, live sources", () => {
       image_number: 9,
       image_datetime: "2026-10-12T10:41:14",
     });
-    expect(mod.liveFrameName("simplon_monitor", entry(9, [0, 0, 0, 0]), 0)).toBe("simplon_monitor_s189_i0009");
+    expect(mod.liveFrameName("simplon_monitor", entry(9, [0, 0, 0, 0]), 0)).toBe("simplon_monitor_s189_00009");
     // Zeros are the snapshot's "not known": left out, as is a 0,0 beam centre.
     const unknown = { ...entry(1, [0, 0, 0, 0]), snapshot: { sourceKind: "simplon", analysis: { distanceMm: 0, energyEv: 0, centerX: 0, centerY: 0, pixelSizeUm: 0 }, simplonMeta: {} } };
     expect(mod.liveFrameMetadata(unknown)).toEqual({ source_name: "SIMPLON monitor (1.2.3.4) S189 Img1" });
     const anonymous = { ...entry(1, [0, 0, 0, 0]), snapshot: { analysis: {} } };
-    expect(mod.liveFrameName("remote stream", anonymous, 2)).toBe("remote_stream_003");
+    expect(mod.liveFrameName("remote stream", anonymous, 2)).toBe("remote_stream_00003");
+  });
+
+  it("defaults to the name an export's files share, the number left for last", async () => {
+    const { mod } = await buildLive(liveState([entry(1, [0, 0, 0, 0])]));
+    expect(mod.defaultOutputPrefix("/data/series_190_master.h5", "/entry/data/data")).toBe("series_190");
+    expect(mod.defaultOutputPrefix("/data/series_190_master.h5", "/entry/data/data_000001")).toBe("series_190_entry_data_data_000001");
+    expect(mod.defaultOutputPrefix("/data/image_00007.cbf", "")).toBe("image");
+    expect(mod.defaultOutputPrefix("/data/scan.cbf.gz", "")).toBe("scan");
   });
 
   it("refuses a live source with no image yet, with a reason", async () => {
@@ -219,15 +227,15 @@ describe("data_export_controller, live sources", () => {
     await controller.startExport();
     expect(sent).toHaveLength(1);
     expect(sent[0].url).toBe("/api/export/data/frame");
-    expect(sent[0].meta).toMatchObject({ dtype: "<u4", shape: [2, 2], name: "simplon_monitor_s189_i0008", format: "cbf", output_dir: "live_export" });
+    expect(sent[0].meta).toMatchObject({ dtype: "<u4", shape: [2, 2], name: "simplon_monitor_s189_00008", format: "cbf", output_dir: "live_export" });
     expect(sent[0].meta.metadata.image_number).toBe(8);
     expect(sent[0].bytes).toBe(16);
-    expect(state.dataExport.openTarget).toBe("/out/simplon_monitor_s189_i0008.cbf");
+    expect(state.dataExport.openTarget).toBe("/out/simplon_monitor_s189_00008.cbf");
     // The whole history.
     elements.dataExportFrameMode.value = "all";
     state.dataExport.openTarget = "";
     await controller.startExport();
-    expect(sent.slice(1).map((s) => s.meta.name)).toEqual(["simplon_monitor_s189_i0008", "simplon_monitor_s189_i0009"]);
+    expect(sent.slice(1).map((s) => s.meta.name)).toEqual(["simplon_monitor_s189_00008", "simplon_monitor_s189_00009"]);
     expect(setStatus).toHaveBeenLastCalledWith("Export complete: wrote 2 files", { tone: "success" });
   });
 
