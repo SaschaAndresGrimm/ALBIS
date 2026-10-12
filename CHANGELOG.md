@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.26.5] - 2026-10-12
+
 ### Fixed
 
 - **The Intel Mac build is finished on Apple silicon.** From 2026-10-12 GitHub's Intel macOS runner could not fetch notarization tickets from Apple — every staple and validate lost its connection, five tries of five, for 0.26.2, 0.26.3 and 0.26.4 — although notarizing worked, the runner image was the same as for the builds that passed, and the Apple-silicon runner fetched fine. The Intel app is now signed and notarized on the Intel runner and stapled, packaged into its DMG and checked on an Apple-silicon one (`ALBIS_MACOS_PHASE` in `scripts/sign_macos.sh`, the `finish_macos` job in the release workflow). The files and their checks are the same as before; the app inside the DMG is still launched, under Rosetta. A dry run produced all 15 release files.
@@ -1541,7 +1543,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.4...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.5...HEAD
+[0.26.5]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.4...v0.26.5
 [0.26.4]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.3...v0.26.4
 [0.26.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.2...v0.26.3
 [0.26.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.1...v0.26.2
