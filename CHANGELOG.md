@@ -7,7 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **macOS builds survive a dropped connection while stapling.** Signing staples Apple's notarization ticket to the app and the DMG and validates it, both of which fetch the ticket from Apple; a single dropped connection there ("The network connection was lost", error 68) failed the whole release although the notarization had been accepted. It happened five times running on the macOS x64 runner for 0.26.2. Stapling and validating are now tried together up to five times, 20 seconds apart, before the build fails; a test checks that no stapler call bypasses the retry.
+
 ## [0.26.2] - 2026-10-12
+
+Tagged but not published: the macOS x64 build failed to staple its notarization ticket five times (see 0.26.3). Its changes ship in 0.26.3.
 
 ### Added
 

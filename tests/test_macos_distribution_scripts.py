@@ -49,7 +49,7 @@ def _step_line(section: str, needle: str) -> int:
 def test_the_app_is_stapled_before_the_dmg_seals_a_copy_of_it() -> None:
     section = _notarized_path()
 
-    staple_app = _step_line(section, 'xcrun stapler staple "$APP_PATH"')
+    staple_app = _step_line(section, 'staple "$APP_PATH"')
     build_dmg = _step_line(section, "build_dmg")
 
     assert staple_app < build_dmg, (
@@ -65,9 +65,9 @@ def test_the_app_is_notarized_in_its_own_right_not_only_via_the_dmg() -> None:
     section = _notarized_path()
 
     submit_app = _step_line(section, 'notarize "$APP_NOTARIZE_ZIP"')
-    staple_app = _step_line(section, 'xcrun stapler staple "$APP_PATH"')
+    staple_app = _step_line(section, 'staple "$APP_PATH"')
     submit_dmg = _step_line(section, 'notarize "$DMG_OUT"')
-    staple_dmg = _step_line(section, 'xcrun stapler staple "$DMG_OUT"')
+    staple_dmg = _step_line(section, 'staple "$DMG_OUT"')
 
     assert submit_app < staple_app < submit_dmg < staple_dmg
 
@@ -77,7 +77,7 @@ def test_the_distributable_zip_is_built_after_the_app_is_stapled() -> None:
     # right, by accident of ordering; keep it that way on purpose.
     section = _notarized_path()
 
-    staple_app = _step_line(section, 'xcrun stapler staple "$APP_PATH"')
+    staple_app = _step_line(section, 'staple "$APP_PATH"')
     create_zip = _step_line(section, "create_zip")
 
     assert create_zip > staple_app
@@ -101,3 +101,18 @@ def test_the_verifier_is_actually_called_for_the_dmg() -> None:
     text = VERIFY_SCRIPT.read_text(encoding="utf-8")
     invocation = text.split('if [ -n "$DMG_PATH" ]; then', 1)[1].split("fi", 1)[0]
     assert "verify_dmg_contents" in invocation
+
+
+def test_stapling_is_retried_before_the_build_fails() -> None:
+    """Right after "Accepted", fetching the new ticket can fail for a moment
+    (v0.26.2's macOS x64 build: "The network connection was lost", error 68).
+    A notarization that succeeded must not fail the build over that."""
+    text = SIGN_SCRIPT.read_text(encoding="utf-8")
+    body = text.split("staple() {", 1)[1].split("\n}\n", 1)[0]
+    assert "for attempt in" in body and "sleep" in body
+    # Both inside the retried condition: validate fetches the ticket too.
+    assert 'if xcrun stapler staple "$1" && xcrun stapler validate "$1"; then' in body
+    section = _notarized_path()
+    assert "xcrun stapler" not in "\n".join(
+        line for line in section.splitlines() if not line.strip().startswith("#")
+    ), "a direct stapler call bypasses the retry"

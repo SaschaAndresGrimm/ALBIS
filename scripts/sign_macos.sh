@@ -246,6 +246,25 @@ notarize() {
     --wait
 }
 
+# Stapling and validating both fetch the ticket Apple just issued from its
+# CDN. Right after "Accepted" that fetch can fail -- the ticket not yet
+# propagated, or the connection dropped ("The network connection was lost",
+# error 68, three times on the macos-15-intel runner for v0.26.2, once in
+# validate after the staple had worked) -- although the notarization itself
+# succeeded. A few tries of the pair, a little apart, before failing the build.
+staple() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if xcrun stapler staple "$1" && xcrun stapler validate "$1"; then
+      return 0
+    fi
+    echo "[sign_macos] Stapling $1 failed (attempt $attempt of 5); retrying in 20 s."
+    sleep 20
+  done
+  echo "[sign_macos] Stapling $1 failed after 5 attempts."
+  return 1
+}
+
 APPLE_ID="${APPLE_ID:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 APPLE_APP_SPECIFIC_PASSWORD="${APPLE_APP_SPECIFIC_PASSWORD:-}"
@@ -274,8 +293,7 @@ echo "[sign_macos] Submitting app for notarization: $APP_PATH"
 APP_NOTARIZE_ZIP="$TEMP_DIR/notarize-app.zip"
 make_app_zip "$APP_NOTARIZE_ZIP"
 notarize "$APP_NOTARIZE_ZIP"
-xcrun stapler staple "$APP_PATH"
-xcrun stapler validate "$APP_PATH"
+staple "$APP_PATH"
 
 # Now the copy sealed into the DMG carries its own ticket, so an app dragged
 # out of it validates offline instead of asking Apple on every launch.
@@ -283,8 +301,7 @@ build_dmg
 
 echo "[sign_macos] Submitting DMG for notarization: $DMG_OUT"
 notarize "$DMG_OUT"
-xcrun stapler staple "$DMG_OUT"
-xcrun stapler validate "$DMG_OUT"
+staple "$DMG_OUT"
 
 # Built last, from the stapled app, so the zip ships a ticket too.
 create_zip
