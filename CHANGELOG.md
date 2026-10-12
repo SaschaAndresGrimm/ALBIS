@@ -7,7 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Intel Mac build is finished on Apple silicon.** From 2026-10-12 GitHub's Intel macOS runner could not fetch notarization tickets from Apple — every staple and validate lost its connection, five tries of five, for 0.26.2, 0.26.3 and 0.26.4 — although notarizing worked, the runner image was the same as for the builds that passed, and the Apple-silicon runner fetched fine. The Intel app is now signed and notarized on the Intel runner and stapled, packaged into its DMG and checked on an Apple-silicon one (`ALBIS_MACOS_PHASE` in `scripts/sign_macos.sh`, the `finish_macos` job in the release workflow). The files and their checks are the same as before; the app inside the DMG is still launched, under Rosetta. A dry run produced all 15 release files.
+
 ## [0.26.4] - 2026-10-12
+
+Tagged but not published: the macOS x64 build could not fetch its notarization ticket from Apple (see 0.26.5). Its changes ship in 0.26.5.
 
 ### Changed
 
@@ -23,7 +29,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [0.26.3] - 2026-10-12
 
-Tagged but not published: the macOS x64 build could not fetch its notarization ticket from Apple (see 0.26.2). Its changes ship in the next release.
+Tagged but not published: the macOS x64 build could not fetch its notarization ticket from Apple (see 0.26.5). Its changes ship in 0.26.5.
 
 ### Fixed
 
@@ -31,7 +37,7 @@ Tagged but not published: the macOS x64 build could not fetch its notarization t
 
 ## [0.26.2] - 2026-10-12
 
-Tagged but not published: the macOS x64 build failed to staple its notarization ticket five times. Its changes ship in the next published release.
+Tagged but not published: the macOS x64 build failed to staple its notarization ticket five times. Its changes ship in 0.26.5.
 
 ### Added
 
