@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.26.3] - 2026-10-12
+
 ### Fixed
 
 - **macOS builds survive a dropped connection while stapling.** Signing staples Apple's notarization ticket to the app and the DMG and validates it, both of which fetch the ticket from Apple; a single dropped connection there ("The network connection was lost", error 68) failed the whole release although the notarization had been accepted. It happened five times running on the macOS x64 runner for 0.26.2. Stapling and validating are now tried together up to five times, 20 seconds apart, before the build fails; a test checks that no stapler call bypasses the retry.
@@ -1517,7 +1519,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.3...HEAD
+[0.26.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.2...v0.26.3
 [0.26.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.1...v0.26.2
 [0.26.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.2...v0.26.0
