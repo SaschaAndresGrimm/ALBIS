@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.26.2] - 2026-10-12
+
 ### Added
 
 - **Convert Dataset works for live sources.** With the SIMPLON monitor, a JUNGFRAUJOCH preview or the Remote Stream as the source, **File → Convert Dataset** saves the **Current image** or **All images in the live history** as TIFF or CBF. Before, it sent the source's label as if it were a file and failed with "File not found". The browser sends each frame to a new endpoint, `POST /api/export/data/frame`, which writes it as a converted file would be: the same pixel conventions, the same header with the energy, distance, beam centre, threshold, series and image number the source reported (values a source leaves at 0 are left out rather than stated as 0), and ALBIS's provenance line naming the source. Files go to `live_export` in the data folder by default, named by series and image number where known (`simplon_monitor_s189_00009.cbf`); a note says these are the live preview images, and the complete series is in the detector's files. Convert Dataset stays greyed out, with the reason, until a live source has shown an image; Open Image after the export keeps the detector's monitor on.
@@ -1509,7 +1511,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.2...HEAD
+[0.26.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.1...v0.26.2
 [0.26.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.2...v0.26.0
 [0.25.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.25.1...v0.25.2
