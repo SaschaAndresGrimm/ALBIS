@@ -116,3 +116,18 @@ def test_stapling_is_retried_before_the_build_fails() -> None:
     assert "xcrun stapler" not in "\n".join(
         line for line in section.splitlines() if not line.strip().startswith("#")
     ), "a direct stapler call bypasses the retry"
+
+
+def test_the_release_check_retries_validating_the_ticket() -> None:
+    """The verify step fetches the ticket again; one dropped connection
+    (v0.26.3's first macOS x64 build) must not fail a release whose ticket
+    is fine."""
+    text = VERIFY_SCRIPT.read_text(encoding="utf-8")
+    body = text.split("validate_ticket() {", 1)[1].split("\n}\n", 1)[0]
+    assert "for attempt in" in body and "sleep" in body
+    calls = [
+        line.strip()
+        for line in text.splitlines()
+        if "stapler validate" in line and not line.strip().startswith("#")
+    ]
+    assert calls == ['if xcrun stapler validate "$1"; then'], calls

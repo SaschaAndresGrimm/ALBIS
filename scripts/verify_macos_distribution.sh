@@ -27,6 +27,22 @@ if [ "$REQUIRE_NOTARIZATION" = "1" ]; then
   require_command xcrun
 fi
 
+# `stapler validate` fetches the ticket from Apple, and that fetch can drop
+# its connection ("The network connection was lost", error 68) although the
+# ticket is fine: it failed v0.26.3's first macOS x64 build here, right after
+# signing had stapled the same ticket. A few tries before calling it missing.
+validate_ticket() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if xcrun stapler validate "$1"; then
+      return 0
+    fi
+    log "Validating the ticket of $1 failed (attempt $attempt of 5); retrying in 20 s."
+    sleep 20
+  done
+  die "$1 has no valid notarization ticket"
+}
+
 verify_developer_id_signature_info() {
   local label="$1"
   local signature_info="$2"
@@ -60,7 +76,7 @@ verify_app() {
   spctl -a -vvv -t exec "$app_path"
 
   if [ "$REQUIRE_NOTARIZATION" = "1" ]; then
-    xcrun stapler validate "$app_path"
+    validate_ticket "$app_path"
   fi
 }
 
@@ -78,7 +94,7 @@ verify_dmg() {
   spctl -a -vvv -t open --context context:primary-signature "$dmg_path"
 
   if [ "$REQUIRE_NOTARIZATION" = "1" ]; then
-    xcrun stapler validate "$dmg_path"
+    validate_ticket "$dmg_path"
   fi
 }
 
