@@ -302,6 +302,130 @@ function countingMedian(data, min, span, count, skip) {
   return lower;
 }
 
+// ---- ROI region statistics -------------------------------------------------
+// The per-pixel work of an ROI -- its mask and in-data flags, the pixel census,
+// the running statistics and the values for the median -- in one pass with no
+// object per pixel. The older path built about five small objects per pixel
+// (sample, masked value, two flag sets) and grew a plain array of values: some
+// 300 ms for an annulus over a 9M frame, every update of a drag.
+
+let roiValueScratch = null;
+
+/** An accumulator for one ROI update; `add(index)` takes one pixel.
+ *
+ * `add` returns the pixel's value when it counts towards the statistics and
+ * the profile, and NaN when it does not (masked, a flagged pixel, saturated
+ * while saturated pixels are masked, or not finite). The census counts every
+ * pixel given to it, whether it counts or not.
+ *
+ * Same rules as sampleValue + applyMaskToValue + accumulateRoiPixelCounters:
+ * the mask wins where there is one, `gap` before `defective`, in-data -1/-2
+ * only without a mask array, saturation counted only on unflagged pixels.
+ */
+export function createRoiAccumulator({
+  data,
+  mask = null,
+  useMasking = false,
+  inDataFlags = false,
+  satMax = null,
+  maskSaturatedEnabled = false,
+  isSaturatedValue = () => false,
+  capacity = 0,
+}) {
+  const need = Math.max(1, Math.ceil(capacity));
+  if (!roiValueScratch || roiValueScratch.length < need) {
+    roiValueScratch = new Float64Array(need);
+  }
+  const values = roiValueScratch;
+  const checkSaturated = satMax !== null;
+  const acc = {
+    count: 0,
+    sum: 0,
+    min: Number.POSITIVE_INFINITY,
+    max: Number.NEGATIVE_INFINITY,
+    mean: 0,
+    m2: 0,
+    total: 0,
+    gap: 0,
+    defective: 0,
+    saturated: 0,
+    values,
+    add(index) {
+      const raw = data[index];
+      const maskValue = mask !== null ? mask[index] : 0;
+      acc.total += 1;
+      let gap = false;
+      let defective = false;
+      if (mask !== null && maskValue & MASK_SKIP_BITS) {
+        gap = (maskValue & 1) !== 0;
+        defective = !gap;
+      } else if (mask === null && inDataFlags) {
+        if (raw === DATA_GAP_VALUE) gap = true;
+        else if (raw === DATA_DEFECTIVE_VALUE) defective = true;
+      }
+      if (gap) acc.gap += 1;
+      else if (defective) acc.defective += 1;
+      else if (checkSaturated && isSaturatedValue(raw, satMax)) acc.saturated += 1;
+      if (useMasking) {
+        if (gap || defective) return Number.NaN;
+        if (maskSaturatedEnabled && isSaturatedValue(raw, satMax)) return Number.NaN;
+      }
+      if (!Number.isFinite(raw)) return Number.NaN;
+      values[acc.count] = raw;
+      acc.count += 1;
+      acc.sum += raw;
+      if (raw < acc.min) acc.min = raw;
+      if (raw > acc.max) acc.max = raw;
+      const delta = raw - acc.mean;
+      acc.mean += delta / acc.count;
+      acc.m2 += delta * (raw - acc.mean);
+      return raw;
+    },
+  };
+  return acc;
+}
+
+/** Median of the values an accumulator kept.
+ *
+ * Integer data within COUNTING_MEDIAN_MAX_SPAN: one counting pass, like the
+ * whole-image median. Otherwise selection on a copy, via `computeMedian`.
+ */
+export function medianOfAccumulated(acc, integral, computeMedian) {
+  const n = acc.count;
+  if (!n) return Number.NaN;
+  const span = acc.max - acc.min + 1;
+  if (integral && span > 0 && span <= COUNTING_MEDIAN_MAX_SPAN) {
+    if (!countingBins || countingBins.length < span) {
+      countingBins = new Uint32Array(span);
+    } else {
+      countingBins.fill(0, 0, span);
+    }
+    const { values, min } = acc;
+    for (let i = 0; i < n; i += 1) countingBins[values[i] - min] += 1;
+    const lowerK = (n - 1) >> 1;
+    const upperK = n >> 1;
+    let seen = 0;
+    let lower = min;
+    let foundLower = false;
+    for (let bin = 0; bin < span; bin += 1) {
+      const binCount = countingBins[bin];
+      if (!binCount) continue;
+      seen += binCount;
+      if (!foundLower && seen > lowerK) {
+        lower = min + bin;
+        foundLower = true;
+      }
+      if (seen > upperK) return (lower + (min + bin)) * 0.5;
+    }
+    return lower;
+  }
+  return computeMedian(acc.values.slice(0, n));
+}
+
+export function isIntegralData(data) {
+  return hasIntegralValues(data);
+}
+
 export function computeGlobalStats(params) {
   const {
     dataRaw,

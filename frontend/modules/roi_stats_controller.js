@@ -11,6 +11,9 @@ import {
   usesInDataPixelFlags,
   getPixelFlags,
   normalizeRoiHistogramBinCount,
+  createRoiAccumulator,
+  medianOfAccumulated,
+  isIntegralData,
 } from "./roi_stats_engine.js";
 import { renderRoiPlot } from "./roi_plot_renderer.js";
 import {
@@ -792,9 +795,44 @@ function updateRoiStats() {
   let count = 0;
   let mean = 0;
   let m2 = 0;
-  const statsValues = [];
+  let statsValues = [];
   const satMax = getActiveSaturationMax();
-  const pixelCounters = createRoiPixelCounters();
+  let pixelCounters = createRoiPixelCounters();
+
+  // Box and circle: every pixel in the region, through one allocation-free
+  // accumulator (see createRoiAccumulator). Sized for the region's bounding
+  // box; the line keeps sampleValue, a few hundred samples.
+  const regionAccumulator = (capacity) => {
+    const hasMask =
+      state.maskAvailable &&
+      state.maskRaw &&
+      state.maskShape &&
+      state.maskShape[0] === state.height &&
+      state.maskShape[1] === state.width;
+    const inDataFlags = usesValueFlags();
+    return createRoiAccumulator({
+      data: state.dataRaw,
+      mask: hasMask ? state.maskRaw : null,
+      useMasking: (state.maskEnabled && hasMask) || state.maskSaturatedEnabled || inDataFlags,
+      inDataFlags,
+      satMax,
+      maskSaturatedEnabled: state.maskSaturatedEnabled,
+      isSaturatedValue,
+      capacity,
+    });
+  };
+  // Back into the variables the rest of this function reads.
+  const takeAccumulated = (acc) => {
+    count = acc.count;
+    sum = acc.sum;
+    min = acc.min;
+    max = acc.max;
+    mean = acc.mean;
+    m2 = acc.m2;
+    pixelCounters = { total: acc.total, gap: acc.gap, defective: acc.defective, saturated: acc.saturated };
+    statsValues = acc.values.subarray(0, acc.count);
+    return medianOfAccumulated(acc, isIntegralData(state.dataRaw), computeMedian);
+  };
 
   if (roiState.mode === "line") {
     const dx = x1 - x0;
@@ -883,34 +921,21 @@ function updateRoiStats() {
     const xCounts = new Int32Array(width);
     const yCounts = new Int32Array(height);
 
+    const acc = regionAccumulator(width * height);
     for (let y = top; y <= bottom; y += 1) {
       const rowIndex = y - top;
+      const rowStart = y * state.width;
       for (let x = left; x <= right; x += 1) {
+        const v = acc.add(rowStart + x);
+        if (v !== v) continue;
         const colIndex = x - left;
-        const sampled = sampleValue(x, y);
-        if (!sampled) continue;
-        accumulateRoiPixelCounters(pixelCounters, sampled, satMax);
-        const v = sampled.value;
-        const validForStats = !sampled.skip && Number.isFinite(v);
-        if (validForStats) {
-          statsValues.push(v);
-          count += 1;
-          sum += v;
-          min = Math.min(min, v);
-          max = Math.max(max, v);
-          const delta = v - mean;
-          mean += delta / count;
-          m2 += delta * (v - mean);
-          if (isGapMaskedSample(sampled)) {
-            continue;
-          }
-          xProj[colIndex] += v;
-          yProj[rowIndex] += v;
-          xCounts[colIndex] += 1;
-          yCounts[rowIndex] += 1;
-        }
+        xProj[colIndex] += v;
+        yProj[rowIndex] += v;
+        xCounts[colIndex] += 1;
+        yCounts[rowIndex] += 1;
       }
     }
+    const boxMedian = takeAccumulated(acc);
     for (let i = 0; i < xProj.length; i += 1) {
       xProj[i] = xCounts[i] > 0 ? xProj[i] / xCounts[i] : Number.NaN;
     }
@@ -932,7 +957,7 @@ function updateRoiStats() {
     }
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
-    const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
+    const median = boxMedian;
     setRoiText(roiMinEl, count ? formatStat(min) : "-");
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");
@@ -991,35 +1016,23 @@ function updateRoiStats() {
     const radialSum = new Float64Array(outerRadius + 1);
     const radialCount = new Uint32Array(outerRadius + 1);
 
+    const acc = regionAccumulator((right - left + 1) * (bottom - top + 1));
     for (let y = top; y <= bottom; y += 1) {
       const dyPix = (y - y0) * aspect;
+      const dy2 = dyPix * dyPix;
+      const rowStart = y * state.width;
       for (let x = left; x <= right; x += 1) {
         const dxPix = x - x0;
-        const r2 = dxPix * dxPix + dyPix * dyPix;
+        const r2 = dxPix * dxPix + dy2;
         if (r2 > outerR2 || r2 < innerR2) continue;
-        const sampled = sampleValue(x, y);
-        if (!sampled) continue;
-        accumulateRoiPixelCounters(pixelCounters, sampled, satMax);
-        const v = sampled.value;
-        const validForStats = !sampled.skip && Number.isFinite(v);
-        if (validForStats) {
-          statsValues.push(v);
-          count += 1;
-          sum += v;
-          min = Math.min(min, v);
-          max = Math.max(max, v);
-          const delta = v - mean;
-          mean += delta / count;
-          m2 += delta * (v - mean);
-          if (isGapMaskedSample(sampled)) {
-            continue;
-          }
-          const r = Math.min(outerRadius, Math.floor(Math.sqrt(r2)));
-          radialSum[r] += v;
-          radialCount[r] += 1;
-        }
+        const v = acc.add(rowStart + x);
+        if (v !== v) continue;
+        const r = Math.min(outerRadius, Math.floor(Math.sqrt(r2)));
+        radialSum[r] += v;
+        radialCount[r] += 1;
       }
     }
+    const circleMedian = takeAccumulated(acc);
 
     const profile = Array.from(radialSum, (v, i) => (radialCount[i] ? v / radialCount[i] : Number.NaN));
     let displayProfile = profile;
@@ -1058,7 +1071,7 @@ function updateRoiStats() {
     }
     updateRoiPixelCounterFields(pixelCounters);
     const std = count > 1 ? Math.sqrt(m2 / (count - 1)) : 0;
-    const median = statsValues.length ? computeMedian(statsValues) : Number.NaN;
+    const median = circleMedian;
     setRoiText(roiMinEl, count ? formatStat(min) : "-");
     setRoiText(roiMaxEl, count ? formatStat(max) : "-");
     setRoiText(roiSumEl, count ? formatStat(sum) : "-");

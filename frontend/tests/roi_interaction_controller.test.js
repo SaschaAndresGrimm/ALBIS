@@ -118,4 +118,41 @@ describe("roi_interaction_controller", () => {
     expect(roiState.start).toEqual({ x: 30, y: 45 });
     expect(roiState.end).toEqual({ x: 130, y: 105 });
   });
+
+  it("updates slow statistics less often during a drag, and always for the last change", () => {
+    vi.useFakeTimers();
+    let clock = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const seen = [];
+    const roiState = { enabled: true, active: true, mode: "circle", start: { x: 50, y: 50 }, end: { x: 90, y: 50 } };
+    const controller = createRoiInteractionController({
+      state: { width: 200, height: 200, zoom: 1 },
+      roiState,
+      elements: { canvasWrap: document.createElement("div"), roiOverlay: null, roiCtx: null },
+      callbacks: {
+        getEffectiveScrollLeft: () => 0,
+        getEffectiveScrollTop: () => 0,
+        syncOverlayCanvas: () => null,
+        updateRoiCenterInputs: vi.fn(),
+        // A large ROI: 30 ms of statistics.
+        updateRoiStats: () => {
+          seen.push(roiState.start.x);
+          clock += 30;
+        },
+      },
+    });
+    controller.scheduleRoiUpdate();
+    expect(seen).toEqual([50]);
+    // A drag: a move every 16 ms. The statistics wait 3 x 30 ms.
+    for (let x = 51; x <= 55; x += 1) {
+      clock += 16;
+      roiState.start = { x, y: 50 };
+      controller.scheduleRoiUpdate();
+    }
+    expect(seen).toEqual([50]);
+    vi.advanceTimersByTime(200);
+    // Once, with the ROI as it was last.
+    expect(seen).toEqual([50, 55]);
+    vi.useRealTimers();
+  });
 });

@@ -519,12 +519,38 @@ export function createRoiInteractionController({
     });
   }
 
+  // The statistics go over every pixel in the ROI: a few milliseconds for a
+  // small one, over 20 for one around a whole detector. Run on every frame of
+  // a drag, that makes the shape lag the pointer. So they run at most every
+  // three times their own last duration (a small ROI still on every frame),
+  // while the outline is redrawn on every frame; the last change always gets
+  // its numbers, since a deferred run reads the ROI as it is then.
+  let lastStatsMs = 0;
+  let lastStatsAt = -Infinity;
+
+  function runRoiStats() {
+    const started = performance.now();
+    updateRoiStats();
+    lastStatsAt = performance.now();
+    lastStatsMs = lastStatsAt - started;
+  }
+
   function scheduleRoiUpdate() {
     if (roiUpdateScheduled) return;
     roiUpdateScheduled = true;
     window.requestAnimationFrame(() => {
-      roiUpdateScheduled = false;
-      updateRoiStats();
+      const wait = lastStatsAt + Math.min(250, lastStatsMs * 3) - performance.now();
+      if (wait <= 0) {
+        roiUpdateScheduled = false;
+        runRoiStats();
+        return;
+      }
+      window.setTimeout(() => {
+        window.requestAnimationFrame(() => {
+          roiUpdateScheduled = false;
+          runRoiStats();
+        });
+      }, wait);
     });
   }
 

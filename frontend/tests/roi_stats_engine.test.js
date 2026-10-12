@@ -1,8 +1,12 @@
 import {
+  accumulateRoiPixelCounters,
   applyMaskToValue,
   buildRoiHistogram,
   computeGlobalStats,
+  createRoiAccumulator,
+  createRoiPixelCounters,
   getMaskFlags,
+  medianOfAccumulated,
   normalizeRoiHistogramBinCount,
 } from "../modules/roi_stats_engine.js";
 
@@ -259,5 +263,79 @@ describe("computeGlobalStats median strategies", () => {
     run(big);
     expect(run(small).median).toBe(referenceMedian([1, 2, 3, 4]));
     expect(run(big).median).toBe(referenceMedian(Array.from(big)));
+  });
+});
+
+describe("createRoiAccumulator", () => {
+  // The old per-pixel path, spelled out: sampleValue + applyMaskToValue +
+  // accumulateRoiPixelCounters. The accumulator must give the same numbers.
+  function reference(data, { mask, useMasking, inDataFlags, satMax, maskSaturatedEnabled, isSaturatedValue }) {
+    const counters = createRoiPixelCounters();
+    const values = [];
+    for (let i = 0; i < data.length; i += 1) {
+      const raw = data[i];
+      const maskValue = mask ? mask[i] : null;
+      accumulateRoiPixelCounters(counters, { raw, maskValue }, satMax, isSaturatedValue, inDataFlags);
+      const sampled = useMasking
+        ? applyMaskToValue(raw, maskValue, { satMax, maskSaturatedEnabled, isSaturatedValue, inDataFlags })
+        : { value: raw, skip: false };
+      if (!sampled.skip && Number.isFinite(sampled.value)) values.push(sampled.value);
+    }
+    return { counters, values };
+  }
+
+  const isSaturatedValue = (value, satMax) => Number.isFinite(satMax) && value === satMax;
+  const random = (seed) => () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+
+  it.each([
+    ["no mask", { withMask: false, signed: false, maskSaturatedEnabled: false }],
+    ["a mask, applied", { withMask: true, signed: false, maskSaturatedEnabled: false, useMasking: true }],
+    ["a mask, not applied", { withMask: true, signed: false, maskSaturatedEnabled: false, useMasking: false }],
+    ["in-data -1/-2 flags", { withMask: false, signed: true, maskSaturatedEnabled: false }],
+    ["saturated pixels masked", { withMask: true, signed: false, maskSaturatedEnabled: true }],
+    ["float data with NaN", { withMask: false, float: true, maskSaturatedEnabled: false }],
+  ])("matches the per-pixel path: %s", (_name, opts) => {
+    const rnd = random(7);
+    const n = 5000;
+    const satMax = 50;
+    const data = opts.float ? new Float32Array(n) : opts.signed ? new Int32Array(n) : new Uint32Array(n);
+    const mask = opts.withMask ? new Uint32Array(n) : null;
+    for (let i = 0; i < n; i += 1) {
+      const r = rnd();
+      data[i] = opts.float && r < 0.02 ? Number.NaN : Math.floor(rnd() * 52) - (opts.signed ? 2 : 0);
+      if (mask) mask[i] = r < 0.05 ? 1 : r < 0.08 ? 4 : r < 0.09 ? 5 : 0;
+    }
+    const inDataFlags = Boolean(opts.signed) && !mask;
+    const settings = {
+      mask,
+      useMasking: opts.useMasking ?? (Boolean(mask) || opts.maskSaturatedEnabled || inDataFlags),
+      inDataFlags,
+      satMax,
+      maskSaturatedEnabled: opts.maskSaturatedEnabled,
+      isSaturatedValue,
+    };
+    const expected = reference(data, settings);
+    const acc = createRoiAccumulator({ data, capacity: n, ...settings });
+    for (let i = 0; i < n; i += 1) acc.add(i);
+    expect({ total: acc.total, gap: acc.gap, defective: acc.defective, saturated: acc.saturated }).toEqual(expected.counters);
+    expect(Array.from(acc.values.subarray(0, acc.count))).toEqual(expected.values);
+    const sum = expected.values.reduce((a, b) => a + b, 0);
+    expect(acc.sum).toBeCloseTo(sum, 6);
+    expect(acc.min).toBe(Math.min(...expected.values));
+    expect(acc.max).toBe(Math.max(...expected.values));
+    expect(acc.mean).toBeCloseTo(sum / expected.values.length, 9);
+    // The median, counting for integers and selection for floats, as a sort gives it.
+    const sorted = expected.values.slice().sort((a, b) => a - b);
+    const mid = sorted.length >> 1;
+    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    const select = (values) => {
+      const s = Array.from(values).sort((a, b) => a - b);
+      const m = s.length >> 1;
+      return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+    };
+    expect(medianOfAccumulated(acc, !opts.float, select)).toBe(median);
   });
 });
