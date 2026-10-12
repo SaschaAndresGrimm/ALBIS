@@ -2,7 +2,7 @@
 
 This document states exactly what ALBIS sends over a network, so you do not
 have to read the source to find out. It is written for the person who has to
-approve ALBIS on a beamline workstation as much as for the person using it.
+approve ALBIS on an instrument workstation as much as for the person using it.
 
 The short version: ALBIS collects no telemetry, has no analytics, and sends no
 usage data, crash reports, file names or image data anywhere. It makes **one**
@@ -188,7 +188,7 @@ person sitting in front of it, and the checks described under *Reverse Proxies
 and Remote Access* in the [Power User Guide](POWER_USER_GUIDE.md) exist to keep
 a web page in your browser from acting on your behalf.
 
-Running ALBIS on a trusted beamline or lab network is supported. **Exposing it
+Running ALBIS on a trusted lab or instrument network is supported. **Exposing it
 to the public internet is not a supported deployment mode** — there is nothing
 to authenticate against, so anything that can reach the port can read whatever
 the server can read. To report a security issue, see [SECURITY.md](../SECURITY.md).

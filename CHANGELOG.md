@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Wording for any lab or facility, not only beamlines.** ALBIS runs wherever a DECTRIS detector does, so the Detector tab now points to "your instrument's control software" rather than "your beamline's control system", and turning the stream off warns about "a data pipeline" rather than "a beamline pipeline" (in all 13 languages). The README, User Guide, help page, Power User Guide, Network and Privacy, Security, Contributing and Governance documents say "instrument control system", "lab or instrument network", "a detector's data folder" and "your organisation's IT group" where they assumed a beamline or a facility. Diamond I23 stays as the worked example of a tilted multi-panel detector.
+
 ## [0.26.1] - 2026-10-10
 
 ### Changed

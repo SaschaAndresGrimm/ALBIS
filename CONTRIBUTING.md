@@ -34,7 +34,7 @@ npm ci
 ## How to help
 
 - Bug reports with clear steps and sample data (if shareable).
-- UX improvements for beamline use.
+- UX improvements for use at the instrument.
 - Performance improvements for large datasets.
 - Packaging and distribution tooling.
 

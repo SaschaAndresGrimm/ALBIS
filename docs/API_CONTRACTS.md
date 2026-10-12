@@ -111,7 +111,7 @@ reports that rather than presenting a partial answer as a complete one:
 
 - `truncated: true` in the JSON body of all four. `GET /api/browse` lists one
   directory rather than a tree, so only the entry budget applies to it — but a
-  single beamline folder holding a hundred thousand frames is exactly the case
+  single detector data folder holding a hundred thousand frames is exactly the case
   it applies to.
 - `X-Scan-Truncated: 1` on `GET /api/autoload/latest`, on the `200` and on the
   `204` alike — a bodyless response still has to be able to say "there is no

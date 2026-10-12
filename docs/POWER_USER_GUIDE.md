@@ -115,7 +115,7 @@ than refusing to open.
 Running from source, the same flags apply:
 
 ```bash
-python albis_launcher.py --port 9000 --data-root /gpfs/beamline --no-browser
+python albis_launcher.py --port 9000 --data-root /data/experiments --no-browser
 ```
 
 ## Opening Files from the Desktop
@@ -259,7 +259,7 @@ what a given build can actually produce.
 
   A scan that hits either budget stops and says so, rather than presenting a partial listing as a complete one: `GET /api/files`, `GET /api/folders` and `GET /api/browse` return `truncated: true`, `GET /api/autoload/latest` returns it as a field and as the `X-Scan-Truncated` header (which is how it can also be reported on a bodyless `204`), and the interface says the folder is too large to scan.
 
-  `GET /api/browse` lists a single directory rather than a tree, so only the entry budget bounds it. That is not a lesser case: a beamline folder is frequently flat and enormous — one directory per run holding a hundred thousand frames — and unbounded that meant a `stat` per entry, a sort across all of them, and the whole listing serialized. Raise the budgets if you would rather wait; a scan holds a worker thread for as long as it runs.
+  `GET /api/browse` lists a single directory rather than a tree, so only the entry budget bounds it. That is not a lesser case: a detector's data folder is frequently flat and enormous — one directory per run holding a hundred thousand frames — and unbounded that meant a `stat` per entry, a sort across all of them, and the whole listing serialized. Raise the budgets if you would rather wait; a scan holds a worker thread for as long as it runs.
 
 - `max_upload_mb` (`integer`, default `0`, minimum `0`)
 
@@ -275,7 +275,7 @@ what a given build can actually produce.
 - `tool_hints` (`boolean`, default `false`)
 - `auto_check_updates` (`boolean`, default `true`): Ask GitHub once per interface start whether a newer release exists, and notify only when one does. Also adjustable in **Settings -> Connection**. This is the only network request ALBIS makes that you did not ask for; set `false` for offline or managed deployments, and see [Network Behaviour and Privacy](NETWORK_AND_PRIVACY.md) for exactly what the request contains.
 - `allow_update_download` (`boolean`, default `true`): Also adjustable in **Settings -> Connection**. Let the update dialog fetch the release asset that matches this install, and check its SHA-256 against the release's `SHA256SUMS.txt` before handing it over. Nothing is fetched without a click, nothing is ever installed automatically, and a file whose checksum does not match is deleted rather than offered. Where `gpg` and a bundled release key are both present the signature over the checksum list is checked too, which in practice means Linux — on macOS and Windows the operating system checks notarization and Authenticode itself. Set `false` for deployments where ALBIS should write no installer to disk; the dialog then offers the download link only.
-- `allow_update_apply` (`boolean`, default `false`): Also adjustable in **Settings -> Connection**. Let the update dialog install a verified download and close ALBIS. Off by default, because a viewer that replaces itself is not something a beamline workstation should do unasked. It only ever acts on a Linux AppImage — replaced in place at the path the AppImage runtime reports, atomically — or the Windows installer, run silently so that it closes ALBIS and updates in place the way a manual install does. macOS, Docker and source checkouts ignore the setting and keep offering the download. It refuses a download whose checksum did not verify, and refuses while a live watch, series sum or export is running. ALBIS does not restart itself afterwards: it closes, and you start it again.
+- `allow_update_apply` (`boolean`, default `false`): Also adjustable in **Settings -> Connection**. Let the update dialog install a verified download and close ALBIS. Off by default, because a viewer that replaces itself is not something an instrument workstation should do unasked. It only ever acts on a Linux AppImage — replaced in place at the path the AppImage runtime reports, atomically — or the Windows installer, run silently so that it closes ALBIS and updates in place the way a manual install does. macOS, Docker and source checkouts ignore the setting and keep offering the download. It refuses a download whose checksum did not verify, and refuses while a live watch, series sum or export is running. ALBIS does not restart itself afterwards: it closes, and you start it again.
 - `language` (`string`, default `en`): Interface language. Supported values: `en`, `zh-CN`, `ja`, `fr`, `es`, `it`, `pt`, `rm`, `de`, `sv`, `da`, `mi`, `gsw`. Also adjustable in **Settings -> Viewer**.
 - `pixel_label_min_cell_px` (`integer`, default `18`, clamped `8..64`)
 - `pixel_label_max_labels` (`integer`, default `4000`, clamped `100..100000`)

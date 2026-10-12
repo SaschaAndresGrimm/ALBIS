@@ -8,7 +8,7 @@ his or Dependabot's. Decisions about scope, design and releases are his, made in
 the open on issues and pull requests.
 
 This is stated plainly because ALBIS ships a [`CITATION.cff`](CITATION.cff) and
-an archived DOI, which invite facilities to depend on it and to cite it in
+an archived DOI, which invite labs and facilities to depend on it and to cite it in
 published work. 
 
 ## Relationship to DECTRIS
@@ -97,7 +97,7 @@ survives, individual version DOIs already minted are permanent.
 ## If the maintainer stops
 
 Should the maintainer become unable or unwilling to continue, the intent is to
-hand the repository to a contributor or an interested facility rather than
+hand the repository to a contributor or an interested lab or facility rather than
 archive it, and to say so publicly in the README and the issue tracker. If no
 successor appears, the repository will be archived with a note pointing at the
 last release and the DOI, so it is clear the project is finished rather than

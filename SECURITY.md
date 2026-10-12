@@ -27,7 +27,7 @@ above. What `1.0.0` will promise, and what it deliberately will not, is written 
 
 ## Scope
 
-ALBIS is intended for local desktop use and trusted beamline/LAN environments. Public internet
+ALBIS is intended for local desktop use and trusted lab or instrument networks. Public internet
 exposure is not a supported deployment mode: ALBIS has no authentication, so anything able to
 reach the port can read whatever the server can read. Reports amounting to "an unauthenticated
 listener exposed to the internet is readable" describe a deployment choice rather than a

@@ -434,14 +434,14 @@ The **Detector** tab is a quick way to check a DECTRIS detector: connect, take a
 test series and watch it live, without writing code. It works with any detector
 that speaks SIMPLON 1.6 or later, from an EIGER1 to a PILATUS4; ALBIS reads the
 detector's API version when it connects. It is a convenience for first tests, not a
-replacement for a beamline control system or scripted acquisition.
+replacement for an instrument control system or scripted acquisition.
 
 **Good for:** a first image after installing or moving a detector, checking that
 it responds and what it is set to, demonstrations and training, and learning the
 SIMPLON API: every setting's **?** names its key (for example
 `detector/config/count_time`), the name to use when you later script it.
 
-**Not meant for:** experiments run by a beamline control system (the tab can be
+**Not meant for:** experiments run by an instrument control system (the tab can be
 used alongside one, and flags changes it makes, but does not coordinate with
 it), scans or synchronisation with motors, sequences of series, unattended
 operation, or an ALBIS shared with others: anyone who can open ALBIS can use the
@@ -594,7 +594,7 @@ Live sources are the other network traffic, and they only ever go to the address
 you typed — the SIMPLON monitor or JUNGFRAUJOCH endpoint you connected to. ALBIS
 does not look for detectors by itself.
 
-For the precise details, including what a facility's IT group will want to know,
+For the precise details, including what your organisation's IT group will want to know,
 see [Network Behaviour and Privacy](NETWORK_AND_PRIVACY.md).
 
 ---
