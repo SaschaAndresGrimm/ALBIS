@@ -25,6 +25,30 @@ VERSION_INFO="$($PYTHON_BIN scripts/version_info.py --shell)"
 eval "$VERSION_INFO"
 ZIP_OUT="dist/ALBIS-${TARGET}-${TAG}.zip"
 DMG_OUT="dist/ALBIS-${TARGET}-${TAG}.dmg"
+
+# Which part of the work this run does.
+#   all       sign, notarize, staple, build the DMG, notarize and staple it,
+#             build the zip -- everything on one runner (the default).
+#   notarize  sign the app and have Apple notarize it, then stop: the signed,
+#             notarized but unstapled app is left as NOTARIZED_APP_ZIP.
+#   finish    the rest, from that app, on another runner: staple it, build,
+#             sign, notarize and staple the DMG, build the zip. The app is not
+#             signed again -- that would invalidate its notarization.
+# Stapling fetches the ticket from Apple (api.apple-cloudkit.com). From
+# 2026-10-12 the macos-15-intel runner could not: notarizing worked, every
+# ticket fetch lost its connection, retries or not. The Apple-silicon runner
+# fetched fine, and stapling does not depend on the app's architecture, so
+# release.yml notarizes the Intel build on the Intel runner and finishes it on
+# an Apple-silicon one.
+PHASE="${ALBIS_MACOS_PHASE:-all}"
+case "$PHASE" in
+  all | notarize | finish) ;;
+  *)
+    echo "[sign_macos] Unknown ALBIS_MACOS_PHASE: $PHASE (all, notarize or finish)"
+    exit 1
+    ;;
+esac
+NOTARIZED_APP_ZIP="dist/ALBIS-${TARGET}-${TAG}-notarized-app.zip"
 TEMP_DIR="$(mktemp -d)"
 KEYCHAIN_PATH=""
 KEYCHAIN_PASSWORD=""
@@ -211,8 +235,12 @@ create_zip() {
   make_app_zip "$ZIP_OUT"
 }
 
-echo "[sign_macos] Signing app bundle: $APP_PATH"
-codesign --force --deep --options runtime --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$SIGN_IDENTITY" "$APP_PATH"
+if [ "$PHASE" = "finish" ]; then
+  echo "[sign_macos] Finishing the signed, notarized app: $APP_PATH"
+else
+  echo "[sign_macos] Signing app bundle: $APP_PATH"
+  codesign --force --deep --options runtime --timestamp "${KEYCHAIN_ARGS[@]}" --sign "$SIGN_IDENTITY" "$APP_PATH"
+fi
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
 if ! command -v hdiutil >/dev/null 2>&1; then
@@ -271,6 +299,10 @@ APPLE_APP_SPECIFIC_PASSWORD="${APPLE_APP_SPECIFIC_PASSWORD:-}"
 
 if [ -z "$APPLE_ID" ] && [ -z "$APPLE_TEAM_ID" ] && [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
   echo "[sign_macos] Apple notarization credentials not set; skipping notarization."
+  if [ "$PHASE" = "notarize" ]; then
+    make_app_zip "$NOTARIZED_APP_ZIP"
+    exit 0
+  fi
   build_dmg
   create_zip
   exit 0
@@ -289,10 +321,17 @@ fi
 # The app is notarized on its own first. Notarizing only the DMG would still
 # let `stapler staple` attach a ticket to $APP_PATH -- the ticket covers the
 # nested code -- but by then the DMG has already sealed an unstapled copy.
-echo "[sign_macos] Submitting app for notarization: $APP_PATH"
-APP_NOTARIZE_ZIP="$TEMP_DIR/notarize-app.zip"
-make_app_zip "$APP_NOTARIZE_ZIP"
-notarize "$APP_NOTARIZE_ZIP"
+if [ "$PHASE" != "finish" ]; then
+  echo "[sign_macos] Submitting app for notarization: $APP_PATH"
+  APP_NOTARIZE_ZIP="$TEMP_DIR/notarize-app.zip"
+  make_app_zip "$APP_NOTARIZE_ZIP"
+  notarize "$APP_NOTARIZE_ZIP"
+fi
+if [ "$PHASE" = "notarize" ]; then
+  make_app_zip "$NOTARIZED_APP_ZIP"
+  echo "[sign_macos] Signed and notarized; stapling and packaging run elsewhere: $NOTARIZED_APP_ZIP"
+  exit 0
+fi
 staple "$APP_PATH"
 
 # Now the copy sealed into the DMG carries its own ticket, so an app dragged

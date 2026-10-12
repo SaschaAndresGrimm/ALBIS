@@ -537,14 +537,20 @@ jobs:
             target_arch: arm64
             target: macos-arm64
             expected_uname: arm64
+            phase: all
+          # Signed and notarized here, stapled and packaged by finish_macos on
+          # an Apple-silicon runner: from 2026-10-12 this runner could not
+          # fetch notarization tickets from Apple (see scripts/sign_macos.sh).
           - runner: macos-15-intel
             target_os: macos
             target_arch: x64
             target: macos-x64
             expected_uname: x86_64
+            phase: notarize
     env:
       ALBIS_TARGET_OS: ${{ matrix.target_os }}
       ALBIS_TARGET_ARCH: ${{ matrix.target_arch }}
+      ALBIS_MACOS_PHASE: ${{ matrix.phase }}
       MACOS_SIGN_CERT_B64: ${{ secrets.MACOS_SIGN_CERT_B64 }}
       MACOS_SIGN_CERT_PASSWORD: ${{ secrets.MACOS_SIGN_CERT_PASSWORD }}
       MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
@@ -604,12 +610,14 @@ jobs:
           python scripts/smoke_packaged_binary.py --binary "$binary" --startup-timeout 60
 
       - name: Smoke test mounted DMG app
+        if: ${{ matrix.phase == 'all' }}
         run: |
           dmg_file="$(ls dist/ALBIS-${{ matrix.target }}-*.dmg | head -n1 || true)"
           [ -n "$dmg_file" ] || { echo "Missing macOS dmg"; exit 1; }
           ./scripts/smoke_macos_dmg.sh "$dmg_file" 60
 
       - name: Verify package integrity
+        if: ${{ matrix.phase == 'all' }}
         run: |
           set -euo pipefail
           zip_file="$(ls dist/ALBIS-${{ matrix.target }}-*.zip | head -n1 || true)"
@@ -640,13 +648,14 @@ jobs:
           fi
 
       - name: Verify macOS signing and notarization
-        if: ${{ startsWith(github.ref, 'refs/tags/v') || (env.MACOS_SIGN_CERT_B64 != '' && env.MACOS_SIGN_CERT_PASSWORD != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '') }}
+        if: ${{ matrix.phase == 'all' && (startsWith(github.ref, 'refs/tags/v') || (env.MACOS_SIGN_CERT_B64 != '' && env.MACOS_SIGN_CERT_PASSWORD != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '')) }}
         run: |
           zip_file="$(ls dist/ALBIS-${{ matrix.target }}-*.zip | head -n1)"
           dmg_file="$(ls dist/ALBIS-${{ matrix.target }}-*.dmg | head -n1)"
           ./scripts/verify_macos_distribution.sh dist/ALBIS.app "$dmg_file" "$zip_file"
 
       - name: Upload release assets
+        if: ${{ matrix.phase == 'all' }}
         uses: actions/upload-artifact@v7
         with:
           name: release-assets-${{ matrix.target }}
@@ -654,10 +663,113 @@ jobs:
             dist/ALBIS-${{ matrix.target }}-*.zip
             dist/ALBIS-${{ matrix.target }}-*.dmg
 
+      # For finish_macos: the signed, notarized app -- or, for a build
+      # without signing secrets, the unsigned zip and DMG made here.
+      - name: Upload the app for finishing
+        if: ${{ matrix.phase == 'notarize' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: notarized-${{ matrix.target }}
+          path: dist/ALBIS-${{ matrix.target }}-*
+          if-no-files-found: error
+
+  # The Intel build's stapling and packaging, on an Apple-silicon runner. The
+  # app was signed and notarized on the Intel runner; stapling only fetches
+  # its ticket from Apple, which does not depend on the app's architecture.
+  # Same script, same names, same checks as the one-runner path.
+  finish_macos:
+    name: Finish macOS Artifact (macos-x64)
+    runs-on: macos-14
+    needs: build_macos
+    env:
+      ALBIS_TARGET_OS: macos
+      ALBIS_TARGET_ARCH: x64
+      ALBIS_MACOS_PHASE: finish
+      MACOS_SIGN_CERT_B64: ${{ secrets.MACOS_SIGN_CERT_B64 }}
+      MACOS_SIGN_CERT_PASSWORD: ${{ secrets.MACOS_SIGN_CERT_PASSWORD }}
+      MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Download the notarized app
+        uses: actions/download-artifact@v8
+        with:
+          name: notarized-macos-x64
+          path: dist
+
+      - name: Staple the app, build and notarize the DMG
+        run: |
+          set -euo pipefail
+          app_zip="$(ls dist/ALBIS-macos-x64-*-notarized-app.zip 2>/dev/null | head -n1 || true)"
+          if [ -z "$app_zip" ]; then
+            echo "No notarized app: built without signing secrets, packaged on the Intel runner."
+            exit 0
+          fi
+          ditto -x -k "$app_zip" dist
+          rm -f "$app_zip"
+          ./scripts/sign_macos.sh dist/ALBIS.app
+
+      # The app is x86_64: it runs here only under Rosetta. It was launched
+      # on the Intel runner already; this checks the copy inside the DMG.
+      - name: Smoke test mounted DMG app
+        run: |
+          dmg_file="$(ls dist/ALBIS-macos-x64-*.dmg | head -n1 || true)"
+          [ -n "$dmg_file" ] || { echo "Missing macOS dmg"; exit 1; }
+          if /usr/bin/arch -x86_64 /usr/bin/true 2>/dev/null; then
+            ./scripts/smoke_macos_dmg.sh "$dmg_file" 90
+          else
+            echo "Rosetta is not available on this runner; the app was launched on the Intel runner."
+          fi
+
+      - name: Verify package integrity
+        run: |
+          set -euo pipefail
+          zip_file="$(ls dist/ALBIS-macos-x64-*.zip | head -n1 || true)"
+          dmg_file="$(ls dist/ALBIS-macos-x64-*.dmg | head -n1 || true)"
+          [ -n "$zip_file" ] || { echo "Missing macOS zip"; exit 1; }
+          [ -n "$dmg_file" ] || { echo "Missing macOS dmg"; exit 1; }
+          unzip -tq "$zip_file" >/dev/null
+          hdiutil verify "$dmg_file" >/dev/null
+
+      - name: Require macOS signing credentials on a tag
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          missing=()
+          for key in MACOS_SIGN_CERT_B64 MACOS_SIGN_CERT_PASSWORD APPLE_ID APPLE_TEAM_ID \
+                     APPLE_APP_SPECIFIC_PASSWORD; do
+            [ -n "${!key:-}" ] || missing+=("$key")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing macOS signing/notarization secrets for a tag release: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Verify macOS signing and notarization
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (env.MACOS_SIGN_CERT_B64 != '' && env.MACOS_SIGN_CERT_PASSWORD != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '') }}
+        run: |
+          zip_file="$(ls dist/ALBIS-macos-x64-*.zip | head -n1)"
+          dmg_file="$(ls dist/ALBIS-macos-x64-*.dmg | head -n1)"
+          ./scripts/verify_macos_distribution.sh dist/ALBIS.app "$dmg_file" "$zip_file"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets-macos-x64
+          path: |
+            dist/ALBIS-macos-x64-*.zip
+            dist/ALBIS-macos-x64-*.dmg
+
   publish:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
-    needs: [build_linux, smoke_linux, build_windows, build_macos]
+    needs: [build_linux, smoke_linux, build_windows, build_macos, finish_macos]
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_publish_validation == 'true')
     permissions:
       contents: write

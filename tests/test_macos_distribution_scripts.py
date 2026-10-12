@@ -131,3 +131,66 @@ def test_the_release_check_retries_validating_the_ticket() -> None:
         if "stapler validate" in line and not line.strip().startswith("#")
     ]
     assert calls == ['if xcrun stapler validate "$1"; then'], calls
+
+
+# -- The Intel build, finished on Apple silicon --------------------------------
+# From 2026-10-12 the macos-15-intel runner could not fetch notarization
+# tickets from Apple (five tries of five failed, for three releases running),
+# while notarizing worked and the Apple-silicon runner fetched fine. So the
+# Intel app is signed and notarized there and stapled and packaged on macos-14.
+
+RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
+
+
+def _release_jobs() -> dict:
+    import yaml
+
+    return yaml.safe_load(RELEASE_WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+
+
+def test_the_intel_build_only_notarizes_and_is_finished_on_apple_silicon() -> None:
+    jobs = _release_jobs()
+    matrix = {
+        entry["target"]: entry for entry in jobs["build_macos"]["strategy"]["matrix"]["include"]
+    }
+    assert matrix["macos-x64"]["phase"] == "notarize"
+    assert matrix["macos-arm64"]["phase"] == "all"
+    assert jobs["build_macos"]["env"]["ALBIS_MACOS_PHASE"] == "${{ matrix.phase }}"
+
+    finish = jobs["finish_macos"]
+    assert (
+        finish["runs-on"] == "macos-14"
+    ), "stapling has to run where Apple's ticket service answers"
+    assert finish["needs"] == "build_macos"
+    assert finish["env"]["ALBIS_MACOS_PHASE"] == "finish"
+    assert (
+        finish["env"]["ALBIS_TARGET_ARCH"] == "x64"
+    ), "the files must keep the Intel build's names"
+    assert "finish_macos" in jobs["publish"]["needs"]
+
+
+def test_each_release_artifact_is_uploaded_by_one_job_only() -> None:
+    """upload-artifact refuses a second artifact of the same name."""
+    jobs = _release_jobs()
+    uploads = []
+    for job_name, job in jobs.items():
+        for step in job.get("steps", []):
+            if str(step.get("uses", "")).startswith("actions/upload-artifact"):
+                uploads.append((job_name, step["with"]["name"], step.get("if", "")))
+    build_release = [
+        u for u in uploads if u[0] == "build_macos" and u[1].startswith("release-assets-")
+    ]
+    assert build_release and all("matrix.phase == 'all'" in u[2] for u in build_release)
+    assert ("finish_macos", "release-assets-macos-x64", "") in uploads
+
+
+def test_the_notarize_phase_stops_before_stapling_and_finish_does_not_sign_again() -> None:
+    text = SIGN_SCRIPT.read_text(encoding="utf-8")
+    section = _notarized_path()
+    stop = _step_line(section, 'if [ "$PHASE" = "notarize" ]; then')
+    staple_app = _step_line(section, 'staple "$APP_PATH"')
+    assert stop < staple_app, "the notarize phase must leave before the first ticket fetch"
+    # Re-signing would invalidate the notarization the app arrived with.
+    signing = text.split('if [ "$PHASE" = "finish" ]; then', 1)[1].split("fi\n", 1)[0]
+    assert "codesign --force --deep" in signing.split("else", 1)[1]
+    assert "codesign --force --deep" not in signing.split("else", 1)[0]
