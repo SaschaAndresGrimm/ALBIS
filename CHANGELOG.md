@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-10-13
+
 ### Changed
 
 - **The Overlay tab is now the Analysis tab.** It holds the ROI with its statistics, resolution rings and the peak finder — analysis, which the old name, describing only how it is drawn, did not say. The tabs read **View · Data · Analysis · Detector**. The command palette entry is renamed with it ("Panel: Analysis Tab"; typing "overlay" still finds it), and all 13 languages, the user guide and the help page follow.
@@ -1557,7 +1559,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.5...v0.27.0
 [0.26.5]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.4...v0.26.5
 [0.26.4]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.3...v0.26.4
