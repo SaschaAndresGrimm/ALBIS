@@ -4196,6 +4196,12 @@ body.platform-windows select option:disabled {
   text-transform: uppercase;
 }
 
+.detector-picker-error {
+  padding: 6px 8px 2px;
+  color: #ff8f8f;
+  font-size: 11px;
+}
+
 .detector-picker-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;

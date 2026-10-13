@@ -788,6 +788,7 @@
   "known_detectors.kept": "Conservés",
   "known_detectors.recent": "Récents",
   "known_detectors.rename": "Renommer",
+  "known_detectors.save_failed": "Impossible d'enregistrer la liste des détecteurs sur le serveur ALBIS ; la modification a été annulée.",
   "known_detectors.show": "Détecteurs connus",
   "known_detectors.unkeep": "Conservé dans la liste — cliquer pour ne plus le conserver",
   "loading.frame": "Chargement de l'image…",

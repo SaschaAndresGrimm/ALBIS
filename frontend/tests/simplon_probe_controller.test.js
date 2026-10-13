@@ -19,8 +19,14 @@ const DICTIONARY = {
 };
 
 function buildFetchMock(probeHandler) {
-  return vi.fn(async (url) => {
+  return vi.fn(async (url, init = {}) => {
     const text = String(url);
+    if (text.includes("/known-detectors")) {
+      // The server's answer to a detector that answered: it, remembered.
+      const body = init.body ? JSON.parse(init.body) : {};
+      const detectors = body.address ? [{ ...body, address: `http://${body.address}`.replace("http://http://", "http://") }] : [];
+      return { ok: true, json: async () => ({ detectors }) };
+    }
     if (text.match(/locales\/([^/]+)\.json/)) {
       return { ok: true, json: async () => DICTIONARY };
     }
@@ -293,6 +299,7 @@ describe("simplon_probe_controller", () => {
     expect(knownDetectors.list()).toEqual([
       expect.objectContaining({ address: "http://192.168.1.10", model: "EIGER2 X 1M", serial: "E-01-0001" }),
     ]);
+    expect(global.fetch).toHaveBeenCalledWith("/api/known-detectors/seen", expect.objectContaining({ method: "POST" }));
   });
 
   it("does not remember an address that failed", async () => {

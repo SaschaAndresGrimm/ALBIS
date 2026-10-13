@@ -288,6 +288,7 @@ what a given build can actually produce.
 - `pixel_label_format` (`auto|integer|scientific`, default `auto`)
 - `pixel_label_show_during_drag` (`boolean`, default `false`)
 - `detector_control` (`boolean`, default `false`): beta. Shows the **Detector** tab, a quick-test tool for a DECTRIS detector over the SIMPLON API: connect, take a test series and watch it live (see [Test a detector](USER_GUIDE.md#test-a-detector-beta)). It is not a control system. While it is off, the `/api/detector/*` endpoints answer 404. Anyone who can open ALBIS can use it once it is on, so leave it off on a shared instance. Beta: the key and the endpoints may change in any release (see [Compatibility Policy](COMPATIBILITY.md#not-covered)).
+- `known_detectors_file` (`string`, default empty): where ALBIS keeps the [known detectors](USER_GUIDE.md#known-detectors), the list under the SIMPLON address fields. Empty means `~/.config/albis/known_detectors.json` on the computer ALBIS runs on, beside `server.json`, so the list survives restarts and upgrades. It is one list per ALBIS server, the same for everyone using it. A relative path is taken from the config file's folder. Point several installations at one file, for instance on a network drive, to share a lab-wide list; each change re-reads the file first, so their changes add up, and only two saves at the same instant can overwrite one another. To move the list to another computer, copy the file. Also settable as `ALBIS_UI_KNOWN_DETECTORS_FILE`.
 
 ## Geometry Files
 
@@ -529,6 +530,8 @@ docker run -d \
   -e ALBIS_SERVER_ALLOWED_HOSTS=albis \
   ghcr.io/saschaandresgrimm/albis:latest
 ```
+
+The [known detectors](USER_GUIDE.md#known-detectors) are kept in `/home/albis/.config/albis` inside the container. To keep them when the container is replaced, mount that folder too: `-v albis-config:/home/albis/.config/albis`.
 
 *Note: In the example above, `/path/to/your/data` is mounted into the container at `/app/data` as read-only (`:ro`). In the default ALBIS configuration (`albis.config.json`), the `data.root` is already set to `./data`, so ALBIS will immediately see your mounted files.*
 

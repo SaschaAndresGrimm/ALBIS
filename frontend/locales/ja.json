@@ -788,6 +788,7 @@
   "known_detectors.kept": "保持",
   "known_detectors.recent": "最近",
   "known_detectors.rename": "名前を変更",
+  "known_detectors.save_failed": "ALBIS サーバーに検出器リストを保存できませんでした。変更は取り消されました。",
   "known_detectors.show": "既知の検出器",
   "known_detectors.unkeep": "リストに保持中 — クリックで解除",
   "loading.frame": "フレームを読み込み中…",

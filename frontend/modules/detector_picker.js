@@ -185,16 +185,25 @@ export function attachDetectorPicker({ input, store = knownDetectors, onPick } =
     };
     group(t("known_detectors.kept"), kept);
     group(t("known_detectors.recent"), recent);
+    // The last change could not be saved, and was taken back: say so.
+    if (store.lastError) {
+      const note = el("li", "detector-picker-error", t("known_detectors.save_failed"));
+      note.setAttribute("role", "presentation");
+      list.append(note);
+    }
     list.hidden = false;
     input.setAttribute("aria-expanded", "true");
     setActive(Math.min(active, index - 1));
   }
 
   function show(filter = "") {
+    const opening = !open;
     open = true;
     query = filter;
     active = -1;
     render();
+    // Changes others made since: they come in while the list is open.
+    if (opening) void store.refresh?.();
   }
 
   function close() {

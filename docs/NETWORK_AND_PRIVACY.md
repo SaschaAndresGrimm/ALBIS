@@ -181,6 +181,13 @@ The log lives where `logging.dir` points (by default under the data directory
 for source runs, or `~/.config/albis/logs` for packaged builds), and you decide
 whether to attach it to a bug report.
 
+The [known detectors](USER_GUIDE.md#known-detectors) — the addresses, models
+and serial numbers of detectors that answered, with any names you gave them —
+are kept in one file on the ALBIS computer (`~/.config/albis/known_detectors.json`
+unless `ui.known_detectors_file` points elsewhere). They are not sent anywhere
+else. On an ALBIS server shared by several people, everyone using it sees and
+can change that list.
+
 ## Exposure and deployment
 
 ALBIS has no authentication. It assumes the only person who can reach it is the

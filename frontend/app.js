@@ -81,6 +81,7 @@ import { createOverviewViewportController } from "./modules/overview_viewport_co
 import { getCircularRoiOuterRadius, getRoiImageBounds } from "./modules/roi_geometry_utils.js";
 import { createImageExportController } from "./modules/image_export_controller.js";
 import { createDetectorControlController } from "./modules/detector_control_controller.js";
+import { knownDetectors } from "./modules/known_detectors.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -3447,6 +3448,8 @@ detectorControlController = createDetectorControlController({
   },
 });
 detectorControlController.setEnabled(state.detectorControl);
+// The detectors this server has talked to, under the SIMPLON address fields.
+void knownDetectors.start();
 
 function applyUiSettings(uiConfig, options = {}) {
   settingsController.applyUiSettings(uiConfig, options);

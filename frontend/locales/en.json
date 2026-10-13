@@ -788,6 +788,7 @@
   "known_detectors.kept": "Kept",
   "known_detectors.recent": "Recent",
   "known_detectors.rename": "Rename",
+  "known_detectors.save_failed": "Could not save the detector list on the ALBIS server; the change was taken back.",
   "known_detectors.show": "Known detectors",
   "known_detectors.unkeep": "Kept in the list — click to stop keeping it",
   "loading.frame": "Loading frame…",

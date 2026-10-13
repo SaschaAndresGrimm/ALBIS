@@ -788,6 +788,7 @@
   "known_detectors.kept": "Tegnids",
   "known_detectors.recent": "Ultims",
   "known_detectors.rename": "Renumnar",
+  "known_detectors.save_failed": "La glista dals detecturs n'ha betg pudì vegnir memorisada sin il server ALBIS; la midada è vegnida revocada.",
   "known_detectors.show": "Detecturs enconuschents",
   "known_detectors.unkeep": "Tegnì en la glista — cliccar per betg pli al tegnair",
   "loading.frame": "Chargiar maletg…",

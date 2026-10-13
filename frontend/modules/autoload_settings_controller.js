@@ -4,7 +4,6 @@
 
 import { t } from "./i18n.js";
 import { normalizeJfjochEndpoint } from "./jfjoch_endpoint_utils.js";
-import { knownDetectors } from "./known_detectors.js";
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 
 export function createAutoloadSettingsController({
@@ -233,8 +232,6 @@ export function createAutoloadSettingsController({
           state.autoload.pattern = stored.pattern || "";
           // Settings persisted before URL normalization may hold a bare host.
           state.autoload.simplonUrl = normalizeSimplonBaseUrl(stored.simplonUrl);
-          // Older versions kept the addresses alone, here.
-          knownDetectors.adoptLegacy(stored.simplonRecentHosts);
           state.autoload.simplonVersion = stored.simplonVersion || state.autoload.simplonVersion;
           state.autoload.simplonTimeout = Number(stored.simplonTimeout || state.autoload.simplonTimeout);
           state.autoload.simplonEnable =

@@ -516,3 +516,40 @@ class DetectorCommandRequest(_StrictModel):
     subsystem: str
     command: str
     value: bool | int | float | str | None = None
+
+
+class KnownDetector(_StrictModel):
+    """One detector this ALBIS server has talked to."""
+
+    address: str
+    name: str = ""
+    model: str = ""
+    serial: str = ""
+    kept: bool = False
+    lastUsed: int = 0
+
+
+class KnownDetectorsResponse(_StrictModel):
+    detectors: list[KnownDetector]
+
+
+class KnownDetectorSeenRequest(_StrictModel):
+    """A detector answered at `address` (a Connect, a Test, a started monitor)."""
+
+    address: str = Field(..., min_length=1, max_length=512)
+    model: str = Field("", max_length=512)
+    serial: str = Field("", max_length=512)
+
+
+class KnownDetectorUpdateRequest(_StrictModel):
+    """Rename a known detector or change whether it is kept; omitted fields stay."""
+
+    address: str = Field(..., min_length=1, max_length=512)
+    name: str | None = Field(None, max_length=512)
+    kept: bool | None = None
+
+
+class KnownDetectorImportRequest(_StrictModel):
+    """A list kept elsewhere before (a browser's), merged in once."""
+
+    detectors: list[dict[str, Any]] = Field(default_factory=list, max_length=500)

@@ -788,6 +788,7 @@
   "known_detectors.kept": "Gemte",
   "known_detectors.recent": "Seneste",
   "known_detectors.rename": "Omdøb",
+  "known_detectors.save_failed": "Detektorlisten kunne ikke gemmes på ALBIS-serveren; ændringen er taget tilbage.",
   "known_detectors.show": "Kendte detektorer",
   "known_detectors.unkeep": "Beholdt på listen — klik for ikke at beholde den",
   "loading.frame": "Indlæser ramme...",

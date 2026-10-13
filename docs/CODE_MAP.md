@@ -54,7 +54,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 - `frontend/modules/file_browser.js`:
   - File browser modal state and filesystem browsing interactions.
 - `frontend/modules/known_detectors.js` + `frontend/modules/detector_picker.js`:
-  - The known-detectors list shared by the SIMPLON address fields (Detector tab, SIMPLON monitor): entries by address with model, serial, name and a keep star, followed by serial; and the dropdown under each field.
+  - The known-detectors list shared by the SIMPLON address fields (Detector tab, SIMPLON monitor): a client of `/api/known-detectors` that shows changes at once and takes the server's answer, the same rules for that instant view; and the dropdown under each field.
 - `frontend/modules/detector_control_controller.js`:
   - The beta Detector tab: connect, state and buttons (Acquire, Single image, Live), pre-flight check, progress and result, Acquisition and Data output built from the detector's own descriptors, Commands, Advanced, Activity; command feedback and the status poll.
 
@@ -74,6 +74,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Analysis and series-summing endpoints (`/api/analysis/*`).
 - `backend/routes/stream.py`:
   - Single-image decoding, SIMPLON monitor/mask, remote stream ingest/latest/meta, JUNGFRAUJOCH preview controls.
+- `backend/routes/known_detectors.py` + `backend/services/known_detectors.py`:
+  - The shared known-detectors list (`/api/known-detectors`): one JSON file per server (`ui.known_detectors_file`, default `~/.config/albis/known_detectors.json`), changed one request at a time under a lock with atomic writes, merging the lists earlier versions kept in the browser.
 - `backend/routes/detector_control.py`:
   - Beta Detector tab endpoints (`/api/detector/*`): describe, status, config writes, commands, files and series fetch; 404 unless `ui.detector_control` is on.
 

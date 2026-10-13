@@ -788,6 +788,7 @@
   "known_detectors.kept": "Behalten",
   "known_detectors.recent": "Zuletzt verwendet",
   "known_detectors.rename": "Umbenennen",
+  "known_detectors.save_failed": "Die Detektorliste konnte auf dem ALBIS-Server nicht gespeichert werden; die Änderung wurde zurückgenommen.",
   "known_detectors.show": "Bekannte Detektoren",
   "known_detectors.unkeep": "In der Liste behalten — klicken, um es aufzuheben",
   "loading.frame": "Frame wird geladen …",

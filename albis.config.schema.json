@@ -203,6 +203,11 @@
           "default": false,
           "description": "Beta: show the Detector tab, which controls a DECTRIS detector over the SIMPLON API."
         },
+        "known_detectors_file": {
+          "type": "string",
+          "default": "",
+          "description": "Where the shared list of known detectors is kept. Empty: ~/.config/albis/known_detectors.json. A relative path is taken from this file's folder."
+        },
         "language": {
           "type": "string",
           "enum": [
@@ -261,7 +266,8 @@
       "pixel_label_format": "auto",
       "pixel_label_show_during_drag": false,
       "language": "en",
-      "detector_control": false
+      "detector_control": false,
+      "known_detectors_file": ""
     }
   }
 }

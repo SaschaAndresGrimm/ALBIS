@@ -788,6 +788,7 @@
   "known_detectors.kept": "Conservati",
   "known_detectors.recent": "Recenti",
   "known_detectors.rename": "Rinomina",
+  "known_detectors.save_failed": "Impossibile salvare l'elenco dei rivelatori sul server ALBIS; la modifica è stata annullata.",
   "known_detectors.show": "Rivelatori noti",
   "known_detectors.unkeep": "Conservato nell'elenco — clicca per non conservarlo più",
   "loading.frame": "Caricamento del frame…",

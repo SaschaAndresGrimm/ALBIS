@@ -547,8 +547,14 @@ tab).
 
 A detector is recognised by its serial number: found at a new address, its
 entry moves there instead of appearing twice; a different detector at a known
-address takes that entry over, without the old name. The list is kept in this
-browser, like the other ALBIS settings, and never leaves it.
+address takes that entry over, without the old name.
+
+The list is kept by ALBIS on the computer it runs on, not in the browser: it is
+the same in every browser, survives upgrades, and on a shared ALBIS server
+everyone sees the same list. To move it, or to share one list between several
+installations, see `known_detectors_file` in the
+[Power User Guide](POWER_USER_GUIDE.md#settings-reference). Lists kept in the
+browser by earlier versions are taken over the first time.
 
 ## Work from another machine
 

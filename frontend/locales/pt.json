@@ -788,6 +788,7 @@
   "known_detectors.kept": "Guardados",
   "known_detectors.recent": "Recentes",
   "known_detectors.rename": "Mudar o nome",
+  "known_detectors.save_failed": "Não foi possível guardar a lista de detetores no servidor ALBIS; a alteração foi anulada.",
   "known_detectors.show": "Detetores conhecidos",
   "known_detectors.unkeep": "Guardado na lista — clique para deixar de o guardar",
   "loading.frame": "Carregando quadro…",

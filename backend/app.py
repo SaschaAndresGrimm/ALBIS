@@ -82,6 +82,7 @@ from .routes.files import FileRouteDeps, register_file_routes
 from .routes.frames import FrameRouteDeps, register_frame_routes
 from .routes.handoff import HandoffRouteDeps, register_handoff_routes
 from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
+from .routes.known_detectors import KnownDetectorRouteDeps, register_known_detector_routes
 from .routes.stream import StreamRouteDeps, register_stream_routes
 from .routes.system import SystemRouteDeps, register_system_routes
 from .services import simplon_control
@@ -100,6 +101,8 @@ from .services.jungfraujoch_preview import JungfraujochPreviewBridge
 from .services.jungfraujoch_preview import (
     jfjoch_probe_endpoint as _jfjoch_probe_endpoint,
 )
+from .services.known_detectors import KnownDetectorStore
+from .services.known_detectors import resolve_path as resolve_known_detectors_path
 from .services.path_policy import PathPolicy
 from .services.remote_stream import (
     remote_extract_metadata as _remote_extract_metadata,
@@ -777,6 +780,21 @@ register_detector_control_routes(
         runner=simplon_control.CommandRunner(),
         data_dir=lambda: runtime_state.data_dir,
         invalidate_scans=scan_cache.clear,
+    ),
+)
+
+
+register_known_detector_routes(
+    app,
+    KnownDetectorRouteDeps(
+        logger=logger,
+        # Resolved per request: the setting can change while ALBIS runs.
+        store=KnownDetectorStore(
+            lambda: resolve_known_detectors_path(
+                get_str(runtime_state.config, ("ui", "known_detectors_file"), ""),
+                runtime_state.config_path,
+            )
+        ),
     ),
 )
 

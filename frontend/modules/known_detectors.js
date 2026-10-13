@@ -1,6 +1,6 @@
 /**
- * The detectors this viewer has talked to, offered back on every SIMPLON
- * address field (the Detector tab and the Live source).
+ * The detectors this ALBIS server has talked to, offered back on every
+ * SIMPLON address field (the Detector tab and the Live source).
  *
  * A lab has a handful of detectors at fixed addresses, and an IP says nothing
  * about which detector it is. So a working address is remembered with what
@@ -8,17 +8,24 @@
  * detector can be kept (starred) and given a name of its own. Kept ones stay;
  * the others are the last few used.
  *
+ * The list belongs to the server (/api/known-detectors, a file beside its
+ * other settings), so it is the same for everyone using it and does not depend
+ * on the browser. A change shows at once and is sent; the server's answer, the
+ * whole list, replaces it -- or, if it could not be saved, the list goes back.
+ * Changes by others arrive when the list is read again: at start, when it is
+ * opened, when the window gets the focus.
+ *
  * Entries are unique by address. The serial follows a detector: found at a
  * new address (DHCP, moved to another room), its entry moves with it rather
  * than appearing twice; a different detector answering at a known address
- * takes that entry over, without the old one's name.
+ * takes that entry over, without the old one's name. The rules here mirror
+ * the server's (backend/services/known_detectors.py), for the instant view.
  */
 
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 
 export const MAX_RECENT_DETECTORS = 8;
 export const MAX_KEPT_DETECTORS = 50;
-const DEFAULT_STORAGE_KEY = "albis.knownDetectors";
 const NAME_LIMIT = 80;
 
 function text(value, limit = 200) {
@@ -151,92 +158,170 @@ export function arrangeDetectors(entries, query = "") {
   return { kept, recent };
 }
 
-function readStored(key) {
+// Where earlier versions kept it, in each browser: handed to the server once.
+// 0.27.0 kept the list itself; before, the Live source settings kept the
+// addresses alone.
+const BROWSER_KEY = "albis.knownDetectors";
+const AUTOLOAD_KEY = "albis.autoload";
+
+function readBrowserList() {
   try {
-    return window.localStorage.getItem(key);
+    const raw = window.localStorage.getItem(BROWSER_KEY);
+    return raw === null ? null : JSON.parse(raw);
   } catch {
-    // Private windows and locked-down browsers throw rather than return null.
     return null;
   }
 }
 
-function writeStored(key, value) {
+function readBrowserAddresses() {
   try {
-    window.localStorage.setItem(key, value);
+    const hosts = JSON.parse(window.localStorage.getItem(AUTOLOAD_KEY) || "{}")?.simplonRecentHosts;
+    return Array.isArray(hosts) ? hosts : [];
   } catch {
-    // Not remembered, but still offered for this session.
+    return [];
+  }
+}
+
+function dropBrowserLists() {
+  try {
+    window.localStorage.removeItem(BROWSER_KEY);
+    const autoload = JSON.parse(window.localStorage.getItem(AUTOLOAD_KEY) || "null");
+    if (autoload && typeof autoload === "object" && "simplonRecentHosts" in autoload) {
+      delete autoload.simplonRecentHosts;
+      window.localStorage.setItem(AUTOLOAD_KEY, JSON.stringify(autoload));
+    }
+  } catch {
+    // Not dropped: offered to the server again next time, which only
+    // refreshes what it already has.
   }
 }
 
 /**
- * The shared list, kept in browser storage. Every change is announced to
- * `subscribe`rs, so each address field and star shows the same list.
+ * The shared list, as this page knows it. `list()` answers at once from what
+ * was last read; every change and every read tells the `subscribe`rs, so each
+ * address field and star shows the same list.
  */
-export function createKnownDetectors({ storageKey = DEFAULT_STORAGE_KEY } = {}) {
-  let cache = null;
+export function createKnownDetectors({ apiBase = "/api" } = {}) {
+  let cache = [];
+  let lastError = "";
   const listeners = new Set();
 
-  function list() {
-    if (!cache) {
-      let parsed = [];
-      try {
-        parsed = JSON.parse(readStored(storageKey) || "[]");
-      } catch {
-        // Written by a different version, or truncated: an empty list, never
-        // a broken field.
-        parsed = [];
-      }
-      cache = sanitizeDetectors(parsed);
+  function announce() {
+    for (const listener of listeners) listener(cache);
+  }
+
+  async function call(method, path = "", body = undefined) {
+    const res = await fetch(`${apiBase}/known-detectors${path}`, {
+      method,
+      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    return sanitizeDetectors(payload?.detectors);
+  }
+
+  // Shown at once, then whatever the server says; if it could not save,
+  // back to what was there, and the reason for the list to show.
+  async function change(local, method, path, body) {
+    const before = cache;
+    cache = local(cache);
+    announce();
+    try {
+      cache = await call(method, path, body);
+      lastError = "";
+    } catch (err) {
+      cache = before;
+      lastError = String(err?.message || err || "");
     }
+    announce();
     return cache;
   }
 
-  function commit(next) {
-    cache = next;
-    writeStored(storageKey, JSON.stringify(next));
-    for (const listener of listeners) listener(next);
-    return next;
-  }
-
   return {
-    list,
+    list: () => cache,
+    get lastError() {
+      return lastError;
+    },
     find(address) {
       const at = normalizeSimplonBaseUrl(text(address));
-      return list().find((entry) => entry.address === at) || null;
+      return cache.find((entry) => entry.address === at) || null;
+    },
+    /** Read the list again, for changes made by others. */
+    async refresh() {
+      try {
+        const next = await call("GET");
+        lastError = "";
+        if (JSON.stringify(next) !== JSON.stringify(cache)) {
+          cache = next;
+          announce();
+        }
+      } catch {
+        // Not reachable now: keep showing what was read last.
+      }
+      return cache;
     },
     record(seen) {
-      return commit(recordDetector(list(), seen));
+      const { address, model = "", serial = "" } = seen || {};
+      if (!normalizeSimplonBaseUrl(text(address))) return Promise.resolve(cache);
+      return change((list) => recordDetector(list, seen), "POST", "/seen", {
+        address: String(address),
+        model: text(model),
+        serial: text(serial),
+      });
     },
     rename(address, name) {
-      return commit(updateDetector(list(), address, { name }));
+      return change((list) => updateDetector(list, address, { name }), "PATCH", "", { address, name });
     },
     setKept(address, kept) {
-      return commit(updateDetector(list(), address, { kept }));
+      return change((list) => updateDetector(list, address, { kept }), "PATCH", "", { address, kept });
     },
     forget(address) {
-      return commit(forgetDetector(list(), address));
+      return change(
+        (list) => forgetDetector(list, address),
+        "DELETE",
+        `?address=${encodeURIComponent(address)}`,
+      );
     },
     /**
-     * Take over the address-only history older versions kept with the Live
-     * source settings, once: only while this list has never been written.
+     * Hand the lists earlier versions kept in this browser to the server,
+     * merged with what it has, then forget them here. Resolves true when
+     * there was one and the server took it.
      */
-    adoptLegacy(addresses) {
-      if (readStored(storageKey) !== null || !Array.isArray(addresses)) return;
+    async adoptBrowserLists() {
+      const entries = sanitizeDetectors(readBrowserList());
       const now = Date.now();
-      let next = [];
-      // Oldest first, so the most recent ends up most recent.
-      [...addresses].reverse().forEach((address, i) => {
-        if (typeof address === "string") next = recordDetector(next, { address }, now - addresses.length + i);
+      // Most recent first, older ones a little earlier.
+      readBrowserAddresses().forEach((address, i) => {
+        if (typeof address === "string" && address.trim()) {
+          entries.push({ address, name: "", model: "", serial: "", kept: false, lastUsed: now - 1000 * (i + 1) });
+        }
       });
-      if (next.length) commit(next);
+      if (!entries.length) {
+        dropBrowserLists();
+        return false;
+      }
+      try {
+        cache = await call("POST", "/import", { detectors: entries });
+        lastError = "";
+        announce();
+        dropBrowserLists();
+        return true;
+      } catch {
+        // Kept in the browser, offered again next time.
+        return false;
+      }
+    },
+    /** At start: take over the browser's old lists, read the list, and read
+     *  it again whenever the window comes back into focus. */
+    async start() {
+      window.addEventListener?.("focus", () => void this.refresh());
+      await this.adoptBrowserLists();
+      return this.refresh();
     },
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
-    },
-    _reset() {
-      cache = null;
-      listeners.clear();
     },
   };
 }

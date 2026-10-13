@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_RECENT_DETECTORS,
   arrangeDetectors,
@@ -119,34 +119,91 @@ describe("showing the list", () => {
   });
 });
 
+// The server's side, on the same rules: what /api/known-detectors answers.
+function fakeServer({ fail = false } = {}) {
+  let entries = [];
+  const calls = [];
+  global.fetch = vi.fn(async (url, init = {}) => {
+    const method = init.method || "GET";
+    const body = init.body ? JSON.parse(init.body) : null;
+    calls.push(`${method} ${url}`);
+    if (fail && method !== "GET") return { ok: false, status: 500, json: async () => ({}) };
+    if (method === "POST" && url.endsWith("/seen")) entries = recordDetector(entries, body);
+    if (method === "POST" && url.endsWith("/import")) {
+      for (const item of body.detectors) entries = updateDetector(recordDetector(entries, item, item.lastUsed), item.address, { kept: item.kept, ...(item.name ? { name: item.name } : {}) });
+    }
+    if (method === "PATCH") {
+      const { address, ...changes } = body;
+      entries = updateDetector(entries, address, changes);
+    }
+    if (method === "DELETE") entries = forgetDetector(entries, decodeURIComponent(url.split("address=")[1]));
+    return { ok: true, status: 200, json: async () => ({ detectors: entries }) };
+  });
+  return { calls, set: (next) => (entries = next) };
+}
+
 describe("the shared store", () => {
   beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    delete global.fetch;
+  });
 
-  it("persists and tells its subscribers", () => {
-    const store = createKnownDetectors({ storageKey: "test.known" });
+  it("shows a change at once, then the server's list, and tells its subscribers", async () => {
+    const server = fakeServer();
+    const store = createKnownDetectors();
     const seen = [];
     store.subscribe((list) => seen.push(list.length));
-    store.record(P4);
-    store.setKept(P4.address, true);
-    store.rename(P4.address, " Lab 2 ");
-    expect(seen).toEqual([1, 1, 1]);
-    const again = createKnownDetectors({ storageKey: "test.known" });
-    expect(again.find("192.168.20.191")).toMatchObject({ name: "Lab 2", kept: true });
-    again.forget(P4.address);
-    expect(again.list()).toEqual([]);
+    const pending = store.record(P4);
+    expect(store.find("192.168.20.191")).toMatchObject({ model: "PILATUS4 2M" });
+    await pending;
+    await store.setKept(P4.address, true);
+    await store.rename(P4.address, " Lab 2 ");
+    expect(store.find(P4.address)).toMatchObject({ name: "Lab 2", kept: true });
+    expect(server.calls).toEqual([
+      "POST /api/known-detectors/seen",
+      "PATCH /api/known-detectors",
+      "PATCH /api/known-detectors",
+    ]);
+    expect(seen.length).toBeGreaterThanOrEqual(3);
+    await store.forget(P4.address);
+    expect(server.calls.at(-1)).toBe("DELETE /api/known-detectors?address=192.168.20.191");
+    expect(store.list()).toEqual([]);
   });
 
-  it("takes over the old address history once, most recent first", () => {
-    const store = createKnownDetectors({ storageKey: "test.known" });
-    store.adoptLegacy(["http://new", "http://old"]);
+  it("takes a change back when the server cannot save it, and says so", async () => {
+    fakeServer({ fail: true });
+    const store = createKnownDetectors();
+    await store.record(P4);
+    expect(store.list()).toEqual([]);
+    expect(store.lastError).toContain("500");
+  });
+
+  it("reads changes made by others", async () => {
+    const server = fakeServer();
+    const store = createKnownDetectors();
+    server.set(recordDetector([], E2, 5));
+    await store.refresh();
+    expect(store.list().map(detectorLabel)).toEqual(["EIGER2 X 9M"]);
+  });
+
+  it("hands the lists earlier versions kept in this browser to the server, once", async () => {
+    const server = fakeServer();
+    localStorage.setItem("albis.knownDetectors", JSON.stringify(updateDetector(recordDetector([], P4, 5), P4.address, { name: "Lab 2", kept: true })));
+    localStorage.setItem("albis.autoload", JSON.stringify({ mode: "simplon", simplonRecentHosts: ["http://new", "http://old"] }));
+    const store = createKnownDetectors();
+    await store.start();
+    expect(server.calls.slice(0, 2)).toEqual(["POST /api/known-detectors/import", "GET /api/known-detectors"]);
+    expect(store.find(P4.address)).toMatchObject({ name: "Lab 2", kept: true });
     expect(arrangeDetectors(store.list()).recent.map((entry) => entry.address)).toEqual(["http://new", "http://old"]);
-    store.forget("http://new");
-    store.adoptLegacy(["http://new"]);
-    expect(store.list().map((entry) => entry.address)).toEqual(["http://old"]);
+    expect(localStorage.getItem("albis.knownDetectors")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("albis.autoload"))).toEqual({ mode: "simplon" });
   });
 
-  it("reads an unreadable store as empty", () => {
-    localStorage.setItem("test.known", "{not json");
-    expect(createKnownDetectors({ storageKey: "test.known" }).list()).toEqual([]);
+  it("keeps the browser's list when the server cannot take it", async () => {
+    fakeServer({ fail: true });
+    localStorage.setItem("albis.knownDetectors", JSON.stringify(recordDetector([], P4, 5)));
+    const store = createKnownDetectors();
+    expect(await store.adoptBrowserLists()).toBe(false);
+    expect(localStorage.getItem("albis.knownDetectors")).not.toBeNull();
   });
 });

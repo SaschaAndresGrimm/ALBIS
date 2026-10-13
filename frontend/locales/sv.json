@@ -788,6 +788,7 @@
   "known_detectors.kept": "Sparade",
   "known_detectors.recent": "Senaste",
   "known_detectors.rename": "Byt namn",
+  "known_detectors.save_failed": "Detektorlistan kunde inte sparas på ALBIS-servern; ändringen har tagits tillbaka.",
   "known_detectors.show": "Kända detektorer",
   "known_detectors.unkeep": "Behålls i listan — klicka för att sluta behålla den",
   "loading.frame": "Laddar bildruta...",

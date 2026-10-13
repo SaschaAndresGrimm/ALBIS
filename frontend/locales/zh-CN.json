@@ -788,6 +788,7 @@
   "known_detectors.kept": "已保留",
   "known_detectors.recent": "最近",
   "known_detectors.rename": "重命名",
+  "known_detectors.save_failed": "无法在 ALBIS 服务器上保存探测器列表；更改已撤销。",
   "known_detectors.show": "已知探测器",
   "known_detectors.unkeep": "已保留在列表中 — 点击取消保留",
   "loading.frame": "正在加载帧…",

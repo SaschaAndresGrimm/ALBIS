@@ -1,6 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { attachDetectorPicker } from "../modules/detector_picker.js";
-import { createKnownDetectors } from "../modules/known_detectors.js";
+import { forgetDetector, recordDetector, updateDetector } from "../modules/known_detectors.js";
+
+// The store's interface, in memory: the picker only shows and asks it.
+function memoryStore() {
+  let entries = [];
+  let now = 0;
+  const listeners = new Set();
+  const set = (next) => {
+    entries = next;
+    for (const listener of listeners) listener(entries);
+  };
+  return {
+    lastError: "",
+    list: () => entries,
+    find: (address) => entries.find((entry) => entry.address === `http://${address}`.replace("http://http://", "http://")) || null,
+    record: (seen) => set(recordDetector(entries, seen, ++now)),
+    rename: (address, name) => set(updateDetector(entries, address, { name })),
+    setKept: (address, kept) => set(updateDetector(entries, address, { kept })),
+    forget: (address) => set(forgetDetector(entries, address)),
+    refresh: vi.fn(),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
 
 function setup() {
   document.body.innerHTML = `
@@ -10,7 +35,7 @@ function setup() {
     </label>
     <button id="elsewhere">Elsewhere</button>`;
   const input = document.getElementById("url");
-  const store = createKnownDetectors({ storageKey: "test.picker" });
+  const store = memoryStore();
   store.record({ address: "192.168.20.191", model: "PILATUS4 2M", serial: "P4-0042" });
   store.record({ address: "192.168.20.88", model: "EIGER2 X 9M", serial: "E-08-0123" });
   const onPick = vi.fn();
@@ -110,9 +135,18 @@ describe("known detectors under an address field", () => {
     expect(list.hidden).toBe(true);
   });
 
+  it("reads the list again when it opens, and says when a change could not be saved", () => {
+    const { input, list, store } = setup();
+    input.dispatchEvent(new FocusEvent("focus"));
+    expect(store.refresh).toHaveBeenCalledTimes(1);
+    store.lastError = "HTTP 500";
+    store.record({ address: "10.0.0.1" });
+    expect(list.querySelector(".detector-picker-error")).not.toBeNull();
+  });
+
   it("has no ▾ while there is nothing to offer", () => {
     document.body.innerHTML = `<div class="inline"><input id="url" /></div>`;
-    const store = createKnownDetectors({ storageKey: "test.empty" });
+    const store = memoryStore();
     attachDetectorPicker({ input: document.getElementById("url"), store });
     expect(document.querySelector(".detector-picker-toggle").hidden).toBe(true);
     store.record({ address: "det.local" });
