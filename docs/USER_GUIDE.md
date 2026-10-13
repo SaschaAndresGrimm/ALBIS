@@ -138,7 +138,7 @@ provides no mask or no saturation limit.
 
 ## Measure a region
 
-Everything here is in the **Overlay** tab, under **Statistics and ROI**.
+Everything here is in the **Analysis** tab, under **Statistics and ROI**.
 
 Pick a **Mode** — Line, Box, Circle or Annulus — then **right-drag** on the
 image to place the region. **Center on beam** snaps a circle or annulus to the
@@ -222,7 +222,7 @@ data, or one chosen as the geometry file, still takes precedence.
 
 ## Resolution rings and reflections
 
-Also in the **Overlay** tab.
+Also in the **Analysis** tab.
 
 **Resolution Rings** draws rings at the d-spacings you choose, from the values
 in [Detector geometry](#detector-geometry); the line at the top of the section
@@ -295,7 +295,7 @@ and the result opens directly from the panel when it finishes.
 | A figure for a slide or a paper | **File → Export Image…** (`⇧⌘E`) |
 | An animation of a series | **File → Export Animation…** (`⌘G`) |
 | A quick picture of what is on screen | **File → Save As → Full Image / Visible Area / Viewer Window** |
-| ROI numbers for analysis | **Export CSV** in the Overlay tab |
+| ROI numbers for analysis | **Export CSV** in the Analysis tab |
 
 **Export Image** writes the frame, or the visible area, as a PNG made for
 slides and papers. **Size** enlarges it by 1×, 2×, 4× or 8×, turning each
@@ -407,7 +407,7 @@ with only two colours to draw them in.
 
 Tick **Include overlays** to draw the resolution rings and the spot finder into
 the GIF as well. The option is only available when at least one of them is
-switched on in the Overlay tab. Two things are worth knowing:
+switched on in the Analysis tab. Two things are worth knowing:
 
 - The spot finder **re-runs on every exported frame**, so the markers belong to
   the frame they sit on rather than to whichever frame was on screen when you

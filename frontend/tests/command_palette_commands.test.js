@@ -49,7 +49,7 @@ describe("command_palette_commands", () => {
           "command.label.panel_collapse": "Panel: Collapse Side Panel",
           "command.label.tab_view": "Panel: View Tab",
           "command.label.tab_data": "Panel: Data Tab",
-          "command.label.tab_overlay": "Panel: Overlay Tab",
+          "command.label.tab_analysis": "Panel: Analysis Tab",
           "command.label.help_docs": "Help: Documentation",
           "command.label.help_log": "Help: Backend Log",
         });

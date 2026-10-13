@@ -283,8 +283,8 @@ export function buildCommandPaletteCommands({
       run: () => setPanelTab("data"),
     },
     {
-      id: "tab-overlay",
-      label: t("command.label.tab_overlay"),
+      id: "tab-analysis",
+      label: t("command.label.tab_analysis"),
       shortcut: "",
       search: "panel tab overlay analysis",
       when: panelTabState !== "analysis",
