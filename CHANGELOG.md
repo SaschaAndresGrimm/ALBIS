@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-13
+
 ### Added
 
 - **Known detectors under the address field.** A lab has a few detectors at fixed addresses, and an IP does not say which one it is. Every detector that answers — Connect in the Detector tab, Test or a started SIMPLON monitor in the Data tab — is now remembered with its model and serial number, with no save step, and both address fields offer the same list. It opens on a click into the field, with ▾ or ↓; typing narrows it by name, address, model or serial; picking a row connects (or tests). ☆ keeps a detector at the top (also beside a connected detector's name), ✎ names it ("Lab 2 – P4"), × removes it; the others are the last eight used. The serial follows a detector to a new address instead of listing it twice. The list replaces the browser's address suggestions, which showed bare IPs and could not be edited; addresses remembered by earlier versions are taken over. It stays in the browser, like the other settings.
@@ -1547,7 +1549,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.5...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.5...v0.27.0
 [0.26.5]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.4...v0.26.5
 [0.26.4]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.3...v0.26.4
 [0.26.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.2...v0.26.3
