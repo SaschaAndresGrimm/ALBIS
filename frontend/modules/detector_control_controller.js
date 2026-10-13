@@ -645,15 +645,36 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     snapBtn.addEventListener("click", () => void snap());
     continuousBtn.addEventListener("click", () => void runContinuous());
   }
+  // Their settings -- the exposure, the rate, whether images show in the
+  // viewer -- fold away behind ⚙ at the end of the row: the defaults suit
+  // most people, and the buttons' tooltips say what they will do.
   const quickBox = actionsRow ? quickSettings() : null;
   if (quickBox) {
     const followRow = followToggle?.closest?.(".detector-follow");
     if (followRow) quickBox.prepend(followRow);
     slot.after(quickBox);
+    quickBox.id = "detector-quick-settings";
+    const gear = el("button", "btn btn-secondary detector-quick-toggle", "⚙\uFE0E");
+    gear.type = "button";
+    gear.setAttribute("aria-controls", quickBox.id);
+    const showQuick = (open) => {
+      quickBox.hidden = !open;
+      gear.classList.toggle("is-open", open);
+      gear.setAttribute("aria-expanded", String(open));
+    };
+    showQuick(readOpen("quick"));
+    gear.addEventListener("click", () => {
+      const open = quickBox.hidden;
+      showQuick(open);
+      writeOpen("quick", open);
+    });
+    gear.title = t("detector.quick.options");
+    gear.setAttribute("aria-label", gear.title);
+    quickGroup.after(gear);
   }
 
   // Plain names on the buttons, to keep the row narrow; the timings are in
-  // their tooltips and in the settings under the buttons.
+  // their tooltips and in the settings behind ⚙.
   function labelQuickButtons() {
     if (!snapBtn) return;
     const exposure = formatDuration(quick.snapExposure);

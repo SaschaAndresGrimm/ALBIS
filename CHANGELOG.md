@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Plainer names for the Detector tab's quick buttons, and their settings folded away.** Users found "Snap" and "Continuous" unclear: they are now **Single image** (one image now) and **Live** (images shown live until Stop, nothing saved). The checkbox that was "Live view" — which shows the detector's images in the viewer — is now **Show images in ALBIS**, so it no longer reads like the Live button. That checkbox and the exposure and rate fields now sit behind a **⚙** at the end of the button row, folded by default and remembered when opened, which leaves the tab with the buttons, the status line and the sensor tiles. All 13 languages follow.
+
 ## [0.27.0] - 2026-10-13
 
 ### Added

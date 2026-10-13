@@ -479,19 +479,21 @@ detector reports, so limits and choices are that detector's own (where it
 reports no unit, ALBIS adds the one from the SIMPLON reference):
 
 - **The main button** offers the one sensible next step: **Initialize** after
-  power-up (up to two minutes), **Acquire** when ready. Beside it, **Snap**
-  takes one image now (1 s) and **Continuous** takes images at 10 Hz, shown
+  power-up (up to two minutes), **Acquire** when ready. Beside it, **Single
+  image** takes one image now (1 s) and **Live** takes images at 10 Hz, shown
   live, until **Stop** or for at most 10 hours (for aligning; it saves
   nothing). Both put the series settings back afterwards. While anything runs,
-  **Stop** takes Snap's and Continuous' place, so the buttons never move.
+  **Stop** takes their place, so the buttons never move.
+- **⚙** at the end of the row opens their settings under the buttons: Single
+  image's exposure, Live's rate, and **Show images in ALBIS**, which shows the
+  series in the viewer as it is taken (a preview of the newest image, not every
+  frame). The defaults suit most uses, so the row starts folded; the buttons'
+  tooltips say what they will do.
 - **Under the buttons**, one line at a time: in amber, what would make the
   series fail; its progress while it runs; and after it the result, with
   **Open in ALBIS**, which copies the series from the detector into ALBIS's
   data folder and opens the full data. A stopped series says when it stopped.
   Questions such as "Acquire anyway?" appear there too.
-- **Live view** shows the series in the viewer as it is taken: a preview of the
-  newest image, not every frame. Beside it are Snap's exposure and Continuous'
-  rate.
 - **The section headers sum up what is inside:** Acquisition the next series
   and about how much it writes ("20 images · 20 s · ≈ 22 MB", estimated with
   the detector's compression, about 4× for bslz4), Data output the free storage

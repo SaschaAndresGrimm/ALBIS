@@ -1326,7 +1326,8 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     controller._setParams(fake.store);
     controller._renderAll();
     controller._setStatus({ detector: { state: "idle" }, filewriter: { mode: "enabled", buffer_free: 8e11 } });
-    const buttons = () => [...elements.primaryBtn.parentElement.querySelectorAll("button")].filter((b) => !b.hidden).map((b) => b.textContent);
+    const buttons = () =>
+      [...elements.primaryBtn.parentElement.querySelectorAll("button:not(.detector-quick-toggle)")].filter((b) => !b.hidden).map((b) => b.textContent);
     const button = (label) => [...elements.primaryBtn.parentElement.querySelectorAll("button")].find((b) => b.textContent === label);
     return { mod, controller, elements, openPath, watchLive, buttons, button };
   }
@@ -1334,8 +1335,8 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
   it("snaps one image and puts the series settings back", async () => {
     const fake = fakeDetector();
     const { elements, buttons, button, watchLive } = await panel(fake);
-    expect(buttons()).toEqual(["Acquire", "Snap", "Continuous"]);
-    button("Snap").click();
+    expect(buttons()).toEqual(["Acquire", "Single image", "Live"]);
+    button("Single image").click();
     await vi.waitFor(() => expect(elements.logHost.textContent).toContain(EN["detector.log.restored"]), { timeout: 4000 });
     // A fixed 1 s exposure, not the series' count time; only what differs is
     // changed, and put back in reverse order.
@@ -1363,7 +1364,7 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const seen = [];
     const watcher = new MutationObserver(() => seen.push(preflightLine.textContent));
     watcher.observe(preflightLine, { childList: true, subtree: true, characterData: true });
-    button("Continuous").click();
+    button("Live").click();
     await vi.waitFor(() => expect(fake.calls).toContain("command trigger"), { timeout: 4000 });
     // 10 Hz for at most 10 hours: inside a detector's one-week limit.
     expect(fake.calls.slice(0, 4)).toEqual([
@@ -1437,17 +1438,17 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
     const { elements, button } = await panel(fake);
     const side = elements.snapBtn?.parentElement || elements.stopBtn.parentElement;
     expect(side.className).toBe("detector-side");
-    expect([...side.children].map((b) => b.id || b.textContent)).toEqual(["Snap", "Continuous", "stop"]);
-    button("Continuous").click();
+    expect([...side.children].map((b) => b.id || b.textContent)).toEqual(["Single image", "Live", "stop"]);
+    button("Live").click();
     // At once, before the detector does anything: the big button names the
     // action, Stop covers the two quick buttons, which keep their room.
-    expect(elements.primaryBtn.textContent).toBe("Continuous");
+    expect(elements.primaryBtn.textContent).toBe("Live");
     expect(elements.primaryBtn.disabled).toBe(true);
     expect(elements.stopBtn.hidden).toBe(false);
     expect(side.classList.contains("is-running")).toBe(true);
     expect([...side.querySelectorAll(".detector-quick")].every((b) => !b.hidden && b.disabled)).toBe(true);
     await vi.waitFor(() => expect(fake.calls).toContain("command trigger"), { timeout: 4000 });
-    expect(elements.primaryBtn.textContent).toBe("Continuous");
+    expect(elements.primaryBtn.textContent).toBe("Live");
     elements.stopBtn.click();
     await vi.waitFor(() => expect(elements.logHost.textContent).toContain(EN["detector.log.restored"]), { timeout: 4000 });
     expect(elements.primaryBtn.textContent).toBe("Acquire");
@@ -1458,7 +1459,7 @@ describe("detector control panel, quick actions, pre-flight and results", () => 
   it("stops a quick action that is still setting up before it takes a series", async () => {
     const fake = fakeDetector({ triggerRuns: true });
     const { elements, button } = await panel(fake);
-    button("Continuous").click();
+    button("Live").click();
     elements.stopBtn.click();
     await vi.waitFor(() => expect(elements.primaryBtn.textContent).toBe("Acquire"), { timeout: 4000 });
     expect(fake.calls).not.toContain("command arm");
@@ -1584,19 +1585,28 @@ describe("detector control panel, quick action settings", () => {
     localStorage.clear();
   });
 
-  it("sets Snap's exposure and Continuous' rate on one line under the buttons, remembered per browser", async () => {
+  it("sets Single image's exposure and Live's rate on one line behind ⚙, remembered per browser", async () => {
     localStorage.clear();
     const { controller, elements } = await setup();
     controller._setStatus({ detector: { state: "idle" } });
     expect(elements.advancedHost.querySelector(".detector-quick-settings")).toBeNull();
     const host = elements.primaryBtn.parentElement.parentElement.querySelector(".detector-quick-settings");
-    // Labelled with the buttons' names; always visible, no section to open.
-    expect([...host.querySelectorAll("label")].map((label) => label.textContent)).toEqual(["Snap", "Continuous"]);
+    // Folded away at first, behind ⚙ at the end of the button row.
+    const gear = elements.primaryBtn.parentElement.querySelector(".detector-quick-toggle");
+    expect(gear.parentElement.lastElementChild).toBe(gear);
+    expect(host.hidden).toBe(true);
+    expect(gear.getAttribute("aria-expanded")).toBe("false");
+    gear.click();
+    expect(host.hidden).toBe(false);
+    expect(gear.getAttribute("aria-expanded")).toBe("true");
+    expect(JSON.parse(localStorage.getItem("albis.detectorControl.open"))).toMatchObject({ quick: true });
+    // Labelled with the buttons' names.
+    expect([...host.querySelectorAll("label")].map((label) => label.textContent)).toEqual(["Single image", "Live"]);
     expect(host.querySelector("details")).toBeNull();
-    // Continuous' longest run is fixed at 10 hours, not a setting.
+    // Live's longest run is fixed at 10 hours, not a setting.
     expect([...host.querySelectorAll("input[id^=detector-quick-]")].map((input) => input.id)).toEqual(["detector-quick-snapExposure", "detector-quick-continuousRate"]);
     const exposure = host.querySelector("#detector-quick-snapExposure");
-    expect(exposure.getAttribute("aria-label")).toBe("Snap exposure");
+    expect(exposure.getAttribute("aria-label")).toBe("Single image exposure");
     expect(exposure.value).toBe("1");
     exposure.value = "0.5";
     exposure.dispatchEvent(new Event("change"));
@@ -1605,7 +1615,7 @@ describe("detector control panel, quick action settings", () => {
     rate.dispatchEvent(new Event("change"));
     expect(rate.getAttribute("aria-invalid")).toBe("true");
     const quickButtons = [...elements.primaryBtn.parentElement.querySelectorAll(".detector-quick")];
-    expect(quickButtons.map((b) => b.textContent)).toEqual(["Snap", "Continuous"]);
+    expect(quickButtons.map((b) => b.textContent)).toEqual(["Single image", "Live"]);
     expect(quickButtons[0].title).toContain("One 500 ms image now");
     expect(JSON.parse(localStorage.getItem("albis.detectorControl.quick"))).toMatchObject({ snapExposure: 0.5, continuousRate: 10 });
   });

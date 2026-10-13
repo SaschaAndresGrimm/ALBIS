@@ -7259,8 +7259,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   margin: 4px 0 0;
 }
 
-/* Snap and Continuous beside Acquire: smaller, secondary. */
-/* Snap and Continuous as one block of equal widths beside Acquire; while
+/* Single image and Live as one block of equal widths beside Acquire; while
    anything runs, Stop covers exactly that block (the two keep their room,
    invisible), so Acquire never changes size or position. */
 .detector-actions > .detector-side {
@@ -7291,18 +7290,42 @@ button.browse-details-header-cell[aria-sort="descending"] {
   visibility: hidden;
 }
 
+/* ⚙ at the end of the row: opens the settings of the two under the buttons. */
+.detector-actions > .detector-quick-toggle {
+  flex: 0 0 var(--control-h);
+  width: var(--control-h);
+  padding: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.detector-actions > .detector-quick-toggle:hover,
+.detector-actions > .detector-quick-toggle.is-open {
+  color: var(--text);
+}
+
+.detector-actions > .detector-quick-toggle.is-open {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .detector-preflight {
   display: grid;
   gap: 2px;
 }
 
-/* Under the buttons, one line: Live view, then Snap's exposure and
-   Continuous' rate, each a short label and a small field; wraps when narrow. */
+/* Under the buttons, behind ⚙, one line: Show images in ALBIS, then Single
+   image's exposure and Live's rate, each a short label and a small field;
+   wraps when narrow. */
 .detector-quick-settings {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 18px;
   align-items: center;
+}
+
+.detector-quick-settings[hidden] {
+  display: none;
 }
 
 .detector-quick-fields {
