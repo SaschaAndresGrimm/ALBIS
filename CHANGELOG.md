@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-14
+
 ### Added
 
 - **Inpainting: gaps and defective pixels filled from their neighbours.** A new **Inpainting** section in the Analysis tab, asked for by imaging users who used ImageJ's Remove Outliers with an 81-pixel median to hide module gaps. ALBIS knows which pixels to fill — the detector's mask marks the gaps and the defective pixels, a PILATUS CBF its -1 and -2 — so nothing is guessed and there is nothing to tune. Each pixel is interpolated straight across its gap along its row and its column from the pixels on either side (each side the median of the five nearest, so a small spot at the edge does not streak across), weighted toward the short way across; where two gaps cross, a further round fills from the first. Gradients and edges carry straight through. **Also fill saturated pixels** is an option, off by default. The image, the ROI statistics and line profile, and the PNG and GIF exports follow; the ROI's gap and defective counts stay, marked "filled". **Convert Dataset** has an **Inpaint** box, ticked while inpainting is on: TIFF and CBF files then hold the filled values instead of -1 and -2, and their header says so; live images are filled with their source's mask. The footer shows **Inpainted** while it is on. The viewer fills a frame in tens of milliseconds and the export about 0.35 s per EIGER2 4M frame; the browser's and the server's copies of the method are held to the same test cases. Removing outliers the mask does not flag is left for later.
@@ -1563,7 +1565,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.5...v0.27.0
 [0.26.5]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.4...v0.26.5
