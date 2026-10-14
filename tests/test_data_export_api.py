@@ -464,3 +464,113 @@ def test_export_names_read_back_as_a_series(tmp_path: Path) -> None:
     assert sorted(Path(p).name for p in second["outputs"]) == [
         f"series_190_2_thr{t}_{n:05d}.cbf" for t in (1, 2) for n in (1, 2, 3)
     ]
+
+
+# ---- Inpainting: gaps and defective pixels filled instead of -1/-2 ----------
+
+
+def _export(client: TestClient, payload: dict[str, Any]) -> list[Path]:
+    response = client.post("/api/export/data/start", json=payload)
+    assert response.status_code == 200, response.text
+    job = _wait_for_job(client, response.json()["job_id"])
+    assert job["status"] == "done", job
+    return [Path(path) for path in job["outputs"]]
+
+
+def test_inpainted_export_fills_gaps_and_defective_pixels_and_says_so(tmp_path: Path) -> None:
+    source = tmp_path / "flat.h5"
+    data = np.tile(np.arange(8, dtype=np.uint32) * 10, (1, 4, 1))
+    data[0, 0, 7] = np.iinfo(np.uint32).max  # saturated: kept unless asked
+    mask = np.zeros((4, 8), dtype=np.uint32)
+    mask[:, 3:5] = 1  # a gap two pixels wide
+    mask[2, 1] = 0b100  # a defective pixel
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=data)
+        h5.create_dataset("/entry/instrument/detector/detectorSpecific/pixel_mask", data=mask)
+    client = _client()
+    base = {"file": str(source), "dataset": "/entry/data/data", "format": "cbf"}
+
+    plain = _export(client, {**base, "output_dir": str(tmp_path / "plain")})
+    assert CbfImage().read(str(plain[0])).data[1].tolist() == [0, 10, 20, -1, -1, 50, 60, 70]
+
+    out = _export(client, {**base, "output_dir": str(tmp_path / "filled"), "inpaint": "defects"})
+    image = CbfImage()
+    image.read(str(out[0]))
+    # The gradient carries straight through the gap; the dead pixel is its neighbours'.
+    assert image.data[1].tolist() == [0, 10, 20, 30, 40, 50, 60, 70]
+    assert image.data[2, 1] == 10
+    assert image.data[0, 7] == -2
+    header = image.header["_array_data.header_contents"]
+    assert "gaps and defective pixels inpainted by ALBIS" in header
+
+    every = _export(
+        client,
+        {**base, "output_dir": str(tmp_path / "all"), "inpaint": "saturated", "format": "tiff"},
+    )
+    filled = tifffile.imread(every[0])
+    # A corner: between its row (60, 50) and its column (70 below).
+    assert 55 <= filled[0, 7] <= 70
+    assert "saturated pixels inpainted" in tifffile.TiffFile(every[0]).pages[0].description
+
+
+def test_inpainted_export_reads_a_cbf_s_own_markers(tmp_path: Path) -> None:
+    source = tmp_path / "scan_00001.cbf"
+    frame = np.full((3, 5), 9, dtype=np.int32)
+    frame[:, 2] = -1
+    frame[0, 0] = -2
+    image = CbfImage(data=frame)
+    image.write(str(source))
+    out = _export(
+        _client(),
+        {
+            "file": str(source),
+            "format": "cbf",
+            "output_dir": str(tmp_path / "out"),
+            "inpaint": "defects",
+        },
+    )
+    assert np.all(CbfImage().read(str(out[0])).data == 9)
+
+
+def test_inpaint_option_is_checked(tmp_path: Path) -> None:
+    response = _client().post(
+        "/api/export/data/start", json={"file": "x.cbf", "inpaint": "everything"}
+    )
+    assert response.status_code == 422
+
+
+def test_live_frame_is_inpainted_with_the_mask_sent_along(tmp_path: Path) -> None:
+    import json
+
+    client = _client()
+    data = np.tile(np.arange(6, dtype=np.uint32) * 2, (3, 1))
+    data[:, 2] = np.iinfo(np.uint32).max
+    mask = np.zeros(data.shape, dtype="<u4")
+    mask[:, 2] = 1
+    meta = {
+        "dtype": data.dtype.str,
+        "shape": list(data.shape),
+        "name": "live",
+        "format": "cbf",
+        "output_dir": str(tmp_path),
+        "inpaint": "defects",
+    }
+    response = client.post(
+        "/api/export/data/frame",
+        data={"meta": json.dumps(meta)},
+        files={
+            "pixels": ("frame.bin", data.tobytes(), "application/octet-stream"),
+            "mask": ("mask.bin", mask.tobytes(), "application/octet-stream"),
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert CbfImage().read(response.json()["path"]).data[0].tolist() == [0, 2, 4, 6, 8, 10]
+    short = client.post(
+        "/api/export/data/frame",
+        data={"meta": json.dumps(meta)},
+        files={
+            "pixels": ("frame.bin", data.tobytes(), "application/octet-stream"),
+            "mask": ("mask.bin", b"\0" * 8, "application/octet-stream"),
+        },
+    )
+    assert short.status_code == 400

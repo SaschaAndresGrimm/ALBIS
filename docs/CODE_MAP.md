@@ -53,6 +53,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Autoload mode, settings persistence/UI sync, orchestration, and status/meta control.
 - `frontend/modules/file_browser.js`:
   - File browser modal state and filesystem browsing interactions.
+- `frontend/modules/inpainting.js` + `frontend/modules/inpainting_controller.js` + `backend/services/inpainting.py`:
+  - Inpainting: gaps and defective (optionally saturated) pixels filled by interpolating across each gap from the median of the five nearest pixels on either side, along rows and columns weighted 1/span. The JS copy fills the frame on screen (once per frame, for the renderer, ROI statistics and PNG/GIF exports); the numpy copy fills TIFF/CBF exports (`inpaint` on `/api/export/data/start` and `/frame`). Both are held to `tests/fixtures/inpainting_cases.json`.
 - `frontend/modules/known_detectors.js` + `frontend/modules/detector_picker.js`:
   - The known-detectors list shared by the SIMPLON address fields (Detector tab, SIMPLON monitor): a client of `/api/known-detectors` that shows changes at once and takes the server's answer, the same rules for that instant view; and the dropdown under each field.
 - `frontend/modules/detector_control_controller.js`:

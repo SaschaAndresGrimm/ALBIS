@@ -221,6 +221,9 @@ class DataExportStartRequest(_StrictModel):
     threshold_mode: str = "current"
     threshold_index: int | None = None
     overwrite: bool = False
+    # Fill pixels from their neighbours instead of writing -1/-2: "defects"
+    # (gaps and defective pixels) or "saturated" (those and saturated ones).
+    inpaint: Literal["off", "defects", "saturated"] = "off"
 
 
 class DataExportStartResponse(_StrictModel):

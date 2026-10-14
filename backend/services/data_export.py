@@ -17,6 +17,7 @@ import numpy as np
 from fastapi import HTTPException
 
 from ..image_formats import _to_little_endian
+from .inpainting import inpaint as inpaint_frame
 
 
 class _DataExportCancelledError(Exception):
@@ -76,6 +77,7 @@ class DataExportService:
         threshold_mode: str,
         threshold_index: int | None,
         overwrite: bool,
+        inpaint: str = "off",
     ) -> str:
         job_id = uuid.uuid4().hex
         job_data = {
@@ -100,6 +102,7 @@ class DataExportService:
                 "threshold_mode": threshold_mode,
                 "threshold_index": threshold_index,
                 "overwrite": bool(overwrite),
+                "inpaint": inpaint,
             },
         }
         with self._lock:
@@ -121,6 +124,7 @@ class DataExportService:
                 "threshold_mode": threshold_mode,
                 "threshold_index": threshold_index,
                 "overwrite": bool(overwrite),
+                "inpaint": inpaint,
             },
             daemon=True,
         )
@@ -363,7 +367,15 @@ class DataExportService:
         arr: np.ndarray,
         mask_bits: np.ndarray | None = None,
         saturated_value: int | None = None,
-    ) -> np.ndarray:
+        inpaint: str = "off",
+    ) -> tuple[np.ndarray, int]:
+        """The frame as written, and how many of its pixels were inpainted.
+
+        Gaps become -1 and defective, saturated or non-finite pixels -2 --
+        unless `inpaint` fills them from their neighbours: "defects" fills the
+        gaps and defective pixels (by the mask, or a signed frame's own -1 and
+        -2 without one), "saturated" the saturated pixels too.
+        """
         frame = np.asarray(arr)
         if frame.ndim != 2:
             raise HTTPException(status_code=400, detail="Only 2D frames can be exported")
@@ -371,26 +383,62 @@ class DataExportService:
         frame = _to_little_endian(frame)
 
         gap_mask: np.ndarray | None = None
-        bad_mask: np.ndarray | None = None
+        defective_mask: np.ndarray | None = None
         if mask_bits is not None:
             mask = np.asarray(mask_bits, dtype=np.uint32)
             if mask.shape != frame.shape:
                 raise HTTPException(status_code=400, detail="Pixel mask shape does not match frame")
-            gap_mask, bad_mask, _ = self._deps.mask_slices(mask)
+            gap_mask, defective_mask, _ = self._deps.mask_slices(mask)
 
+        saturated_mask: np.ndarray | None = None
         if np.issubdtype(frame.dtype, np.integer):
             saturated_masks: list[np.ndarray] = []
             if np.issubdtype(frame.dtype, np.unsignedinteger):
                 saturated_masks.append(frame == np.iinfo(frame.dtype).max)
             if saturated_value is not None:
                 saturated_masks.append(frame >= saturated_value)
-            for saturated_mask in saturated_masks:
-                if np.any(saturated_mask):
-                    bad_mask = saturated_mask if bad_mask is None else (bad_mask | saturated_mask)
+            for candidate in saturated_masks:
+                if np.any(candidate):
+                    saturated_mask = (
+                        candidate if saturated_mask is None else (saturated_mask | candidate)
+                    )
         else:
             bad_values = ~np.isfinite(frame)
             if np.any(bad_values):
-                bad_mask = bad_values if bad_mask is None else (bad_mask | bad_values)
+                saturated_mask = bad_values
+
+        filled = 0
+        if inpaint in {"defects", "saturated"}:
+            holes = np.zeros(frame.shape, dtype=bool)
+            if gap_mask is not None:
+                holes |= gap_mask
+            if defective_mask is not None:
+                holes |= defective_mask
+            if mask_bits is None and np.issubdtype(frame.dtype, np.signedinteger):
+                # A CBF's own markers, where there is no mask to say it.
+                holes |= (frame == -1) | (frame == -2)
+            if not np.issubdtype(frame.dtype, np.integer):
+                holes |= ~np.isfinite(frame)
+            if inpaint == "saturated" and saturated_mask is not None:
+                holes |= saturated_mask
+            filled = int(np.count_nonzero(holes))
+            if filled:
+                values = inpaint_frame(frame, holes)[holes]
+                frame = frame.copy()
+                if np.issubdtype(frame.dtype, np.integer):
+                    info = np.iinfo(frame.dtype)
+                    values = np.clip(np.rint(values), info.min, info.max)
+                frame[holes] = values.astype(frame.dtype)
+                # What was filled is a value now, not a marker.
+                gap_mask = defective_mask = None
+                if saturated_mask is not None:
+                    saturated_mask = saturated_mask & ~holes
+                    if not np.any(saturated_mask):
+                        saturated_mask = None
+
+        bad_mask = defective_mask
+        if saturated_mask is not None:
+            bad_mask = saturated_mask if bad_mask is None else (bad_mask | saturated_mask)
 
         cast_source = frame
         cast_mask = None
@@ -409,7 +457,7 @@ class DataExportService:
                 output[bad_mask] = -2
             if gap_mask is not None:
                 output[gap_mask] = -1
-        return output
+        return output, filled
 
     @staticmethod
     def _finite_float(value: Any) -> float | None:
@@ -905,17 +953,22 @@ class DataExportService:
         mask_bits: np.ndarray | None = None,
         metadata: dict[str, Any] | None = None,
         overwrite: bool,
+        inpaint: str = "off",
     ) -> Path:
         suffix = ".cbf" if output_format == "cbf" else ".tiff"
         path = out_dir / f"{name}{suffix}"
         if path.exists() and not overwrite:
             path = self._next_available_path(path)
         saturated_value = self._finite_int(metadata.get("saturation_value")) if metadata else None
-        frame = self._normalize_frame(
+        frame, filled = self._normalize_frame(
             arr,
             mask_bits=mask_bits,
             saturated_value=saturated_value,
+            inpaint=inpaint,
         )
+        if filled:
+            # The header says which pixels hold values that were not measured.
+            metadata = {**(metadata or {}), "inpainted": inpaint}
         if output_format == "cbf":
             self._deps.write_cbf(path, frame, metadata)
         else:
@@ -980,8 +1033,14 @@ class DataExportService:
         output_dir: str | None,
         overwrite: bool,
         metadata: dict[str, Any] | None,
+        mask: bytes | None = None,
+        inpaint: str = "off",
     ) -> Path:
-        """Write one frame sent by the browser; returns the file written."""
+        """Write one frame sent by the browser; returns the file written.
+
+        `mask` is the source's pixel mask (uint32, the frame's shape), sent
+        when the frame is to be inpainted: a live frame has no file to read
+        one from."""
         try:
             parsed = np.dtype(str(dtype))
         except TypeError as exc:
@@ -1005,6 +1064,11 @@ class DataExportService:
             raise HTTPException(status_code=400, detail="Invalid format")
         normalized_format = "tiff" if output_format in {"tiff", "tif"} else "cbf"
         arr = np.frombuffer(payload, dtype=parsed).reshape(dims)
+        mask_bits = None
+        if mask:
+            if len(mask) != pixels * 4:
+                raise HTTPException(status_code=400, detail="Pixel mask does not match the frame")
+            mask_bits = np.frombuffer(mask, dtype="<u4").reshape(dims)
         # No source file: an empty folder means live_export in the data folder.
         out_dir = self._resolve_output_dir(output_dir, self._deps.data_dir / "live")
         safe = self._safe_name(name, "live")
@@ -1024,8 +1088,10 @@ class DataExportService:
             name=safe,
             output_format=normalized_format,
             arr=arr,
+            mask_bits=mask_bits,
             metadata=self.live_frame_metadata(metadata),
             overwrite=overwrite,
+            inpaint=inpaint,
         )
 
     @staticmethod
@@ -1101,6 +1167,7 @@ class DataExportService:
         threshold_mode: str,
         threshold_index: int | None,
         overwrite: bool,
+        inpaint: str = "off",
     ) -> list[str]:
         if not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
@@ -1174,6 +1241,7 @@ class DataExportService:
                             mask_bits=mask_bits_by_thr.get(thr_idx),
                             metadata=metadata,
                             overwrite=overwrite,
+                            inpaint=inpaint,
                         )
                         outputs.append(str(out_file))
                         completed += 1
@@ -1200,6 +1268,7 @@ class DataExportService:
         frame_start: int | None,
         frame_end: int | None,
         overwrite: bool,
+        inpaint: str = "off",
     ) -> list[str]:
         series_files, current_index = self._deps.resolve_series_files(source_path)
         if not series_files:
@@ -1233,6 +1302,7 @@ class DataExportService:
                 arr=arr,
                 metadata=metadata,
                 overwrite=overwrite,
+                inpaint=inpaint,
             )
             outputs.append(str(out_file))
             self._update_job(
@@ -1257,6 +1327,7 @@ class DataExportService:
         threshold_mode: str,
         threshold_index: int | None,
         overwrite: bool,
+        inpaint: str = "off",
     ) -> None:
         try:
             self._update_job(job_id, status="running", progress=0.0, message="Resolving source")
@@ -1281,6 +1352,7 @@ class DataExportService:
                     threshold_mode=threshold_mode,
                     threshold_index=threshold_index,
                     overwrite=overwrite,
+                    inpaint=inpaint,
                 )
             else:
                 outputs = self._run_image_series_export(
@@ -1293,6 +1365,7 @@ class DataExportService:
                     frame_start=frame_start,
                     frame_end=frame_end,
                     overwrite=overwrite,
+                    inpaint=inpaint,
                 )
             self._update_job(
                 job_id,

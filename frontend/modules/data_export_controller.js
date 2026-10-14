@@ -154,6 +154,8 @@ export function createDataExportController({
     dataExportOutputBrowse,
     dataExportPrefix,
     dataExportOverwrite,
+    dataExportInpaint,
+    dataExportInpaintLabel,
     dataExportStart,
     dataExportCancel,
     dataExportProgress,
@@ -339,6 +341,7 @@ export function createDataExportController({
       dataExportOutputBrowse,
       dataExportPrefix,
       dataExportOverwrite,
+      dataExportInpaint,
     ].forEach((element) => {
       if (element) element.disabled = running || !ready;
     });
@@ -436,6 +439,7 @@ export function createDataExportController({
       threshold_mode: thresholdMode,
       threshold_index: thresholdMode === "current" ? Number(state.thresholdIndex || 0) + 1 : null,
       overwrite: Boolean(dataExportOverwrite?.checked),
+      inpaint: inpaintChoice(),
     };
     try {
       stopPolling();
@@ -466,6 +470,23 @@ export function createDataExportController({
     }
   }
 
+  // What to fill instead of writing -1 and -2: the Analysis tab's setting,
+  // unless unticked here.
+  function inpaintChoice() {
+    if (!dataExportInpaint?.checked) return "off";
+    return state.inpaintSaturated ? "saturated" : "defects";
+  }
+
+  // The mask a live frame is filled by: the source's, when it has one that
+  // fits (the SIMPLON monitor's). Without one, only the values say.
+  function liveMask(entry) {
+    const [height, width] = entry.shape || [];
+    const mask = state.maskRaw;
+    if (!state.maskAvailable || !(mask instanceof Uint32Array) || !state.maskShape) return null;
+    if (state.maskShape[0] !== height || state.maskShape[1] !== width) return null;
+    return mask;
+  }
+
   // The frames chosen, sent one at a time: each is a small request the
   // progress bar can follow, and Cancel takes effect before the next one.
   async function startLiveExport() {
@@ -476,6 +497,7 @@ export function createDataExportController({
     const outputDir = String(dataExportOutputDir?.value || "").trim() || null;
     const prefix = String(dataExportPrefix?.value || "").trim() || LIVE_PREFIX[String(state.autoload?.mode || "")] || "live";
     const overwrite = Boolean(dataExportOverwrite?.checked);
+    const inpaint = inpaintChoice();
     stopPolling();
     state.dataExport.running = true;
     state.dataExport.live = true;
@@ -503,9 +525,12 @@ export function createDataExportController({
           output_dir: outputDir,
           overwrite,
           metadata: liveFrameMetadata(entry),
+          inpaint,
         }),
       );
       form.append("pixels", new Blob([new Uint8Array(data.buffer, data.byteOffset, data.byteLength)]), "frame.bin");
+      const mask = inpaint === "off" ? null : liveMask(entry);
+      if (mask) form.append("mask", new Blob([new Uint8Array(mask.buffer, mask.byteOffset, mask.byteLength)]), "mask.bin");
       try {
         const written = await fetchJSONWithInit(`${apiBase}/export/data/frame`, { method: "POST", body: form });
         outputs.push(String(written?.path || ""));
@@ -631,6 +656,11 @@ export function createDataExportController({
     state.dataExport.wasLive = isLive();
     if (dataExportFrameMode && switched) dataExportFrameMode.value = isLive() ? "current" : "all";
     syncDefaults(switched);
+    // Inpainting as on screen: ticked while it is on, and saying what it fills.
+    if (dataExportInpaint && !state.dataExport.running) dataExportInpaint.checked = Boolean(state.inpaintEnabled);
+    if (dataExportInpaintLabel) {
+      dataExportInpaintLabel.textContent = t(state.inpaintSaturated ? "data_export.inpaint_saturated" : "data_export.inpaint");
+    }
     updateUi();
     openModal(dataExportModal, { focusTarget: dataExportFormat });
   }
@@ -655,6 +685,7 @@ export function createDataExportController({
     dataExportOutputDir,
     dataExportPrefix,
     dataExportOverwrite,
+    dataExportInpaint,
   ].forEach((element) => {
     element?.addEventListener("change", clearFinishedResult);
     element?.addEventListener("input", clearFinishedResult);

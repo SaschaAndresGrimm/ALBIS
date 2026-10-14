@@ -542,7 +542,21 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
             "they do not describe a combined frame"
         )
 
-    lines.append("# Pixel substitutions: masked gaps = -1, bad or saturated = -2")
+    inpainted = (metadata or {}).get("inpainted")
+    if inpainted in {"defects", "saturated"}:
+        # Values that were not measured: say so, and which.
+        filled = (
+            "gaps, defective and saturated pixels"
+            if inpainted == "saturated"
+            else "gaps and defective pixels"
+        )
+        remaining = "bad = -2" if inpainted == "saturated" else "bad or saturated = -2"
+        lines.append(
+            f"# Pixel substitutions: {filled} inpainted by ALBIS "
+            f"(interpolated from their neighbours); {remaining}"
+        )
+    else:
+        lines.append("# Pixel substitutions: masked gaps = -1, bad or saturated = -2")
     return lines
 
 

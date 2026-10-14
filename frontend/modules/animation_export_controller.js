@@ -119,6 +119,7 @@ export function createAnimationExportController({
     openModal,
     closeModal,
     setStatus,
+    inpaintFrame = () => null,
   } = callbacks;
 
   let activeController = null;
@@ -417,11 +418,13 @@ export function createAnimationExportController({
 
   // Convert one decoded frame into palette indices for the chosen region/scale,
   // mirroring renderRegionToCanvas' per-pixel decision order.
-  function frameToIndices(data, frameWidth, frameHeight, region, out, ow, oh, layout) {
+  function frameToIndices(data, frameWidth, frameHeight, region, out, ow, oh, layout, filled = false) {
     const { idxBlack, idxFlag, idxSat, steps } = layout;
     const satMax = getActiveSaturationMax();
     const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
+    // A filled frame shows values where the mask would colour pixels.
     const maskReady =
+      !filled &&
       state.maskEnabled &&
       state.maskAvailable &&
       state.maskRaw &&
@@ -621,7 +624,9 @@ export function createAnimationExportController({
           compositeOverlay = createOverlayCompositor(sources, labels, safeRegion, ow, oh, layout);
         }
       }
-      frameToIndices(frame.data, frame.width, frame.height, safeRegion, indices, ow, oh, layout);
+      // Inpainting on: filled like the frame on screen (same shape, same mask).
+      const filled = frame.width === state.width && frame.height === state.height ? inpaintFrame(frame.data) : null;
+      frameToIndices(filled || frame.data, frame.width, frame.height, safeRegion, indices, ow, oh, layout, Boolean(filled));
       compositeOverlay?.(indices, frame);
       writer.addFrame(indices, delayCs);
     }

@@ -67,6 +67,7 @@ export function createExportSplashController({
     getEffectiveScrollTop,
     isSaturatedValue,
     setStatus,
+    getInpaintedFrame,
   } = callbacks;
 
   let html2canvasLoadPromise = null;
@@ -165,7 +166,11 @@ export function createExportSplashController({
     const maxIdx = getPaletteColorCount(palette) - 1;
     const satMax = getActiveSaturationMax();
     const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
+    // Inpainting on: the filled frame, as on screen, without the mask colours.
+    const filled = getInpaintedFrame?.()?.data || null;
+    const source = filled || state.dataRaw;
     const maskReady =
+      !filled &&
       state.maskEnabled &&
       state.maskAvailable &&
       state.maskRaw &&
@@ -181,7 +186,7 @@ export function createExportSplashController({
       for (let col = 0; col < width; col += 1) {
         const imgX = x + col;
         const idx = rowOffset + imgX;
-        const v = state.dataRaw[idx];
+        const v = source[idx];
         if (maskReady && maskData) {
           const maskValue = maskData[idx];
           if (maskValue & 1) {

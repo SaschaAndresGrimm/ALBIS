@@ -82,6 +82,7 @@ export function createRoiStatsController(ctx) {
     drawRoiOverlay,
     getActiveSaturationMax,
     isSaturatedValue,
+    getInpaintedFrame = () => null,
     computeMedian,
     formatStat,
     formatRoiTick,
@@ -493,6 +494,13 @@ function applyMaskToValue(value, maskValue, satMax = getActiveSaturationMax()) {
   });
 }
 
+/** The inpainted frame while inpainting is on and has filled something:
+ * the statistics then follow the image, filled pixels included. */
+function currentFill() {
+  const frame = getInpaintedFrame();
+  return frame?.data ? frame : null;
+}
+
 function sampleValue(ix, iy) {
   if (!state.dataRaw) return null;
   const idx = iy * state.width + ix;
@@ -505,6 +513,11 @@ function sampleValue(ix, iy) {
     state.maskShape[0] === state.height &&
     state.maskShape[1] === state.width;
   const maskValue = hasMask ? state.maskRaw[idx] : null;
+  const fill = currentFill();
+  if (fill && fill.holes[idx]) {
+    // Counted as the gap or defective pixel it is, measured as what it shows.
+    return { value: fill.data[idx], skip: false, raw, maskValue, maskingApplied: false, filled: true };
+  }
   const useMasking =
     (state.maskEnabled && hasMask) || state.maskSaturatedEnabled || usesValueFlags();
   if (useMasking) {
@@ -535,6 +548,7 @@ function computeGlobalStats() {
     satMax: getActiveSaturationMax(),
     isSaturatedValue,
     computeMedian,
+    fill: currentFill(),
   });
 }
 
@@ -611,10 +625,14 @@ function accumulateRoiPixelCounters(counters, sampled, satMax) {
 }
 
 function updateRoiPixelCounterFields(counters) {
+  // With inpainting on, these pixels hold filled values, not measured ones.
+  const filled = Boolean(currentFill());
+  const show = (count, wasFilled) =>
+    counters ? (wasFilled && count > 0 ? t("inpaint.counter_filled", { count }) : `${count}`) : "-";
   setRoiText(roiTotalEl, counters ? `${counters.total}` : "-");
-  setRoiText(roiGapEl, counters ? `${counters.gap}` : "-");
-  setRoiText(roiDefectiveEl, counters ? `${counters.defective}` : "-");
-  setRoiText(roiSaturatedEl, counters ? `${counters.saturated}` : "-");
+  setRoiText(roiGapEl, show(counters?.gap, filled));
+  setRoiText(roiDefectiveEl, show(counters?.defective, filled));
+  setRoiText(roiSaturatedEl, show(counters?.saturated, filled && state.inpaintSaturated));
 }
 
 function buildRoiHistogram(values) {
@@ -811,6 +829,7 @@ function updateRoiStats() {
       state.maskShape[1] === state.width;
     const inDataFlags = usesValueFlags();
     return createRoiAccumulator({
+      fill: currentFill(),
       data: state.dataRaw,
       mask: hasMask ? state.maskRaw : null,
       useMasking: (state.maskEnabled && hasMask) || state.maskSaturatedEnabled || inDataFlags,
@@ -831,7 +850,8 @@ function updateRoiStats() {
     m2 = acc.m2;
     pixelCounters = { total: acc.total, gap: acc.gap, defective: acc.defective, saturated: acc.saturated };
     statsValues = acc.values.subarray(0, acc.count);
-    return medianOfAccumulated(acc, isIntegralData(state.dataRaw), computeMedian);
+    // Filled values are not whole numbers.
+    return medianOfAccumulated(acc, !currentFill() && isIntegralData(state.dataRaw), computeMedian);
   };
 
   if (roiState.mode === "line") {

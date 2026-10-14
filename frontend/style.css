@@ -1262,6 +1262,16 @@ body {
   position: relative;
 }
 
+.viewer-footer-pill[hidden] {
+  display: none;
+}
+
+/* Inpainting on: the image holds values that were not measured. */
+.viewer-footer-pill.viewer-footer-inpainted {
+  border-color: rgba(242, 184, 75, 0.6);
+  color: #ffe1a3;
+}
+
 .viewer-footer-pill {
   display: inline-flex;
   align-items: center;
@@ -8023,4 +8033,17 @@ button.browse-details-header-cell[aria-sort="descending"] {
   .detector-dot::before {
     animation: none !important;
   }
+}
+
+/* Inpainting (Analysis tab): what it does, and its one choice. */
+.inpaint-body {
+  display: grid;
+  gap: 8px;
+}
+
+.inpaint-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }

@@ -36,6 +36,7 @@ export function createRenderEngineController({
     mapValueToNorm,
     buildPalette,
     getActiveSaturationMax,
+    getInpaintedFrame,
     scheduleOverview,
     schedulePixelOverlay,
     schedulePeakOverlay,
@@ -469,23 +470,30 @@ export function createRenderEngineController({
     const renderer = getRenderer();
     if (!renderer) return;
     const palette = buildPalette(state.colormap);
-    const maskReady =
+    let maskReady =
       state.maskEnabled &&
       state.maskAvailable &&
       state.maskRaw &&
       state.maskShape &&
       state.maskShape[0] === state.height &&
       state.maskShape[1] === state.width;
-    const maskData = maskReady ? state.maskRaw : null;
+    let maskData = maskReady ? state.maskRaw : null;
     const maskWidth = maskReady ? state.maskShape[1] : 0;
     const maskHeight = maskReady ? state.maskShape[0] : 0;
     const satMax = getActiveSaturationMax();
     const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
+    // Inpainting on: the filled copy is drawn instead, and the masked pixels
+    // show their filled values rather than the mask's colours.
+    const filled = getInpaintedFrame?.()?.data || null;
+    if (filled) {
+      maskReady = false;
+      maskData = null;
+    }
     if (renderer.type === "webgl") {
       renderer.render({
-        floatData: state.dataFloat,
-        rawData: state.dataRaw,
-        dtype: state.dtype,
+        floatData: filled || state.dataFloat,
+        rawData: filled || state.dataRaw,
+        dtype: filled ? "<f4" : state.dtype,
         width: state.width,
         height: state.height,
         min: state.min,
@@ -502,7 +510,7 @@ export function createRenderEngineController({
       });
     } else {
       renderer.render({
-        data: state.dataRaw,
+        data: filled || state.dataRaw,
         width: state.width,
         height: state.height,
         min: state.min,

@@ -16,6 +16,7 @@ reference of the same material.
 - [Move through a series](#move-through-a-series)
 - [Make the image readable](#make-the-image-readable)
 - [Measure a region](#measure-a-region)
+- [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)
 - [Detector geometry](#detector-geometry)
 - [Resolution rings and reflections](#resolution-rings-and-reflections)
 - [Follow a running experiment](#follow-a-running-experiment)
@@ -182,6 +183,38 @@ can be recomputed from the exported columns.
 
 ---
 
+## Fill gaps and defective pixels
+
+**Inpainting**, the last section of the **Analysis** tab, fills the gaps
+between the detector's modules and its defective pixels from their neighbours,
+so an image reads as one picture — useful for imaging, figures and anything
+that cannot cope with holes.
+
+ALBIS fills exactly the pixels the detector's mask marks as gaps or defective
+(for a PILATUS CBF, the `-1` and `-2` in its data), so there is nothing to tune.
+Each one is interpolated straight across its gap from the pixels on either side
+— each side the median of the five nearest, so a small spot at the edge does
+not streak across — and where a horizontal and a vertical gap cross, from both.
+An edge or a gradient in the sample carries straight through a gap. Filled
+pixels have no noise, so a filled gap looks a little smoother than its
+surroundings.
+
+- **Also fill saturated pixels** fills those too. It is off by default: in
+  imaging a saturated pixel is usually real signal that is too bright, not a
+  defect.
+- **What follows it:** the image, the ROI statistics and line profile, and the
+  PNG and GIF exports show the filled values. The ROI's gap and defective counts
+  stay, marked "filled", so you can see how many values were not measured. The
+  pixel readout under the cursor still shows the measured value.
+- **Convert Dataset** has an **Inpaint** box, ticked while inpainting is on: the
+  TIFF or CBF files then hold the filled values instead of `-1` and `-2`, and
+  their header says which pixels were filled. Live images are filled with their
+  source's mask.
+- The footer shows **Inpainted** while it is on, so a filled image is not
+  mistaken for a measured one. The data itself is never changed.
+
+---
+
 ## Detector geometry
 
 In the **Data** tab, **Detector Geometry** shows the numbers ALBIS calculates
@@ -323,7 +356,8 @@ screenshot of the whole window, the image in it as sharp as on screen.
 
 **Convert Dataset** writes all frames, the current frame, or a range. Exports
 are signed integers using the common detector convention: module gaps are `-1`,
-bad or saturated pixels are `-2`.
+bad or saturated pixels are `-2` — or, with **Inpaint** ticked, filled from
+their neighbours (see [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)).
 
 The files are named so they read back as a series, in ALBIS as in XDS, DIALS
 or ALBULA: `<name>[_thr<n>]_<number>`, the number last and 5 digits wide, like

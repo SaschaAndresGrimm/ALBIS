@@ -72,6 +72,7 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             threshold_mode=threshold_mode,
             threshold_index=threshold_index,
             overwrite=overwrite,
+            inpaint=payload.inpaint,
         )
         return DataExportStartResponse(job_id=job_id, status="queued")
 
@@ -81,12 +82,15 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
     def data_export_frame(
         meta: str = Form("{}"),
         pixels: UploadFile = File(...),
+        mask: UploadFile | None = File(None),
     ) -> DataExportFrameResponse:
         """Write one frame of a live source, sent by the browser, as TIFF or CBF.
 
         A live source has no file to convert; its frames are in the browser's
         live history. `meta` is JSON: `dtype`, `shape`, `name`, `format`,
-        `output_dir`, `overwrite`, and `metadata` for the header.
+        `output_dir`, `overwrite`, `metadata` for the header, and `inpaint`
+        ("off", "defects" or "saturated"), with the source's pixel `mask`
+        (uint32) sent alongside to say which pixels to fill.
         """
         try:
             config = json.loads(meta or "{}")
@@ -97,6 +101,9 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         payload = pixels.file.read()
         if not payload:
             raise HTTPException(status_code=400, detail="Empty pixel data")
+        inpaint = str(config.get("inpaint") or "off")
+        if inpaint not in {"off", "defects", "saturated"}:
+            raise HTTPException(status_code=400, detail="Invalid inpaint option")
         path = deps.write_live_frame(
             payload=payload,
             dtype=str(config.get("dtype") or ""),
@@ -106,6 +113,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             output_dir=str(config.get("output_dir") or "").strip() or None,
             overwrite=bool(config.get("overwrite")),
             metadata=config.get("metadata") if isinstance(config.get("metadata"), dict) else {},
+            mask=mask.file.read() if mask is not None else None,
+            inpaint=inpaint,
         )
         return DataExportFrameResponse(path=str(path))
 

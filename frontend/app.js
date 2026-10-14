@@ -82,6 +82,8 @@ import { getCircularRoiOuterRadius, getRoiImageBounds } from "./modules/roi_geom
 import { createImageExportController } from "./modules/image_export_controller.js";
 import { createDetectorControlController } from "./modules/detector_control_controller.js";
 import { knownDetectors } from "./modules/known_detectors.js";
+import { createInpaintView } from "./modules/inpainting.js";
+import { createInpaintingController } from "./modules/inpainting_controller.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -542,6 +544,8 @@ const dataExportOutputDir = document.getElementById("data-export-output-dir");
 const dataExportOutputBrowse = document.getElementById("data-export-output-browse");
 const dataExportPrefix = document.getElementById("data-export-prefix");
 const dataExportOverwrite = document.getElementById("data-export-overwrite");
+const dataExportInpaint = document.getElementById("data-export-inpaint");
+const dataExportInpaintLabel = document.getElementById("data-export-inpaint-label");
 const dataExportStart = document.getElementById("data-export-start");
 const dataExportCancel = document.getElementById("data-export-cancel");
 const dataExportProgress = document.getElementById("data-export-progress");
@@ -661,6 +665,7 @@ let viewerSyncController = null;
 let framePlaybackController = null;
 let frameMetadataController = null;
 let exportSplashController = null;
+let inpaintingController = null;
 let sourceMetadataController = null;
 let geometryParamsController = null;
 let chromeToolbarController = null;
@@ -1500,6 +1505,8 @@ function updateRingsSectionState() {
 
 function updatePeaksSectionState() {
   analysisOverlayController.updatePeaksSectionState();
+  // Inpainting's section follows the frame the same way (and empties with it).
+  inpaintingController?.updateState();
 }
 
 function renderPeakList() {
@@ -1604,6 +1611,8 @@ const dataExportController = createDataExportController({
     dataExportOutputBrowse,
     dataExportPrefix,
     dataExportOverwrite,
+    dataExportInpaint,
+    dataExportInpaintLabel,
     dataExportStart,
     dataExportCancel,
     dataExportProgress,
@@ -1693,6 +1702,8 @@ const animationExportController = createAnimationExportController({
     openModal: (...args) => openModal(...args),
     closeModal: (...args) => closeModal(...args),
     setStatus,
+    // Each frame filled like the one on screen, while inpainting is on.
+    inpaintFrame: (data) => inpaintView.frameFor(data, getActiveSaturationMax()),
   },
 });
 
@@ -2770,6 +2781,7 @@ exportSplashController = createExportSplashController({
     getEffectiveScrollTop,
     isSaturatedValue,
     setStatus,
+    getInpaintedFrame,
   },
 });
 
@@ -4089,6 +4101,13 @@ viewerSyncController = createViewerSyncController({
   },
 });
 
+// The frame with its gaps and defective pixels filled, while inpainting is on:
+// worked out once per frame, for the renderer, the statistics and the exports.
+const inpaintView = createInpaintView({ state, getActiveSaturationMax, isSaturatedValue });
+function getInpaintedFrame() {
+  return inpaintView.frame();
+}
+
 renderEngineController = createRenderEngineController({
   state,
   elements: {
@@ -4106,6 +4125,7 @@ renderEngineController = createRenderEngineController({
     mapValueToNorm,
     buildPalette,
     getActiveSaturationMax,
+    getInpaintedFrame,
     scheduleOverview,
     schedulePixelOverlay,
     schedulePeakOverlay,
@@ -4351,6 +4371,7 @@ const roiStatsController = createRoiStatsController({
   updateRoiSectionState,
   drawRoiOverlay: (...args) => drawRoiOverlay(...args),
   getActiveSaturationMax,
+  getInpaintedFrame,
   isSaturatedValue,
   computeMedian,
   formatStat,
@@ -4449,6 +4470,8 @@ function applyFrame(data, width, height, dtype) {
 
 function redraw() {
   renderEngineController.redraw();
+  // What inpainting filled in this frame, and the footer's "Inpainted".
+  inpaintingController?.updateState();
 }
 
 async function loadFrame() {
@@ -4958,6 +4981,25 @@ function validateSeriesStepInput(commit = false) {
   }
   return normalized;
 }
+inpaintingController = createInpaintingController({
+  state,
+  elements: {
+    toggle: document.getElementById("inpaint-toggle"),
+    saturatedToggle: document.getElementById("inpaint-saturated"),
+    stateEl: document.getElementById("inpaint-state"),
+    summaryEl: document.getElementById("summary-inpaint"),
+    footerChip: document.getElementById("footer-inpainted"),
+  },
+  callbacks: {
+    getInpaintedFrame,
+    redraw,
+    updateGlobalStats,
+    scheduleRoiUpdate,
+    setSectionBadgeState,
+    setSummaryChip,
+  },
+});
+
 bindAnalysisControlInteractions({
   apiBase: API,
   state,

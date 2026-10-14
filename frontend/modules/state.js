@@ -186,6 +186,10 @@ function createMaskState() {
     maskAvailable: false,
     maskEnabled: false,
     maskSaturatedEnabled: true,
+    // Inpainting (Analysis tab): gaps and defective pixels, and saturated
+    // ones when asked, filled from their neighbours for display and export.
+    inpaintEnabled: false,
+    inpaintSaturated: false,
     maskAuto: true,
     maskFile: "",
     maskPath: "",

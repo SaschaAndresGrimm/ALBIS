@@ -331,8 +331,14 @@ export function createRoiAccumulator({
   maskSaturatedEnabled = false,
   isSaturatedValue = () => false,
   capacity = 0,
+  // With inpainting on: { data, holes } from inpainting.js. A filled pixel is
+  // still counted as the gap or defective pixel it is, but its filled value
+  // joins the statistics, as it joins the image.
+  fill = null,
 }) {
   const need = Math.max(1, Math.ceil(capacity));
+  const fillData = fill?.data || null;
+  const fillHoles = fillData ? fill.holes : null;
   if (!roiValueScratch || roiValueScratch.length < need) {
     roiValueScratch = new Float64Array(need);
   }
@@ -366,20 +372,25 @@ export function createRoiAccumulator({
       if (gap) acc.gap += 1;
       else if (defective) acc.defective += 1;
       else if (checkSaturated && isSaturatedValue(raw, satMax)) acc.saturated += 1;
-      if (useMasking) {
-        if (gap || defective) return Number.NaN;
-        if (maskSaturatedEnabled && isSaturatedValue(raw, satMax)) return Number.NaN;
+      let value = raw;
+      if (fillHoles !== null && fillHoles[index]) {
+        value = fillData[index];
+      } else {
+        if (useMasking) {
+          if (gap || defective) return Number.NaN;
+          if (maskSaturatedEnabled && isSaturatedValue(raw, satMax)) return Number.NaN;
+        }
+        if (!Number.isFinite(raw)) return Number.NaN;
       }
-      if (!Number.isFinite(raw)) return Number.NaN;
-      values[acc.count] = raw;
+      values[acc.count] = value;
       acc.count += 1;
-      acc.sum += raw;
-      if (raw < acc.min) acc.min = raw;
-      if (raw > acc.max) acc.max = raw;
-      const delta = raw - acc.mean;
+      acc.sum += value;
+      if (value < acc.min) acc.min = value;
+      if (value > acc.max) acc.max = value;
+      const delta = value - acc.mean;
       acc.mean += delta / acc.count;
-      acc.m2 += delta * (raw - acc.mean);
-      return raw;
+      acc.m2 += delta * (value - acc.mean);
+      return value;
     },
   };
   return acc;
@@ -439,8 +450,12 @@ export function computeGlobalStats(params) {
     satMax,
     isSaturatedValue,
     computeMedian,
+    // With inpainting on: { data, holes }, as for createRoiAccumulator.
+    fill = null,
   } = params;
   if (!dataRaw) return null;
+  const fillData = fill?.data || null;
+  const fillHoles = fillData ? fill.holes : null;
 
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -464,6 +479,7 @@ export function computeGlobalStats(params) {
   // Whether pixel `i` contributes. Shared by this pass and the median pass so
   // the two can never disagree about which pixels are in the sample.
   const isAccepted = (i) => {
+    if (fillHoles !== null && fillHoles[i]) return true;
     const value = dataRaw[i];
     if (!Number.isFinite(value)) return false;
     if (!useMasking) return true;
@@ -498,6 +514,17 @@ export function computeGlobalStats(params) {
     }
     if (satMax !== null && isSaturatedValue(value, satMax) && !gap && !defective) {
       saturatedPixels += 1;
+    }
+    if (fillHoles !== null && fillHoles[i]) {
+      const filled = fillData[i];
+      count += 1;
+      sum += filled;
+      if (filled < min) min = filled;
+      if (filled > max) max = filled;
+      const delta = filled - mean;
+      mean += delta / count;
+      m2 += delta * (filled - mean);
+      continue;
     }
     if (!Number.isFinite(value)) continue;
     if (useMasking) {
@@ -538,7 +565,8 @@ export function computeGlobalStats(params) {
   // and leave a span narrow enough to count directly.
   const span = max - min + 1;
   let median;
-  if (hasIntegralValues(dataRaw) && span >= 1 && span <= COUNTING_MEDIAN_MAX_SPAN) {
+  // Filled values are not whole numbers: those take the selection path.
+  if (!fillData && hasIntegralValues(dataRaw) && span >= 1 && span <= COUNTING_MEDIAN_MAX_SPAN) {
     median = countingMedian(dataRaw, min, span, count, {
       // Mask bits gate on `hasMask`, not `maskEnabled`, to match
       // applyMaskToValue: it is handed the mask value whenever one exists.
@@ -557,7 +585,7 @@ export function computeGlobalStats(params) {
     let written = 0;
     for (let i = 0; i < dataRaw.length && written < count; i += 1) {
       if (!isAccepted(i)) continue;
-      selectionScratch[written] = dataRaw[i];
+      selectionScratch[written] = fillHoles !== null && fillHoles[i] ? fillData[i] : dataRaw[i];
       written += 1;
     }
     median = written ? computeMedian(selectionScratch.subarray(0, written)) : 0;
