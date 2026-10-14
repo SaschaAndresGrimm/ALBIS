@@ -11,6 +11,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The Inpainting section is shorter.** Its paragraph of explanation is now behind a **(?)** beside **Also fill saturated pixels**, which also says why that option is off by default. The section shows the switch, how many pixels were filled, and the one option.
 
+### Fixed
+
+- **The frame number beside the slider shows in full.** The box had a fixed width with room for about three digits beside its arrows, so frame 2000 read as "200". It is now as wide as the series' largest frame number.
+
 ## [0.29.0] - 2026-10-14
 
 ### Added

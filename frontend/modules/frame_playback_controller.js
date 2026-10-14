@@ -71,6 +71,8 @@ export function createFramePlaybackController({
       frameIndex.max = String(total);
       frameIndex.value = String(displayValue);
       frameIndex.disabled = total <= 1;
+      // As wide as the largest frame number: "2000" was cut to "200".
+      frameIndex.style.setProperty("--frame-digits", String(String(total).length));
     }
   }
 

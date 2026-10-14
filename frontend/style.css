@@ -550,8 +550,11 @@ body {
   display: none;
 }
 
+/* Wide enough for the largest frame number (--frame-digits, set with the
+   frame count) beside the spinner, never narrower than three digits. */
 .toolbar-frame-index input[type="number"] {
-  width: 56px;
+  width: calc(max(3, var(--frame-digits, 3)) * 1ch + 32px);
+  font-variant-numeric: tabular-nums;
   background: rgba(11, 18, 28, 0.82);
   color: #f0f6ff;
   border: 1px solid rgba(12, 20, 32, 0.62);
@@ -3533,7 +3536,6 @@ body.platform-windows select option:disabled {
   }
 
   .toolbar-frame-index input[type="number"] {
-    width: 52px;
     font-size: 12px;
   }
 
@@ -3913,7 +3915,7 @@ body.platform-windows select option:disabled {
   }
 
   body.canvas-first .toolbar-frame-index input[type="number"] {
-    width: 44px;
+    width: calc(max(3, var(--frame-digits, 3)) * 1ch + 24px);
   }
 
   body.canvas-first .toolbar-threshold select {
