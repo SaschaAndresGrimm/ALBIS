@@ -1501,16 +1501,12 @@
               <div class="section-state is-empty" id="inpaint-state" role="status" aria-live="polite" data-i18n="inpaint.state.enable_hint">
                 Switch on to fill the detector's gaps and defective pixels from their neighbours.
               </div>
-              <div class="inpaint-body">
-                <p class="inpaint-note" data-i18n="inpaint.note">
-                  Fills the pixels the detector's mask marks as gaps or defective, interpolating across each from the
-                  pixels beside it. The image, the ROI statistics and exports show the filled values; the data itself
-                  is not changed.
-                </p>
+              <div class="check-row">
                 <label class="checkbox">
                   <input type="checkbox" id="inpaint-saturated" />
                   <span data-i18n="inpaint.saturated">Also fill saturated pixels</span>
                 </label>
+                <button type="button" class="info-tip" data-info-key="info.inpaint" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
               </div>
             </section>
           </div>

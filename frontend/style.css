@@ -8034,16 +8034,3 @@ button.browse-details-header-cell[aria-sort="descending"] {
     animation: none !important;
   }
 }
-
-/* Inpainting (Analysis tab): what it does, and its one choice. */
-.inpaint-body {
-  display: grid;
-  gap: 8px;
-}
-
-.inpaint-note {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}

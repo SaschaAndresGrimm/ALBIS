@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The Inpainting section is shorter.** Its paragraph of explanation is now behind a **(?)** beside **Also fill saturated pixels**, which also says why that option is off by default. The section shows the switch, how many pixels were filled, and the one option.
+
 ## [0.29.0] - 2026-10-14
 
 ### Added
