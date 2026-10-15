@@ -551,6 +551,9 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
             else "gaps and defective pixels"
         )
         remaining = "bad = -2" if inpainted == "saturated" else "bad or saturated = -2"
+        margin = _export_int(metadata or {}, "inpainted_margin") or 0
+        if margin > 0:
+            filled += f" and {margin} px around them"
         lines.append(
             f"# Pixel substitutions: {filled} inpainted by ALBIS "
             f"(interpolated from their neighbours); {remaining}"

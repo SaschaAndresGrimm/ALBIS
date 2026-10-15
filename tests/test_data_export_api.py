@@ -574,3 +574,30 @@ def test_live_frame_is_inpainted_with_the_mask_sent_along(tmp_path: Path) -> Non
         },
     )
     assert short.status_code == 400
+
+
+def test_inpainted_export_fills_a_margin_around_flagged_pixels(tmp_path: Path) -> None:
+    source = tmp_path / "flat.h5"
+    data = np.full((1, 7, 7), 10, dtype=np.uint32)
+    data[0, 3, 2:5] = 500  # the neighbours of a dead pixel, gone wrong too
+    mask = np.zeros((7, 7), dtype=np.uint32)
+    mask[3, 3] = 0b10
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=data)
+        h5.create_dataset("/entry/instrument/detector/detectorSpecific/pixel_mask", data=mask)
+    client = _client()
+    base = {
+        "file": str(source),
+        "dataset": "/entry/data/data",
+        "format": "cbf",
+        "inpaint": "defects",
+    }
+    plain = CbfImage().read(str(_export(client, {**base, "output_dir": str(tmp_path / "a")})[0]))
+    assert plain.data[3, 2] == 500
+    out = _export(client, {**base, "output_dir": str(tmp_path / "b"), "inpaint_margin": 1})
+    image = CbfImage()
+    image.read(str(out[0]))
+    assert np.all(image.data == 10)
+    assert "and 1 px around them inpainted" in image.header["_array_data.header_contents"]
+    too_wide = client.post("/api/export/data/start", json={**base, "inpaint_margin": 6})
+    assert too_wide.status_code == 422

@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from backend.services.inpainting import inpaint
+from backend.services.inpainting import grow_holes, inpaint
 
 CASES = json.loads(
     (Path(__file__).parent / "fixtures" / "inpainting_cases.json").read_text(encoding="utf-8")
@@ -72,3 +72,24 @@ def test_fast_enough_for_a_4m_frame() -> None:
     assert not np.isnan(out).any()
     assert 30 < out[holes].mean() < 70
     assert elapsed < 5.0
+
+
+GROWTH = json.loads(
+    (Path(__file__).parent / "fixtures" / "inpainting_cases.json").read_text(encoding="utf-8")
+)["growth"]
+
+
+@pytest.mark.parametrize("case", GROWTH, ids=[case["name"] for case in GROWTH])
+def test_grows_the_holes_like_the_viewer(case: dict) -> None:
+    shape = (case["height"], case["width"])
+    holes = np.array(case["holes"], dtype=bool).reshape(shape)
+    expected = np.array(case["expected"], dtype=bool).reshape(shape)
+    assert np.array_equal(grow_holes(holes, case["margin"]), expected)
+
+
+def test_a_margin_is_a_square_and_capped() -> None:
+    holes = np.zeros((15, 15), dtype=bool)
+    holes[7, 7] = True
+    assert grow_holes(holes, 1).sum() == 9
+    assert grow_holes(holes, 99).sum() == 11 * 11  # at most 5 px
+    assert not grow_holes(holes, 0)[7, 8]

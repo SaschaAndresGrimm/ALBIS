@@ -17,6 +17,7 @@ import numpy as np
 from fastapi import HTTPException
 
 from ..image_formats import _to_little_endian
+from .inpainting import grow_holes
 from .inpainting import inpaint as inpaint_frame
 
 
@@ -78,6 +79,7 @@ class DataExportService:
         threshold_index: int | None,
         overwrite: bool,
         inpaint: str = "off",
+        inpaint_margin: int = 0,
     ) -> str:
         job_id = uuid.uuid4().hex
         job_data = {
@@ -103,6 +105,7 @@ class DataExportService:
                 "threshold_index": threshold_index,
                 "overwrite": bool(overwrite),
                 "inpaint": inpaint,
+                "inpaint_margin": inpaint_margin,
             },
         }
         with self._lock:
@@ -125,6 +128,7 @@ class DataExportService:
                 "threshold_index": threshold_index,
                 "overwrite": bool(overwrite),
                 "inpaint": inpaint,
+                "inpaint_margin": inpaint_margin,
             },
             daemon=True,
         )
@@ -368,6 +372,7 @@ class DataExportService:
         mask_bits: np.ndarray | None = None,
         saturated_value: int | None = None,
         inpaint: str = "off",
+        inpaint_margin: int = 0,
     ) -> tuple[np.ndarray, int]:
         """The frame as written, and how many of its pixels were inpainted.
 
@@ -421,6 +426,8 @@ class DataExportService:
                 holes |= ~np.isfinite(frame)
             if inpaint == "saturated" and saturated_mask is not None:
                 holes |= saturated_mask
+            # Their neighbours too, when asked: often just as unreliable.
+            holes = grow_holes(holes, inpaint_margin)
             filled = int(np.count_nonzero(holes))
             if filled:
                 values = inpaint_frame(frame, holes)[holes]
@@ -954,6 +961,7 @@ class DataExportService:
         metadata: dict[str, Any] | None = None,
         overwrite: bool,
         inpaint: str = "off",
+        inpaint_margin: int = 0,
     ) -> Path:
         suffix = ".cbf" if output_format == "cbf" else ".tiff"
         path = out_dir / f"{name}{suffix}"
@@ -965,10 +973,15 @@ class DataExportService:
             mask_bits=mask_bits,
             saturated_value=saturated_value,
             inpaint=inpaint,
+            inpaint_margin=inpaint_margin,
         )
         if filled:
             # The header says which pixels hold values that were not measured.
-            metadata = {**(metadata or {}), "inpainted": inpaint}
+            metadata = {
+                **(metadata or {}),
+                "inpainted": inpaint,
+                "inpainted_margin": int(inpaint_margin),
+            }
         if output_format == "cbf":
             self._deps.write_cbf(path, frame, metadata)
         else:
@@ -1035,6 +1048,7 @@ class DataExportService:
         metadata: dict[str, Any] | None,
         mask: bytes | None = None,
         inpaint: str = "off",
+        inpaint_margin: int = 0,
     ) -> Path:
         """Write one frame sent by the browser; returns the file written.
 
@@ -1092,6 +1106,7 @@ class DataExportService:
             metadata=self.live_frame_metadata(metadata),
             overwrite=overwrite,
             inpaint=inpaint,
+            inpaint_margin=inpaint_margin,
         )
 
     @staticmethod
@@ -1168,6 +1183,7 @@ class DataExportService:
         threshold_index: int | None,
         overwrite: bool,
         inpaint: str = "off",
+        inpaint_margin: int = 0,
     ) -> list[str]:
         if not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
@@ -1242,6 +1258,7 @@ class DataExportService:
                             metadata=metadata,
                             overwrite=overwrite,
                             inpaint=inpaint,
+                            inpaint_margin=inpaint_margin,
                         )
                         outputs.append(str(out_file))
                         completed += 1
@@ -1269,6 +1286,7 @@ class DataExportService:
         frame_end: int | None,
         overwrite: bool,
         inpaint: str = "off",
+        inpaint_margin: int = 0,
     ) -> list[str]:
         series_files, current_index = self._deps.resolve_series_files(source_path)
         if not series_files:
@@ -1303,6 +1321,7 @@ class DataExportService:
                 metadata=metadata,
                 overwrite=overwrite,
                 inpaint=inpaint,
+                inpaint_margin=inpaint_margin,
             )
             outputs.append(str(out_file))
             self._update_job(
@@ -1328,6 +1347,7 @@ class DataExportService:
         threshold_index: int | None,
         overwrite: bool,
         inpaint: str = "off",
+        inpaint_margin: int = 0,
     ) -> None:
         try:
             self._update_job(job_id, status="running", progress=0.0, message="Resolving source")
@@ -1353,6 +1373,7 @@ class DataExportService:
                     threshold_index=threshold_index,
                     overwrite=overwrite,
                     inpaint=inpaint,
+                    inpaint_margin=inpaint_margin,
                 )
             else:
                 outputs = self._run_image_series_export(
@@ -1366,6 +1387,7 @@ class DataExportService:
                     frame_end=frame_end,
                     overwrite=overwrite,
                     inpaint=inpaint,
+                    inpaint_margin=inpaint_margin,
                 )
             self._update_job(
                 job_id,

@@ -264,6 +264,7 @@ describe("data_export_controller, live sources", () => {
     Object.assign(state, {
       inpaintEnabled: true,
       inpaintSaturated: true,
+      inpaintMargin: 2,
       maskAvailable: true,
       maskRaw: new Uint32Array([0, 1, 0, 0]),
       maskShape: [2, 2],
@@ -271,15 +272,19 @@ describe("data_export_controller, live sources", () => {
     const { controller, elements, sent } = await buildLive(state);
     controller.openDialog();
     expect(elements.dataExportInpaint.checked).toBe(true);
-    expect(elements.dataExportInpaintLabel.textContent).toBe(EN["data_export.inpaint_saturated"]);
+    expect(elements.dataExportInpaintLabel.textContent).toBe(
+      EN["data_export.inpaint_saturated"] + EN["data_export.inpaint_margin"].replace("{{margin}}", "2"),
+    );
     await controller.startExport();
     expect(sent[0].meta.inpaint).toBe("saturated");
+    expect(sent[0].meta.inpaint_margin).toBe(2);
     expect(sent[0].maskBytes).toBe(16);
     // Unticked here: written as measured, no mask sent.
     elements.dataExportInpaint.checked = false;
     state.dataExport.openTarget = "";
     await controller.startExport();
     expect(sent[1].meta.inpaint).toBe("off");
+    expect(sent[1].meta.inpaint_margin).toBe(0);
     expect(sent[1].maskBytes).toBe(0);
   });
 });

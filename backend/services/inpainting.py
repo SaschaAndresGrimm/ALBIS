@@ -23,6 +23,8 @@ MAX_ROUNDS = 8
 # Pixels each side's value is taken from: the median of five rejects a spot of
 # up to two pixels at a gap's edge.
 SIDE_SAMPLES = 5
+# The widest margin around flagged pixels that may be filled too.
+MAX_MARGIN = 5
 
 
 def _direction(
@@ -93,6 +95,23 @@ def _direction(
     num[only_right] = (right_value * w)[only_right]
     den[only_right] = w[only_right]
     return flat, num, den
+
+
+def grow_holes(holes: np.ndarray, margin: int) -> np.ndarray:
+    """``holes`` widened by ``margin`` pixels all round (a square: the 8 pixels
+    around a flagged one at margin 1). Mirrors growHoles in the viewer."""
+    r = max(0, min(MAX_MARGIN, int(margin or 0)))
+    if not r or holes.ndim != 2 or not holes.any():
+        return holes
+    grown = holes.copy()
+    for shift in range(1, r + 1):
+        grown[:, shift:] |= holes[:, :-shift]
+        grown[:, :-shift] |= holes[:, shift:]
+    rows = grown.copy()
+    for shift in range(1, r + 1):
+        grown[shift:, :] |= rows[:-shift, :]
+        grown[:-shift, :] |= rows[shift:, :]
+    return grown
 
 
 def inpaint(frame: np.ndarray, holes: np.ndarray) -> np.ndarray:

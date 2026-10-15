@@ -7,9 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Inpainting can fill a margin around flagged pixels.** The pixels next to a gap or a defective pixel are often unreliable too. **Margin** (0–5 px, default 0) in the Inpainting section fills that many pixels around every flagged one as well — a square, so the 8 around a dead pixel at 1 px — and the fill starts beyond them. It applies to everything inpainting fills, gaps included, follows into the image, the statistics and the PNG/GIF exports, and into TIFF/CBF from Convert Dataset (`inpaint_margin`, 0–5, on the export and live-frame endpoints), whose header says "and N px around them". The option labels are shorter ("Saturated pixels", "Margin"), explained by the section's (?). **Saturated pixels** is now on by default: most images are inpainted to look whole, and saturated pixels break that as much as gaps; untick it to keep them.
+
 ### Changed
 
-- **The Inpainting section is shorter.** Its paragraph of explanation is now behind a **(?)** beside **Also fill saturated pixels**, which also says why that option is off by default. The section shows the switch, how many pixels were filled, and the one option.
+- **The Inpainting section is shorter.** Its paragraph of explanation is now behind a **(?)** beside the options. The section shows the switch, how many pixels were filled, and its options on one line.
 
 ### Fixed
 

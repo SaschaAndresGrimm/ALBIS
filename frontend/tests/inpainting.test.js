@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createInpaintCache, createInpaintView, inpaint, inpaintHoles } from "../modules/inpainting.js";
+import { createInpaintCache, createInpaintView, growHoles, inpaint, inpaintHoles } from "../modules/inpainting.js";
 import { computeGlobalStats, createRoiAccumulator } from "../modules/roi_stats_engine.js";
 
-const { cases } = JSON.parse(fs.readFileSync(path.join(process.cwd(), "tests", "fixtures", "inpainting_cases.json"), "utf8"));
+const { cases, growth } = JSON.parse(fs.readFileSync(path.join(process.cwd(), "tests", "fixtures", "inpainting_cases.json"), "utf8"));
 
 describe("inpainting", () => {
   it.each(cases.map((c) => [c.name, c]))("fills %s like the exports do", (_name, c) => {
@@ -84,5 +84,21 @@ describe("inpainting", () => {
     expect(measured).toMatchObject({ count: 3, gap: 1, sum: 80 });
     const whole = computeGlobalStats({ dataRaw: data, width: 2, height: 2, maskAvailable: true, maskRaw: mask, maskShape: [2, 2], maskEnabled: true, maskSaturatedEnabled: true, satMax: null, isSaturatedValue: () => false, computeMedian: (v) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)], fill });
     expect(whole).toMatchObject({ count: 4, gapPixels: 1, mean: 25 });
+  });
+
+  it.each(growth.map((c) => [c.name, c]))("grows the holes: %s, like the exports do", (_name, c) => {
+    const holes = Uint8Array.from(c.holes);
+    const count = growHoles(holes, c.width, c.height, c.margin);
+    expect([...holes]).toEqual(c.expected);
+    expect(count).toBe(c.expected.reduce((a, b) => a + b, 0));
+  });
+
+  it("fills the margin around flagged pixels too, when asked", () => {
+    const data = new Uint32Array(25).fill(7);
+    const mask = new Uint32Array(25);
+    mask[12] = 0b10;
+    expect(inpaintHoles({ data, width: 5, height: 5, mask }).count).toBe(1);
+    expect(inpaintHoles({ data, width: 5, height: 5, mask, margin: 1 }).count).toBe(9);
+    expect(inpaintHoles({ data, width: 5, height: 5, mask, margin: 9 }).count).toBe(25);
   });
 });

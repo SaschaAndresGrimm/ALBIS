@@ -59,15 +59,63 @@ function medianOf(k) {
   return k % 2 ? sideScratch[mid] : (sideScratch[mid - 1] + sideScratch[mid]) / 2;
 }
 
+export const MAX_INPAINT_MARGIN = 5;
+
+/** Clamp a margin to whole pixels in 0..MAX_INPAINT_MARGIN. */
+export function normalizeInpaintMargin(value) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) ? Math.max(0, Math.min(MAX_INPAINT_MARGIN, n)) : 0;
+}
+
+/**
+ * Widen `holes` (in place) by `margin` pixels all round -- a square, so the 8
+ * pixels around a flagged one at margin 1. The pixels next to a flagged one
+ * are often unreliable too. Along the rows, then along the columns: the cost
+ * is the frame's size, whatever the margin. Returns the new hole count.
+ */
+export function growHoles(holes, width, height, margin) {
+  const r = normalizeInpaintMargin(margin);
+  if (!r) {
+    let count = 0;
+    for (let i = 0; i < holes.length; i += 1) count += holes[i];
+    return count;
+  }
+  const pass = (source, target, lines, length, step, lineStep) => {
+    for (let line = 0; line < lines; line += 1) {
+      const base = line * lineStep;
+      // Distance to the nearest flagged pixel before, then after.
+      let last = -Infinity;
+      for (let k = 0; k < length; k += 1) {
+        if (source[base + k * step]) last = k;
+        target[base + k * step] = k - last <= r ? 1 : 0;
+      }
+      let next = Infinity;
+      for (let k = length - 1; k >= 0; k -= 1) {
+        if (source[base + k * step]) next = k;
+        if (next - k <= r) target[base + k * step] = 1;
+      }
+    }
+  };
+  const rows = new Uint8Array(holes.length);
+  pass(holes, rows, height, width, 1, width);
+  pass(rows, holes, width, height, width, 1);
+  let count = 0;
+  for (let i = 0; i < holes.length; i += 1) count += holes[i];
+  return count;
+}
+
 /**
  * Which pixels to fill: 1 for a gap or defective pixel (and a saturated one
- * when `fillSaturated`), 0 otherwise.
+ * when `fillSaturated`), widened by `margin` pixels, 0 otherwise.
  *
  * Same classification as the ROI statistics: the mask wins where there is one;
  * without one, a signed integer frame's -1 and -2 (`inDataFlags`).
  */
 export function inpaintHoles({
   data,
+  width = 0,
+  height = 0,
+  margin = 0,
   mask = null,
   inDataFlags = false,
   satMax = null,
@@ -91,6 +139,7 @@ export function inpaintHoles({
       count += 1;
     }
   }
+  if (count && margin > 0 && width * height === n) count = growHoles(holes, width, height, margin);
   return { holes, count };
 }
 
@@ -214,11 +263,11 @@ export function createInpaintCache() {
   let key = null;
   let result = { data: null, filled: 0 };
   return {
-    get({ data, width, height, mask = null, inDataFlags = false, satMax = null, fillSaturated = false, isSaturatedValue }) {
+    get({ data, width, height, margin = 0, mask = null, inDataFlags = false, satMax = null, fillSaturated = false, isSaturatedValue }) {
       if (!data || !width || !height) return { data: null, filled: 0 };
-      const next = [data, width, height, mask, inDataFlags, satMax, fillSaturated];
+      const next = [data, width, height, margin, mask, inDataFlags, satMax, fillSaturated];
       if (key && next.every((part, i) => part === key[i])) return result;
-      const { holes, count } = inpaintHoles({ data, mask, inDataFlags, satMax, fillSaturated, isSaturatedValue });
+      const { holes, count } = inpaintHoles({ data, width, height, margin, mask, inDataFlags, satMax, fillSaturated, isSaturatedValue });
       result = { data: count ? inpaint(data, width, height, holes) : null, filled: count, holes: count ? holes : null };
       key = next;
       return result;
@@ -271,5 +320,6 @@ function inpaintParams(state, data, satMax) {
     inDataFlags: !state.maskAvailable && usesInDataPixelFlags(data),
     satMax: Number.isFinite(satMax) ? satMax : null,
     fillSaturated: Boolean(state.inpaintSaturated),
+    margin: normalizeInpaintMargin(state.inpaintMargin),
   };
 }

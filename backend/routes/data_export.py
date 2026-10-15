@@ -73,6 +73,7 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             threshold_index=threshold_index,
             overwrite=overwrite,
             inpaint=payload.inpaint,
+            inpaint_margin=payload.inpaint_margin,
         )
         return DataExportStartResponse(job_id=job_id, status="queued")
 
@@ -89,7 +90,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         A live source has no file to convert; its frames are in the browser's
         live history. `meta` is JSON: `dtype`, `shape`, `name`, `format`,
         `output_dir`, `overwrite`, `metadata` for the header, and `inpaint`
-        ("off", "defects" or "saturated"), with the source's pixel `mask`
+        ("off", "defects" or "saturated") and `inpaint_margin` (0-5 pixels
+        around each flagged one), with the source's pixel `mask`
         (uint32) sent alongside to say which pixels to fill.
         """
         try:
@@ -104,6 +106,12 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         inpaint = str(config.get("inpaint") or "off")
         if inpaint not in {"off", "defects", "saturated"}:
             raise HTTPException(status_code=400, detail="Invalid inpaint option")
+        try:
+            inpaint_margin = int(config.get("inpaint_margin") or 0)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid inpaint margin") from exc
+        if not 0 <= inpaint_margin <= 5:
+            raise HTTPException(status_code=400, detail="Invalid inpaint margin")
         path = deps.write_live_frame(
             payload=payload,
             dtype=str(config.get("dtype") or ""),
@@ -115,6 +123,7 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             metadata=config.get("metadata") if isinstance(config.get("metadata"), dict) else {},
             mask=mask.file.read() if mask is not None else None,
             inpaint=inpaint,
+            inpaint_margin=inpaint_margin,
         )
         return DataExportFrameResponse(path=str(path))
 

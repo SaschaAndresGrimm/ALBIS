@@ -224,6 +224,8 @@ class DataExportStartRequest(_StrictModel):
     # Fill pixels from their neighbours instead of writing -1/-2: "defects"
     # (gaps and defective pixels) or "saturated" (those and saturated ones).
     inpaint: Literal["off", "defects", "saturated"] = "off"
+    # Pixels around each flagged one to fill as well (0-5).
+    inpaint_margin: int = Field(0, ge=0, le=5)
 
 
 class DataExportStartResponse(_StrictModel):

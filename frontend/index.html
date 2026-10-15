@@ -1503,8 +1503,15 @@
               </div>
               <div class="check-row">
                 <label class="checkbox">
-                  <input type="checkbox" id="inpaint-saturated" />
-                  <span data-i18n="inpaint.saturated">Also fill saturated pixels</span>
+                  <input type="checkbox" id="inpaint-saturated" checked />
+                  <span data-i18n="inpaint.saturated">Saturated pixels</span>
+                </label>
+                <label class="inpaint-margin">
+                  <span data-i18n="inpaint.margin">Margin</span>
+                  <span class="inpaint-margin-field">
+                    <input id="inpaint-margin" type="number" min="0" max="5" step="1" value="0" inputmode="numeric" />
+                    <span aria-hidden="true">px</span>
+                  </span>
                 </label>
                 <button type="button" class="info-tip" data-info-key="info.inpaint" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
               </div>

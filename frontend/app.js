@@ -4986,6 +4986,7 @@ inpaintingController = createInpaintingController({
   elements: {
     toggle: document.getElementById("inpaint-toggle"),
     saturatedToggle: document.getElementById("inpaint-saturated"),
+    marginInput: document.getElementById("inpaint-margin"),
     stateEl: document.getElementById("inpaint-state"),
     summaryEl: document.getElementById("summary-inpaint"),
     footerChip: document.getElementById("footer-inpainted"),

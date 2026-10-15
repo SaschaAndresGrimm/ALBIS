@@ -3381,6 +3381,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .range-row input,
+.inpaint-margin-field input[type="number"],
 .field select,
 .field input[type="number"],
 .field input[type="range"],
@@ -8035,4 +8036,26 @@ button.browse-details-header-cell[aria-sort="descending"] {
   .detector-dot::before {
     animation: none !important;
   }
+}
+
+/* Inpainting: the margin around flagged pixels, a small number and its unit. */
+.inpaint-margin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.inpaint-margin-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.inpaint-margin-field input {
+  width: 48px;
+  min-height: 26px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
 }

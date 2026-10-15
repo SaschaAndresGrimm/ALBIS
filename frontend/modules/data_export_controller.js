@@ -4,6 +4,7 @@
 
 import { t, getLanguage } from "./i18n.js";
 import { canExportData, isLiveExportSource, liveExportEntries } from "./command_availability.js";
+import { normalizeInpaintMargin } from "./inpainting.js";
 
 function fileStem(path) {
   const normalized = String(path || "").replace(/\\/g, "/");
@@ -440,6 +441,7 @@ export function createDataExportController({
       threshold_index: thresholdMode === "current" ? Number(state.thresholdIndex || 0) + 1 : null,
       overwrite: Boolean(dataExportOverwrite?.checked),
       inpaint: inpaintChoice(),
+      inpaint_margin: inpaintMargin(),
     };
     try {
       stopPolling();
@@ -475,6 +477,10 @@ export function createDataExportController({
   function inpaintChoice() {
     if (!dataExportInpaint?.checked) return "off";
     return state.inpaintSaturated ? "saturated" : "defects";
+  }
+
+  function inpaintMargin() {
+    return inpaintChoice() === "off" ? 0 : normalizeInpaintMargin(state.inpaintMargin);
   }
 
   // The mask a live frame is filled by: the source's, when it has one that
@@ -526,6 +532,7 @@ export function createDataExportController({
           overwrite,
           metadata: liveFrameMetadata(entry),
           inpaint,
+          inpaint_margin: inpaintMargin(),
         }),
       );
       form.append("pixels", new Blob([new Uint8Array(data.buffer, data.byteOffset, data.byteLength)]), "frame.bin");
@@ -659,7 +666,10 @@ export function createDataExportController({
     // Inpainting as on screen: ticked while it is on, and saying what it fills.
     if (dataExportInpaint && !state.dataExport.running) dataExportInpaint.checked = Boolean(state.inpaintEnabled);
     if (dataExportInpaintLabel) {
-      dataExportInpaintLabel.textContent = t(state.inpaintSaturated ? "data_export.inpaint_saturated" : "data_export.inpaint");
+      const margin = normalizeInpaintMargin(state.inpaintMargin);
+      dataExportInpaintLabel.textContent =
+        t(state.inpaintSaturated ? "data_export.inpaint_saturated" : "data_export.inpaint") +
+        (margin ? t("data_export.inpaint_margin", { margin }) : "");
     }
     updateUi();
     openModal(dataExportModal, { focusTarget: dataExportFormat });

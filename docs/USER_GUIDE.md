@@ -199,9 +199,12 @@ An edge or a gradient in the sample carries straight through a gap. Filled
 pixels have no noise, so a filled gap looks a little smoother than its
 surroundings.
 
-- **Also fill saturated pixels** fills those too. It is off by default: in
-  imaging a saturated pixel is usually real signal that is too bright, not a
-  defect.
+- **Saturated pixels** fills those too. It is on by default; untick it to keep
+  saturated pixels as they are, where they are real signal you want to see.
+- **Margin** also fills that many pixels around every flagged one (0–5 px, a
+  square: at 1 px the 8 pixels around a dead pixel). The pixels next to a gap
+  or a defective pixel are often unreliable too; the fill then starts beyond
+  them.
 - **What follows it:** the image, the ROI statistics and line profile, and the
   PNG and GIF exports show the filled values. The ROI's gap and defective counts
   stay, marked "filled", so you can see how many values were not measured. The
