@@ -7,9 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.29.2] - 2026-10-15
+
 ### Added
 
 - **Inpainting can set a fixed value instead of interpolating.** A **Method** choice in the Inpainting section: **Interpolate** (as before, the default) or **Fixed value**, which sets every flagged pixel to one **Value** — the background, say, so the gaps disappear into it. **Background** and **Foreground** copy the contrast's current low or high end into the field once — as a whole count for integer data, four significant figures for float data, rather than an auto-contrast percentile like 7.99992 — so a later contrast change does not alter what is filled or exported. Saturated pixels and the margin apply to both methods. The image, statistics and PNG/GIF exports follow; Convert Dataset sends `inpaint_method` and `inpaint_value` (checked on the server; integer files clip the value to their type), its label adds ", set to N", and the TIFF/CBF header says "set to N by ALBIS".
+
+### Changed
+
+- **FastAPI 0.143.0 and NumPy 2.5.4.** FastAPI now sets up OpenTelemetry exporters only when asked; ALBIS configures no telemetry, so nothing changes. The licence table states the new versions.
 
 ## [0.29.1] - 2026-10-15
 
@@ -1583,7 +1589,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.2...HEAD
+[0.29.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.27.0...v0.28.0
