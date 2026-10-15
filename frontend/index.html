@@ -1502,6 +1502,13 @@
                 Switch on to fill the detector's gaps and defective pixels from their neighbours.
               </div>
               <div class="check-row">
+                <label class="inpaint-method">
+                  <span data-i18n="inpaint.method">Method</span>
+                  <select id="inpaint-method">
+                    <option value="interpolate" data-i18n="inpaint.method.interpolate">Interpolate</option>
+                    <option value="fixed" data-i18n="inpaint.method.fixed">Fixed value</option>
+                  </select>
+                </label>
                 <label class="checkbox">
                   <input type="checkbox" id="inpaint-saturated" checked />
                   <span data-i18n="inpaint.saturated">Saturated pixels</span>
@@ -1514,6 +1521,14 @@
                   </span>
                 </label>
                 <button type="button" class="info-tip" data-info-key="info.inpaint" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
+              </div>
+              <div class="check-row inpaint-value-row" id="inpaint-value-row" hidden>
+                <label class="inpaint-value">
+                  <span data-i18n="inpaint.value">Value</span>
+                  <input id="inpaint-value" type="number" step="any" value="0" inputmode="decimal" />
+                </label>
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="inpaint-value-background" data-i18n="inpaint.value.background">Background</button>
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="inpaint-value-foreground" data-i18n="inpaint.value.foreground">Foreground</button>
               </div>
             </section>
           </div>

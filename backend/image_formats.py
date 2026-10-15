@@ -554,10 +554,12 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
         margin = _export_int(metadata or {}, "inpainted_margin") or 0
         if margin > 0:
             filled += f" and {margin} px around them"
-        lines.append(
-            f"# Pixel substitutions: {filled} inpainted by ALBIS "
-            f"(interpolated from their neighbours); {remaining}"
-        )
+        if (metadata or {}).get("inpainted_method") == "fixed":
+            value = (metadata or {}).get("inpainted_value", 0)
+            how = f"set to {value:g} by ALBIS"
+        else:
+            how = "inpainted by ALBIS (interpolated from their neighbours)"
+        lines.append(f"# Pixel substitutions: {filled} {how}; {remaining}")
     else:
         lines.append("# Pixel substitutions: masked gaps = -1, bad or saturated = -2")
     return lines

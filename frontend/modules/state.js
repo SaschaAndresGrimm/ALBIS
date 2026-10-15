@@ -192,6 +192,9 @@ function createMaskState() {
     inpaintSaturated: true,
     // Pixels around each flagged one filled as well (0-5).
     inpaintMargin: 0,
+    // How: "interpolate" from the neighbours, or "fixed" to inpaintValue.
+    inpaintMethod: "interpolate",
+    inpaintValue: 0,
     maskAuto: true,
     maskFile: "",
     maskPath: "",

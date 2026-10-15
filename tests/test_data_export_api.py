@@ -601,3 +601,32 @@ def test_inpainted_export_fills_a_margin_around_flagged_pixels(tmp_path: Path) -
     assert "and 1 px around them inpainted" in image.header["_array_data.header_contents"]
     too_wide = client.post("/api/export/data/start", json={**base, "inpaint_margin": 6})
     assert too_wide.status_code == 422
+
+
+def test_inpainted_export_can_set_one_value_clipped_to_the_type(tmp_path: Path) -> None:
+    source = tmp_path / "flat.h5"
+    data = np.full((1, 4, 4), 10, dtype=np.uint16)
+    mask = np.zeros((4, 4), dtype=np.uint32)
+    mask[:, 1] = 1
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=data)
+        h5.create_dataset("/entry/instrument/detector/detectorSpecific/pixel_mask", data=mask)
+    client = _client()
+    base = {
+        "file": str(source),
+        "dataset": "/entry/data/data",
+        "format": "cbf",
+        "inpaint": "defects",
+        "inpaint_method": "fixed",
+    }
+    out = _export(client, {**base, "output_dir": str(tmp_path / "a"), "inpaint_value": 3})
+    image = CbfImage()
+    image.read(str(out[0]))
+    assert image.data[:, 1].tolist() == [3, 3, 3, 3] and image.data[0, 0] == 10
+    assert (
+        "gaps and defective pixels set to 3 by ALBIS" in image.header["_array_data.header_contents"]
+    )
+    huge = _export(client, {**base, "output_dir": str(tmp_path / "b"), "inpaint_value": 1e9})
+    assert CbfImage().read(str(huge[0])).data[0, 1] == 65535
+    bad = client.post("/api/export/data/start", json={**base, "inpaint_method": "blur"})
+    assert bad.status_code == 422

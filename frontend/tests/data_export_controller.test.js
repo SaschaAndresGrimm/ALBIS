@@ -265,6 +265,8 @@ describe("data_export_controller, live sources", () => {
       inpaintEnabled: true,
       inpaintSaturated: true,
       inpaintMargin: 2,
+      inpaintMethod: "fixed",
+      inpaintValue: 12,
       maskAvailable: true,
       maskRaw: new Uint32Array([0, 1, 0, 0]),
       maskShape: [2, 2],
@@ -273,11 +275,14 @@ describe("data_export_controller, live sources", () => {
     controller.openDialog();
     expect(elements.dataExportInpaint.checked).toBe(true);
     expect(elements.dataExportInpaintLabel.textContent).toBe(
-      EN["data_export.inpaint_saturated"] + EN["data_export.inpaint_margin"].replace("{{margin}}", "2"),
+      EN["data_export.inpaint_saturated"] +
+        EN["data_export.inpaint_margin"].replace("{{margin}}", "2") +
+        EN["data_export.inpaint_fixed"].replace("{{value}}", "12"),
     );
     await controller.startExport();
     expect(sent[0].meta.inpaint).toBe("saturated");
     expect(sent[0].meta.inpaint_margin).toBe(2);
+    expect(sent[0].meta).toMatchObject({ inpaint_method: "fixed", inpaint_value: 12 });
     expect(sent[0].maskBytes).toBe(16);
     // Unticked here: written as measured, no mask sent.
     elements.dataExportInpaint.checked = false;

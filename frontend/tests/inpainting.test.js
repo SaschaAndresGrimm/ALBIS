@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createInpaintCache, createInpaintView, growHoles, inpaint, inpaintHoles } from "../modules/inpainting.js";
+import { createInpaintCache, createInpaintView, fillHoles, growHoles, inpaint, inpaintHoles } from "../modules/inpainting.js";
 import { computeGlobalStats, createRoiAccumulator } from "../modules/roi_stats_engine.js";
 
 const { cases, growth } = JSON.parse(fs.readFileSync(path.join(process.cwd(), "tests", "fixtures", "inpainting_cases.json"), "utf8"));
@@ -100,5 +100,27 @@ describe("inpainting", () => {
     expect(inpaintHoles({ data, width: 5, height: 5, mask }).count).toBe(1);
     expect(inpaintHoles({ data, width: 5, height: 5, mask, margin: 1 }).count).toBe(9);
     expect(inpaintHoles({ data, width: 5, height: 5, mask, margin: 9 }).count).toBe(25);
+  });
+
+  it("sets every hole to one value with the fixed method, and nothing else", () => {
+    const data = new Uint32Array([5, 9, 6, 8]);
+    const holes = new Uint8Array([0, 1, 0, 1]);
+    expect([...fillHoles(data, 2, 2, holes, "fixed", 42)]).toEqual([5, 42, 6, 42]);
+    expect([...fillHoles(data, 2, 2, holes, "fixed", "junk")]).toEqual([5, 0, 6, 0]);
+    expect(data[1]).toBe(9);
+    const cache = createInpaintCache();
+    const base = { data, width: 2, height: 2, mask: new Uint32Array([0, 1, 0, 1]) };
+    expect(cache.get({ ...base, method: "fixed", value: 3 }).data[1]).toBe(3);
+    expect(cache.get({ ...base, method: "fixed", value: 7 }).data[1]).toBe(7);
+  });
+});
+
+describe("Background and Foreground", () => {
+  it("copy a contrast level as a sensible number: whole counts for integer data", async () => {
+    const { levelValue } = await import("../modules/inpainting_controller.js");
+    expect(levelValue(7.99992)).toBe(8);
+    expect(levelValue(156.419)).toBe(156);
+    expect(levelValue(0.0123456, false)).toBe(0.01235);
+    expect(levelValue(Number.NaN)).toBe(0);
   });
 });

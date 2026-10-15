@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -74,6 +75,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             overwrite=overwrite,
             inpaint=payload.inpaint,
             inpaint_margin=payload.inpaint_margin,
+            inpaint_method=payload.inpaint_method,
+            inpaint_value=payload.inpaint_value,
         )
         return DataExportStartResponse(job_id=job_id, status="queued")
 
@@ -91,7 +94,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         live history. `meta` is JSON: `dtype`, `shape`, `name`, `format`,
         `output_dir`, `overwrite`, `metadata` for the header, and `inpaint`
         ("off", "defects" or "saturated") and `inpaint_margin` (0-5 pixels
-        around each flagged one), with the source's pixel `mask`
+        around each flagged one), `inpaint_method` ("interpolate" or "fixed") and
+        `inpaint_value` (the fixed value), with the source's pixel `mask`
         (uint32) sent alongside to say which pixels to fill.
         """
         try:
@@ -112,6 +116,15 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             raise HTTPException(status_code=400, detail="Invalid inpaint margin") from exc
         if not 0 <= inpaint_margin <= 5:
             raise HTTPException(status_code=400, detail="Invalid inpaint margin")
+        inpaint_method = str(config.get("inpaint_method") or "interpolate")
+        if inpaint_method not in {"interpolate", "fixed"}:
+            raise HTTPException(status_code=400, detail="Invalid inpaint method")
+        try:
+            inpaint_value = float(config.get("inpaint_value") or 0)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid inpaint value") from exc
+        if not math.isfinite(inpaint_value):
+            raise HTTPException(status_code=400, detail="Invalid inpaint value")
         path = deps.write_live_frame(
             payload=payload,
             dtype=str(config.get("dtype") or ""),
@@ -124,6 +137,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             mask=mask.file.read() if mask is not None else None,
             inpaint=inpaint,
             inpaint_margin=inpaint_margin,
+            inpaint_method=inpaint_method,
+            inpaint_value=inpaint_value,
         )
         return DataExportFrameResponse(path=str(path))
 

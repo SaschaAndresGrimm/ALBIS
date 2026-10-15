@@ -61,6 +61,33 @@ function medianOf(k) {
 
 export const MAX_INPAINT_MARGIN = 5;
 
+/** How holes are filled: interpolated from their neighbours, or one value. */
+export const INPAINT_METHODS = ["interpolate", "fixed"];
+
+export function normalizeInpaintMethod(value) {
+  return INPAINT_METHODS.includes(value) ? value : "interpolate";
+}
+
+/** A fixed fill value: any finite number, else 0. */
+export function normalizeInpaintValue(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * A filled copy of `data` (Float32Array) by `method`: "interpolate" (see
+ * inpaint) or "fixed", every hole set to `value`. Holes as from inpaintHoles.
+ */
+export function fillHoles(data, width, height, holes, method = "interpolate", value = 0) {
+  if (normalizeInpaintMethod(method) === "fixed") {
+    const out = Float32Array.from(data.subarray ? data.subarray(0, width * height) : data);
+    const fill = normalizeInpaintValue(value);
+    for (let i = 0; i < out.length; i += 1) if (holes[i]) out[i] = fill;
+    return out;
+  }
+  return inpaint(data, width, height, holes);
+}
+
 /** Clamp a margin to whole pixels in 0..MAX_INPAINT_MARGIN. */
 export function normalizeInpaintMargin(value) {
   const n = Math.round(Number(value));
@@ -263,12 +290,16 @@ export function createInpaintCache() {
   let key = null;
   let result = { data: null, filled: 0 };
   return {
-    get({ data, width, height, margin = 0, mask = null, inDataFlags = false, satMax = null, fillSaturated = false, isSaturatedValue }) {
+    get({ data, width, height, margin = 0, method = "interpolate", value = 0, mask = null, inDataFlags = false, satMax = null, fillSaturated = false, isSaturatedValue }) {
       if (!data || !width || !height) return { data: null, filled: 0 };
-      const next = [data, width, height, margin, mask, inDataFlags, satMax, fillSaturated];
+      const next = [data, width, height, margin, method, value, mask, inDataFlags, satMax, fillSaturated];
       if (key && next.every((part, i) => part === key[i])) return result;
       const { holes, count } = inpaintHoles({ data, width, height, margin, mask, inDataFlags, satMax, fillSaturated, isSaturatedValue });
-      result = { data: count ? inpaint(data, width, height, holes) : null, filled: count, holes: count ? holes : null };
+      result = {
+        data: count ? fillHoles(data, width, height, holes, method, value) : null,
+        filled: count,
+        holes: count ? holes : null,
+      };
       key = next;
       return result;
     },
@@ -296,8 +327,9 @@ export function createInpaintView({ state, getActiveSaturationMax, isSaturatedVa
     /** The same, for another frame of the same source (the GIF export). */
     frameFor(data, satMax) {
       if (!state.inpaintEnabled || !data) return null;
-      const { holes, count } = inpaintHoles({ ...inpaintParams(state, data, satMax), isSaturatedValue });
-      return count ? inpaint(data, state.width, state.height, holes) : null;
+      const params = inpaintParams(state, data, satMax);
+      const { holes, count } = inpaintHoles({ ...params, isSaturatedValue });
+      return count ? fillHoles(data, state.width, state.height, holes, params.method, params.value) : null;
     },
     clear() {
       cache.clear();
@@ -321,5 +353,7 @@ function inpaintParams(state, data, satMax) {
     satMax: Number.isFinite(satMax) ? satMax : null,
     fillSaturated: Boolean(state.inpaintSaturated),
     margin: normalizeInpaintMargin(state.inpaintMargin),
+    method: normalizeInpaintMethod(state.inpaintMethod),
+    value: normalizeInpaintValue(state.inpaintValue),
   };
 }

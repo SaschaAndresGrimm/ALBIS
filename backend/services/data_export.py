@@ -80,6 +80,8 @@ class DataExportService:
         overwrite: bool,
         inpaint: str = "off",
         inpaint_margin: int = 0,
+        inpaint_method: str = "interpolate",
+        inpaint_value: float = 0.0,
     ) -> str:
         job_id = uuid.uuid4().hex
         job_data = {
@@ -106,6 +108,8 @@ class DataExportService:
                 "overwrite": bool(overwrite),
                 "inpaint": inpaint,
                 "inpaint_margin": inpaint_margin,
+                "inpaint_method": inpaint_method,
+                "inpaint_value": inpaint_value,
             },
         }
         with self._lock:
@@ -129,6 +133,8 @@ class DataExportService:
                 "overwrite": bool(overwrite),
                 "inpaint": inpaint,
                 "inpaint_margin": inpaint_margin,
+                "inpaint_method": inpaint_method,
+                "inpaint_value": inpaint_value,
             },
             daemon=True,
         )
@@ -373,6 +379,8 @@ class DataExportService:
         saturated_value: int | None = None,
         inpaint: str = "off",
         inpaint_margin: int = 0,
+        inpaint_method: str = "interpolate",
+        inpaint_value: float = 0.0,
     ) -> tuple[np.ndarray, int]:
         """The frame as written, and how many of its pixels were inpainted.
 
@@ -430,7 +438,10 @@ class DataExportService:
             holes = grow_holes(holes, inpaint_margin)
             filled = int(np.count_nonzero(holes))
             if filled:
-                values = inpaint_frame(frame, holes)[holes]
+                if inpaint_method == "fixed":
+                    values = np.full(filled, float(inpaint_value))
+                else:
+                    values = inpaint_frame(frame, holes)[holes]
                 frame = frame.copy()
                 if np.issubdtype(frame.dtype, np.integer):
                     info = np.iinfo(frame.dtype)
@@ -962,6 +973,8 @@ class DataExportService:
         overwrite: bool,
         inpaint: str = "off",
         inpaint_margin: int = 0,
+        inpaint_method: str = "interpolate",
+        inpaint_value: float = 0.0,
     ) -> Path:
         suffix = ".cbf" if output_format == "cbf" else ".tiff"
         path = out_dir / f"{name}{suffix}"
@@ -974,6 +987,8 @@ class DataExportService:
             saturated_value=saturated_value,
             inpaint=inpaint,
             inpaint_margin=inpaint_margin,
+            inpaint_method=inpaint_method,
+            inpaint_value=inpaint_value,
         )
         if filled:
             # The header says which pixels hold values that were not measured.
@@ -981,6 +996,8 @@ class DataExportService:
                 **(metadata or {}),
                 "inpainted": inpaint,
                 "inpainted_margin": int(inpaint_margin),
+                "inpainted_method": inpaint_method,
+                "inpainted_value": float(inpaint_value),
             }
         if output_format == "cbf":
             self._deps.write_cbf(path, frame, metadata)
@@ -1049,6 +1066,8 @@ class DataExportService:
         mask: bytes | None = None,
         inpaint: str = "off",
         inpaint_margin: int = 0,
+        inpaint_method: str = "interpolate",
+        inpaint_value: float = 0.0,
     ) -> Path:
         """Write one frame sent by the browser; returns the file written.
 
@@ -1107,6 +1126,8 @@ class DataExportService:
             overwrite=overwrite,
             inpaint=inpaint,
             inpaint_margin=inpaint_margin,
+            inpaint_method=inpaint_method,
+            inpaint_value=inpaint_value,
         )
 
     @staticmethod
@@ -1184,6 +1205,8 @@ class DataExportService:
         overwrite: bool,
         inpaint: str = "off",
         inpaint_margin: int = 0,
+        inpaint_method: str = "interpolate",
+        inpaint_value: float = 0.0,
     ) -> list[str]:
         if not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
@@ -1259,6 +1282,8 @@ class DataExportService:
                             overwrite=overwrite,
                             inpaint=inpaint,
                             inpaint_margin=inpaint_margin,
+                            inpaint_method=inpaint_method,
+                            inpaint_value=inpaint_value,
                         )
                         outputs.append(str(out_file))
                         completed += 1
@@ -1287,6 +1312,8 @@ class DataExportService:
         overwrite: bool,
         inpaint: str = "off",
         inpaint_margin: int = 0,
+        inpaint_method: str = "interpolate",
+        inpaint_value: float = 0.0,
     ) -> list[str]:
         series_files, current_index = self._deps.resolve_series_files(source_path)
         if not series_files:
@@ -1322,6 +1349,8 @@ class DataExportService:
                 overwrite=overwrite,
                 inpaint=inpaint,
                 inpaint_margin=inpaint_margin,
+                inpaint_method=inpaint_method,
+                inpaint_value=inpaint_value,
             )
             outputs.append(str(out_file))
             self._update_job(
@@ -1348,6 +1377,8 @@ class DataExportService:
         overwrite: bool,
         inpaint: str = "off",
         inpaint_margin: int = 0,
+        inpaint_method: str = "interpolate",
+        inpaint_value: float = 0.0,
     ) -> None:
         try:
             self._update_job(job_id, status="running", progress=0.0, message="Resolving source")
@@ -1374,6 +1405,8 @@ class DataExportService:
                     overwrite=overwrite,
                     inpaint=inpaint,
                     inpaint_margin=inpaint_margin,
+                    inpaint_method=inpaint_method,
+                    inpaint_value=inpaint_value,
                 )
             else:
                 outputs = self._run_image_series_export(
@@ -1388,6 +1421,8 @@ class DataExportService:
                     overwrite=overwrite,
                     inpaint=inpaint,
                     inpaint_margin=inpaint_margin,
+                    inpaint_method=inpaint_method,
+                    inpaint_value=inpaint_value,
                 )
             self._update_job(
                 job_id,

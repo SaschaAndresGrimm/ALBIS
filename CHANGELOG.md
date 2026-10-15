@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Inpainting can set a fixed value instead of interpolating.** A **Method** choice in the Inpainting section: **Interpolate** (as before, the default) or **Fixed value**, which sets every flagged pixel to one **Value** — the background, say, so the gaps disappear into it. **Background** and **Foreground** copy the contrast's current low or high end into the field once — as a whole count for integer data, four significant figures for float data, rather than an auto-contrast percentile like 7.99992 — so a later contrast change does not alter what is filled or exported. Saturated pixels and the margin apply to both methods. The image, statistics and PNG/GIF exports follow; Convert Dataset sends `inpaint_method` and `inpaint_value` (checked on the server; integer files clip the value to their type), its label adds ", set to N", and the TIFF/CBF header says "set to N by ALBIS".
+
 ## [0.29.1] - 2026-10-15
 
 ### Added

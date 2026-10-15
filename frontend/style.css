@@ -3382,6 +3382,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 
 .range-row input,
 .inpaint-margin-field input[type="number"],
+.inpaint-value input[type="number"],
+.inpaint-method select,
 .field select,
 .field input[type="number"],
 .field input[type="range"],
@@ -8058,4 +8060,39 @@ button.browse-details-header-cell[aria-sort="descending"] {
   min-height: 26px;
   padding: 2px 6px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Inpainting: the method, and the fixed value with its two quick picks. */
+.inpaint-method,
+.inpaint-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inpaint-method {
+  margin-right: 8px;
+}
+
+.inpaint-method select {
+  width: 130px;
+  min-height: 26px;
+  padding: 2px 6px;
+}
+
+.inpaint-value input[type="number"] {
+  width: 96px;
+  min-height: 26px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.inpaint-value-row[hidden] {
+  display: none;
+}
+
+.inpaint-value-row .inpaint-value-btn {
+  min-height: 26px;
+  padding: 2px 10px;
+  font-size: 12px;
 }

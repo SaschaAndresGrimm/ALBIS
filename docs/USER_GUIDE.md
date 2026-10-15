@@ -199,6 +199,12 @@ An edge or a gradient in the sample carries straight through a gap. Filled
 pixels have no noise, so a filled gap looks a little smoother than its
 surroundings.
 
+- **Method:** **Interpolate** (the default) fills each pixel from its
+  neighbours as above. **Fixed value** sets them all to one **Value** instead —
+  for instance the background, so the gaps disappear into it. **Background**
+  and **Foreground** copy the contrast's current low or high end into the
+  field; the value then stays as it is when the contrast changes, so the same
+  settings always export the same file.
 - **Saturated pixels** fills those too. It is on by default; untick it to keep
   saturated pixels as they are, where they are real signal you want to see.
 - **Margin** also fills that many pixels around every flagged one (0–5 px, a

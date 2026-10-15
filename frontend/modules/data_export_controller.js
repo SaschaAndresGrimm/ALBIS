@@ -4,7 +4,7 @@
 
 import { t, getLanguage } from "./i18n.js";
 import { canExportData, isLiveExportSource, liveExportEntries } from "./command_availability.js";
-import { normalizeInpaintMargin } from "./inpainting.js";
+import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue } from "./inpainting.js";
 
 function fileStem(path) {
   const normalized = String(path || "").replace(/\\/g, "/");
@@ -442,6 +442,8 @@ export function createDataExportController({
       overwrite: Boolean(dataExportOverwrite?.checked),
       inpaint: inpaintChoice(),
       inpaint_margin: inpaintMargin(),
+      inpaint_method: normalizeInpaintMethod(state.inpaintMethod),
+      inpaint_value: normalizeInpaintValue(state.inpaintValue),
     };
     try {
       stopPolling();
@@ -533,6 +535,8 @@ export function createDataExportController({
           metadata: liveFrameMetadata(entry),
           inpaint,
           inpaint_margin: inpaintMargin(),
+          inpaint_method: normalizeInpaintMethod(state.inpaintMethod),
+          inpaint_value: normalizeInpaintValue(state.inpaintValue),
         }),
       );
       form.append("pixels", new Blob([new Uint8Array(data.buffer, data.byteOffset, data.byteLength)]), "frame.bin");
@@ -669,7 +673,10 @@ export function createDataExportController({
       const margin = normalizeInpaintMargin(state.inpaintMargin);
       dataExportInpaintLabel.textContent =
         t(state.inpaintSaturated ? "data_export.inpaint_saturated" : "data_export.inpaint") +
-        (margin ? t("data_export.inpaint_margin", { margin }) : "");
+        (margin ? t("data_export.inpaint_margin", { margin }) : "") +
+        (normalizeInpaintMethod(state.inpaintMethod) === "fixed"
+          ? t("data_export.inpaint_fixed", { value: normalizeInpaintValue(state.inpaintValue).toLocaleString() })
+          : "");
     }
     updateUi();
     openModal(dataExportModal, { focusTarget: dataExportFormat });
