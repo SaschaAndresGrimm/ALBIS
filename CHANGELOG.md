@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-10-15
+
 ### Added
 
 - **Inpainting can fill a margin around flagged pixels.** The pixels next to a gap or a defective pixel are often unreliable too. **Margin** (0–5 px, default 0) in the Inpainting section fills that many pixels around every flagged one as well — a square, so the 8 around a dead pixel at 1 px — and the fill starts beyond them. It applies to everything inpainting fills, gaps included, follows into the image, the statistics and the PNG/GIF exports, and into TIFF/CBF from Convert Dataset (`inpaint_margin`, 0–5, on the export and live-frame endpoints), whose header says "and N px around them". The option labels are shorter ("Saturated pixels", "Margin"), explained by the section's (?). **Saturated pixels** is now on by default: most images are inpainted to look whole, and saturated pixels break that as much as gaps; untick it to keep them.
@@ -1577,7 +1579,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.1...HEAD
+[0.29.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.26.5...v0.27.0
