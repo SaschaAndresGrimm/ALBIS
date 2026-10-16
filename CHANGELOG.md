@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-10-16
+
 ### Added
 
 - **Flatfield correction.** A new **Flatfield** section in the Analysis tab divides every image by a flat — an image of the beam with no sample — so the beam's profile cancels out, as imaging users asked for. **Use current image** keeps the frame on screen (a single image taken before a scan, say) as a TIFF in the data folder's `flatfields/`; **Choose file…** takes a TIFF or CBF. **Scale** is **Counts** (divided by the flat, times its mean; the default) or **Transmission** (0 to 1). Flat pixels that cannot be divided by — masked, zero, overflowing or below 5 % of the mean — and the frame's own gaps have no value; inpainting, when on, fills them after the correction. The image, the histogram and auto contrast, the ROI statistics, PNG/GIF exports and live images follow; the footer shows **Flatfielded**, and a flat of the wrong size is not applied. **Convert Dataset** has a **Flatfield** box: TIFF holds the corrected values as 32-bit floats, CBF only the Counts scale; the header names the flat and the scale. Both the browser's and the server's copies of the division are held to the same test cases.
@@ -1593,7 +1595,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.2...v0.30.0
 [0.29.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.28.0...v0.29.0
