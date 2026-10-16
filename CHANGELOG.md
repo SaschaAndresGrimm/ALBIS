@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.30.1] - 2026-10-16
+
 ### Fixed
 
 - **Pixel values follow flatfield correction and inpainting.** The numbers drawn on the pixels when zoomed in, and in PNG and GIF exports with pixel values, still showed the measured data while the image, contrast and statistics were corrected. They now show the values as drawn — corrected, and filled where inpainting filled a pixel — while gap, defective and saturated markers still come from the measured data. The readout under the cursor shows both: "Value 0.437 (measured 1234)".
@@ -1599,7 +1601,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.1...HEAD
+[0.30.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.2...v0.30.0
 [0.29.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.0...v0.29.1
