@@ -630,3 +630,100 @@ def test_inpainted_export_can_set_one_value_clipped_to_the_type(tmp_path: Path) 
     assert CbfImage().read(str(huge[0])).data[0, 1] == 65535
     bad = client.post("/api/export/data/start", json={**base, "inpaint_method": "blur"})
     assert bad.status_code == 422
+
+
+# ---- Flatfield: every frame divided by a flat --------------------------------
+
+
+def _flat_source(tmp_path: Path) -> tuple[Path, Path]:
+    flat = np.full((4, 6), 1000, dtype=np.uint32)
+    flat[:, :3] = 500  # half the beam is half as bright
+    flat[0, 5] = 0  # nothing to divide by
+    flat_path = tmp_path / "flat.tiff"
+    tifffile.imwrite(flat_path, flat)
+    source = tmp_path / "scan.h5"
+    data = np.zeros((1, 4, 6), dtype=np.uint32)
+    data[0, :, :3] = 250
+    data[0, :, 3:] = 500
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=data)
+    return source, flat_path
+
+
+def test_flatfielded_export_divides_by_the_flat(tmp_path: Path) -> None:
+    source, flat_path = _flat_source(tmp_path)
+    client = _client()
+    base = {"file": str(source), "dataset": "/entry/data/data", "flatfield": str(flat_path)}
+    out = _export(client, {**base, "format": "tiff", "output_dir": str(tmp_path / "t")})
+    image = tifffile.imread(out[0])
+    assert image.dtype == np.float32
+    mean = (500 * 12 + 1000 * 11) / 23
+    # Corrected, both halves are alike: half the counts under half the beam.
+    np.testing.assert_allclose(image[1], [0.5 * mean] * 6, rtol=1e-5)
+    assert image[0, 5] == -2  # nothing to divide by, not inpainted
+    description = tifffile.TiffFile(out[0]).pages[0].description
+    assert "# Flatfield: divided by flat.tiff (counts, times its mean) by ALBIS" in description
+
+    transmission = _export(
+        client,
+        {
+            **base,
+            "format": "tiff",
+            "flatfield_scale": "transmission",
+            "inpaint": "defects",
+            "output_dir": str(tmp_path / "tr"),
+        },
+    )
+    filled = tifffile.imread(transmission[0])
+    np.testing.assert_allclose(filled, 0.5, rtol=1e-5)  # the hole inpainted too
+
+    counts_cbf = _export(client, {**base, "format": "cbf", "output_dir": str(tmp_path / "c")})
+    assert CbfImage().read(str(counts_cbf[0])).data[1, 0] == round(0.5 * mean)
+
+
+def test_flatfield_refusals(tmp_path: Path) -> None:
+    source, flat_path = _flat_source(tmp_path)
+    client = _client()
+    base = {"file": str(source), "dataset": "/entry/data/data", "output_dir": str(tmp_path / "o")}
+    cbf = client.post(
+        "/api/export/data/start",
+        json={
+            **base,
+            "format": "cbf",
+            "flatfield": str(flat_path),
+            "flatfield_scale": "transmission",
+        },
+    )
+    assert _wait_for_job(client, cbf.json()["job_id"])["status"] == "error"
+    small = tmp_path / "small.tiff"
+    tifffile.imwrite(small, np.ones((2, 2), dtype=np.uint16))
+    wrong = client.post("/api/export/data/start", json={**base, "flatfield": str(small)})
+    job = _wait_for_job(client, wrong.json()["job_id"])
+    assert job["status"] == "error" and "size" in str(job["error"])
+
+
+def test_the_current_image_is_kept_as_a_flatfield(tmp_path: Path, monkeypatch) -> None:
+    import json
+    from dataclasses import replace
+
+    from backend.app import data_export
+
+    # The service's own data folder, not the real one.
+    monkeypatch.setattr(data_export, "_deps", replace(data_export._deps, data_dir=tmp_path))
+    client = _client()
+    data = np.arange(12, dtype=np.uint16).reshape(3, 4) + 100
+    response = client.post(
+        "/api/flatfield/save",
+        data={"meta": json.dumps({"dtype": data.dtype.str, "shape": [3, 4]})},
+        files={"pixels": ("flat.bin", data.tobytes(), "application/octet-stream")},
+    )
+    assert response.status_code == 200, response.text
+    path = Path(response.json()["path"])
+    assert path.parent == tmp_path / "flatfields" and path.name.startswith("flat_")
+    assert np.array_equal(tifffile.imread(path), data)
+    bad = client.post(
+        "/api/flatfield/save",
+        data={"meta": json.dumps({"dtype": "<u2", "shape": [3, 5]})},
+        files={"pixels": ("flat.bin", data.tobytes(), "application/octet-stream")},
+    )
+    assert bad.status_code == 400

@@ -24,6 +24,7 @@ class DataExportRouteDeps:
     get_data_export_job: Callable[[str], dict[str, Any] | None]
     cancel_data_export_job: Callable[[str], bool]
     write_live_frame: Callable[..., Path]
+    save_flatfield: Callable[..., Path]
 
 
 def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None:
@@ -77,6 +78,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             inpaint_margin=payload.inpaint_margin,
             inpaint_method=payload.inpaint_method,
             inpaint_value=payload.inpaint_value,
+            flatfield=payload.flatfield.strip(),
+            flatfield_scale=payload.flatfield_scale,
         )
         return DataExportStartResponse(job_id=job_id, status="queued")
 
@@ -125,6 +128,10 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             raise HTTPException(status_code=400, detail="Invalid inpaint value") from exc
         if not math.isfinite(inpaint_value):
             raise HTTPException(status_code=400, detail="Invalid inpaint value")
+        flatfield = str(config.get("flatfield") or "").strip()
+        flatfield_scale = str(config.get("flatfield_scale") or "counts")
+        if flatfield_scale not in {"counts", "transmission"}:
+            raise HTTPException(status_code=400, detail="Invalid flatfield scale")
         path = deps.write_live_frame(
             payload=payload,
             dtype=str(config.get("dtype") or ""),
@@ -139,6 +146,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             inpaint_margin=inpaint_margin,
             inpaint_method=inpaint_method,
             inpaint_value=inpaint_value,
+            flatfield=flatfield,
+            flatfield_scale=flatfield_scale,
         )
         return DataExportFrameResponse(path=str(path))
 
@@ -168,3 +177,28 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             status=str(current.get("status") or status or "running"),
             accepted=bool(accepted),
         )
+
+    # Plain `def`, like the live frames: writing a file is blocking I/O.
+    @app.post("/api/flatfield/save", response_model=DataExportFrameResponse)
+    def flatfield_save(
+        meta: str = Form("{}"),
+        pixels: UploadFile = File(...),
+    ) -> DataExportFrameResponse:
+        """Keep a frame sent by the browser as a flatfield: a TIFF in the data
+        folder's `flatfields/`, which the viewer and every export divide by.
+        `meta` is JSON: `dtype` and `shape`."""
+        try:
+            config = json.loads(meta or "{}")
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid meta JSON") from exc
+        if not isinstance(config, dict):
+            raise HTTPException(status_code=400, detail="Invalid meta JSON")
+        payload = pixels.file.read()
+        if not payload:
+            raise HTTPException(status_code=400, detail="Empty pixel data")
+        path = deps.save_flatfield(
+            payload=payload,
+            dtype=str(config.get("dtype") or ""),
+            shape=config.get("shape") or [],
+        )
+        return DataExportFrameResponse(path=str(path))

@@ -332,6 +332,7 @@
                 <span class="viewer-footer-pill viewer-footer-status" id="status" role="status" aria-live="polite" data-i18n="common.idle">Idle</span>
                 <span class="viewer-footer-pill" id="footer-file" data-i18n="viewer.footer.file.empty">No file</span>
                 <span class="viewer-footer-pill" id="footer-zoom" data-i18n="toolbar.footer.zoom" data-i18n-vars='{"zoom":"1.0"}'>Zoom 1.0x</span>
+                <span class="viewer-footer-pill viewer-footer-inpainted" id="footer-flatfielded" hidden data-i18n="flatfield.footer" data-i18n-title="flatfield.footer_title" title="Every image is divided by the flat">Flatfielded</span>
                 <span class="viewer-footer-pill viewer-footer-inpainted" id="footer-inpainted" hidden data-i18n="inpaint.footer" data-i18n-title="inpaint.footer_title" title="Gaps and defective pixels are filled from their neighbours">Inpainted</span>
               </div>
               <div class="viewer-footer-side">
@@ -1484,6 +1485,38 @@
               </div>
             </section>
 
+            <section class="panel-section is-collapsed" data-section="flatfield">
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main">
+                  <label class="section-switch">
+                    <input id="flat-toggle" type="checkbox"
+                      data-i18n-aria-label="flatfield.toggle_label"
+                      aria-label="Enable flatfield correction" />
+                    <span class="section-switch-track" aria-hidden="true"></span>
+                  </label>
+                  <span data-i18n="flatfield.section_title">Flatfield</span>
+                  <span class="section-summary" id="summary-flat" data-i18n="summary.off">Off</span>
+                </span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="section-state is-empty" id="flat-state" role="status" aria-live="polite" data-i18n="flatfield.state.enable_hint">
+                Switch on to divide every image by a flat.
+              </div>
+              <div class="check-row">
+                <span data-i18n="flatfield.flat">Flat</span>
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="flat-use-current" data-i18n="flatfield.use_current">Use current image</button>
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="flat-choose" data-i18n="flatfield.choose_file">Choose file…</button>
+                <label class="inpaint-method">
+                  <span data-i18n="flatfield.scale">Scale</span>
+                  <select id="flat-scale">
+                    <option value="counts" data-i18n="flatfield.scale.counts">Counts</option>
+                    <option value="transmission" data-i18n="flatfield.scale.transmission">Transmission</option>
+                  </select>
+                </label>
+                <button type="button" class="info-tip" data-info-key="info.flatfield" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
+              </div>
+            </section>
+
             <section class="panel-section is-collapsed" data-section="inpainting">
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
@@ -1860,6 +1893,10 @@
             <label class="checkbox data-export-overwrite">
               <input id="data-export-overwrite" type="checkbox" />
               <span data-i18n="data_export.overwrite">Overwrite existing files</span>
+            </label>
+            <label class="checkbox data-export-flatfield">
+              <input id="data-export-flatfield" type="checkbox" />
+              <span id="data-export-flatfield-label" data-i18n="data_export.flatfield">Flatfield: divide by the flat</span>
             </label>
             <label class="checkbox data-export-inpaint">
               <input id="data-export-inpaint" type="checkbox" />

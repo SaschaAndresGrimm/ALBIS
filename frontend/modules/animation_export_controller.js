@@ -624,9 +624,9 @@ export function createAnimationExportController({
           compositeOverlay = createOverlayCompositor(sources, labels, safeRegion, ow, oh, layout);
         }
       }
-      // Inpainting on: filled like the frame on screen (same shape, same mask).
+      // Flatfield or inpainting on: processed like the frame on screen.
       const filled = frame.width === state.width && frame.height === state.height ? inpaintFrame(frame.data) : null;
-      frameToIndices(filled || frame.data, frame.width, frame.height, safeRegion, indices, ow, oh, layout, Boolean(filled));
+      frameToIndices(filled || frame.data, frame.width, frame.height, safeRegion, indices, ow, oh, layout, Boolean(filled && state.inpaintEnabled));
       compositeOverlay?.(indices, frame);
       writer.addFrame(indices, delayCs);
     }

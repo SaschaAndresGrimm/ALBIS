@@ -542,6 +542,11 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
             "they do not describe a combined frame"
         )
 
+    flat = _export_text(metadata or {}, "flatfield")
+    if flat:
+        scale = (metadata or {}).get("flatfield_scale")
+        scale_text = "transmission, 0 to 1" if scale == "transmission" else "counts, times its mean"
+        lines.append(f"# Flatfield: divided by {flat} ({scale_text}) by ALBIS")
     inpainted = (metadata or {}).get("inpainted")
     if inpainted in {"defects", "saturated"}:
         # Values that were not measured: say so, and which.

@@ -331,14 +331,15 @@ export function createRoiAccumulator({
   maskSaturatedEnabled = false,
   isSaturatedValue = () => false,
   capacity = 0,
-  // With inpainting on: { data, holes } from inpainting.js. A filled pixel is
-  // still counted as the gap or defective pixel it is, but its filled value
-  // joins the statistics, as it joins the image.
+  // The frame as shown, from inpainting.js: { data, holes }. Every value is
+  // taken from `data` (flatfield-corrected, inpainted); a pixel inpainting
+  // filled (`holes`) is still counted as the gap or defective pixel it is, but
+  // its filled value joins the statistics, as it joins the image.
   fill = null,
 }) {
   const need = Math.max(1, Math.ceil(capacity));
   const fillData = fill?.data || null;
-  const fillHoles = fillData ? fill.holes : null;
+  const fillHoles = fillData ? fill.holes || null : null;
   if (!roiValueScratch || roiValueScratch.length < need) {
     roiValueScratch = new Float64Array(need);
   }
@@ -381,6 +382,11 @@ export function createRoiAccumulator({
           if (maskSaturatedEnabled && isSaturatedValue(raw, satMax)) return Number.NaN;
         }
         if (!Number.isFinite(raw)) return Number.NaN;
+        if (fillData !== null) {
+          // Corrected: NaN where the flat had nothing to divide by.
+          value = fillData[index];
+          if (!Number.isFinite(value)) return Number.NaN;
+        }
       }
       values[acc.count] = value;
       acc.count += 1;
@@ -455,7 +461,7 @@ export function computeGlobalStats(params) {
   } = params;
   if (!dataRaw) return null;
   const fillData = fill?.data || null;
-  const fillHoles = fillData ? fill.holes : null;
+  const fillHoles = fillData ? fill.holes || null : null;
 
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -482,6 +488,7 @@ export function computeGlobalStats(params) {
     if (fillHoles !== null && fillHoles[i]) return true;
     const value = dataRaw[i];
     if (!Number.isFinite(value)) return false;
+    if (fillData !== null && !Number.isFinite(fillData[i])) return false;
     if (!useMasking) return true;
     return !applyMaskToValue(value, hasMask ? maskRaw[i] : null, {
       satMax,
@@ -534,13 +541,16 @@ export function computeGlobalStats(params) {
       if (gap || defective) continue;
       if (maskSaturatedEnabled && isSaturatedValue(value, satMax)) continue;
     }
+    // Flatfield-corrected: the shown value, NaN where the flat had none.
+    const shown = fillData !== null ? fillData[i] : value;
+    if (!Number.isFinite(shown)) continue;
     count += 1;
-    sum += value;
-    if (value < min) min = value;
-    if (value > max) max = value;
-    const delta = value - mean;
+    sum += shown;
+    if (shown < min) min = shown;
+    if (shown > max) max = shown;
+    const delta = shown - mean;
     mean += delta / count;
-    m2 += delta * (value - mean);
+    m2 += delta * (shown - mean);
   }
 
   if (count === 0) {
@@ -585,7 +595,7 @@ export function computeGlobalStats(params) {
     let written = 0;
     for (let i = 0; i < dataRaw.length && written < count; i += 1) {
       if (!isAccepted(i)) continue;
-      selectionScratch[written] = fillHoles !== null && fillHoles[i] ? fillData[i] : dataRaw[i];
+      selectionScratch[written] = fillData !== null ? fillData[i] : dataRaw[i];
       written += 1;
     }
     median = written ? computeMedian(selectionScratch.subarray(0, written)) : 0;

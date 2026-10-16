@@ -186,6 +186,16 @@ function createMaskState() {
     maskAvailable: false,
     maskEnabled: false,
     maskSaturatedEnabled: true,
+    // Flatfield (Analysis tab): every frame divided by a flat, the image
+    // file at flatPath (shape flatShape), on the "counts" or "transmission"
+    // scale. The prepared flat lives in flatfield_controller.js.
+    flatEnabled: false,
+    flatScale: "counts",
+    flatPath: "",
+    flatShape: null,
+    // The corrected frame's statistics, for the histogram (state.stats stays
+    // the raw frame's).
+    displayStats: null,
     // Inpainting (Analysis tab): gaps and defective pixels, and saturated
     // ones when asked, filled from their neighbours for display and export.
     inpaintEnabled: false,

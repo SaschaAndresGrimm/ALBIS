@@ -23,6 +23,7 @@
  * are held to the same cases in tests/fixtures/inpainting_cases.json.
  */
 
+import { applyFlat, flatFits } from "./flatfield.js";
 import { DATA_DEFECTIVE_VALUE, DATA_GAP_VALUE, usesInDataPixelFlags } from "./roi_stats_engine.js";
 
 const MAX_ROUNDS = 8;
@@ -143,6 +144,8 @@ export function inpaintHoles({
   width = 0,
   height = 0,
   margin = 0,
+  // Pixels to fill besides the flagged ones (a flat's unusable pixels).
+  extraHoles = null,
   mask = null,
   inDataFlags = false,
   satMax = null,
@@ -164,6 +167,14 @@ export function inpaintHoles({
     if (hole) {
       holes[i] = 1;
       count += 1;
+    }
+  }
+  if (extraHoles && extraHoles.length === n) {
+    for (let i = 0; i < n; i += 1) {
+      if (extraHoles[i] && !holes[i]) {
+        holes[i] = 1;
+        count += 1;
+      }
     }
   }
   if (count && margin > 0 && width * height === n) count = growHoles(holes, width, height, margin);
@@ -311,28 +322,70 @@ export function createInpaintCache() {
 }
 
 /**
- * The viewer's inpainted frame: `frame()` is null while inpainting is off,
- * else `{ data, holes, filled }` for the frame on screen -- `data` null when
- * it has nothing to fill. Everything that shows or measures the image (the
- * renderer, the ROI statistics, the PNG and GIF exports) asks here, so they
- * all see the same frame, worked out once.
+ * The frame as the viewer shows it: raw, divided by the flat when flatfield
+ * correction is on, then inpainted when inpainting is on. `frame()` is null
+ * while both are off, else `{ data, holes, filled, flatfielded, inpainted }`:
+ * `data` the processed frame (null when there is nothing to change), `holes`
+ * the pixels inpainting filled. Everything that shows or measures the image --
+ * the renderer, the histogram and contrast, the ROI statistics, the PNG and
+ * GIF exports -- asks here, so they all see the same frame, worked out once
+ * per frame and setting.
  */
-export function createInpaintView({ state, getActiveSaturationMax, isSaturatedValue }) {
-  const cache = createInpaintCache();
+export function createInpaintView({ state, getActiveSaturationMax, isSaturatedValue, getFlat = () => null }) {
+  let key = null;
+  let result = null;
+
+  function compute(raw, satMax) {
+    const params = inpaintParams(state, raw, satMax);
+    const flat = state.flatEnabled ? getFlat() : null;
+    const flatOn = flatFits(flat, state.width, state.height);
+    let data = null;
+    if (flatOn) {
+      // The frame's own flagged pixels have no value to divide: NaN, like the
+      // flat's holes, unless inpainting fills them below.
+      const { holes: rawHoles } = inpaintHoles({ ...params, margin: 0, fillSaturated: false, isSaturatedValue });
+      data = applyFlat(raw, flat, state.flatScale, rawHoles);
+    }
+    if (!state.inpaintEnabled) {
+      return { data, holes: null, filled: 0, flatfielded: flatOn, inpainted: false };
+    }
+    const { holes, count } = inpaintHoles({
+      ...params,
+      extraHoles: flatOn ? flat.holes : null,
+      isSaturatedValue,
+    });
+    if (!count) return { data, holes: null, filled: 0, flatfielded: flatOn, inpainted: true };
+    return {
+      data: fillHoles(data || raw, state.width, state.height, holes, params.method, params.value),
+      holes,
+      filled: count,
+      flatfielded: flatOn,
+      inpainted: true,
+    };
+  }
+
   return {
     frame() {
-      if (!state.inpaintEnabled || !state.dataRaw) return null;
-      return cache.get({ ...inpaintParams(state, state.dataRaw, getActiveSaturationMax()), isSaturatedValue });
+      if ((!state.inpaintEnabled && !state.flatEnabled) || !state.dataRaw) return null;
+      const satMax = getActiveSaturationMax();
+      const params = inpaintParams(state, state.dataRaw, satMax);
+      const next = [
+        state.dataRaw, params.mask, params.satMax, state.inpaintEnabled, params.fillSaturated, params.margin,
+        params.method, params.value, state.flatEnabled, getFlat(), state.flatScale,
+      ];
+      if (key && next.every((part, i) => part === key[i])) return result;
+      result = compute(state.dataRaw, satMax);
+      key = next;
+      return result;
     },
     /** The same, for another frame of the same source (the GIF export). */
     frameFor(data, satMax) {
-      if (!state.inpaintEnabled || !data) return null;
-      const params = inpaintParams(state, data, satMax);
-      const { holes, count } = inpaintHoles({ ...params, isSaturatedValue });
-      return count ? fillHoles(data, state.width, state.height, holes, params.method, params.value) : null;
+      if ((!state.inpaintEnabled && !state.flatEnabled) || !data) return null;
+      return compute(data, satMax).data;
     },
     clear() {
-      cache.clear();
+      key = null;
+      result = null;
     },
   };
 }

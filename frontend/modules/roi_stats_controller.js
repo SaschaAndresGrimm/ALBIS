@@ -501,6 +501,11 @@ function currentFill() {
   return frame?.data ? frame : null;
 }
 
+/** Whether the shown frame holds inpainted values (for the "filled" counters). */
+function currentlyFilled() {
+  return Boolean(currentFill()?.holes);
+}
+
 function sampleValue(ix, iy) {
   if (!state.dataRaw) return null;
   const idx = iy * state.width + ix;
@@ -514,17 +519,21 @@ function sampleValue(ix, iy) {
     state.maskShape[1] === state.width;
   const maskValue = hasMask ? state.maskRaw[idx] : null;
   const fill = currentFill();
-  if (fill && fill.holes[idx]) {
+  if (fill?.holes && fill.holes[idx]) {
     // Counted as the gap or defective pixel it is, measured as what it shows.
     return { value: fill.data[idx], skip: false, raw, maskValue, maskingApplied: false, filled: true };
   }
   const useMasking =
     (state.maskEnabled && hasMask) || state.maskSaturatedEnabled || usesValueFlags();
+  // Flatfield-corrected: the value shown, NaN where the flat had none.
+  const shown = (value) => (fill ? fill.data[idx] : value);
   if (useMasking) {
     const masked = applyMaskToValue(raw, maskValue, satMax);
-    return { value: masked.value, skip: masked.skip, raw, maskValue, maskingApplied: true };
+    const value = masked.skip ? masked.value : shown(masked.value);
+    return { value, skip: masked.skip || !Number.isFinite(value), raw, maskValue, maskingApplied: true };
   }
-  return { value: raw, skip: false, raw, maskValue, maskingApplied: false };
+  const value = shown(raw);
+  return { value, skip: !Number.isFinite(value), raw, maskValue, maskingApplied: false };
 }
 
 function isGapMaskedSample(sampled) {
@@ -626,7 +635,7 @@ function accumulateRoiPixelCounters(counters, sampled, satMax) {
 
 function updateRoiPixelCounterFields(counters) {
   // With inpainting on, these pixels hold filled values, not measured ones.
-  const filled = Boolean(currentFill());
+  const filled = currentlyFilled();
   const show = (count, wasFilled) =>
     counters ? (wasFilled && count > 0 ? t("inpaint.counter_filled", { count }) : `${count}`) : "-";
   setRoiText(roiTotalEl, counters ? `${counters.total}` : "-");

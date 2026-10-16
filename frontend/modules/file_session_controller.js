@@ -62,6 +62,7 @@ export function createFileSessionController({
     computeStats,
     updateGlobalStats,
     computeAutoLevels,
+    getContrastData = () => null,
     formatValue,
     alignMaskToFrame,
     syncMaskAvailability,
@@ -196,18 +197,10 @@ export function createFileSessionController({
       now - lastStatsRefreshAt >= PLAYBACK_STATS_REFRESH_MS;
     if (refreshStats) {
       state.stats = computeStats(data);
-      state.histogram = state.stats.hist;
+      refreshDisplayContrast(state.autoScale);
       updateGlobalStats();
       lastStatsRefreshAt = now;
       scheduleHistogram();
-    }
-
-    if (state.autoScale && state.stats && refreshStats) {
-      const levels = computeAutoLevels(data, state.stats.satMax ?? null);
-      state.min = levels.min;
-      state.max = levels.max;
-      if (minInput) minInput.value = formatValue(state.min);
-      if (maxInput) maxInput.value = formatValue(state.max);
     }
 
     if (metaRange && state.stats) {
@@ -231,6 +224,27 @@ export function createFileSessionController({
     schedulePixelOverlay();
     scheduleResolutionOverlay();
     schedulePeakFinder();
+  }
+
+  /**
+   * The histogram and, when `updateLevels`, the auto contrast, from the frame
+   * as shown. That is the raw frame, except with flatfield correction on: its
+   * values can sit on another scale altogether (transmission, 0 to 1), so the
+   * contrast must come from the corrected frame. `state.stats` stays the raw
+   * frame's, which the saturation value and the image info come from.
+   */
+  function refreshDisplayContrast(updateLevels) {
+    if (!state.dataRaw || !state.stats) return;
+    const shown = getContrastData();
+    state.displayStats = shown ? computeStats(shown) : null;
+    state.histogram = (state.displayStats || state.stats).hist;
+    if (updateLevels) {
+      const levels = computeAutoLevels(shown || state.dataRaw, shown ? null : (state.stats.satMax ?? null));
+      state.min = levels.min;
+      state.max = levels.max;
+      if (minInput) minInput.value = formatValue(state.min);
+      if (maxInput) maxInput.value = formatValue(state.max);
+    }
   }
 
   function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false, options = {}) {
@@ -308,5 +322,6 @@ export function createFileSessionController({
     closeCurrentFile,
     applyFrame,
     applyExternalFrame,
+    refreshDisplayContrast,
   };
 }

@@ -47,6 +47,7 @@ export function bindViewerControls({
     scheduleHistogram,
     handleContrastChanged,
     computeAutoLevels,
+    getContrastData,
     formatValue,
     updateGlobalStats,
     scheduleRoiUpdate,
@@ -92,7 +93,8 @@ export function bindViewerControls({
   autoScaleToggle.addEventListener("change", () => {
     state.autoScale = autoScaleToggle.checked;
     if (state.autoScale && state.dataRaw && state.stats) {
-      const levels = computeAutoLevels(state.dataRaw, state.stats.satMax ?? null);
+      const shown = getContrastData?.() || null;
+      const levels = computeAutoLevels(shown || state.dataRaw, shown ? null : (state.stats.satMax ?? null));
       state.min = levels.min;
       state.max = levels.max;
       minInput.value = formatValue(state.min);
@@ -124,7 +126,8 @@ export function bindViewerControls({
     if (!state.stats || !state.dataRaw) return;
     state.autoScale = true;
     autoScaleToggle.checked = true;
-    const levels = computeAutoLevels(state.dataRaw, state.stats.satMax ?? null);
+    const shown = getContrastData?.() || null;
+    const levels = computeAutoLevels(shown || state.dataRaw, shown ? null : (state.stats.satMax ?? null));
     state.min = levels.min;
     state.max = levels.max;
     minInput.value = formatValue(state.min);
@@ -147,12 +150,15 @@ export function bindViewerControls({
       state.histLogX = histLogX?.checked ?? state.histLogX;
       state.histLogY = histLogY?.checked ?? state.histLogY;
       if (state.dataRaw && state.stats) {
-        const bins = state.stats.bins || chooseHistogramBins(state.dataRaw.length);
+        // The frame as shown: flatfield-corrected, with its own range.
+        const shown = getContrastData?.() || null;
+        const stats = (shown && state.displayStats) || state.stats;
+        const bins = stats.bins || chooseHistogramBins(state.dataRaw.length);
         state.histogram = computeHistogram(
-          state.dataRaw,
-          state.stats.min,
-          state.stats.max,
-          state.stats.satMax ?? null,
+          shown || state.dataRaw,
+          stats.min,
+          stats.max,
+          shown ? null : (stats.satMax ?? null),
           bins,
           state.histLogX
         );

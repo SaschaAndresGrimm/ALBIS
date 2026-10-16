@@ -113,6 +113,9 @@ export function createRenderEngineController({
       out vec4 outColor;
       void main() {
         float value = ${dataReadExpr};
+        // No value (a flatfield-corrected pixel with nothing to divide by):
+        // the low end, as the CPU renderer draws it.
+        if (isnan(value) || isinf(value)) value = u_min;
         if (u_mask_enabled > 0.5) {
           float maskClass = texture(u_mask, v_tex).r;
           if (maskClass > 0.75) {
@@ -482,10 +485,12 @@ export function createRenderEngineController({
     const maskHeight = maskReady ? state.maskShape[0] : 0;
     const satMax = getActiveSaturationMax();
     const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
-    // Inpainting on: the filled copy is drawn instead, and the masked pixels
-    // show their filled values rather than the mask's colours.
-    const filled = getInpaintedFrame?.()?.data || null;
-    if (filled) {
+    // Flatfield or inpainting on: the processed frame is drawn instead. Only
+    // when inpainting filled the masked pixels do they show values rather than
+    // the mask's colours.
+    const view = getInpaintedFrame?.() || null;
+    const filled = view?.data || null;
+    if (view?.holes) {
       maskReady = false;
       maskData = null;
     }

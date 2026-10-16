@@ -84,6 +84,7 @@ import { createDetectorControlController } from "./modules/detector_control_cont
 import { knownDetectors } from "./modules/known_detectors.js";
 import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
+import { createFlatfieldController } from "./modules/flatfield_controller.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -545,6 +546,8 @@ const dataExportOutputBrowse = document.getElementById("data-export-output-brows
 const dataExportPrefix = document.getElementById("data-export-prefix");
 const dataExportOverwrite = document.getElementById("data-export-overwrite");
 const dataExportInpaint = document.getElementById("data-export-inpaint");
+const dataExportFlatfield = document.getElementById("data-export-flatfield");
+const dataExportFlatfieldLabel = document.getElementById("data-export-flatfield-label");
 const dataExportInpaintLabel = document.getElementById("data-export-inpaint-label");
 const dataExportStart = document.getElementById("data-export-start");
 const dataExportCancel = document.getElementById("data-export-cancel");
@@ -666,6 +669,7 @@ let framePlaybackController = null;
 let frameMetadataController = null;
 let exportSplashController = null;
 let inpaintingController = null;
+let flatfieldController = null;
 let sourceMetadataController = null;
 let geometryParamsController = null;
 let chromeToolbarController = null;
@@ -1613,6 +1617,8 @@ const dataExportController = createDataExportController({
     dataExportOverwrite,
     dataExportInpaint,
     dataExportInpaintLabel,
+    dataExportFlatfield,
+    dataExportFlatfieldLabel,
     dataExportStart,
     dataExportCancel,
     dataExportProgress,
@@ -2839,6 +2845,7 @@ fileSessionController = createFileSessionController({
     computeStats,
     updateGlobalStats,
     computeAutoLevels,
+    getContrastData,
     formatValue,
     alignMaskToFrame,
     syncMaskAvailability,
@@ -4009,7 +4016,13 @@ function computeHistogram(data, min, max, satMax, bins, logX) {
 }
 
 function computeAutoLevels(data, satMaxInput) {
-  return computeAutoLevelsUtil(data, satMaxInput, state.stats, state.dtype);
+  // The type of the values given: a flatfield-corrected frame is float even
+  // when the raw one is integer, and integer data keeps a span of at least one
+  // count, which would stretch transmission values (0 to 1) to twice their range.
+  // (A raw 64-bit integer frame also arrives as a Float64Array: only a frame
+  // other than the raw one is taken as float.)
+  const dtype = data !== state.dataRaw && data instanceof Float32Array ? "<f4" : state.dtype;
+  return computeAutoLevelsUtil(data, satMaxInput, state.stats, dtype);
 }
 
 function computeStats(data) {
@@ -4103,9 +4116,21 @@ viewerSyncController = createViewerSyncController({
 
 // The frame with its gaps and defective pixels filled, while inpainting is on:
 // worked out once per frame, for the renderer, the statistics and the exports.
-const inpaintView = createInpaintView({ state, getActiveSaturationMax, isSaturatedValue });
+const inpaintView = createInpaintView({
+  state,
+  getActiveSaturationMax,
+  isSaturatedValue,
+  getFlat: () => flatfieldController?.getFlat() || null,
+});
 function getInpaintedFrame() {
   return inpaintView.frame();
+}
+
+// The frame the histogram and auto contrast come from: the flatfield-corrected
+// one while flatfield correction applies, else null (the raw frame).
+function getContrastData() {
+  const view = inpaintView.frame();
+  return view?.flatfielded ? view.data : null;
 }
 
 renderEngineController = createRenderEngineController({
@@ -4470,8 +4495,10 @@ function applyFrame(data, width, height, dtype) {
 
 function redraw() {
   renderEngineController.redraw();
-  // What inpainting filled in this frame, and the footer's "Inpainted".
+  // What inpainting filled in this frame, and the footer's "Inpainted";
+  // whether the flat fits it, and "Flatfielded".
   inpaintingController?.updateState();
+  flatfieldController?.updateState();
 }
 
 async function loadFrame() {
@@ -4797,6 +4824,7 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   scheduleHistogram,
   handleContrastChanged,
   computeAutoLevels,
+  getContrastData,
   formatValue,
   updateGlobalStats,
   scheduleRoiUpdate,
@@ -4981,6 +5009,38 @@ function validateSeriesStepInput(commit = false) {
   }
   return normalized;
 }
+flatfieldController = createFlatfieldController({
+  apiBase: API,
+  state,
+  elements: {
+    toggle: document.getElementById("flat-toggle"),
+    useCurrentBtn: document.getElementById("flat-use-current"),
+    chooseBtn: document.getElementById("flat-choose"),
+    scaleSelect: document.getElementById("flat-scale"),
+    stateEl: document.getElementById("flat-state"),
+    summaryEl: document.getElementById("summary-flat"),
+    footerChip: document.getElementById("footer-flatfielded"),
+  },
+  callbacks: {
+    redraw: () => {
+      redraw();
+      inpaintingController?.updateState();
+    },
+    refreshDisplayContrast: (updateLevels) => fileSessionController?.refreshDisplayContrast(updateLevels),
+    scheduleHistogram,
+    updateGlobalStats,
+    scheduleRoiUpdate,
+    setSectionBadgeState,
+    setSummaryChip,
+    setStatus,
+    getActiveSaturationMax,
+    isSaturatedValue,
+    parseDtype,
+    parseShape,
+    typedArrayFrom,
+  },
+});
+
 inpaintingController = createInpaintingController({
   state,
   elements: {

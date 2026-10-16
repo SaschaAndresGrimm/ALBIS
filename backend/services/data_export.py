@@ -17,6 +17,7 @@ import numpy as np
 from fastapi import HTTPException
 
 from ..image_formats import _to_little_endian
+from .flatfield import Flat, apply_flat, prepare_flat
 from .inpainting import grow_holes
 from .inpainting import inpaint as inpaint_frame
 
@@ -62,6 +63,8 @@ class DataExportService:
         self._deps = deps
         self._jobs: dict[str, dict[str, Any]] = {}
         self._lock = threading.Lock()
+        # The last flat prepared, by path: (path, mtime) -> Flat.
+        self._flat_cache: dict[str, tuple[tuple[str, int], Flat]] = {}
         self._max_finished_jobs = max(10, int(max_finished_jobs))
 
     def start_job(
@@ -82,6 +85,8 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        flatfield: str = "",
+        flatfield_scale: str = "counts",
     ) -> str:
         job_id = uuid.uuid4().hex
         job_data = {
@@ -110,6 +115,8 @@ class DataExportService:
                 "inpaint_margin": inpaint_margin,
                 "inpaint_method": inpaint_method,
                 "inpaint_value": inpaint_value,
+                "flatfield": flatfield,
+                "flatfield_scale": flatfield_scale,
             },
         }
         with self._lock:
@@ -135,6 +142,8 @@ class DataExportService:
                 "inpaint_margin": inpaint_margin,
                 "inpaint_method": inpaint_method,
                 "inpaint_value": inpaint_value,
+                "flatfield": flatfield,
+                "flatfield_scale": flatfield_scale,
             },
             daemon=True,
         )
@@ -381,13 +390,20 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        flat: Flat | None = None,
+        flatfield_scale: str = "counts",
+        keep_float: bool = False,
     ) -> tuple[np.ndarray, int]:
         """The frame as written, and how many of its pixels were inpainted.
 
-        Gaps become -1 and defective, saturated or non-finite pixels -2 --
-        unless `inpaint` fills them from their neighbours: "defects" fills the
-        gaps and defective pixels (by the mask, or a signed frame's own -1 and
-        -2 without one), "saturated" the saturated pixels too.
+        With a `flat`, the frame is first divided by it (see flatfield.py);
+        pixels with nothing to divide -- the flat's holes, the frame's gaps and
+        defective pixels -- have no value. Gaps become -1 and defective,
+        saturated, non-finite or uncorrectable pixels -2 -- unless `inpaint`
+        fills them from their neighbours: "defects" fills the gaps, defective
+        and uncorrectable pixels (by the mask, or a signed frame's own -1 and
+        -2 without one), "saturated" the saturated pixels too. `keep_float`
+        writes the values as float32 (a flatfielded TIFF) instead of integers.
         """
         frame = np.asarray(arr)
         if frame.ndim != 2:
@@ -420,6 +436,23 @@ class DataExportService:
             if np.any(bad_values):
                 saturated_mask = bad_values
 
+        raw = frame
+        cbf_markers = None
+        if mask_bits is None and np.issubdtype(raw.dtype, np.signedinteger):
+            # A CBF's own markers, where there is no mask to say it.
+            cbf_markers = (raw == -1) | (raw == -2)
+        if flat is not None:
+            if flat.data.shape != raw.shape:
+                raise HTTPException(
+                    status_code=400, detail="The flatfield's size does not match the frame"
+                )
+            corrected = apply_flat(raw, flat, flatfield_scale)
+            # Nothing to divide where the frame itself has no value.
+            for unknown in (gap_mask, defective_mask, cbf_markers):
+                if unknown is not None:
+                    corrected[unknown] = np.nan
+            frame = corrected
+
         filled = 0
         if inpaint in {"defects", "saturated"}:
             holes = np.zeros(frame.shape, dtype=bool)
@@ -427,9 +460,8 @@ class DataExportService:
                 holes |= gap_mask
             if defective_mask is not None:
                 holes |= defective_mask
-            if mask_bits is None and np.issubdtype(frame.dtype, np.signedinteger):
-                # A CBF's own markers, where there is no mask to say it.
-                holes |= (frame == -1) | (frame == -2)
+            if cbf_markers is not None:
+                holes |= cbf_markers
             if not np.issubdtype(frame.dtype, np.integer):
                 holes |= ~np.isfinite(frame)
             if inpaint == "saturated" and saturated_mask is not None:
@@ -457,6 +489,13 @@ class DataExportService:
         bad_mask = defective_mask
         if saturated_mask is not None:
             bad_mask = saturated_mask if bad_mask is None else (bad_mask | saturated_mask)
+        if flat is not None:
+            # Left without a value (not inpainted): a bad pixel.
+            uncorrected = ~np.isfinite(frame)
+            if gap_mask is not None:
+                uncorrected &= ~gap_mask
+            if np.any(uncorrected):
+                bad_mask = uncorrected if bad_mask is None else (bad_mask | uncorrected)
 
         cast_source = frame
         cast_mask = None
@@ -468,7 +507,10 @@ class DataExportService:
             cast_source = frame.copy()
             cast_source[cast_mask] = 0
 
-        output = self._cast_frame_to_int(cast_source)
+        if keep_float:
+            output = np.where(np.isfinite(cast_source), cast_source, 0).astype(np.float32)
+        else:
+            output = self._cast_frame_to_int(cast_source)
         if gap_mask is not None or bad_mask is not None:
             output = output.copy()
             if bad_mask is not None:
@@ -975,12 +1017,20 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        flatfield: str = "",
+        flatfield_scale: str = "counts",
     ) -> Path:
         suffix = ".cbf" if output_format == "cbf" else ".tiff"
         path = out_dir / f"{name}{suffix}"
         if path.exists() and not overwrite:
             path = self._next_available_path(path)
         saturated_value = self._finite_int(metadata.get("saturation_value")) if metadata else None
+        flat = self._load_flat(flatfield) if flatfield else None
+        if flat is not None and flatfield_scale == "transmission" and output_format == "cbf":
+            raise HTTPException(
+                status_code=400,
+                detail="Transmission values need TIFF: CBF holds whole numbers only",
+            )
         frame, filled = self._normalize_frame(
             arr,
             mask_bits=mask_bits,
@@ -989,7 +1039,17 @@ class DataExportService:
             inpaint_margin=inpaint_margin,
             inpaint_method=inpaint_method,
             inpaint_value=inpaint_value,
+            flat=flat,
+            flatfield_scale=flatfield_scale,
+            # A corrected value is rarely a whole number: TIFF keeps it.
+            keep_float=flat is not None and output_format != "cbf",
         )
+        if flat is not None:
+            metadata = {
+                **(metadata or {}),
+                "flatfield": Path(flatfield).name,
+                "flatfield_scale": flatfield_scale,
+            }
         if filled:
             # The header says which pixels hold values that were not measured.
             metadata = {
@@ -1003,6 +1063,62 @@ class DataExportService:
             self._deps.write_cbf(path, frame, metadata)
         else:
             self._deps.write_tiff(path, frame, metadata)
+        return path
+
+    def _load_flat(self, flatfield: str) -> Flat:
+        """The flat at `flatfield`, prepared once and kept while the file is
+        unchanged: a series export divides every frame by the same one."""
+        path = self._deps.resolve_image_file(flatfield)
+        stamp = (str(path), path.stat().st_mtime_ns)
+        with self._lock:
+            cached = self._flat_cache.get(stamp[0])
+            if cached and cached[0] == stamp:
+                return cached[1]
+        flat = prepare_flat(self._read_non_h5_image(path))
+        if flat is None:
+            raise HTTPException(status_code=400, detail="The flatfield has no usable pixels")
+        with self._lock:
+            self._flat_cache = {stamp[0]: (stamp, flat)}
+        return flat
+
+    def _live_array(
+        self, payload: bytes, dtype: str, shape: list[int] | tuple[int, ...]
+    ) -> np.ndarray:
+        """A frame sent by the browser as an array, its type and size checked."""
+        try:
+            parsed = np.dtype(str(dtype))
+        except TypeError as exc:
+            raise HTTPException(status_code=400, detail="Unknown pixel type") from exc
+        if f"{parsed.kind}{parsed.itemsize}" not in self.LIVE_DTYPES:
+            raise HTTPException(status_code=400, detail="Unsupported pixel type")
+        try:
+            dims = [int(v) for v in (shape or [])]
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="A frame must be 2D") from exc
+        if len(dims) != 2 or min(dims) < 1:
+            raise HTTPException(status_code=400, detail="A frame must be 2D")
+        pixels = dims[0] * dims[1]
+        if pixels > self.LIVE_MAX_PIXELS:
+            raise HTTPException(status_code=413, detail="Frame too large")
+        if len(payload) != pixels * parsed.itemsize:
+            raise HTTPException(
+                status_code=400, detail="Pixel data does not match the frame's shape and type"
+            )
+        return np.frombuffer(payload, dtype=parsed).reshape(dims)
+
+    def save_flatfield(
+        self, *, payload: bytes, dtype: str, shape: list[int] | tuple[int, ...]
+    ) -> Path:
+        """Write a frame sent by the browser as a flatfield TIFF in the data
+        folder's `flatfields/`, named by the time it was taken; returns it."""
+        arr = self._live_array(payload, dtype, shape)
+        out_dir = self._deps.data_dir / "flatfields"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y%m%d_%H%M%S")
+        path = out_dir / f"flat_{stamp}.tiff"
+        if path.exists():
+            path = self._next_available_path(path)
+        self._deps.write_tiff(path, arr, {"source_name": "ALBIS flatfield"})
         return path
 
     # ---- Live frames -----------------------------------------------------
@@ -1068,35 +1184,20 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        flatfield: str = "",
+        flatfield_scale: str = "counts",
     ) -> Path:
         """Write one frame sent by the browser; returns the file written.
 
         `mask` is the source's pixel mask (uint32, the frame's shape), sent
         when the frame is to be inpainted: a live frame has no file to read
         one from."""
-        try:
-            parsed = np.dtype(str(dtype))
-        except TypeError as exc:
-            raise HTTPException(status_code=400, detail="Unknown pixel type") from exc
-        if f"{parsed.kind}{parsed.itemsize}" not in self.LIVE_DTYPES:
-            raise HTTPException(status_code=400, detail="Unsupported pixel type")
-        try:
-            dims = [int(v) for v in (shape or [])]
-        except (TypeError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail="A frame must be 2D") from exc
-        if len(dims) != 2 or min(dims) < 1:
-            raise HTTPException(status_code=400, detail="A frame must be 2D")
+        arr = self._live_array(payload, dtype, shape)
+        dims = list(arr.shape)
         pixels = dims[0] * dims[1]
-        if pixels > self.LIVE_MAX_PIXELS:
-            raise HTTPException(status_code=413, detail="Frame too large")
-        if len(payload) != pixels * parsed.itemsize:
-            raise HTTPException(
-                status_code=400, detail="Pixel data does not match the frame's shape and type"
-            )
         if output_format not in {"tiff", "tif", "cbf"}:
             raise HTTPException(status_code=400, detail="Invalid format")
         normalized_format = "tiff" if output_format in {"tiff", "tif"} else "cbf"
-        arr = np.frombuffer(payload, dtype=parsed).reshape(dims)
         mask_bits = None
         if mask:
             if len(mask) != pixels * 4:
@@ -1128,6 +1229,8 @@ class DataExportService:
             inpaint_margin=inpaint_margin,
             inpaint_method=inpaint_method,
             inpaint_value=inpaint_value,
+            flatfield=flatfield,
+            flatfield_scale=flatfield_scale,
         )
 
     @staticmethod
@@ -1207,6 +1310,8 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        flatfield: str = "",
+        flatfield_scale: str = "counts",
     ) -> list[str]:
         if not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
@@ -1284,6 +1389,8 @@ class DataExportService:
                             inpaint_margin=inpaint_margin,
                             inpaint_method=inpaint_method,
                             inpaint_value=inpaint_value,
+                            flatfield=flatfield,
+                            flatfield_scale=flatfield_scale,
                         )
                         outputs.append(str(out_file))
                         completed += 1
@@ -1314,6 +1421,8 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        flatfield: str = "",
+        flatfield_scale: str = "counts",
     ) -> list[str]:
         series_files, current_index = self._deps.resolve_series_files(source_path)
         if not series_files:
@@ -1351,6 +1460,8 @@ class DataExportService:
                 inpaint_margin=inpaint_margin,
                 inpaint_method=inpaint_method,
                 inpaint_value=inpaint_value,
+                flatfield=flatfield,
+                flatfield_scale=flatfield_scale,
             )
             outputs.append(str(out_file))
             self._update_job(
@@ -1379,6 +1490,8 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        flatfield: str = "",
+        flatfield_scale: str = "counts",
     ) -> None:
         try:
             self._update_job(job_id, status="running", progress=0.0, message="Resolving source")
@@ -1407,6 +1520,8 @@ class DataExportService:
                     inpaint_margin=inpaint_margin,
                     inpaint_method=inpaint_method,
                     inpaint_value=inpaint_value,
+                    flatfield=flatfield,
+                    flatfield_scale=flatfield_scale,
                 )
             else:
                 outputs = self._run_image_series_export(
@@ -1423,6 +1538,8 @@ class DataExportService:
                     inpaint_margin=inpaint_margin,
                     inpaint_method=inpaint_method,
                     inpaint_value=inpaint_value,
+                    flatfield=flatfield,
+                    flatfield_scale=flatfield_scale,
                 )
             self._update_job(
                 job_id,

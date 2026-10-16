@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Flatfield correction.** A new **Flatfield** section in the Analysis tab divides every image by a flat — an image of the beam with no sample — so the beam's profile cancels out, as imaging users asked for. **Use current image** keeps the frame on screen (a single image taken before a scan, say) as a TIFF in the data folder's `flatfields/`; **Choose file…** takes a TIFF or CBF. **Scale** is **Counts** (divided by the flat, times its mean; the default) or **Transmission** (0 to 1). Flat pixels that cannot be divided by — masked, zero, overflowing or below 5 % of the mean — and the frame's own gaps have no value; inpainting, when on, fills them after the correction. The image, the histogram and auto contrast, the ROI statistics, PNG/GIF exports and live images follow; the footer shows **Flatfielded**, and a flat of the wrong size is not applied. **Convert Dataset** has a **Flatfield** box: TIFF holds the corrected values as 32-bit floats, CBF only the Counts scale; the header names the flat and the scale. Both the browser's and the server's copies of the division are held to the same test cases.
+
 ## [0.29.2] - 2026-10-15
 
 ### Added

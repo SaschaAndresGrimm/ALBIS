@@ -53,6 +53,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Autoload mode, settings persistence/UI sync, orchestration, and status/meta control.
 - `frontend/modules/file_browser.js`:
   - File browser modal state and filesystem browsing interactions.
+- `frontend/modules/flatfield.js` + `frontend/modules/flatfield_controller.js` + `backend/services/flatfield.py`:
+  - Flatfield correction: frames divided by a flat (counts: × the flat's mean; transmission: 0–1); unusable flat pixels (masked, ≤0, type max, <5 % of the mean) and the frame's flagged pixels become NaN, filled by inpainting when on. "Use current image" saves the frame via `/api/flatfield/save` to `<data>/flatfields/`; exports take `flatfield` (a path) and `flatfield_scale`, writing float32 TIFF. The viewer's frame pipeline (raw → flatfield → inpaint) is `createInpaintView` in inpainting.js; the histogram and auto contrast follow the corrected frame (`refreshDisplayContrast`).
 - `frontend/modules/inpainting.js` + `frontend/modules/inpainting_controller.js` + `backend/services/inpainting.py`:
   - Inpainting: gaps and defective (optionally saturated) pixels filled by interpolating across each gap from the median of the five nearest pixels on either side, along rows and columns weighted 1/span. The JS copy fills the frame on screen (once per frame, for the renderer, ROI statistics and PNG/GIF exports); the numpy copy fills TIFF/CBF exports (`inpaint` on `/api/export/data/start` and `/frame`). Both are held to `tests/fixtures/inpainting_cases.json`.
 - `frontend/modules/known_detectors.js` + `frontend/modules/detector_picker.js`:

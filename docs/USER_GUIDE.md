@@ -16,6 +16,7 @@ reference of the same material.
 - [Move through a series](#move-through-a-series)
 - [Make the image readable](#make-the-image-readable)
 - [Measure a region](#measure-a-region)
+- [Flatfield correction](#flatfield-correction)
 - [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)
 - [Detector geometry](#detector-geometry)
 - [Resolution rings and reflections](#resolution-rings-and-reflections)
@@ -180,6 +181,40 @@ and `pandas.read_csv(path, comment="#")` gives you a DataFrame directly.
 The leading `#` lines name the ALBIS build, the file and frame, and the ROI the
 numbers were measured over. Scalar statistics are not written: every one of them
 can be recomputed from the exported columns.
+
+---
+
+## Flatfield correction
+
+**Flatfield**, in the **Analysis** tab, divides every image by a *flat*: an
+image of the beam taken with no sample in it. The beam's profile, and what is
+left of the pixels' differing sensitivity, cancel out, and only the sample
+remains — the standard open-beam normalisation in imaging.
+
+- **Use current image** keeps the image on screen as the flat — for instance a
+  single image taken just before a scan and shown through the SIMPLON monitor.
+  It is saved as a TIFF in the data folder's `flatfields/`, so it can be used
+  again and every export divides by the same file. **Choose file…** takes a
+  TIFF or CBF instead; for a less noisy flat, average a series first with
+  **Combine a series into one image** and choose the result.
+- **Scale:** **Counts** (the default) keeps the image's own scale — divided by
+  the flat, times the flat's mean. **Transmission** gives 0 to 1: 1 means
+  nothing was absorbed, 0.3 that 70 % was.
+- The flat's own noise ends up in every corrected image: take it with many
+  counts per pixel (10 000 counts adds about 1 %). The section shows the flat's
+  mean counts per pixel.
+- Pixels the flat cannot divide by — masked, zero, overflowing, or below 5 % of
+  its mean — have no value; with **Inpainting** on they are filled like the
+  gaps, after the correction, from corrected neighbours.
+- **What follows it:** the image, the histogram and auto contrast, the ROI
+  statistics and line profile, PNG and GIF exports, live images as they arrive.
+  The footer shows **Flatfielded**. A flat of another size than the image is
+  not applied, and the section says so.
+- **Convert Dataset** has a **Flatfield** box, ticked while it is on. TIFF files
+  then hold the corrected values as 32-bit floats; CBF holds whole numbers, so
+  it takes the Counts scale only. The header names the flat and the scale.
+
+No dark image is subtracted: a photon-counting detector has no dark current.
 
 ---
 

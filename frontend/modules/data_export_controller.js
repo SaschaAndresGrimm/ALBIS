@@ -4,6 +4,7 @@
 
 import { t, getLanguage } from "./i18n.js";
 import { canExportData, isLiveExportSource, liveExportEntries } from "./command_availability.js";
+import { normalizeFlatScale } from "./flatfield.js";
 import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue } from "./inpainting.js";
 
 function fileStem(path) {
@@ -157,6 +158,8 @@ export function createDataExportController({
     dataExportOverwrite,
     dataExportInpaint,
     dataExportInpaintLabel,
+    dataExportFlatfield,
+    dataExportFlatfieldLabel,
     dataExportStart,
     dataExportCancel,
     dataExportProgress,
@@ -346,6 +349,8 @@ export function createDataExportController({
     ].forEach((element) => {
       if (element) element.disabled = running || !ready;
     });
+    // Only a flat that fits the source can divide it.
+    if (dataExportFlatfield) dataExportFlatfield.disabled = running || !ready || !flatFor(sourceShape());
     if (dataExportRangeStart) dataExportRangeStart.disabled = running || !ready || !showRange;
     if (dataExportRangeEnd) dataExportRangeEnd.disabled = running || !ready || !showRange;
     if (dataExportStart) {
@@ -444,7 +449,9 @@ export function createDataExportController({
       inpaint_margin: inpaintMargin(),
       inpaint_method: normalizeInpaintMethod(state.inpaintMethod),
       inpaint_value: normalizeInpaintValue(state.inpaintValue),
+      ...flatfieldFields([state.height, state.width]),
     };
+    if (!flatfieldWritable(payload)) return;
     try {
       stopPolling();
       state.dataExport.running = true;
@@ -481,6 +488,32 @@ export function createDataExportController({
     return state.inpaintSaturated ? "saturated" : "defects";
   }
 
+  // The flat to divide by, when ticked and it fits a frame of `shape`.
+  function flatFor(shape) {
+    const [height, width] = shape || [];
+    const flatShape = state.flatShape;
+    if (!state.flatPath || !flatShape) return "";
+    return flatShape[0] === height && flatShape[1] === width ? state.flatPath : "";
+  }
+
+  function sourceShape() {
+    if (isLive()) return currentLiveEntry()?.shape || null;
+    return [state.height, state.width];
+  }
+
+  function flatfieldFields(shape) {
+    const flatfield = dataExportFlatfield?.checked ? flatFor(shape) : "";
+    return { flatfield, flatfield_scale: normalizeFlatScale(state.flatScale) };
+  }
+
+  // Transmission values (0 to 1) do not survive CBF's whole numbers.
+  function flatfieldWritable(fields) {
+    if (!fields.flatfield || fields.flatfield_scale !== "transmission") return true;
+    if (String(dataExportFormat?.value || "tiff").toLowerCase() !== "cbf") return true;
+    setStatus(t("status.data_export.transmission_cbf"), { tone: "warning" });
+    return false;
+  }
+
   function inpaintMargin() {
     return inpaintChoice() === "off" ? 0 : normalizeInpaintMargin(state.inpaintMargin);
   }
@@ -506,6 +539,7 @@ export function createDataExportController({
     const prefix = String(dataExportPrefix?.value || "").trim() || LIVE_PREFIX[String(state.autoload?.mode || "")] || "live";
     const overwrite = Boolean(dataExportOverwrite?.checked);
     const inpaint = inpaintChoice();
+    if (!flatfieldWritable(flatfieldFields(chosen[0]?.shape))) return;
     stopPolling();
     state.dataExport.running = true;
     state.dataExport.live = true;
@@ -537,6 +571,7 @@ export function createDataExportController({
           inpaint_margin: inpaintMargin(),
           inpaint_method: normalizeInpaintMethod(state.inpaintMethod),
           inpaint_value: normalizeInpaintValue(state.inpaintValue),
+          ...flatfieldFields(entry.shape),
         }),
       );
       form.append("pixels", new Blob([new Uint8Array(data.buffer, data.byteOffset, data.byteLength)]), "frame.bin");
@@ -667,6 +702,16 @@ export function createDataExportController({
     state.dataExport.wasLive = isLive();
     if (dataExportFrameMode && switched) dataExportFrameMode.value = isLive() ? "current" : "all";
     syncDefaults(switched);
+    // Flatfield as on screen: ticked while it is on, naming the flat.
+    if (dataExportFlatfield && !state.dataExport.running) {
+      dataExportFlatfield.checked = Boolean(state.flatEnabled && flatFor(sourceShape()));
+    }
+    if (dataExportFlatfieldLabel) {
+      const name = String(state.flatPath || "").split(/[\\/]/).pop();
+      dataExportFlatfieldLabel.textContent = name
+        ? t("data_export.flatfield_named", { name })
+        : t("data_export.flatfield");
+    }
     // Inpainting as on screen: ticked while it is on, and saying what it fills.
     if (dataExportInpaint && !state.dataExport.running) dataExportInpaint.checked = Boolean(state.inpaintEnabled);
     if (dataExportInpaintLabel) {
@@ -703,6 +748,7 @@ export function createDataExportController({
     dataExportPrefix,
     dataExportOverwrite,
     dataExportInpaint,
+    dataExportFlatfield,
   ].forEach((element) => {
     element?.addEventListener("change", clearFinishedResult);
     element?.addEventListener("input", clearFinishedResult);

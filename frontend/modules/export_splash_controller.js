@@ -166,11 +166,12 @@ export function createExportSplashController({
     const maxIdx = getPaletteColorCount(palette) - 1;
     const satMax = getActiveSaturationMax();
     const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
-    // Inpainting on: the filled frame, as on screen, without the mask colours.
-    const filled = getInpaintedFrame?.()?.data || null;
-    const source = filled || state.dataRaw;
+    // Flatfield or inpainting on: the processed frame, as on screen; without
+    // the mask colours where inpainting filled the masked pixels.
+    const view = getInpaintedFrame?.() || null;
+    const source = view?.data || state.dataRaw;
     const maskReady =
-      !filled &&
+      !view?.holes &&
       state.maskEnabled &&
       state.maskAvailable &&
       state.maskRaw &&
