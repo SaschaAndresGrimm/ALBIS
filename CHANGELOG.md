@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Pixel values follow flatfield correction and inpainting.** The numbers drawn on the pixels when zoomed in, and in PNG and GIF exports with pixel values, still showed the measured data while the image, contrast and statistics were corrected. They now show the values as drawn — corrected, and filled where inpainting filled a pixel — while gap, defective and saturated markers still come from the measured data. The readout under the cursor shows both: "Value 0.437 (measured 1234)".
+
 ## [0.30.0] - 2026-10-16
 
 ### Added

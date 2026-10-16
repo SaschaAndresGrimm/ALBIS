@@ -43,6 +43,7 @@ export function createOverlayRenderController({
     getEffectiveScrollTop,
     formatPixelLabelValue,
     isSaturatedValue,
+    getInpaintedFrame = () => null,
     getRingParams,
     updateRingsSectionState,
     getRingInteractionState,
@@ -127,7 +128,11 @@ export function createOverlayRenderController({
       return;
     }
     const formatMode = String(state.pixelLabelFormat || "auto").toLowerCase();
-    const isFloatLabelMode = pixelLabelsAreFloat(state.dtype, formatMode);
+    // The values as shown: flatfield-corrected and inpainted when those are on.
+    const shownFrame = getInpaintedFrame() || null;
+    const shown = shownFrame?.data || null;
+    const filledHoles = shownFrame?.holes || null;
+    const isFloatLabelMode = pixelLabelsAreFloat(shown ? "<f4" : state.dtype, formatMode);
     const maxLabels = Math.max(
       100,
       Number.isFinite(state.pixelLabelMaxLabels) ? Number(state.pixelLabelMaxLabels) : pixelLabelDefaultMaxLabels,
@@ -140,7 +145,11 @@ export function createOverlayRenderController({
     }
 
     function resolvePixelLabelText(idx) {
-      let text = formatPixelLabelValue(state.dataRaw[idx], zoom, formatMode);
+      // A pixel inpainting filled shows its value, as it does in the image.
+      if (filledHoles && filledHoles[idx]) return formatPixelLabelValue(shown[idx], zoom, formatMode, "<f4");
+      let text = shown
+        ? formatPixelLabelValue(shown[idx], zoom, formatMode, "<f4")
+        : formatPixelLabelValue(state.dataRaw[idx], zoom, formatMode);
       if (maskReady && state.maskRaw) {
         const maskValue = state.maskRaw[idx];
         if (maskValue & 1) {

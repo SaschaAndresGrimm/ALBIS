@@ -61,6 +61,7 @@ export function createImageExportController({ state, elements, callbacks }) {
     getOverlaySnapshot,
     getPixelLabelSettings,
     pixelLabelsForFrame,
+    getInpaintedFrame = () => null,
     createCanvas = (width, height) => Object.assign(document.createElement("canvas"), { width, height }),
     openModal,
     closeModal,
@@ -245,7 +246,16 @@ export function createImageExportController({ state, elements, callbacks }) {
     // Stacked as in the viewer: pixel values above rings and markers, the ROI
     // on top.
     if (withPixelValues && pixelValuesState(scale).available && state.dataRaw) {
-      const frame = { data: state.dataRaw, width: state.width, height: state.height, dtype: state.dtype };
+      // The values as shown: flatfield-corrected, inpainted.
+      const shown = getInpaintedFrame?.() || null;
+      const frame = {
+        data: state.dataRaw,
+        values: shown?.data || null,
+        filled: shown?.holes || null,
+        width: state.width,
+        height: state.height,
+        dtype: state.dtype,
+      };
       const { labelAt, float } = pixelLabelsForFrame(frame, view.scaleX);
       paintPixelLabels(ctx, {
         view,

@@ -35,6 +35,7 @@ export function createMaskCursorController({
     getDtypeInfo,
     formatValue,
     isSaturatedValue,
+    getInpaintedFrame = () => null,
     getResolutionAtPixel,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
@@ -368,6 +369,19 @@ export function createMaskCursorController({
     }
     if (state.maskSaturatedEnabled && labelValue !== "G" && labelValue !== "D" && isSaturatedValue(state.dataRaw[idx], satMax)) {
       labelValue = "S";
+    }
+    // Flatfield correction or inpainting on: the value as shown, with the
+    // measured one beside it -- "Value 0.437 (measured 1234)". A gap,
+    // defective or saturated pixel keeps its marker unless inpainting filled it.
+    const shownFrame = getInpaintedFrame?.() || null;
+    if (shownFrame?.data) {
+      const filled = Boolean(shownFrame.holes && shownFrame.holes[idx]);
+      const marked = labelValue === "G" || labelValue === "D" || labelValue === "S";
+      if (filled || !marked) {
+        const shown = shownFrame.data[idx];
+        const shownText = Number.isFinite(shown) ? formatCursorValue(shown) : "–";
+        labelValue = `${shownText}${t("cursor.measured", { value: labelValue })}`;
+      }
     }
     const resolutionValue = getResolutionAtPixel(ix, iy);
     const resolutionText = Number.isFinite(resolutionValue)

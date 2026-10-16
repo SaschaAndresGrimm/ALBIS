@@ -218,6 +218,7 @@
   "csv.axis.value": "Valor",
   "csv.section.x_projection": "Proyección X",
   "csv.section.y_projection": "Proyección Y",
+  "cursor.measured": " (medido {{value}})",
   "cursor.readout": "X {{x}}  Y {{y}}  Valor {{value}}{{resolutionText}}",
   "cursor.resolution": "  d {{value}} Å",
   "data.series_image": "Imagen de la serie",

@@ -1279,6 +1279,7 @@ const maskCursorController = createMaskCursorController({
     getDtypeInfo,
     formatValue,
     isSaturatedValue,
+    getInpaintedFrame,
     getResolutionAtPixel,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
@@ -1710,6 +1711,7 @@ const animationExportController = createAnimationExportController({
     setStatus,
     // Each frame filled like the one on screen, while inpainting is on.
     inpaintFrame: (data) => inpaintView.frameFor(data, getActiveSaturationMax()),
+    inpaintFrameFull: (data) => inpaintView.frameForFull(data, getActiveSaturationMax()),
   },
 });
 
@@ -1754,6 +1756,7 @@ const imageExportController = createImageExportController({
     },
     getPixelLabelSettings,
     pixelLabelsForFrame,
+    getInpaintedFrame,
     // Wrapped: both are defined further down, and a plain reference here
     // would be read before they exist.
     openModal: (...args) => openModal(...args),
@@ -3970,7 +3973,7 @@ function getPixelLabelSettings() {
   };
 }
 
-function pixelLabelsForFrame({ data, width, height, dtype = state.dtype }, cellPx) {
+function pixelLabelsForFrame({ data, values = null, filled = null, width, height, dtype = state.dtype }, cellPx) {
   const format = String(state.pixelLabelFormat || "auto").toLowerCase();
   const maskReady =
     state.maskEnabled &&
@@ -3981,9 +3984,11 @@ function pixelLabelsForFrame({ data, width, height, dtype = state.dtype }, cellP
     state.maskShape[1] === width;
   const satMax = getActiveSaturationMax();
   return {
-    float: pixelLabelsAreFloat(dtype, format),
+    float: pixelLabelsAreFloat(values ? "<f4" : dtype, format),
     labelAt: pixelLabelResolver({
       data,
+      values,
+      filled,
       mask: maskReady ? state.maskRaw : null,
       cellPx,
       format,
@@ -4188,6 +4193,7 @@ const overlayRenderController = createOverlayRenderController({
     getEffectiveScrollTop,
     formatPixelLabelValue,
     isSaturatedValue,
+    getInpaintedFrame,
     getRingParams,
     updateRingsSectionState,
     getRingInteractionState,

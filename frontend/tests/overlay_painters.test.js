@@ -422,3 +422,21 @@ describe("a concentric ROI never costs a ring its d-spacing", () => {
     }
   });
 });
+
+describe("pixel value labels", () => {
+  it("show the values as shown: corrected and filled, with the markers from the measured data", async () => {
+    const { pixelLabelResolver } = await import("../modules/overlay_painters.js");
+    const data = new Uint32Array([10, 20, 4294967295, 40]);
+    const mask = new Uint32Array([0, 1, 0, 0]);
+    const isSaturated = (value) => value === 4294967295;
+    const raw = pixelLabelResolver({ data, mask, cellPx: 80, isSaturated });
+    expect([0, 1, 2, 3].map(raw)).toEqual(["10", "G", "S", "40"]);
+    const values = new Float32Array([0.5, Number.NaN, 7, 2]);
+    const corrected = pixelLabelResolver({ data, values, mask, cellPx: 80, isSaturated });
+    expect(corrected(0)).toMatch(/^0\.50*$/);
+    expect([1, 2].map(corrected)).toEqual(["G", "S"]);
+    const filled = pixelLabelResolver({ data, values, filled: new Uint8Array([0, 1, 1, 0]), mask, cellPx: 80, isSaturated });
+    expect(filled(2)).toMatch(/^7(\.0*)?$/);
+    expect(filled(1)).toBe("");
+  });
+});

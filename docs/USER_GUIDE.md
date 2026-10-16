@@ -206,8 +206,10 @@ remains — the standard open-beam normalisation in imaging.
 - Pixels the flat cannot divide by — masked, zero, overflowing, or below 5 % of
   its mean — have no value; with **Inpainting** on they are filled like the
   gaps, after the correction, from corrected neighbours.
-- **What follows it:** the image, the histogram and auto contrast, the ROI
-  statistics and line profile, PNG and GIF exports, live images as they arrive.
+- **What follows it:** the image, the pixel values drawn when zoomed in, the
+  histogram and auto contrast, the ROI statistics and line profile, PNG and GIF
+  exports, live images as they arrive. The readout under the cursor shows both,
+  e.g. "Value 0.437 (measured 1234)".
   The footer shows **Flatfielded**. A flat of another size than the image is
   not applied, and the section says so.
 - **Convert Dataset** has a **Flatfield** box, ticked while it is on. TIFF files
@@ -246,10 +248,11 @@ surroundings.
   square: at 1 px the 8 pixels around a dead pixel). The pixels next to a gap
   or a defective pixel are often unreliable too; the fill then starts beyond
   them.
-- **What follows it:** the image, the ROI statistics and line profile, and the
-  PNG and GIF exports show the filled values. The ROI's gap and defective counts
-  stay, marked "filled", so you can see how many values were not measured. The
-  pixel readout under the cursor still shows the measured value.
+- **What follows it:** the image, the pixel values drawn when zoomed in, the ROI
+  statistics and line profile, and the PNG and GIF exports show the filled
+  values. The ROI's gap and defective counts stay, marked "filled", so you can
+  see how many values were not measured. The readout under the cursor shows
+  both, e.g. "Value 0.437 (measured 1234)".
 - **Convert Dataset** has an **Inpaint** box, ticked while inpainting is on: the
   TIFF or CBF files then hold the filled values instead of `-1` and `-2`, and
   their header says which pixels were filled. Live images are filled with their

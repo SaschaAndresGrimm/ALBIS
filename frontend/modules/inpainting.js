@@ -383,6 +383,11 @@ export function createInpaintView({ state, getActiveSaturationMax, isSaturatedVa
       if ((!state.inpaintEnabled && !state.flatEnabled) || !data) return null;
       return compute(data, satMax).data;
     },
+    /** The same, with the filled pixels too: `{ data, holes }` or null. */
+    frameForFull(data, satMax) {
+      if ((!state.inpaintEnabled && !state.flatEnabled) || !data) return null;
+      return compute(data, satMax);
+    },
     clear() {
       key = null;
       result = null;

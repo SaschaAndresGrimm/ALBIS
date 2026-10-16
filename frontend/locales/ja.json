@@ -218,6 +218,7 @@
   "csv.axis.value": "値",
   "csv.section.x_projection": "X 方向投影",
   "csv.section.y_projection": "Y 方向投影",
+  "cursor.measured": " (測定値 {{value}})",
   "cursor.readout": "X {{x}}  Y {{y}}  値 {{value}}{{resolutionText}}",
   "cursor.resolution": "  d {{value}} Å",
   "data.series_image": "シリーズ画像",

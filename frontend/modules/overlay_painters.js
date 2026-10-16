@@ -245,15 +245,34 @@ export function pixelLabelsAreFloat(dtype, format = "auto") {
  * The text a pixel's label shows: "G" for a gap, "D" for another masked pixel,
  * "S" for a saturated one, else its value formatted for the cell width.
  */
-export function pixelLabelResolver({ data, mask = null, cellPx, format = "auto", dtype = "", isSaturated = null }) {
+/**
+ * Each pixel's label: "G", "D" or "S" for a gap, defective or saturated pixel
+ * (from the mask and the measured `data`), else its value. With flatfield
+ * correction or inpainting on, `values` is the frame as shown and the value
+ * comes from there (float); a pixel inpainting `filled` shows its filled value
+ * rather than its marker, as it does in the image.
+ */
+export function pixelLabelResolver({
+  data,
+  values = null,
+  filled = null,
+  mask = null,
+  cellPx,
+  format = "auto",
+  dtype = "",
+  isSaturated = null,
+}) {
+  const shown = values || data;
+  const shownDtype = values ? "<f4" : dtype;
   return (idx) => {
-    if (mask) {
+    const wasFilled = Boolean(filled && filled[idx]);
+    if (mask && !wasFilled) {
       const flags = mask[idx];
       if (flags & 1) return "G";
       if (flags & 0x1e) return "D";
     }
-    if (isSaturated?.(data[idx])) return "S";
-    return formatPixelLabelValue(data[idx], cellPx, format, dtype);
+    if (!wasFilled && isSaturated?.(data[idx])) return "S";
+    return formatPixelLabelValue(shown[idx], cellPx, format, shownDtype);
   };
 }
 

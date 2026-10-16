@@ -120,6 +120,7 @@ export function createAnimationExportController({
     closeModal,
     setStatus,
     inpaintFrame = () => null,
+    inpaintFrameFull = null,
   } = callbacks;
 
   let activeController = null;
@@ -624,10 +625,17 @@ export function createAnimationExportController({
           compositeOverlay = createOverlayCompositor(sources, labels, safeRegion, ow, oh, layout);
         }
       }
-      // Flatfield or inpainting on: processed like the frame on screen.
-      const filled = frame.width === state.width && frame.height === state.height ? inpaintFrame(frame.data) : null;
-      frameToIndices(filled || frame.data, frame.width, frame.height, safeRegion, indices, ow, oh, layout, Boolean(filled && state.inpaintEnabled));
-      compositeOverlay?.(indices, frame);
+      // Flatfield or inpainting on: processed like the frame on screen, and
+      // its pixel values labelled as shown.
+      const sameShape = frame.width === state.width && frame.height === state.height;
+      const processed = sameShape
+        ? inpaintFrameFull
+          ? inpaintFrameFull(frame.data)
+          : { data: inpaintFrame(frame.data), holes: null }
+        : null;
+      const filled = processed?.data || null;
+      frameToIndices(filled || frame.data, frame.width, frame.height, safeRegion, indices, ow, oh, layout, Boolean(processed?.holes));
+      compositeOverlay?.(indices, filled ? { ...frame, values: filled, filled: processed.holes } : frame);
       writer.addFrame(indices, delayCs);
     }
     if (!writer) return null;
