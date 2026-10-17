@@ -285,12 +285,31 @@ export function pixelLabelResolver({
  */
 export function paintPixelLabels(
   ctx,
-  { view, x0, y0, x1, y1, frameWidth, labelAt, float = false, halo = true, haloWidth = null, colors = null } = {},
+  {
+    view,
+    x0,
+    y0,
+    x1,
+    y1,
+    frameWidth,
+    labelAt,
+    float = false,
+    halo = true,
+    haloWidth = null,
+    colors = null,
+    // The magnifier's own size, larger than the viewer's; each label then
+    // shrinks as needed to fit its cell (`fitFontPx`).
+    fitFontPx = null,
+    fitMinPx = null,
+  } = {},
 ) {
   if (!ctx || !view || typeof labelAt !== "function") return false;
   const cols = Math.max(0, x1 - x0);
   const rows = Math.max(0, y1 - y0);
   if (!cols || !rows) return false;
+  if (fitFontPx) {
+    return paintFittedLabels(ctx, { view, x0, y0, x1, y1, frameWidth, labelAt, fontPx: fitFontPx, minPx: fitMinPx });
+  }
   const fontSize = pixelLabelFontPx(view.scaleX, { float });
   ctx.save();
   ctx.font = canvasFont(fontSize);
@@ -334,6 +353,41 @@ export function paintPixelLabels(
       if (!text) continue;
       const cx = viewX(view, x) + view.scaleX / 2;
       if (halo) ctx.strokeText(text, cx, cy);
+      ctx.fillText(text, cx, cy);
+    }
+  }
+  ctx.restore();
+  return true;
+}
+
+// Labels at up to `fontPx`, each shrunk to fit its cell: 0.62 em is the
+// advance of the widest digit, 0.88 of the cell the room left beside its edges.
+function paintFittedLabels(ctx, { view, x0, y0, x1, y1, frameWidth, labelAt, fontPx, minPx = null }) {
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(248, 252, 255, 0.97)";
+  ctx.strokeStyle = "rgba(6, 10, 16, 0.92)";
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+  const smallest = minPx ?? fontPx * 0.4;
+  let current = 0;
+  for (let y = y0; y < y1; y += 1) {
+    const rowOffset = y * frameWidth;
+    const cy = viewY(view, y) + view.scaleY / 2;
+    for (let x = x0; x < x1; x += 1) {
+      const text = labelAt(rowOffset + x);
+      if (!text) continue;
+      const size = Math.min(fontPx, (view.scaleX * 0.88) / (text.length * 0.62), view.scaleY * 0.6);
+      if (size < smallest) continue;
+      const rounded = Math.round(size * 2) / 2;
+      if (rounded !== current) {
+        current = rounded;
+        ctx.font = canvasFont(rounded);
+        ctx.lineWidth = Math.max(1, rounded * 0.18);
+      }
+      const cx = viewX(view, x) + view.scaleX / 2;
+      ctx.strokeText(text, cx, cy);
       ctx.fillText(text, cx, cy);
     }
   }

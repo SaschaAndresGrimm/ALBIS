@@ -38,6 +38,7 @@ export function buildCommandPaletteCommands({
     openSeriesSumOutputTarget,
     cancelSeriesSumming,
     toggleFullscreen,
+    toggleMagnifier = () => {},
     togglePanel,
     setPanelTab,
     handleMenuAction,
@@ -258,6 +259,13 @@ export function buildCommandPaletteCommands({
       shortcut: "F",
       search: "fullscreen immersive",
       run: () => toggleFullscreen(),
+    },
+    {
+      id: "toggle-magnifier",
+      label: t("command.label.view_magnifier"),
+      shortcut: "Z",
+      search: "magnifier lens magnifying glass zoom loupe",
+      run: () => toggleMagnifier(),
     },
     {
       id: "panel-toggle",

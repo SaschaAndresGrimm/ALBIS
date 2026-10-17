@@ -1,0 +1,1 @@
+{"nodes": [{"id": "pkg_dectris_albis", "label": "dectris-albis", "file_type": "code", "type": "package", "ecosystem": "python", "source_file": "pyproject.toml", "source_location": "L1", "version": "0.30.1"}], "edges": []}

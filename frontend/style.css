@@ -8096,3 +8096,23 @@ button.browse-details-header-cell[aria-sort="descending"] {
   padding: 2px 10px;
   font-size: 12px;
 }
+
+/* The magnifier: a round lens at the mouse, drawn from the data. */
+.magnifier-lens {
+  position: absolute;
+  z-index: 6;
+  border-radius: 50%;
+  border: 2px solid rgba(230, 240, 255, 0.85);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.magnifier-lens[hidden] {
+  display: none;
+}
+
+#magnifier-toggle.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}

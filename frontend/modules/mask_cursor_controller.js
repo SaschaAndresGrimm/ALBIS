@@ -36,6 +36,7 @@ export function createMaskCursorController({
     formatValue,
     isSaturatedValue,
     getInpaintedFrame = () => null,
+    getCursorClearance = () => 0,
     getResolutionAtPixel,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
@@ -305,8 +306,10 @@ export function createMaskCursorController({
     cursorOverlay.classList.add("is-visible");
     cursorOverlay.setAttribute("aria-hidden", "false");
     const shellRect = canvasShell.getBoundingClientRect();
-    let left = clientX - shellRect.left + 12;
-    let top = clientY - shellRect.top + 12;
+    // Beside the magnifier's lens when it shows, not under it.
+    const offset = 12 + (getCursorClearance?.() || 0);
+    let left = clientX - shellRect.left + offset;
+    let top = clientY - shellRect.top + offset;
     const maxLeft = shellRect.width - cursorOverlay.offsetWidth - 6;
     const maxTop = shellRect.height - cursorOverlay.offsetHeight - 6;
     left = Math.min(maxLeft, Math.max(6, left));

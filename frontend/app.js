@@ -85,6 +85,7 @@ import { knownDetectors } from "./modules/known_detectors.js";
 import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
 import { createFlatfieldController } from "./modules/flatfield_controller.js";
+import { createMagnifierController } from "./modules/magnifier_controller.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -670,6 +671,7 @@ let frameMetadataController = null;
 let exportSplashController = null;
 let inpaintingController = null;
 let flatfieldController = null;
+let magnifierController = null;
 let sourceMetadataController = null;
 let geometryParamsController = null;
 let chromeToolbarController = null;
@@ -1280,6 +1282,7 @@ const maskCursorController = createMaskCursorController({
     formatValue,
     isSaturatedValue,
     getInpaintedFrame,
+    getCursorClearance: () => magnifierController?.clearance() || 0,
     getResolutionAtPixel,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
@@ -3642,6 +3645,7 @@ function getCommandPaletteCommands() {
       openSeriesSumOutputTarget,
       cancelSeriesSumming,
       toggleFullscreen,
+      toggleMagnifier: () => magnifierController?.toggleLocked(),
       togglePanel,
       setPanelTab,
       handleMenuAction,
@@ -4505,6 +4509,8 @@ function redraw() {
   // whether the flat fits it, and "Flatfielded".
   inpaintingController?.updateState();
   flatfieldController?.updateState();
+  // The lens follows the frame and the contrast.
+  magnifierController?.refresh();
 }
 
 async function loadFrame() {
@@ -5015,6 +5021,23 @@ function validateSeriesStepInput(commit = false) {
   }
   return normalized;
 }
+magnifierController = createMagnifierController({
+  state,
+  elements: { canvasWrap, canvasShell, toggleBtn: document.getElementById("magnifier-toggle") },
+  callbacks: {
+    buildPalette,
+    getPaletteColorCount,
+    mapValueToNorm,
+    getActiveSaturationMax,
+    isSaturatedValue,
+    getInpaintedFrame,
+    getEffectiveScrollLeft,
+    getEffectiveScrollTop,
+    getPixelLabelSettings,
+    pixelLabelsForFrame,
+  },
+});
+
 flatfieldController = createFlatfieldController({
   apiBase: API,
   state,

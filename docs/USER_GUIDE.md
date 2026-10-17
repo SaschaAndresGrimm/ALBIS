@@ -126,6 +126,16 @@ familiar from ALBULA. **Invert Color** flips any of them.
 - Double-click zooms in a step.
 - **Fit to Window** in the View tab returns to the whole frame.
 
+**Magnifier.** Hold **Z** and a round lens at the mouse shows the pixels under it
+enlarged — drawn from the data, so with the whole detector on screen you still
+see each pixel as a crisp square. While it shows, the mouse wheel changes its
+magnification (2× to 32×) and **Shift + wheel** its size; both are remembered.
+The **🔍** button in the toolbar, or **View: Magnifier On/Off** in the command
+palette, keeps it on. It uses the image's colour map, contrast and mask colours,
+follows flatfield correction and inpainting, outlines the pixel under the mouse,
+prints the pixel values once the lens makes them big enough to read (with
+**Pixel values** on), and never appears in exports.
+
 **Pixel values** in the View tab prints the number in each cell once you are
 zoomed in far enough to read them. How far, how many, and their format are in
 **Settings → Viewer**.
@@ -679,6 +689,7 @@ appears and `Alt` where `⌥` appears.
 | `⇧⌘E` / `⌘G` / `⇧⌘X` | Export image… / Export animation… / Convert dataset… |
 | `⌘,` | Preferences… |
 | `F` / `F1` | Full screen / this documentation |
+| Hold `Z` | Magnifier at the mouse (wheel: magnification, `⇧` + wheel: size) |
 
 The command palette is the fastest route to anything you do not have a shortcut
 for, including switching panel tabs and stepping thresholds.
