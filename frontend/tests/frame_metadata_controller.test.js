@@ -366,3 +366,53 @@ describe("frame_metadata_controller", () => {
     expect(setDataSourceSectionState).toHaveBeenCalledWith("warning", expect.anything());
   });
 });
+
+describe("frame_metadata_controller file list", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("lets only the newest listing set the section, and bounds how long it waits", async () => {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createFrameMetadataController } = await import("../modules/frame_metadata_controller.js");
+    const resolvers = [];
+    const fetchJSON = vi.fn((_url, opts) => {
+      expect(opts?.timeoutMs).toBeGreaterThan(0);
+      return new Promise((resolve) => resolvers.push(resolve));
+    });
+    const sectionStates = [];
+    const fileSelect = document.createElement("select");
+    const controller = createFrameMetadataController({
+      apiBase: "/api",
+      state: { autoload: { dir: "/data" }, file: "/data/a.tif", dataset: "", seriesFiles: [] },
+      analysisState: {},
+      elements: { autoloadDir: null, autoloadDirList: null, fileSelect, ringInputs: [] },
+      callbacks: {
+        fetchJSON,
+        option: (label, value) => Object.assign(document.createElement("option"), { textContent: label, value }),
+        fileLabel: (value) => String(value || ""),
+        setDataControlsForHdf5: () => {},
+        setDataSourceSectionState: (tone) => sectionStates.push(tone),
+        setStatus: () => {},
+        updateToolbar: () => {},
+        showSplash: () => {},
+        setSplashStatus: () => {},
+        setLoading: () => {},
+      },
+    });
+    const first = controller.loadFiles();
+    const second = controller.loadFiles();
+    // The newer one answers first; the older, slower one must not undo it.
+    resolvers[1]({ files: ["/data/a.tif", "/data/b.tif"] });
+    await second;
+    const afterNewest = sectionStates.slice();
+    resolvers[0]({ files: [] });
+    await first;
+    expect(afterNewest.at(-1)).toBe("active");
+    expect(sectionStates).toEqual(afterNewest);
+  });
+});

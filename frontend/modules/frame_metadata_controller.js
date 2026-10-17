@@ -5,6 +5,10 @@
 import { t } from "./i18n.js";
 import { getGeometryScopeKey } from "./geometry_override_utils.js";
 
+// A folder's listing takes well under a second, even for thousands of files;
+// past this it is taken as lost, and the section says so.
+const FILE_LIST_TIMEOUT_MS = 20000;
+
 export function createFrameMetadataController({
   apiBase,
   state,
@@ -66,13 +70,21 @@ export function createFrameMetadataController({
     }
   }
 
+  let filesGeneration = 0;
+
   async function loadFiles() {
     setDataControlsForHdf5();
     setDataSourceSectionState("loading", t("status.files.loading"), true);
     const folder = (autoloadDir?.value || state.autoload.dir || "").trim();
     const url = folder ? `${apiBase}/files?folder=${encodeURIComponent(folder)}` : `${apiBase}/files`;
+    // Only the newest listing may change the section: an older, slower one
+    // must not overwrite it, or leave it saying "Loading" after it was done.
+    const generation = ++filesGeneration;
     try {
-      const data = await fetchJSON(url);
+      // Bounded: a listing that never completes (seen in Firefox with a
+      // response-filtering extension) says so instead of loading forever.
+      const data = await fetchJSON(url, { timeoutMs: FILE_LIST_TIMEOUT_MS });
+      if (generation !== filesGeneration) return;
       fileSelect.innerHTML = "";
       const existingFile = state.file;
       if (data.files.length > 0) {
@@ -120,6 +132,7 @@ export function createFrameMetadataController({
       }
     } catch (err) {
       console.error(err);
+      if (generation !== filesGeneration) return;
       setStatus(t("status.frame.load_files_failed"), { tone: "error" });
       setDataSourceSectionState("warning", t("status.files.load_failed"));
     }

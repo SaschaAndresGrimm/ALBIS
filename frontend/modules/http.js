@@ -80,10 +80,16 @@ async function request(url, init = {}) {
     fetchInit.signal = callerSignal;
   }
 
+  const done = () => {
+    if (timer) clearTimeout(timer);
+    if (cleanupCallerAbort) cleanupCallerAbort();
+  };
+
   let res;
   try {
     res = await fetch(url, fetchInit);
   } catch (cause) {
+    done();
     if (timedOut) {
       throw httpError(408, "");
     }
@@ -95,15 +101,27 @@ async function request(url, init = {}) {
     const err = httpError(0, "");
     err.cause = cause;
     throw err;
-  } finally {
-    if (timer) clearTimeout(timer);
-    if (cleanupCallerAbort) cleanupCallerAbort();
   }
   if (!res.ok) {
+    done();
     const { text, data } = await readDetail(res);
     throw httpError(res.status, text, data);
   }
-  return res.json();
+  if (!timer) {
+    done();
+    return res.json();
+  }
+  // With a timeout, it covers the body too: a response whose headers arrived
+  // but whose body never completes (seen in Firefox with a response-filtering
+  // extension) would otherwise leave the caller waiting for good.
+  try {
+    return await res.json();
+  } catch (cause) {
+    if (timedOut) throw httpError(408, "");
+    throw cause;
+  } finally {
+    done();
+  }
 }
 
 // Plain pass-throughs (not async) so they add no extra microtask hop over the

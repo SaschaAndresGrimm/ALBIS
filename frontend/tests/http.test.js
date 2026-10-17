@@ -60,6 +60,22 @@ describe("http", () => {
     expect(err.status).toBe(408);
   });
 
+  it("times out a body that never completes, not only the headers", async () => {
+    vi.useFakeTimers();
+    // Headers arrive; the body hangs until the request is aborted.
+    globalThis.fetch = vi.fn(async (_url, init) => ({
+      ok: true,
+      status: 200,
+      json: () =>
+        new Promise((_, reject) => {
+          init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        }),
+    }));
+    const result = fetchJSON("/x", { timeoutMs: 1000 }).catch((err) => err);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect((await result).status).toBe(408);
+  });
+
   it("does not abort before timeoutMs elapses", async () => {
     vi.useFakeTimers();
     let resolveFetch;

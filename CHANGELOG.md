@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The file list can no longer hang on "Loading file list…".** In Firefox, opening a file (⌘O or File → Open) could leave the Data source section loading forever: the listing's response arrived at the server's end but never completed in the browser, which points to a response-filtering browser extension. The listing now gives up after 20 s and says it could not load the file list, and the file still opens; the request timeout now covers a response's body, not only its headers. Only the newest listing updates the section, so an older, slower one cannot leave it loading.
+
 ### Added
 
 - **A magnifier.** Hold **Z** and a round lens at the mouse shows the pixels under it enlarged, drawn from the data rather than the screen, so each pixel is a crisp square even with the whole detector on screen. The wheel changes its magnification (2×–32×) and Shift+wheel its size, both remembered; the toolbar's 🔍 or **View: Magnifier On/Off** in the command palette keeps it on. It uses the image's colour map, contrast and mask colours, follows flatfield correction and inpainting, outlines the pixel under the mouse, prints the pixel values in it from 16-pixel cells on, larger than the image's and each sized to fit its cell (with **Pixel values** on), moves the value readout out of its way, and never appears in exports. A click on the image hands keyboard focus back from the side panel, so Z works right after using a panel control. (Z rather than M, which already folds the side panel.)
