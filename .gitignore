@@ -44,3 +44,7 @@ albis.config.json
 ALBIS_REVIEW.md
 IMPROVEMENTS_SUMMARY.md
 ROI_PLOT_ANALYSIS.md
+
+# Local code-graph tooling (graphify) and its agent instructions: personal, not shared.
+CLAUDE.md
+graphify-out/
