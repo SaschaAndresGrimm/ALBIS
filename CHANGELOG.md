@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-10-18
+
 ### Fixed
 
 - **The file list can no longer hang on "Loading file list…".** In Firefox, opening a file (⌘O or File → Open) could leave the Data source section loading forever: the listing's response arrived at the server's end but never completed in the browser, which points to a response-filtering browser extension. The listing now gives up after 20 s and says it could not load the file list, and the file still opens; the request timeout now covers a response's body, not only its headers. Only the newest listing updates the section, so an older, slower one cannot leave it loading.
@@ -1609,7 +1611,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.2...v0.30.0
 [0.29.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.1...v0.29.2
