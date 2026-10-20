@@ -239,6 +239,13 @@ class DataExportService:
         if self._is_cancel_requested(job_id):
             raise _DataExportCancelledError("Cancelled by user")
 
+    def has_running_job(self) -> bool:
+        """Whether a conversion is still writing files."""
+        with self._lock:
+            return any(
+                str(job.get("status") or "") in {"queued", "running"} for job in self._jobs.values()
+            )
+
     def _trim_finished_jobs(self) -> None:
         done_jobs = [
             jid

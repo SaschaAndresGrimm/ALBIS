@@ -86,6 +86,7 @@ import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
 import { createFlatfieldController } from "./modules/flatfield_controller.js";
 import { createMagnifierController } from "./modules/magnifier_controller.js";
+import { createQuitController } from "./modules/quit_controller.js";
 import { whenCanvasFontReady } from "./modules/canvas_fonts.js";
 import { createViewerSyncController } from "./modules/viewer_sync_controller.js";
 import { createFramePlaybackController } from "./modules/frame_playback_controller.js";
@@ -672,6 +673,7 @@ let exportSplashController = null;
 let inpaintingController = null;
 let flatfieldController = null;
 let magnifierController = null;
+let quitController = null;
 let sourceMetadataController = null;
 let geometryParamsController = null;
 let chromeToolbarController = null;
@@ -2892,6 +2894,7 @@ const backendStatusController = createBackendStatusController({
     updateFooterVersions,
     updateSplashCallToAction,
     setSplashStatus,
+    onQuitAvailability: () => quitController?.sync(),
   },
 });
 
@@ -3646,6 +3649,7 @@ function getCommandPaletteCommands() {
       cancelSeriesSumming,
       toggleFullscreen,
       toggleMagnifier: () => magnifierController?.toggleLocked(),
+      quitAlbis: () => quitController?.quit(),
       togglePanel,
       setPanelTab,
       handleMenuAction,
@@ -3707,6 +3711,7 @@ const menuActionHandler = createMenuActionHandler({
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,
+    quitAlbis: () => quitController?.quit(),
   },
 });
 
@@ -5021,6 +5026,16 @@ function validateSeriesStepInput(commit = false) {
   }
   return normalized;
 }
+quitController = createQuitController({
+  apiBase: API,
+  state,
+  elements: { menuItem: document.getElementById("menu-quit") },
+  callbacks: {
+    collectBusyWork: () => collectUpdateApplyBlockers(),
+    setStatus,
+  },
+});
+
 magnifierController = createMagnifierController({
   state,
   elements: { canvasWrap, canvasShell, toggleBtn: document.getElementById("magnifier-toggle") },

@@ -26,6 +26,7 @@ reference of the same material.
 - [Compare two views](#compare-two-views)
 - [Test a detector (beta)](#test-a-detector-beta)
 - [Work from another machine](#work-from-another-machine)
+- [Quit ALBIS](#quit-albis)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [What ALBIS sends over the network](#what-albis-sends-over-the-network)
 - [When something looks wrong](#when-something-looks-wrong)
@@ -672,6 +673,26 @@ hostname to **Allowed hosts**. Both are covered in the
 
 ALBIS has no authentication. Treat a shared instance as visible to everyone who
 can reach the port.
+
+---
+
+## Quit ALBIS
+
+ALBIS runs as a small server in the background; the browser tab is only its
+window. Closing the tab leaves the server running, holding its memory and, on
+Windows, the files it opened (they cannot be moved or deleted meanwhile).
+
+- **File → Quit ALBIS** (or **ALBIS: Quit** in the command palette) stops it.
+  It asks first only if a conversion, an export, a series sum or a live watch
+  is still running; the tab then says ALBIS has stopped. On macOS, **Quit** in
+  the Dock menu does the same.
+- **It stops by itself** 15 minutes after the last ALBIS tab was closed, unless
+  a conversion or a series sum is still writing its files. Change the time, or
+  switch this off, with `launcher.idle_shutdown_min` in the
+  [Power User Guide](POWER_USER_GUIDE.md#settings-reference).
+
+Both apply to ALBIS started on your own computer. A shared ALBIS server, or the
+Docker image, is never stopped from a browser and never stops on its own.
 
 ---
 

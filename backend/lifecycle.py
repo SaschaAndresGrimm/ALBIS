@@ -75,3 +75,86 @@ class ShutdownController:
 
 
 shutdown_controller = ShutdownController()
+
+
+# ---- Stopping when nobody uses it -------------------------------------------
+
+# A browser slows the polling of a hidden tab to about once a minute; this
+# often a check comes round, which is ample for a limit in minutes.
+IDLE_CHECK_SECONDS = 30.0
+
+
+class IdleWatch:
+    """Stops ALBIS once no tab has been in touch for a while.
+
+    On Windows and Linux there is no Dock to quit from, and a server nobody
+    looks at keeps its memory and holds its HDF5 files locked -- on Windows
+    they cannot be moved or deleted while it runs. Every open ALBIS tab asks
+    the server something about once a second (less often when hidden), so a
+    long silence means every tab is gone. Started by the launcher, for a server
+    on this computer only: a shared server or a container is idle by nature.
+    """
+
+    def __init__(self, clock: Callable[[], float] | None = None) -> None:
+        import time as _time
+
+        self._clock = clock or _time.monotonic
+        self._lock = threading.Lock()
+        self._last = self._clock()
+        self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
+
+    def touch(self) -> None:
+        """A tab was in touch."""
+        with self._lock:
+            self._last = self._clock()
+
+    def idle_seconds(self) -> float:
+        with self._lock:
+            return self._clock() - self._last
+
+    def check(
+        self,
+        minutes: float,
+        busy: Callable[[], list[str]],
+        stop: Callable[[], None],
+        logger: Logger,
+    ) -> bool:
+        """Stop now if idle for `minutes` with nothing running. True if it did."""
+        if minutes <= 0 or self.idle_seconds() < minutes * 60:
+            return False
+        if busy():
+            # A conversion still writing its files: not idle, whatever the tabs.
+            return False
+        logger.info("No ALBIS tab for %.0f minutes: stopping", minutes)
+        stop()
+        return True
+
+    def start(
+        self,
+        minutes: Callable[[], float],
+        busy: Callable[[], list[str]],
+        stop: Callable[[], None],
+        logger: Logger,
+        interval: float = IDLE_CHECK_SECONDS,
+    ) -> None:
+        if self._thread is not None:
+            return
+        self.touch()
+
+        def _run() -> None:
+            while not self._stop.wait(interval):
+                try:
+                    if self.check(minutes(), busy, stop, logger):
+                        return
+                except Exception:
+                    logger.exception("Idle check failed")
+
+        self._thread = threading.Thread(target=_run, name="albis-idle-watch", daemon=True)
+        self._thread.start()
+
+    def cancel(self) -> None:
+        self._stop.set()
+
+
+idle_watch = IdleWatch()

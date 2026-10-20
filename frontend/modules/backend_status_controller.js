@@ -20,6 +20,7 @@ export function createBackendStatusController({
     updateFooterVersions,
     updateSplashCallToAction,
     setSplashStatus,
+    onQuitAvailability = () => {},
   } = callbacks;
 
   let backendTimer = null;
@@ -136,6 +137,12 @@ export function createBackendStatusController({
           // Absent on a server older than this field, which is a valid answer:
           // an unstamped build reports no commit rather than a wrong one.
           commit = data?.commit ? String(data.commit) : "";
+          // Whether File -> Quit ALBIS may stop this server.
+          const canQuit = Boolean(data?.can_quit);
+          if (state.canQuit !== canQuit) {
+            state.canQuit = canQuit;
+            onQuitAvailability();
+          }
         } catch {
           // ignore parse errors
         }

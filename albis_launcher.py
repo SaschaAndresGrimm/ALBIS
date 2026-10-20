@@ -930,7 +930,9 @@ def main() -> None:
     # Use a direct object reference so frozen builds do not rely on dynamic module import strings.
     _launcher_log(start_ts, "importing backend app")
     from backend.app import app as asgi_app
-    from backend.lifecycle import shutdown_controller
+    from backend.app import idle_shutdown_busy, idle_shutdown_minutes
+    from backend.lifecycle import idle_watch, shutdown_controller
+    from backend.request_guard import is_loopback_host
 
     _launcher_log(start_ts, "backend app imported")
 
@@ -959,7 +961,19 @@ def main() -> None:
     # update needs: on Linux the replaced AppImage only takes effect on the
     # next start, and nothing else can stop the server the launcher owns. A
     # source run registers nothing, so the apply step is not offered there.
-    shutdown_controller.register(lambda: _request_shutdown("update-apply"))
+    # File -> Quit ALBIS and the idle stop use the same way out.
+    shutdown_controller.register(lambda: _request_shutdown("backend"))
+    # Stops ALBIS once no tab has been open for a while (launcher.
+    # idle_shutdown_min): only for a server on this computer, which nobody else
+    # can be using.
+    if is_loopback_host(host):
+        idle_watch.start(
+            minutes=idle_shutdown_minutes,
+            busy=idle_shutdown_busy,
+            stop=lambda: _request_shutdown("idle"),
+            logger=logging.getLogger("albis"),
+        )
+        _launcher_log(start_ts, f"idle stop after {idle_shutdown_minutes():g} min without a tab")
     _sockets = [bound_sock] if bound_sock is not None else []
     thread = threading.Thread(target=server.run, kwargs={"sockets": _sockets}, daemon=True)
     thread.start()

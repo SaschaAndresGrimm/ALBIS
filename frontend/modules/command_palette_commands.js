@@ -39,6 +39,7 @@ export function buildCommandPaletteCommands({
     cancelSeriesSumming,
     toggleFullscreen,
     toggleMagnifier = () => {},
+    quitAlbis = () => {},
     togglePanel,
     setPanelTab,
     handleMenuAction,
@@ -259,6 +260,14 @@ export function buildCommandPaletteCommands({
       shortcut: "F",
       search: "fullscreen immersive",
       run: () => toggleFullscreen(),
+    },
+    {
+      id: "quit-albis",
+      label: t("command.label.quit"),
+      shortcut: "",
+      search: "quit exit stop close server shut down",
+      when: Boolean(state.canQuit),
+      run: () => quitAlbis(),
     },
     {
       id: "toggle-magnifier",

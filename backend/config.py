@@ -43,6 +43,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "startup_health_timeout_sec": 15.0,
         "open_browser": True,
         "debug_macos_events": False,
+        # Stop when no ALBIS tab has been open for this many minutes (0: never).
+        # Only for a server on this computer, started by the launcher.
+        "idle_shutdown_min": 15,
     },
     "data": {
         "root": "",
@@ -97,6 +100,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("launcher", "startup_health_timeout_sec"): (int, float, str),
     ("launcher", "open_browser"): (bool, int, float, str),
     ("launcher", "debug_macos_events"): (bool, int, float, str),
+    ("launcher", "idle_shutdown_min"): (int, float, str),
     ("data", "root"): (str,),
     ("data", "allow_abs_paths"): (bool, int, float, str),
     ("data", "scan_cache_sec"): (int, float, str),
@@ -404,6 +408,9 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "startup_health_timeout_sec": startup_health_timeout,
             "open_browser": get_bool(merged, ("launcher", "open_browser"), True),
             "debug_macos_events": get_bool(merged, ("launcher", "debug_macos_events"), False),
+            "idle_shutdown_min": max(
+                0, min(1440, get_int(merged, ("launcher", "idle_shutdown_min"), 15))
+            ),
         },
         "data": {
             "root": get_str(merged, ("data", "root"), ""),

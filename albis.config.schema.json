@@ -66,6 +66,13 @@
           "type": "boolean",
           "default": false,
           "description": "Enable verbose macOS app-event logging in the launcher."
+        },
+        "idle_shutdown_min": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1440,
+          "default": 15,
+          "description": "Stop ALBIS once no tab has been open for this many minutes (0: never). Only for a server started by the launcher on this computer."
         }
       }
     },
@@ -242,7 +249,8 @@
     "launcher": {
       "startup_timeout_sec": 5.0,
       "open_browser": true,
-      "debug_macos_events": false
+      "debug_macos_events": false,
+      "idle_shutdown_min": 15
     },
     "data": {
       "root": "",

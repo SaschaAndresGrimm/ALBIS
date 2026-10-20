@@ -21,10 +21,14 @@ export function createMenuActionHandler({
     exportFullImage,
     exportVisibleArea,
     exportViewerWindow,
+    quitAlbis = () => {},
   } = callbacks;
 
   return async function handleMenuAction(action) {
     switch (action) {
+      case "quit":
+        await quitAlbis();
+        break;
       case "help-docs":
         window.open("docs.html", "_blank");
         break;

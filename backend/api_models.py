@@ -23,6 +23,9 @@ class HealthResponse(_StrictModel):
     # case remote sessions quietly fall back to gzip — reporting it here makes that
     # visible to the packaged-binary smoke test and to support.
     compression_encodings: list[str] = []
+    # Whether File -> Quit ALBIS may stop this server: one started by the
+    # launcher, on this computer. Never a shared server or a container.
+    can_quit: bool = False
 
 
 class UpdateCheckResponse(_StrictModel):
@@ -565,3 +568,14 @@ class KnownDetectorImportRequest(_StrictModel):
     """A list kept elsewhere before (a browser's), merged in once."""
 
     detectors: list[dict[str, Any]] = Field(default_factory=list, max_length=500)
+
+
+class QuitRequest(_StrictModel):
+    """Stop ALBIS. Without `force`, refused (409) while a job of the backend's
+    own -- a series sum writing its output -- is still running."""
+
+    force: bool = False
+
+
+class QuitResponse(_StrictModel):
+    status: Literal["stopping"]

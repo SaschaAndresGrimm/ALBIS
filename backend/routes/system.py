@@ -14,6 +14,8 @@ from ..api_models import (
     HealthResponse,
     LogTailResponse,
     PathStatusResponse,
+    QuitRequest,
+    QuitResponse,
     SettingsPayloadResponse,
     SettingsSaveRequest,
     StatusResponse,
@@ -58,6 +60,10 @@ class SystemRouteDeps:
     # What the backend itself has running, which the interface cannot see. Its
     # own jobs count as live work exactly as a live watch does.
     backend_busy: Callable[[], list[str]]
+    # File -> Quit ALBIS: whether this server may be stopped from the
+    # interface, and the request to stop it.
+    can_quit: Callable[[], bool] = lambda: False
+    request_quit: Callable[[], bool] = lambda: False
 
 
 def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
@@ -79,7 +85,28 @@ def register_system_routes(app: FastAPI, deps: SystemRouteDeps) -> None:
             version=deps.version,
             commit=deps.commit,
             compression_encodings=list(available_encodings()),
+            can_quit=deps.can_quit(),
         )
+
+    @app.post("/api/quit", response_model=QuitResponse)
+    def quit_albis(payload: QuitRequest) -> QuitResponse:
+        """Stop ALBIS (File -> Quit ALBIS). Answered before the process stops.
+
+        Only for a server started by the launcher on this computer. Without
+        `force`, refused while the backend's own work is running, so the
+        interface can ask first; what the interface itself has running it
+        checks on its side.
+        """
+        if not deps.can_quit():
+            raise HTTPException(
+                status_code=403, detail="This ALBIS server cannot be stopped from here"
+            )
+        busy = deps.backend_busy()
+        if busy and not payload.force:
+            raise HTTPException(status_code=409, detail={"code": "busy", "busy": busy})
+        if not deps.request_quit():
+            raise HTTPException(status_code=503, detail="ALBIS could not stop itself")
+        return QuitResponse(status="stopping")
 
     @app.get("/api/update-check", response_model=UpdateCheckResponse)
     def update_check() -> UpdateCheckResponse:

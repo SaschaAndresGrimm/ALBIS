@@ -64,7 +64,7 @@ from .install_kind import (
     INSTALL_KIND_ENV_VAR,
     install_kind_override,
 )
-from .lifecycle import shutdown_controller
+from .lifecycle import idle_watch, shutdown_controller
 from .request_guard import (
     RequestGuardMiddleware,
     is_loopback_host,
@@ -426,6 +426,9 @@ app.router.lifespan_context = _lifespan
 async def log_requests(request, call_next):
     """Emit request/response logs with severity based on status code and latency."""
     start = time.perf_counter()
+    if request.url.path.startswith("/api/"):
+        # A tab is in touch: see lifecycle.IdleWatch.
+        idle_watch.touch()
     try:
         response = await call_next(request)
     except Exception:
@@ -682,6 +685,30 @@ def _get_allow_update_apply() -> bool:
     return runtime_state.allow_update_apply
 
 
+def idle_shutdown_minutes() -> float:
+    """launcher.idle_shutdown_min, read each time: Settings can change it."""
+    return float(get_int(runtime_state.config, ("launcher", "idle_shutdown_min"), 15))
+
+
+def idle_shutdown_busy() -> list[str]:
+    """Work that keeps ALBIS running with no tab open: a series sum or a
+    conversion still writing its files."""
+    return _get_backend_busy()
+
+
+def _can_quit() -> bool:
+    """Whether File -> Quit ALBIS may stop this server: started by the launcher
+    (which can stop it), and listening on this computer only -- never a server
+    others use, nor a container."""
+    return shutdown_controller.is_available() and is_loopback_host(
+        strip_port(runtime_state.bind_host)
+    )
+
+
+def _request_quit() -> bool:
+    return shutdown_controller.request(logger, "quit")
+
+
 def _get_backend_busy() -> list[str]:
     """Work of the backend's own that closing ALBIS would abandon.
 
@@ -692,6 +719,10 @@ def _get_backend_busy() -> list[str]:
     busy: list[str] = []
     if series_summing.has_running_job():
         busy.append("series_sum")
+    # A conversion writes its files one by one; stopping midway leaves a set
+    # with its last file cut short.
+    if data_export.has_running_job():
+        busy.append("data_export")
     return busy
 
 
@@ -727,6 +758,8 @@ register_system_routes(
         update_apply=update_apply_service,
         install_kind=ALBIS_INSTALL_KIND,
         backend_busy=_get_backend_busy,
+        can_quit=_can_quit,
+        request_quit=_request_quit,
     ),
 )
 
