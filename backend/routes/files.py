@@ -21,6 +21,7 @@ from ..api_models import (
     FoldersListResponse,
     PathSelectionResponse,
     SeriesInfoResponse,
+    UploadExistingResponse,
     UploadResponse,
 )
 from ..config import UI_LANGUAGES, normalize_ui_language
@@ -92,6 +93,62 @@ def _cleanup_partial_upload(path: Path) -> None:
             path.unlink()
     except OSError:
         pass
+
+
+_HDF5_SIGNATURE = b"\x89HDF\r\n\x1a\n"
+
+
+def _hdf5_declared_size(path: Path) -> int | None:
+    """Return the file size an HDF5 superblock says the file has, or None.
+
+    A writer records the end-of-file address when it closes the file, so a
+    copy taken while the file was still being written or copied carries the
+    final size in its first bytes but stops short of it. HDF5 refuses to open
+    such a file ("truncated file"), and so does every request for it.
+    """
+    try:
+        with path.open("rb") as fh:
+            # The superblock sits at 0 or, behind a user block, at 512, 1024, ...
+            offset = 0
+            while True:
+                fh.seek(offset)
+                head = fh.read(16)
+                if len(head) < 16:
+                    return None
+                if head[:8] == _HDF5_SIGNATURE:
+                    break
+                offset = 512 if offset == 0 else offset * 2
+            version = head[8]
+            if version in (0, 1):
+                size_of_offsets = head[13]
+                base_pos = 24 if version == 0 else 28
+            elif version in (2, 3):
+                size_of_offsets = head[9]
+                base_pos = 12
+            else:
+                return None
+            if size_of_offsets not in (2, 4, 8):
+                return None
+            # base address, one more address, then the end-of-file address --
+            # which HDF5 holds against the whole file's size, user block included
+            fh.seek(offset + base_pos + 2 * size_of_offsets)
+            raw = fh.read(size_of_offsets)
+            if len(raw) < size_of_offsets:
+                return None
+            eof = int.from_bytes(raw, "little")
+            if eof == (1 << (8 * size_of_offsets)) - 1:
+                return None
+            return eof
+    except OSError:
+        return None
+
+
+def _incomplete_upload_detail(name: str, written: int, expected: int) -> str:
+    return (
+        f"Upload of {name} is incomplete: received {written} of {expected} bytes. "
+        "If the file is still being written or copied, wait until it has finished "
+        "and upload it again."
+    )
 
 
 def _picker_unavailable_status(exc: RuntimeError) -> int:
@@ -734,13 +791,8 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
     # including the interface's own polling, so the window appears to freeze
     # while a large file uploads. As a plain `def`, Starlette runs it in a
     # threadpool, which is what the other 46 routes already do.
-    @app.post("/api/upload", response_model=UploadResponse)
-    def upload(file: UploadFile = File(...), folder: str | None = Query(None)) -> UploadResponse:
-        """Stream an uploaded detector file into the selected data directory."""
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="Missing filename")
-        safe_path = deps.safe_rel_path(Path(file.filename).name)
-        safe = safe_path.as_posix()
+    def _upload_dest(filename: str, folder: str | None) -> tuple[str, Path]:
+        safe = deps.safe_rel_path(Path(filename).name).as_posix()
         ext = deps.image_ext_name(safe)
         if ext not in deps.autoload_exts:
             raise HTTPException(status_code=400, detail="Unsupported file type")
@@ -748,6 +800,53 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         dest = (root / safe).resolve()
         if not deps.is_within(dest, root):
             raise HTTPException(status_code=400, detail="Invalid file name")
+        return safe, dest
+
+    def _open_path(dest: Path) -> str:
+        try:
+            return dest.relative_to(deps.data_dir.resolve()).as_posix()
+        except ValueError:
+            return str(dest)
+
+    @app.get("/api/upload/existing", response_model=UploadExistingResponse)
+    def upload_existing(
+        name: str = Query(...),
+        size: int = Query(..., ge=0),
+        folder: str | None = Query(None),
+    ) -> UploadExistingResponse:
+        """Name the file an upload would write, if it is already there in full.
+
+        Same name is not enough: a copy that stopped short -- uploaded while the
+        file was still being written -- would otherwise be reopened on every
+        retry instead of being replaced.
+        """
+        _safe, dest = _upload_dest(name, folder)
+        try:
+            on_disk = dest.stat().st_size if dest.is_file() else None
+        except OSError:
+            on_disk = None
+        if on_disk is None or on_disk != size:
+            return UploadExistingResponse(path=None)
+        declared = _hdf5_declared_size(dest)
+        if declared is not None and declared > on_disk:
+            return UploadExistingResponse(path=None)
+        return UploadExistingResponse(path=_open_path(dest))
+
+    @app.post("/api/upload", response_model=UploadResponse)
+    def upload(
+        file: UploadFile = File(...),
+        folder: str | None = Query(None),
+        size: int | None = Query(None, ge=0),
+    ) -> UploadResponse:
+        """Stream an uploaded detector file into the selected data directory.
+
+        `size` is the length the browser reported for the file; a body that
+        does not match it, or an HDF5 file shorter than its own superblock
+        says, is discarded rather than kept as a file nothing can open.
+        """
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Missing filename")
+        safe, dest = _upload_dest(file.filename, folder)
 
         deps.logger.info("Upload start: %s -> %s", safe, dest)
         chunk_size = 1024 * 1024 * 4
@@ -768,13 +867,21 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                     ),
                 ) from exc
             raise
+        expected = size if size is not None and size != written else None
+        if expected is None:
+            declared = _hdf5_declared_size(dest)
+            if declared is not None and declared > written:
+                expected = declared
+        if expected is not None:
+            _cleanup_partial_upload(dest)
+            deps.logger.warning(
+                "Upload incomplete: %s (%d of %d bytes), discarded", dest, written, expected
+            )
+            raise HTTPException(
+                status_code=422, detail=_incomplete_upload_detail(safe, written, expected)
+            )
         deps.logger.info("Upload complete: %s (%d bytes)", resolved_dest, written)
         # The upload flow asks for the file list next, to find what it just
         # wrote. A cached root scan taken a moment ago does not contain it.
         deps.invalidate_scans()
-        try:
-            resolved_rel = resolved_dest.relative_to(deps.data_dir.resolve()).as_posix()
-            open_path = resolved_rel
-        except ValueError:
-            open_path = str(resolved_dest)
-        return UploadResponse(filename=safe, path=open_path)
+        return UploadResponse(filename=safe, path=_open_path(resolved_dest))

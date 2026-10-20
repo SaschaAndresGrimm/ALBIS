@@ -131,17 +131,16 @@ export function createUploadFlowController({
     uploadBar.setAttribute("aria-hidden", "true");
   }
 
-  async function findExistingFile(filename, folder = "") {
-    if (!filename) return null;
+  // The file the upload would write, when it is already there with the same
+  // size. A same-named copy that stopped short -- uploaded while the file was
+  // still being written -- is uploaded over instead of being reopened.
+  async function findExistingFile(file, folder = "") {
+    if (!file?.name) return null;
     try {
-      const url = folder ? `${apiBase}/files?folder=${encodeURIComponent(folder)}` : `${apiBase}/files`;
-      const data = await fetchJSON(url);
-      const matches = data.files.filter((file) => file === filename || file.endsWith(`/${filename}`));
-      if (matches.length === 0) return null;
-      const exact = matches.find((file) => file === filename);
-      if (exact) return exact;
-      matches.sort((a, b) => a.length - b.length);
-      return matches[0];
+      const params = new URLSearchParams({ name: file.name, size: String(file.size) });
+      if (folder) params.set("folder", folder);
+      const data = await fetchJSON(`${apiBase}/upload/existing?${params}`);
+      return data?.path || null;
     } catch (err) {
       console.error(err);
       return null;
@@ -167,13 +166,15 @@ export function createUploadFlowController({
 
     try {
       showUploadProgress();
-      const uploadUrl = uploadFolder
-        ? `${apiBase}/upload?folder=${encodeURIComponent(uploadFolder)}`
-        : `${apiBase}/upload`;
+      const uploadUrl = (file) => {
+        const params = new URLSearchParams({ size: String(file.size) });
+        if (uploadFolder) params.set("folder", uploadFolder);
+        return `${apiBase}/upload?${params}`;
+      };
       const uploadedTargets = [];
       for (let i = 0; i < files.length; i += 1) {
         const file = files[i];
-        const existing = await findExistingFile(file.name, uploadFolder);
+        const existing = await findExistingFile(file, uploadFolder);
         if (existing) {
           uploadedTargets.push(existing);
           updateUploadProgress(Math.round(((i + 1) / total) * 100));
@@ -183,7 +184,7 @@ export function createUploadFlowController({
         setStatus(total > 1
           ? t("status.upload.uploading_many", { index: i + 1, total, name: file.name })
           : t("status.upload.uploading_single"));
-        const payload = await uploadSingleFile(file, uploadUrl, (event) => {
+        const payload = await uploadSingleFile(file, uploadUrl(file), (event) => {
           if (!event.lengthComputable) {
             updateUploadProgress(Math.round((i / total) * 100));
             return;
@@ -207,7 +208,8 @@ export function createUploadFlowController({
       }
     } catch (err) {
       console.error(err);
-      setStatus(t("status.upload.failed"), { tone: "error" });
+      const detail = err?.message && err.message !== "Upload failed" ? `: ${err.message}` : "";
+      setStatus(`${t("status.upload.failed")}${detail}`, { tone: "error" });
       setLoading(false);
     } finally {
       hideUploadProgress();

@@ -423,6 +423,11 @@ class UploadResponse(_StrictModel):
     path: str
 
 
+class UploadExistingResponse(_StrictModel):
+    # The path to open, or None when the file has to be uploaded.
+    path: str | None = None
+
+
 class HDF5DatasetEntry(_StrictModel):
     path: str
     shape: list[int] = Field(default_factory=list)
