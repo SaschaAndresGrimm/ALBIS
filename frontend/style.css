@@ -81,13 +81,16 @@
 /* The ALBIS wordmark -- the title on the start screen and in Help -> About --
    in Michroma: wide and squared like the DECTRIS wordmark it sits next to in
    the splash picture. Only the wordmark: the interface stays in Inter, made
-   for small text and numbers. One weight exists, so it is never set bold. */
+   for small text and numbers. One weight exists, so it is never set bold.
+   `block`, not `swap`: a single large word drawn first in the fallback and then
+   redrawn visibly changes shape, which reads as a glitch. Blank for the few
+   milliseconds the preloaded local file takes is the better trade here. */
 @font-face {
   font-family: "Michroma";
   src: url("vendor/Michroma-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
-  font-display: swap;
+  font-display: block;
 }
 
 /* Inter has no CJK coverage, so Japanese and Chinese text would fall through to

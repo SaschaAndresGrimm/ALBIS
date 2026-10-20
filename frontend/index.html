@@ -6,6 +6,12 @@
     <title>ALBIS</title>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/icon_32x32.png" />
     <link rel="shortcut icon" href="assets/icon_32x32.png" />
+    <!-- Fetched alongside the stylesheet rather than once it has been parsed
+         and applied, so the first paint already has them: otherwise the
+         splash wordmark flashes in a fallback face before Michroma arrives.
+         `crossorigin` is required for font preloads, same origin or not. -->
+    <link rel="preload" href="vendor/Michroma-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="vendor/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body class="canvas-first">

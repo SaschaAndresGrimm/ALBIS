@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The ALBIS wordmark no longer flickers on start.** For the first moment the start screen showed "ALBIS" in a fallback font, then redrew it in Michroma, so the word visibly changed shape. Both bundled fonts are now preloaded with the page, and the wordmark waits for Michroma instead of being drawn in a fallback first.
+
 ## [0.32.0] - 2026-10-20
 
 ### Added
