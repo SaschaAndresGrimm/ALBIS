@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-20
+
 ### Added
 
 - **File → Quit ALBIS, and an automatic stop.** ALBIS runs as a server behind its browser tab, and on Windows and Linux there was no way to stop it short of Task Manager: closing the tab left it holding its memory and, on Windows, its open HDF5 files locked. **File → Quit ALBIS** (also **ALBIS: Quit** in the command palette) stops it, asking first only while a conversion, an export, a series sum or a live watch is running, and the tab then says ALBIS has stopped. ALBIS also stops by itself 15 minutes after the last tab closed (`launcher.idle_shutdown_min`, `0` to keep it running), unless a conversion or series sum is still writing. Both only for ALBIS started by its launcher on this computer: `/api/health` reports `can_quit`, and `POST /api/quit` refuses a server bound to the network or one without the launcher (the Docker image), as the idle stop never runs there. No keyboard shortcut: Ctrl+Q quits Firefox on Windows and Linux. Suggested by Benj.
@@ -1619,7 +1621,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.29.2...v0.30.0
