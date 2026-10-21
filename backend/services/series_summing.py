@@ -1042,6 +1042,11 @@ class SeriesSummingService:
                 image_w = int(sample.shape[-1])
                 shape = (int(frame_count), image_h, image_w)
                 source_dtype = np.dtype(sample.dtype)
+                unsigned_flag = (
+                    float(np.iinfo(source_dtype).max)
+                    if np.issubdtype(source_dtype, np.unsignedinteger)
+                    else None
+                )
                 mask_bits = np.zeros((image_h, image_w), dtype=np.uint32) if apply_mask else None
                 mask_bits_by_thr = [mask_bits]
                 if normalize_image_ref is not None and normalize_image_ref.shape != (
@@ -1110,6 +1115,16 @@ class SeriesSummingService:
                                 mask_bits[neg & ~gaps] |= 0x1E
                             arr = arr.copy()
                             arr[neg] = 0.0
+                        if unsigned_flag is not None:
+                            # An unsigned frame cannot hold -1: its gaps are the
+                            # type's maximum, which is no count either. Summed or
+                            # averaged as one, 65535 came back as an unmarked pixel.
+                            flagged = arr == unsigned_flag
+                            if flagged.any():
+                                if mask_bits is not None:
+                                    mask_bits[flagged] |= 1
+                                arr = arr.copy()
+                                arr[flagged] = 0.0
                         if mask_bits is not None and np.any(mask_bits):
                             arr = arr.copy()
                             arr[mask_bits != 0] = 0.0

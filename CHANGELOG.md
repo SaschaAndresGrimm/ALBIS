@@ -19,6 +19,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **Combining unsigned TIFF or CBF frames keeps their gaps as gaps.** With **Apply mask** on, only negative values (-1, -2) were recognised as masked pixels, which is how signed data marks them. Unsigned frames — a 16-bit TIFF, say — mark a gap with the type's maximum, and that was combined as a count: a mean of 65535s came out as 65535.0, which the viewer took for a bright pixel, so the gap counted for nothing in the statistics and Inpainting had nothing to fill. The maximum is now masked like -1, and the result carries ALBIS's own gap marker: -1 in a mean or median, the type's maximum in a sum.
 - **The ALBIS wordmark no longer flickers on start.** For the first moment the start screen showed "ALBIS" in a fallback font, then redrew it in Michroma, so the word visibly changed shape. Both bundled fonts are now preloaded with the page, and the wordmark waits for Michroma instead of being drawn in a fallback first.
 
 ## [0.32.0] - 2026-10-20

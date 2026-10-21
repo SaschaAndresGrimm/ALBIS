@@ -180,3 +180,45 @@ def test_normalization_is_still_accepted_but_logged_as_deprecated(caplog) -> Non
         )
     assert response.status_code == 200
     assert any("normalize_scalar is deprecated" in r.getMessage() for r in caplog.records)
+
+
+def _uint16_frames_with_a_gap(count: int) -> dict[Path, np.ndarray]:
+    """Unsigned frames mark a gap with the type's maximum, as a detector TIFF does."""
+    frames = {}
+    for i in range(count):
+        frame = np.full((2, 2), 10 + i, dtype=np.uint16)
+        frame[0, 1] = np.iinfo(np.uint16).max
+        frames[Path(f"f{i}")] = frame
+    return frames
+
+
+def test_an_unsigned_gap_is_masked_in_a_mean_as_minus_one(tmp_path: Path) -> None:
+    written: list = []
+    service, files = _service(tmp_path, 4, written, _uint16_frames_with_a_gap(4))
+    job = _run(service, files[0], tmp_path, operation="mean", apply_mask=True)
+    assert job["status"] == "done", job
+    [(_path, arr, _meta)] = written
+    # Float output: the viewer reads -1 as a gap and inpaints it.
+    assert arr.dtype.kind == "f"
+    assert arr[0, 1] == -1.0
+    assert arr[0, 0] == pytest.approx(11.5)
+
+
+def test_an_unsigned_gap_stays_the_maximum_in_a_sum_not_a_count(tmp_path: Path) -> None:
+    written: list = []
+    service, files = _service(tmp_path, 4, written, _uint16_frames_with_a_gap(4))
+    job = _run(service, files[0], tmp_path, operation="sum", apply_mask=True)
+    assert job["status"] == "done", job
+    [(_path, arr, _meta)] = written
+    assert arr.dtype.kind == "u"
+    assert arr[0, 1] == np.iinfo(arr.dtype).max
+    assert arr[0, 0] == 10 + 11 + 12 + 13
+
+
+def test_without_apply_mask_the_maximum_is_combined_as_recorded(tmp_path: Path) -> None:
+    written: list = []
+    service, files = _service(tmp_path, 4, written, _uint16_frames_with_a_gap(4))
+    job = _run(service, files[0], tmp_path, operation="mean", apply_mask=False)
+    assert job["status"] == "done", job
+    [(_path, arr, _meta)] = written
+    assert arr[0, 1] == pytest.approx(65535.0)
