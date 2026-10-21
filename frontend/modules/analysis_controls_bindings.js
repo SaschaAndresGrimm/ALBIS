@@ -15,15 +15,11 @@ export function bindAnalysisControlInteractions({
   state,
   analysisState,
   backendIsLocal,
-  constants,
   elements,
   callbacks,
 }) {
-  const { defaultRingCount } = constants;
-
   const {
     ringsToggle,
-    ringInputs,
     peaksCountInput,
     peaksCountHint,
     peaksSnrInput,
@@ -69,24 +65,11 @@ export function bindAnalysisControlInteractions({
 
   // Distance, pixel size, energy and beam centre are edited in Data → Detector
   // Geometry (geometry_params_controller). This section only owns the rings.
+  // The ring values themselves are ring_list_controller's; this follows the switch.
   function updateRingsFromInputs() {
     if (ringsToggle) {
       analysisState.ringsEnabled = ringsToggle.checked;
     }
-    analysisState.ringCount = Math.max(1, Math.min(defaultRingCount, Math.max(1, ringInputs.length)));
-    if (ringInputs.length) {
-      analysisState.rings = ringInputs
-        .map((input, idx) => {
-          const value = Number(input.value || analysisState.rings[idx]);
-          return Number.isFinite(value) && value > 0 ? value : null;
-        })
-        .filter((value) => value !== null);
-    }
-    ringInputs.forEach((input, idx) => {
-      if (!input) return;
-      const visible = idx < analysisState.ringCount;
-      input.style.display = visible ? "" : "none";
-    });
     updateRingsSectionState();
     scheduleResolutionOverlay();
     refreshPeakResolutions?.();
@@ -143,12 +126,7 @@ export function bindAnalysisControlInteractions({
 
   updateRingsFromInputs();
 
-  [ringsToggle, ...ringInputs]
-    .filter(Boolean)
-    .forEach((input) => {
-      const eventName = input.type === "checkbox" ? "change" : "input";
-      input.addEventListener(eventName, updateRingsFromInputs);
-    });
+  ringsToggle?.addEventListener("change", updateRingsFromInputs);
 
   if (peaksCountInput) {
     const initial = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput.value || 25))));

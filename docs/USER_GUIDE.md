@@ -321,9 +321,13 @@ Also in the **Analysis** tab.
 in [Detector geometry](#detector-geometry); the line at the top of the section
 shows them, and **Edit** goes there.
 
-Enter the ring positions you want in **Rings (Å)**. Once rings are on, the
-cursor readout gains a **d** value, so pointing at a feature tells you its
-resolution.
+Enter the ring positions you want in **Rings (Å)**, as many as you need (up
+to 16): **+ Add ring** adds a field, **×** removes one, and the list is sorted
+by d when you leave it. **Ice rings** adds the ten rings of hexagonal ice, the
+quickest way to see whether ice is on an image, and **Clear** removes them all.
+The rings are remembered for the next session. On the image, a ring can also be
+dragged to a new radius. Once rings are on, the cursor readout gains a **d**
+value, so pointing at a feature tells you its resolution.
 
 **Peak Finder** detects reflections in the current frame. Set how many to look
 for and a minimum signal-to-noise ratio; found peaks are listed with position,

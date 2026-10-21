@@ -2820,11 +2820,62 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   max-width: 150px;
 }
 
+/* The rings: one field and a remove button each, as many per row as fit, the
+   Add button after the last. */
 .ring-values {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  max-width: 192px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.ring-list {
+  display: contents;
+}
+
+.ring-entry {
+  display: inline-flex;
+  align-items: stretch;
+  width: 104px;
+}
+
+.ring-entry input {
+  flex: 1;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ring-entry input.is-invalid {
+  border-color: var(--danger, #e5484d);
+}
+
+.ring-remove {
+  width: 24px;
+  border: 1px solid rgba(78, 100, 137, 0.45);
+  border-left: 0;
+  border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0;
+  background: rgba(12, 18, 27, 0.6);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ring-remove:hover,
+.ring-remove:focus-visible {
+  color: #fff;
+  background: rgba(229, 72, 77, 0.35);
+}
+
+.ring-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .panel-section[data-section="resolution-rings"] .ring-center {

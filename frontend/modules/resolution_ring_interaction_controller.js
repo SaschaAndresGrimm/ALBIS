@@ -3,9 +3,9 @@
  * resize individual rings directly on the canvas.
  *
  * The ring geometry has no canvas-side state of its own — it is derived every
- * frame by getRingParams(). A ring drag writes the new d-spacing into that
- * ring's input and dispatches a native "input" event, so it behaves exactly
- * like typing. A beam-centre drag is a manual geometry override, the same as
+ * frame by getRingParams(). A ring drag sets that ring's d-spacing through
+ * the ring list (setRingValue, by its index in analysisState.rings), which
+ * shows it in its field; the list is sorted again when the drag ends. A beam-centre drag is a manual geometry override, the same as
  * typing a centre in Data → Detector Geometry, so it goes to setBeamCenter,
  * which switches the override on and keeps the centre across files.
  */
@@ -21,7 +21,7 @@ export function createResolutionRingInteractionController({
   elements,
   callbacks,
 }) {
-  const { canvasWrap, ringInputs } = elements;
+  const { canvasWrap } = elements;
   const {
     setBeamCenter,
     getEffectiveScrollLeft,
@@ -29,6 +29,8 @@ export function createResolutionRingInteractionController({
     getRingParams,
     getResolutionAtPixel,
     scheduleResolutionOverlay,
+    setRingValue,
+    commitRings,
   } = callbacks;
 
   let ringEditing = false;
@@ -51,7 +53,7 @@ export function createResolutionRingInteractionController({
     return { x: (ix - viewX) * zoom + offsetX, y: (iy - viewY) * zoomY + offsetY };
   }
 
-  // Screen-space radius (px) of every ring input that resolves to a valid
+  // Screen-space radius (px) of every ring that resolves to a valid
   // d-spacing. Planar mode only — geometry-mode rings are panel-clipped
   // polylines, not concentric circles, so only the center is draggable there.
   function getScreenRings(params) {
@@ -62,8 +64,8 @@ export function createResolutionRingInteractionController({
     if (!Number.isFinite(pixelSizeMm) || pixelSizeMm <= 0) return [];
     const zoom = state.zoom || 1;
     const rings = [];
-    ringInputs.forEach((input, index) => {
-      const d = Number(input?.value);
+    params.rings.forEach((value, index) => {
+      const d = Number(value);
       if (!Number.isFinite(d) || d <= 0) return;
       const twoTheta = braggTwoTheta(d, params.energyEv);
       if (twoTheta === null) return;
@@ -101,12 +103,6 @@ export function createResolutionRingInteractionController({
     return null;
   }
 
-  function commitInput(input, value) {
-    if (!input) return;
-    input.value = value;
-    input.dispatchEvent(new window.Event("input", { bubbles: true }));
-  }
-
   function startRingEdit(handle) {
     if (!handle) return;
     ringEditing = true;
@@ -126,16 +122,17 @@ export function createResolutionRingInteractionController({
     if (activeHandle.type === "ring") {
       const d = getResolutionAtPixel(point.x, point.y);
       if (!Number.isFinite(d) || d <= 0) return;
-      const input = ringInputs[activeHandle.index];
       activeHandle.d = d;
-      commitInput(input, String(Number(d.toFixed(3))));
+      setRingValue?.(activeHandle.index, d);
     }
   }
 
   function stopRingEdit(event) {
     if (!ringEditing) return;
+    const draggedRing = activeHandle?.type === "ring";
     ringEditing = false;
     activeHandle = null;
+    if (draggedRing) commitRings?.();
     canvasWrap.classList.remove("is-ring-dragging");
     if (event && Number.isInteger(event.pointerId) && canvasWrap.hasPointerCapture?.(event.pointerId)) {
       canvasWrap.releasePointerCapture(event.pointerId);

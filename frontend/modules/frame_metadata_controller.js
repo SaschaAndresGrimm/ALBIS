@@ -12,7 +12,6 @@ const FILE_LIST_TIMEOUT_MS = 20000;
 export function createFrameMetadataController({
   apiBase,
   state,
-  analysisState,
   elements,
   callbacks,
 }) {
@@ -22,7 +21,6 @@ export function createFrameMetadataController({
     fileSelect,
     metaShape,
     metaDtype,
-    ringInputs,
   } = elements;
 
   const {
@@ -279,14 +277,6 @@ export function createFrameMetadataController({
         },
         "hdf5",
       );
-      if (ringInputs.length && ringInputs.every((input) => !input.value)) {
-        ringInputs.forEach((input, idx) => {
-          const value = analysisState.rings[idx] ?? "";
-          if (value) {
-            input.value = String(value);
-          }
-        });
-      }
       scheduleResolutionOverlay();
       await loadImageGeometry(state.file, getGeometryScopeKey(state, state.file));
     } catch (err) {

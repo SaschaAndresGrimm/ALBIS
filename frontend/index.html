@@ -1294,14 +1294,19 @@
                 </button>
               </div>
               <div class="rings-grid rings-grid-bottom">
-                <label class="field rings-values-field">
+                <div class="field rings-values-field">
                   <span data-i18n="analysis.rings.values">Rings (Å)</span>
                   <div class="ring-values">
-                    <input id="ring-r1" type="number" min="0" step="0.1" value="1.0" />
-                    <input id="ring-r2" type="number" min="0" step="0.1" value="3.67" />
-                    <input id="ring-r3" type="number" min="0" step="0.1" value="11.01" />
+                    <div class="ring-list" id="ring-list"></div>
+                    <button type="button" class="btn btn-secondary ring-add" id="ring-add" data-i18n="rings.add">+ Add ring</button>
                   </div>
-                </label>
+                  <div class="ring-presets">
+                    <span data-i18n="rings.presets">Presets</span>
+                    <button type="button" class="btn btn-secondary inpaint-value-btn" id="ring-preset-ice"
+                      data-i18n="rings.preset.ice" data-i18n-title="rings.preset.ice_title" title="Add the hexagonal ice rings">Ice rings</button>
+                    <button type="button" class="btn btn-secondary inpaint-value-btn" id="ring-clear" data-i18n="rings.clear">Clear</button>
+                  </div>
+                </div>
               </div>
             </section>
             <section class="panel-section is-collapsed" data-section="peak-finder">

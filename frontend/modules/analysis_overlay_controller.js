@@ -19,7 +19,6 @@ export function createAnalysisOverlayController({
   callbacks,
 }) {
   const {
-    ringInputs,
     ringsSectionStateEl,
     ringsSummaryEl,
     peaksSectionStateEl,
@@ -31,7 +30,6 @@ export function createAnalysisOverlayController({
   } = elements;
 
   const {
-    defaultRingCount,
     peakBadMaskBits,
   } = constants;
 
@@ -86,15 +84,11 @@ export function createAnalysisOverlayController({
     const fallback = getDefaultCenter();
     if (!Number.isFinite(center.x)) center.x = fallback.x;
     if (!Number.isFinite(center.y)) center.y = fallback.y;
-    const maxCount = Math.max(1, ringInputs.length);
-    const ringLimit = Math.max(1, Math.min(maxCount, defaultRingCount));
-    const rings = ringInputs
-      .map((input, index) => {
-        const value = Number(input?.value || analysisState.rings[index]);
-        return Number.isFinite(value) && value > 0 ? value : null;
-      })
-      .filter((value) => value !== null)
-      .slice(0, ringLimit);
+    // ring_list_controller keeps these valid; the filter guards a value set
+    // from elsewhere (a window clone, say).
+    const rings = (Array.isArray(analysisState.rings) ? analysisState.rings : [])
+      .map(Number)
+      .filter((value) => Number.isFinite(value) && value > 0);
     return {
       mode: geometryActive ? "geometry" : "planar",
       geometry: geometryActive ? analysisState.ringGeometry : null,

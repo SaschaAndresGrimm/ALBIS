@@ -84,6 +84,7 @@ import { createDetectorControlController } from "./modules/detector_control_cont
 import { knownDetectors } from "./modules/known_detectors.js";
 import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
+import { createRingListController } from "./modules/ring_list_controller.js";
 import { createAnalysisToolsController } from "./modules/analysis_tools.js";
 import { createFlatfieldController } from "./modules/flatfield_controller.js";
 import { createMagnifierController } from "./modules/magnifier_controller.js";
@@ -442,11 +443,6 @@ const geometryHints = {
 };
 const ringsSectionStateEl = document.getElementById("rings-state");
 const ringsSummaryEl = document.getElementById("summary-rings");
-const ringInputs = [
-  document.getElementById("ring-r1"),
-  document.getElementById("ring-r2"),
-  document.getElementById("ring-r3"),
-].filter(Boolean);
 const peaksEnableToggle = document.getElementById("peaks-enable");
 const peaksCountInput = document.getElementById("peaks-count");
 const peaksCountHint = document.getElementById("peaks-count-hint");
@@ -805,7 +801,6 @@ bindClientLogging({
 });
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
-const DEFAULT_RING_COUNT = 3;
 const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
 const FRAME_STEP_OPTIONS = [1, 10, 100, 1000];
 const PIXEL_LABEL_DEFAULT_MIN_CELL_PX = PIXEL_LABEL_MIN_CELL_PX;
@@ -1374,7 +1369,6 @@ const analysisOverlayController = createAnalysisOverlayController({
   state,
   analysisState,
   elements: {
-    ringInputs,
     ringsSectionStateEl,
     ringsSummaryEl,
     peaksSectionStateEl,
@@ -1385,7 +1379,6 @@ const analysisOverlayController = createAnalysisOverlayController({
     peaksExportBtn,
   },
   constants: {
-    defaultRingCount: DEFAULT_RING_COUNT,
     peakBadMaskBits: PEAK_BAD_MASK_BITS,
   },
   callbacks: {
@@ -1398,6 +1391,24 @@ const analysisOverlayController = createAnalysisOverlayController({
     getActiveSaturationMax,
     isSaturatedValue,
     setStatus,
+  },
+});
+
+// The ring d-spacings: as many as wanted, the one list everything reads.
+const ringListController = createRingListController({
+  analysisState,
+  elements: {
+    list: document.getElementById("ring-list"),
+    addBtn: document.getElementById("ring-add"),
+    iceBtn: document.getElementById("ring-preset-ice"),
+    clearBtn: document.getElementById("ring-clear"),
+  },
+  callbacks: {
+    onChange: () => {
+      updateRingsSectionState();
+      scheduleResolutionOverlay();
+      analysisOverlayController.refreshPeakResolutions?.();
+    },
   },
 });
 
@@ -1414,7 +1425,6 @@ const resolutionRingInteractionController = createResolutionRingInteractionContr
   analysisState,
   elements: {
     canvasWrap,
-    ringInputs,
   },
   callbacks: {
     setBeamCenter: (x, y) => geometryParamsController?.setBeamCenter(x, y),
@@ -1423,6 +1433,8 @@ const resolutionRingInteractionController = createResolutionRingInteractionContr
     getRingParams,
     getResolutionAtPixel,
     scheduleResolutionOverlay,
+    setRingValue: (index, d) => ringListController.setRingValue(index, d),
+    commitRings: () => ringListController.commit(),
   },
 });
 
@@ -3204,14 +3216,12 @@ framePlaybackController = createFramePlaybackController({
 frameMetadataController = createFrameMetadataController({
   apiBase: API,
   state,
-  analysisState,
   elements: {
     autoloadDir,
     autoloadDirList,
     fileSelect,
     metaShape,
     metaDtype,
-    ringInputs,
   },
   callbacks: {
     fetchJSON,
@@ -5145,12 +5155,8 @@ bindAnalysisControlInteractions({
   state,
   analysisState,
   backendIsLocal,
-  constants: {
-    defaultRingCount: DEFAULT_RING_COUNT,
-  },
   elements: {
     ringsToggle,
-    ringInputs,
     peaksCountInput,
     peaksCountHint,
     peaksSnrInput,
@@ -5201,6 +5207,7 @@ setDataExportProgress(0, t("data_export.progress.idle"));
 updateDataExportUi();
 onLanguageChange(() => {
   analysisToolsController?.refresh();
+  ringListController.refresh();
   refreshLocalizedUi();
   infoTips.refresh();
   updateDataExportUi();
@@ -5328,9 +5335,8 @@ async function restoreClonedWindow(payload) {
   const analysis = payload.analysis || {};
   analysisState.ringsEnabled = Boolean(analysis.ringsEnabled);
   analysisState.ringMode = analysis.ringMode || analysisState.ringMode;
-  if (Array.isArray(analysis.rings) && analysis.rings.length) {
-    analysisState.rings = analysis.rings.slice();
-    analysisState.ringCount = analysis.rings.length;
+  if (Array.isArray(analysis.rings)) {
+    ringListController.setRings(analysis.rings);
   }
   // The detector geometry does not travel: the file the clone just opened
   // states its own, and the geometry override lives in localStorage, which

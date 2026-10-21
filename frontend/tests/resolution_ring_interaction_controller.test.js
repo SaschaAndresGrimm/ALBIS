@@ -2,20 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createResolutionRingInteractionController } from "../modules/resolution_ring_interaction_controller.js";
 
-function makeRingInput(value) {
-  const input = document.createElement("input");
-  input.value = value;
-  return input;
-}
-
 function setup({ params, ringValues = [], getResolutionAtPixel = () => null } = {}) {
   const state = { hasFrame: true, zoom: 1, renderOffsetX: 0, renderOffsetY: 0 };
   const analysisState = { ringsEnabled: true };
   const canvasWrap = document.createElement("div");
   canvasWrap.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 400 });
-  const ringInputs = ringValues.map(makeRingInput);
   const scheduleResolutionOverlay = vi.fn();
   const setBeamCenter = vi.fn();
+  const setRingValue = vi.fn();
+  const commitRings = vi.fn();
 
   const defaultParams = {
     mode: "planar",
@@ -25,13 +20,13 @@ function setup({ params, ringValues = [], getResolutionAtPixel = () => null } = 
     centerX: 200,
     centerY: 200,
     centerKnown: true,
-    rings: [],
+    rings: ringValues.map(Number),
   };
 
   const controller = createResolutionRingInteractionController({
     state,
     analysisState,
-    elements: { canvasWrap, ringInputs },
+    elements: { canvasWrap },
     callbacks: {
       setBeamCenter,
       getEffectiveScrollLeft: () => 0,
@@ -39,10 +34,12 @@ function setup({ params, ringValues = [], getResolutionAtPixel = () => null } = 
       getRingParams: () => ({ ...defaultParams, ...params }),
       getResolutionAtPixel,
       scheduleResolutionOverlay,
+      setRingValue,
+      commitRings,
     },
   });
 
-  return { controller, state, setBeamCenter, ringInputs, canvasWrap };
+  return { controller, state, setBeamCenter, setRingValue, commitRings, canvasWrap };
 }
 
 describe("resolution_ring_interaction_controller", () => {
@@ -97,19 +94,19 @@ describe("resolution_ring_interaction_controller", () => {
     expect(setBeamCenter).toHaveBeenCalledWith(123, 57);
   });
 
-  it("writes the resolved d-spacing into the dragged ring input", () => {
-    const { controller, ringInputs } = setup({
+  it("sets the dragged ring's d-spacing by its index, and re-sorts when the drag ends", () => {
+    const { controller, setRingValue, commitRings } = setup({
       ringValues: ["3.67", "11.01"],
       getResolutionAtPixel: () => 2.5,
     });
-    const events = vi.fn();
-    ringInputs[1].addEventListener("input", events);
 
     controller.startRingEdit({ type: "ring", index: 1, d: 11.01 });
     controller.applyRingEdit({ x: 250, y: 200 });
 
-    expect(ringInputs[1].value).toBe("2.5");
-    expect(events).toHaveBeenCalledTimes(1);
+    expect(setRingValue).toHaveBeenCalledWith(1, 2.5);
+    expect(commitRings).not.toHaveBeenCalled();
+    controller.stopRingEdit();
+    expect(commitRings).toHaveBeenCalledTimes(1);
   });
 
   it("reports the active handle while dragging and the hovered handle otherwise", () => {
