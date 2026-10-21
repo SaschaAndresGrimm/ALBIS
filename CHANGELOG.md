@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Series Operations is now Combine Frames, in the Analysis tab.** It moved from Data, which is about where images come from, to Analysis, next to the Flatfield section it often feeds. Its one **Mode** list (all frames, chunks of N, every Nth frame, a range in chunks) mixed two questions, so it is now two: which frames — **All frames** or a **Range**, and **Use every** N — and how many images — **One image** or **One image per N frames**. Every earlier mode is one setting of these, and a range can now be thinned to every Nth frame, or combined into one image without setting a chunk size at least as long as the range. **Format** moved to the Output card. The backend takes this as `mode: "frames"` with `frame_step` and `group_size` on `POST /api/analysis/series-sum/start`; the older modes keep working.
+- **Normalisation is gone from the interface.** Its options — a reference frame, a scalar, a TIFF — each divided every frame by the same value before combining, which gives the image that dividing the result does; the **Flatfield** section does that for any image, with masking, a 5 % floor, Counts or Transmission scale and inpainting. Without it, a sum of whole counts is written as whole counts again rather than always as 32-bit floats.
+- **A flat from many frames in two clicks.** **Make one from frames…** in the Flatfield section opens Combine Frames set to average every frame into one TIFF, and **Use as flat** next to Start makes a single TIFF result the flat.
+
+### Deprecated
+
+- `normalize_method`, `normalize_frame`, `normalize_scalar` and `normalize_image` on `POST /api/analysis/series-sum/start`. They keep working and now log a warning; combine without them and apply a flatfield to the result instead. They may be removed in 1.0.0.
+
 ### Fixed
 
 - **The ALBIS wordmark no longer flickers on start.** For the first moment the start screen showed "ALBIS" in a fallback font, then redrew it in Michroma, so the word visibly changed shape. Both bundled fonts are now preloaded with the page, and the wordmark waits for Michroma instead of being drawn in a fallback first.

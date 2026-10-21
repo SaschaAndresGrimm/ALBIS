@@ -967,138 +967,6 @@
               <div class="image-header-empty" id="image-header-empty" data-i18n="inspector.no_header">No header available.</div>
               <pre class="image-header-text" id="image-header-text"></pre>
             </section>
-            <section class="panel-section is-collapsed" data-section="series-summing">
-              <button class="section-title" type="button" data-section-toggle>
-                <span data-i18n="series.ui.section_title">Series Operations</span>
-                <span class="section-chevron">▾</span>
-              </button>
-              <div class="series-sum-layout">
-                <div class="series-sum-card series-sum-card-config">
-                  <div class="series-sum-card-title" data-i18n="series.ui.compute_title">Compute</div>
-                  <div class="series-sum-core">
-                    <label class="field" id="series-sum-mode-field">
-                      <span class="field-label-row"><span data-i18n="series.ui.mode_label">Mode</span><button type="button" class="info-tip" data-info-key="info.series.mode" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
-                      <select id="series-sum-mode">
-                        <option value="all" data-i18n="series.ui.mode.all">All frames</option>
-                        <option value="step" data-i18n="series.ui.mode.step">Chunks of N frames</option>
-                        <option value="nth" data-i18n="series.ui.mode.nth">Every Nth frame</option>
-                        <option value="range" data-i18n="series.ui.mode.range">Range (start-end in chunks)</option>
-                      </select>
-                    </label>
-                    <label class="field" id="series-sum-operation-field">
-                      <span class="field-label-row"><span data-i18n="series.ui.operation_label">Operation</span><button type="button" class="info-tip" data-info-key="info.series.operation" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
-                      <select id="series-sum-operation">
-                        <option value="sum" data-i18n="series.ui.operation.sum">Sum</option>
-                        <option value="mean" data-i18n="series.ui.operation.mean">Mean</option>
-                        <option value="median" data-i18n="series.ui.operation.median">Median</option>
-                      </select>
-                    </label>
-                    <label class="field" id="series-sum-format-field">
-                      <span data-i18n="series.ui.format_label">Format</span>
-                      <select id="series-sum-format">
-                        <option value="hdf5">HDF5</option>
-                        <option value="tiff">TIFF</option>
-                      </select>
-                    </label>
-                    <label class="field" id="series-sum-normalize-method-field">
-                      <span class="field-label-row"><span data-i18n="series.ui.normalization_label">Normalization</span><button type="button" class="info-tip" data-info-key="info.series.normalization" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
-                      <select id="series-sum-normalize-method">
-                        <option value="none" data-i18n="series.ui.normalize.none">None</option>
-                        <option value="frame" data-i18n="series.ui.normalize.frame">Frame</option>
-                        <option value="scalar" data-i18n="series.ui.normalize.scalar">Scalar</option>
-                        <option value="image" data-i18n="series.ui.normalize.image">Image (TIFF)</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div class="series-sum-dynamic">
-                    <label class="field" id="series-sum-step-field">
-                      <span id="series-sum-step-label" data-i18n="series.step_label.chunk">Chunk size (N)</span>
-                      <input id="series-sum-step" type="number" min="1" step="1" value="10" />
-                      <div class="field-hint is-hidden" id="series-sum-step-hint"></div>
-                    </label>
-                    <label class="field is-hidden" id="series-sum-range-start-field">
-                      <span data-i18n="series.ui.range_start_label">Start frame</span>
-                      <input id="series-sum-range-start" type="number" min="1" step="1" value="1" />
-                    </label>
-                    <label class="field is-hidden" id="series-sum-range-end-field">
-                      <span data-i18n="series.ui.range_end_label">End frame</span>
-                      <input id="series-sum-range-end" type="number" min="1" step="1" value="1" />
-                    </label>
-                    <label class="field is-hidden" id="series-sum-normalize-frame-field">
-                      <span data-i18n="series.ui.norm_frame_label">Norm frame</span>
-                      <input id="series-sum-normalize-frame" type="number" min="1" step="1" value="1" />
-                    </label>
-                    <label class="field is-hidden" id="series-sum-normalize-scalar-field">
-                      <span data-i18n="series.ui.norm_scalar_label">Norm scalar</span>
-                      <input id="series-sum-normalize-scalar" type="number" step="any" value="1" />
-                    </label>
-                    <label class="field is-hidden" id="series-sum-normalize-image-field">
-                      <span data-i18n="series.ui.norm_image_label">Norm image (TIFF)</span>
-                      <div class="inline series-sum-output-row">
-                        <input
-                          id="series-sum-normalize-image"
-                          type="text"
-                          placeholder="path/to/reference.tiff"
-                          data-i18n-placeholder="series.ui.norm_image_placeholder"
-                        />
-                        <button id="series-sum-normalize-image-browse" class="btn btn-secondary" type="button" data-i18n="series.ui.browse">
-                          Browse
-                        </button>
-                      </div>
-                    </label>
-                  </div>
-                  <div class="series-sum-toggles">
-                    <label class="checkbox series-sum-mask-option">
-                      <input id="series-sum-mask" type="checkbox" checked />
-                      <span data-i18n="series.ui.apply_mask">Apply mask</span>
-                    </label>
-                  </div>
-                  <div class="field-hint is-hidden" id="series-sum-median-estimate"></div>
-                </div>
-                <div class="series-sum-card series-sum-card-output">
-                  <div class="series-sum-card-title" data-i18n="series.ui.output_title">Output</div>
-                  <label class="field series-sum-output-field">
-                    <span data-i18n="series.ui.output_path_label">Output path</span>
-                    <div class="inline series-sum-output-row">
-                      <input
-                        id="series-sum-output"
-                        type="text"
-                        placeholder="output/series_sum"
-                        data-i18n-placeholder="series.ui.output_placeholder"
-                      />
-                      <button
-                        id="series-sum-browse"
-                        class="btn btn-secondary autoload-action-btn series-sum-browse-btn"
-                        type="button"
-                        aria-label="Browse output path"
-                        title="Browse output path"
-                        data-i18n-aria-label="series.ui.browse_output_path"
-                        data-i18n-title="series.ui.browse_output_path"
-                      >
-                        <svg class="autoload-action-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                          <path
-                            d="M2.5 6.5a1.25 1.25 0 0 1 1.25-1.25h4.1L9.8 7.4h6.45a1.25 1.25 0 0 1 1.25 1.25v6.6a1.25 1.25 0 0 1-1.25 1.25H3.75a1.25 1.25 0 0 1-1.25-1.25z"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.4"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </label>
-                  <div class="series-sum-start-row">
-                    <button id="series-sum-start" class="btn btn-primary" type="button" data-i18n="series.button.start">Start</button>
-                    <button id="series-sum-cancel" class="btn btn-secondary is-hidden" type="button" data-i18n="series.button.cancel">Cancel</button>
-                  </div>
-                  <div class="series-sum-progress" id="series-sum-progress">
-                    <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
-                    <div class="series-sum-progress-text" id="series-sum-progress-text" data-i18n="series.progress.idle">Idle</div>
-                  </div>
-                </div>
-              </div>
-            </section>
           </div>
 
           <div class="panel-tab-content" data-panel-tab="analysis">
@@ -1525,6 +1393,9 @@
                 </label>
                 <button type="button" class="info-tip" data-info-key="info.flatfield" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
               </div>
+              <div class="check-row flat-from-frames-row">
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="flat-from-frames" data-i18n="flatfield.from_frames">Make one from frames…</button>
+              </div>
             </section>
 
             <section class="panel-section is-collapsed" data-section="inpainting">
@@ -1572,6 +1443,118 @@
                 </label>
                 <button type="button" class="btn btn-secondary inpaint-value-btn" id="inpaint-value-background" data-i18n="inpaint.value.background">Background</button>
                 <button type="button" class="btn btn-secondary inpaint-value-btn" id="inpaint-value-foreground" data-i18n="inpaint.value.foreground">Foreground</button>
+              </div>
+            </section>
+
+            <section class="panel-section is-collapsed" data-section="series-summing" id="series-sum-section">
+              <button class="section-title" type="button" data-section-toggle>
+                <span data-i18n="series.ui.section_title">Combine Frames</span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="series-sum-layout">
+                <div class="series-sum-card series-sum-card-config">
+                  <div class="series-sum-card-title" data-i18n="series.ui.compute_title">Compute</div>
+                  <div class="series-sum-core">
+                    <label class="field" id="series-sum-frames-field">
+                      <span class="field-label-row"><span data-i18n="series.ui.frames_label">Frames</span><button type="button" class="info-tip" data-info-key="info.series.frames" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
+                      <select id="series-sum-frames">
+                        <option value="all" data-i18n="series.ui.frames.all">All frames</option>
+                        <option value="range" data-i18n="series.ui.frames.range">Range</option>
+                      </select>
+                    </label>
+                    <label class="field" id="series-sum-every-field">
+                      <span data-i18n="series.ui.every_label">Use every</span>
+                      <input id="series-sum-every" type="number" min="1" step="1" value="1" inputmode="numeric" />
+                    </label>
+                    <label class="field" id="series-sum-operation-field">
+                      <span class="field-label-row"><span data-i18n="series.ui.operation_label">Operation</span><button type="button" class="info-tip" data-info-key="info.series.operation" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
+                      <select id="series-sum-operation">
+                        <option value="sum" data-i18n="series.ui.operation.sum">Sum</option>
+                        <option value="mean" data-i18n="series.ui.operation.mean">Mean</option>
+                        <option value="median" data-i18n="series.ui.operation.median">Median</option>
+                      </select>
+                    </label>
+                    <label class="field" id="series-sum-result-field">
+                      <span class="field-label-row"><span data-i18n="series.ui.result_label">Result</span><button type="button" class="info-tip" data-info-key="info.series.result" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
+                      <select id="series-sum-result">
+                        <option value="one" data-i18n="series.ui.result.one">One image</option>
+                        <option value="groups" data-i18n="series.ui.result.groups">One image per N frames</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="series-sum-dynamic">
+                    <label class="field is-hidden" id="series-sum-range-start-field">
+                      <span data-i18n="series.ui.range_start_label">Start frame</span>
+                      <input id="series-sum-range-start" type="number" min="1" step="1" value="1" />
+                    </label>
+                    <label class="field is-hidden" id="series-sum-range-end-field">
+                      <span data-i18n="series.ui.range_end_label">End frame</span>
+                      <input id="series-sum-range-end" type="number" min="1" step="1" value="1" />
+                    </label>
+                    <label class="field is-hidden" id="series-sum-step-field">
+                      <span data-i18n="series.ui.group_size_label">Frames per image</span>
+                      <input id="series-sum-step" type="number" min="1" step="1" value="10" />
+                      <div class="field-hint is-hidden" id="series-sum-step-hint"></div>
+                    </label>
+                  </div>
+                  <div class="series-sum-toggles">
+                    <label class="checkbox series-sum-mask-option">
+                      <input id="series-sum-mask" type="checkbox" checked />
+                      <span data-i18n="series.ui.apply_mask">Apply mask</span>
+                    </label>
+                  </div>
+                  <div class="field-hint is-hidden" id="series-sum-median-estimate"></div>
+                </div>
+                <div class="series-sum-card series-sum-card-output">
+                  <div class="series-sum-card-title" data-i18n="series.ui.output_title">Output</div>
+                  <label class="field" id="series-sum-format-field">
+                    <span data-i18n="series.ui.format_label">Format</span>
+                    <select id="series-sum-format">
+                      <option value="hdf5">HDF5</option>
+                      <option value="tiff">TIFF</option>
+                    </select>
+                  </label>
+                  <label class="field series-sum-output-field">
+                    <span data-i18n="series.ui.output_path_label">Output path</span>
+                    <div class="inline series-sum-output-row">
+                      <input
+                        id="series-sum-output"
+                        type="text"
+                        placeholder="output/series_sum"
+                        data-i18n-placeholder="series.ui.output_placeholder"
+                      />
+                      <button
+                        id="series-sum-browse"
+                        class="btn btn-secondary autoload-action-btn series-sum-browse-btn"
+                        type="button"
+                        aria-label="Browse output path"
+                        title="Browse output path"
+                        data-i18n-aria-label="series.ui.browse_output_path"
+                        data-i18n-title="series.ui.browse_output_path"
+                      >
+                        <svg class="autoload-action-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <path
+                            d="M2.5 6.5a1.25 1.25 0 0 1 1.25-1.25h4.1L9.8 7.4h6.45a1.25 1.25 0 0 1 1.25 1.25v6.6a1.25 1.25 0 0 1-1.25 1.25H3.75a1.25 1.25 0 0 1-1.25-1.25z"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.4"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </label>
+                  <div class="series-sum-start-row">
+                    <button id="series-sum-start" class="btn btn-primary" type="button" data-i18n="series.button.start">Start</button>
+                    <button id="series-sum-cancel" class="btn btn-secondary is-hidden" type="button" data-i18n="series.button.cancel">Cancel</button>
+                    <button id="series-sum-use-flat" class="btn btn-secondary is-hidden" type="button" data-i18n="series.button.use_as_flat">Use as flat</button>
+                  </div>
+                  <div class="series-sum-progress" id="series-sum-progress">
+                    <div class="series-sum-progress-fill" id="series-sum-progress-fill"></div>
+                    <div class="series-sum-progress-text" id="series-sum-progress-text" data-i18n="series.progress.idle">Idle</div>
+                  </div>
+                </div>
               </div>
             </section>
           </div>

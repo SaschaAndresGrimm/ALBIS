@@ -10,10 +10,10 @@ async function setup() {
   global.fetch = vi.fn(async () => ({ ok: true, json: async () => EN }));
   document.body.innerHTML = `
     <label class="field">
-      <span class="field-label-row"><span>Normalization</span>
-        <button type="button" class="info-tip" data-info-key="info.series.normalization"
+      <span class="field-label-row"><span>Result</span>
+        <button type="button" class="info-tip" data-info-key="info.series.result"
           aria-label="More information"></button></span>
-      <select><option>None</option></select>
+      <select><option>One image</option></select>
     </label>
     <p id="elsewhere">elsewhere</p>`;
   const i18n = await import("../modules/i18n.js");
@@ -40,7 +40,7 @@ describe("info tips", () => {
     const { button, bubble } = await setup();
 
     button.dispatchEvent(new Event("mouseenter"));
-    expect(bubble().textContent).toBe(EN["info.series.normalization"]);
+    expect(bubble().textContent).toBe(EN["info.series.result"]);
     expect(bubble().classList.contains("is-visible")).toBe(true);
     expect(button.getAttribute("aria-describedby")).toBe("info-tip-bubble");
 
@@ -95,7 +95,7 @@ describe("info tips", () => {
     const { tips, button, bubble } = await setup();
     button.dataset.infoDetail = "SIMPLON: detector/config/count_time";
     button.click();
-    expect(bubble().textContent).toBe(`${EN["info.series.normalization"]}\n\nSIMPLON: detector/config/count_time`);
+    expect(bubble().textContent).toBe(`${EN["info.series.result"]}\n\nSIMPLON: detector/config/count_time`);
     // The row is rebuilt: same explanation, new button.
     const twin = button.cloneNode(true);
     delete twin.dataset.infoBound;

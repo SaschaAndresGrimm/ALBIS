@@ -19,7 +19,7 @@ function fileName(path) {
 }
 
 export function createFlatfieldController({ apiBase, state, elements, callbacks }) {
-  const { toggle, useCurrentBtn, chooseBtn, scaleSelect, stateEl, summaryEl, footerChip } = elements;
+  const { toggle, useCurrentBtn, chooseBtn, fromFramesBtn, scaleSelect, stateEl, summaryEl, footerChip } = elements;
   const {
     redraw,
     refreshDisplayContrast,
@@ -34,6 +34,7 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
     parseDtype,
     parseShape,
     typedArrayFrom,
+    openCombineFramesForFlat,
   } = callbacks;
 
   let flat = null;
@@ -157,6 +158,22 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
     }
   }
 
+  /** Read a TIFF or CBF from the server and divide by it from now on. */
+  async function loadFlat(path) {
+    const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(path)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const dtype = parseDtype(res.headers.get("X-Dtype"));
+    const [height, width] = parseShape(res.headers.get("X-Shape"));
+    const data = typedArrayFrom(await res.arrayBuffer(), dtype);
+    const prepared = prepareFlat(data, width, height);
+    if (!prepared) {
+      setStatus(t("flatfield.status.unusable"), { tone: "warning" });
+      return false;
+    }
+    useFlat(prepared, String(path));
+    return true;
+  }
+
   async function chooseFile() {
     if (busy) return;
     busy = true;
@@ -167,20 +184,27 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
       if (pick.status === 204) return;
       if (!pick.ok) throw new Error(`HTTP ${pick.status}`);
       const { path } = await pick.json();
-      const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(path)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const dtype = parseDtype(res.headers.get("X-Dtype"));
-      const [height, width] = parseShape(res.headers.get("X-Shape"));
-      const data = typedArrayFrom(await res.arrayBuffer(), dtype);
-      const prepared = prepareFlat(data, width, height);
-      if (!prepared) {
-        setStatus(t("flatfield.status.unusable"), { tone: "warning" });
-        return;
-      }
-      useFlat(prepared, String(path));
+      await loadFlat(path);
     } catch (err) {
       console.error(err);
       setStatus(t("flatfield.status.load_failed"), { tone: "error" });
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Use a file already known by path as the flat: Combine Frames' "Use as flat". */
+  async function useFile(path) {
+    if (busy || !path) return false;
+    busy = true;
+    try {
+      const used = await loadFlat(path);
+      if (used) setStatus(t("flatfield.status.using", { name: fileName(path) }), { tone: "success" });
+      return used;
+    } catch (err) {
+      console.error(err);
+      setStatus(t("flatfield.status.load_failed"), { tone: "error" });
+      return false;
     } finally {
       busy = false;
     }
@@ -196,9 +220,10 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
   });
   useCurrentBtn?.addEventListener("click", () => void useCurrentImage());
   chooseBtn?.addEventListener("click", () => void chooseFile());
+  fromFramesBtn?.addEventListener("click", () => openCombineFramesForFlat?.());
   if (toggle) toggle.checked = Boolean(state.flatEnabled);
   if (scaleSelect) scaleSelect.value = normalizeFlatScale(state.flatScale);
   updateState();
 
-  return { getFlat, updateState, useCurrentImage, chooseFile };
+  return { getFlat, updateState, useCurrentImage, chooseFile, useFile };
 }

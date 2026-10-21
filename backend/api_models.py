@@ -180,12 +180,20 @@ class SeriesSumStartRequest(_StrictModel):
     mode: str = "all"
     step: int = 10
     operation: str = "sum"
-    normalize_method: str = "none"
-    normalize_frame: int | None = None
-    normalize_scalar: float | None = None
-    normalize_image: str | None = None
+    # Deprecated since 0.33.0, to be removed in 1.0. Each divides every frame by
+    # the same per-pixel value before combining, which gives what dividing the
+    # result does: a scale (scalar) or a flatfield (frame, image), which the
+    # Flatfield section applies to any image. Still honoured until then.
+    normalize_method: str = Field("none", deprecated=True)
+    normalize_frame: int | None = Field(None, deprecated=True)
+    normalize_scalar: float | None = Field(None, deprecated=True)
+    normalize_image: str | None = Field(None, deprecated=True)
     range_start: int | None = None
     range_end: int | None = None
+    # Mode "frames" only: use every Nth frame of the range, and write one image
+    # per `group_size` of those (omitted: one image of all of them).
+    frame_step: int = 1
+    group_size: int | None = None
     output_path: str | None = None
     format: str = "hdf5"
     apply_mask: bool = True

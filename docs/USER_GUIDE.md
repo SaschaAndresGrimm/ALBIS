@@ -21,7 +21,7 @@ reference of the same material.
 - [Detector geometry](#detector-geometry)
 - [Resolution rings and reflections](#resolution-rings-and-reflections)
 - [Follow a running experiment](#follow-a-running-experiment)
-- [Combine a series into one image](#combine-a-series-into-one-image)
+- [Combine frames](#combine-frames)
 - [Get data back out](#get-data-back-out)
 - [Compare two views](#compare-two-views)
 - [Test a detector (beta)](#test-a-detector-beta)
@@ -206,8 +206,9 @@ remains — the standard open-beam normalisation in imaging.
   single image taken just before a scan and shown through the SIMPLON monitor.
   It is saved as a TIFF in the data folder's `flatfields/`, so it can be used
   again and every export divides by the same file. **Choose file…** takes a
-  TIFF or CBF instead; for a less noisy flat, average a series first with
-  **Combine a series into one image** and choose the result.
+  TIFF or CBF instead. For a less noisy flat, average many frames:
+  **Make one from frames…** opens [Combine frames](#combine-frames) set up to
+  average every frame into one TIFF, and **Use as flat** takes the result.
 - **Scale:** **Counts** (the default) keeps the image's own scale — divided by
   the flat, times the flat's mean. **Transmission** gives 0 to 1: 1 means
   nothing was absorbed, 0.3 that 70 % was.
@@ -362,19 +363,29 @@ lets you examine a frame without losing the stream.
 
 ---
 
-## Combine a series into one image
+## Combine frames
 
-**Data → Series Operations** reduces many frames to one: **Sum**, **Mean** or
-**Median**.
+**Combine Frames**, in the **Analysis** tab, reduces many frames to fewer:
+**Sum**, **Mean** or **Median**. It answers two questions separately:
 
-Choose what to combine — all frames, chunks of N, every Nth frame, or a start
-and end range — and optionally normalise first, by a reference frame, a scalar,
-or a flat-field TIFF. **Apply mask** keeps masked pixels out of the result. The
-**?** next to Mode, Operation and Normalization explains each choice; hover
-over it, or click or tap it to keep the explanation open.
+- **Which frames:** **All frames** or a **Range** from a start to an end frame,
+  and **Use every** N to take only every Nth of them (1, 1+N, 1+2N …).
+- **How many images:** **One image** of all of them, or **One image per N
+  frames**, each consecutive group of N combined into its own image.
 
-Long runs report progress and can be cancelled. The output path is prefilled
-and the result opens directly from the panel when it finishes.
+**Apply mask** keeps masked pixels out of the result. The **?** next to Frames,
+Operation and Result explains each choice; hover over it, or click or tap it to
+keep the explanation open. A sum of whole counts stays whole counts; mean and
+median are written as decimals.
+
+Long runs report progress and can be cancelled. The output path is prefilled,
+and the result opens directly from the panel when it finishes. When the result
+is a single TIFF, **Use as flat** makes it the [Flatfield](#flatfield-correction)
+section's flat — the way to get a low-noise flat from a run of open-beam frames.
+
+There is no normalisation step: dividing every frame by the same reference
+before combining gives the same image as dividing the result afterwards, which
+is what **Flatfield** does, for any image, with its masking and scales.
 
 ---
 

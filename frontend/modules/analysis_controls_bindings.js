@@ -31,22 +31,20 @@ export function bindAnalysisControlInteractions({
     peaksEnableToggle,
     peaksExportBtn,
     seriesSumOutput,
-    seriesSumMode,
+    seriesSumFrames,
+    seriesSumEvery,
     seriesSumOperation,
-    seriesSumNormalizeMethod,
+    seriesSumResult,
     seriesSumStep,
     seriesSumStepHint,
     seriesSumRangeStart,
     seriesSumRangeEnd,
-    seriesSumNormalizeFrame,
-    seriesSumNormalizeScalar,
-    seriesSumNormalizeImage,
-    seriesSumNormalizeImageBrowse,
     seriesSumBrowse,
     filesystemMode,
     seriesSumProgress,
     seriesSumStart,
     seriesSumCancel,
+    seriesSumUseFlat,
     pixelLabelToggle,
   } = elements;
 
@@ -60,20 +58,14 @@ export function bindAnalysisControlInteractions({
     syncSeriesSumOutputPath,
     updateSeriesSumUi,
     validateSeriesStepInput,
-    setStatus,
     handleLocalFileSelection,
     openFileBrowser,
-    openFileDialog,
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,
+    useSeriesOutputAsFlat,
     schedulePixelOverlay,
   } = callbacks;
-
-  function isTiffPath(path) {
-    const lower = String(path || "").toLowerCase();
-    return lower.endsWith(".tif") || lower.endsWith(".tiff");
-  }
 
   // Distance, pixel size, energy and beam centre are edited in Data → Detector
   // Geometry (geometry_params_controller). This section only owns the rings.
@@ -210,16 +202,22 @@ export function bindAnalysisControlInteractions({
     syncSeriesSumOutputPath(true);
   }
 
-  seriesSumMode?.addEventListener("change", () => {
+  seriesSumFrames?.addEventListener("change", () => {
+    updateSeriesSumUi();
+  });
+
+  seriesSumResult?.addEventListener("change", () => {
+    updateSeriesSumUi();
+  });
+
+  seriesSumEvery?.addEventListener("change", () => {
+    const parsed = Math.round(Number(seriesSumEvery.value));
+    seriesSumEvery.value = String(Number.isFinite(parsed) && parsed >= 1 ? parsed : 1);
     updateSeriesSumUi();
   });
 
   seriesSumOperation?.addEventListener("change", () => {
     syncSeriesSumOutputPath();
-    updateSeriesSumUi();
-  });
-
-  seriesSumNormalizeMethod?.addEventListener("change", () => {
     updateSeriesSumUi();
   });
 
@@ -242,87 +240,12 @@ export function bindAnalysisControlInteractions({
   });
 
   seriesSumRangeEnd?.addEventListener("change", () => {
+    seriesSumRangeEnd.dataset.edited = "1";
     const total = Math.max(1, Number(state.frameCount || 1));
     const fallback = total;
     const value = clampFrameIndex(seriesSumRangeEnd.value || total, total, fallback);
     seriesSumRangeEnd.value = String(value);
     updateSeriesSumUi();
-  });
-
-  seriesSumNormalizeFrame?.addEventListener("change", () => {
-    const total = Math.max(1, Number(state.frameCount || 1));
-    const value = clampFrameIndex(seriesSumNormalizeFrame.value || 1, total, 1);
-    seriesSumNormalizeFrame.value = String(value);
-  });
-
-  seriesSumNormalizeScalar?.addEventListener("change", () => {
-    const parsed = Number(seriesSumNormalizeScalar.value || "1");
-    if (!Number.isFinite(parsed)) {
-      seriesSumNormalizeScalar.value = "1";
-      return;
-    }
-    seriesSumNormalizeScalar.value = String(parsed);
-  });
-
-  seriesSumNormalizeImageBrowse?.addEventListener("click", async () => {
-    if (state.seriesSum.running) return;
-
-    if (backendIsLocal) {
-      try {
-        const res = await fetch(`${apiBase}/choose-file?lang=${encodeURIComponent(getLanguage())}`);
-        if (res.status === 204) return;
-        if (res.ok) {
-          const data = await res.json();
-          const pickedPath = String(data?.path || "");
-          if (!pickedPath) return;
-          if (!isTiffPath(pickedPath)) {
-            setStatus(t("status.analysis.normalization_tiff_required"));
-            return;
-          }
-          if (seriesSumNormalizeImage) {
-            seriesSumNormalizeImage.value = pickedPath;
-          }
-          return;
-        }
-      } catch (err) {
-        console.error(err);
-      }
-      try {
-        const selectedPath = await openFileDialog();
-        if (!selectedPath) return;
-        if (!isTiffPath(selectedPath)) {
-          setStatus(t("status.analysis.normalization_tiff_required"));
-          return;
-        }
-        if (seriesSumNormalizeImage) {
-          seriesSumNormalizeImage.value = String(selectedPath);
-        }
-      } catch (err) {
-        console.error(err);
-        setStatus(t("status.analysis.normalization_picker_failed"), { tone: "error" });
-      }
-      return;
-    }
-
-    if (filesystemMode?.value === "local") {
-      setStatus(t("status.analysis.normalization_picker_unavailable"), { tone: "warning" });
-      return;
-    }
-
-    try {
-      const selectedPath = await openFileDialog();
-      if (!selectedPath) return;
-      if (!isTiffPath(selectedPath)) {
-        setStatus(t("status.analysis.normalization_tiff_required"));
-        return;
-      }
-      if (seriesSumNormalizeImage) {
-        seriesSumNormalizeImage.value = String(selectedPath);
-      }
-    } catch (err) {
-      console.error(err);
-      setStatus(t("status.analysis.normalization_picker_failed"), { tone: "error" });
-    }
   });
 
   seriesSumBrowse?.addEventListener("click", async () => {
@@ -362,6 +285,10 @@ export function bindAnalysisControlInteractions({
 
   seriesSumCancel?.addEventListener("click", () => {
     void cancelSeriesSumming();
+  });
+
+  seriesSumUseFlat?.addEventListener("click", () => {
+    void useSeriesOutputAsFlat();
   });
 
   if (pixelLabelToggle) {

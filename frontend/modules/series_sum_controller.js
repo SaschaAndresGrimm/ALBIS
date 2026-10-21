@@ -1,5 +1,11 @@
 /**
- * Series summing workflow and UI state.
+ * The Combine Frames section of the Analysis tab: which frames (all or a
+ * range, every Nth of them), how they combine (sum, mean, median) and into how
+ * many images (one, or one per N frames), run as a background job.
+ *
+ * It sends the backend's mode "frames", which takes those two questions
+ * separately; the older modes each answered one of them. A single TIFF result
+ * can become the Flatfield section's flat directly ("Use as flat").
  */
 
 import { t } from "./i18n.js";
@@ -13,23 +19,16 @@ export function createSeriesSumController({
   callbacks,
 }) {
   const {
-    seriesSumMode,
+    seriesSumFrames,
+    seriesSumEvery,
     seriesSumOperation,
+    seriesSumResult,
     seriesSumStepField,
-    seriesSumStepLabel,
     seriesSumStep,
     seriesSumRangeStartField,
     seriesSumRangeEndField,
     seriesSumRangeStart,
     seriesSumRangeEnd,
-    seriesSumNormalizeMethod,
-    seriesSumNormalizeFrameField,
-    seriesSumNormalizeFrame,
-    seriesSumNormalizeScalarField,
-    seriesSumNormalizeScalar,
-    seriesSumNormalizeImageField,
-    seriesSumNormalizeImage,
-    seriesSumNormalizeImageBrowse,
     seriesSumMedianEstimate,
     seriesSumOutput,
     seriesSumBrowse,
@@ -37,6 +36,7 @@ export function createSeriesSumController({
     seriesSumMask,
     seriesSumStart,
     seriesSumCancel,
+    seriesSumUseFlat,
     seriesSumProgress,
     seriesSumProgressFill,
     seriesSumProgressText,
@@ -51,6 +51,7 @@ export function createSeriesSumController({
     fetchJSON,
     fetchJSONWithInit,
     getSeriesSumGeometryContext,
+    useAsFlat,
   } = callbacks;
 
   let pollTimer = null;
@@ -98,17 +99,19 @@ export function createSeriesSumController({
     return null;
   }
 
-  function maxFramesPerMedianGroup({ mode, totalFrames, step, rangeStart, rangeEnd }) {
-    if (mode === "all") return totalFrames;
-    if (mode === "nth") return Math.floor((totalFrames - 1) / step) + 1;
-    if (mode === "range") {
-      const start = Math.max(1, Math.min(totalFrames, rangeStart));
-      const end = Math.max(1, Math.min(totalFrames, rangeEnd));
-      if (start > end) return 0;
-      const span = end - start + 1;
-      return Math.min(step, span);
-    }
-    return Math.min(step, totalFrames);
+  /** The frames chosen and how they group, as the backend's mode "frames" reads them. */
+  function readSelection() {
+    const totalFrames = Math.max(1, parsePositiveInt(state.frameCount || 1, 1));
+    const isRange = (seriesSumFrames?.value || "all") === "range";
+    const start = isRange ? Math.min(totalFrames, parsePositiveInt(seriesSumRangeStart?.value || 1, 1)) : 1;
+    const end = isRange
+      ? Math.min(totalFrames, parsePositiveInt(seriesSumRangeEnd?.value || totalFrames, totalFrames))
+      : totalFrames;
+    const every = parsePositiveInt(seriesSumEvery?.value || 1, 1);
+    const groups = (seriesSumResult?.value || "one") === "groups";
+    const groupSize = parsePositiveInt(seriesSumStep?.value || 1, 1);
+    const selected = start > end ? 0 : Math.floor((end - start) / every) + 1;
+    return { totalFrames, isRange, start, end, every, groups, groupSize, selected };
   }
 
   function buildMedianEstimate() {
@@ -116,18 +119,10 @@ export function createSeriesSumController({
     if (operation !== "median") return null;
     const dims = resolveImageShape();
     if (!dims) return null;
-    const totalFrames = Math.max(1, parsePositiveInt(state.frameCount || 1, 1));
-    const mode = (seriesSumMode?.value || "all").toLowerCase();
-    const step = parsePositiveInt(seriesSumStep?.value || 1, 1);
-    const rangeStart = parsePositiveInt(seriesSumRangeStart?.value || 1, 1);
-    const rangeEnd = parsePositiveInt(seriesSumRangeEnd?.value || totalFrames, totalFrames);
-    const groupFrames = maxFramesPerMedianGroup({
-      mode,
-      totalFrames,
-      step,
-      rangeStart,
-      rangeEnd,
-    });
+    const selection = readSelection();
+    const groupFrames = selection.groups
+      ? Math.min(selection.groupSize, selection.selected)
+      : selection.selected;
     if (groupFrames <= 0) return null;
     const pixelCount = Number(dims.height) * Number(dims.width);
     if (!Number.isFinite(pixelCount) || pixelCount <= 0) return null;
@@ -184,7 +179,17 @@ export function createSeriesSumController({
     state.seriesSum.autoOutputPath = autoPath;
   }
 
+  /** The one TIFF a finished job wrote, which the Flatfield section can take as its flat. */
+  function flatCandidate() {
+    if (state.seriesSum.running) return "";
+    const outputs = Array.isArray(state.seriesSum.outputs) ? state.seriesSum.outputs : [];
+    return outputs.length === 1 && isTiffPath(outputs[0]) ? String(outputs[0]) : "";
+  }
+
   function updateSeriesSumProgressOpenState() {
+    if (seriesSumUseFlat) {
+      seriesSumUseFlat.classList.toggle("is-hidden", !flatCandidate() || typeof useAsFlat !== "function");
+    }
     if (!seriesSumProgress) return;
     const canOpen = !state.seriesSum.running && Boolean(state.seriesSum.openTarget);
     seriesSumProgress.classList.toggle("is-clickable", canOpen);
@@ -219,41 +224,16 @@ export function createSeriesSumController({
   }
 
   function updateSeriesSumUi() {
-    const mode = (seriesSumMode?.value || "all").toLowerCase();
-    const isNth = mode === "nth";
-    const isRange = mode === "range";
-    const normalizeMethod = (seriesSumNormalizeMethod?.value || "none").toLowerCase();
-    const isFrameNorm = normalizeMethod === "frame";
-    const isScalarNorm = normalizeMethod === "scalar";
-    const isImageNorm = normalizeMethod === "image";
+    const isRange = (seriesSumFrames?.value || "all") === "range";
+    const isGroups = (seriesSumResult?.value || "one") === "groups";
     if (seriesSumStepField) {
-      seriesSumStepField.classList.toggle("is-hidden", mode === "all");
-    }
-    if (seriesSumStepLabel) {
-      seriesSumStepLabel.textContent = isNth ? t("series.step_label.nth") : t("series.step_label.chunk");
+      seriesSumStepField.classList.toggle("is-hidden", !isGroups);
     }
     if (seriesSumRangeStartField) {
       seriesSumRangeStartField.classList.toggle("is-hidden", !isRange);
     }
     if (seriesSumRangeEndField) {
       seriesSumRangeEndField.classList.toggle("is-hidden", !isRange);
-    }
-    if (seriesSumNormalizeFrameField) {
-      seriesSumNormalizeFrameField.classList.toggle("is-hidden", !isFrameNorm);
-    }
-    if (seriesSumNormalizeScalarField) {
-      seriesSumNormalizeScalarField.classList.toggle("is-hidden", !isScalarNorm);
-    }
-    if (seriesSumNormalizeImageField) {
-      seriesSumNormalizeImageField.classList.toggle("is-hidden", !isImageNorm);
-    }
-    if (
-      isImageNorm
-      && seriesSumNormalizeImage
-      && !String(seriesSumNormalizeImage.value || "").trim()
-      && isTiffPath(state.seriesSum.openTarget)
-    ) {
-      seriesSumNormalizeImage.value = String(state.seriesSum.openTarget);
     }
     const totalFrames = Math.max(1, Number(state.frameCount || 1));
     if (seriesSumRangeStart) {
@@ -265,14 +245,11 @@ export function createSeriesSumController({
     if (seriesSumRangeEnd) {
       seriesSumRangeEnd.min = "1";
       seriesSumRangeEnd.max = String(totalFrames);
+      // Until someone sets it, a range runs to the last frame, like "All
+      // frames" does: switching to Range then only asks for what changes.
+      if (seriesSumRangeEnd.dataset.edited !== "1") seriesSumRangeEnd.value = String(totalFrames);
       const nextEnd = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumRangeEnd.value || totalFrames))));
       seriesSumRangeEnd.value = String(nextEnd);
-    }
-    if (seriesSumNormalizeFrame) {
-      seriesSumNormalizeFrame.min = "1";
-      seriesSumNormalizeFrame.max = String(totalFrames);
-      const nextNorm = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumNormalizeFrame.value || 1))));
-      seriesSumNormalizeFrame.value = String(nextNorm);
     }
     const ready = canConvertFile(state, isHdfFile);
     if (seriesSumStart) {
@@ -291,35 +268,17 @@ export function createSeriesSumController({
     if (seriesSumBrowse) {
       seriesSumBrowse.disabled = state.seriesSum.running || !ready;
     }
-    if (seriesSumMode) {
-      seriesSumMode.disabled = state.seriesSum.running || !ready;
-    }
-    if (seriesSumOperation) {
-      seriesSumOperation.disabled = state.seriesSum.running || !ready;
+    for (const control of [seriesSumFrames, seriesSumEvery, seriesSumOperation, seriesSumResult]) {
+      if (control) control.disabled = state.seriesSum.running || !ready;
     }
     if (seriesSumStep) {
-      seriesSumStep.disabled = state.seriesSum.running || mode === "all" || !ready;
+      seriesSumStep.disabled = state.seriesSum.running || !isGroups || !ready;
     }
     if (seriesSumRangeStart) {
       seriesSumRangeStart.disabled = state.seriesSum.running || !isRange || !ready;
     }
     if (seriesSumRangeEnd) {
       seriesSumRangeEnd.disabled = state.seriesSum.running || !isRange || !ready;
-    }
-    if (seriesSumNormalizeMethod) {
-      seriesSumNormalizeMethod.disabled = state.seriesSum.running || !ready;
-    }
-    if (seriesSumNormalizeFrame) {
-      seriesSumNormalizeFrame.disabled = state.seriesSum.running || !isFrameNorm || !ready;
-    }
-    if (seriesSumNormalizeScalar) {
-      seriesSumNormalizeScalar.disabled = state.seriesSum.running || !isScalarNorm || !ready;
-    }
-    if (seriesSumNormalizeImage) {
-      seriesSumNormalizeImage.disabled = state.seriesSum.running || !isImageNorm || !ready;
-    }
-    if (seriesSumNormalizeImageBrowse) {
-      seriesSumNormalizeImageBrowse.disabled = state.seriesSum.running || !isImageNorm || !ready;
     }
     if (seriesSumOutput) {
       seriesSumOutput.disabled = state.seriesSum.running || !ready;
@@ -340,6 +299,7 @@ export function createSeriesSumController({
         seriesSumMedianEstimate.classList.add("is-hidden");
       }
     }
+    updateSeriesSumProgressOpenState();
     validateSeriesStepInput(false);
   }
 
@@ -428,67 +388,33 @@ export function createSeriesSumController({
 
   async function startSeriesSumming() {
     if (!canStartSeriesOperation(state, isHdfFile)) return;
-    const mode = (seriesSumMode?.value || "all").toLowerCase();
     const operation = (seriesSumOperation?.value || "sum").toLowerCase();
-    const normalizeMethod = (seriesSumNormalizeMethod?.value || "none").toLowerCase();
-    const totalFrames = Math.max(1, Math.round(Number(state.frameCount || 1)));
+    const selection = readSelection();
 
-    const parsedStep = validateSeriesStepInput(true);
-    if (!Number.isFinite(parsedStep) && mode !== "all") {
-      setStatus(t("status.series.step_invalid"), { tone: "warning" });
-      return;
+    let groupSize = null;
+    if (selection.groups) {
+      const parsedStep = validateSeriesStepInput(true);
+      if (!Number.isFinite(parsedStep)) {
+        setStatus(t("status.series.step_invalid"), { tone: "warning" });
+        return;
+      }
+      groupSize = parsedStep;
     }
-    const step = Number.isFinite(parsedStep) ? parsedStep : 1;
-
-    const rangeStart = Math.max(1, Math.round(Number(seriesSumRangeStart?.value || 1)));
-    const rangeEnd = Math.max(1, Math.round(Number(seriesSumRangeEnd?.value || totalFrames)));
-    if (mode === "range" && rangeStart > rangeEnd) {
+    if (selection.isRange && selection.start > selection.end) {
       setStatus(t("status.series.range_invalid"), { tone: "warning" });
       return;
     }
-
-    let normalizeFrame = null;
-    let normalizeScalar = null;
-    let normalizeImage = "";
-    if (normalizeMethod === "frame") {
-      normalizeFrame = Math.max(1, Math.min(totalFrames, Math.round(Number(seriesSumNormalizeFrame?.value || 1))));
-      if (seriesSumNormalizeFrame) {
-        seriesSumNormalizeFrame.value = String(normalizeFrame);
-      }
-    } else if (normalizeMethod === "scalar") {
-      const parsedScalar = Number(seriesSumNormalizeScalar?.value || "1");
-      if (!Number.isFinite(parsedScalar) || Math.abs(parsedScalar) <= 1e-12) {
-        setStatus(t("status.series.scalar_invalid"), { tone: "warning" });
-        return;
-      }
-      normalizeScalar = parsedScalar;
-      if (seriesSumNormalizeScalar) {
-        seriesSumNormalizeScalar.value = String(parsedScalar);
-      }
-    } else if (normalizeMethod === "image") {
-      normalizeImage = String(seriesSumNormalizeImage?.value || "").trim();
-      if (!normalizeImage) {
-        setStatus(t("status.series.select_norm_image"), { tone: "warning" });
-        return;
-      }
-      if (!isTiffPath(normalizeImage)) {
-        setStatus(t("status.series.norm_image_invalid"), { tone: "warning" });
-        return;
-      }
-    }
+    if (seriesSumEvery) seriesSumEvery.value = String(selection.every);
 
     const payload = {
       file: state.file,
       dataset: state.dataset,
-      mode,
-      step,
+      mode: "frames",
       operation,
-      normalize_method: normalizeMethod,
-      normalize_frame: normalizeFrame,
-      normalize_scalar: normalizeScalar,
-      normalize_image: normalizeImage || null,
-      range_start: mode === "range" ? rangeStart : null,
-      range_end: mode === "range" ? rangeEnd : null,
+      range_start: selection.isRange ? selection.start : null,
+      range_end: selection.isRange ? selection.end : null,
+      frame_step: selection.every,
+      group_size: groupSize,
       output_path: (seriesSumOutput?.value || "").trim(),
       format: (seriesSumFormat?.value || "hdf5").toLowerCase(),
       apply_mask: Boolean(seriesSumMask?.checked),
@@ -564,7 +490,30 @@ export function createSeriesSumController({
     }
   }
 
+  /**
+   * Set the section up for making a flat: every frame, averaged into one TIFF,
+   * which the Flatfield section can read. Range, output path and mask are left
+   * as they are.
+   */
+  function presetForFlat() {
+    if (state.seriesSum.running) return;
+    if (seriesSumEvery) seriesSumEvery.value = "1";
+    if (seriesSumOperation) seriesSumOperation.value = "mean";
+    if (seriesSumResult) seriesSumResult.value = "one";
+    if (seriesSumFormat) seriesSumFormat.value = "tiff";
+    syncSeriesSumOutputPath(false);
+    updateSeriesSumUi();
+  }
+
+  async function useOutputAsFlat() {
+    const path = flatCandidate();
+    if (!path || typeof useAsFlat !== "function") return;
+    await useAsFlat(path);
+  }
+
   return {
+    presetForFlat,
+    useOutputAsFlat,
     syncSeriesSumOutputPath,
     setSeriesSumProgress,
     updateSeriesSumUi,

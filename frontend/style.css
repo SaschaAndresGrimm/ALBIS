@@ -3001,9 +3001,11 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   color: #a9bfdc;
 }
 
+/* Frames, Use every, Operation, Result: "Use every" holds a small number, and
+   the Result choices are the longest labels. */
 .series-sum-core {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.6fr) minmax(0, 1fr) minmax(0, 1.6fr);
   gap: 6px 8px;
   align-items: end;
 }
@@ -3021,23 +3023,8 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   min-width: 0;
 }
 
-#series-sum-mode-field {
-  grid-column: span 1;
-}
-
-#series-sum-operation-field,
-#series-sum-format-field,
-#series-sum-normalize-method-field,
-#series-sum-step-field,
-#series-sum-range-start-field,
-#series-sum-range-end-field,
-#series-sum-normalize-frame-field,
-#series-sum-normalize-scalar-field {
-  grid-column: span 1;
-}
-
-#series-sum-normalize-image-field {
-  grid-column: span 2;
+#series-sum-format-field {
+  max-width: 160px;
 }
 
 .series-sum-toggles {
@@ -3054,10 +3041,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-top: 2px;
 }
 
-#series-sum-normalize-frame,
-#series-sum-normalize-scalar {
-  max-width: 110px;
-}
 
 .series-sum-output-row {
   display: grid;
@@ -3606,10 +3589,6 @@ body.platform-windows select option:disabled {
 
   .series-sum-core {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  #series-sum-mode-field {
-    grid-column: span 2;
   }
 
   .series-sum-dynamic {

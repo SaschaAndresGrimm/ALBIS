@@ -43,23 +43,16 @@ function createController({ geometryContext = null } = {}) {
     },
   };
   const elements = {
-    seriesSumMode: Object.assign(document.createElement("input"), { value: "all" }),
+    seriesSumFrames: Object.assign(document.createElement("input"), { value: "all" }),
+    seriesSumEvery: Object.assign(document.createElement("input"), { value: "1" }),
     seriesSumOperation: Object.assign(document.createElement("input"), { value: "sum" }),
+    seriesSumResult: Object.assign(document.createElement("input"), { value: "one" }),
     seriesSumStepField: null,
-    seriesSumStepLabel: null,
     seriesSumStep: Object.assign(document.createElement("input"), { value: "1" }),
     seriesSumRangeStartField: null,
     seriesSumRangeEndField: null,
     seriesSumRangeStart: Object.assign(document.createElement("input"), { value: "1" }),
     seriesSumRangeEnd: Object.assign(document.createElement("input"), { value: "2" }),
-    seriesSumNormalizeMethod: Object.assign(document.createElement("input"), { value: "none" }),
-    seriesSumNormalizeFrameField: null,
-    seriesSumNormalizeFrame: Object.assign(document.createElement("input"), { value: "1" }),
-    seriesSumNormalizeScalarField: null,
-    seriesSumNormalizeScalar: Object.assign(document.createElement("input"), { value: "1" }),
-    seriesSumNormalizeImageField: null,
-    seriesSumNormalizeImage: Object.assign(document.createElement("input"), { value: "" }),
-    seriesSumNormalizeImageBrowse: null,
     seriesSumMedianEstimate: null,
     seriesSumOutput: Object.assign(document.createElement("input"), { value: "output/series_sum" }),
     seriesSumBrowse: null,
@@ -67,13 +60,14 @@ function createController({ geometryContext = null } = {}) {
     seriesSumMask: Object.assign(document.createElement("input"), { checked: false }),
     seriesSumStart: document.createElement("button"),
     seriesSumCancel: document.createElement("button"),
+    seriesSumUseFlat: document.createElement("button"),
     seriesSumProgress: document.createElement("div"),
     seriesSumProgressFill: document.createElement("div"),
     seriesSumProgressText: document.createElement("div"),
   };
   const callbacks = {
     isHdfFile: () => false,
-    validateSeriesStepInput: () => 1,
+    validateSeriesStepInput: () => Number(elements.seriesSumStep.value),
     setStatus: vi.fn(),
     ensureFileMode: async () => {},
     loadAutoloadFile: async () => {},
@@ -83,6 +77,7 @@ function createController({ geometryContext = null } = {}) {
       return { job_id: "job-1" };
     }),
     getSeriesSumGeometryContext: () => geometryContext,
+    useAsFlat: vi.fn(async () => true),
   };
   return { state, elements, callbacks, payloads };
 }
@@ -164,6 +159,86 @@ describe("series_sum_controller", () => {
     expect(payloads).toHaveLength(1);
     expect("geometry" in payloads[0]).toBe(false);
     expect("distance_mm" in payloads[0]).toBe(false);
+  });
+
+  async function makeController(options) {
+    vi.resetModules();
+    global.fetch = buildFetchMock();
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createSeriesSumController } = await import("../modules/series_sum_controller.js");
+    const parts = createController(options);
+    parts.state.frameCount = 20;
+    const controller = createSeriesSumController({
+      apiBase: "/api",
+      state: parts.state,
+      elements: parts.elements,
+      callbacks: parts.callbacks,
+    });
+    return { ...parts, controller };
+  }
+
+  it("asks for which frames and how many images separately, without normalisation", async () => {
+    const { elements, controller, payloads } = await makeController();
+    elements.seriesSumFrames.value = "range";
+    elements.seriesSumRangeStart.value = "3";
+    elements.seriesSumRangeEnd.value = "14";
+    elements.seriesSumEvery.value = "4";
+    elements.seriesSumResult.value = "groups";
+    elements.seriesSumStep.value = "2";
+
+    await controller.startSeriesSumming();
+
+    expect(payloads[0]).toMatchObject({
+      mode: "frames",
+      range_start: 3,
+      range_end: 14,
+      frame_step: 4,
+      group_size: 2,
+    });
+    expect(Object.keys(payloads[0]).some((key) => key.startsWith("normalize"))).toBe(false);
+  });
+
+  it("sends no range and no groups for all frames into one image", async () => {
+    const { controller, payloads } = await makeController();
+    await controller.startSeriesSumming();
+    expect(payloads[0]).toMatchObject({
+      mode: "frames",
+      range_start: null,
+      range_end: null,
+      frame_step: 1,
+      group_size: null,
+    });
+  });
+
+  it("sets up a flat: every frame, averaged into one TIFF", async () => {
+    const { elements, controller } = await makeController();
+    elements.seriesSumEvery.value = "5";
+    elements.seriesSumResult.value = "groups";
+    controller.presetForFlat();
+    expect(elements.seriesSumEvery.value).toBe("1");
+    expect(elements.seriesSumOperation.value).toBe("mean");
+    expect(elements.seriesSumResult.value).toBe("one");
+    expect(elements.seriesSumFormat.value).toBe("tiff");
+  });
+
+  it("offers Use as flat only for a single finished TIFF", async () => {
+    const { state, elements, callbacks, controller } = await makeController();
+    const hidden = () => elements.seriesSumUseFlat.classList.contains("is-hidden");
+
+    state.seriesSum.outputs = ["out/mean_all.tiff"];
+    controller.updateSeriesSumUi();
+    expect(hidden()).toBe(false);
+    await controller.useOutputAsFlat();
+    expect(callbacks.useAsFlat).toHaveBeenCalledWith("out/mean_all.tiff");
+
+    state.seriesSum.outputs = ["out/a.tiff", "out/b.tiff"];
+    controller.updateSeriesSumUi();
+    expect(hidden()).toBe(true);
+
+    state.seriesSum.outputs = ["out/mean.h5"];
+    controller.updateSeriesSumUi();
+    expect(hidden()).toBe(true);
   });
 
   it("does not report success when opening the generated output fails", async () => {

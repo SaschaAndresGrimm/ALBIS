@@ -31,6 +31,9 @@ def iter_sum_groups(
     step: int,
     range_start_1: int | None,
     range_end_1: int | None,
+    *,
+    frame_step: int = 1,
+    group_size: int | None = None,
 ) -> list[dict[str, Any]]:
     if frame_count <= 0:
         raise HTTPException(status_code=400, detail="No frames available")
@@ -90,6 +93,29 @@ def iter_sum_groups(
                 {"indices": indices, "start": cursor, "end": chunk_end, "count": len(indices)}
             )
             cursor = chunk_end + 1
+        return groups
+
+    if mode == "frames":
+        # Which frames (an optional range, every `frame_step`-th of it) and how
+        # many images (one, or one per `group_size` of the selected frames) are
+        # separate questions here; the older modes each answer one of them.
+        start = max(0, int(range_start_1 or 1) - 1)
+        end = min(frame_count - 1, int(range_end_1 or frame_count) - 1)
+        if start > end:
+            raise HTTPException(status_code=400, detail="Range start must be <= range end")
+        selected = list(range(start, end + 1, max(1, int(frame_step))))
+        size = len(selected) if group_size is None else max(1, int(group_size))
+        for chunk_idx, offset in enumerate(range(0, len(selected), size)):
+            indices = selected[offset : offset + size]
+            groups.append(
+                {
+                    "indices": indices,
+                    "start": indices[0],
+                    "end": indices[-1],
+                    "count": len(indices),
+                    "chunk": chunk_idx,
+                }
+            )
         return groups
 
     raise HTTPException(status_code=400, detail="Invalid series summing mode")

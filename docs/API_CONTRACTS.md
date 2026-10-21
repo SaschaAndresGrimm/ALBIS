@@ -101,6 +101,23 @@ the file, which is how a client knows whether asking again is worthwhile.
 The interface uses exactly this: it re-reads the count about once a second while
 the flag is set, updates the frame slider, and stops when the writer lets go.
 
+## Combining Frames
+
+`POST /api/analysis/series-sum/start` starts a background job that combines
+frames of the open series; `GET /api/analysis/series-sum/status?job_id=` reports
+its progress and, when done, the files it wrote.
+
+- `mode: "frames"` takes the choice in two parts, as the interface does: which
+  frames (`range_start`/`range_end`, 1-based and inclusive, both optional, and
+  `frame_step`, every Nth of them, default `1`), and how many images
+  (`group_size` frames each, or one image of all of them when it is omitted).
+- The older modes `all`, `chunks` (alias `step`), `nth` and `range` keep their
+  meaning; each is one setting of `frames`.
+- **Deprecated:** `normalize_method`, `normalize_frame`, `normalize_scalar` and
+  `normalize_image`. Each divides every frame by the same per-pixel value before
+  combining, which equals dividing the result: apply a flatfield to it instead.
+  They keep working, log a warning, and may be removed in 1.0.0.
+
 ## Directory Scans
 
 `GET /api/files`, `GET /api/folders`, `GET /api/browse` and

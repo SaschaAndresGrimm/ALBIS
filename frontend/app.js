@@ -455,24 +455,17 @@ const peaksExportBtn = document.getElementById("peaks-export");
 const peaksBody = document.getElementById("peaks-body");
 const peaksSectionStateEl = document.getElementById("peaks-state");
 const peaksSummaryEl = document.getElementById("summary-peaks");
-const seriesSumMode = document.getElementById("series-sum-mode");
+const seriesSumFrames = document.getElementById("series-sum-frames");
+const seriesSumEvery = document.getElementById("series-sum-every");
 const seriesSumOperation = document.getElementById("series-sum-operation");
+const seriesSumResult = document.getElementById("series-sum-result");
 const seriesSumStepField = document.getElementById("series-sum-step-field");
-const seriesSumStepLabel = document.getElementById("series-sum-step-label");
 const seriesSumStep = document.getElementById("series-sum-step");
 const seriesSumStepHint = document.getElementById("series-sum-step-hint");
 const seriesSumRangeStartField = document.getElementById("series-sum-range-start-field");
 const seriesSumRangeEndField = document.getElementById("series-sum-range-end-field");
 const seriesSumRangeStart = document.getElementById("series-sum-range-start");
 const seriesSumRangeEnd = document.getElementById("series-sum-range-end");
-const seriesSumNormalizeMethod = document.getElementById("series-sum-normalize-method");
-const seriesSumNormalizeFrameField = document.getElementById("series-sum-normalize-frame-field");
-const seriesSumNormalizeFrame = document.getElementById("series-sum-normalize-frame");
-const seriesSumNormalizeScalarField = document.getElementById("series-sum-normalize-scalar-field");
-const seriesSumNormalizeScalar = document.getElementById("series-sum-normalize-scalar");
-const seriesSumNormalizeImageField = document.getElementById("series-sum-normalize-image-field");
-const seriesSumNormalizeImage = document.getElementById("series-sum-normalize-image");
-const seriesSumNormalizeImageBrowse = document.getElementById("series-sum-normalize-image-browse");
 const seriesSumMedianEstimate = document.getElementById("series-sum-median-estimate");
 const seriesSumOutput = document.getElementById("series-sum-output");
 const seriesSumBrowse = document.getElementById("series-sum-browse");
@@ -480,6 +473,7 @@ const seriesSumFormat = document.getElementById("series-sum-format");
 const seriesSumMask = document.getElementById("series-sum-mask");
 const seriesSumStart = document.getElementById("series-sum-start");
 const seriesSumCancel = document.getElementById("series-sum-cancel");
+const seriesSumUseFlat = document.getElementById("series-sum-use-flat");
 const seriesSumProgress = document.getElementById("series-sum-progress");
 const seriesSumProgressFill = document.getElementById("series-sum-progress-fill");
 const seriesSumProgressText = document.getElementById("series-sum-progress-text");
@@ -1562,23 +1556,16 @@ const seriesSumController = createSeriesSumController({
   apiBase: API,
   state,
   elements: {
-    seriesSumMode,
+    seriesSumFrames,
+    seriesSumEvery,
     seriesSumOperation,
+    seriesSumResult,
     seriesSumStepField,
-    seriesSumStepLabel,
     seriesSumStep,
     seriesSumRangeStartField,
     seriesSumRangeEndField,
     seriesSumRangeStart,
     seriesSumRangeEnd,
-    seriesSumNormalizeMethod,
-    seriesSumNormalizeFrameField,
-    seriesSumNormalizeFrame,
-    seriesSumNormalizeScalarField,
-    seriesSumNormalizeScalar,
-    seriesSumNormalizeImageField,
-    seriesSumNormalizeImage,
-    seriesSumNormalizeImageBrowse,
     seriesSumMedianEstimate,
     seriesSumOutput,
     seriesSumBrowse,
@@ -1586,6 +1573,7 @@ const seriesSumController = createSeriesSumController({
     seriesSumMask,
     seriesSumStart,
     seriesSumCancel,
+    seriesSumUseFlat,
     seriesSumProgress,
     seriesSumProgressFill,
     seriesSumProgressText,
@@ -1593,6 +1581,7 @@ const seriesSumController = createSeriesSumController({
   callbacks: {
     isHdfFile,
     validateSeriesStepInput,
+    useAsFlat: (path) => flatfieldController?.useFile(path),
     setStatus,
     ensureFileMode,
     loadAutoloadFile,
@@ -5000,8 +4989,7 @@ initializeUiDefaults({
 
 function validateSeriesStepInput(commit = false) {
   if (!seriesSumStep) return 1;
-  const mode = (seriesSumMode?.value || "all").toLowerCase();
-  if (mode === "all") {
+  if ((seriesSumResult?.value || "one") !== "groups") {
     setFieldHint(seriesSumStep, seriesSumStepHint, "");
     return 1;
   }
@@ -5060,6 +5048,7 @@ flatfieldController = createFlatfieldController({
     toggle: document.getElementById("flat-toggle"),
     useCurrentBtn: document.getElementById("flat-use-current"),
     chooseBtn: document.getElementById("flat-choose"),
+    fromFramesBtn: document.getElementById("flat-from-frames"),
     scaleSelect: document.getElementById("flat-scale"),
     stateEl: document.getElementById("flat-state"),
     summaryEl: document.getElementById("summary-flat"),
@@ -5082,8 +5071,24 @@ flatfieldController = createFlatfieldController({
     parseDtype,
     parseShape,
     typedArrayFrom,
+    openCombineFramesForFlat,
   },
 });
+
+/**
+ * Flatfield's "Make one from frames…": open Combine Frames, set up to average
+ * every frame into one TIFF, and bring it into view. Starting stays the
+ * user's call.
+ */
+function openCombineFramesForFlat() {
+  const section = document.getElementById("series-sum-section");
+  if (!section) return;
+  setPanelTab("analysis");
+  setSectionState(section, false);
+  seriesSumController.presetForFlat();
+  section.scrollIntoView({ block: "start", behavior: "smooth" });
+  seriesSumStart?.focus({ preventScroll: true });
+}
 
 inpaintingController = createInpaintingController({
   state,
@@ -5128,22 +5133,20 @@ bindAnalysisControlInteractions({
     peaksEnableToggle,
     peaksExportBtn,
     seriesSumOutput,
-    seriesSumMode,
+    seriesSumFrames,
+    seriesSumEvery,
     seriesSumOperation,
-    seriesSumNormalizeMethod,
+    seriesSumResult,
     seriesSumStep,
     seriesSumStepHint,
     seriesSumRangeStart,
     seriesSumRangeEnd,
-    seriesSumNormalizeFrame,
-    seriesSumNormalizeScalar,
-    seriesSumNormalizeImage,
-    seriesSumNormalizeImageBrowse,
     seriesSumBrowse,
     filesystemMode,
     seriesSumProgress,
     seriesSumStart,
     seriesSumCancel,
+    seriesSumUseFlat,
     pixelLabelToggle,
   },
   callbacks: {
@@ -5156,13 +5159,12 @@ bindAnalysisControlInteractions({
     syncSeriesSumOutputPath,
     updateSeriesSumUi,
     validateSeriesStepInput,
-    setStatus,
     handleLocalFileSelection,
     openFileBrowser,
-    openFileDialog,
     openSeriesSumOutputTarget,
     startSeriesSumming,
     cancelSeriesSumming,
+    useSeriesOutputAsFlat: () => seriesSumController.useOutputAsFlat(),
     schedulePixelOverlay,
   },
 });

@@ -39,7 +39,7 @@ class SeriesSummingDeps:
     read_cbf_gz: Callable[[Path], np.ndarray]
     read_edf: Callable[[Path], np.ndarray]
     write_tiff: Callable[..., None]
-    iter_sum_groups: Callable[[int, str, int, int | None, int | None], list[dict[str, Any]]]
+    iter_sum_groups: Callable[..., list[dict[str, Any]]]
     mask_flag_value: Callable[[np.dtype], float]
     mask_slices: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray, np.ndarray]]
     resolve_dataset_view: Callable[[Any, Path, str], tuple[dict[str, Any], list[Any]]]
@@ -77,6 +77,8 @@ class SeriesSummingService:
         output_path: str | None,
         output_format: str,
         apply_mask: bool,
+        frame_step: int = 1,
+        group_size: int | None = None,
         geometry: dict[str, Any] | None = None,
         distance_mm: float | None = None,
         pixel_size_um: float | None = None,
@@ -107,6 +109,8 @@ class SeriesSummingService:
                 "normalize_image": normalize_image,
                 "range_start": range_start,
                 "range_end": range_end,
+                "frame_step": frame_step,
+                "group_size": group_size,
                 "format": output_format,
                 "apply_mask": apply_mask,
                 "output_path": output_path,
@@ -135,6 +139,8 @@ class SeriesSummingService:
                 "output_path": str(output_path or ""),
                 "output_format": output_format,
                 "apply_mask": apply_mask,
+                "frame_step": frame_step,
+                "group_size": group_size,
                 "geometry": geometry,
                 "distance_mm": distance_mm,
                 "pixel_size_um": pixel_size_um,
@@ -617,6 +623,29 @@ class SeriesSummingService:
         return source_dtype
 
     @staticmethod
+    def _frames_output_label(
+        *,
+        operation: str,
+        group_total: int,
+        chunk_idx: int,
+        start_idx: int,
+        end_idx: int,
+        count: int,
+        frame_count: int,
+        frame_step: int,
+    ) -> tuple[str, str]:
+        """File-name tag and header description for one image of mode "frames"."""
+        every_tag = f"_every{frame_step:03d}" if frame_step > 1 else ""
+        every_what = f", every {frame_step}th frame" if frame_step > 1 else ""
+        whole = group_total == 1 and start_idx == 0 and end_idx == frame_count - 1
+        if whole and frame_step == 1:
+            return "_all", f"{operation} of {count} frames"
+        span = f"_f{start_idx + 1:06d}-{end_idx + 1:06d}"
+        chunk = f"_chunk{chunk_idx + 1:04d}" if group_total > 1 else ""
+        what = f"{operation} of {count} frames {start_idx + 1}-{end_idx + 1}{every_what}"
+        return f"{chunk}{span}{every_tag}", what
+
+    @staticmethod
     def _cast_result_to_dtype(arr: np.ndarray, output_dtype: np.dtype) -> np.ndarray:
         output_dtype = np.dtype(output_dtype)
         if np.issubdtype(output_dtype, np.integer) or np.issubdtype(
@@ -736,6 +765,8 @@ class SeriesSummingService:
         output_path: str | None,
         output_format: str,
         apply_mask: bool,
+        frame_step: int,
+        group_size: int | None,
         geometry: dict[str, Any] | None,
         distance_mm: float | None,
         pixel_size_um: float | None,
@@ -752,6 +783,7 @@ class SeriesSummingService:
             mode = mode.lower()
             operation = operation.lower()
             step = max(1, int(step))
+            frame_step = max(1, int(frame_step))
             normalize_method = str(normalize_method or "none").strip().lower()
             if normalize_method == "none" and normalize_frame is not None:
                 normalize_method = "frame"
@@ -843,7 +875,13 @@ class SeriesSummingService:
                                 ),
                             )
                         groups = self._deps.iter_sum_groups(
-                            frame_count, mode, step, range_start, range_end
+                            frame_count,
+                            mode,
+                            step,
+                            range_start,
+                            range_end,
+                            frame_step=frame_step,
+                            group_size=group_size,
                         )
                         if not groups:
                             raise HTTPException(
@@ -986,7 +1024,15 @@ class SeriesSummingService:
                     and (normalize_frame_idx < 0 or normalize_frame_idx >= frame_count)
                 ):
                     raise HTTPException(status_code=400, detail="Normalize frame is out of range")
-                groups = self._deps.iter_sum_groups(frame_count, mode, step, range_start, range_end)
+                groups = self._deps.iter_sum_groups(
+                    frame_count,
+                    mode,
+                    step,
+                    range_start,
+                    range_end,
+                    frame_step=frame_step,
+                    group_size=group_size,
+                )
                 if not groups:
                     raise HTTPException(status_code=400, detail="No frames available for summing")
                 max_group_count = max(1, max(int(group["count"]) for group in groups))
@@ -1170,6 +1216,9 @@ class SeriesSummingService:
                         out_h5.attrs["source_file"] = str(source_path)
                         out_h5.attrs["source_dataset"] = str(dataset)
                         out_h5.attrs["series_mode"] = mode
+                        if mode == "frames":
+                            out_h5.attrs["frame_step"] = int(frame_step)
+                            out_h5.attrs["group_size"] = int(group_size or 0)
                         out_h5.attrs["operation"] = operation
                         out_h5.attrs["frame_count"] = int(frame_count)
                         out_h5.attrs["threshold_count"] = int(threshold_count)
@@ -1320,7 +1369,18 @@ class SeriesSummingService:
                 for thr, chunk_idx, start_idx, end_idx, frame_count_in_sum, arr, mask_bits in sums:
                     self._raise_if_cancelled(job_id)
                     thr_tag = f"_thr{thr + 1:02d}" if threshold_count > 1 else ""
-                    if mode == "all":
+                    if mode == "frames":
+                        chunk_tag, combined_what = self._frames_output_label(
+                            operation=operation,
+                            group_total=len(groups),
+                            chunk_idx=chunk_idx,
+                            start_idx=start_idx,
+                            end_idx=end_idx,
+                            count=frame_count_in_sum,
+                            frame_count=frame_count,
+                            frame_step=frame_step,
+                        )
+                    elif mode == "all":
                         chunk_tag = "_all"
                     elif mode == "nth":
                         chunk_tag = f"_every{step:03d}_n{frame_count_in_sum:05d}"
@@ -1344,7 +1404,9 @@ class SeriesSummingService:
                         else:
                             arr_tiff[gap_mask] = -1.0
                             arr_tiff[bad_mask] = -2.0
-                    if mode == "all":
+                    if mode == "frames":
+                        pass  # labelled together with the file name above
+                    elif mode == "all":
                         combined_what = f"{operation} of {frame_count_in_sum} frames"
                     elif mode == "nth":
                         combined_what = (

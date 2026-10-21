@@ -12,7 +12,6 @@ const EXACT_KEY_ALLOWLIST = new Set([
   "command.label.export_animation",
   "cursor.resolution",
   "roi.mode.default",
-  "series.ui.norm_image_placeholder",
   "series.ui.output_placeholder",
   "settings.language.mi",
   "settings.language.rm",

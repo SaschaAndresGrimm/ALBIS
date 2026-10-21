@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -278,6 +279,8 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         normalize_image = str(payload.normalize_image or "").strip()
         range_start = payload.range_start
         range_end = payload.range_end
+        frame_step = int(payload.frame_step)
+        group_size = payload.group_size
         output_path = payload.output_path
         output_format = str(payload.format or "hdf5").strip().lower()
         apply_mask = bool(payload.apply_mask)
@@ -293,7 +296,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         ext = Path(file).suffix.lower()
         if ext in {".h5", ".hdf5"} and not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
-        if mode not in {"all", "chunks", "nth", "range"}:
+        if mode not in {"all", "chunks", "nth", "range", "frames"}:
             raise HTTPException(status_code=400, detail="Invalid mode")
         if operation not in {"sum", "mean", "median"}:
             raise HTTPException(status_code=400, detail="Invalid operation")
@@ -303,6 +306,10 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             raise HTTPException(status_code=400, detail="Invalid format")
         if step < 1:
             raise HTTPException(status_code=400, detail="Step must be >= 1")
+        if frame_step < 1:
+            raise HTTPException(status_code=400, detail="Frame step must be >= 1")
+        if group_size is not None and group_size < 1:
+            raise HTTPException(status_code=400, detail="Group size must be >= 1")
         if range_start is not None and range_start < 1:
             raise HTTPException(status_code=400, detail="Range start must be >= 1")
         if range_end is not None and range_end < 1:
@@ -326,6 +333,12 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 raise HTTPException(status_code=400, detail="Normalize scalar must be non-zero")
         if normalize_method == "image" and not normalize_image:
             raise HTTPException(status_code=400, detail="Normalize image is required")
+        if normalize_method != "none":
+            logging.getLogger("albis").warning(
+                "Series sum: normalize_%s is deprecated and goes in 1.0; "
+                "combine without it and apply a flatfield to the result instead",
+                normalize_method,
+            )
 
         job_id = deps.start_series_sum_job(
             file=file,
@@ -339,6 +352,8 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             normalize_image=normalize_image,
             range_start=range_start,
             range_end=range_end,
+            frame_step=frame_step,
+            group_size=group_size,
             output_path=str(output_path or ""),
             output_format=output_format,
             apply_mask=apply_mask,

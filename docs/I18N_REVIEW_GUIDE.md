@@ -45,7 +45,7 @@ Review every locale in the running UI. Use the same workflow for each language:
 
 1. Open a diffraction image and verify Data panel metadata.
 2. Open Analysis / Overlay and review peaks, rings, ROI, and validation hints.
-3. Exercise Series Operations and confirm normalization, mean, median, sum, range, and status messages use correct technical terms.
+3. Exercise Combine Frames and confirm frames, range, every Nth, result, mean, median, sum, and status messages use correct technical terms.
 4. Exercise live/autoload modes and confirm SIMPLON, JFJ/JUNGFRAUJOCH, remote stream, mask, threshold, and frame wording.
 5. Open Settings and verify language labels and technical viewer settings.
 
