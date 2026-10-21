@@ -22,6 +22,7 @@ reference of the same material.
 - [Resolution rings and reflections](#resolution-rings-and-reflections)
 - [Follow a running experiment](#follow-a-running-experiment)
 - [Combine frames](#combine-frames)
+- [Show only the tools you use](#show-only-the-tools-you-use)
 - [Get data back out](#get-data-back-out)
 - [Compare two views](#compare-two-views)
 - [Test a detector (beta)](#test-a-detector-beta)
@@ -389,6 +390,30 @@ is what **Flatfield** does, for any image, with its masking and scales.
 
 ---
 
+## Show only the tools you use
+
+The **Analysis** tab holds tools for different kinds of work: **Resolution
+Rings** and **Peak Finder** for diffraction, **Flatfield** and **Inpainting**
+for imaging, **Combine Frames** for processing. **Settings → Tools** chooses
+which of them the tab shows; **Statistics and ROI** is always there.
+
+- **Diffraction**, **Imaging** and **Everything** set the boxes in one click;
+  each box can still be changed on its own. Inpainting and Combine Frames stay
+  in both, because diffraction fills module gaps and both sum frames.
+- **A hidden tool is switched off.** A flatfield or an overlay acting with its
+  section out of sight would change every image with nothing to say why.
+- While any tool is hidden, the bottom of the Analysis tab says how many, with
+  **Customise…** to bring them back. The command palette has it too
+  (**Analysis: Customise…**), and a hidden tool's commands leave the palette
+  with it.
+- The same page switches the **Detector** tab (beta) on and off.
+
+The choice is stored in the config file as `ui.hidden_tools`, so a facility can
+ship ALBIS set up for one kind of station (see the
+[Power User Guide](POWER_USER_GUIDE.md)).
+
+---
+
 ## Get data back out
 
 | You want | Use |
@@ -574,7 +599,7 @@ it), scans or synchronisation with motors, sequences of series, unattended
 operation, or an ALBIS shared with others: anyone who can open ALBIS can use the
 tab while it is switched on.
 
-It is off by default. Switch it on under **Settings → Viewer → Beta: detector
+It is off by default. Switch it on under **Settings → Tools → Beta: detector
 control**; while it is off, ALBIS cannot drive a detector at all. Then enter the
 detector's address and press **Connect** (or pick it from the
 [known detectors](#known-detectors)). Every field is built from what the

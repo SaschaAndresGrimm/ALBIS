@@ -74,6 +74,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # Beta: the Detector tab, which drives a detector over SIMPLON. Off
         # unless switched on, so a default installation cannot control one.
         "detector_control": False,
+        "hidden_tools": [],
         # The shared list of known detectors; empty means
         # ~/.config/albis/known_detectors.json. A relative path is taken from
         # this file's folder.
@@ -121,6 +122,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("ui", "pixel_label_show_during_drag"): (bool, int, float, str),
     ("ui", "language"): (str,),
     ("ui", "detector_control"): (bool, int, float, str),
+    ("ui", "hidden_tools"): (list, str),
     ("ui", "known_detectors_file"): (str,),
 }
 
@@ -173,6 +175,23 @@ def _normalize_allowed_hosts(value: Any) -> list[str]:
     return cleaned
 
 
+# The Analysis tab's tools a user may hide (`ui.hidden_tools`). Statistics and
+# ROI is not among them: everyone uses it. A name not listed here is dropped,
+# so a key written by a newer ALBIS, or a typo, hides nothing. Hidden rather
+# than shown, so a tool added later appears unless someone hid it on purpose.
+HIDEABLE_TOOLS: tuple[str, ...] = ("rings", "peaks", "flatfield", "inpainting", "combine")
+
+
+def _normalize_hidden_tools(value: Any) -> list[str]:
+    """Coerce `ui.hidden_tools` to known tool names, in a stable order."""
+    if isinstance(value, str):
+        value = value.split(",")
+    if not isinstance(value, list | tuple):
+        return []
+    wanted = {str(entry or "").strip().lower() for entry in value}
+    return [tool for tool in HIDEABLE_TOOLS if tool in wanted]
+
+
 # Configuration supplied through the environment, which is how a container is
 # configured: `docker run -e ALBIS_DATA_ROOT=/data` rather than baking a JSON
 # file into an image or mounting one to change a single value. One variable per
@@ -183,7 +202,9 @@ ENV_PREFIX = "ALBIS"
 
 # Keys whose value is a list. The environment only carries strings, so these
 # accept a comma-separated one.
-_ENV_LIST_KEYS: frozenset[tuple[str, str]] = frozenset({("server", "allowed_hosts")})
+_ENV_LIST_KEYS: frozenset[tuple[str, str]] = frozenset(
+    {("server", "allowed_hosts"), ("ui", "hidden_tools")}
+)
 
 # Which keys the environment is currently deciding. Read it through
 # `env_override_keys()`; the interface shows them as not editable, because a
@@ -439,6 +460,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             ),
             "language": ui_language,
             "detector_control": get_bool(merged, ("ui", "detector_control"), False),
+            "hidden_tools": _normalize_hidden_tools(get_nested(merged, ("ui", "hidden_tools"), [])),
             "known_detectors_file": get_str(merged, ("ui", "known_detectors_file"), "").strip(),
         },
     }

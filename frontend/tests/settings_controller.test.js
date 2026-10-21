@@ -59,6 +59,15 @@ function renderSettingsShell() {
       <input id="settings-max-upload" type="number" />
       <select id="settings-log-level"><option value="INFO">INFO</option></select>
       <input id="settings-log-dir" type="text" />
+      <fieldset id="settings-hidden-tools">
+        <input type="checkbox" data-tool-visible="rings" />
+        <input type="checkbox" data-tool-visible="peaks" />
+        <input type="checkbox" data-tool-visible="flatfield" />
+        <input type="checkbox" data-tool-visible="inpainting" />
+        <input type="checkbox" data-tool-visible="combine" />
+      </fieldset>
+      <button type="button" data-tool-preset="imaging">Imaging</button>
+      <button type="button" data-tool-preset="everything">Everything</button>
     </div>
   `;
 }
@@ -164,6 +173,7 @@ async function initializeController({ initialConfig, envOverrides = [] }) {
       settingsMaxUpload: document.getElementById("settings-max-upload"),
       settingsLogLevel: document.getElementById("settings-log-level"),
       settingsLogDir: document.getElementById("settings-log-dir"),
+      settingsHiddenTools: document.getElementById("settings-hidden-tools"),
     },
     callbacks: {
       setToolHintsEnabled: vi.fn(),
@@ -173,6 +183,9 @@ async function initializeController({ initialConfig, envOverrides = [] }) {
       setStatus: vi.fn(),
       schedulePixelOverlay: vi.fn(),
       applyLanguagePreference: vi.fn((language) => language),
+      setHiddenTools: vi.fn((hidden) => {
+        state.hiddenTools = hidden;
+      }),
     },
   });
 
@@ -713,5 +726,67 @@ describe("settings controller environment overrides", () => {
 
     expect(document.getElementById("settings-data-root").disabled).toBe(true);
     expect(document.getElementById("settings-env-note").classList.contains("is-hidden")).toBe(false);
+  });
+});
+
+describe("settings controller: Tools", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  const shown = () =>
+    Object.fromEntries(
+      Array.from(document.querySelectorAll("[data-tool-visible]")).map((box) => [box.dataset.toolVisible, box.checked]),
+    );
+
+  it("ticks the shown tools and saves the unticked ones as hidden", async () => {
+    const { controller, savedConfigs, state } = await initializeController({
+      initialConfig: { ui: { hidden_tools: ["rings", "combine"] } },
+    });
+    await controller.openSettingsModal();
+    expect(shown()).toEqual({ rings: false, peaks: true, flatfield: true, inpainting: true, combine: false });
+
+    document.querySelector('[data-tool-visible="peaks"]').checked = false;
+    document.querySelector('[data-tool-visible="combine"]').checked = true;
+    await controller.saveSettingsFromModal();
+
+    expect(savedConfigs[0].ui.hidden_tools).toEqual(["rings", "peaks"]);
+    expect(state.hiddenTools).toEqual(["rings", "peaks"]);
+  });
+
+  it("sets the boxes from a quick choice without saving", async () => {
+    const { controller, savedConfigs } = await initializeController({ initialConfig: { ui: {} } });
+    await controller.openSettingsModal();
+
+    document.querySelector('[data-tool-preset="imaging"]').click();
+    expect(shown()).toEqual({ rings: false, peaks: false, flatfield: true, inpainting: true, combine: true });
+    document.querySelector('[data-tool-preset="everything"]').click();
+    expect(Object.values(shown()).every(Boolean)).toBe(true);
+    expect(savedConfigs).toHaveLength(0);
+  });
+
+  it("locks the list, quick choices included, when the environment sets it", async () => {
+    const { controller } = await initializeController({
+      initialConfig: { ui: { hidden_tools: ["flatfield"] } },
+      envOverrides: ["ui.hidden_tools"],
+    });
+    await controller.openSettingsModal();
+    expect(document.getElementById("settings-hidden-tools").disabled).toBe(true);
+
+    document.querySelector('[data-tool-preset="everything"]').click();
+    expect(shown().flatfield).toBe(false);
+  });
+
+  it("can open on the Tools tab", async () => {
+    document.body.innerHTML = "";
+    const { controller } = await initializeController({ initialConfig: { ui: {} } });
+    const toolsTab = document.createElement("div");
+    toolsTab.className = "settings-tabpage";
+    toolsTab.dataset.settingsTab = "tools";
+    toolsTab.hidden = true;
+    document.getElementById("settings-modal").append(toolsTab);
+    await controller.openSettingsModal("tools");
+    expect(toolsTab.hidden).toBe(false);
   });
 });

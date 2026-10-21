@@ -210,6 +210,12 @@
           "default": false,
           "description": "Beta: show the Detector tab, which controls a DECTRIS detector over the SIMPLON API."
         },
+        "hidden_tools": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["rings", "peaks", "flatfield", "inpainting", "combine"] },
+          "default": [],
+          "description": "Analysis tools to leave out of the Analysis tab: rings (Resolution Rings), peaks (Peak Finder), flatfield, inpainting, combine (Combine Frames). A hidden tool is switched off. Statistics and ROI is always shown. Also set in Settings -> Tools."
+        },
         "known_detectors_file": {
           "type": "string",
           "default": "",
@@ -275,6 +281,7 @@
       "pixel_label_show_during_drag": false,
       "language": "en",
       "detector_control": false,
+      "hidden_tools": [],
       "known_detectors_file": ""
     }
   }

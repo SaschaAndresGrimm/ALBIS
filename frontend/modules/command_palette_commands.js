@@ -2,6 +2,7 @@
  * Command palette command list construction.
  */
 
+import { isToolHidden } from "./analysis_tools.js";
 import { t } from "./i18n.js";
 import {
   canExportAnimation,
@@ -54,7 +55,10 @@ export function buildCommandPaletteCommands({
   const hasFrame = Boolean(state.hasFrame);
   const hasNavigableFrames = hasFrame && state.frameCount > 1 && (hasDataset || hasSeries);
   const hasThresholds = hasFile && state.autoload.mode === "file" && state.thresholdCount > 1;
-  const canStartSeriesOps = canStartSeriesOperation(state, isHdfFile);
+  // A hidden Combine Frames takes its commands with it; Cancel stays, so a job
+  // started before the section was hidden can still be stopped.
+  const combineShown = !isToolHidden(state, "combine");
+  const canStartSeriesOps = combineShown && canStartSeriesOperation(state, isHdfFile);
   const canSaveCurrentImage = canSaveImage(state);
   const canExportGif = canExportAnimation(state);
   const canConvertDataset = canExportData(state, isHdfFile);
@@ -91,6 +95,13 @@ export function buildCommandPaletteCommands({
       shortcut: platformShortcutLabel("settings-open"),
       search: "settings preferences options",
       run: () => openSettingsModal(),
+    },
+    {
+      id: "customise-tools",
+      label: t("command.label.customise_tools"),
+      shortcut: "",
+      search: "tools analysis customise customize hide show sections diffraction imaging",
+      run: () => openSettingsModal("tools"),
     },
     {
       id: "debug-picker-file",
@@ -243,7 +254,7 @@ export function buildCommandPaletteCommands({
       label: t("command.label.series_open_output"),
       shortcut: "",
       search: "series sum output open result",
-      when: canOpenSeriesOutput,
+      when: combineShown && canOpenSeriesOutput,
       run: () => openSeriesSumOutputTarget(),
     },
     {

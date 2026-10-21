@@ -4,6 +4,7 @@
 
 import { getLanguage, onLanguageChange, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
+import { ANALYSIS_TOOLS, TOOL_PRESETS, normalizeHiddenTools } from "./analysis_tools.js";
 
 export function createSettingsController({
   apiBase,
@@ -44,6 +45,7 @@ export function createSettingsController({
     settingsAllowUpdateApply,
     settingsToolHints,
     settingsDetectorControl,
+    settingsHiddenTools,
     settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
@@ -70,7 +72,27 @@ export function createSettingsController({
     schedulePixelOverlay,
     applyLanguagePreference,
     setDetectorControlEnabled,
+    setHiddenTools,
   } = callbacks;
+
+  // Settings -> Tools: a checkbox per hideable tool, ticked when it is shown.
+  function toolCheckboxes() {
+    return settingsHiddenTools
+      ? Array.from(settingsHiddenTools.querySelectorAll("input[data-tool-visible]"))
+      : [];
+  }
+
+  function fillHiddenTools(hidden) {
+    const hiddenSet = new Set(normalizeHiddenTools(hidden));
+    toolCheckboxes().forEach((box) => {
+      box.checked = !hiddenSet.has(box.dataset.toolVisible);
+    });
+  }
+
+  function collectHiddenTools() {
+    const shown = new Set(toolCheckboxes().filter((box) => box.checked).map((box) => box.dataset.toolVisible));
+    return ANALYSIS_TOOLS.map((tool) => tool.id).filter((id) => !shown.has(id));
+  }
 
   // The config last loaded into the form. Saving rebuilds each section from the
   // form controls, so without this any key that has no control — server.compression
@@ -213,6 +235,7 @@ export function createSettingsController({
       "logging.dir": settingsLogDir,
       "ui.tool_hints": settingsToolHints,
       "ui.detector_control": settingsDetectorControl,
+      "ui.hidden_tools": settingsHiddenTools,
       "ui.auto_check_updates": settingsAutoCheckUpdates,
       "ui.allow_update_download": settingsAllowUpdateDownload,
       "ui.allow_update_apply": settingsAllowUpdateApply,
@@ -371,6 +394,7 @@ export function createSettingsController({
     if (settingsDetectorControl) {
       settingsDetectorControl.checked = Boolean(config?.ui?.detector_control ?? state.detectorControl ?? false);
     }
+    fillHiddenTools(config?.ui?.hidden_tools ?? state.hiddenTools ?? []);
     if (settingsLanguage) {
       settingsLanguage.value = String(config?.ui?.language ?? state.language ?? "en");
     }
@@ -468,6 +492,7 @@ export function createSettingsController({
         ...(loadedConfig?.ui || {}),
         tool_hints: Boolean(settingsToolHints?.checked),
         detector_control: Boolean(settingsDetectorControl?.checked),
+        ...(settingsHiddenTools ? { hidden_tools: collectHiddenTools() } : {}),
         auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
         allow_update_download: Boolean(settingsAllowUpdateDownload?.checked),
         allow_update_apply: Boolean(settingsAllowUpdateApply?.checked),
@@ -505,6 +530,9 @@ export function createSettingsController({
     if (typeof cfg.detector_control !== "undefined") {
       state.detectorControl = Boolean(cfg.detector_control);
       setDetectorControlEnabled?.(state.detectorControl);
+    }
+    if (typeof cfg.hidden_tools !== "undefined") {
+      setHiddenTools?.(normalizeHiddenTools(cfg.hidden_tools));
     }
     const minCell = Number(cfg.pixel_label_min_cell_px);
     if (Number.isFinite(minCell)) {
@@ -553,11 +581,11 @@ export function createSettingsController({
     setSettingsMessage("");
   }
 
-  async function openSettingsModal() {
+  async function openSettingsModal(tab = "viewer") {
     closeMenu();
     if (!settingsModal) return;
     const requestId = ++settingsRequestId;
-    showSettingsTab("viewer");
+    showSettingsTab(typeof tab === "string" ? tab : "viewer");
     openModal(settingsModal, { focusTarget: settingsClose });
     setSettingsModalBusy(true);
     setSettingsMessage(t("settings.message.loading"), false, true);
@@ -622,6 +650,11 @@ export function createSettingsController({
   }
 
   settingsServerExternal?.addEventListener("change", handleExternalAccessToggle);
+  settingsModal?.addEventListener("click", (event) => {
+    const preset = event.target.closest?.("[data-tool-preset]");
+    if (!preset || settingsHiddenTools?.disabled) return;
+    fillHiddenTools(TOOL_PRESETS[preset.dataset.toolPreset] || []);
+  });
   onLanguageChange(() => {
     updateExternalAccessUi();
   });

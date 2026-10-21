@@ -1557,6 +1557,11 @@
                 </div>
               </div>
             </section>
+
+            <div class="analysis-hidden-tools" id="analysis-hidden-tools" hidden>
+              <span id="analysis-hidden-tools-text"></span>
+              <button type="button" class="btn btn-secondary inpaint-value-btn" id="analysis-hidden-tools-customise" data-i18n="tools.customise">Customise…</button>
+            </div>
           </div>
 
           <div class="panel-tab-content detector-content" data-panel-tab="detector" id="detector-content" data-no-hover-help>
@@ -2066,6 +2071,10 @@
                     data-settings-tab="viewer" aria-selected="true"
                     data-i18n="settings.tab.viewer">Viewer</button>
             <button class="panel-tab" type="button" role="tab"
+                    id="settings-tab-tools" aria-controls="settings-tabpanel-tools"
+                    data-settings-tab="tools" aria-selected="false"
+                    data-i18n="settings.tab.tools">Tools</button>
+            <button class="panel-tab" type="button" role="tab"
                     id="settings-tab-connection" aria-controls="settings-tabpanel-connection"
                     data-settings-tab="connection" aria-selected="false"
                     data-i18n="settings.tab.connection">Connection</button>
@@ -2130,7 +2139,37 @@
                 <input id="settings-tool-hints" type="checkbox" />
                 <span data-i18n="settings.viewer.tool_hints">Enable tool hints</span>
               </label>
-              <label class="checkbox settings-check settings-span-2">
+            </div>
+          </div>
+
+          <div class="settings-tabpage" data-settings-tab="tools" role="tabpanel"
+               id="settings-tabpanel-tools" aria-labelledby="settings-tab-tools" tabindex="0" hidden>
+            <p class="settings-tabpage-hint" data-i18n="settings.section.tools.description">Which tools the Analysis tab shows. A hidden tool is switched off; Statistics and ROI is always shown.</p>
+            <fieldset class="settings-tools" id="settings-hidden-tools">
+              <div class="settings-tools-group">
+                <span class="settings-tools-group-title" data-i18n="tools.group.diffraction">Diffraction</span>
+                <label class="checkbox settings-check"><input type="checkbox" data-tool-visible="rings" /><span data-i18n="analysis.rings.section_title">Resolution Rings</span></label>
+                <label class="checkbox settings-check"><input type="checkbox" data-tool-visible="peaks" /><span data-i18n="analysis.peaks.section_title">Peak Finder</span></label>
+              </div>
+              <div class="settings-tools-group">
+                <span class="settings-tools-group-title" data-i18n="tools.group.imaging">Imaging</span>
+                <label class="checkbox settings-check"><input type="checkbox" data-tool-visible="flatfield" /><span data-i18n="flatfield.section_title">Flatfield</span></label>
+                <label class="checkbox settings-check"><input type="checkbox" data-tool-visible="inpainting" /><span data-i18n="inpaint.section_title">Inpainting</span></label>
+              </div>
+              <div class="settings-tools-group">
+                <span class="settings-tools-group-title" data-i18n="tools.group.processing">Processing</span>
+                <label class="checkbox settings-check"><input type="checkbox" data-tool-visible="combine" /><span data-i18n="series.ui.section_title">Combine Frames</span></label>
+              </div>
+            </fieldset>
+            <div class="settings-tools-presets">
+              <span data-i18n="tools.presets">Quick choice</span>
+              <button type="button" class="btn btn-secondary" data-tool-preset="diffraction" data-i18n="tools.group.diffraction">Diffraction</button>
+              <button type="button" class="btn btn-secondary" data-tool-preset="imaging" data-i18n="tools.group.imaging">Imaging</button>
+              <button type="button" class="btn btn-secondary" data-tool-preset="everything" data-i18n="tools.preset.everything">Everything</button>
+            </div>
+            <div class="settings-tools-group">
+              <span class="settings-tools-group-title" data-i18n="tools.group.instrument">Instrument</span>
+              <label class="checkbox settings-check">
                 <input id="settings-detector-control" type="checkbox" />
                 <span data-i18n="settings.viewer.detector_control">Beta: detector control, for quick tests (shows the Detector tab)</span>
               </label>

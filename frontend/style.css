@@ -8135,3 +8135,63 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .dropdown-item[hidden] {
   display: none;
 }
+
+/* Settings -> Tools: one column of checkboxes per kind of work. */
+.settings-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings-tools-group {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.settings-tools-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a9bfdc;
+}
+
+.settings-tools-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+/* The Analysis tab's reminder that some tools are hidden, and where to bring them back. */
+.analysis-hidden-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--muted, #8fa3bf);
+}
+
+.analysis-hidden-tools[hidden] {
+  display: none;
+}
+
+/* "Use every" holds a small number in a narrow column: keep its label on one line. */
+#series-sum-every-field > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 720px) {
+  .settings-tools {
+    grid-template-columns: 1fr;
+  }
+}

@@ -84,6 +84,7 @@ import { createDetectorControlController } from "./modules/detector_control_cont
 import { knownDetectors } from "./modules/known_detectors.js";
 import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
+import { createAnalysisToolsController } from "./modules/analysis_tools.js";
 import { createFlatfieldController } from "./modules/flatfield_controller.js";
 import { createMagnifierController } from "./modules/magnifier_controller.js";
 import { createQuitController } from "./modules/quit_controller.js";
@@ -613,6 +614,7 @@ const settingsAllowUpdateDownload = document.getElementById("settings-allow-upda
 const settingsAllowUpdateApply = document.getElementById("settings-allow-update-apply");
 const settingsToolHints = document.getElementById("settings-tool-hints");
 const settingsDetectorControl = document.getElementById("settings-detector-control");
+const settingsHiddenTools = document.getElementById("settings-hidden-tools");
 const settingsLanguage = document.getElementById("settings-language");
 const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
 const settingsPixelLabelMax = document.getElementById("settings-pixel-label-max");
@@ -665,6 +667,7 @@ let framePlaybackController = null;
 let frameMetadataController = null;
 let exportSplashController = null;
 let inpaintingController = null;
+let analysisToolsController = null;
 let flatfieldController = null;
 let magnifierController = null;
 let quitController = null;
@@ -3356,6 +3359,7 @@ const settingsController = createSettingsController({
     settingsAllowUpdateApply,
     settingsToolHints,
     settingsDetectorControl,
+    settingsHiddenTools,
     settingsLanguage,
     settingsPixelLabelMin,
     settingsPixelLabelMax,
@@ -3382,6 +3386,12 @@ const settingsController = createSettingsController({
     applyLanguagePreference,
     // Late-bound: settings can be applied before the controller below exists.
     setDetectorControlEnabled: (enabled) => detectorControlController?.setEnabled(enabled),
+    // Kept in state too: settings can arrive before the Analysis tools exist,
+    // and are applied when they do.
+    setHiddenTools: (hiddenTools) => {
+      state.hiddenTools = hiddenTools;
+      analysisToolsController?.apply(hiddenTools);
+    },
   },
 });
 
@@ -3598,8 +3608,8 @@ function closeSettingsModal({ restoreFocus = true } = {}) {
   settingsController.closeSettingsModal({ restoreFocus });
 }
 
-async function openSettingsModal() {
-  await settingsController.openSettingsModal();
+async function openSettingsModal(tab = "viewer") {
+  await settingsController.openSettingsModal(tab);
 }
 
 async function saveSettingsFromModal(closeAfter = false) {
@@ -5115,6 +5125,21 @@ inpaintingController = createInpaintingController({
   },
 });
 
+// After every tool's controller: hiding a tool switches it off through its own
+// switch, which needs that switch's handlers bound.
+analysisToolsController = createAnalysisToolsController({
+  state,
+  elements: {
+    summary: document.getElementById("analysis-hidden-tools"),
+    summaryText: document.getElementById("analysis-hidden-tools-text"),
+    customiseBtn: document.getElementById("analysis-hidden-tools-customise"),
+  },
+  callbacks: {
+    openToolSettings: () => openSettingsModal("tools"),
+  },
+});
+analysisToolsController.apply(state.hiddenTools || []);
+
 bindAnalysisControlInteractions({
   apiBase: API,
   state,
@@ -5175,6 +5200,7 @@ updateSeriesSumUi();
 setDataExportProgress(0, t("data_export.progress.idle"));
 updateDataExportUi();
 onLanguageChange(() => {
+  analysisToolsController?.refresh();
   refreshLocalizedUi();
   infoTips.refresh();
   updateDataExportUi();

@@ -7,7 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Show only the tools you use.** The Analysis tab holds tools for different work — Resolution Rings and Peak Finder for diffraction, Flatfield and Inpainting for imaging, Combine Frames for processing — and showing all of them crowds it for anyone doing one. A new **Settings → Tools** page chooses which the tab shows, with **Diffraction**, **Imaging** and **Everything** as quick choices; Statistics and ROI is always shown. A hidden tool is switched off, so nothing acts on the image out of sight. While any is hidden, the bottom of the Analysis tab says how many, with **Customise…** to bring them back (also **Analysis: Customise…** in the command palette), and a hidden tool's commands leave the palette with it. Stored as `ui.hidden_tools` (also `ALBIS_UI_HIDDEN_TOOLS`), a list of the tools hidden rather than shown, so a tool added later appears unless someone hid it, and a facility can ship ALBIS set up for one kind of station.
+
 ### Changed
+
+- **The Detector tab's switch moved to Settings → Tools**, next to the other choices about what ALBIS shows; it was under Settings → Viewer. The `ui.detector_control` key is unchanged.
 
 - **Series Operations is now Combine Frames, in the Analysis tab.** It moved from Data, which is about where images come from, to Analysis, next to the Flatfield section it often feeds. Its one **Mode** list (all frames, chunks of N, every Nth frame, a range in chunks) mixed two questions, so it is now two: which frames — **All frames** or a **Range**, and **Use every** N — and how many images — **One image** or **One image per N frames**. Every earlier mode is one setting of these, and a range can now be thinned to every Nth frame, or combined into one image without setting a chunk size at least as long as the range. **Format** moved to the Output card. The backend takes this as `mode: "frames"` with `frame_step` and `group_size` on `POST /api/analysis/series-sum/start`; the older modes keep working.
 - **Normalisation is gone from the interface.** Its options — a reference frame, a scalar, a TIFF — each divided every frame by the same value before combining, which gives the image that dividing the result does; the **Flatfield** section does that for any image, with masking, a 5 % floor, Counts or Transmission scale and inpainting. Without it, a sum of whole counts is written as whole counts again rather than always as 32-bit floats.
