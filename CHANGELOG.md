@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-21
+
 ### Added
 
 - **As many resolution rings as you need.** Resolution Rings had exactly three fields. They are now a list: **+ Add ring** adds one, **×** removes one, up to 16, sorted by d when you leave the list, and a field that holds no d-spacing is marked and left out. **Ice rings** adds the ten d-spacings of hexagonal ice (3.897 to 1.721 Å), and **Clear** removes every ring. The rings are remembered in the browser instead of returning to 1.0, 3.67 and 11.01 each session, travel to a new window as before, and can still be dragged on the image.
@@ -1643,7 +1645,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.30.0...v0.30.1
