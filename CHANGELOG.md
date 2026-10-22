@@ -14,6 +14,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **A narrow contrast window on a float image is drawn as the colour bar shows it.** The image's GPU renderer treated any BG–FG window narrower than 1.0 as 1.0 wide, a floor meant for integer counts. On a float frame — a flatfield, a transmission, a mean — whose window is a fraction of a unit, values were squeezed onto part of the colour map: with BG 0.608 and FG 0.730 on Heat, a pixel of 1.0 was drawn red while the colour bar and histogram put it above FG, in white. The shader now uses the window's own width, as the colour bar, the canvas renderer and the exports always did.
 - **The histogram's colour bar fills its width on high-resolution displays.** It was drawn at the CSS size into a canvas sized in device pixels, so on a Retina screen only its left half showed, and its colours no longer lined up with the BG and FG markers above it.
 
 ### Changed

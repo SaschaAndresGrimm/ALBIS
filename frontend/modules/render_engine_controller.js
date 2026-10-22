@@ -163,7 +163,13 @@ export function createRenderEngineController({
           }
           norm = idx / (linSize + logSize - 1.0);
         } else {
-          float denom = max(u_max - u_min, 1.0);
+          // The window's own width, as mapValueToNorm uses it. Never floored
+          // at 1: a float frame (a flatfield, a transmission, a mean) has
+          // windows far narrower than one count, and a floor of 1 squeezed
+          // them onto a fraction of the scale -- 1.0 drawn red on Heat with FG
+          // at 0.73, while the colour bar showed it white.
+          float range = u_max - u_min;
+          float denom = range != 0.0 ? range : 1.0;
           float t = (value - u_min) / denom;
           norm = clamp(t, 0.0, 1.0);
         }

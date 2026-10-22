@@ -157,6 +157,22 @@ describe("render_engine_controller", () => {
     vi.restoreAllMocks();
   });
 
+  it("maps values over the contrast window's own width, however narrow", () => {
+    // A float frame's window is often far below one count wide (BG 0.608,
+    // FG 0.730 on a flatfield). The shader used to floor the width at 1.0, so
+    // 1.0 drew mid-scale on the image while the colour bar, through
+    // mapValueToNorm, showed it at the top.
+    const { controller, gl } = buildController("Mozilla/5.0 Chrome/136.0.0.0");
+    controller.initRenderer();
+    const fragments = gl.shaderSource.mock.calls.map(([, source]) => source).filter((src) => src.includes("u_lut"));
+    expect(fragments.length).toBeGreaterThan(0);
+    for (const source of fragments) {
+      expect(source).not.toMatch(/max\(u_max - u_min,\s*1\.0\)/);
+      expect(source).toContain("float range = u_max - u_min;");
+      expect(source).toContain("float denom = range != 0.0 ? range : 1.0;");
+    }
+  });
+
   it("disables unsigned integer WebGL textures on Firefox", () => {
     expect(getWebglRenderCompatibility("Mozilla/5.0 Firefox/149.0").disableUnsignedIntegerTextures).toBe(true);
     expect(getWebglRenderCompatibility("Mozilla/5.0 Chrome/136.0.0.0").disableUnsignedIntegerTextures).toBe(false);
