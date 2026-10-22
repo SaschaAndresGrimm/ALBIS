@@ -7,7 +7,7 @@ import { canSaveImage } from "./command_availability.js";
 import { showPromptDialog } from "./dialogs.js";
 import { exportSize, withinExportLimits } from "./image_export.js";
 import { screenView } from "./overlay_painters.js";
-import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
+import { currentMaskColors } from "./mask_colors.js";
 
 const SAVE_FILE_TYPES = [{ accept: { "image/png": [".png"] } }];
 
@@ -164,6 +164,7 @@ export function createExportSplashController({
     const out = imageData.data;
     const palette = buildPalette(state.colormap);
     const maxIdx = getPaletteColorCount(palette) - 1;
+    const maskColors = currentMaskColors(state);
     const satMax = getActiveSaturationMax();
     const maskSaturatedEnabled = Boolean(state.maskSaturatedEnabled && Number.isFinite(satMax));
     // Flatfield or inpainting on: the processed frame, as on screen; without
@@ -190,28 +191,22 @@ export function createExportSplashController({
         const v = source[idx];
         if (maskReady && maskData) {
           const maskValue = maskData[idx];
-          if (maskValue & 1) {
+          if (maskValue & 1 || maskValue & 0x1e) {
+            const color = maskValue & 1 ? maskColors.gap : maskColors.defective;
             const j = outOffset + col * 4;
-            out[j] = 0;
-            out[j + 1] = 0;
-            out[j + 2] = 0;
-            out[j + 3] = 255;
-            continue;
-          } else if (maskValue & 0x1e) {
-            const j = outOffset + col * 4;
-            out[j] = 25;
-            out[j + 1] = 50;
-            out[j + 2] = 120;
+            out[j] = color[0];
+            out[j + 1] = color[1];
+            out[j + 2] = color[2];
             out[j + 3] = 255;
             continue;
           }
         }
         if (maskSaturatedEnabled && isSaturatedValue(v, satMax)) {
           const j = outOffset + col * 4;
-          out[j] = SATURATED_PIXEL_RGBA.byte[0];
-          out[j + 1] = SATURATED_PIXEL_RGBA.byte[1];
-          out[j + 2] = SATURATED_PIXEL_RGBA.byte[2];
-          out[j + 3] = SATURATED_PIXEL_RGBA.byte[3];
+          out[j] = maskColors.saturated[0];
+          out[j + 1] = maskColors.saturated[1];
+          out[j + 2] = maskColors.saturated[2];
+          out[j + 3] = 255;
           continue;
         }
         const norm = mapValueToNorm(v);

@@ -1,3 +1,4 @@
+import { currentMaskColors } from "../modules/mask_colors.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -119,7 +120,9 @@ describe("export_splash_controller", () => {
     controller.exportFullImage("frame.png");
 
     expect(canvases).toHaveLength(1);
-    expect(Array.from(canvases[0]._ctx.lastImageData.data)).toEqual([88, 183, 198, 255]);
+    // Saturated pixels take the colour map's saturated colour, chosen to
+    // stand clear of Grey Scale (modules/mask_colors.js).
+    expect(Array.from(canvases[0]._ctx.lastImageData.data)).toEqual([...currentMaskColors({ colormap: "gray" }).saturated, 255]);
   });
 });
 

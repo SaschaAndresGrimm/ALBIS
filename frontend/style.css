@@ -8246,3 +8246,59 @@ button.browse-details-header-cell[aria-sort="descending"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* Mask colours: a key under the colour bar, and the pickers in View -> Advanced. */
+.hist-mask-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 4px 0 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.hist-mask-legend[hidden] {
+  display: none;
+}
+
+.mask-legend-item,
+.mask-color-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mask-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.mask-colors-row {
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.mask-color-input input[type="color"] {
+  width: 26px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(78, 100, 137, 0.6);
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+
+/* A colour set by hand rather than chosen for the colour map. */
+.mask-color-input.is-custom span {
+  font-style: italic;
+}
+
+#hist-colorbar {
+  cursor: grab;
+}
+
+#hist-colorbar.is-dragging {
+  cursor: grabbing;
+}

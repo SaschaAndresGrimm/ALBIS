@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **The histogram's colour bar is a contrast window.** Drag it to move the BG–FG range along the values while keeping its width, scroll on it to widen or narrow the range around its centre, and double-click it for Auto Contrast. It follows the histogram's linear or log axis, and stops at its ends.
+- **A key for the mask colours.** Under the colour bar, a swatch for each mask colour on screen — Gap, Defective, Saturated — so a marker is not taken for a value on the scale.
+
+### Fixed
+
+- **The histogram's colour bar fills its width on high-resolution displays.** It was drawn at the CSS size into a canvas sized in device pixels, so on a Retina screen only its left half showed, and its colours no longer lined up with the BG and FG markers above it.
+
+### Changed
+
+- **Mask colours are chosen per colour map.** Gaps, defective and saturated pixels were always black, dark blue and teal, whatever the colour map; on Viridis the dark blue and the teal sat on the scale itself, and on Grey Scale black gaps looked like the lowest values. Each colour is now kept where it stands clear of every colour the map produces (CIE ΔE ≥ 30) and otherwise replaced by the candidate farthest from the map and from the other two: on Viridis gaps stay black and defective and saturated pixels turn magenta and red, on Grey Scale gaps turn magenta. ALBULA HDR keeps its black gaps, as ALBULA draws them, and its saturated pixels turn magenta. The image, the magnifier and PNG and GIF exports all use them. **Mask colours** in View → Advanced view controls sets any of them by hand, remembered in the browser; **Auto** goes back.
+
 ## [0.33.1] - 2026-10-22
 
 ### Fixed

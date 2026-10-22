@@ -80,6 +80,7 @@ function createFakeGl() {
     pixelStorei: vi.fn(),
     uniform1i: vi.fn(),
     uniform1f: vi.fn(),
+    uniform3f: vi.fn(),
     drawArrays: vi.fn(),
     getError: vi.fn(() => 0),
   };
@@ -147,6 +148,7 @@ function buildController(userAgent) {
     getRenderer: () => renderer,
     metaRenderer,
     toFloat32,
+    gl,
   };
 }
 

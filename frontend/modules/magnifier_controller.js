@@ -13,7 +13,7 @@
 
 import { t } from "./i18n.js";
 import { paintPixelLabels } from "./overlay_painters.js";
-import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
+import { currentMaskColors } from "./mask_colors.js";
 
 export const MAGNIFICATIONS = [2, 3, 4, 6, 8, 12, 16, 24, 32];
 export const LENS_SIZES = [140, 180, 220, 280, 340, 420];
@@ -81,7 +81,6 @@ export function createMagnifierController({ state, elements, callbacks }) {
     getPixelLabelSettings = () => null,
     pixelLabelsForFrame = null,
   } = callbacks;
-  const saturatedRgb = SATURATED_PIXEL_RGBA.byte.slice(0, 3);
 
   let settings = readSettings();
   let held = false;
@@ -166,6 +165,7 @@ export function createMagnifierController({ state, elements, callbacks }) {
     const scaleX = zoom * settings.magnification * dpr;
     const scaleY = zoomY * settings.magnification * dpr;
 
+    const maskColors = currentMaskColors(state);
     const image = ctx.createImageData(px, px);
     const out = image.data;
     // One source pixel spans several lens pixels: look each up once per row run.
@@ -182,15 +182,11 @@ export function createMagnifierController({ state, elements, callbacks }) {
           const idx = iy * state.width + ix;
           const flags = maskReady ? state.maskRaw[idx] : 0;
           if (flags & 1) {
-            r = 0;
-            g = 0;
-            b = 0;
+            [r, g, b] = maskColors.gap;
           } else if (flags & 0x1e) {
-            r = 25;
-            g = 50;
-            b = 120;
+            [r, g, b] = maskColors.defective;
           } else if (markSaturated && !(view?.holes && view.holes[idx]) && isSaturatedValue(raw[idx], satMax)) {
-            [r, g, b] = saturatedRgb;
+            [r, g, b] = maskColors.saturated;
           } else {
             const p = Math.floor(mapValueToNorm(values[idx]) * maxIdx) * 4;
             r = palette[p];

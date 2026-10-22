@@ -116,6 +116,10 @@ cached while a live source is running, since the file may still be growing.
   scale — essential when judging whether a spot got stronger.
 - **Shift + left-drag** on the image adjusts contrast and brightness directly:
   horizontal for contrast, vertical for brightness.
+- In the **Histogram**, drag the **BG** and **FG** markers, or use the colour bar
+  under it as a window: **drag** it to move the range along the values, keeping
+  its width, **scroll** on it to widen or narrow the range, and
+  **double-click** it for Auto Contrast.
 
 **Colour maps** are in the **View** tab: Grey Scale, Heat, Viridis, Magma,
 Inferno, Cividis, Turbo, and **ALBULA HDR** for a high-dynamic-range look
@@ -147,6 +151,16 @@ and defective pixels so they do not distort what you see or the statistics you
 measure. **Mask saturated** does the same for pixels at the detector's
 saturation value. Both are unavailable — and say so — when the loaded data
 provides no mask or no saturation limit.
+
+Masked pixels are drawn in their own colours, which ALBIS picks for each colour
+map from colours that map never uses: on Viridis, for example, gaps stay black
+while defective and saturated pixels turn magenta and red, because the map's
+own dark blue and teal would look like values. ALBULA HDR keeps black gaps, as
+ALBULA draws them. A key under the histogram's
+colour bar lists the mask colours on screen. **Mask colours** under **Advanced
+view controls** sets any of them by hand; **Auto** goes back. A gap that the
+file does not mark — no mask, no -1 — is not known to be one, and is drawn
+from its value like any other pixel.
 
 ---
 

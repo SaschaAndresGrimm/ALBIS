@@ -31,7 +31,7 @@ import {
   paintResolutionRings,
   regionView,
 } from "./overlay_painters.js";
-import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
+import { currentMaskColors } from "./mask_colors.js";
 
 // Number of colormap colours reserved in the GIF global colour table. Three
 // further slots carry the mask (black + flagged blue) and saturation highlight
@@ -44,8 +44,6 @@ const OVERLAY_COLORMAP_STEPS = COLORMAP_STEPS - OPAQUE_OVERLAY_RGB.length;
 // An anti-aliased overlay edge either reaches a pixel or it does not: a GIF
 // frame has no alpha channel to hold a partial one.
 const OVERLAY_ALPHA_CUTOFF = 128;
-const MASK_BLACK_RGB = [0, 0, 0];
-const MASK_FLAG_RGB = [25, 50, 120];
 const GIF_TYPES = [{ accept: { "image/gif": [".gif"] } }];
 // Enlarged frames repeat each detector pixel (nearest neighbour), as the PNG
 // export does; a GIF has no print resolution to set instead.
@@ -396,18 +394,10 @@ export function createAnimationExportController({
       palette[i * 3 + 1] = src[srcIdx + 1];
       palette[i * 3 + 2] = src[srcIdx + 2];
     }
-    const black = layout.idxBlack * 3;
-    palette[black] = MASK_BLACK_RGB[0];
-    palette[black + 1] = MASK_BLACK_RGB[1];
-    palette[black + 2] = MASK_BLACK_RGB[2];
-    const flag = layout.idxFlag * 3;
-    palette[flag] = MASK_FLAG_RGB[0];
-    palette[flag + 1] = MASK_FLAG_RGB[1];
-    palette[flag + 2] = MASK_FLAG_RGB[2];
-    const sat = layout.idxSat * 3;
-    palette[sat] = SATURATED_PIXEL_RGBA.byte[0];
-    palette[sat + 1] = SATURATED_PIXEL_RGBA.byte[1];
-    palette[sat + 2] = SATURATED_PIXEL_RGBA.byte[2];
+    const maskColors = currentMaskColors(state);
+    palette.set(maskColors.gap, layout.idxBlack * 3);
+    palette.set(maskColors.defective, layout.idxFlag * 3);
+    palette.set(maskColors.saturated, layout.idxSat * 3);
     for (let i = 0; i < layout.overlayCount; i += 1) {
       const base = (layout.overlayBase + i) * 3;
       palette[base] = OPAQUE_OVERLAY_RGB[i][0];

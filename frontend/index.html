@@ -485,6 +485,14 @@
                       </label>
                       <button type="button" class="info-tip" data-info-key="info.mask" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
                     </div>
+                    <div class="check-row mask-colors-row">
+                      <span data-i18n="view.mask_colors">Mask colours</span>
+                      <label class="mask-color-input"><input type="color" id="mask-color-gap" /><span data-i18n="legend.mask.gap">Gap</span></label>
+                      <label class="mask-color-input"><input type="color" id="mask-color-defective" /><span data-i18n="legend.mask.defective">Defective</span></label>
+                      <label class="mask-color-input"><input type="color" id="mask-color-saturated" /><span data-i18n="legend.mask.saturated">Saturated</span></label>
+                      <button type="button" class="btn btn-secondary inpaint-value-btn" id="mask-colors-auto" data-i18n="view.mask_colors.auto">Auto</button>
+                      <button type="button" class="info-tip" data-info-key="info.mask_colors" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
+                    </div>
                   </div>
                 </details>
               </div>
@@ -497,9 +505,11 @@
               </button>
               <div class="histogram">
                 <canvas id="hist-canvas" width="800" height="50"></canvas>
-                <canvas id="hist-colorbar" width="800" height="16"></canvas>
+                <canvas id="hist-colorbar" width="800" height="16"
+                  data-i18n-title="histogram.colorbar_title" title="Drag to move the contrast window, scroll to widen or narrow it, double-click for Auto Contrast"></canvas>
                 <div class="hist-tooltip" id="hist-tooltip" aria-hidden="true"></div>
               </div>
+              <div class="hist-mask-legend" id="hist-mask-legend" hidden></div>
               <div class="range-actions range-actions-compact">
                 <button id="auto-contrast" class="btn" data-i18n="histogram.auto_contrast">Auto Contrast</button>
                 <label class="checkbox">

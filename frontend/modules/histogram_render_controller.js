@@ -185,11 +185,16 @@ export function createHistogramRenderController({
     const minMap = useLogX ? symlog(statsMin) : 0;
     const maxMap = useLogX ? symlog(statsMax) : 0;
     const mapRange = useLogX ? maxMap - minMap || 1 : 1;
-    const imageData = histColorCtx.createImageData(width, height);
+    // At device-pixel size: putImageData ignores the canvas transform, so an
+    // image the CSS width filled only 1/dpr of the bar -- the left half on a
+    // Retina display.
+    const pxWidth = histColorbar.width;
+    const pxHeight = histColorbar.height;
+    const imageData = histColorCtx.createImageData(pxWidth, pxHeight);
     const data = imageData.data;
     const maxIdx = getPaletteColorCount(palette) - 1;
-    for (let x = 0; x < width; x += 1) {
-      const t = width > 1 ? x / (width - 1) : 0;
+    for (let x = 0; x < pxWidth; x += 1) {
+      const t = pxWidth > 1 ? x / (pxWidth - 1) : 0;
       const value = useLogX
         ? invSymlog(minMap + t * mapRange)
         : statsMin + t * statsRange;
@@ -199,8 +204,8 @@ export function createHistogramRenderController({
       const r = palette[p];
       const g = palette[p + 1];
       const b = palette[p + 2];
-      for (let y = 0; y < height; y += 1) {
-        const i = (y * width + x) * 4;
+      for (let y = 0; y < pxHeight; y += 1) {
+        const i = (y * pxWidth + x) * 4;
         data[i] = r;
         data[i + 1] = g;
         data[i + 2] = b;

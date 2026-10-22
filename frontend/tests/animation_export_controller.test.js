@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OPAQUE_OVERLAY_RGB } from "../modules/overlay_painters.js";
-import { SATURATED_PIXEL_RGBA } from "../modules/viewer_overlay_colors.js";
+import { currentMaskColors } from "../modules/mask_colors.js";
 
 // The real English catalogue, so a renamed or deleted status key fails here
 // instead of silently degrading to a raw key in the UI.
@@ -277,7 +277,7 @@ describe("GIF export with overlays", () => {
     const steps = 252 - OPAQUE_OVERLAY_RGB.length;
     const { encoded } = await runExport({ overlays: true });
     const at = (index) => Array.from(encoded.palette.slice(index * 3, index * 3 + 3));
-    expect(at(steps + 2)).toEqual(Array.from(SATURATED_PIXEL_RGBA.byte.slice(0, 3)));
+    expect(at(steps + 2)).toEqual(currentMaskColors({ colormap: "grayscale" }).saturated);
     OPAQUE_OVERLAY_RGB.forEach((rgb, i) => {
       expect(at(steps + 3 + i)).toEqual(rgb);
     });
@@ -286,7 +286,7 @@ describe("GIF export with overlays", () => {
   it("keeps the full colormap ramp when overlays are off", async () => {
     const { encoded } = await runExport({ overlays: false });
     const at = (index) => Array.from(encoded.palette.slice(index * 3, index * 3 + 3));
-    expect(at(252 + 2)).toEqual(Array.from(SATURATED_PIXEL_RGBA.byte.slice(0, 3)));
+    expect(at(252 + 2)).toEqual(currentMaskColors({ colormap: "grayscale" }).saturated);
   });
 
   it("stamps the overlay into the exported pixels", async () => {

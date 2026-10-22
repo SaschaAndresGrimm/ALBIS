@@ -3,7 +3,7 @@
  */
 
 import { t } from "./i18n.js";
-import { SATURATED_PIXEL_RGBA } from "./viewer_overlay_colors.js";
+import { DEFAULT_MASK_COLORS, currentMaskColors } from "./mask_colors.js";
 
 export function getWebglRenderCompatibility(userAgent = "") {
   const ua = String(
@@ -104,6 +104,9 @@ export function createRenderEngineController({
       uniform float u_mask_enabled;
       uniform float u_mask_saturated_enabled;
       uniform float u_sat_max;
+      uniform vec3 u_gap_color;
+      uniform vec3 u_bad_color;
+      uniform vec3 u_sat_color;
       uniform float u_min;
       uniform float u_max;
       uniform float u_invert;
@@ -119,15 +122,15 @@ export function createRenderEngineController({
         if (u_mask_enabled > 0.5) {
           float maskClass = texture(u_mask, v_tex).r;
           if (maskClass > 0.75) {
-            outColor = vec4(0.0, 0.0, 0.0, 1.0);
+            outColor = vec4(u_gap_color, 1.0);
             return;
           } else if (maskClass > 0.25) {
-            outColor = vec4(0.1, 0.2, 0.47, 1.0);
+            outColor = vec4(u_bad_color, 1.0);
             return;
           }
         }
         if (u_mask_saturated_enabled > 0.5 && abs(value - u_sat_max) <= max(1e-9, abs(u_sat_max) * 1e-6)) {
-          outColor = vec4(${SATURATED_PIXEL_RGBA.float.join(", ")});
+          outColor = vec4(u_sat_color, 1.0);
           return;
         }
         float norm = 0.0;
@@ -248,6 +251,9 @@ export function createRenderEngineController({
       mask: gl.getUniformLocation(program, "u_mask"),
       maskEnabled: gl.getUniformLocation(program, "u_mask_enabled"),
       maskSaturatedEnabled: gl.getUniformLocation(program, "u_mask_saturated_enabled"),
+      gapColor: gl.getUniformLocation(program, "u_gap_color"),
+      badColor: gl.getUniformLocation(program, "u_bad_color"),
+      satColor: gl.getUniformLocation(program, "u_sat_color"),
       satMax: gl.getUniformLocation(program, "u_sat_max"),
       min: gl.getUniformLocation(program, "u_min"),
       max: gl.getUniformLocation(program, "u_max"),
@@ -287,6 +293,7 @@ export function createRenderEngineController({
         maskSaturatedEnabled,
         satMax,
         colormap,
+        maskColors,
       }) {
         const dtypeKey = uintProgram ? getWebglUnsignedDtypeKey(dtype) : null;
         const useUintPath = Boolean(dtypeKey && isWebglUnsignedRawCandidate(dtype, rawData));
@@ -356,6 +363,10 @@ export function createRenderEngineController({
         gl.uniform1i(uniforms.mask, 2);
         gl.uniform1f(uniforms.maskEnabled, useMask ? 1.0 : 0.0);
         gl.uniform1f(uniforms.maskSaturatedEnabled, useSaturationMask ? 1.0 : 0.0);
+        const colors = maskColors || DEFAULT_MASK_COLORS;
+        gl.uniform3f(uniforms.gapColor, ...colors.gap.map((v) => v / 255));
+        gl.uniform3f(uniforms.badColor, ...colors.defective.map((v) => v / 255));
+        gl.uniform3f(uniforms.satColor, ...colors.saturated.map((v) => v / 255));
         gl.uniform1f(uniforms.satMax, useSaturationMask ? satMax : 0.0);
         const shouldUploadMask =
           useMask &&
@@ -409,7 +420,8 @@ export function createRenderEngineController({
     const ctx = canvas.getContext("2d");
     return {
       type: "cpu",
-      render({ data, width, height, palette, mask, maskEnabled, maskSaturatedEnabled, satMax }) {
+      render({ data, width, height, palette, mask, maskEnabled, maskSaturatedEnabled, satMax, maskColors }) {
+        const colors = maskColors || DEFAULT_MASK_COLORS;
         if (!data) return;
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;
@@ -422,28 +434,22 @@ export function createRenderEngineController({
           const v = data[i];
           if (maskEnabled && mask && mask.length === data.length) {
             const maskValue = mask[i];
-            if (maskValue & 1) {
+            if (maskValue & 1 || maskValue & 0x1e) {
+              const color = maskValue & 1 ? colors.gap : colors.defective;
               const j = i * 4;
-              out[j] = 0;
-              out[j + 1] = 0;
-              out[j + 2] = 0;
-              out[j + 3] = 255;
-              continue;
-            } else if (maskValue & 0x1e) {
-              const j = i * 4;
-              out[j] = 25;
-              out[j + 1] = 50;
-              out[j + 2] = 120;
+              out[j] = color[0];
+              out[j + 1] = color[1];
+              out[j + 2] = color[2];
               out[j + 3] = 255;
               continue;
             }
           }
           if (maskSaturatedEnabled && Number.isFinite(satMax) && isSaturatedValue(v, satMax)) {
             const j = i * 4;
-            out[j] = SATURATED_PIXEL_RGBA.byte[0];
-            out[j + 1] = SATURATED_PIXEL_RGBA.byte[1];
-            out[j + 2] = SATURATED_PIXEL_RGBA.byte[2];
-            out[j + 3] = SATURATED_PIXEL_RGBA.byte[3];
+            out[j] = colors.saturated[0];
+            out[j + 1] = colors.saturated[1];
+            out[j + 2] = colors.saturated[2];
+            out[j + 3] = 255;
             continue;
           }
           const norm = mapValueToNorm(v);
@@ -473,6 +479,7 @@ export function createRenderEngineController({
     const renderer = getRenderer();
     if (!renderer) return;
     const palette = buildPalette(state.colormap);
+    const maskColors = currentMaskColors(state);
     let maskReady =
       state.maskEnabled &&
       state.maskAvailable &&
@@ -512,6 +519,7 @@ export function createRenderEngineController({
         maskEnabled: maskReady,
         maskSaturatedEnabled,
         satMax,
+        maskColors,
       });
     } else {
       renderer.render({
@@ -525,6 +533,7 @@ export function createRenderEngineController({
         maskEnabled: maskReady,
         maskSaturatedEnabled,
         satMax,
+        maskColors,
       });
     }
     scheduleOverview();

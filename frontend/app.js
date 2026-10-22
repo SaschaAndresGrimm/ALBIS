@@ -85,6 +85,9 @@ import { knownDetectors } from "./modules/known_detectors.js";
 import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
 import { startPresence } from "./modules/presence.js";
+import { bindColorbarWindowInteractions } from "./modules/colorbar_window_bindings.js";
+import { createMaskColorControls } from "./modules/mask_colors.js";
+import { createMaskLegend } from "./modules/mask_legend.js";
 import { createRingListController } from "./modules/ring_list_controller.js";
 import { createAnalysisToolsController } from "./modules/analysis_tools.js";
 import { createFlatfieldController } from "./modules/flatfield_controller.js";
@@ -665,6 +668,8 @@ let frameMetadataController = null;
 let exportSplashController = null;
 let inpaintingController = null;
 let analysisToolsController = null;
+let maskLegend = null;
+let maskColorControls = null;
 let flatfieldController = null;
 let magnifierController = null;
 let quitController = null;
@@ -4259,6 +4264,46 @@ function histogramValueToX(value, width) {
   return histogramRenderController.histogramValueToX(value, width);
 }
 
+// Mask colours chosen for the colour map (modules/mask_colors.js), with a key
+// under the colour bar, and the colour bar as a window/level control.
+maskLegend = createMaskLegend({
+  state,
+  element: document.getElementById("hist-mask-legend"),
+  getInpaintedFrame: () => getInpaintedFrame(),
+  getActiveSaturationMax: () => getActiveSaturationMax(),
+  isSaturatedValue: (value, satMax) => isSaturatedValue(value, satMax),
+});
+maskColorControls = createMaskColorControls({
+  state,
+  elements: {
+    inputs: {
+      gap: document.getElementById("mask-color-gap"),
+      defective: document.getElementById("mask-color-defective"),
+      saturated: document.getElementById("mask-color-saturated"),
+    },
+    autoBtn: document.getElementById("mask-colors-auto"),
+  },
+  callbacks: {
+    onChange: () => {
+      redraw();
+      scheduleHistogram();
+    },
+  },
+});
+bindColorbarWindowInteractions({
+  state,
+  elements: { colorbar: histColorbar, minInput, maxInput, autoScaleToggle, autoContrastBtn },
+  callbacks: {
+    histogramValueToX: (value, width) => histogramValueToX(value, width),
+    histogramXToValue: (x, width) => histogramXToValue(x, width),
+    snapHistogramValue: (value) => snapHistogramValue(value),
+    formatValue: (value) => formatValue(value),
+    redraw: () => redraw(),
+    scheduleHistogram: () => scheduleHistogram(),
+    handleContrastChanged: (reason) => handleContrastChanged(reason),
+  },
+});
+
 function histogramXToValue(x, width) {
   return histogramRenderController.histogramXToValue(x, width);
 }
@@ -4520,6 +4565,9 @@ function applyFrame(data, width, height, dtype) {
 
 function redraw() {
   renderEngineController.redraw();
+  // Which mask colours are on screen, and the pickers' current colours.
+  maskLegend?.update();
+  maskColorControls?.refresh();
   // What inpainting filled in this frame, and the footer's "Inpainted";
   // whether the flat fits it, and "Flatfielded".
   inpaintingController?.updateState();
@@ -5208,6 +5256,7 @@ setDataExportProgress(0, t("data_export.progress.idle"));
 updateDataExportUi();
 onLanguageChange(() => {
   analysisToolsController?.refresh();
+  maskLegend?.update();
   ringListController.refresh();
   refreshLocalizedUi();
   infoTips.refresh();
