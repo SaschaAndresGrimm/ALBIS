@@ -521,6 +521,31 @@ def _port_available(host: str, port: int) -> bool:
         return False
 
 
+def _quit_app_when_server_stops(server_thread: threading.Thread, start_ts: float) -> None:
+    """End the macOS app once its server has stopped, however it stopped.
+
+    On macOS the main thread runs the app's event loop (Dock and menu bar) and
+    the server runs beside it, so a server that stops -- the idle stop, File ->
+    Quit ALBIS, a crash -- used to leave the app behind: still in the Dock and
+    the menu bar, looking alive, while its address no longer answered, until
+    the user quit and reopened it. On Windows and Linux the process waits on
+    the server thread and ends with it already.
+    """
+
+    def _watch() -> None:
+        server_thread.join()
+        _launcher_log(start_ts, "server stopped: quitting the app")
+        try:
+            AppKit.NSApp().performSelectorOnMainThread_withObject_waitUntilDone_(
+                "terminate:", None, False
+            )
+        except Exception as exc:  # the event loop is gone or never ran
+            _launcher_log(start_ts, f"app quit after server stop failed ({exc}): exiting")
+            os._exit(0)
+
+    threading.Thread(target=_watch, name="albis-server-watch", daemon=True).start()
+
+
 def _should_start_macos_ui_loop() -> bool:
     if sys.platform != "darwin":
         return False
@@ -942,7 +967,13 @@ def main() -> None:
     uvicorn_level = get_str(app_config, ("logging", "level"), "INFO").strip().lower()
     if uvicorn_level not in {"critical", "error", "warning", "info", "debug"}:
         uvicorn_level = "info"
-    uvicorn_config = uvicorn.Config(asgi_app, host=host, port=port, log_level=uvicorn_level)
+    # No WebSocket keepalive pings: the only socket is a tab's /api/presence,
+    # whose whole point is to stay open while macOS App Nap or a browser's
+    # throttling slows the tab down, and a pong arriving late would close it.
+    # A tab, browser or process that goes away closes its socket by itself.
+    uvicorn_config = uvicorn.Config(
+        asgi_app, host=host, port=port, log_level=uvicorn_level, ws_ping_interval=None
+    )
     server = uvicorn.Server(uvicorn_config)
 
     def _request_shutdown(source: str) -> None:
@@ -1006,6 +1037,7 @@ def main() -> None:
         start_ts=start_ts,
     ):
         _launcher_log(start_ts, "dock menu ready")
+        _quit_app_when_server_stops(thread, start_ts)
         AppKit.NSApp().run()
         return
 

@@ -89,10 +89,17 @@ class IdleWatch:
 
     On Windows and Linux there is no Dock to quit from, and a server nobody
     looks at keeps its memory and holds its HDF5 files locked -- on Windows
-    they cannot be moved or deleted while it runs. Every open ALBIS tab asks
-    the server something about once a second (less often when hidden), so a
-    long silence means every tab is gone. Started by the launcher, for a server
-    on this computer only: a shared server or a container is idle by nature.
+    they cannot be moved or deleted while it runs. Started by the launcher,
+    for a server on this computer only: a shared server or a container is idle
+    by nature.
+
+    A tab counts as open while it holds its presence connection (`connect` /
+    `disconnect`, the `/api/presence` WebSocket), and the countdown runs only
+    while none is held. Request traffic (`touch`) alone was not enough: macOS
+    App Nap and a browser's own throttling can silence the timers of a tab
+    left in the background for a quarter of an hour or more, and ALBIS stopped
+    under two open tabs. Throttling slows a page; it does not close its
+    connections. `touch` still counts, for a tab without the connection.
     """
 
     def __init__(self, clock: Callable[[], float] | None = None) -> None:
@@ -101,6 +108,7 @@ class IdleWatch:
         self._clock = clock or _time.monotonic
         self._lock = threading.Lock()
         self._last = self._clock()
+        self._connections = 0
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
 
@@ -109,8 +117,26 @@ class IdleWatch:
         with self._lock:
             self._last = self._clock()
 
+    def connect(self) -> None:
+        """A tab opened its presence connection."""
+        with self._lock:
+            self._connections += 1
+            self._last = self._clock()
+
+    def disconnect(self) -> None:
+        """A tab's presence connection closed; the countdown starts from now."""
+        with self._lock:
+            self._connections = max(0, self._connections - 1)
+            self._last = self._clock()
+
+    def connections(self) -> int:
+        with self._lock:
+            return self._connections
+
     def idle_seconds(self) -> float:
         with self._lock:
+            if self._connections:
+                return 0.0
             return self._clock() - self._last
 
     def check(

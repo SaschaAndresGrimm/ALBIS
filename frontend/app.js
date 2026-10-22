@@ -84,6 +84,7 @@ import { createDetectorControlController } from "./modules/detector_control_cont
 import { knownDetectors } from "./modules/known_detectors.js";
 import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
+import { startPresence } from "./modules/presence.js";
 import { createRingListController } from "./modules/ring_list_controller.js";
 import { createAnalysisToolsController } from "./modules/analysis_tools.js";
 import { createFlatfieldController } from "./modules/flatfield_controller.js";
@@ -5496,3 +5497,5 @@ function startHandoffPolling() {
 }
 
 startHandoffPolling();
+// Held for as long as this tab is open: see modules/presence.js.
+startPresence({ apiBase: API });

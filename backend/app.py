@@ -19,7 +19,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from .build_info import ALBIS_COMMIT
@@ -67,6 +67,8 @@ from .install_kind import (
 from .lifecycle import idle_watch, shutdown_controller
 from .request_guard import (
     RequestGuardMiddleware,
+    is_cross_site_request,
+    is_host_allowed,
     is_loopback_host,
     local_host_names,
     strip_port,
@@ -420,6 +422,33 @@ async def _lifespan(_app: FastAPI):
 
 
 app.router.lifespan_context = _lifespan
+
+
+@app.websocket("/api/presence")
+async def presence(websocket: WebSocket) -> None:
+    """Held open by every ALBIS tab while it is open: see lifecycle.IdleWatch.
+
+    Nothing is exchanged. The connection being open is the message, and it
+    closes with the tab, the browser, or its process. The request guard only
+    sees HTTP, so the same Host and cross-site checks are made here.
+    """
+    host_header = websocket.headers.get("host", "")
+    if not is_host_allowed(
+        host_header,
+        bind_host=str(runtime_state.bind_host or ""),
+        allowed_hosts=list(runtime_state.allowed_hosts or []),
+    ) or is_cross_site_request(websocket.headers, host_header):
+        await websocket.close(code=1008)
+        return
+    await websocket.accept()
+    idle_watch.connect()
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        idle_watch.disconnect()
 
 
 @app.middleware("http")

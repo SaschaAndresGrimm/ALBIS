@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **ALBIS no longer stops itself while a tab is open in the background.** The automatic stop (`launcher.idle_shutdown_min`, 15 minutes) went by how often tabs asked the server something, expecting at least once a minute. On macOS, App Nap and the browser's own throttling silenced a Firefox window left behind other apps for a quarter of an hour, and ALBIS stopped under two open tabs. Each tab now holds a WebSocket to `/api/presence` while it is open: throttling slows a page but does not close its connections, so the countdown only runs once no tab is connected at all. The server sends no keepalive pings on it, which a throttled tab could answer too late.
+- **On macOS, a stopped ALBIS leaves the Dock and the menu bar.** When its server stopped — the automatic stop, File → Quit ALBIS, a crash — the app stayed in the Dock and the menu bar looking alive while its address no longer answered, until it was quit and opened again. It now quits with its server.
+
 ## [0.33.0] - 2026-10-21
 
 ### Added

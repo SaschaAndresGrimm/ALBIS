@@ -727,7 +727,9 @@ Windows, the files it opened (they cannot be moved or deleted meanwhile).
   is still running; the tab then says ALBIS has stopped. On macOS, **Quit** in
   the Dock menu does the same.
 - **It stops by itself** 15 minutes after the last ALBIS tab was closed, unless
-  a conversion or a series sum is still writing its files. Change the time, or
+  a conversion or a series sum is still writing its files. A tab left open in
+  the background keeps it running, however long. On macOS, ALBIS then also
+  leaves the Dock and the menu bar. Change the time, or
   switch this off, with `launcher.idle_shutdown_min` in the
   [Power User Guide](POWER_USER_GUIDE.md#settings-reference).
 
