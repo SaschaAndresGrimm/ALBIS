@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-10-22
+
 ### Security
 
 - **certifi 2026.10.19.** The certificate bundle ALBIS uses for HTTPS — the update check and download, the SIMPLON and JUNGFRAUJOCH connections over TLS — trusted emSign root certificates whose intermediate CA keys were compromised ([GHSA-6q48-6c7w-9gw2](https://github.com/advisories/GHSA-6q48-6c7w-9gw2)). 2026.10.19 removes them.
@@ -1670,7 +1672,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.1...v0.34.0
 [0.33.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.0...v0.33.1
 [0.33.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.31.0...v0.32.0
