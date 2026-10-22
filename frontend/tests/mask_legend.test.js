@@ -9,7 +9,8 @@ async function setup(stateOverrides = {}, { inpainted = null } = {}) {
   const i18n = await import("../modules/i18n.js");
   await i18n.initializeI18n({ backendLanguage: "en" });
   const { createMaskLegend } = await import("../modules/mask_legend.js");
-  document.body.innerHTML = `<div id="legend" hidden></div>`;
+  document.body.innerHTML = `<div class="hist-mask-key" hidden><div id="legend"></div></div>`;
+  localStorage.clear();
   const state = {
     colormap: "viridis",
     width: 2,
@@ -22,17 +23,22 @@ async function setup(stateOverrides = {}, { inpainted = null } = {}) {
     maskSaturatedEnabled: false,
     ...stateOverrides,
   };
+  const changes = { count: 0 };
   const legend = createMaskLegend({
     state,
     element: document.getElementById("legend"),
     getInpaintedFrame: () => inpainted,
     getActiveSaturationMax: () => 4,
     isSaturatedValue: (v, max) => v === max,
+    onChange: () => (changes.count += 1),
   });
-  return { legend, state };
+  return { legend, state, changes };
 }
 
-const labels = () => Array.from(document.querySelectorAll(".mask-legend-item")).map((el) => el.textContent);
+// The classes on screen: chips that are not dimmed.
+const labels = () =>
+  Array.from(document.querySelectorAll(".mask-chip:not(.is-absent)")).map((el) => el.textContent);
+const wrapper = () => document.querySelector(".hist-mask-key");
 
 describe("mask legend", () => {
   afterEach(() => {
@@ -44,7 +50,8 @@ describe("mask legend", () => {
     const { legend } = await setup();
     legend.update();
     expect(labels()).toEqual(["Gap"]);
-    expect(document.getElementById("legend").hidden).toBe(false);
+    expect(document.querySelectorAll(".mask-chip")).toHaveLength(3);
+    expect(wrapper().hidden).toBe(false);
   });
 
   it("adds Saturated only with Mask saturated on and such a pixel present", async () => {
@@ -59,7 +66,7 @@ describe("mask legend", () => {
   it("says nothing while the mask is off, or where inpainting filled it", async () => {
     const off = await setup({ maskEnabled: false, maskRaw: new Uint32Array([1, 2, 0, 0]) });
     off.legend.update();
-    expect(document.getElementById("legend").hidden).toBe(true);
+    expect(labels()).toEqual([]);
 
     const filled = await setup({ maskRaw: new Uint32Array([1, 2, 0, 0]) }, { inpainted: { data: new Float32Array(4), holes: new Uint8Array(4) } });
     filled.legend.update();
@@ -70,9 +77,60 @@ describe("mask legend", () => {
     const { legend } = await setup({ maskRaw: new Uint32Array([0, 2, 0, 0]) });
     legend.update();
     const { currentMaskColors, rgbToHex } = await import("../modules/mask_colors.js");
-    const swatch = document.querySelector(".mask-legend-swatch");
+    const swatch = document.querySelector('[data-mask-class="defective"] .mask-legend-swatch');
     const expected = rgbToHex(currentMaskColors({ colormap: "viridis" }).defective);
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(expected.slice(i, i + 2), 16));
     expect(swatch.style.background).toBe(`rgb(${r}, ${g}, ${b})`);
+  });
+
+  it("hides the row until there is an image", async () => {
+    const { legend } = await setup({ dataRaw: null });
+    legend.update();
+    expect(wrapper().hidden).toBe(true);
+  });
+
+  it("opens a popover of ready choices, including the colour map's own, and applies a pick", async () => {
+    const { legend, state, changes } = await setup();
+    legend.update();
+    document.querySelector('[data-mask-class="gap"]').click();
+    const popover = document.querySelector(".mask-popover");
+    expect(popover).not.toBeNull();
+    const groups = popover.querySelectorAll(".mask-popover-swatches");
+    expect(groups).toHaveLength(2);
+    expect(groups[1].querySelectorAll(".mask-swatch")).toHaveLength(3);
+    // On Viridis, what is offered as standing out does stand out.
+    const { blendsWithMap, hexToRgb } = await import("../modules/mask_colors.js");
+    for (const swatch of groups[0].querySelectorAll(".mask-swatch")) {
+      const rgb = swatch.style.background.match(/\d+/g).map(Number);
+      expect(blendsWithMap(state, rgb)).toBe(false);
+    }
+    expect(hexToRgb).toBeTypeOf("function");
+    groups[1].querySelector(".mask-swatch").click(); // the map's low end: blend the gaps in
+    const { mapEndColors, rgbToHex } = await import("../modules/mask_colors.js");
+    expect(state.maskColorOverrides.gap).toBe(rgbToHex(mapEndColors(state).low));
+    expect(changes.count).toBe(1);
+    expect(document.querySelector('[data-mask-class="gap"]').classList.contains("is-custom")).toBe(true);
+  });
+
+  it("closes the popover on Escape and when clicking elsewhere", async () => {
+    const { legend } = await setup();
+    legend.update();
+    document.querySelector('[data-mask-class="gap"]').click();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(document.querySelector(".mask-popover")).toBeNull();
+    document.querySelector('[data-mask-class="gap"]').click();
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    expect(document.querySelector(".mask-popover")).toBeNull();
+  });
+
+  it("Auto at the end of the row drops every hand-set colour", async () => {
+    const { legend, state } = await setup();
+    legend.update();
+    expect(document.getElementById("mask-colors-auto").disabled).toBe(true);
+    const { setMaskColorOverride } = await import("../modules/mask_colors.js");
+    setMaskColorOverride(state, "saturated", "#123456");
+    legend.refresh();
+    document.getElementById("mask-colors-auto").click();
+    expect(state.maskColorOverrides).toEqual({ gap: null, defective: null, saturated: null });
   });
 });

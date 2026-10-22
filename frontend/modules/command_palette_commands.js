@@ -40,6 +40,7 @@ export function buildCommandPaletteCommands({
     cancelSeriesSumming,
     toggleFullscreen,
     toggleMagnifier = () => {},
+    togglePixelValues = () => {},
     quitAlbis = () => {},
     togglePanel,
     setPanelTab,
@@ -279,6 +280,13 @@ export function buildCommandPaletteCommands({
       search: "quit exit stop close server shut down",
       when: Boolean(state.canQuit),
       run: () => quitAlbis(),
+    },
+    {
+      id: "toggle-pixel-values",
+      label: t("command.label.view_pixel_values"),
+      shortcut: "",
+      search: "pixel values numbers labels counts zoom",
+      run: () => togglePixelValues(),
     },
     {
       id: "toggle-magnifier",

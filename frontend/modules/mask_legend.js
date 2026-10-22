@@ -1,18 +1,36 @@
 /**
- * The key under the histogram's colour bar: a swatch for each mask colour the
- * image is drawn with -- Gap, Defective, Saturated -- listed only while such
- * pixels are on screen. A colour that is a marker then says so, instead of
- * being read as a value on the scale.
+ * The mask colours under the histogram's colour bar: one chip per class --
+ * Gap, Defective, Saturated -- that is both the key and the way to change it.
  *
- * The conditions mirror render_engine_controller's redraw(): the mask applies
- * only when it is on, available and the frame's size, not where inpainting
- * filled the masked pixels; saturated pixels only with Mask saturated and a
- * known saturation value. Finding which classes occur is a scan, so it is kept
- * per mask and per frame.
+ * A chip shows the colour the image is drawn with; a class with no such pixel
+ * on screen is dimmed ("None in this image"), so the row still reads as a key.
+ * Clicking a chip opens a small popover with few, ready choices rather than a
+ * full colour picker:
+ *   - Stands out: colours chosen to contrast (mask_colors.CANDIDATES);
+ *   - From the colour map: its low end, middle and high end -- to make a class
+ *     blend in, gaps into the background, say;
+ *   - Auto for that class.
+ * A colour that blends into the map is labelled so, not refused: hiding is a
+ * legitimate choice. Auto at the end of the row drops every hand-set colour.
+ *
+ * Which classes count as on screen mirrors render_engine_controller's
+ * redraw(): the mask applies only when on, available and the frame's size,
+ * not where inpainting filled it; saturated pixels only with Mask saturated
+ * and a known saturation value. The scans are kept per mask and per frame.
  */
 
 import { t } from "./i18n.js";
-import { MASK_CLASSES, currentMaskColors, rgbToHex } from "./mask_colors.js";
+import {
+  CANDIDATES,
+  MASK_CLASSES,
+  blendsWithMap,
+  currentMaskColors,
+  mapEndColors,
+  readMaskColorOverrides,
+  rgbToHex,
+  setMaskColorOverride,
+  storeMaskColorOverrides,
+} from "./mask_colors.js";
 
 const LABEL_KEYS = {
   gap: "legend.mask.gap",
@@ -20,9 +38,20 @@ const LABEL_KEYS = {
   saturated: "legend.mask.saturated",
 };
 
-export function createMaskLegend({ state, element, getInpaintedFrame, getActiveSaturationMax, isSaturatedValue }) {
+export function createMaskLegend({
+  state,
+  element,
+  getInpaintedFrame,
+  getActiveSaturationMax,
+  isSaturatedValue,
+  onChange,
+}) {
+  if (!state.maskColorOverrides) state.maskColorOverrides = readMaskColorOverrides();
   let maskScan = { mask: null, gap: false, defective: false };
   let satScan = { data: null, satMax: null, found: false };
+  let popover = null;
+  let openFor = null;
+  let lastSignature = "";
 
   function scanMask(mask) {
     if (maskScan.mask === mask) return maskScan;
@@ -75,25 +104,182 @@ export function createMaskLegend({ state, element, getInpaintedFrame, getActiveS
     return MASK_CLASSES.filter((cls) => present.has(cls));
   }
 
-  function update() {
-    if (!element) return;
-    const classes = presentClasses();
-    const colors = currentMaskColors(state);
-    element.hidden = classes.length === 0;
-    element.replaceChildren(
-      ...classes.map((cls) => {
-        const item = document.createElement("span");
-        item.className = "mask-legend-item";
-        const swatch = document.createElement("span");
-        swatch.className = "mask-legend-swatch";
-        swatch.style.background = rgbToHex(colors[cls]);
-        const label = document.createElement("span");
-        label.textContent = t(LABEL_KEYS[cls]);
-        item.append(swatch, label);
-        return item;
-      }),
-    );
+  function changed() {
+    render(true);
+    if (popover && openFor) fillPopover(openFor.cls);
+    onChange?.();
   }
 
-  return { update, presentClasses };
+  // ---- the popover -------------------------------------------------------
+
+  function swatchButton(rgb, title, onPick, current) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mask-swatch";
+    btn.style.background = rgbToHex(rgb);
+    const blends = blendsWithMap(state, rgb);
+    btn.title = blends ? `${title} · ${t("mask.popover.blends")}` : title;
+    btn.setAttribute("aria-label", btn.title);
+    if (current && rgbToHex(current) === rgbToHex(rgb)) btn.setAttribute("aria-pressed", "true");
+    btn.addEventListener("click", onPick);
+    return btn;
+  }
+
+  function fillPopover(cls) {
+    const colors = currentMaskColors(state);
+    const current = colors[cls];
+    const pick = (rgb) => () => {
+      setMaskColorOverride(state, cls, rgbToHex(rgb));
+      changed();
+    };
+    const title = document.createElement("div");
+    title.className = "mask-popover-title";
+    title.textContent = t("mask.popover.title", { name: t(LABEL_KEYS[cls]) });
+
+    const contrastLabel = document.createElement("div");
+    contrastLabel.className = "mask-popover-label";
+    contrastLabel.textContent = t("mask.popover.contrasting");
+    const contrast = document.createElement("div");
+    contrast.className = "mask-popover-swatches";
+    // Only what really stands out on this map: on Grey Scale, black and white
+    // do not. Colours that blend in are offered below, as the map's own.
+    contrast.append(
+      ...CANDIDATES.filter((rgb) => !blendsWithMap(state, rgb)).map((rgb) =>
+        swatchButton(rgb, rgbToHex(rgb), pick(rgb), current),
+      ),
+    );
+
+    const mapLabel = document.createElement("div");
+    mapLabel.className = "mask-popover-label";
+    mapLabel.textContent = t("mask.popover.from_map");
+    const map = document.createElement("div");
+    map.className = "mask-popover-swatches";
+    const ends = mapEndColors(state);
+    map.append(
+      swatchButton(ends.low, t("mask.popover.map_low"), pick(ends.low), current),
+      swatchButton(ends.middle, t("mask.popover.map_middle"), pick(ends.middle), current),
+      swatchButton(ends.high, t("mask.popover.map_high"), pick(ends.high), current),
+    );
+
+    const actions = document.createElement("div");
+    actions.className = "mask-popover-actions";
+    const auto = document.createElement("button");
+    auto.type = "button";
+    auto.className = "btn btn-secondary inpaint-value-btn";
+    auto.textContent = t("view.mask_colors.auto");
+    auto.disabled = !state.maskColorOverrides?.[cls];
+    auto.addEventListener("click", () => {
+      setMaskColorOverride(state, cls, null);
+      changed();
+    });
+    actions.append(auto);
+
+    popover.replaceChildren(title, contrastLabel, contrast, mapLabel, map, actions);
+  }
+
+  function closePopover({ restoreFocus = true } = {}) {
+    if (!popover) return;
+    popover.remove();
+    popover = null;
+    document.removeEventListener("pointerdown", onOutside, true);
+    document.removeEventListener("keydown", onKey, true);
+    const chip = openFor?.chip;
+    openFor = null;
+    if (restoreFocus) chip?.focus();
+  }
+
+  function onOutside(event) {
+    if (popover?.contains(event.target) || event.target.closest?.(".mask-chip")) return;
+    closePopover({ restoreFocus: false });
+  }
+
+  function onKey(event) {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      closePopover();
+    }
+  }
+
+  function openPopover(cls, chip) {
+    if (openFor?.cls === cls) {
+      closePopover();
+      return;
+    }
+    closePopover({ restoreFocus: false });
+    popover = document.createElement("div");
+    popover.className = "mask-popover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("aria-label", t("mask.popover.title", { name: t(LABEL_KEYS[cls]) }));
+    openFor = { cls, chip };
+    fillPopover(cls);
+    document.body.append(popover);
+    chip.setAttribute("aria-expanded", "true");
+    const rect = chip.getBoundingClientRect();
+    const width = popover.offsetWidth || 260;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left));
+    popover.style.left = `${left + window.scrollX}px`;
+    popover.style.top = `${rect.bottom + 6 + window.scrollY}px`;
+    popover.querySelector(".mask-swatch")?.focus();
+    document.addEventListener("pointerdown", onOutside, true);
+    document.addEventListener("keydown", onKey, true);
+  }
+
+  // ---- the row -----------------------------------------------------------
+
+  // Called on every redraw: rebuilt only when what it shows changed, so a
+  // frame arriving while a chip has the keyboard focus does not take it away.
+  function render(force = false) {
+    if (!element) return;
+    const wrapper = element.parentElement?.classList.contains("hist-mask-key") ? element.parentElement : element;
+    if (!state.dataRaw) {
+      wrapper.hidden = true;
+      element.replaceChildren();
+      lastSignature = "";
+      return;
+    }
+    const present = new Set(presentClasses());
+    const colors = currentMaskColors(state);
+    const signature = JSON.stringify([[...present], colors, state.maskColorOverrides, openFor?.cls || ""]);
+    if (!force && signature === lastSignature && element.childElementCount) return;
+    lastSignature = signature;
+    const chips = MASK_CLASSES.map((cls) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "mask-chip";
+      chip.dataset.maskClass = cls;
+      chip.classList.toggle("is-absent", !present.has(cls));
+      chip.classList.toggle("is-custom", Boolean(state.maskColorOverrides?.[cls]));
+      chip.setAttribute("aria-haspopup", "dialog");
+      chip.setAttribute("aria-expanded", String(openFor?.cls === cls));
+      const name = t(LABEL_KEYS[cls]);
+      chip.title = present.has(cls)
+        ? t("mask.chip_title", { name })
+        : `${t("mask.chip_title", { name })} · ${t("legend.mask.none_here")}`;
+      const swatch = document.createElement("span");
+      swatch.className = "mask-legend-swatch";
+      swatch.style.background = rgbToHex(colors[cls]);
+      const label = document.createElement("span");
+      label.textContent = name;
+      chip.append(swatch, label);
+      chip.addEventListener("click", () => openPopover(cls, chip));
+      if (openFor?.cls === cls) openFor.chip = chip;
+      return chip;
+    });
+    const resetAll = document.createElement("button");
+    resetAll.type = "button";
+    resetAll.className = "btn btn-secondary inpaint-value-btn mask-colors-auto";
+    resetAll.id = "mask-colors-auto";
+    resetAll.textContent = t("view.mask_colors.auto");
+    resetAll.title = t("mask.auto_all_title");
+    resetAll.disabled = MASK_CLASSES.every((cls) => !state.maskColorOverrides?.[cls]);
+    resetAll.addEventListener("click", () => {
+      state.maskColorOverrides = { gap: null, defective: null, saturated: null };
+      storeMaskColorOverrides(state.maskColorOverrides);
+      changed();
+    });
+    wrapper.hidden = false;
+    element.replaceChildren(...chips, resetAll);
+  }
+
+  return { update: () => render(), refresh: () => render(true), presentClasses, closePopover };
 }

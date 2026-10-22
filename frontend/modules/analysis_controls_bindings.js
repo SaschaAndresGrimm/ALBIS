@@ -269,10 +269,14 @@ export function bindAnalysisControlInteractions({
     void useSeriesOutputAsFlat();
   });
 
+  // A toolbar toggle beside the magnifier: both are for looking at pixels up
+  // close. Pressed state as the magnifier button shows its own.
   if (pixelLabelToggle) {
-    state.pixelLabels = pixelLabelToggle.checked;
-    pixelLabelToggle.addEventListener("change", () => {
-      state.pixelLabels = pixelLabelToggle.checked;
+    state.pixelLabels = pixelLabelToggle.getAttribute("aria-pressed") !== "false";
+    pixelLabelToggle.addEventListener("click", () => {
+      state.pixelLabels = !state.pixelLabels;
+      pixelLabelToggle.setAttribute("aria-pressed", String(state.pixelLabels));
+      pixelLabelToggle.classList.toggle("is-active", state.pixelLabels);
       schedulePixelOverlay();
     });
   }

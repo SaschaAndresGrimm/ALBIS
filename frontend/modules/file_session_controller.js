@@ -197,6 +197,10 @@ export function createFileSessionController({
       now - lastStatsRefreshAt >= PLAYBACK_STATS_REFRESH_MS;
     if (refreshStats) {
       state.stats = computeStats(data);
+      // The saturation value comes with the stats, so Mask saturated can only
+      // say whether it applies now: refreshed earlier, it stayed disabled and
+      // unticked while saturated pixels were already being masked.
+      updateMaskUI();
       refreshDisplayContrast(state.autoScale);
       updateGlobalStats();
       lastStatsRefreshAt = now;

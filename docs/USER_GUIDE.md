@@ -142,11 +142,13 @@ follows flatfield correction and inpainting, outlines the pixel under the mouse,
 prints the pixel values once the lens makes them big enough to read (with
 **Pixel values** on), and never appears in exports.
 
-**Pixel values** in the View tab prints the number in each cell once you are
-zoomed in far enough to read them. How far, how many, and their format are in
-**Settings → Viewer**.
+**Pixel values** — the **123** button in the toolbar, beside the magnifier, or
+**View: Pixel Values On/Off** in the command palette — prints the number in
+each cell once you are zoomed in far enough to read them. How far, how many,
+and their format are in **Settings → Viewer**.
 
-**Masks.** When the data carries a pixel mask, **Apply mask** hides module gaps
+**Masks.** At the end of the **Histogram** section, next to the colour map.
+When the data carries a pixel mask, **Apply mask** hides module gaps
 and defective pixels so they do not distort what you see or the statistics you
 measure. **Mask saturated** does the same for pixels at the detector's
 saturation value. Both are unavailable — and say so — when the loaded data
@@ -156,11 +158,14 @@ Masked pixels are drawn in their own colours, which ALBIS picks for each colour
 map from colours that map never uses: on Viridis, for example, gaps stay black
 while defective and saturated pixels turn magenta and red, because the map's
 own dark blue and teal would look like values. ALBULA HDR keeps black gaps, as
-ALBULA draws them. A key under the histogram's
-colour bar lists the mask colours on screen. **Mask colours** under **Advanced
-view controls** sets any of them by hand; **Auto** goes back. A gap that the
-file does not mark — no mask, no -1 — is not known to be one, and is drawn
-from its value like any other pixel.
+ALBULA draws them. Under the histogram's colour bar, a chip for each class shows
+its colour, dimmed when no such pixel is in the image. Click a chip to change
+the colour: to one that stands out, or to one of the colour map's own — its low
+end, middle or high end — to make that class blend into the image, gaps into
+the background for instance. **Auto** goes back, for one class in its popover
+or for all three at the end of the row. A gap that the file does not mark — no
+mask, no -1 — is not known to be one, and is drawn from its value like any
+other pixel.
 
 ---
 

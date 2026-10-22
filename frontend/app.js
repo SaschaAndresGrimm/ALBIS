@@ -86,7 +86,6 @@ import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
 import { startPresence } from "./modules/presence.js";
 import { bindColorbarWindowInteractions } from "./modules/colorbar_window_bindings.js";
-import { createMaskColorControls } from "./modules/mask_colors.js";
 import { createMaskLegend } from "./modules/mask_legend.js";
 import { createRingListController } from "./modules/ring_list_controller.js";
 import { createAnalysisToolsController } from "./modules/analysis_tools.js";
@@ -669,7 +668,6 @@ let exportSplashController = null;
 let inpaintingController = null;
 let analysisToolsController = null;
 let maskLegend = null;
-let maskColorControls = null;
 let flatfieldController = null;
 let magnifierController = null;
 let quitController = null;
@@ -3664,6 +3662,7 @@ function getCommandPaletteCommands() {
       cancelSeriesSumming,
       toggleFullscreen,
       toggleMagnifier: () => magnifierController?.toggleLocked(),
+      togglePixelValues: () => pixelLabelToggle?.click(),
       quitAlbis: () => quitController?.quit(),
       togglePanel,
       setPanelTab,
@@ -4272,22 +4271,9 @@ maskLegend = createMaskLegend({
   getInpaintedFrame: () => getInpaintedFrame(),
   getActiveSaturationMax: () => getActiveSaturationMax(),
   isSaturatedValue: (value, satMax) => isSaturatedValue(value, satMax),
-});
-maskColorControls = createMaskColorControls({
-  state,
-  elements: {
-    inputs: {
-      gap: document.getElementById("mask-color-gap"),
-      defective: document.getElementById("mask-color-defective"),
-      saturated: document.getElementById("mask-color-saturated"),
-    },
-    autoBtn: document.getElementById("mask-colors-auto"),
-  },
-  callbacks: {
-    onChange: () => {
-      redraw();
-      scheduleHistogram();
-    },
+  onChange: () => {
+    redraw();
+    scheduleHistogram();
   },
 });
 bindColorbarWindowInteractions({
@@ -4565,9 +4551,8 @@ function applyFrame(data, width, height, dtype) {
 
 function redraw() {
   renderEngineController.redraw();
-  // Which mask colours are on screen, and the pickers' current colours.
+  // Which mask colours are on screen, and their chips under the colour bar.
   maskLegend?.update();
-  maskColorControls?.refresh();
   // What inpainting filled in this frame, and the footer's "Inpainted";
   // whether the flat fits it, and "Flatfielded".
   inpaintingController?.updateState();
@@ -5239,7 +5224,7 @@ setDataExportProgress(0, t("data_export.progress.idle"));
 updateDataExportUi();
 onLanguageChange(() => {
   analysisToolsController?.refresh();
-  maskLegend?.update();
+  maskLegend?.refresh();
   ringListController.refresh();
   refreshLocalizedUi();
   infoTips.refresh();

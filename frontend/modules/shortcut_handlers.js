@@ -21,7 +21,7 @@ const FOCUSABLE_SELECTOR = [
   "textarea:not([disabled])",
   // A <summary> is a tab stop with no tabindex and no disabled state, so it
   // matched none of the rules above. index.html has two in visible panel
-  // sections ("Advanced view controls", "Advanced source settings"), and the
+  // sections ("Advanced source settings"), and the
   // trap this guard exists to close was still open on both of them.
   "summary",
   "audio[controls]",

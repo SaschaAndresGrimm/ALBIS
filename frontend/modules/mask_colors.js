@@ -10,7 +10,7 @@
  * the candidate farthest from the map that is also clear of the other two.
  * The choice depends on the map, not on Invert Color, which only reverses it.
  *
- * Each colour can also be set by hand (View -> Advanced view controls), kept
+ * Each colour can also be set by hand (the colour chips under the histogram), kept
  * in this browser. Every renderer -- the image, the magnifier, PNG and GIF
  * exports -- reads them from here, so they cannot drift apart.
  */
@@ -32,8 +32,9 @@ const PINNED = Object.freeze({
   albulaHdr: Object.freeze({ gap: [0, 0, 0] }),
 });
 
-// Tried in this order after a class's own default.
-const CANDIDATES = [
+// Tried in this order after a class's own default, and offered as the
+// "stands out" choices when a colour is picked by hand.
+export const CANDIDATES = [
   [0, 0, 0],
   [255, 255, 255],
   [255, 0, 255],
@@ -166,38 +167,29 @@ export function currentMaskColors(state) {
 }
 
 /**
- * View -> Advanced view controls: a colour picker per class showing the
- * colour in use, and Auto, which drops every hand-set colour.
+ * Set one class's colour by hand (a "#rrggbb"), or null for Auto, and keep it.
  */
-export function createMaskColorControls({ state, elements, callbacks = {} }) {
-  const { inputs = {}, autoBtn } = elements;
-  const { onChange } = callbacks;
-  if (!state.maskColorOverrides) state.maskColorOverrides = readMaskColorOverrides();
+export function setMaskColorOverride(state, cls, hex) {
+  const next = { ...(state.maskColorOverrides || readMaskColorOverrides()), [cls]: hexToRgb(hex) ? hex : null };
+  state.maskColorOverrides = next;
+  storeMaskColorOverrides(next);
+  return next;
+}
 
-  function refresh() {
-    const colors = currentMaskColors(state);
-    for (const cls of MASK_CLASSES) {
-      const input = inputs[cls];
-      if (!input) continue;
-      input.value = rgbToHex(colors[cls]);
-      input.closest("label")?.classList.toggle("is-custom", Boolean(state.maskColorOverrides[cls]));
-    }
-    if (autoBtn) autoBtn.disabled = MASK_CLASSES.every((cls) => !state.maskColorOverrides[cls]);
-  }
+/** The colour map's own colours at its low end, middle and high end, as drawn (Invert Color included). */
+export function mapEndColors(state) {
+  const palette = buildPalette(String(state?.colormap || ""));
+  const count = getPaletteColorCount(palette);
+  const at = (norm) => {
+    const n = state?.invert ? 1 - norm : norm;
+    const i = Math.min(count - 1, Math.max(0, Math.round(n * (count - 1)))) * 4;
+    return [palette[i], palette[i + 1], palette[i + 2]];
+  };
+  return { low: at(0), middle: at(0.5), high: at(1) };
+}
 
-  function set(overrides) {
-    state.maskColorOverrides = overrides;
-    storeMaskColorOverrides(overrides);
-    refresh();
-    onChange?.();
-  }
-
-  for (const cls of MASK_CLASSES) {
-    inputs[cls]?.addEventListener("input", (event) => {
-      set({ ...state.maskColorOverrides, [cls]: event.target.value });
-    });
-  }
-  autoBtn?.addEventListener("click", () => set({ gap: null, defective: null, saturated: null }));
-  refresh();
-  return { refresh };
+/** Whether a colour is close enough to one of the map's to blend into the image. */
+export function blendsWithMap(state, rgb) {
+  const palette = buildPalette(String(state?.colormap || ""));
+  return clearance(rgb, paletteColors(palette)) < CLEAR_OF_MAP;
 }

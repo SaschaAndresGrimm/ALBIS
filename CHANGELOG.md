@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The mask switches moved to the Histogram section, and the mask colours became the key.** Apply mask and Mask saturated decide which pixels count as values, so they sit with the colour map and BG/FG at the end of the Histogram section instead of under View → Advanced view controls, which is gone. The mask colours' key under the colour bar and the colour pickers showed the same three colours twice; they are now one row of chips, one per class, dimmed when no such pixel is in the image. A chip opens a small popover instead of the system's full colour picker: colours that stand out, the colour map's own low end, middle and high end — to make a class blend in, gaps into the background say — and Auto. A colour that blends in is labelled so, not refused.
+- **Pixel values is a toolbar button.** **123**, beside the magnifier — both are for looking at pixels up close — and **View: Pixel Values On/Off** in the command palette.
+
+### Fixed
+
+- **Mask saturated can be switched on a TIFF or CBF.** It was checked against the saturation value before the frame's statistics, which carry that value, were computed, so it stayed disabled and unticked while saturated pixels were already being masked.
+
 ### Removed
 
 - **Make one from frames… in the Flatfield section.** It only opened Combine Frames, a few sections further down the same tab, with Mean, every frame, one image and TIFF chosen. Combine Frames is set up the same way by hand, and **Use as flat** there still turns its result into the flat in one click.

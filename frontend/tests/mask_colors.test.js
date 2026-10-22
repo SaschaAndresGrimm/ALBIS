@@ -4,7 +4,9 @@ import {
   DEFAULT_MASK_COLORS,
   autoMaskColors,
   colorDistance,
-  createMaskColorControls,
+  blendsWithMap,
+  mapEndColors,
+  setMaskColorOverride,
   currentMaskColors,
   readMaskColorOverrides,
 } from "../modules/mask_colors.js";
@@ -55,29 +57,23 @@ describe("mask colours", () => {
     expect(colors.saturated).toEqual(autoMaskColors(buildPalette("viridis")).saturated);
   });
 
-  it("remembers hand-set colours, and Auto clears them", () => {
-    document.body.innerHTML = `
-      <label><input type="color" id="gap" /></label><label><input type="color" id="def" /></label>
-      <label><input type="color" id="sat" /></label><button id="auto"></button>`;
+  it("remembers a hand-set colour, and null goes back to Auto", () => {
     const state = { colormap: "gray" };
-    let changes = 0;
-    createMaskColorControls({
-      state,
-      elements: {
-        inputs: { gap: document.getElementById("gap"), defective: document.getElementById("def"), saturated: document.getElementById("sat") },
-        autoBtn: document.getElementById("auto"),
-      },
-      callbacks: { onChange: () => (changes += 1) },
-    });
-    expect(document.getElementById("auto").disabled).toBe(true);
-    const gap = document.getElementById("gap");
-    gap.value = "#00ff00";
-    gap.dispatchEvent(new Event("input"));
+    setMaskColorOverride(state, "gap", "#00ff00");
     expect(readMaskColorOverrides().gap).toBe("#00ff00");
-    expect(gap.closest("label").classList.contains("is-custom")).toBe(true);
-    document.getElementById("auto").click();
+    expect(currentMaskColors(state).gap).toEqual([0, 255, 0]);
+    setMaskColorOverride(state, "gap", null);
     expect(readMaskColorOverrides().gap).toBeNull();
-    expect(gap.value).not.toBe("#00ff00");
-    expect(changes).toBe(2);
+    expect(currentMaskColors(state).gap).toEqual(autoMaskColors(buildPalette("gray")).gap);
+  });
+
+  it("offers the colour map's own ends, as drawn with Invert Color", () => {
+    expect(mapEndColors({ colormap: "gray" })).toEqual({ low: [0, 0, 0], middle: [128, 128, 128], high: [255, 255, 255] });
+    expect(mapEndColors({ colormap: "gray", invert: true }).low).toEqual([255, 255, 255]);
+  });
+
+  it("says which colours blend into the map, without refusing them", () => {
+    expect(blendsWithMap({ colormap: "gray" }, [128, 128, 128])).toBe(true);
+    expect(blendsWithMap({ colormap: "gray" }, [255, 0, 255])).toBe(false);
   });
 });
