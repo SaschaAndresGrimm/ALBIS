@@ -611,7 +611,6 @@
   "flatfield.flat": "フラット",
   "flatfield.footer": "フラット補正済み",
   "flatfield.footer_title": "各画像はフラットで割られています",
-  "flatfield.from_frames": "フレームから作成…",
   "flatfield.scale": "スケール",
   "flatfield.scale.counts": "カウント",
   "flatfield.scale.transmission": "透過率",

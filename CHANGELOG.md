@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Removed
+
+- **Make one from frames… in the Flatfield section.** It only opened Combine Frames, a few sections further down the same tab, with Mean, every frame, one image and TIFF chosen. Combine Frames is set up the same way by hand, and **Use as flat** there still turns its result into the flat in one click.
+
 ## [0.34.0] - 2026-10-22
 
 ### Security

@@ -19,7 +19,7 @@ function fileName(path) {
 }
 
 export function createFlatfieldController({ apiBase, state, elements, callbacks }) {
-  const { toggle, useCurrentBtn, chooseBtn, fromFramesBtn, scaleSelect, stateEl, summaryEl, footerChip } = elements;
+  const { toggle, useCurrentBtn, chooseBtn, scaleSelect, stateEl, summaryEl, footerChip } = elements;
   const {
     redraw,
     refreshDisplayContrast,
@@ -34,7 +34,6 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
     parseDtype,
     parseShape,
     typedArrayFrom,
-    openCombineFramesForFlat,
   } = callbacks;
 
   let flat = null;
@@ -220,7 +219,6 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
   });
   useCurrentBtn?.addEventListener("click", () => void useCurrentImage());
   chooseBtn?.addEventListener("click", () => void chooseFile());
-  fromFramesBtn?.addEventListener("click", () => openCombineFramesForFlat?.());
   if (toggle) toggle.checked = Boolean(state.flatEnabled);
   if (scaleSelect) scaleSelect.value = normalizeFlatScale(state.flatScale);
   updateState();

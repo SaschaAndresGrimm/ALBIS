@@ -611,7 +611,6 @@
   "flatfield.flat": "Flat",
   "flatfield.footer": "Corrigé par flatfield",
   "flatfield.footer_title": "Chaque image est divisée par le flat",
-  "flatfield.from_frames": "En créer un à partir d'images…",
   "flatfield.scale": "Échelle",
   "flatfield.scale.counts": "Coups",
   "flatfield.scale.transmission": "Transmission",

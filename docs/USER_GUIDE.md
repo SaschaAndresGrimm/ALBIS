@@ -221,9 +221,9 @@ remains — the standard open-beam normalisation in imaging.
   single image taken just before a scan and shown through the SIMPLON monitor.
   It is saved as a TIFF in the data folder's `flatfields/`, so it can be used
   again and every export divides by the same file. **Choose file…** takes a
-  TIFF or CBF instead. For a less noisy flat, average many frames:
-  **Make one from frames…** opens [Combine frames](#combine-frames) set up to
-  average every frame into one TIFF, and **Use as flat** takes the result.
+  TIFF or CBF instead. For a less noisy flat, average many frames in
+  [Combine frames](#combine-frames) into one TIFF; **Use as flat** there takes
+  the result.
 - **Scale:** **Counts** (the default) keeps the image's own scale — divided by
   the flat, times the flat's mean. **Transmission** gives 0 to 1: 1 means
   nothing was absorbed, 0.3 that 70 % was.

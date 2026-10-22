@@ -5117,7 +5117,6 @@ flatfieldController = createFlatfieldController({
     toggle: document.getElementById("flat-toggle"),
     useCurrentBtn: document.getElementById("flat-use-current"),
     chooseBtn: document.getElementById("flat-choose"),
-    fromFramesBtn: document.getElementById("flat-from-frames"),
     scaleSelect: document.getElementById("flat-scale"),
     stateEl: document.getElementById("flat-state"),
     summaryEl: document.getElementById("summary-flat"),
@@ -5140,24 +5139,8 @@ flatfieldController = createFlatfieldController({
     parseDtype,
     parseShape,
     typedArrayFrom,
-    openCombineFramesForFlat,
   },
 });
-
-/**
- * Flatfield's "Make one from frames…": open Combine Frames, set up to average
- * every frame into one TIFF, and bring it into view. Starting stays the
- * user's call.
- */
-function openCombineFramesForFlat() {
-  const section = document.getElementById("series-sum-section");
-  if (!section) return;
-  setPanelTab("analysis");
-  setSectionState(section, false);
-  seriesSumController.presetForFlat();
-  section.scrollIntoView({ block: "start", behavior: "smooth" });
-  seriesSumStart?.focus({ preventScroll: true });
-}
 
 inpaintingController = createInpaintingController({
   state,

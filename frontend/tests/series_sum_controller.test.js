@@ -211,17 +211,6 @@ describe("series_sum_controller", () => {
     });
   });
 
-  it("sets up a flat: every frame, averaged into one TIFF", async () => {
-    const { elements, controller } = await makeController();
-    elements.seriesSumEvery.value = "5";
-    elements.seriesSumResult.value = "groups";
-    controller.presetForFlat();
-    expect(elements.seriesSumEvery.value).toBe("1");
-    expect(elements.seriesSumOperation.value).toBe("mean");
-    expect(elements.seriesSumResult.value).toBe("one");
-    expect(elements.seriesSumFormat.value).toBe("tiff");
-  });
-
   it("offers Use as flat only for a single finished TIFF", async () => {
     const { state, elements, callbacks, controller } = await makeController();
     const hidden = () => elements.seriesSumUseFlat.classList.contains("is-hidden");

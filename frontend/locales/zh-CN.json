@@ -611,7 +611,6 @@
   "flatfield.flat": "平场",
   "flatfield.footer": "已平场校正",
   "flatfield.footer_title": "每幅图像都已除以平场",
-  "flatfield.from_frames": "由帧生成…",
   "flatfield.scale": "标度",
   "flatfield.scale.counts": "计数",
   "flatfield.scale.transmission": "透射率",

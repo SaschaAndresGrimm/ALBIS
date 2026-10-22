@@ -490,21 +490,6 @@ export function createSeriesSumController({
     }
   }
 
-  /**
-   * Set the section up for making a flat: every frame, averaged into one TIFF,
-   * which the Flatfield section can read. Range, output path and mask are left
-   * as they are.
-   */
-  function presetForFlat() {
-    if (state.seriesSum.running) return;
-    if (seriesSumEvery) seriesSumEvery.value = "1";
-    if (seriesSumOperation) seriesSumOperation.value = "mean";
-    if (seriesSumResult) seriesSumResult.value = "one";
-    if (seriesSumFormat) seriesSumFormat.value = "tiff";
-    syncSeriesSumOutputPath(false);
-    updateSeriesSumUi();
-  }
-
   async function useOutputAsFlat() {
     const path = flatCandidate();
     if (!path || typeof useAsFlat !== "function") return;
@@ -512,7 +497,6 @@ export function createSeriesSumController({
   }
 
   return {
-    presetForFlat,
     useOutputAsFlat,
     syncSeriesSumOutputPath,
     setSeriesSumProgress,
