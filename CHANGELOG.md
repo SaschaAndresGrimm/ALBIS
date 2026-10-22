@@ -7,9 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.34.1] - 2026-10-22
+
 ### Changed
 
 - **The mask switches moved to the Histogram section, and the mask colours became the key.** Apply mask and Mask saturated decide which pixels count as values, so they sit with the colour map and BG/FG at the end of the Histogram section instead of under View → Advanced view controls, which is gone. The mask colours' key under the colour bar and the colour pickers showed the same three colours twice; they are now one row of chips, one per class, dimmed when no such pixel is in the image. A chip opens a small popover instead of the system's full colour picker: colours that stand out, the colour map's own low end, middle and high end — to make a class blend in, gaps into the background say — and Auto. A colour that blends in is labelled so, not refused.
+- **ALBULA HDR heads the colour map list.** It is the default and the one most users pick; it sat second, under Heat.
 - **Pixel values is a toolbar button.** **123**, beside the magnifier — both are for looking at pixels up close — and **View: Pixel Values On/Off** in the command palette.
 
 ### Fixed
@@ -1685,7 +1688,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.1...HEAD
+[0.34.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.1...v0.34.0
 [0.33.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.0...v0.33.1
 [0.33.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.32.0...v0.33.0
