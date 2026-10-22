@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Security
+
+- **certifi 2026.10.19.** The certificate bundle ALBIS uses for HTTPS — the update check and download, the SIMPLON and JUNGFRAUJOCH connections over TLS — trusted emSign root certificates whose intermediate CA keys were compromised ([GHSA-6q48-6c7w-9gw2](https://github.com/advisories/GHSA-6q48-6c7w-9gw2)). 2026.10.19 removes them.
+
 ### Added
 
 - **The histogram's colour bar is a contrast window.** Drag it to move the BG–FG range along the values while keeping its width, scroll on it to widen or narrow the range around its centre, and double-click it for Auto Contrast. It follows the histogram's linear or log axis, and stops at its ends.
