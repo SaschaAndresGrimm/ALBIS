@@ -215,6 +215,70 @@ def test_series_summing_service_median_preserves_integer_dtype_when_integral(
     np.testing.assert_array_equal(out, np.array([[5, 6], [7, 8]], dtype=np.int16))
 
 
+def test_a_uint32_sum_that_fits_stays_uint32_with_gaps_at_its_max(tmp_path: Path) -> None:
+    # Sized for the worst case, two uint32 frames were written as uint64, and
+    # the gap marker 2**64-1 made the viewer read the image as float64.
+    series_files = [tmp_path / "img_0001.tiff", tmp_path / "img_0002.tiff"]
+    gap = np.iinfo(np.uint32).max
+    frames = {
+        series_files[0]: np.array([[1, 2], [gap, 4]], dtype=np.uint32),
+        series_files[1]: np.array([[5, 6], [gap, 8]], dtype=np.uint32),
+    }
+    written: list[tuple[Path, np.ndarray]] = []
+
+    def write_tiff(path: Path, arr: np.ndarray, _metadata: dict | None = None) -> None:
+        written.append((Path(path), np.asarray(arr)))
+
+    service = SeriesSummingService(
+        _make_deps(
+            tmp_path,
+            resolve_image_file=lambda name: Path(name),
+            resolve_series_files=lambda _source: (list(series_files), 0),
+            read_tiff=lambda path, index: np.asarray(frames[path]),
+            write_tiff=write_tiff,
+        )
+    )
+    job_id = service.start_job(
+        file=str(series_files[0]),
+        dataset="",
+        mode="all",
+        step=1,
+        operation="sum",
+        normalize_frame=None,
+        range_start=None,
+        range_end=None,
+        output_path=str(tmp_path / "sum_out"),
+        output_format="tiff",
+        apply_mask=True,
+    )
+    job = _wait_for_job(service, job_id)
+
+    assert job["status"] == "done"
+    _path, out = written[0]
+    assert out.dtype == np.uint32
+    np.testing.assert_array_equal(out, np.array([[6, 8], [gap, 12]], dtype=np.uint32))
+
+
+@pytest.mark.parametrize(
+    ("source", "result_min", "result_max", "expected"),
+    [
+        (np.uint32, 0, 1000, np.uint32),
+        # The type's max stays free for the gap marker.
+        (np.uint32, 0, np.iinfo(np.uint32).max, np.uint64),
+        (np.uint16, 0, 70000, np.uint32),
+        # Signed types mark gaps with their min.
+        (np.int16, np.iinfo(np.int16).min, 10, np.int32),
+        (np.int16, -5, 10, np.int16),
+        # No range known: the worst case.
+        (np.uint32, None, None, np.uint64),
+        (np.float32, 0, 10, np.float32),
+    ],
+)
+def test_the_sum_output_dtype_follows_the_actual_range(source, result_min, result_max, expected):
+    picked = SeriesSummingService._sum_output_dtype(np.dtype(source), 2, result_min, result_max)
+    assert picked == np.dtype(expected)
+
+
 def test_series_summing_service_cancel_job(tmp_path: Path) -> None:
     series_files = [tmp_path / f"img_{idx:04d}.tiff" for idx in range(1, 81)]
     frame = np.array([[1, 2], [3, 4]], dtype=np.int32)

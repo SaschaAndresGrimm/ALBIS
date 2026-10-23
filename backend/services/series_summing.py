@@ -561,23 +561,48 @@ class SeriesSummingService:
         return None
 
     @classmethod
-    def _sum_output_dtype(cls, source_dtype: np.dtype, max_group_count: int) -> np.dtype:
+    def _sum_output_dtype(
+        cls,
+        source_dtype: np.dtype,
+        max_group_count: int,
+        result_min: float | None = None,
+        result_max: float | None = None,
+    ) -> np.dtype:
+        """The integer type a sum is written in.
+
+        Sized from the sums actually produced, not from the worst case: a sum
+        of uint32 frames almost always fits uint32, while the worst case
+        (uint32 max times the frame count) always asked for uint64. Its gap
+        marker, the uint64 max, then made the reader deliver the image as
+        float64, with the gaps no longer recognised. The type's own marker
+        value (max for unsigned, min for signed) is kept free, so a sum never
+        reads as a gap. Without a range, the worst case still applies.
+        """
         if not (
             np.issubdtype(source_dtype, np.integer)
             or np.issubdtype(source_dtype, np.unsignedinteger)
         ):
             return source_dtype
-        info = np.iinfo(source_dtype)
-        if np.issubdtype(source_dtype, np.unsignedinteger):
-            min_possible = 0
-            max_possible = int(info.max) * int(max_group_count)
+        unsigned = bool(np.issubdtype(source_dtype, np.unsignedinteger))
+        if result_min is not None and result_max is not None:
+            lo = int(np.floor(result_min))
+            hi = int(np.ceil(result_max))
+            if unsigned:
+                min_possible, max_possible = min(lo, 0), hi + 1
+            else:
+                min_possible, max_possible = lo - 1, hi
         else:
-            min_possible = int(info.min) * int(max_group_count)
-            max_possible = int(info.max) * int(max_group_count)
+            info = np.iinfo(source_dtype)
+            if unsigned:
+                min_possible = 0
+                max_possible = int(info.max) * int(max_group_count)
+            else:
+                min_possible = int(info.min) * int(max_group_count)
+                max_possible = int(info.max) * int(max_group_count)
         picked = cls._pick_integer_dtype_for_range(
             min_possible,
             max_possible,
-            prefer_unsigned=bool(np.issubdtype(source_dtype, np.unsignedinteger)),
+            prefer_unsigned=unsigned,
             min_itemsize=source_dtype.itemsize,
         )
         if picked is None:
@@ -600,7 +625,7 @@ class SeriesSummingService:
             return np.dtype(np.float32)
 
         if operation == "sum":
-            return cls._sum_output_dtype(source_dtype, max_group_count)
+            return cls._sum_output_dtype(source_dtype, max_group_count, result_min, result_max)
 
         if operation == "median" and (
             np.issubdtype(source_dtype, np.integer)
