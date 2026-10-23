@@ -878,6 +878,7 @@
   "mask.popover.map_high": "High end of the colour map",
   "mask.popover.map_low": "Low end of the colour map",
   "mask.popover.map_middle": "Middle of the colour map",
+  "mask.popover.map_other": "Also in the colour map",
   "mask.popover.title": "Colour for {{name}}",
   "menu.file": "File",
   "menu.file.clear_recent": "Clear Recent Files",

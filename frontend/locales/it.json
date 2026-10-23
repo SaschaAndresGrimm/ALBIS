@@ -878,6 +878,7 @@
   "mask.popover.map_high": "Estremo alto della scala",
   "mask.popover.map_low": "Estremo basso della scala",
   "mask.popover.map_middle": "Centro della scala",
+  "mask.popover.map_other": "Anche nella scala",
   "mask.popover.title": "Colore per {{name}}",
   "menu.file": "File",
   "menu.file.clear_recent": "Svuota l'elenco",

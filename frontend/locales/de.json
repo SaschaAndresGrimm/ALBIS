@@ -878,6 +878,7 @@
   "mask.popover.map_high": "Oberes Ende der Farbskala",
   "mask.popover.map_low": "Unteres Ende der Farbskala",
   "mask.popover.map_middle": "Mitte der Farbskala",
+  "mask.popover.map_other": "Ebenfalls in der Farbskala",
   "mask.popover.title": "Farbe für {{name}}",
   "menu.file": "Datei",
   "menu.file.clear_recent": "Liste leeren",

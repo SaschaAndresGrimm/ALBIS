@@ -878,6 +878,7 @@
   "mask.popover.map_high": "Extremo alto da escala",
   "mask.popover.map_low": "Extremo baixo da escala",
   "mask.popover.map_middle": "Meio da escala",
+  "mask.popover.map_other": "Também na escala",
   "mask.popover.title": "Cor para {{name}}",
   "menu.file": "Arquivo",
   "menu.file.clear_recent": "Limpar a lista",

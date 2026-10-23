@@ -878,6 +878,7 @@
   "mask.popover.map_high": "Obers Änd vo dr Farbskala",
   "mask.popover.map_low": "Unders Änd vo dr Farbskala",
   "mask.popover.map_middle": "Mitti vo dr Farbskala",
+  "mask.popover.map_other": "Au i dr Farbskala",
   "mask.popover.title": "Farb für {{name}}",
   "menu.file": "Datei",
   "menu.file.clear_recent": "Lischt leere",

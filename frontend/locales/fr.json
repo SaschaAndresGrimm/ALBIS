@@ -878,6 +878,7 @@
   "mask.popover.map_high": "Haut de l'échelle de couleurs",
   "mask.popover.map_low": "Bas de l'échelle de couleurs",
   "mask.popover.map_middle": "Milieu de l'échelle de couleurs",
+  "mask.popover.map_other": "Aussi dans l'échelle de couleurs",
   "mask.popover.title": "Couleur pour {{name}}",
   "menu.file": "Fichier",
   "menu.file.clear_recent": "Effacer la liste",

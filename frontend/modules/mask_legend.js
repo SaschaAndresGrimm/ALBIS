@@ -8,7 +8,8 @@
  * full colour picker:
  *   - Stands out: colours chosen to contrast (mask_colors.CANDIDATES);
  *   - From the colour map: its low end, middle and high end -- to make a class
- *     blend in, gaps into the background, say;
+ *     blend in, gaps into the background, say (on a map with the same colour at
+ *     both ends, its most different colour instead of the high end);
  *   - Auto for that class.
  * A colour that blends into the map is labelled so, not refused: hiding is a
  * legitimate choice. Auto at the end of the row drops every hand-set colour.
@@ -154,11 +155,10 @@ export function createMaskLegend({
     mapLabel.textContent = t("mask.popover.from_map");
     const map = document.createElement("div");
     map.className = "mask-popover-swatches";
-    const ends = mapEndColors(state);
     map.append(
-      swatchButton(ends.low, t("mask.popover.map_low"), pick(ends.low), current),
-      swatchButton(ends.middle, t("mask.popover.map_middle"), pick(ends.middle), current),
-      swatchButton(ends.high, t("mask.popover.map_high"), pick(ends.high), current),
+      ...Object.entries(mapEndColors(state)).map(([where, rgb]) =>
+        swatchButton(rgb, t(`mask.popover.map_${where}`), pick(rgb), current),
+      ),
     );
 
     const actions = document.createElement("div");

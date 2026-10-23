@@ -176,7 +176,12 @@ export function setMaskColorOverride(state, cls, hex) {
   return next;
 }
 
-/** The colour map's own colours at its low end, middle and high end, as drawn (Invert Color included). */
+/**
+ * The colour map's own colours at its low end, middle and high end, as drawn
+ * (Invert Color included). A map whose ends are the same colour -- ALBULA HDR
+ * is white at both -- offers, instead of its high end, the map's colour least
+ * like the other two (black on ALBULA HDR), returned as `other`.
+ */
 export function mapEndColors(state) {
   const palette = buildPalette(String(state?.colormap || ""));
   const count = getPaletteColorCount(palette);
@@ -185,7 +190,20 @@ export function mapEndColors(state) {
     const i = Math.min(count - 1, Math.max(0, Math.round(n * (count - 1)))) * 4;
     return [palette[i], palette[i + 1], palette[i + 2]];
   };
-  return { low: at(0), middle: at(0.5), high: at(1) };
+  const low = at(0);
+  const middle = at(0.5);
+  const high = at(1);
+  if (colorDistance(low, high) >= CLEAR_OF_EACH_OTHER) return { low, middle, high };
+  let other = high;
+  let best = -1;
+  for (const color of paletteColors(palette)) {
+    const score = Math.min(colorDistance(color, low), colorDistance(color, middle));
+    if (score > best) {
+      other = color;
+      best = score;
+    }
+  }
+  return { low, middle, other };
 }
 
 /** Whether a colour is close enough to one of the map's to blend into the image. */

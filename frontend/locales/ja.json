@@ -878,6 +878,7 @@
   "mask.popover.map_high": "カラーマップの上端",
   "mask.popover.map_low": "カラーマップの下端",
   "mask.popover.map_middle": "カラーマップの中央",
+  "mask.popover.map_other": "カラーマップ内の別の色",
   "mask.popover.title": "{{name}}の色",
   "menu.file": "ファイル",
   "menu.file.clear_recent": "履歴を消去",

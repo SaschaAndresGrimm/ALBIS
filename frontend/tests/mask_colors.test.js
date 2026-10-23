@@ -72,6 +72,10 @@ describe("mask colours", () => {
     expect(mapEndColors({ colormap: "gray", invert: true }).low).toEqual([255, 255, 255]);
   });
 
+  it("offers black instead of a second white on ALBULA HDR, whose ends are both white", () => {
+    expect(mapEndColors({ colormap: "albulaHdr" })).toEqual({ low: [255, 255, 255], middle: [255, 0, 0], other: [0, 0, 0] });
+  });
+
   it("says which colours blend into the map, without refusing them", () => {
     expect(blendsWithMap({ colormap: "gray" }, [128, 128, 128])).toBe(true);
     expect(blendsWithMap({ colormap: "gray" }, [255, 0, 255])).toBe(false);

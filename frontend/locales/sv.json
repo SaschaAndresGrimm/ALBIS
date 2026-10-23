@@ -878,6 +878,7 @@
   "mask.popover.map_high": "Färgskalans övre ände",
   "mask.popover.map_low": "Färgskalans nedre ände",
   "mask.popover.map_middle": "Färgskalans mitt",
+  "mask.popover.map_other": "Också i färgskalan",
   "mask.popover.title": "Färg för {{name}}",
   "menu.file": "Fil",
   "menu.file.clear_recent": "Rensa listan",

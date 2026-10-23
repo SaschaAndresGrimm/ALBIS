@@ -878,6 +878,7 @@
   "mask.popover.map_high": "Farveskalaens øvre ende",
   "mask.popover.map_low": "Farveskalaens nedre ende",
   "mask.popover.map_middle": "Farveskalaens midte",
+  "mask.popover.map_other": "Også i farveskalaen",
   "mask.popover.title": "Farve til {{name}}",
   "menu.file": "Fil",
   "menu.file.clear_recent": "Ryd listen",

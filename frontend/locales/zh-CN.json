@@ -878,6 +878,7 @@
   "mask.popover.map_high": "色图高端",
   "mask.popover.map_low": "色图低端",
   "mask.popover.map_middle": "色图中间",
+  "mask.popover.map_other": "色图中的其他颜色",
   "mask.popover.title": "{{name}}的颜色",
   "menu.file": "文件",
   "menu.file.clear_recent": "清除最近文件",

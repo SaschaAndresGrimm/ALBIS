@@ -878,6 +878,7 @@
   "mask.popover.map_high": "Fin auta da la scala",
   "mask.popover.map_low": "Fin bassa da la scala",
   "mask.popover.map_middle": "Mesadad da la scala",
+  "mask.popover.map_other": "Era en la scala",
   "mask.popover.title": "Colur per {{name}}",
   "menu.file": "Datoteca",
   "menu.file.clear_recent": "Svidar la glista",
