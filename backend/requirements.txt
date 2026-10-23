@@ -1,8 +1,8 @@
-fastapi==0.143.0
+fastapi==0.148.0
 # Pinned explicitly: fastapi allows starlette>=0.46.0 unbounded, and
 # backend/response_compression.py subclasses starlette's compression responder,
 # whose apply_compression hook became a coroutine in 1.6.
-starlette==1.7.0
+starlette==1.9.0
 # Pinned for the same reason starlette is: starlette allows anyio<5 unbounded,
 # and 4.15 began deprecating the `anyio.abc.*` aliases its own testclient
 # touches at import. With pytest treating warnings as errors that turned an
@@ -15,11 +15,11 @@ python-multipart==0.0.32
 hdf5plugin==7.1.0
 h5py==3.16.0
 numpy==2.5.4
-tifffile==2026.9.20
+tifffile==2026.10.15
 fabio==2026.6.0
 cbor2==6.1.5
 pyzmq==27.2.0
-dectris-compression==0.3.1
+dectris-compression==0.4.0
 zstandard==0.25.0
 certifi==2026.10.19
 pyobjc==12.2.2; sys_platform == "darwin"
