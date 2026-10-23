@@ -313,6 +313,34 @@
             <canvas id="peak-overlay"></canvas>
             <canvas id="pixel-overlay"></canvas>
             <canvas id="roi-overlay"></canvas>
+            <canvas id="mask-edit-overlay"></canvas>
+            <div class="mask-edit-bar" id="mask-edit-bar" role="toolbar" aria-label="Edit pixel mask" data-i18n-aria-label="pixel_mask.edit.toolbar" hidden>
+              <span class="mask-edit-title" data-i18n="pixel_mask.edit.title">Edit mask</span>
+              <div class="toolbar-cluster">
+                <button type="button" class="tool-btn" data-mask-tool="brush" aria-pressed="true">✎</button>
+                <button type="button" class="tool-btn" data-mask-tool="box" aria-pressed="false">▭</button>
+                <button type="button" class="tool-btn" data-mask-tool="polygon" aria-pressed="false">⬠</button>
+                <button type="button" class="tool-btn" data-mask-tool="circle" aria-pressed="false">◯</button>
+                <select id="mask-edit-brush-size" data-i18n-aria-label="pixel_mask.edit.brush_size" aria-label="Brush size">
+                  <option value="1">1 px</option>
+                  <option value="3">3 px</option>
+                  <option value="5">5 px</option>
+                  <option value="9">9 px</option>
+                  <option value="15">15 px</option>
+                </select>
+              </div>
+              <div class="toolbar-cluster">
+                <button type="button" class="tool-btn mask-edit-mode" data-mask-mode="mask" aria-pressed="true" data-i18n="pixel_mask.edit.mode.mask">Mask</button>
+                <button type="button" class="tool-btn mask-edit-mode" data-mask-mode="unmask" aria-pressed="false" data-i18n="pixel_mask.edit.mode.unmask">Unmask</button>
+              </div>
+              <div class="toolbar-cluster">
+                <button type="button" class="tool-btn" id="mask-edit-undo">↶</button>
+                <button type="button" class="tool-btn" id="mask-edit-redo">↷</button>
+              </div>
+              <span class="mask-edit-count" id="mask-edit-count" aria-live="polite"></span>
+              <button type="button" class="btn btn-primary mask-edit-done" id="mask-edit-done" data-i18n="pixel_mask.edit.done">Done</button>
+              <span class="mask-edit-hint" id="mask-edit-hint"></span>
+            </div>
             <div class="splash" id="splash">
               <canvas id="splash-canvas"></canvas>
               <div class="splash-art" aria-hidden="true"></div>
@@ -924,6 +952,75 @@
                 </label>
               </div>
               <div class="field-hint rings-geometry-status is-hidden" id="geometry-file-status"></div>
+            </section>
+            <section class="panel-section is-collapsed" data-section="pixel-mask" id="pixel-mask-section" hidden>
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main">
+                  <span data-i18n="pixel_mask.section_title">Pixel Mask</span>
+                  <span class="detector-beta" data-i18n="detector.beta">Beta</span>
+                  <span class="section-summary" id="summary-pixel-mask"></span>
+                </span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="section-state is-empty" id="pixel-mask-state" role="status" aria-live="polite" data-i18n="pixel_mask.state.none">
+                Open data with a pixel mask, or load one.
+              </div>
+              <div class="pixel-mask-meta">
+                <div class="pixel-mask-source" id="pixel-mask-source" hidden></div>
+                <div class="pixel-mask-counts" id="pixel-mask-counts" hidden></div>
+                <div class="pixel-mask-edits" id="pixel-mask-edits" hidden></div>
+              </div>
+              <div class="pixel-mask-actions">
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-edit" aria-pressed="false" data-i18n="pixel_mask.action.edit">Edit on image</button>
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-find" aria-pressed="false" data-i18n="pixel_mask.action.find">Find bad pixels…</button>
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-discard" data-i18n="pixel_mask.action.discard" hidden>Discard edits</button>
+              </div>
+              <div class="pixel-mask-find" id="pixel-mask-find-panel" hidden>
+                <div class="pixel-mask-find-head">
+                  <span class="pixel-mask-find-title" data-i18n="pixel_mask.find.title">Find bad pixels</span>
+                  <button type="button" class="info-tip" data-info-key="info.pixel_mask_find" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
+                  <button type="button" class="pixel-mask-find-close" id="pixel-mask-find-close" data-i18n-aria-label="pixel_mask.find.close" aria-label="Close" data-i18n-title="pixel_mask.find.close" title="Close">✕</button>
+                </div>
+                <div class="pixel-mask-find-rules">
+                  <label class="pixel-mask-find-check">
+                    <input type="checkbox" id="pixel-mask-find-hot" checked />
+                    <span data-i18n="pixel_mask.find.hot">Hot pixels</span>
+                  </label>
+                  <input type="number" id="pixel-mask-find-hot-sigma" value="8" min="1" max="1000" step="1" inputmode="numeric"
+                         data-i18n-aria-label="pixel_mask.find.hot_unit" aria-label="σ above their surroundings" />
+                  <span class="pixel-mask-find-unit" data-i18n="pixel_mask.find.hot_unit">σ above their surroundings</span>
+                  <label class="pixel-mask-find-check">
+                    <input type="checkbox" id="pixel-mask-find-cold" checked />
+                    <span data-i18n="pixel_mask.find.cold">Dead and cold pixels</span>
+                  </label>
+                  <input type="number" id="pixel-mask-find-cold-percent" value="20" min="1" max="100" step="1" inputmode="numeric"
+                         data-i18n-aria-label="pixel_mask.find.cold_unit" aria-label="% of their surroundings or less" />
+                  <span class="pixel-mask-find-unit" data-i18n="pixel_mask.find.cold_unit">% of their surroundings or less</span>
+                </div>
+                <div class="pixel-mask-find-foot">
+                  <span class="pixel-mask-find-result" id="pixel-mask-find-result" role="status" aria-live="polite"></span>
+                  <button type="button" class="btn btn-primary inpaint-value-btn" id="pixel-mask-find-add" data-i18n="pixel_mask.find.add">Add to mask</button>
+                </div>
+              </div>
+              <div class="pixel-mask-actions pixel-mask-transfer">
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-load" data-i18n="pixel_mask.action.load">Load…</button>
+                <div class="pixel-mask-save">
+                  <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-save" aria-haspopup="menu" aria-expanded="false" aria-controls="pixel-mask-save-menu">
+                    <span data-i18n="pixel_mask.action.save">Save as</span> ▾
+                  </button>
+                  <div class="pixel-mask-save-menu" id="pixel-mask-save-menu" role="menu" hidden>
+                    <button type="button" role="menuitem" id="pixel-mask-save-tiff" data-i18n-title="pixel_mask.action.save_tiff" title="Save as TIFF">TIFF</button>
+                    <button type="button" role="menuitem" id="pixel-mask-save-h5" data-i18n-title="pixel_mask.action.save_h5" title="Save as HDF5">HDF5</button>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-send" data-i18n="pixel_mask.action.send" hidden>Send to detector…</button>
+                <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-use-data" data-i18n="pixel_mask.action.use_data" hidden>Use the data's mask</button>
+                <button type="button" class="info-tip" data-info-key="info.pixel_mask" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
+              </div>
+              <div class="detector-pixel-mask-backup" id="pixel-mask-backup" hidden>
+                <span id="pixel-mask-backup-text"></span>
+                <button class="linkish" type="button" id="pixel-mask-restore" data-i18n="pixel_mask.detector.restore">Restore</button>
+              </div>
             </section>
             <section class="panel-section inspector is-collapsed" data-section="inspector">
               <button class="section-title" type="button" data-section-toggle>
@@ -1652,6 +1749,27 @@
               <div id="detector-files"></div>
             </section>
 
+            <section class="panel-section detector-pixel-mask" data-section="detector-pixel-mask" id="detector-pixel-mask" hidden>
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main">
+                  <span data-i18n="pixel_mask.section_title">Pixel Mask</span>
+                  <span class="section-summary" id="detector-pixel-mask-summary" hidden></span>
+                </span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <p class="detector-pixel-mask-info" id="detector-pixel-mask-info"></p>
+              <div class="detector-actions">
+                <button class="btn btn-secondary" type="button" id="detector-pixel-mask-load" data-i18n="pixel_mask.detector.load">Use in ALBIS</button>
+                <button class="btn btn-secondary" type="button" id="detector-pixel-mask-send" data-i18n="pixel_mask.detector.send">Send ALBIS's mask…</button>
+                <button class="btn btn-secondary" type="button" id="detector-pixel-mask-clear" data-i18n="pixel_mask.detector.clear">Clear…</button>
+                <button type="button" class="info-tip" data-info-key="info.pixel_mask_detector" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
+              </div>
+              <div class="detector-pixel-mask-backup" id="detector-pixel-mask-backup" hidden>
+                <span id="detector-pixel-mask-backup-text"></span>
+                <button class="linkish" type="button" id="detector-pixel-mask-restore" data-i18n="pixel_mask.detector.restore">Restore</button>
+              </div>
+            </section>
+
             <section class="panel-section detector-extra is-collapsed" data-section="detector-commands" hidden>
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main"><span data-i18n="detector.section.commands">Commands</span></span>
@@ -2174,6 +2292,10 @@
               <label class="checkbox settings-check">
                 <input id="settings-detector-control" type="checkbox" />
                 <span data-i18n="settings.viewer.detector_control">Beta: detector control, for quick tests (shows the Detector tab)</span>
+              </label>
+              <label class="checkbox settings-check">
+                <input id="settings-pixel-mask" type="checkbox" />
+                <span data-i18n="settings.tools.pixel_mask">Beta: pixel masks, to load, save and send to a detector (shows Data → Pixel Mask)</span>
               </label>
             </div>
           </div>

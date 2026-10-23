@@ -125,7 +125,8 @@ These change whenever there is a reason, including in a patch release:
 - **Translations.** Wording changes in any release; the keys behind them are
   internal.
 - **Beta features.** The Detector tab, its `/api/detector/*` endpoints and the
-  `ui.detector_control` key may change or go away in any release, without a
+  `ui.detector_control` key, and Data → Pixel Mask, its `/api/pixel-mask/*`
+  endpoints and the `ui.pixel_mask` key, may change or go away in any release, without a
   deprecation period, until they lose the beta label. The simulated detector
   (`test_scripts/fake_simplon_dcu.py`, `tests/fake_simplon.py`) is a test tool,
   not an interface.

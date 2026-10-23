@@ -527,6 +527,20 @@ class DetectorConfigRequest(_StrictModel):
     value: bool | int | float | str
 
 
+class PixelMaskDetectorWriteResponse(_StrictModel):
+    """What sending a pixel mask to a detector did (beta pixel masks)."""
+
+    # The key the mask went to: `pixel_mask`, or `threshold/1/pixel_mask` on a
+    # detector that answers only that.
+    key: str
+    masked: int
+    previous_masked: int
+    # The detector's mask before, saved in the data root.
+    backup: str
+    # Read back after the write, it equals what was sent.
+    verified: bool
+
+
 class DetectorSeriesFetchRequest(_StrictModel):
     """Copy one series' files from the detector to open them (beta detector control)."""
 

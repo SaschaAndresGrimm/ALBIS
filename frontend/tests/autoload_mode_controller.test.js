@@ -348,6 +348,8 @@ describe("autoload_mode_controller", () => {
     await i18n.initializeI18n({ backendLanguage: "en" });
     const { createAutoloadModeController } = await import("../modules/autoload_mode_controller.js");
     const appendLiveFrame = vi.fn(() => ({ appended: true, rendered: true }));
+    const fetchSimplonMask = vi.fn();
+    appendLiveFrame.fetchSimplonMask = fetchSimplonMask;
     let polled = 0;
     const controller = createAutoloadModeController({
       apiBase: "/api",
@@ -368,7 +370,7 @@ describe("autoload_mode_controller", () => {
         setAutoloadLatest: vi.fn(),
         updateAutoloadMeta: vi.fn(),
         loadAutoloadFile: vi.fn(),
-        fetchSimplonMask: vi.fn(),
+        fetchSimplonMask,
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint32Array(buffer),
@@ -394,6 +396,12 @@ describe("autoload_mode_controller", () => {
     const appendLiveFrame = await pollSparseFrames((poll) => ({ series: "157", image: String(48 + Math.min(poll, 1)), date: "" }));
     // Frame 48, frame 49, then frame 49 again: two frames shown, not one.
     expect(appendLiveFrame).toHaveBeenCalledTimes(2);
+  });
+
+  it("fetches the detector's mask again when a new series starts, not for each frame", async () => {
+    const appendLiveFrame = await pollSparseFrames((poll) => ({ series: poll < 2 ? "157" : "158", image: String(poll), date: "" }));
+    // Series 157, 157, then 158: the mask may have changed in between.
+    expect(appendLiveFrame.fetchSimplonMask).toHaveBeenCalledTimes(1);
   });
 
   it("shows each new frame of a sparse acquisition without detector numbering", async () => {

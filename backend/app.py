@@ -85,6 +85,7 @@ from .routes.frames import FrameRouteDeps, register_frame_routes
 from .routes.handoff import HandoffRouteDeps, register_handoff_routes
 from .routes.hdf5 import HDF5RouteDeps, register_hdf5_routes
 from .routes.known_detectors import KnownDetectorRouteDeps, register_known_detector_routes
+from .routes.pixel_mask import PixelMaskRouteDeps, register_pixel_mask_routes
 from .routes.stream import StreamRouteDeps, register_stream_routes
 from .routes.system import SystemRouteDeps, register_system_routes
 from .services import simplon_control
@@ -175,6 +176,7 @@ class RuntimeState:
     allow_update_download: bool = True
     allow_update_apply: bool = False
     detector_control: bool = False
+    pixel_mask: bool = False
     bind_host: str = "127.0.0.1"
     allowed_hosts: list[str] = field(default_factory=list)
 
@@ -196,6 +198,7 @@ class RuntimeState:
         self.max_upload_bytes = self.max_upload_mb * 1024 * 1024 if self.max_upload_mb > 0 else 0
         self.allow_update_download = get_bool(self.config, ("ui", "allow_update_download"), True)
         self.detector_control = get_bool(self.config, ("ui", "detector_control"), False)
+        self.pixel_mask = get_bool(self.config, ("ui", "pixel_mask"), False)
 
 
 runtime_state = RuntimeState(
@@ -840,6 +843,21 @@ register_detector_control_routes(
         logger=logger,
         enabled=lambda: runtime_state.detector_control,
         runner=simplon_control.CommandRunner(),
+        data_dir=lambda: runtime_state.data_dir,
+        invalidate_scans=scan_cache.clear,
+    ),
+)
+
+
+register_pixel_mask_routes(
+    app,
+    PixelMaskRouteDeps(
+        logger=logger,
+        enabled=lambda: runtime_state.pixel_mask,
+        detector_enabled=lambda: runtime_state.detector_control,
+        get_h5py=_get_h5py,
+        resolve_image_file=_resolve_image_file,
+        find_pixel_mask=_find_pixel_mask,
         data_dir=lambda: runtime_state.data_dir,
         invalidate_scans=scan_cache.clear,
     ),

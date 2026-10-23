@@ -109,6 +109,7 @@ function createUiPreferencesState() {
     toolHintsEnabled: false,
     autoCheckUpdates: true,
     detectorControl: false,
+    pixelMask: false,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,
     frameCacheMb: 256,
@@ -253,6 +254,8 @@ function createAutoloadState() {
     lastRemoteSeq: 0,
     lastJfjochSeq: 0,
     lastMaskAttempt: 0,
+    // The SIMPLON address and series the live mask was last fetched for.
+    maskSeriesKey: "",
     simplonMeta: {},
     historyEntries: [],
     historyCapacity: 8,

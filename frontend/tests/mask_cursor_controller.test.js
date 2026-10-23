@@ -301,3 +301,103 @@ describe("mask_cursor_controller mask request races", () => {
     expect(state.maskAvailable).toBe(false);
   });
 });
+
+describe("mask_cursor_controller with a pinned mask (Data -> Pixel Mask)", () => {
+  function build(state, pinned, extraElements = {}) {
+    const callbacks = {
+      isHdfFile: vi.fn(() => true),
+      parseDtype: vi.fn(),
+      parseShape: vi.fn(),
+      typedArrayFrom: vi.fn(),
+      getActiveSaturationMax: vi.fn(() => null),
+      updateGlobalStats: vi.fn(),
+      redraw: vi.fn(),
+      scheduleRoiUpdate: vi.fn(),
+      getDtypeInfo: vi.fn(),
+      formatValue: vi.fn(),
+      isSaturatedValue: vi.fn(() => false),
+      getResolutionAtPixel: vi.fn(() => null),
+      getEffectiveScrollLeft: vi.fn(() => 0),
+      getEffectiveScrollTop: vi.fn(() => 0),
+      setAutoloadStatus: vi.fn(),
+      getPinnedMask: vi.fn(() => pinned.current),
+      onMaskChanged: vi.fn(),
+    };
+    const controller = createMaskCursorController({
+      apiBase: "/api",
+      state,
+      elements: { maskToggle: document.createElement("input"), ...extraElements },
+      callbacks,
+    });
+    return { controller, callbacks };
+  }
+
+  it("uses the pinned mask instead of fetching the file's", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const pinned = { current: { data: new Uint32Array([0, 1, 0, 2]), shape: [2, 2], name: "beamstop" } };
+    const state = { file: "run_master.h5", width: 2, height: 2, hasFrame: true, maskAuto: true };
+    const { controller, callbacks } = build(state, pinned);
+
+    await controller.loadMask(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(Array.from(state.maskRaw)).toEqual([0, 1, 0, 2]);
+    expect(state.maskAvailable).toBe(true);
+    expect(state.maskEnabled).toBe(true);
+    expect(controller.isPinnedMaskInUse()).toBe(true);
+    expect(callbacks.onMaskChanged).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("puts the pinned mask back when a new file or live frame cleared it", () => {
+    const pinned = { current: { data: new Uint32Array([1, 0, 0, 0]), shape: [2, 2], name: "m" } };
+    const state = { file: "a.h5", width: 2, height: 2 };
+    const { controller } = build(state, pinned);
+    controller.clearMaskState();
+    expect(state.maskRaw).toBeNull();
+    // What every frame goes through:
+    controller.alignMaskToFrame();
+    expect(Array.from(state.maskRaw)).toEqual([1, 0, 0, 0]);
+  });
+
+  it("goes back to the file's own mask once unpinned", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      headers: { get: (name) => ({ "X-Dtype": "<u4", "X-Shape": "2,2" })[name] ?? null },
+      arrayBuffer: async () => new Uint32Array([0, 0, 0, 8]).buffer,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const pinned = { current: { data: new Uint32Array([1, 1, 1, 1]), shape: [2, 2], name: "m" } };
+    const state = { file: "run_master.h5", width: 2, height: 2, hasFrame: true };
+    const { controller, callbacks } = build(state, pinned);
+    callbacks.parseDtype.mockImplementation((value) => value);
+    callbacks.parseShape.mockImplementation((value) => value.split(",").map(Number));
+    callbacks.typedArrayFrom.mockImplementation((buffer) => new Uint32Array(buffer));
+    await controller.refreshPinnedMask();
+    expect(Array.from(state.maskRaw)).toEqual([1, 1, 1, 1]);
+
+    pinned.current = null;
+    await controller.refreshPinnedMask();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(Array.from(state.maskRaw)).toEqual([0, 0, 0, 8]);
+    expect(controller.isPinnedMaskInUse()).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("does not fetch a live detector's mask over a pinned one", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const simplonUrl = document.createElement("input");
+    simplonUrl.value = "192.168.1.10";
+    const pinned = { current: { data: new Uint32Array([1]), shape: [1, 1], name: "m" } };
+    const { controller } = build({ width: 1, height: 1, autoload: {} }, pinned, { simplonUrl });
+    await controller.fetchSimplonMask();
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Unpinned, the same call does ask the detector.
+    pinned.current = null;
+    fetchMock.mockResolvedValue({ status: 204, ok: true });
+    await controller.fetchSimplonMask();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+});

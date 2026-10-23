@@ -221,6 +221,23 @@ guard as the rest of the API.
 - `POST /api/detector/series/fetch`: copy one series into `detector/<address>/` in the data
   root and return its master file's path, to open like any file
 
+## Pixel Masks (beta)
+
+Not a contract either: these endpoints exist for the beta Data → Pixel Mask
+section and may change or go away in any release. They answer `404` unless
+`ui.pixel_mask` is on; the two detector endpoints also need
+`ui.detector_control`. A mask travels as raw little-endian uint32 in C order,
+described by `X-Dtype` and `X-Shape`, with `X-Mask-Path` naming where it was
+found; uploads are multipart, a `meta` JSON field beside the `pixels`.
+
+- `GET /api/pixel-mask/file?file=&threshold=`: the mask in an HDF5 file or a TIFF; in a file
+  with one mask per energy threshold, that of `threshold` (0-based), else the first
+- `POST /api/pixel-mask/encode`: the uploaded mask as an `h5` or `tiff` file to download
+- `GET /api/pixel-mask/detector?url=&version=`: the detector's mask over SIMPLON
+- `POST /api/pixel-mask/detector`: replace it, refused while the detector is busy or for a
+  mask of another size; the previous one is kept in `masks/backups/` in the data root, and
+  the answer says whether the detector read back what was sent
+
 ## JUNGFRAUJOCH Endpoint Diagnostics
 
 - `GET /api/jfjoch/probe`: reachability check for a preview endpoint. `endpoint` accepts a bare

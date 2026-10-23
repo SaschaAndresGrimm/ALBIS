@@ -41,7 +41,15 @@ export function createMaskCursorController({
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
     setAutoloadStatus,
+    // Data -> Pixel Mask (beta): a mask the user chose, used instead of the
+    // data's own until they go back to it; null when there is none.
+    getPinnedMask = () => null,
+    onMaskChanged = () => {},
+    // " · masked by you" for a pixel changed by hand, or "".
+    getCursorNote = () => "",
   } = callbacks;
+
+  const PINNED_MASK_KEY = "__pixel_mask__";
 
   function formatCursorValue(value) {
     if (!Number.isFinite(value)) return "";
@@ -121,7 +129,20 @@ export function createMaskCursorController({
     return applied || base ? mask : null;
   }
 
+  /** Put the chosen mask in place of whatever the data brought. */
+  function installPinnedMask(pinned) {
+    maskRequestId += 1;
+    state.maskRaw = pinned.data;
+    state.maskShape = pinned.shape.slice();
+    state.maskFile = PINNED_MASK_KEY;
+    state.maskPath = pinned.name || "";
+  }
+
   function alignMaskToFrame() {
+    // Every frame passes through here: a file change or a live frame that
+    // brought its own mask does not replace the one chosen.
+    const pinned = getPinnedMask();
+    if (pinned && state.maskFile !== PINNED_MASK_KEY) installPinnedMask(pinned);
     if (
       !state.maskRaw ||
       !Array.isArray(state.maskShape) ||
@@ -177,6 +198,7 @@ export function createMaskCursorController({
         hasSatMax ? "" : t("view.mask_saturated_unavailable_hint")
       );
     }
+    onMaskChanged();
   }
 
   function syncMaskAvailability(forceEnable = false) {
@@ -221,7 +243,39 @@ export function createMaskCursorController({
     updateMaskUI();
   }
 
+  function redrawWithMask() {
+    if (!state.hasFrame) return;
+    updateGlobalStats();
+    redraw();
+    scheduleRoiUpdate();
+  }
+
+  /**
+   * Use the chosen mask now, or -- with none chosen any more -- the data's own
+   * again. Pinning switches Apply mask on: choosing a mask is asking to see it.
+   */
+  async function refreshPinnedMask() {
+    const pinned = getPinnedMask();
+    if (pinned) {
+      installPinnedMask(pinned);
+      alignMaskToFrame();
+      syncMaskAvailability(true);
+      redrawWithMask();
+      return;
+    }
+    if (state.maskFile !== PINNED_MASK_KEY) return;
+    clearMaskState();
+    await loadMask(true);
+    redrawWithMask();
+  }
+
   async function loadMask(forceEnable = false) {
+    if (getPinnedMask()) {
+      if (state.maskFile !== PINNED_MASK_KEY) installPinnedMask(getPinnedMask());
+      alignMaskToFrame();
+      syncMaskAvailability(forceEnable);
+      return;
+    }
     if (!state.file || !isHdfFile(state.file)) {
       clearMaskState();
       return;
@@ -395,12 +449,12 @@ export function createMaskCursorController({
       y: iy,
       value: labelValue,
       resolutionText,
-    });
+    }) + (getCursorNote(idx) || "");
     showCursorOverlay(label, event.clientX, event.clientY);
   }
 
   async function fetchSimplonMask() {
-    if (!simplonUrl) return;
+    if (!simplonUrl || getPinnedMask()) return;
     const baseUrl = normalizeSimplonUrlInput(simplonUrl);
     if (!baseUrl) return;
     const version = simplonVersion?.value?.trim() || "1.8.0";
@@ -446,6 +500,8 @@ export function createMaskCursorController({
     syncMaskAvailability,
     clearMaskState,
     loadMask,
+    refreshPinnedMask,
+    isPinnedMaskInUse: () => state.maskFile === PINNED_MASK_KEY,
     fetchSimplonMask,
     snapHistogramValue,
     showHistTooltip,

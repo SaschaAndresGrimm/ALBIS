@@ -45,6 +45,7 @@ export function createSettingsController({
     settingsAllowUpdateApply,
     settingsToolHints,
     settingsDetectorControl,
+    settingsPixelMask,
     settingsHiddenTools,
     settingsLanguage,
     settingsPixelLabelMin,
@@ -72,6 +73,7 @@ export function createSettingsController({
     schedulePixelOverlay,
     applyLanguagePreference,
     setDetectorControlEnabled,
+    setPixelMaskEnabled,
     setHiddenTools,
   } = callbacks;
 
@@ -235,6 +237,7 @@ export function createSettingsController({
       "logging.dir": settingsLogDir,
       "ui.tool_hints": settingsToolHints,
       "ui.detector_control": settingsDetectorControl,
+      "ui.pixel_mask": settingsPixelMask,
       "ui.hidden_tools": settingsHiddenTools,
       "ui.auto_check_updates": settingsAutoCheckUpdates,
       "ui.allow_update_download": settingsAllowUpdateDownload,
@@ -394,6 +397,9 @@ export function createSettingsController({
     if (settingsDetectorControl) {
       settingsDetectorControl.checked = Boolean(config?.ui?.detector_control ?? state.detectorControl ?? false);
     }
+    if (settingsPixelMask) {
+      settingsPixelMask.checked = Boolean(config?.ui?.pixel_mask ?? state.pixelMask ?? false);
+    }
     fillHiddenTools(config?.ui?.hidden_tools ?? state.hiddenTools ?? []);
     if (settingsLanguage) {
       settingsLanguage.value = String(config?.ui?.language ?? state.language ?? "en");
@@ -492,6 +498,7 @@ export function createSettingsController({
         ...(loadedConfig?.ui || {}),
         tool_hints: Boolean(settingsToolHints?.checked),
         detector_control: Boolean(settingsDetectorControl?.checked),
+        ...(settingsPixelMask ? { pixel_mask: Boolean(settingsPixelMask.checked) } : {}),
         ...(settingsHiddenTools ? { hidden_tools: collectHiddenTools() } : {}),
         auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
         allow_update_download: Boolean(settingsAllowUpdateDownload?.checked),
@@ -530,6 +537,10 @@ export function createSettingsController({
     if (typeof cfg.detector_control !== "undefined") {
       state.detectorControl = Boolean(cfg.detector_control);
       setDetectorControlEnabled?.(state.detectorControl);
+    }
+    if (typeof cfg.pixel_mask !== "undefined") {
+      state.pixelMask = Boolean(cfg.pixel_mask);
+      setPixelMaskEnabled?.(state.pixelMask);
     }
     if (typeof cfg.hidden_tools !== "undefined") {
       setHiddenTools?.(normalizeHiddenTools(cfg.hidden_tools));

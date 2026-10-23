@@ -210,6 +210,11 @@
           "default": false,
           "description": "Beta: show the Detector tab, which controls a DECTRIS detector over the SIMPLON API."
         },
+        "pixel_mask": {
+          "type": "boolean",
+          "default": false,
+          "description": "Beta: show Data -> Pixel Mask, to load, save and (with detector_control) send a detector's pixel mask."
+        },
         "hidden_tools": {
           "type": "array",
           "items": { "type": "string", "enum": ["rings", "peaks", "flatfield", "inpainting", "combine"] },
@@ -281,6 +286,7 @@
       "pixel_label_show_during_drag": false,
       "language": "en",
       "detector_control": false,
+      "pixel_mask": false,
       "hidden_tools": [],
       "known_detectors_file": ""
     }

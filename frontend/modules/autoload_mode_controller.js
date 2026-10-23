@@ -195,6 +195,18 @@ export function createAutoloadModeController({
     const data = typedArrayFrom(buffer, dtype);
     const parsed = parseSimplonMeta(res.headers);
     const simplonMeta = parsed.meta || {};
+    // A new series may come with another pixel mask: changed by the Pixel
+    // Mask section, or by any other software. The mask is otherwise fetched
+    // only while there is none, so it is asked for again here.
+    if (simplonMeta.series !== "" && simplonMeta.series != null) {
+      const maskKey = `${baseUrl}#${simplonMeta.series}`;
+      const previous = state.autoload.maskSeriesKey;
+      state.autoload.maskSeriesKey = maskKey;
+      if (previous && previous !== maskKey) {
+        state.autoload.lastMaskAttempt = Date.now();
+        await fetchSimplonMask();
+      }
+    }
     const sig = simplonFrameIdentity(simplonMeta, buffer);
     const changed = sig !== state.autoload.lastMonitorSig;
     if (!state.autoload.loggedSimplonHeaders) {

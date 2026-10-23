@@ -554,7 +554,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     advancedHost,
     commandsHost,
   } = elements;
-  const { getPanelTab, setPanelTab, watchLive, refreshInfoTips, openPath } = callbacks;
+  const { getPanelTab, setPanelTab, watchLive, refreshInfoTips, openPath, onChange } = callbacks;
 
   let enabled = false;
   let url = "";
@@ -914,6 +914,7 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     log(t("detector.log.connected", { detector: name }));
     if (live) live.hidden = false;
     sections?.forEach((section) => { section.hidden = false; });
+    onChange?.();
     schedulePoll();
     await refreshFiles();
   }
@@ -1621,6 +1622,8 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderRecovery(value);
     const locked = isBusy() || acquiring || quickRunning;
     if (lockNote) lockNote.hidden = !locked;
+    // The Pixel Mask section on this tab sends only while nothing runs.
+    onChange?.();
     quickBox?.querySelectorAll("input[id^='detector-quick-']").forEach((input) => {
       input.disabled = quickRunning;
     });
@@ -2686,10 +2689,25 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     } else if (url) {
       schedulePoll();
     }
+    onChange?.();
+  }
+
+  /** The detector this tab is connected to, for the Pixel Mask section; null if none. */
+  function getConnection() {
+    if (!enabled || !isConnected()) return null;
+    return {
+      url,
+      version,
+      serial: displayValue(params.detector.detector_number),
+      model: displayValue(params.detector.description),
+      locked: isBusy() || acquiring || quickRunning,
+    };
   }
 
   return {
     setEnabled,
+    getConnection,
+    log,
     connect,
     poll,
     refreshDescription,

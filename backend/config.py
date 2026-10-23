@@ -74,6 +74,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # Beta: the Detector tab, which drives a detector over SIMPLON. Off
         # unless switched on, so a default installation cannot control one.
         "detector_control": False,
+        # Beta: Data -> Pixel Mask, to load, save and (with detector control)
+        # send a detector's pixel mask. Off unless switched on.
+        "pixel_mask": False,
         "hidden_tools": [],
         # The shared list of known detectors; empty means
         # ~/.config/albis/known_detectors.json. A relative path is taken from
@@ -122,6 +125,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("ui", "pixel_label_show_during_drag"): (bool, int, float, str),
     ("ui", "language"): (str,),
     ("ui", "detector_control"): (bool, int, float, str),
+    ("ui", "pixel_mask"): (bool, int, float, str),
     ("ui", "hidden_tools"): (list, str),
     ("ui", "known_detectors_file"): (str,),
 }
@@ -460,6 +464,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             ),
             "language": ui_language,
             "detector_control": get_bool(merged, ("ui", "detector_control"), False),
+            "pixel_mask": get_bool(merged, ("ui", "pixel_mask"), False),
             "hidden_tools": _normalize_hidden_tools(get_nested(merged, ("ui", "hidden_tools"), [])),
             "known_detectors_file": get_str(merged, ("ui", "known_detectors_file"), "").strip(),
         },

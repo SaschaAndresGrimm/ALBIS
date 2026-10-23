@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Beta: pixel masks.** A new **Data → Pixel Mask** section shows the pixel mask ALBIS applies, where it came from and what it masks: gaps, defective and other pixels. **Load…** uses a mask from an HDF5 or TIFF file for every image instead of the data's own (from a master file with one mask per threshold, the one for the threshold shown), until **Use the data's mask**. **Save as HDF5** and **Save as TIFF** download the mask in use, with every pixel's reason bits kept. With detector control on, the Detector tab gets a **Pixel Mask** section too. **Use in ALBIS** reads the detector's mask, and **Send ALBIS's mask…** replaces it, after a confirmation that counts the pixels masked, unmasked and changed. Sending only works while the detector is idle and refuses a mask of another size. The detector's previous mask is first saved to `masks/backups/` in the data folder, and **Restore** sends it back. Afterwards the mask is read back from the detector to confirm the write. **Edit on image** masks and unmasks pixels by hand on the image, with a pixel brush, a box, a polygon or a circle. Alt switches between masking and unmasking, Space pans, and every stroke can be undone. Changed pixels are marked while editing, and the section counts them until **Discard edits**. **Find bad pixels…** finds hot, dead and cold pixels in the image shown, each judged against its 32 × 32 pixel neighbourhood, circles them, and adds them to the mask in one step. **Send to detector…** in the section sends the mask to the Detector tab's detector, or to the one the SIMPLON monitor shows. **Clear…** on the Detector tab unmasks everything on the detector except its module gaps. Off by default: switch it on under **Settings → Tools → Beta: pixel masks**.
+
+### Fixed
+
+- **The SIMPLON monitor shows a detector's new pixel mask.** The live view fetched the detector's mask once and kept it, so a mask changed on the detector -- by Pixel Mask's Send or Clear, or by other software -- still showed on every image that followed. It now fetches the mask again with each new series, and at once after a write from ALBIS.
+- **A SIMPLON monitor without an image yet answers "no frame".** Its "no image" reply (HTTP 204) was taken for an image and failed to decode, logged as a server error on every poll until the first series.
+
 ## [0.34.1] - 2026-10-22
 
 ### Changed

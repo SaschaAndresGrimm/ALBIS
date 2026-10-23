@@ -81,12 +81,15 @@ import { createOverviewViewportController } from "./modules/overview_viewport_co
 import { getCircularRoiOuterRadius, getRoiImageBounds } from "./modules/roi_geometry_utils.js";
 import { createImageExportController } from "./modules/image_export_controller.js";
 import { createDetectorControlController } from "./modules/detector_control_controller.js";
+import { createPixelMaskController, hostOf } from "./modules/pixel_mask_controller.js";
+import { createPixelMaskEditController } from "./modules/pixel_mask_edit_controller.js";
 import { knownDetectors } from "./modules/known_detectors.js";
 import { createInpaintView } from "./modules/inpainting.js";
 import { createInpaintingController } from "./modules/inpainting_controller.js";
 import { startPresence } from "./modules/presence.js";
 import { bindColorbarWindowInteractions } from "./modules/colorbar_window_bindings.js";
 import { createMaskLegend } from "./modules/mask_legend.js";
+import { currentMaskColors } from "./modules/mask_colors.js";
 import { createRingListController } from "./modules/ring_list_controller.js";
 import { createAnalysisToolsController } from "./modules/analysis_tools.js";
 import { createFlatfieldController } from "./modules/flatfield_controller.js";
@@ -613,6 +616,7 @@ const settingsAllowUpdateDownload = document.getElementById("settings-allow-upda
 const settingsAllowUpdateApply = document.getElementById("settings-allow-update-apply");
 const settingsToolHints = document.getElementById("settings-tool-hints");
 const settingsDetectorControl = document.getElementById("settings-detector-control");
+const settingsPixelMask = document.getElementById("settings-pixel-mask");
 const settingsHiddenTools = document.getElementById("settings-hidden-tools");
 const settingsLanguage = document.getElementById("settings-language");
 const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
@@ -697,6 +701,8 @@ let sectionStateStore = {};
 let roiDragging = false;
 let panelTabState = "view";
 let detectorControlController = null;
+let pixelMaskController = null;
+let pixelMaskEditController = null;
 const coarsePointerQuery = window.matchMedia("(hover: none), (pointer: coarse)");
 const overlayCanvasMetrics = new WeakMap();
 const modalFocusRestore = new WeakMap();
@@ -1285,6 +1291,10 @@ const maskCursorController = createMaskCursorController({
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
     setAutoloadStatus,
+    // Late-bound: the Pixel Mask section is created after this controller.
+    getPinnedMask: () => pixelMaskController?.getPinnedMask() || null,
+    onMaskChanged: () => pixelMaskController?.render(),
+    getCursorNote: (index) => pixelMaskController?.cursorNote(index) || "",
   },
 });
 
@@ -1363,6 +1373,8 @@ const roiInteractionController = createRoiInteractionController({
 
 function scheduleRoiOverlay() {
   roiInteractionController.scheduleRoiOverlay();
+  // Redrawn with the view like the ROI: the pixel mask editor's overlay.
+  pixelMaskEditController?.scheduleDraw();
 }
 
 function drawRoiOverlay() {
@@ -1947,6 +1959,9 @@ function syncSplashHintMode() {
 function refreshLocalizedUi() {
   syncSplashHintMode();
   applyI18nToDom(document);
+  // Built from t() with counts and key names, not from data-i18n alone.
+  pixelMaskController?.render();
+  pixelMaskEditController?.localize();
   localizePlaybackOptionLabels();
   refreshHelpTooltips();
   updateRoiModeUI();
@@ -3373,6 +3388,7 @@ const settingsController = createSettingsController({
     settingsAllowUpdateApply,
     settingsToolHints,
     settingsDetectorControl,
+    settingsPixelMask,
     settingsHiddenTools,
     settingsLanguage,
     settingsPixelLabelMin,
@@ -3400,6 +3416,7 @@ const settingsController = createSettingsController({
     applyLanguagePreference,
     // Late-bound: settings can be applied before the controller below exists.
     setDetectorControlEnabled: (enabled) => detectorControlController?.setEnabled(enabled),
+    setPixelMaskEnabled: (enabled) => pixelMaskController?.setEnabled(enabled),
     // Kept in state too: settings can arrive before the Analysis tools exist,
     // and are applied when they do.
     setHiddenTools: (hiddenTools) => {
@@ -3486,9 +3503,123 @@ detectorControlController = createDetectorControlController({
         void startAutoload();
       }
     },
+    onChange: () => pixelMaskController?.render(),
   },
 });
 detectorControlController.setEnabled(state.detectorControl);
+
+// Beta: Data -> Pixel Mask, and its section on the Detector tab. Hidden until
+// ui.pixel_mask is on; the backend refuses its endpoints until then too.
+pixelMaskController = createPixelMaskController({
+  apiBase: API,
+  state,
+  isBackendLocal: () => backendIsLocal,
+  elements: {
+    section: document.getElementById("pixel-mask-section"),
+    summaryChip: document.getElementById("summary-pixel-mask"),
+    stateEl: document.getElementById("pixel-mask-state"),
+    sourceEl: document.getElementById("pixel-mask-source"),
+    countsEl: document.getElementById("pixel-mask-counts"),
+    loadBtn: document.getElementById("pixel-mask-load"),
+    saveBtn: document.getElementById("pixel-mask-save"),
+    saveMenu: document.getElementById("pixel-mask-save-menu"),
+    saveH5Btn: document.getElementById("pixel-mask-save-h5"),
+    saveTiffBtn: document.getElementById("pixel-mask-save-tiff"),
+    useDataBtn: document.getElementById("pixel-mask-use-data"),
+    detSection: document.getElementById("detector-pixel-mask"),
+    detSummary: document.getElementById("detector-pixel-mask-summary"),
+    detInfo: document.getElementById("detector-pixel-mask-info"),
+    detLoadBtn: document.getElementById("detector-pixel-mask-load"),
+    detSendBtn: document.getElementById("detector-pixel-mask-send"),
+    detBackup: document.getElementById("detector-pixel-mask-backup"),
+    detBackupText: document.getElementById("detector-pixel-mask-backup-text"),
+    detRestoreBtn: document.getElementById("detector-pixel-mask-restore"),
+    detClearBtn: document.getElementById("detector-pixel-mask-clear"),
+    editBtn: document.getElementById("pixel-mask-edit"),
+    discardBtn: document.getElementById("pixel-mask-discard"),
+    editsEl: document.getElementById("pixel-mask-edits"),
+    sendBtn: document.getElementById("pixel-mask-send"),
+    backupRow: document.getElementById("pixel-mask-backup"),
+    backupText: document.getElementById("pixel-mask-backup-text"),
+    restoreBtn: document.getElementById("pixel-mask-restore"),
+    findBtn: document.getElementById("pixel-mask-find"),
+    findPanel: document.getElementById("pixel-mask-find-panel"),
+    findHot: document.getElementById("pixel-mask-find-hot"),
+    findHotSigma: document.getElementById("pixel-mask-find-hot-sigma"),
+    findCold: document.getElementById("pixel-mask-find-cold"),
+    findColdPercent: document.getElementById("pixel-mask-find-cold-percent"),
+    findResultEl: document.getElementById("pixel-mask-find-result"),
+    findAddBtn: document.getElementById("pixel-mask-find-add"),
+    findCloseBtn: document.getElementById("pixel-mask-find-close"),
+  },
+  callbacks: {
+    refreshMask: () => maskCursorController.refreshPinnedMask(),
+    getDetector: () => detectorControlController?.getConnection() || null,
+    onDetectorMaskWritten: (url) => {
+      const autoload = state.autoload || {};
+      if (autoload.running && autoload.mode === "simplon" && hostOf(autoload.simplonUrl) === hostOf(url)) {
+        state.autoload.lastMaskAttempt = Date.now();
+        void maskCursorController.fetchSimplonMask();
+      }
+    },
+    // Watching a detector live with detector control on: send to that one.
+    getMonitorDetector: () => {
+      const autoload = state.autoload || {};
+      if (!state.detectorControl || !autoload.running || autoload.mode !== "simplon" || !autoload.simplonUrl) return null;
+      return { url: autoload.simplonUrl, version: autoload.simplonVersion || "1.8.0", serial: "", model: "", locked: false };
+    },
+    logDetector: (text, kind) => detectorControlController?.log(text, kind),
+    setStatus,
+    setSummaryChip,
+    setSectionBadgeState,
+    openFileDialog: (...args) => openFileDialog(...args),
+    openEditor: () => pixelMaskEditController?.open() || false,
+    closeEditor: (options) => pixelMaskEditController?.close(options),
+    resetEditor: () => pixelMaskEditController?.reset(),
+    isEditing: () => Boolean(pixelMaskEditController?.active),
+    setMarkers: (markers) => pixelMaskEditController?.setMarkers(markers),
+  },
+});
+
+// Data -> Pixel Mask -> Edit on image: the toolbar over the image.
+const maskEditBar = document.getElementById("mask-edit-bar");
+pixelMaskEditController = createPixelMaskEditController({
+  state,
+  isMac: isMacPlatform,
+  elements: {
+    canvasWrap,
+    overlay: document.getElementById("mask-edit-overlay"),
+    bar: maskEditBar,
+    toolButtons: Array.from(maskEditBar?.querySelectorAll("[data-mask-tool]") || []),
+    modeButtons: Array.from(maskEditBar?.querySelectorAll("[data-mask-mode]") || []),
+    brushSize: document.getElementById("mask-edit-brush-size"),
+    undoBtn: document.getElementById("mask-edit-undo"),
+    redoBtn: document.getElementById("mask-edit-redo"),
+    doneBtn: document.getElementById("mask-edit-done"),
+    countEl: document.getElementById("mask-edit-count"),
+    hintEl: document.getElementById("mask-edit-hint"),
+  },
+  callbacks: {
+    getTarget: () => pixelMaskController.getEditTarget(),
+    onCommit: () => pixelMaskController.onEditCommit(),
+    onClose: (options) => pixelMaskController.onEditClose(options),
+    getImagePoint: (event, options) => getImagePointFromEvent(event, options),
+    // The image->screen map the other overlays use.
+    getView: () => {
+      const zoom = state.zoom || 1;
+      return {
+        scaleX: zoom,
+        scaleY: zoom * (state.pixelAspect || 1),
+        offsetX: (state.renderOffsetX || 0) - getEffectiveScrollLeft(),
+        offsetY: (state.renderOffsetY || 0) - getEffectiveScrollTop(),
+      };
+    },
+    syncOverlayCanvas,
+    describeEdits: () => pixelMaskController.describeEdits(),
+    getMaskColors: () => currentMaskColors(state),
+  },
+});
+pixelMaskController.setEnabled(state.pixelMask);
 // The detectors this server has talked to, under the SIMPLON address fields.
 void knownDetectors.start();
 

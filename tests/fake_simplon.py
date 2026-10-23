@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import base64
 import copy
-import io
 import json
 import tempfile
 import threading
@@ -26,7 +25,8 @@ from typing import Any
 
 import h5py
 import numpy as np
-import tifffile
+
+from backend.image_formats import _write_tiff
 
 READOUT_S = 1e-7
 
@@ -146,6 +146,7 @@ class FakeDCU:
         self.stream_dropped = 0
         self.monitor_dropped = 0
         self.last_monitor: bytes | None = None
+        self.last_monitor_series = 0
         self.triggers_taken = 0
         self.last_exposures: list[float] = []
         # Answer /files/ as a parameter ({"value": [...]}), as a PILATUS4 does.
@@ -154,6 +155,8 @@ class FakeDCU:
         self.requests: list[tuple[str, str]] = []
         # Status values reported with "state": "critical", as (subsystem, key).
         self.critical: set[tuple[str, str]] = set()
+        # The pixel mask, as a write leaves it; None is the one it starts with.
+        self.mask: np.ndarray | None = None
 
     # ---- configuration ----
     def describe(self, subsystem: str, key: str) -> dict[str, Any] | None:
@@ -322,16 +325,23 @@ class FakeDCU:
             return 200, None
         return 404, f"Command {name} does not exist"
 
+    def _current_mask(self) -> np.ndarray:
+        if self.mask is None:
+            mask = np.zeros((256, 256), dtype="<u4")
+            mask[:, 40] = 2
+            mask[128, :] = 1
+            self.mask = mask
+        return self.mask
+
     def pixel_mask(self) -> dict[str, Any] | None:
         """The pixel mask as SIMPLON sends arrays: a base64 `__darray__`.
 
-        Same size as the monitor image, with a dead column and a gap row.
+        Same size as the monitor image, with a dead column and a gap row
+        until a write replaces it.
         """
         if self.state == "na":
             return None
-        mask = np.zeros((256, 256), dtype="<u4")
-        mask[:, 40] = 2
-        mask[128, :] = 1
+        mask = self._current_mask()
         return {
             "value": {
                 "__darray__": [1, 0, 0],
@@ -344,6 +354,24 @@ class FakeDCU:
             "access_mode": "rw",
         }
 
+    def put_pixel_mask(self, value: Any) -> tuple[int, Any]:
+        """A new mask, in the same format; refused while busy or of another size."""
+        with self.lock:
+            if self.state == "na":
+                return 404, "Parameter pixel_mask does not exist"
+            if self.state in ("acquire", "initialize"):
+                return 400, "Not allowed while the detector is busy"
+            try:
+                raw = base64.b64decode(value["data"])
+                shape = tuple(int(n) for n in value["shape"])
+                mask = np.frombuffer(raw, dtype=np.dtype(value["type"])).reshape(shape)
+            except (KeyError, TypeError, ValueError):
+                return 400, "Invalid pixel mask"
+            if mask.shape != self._current_mask().shape:
+                return 400, "Pixel mask has the wrong size"
+            self.mask = mask.astype("<u4")
+            return 200, ["pixel_mask"]
+
     def monitor_image(self) -> bytes | None:
         """The monitor's newest image: a ring pattern that moves with time.
 
@@ -352,15 +380,25 @@ class FakeDCU:
         """
         if self.params["monitor"]["mode"]["value"] != "enabled" or not self.sequence_id:
             return None
-        if self.state != "acquire" and self.last_monitor is not None:
+        # Between series, the last series' last image -- a new series, even one
+        # over before it was polled, has its own.
+        if (
+            self.state != "acquire"
+            and self.last_monitor is not None
+            and self.last_monitor_series == self.sequence_id
+        ):
             return self.last_monitor
         y, x = np.mgrid[0:256, 0:256]
         r = np.hypot(x - 128, y - 128)
         phase = time.time() * 3.0
         image = (200 * (1 + np.cos(r / 6.0 - phase)) * np.exp(-r / 120)).astype(np.uint32)
-        buffer = io.BytesIO()
-        tifffile.imwrite(buffer, image)
-        self.last_monitor = buffer.getvalue()
+        # With the series number in DECTRIS's TIFF tag, as a real monitor
+        # image has it: the live view tells series apart by it.
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "monitor.tif"
+            _write_tiff(path, image, {"series_number": self.sequence_id})
+            self.last_monitor = path.read_bytes()
+        self.last_monitor_series = self.sequence_id
         return self.last_monitor
 
     def _write_series(self, total: int) -> None:
@@ -529,7 +567,9 @@ def _handler(dcu: FakeDCU) -> type[BaseHTTPRequestHandler]:
             subsystem, version, task, key = route
             if not self._version_ok(version):
                 return
-            if task == "config":
+            if task == "config" and (subsystem, key) == ("detector", "pixel_mask"):
+                code, payload = dcu.put_pixel_mask(body.get("value"))
+            elif task == "config":
                 code, payload = dcu.put_config(subsystem, key, body.get("value"))
             elif task == "command":
                 code, payload = dcu.command(subsystem, key, body.get("value"))
