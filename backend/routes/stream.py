@@ -239,7 +239,8 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         if enable:
             deps.simplon_set_mode(base, "enabled")
         data = deps.simplon_fetch_monitor(base, timeout)
-        if data is None:
+        # An empty body is no image too: urllib takes a 204 for success.
+        if not data:
             deps.logger.debug("SIMPLON monitor: no data (url=%s)", url)
             return Response(status_code=204)
         arr, meta = deps.read_tiff_bytes_with_simplon_meta(data)
