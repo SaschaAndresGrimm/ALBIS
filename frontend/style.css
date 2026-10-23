@@ -2039,6 +2039,10 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
     color var(--motion-fast) var(--motion-ease-standard);
 }
 
+.section-summary:empty {
+  display: none;
+}
+
 .section-summary.is-active {
   border-color: rgba(102, 170, 255, 0.62);
   background: rgba(24, 48, 76, 0.62);
