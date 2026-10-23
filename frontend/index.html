@@ -319,8 +319,11 @@
               <div class="splash-label">
                 <div class="splash-title">ALBIS</div>
                 <div class="splash-sub" id="splash-status" data-i18n="splash.status.starting_backend">Starting backend...</div>
-                <div class="splash-actions">
-                  <button class="btn btn-primary splash-open-file" id="splash-open-file" type="button" data-i18n="splash.action.open_file">
+                <!-- Hidden until the backend answers: the hint depends on where it
+                     runs (shortcut when local, drop to upload when remote), and
+                     shown from the start the remote one flashed up first. -->
+                <div class="splash-actions is-hidden">
+                  <button class="btn btn-primary splash-open-file is-hidden" id="splash-open-file" type="button" disabled data-i18n="splash.action.open_file">
                     Open file
                   </button>
                   <div class="splash-hint" data-i18n="splash.hint.drop">or drop files here to upload them</div>
