@@ -47,6 +47,7 @@ SUBSYSTEMS = ("detector", "monitor", "filewriter", "stream")
 # vectors, not something to edit in a form. `threshold/n/...` is expanded for
 # n = 1..4; a detector answers only for the thresholds it has.
 _DETECTOR_KEYS: dict[str, str] = {
+    "auto_pedestals": "bool",  # JUNGFRAU; not in the 1.8 reference
     "auto_sum_strict": "bool",
     "auto_summation": "bool",
     "beam_center_x": "float",
