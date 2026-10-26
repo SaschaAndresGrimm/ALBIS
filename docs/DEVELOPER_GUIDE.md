@@ -398,14 +398,14 @@ Public GitHub Releases publish architecture-specific install + portable assets:
 
 - macOS: `ALBIS-macos-arm64-*` and `ALBIS-macos-x64-*` (`.dmg` + `.zip`)
 - Windows: `ALBIS-Setup-windows-x64-*` + `ALBIS-windows-x64-*.zip`
-- Linux: `ALBIS-linux-x64-*.tar.gz`, `ALBIS-*-x86_64.AppImage`, and `ALBIS-*-x86_64-appimage-bundle.tar.gz`
+- Linux: `ALBIS-linux-x64-*.tar.gz`, `ALBIS-*-x86_64.AppImage`, and `ALBIS-*-x86_64-appimage-bundle.tar.gz`, and the same three for arm64 (`ALBIS-linux-arm64-*`, `*-aarch64*`)
 
 Public release inputs are pinned:
 
 - runtime dependencies in `backend/requirements.txt`
 - PyInstaller via the build scripts
 - Docker base image by digest
-- Linux build image (`manylinux_2_28`) and the distribution images `smoke_linux` runs on, by digest
+- Linux build images (`manylinux_2_28`, x86_64 and aarch64 of the same date) and the distribution images `smoke_linux` runs on, by digest
 - the Linux build's Python (python-build-standalone) by release + checksum in `scripts/install_python_standalone.sh`
 - AppImage tooling by explicit version + checksum in CI
 
@@ -444,8 +444,8 @@ ALBIS_UPDATE_CHECK_VERSION=0.18.0 ALBIS_INSTALL_KIND=macos_app \
 Open **Help → Check for Updates**. The dialog should name one real asset for
 that platform and architecture. Try `docker` and `source` too: those show a
 copyable command instead of a file. Note that the architecture is *not*
-overridden, so `appimage` on an arm64 machine correctly matches nothing — the
-AppImage is published for `x86_64` only.
+overridden, so `appimage` offers the AppImage for the machine's own
+architecture (`x86_64` or `aarch64`).
 
 **The download and its verification** (works anywhere). With
 `ui.allow_update_download` left at its default, click **Download Update**. It

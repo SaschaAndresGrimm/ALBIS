@@ -23,7 +23,7 @@ Official public support covers:
 
 - **Windows x64**
 - **macOS arm64 / x64**
-- **Linux x64**
+- **Linux x64 / arm64**
 
 Docker images are published for **local and trusted lab deployments** on `linux/amd64` and `linux/arm64`.
 Public internet exposure is **not** a supported deployment mode.
@@ -83,10 +83,11 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 - **macOS Intel (x64)**: `ALBIS-macos-x64-v<version>-<commit>.dmg` (installer) or `.zip` (portable).
 - **Windows x64**: `ALBIS-Setup-windows-x64-v<version>-<commit>.exe` (installer) or `ALBIS-windows-x64-v<version>-<commit>.zip` (portable).
 - **Linux x64**: `ALBIS-<version>-x86_64.AppImage`, `ALBIS-<version>-x86_64-appimage-bundle.tar.gz` (AppImage + install/uninstall scripts), and `ALBIS-linux-x64-v<version>-<commit>.tar.gz`.
+- **Linux arm64** (aarch64, e.g. NVIDIA DGX Spark): `ALBIS-<version>-aarch64.AppImage`, `ALBIS-<version>-aarch64-appimage-bundle.tar.gz`, and `ALBIS-linux-arm64-v<version>-<commit>.tar.gz`.
 
 macOS release binaries are supported on macOS 14+ on Apple Silicon and macOS 15+ on Intel Macs. Use the native `arm64` build on Apple Silicon and the native `x64` build on Intel Macs.
 Windows release binaries are supported on Windows 10 x64 and Windows 11 x64. Windows 8.1 x64 may work but is not part of the supported/tested release matrix; Windows 7, Windows 8.0, 32-bit Windows, and Windows ARM are not supported.
-Linux desktop release binaries are currently published for `x86_64` only. The AppImage and tarball require `glibc 2.28+` — RHEL/Rocky/AlmaLinux 8 and 9, Ubuntu 20.04+, Debian 10+, Fedora 29+. Every release is started on Rocky Linux 8 and 9, Ubuntu 22.04 and Ubuntu 24.04 before it is published. The AppImage also needs FUSE 2 (`libfuse.so.2`); on a managed workstation without it, use the tarball, which needs nothing installed and can be unpacked once to a shared location for all users. Distributions below that floor, and `linux/arm64`, can use the published Docker images.
+Linux desktop release binaries are published for `x86_64` and `aarch64`. The AppImage and tarball require `glibc 2.28+` — RHEL/Rocky/AlmaLinux 8 and 9, Ubuntu 20.04+, Debian 10+, Fedora 29+. Every release is started on Rocky Linux 8 and 9, Ubuntu 22.04 and Ubuntu 24.04, on both architectures, before it is published. The AppImage also needs FUSE 2 (`libfuse.so.2`); on a managed workstation without it, use the tarball, which needs nothing installed and can be unpacked once to a shared location for all users. Distributions below that floor can use the published Docker images.
 
 ALBIS also runs directly in Python, see the [Power User Guide](docs/POWER_USER_GUIDE.md)
 

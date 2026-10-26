@@ -174,19 +174,29 @@ jobs:
     # against, so the build runs inside a manylinux_2_28 (AlmaLinux 8)
     # container rather than on the runner's own Ubuntu (22.04 is glibc 2.35).
     # `smoke_linux` then starts the result on the oldest target and on current
-    # Ubuntu.
-    runs-on: ubuntu-24.04
+    # Ubuntu. Each architecture builds natively, in the manylinux image of the
+    # same date for that architecture; arm64 is for aarch64 workstations such
+    # as the NVIDIA DGX Spark.
+    runs-on: ${{ matrix.runner }}
     container:
-      image: quay.io/pypa/manylinux_2_28_x86_64@sha256:407f771c51a2c3e83ebe5a7970b4289ead3a6db21d9b9c089168775cad11d328
+      image: ${{ matrix.container }}
     needs: verify
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target_os: linux
+          - runner: ubuntu-24.04
+            container: quay.io/pypa/manylinux_2_28_x86_64@sha256:407f771c51a2c3e83ebe5a7970b4289ead3a6db21d9b9c089168775cad11d328
+            target_os: linux
             target_arch: x64
             target: linux-x64
             expected_uname: x86_64
+          - runner: ubuntu-24.04-arm
+            container: quay.io/pypa/manylinux_2_28_aarch64@sha256:c22ffd129ac99a8a42d1f2c2f4e88a9089288dd9ee987a7092da1c7dc48f27a9
+            target_os: linux
+            target_arch: arm64
+            target: linux-arm64
+            expected_uname: aarch64
     env:
       ALBIS_TARGET_OS: ${{ matrix.target_os }}
       ALBIS_TARGET_ARCH: ${{ matrix.target_arch }}
@@ -299,17 +309,20 @@ jobs:
             dist/ALBIS-*-appimage-bundle.tar.gz.sig
 
   smoke_linux:
-    name: Smoke Linux Artifact (${{ matrix.distro }})
+    name: Smoke Linux Artifact (${{ matrix.target }}, ${{ matrix.distro }})
     # build_linux can only show the bundle starts where it was built. This
     # starts it on the oldest supported target, on RHEL 9, on the previous
     # floor, and on current Ubuntu, each with nothing installed but the
     # harness's Python, and checks the browser it launches does not inherit
-    # the bundle's library path.
-    runs-on: ubuntu-24.04
+    # the bundle's library path. The pinned images are multi-arch indexes, so
+    # the same digests serve both architectures.
+    runs-on: ${{ matrix.target == 'linux-arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     needs: build_linux
     strategy:
       fail-fast: false
       matrix:
+        target: [linux-x64, linux-arm64]
+        distro: [Rocky Linux 8, Rocky Linux 9, Ubuntu 22.04, Ubuntu 24.04]
         include:
           - distro: Rocky Linux 8
             image: rockylinux/rockylinux:8@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
@@ -325,14 +338,14 @@ jobs:
       - name: Download Linux artifact
         uses: actions/download-artifact@v8
         with:
-          name: release-assets-linux-x64
+          name: release-assets-${{ matrix.target }}
           path: dist
 
       - name: Smoke test packaged binary on ${{ matrix.distro }}
         run: |
           set -euo pipefail
           shopt -s nullglob
-          tarballs=(dist/ALBIS-linux-x64-v*.tar.gz)
+          tarballs=(dist/ALBIS-${{ matrix.target }}-v*.tar.gz)
           if [ "${#tarballs[@]}" -ne 1 ]; then
             echo "Expected one Linux tarball, found ${#tarballs[@]}: ${tarballs[*]}"
             exit 1
@@ -836,9 +849,6 @@ jobs:
           set -euo pipefail
           ls -1 release-dist
 
-          linux_tarball="$(find release-dist -maxdepth 1 -type f -name 'ALBIS-linux-x64-v*-*.tar.gz' ! -name '*appimage-bundle*' | sort | head -n1 || true)"
-          linux_bundle="$(find release-dist -maxdepth 1 -type f -name 'ALBIS-*-x86_64-appimage-bundle.tar.gz' | sort | head -n1 || true)"
-          linux_appimage="$(find release-dist -maxdepth 1 -type f -name 'ALBIS-*-x86_64.AppImage' | sort | head -n1 || true)"
           windows_zip="$(ls release-dist/ALBIS-windows-x64-v*-*.zip | head -n1 || true)"
           windows_setup="$(ls release-dist/ALBIS-Setup-windows-x64-v*-*.exe | head -n1 || true)"
           mac_arm_zip="$(ls release-dist/ALBIS-macos-arm64-v*-*.zip | head -n1 || true)"
@@ -846,15 +856,24 @@ jobs:
           mac_x64_zip="$(ls release-dist/ALBIS-macos-x64-v*-*.zip | head -n1 || true)"
           mac_x64_dmg="$(ls release-dist/ALBIS-macos-x64-v*-*.dmg | head -n1 || true)"
 
-          [ -n "$linux_tarball" ] || { echo "Missing Linux tarball"; exit 1; }
-          [ -n "$linux_bundle" ] || { echo "Missing Linux AppImage bundle"; exit 1; }
-          [ -n "$linux_appimage" ] || { echo "Missing Linux AppImage"; exit 1; }
+          # <target>:<AppImage arch>, the two spellings version_info.py uses.
+          for pair in linux-x64:x86_64 linux-arm64:aarch64; do
+            target="${pair%%:*}"
+            arch="${pair##*:}"
+            linux_tarball="$(find release-dist -maxdepth 1 -type f -name "ALBIS-${target}-v*-*.tar.gz" ! -name '*appimage-bundle*' | sort | head -n1 || true)"
+            linux_bundle="$(find release-dist -maxdepth 1 -type f -name "ALBIS-*-${arch}-appimage-bundle.tar.gz" | sort | head -n1 || true)"
+            linux_appimage="$(find release-dist -maxdepth 1 -type f -name "ALBIS-*-${arch}.AppImage" | sort | head -n1 || true)"
 
-          if [ "${REQUIRE_PUBLIC_SIGNING}" = "true" ] || [ -n "${LINUX_GPG_PRIVATE_KEY_B64:-}" ]; then
-            [ -f "${linux_tarball}.sig" ] || { echo "Missing Linux tarball signature"; exit 1; }
-            [ -f "${linux_bundle}.sig" ] || { echo "Missing Linux AppImage bundle signature"; exit 1; }
-            [ -f "${linux_appimage}.sig" ] || { echo "Missing Linux AppImage signature"; exit 1; }
-          fi
+            [ -n "$linux_tarball" ] || { echo "Missing Linux ${target} tarball"; exit 1; }
+            [ -n "$linux_bundle" ] || { echo "Missing Linux ${arch} AppImage bundle"; exit 1; }
+            [ -n "$linux_appimage" ] || { echo "Missing Linux ${arch} AppImage"; exit 1; }
+
+            if [ "${REQUIRE_PUBLIC_SIGNING}" = "true" ] || [ -n "${LINUX_GPG_PRIVATE_KEY_B64:-}" ]; then
+              [ -f "${linux_tarball}.sig" ] || { echo "Missing Linux ${target} tarball signature"; exit 1; }
+              [ -f "${linux_bundle}.sig" ] || { echo "Missing Linux ${arch} AppImage bundle signature"; exit 1; }
+              [ -f "${linux_appimage}.sig" ] || { echo "Missing Linux ${arch} AppImage signature"; exit 1; }
+            fi
+          done
 
           [ -n "$windows_zip" ] || { echo "Missing Windows zip"; exit 1; }
           [ -n "$windows_setup" ] || { echo "Missing Windows setup exe"; exit 1; }

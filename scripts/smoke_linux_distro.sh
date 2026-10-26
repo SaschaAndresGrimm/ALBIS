@@ -14,7 +14,8 @@
 #
 # Usage: smoke_linux_distro.sh IMAGE TARBALL
 #   IMAGE    container image to run in (a dnf- or apt-based distribution)
-#   TARBALL  ALBIS-linux-x64-v<version>-<commit>.tar.gz
+#   TARBALL  ALBIS-linux-<x64|arm64>-v<version>-<commit>.tar.gz; the container
+#            runs as that architecture, emulated if the host is another
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,6 +25,11 @@ if [ "$#" -ne 2 ]; then
   exit 2
 fi
 IMAGE="$1"
+case "$(basename "$2")" in
+  ALBIS-linux-x64-*) PLATFORM=linux/amd64 ;;
+  ALBIS-linux-arm64-*) PLATFORM=linux/arm64 ;;
+  *) echo "Cannot tell the architecture of $2 from its name" >&2; exit 2 ;;
+esac
 TARBALL="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
 
 work="$(mktemp -d)"
@@ -93,7 +99,7 @@ esac
 echo "Browser launch OK: $url with LD_LIBRARY_PATH='$library_path'"
 EOF
 
-docker run --rm --platform linux/amd64 \
+docker run --rm --platform "$PLATFORM" \
   -v "$ROOT:/src:ro" \
   -v "$work:/bundle:ro" \
   -w /src \

@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Linux arm64 builds.** Releases now include an AppImage, an AppImage bundle and a tarball for 64-bit ARM Linux (`aarch64`), such as the NVIDIA DGX Spark. Like the x86_64 build, they need glibc 2.28 or newer, and every release is started on Rocky Linux 8 and 9 and Ubuntu 22.04 and 24.04 before it is published. Update checks on an arm64 machine offer the arm64 AppImage.
+
 ## [0.35.0] - 2026-10-26
 
 ### Added

@@ -45,6 +45,7 @@ Use this to verify packaging and checks before tagging:
      - `ALBIS-<version>-x86_64.AppImage`
      - `ALBIS-<version>-x86_64-appimage-bundle.tar.gz`
      - when `LINUX_GPG_PRIVATE_KEY_B64` is configured: matching `.sig` files for each Linux artifact
+   - Linux arm64 contains the same three files as `ALBIS-linux-arm64-v<version>-<commit>.tar.gz`, `ALBIS-<version>-aarch64.AppImage` and `ALBIS-<version>-aarch64-appimage-bundle.tar.gz`, with the same `.sig` files
    - Windows x64 contains:
      - `ALBIS-windows-x64-v<version>-<commit>.zip`
      - `ALBIS-Setup-windows-x64-v<version>-<commit>.exe`
@@ -68,8 +69,8 @@ Use the `Build Artifacts` workflow for branch testing without creating a tag/rel
 
 1. Open GitHub Actions and run `Build Artifacts` on your target branch.
 2. Optionally enable `run_verify` to execute quality gates before packaging.
-3. Download artifacts (`artifacts-linux-x64-*`, `artifacts-windows-x64-*`, `artifacts-macos-arm64-*`, `artifacts-macos-x64-*`) and inspect:
-   - Linux x64 includes `.tar.gz`, `.AppImage`, appimage bundle `.tar.gz`, `install_linux_appimage.sh`, `uninstall_linux.sh`, and `SHA256SUMS.txt`.
+3. Download artifacts (`artifacts-linux-x64-*`, `artifacts-linux-arm64-*`, `artifacts-windows-x64-*`, `artifacts-macos-arm64-*`, `artifacts-macos-x64-*`) and inspect:
+   - Linux x64 and arm64 each include `.tar.gz`, `.AppImage`, appimage bundle `.tar.gz`, `install_linux_appimage.sh`, `uninstall_linux.sh`, and `SHA256SUMS.txt`.
    - Windows x64 includes `.zip`, setup `.exe`, and `SHA256SUMS.txt`.
    - macOS arm64/x64 each include `.zip`, `.dmg`, and `SHA256SUMS.txt`.
    - Local install/run behavior is still correct.
@@ -200,7 +201,8 @@ Expected result:
     with `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
 - GitHub Release is published with:
   - Linux x64: `ALBIS-linux-x64-v<version>-<commit>.tar.gz` + `ALBIS-<version>-x86_64.AppImage` + `ALBIS-<version>-x86_64-appimage-bundle.tar.gz`
-  - Linux x64 signatures (`.sig`) when Linux GPG signing secrets are configured
+  - Linux arm64: `ALBIS-linux-arm64-v<version>-<commit>.tar.gz` + `ALBIS-<version>-aarch64.AppImage` + `ALBIS-<version>-aarch64-appimage-bundle.tar.gz`
+  - Linux signatures (`.sig`) when Linux GPG signing secrets are configured
   - Windows x64: setup `.exe` + portable `.zip`
   - macOS arm64 and x64: `.dmg` + portable `.zip`
   - `SHA256SUMS.txt`

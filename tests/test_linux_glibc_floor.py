@@ -31,19 +31,36 @@ def _run_text(job: dict) -> str:
     return "\n".join(str(step.get("run", "")) for step in job["steps"])
 
 
+def _build_targets(workflow: Path) -> list[dict]:
+    return _jobs(workflow)["build_linux"]["strategy"]["matrix"]["include"]
+
+
 @pytest.mark.parametrize("workflow", WORKFLOWS, ids=lambda path: path.name)
 def test_linux_builds_in_a_pinned_image_matching_the_floor(workflow: Path) -> None:
     job = _jobs(workflow)["build_linux"]
     container = job.get("container")
     image = container["image"] if isinstance(container, dict) else container
 
-    assert image, f"{workflow.name} builds Linux on the runner's own distribution"
-    match = re.fullmatch(r"quay\.io/pypa/manylinux_(\d+)_(\d+)_x86_64@sha256:[0-9a-f]{64}", image)
-    assert match, f"{workflow.name} builds Linux in {image!r}, not a digest-pinned manylinux image"
-    assert f"{match.group(1)}.{match.group(2)}" == FLOOR, (
-        f"{workflow.name} builds in manylinux_{match.group(1)}_{match.group(2)} "
-        f"but the supported floor is glibc {FLOOR}"
-    )
+    assert (
+        image == "${{ matrix.container }}"
+    ), f"{workflow.name} builds Linux in {image!r}, not the image of the matrix entry"
+    for target in _build_targets(workflow):
+        image = target.get("container")
+        assert image, f"{workflow.name} builds {target['target']} on the runner's own distribution"
+        match = re.fullmatch(
+            r"quay\.io/pypa/manylinux_(\d+)_(\d+)_(\w+)@sha256:[0-9a-f]{64}", image
+        )
+        assert (
+            match
+        ), f"{workflow.name} builds Linux in {image!r}, not a digest-pinned manylinux image"
+        assert f"{match.group(1)}.{match.group(2)}" == FLOOR, (
+            f"{workflow.name} builds in manylinux_{match.group(1)}_{match.group(2)} "
+            f"but the supported floor is glibc {FLOOR}"
+        )
+        assert match.group(3) == target["expected_uname"], (
+            f"{workflow.name} builds {target['target']} in a {match.group(3)} image "
+            f"on a {target['expected_uname']} runner"
+        )
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS, ids=lambda path: path.name)
@@ -54,10 +71,23 @@ def test_the_glibc_check_enforces_the_floor(workflow: Path) -> None:
     assert floors == [FLOOR], f"{workflow.name} checks glibc floors {floors}, expected [{FLOOR!r}]"
 
 
-def test_both_workflows_build_in_the_same_image() -> None:
-    images = {_jobs(workflow)["build_linux"]["container"]["image"] for workflow in WORKFLOWS}
+def test_both_workflows_build_in_the_same_images() -> None:
+    release, artifacts = (
+        {target["target"]: target["container"] for target in _build_targets(workflow)}
+        for workflow in WORKFLOWS
+    )
 
-    assert len(images) == 1, f"release and artifact builds use different images: {sorted(images)}"
+    assert (
+        release == artifacts
+    ), f"release and artifact builds use different images: {release} vs {artifacts}"
+
+
+@pytest.mark.parametrize("workflow", WORKFLOWS, ids=lambda path: path.name)
+def test_every_built_target_is_started_on_other_distributions(workflow: Path) -> None:
+    built = [target["target"] for target in _build_targets(workflow)]
+    smoked = _jobs(workflow)["smoke_linux"]["strategy"]["matrix"]["target"]
+
+    assert smoked == built, f"{workflow.name} builds {built} but smoke-tests {smoked}"
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS, ids=lambda path: path.name)

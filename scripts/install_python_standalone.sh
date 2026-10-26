@@ -15,8 +15,16 @@ set -euo pipefail
 
 PBS_RELEASE="${PBS_RELEASE:-20260929}"
 PBS_PYTHON_VERSION="${PBS_PYTHON_VERSION:-3.13.15}"
-PBS_ASSET="${PBS_ASSET:-cpython-${PBS_PYTHON_VERSION}+${PBS_RELEASE}-x86_64-unknown-linux-gnu-install_only.tar.gz}"
-PBS_SHA256="${PBS_SHA256:-d6b4e09474dfc219befabeae16264466f09615a991dcd080ae698833bdb3ed44}"
+# The build runs natively on each architecture, so the interpreter matches the
+# machine it is installed on.
+PBS_ARCH="${PBS_ARCH:-$(uname -m)}"
+case "$PBS_ARCH" in
+  x86_64) default_sha="d6b4e09474dfc219befabeae16264466f09615a991dcd080ae698833bdb3ed44" ;;
+  aarch64) default_sha="8b54ea9550c52f9db265ab5680ce02429be3b4e1628f0b0dd8da2e451e403578" ;;
+  *) echo "No pinned python-build-standalone build for $PBS_ARCH" >&2; exit 1 ;;
+esac
+PBS_ASSET="${PBS_ASSET:-cpython-${PBS_PYTHON_VERSION}+${PBS_RELEASE}-${PBS_ARCH}-unknown-linux-gnu-install_only.tar.gz}"
+PBS_SHA256="${PBS_SHA256:-$default_sha}"
 DEST="${1:-/opt/albis-python}"
 
 tmp_file="$(mktemp)"
