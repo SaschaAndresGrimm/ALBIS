@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-26
+
 ### Added
 
 - **Beta: pixel masks.** A new **Data → Pixel Mask** section shows the pixel mask ALBIS applies -- always the open data's own -- where it came from and what it masks: gaps, defective and other pixels. **Save as HDF5** and **Save as TIFF** download the mask in use, with every pixel's reason bits kept; a saved HDF5 mask is used again by opening it like any data. **Send to detector…** replaces a detector's mask with it, after a confirmation that counts the pixels masked, unmasked and changed. Sending only works while the detector is idle and refuses a mask of another size. The detector's previous mask is first saved to `masks/backups/` in the data folder, and **Restore** on the Detector tab sends it back. Afterwards the mask is read back from the detector to confirm the write. With detector control on, the Detector tab gets a **Pixel Mask** section for the detector itself: **Open in ALBIS** saves its mask as an HDF5 file in `masks/` and opens it. **Edit on image** masks and unmasks pixels by hand on the image, with a pixel brush, a box, a polygon or a circle. Alt switches between masking and unmasking, Space pans, and every stroke can be undone. Changed pixels are marked while editing, and the section counts them until **Discard edits**. **Find bad pixels…** finds hot, dead and cold pixels in the image shown, each judged against its 32 × 32 pixel neighbourhood, circles them, and adds them to the mask in one step. **Send to detector…** sends to the Detector tab's detector, or to the one the SIMPLON monitor shows. **Clear…** on the Detector tab unmasks everything on the detector except its module gaps. Off by default: switch it on under **Settings → Tools → Beta: pixel masks**.
@@ -15,6 +17,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The SIMPLON monitor shows a detector's new pixel mask.** The live view fetched the detector's mask once and kept it, so a mask changed on the detector -- by Pixel Mask's Send or Clear, or by other software -- still showed on every image that followed. It now fetches the mask again with each new series, and at once after a write from ALBIS.
 - **A SIMPLON monitor without an image yet answers "no frame".** Its "no image" reply (HTTP 204) was taken for an image and failed to decode, logged as a server error on every poll until the first series.
+- **A summed series keeps its gaps and saturation.** Two or more 32-bit frames were always summed into 64-bit integers, and with Apply mask on, the gap marker then made the viewer read the result as floating point: saturated pixels were not marked and gaps not recognised. The sum's type now follows the range its values actually reach.
+- **ALBULA HDR offers black among its mask colour choices.** Its colour map is white at both ends, so the mask colour menu offered white twice. A map whose ends look alike now offers the colour least like the other two instead: black on ALBULA HDR.
+- **The start screen no longer flashes the remote hint.** The Open file button briefly showed the hint for a remote ALBIS (drop files to upload) before a local one swapped in its shortcut. It now appears once the backend answers, with the hint that fits.
+- **An empty section summary no longer shows as a small bar** in a section's title.
+
+### Changed
+
+- Dependencies: fastapi 0.148.0, starlette 1.9.0, tifffile 2026.10.15 and dectris-compression 0.4.0, and on the development side black 26.10.1, eslint 10.13.0, jsdom 30.1.3 and vitest 5.0.5. None changes behaviour.
 
 ## [0.34.1] - 2026-10-22
 
@@ -1697,7 +1707,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.35.0...HEAD
+[0.35.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.1...v0.35.0
 [0.34.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.1...v0.34.0
 [0.33.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.0...v0.33.1
