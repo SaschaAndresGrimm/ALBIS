@@ -1,9 +1,9 @@
-"""Pixel mask routes (beta): load, save, and read or replace a detector's mask.
+"""Pixel mask routes (beta): load, save, and read, copy or replace a detector's mask.
 
-Everything here answers 404 unless `ui.pixel_mask` is switched on; the two
+Everything here answers 404 unless `ui.pixel_mask` is switched on; the
 detector routes also need `ui.detector_control`, as the rest of the detector's
-endpoints do. Sending a mask is a POST and so passes the request guard's
-cross-site check.
+endpoints do. Copying or sending a mask is a POST and so passes the request
+guard's cross-site check.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
-from ..api_models import PixelMaskDetectorWriteResponse
+from ..api_models import PixelMaskDetectorCopyResponse, PixelMaskDetectorWriteResponse
 from ..services import pixel_mask, simplon_control
 from ..services.hdf5_stack import open_hdf5_for_read, read_hdf5_array
 from .binary_response_utils import (
@@ -153,6 +153,35 @@ def register_pixel_mask_routes(app: FastAPI, deps: PixelMaskRouteDeps) -> None:
         require_detector()
         arr, key = pixel_mask.read_detector_mask(url, version)
         return _mask_response(arr, key)
+
+    @app.post("/api/pixel-mask/detector/copy", response_model=PixelMaskDetectorCopyResponse)
+    def pixel_mask_detector_copy(meta: str = Form("{}")) -> PixelMaskDetectorCopyResponse:
+        """Save the detector's pixel mask as an HDF5 file in the data root's
+        `masks/`, to open like any data. `meta` is JSON: `url`, `version` and
+        the detector's `serial`, for the file's name."""
+        require_detector()
+        config = _read_meta(meta)
+        url = str(config.get("url") or "").strip()
+        version = str(config.get("version") or "1.8.0").strip()
+        if not url:
+            raise HTTPException(status_code=400, detail="No detector address")
+        arr, key = pixel_mask.read_detector_mask(url, version)
+        root = deps.data_dir().resolve()
+        target_dir = root / "masks"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / pixel_mask.copy_name(str(config.get("serial") or ""))
+        target.write_bytes(pixel_mask.encode_hdf5(arr, deps.get_h5py()))
+        deps.invalidate_scans()
+        deps.logger.info(
+            "Pixel mask: copied from %s (%s, %d masked) to %s",
+            url,
+            key,
+            pixel_mask.count_masked(arr),
+            target.name,
+        )
+        return PixelMaskDetectorCopyResponse(
+            path=target.relative_to(root).as_posix(), masked=pixel_mask.count_masked(arr)
+        )
 
     @app.post("/api/pixel-mask/detector", response_model=PixelMaskDetectorWriteResponse)
     def pixel_mask_detector_write(

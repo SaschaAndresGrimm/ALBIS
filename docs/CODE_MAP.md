@@ -66,7 +66,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 - `frontend/modules/pixel_mask_edit.js` + `frontend/modules/pixel_mask_edit_controller.js`:
   - Beta Edit on image: which pixels a brush stroke, box, polygon or circle covers, the user mask bit, undo history; the toolbar over the image, its pointer and key handling (ahead of panning while open) and the overlay of pixels changed by hand.
 - `frontend/modules/pixel_mask_controller.js`:
-  - The beta Data → Pixel Mask section and its counterpart on the Detector tab: which mask is in use (the data's, or one pinned from a file or the detector, which `mask_cursor_controller.js` keeps in place across files and live frames), saving it, and sending it to a detector after a confirmation that counts what changes, with Restore of the backup.
+  - The beta Data → Pixel Mask section and its counterpart on the Detector tab: the data's own mask (or an edited copy of it, which `mask_cursor_controller.js` keeps in place across files and live frames until Discard edits), saving it, sending it to a detector after a confirmation that counts what changes, Restore of the backup, and opening a detector's mask as a file.
 
 ## Backend Route Modules
 
@@ -89,7 +89,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 - `backend/routes/detector_control.py`:
   - Beta Detector tab endpoints (`/api/detector/*`): describe, status, config writes, commands, files and series fetch; 404 unless `ui.detector_control` is on.
 - `backend/routes/pixel_mask.py` + `backend/services/pixel_mask.py`:
-  - Beta pixel masks (`/api/pixel-mask/*`): read a mask from an HDF5 file or TIFF, encode one as HDF5 or TIFF to download, read and replace a detector's mask over SIMPLON with a backup in `masks/backups/` and a read-back check; 404 unless `ui.pixel_mask` is on (and `ui.detector_control` for the detector).
+  - Beta pixel masks (`/api/pixel-mask/*`): read a mask from an HDF5 file or TIFF, encode one as HDF5 or TIFF to download, read a detector's mask over SIMPLON, copy it to an HDF5 file in `masks/`, and replace it with a backup in `masks/backups/` and a read-back check; 404 unless `ui.pixel_mask` is on (and `ui.detector_control` for the detector).
 
 ## Backend Services
 

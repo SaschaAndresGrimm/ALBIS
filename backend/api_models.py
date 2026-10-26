@@ -527,6 +527,14 @@ class DetectorConfigRequest(_StrictModel):
     value: bool | int | float | str
 
 
+class PixelMaskDetectorCopyResponse(_StrictModel):
+    """A detector's pixel mask, saved as a file to open (beta pixel masks)."""
+
+    # The HDF5 file, relative to the data root.
+    path: str
+    masked: int
+
+
 class PixelMaskDetectorWriteResponse(_StrictModel):
     """What sending a pixel mask to a detector did (beta pixel masks)."""
 

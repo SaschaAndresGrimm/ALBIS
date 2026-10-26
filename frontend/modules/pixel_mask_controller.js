@@ -1,24 +1,27 @@
 /**
  * Data -> Pixel Mask (beta): the pixel mask ALBIS applies, where it came from,
- * and moving it between files and a detector.
+ * and saving it or sending it to a detector.
  *
- * By default that is the data's own mask, as before. Loading a mask from a
- * file, or from the detector on the Detector tab, "pins" it: it is used for
- * every image until "Use the data's mask" -- mask_cursor_controller.js puts it
- * back in place whenever a file or a live frame brings its own. The bits are
- * kept as they are (bit 0 a gap, bits 1-4 defective pixels, and so on), so a
- * mask saved or sent from here keeps its reasons.
+ * The mask is always the open data's own: a file's, the live images', or the
+ * negative pixels of a TIFF or CBF. A mask file saved here is opened like any
+ * data, and is then its own mask. The bits are kept as they are (bit 0 a gap,
+ * bits 1-4 defective pixels, and so on), so a mask saved or sent from here
+ * keeps its reasons.
  *
- * The Detector tab's Pixel Mask section is here too: it reads the detector's
- * mask, and sends the mask in use after a confirmation that says what will
- * change. The backend keeps the detector's previous mask as a backup, which
- * Restore sends back.
+ * Edit on image (pixel_mask_edit_controller.js) and Find bad pixels work on a
+ * "pinned" copy of the data's mask, or of an empty one if there is none:
+ * mask_cursor_controller.js puts it back in place whenever a file or a live
+ * frame brings its own, until Discard edits. The copy as it was when editing
+ * started is kept beside it, so the section can say what was changed by hand
+ * and Discard edits can bring it back. Unsaved edits are asked about before
+ * anything replaces them.
  *
- * Edit on image (pixel_mask_edit_controller.js) works on a pinned copy: the
- * data's mask, or an empty one if there is none, is pinned first. The copy as
- * it was when editing started is kept beside it, so the section can say what
- * was changed by hand and Discard edits can bring it back. Unsaved edits are
- * asked about before anything replaces them.
+ * The Detector tab's Pixel Mask section is here too, for the detector itself:
+ * Open in ALBIS saves its mask as a file in the data folder's masks/ and opens
+ * it; Clear unmasks all but its module gaps. Sending (from Data -> Pixel Mask)
+ * and clearing come after a confirmation that says what will change; the
+ * backend keeps the detector's previous mask as a backup, which Restore sends
+ * back.
  *
  * Shown only while `ui.pixel_mask` is on (Settings -> Tools); the detector
  * section also needs a connected detector.
@@ -31,7 +34,6 @@ import { addFound, findBadPixels } from "./pixel_mask_find.js";
 
 const GAP_BIT = 0x1;
 const DEFECTIVE_BITS = 0x1e;
-const MASK_FILE_EXTS = ".h5,.hdf5,.tif,.tiff";
 const BACKUPS_STORAGE_KEY = "albis.pixelMask.backups.v1";
 
 /** How many pixels a mask masks, and for which reasons. */
@@ -81,7 +83,7 @@ export function safeNamePart(text) {
  */
 export function maskFileName(source, { edited = false, now = new Date() } = {}) {
   const base =
-    safeNamePart(source).replace(/_pixel_mask(_edited)?(_\d{8}-\d{4})?$/i, "").slice(0, 60) || "detector";
+    safeNamePart(source).replace(/_pixel_mask(_edited)?(_\d{8}-\d{4,6})?$/i, "").slice(0, 60) || "detector";
   const pad = (n) => String(n).padStart(2, "0");
   const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
   return `${base}_pixel_mask${edited ? "_edited" : ""}_${stamp}`;
@@ -101,12 +103,6 @@ export function hostOf(address) {
 export function maskFileStem(path) {
   const base = String(path || "").replace(/\\/g, "/").split("/").pop() || "";
   return base.replace(/(_master)?\.(h5|hdf5|tiff?|cbf(\.gz)?|edf)$/i, "") || "pixel_mask";
-}
-
-/** The 1-based threshold a mask path names (`threshold_2_channel`), or 0. */
-export function maskThreshold(where) {
-  const match = /threshold_(\d+)_channel/.exec(String(where || ""));
-  return match ? Number(match[1]) : 0;
 }
 
 function formatCount(value) {
@@ -136,27 +132,20 @@ export function createPixelMaskController({
   elements = {},
   callbacks = {},
   storage = typeof window !== "undefined" ? window.localStorage : null,
-  isBackendLocal = () => false,
 }) {
   const {
     section,
     summaryChip,
     stateEl,
     sourceEl,
-    countsEl,
-    loadBtn,
     saveBtn,
     saveMenu,
     saveH5Btn,
     saveTiffBtn,
-    useDataBtn,
     editBtn,
     discardBtn,
     editsEl,
     sendBtn,
-    backupRow,
-    backupText,
-    restoreBtn,
     findBtn,
     findPanel,
     findHot,
@@ -169,8 +158,7 @@ export function createPixelMaskController({
     detSection,
     detSummary,
     detInfo,
-    detLoadBtn,
-    detSendBtn,
+    detOpenBtn,
     detBackup,
     detBackupText,
     detRestoreBtn,
@@ -190,7 +178,8 @@ export function createPixelMaskController({
     setStatus,
     setSummaryChip,
     setSectionBadgeState,
-    openFileDialog,
+    // Open a file (relative to the data root) like File -> Open does.
+    openPath = async () => {},
     // The editor on the image, late-bound: it is created after this.
     openEditor = () => false,
     closeEditor = () => {},
@@ -265,9 +254,8 @@ export function createPixelMaskController({
     return liveSourceName() || maskFileStem(state.file);
   }
 
-  /** Where the data's own mask is, for the source line. */
+  /** Where the data's own mask is, for the source line: the live source or the file. */
   function dataMaskLabel() {
-    if (state.maskPath) return state.maskPath;
     const live = liveSourceName();
     if (live) return t("pixel_mask.source.live", { name: live });
     return String(state.file || "").replace(/\\/g, "/").split("/").pop();
@@ -391,7 +379,7 @@ export function createPixelMaskController({
 
   /** The editor closed. A copy of the data's mask that was never changed goes. */
   function onEditClose({ keep = false } = {}) {
-    if (!keep && pinned && (pinned.origin === "data" || pinned.origin === "new") && !hasEdits()) {
+    if (!keep && pinned && !hasEdits()) {
       pinned = null;
       void refreshMask?.();
     }
@@ -546,17 +534,11 @@ export function createPixelMaskController({
     return t("pixel_mask.edit.count", { masked: formatCount(counts.masked), unmasked: formatCount(counts.unmasked) });
   }
 
+  /** Back to the data's own mask. */
   async function discardEdits() {
     if (!pinned?.base || !(await confirmDropEdits())) return;
-    if (pinned.origin === "data" || pinned.origin === "new") {
-      if (isEditing()) closeEditor({ keep: true });
-      pinned = null;
-    } else {
-      pinned.data = pinned.base.slice();
-      pinned.dirty = false;
-      if (!isEditing()) pinned.base = null;
-      resetEditor();
-    }
+    if (isEditing()) closeEditor({ keep: true });
+    pinned = null;
     void refreshMask?.();
     render();
     setStatus?.(t("pixel_mask.status.discarded"));
@@ -601,11 +583,8 @@ export function createPixelMaskController({
     return form;
   }
 
-  async function readFileMask(path, { threshold = null } = {}) {
-    const thresholdParam = Number.isInteger(threshold) && threshold > 0 ? `&threshold=${threshold}` : "";
-    return readMaskResponse(
-      await fetch(`${apiBase}/pixel-mask/file?file=${encodeURIComponent(path)}${thresholdParam}`),
-    );
+  async function readFileMask(path) {
+    return readMaskResponse(await fetch(`${apiBase}/pixel-mask/file?file=${encodeURIComponent(path)}`));
   }
 
   async function readDetectorMask(connection) {
@@ -626,42 +605,6 @@ export function createPixelMaskController({
   }
 
   // ---- Data -> Pixel Mask ---------------------------------------------------
-
-  async function pickFile() {
-    if (isBackendLocal()) {
-      const res = await fetch(
-        `${apiBase}/choose-file?exts=${encodeURIComponent(MASK_FILE_EXTS)}&lang=${encodeURIComponent(getLanguage())}`,
-      );
-      if (res.status === 204) return "";
-      if (!res.ok) {
-        if (res.status === 409) setStatus?.(t("status.file_picker.unavailable"), { tone: "warning" });
-        return "";
-      }
-      return String((await res.json())?.path || "");
-    }
-    return String((await openFileDialog?.({ exts: MASK_FILE_EXTS })) || "");
-  }
-
-  function loadFromFile() {
-    return withBusy(async () => {
-      let path = "";
-      try {
-        path = await pickFile();
-        if (!path || !(await confirmDropEdits())) return;
-        // A file with a mask per threshold: the one for the threshold shown.
-        const { data, shape, where } = await readFileMask(path, { threshold: state.thresholdIndex });
-        const fileName = path.replace(/\\/g, "/").split("/").pop();
-        const thresholdN = maskThreshold(where);
-        const stem = thresholdN ? `${maskFileStem(path)}_threshold_${thresholdN}` : maskFileStem(path);
-        const label = thresholdN ? t("pixel_mask.source.threshold", { name: fileName, n: thresholdN }) : fileName;
-        pin(data, shape, { origin: "file", label, stem });
-        setStatus?.(t("pixel_mask.status.loaded", { name: label }), { tone: "success" });
-      } catch (err) {
-        console.error(err);
-        setStatus?.(t("pixel_mask.status.load_failed"), { tone: "error" });
-      }
-    });
-  }
 
   function save(format) {
     const mask = currentMask();
@@ -725,22 +668,47 @@ export function createPixelMaskController({
     }
   }
 
-  function loadFromDetector() {
+  /**
+   * Open in ALBIS: the backend saves the detector's mask as an HDF5 file in
+   * the data folder's masks/, which then opens like any data -- the mask is
+   * the file's own, to look at, edit, save or send back.
+   */
+  function openFromDetector() {
     const connection = getDetector();
     if (!connection) return Promise.resolve();
     return withBusy(async () => {
+      if (!(await confirmDropEdits())) return;
+      let body;
       try {
-        if (!(await confirmDropEdits())) return;
-        const { data, shape } = await readDetectorMask(connection);
-        const summary = summarizeMask(data);
-        detectorSeen.set(connection.url, { masked: summary.masked, at: Date.now() });
-        const stem = connection.serial || hostOf(connection.url) || "detector";
-        pin(data, shape, { origin: "detector", label: detectorName(connection), stem, detectorHost: hostOf(connection.url) });
-        setStatus?.(t("pixel_mask.detector.status.loaded", { count: formatCount(summary.masked) }), { tone: "success" });
+        const form = new FormData();
+        const serial = connection.serial || hostOf(connection.url);
+        form.append("meta", JSON.stringify({ url: connection.url, version: connection.version, serial }));
+        const res = await fetch(`${apiBase}/pixel-mask/detector/copy`, { method: "POST", body: form });
+        try {
+          body = await res.json();
+        } catch {
+          body = null;
+        }
+        if (!res.ok || !body?.path) {
+          const detail = body?.detail;
+          throw new Error(typeof detail === "string" ? detail : detail?.summary || `HTTP ${res.status}`);
+        }
       } catch (err) {
         console.error(err);
         setStatus?.(t("pixel_mask.detector.status.read_failed", { reason: err.message || "" }), { tone: "error" });
+        return;
       }
+      detectorSeen.set(connection.url, { masked: body.masked, at: Date.now() });
+      // The file's own mask from now on, not edits made on other data.
+      if (pinned) {
+        if (isEditing()) closeEditor({ keep: true });
+        pinned = null;
+        void refreshMask?.();
+      }
+      await openPath(body.path);
+      setStatus?.(t("pixel_mask.detector.status.opened", { count: formatCount(body.masked), name: body.path }), {
+        tone: "success",
+      });
     });
   }
 
@@ -917,7 +885,7 @@ export function createPixelMaskController({
       setSectionBadgeState?.(stateEl, "empty", t("pixel_mask.state.none"));
     } else {
       const edited = hasEdits();
-      const chipKey = edited ? "pixel_mask.summary.edited" : pinned ? `pixel_mask.summary.${pinned.origin}` : "pixel_mask.summary.data";
+      const chipKey = edited ? "pixel_mask.summary.edited" : pinned?.origin === "new" ? "pixel_mask.summary.new" : "pixel_mask.summary.data";
       setSummaryChip?.(summaryChip, t(chipKey), edited ? "warning" : pinned ? "active" : "default");
       if (!applies && hasImage()) {
         setSectionBadgeState?.(
@@ -930,24 +898,22 @@ export function createPixelMaskController({
       }
     }
     if (sourceEl) {
-      let text = "";
-      if (pinned) text = t(`pixel_mask.source.${pinned.origin}`, { name: pinned.label });
-      else if (mask) text = t("pixel_mask.source.data", { name: dataMaskLabel() });
-      sourceEl.textContent = text;
-      sourceEl.title = text;
-      sourceEl.hidden = !text;
-    }
-    if (countsEl) {
-      // Only the classes there are: "Gaps 1,024 · Defective 20".
+      // One line: where it came from, then only the classes there are --
+      // "From run_7_master.h5 · Gaps 1,024 · Defective 20".
+      let source = "";
+      if (pinned) source = t(`pixel_mask.source.${pinned.origin}`, { name: pinned.label });
+      else if (mask) source = t("pixel_mask.source.data", { name: dataMaskLabel() });
       const parts = mask
         ? ["gap", "defective", "other"]
             .filter((kind) => summary[kind] > 0)
             .map((kind) => t(`pixel_mask.count.${kind}`, { count: formatCount(summary[kind]) }))
         : [];
-      countsEl.textContent = parts.join(" · ");
-      countsEl.hidden = !parts.length;
+      const text = [source, ...parts].filter(Boolean).join(" · ");
+      sourceEl.textContent = text;
+      // Where in the file, for a mask from HDF5.
+      sourceEl.title = !pinned && state.maskPath ? `${text}\n${state.maskPath}` : text;
+      sourceEl.hidden = !text;
     }
-    if (loadBtn) loadBtn.disabled = busy;
     if (saveBtn) saveBtn.disabled = busy || !mask;
     if (saveH5Btn) saveH5Btn.disabled = busy || !mask;
     if (saveTiffBtn) saveTiffBtn.disabled = busy || !mask;
@@ -980,15 +946,6 @@ export function createPixelMaskController({
       sendBtn.disabled = busy || !mask || Boolean(target?.locked);
       if (target) sendBtn.title = t("pixel_mask.send_to", { name: detectorName(target) });
     }
-    const backup = target ? backupFor(target.url) : null;
-    if (backupRow) backupRow.hidden = !backup;
-    if (backup && backupText) backupText.textContent = t("pixel_mask.detector.backup", { time: formatTime(backup.at) });
-    if (restoreBtn) restoreBtn.disabled = busy || Boolean(target?.locked);
-    if (useDataBtn) {
-      // An edited copy of the data's mask goes back to it with Discard edits.
-      useDataBtn.hidden = !pinned || pinned.origin === "data" || (pinned.origin === "new" && edited);
-      useDataBtn.disabled = busy;
-    }
   }
 
   function renderDetectorSection() {
@@ -1005,13 +962,7 @@ export function createPixelMaskController({
       detSummary.textContent = connection.locked ? t("detector.locked") : "";
       detSummary.hidden = !connection.locked;
     }
-    const mask = currentMask();
-    if (detLoadBtn) detLoadBtn.disabled = busy;
-    if (detSendBtn) {
-      detSendBtn.disabled = busy || !mask || connection.locked;
-      if (!mask) detSendBtn.dataset.helpReason = t("pixel_mask.detector.no_mask");
-      else delete detSendBtn.dataset.helpReason;
-    }
+    if (detOpenBtn) detOpenBtn.disabled = busy;
     const backup = backupFor(connection.url);
     if (detBackup) detBackup.hidden = !backup;
     if (backup && detBackupText) detBackupText.textContent = t("pixel_mask.detector.backup", { time: formatTime(backup.at) });
@@ -1039,13 +990,13 @@ export function createPixelMaskController({
     render();
   }
 
-  loadBtn?.addEventListener("click", () => void loadFromFile());
-  // Save as ▾: a small menu of the two formats.
+  // Save as ▾: a small menu of the two formats, HDF5 first -- the one ALBIS
+  // opens again as data; TIFF is for other programs.
   function setSaveMenu(open) {
     if (!saveMenu) return;
     saveMenu.hidden = !open;
     saveBtn?.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open) saveTiffBtn?.focus?.();
+    if (open) saveH5Btn?.focus?.();
   }
   saveBtn?.addEventListener("click", () => setSaveMenu(Boolean(saveMenu?.hidden)));
   saveMenu?.addEventListener("keydown", (event) => {
@@ -1067,11 +1018,6 @@ export function createPixelMaskController({
     setSaveMenu(false);
     void save("tiff");
   });
-  useDataBtn?.addEventListener("click", async () => {
-    if (!(await confirmDropEdits())) return;
-    unpin();
-    setStatus?.(t("pixel_mask.status.using_data"));
-  });
   editBtn?.addEventListener("click", () => beginEdit());
   sendBtn?.addEventListener("click", () => void sendCurrent());
   findBtn?.addEventListener("click", () => openFind());
@@ -1079,7 +1025,6 @@ export function createPixelMaskController({
   findAddBtn?.addEventListener("click", () => addFoundToMask());
   [findHot, findCold].forEach((box) => box?.addEventListener("change", () => scheduleFind(0)));
   [findHotSigma, findColdPercent].forEach((input) => input?.addEventListener("input", () => scheduleFind()));
-  restoreBtn?.addEventListener("click", () => void restoreBackup());
   discardBtn?.addEventListener("click", () => void discardEdits());
   // Edits only live in this page until saved or sent.
   if (typeof window !== "undefined") {
@@ -1089,8 +1034,7 @@ export function createPixelMaskController({
       event.returnValue = "";
     });
   }
-  detLoadBtn?.addEventListener("click", () => void loadFromDetector());
-  detSendBtn?.addEventListener("click", () => void sendCurrent());
+  detOpenBtn?.addEventListener("click", () => void openFromDetector());
   detRestoreBtn?.addEventListener("click", () => void restoreBackup());
   detClearBtn?.addEventListener("click", () => void clearDetectorMask());
 
@@ -1101,8 +1045,7 @@ export function createPixelMaskController({
     render,
     getPinnedMask: () => (enabled ? pinned : null),
     currentMask,
-    loadFromFile,
-    loadFromDetector,
+    openFromDetector,
     sendCurrent,
     restoreBackup,
     save,

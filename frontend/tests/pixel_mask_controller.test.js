@@ -16,7 +16,6 @@ import {
   hostOf,
   maskFileName,
   maskFileStem,
-  maskThreshold,
   summarizeMask,
 } from "../modules/pixel_mask_controller.js";
 
@@ -37,18 +36,14 @@ function buildElements() {
     summaryChip: make("span"),
     stateEl: make(),
     sourceEl: make(),
-    countsEl: make(),
-    loadBtn: make("button"),
     saveH5Btn: make("button"),
     saveTiffBtn: make("button"),
     saveBtn: make("button"),
     saveMenu: Object.assign(make(), { hidden: true }),
-    useDataBtn: make("button"),
     detSection: make("section"),
     detSummary: make("span"),
     detInfo: make("p"),
-    detLoadBtn: make("button"),
-    detSendBtn: make("button"),
+    detOpenBtn: make("button"),
     detBackup: make(),
     detBackupText: make("span"),
     detRestoreBtn: make("button"),
@@ -57,9 +52,6 @@ function buildElements() {
     discardBtn: make("button"),
     editsEl: make(),
     sendBtn: make("button"),
-    backupRow: make(),
-    backupText: make("span"),
-    restoreBtn: make("button"),
     findBtn: make("button"),
     findPanel: make(),
     findHot: Object.assign(make("input"), { type: "checkbox", checked: true }),
@@ -82,7 +74,7 @@ function memoryStorage() {
   };
 }
 
-function setup({ state = {}, detector = null, monitor = null, local = true } = {}) {
+function setup({ state = {}, detector = null, monitor = null } = {}) {
   const elements = buildElements();
   const callbacks = {
     refreshMask: vi.fn(),
@@ -98,7 +90,7 @@ function setup({ state = {}, detector = null, monitor = null, local = true } = {
       el.dataset.tone = tone;
       el.textContent = text;
     }),
-    openFileDialog: vi.fn(),
+    openPath: vi.fn(async () => {}),
     openEditor: vi.fn(() => true),
     closeEditor: vi.fn(),
     resetEditor: vi.fn(),
@@ -112,7 +104,6 @@ function setup({ state = {}, detector = null, monitor = null, local = true } = {
     elements,
     callbacks,
     storage: memoryStorage(),
-    isBackendLocal: () => local,
   });
   return { controller, elements, callbacks, state: fullState };
 }
@@ -137,16 +128,13 @@ describe("mask arithmetic", () => {
     expect(diffMasks(before, after)).toEqual({ added: 1, removed: 1, changed: 1 });
   });
 
-  it("reads the threshold from where a mask was found", () => {
-    expect(maskThreshold("/entry/instrument/detector/threshold_2_channel/pixel_mask")).toBe(2);
-    expect(maskThreshold("/entry/instrument/detector/detectorSpecific/pixel_mask")).toBe(0);
-  });
-
   it("names a saved mask after its source and the time, without growing on each round", () => {
     const now = new Date(2026, 9, 23, 17, 8);
     expect(maskFileName("run_7", { now })).toBe("run_7_pixel_mask_20261023-1708");
     expect(maskFileName("run_7", { edited: true, now })).toBe("run_7_pixel_mask_edited_20261023-1708");
     expect(maskFileName("run_7_pixel_mask_edited_20261022-0900", { now })).toBe("run_7_pixel_mask_20261023-1708");
+    // A detector's mask opened from the Detector tab: its file's stamp has seconds.
+    expect(maskFileName("E-1_pixel_mask_20261022-090012", { now })).toBe("E-1_pixel_mask_20261023-1708");
     expect(maskFileName("SIMPLON monitor (192.168.20.231) S21", { now })).toBe(
       "SIMPLON_monitor_192.168.20.231_S21_pixel_mask_20261023-1708",
     );
@@ -200,9 +188,12 @@ describe("pixel mask controller", () => {
     expect(elements.section.hidden).toBe(false);
     expect(elements.summaryChip.textContent).toBe("pixel_mask.summary.data");
     expect(elements.stateEl.textContent).toContain('"count":"2"');
-    expect(elements.sourceEl.textContent).toContain("/entry/instrument/detector/pixel_mask");
+    // One line: where from, then what it masks; where in the file on hover.
+    expect(elements.sourceEl.textContent).toContain("run_master.h5");
+    expect(elements.sourceEl.textContent).toContain("pixel_mask.count.gap");
+    expect(elements.sourceEl.textContent).toContain("pixel_mask.count.defective");
+    expect(elements.sourceEl.title).toContain("/entry/instrument/detector/pixel_mask");
     expect(elements.saveTiffBtn.disabled).toBe(false);
-    expect(elements.useDataBtn.hidden).toBe(true);
     // No detector connected: nothing on the Detector tab.
     expect(elements.detSection.hidden).toBe(true);
   });
@@ -216,88 +207,19 @@ describe("pixel mask controller", () => {
     expect(elements.stateEl.textContent).toContain("pixel_mask.state.mismatch");
   });
 
-  it("pins a mask loaded from a file, and lets it go again", async () => {
-    const fetchMock = vi.fn(async (url) => {
-      if (url.startsWith("/api/choose-file")) return jsonResponse({ path: "/masks/beamstop.tiff" });
-      if (url.startsWith("/api/pixel-mask/file")) return maskResponse([0, 4, 0, 0, 0, 1], [2, 3]);
-      throw new Error(`unexpected ${url}`);
+  it("drops edits when switched off", () => {
+    const { controller, elements, callbacks } = setup({
+      state: { hasFrame: true, dataRaw: new Uint16Array(4), width: 2, height: 2 },
     });
-    vi.stubGlobal("fetch", fetchMock);
-    const { controller, elements, callbacks } = setup();
     controller.setEnabled(true);
-
-    await controller.loadFromFile();
-    expect(fetchMock.mock.calls[1][0]).toBe("/api/pixel-mask/file?file=%2Fmasks%2Fbeamstop.tiff");
-    const pinned = controller.getPinnedMask();
-    expect(pinned.shape).toEqual([2, 3]);
-    expect(Array.from(pinned.data)).toEqual([0, 4, 0, 0, 0, 1]);
-    expect(callbacks.refreshMask).toHaveBeenCalledTimes(1);
-    expect(elements.summaryChip.textContent).toBe("pixel_mask.summary.file");
-    expect(elements.useDataBtn.hidden).toBe(false);
-
-    elements.useDataBtn.click();
-    await flush();
-    expect(controller.getPinnedMask()).toBeNull();
-    expect(callbacks.refreshMask).toHaveBeenCalledTimes(2);
-  });
-
-  it("loads the mask of the threshold shown from a file with one per threshold", async () => {
-    const fetchMock = vi.fn(async (url) => {
-      if (url.startsWith("/api/choose-file")) return jsonResponse({ path: "/data/series_160_master.h5" });
-      return maskResponse([0, 1], [1, 2], "/entry/instrument/detector/threshold_3_channel/pixel_mask");
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const { controller, elements } = setup({ state: { thresholdIndex: 2 } });
-    controller.setEnabled(true);
-    await controller.loadFromFile();
-    expect(fetchMock.mock.calls[1][0]).toBe("/api/pixel-mask/file?file=%2Fdata%2Fseries_160_master.h5&threshold=2");
-    expect(elements.sourceEl.textContent).toContain("pixel_mask.source.threshold");
-    expect(elements.sourceEl.textContent).toMatch(/n\\?":3/);
-    expect(controller.currentMask().name).toMatch(/^series_160_threshold_3_pixel_mask_\d{8}-\d{4}$/);
-  });
-
-  it("drops a pinned mask when switched off", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url) =>
-        url.startsWith("/api/choose-file") ? jsonResponse({ path: "m.h5" }) : maskResponse([1], [1, 1]),
-      ),
-    );
-    const { controller, elements, callbacks } = setup();
-    controller.setEnabled(true);
-    await controller.loadFromFile();
+    controller.beginEdit();
+    controller.getEditTarget().data[0] = 16;
+    controller.onEditCommit();
+    callbacks.refreshMask.mockClear();
     controller.setEnabled(false);
     expect(controller.getPinnedMask()).toBeNull();
     expect(elements.section.hidden).toBe(true);
-    expect(callbacks.refreshMask).toHaveBeenCalledTimes(2);
-  });
-
-  it("uses ALBIS's own file picker when the backend is not on this computer", async () => {
-    const fetchMock = vi.fn(async () => maskResponse([0], [1, 1]));
-    vi.stubGlobal("fetch", fetchMock);
-    const { controller, callbacks } = setup({ local: false });
-    callbacks.openFileDialog.mockResolvedValue("masks/remote.h5");
-    controller.setEnabled(true);
-    await controller.loadFromFile();
-    expect(callbacks.openFileDialog).toHaveBeenCalledWith({ exts: ".h5,.hdf5,.tif,.tiff" });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(controller.getPinnedMask()).not.toBeNull();
-  });
-
-  it("reports a file without a mask instead of pinning nothing", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url) =>
-        url.startsWith("/api/choose-file")
-          ? jsonResponse({ path: "plain.h5" })
-          : jsonResponse({ detail: "Pixel mask not found" }, 404),
-      ),
-    );
-    const { controller, callbacks } = setup();
-    controller.setEnabled(true);
-    await controller.loadFromFile();
-    expect(controller.getPinnedMask()).toBeNull();
-    expect(callbacks.setStatus).toHaveBeenLastCalledWith("pixel_mask.status.load_failed", { tone: "error" });
+    expect(callbacks.refreshMask).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -312,32 +234,46 @@ describe("pixel mask on the Detector tab", () => {
     });
   }
 
-  it("shows the section only with a connected detector, and locks Send while it works", () => {
-    const { controller, elements } = setup({
-      detector: { ...detector, locked: true },
-      state: { maskRaw: new Uint32Array([1]), maskShape: [1, 1], maskAvailable: true },
+  function copyFetch(result = { path: "masks/E-1_pixel_mask_20261026-081530.h5", masked: 2 }) {
+    return vi.fn(async (url, init = {}) => {
+      if (url === "/api/pixel-mask/detector/copy" && init.method === "POST") return jsonResponse(result);
+      throw new Error(`unexpected ${init.method || "GET"} ${url}`);
     });
+  }
+
+  it("shows the section only with a connected detector, and locks Clear while it works", () => {
+    const { controller, elements } = setup({ detector: { ...detector, locked: true } });
     controller.setEnabled(true);
     expect(elements.detSection.hidden).toBe(false);
-    expect(elements.detSendBtn.disabled).toBe(true);
+    expect(elements.detClearBtn.disabled).toBe(true);
+    expect(elements.detOpenBtn.disabled).toBe(false);
     expect(elements.detSummary.hidden).toBe(false);
   });
 
-  it("cannot send without a mask in ALBIS, and says why", () => {
-    const { controller, elements } = setup({ detector });
+  it("opens the detector's mask as a file, pinning nothing", async () => {
+    const fetchMock = copyFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, elements, callbacks } = setup({ detector });
     controller.setEnabled(true);
-    expect(elements.detSendBtn.disabled).toBe(true);
-    expect(elements.detSendBtn.dataset.helpReason).toBe("pixel_mask.detector.no_mask");
+    elements.detOpenBtn.click();
+    await flush();
+    await flush();
+    const meta = JSON.parse(fetchMock.mock.calls[0][1].body.get("meta"));
+    expect(meta).toEqual({ url: "http://det", version: "1.8.0", serial: "E-1" });
+    expect(callbacks.openPath).toHaveBeenCalledWith("masks/E-1_pixel_mask_20261026-081530.h5");
+    expect(controller.getPinnedMask()).toBeNull();
+    expect(elements.detInfo.textContent).toContain('"count":"2"');
+    expect(callbacks.setStatus.mock.calls.at(-1)[0]).toContain("pixel_mask.detector.status.opened");
   });
 
-  it("pins the detector's mask on Use in ALBIS", async () => {
-    vi.stubGlobal("fetch", detectorFetch({ onDetector: () => maskResponse([0, 1, 2, 0], [2, 2], "pixel_mask") }));
-    const { controller, elements } = setup({ detector });
+  it("says so, and opens nothing, when the detector's mask cannot be read", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ detail: "not initialized" }, 409)));
+    const { controller, callbacks } = setup({ detector });
     controller.setEnabled(true);
-    await controller.loadFromDetector();
-    expect(controller.getPinnedMask().origin).toBe("detector");
-    expect(elements.summaryChip.textContent).toBe("pixel_mask.summary.detector");
-    expect(elements.detInfo.textContent).toContain('"count":"2"');
+    await controller.openFromDetector();
+    expect(callbacks.openPath).not.toHaveBeenCalled();
+    expect(callbacks.setStatus.mock.calls.at(-1)[0]).toContain("pixel_mask.detector.status.read_failed");
+    expect(callbacks.setStatus.mock.calls.at(-1)[0]).toContain("not initialized");
   });
 
   it("sends the mask in use after confirming what changes, and remembers the backup", async () => {
@@ -510,25 +446,28 @@ describe("editing in the Pixel Mask section", () => {
     expect(elements.summaryChip.textContent).toBe("pixel_mask.summary.edited");
   });
 
+  const detector = { url: "http://det", version: "1.8.0", serial: "E-1", model: "EIGER2", locked: false };
+  const copied = () => jsonResponse({ path: "masks/E-1_pixel_mask_20261026-081530.h5", masked: 1 });
+
   it("asks before unsaved edits are replaced, and keeps them when told to", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url) => (url.startsWith("/api/choose-file") ? jsonResponse({ path: "other.tiff" }) : maskResponse([8, 8, 8, 8], [2, 2]))),
-    );
-    const { controller } = setup({ state: frame });
+    vi.stubGlobal("fetch", vi.fn(async () => copied()));
+    const { controller, callbacks } = setup({ state: frame, detector });
     controller.setEnabled(true);
     controller.beginEdit();
     controller.getEditTarget().data[0] = 16;
     controller.onEditCommit();
 
     showConfirmDialogMock.mockResolvedValue(false);
-    await controller.loadFromFile();
+    await controller.openFromDetector();
     expect(showConfirmDialogMock.mock.calls[0][0].title).toBe("pixel_mask.discard_title");
     expect(controller.getPinnedMask().data[0]).toBe(16);
+    expect(callbacks.openPath).not.toHaveBeenCalled();
 
+    // Told yes: the file opened brings its own mask, not the edits.
     showConfirmDialogMock.mockResolvedValue(true);
-    await controller.loadFromFile();
-    expect(Array.from(controller.getPinnedMask().data)).toEqual([8, 8, 8, 8]);
+    await controller.openFromDetector();
+    expect(controller.getPinnedMask()).toBeNull();
+    expect(callbacks.openPath).toHaveBeenCalledTimes(1);
   });
 
   it("does not ask once the edits are saved", async () => {
@@ -536,39 +475,38 @@ describe("editing in the Pixel Mask section", () => {
       "fetch",
       vi.fn(async (url) => {
         if (url === "/api/pixel-mask/encode") return new Response("x", { headers: { "Content-Disposition": 'attachment; filename="m.tiff"' } });
-        if (url.startsWith("/api/choose-file")) return jsonResponse({ path: "other.tiff" });
-        return maskResponse([8, 8, 8, 8], [2, 2]);
+        return copied();
       }),
     );
     URL.createObjectURL = vi.fn(() => "blob:x");
     URL.revokeObjectURL = vi.fn();
-    const { controller } = setup({ state: frame });
+    const { controller } = setup({ state: frame, detector });
     controller.setEnabled(true);
     controller.beginEdit();
     controller.getEditTarget().data[0] = 16;
     controller.onEditCommit();
     await controller.save("tiff");
-    await controller.loadFromFile();
+    await controller.openFromDetector();
     expect(showConfirmDialogMock).not.toHaveBeenCalled();
   });
 
-  it("discards edits of a loaded mask back to it, and of the data's mask by letting go", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url) => (url.startsWith("/api/choose-file") ? jsonResponse({ path: "m.tiff" }) : maskResponse([2, 0, 0, 0], [2, 2]))),
-    );
+  it("discards edits by going back to the data's mask", async () => {
+    const own = new Uint32Array([2, 0, 0, 0]);
     showConfirmDialogMock.mockResolvedValue(true);
-    const { controller, callbacks } = setup({ state: frame });
+    const { controller, elements, callbacks } = setup({
+      state: { ...frame, maskRaw: own, maskShape: [2, 2], maskAvailable: true },
+    });
     controller.setEnabled(true);
-    await controller.loadFromFile();
     controller.beginEdit();
     controller.getEditTarget().data[1] = 16;
     controller.onEditCommit();
+    callbacks.refreshMask.mockClear();
     await controller.discardEdits();
-    expect(Array.from(controller.getPinnedMask().data)).toEqual([2, 0, 0, 0]);
-    expect(controller.getPinnedMask().origin).toBe("file");
-    expect(callbacks.resetEditor).toHaveBeenCalled();
+    expect(controller.getPinnedMask()).toBeNull();
+    expect(callbacks.refreshMask).toHaveBeenCalledTimes(1);
     expect(controller.hasEdits()).toBe(false);
+    expect(elements.discardBtn.hidden).toBe(true);
+    expect(elements.summaryChip.textContent).toBe("pixel_mask.summary.data");
   });
 });
 
@@ -609,7 +547,6 @@ describe("sending from the Pixel Mask section", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("/api/pixel-mask/detector?url=http%3A%2F%2F192.168.20.231&version=1.8.0");
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
     expect(JSON.parse(post[1].body.get("meta")).serial).toBe("192.168.20.231");
-    expect(elements.backupRow.hidden).toBe(false);
   });
 
   it("prefers the Detector tab's connection to the monitor's", () => {
@@ -730,69 +667,67 @@ describe("after a write to the detector", () => {
   const detector = { url: "http://det", version: "1.8.0", serial: "E-1", model: "EIGER2", locked: false };
   const okWrite = { key: "pixel_mask", masked: 1, previous_masked: 3, backup: "masks/backups/b.tiff", verified: true };
 
-  it("drops a copy of the detector's old mask on Clear, and tells the live view", async () => {
-    let onDetector = [1, 2, 8];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url, init = {}) => {
-        if (url.startsWith("/api/pixel-mask/detector?")) return maskResponse(onDetector, [1, 3]);
-        if (init.method === "POST") return jsonResponse(okWrite);
-        throw new Error(`unexpected ${url}`);
-      }),
-    );
+  // Edits of the live view's mask: a copy of the detector's.
+  const live = {
+    hasFrame: true,
+    dataRaw: new Uint16Array(3),
+    width: 3,
+    height: 1,
+    maskRaw: new Uint32Array([1, 2, 8]),
+    maskShape: [1, 3],
+    maskAvailable: true,
+    autoload: { running: true, mode: "simplon", simplonUrl: "http://det" },
+  };
+
+  function writeFetch() {
+    return vi.fn(async (url, init = {}) => {
+      if (url.startsWith("/api/pixel-mask/detector?")) return maskResponse([1, 2, 8], [1, 3]);
+      if (init.method === "POST") return jsonResponse(okWrite);
+      throw new Error(`unexpected ${url}`);
+    });
+  }
+
+  function editLive(controller) {
+    controller.beginEdit();
+    controller.getEditTarget().data[1] = 0;
+    controller.onEditCommit();
+  }
+
+  it("drops edits of the detector's old mask on Clear, after asking, and tells the live view", async () => {
+    vi.stubGlobal("fetch", writeFetch());
     showConfirmDialogMock.mockResolvedValue(true);
-    const { controller, callbacks } = setup({ detector });
+    const { controller, callbacks } = setup({ detector, state: { ...live } });
     controller.setEnabled(true);
-    await controller.loadFromDetector();
+    editLive(controller);
     expect(controller.getPinnedMask().detectorHost).toBe("det");
 
     await controller.clearDetectorMask();
+    expect(showConfirmDialogMock.mock.calls[0][0].title).toBe("pixel_mask.discard_title");
     expect(controller.getPinnedMask()).toBeNull();
     expect(callbacks.onDetectorMaskWritten).toHaveBeenCalledWith("http://det");
   });
 
-  it("asks before dropping edits made to that copy, and leaves both alone if told no", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url, init = {}) => {
-        if (url.startsWith("/api/pixel-mask/detector?")) return maskResponse([1, 2, 0, 0], [2, 2]);
-        if (init.method === "POST") return jsonResponse(okWrite);
-        throw new Error(`unexpected ${url}`);
-      }),
-    );
-    const { controller, callbacks } = setup({
-      detector,
-      state: { hasFrame: true, dataRaw: new Uint16Array(4), width: 2, height: 2 },
-    });
+  it("leaves those edits and the detector alone if told no", async () => {
+    vi.stubGlobal("fetch", writeFetch());
+    const { controller, callbacks } = setup({ detector, state: { ...live } });
     controller.setEnabled(true);
-    await controller.loadFromDetector();
-    controller.beginEdit();
-    controller.getEditTarget().data[3] = 16;
-    controller.onEditCommit();
+    editLive(controller);
 
     showConfirmDialogMock.mockResolvedValueOnce(false);
     await controller.clearDetectorMask();
     expect(showConfirmDialogMock.mock.calls[0][0].title).toBe("pixel_mask.discard_title");
-    expect(controller.getPinnedMask().data[3]).toBe(16);
+    expect(controller.getPinnedMask().data[1]).toBe(0);
     expect(callbacks.onDetectorMaskWritten).not.toHaveBeenCalled();
   });
 
-  it("keeps a mask loaded from a file, which no write makes out of date", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url, init = {}) => {
-        if (url.startsWith("/api/choose-file")) return jsonResponse({ path: "m.tiff" });
-        if (url.startsWith("/api/pixel-mask/file")) return maskResponse([0, 4, 0], [1, 3]);
-        if (url.startsWith("/api/pixel-mask/detector?")) return maskResponse([1, 2, 8], [1, 3]);
-        if (init.method === "POST") return jsonResponse(okWrite);
-        throw new Error(`unexpected ${url}`);
-      }),
-    );
+  it("keeps edits of a file's mask, which no write makes out of date", async () => {
+    vi.stubGlobal("fetch", writeFetch());
     showConfirmDialogMock.mockResolvedValue(true);
-    const { controller } = setup({ detector });
+    const { controller } = setup({ detector, state: { ...live, autoload: {}, file: "run_master.h5" } });
     controller.setEnabled(true);
-    await controller.loadFromFile();
+    editLive(controller);
     await controller.clearDetectorMask();
-    expect(controller.getPinnedMask().origin).toBe("file");
+    expect(showConfirmDialogMock.mock.calls[0][0].title).toBe("pixel_mask.detector.clear_title");
+    expect(controller.getPinnedMask().data[1]).toBe(0);
   });
 });

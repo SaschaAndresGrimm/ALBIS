@@ -1,4 +1,4 @@
-"""Pixel masks (beta): load, save, and read or replace a detector's mask."""
+"""Pixel masks (beta): load, save, and read, copy or replace a detector's mask."""
 
 from __future__ import annotations
 
@@ -89,6 +89,7 @@ def test_everything_is_off_until_switched_on(
         client.post("/api/pixel-mask/encode", **_form(meta, _mask())),
         client.get("/api/pixel-mask/detector", params={"url": dcu.url}),
         client.post("/api/pixel-mask/detector", **_form(meta, _mask())),
+        client.post("/api/pixel-mask/detector/copy", data={"meta": json.dumps(meta)}),
     ):
         assert response.status_code == 404
         assert "switched off" in response.json()["detail"]
@@ -105,6 +106,7 @@ def test_the_detector_routes_also_need_detector_control(
     for response in (
         client.get("/api/pixel-mask/detector", params={"url": dcu.url}),
         client.post("/api/pixel-mask/detector", **_form(meta, _mask())),
+        client.post("/api/pixel-mask/detector/copy", data={"meta": json.dumps(meta)}),
     ):
         assert response.status_code == 404
         assert "Detector control" in response.json()["detail"]
@@ -199,6 +201,57 @@ def test_the_detectors_mask_is_read(client: TestClient, dcu: FakeDCUServer) -> N
     assert mask.shape == (256, 256)
     assert response.headers["X-Mask-Path"] == "pixel_mask"
     assert mask[128, 0] == 1 and mask[0, 40] == 2
+
+
+def test_a_saved_mask_opens_as_data_with_itself_as_its_mask(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Data -> Pixel Mask has no Load: a mask saved as HDF5 is opened like any
+    file, and is then the data's own mask."""
+    mask = _mask((40, 30))
+    saved = client.post(
+        "/api/pixel-mask/encode", **_form({"format": "h5", "shape": [40, 30], "name": "m"}, mask)
+    )
+    path = tmp_path / "m.h5"
+    path.write_bytes(saved.content)
+
+    datasets = client.get("/api/datasets", params={"file": str(path)})
+    assert datasets.status_code == 200, datasets.text
+    listed = datasets.json()["datasets"]
+    assert [entry["path"] for entry in listed] == [pixel_mask.HDF5_MASK_PATH]
+    assert listed[0]["image"] is True
+
+    own = client.get("/api/mask", params={"file": str(path)})
+    assert np.array_equal(_decode(own), mask)
+
+
+def test_the_detectors_mask_is_copied_to_a_file_to_open(
+    client: TestClient, dcu: FakeDCUServer, tmp_path: Path
+) -> None:
+    _initialize(client, dcu.url)
+    on_detector = dcu.dcu.pixel_mask()
+    expected = np.frombuffer(base64.b64decode(on_detector["value"]["data"]), dtype="<u4").reshape(
+        256, 256
+    )
+
+    copied = client.post(
+        "/api/pixel-mask/detector/copy",
+        data={"meta": json.dumps({"url": dcu.url, "serial": "E-32-0123/x"})},
+    )
+    assert copied.status_code == 200, copied.text
+    result = copied.json()
+    assert result["path"].startswith("masks/E-32-0123-x_pixel_mask_")
+    assert result["path"].endswith(".h5")
+    assert result["masked"] == int(np.count_nonzero(expected))
+    with h5py.File(tmp_path / result["path"], "r") as h5:
+        assert np.array_equal(h5[pixel_mask.HDF5_MASK_PATH][()], expected)
+    # Reading is all it does.
+    assert np.array_equal(dcu.dcu.mask, expected)
+
+
+def test_copying_needs_a_detector_address(client: TestClient) -> None:
+    response = client.post("/api/pixel-mask/detector/copy", data={"meta": "{}"})
+    assert response.status_code == 400
 
 
 def test_sending_a_mask_backs_up_the_old_one_and_confirms_the_new(

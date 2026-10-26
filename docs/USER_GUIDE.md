@@ -340,23 +340,24 @@ defective pixels. ALBIS applies the one in the data (**Apply mask** in the
 Histogram section). Switch on **Settings → Tools → Beta: pixel masks** to
 work with masks themselves, in **Data → Pixel Mask**.
 
-The section shows the mask in use, where it came from, and what it masks:
-gaps, defective and other pixels. A mask whose size does not match the image
-is not applied, and the section says so.
+The mask is always the open data's own: from an HDF5 file, where DECTRIS
+and NeXus files keep it (for a detector with several energy thresholds, the
+one for the threshold you are viewing); from the live images; or from the
+negative pixel values of a TIFF or CBF image (-1 a gap, others defective). The
+section shows where it came from and what it masks: gaps, defective and other
+pixels. A mask whose size does not match the image is not applied, and the
+section says so.
 
-- **Load…** uses a mask from an HDF5 file or a TIFF instead of the data's
-  own, for every image, from file to file, until **Use the data's mask**.
-  From an HDF5 file, ALBIS takes the mask from where DECTRIS and NeXus files
-  keep it. A master file from a detector with several energy thresholds holds
-  one mask per threshold: ALBIS takes the one for the threshold you are
-  viewing, else the first, and the section names it. A TIFF is the whole mask.
-- **Save as HDF5** and **Save as TIFF** download the mask in use, the data's
-  own or a loaded one, as a 32-bit image. Each pixel keeps its reason bits
-  (gap, dead, hot and so on), so a mask saved here and loaded again is the same
-  mask. The file is named after where the mask came from and when, for example
-  `run_7_pixel_mask_20261023-1708.tiff`: the file's name, the detector's
-  address for a live view, its serial number when read from the Detector tab,
-  and `_edited` after hand edits.
+- **Save as HDF5** and **Save as TIFF** download the mask in use as a 32-bit
+  image. Each pixel keeps its reason bits (gap, dead, hot and so on). The file
+  is named after where the mask came from and when, for example
+  `run_7_pixel_mask_20261023-1708.h5`: the file's name, the detector's address
+  for a live view or its serial number for a mask opened from the Detector
+  tab, and `_edited` after hand edits.
+- **To use a saved mask again**, open its HDF5 file like any data (File →
+  Open). ALBIS shows the mask as the image and applies it as that image's own
+  mask, ready to edit, save or send to a detector. A TIFF saved here is meant
+  for other programs: opened in ALBIS it is only an image.
 
 **Edit on image** opens a toolbar over the image to mask and unmask pixels by
 hand. It works on the mask in use, or on a new, empty one if the data has none.
@@ -379,10 +380,10 @@ hand. It works on the mask in use, or on a new, empty one if the data has none.
   files and a detector treat it like any other defective pixel.
 
 The section then says **Edited** and how many pixels you changed, and the edits
-stay in use, on every image of that size, until **Discard edits**. They are
-kept only in this window: save the mask or send it to the detector to keep it.
-ALBIS asks before closing the window, loading another mask or switching back
-to the data's mask would lose them.
+stay in use, on every image of that size, until **Discard edits** goes back to
+the data's mask. They are kept only in this window: save the mask or send it to
+the detector to keep it. ALBIS asks before closing the window or opening a
+detector's mask would lose them.
 
 **Find bad pixels…** looks for defective pixels in the image shown and circles
 them on it, hot ones in one colour, dead and cold ones in another:
@@ -401,25 +402,27 @@ them on it, hot ones in one colour, dead and cold ones in another:
 - It works best on a flat-field or dark image. In a diffraction image a sharp
   reflection one pixel wide looks just like a hot pixel.
 
-With detector control on, **Send to detector…** in this section sends the mask
-in use to the detector connected on the Detector tab, or, if none is, to the
-one the SIMPLON monitor shows, with the same confirmation, backup and **Restore**
-as below.
+With detector control on, **Send to detector…** in this section replaces a
+detector's mask with the one in use: the detector connected on the Detector
+tab, or, if none is, the one the SIMPLON monitor shows. ALBIS first reads the
+detector's mask again and asks, saying how many pixels become masked,
+unmasked, or masked for another reason. It sends nothing while the detector is
+busy, nor a mask of another size.
 
 With detector control also on, the [Detector tab](#test-a-detector-beta) has
-a **Pixel Mask** section while a detector is connected:
+a **Pixel Mask** section while a detector is connected, for the detector
+itself:
 
-- **Use in ALBIS** reads the detector's mask and applies it in ALBIS, as if
-  loaded from a file. Save it from Data → Pixel Mask to keep a copy.
-- **Send ALBIS's mask…** replaces the detector's mask with the one ALBIS
-  applies. ALBIS first reads the detector's mask again and asks, saying how
-  many pixels become masked, unmasked, or masked for another reason. It sends
-  nothing while the detector is busy, nor a mask of another size.
+- **Open in ALBIS** saves the detector's mask as an HDF5 file in the data
+  folder's `masks/`, named after its serial number and the time, and opens it
+  like any data. Edit it in Data → Pixel Mask and send it back from there; the
+  file stays as a record of what the detector had. Images from the detector
+  carry its mask anyway, so this is for when none are open.
 - **Clear…** unmasks everything on the detector except its module gaps,
   where it has no pixels: SIMPLON has no way to delete a mask, so ALBIS sends
   one that masks only the gaps. It asks first, saying how many pixels are
   unmasked, and keeps a backup like Send.
-- Before sending, ALBIS saves the detector's current mask as a TIFF in the
+- Before Send or Clear, ALBIS saves the detector's current mask as a TIFF in the
   data folder's `masks/backups/`, named after the detector's serial number and
   the time. **Restore** sends the last one back. After sending, ALBIS reads the
   mask back from the detector. The Activity list then says whether the detector
@@ -429,8 +432,8 @@ The detector applies a new mask to the images it takes from then on. Images
 already written keep the mask they were taken with. A live view of the
 detector shows the new mask at once after Send, Clear or Restore, and fetches
 the detector's mask again with every new series, so a mask changed by other
-software shows from the next series on. A copy of that detector's old mask in
-use in ALBIS (from **Use in ALBIS**) is dropped after Clear or Restore.
+software shows from the next series on. Edits of that live view's old mask are
+dropped after Clear or Restore, after asking.
 
 ---
 

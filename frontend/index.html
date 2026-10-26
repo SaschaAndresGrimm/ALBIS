@@ -967,7 +967,6 @@
               </div>
               <div class="pixel-mask-meta">
                 <div class="pixel-mask-source" id="pixel-mask-source" hidden></div>
-                <div class="pixel-mask-counts" id="pixel-mask-counts" hidden></div>
                 <div class="pixel-mask-edits" id="pixel-mask-edits" hidden></div>
               </div>
               <div class="pixel-mask-actions">
@@ -1003,23 +1002,17 @@
                 </div>
               </div>
               <div class="pixel-mask-actions pixel-mask-transfer">
-                <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-load" data-i18n="pixel_mask.action.load">Load…</button>
                 <div class="pixel-mask-save">
                   <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-save" aria-haspopup="menu" aria-expanded="false" aria-controls="pixel-mask-save-menu">
                     <span data-i18n="pixel_mask.action.save">Save as</span> ▾
                   </button>
                   <div class="pixel-mask-save-menu" id="pixel-mask-save-menu" role="menu" hidden>
-                    <button type="button" role="menuitem" id="pixel-mask-save-tiff" data-i18n-title="pixel_mask.action.save_tiff" title="Save as TIFF">TIFF</button>
                     <button type="button" role="menuitem" id="pixel-mask-save-h5" data-i18n-title="pixel_mask.action.save_h5" title="Save as HDF5">HDF5</button>
+                    <button type="button" role="menuitem" id="pixel-mask-save-tiff" data-i18n-title="pixel_mask.action.save_tiff" title="Save as TIFF">TIFF</button>
                   </div>
                 </div>
                 <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-send" data-i18n="pixel_mask.action.send" hidden>Send to detector…</button>
-                <button type="button" class="btn btn-secondary inpaint-value-btn" id="pixel-mask-use-data" data-i18n="pixel_mask.action.use_data" hidden>Use the data's mask</button>
                 <button type="button" class="info-tip" data-info-key="info.pixel_mask" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
-              </div>
-              <div class="detector-pixel-mask-backup" id="pixel-mask-backup" hidden>
-                <span id="pixel-mask-backup-text"></span>
-                <button class="linkish" type="button" id="pixel-mask-restore" data-i18n="pixel_mask.detector.restore">Restore</button>
               </div>
             </section>
             <section class="panel-section inspector is-collapsed" data-section="inspector">
@@ -1759,8 +1752,7 @@
               </button>
               <p class="detector-pixel-mask-info" id="detector-pixel-mask-info"></p>
               <div class="detector-actions">
-                <button class="btn btn-secondary" type="button" id="detector-pixel-mask-load" data-i18n="pixel_mask.detector.load">Use in ALBIS</button>
-                <button class="btn btn-secondary" type="button" id="detector-pixel-mask-send" data-i18n="pixel_mask.detector.send">Send ALBIS's mask…</button>
+                <button class="btn btn-secondary" type="button" id="detector-pixel-mask-open" data-i18n="pixel_mask.detector.open">Open in ALBIS</button>
                 <button class="btn btn-secondary" type="button" id="detector-pixel-mask-clear" data-i18n="pixel_mask.detector.clear">Clear…</button>
                 <button type="button" class="info-tip" data-info-key="info.pixel_mask_detector" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
               </div>

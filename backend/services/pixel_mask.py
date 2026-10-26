@@ -180,8 +180,19 @@ def write_detector_mask(url: str, version: str, key: str, arr: np.ndarray) -> No
         _raise_simplon_failure(exc, base, "The detector did not accept the pixel mask")
 
 
+def _safe_serial(serial: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in serial.strip())[:40]
+
+
 def backup_name(serial: str = "") -> str:
     """`detector_<serial>_<time>.tiff`, the serial reduced to safe characters."""
-    safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in serial.strip())[:40]
+    safe = _safe_serial(serial)
     stamp = time.strftime("%Y%m%d_%H%M%S")
     return f"detector_{safe}_{stamp}.tiff" if safe else f"detector_{stamp}.tiff"
+
+
+def copy_name(serial: str = "") -> str:
+    """`<serial>_pixel_mask_<date>-<time>.h5`: named like a mask saved from
+    Data -> Pixel Mask, with seconds, so two copies a minute apart differ."""
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    return f"{_safe_serial(serial) or 'detector'}_pixel_mask_{stamp}.h5"

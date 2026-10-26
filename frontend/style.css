@@ -2761,8 +2761,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   overflow: visible;
 }
 
-.pixel-mask-source,
-.pixel-mask-counts {
+.pixel-mask-source {
   color: var(--muted);
   font-size: 11px;
   overflow: hidden;

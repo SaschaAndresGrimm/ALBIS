@@ -3513,24 +3513,19 @@ detectorControlController.setEnabled(state.detectorControl);
 pixelMaskController = createPixelMaskController({
   apiBase: API,
   state,
-  isBackendLocal: () => backendIsLocal,
   elements: {
     section: document.getElementById("pixel-mask-section"),
     summaryChip: document.getElementById("summary-pixel-mask"),
     stateEl: document.getElementById("pixel-mask-state"),
     sourceEl: document.getElementById("pixel-mask-source"),
-    countsEl: document.getElementById("pixel-mask-counts"),
-    loadBtn: document.getElementById("pixel-mask-load"),
     saveBtn: document.getElementById("pixel-mask-save"),
     saveMenu: document.getElementById("pixel-mask-save-menu"),
     saveH5Btn: document.getElementById("pixel-mask-save-h5"),
     saveTiffBtn: document.getElementById("pixel-mask-save-tiff"),
-    useDataBtn: document.getElementById("pixel-mask-use-data"),
     detSection: document.getElementById("detector-pixel-mask"),
     detSummary: document.getElementById("detector-pixel-mask-summary"),
     detInfo: document.getElementById("detector-pixel-mask-info"),
-    detLoadBtn: document.getElementById("detector-pixel-mask-load"),
-    detSendBtn: document.getElementById("detector-pixel-mask-send"),
+    detOpenBtn: document.getElementById("detector-pixel-mask-open"),
     detBackup: document.getElementById("detector-pixel-mask-backup"),
     detBackupText: document.getElementById("detector-pixel-mask-backup-text"),
     detRestoreBtn: document.getElementById("detector-pixel-mask-restore"),
@@ -3539,9 +3534,6 @@ pixelMaskController = createPixelMaskController({
     discardBtn: document.getElementById("pixel-mask-discard"),
     editsEl: document.getElementById("pixel-mask-edits"),
     sendBtn: document.getElementById("pixel-mask-send"),
-    backupRow: document.getElementById("pixel-mask-backup"),
-    backupText: document.getElementById("pixel-mask-backup-text"),
-    restoreBtn: document.getElementById("pixel-mask-restore"),
     findBtn: document.getElementById("pixel-mask-find"),
     findPanel: document.getElementById("pixel-mask-find-panel"),
     findHot: document.getElementById("pixel-mask-find-hot"),
@@ -3572,7 +3564,11 @@ pixelMaskController = createPixelMaskController({
     setStatus,
     setSummaryChip,
     setSectionBadgeState,
-    openFileDialog: (...args) => openFileDialog(...args),
+    // The detector's mask, saved as a file, opens like a series copied from it.
+    openPath: async (path) => {
+      await ensureFileMode({ disableMonitor: false });
+      await openPathInViewer(path);
+    },
     openEditor: () => pixelMaskEditController?.open() || false,
     closeEditor: (options) => pixelMaskEditController?.close(options),
     resetEditor: () => pixelMaskEditController?.reset(),
