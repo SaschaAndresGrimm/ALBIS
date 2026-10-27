@@ -83,6 +83,9 @@ function createFakeGl() {
     uniform3f: vi.fn(),
     drawArrays: vi.fn(),
     getError: vi.fn(() => 0),
+    COLOR_BUFFER_BIT: 0x4000,
+    clearColor: vi.fn(),
+    clear: vi.fn(),
   };
   return gl;
 }
@@ -97,6 +100,7 @@ function buildController(userAgent) {
   const metaRenderer = { textContent: "" };
   const toFloat32 = vi.fn((data) => new Float32Array(data));
   let renderer = null;
+  const setStatus = vi.fn();
   const controller = createRenderEngineController({
     state: {
       dataRaw: new Uint16Array([5]),
@@ -119,7 +123,7 @@ function buildController(userAgent) {
       metaRenderer,
     },
     callbacks: {
-      setStatus: vi.fn(),
+      setStatus,
       toFloat32,
       isSaturatedValue: vi.fn(() => false),
       getWebglUnsignedDtypeKey: vi.fn((dtype) => (dtype === "uint16" ? "u16" : null)),
@@ -149,6 +153,7 @@ function buildController(userAgent) {
     metaRenderer,
     toFloat32,
     gl,
+    setStatus,
   };
 }
 
@@ -171,6 +176,27 @@ describe("render_engine_controller", () => {
       expect(source).toContain("float range = u_max - u_min;");
       expect(source).toContain("float denom = range != 0.0 ? range : 1.0;");
     }
+  });
+
+  it("reports a frame beyond the texture limit once, as an error, and blanks the canvas", () => {
+    // A JUNGFRAU 16M frame stored module-stacked is 1030 x 16448, past the
+    // 16384 px most GPUs allow. Drawing nothing under a "Ready" status looked
+    // like a file ALBIS could not open.
+    const { controller, getRenderer, gl, setStatus } = buildController("Mozilla/5.0 Chrome/136.0.0.0");
+    controller.initRenderer();
+    const renderer = getRenderer();
+    const frame = { floatData: new Float32Array(1), dtype: "float32", width: 2, height: 5000, palette: buildPalette() };
+    renderer.render(frame);
+    renderer.render(frame);
+    expect(setStatus).toHaveBeenCalledTimes(1);
+    expect(setStatus).toHaveBeenCalledWith("status.render.texture_too_large", { tone: "error" });
+    expect(gl.clear).toHaveBeenCalledTimes(2);
+    expect(gl.drawArrays).not.toHaveBeenCalled();
+
+    // A frame that fits re-arms the report for the next oversized one.
+    renderer.render({ ...frame, height: 1, floatData: new Float32Array(2) });
+    renderer.render(frame);
+    expect(setStatus).toHaveBeenCalledTimes(2);
   });
 
   it("disables unsigned integer WebGL textures on Firefox", () => {

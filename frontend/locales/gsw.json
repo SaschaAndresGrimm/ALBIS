@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Backend-Protokoll im Browser ufmache",
   "status.log.opened_file": "Backend-Protokolldatei ufmache",
   "status.recent_files.open_failed": "{{file}} het nid chöne ufgmacht wärde; us de Lischt gnoh",
-  "status.render.texture_too_large": "Bild isch grösser as d maximali Texturgröössi {{maxTextureSize}} px",
+  "status.render.texture_too_large": "Dä Frame cha nöd aazeigt werde: {{width}} × {{height}} px isch meh als s Limit vo de Grafikchartä vo {{maxTextureSize}} px pro Siite",
   "status.render.webgl_shader_error": "WebGL-Shader-Fähler",
   "status.roi.cleared": "ROI gläärt",
   "status.roi.exported_csv": "Exportiert ROI CSV: {{filename}}",

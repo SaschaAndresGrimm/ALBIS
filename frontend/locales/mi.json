@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Kua tuwhera te rangitaki tuara i te pūtirotiro",
   "status.log.opened_file": "Kua tuwhera te kōnae rangitaki tuara",
   "status.recent_files.open_failed": "Kāore i taea te whakatuwhera i {{file}}; kua tangohia i te rārangi",
-  "status.render.texture_too_large": "Ko te tāpare ka nui ake te rahi kakano {{maxTextureSize}}px",
+  "status.render.texture_too_large": "Kāore e taea te whakaatu i tēnei tāpare: {{width}} × {{height}} px ka nui ake i te tepe o te kāri whakairoiro, arā {{maxTextureSize}} px ia taha",
   "status.render.webgl_shader_error": "WebGL hapa whakamarumaru",
   "status.roi.cleared": "ROI kua whakawāteatia",
   "status.roi.exported_csv": "Kua kaweake ROI CSV: {{filename}}",

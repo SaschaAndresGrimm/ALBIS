@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "已在浏览器中打开后端日志",
   "status.log.opened_file": "已打开后端日志文件",
   "status.recent_files.open_failed": "无法打开 {{file}}；已从最近文件中移除",
-  "status.render.texture_too_large": "帧超过最大纹理尺寸 {{maxTextureSize}}px",
+  "status.render.texture_too_large": "无法显示此帧：{{width}} × {{height}} px 超出显卡每边 {{maxTextureSize}} px 的限制",
   "status.render.webgl_shader_error": "WebGL 着色器错误",
   "status.roi.cleared": "已清除 ROI",
   "status.roi.exported_csv": "已导出 ROI CSV：{{filename}}",

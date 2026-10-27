@@ -277,6 +277,7 @@ export function createRenderEngineController({
     let lastMaskData = null;
     let lastMaskEnabled = false;
     let maskClassData = null;
+    let oversizeReported = null;
 
     return {
       type: "webgl",
@@ -306,9 +307,21 @@ export function createRenderEngineController({
         const frameData = useUintPath ? rawData : floatData || (rawData ? toFloat32(rawData) : null);
         if (!frameData) return;
         if (width > maxTextureSize || height > maxTextureSize) {
-          setStatus(t("status.render.texture_too_large", { maxTextureSize }));
+          // Every contrast or colormap change redraws, so raise the error once
+          // per frame size rather than a toast per redraw.
+          const key = `${width}x${height}`;
+          if (oversizeReported !== key) {
+            oversizeReported = key;
+            setStatus(t("status.render.texture_too_large", { width, height, maxTextureSize }), {
+              tone: "error",
+            });
+          }
+          // Whatever the last frame left on the canvas is not this frame.
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
           return;
         }
+        oversizeReported = null;
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;
           canvas.height = height;

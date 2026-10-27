@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "バックエンドログをブラウザで開きました",
   "status.log.opened_file": "バックエンドログファイルを開きました",
   "status.recent_files.open_failed": "{{file}} を開けませんでした。履歴から削除しました",
-  "status.render.texture_too_large": "フレームが最大テクスチャサイズ {{maxTextureSize}}px を超えています",
+  "status.render.texture_too_large": "このフレームは表示できません：{{width}} × {{height}} px はグラフィックカードの上限（1辺 {{maxTextureSize}} px）を超えています",
   "status.render.webgl_shader_error": "WebGL シェーダーエラー",
   "status.roi.cleared": "ROI をクリアしました",
   "status.roi.exported_csv": "ROI CSV をエクスポートしました: {{filename}}",

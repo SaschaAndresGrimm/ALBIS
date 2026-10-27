@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Backend-Log im Browser geöffnet",
   "status.log.opened_file": "Backend-Protokolldatei geöffnet",
   "status.recent_files.open_failed": "{{file}} konnte nicht geöffnet werden; aus der Liste entfernt",
-  "status.render.texture_too_large": "Der Frame überschreitet die maximale Texturgröße {{maxTextureSize}}px",
+  "status.render.texture_too_large": "Dieser Frame kann nicht angezeigt werden: {{width}} × {{height}} px überschreitet das Grafikkarten-Limit von {{maxTextureSize}} px pro Seite",
   "status.render.webgl_shader_error": "WebGL Shader-Fehler",
   "status.roi.cleared": "ROI gelöscht",
   "status.roi.exported_csv": "ROI-CSV exportiert: {{filename}}",

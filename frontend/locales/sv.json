@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Öppnade backendloggen i webbläsaren",
   "status.log.opened_file": "Öppnade backend-loggfilen",
   "status.recent_files.open_failed": "Kunde inte öppna {{file}}; togs bort från listan",
-  "status.render.texture_too_large": "Bildrutan överskrider max texturstorlek {{maxTextureSize}}px",
+  "status.render.texture_too_large": "Kan inte visa den här bildrutan: {{width}} × {{height}} px överskrider grafikkortets gräns på {{maxTextureSize}} px per sida",
   "status.render.webgl_shader_error": "WebGL skuggningsfel",
   "status.roi.cleared": "ROI rensad",
   "status.roi.exported_csv": "Exporterad ROI CSV: {{filename}}",

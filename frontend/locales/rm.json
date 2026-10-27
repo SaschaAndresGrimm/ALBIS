@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Datoteca da protocol dal backend averta en il browser",
   "status.log.opened_file": "Datoteca da protocol dal backend averta",
   "status.recent_files.open_failed": "Betg pussaivel dad avrir {{file}}; allontanà da la glista",
-  "status.render.texture_too_large": "Il maletg surpassa la grondezza massimala da textura da {{maxTextureSize}} px",
+  "status.render.texture_too_large": "Impussibel da mussar quest maletg: {{width}} × {{height}} px surpassa il limit da la carta grafica da {{maxTextureSize}} px per vart",
   "status.render.webgl_shader_error": "Errur da shader WebGL",
   "status.roi.cleared": "ROI svidada",
   "status.roi.exported_csv": "CSV da ROI exportà: {{filename}}",

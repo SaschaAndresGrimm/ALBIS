@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Journal backend ouvert dans le navigateur",
   "status.log.opened_file": "Fichier journal back-end ouvert",
   "status.recent_files.open_failed": "Impossible d'ouvrir {{file}} ; retiré des fichiers récents",
-  "status.render.texture_too_large": "L'image dépasse la taille maximale de texture de {{maxTextureSize}}px",
+  "status.render.texture_too_large": "Impossible d'afficher cette image : {{width}} × {{height}} px dépasse la limite de la carte graphique de {{maxTextureSize}} px par côté",
   "status.render.webgl_shader_error": "Erreur de shader WebGL",
   "status.roi.cleared": "ROI effacé",
   "status.roi.exported_csv": "CSV ROI exporté : {{filename}}",

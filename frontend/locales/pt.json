@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Log de back-end aberto no navegador",
   "status.log.opened_file": "Arquivo de log de back-end aberto",
   "status.recent_files.open_failed": "Não foi possível abrir {{file}}; removido dos recentes",
-  "status.render.texture_too_large": "O quadro excede o tamanho máximo da textura {{maxTextureSize}}px",
+  "status.render.texture_too_large": "Não é possível exibir este quadro: {{width}} × {{height}} px excede o limite da placa gráfica de {{maxTextureSize}} px por lado",
   "status.render.webgl_shader_error": "Erro de sombreador WebGL",
   "status.roi.cleared": "ROI limpo",
   "status.roi.exported_csv": "CSV ROI exportado: {{filename}}",

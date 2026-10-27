@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Registro del backend abierto en el navegador",
   "status.log.opened_file": "Archivo de registro de backend abierto",
   "status.recent_files.open_failed": "No se pudo abrir {{file}}; eliminado de los recientes",
-  "status.render.texture_too_large": "El fotograma excede el tamaño máximo de textura {{maxTextureSize}}px",
+  "status.render.texture_too_large": "No se puede mostrar este fotograma: {{width}} × {{height}} px supera el límite de la tarjeta gráfica de {{maxTextureSize}} px por lado",
   "status.render.webgl_shader_error": "Error del sombreador WebGL",
   "status.roi.cleared": "ROI borrado",
   "status.roi.exported_csv": "CSV de ROI exportado: {{filename}}",

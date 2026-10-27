@@ -1353,7 +1353,7 @@
   "status.log.opened_browser": "Åbnet backend-log i browser",
   "status.log.opened_file": "Åbnet backend-logfil",
   "status.recent_files.open_failed": "Kunne ikke åbne {{file}}; fjernet fra listen",
-  "status.render.texture_too_large": "Rammen overstiger den maksimale teksturstørrelse {{maxTextureSize}}px",
+  "status.render.texture_too_large": "Kan ikke vise denne ramme: {{width}} × {{height}} px overstiger grafikkortets grænse på {{maxTextureSize}} px pr. side",
   "status.render.webgl_shader_error": "WebGL shader fejl",
   "status.roi.cleared": "ROI ryddet",
   "status.roi.exported_csv": "Eksporteret ROI CSV: {{filename}}",
