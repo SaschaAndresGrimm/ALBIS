@@ -1025,3 +1025,19 @@ def test_a_header_that_cannot_be_parsed_costs_the_metadata_not_the_frame(
     monkeypatch.setattr(fmt, "_parse_pilatus_header_text", broken)
     pixels, parsed, text = fmt._read_image_with_header(path)
     assert pixels.shape == (3, 4) and parsed == {} and "Exposure_time" in text
+
+
+def test_export_workers_leave_two_cores_and_stay_on_performance_cores() -> None:
+    from backend.services.data_export import _performance_cores, default_export_workers
+
+    # Apple silicon with 4 performance + 4 efficiency cores: the 4 fast ones.
+    assert default_export_workers(8, 4) == 4
+    # 8 + 2 cores: two left over either way.
+    assert default_export_workers(10, 8) == 8
+    # No such split (Intel, Windows, Linux): cores - 2, at most 8, at least 1.
+    assert default_export_workers(8, None) == 6
+    assert default_export_workers(32, None) == 8
+    assert default_export_workers(2, None) == 1
+    assert default_export_workers(None, None) == 1
+    found = _performance_cores()
+    assert found is None or found >= 1

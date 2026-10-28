@@ -7,6 +7,7 @@ import math
 import os
 import re
 import shutil
+import sys
 import threading
 import time
 import uuid
@@ -68,11 +69,42 @@ class DataExportDeps:
     read_image_with_header: Callable[[Path], tuple[np.ndarray, dict[str, Any], str]]
 
 
-# Frames converted at once, at most. The work is numpy and file I/O, which run
-# outside the GIL, so threads share the cores without copying frames between
-# processes. Two cores are left to the rest of ALBIS -- the viewer, the live
-# monitor, detector control -- which an export would otherwise slow down.
-EXPORT_WORKERS = max(1, min(8, (os.cpu_count() or 2) - 2))
+def _performance_cores() -> int | None:
+    """Apple silicon's performance cores, or None where there is no such
+    split (Intel Macs, Windows, Linux) or it cannot be read."""
+    if sys.platform != "darwin":
+        return None
+    try:
+        import ctypes
+        import ctypes.util
+
+        libc = ctypes.CDLL(ctypes.util.find_library("c"))
+        value = ctypes.c_int(0)
+        size = ctypes.c_size_t(ctypes.sizeof(value))
+        if libc.sysctlbyname(
+            b"hw.perflevel0.physicalcpu", ctypes.byref(value), ctypes.byref(size), None, 0
+        ):
+            return None
+        return value.value if value.value > 0 else None
+    except (OSError, AttributeError, TypeError):
+        return None
+
+
+def default_export_workers(cpus: int | None, performance_cores: int | None) -> int:
+    """Frames converted at once, at most. The work is numpy and file I/O, which
+    run outside the GIL, so threads share the cores without copying frames
+    between processes. Two cores are left to the rest of ALBIS -- the viewer,
+    the live monitor, detector control -- which an export would otherwise slow
+    down. On Apple silicon no more than its performance cores: a worker on an
+    efficiency core holds up the others (on a 4 + 4 core Mac, processing took
+    9.2 ms a frame on four threads and 12.1 ms on six)."""
+    workers = min(8, (cpus or 2) - 2)
+    if performance_cores:
+        workers = min(workers, performance_cores)
+    return max(1, workers)
+
+
+EXPORT_WORKERS = default_export_workers(os.cpu_count(), _performance_cores())
 # Working memory a frame takes while it is converted, per pixel: flatfield and
 # inpainting hold float64 copies and full-size index arrays (0.84 GB for an
 # 18 Mpx EIGER2 16M frame), plus the frames read and waiting.
