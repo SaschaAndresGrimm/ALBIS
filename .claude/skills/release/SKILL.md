@@ -93,9 +93,10 @@ gh run watch "$id" --exit-status --interval 30 >/dev/null 2>&1; gh run view "$id
 ```
 
 When it succeeds, confirm with `gh release view vX.Y.Z`: not a draft, marked
-Latest, 15 assets (Linux tarball, AppImage and bundle with `.sig` each, macOS
-arm64 and x64 `.dmg` and `.zip`, Windows setup `.exe` and `.zip`, SBOM,
-`SHA256SUMS.txt` and its `.sig`).
+Latest, 21 assets (Linux x64 and arm64 each a tarball, AppImage and bundle
+with `.sig` each, macOS arm64 and x64 `.dmg` and `.zip`, Windows setup `.exe`
+and `.zip`, SBOM, `SHA256SUMS.txt` and its `.sig`). GitHub's own "Source
+code" archives come on top, so the page shows 23.
 
 A release name goes on afterwards; the workflow sets none:
 `gh release edit vX.Y.Z --title "vX.Y.Z — Name"`.
