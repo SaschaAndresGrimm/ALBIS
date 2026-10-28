@@ -97,6 +97,27 @@ function writeOpen(id, open) {
   }
 }
 
+// Frame and count time linked: one sets both, the count time the frame time
+// less the readout, for full duty cycle. On unless switched off; remembered
+// per browser.
+const LINK_KEY = "albis.detectorControl.linkTiming";
+
+function readLinkTiming() {
+  try {
+    return window.localStorage?.getItem(LINK_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function writeLinkTiming(on) {
+  try {
+    window.localStorage?.setItem(LINK_KEY, on ? "1" : "0");
+  } catch {
+    // A remembered preference only.
+  }
+}
+
 function writeQuick(values) {
   try {
     window.localStorage?.setItem(QUICK_KEY, JSON.stringify(values));
@@ -244,6 +265,22 @@ export function sameValue(a, b) {
 
 export function isEnableMode(mode) {
   return ENABLE_MODES.has(String(mode || ""));
+}
+
+// The detector's dead time between two images, where it says.
+export function readoutTime(det) {
+  const value = Number(det?.detector_readout_time?.value);
+  return det?.detector_readout_time && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+// Full duty cycle: the count time fills the frame time but for the readout
+// (600 s and 599.9999999 s with 0.1 µs readout).
+export function atFullDutyCycle(det) {
+  const readout = readoutTime(det);
+  const frame = Number(det?.frame_time?.value);
+  const count = Number(det?.count_time?.value);
+  if (readout === null || !(frame > 0) || !(count > 0)) return false;
+  return Math.abs(frame - count - readout) <= Math.max(1e-9, readout * 0.01);
 }
 // Parameters with a translated label; every other one is shown by its SIMPLON
 // key, which is also what the API documentation calls it.
@@ -589,6 +626,9 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   // must not go on to take its series.
   let quickCancelled = false;
   let quick = readQuick();
+  // Wanted, not necessarily so: linked shows only while the detector is at
+  // full duty cycle, whoever set the times.
+  let linkTiming = readLinkTiming();
   let progressTimer = null;
   // Internal enable: each Trigger sends its own exposure, chosen here, next to
   // the button, while the detector is armed.
@@ -1913,7 +1953,80 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       input.value = displayValue(descriptor);
       return;
     }
+    if (subsystem === "detector" && (key === "frame_time" || key === "count_time") && timingLinked()) {
+      await writeLinkedTiming(key, checked.value, input, hint, row);
+      return;
+    }
     await sendParam(subsystem, key, checked.value, input, hint, row);
+  }
+
+  // ---------- frame and count time linked ----------
+  function timingLinked() {
+    return linkTiming && atFullDutyCycle(params.detector);
+  }
+
+  function timingRow(key) {
+    return paramsHost?.querySelector(`[data-key="detector:${key}"]`) || null;
+  }
+
+  // Linked, one time sets both. A frame time takes the count time along by
+  // itself (the detector fits the count time to it); a count time raises the
+  // frame time only when it no longer fits, so the frame time follows here.
+  // Whatever the detector did not do itself is sent after it.
+  async function writeLinkedTiming(key, value, input, hint, row) {
+    await sendParam("detector", key, value, input, hint, row);
+    if (!sameValue(Number(params.detector[key]?.value), value) || atFullDutyCycle(params.detector)) return;
+    await fillDutyCycle(key === "frame_time" ? "count_time" : "frame_time");
+  }
+
+  // Sets `key` so that the two times are at full duty cycle again, the other
+  // one staying as it is.
+  async function fillDutyCycle(key) {
+    const det = params.detector;
+    const readout = readoutTime(det);
+    const target = key === "count_time" ? Number(det.frame_time.value) - readout : Number(det.count_time.value) + readout;
+    const row = timingRow(key) || el("div");
+    const hint = row.querySelector(".detector-hint") || el("div");
+    await sendParam("detector", key, target, { value: "" }, hint, row, { quiet: true });
+    if (!atFullDutyCycle(params.detector)) return false;
+    log(t("detector.log.duty_set", { label: paramLabel(key), value: displayValue(params.detector[key]) }));
+    flashRow("detector", key, t("detector.hint.duty"));
+    return true;
+  }
+
+  async function toggleTimingLink() {
+    if (timingLinked()) {
+      linkTiming = false;
+      writeLinkTiming(false);
+      log(t("detector.log.timing_unlinked"));
+      renderParams();
+      return;
+    }
+    linkTiming = true;
+    writeLinkTiming(true);
+    if (atFullDutyCycle(params.detector)) {
+      log(t("detector.log.timing_linked"));
+      renderParams();
+      return;
+    }
+    // The frame time, the rate, stays; the count time fills it. The write
+    // redraws the panel, with the chain as it then is.
+    if (await fillDutyCycle("count_time")) log(t("detector.log.timing_linked"));
+  }
+
+  // Between frame and count time: a chain, whole while they move together.
+  function timingLink() {
+    const linked = timingLinked();
+    const line = el("div", "detector-timing-link");
+    const button = el("button", `detector-link${linked ? " is-linked" : ""}`);
+    button.type = "button";
+    button.dataset.paramInput = "";
+    button.setAttribute("aria-pressed", String(linked));
+    button.title = t(linked ? "detector.timing.linked_hint" : "detector.timing.unlinked_hint");
+    button.append(chainIcon(linked), el("span", "", t(linked ? "detector.timing.linked" : "detector.timing.unlinked")));
+    button.addEventListener("click", () => void toggleTimingLink());
+    line.append(button);
+    return line;
   }
 
   async function sendParam(subsystem, key, value, input, hint, row, { quiet = false } = {}) {
@@ -1933,7 +2046,10 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
         params[subsystem][name] = knownUnit(name, descriptor);
       }
       const moved = Object.keys(result?.params || {}).filter(
-        (name) => name !== key && JSON.stringify(before[name]) !== JSON.stringify(params[subsystem][name]?.value),
+        (name) =>
+          name !== key &&
+          JSON.stringify(before[name]) !== JSON.stringify(params[subsystem][name]?.value) &&
+          !sameValue(before[name], params[subsystem][name]?.value),
       );
       // An output's mode reads as "File writer: On", not "mode set to enabled".
       const isMode = key === "mode" && subsystem !== "detector";
@@ -1971,23 +2087,28 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     renderOutputs();
     renderAdvanced();
     for (const name of changed) {
-      if (name === key) continue;
-      const selector = `[data-key="${`${subsystem}:${name}`.replace(/["\\]/g, "\\$&")}"]`;
-      const row = content?.querySelector(selector);
-      if (!row) continue;
-      row.classList.add("is-flash");
-      const hint = row.querySelector(".detector-hint");
-      if (hint) {
-        hint.textContent = t("detector.hint.adjusted");
-        hint.className = "detector-hint is-changed";
-        window.setTimeout(() => {
-          if (!hint.classList.contains("is-changed")) return;
-          hint.textContent = hint.dataset.range || "";
-          hint.className = "detector-hint";
-        }, 3500);
-      }
-      window.setTimeout(() => row.classList.remove("is-flash"), 1600);
+      if (name !== key) flashRow(subsystem, name, t("detector.hint.adjusted"));
     }
+  }
+
+  // A row whose value moved without being typed there: it lights up, and its
+  // hint says why for a moment.
+  function flashRow(subsystem, name, text) {
+    const selector = `[data-key="${`${subsystem}:${name}`.replace(/["\\]/g, "\\$&")}"]`;
+    const row = content?.querySelector(selector);
+    if (!row) return;
+    row.classList.add("is-flash");
+    const hint = row.querySelector(".detector-hint");
+    if (hint) {
+      hint.textContent = text;
+      hint.className = "detector-hint is-changed";
+      window.setTimeout(() => {
+        if (!hint.classList.contains("is-changed")) return;
+        hint.textContent = hint.dataset.range || "";
+        hint.className = "detector-hint";
+      }, 3500);
+    }
+    window.setTimeout(() => row.classList.remove("is-flash"), 1600);
   }
 
   // The main view's rows for this detector: the groups, each with its rows
@@ -2093,15 +2214,41 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
     return line;
   }
 
-  // How fast a series runs, from frame and count time: "100 Hz · 0.1 µs
-  // between images". Makes plain how the two times relate.
+  // How fast a series runs, from frame and count time: "100 Hz · full duty
+  // cycle", or "100 Hz · 5 ms between images · 50 % duty cycle". Makes plain
+  // how the two times relate.
   function timingSummary(det) {
     const frame = Number(det.frame_time?.value);
     if (!(frame > 0)) return "";
     const hz = 1 / frame;
     const rate = hz >= 1 ? `${+hz.toPrecision(3)} Hz` : t("detector.timing.every", { interval: formatDuration(frame) });
-    const gap = frame - Number(det.count_time?.value);
-    return det.count_time && gap > 0 ? t("detector.timing.summary", { rate, gap: formatDuration(gap) }) : rate;
+    if (atFullDutyCycle(det)) return t("detector.timing.full_duty", { rate });
+    const count = Number(det.count_time?.value);
+    const gap = frame - count;
+    if (!det.count_time || !(gap > 0)) return rate;
+    const text = t("detector.timing.summary", { rate, gap: formatDuration(gap) });
+    // Only where the readout is known: without it, a gap of 0.1 µs could be
+    // all the detector can do, and "100 %" would say nothing.
+    const duty = (100 * count) / frame;
+    return readoutTime(det) !== null && duty < 99.95 ? `${text} · ${t("detector.timing.duty", { percent: +duty.toFixed(1) })}` : text;
+  }
+
+  // The chain between frame and count time, whole or broken (Lucide's link-2
+  // and unlink-2).
+  function chainIcon(linked) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    const paths = linked
+      ? ["M9 17H7A5 5 0 0 1 7 7h2", "M15 7h2a5 5 0 1 1 0 10h-2", "M8 12h8"]
+      : ["M15 7h2a5 5 0 0 1 0 10h-2m-6 0H7A5 5 0 0 1 7 7h2"];
+    for (const d of paths) {
+      const path = document.createElementNS(ns, "path");
+      path.setAttribute("d", d);
+      svg.append(path);
+    }
+    return svg;
   }
 
   // Images per trigger in an enable mode: one, fixed by the mode.
@@ -2122,10 +2269,18 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
       const heading = el("div", "detector-group-label", t(`detector.group.${group.id}`));
       column.append(heading);
       if (group.images) column.classList.add("has-image-switches");
+      // Frame and count time both here, and the readout known: the chain
+      // that links them goes between the two.
+      const linkable =
+        group.id === "timing" &&
+        group.rows.length === 2 &&
+        readoutTime(params.detector) !== null &&
+        group.rows.every((row) => String(params.detector[row.keys[0]]?.access_mode || "rw").includes("w"));
       for (const row of group.rows) {
         if (group.images) column.append(switchedRow(row));
         else if (row.keys[0] === "nimages" && isEnableMode(params.detector.trigger_mode?.value)) column.append(oneImageRow());
         else column.append(paramRow("detector", row.keys[0], params.detector[row.keys[0]]));
+        if (linkable && row.keys[0] === "frame_time") column.append(timingLink());
       }
       if (group.images && !group.images.some((image) => isOn(params.detector[image.key]))) {
         column.append(el("div", "detector-warning", t("detector.images.none")));

@@ -1659,3 +1659,132 @@ describe("detector control panel, quick action settings", () => {
     expect(elements.live.querySelector(".detector-preflight").textContent).toBe("");
   });
 });
+
+describe("detector control panel, frame and count time linked", () => {
+  const READOUT = 1e-7;
+  beforeEach(() => {
+    localStorage.clear();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  // A detector by the SIMPLON rules: a frame time takes the count time along
+  // to frame time less readout; a count time raises the frame time only when
+  // it no longer fits.
+  function fakeDetector(det) {
+    return vi.fn(async (_url, init) => {
+      const { key, value } = JSON.parse(init.body);
+      const params = { [key]: { ...det[key], value } };
+      det[key] = params[key];
+      if (key === "frame_time") params.count_time = det.count_time = { ...det.count_time, value: value - READOUT };
+      if (key === "count_time" && det.frame_time.value < value + READOUT) {
+        params.frame_time = det.frame_time = { ...det.frame_time, value: value + READOUT };
+      }
+      return { ok: true, json: async () => ({ changed: Object.keys(params), params }) };
+    });
+  }
+
+  async function linkedSetup({ count = 0.0099999 } = {}) {
+    const det = structuredClone(DESCRIPTORS.detector);
+    det.detector_readout_time = { value: READOUT, value_type: "float", unit: "s", access_mode: "r" };
+    det.count_time.value = count;
+    const put = fakeDetector(det);
+    const ctx = await setup({ "/detector/config": put });
+    ctx.controller._setParams({ ...structuredClone(DESCRIPTORS), detector: det });
+    ctx.controller._renderAll();
+    const link = () => ctx.elements.paramsHost.querySelector(".detector-link");
+    const sent = () => put.mock.calls.map(([, init]) => JSON.parse(init.body)).map(({ key, value }) => [key, value]);
+    return { ...ctx, det, put, link, sent };
+  }
+
+  function type(elements, key, value) {
+    const input = elements.paramsHost.querySelector(`#detector-p-detector-${key}`);
+    input.value = value;
+    input.dispatchEvent(new Event("change"));
+  }
+
+  it("tells full duty cycle from the times and the readout", async () => {
+    const { atFullDutyCycle, readoutTime } = await loadModule();
+    const det = (frame, count, readout) => ({
+      frame_time: { value: frame },
+      count_time: { value: count },
+      ...(readout === undefined ? {} : { detector_readout_time: { value: readout } }),
+    });
+    expect(atFullDutyCycle(det(600, 599.9999999, 1e-7))).toBe(true);
+    expect(atFullDutyCycle(det(0.01, 0.0099999, 1e-7))).toBe(true);
+    expect(atFullDutyCycle(det(600, 300, 1e-7))).toBe(false);
+    expect(atFullDutyCycle(det(0.01, 0.0099999))).toBe(false);
+    expect(readoutTime(det(1, 1))).toBeNull();
+    expect(readoutTime(det(1, 1, 0))).toBe(0);
+  });
+
+  it("shows the chain linked between the two times at full duty cycle", async () => {
+    const { elements, link } = await linkedSetup();
+    const rows = [...elements.paramsHost.querySelector('[data-group="timing"]').children];
+    const at = rows.indexOf(link().parentElement);
+    expect(rows[at - 1].dataset.key).toBe("detector:frame_time");
+    expect(rows[at + 1].dataset.key).toBe("detector:count_time");
+    expect(link().getAttribute("aria-pressed")).toBe("true");
+    expect(link().textContent).toBe(EN["detector.timing.linked"]);
+    expect(elements.paramsHost.textContent).toContain("100 Hz · full duty cycle");
+  });
+
+  it("moves the frame time along with a count time typed while linked", async () => {
+    const { elements, sent, link, det } = await linkedSetup();
+    type(elements, "count_time", "0.005");
+    await vi.waitFor(() => expect(sent()).toHaveLength(2));
+    expect(sent()[0]).toEqual(["count_time", 0.005]);
+    expect(sent()[1][0]).toBe("frame_time");
+    expect(sent()[1][1]).toBeCloseTo(0.0050001, 12);
+    expect(det.frame_time.value).toBeCloseTo(0.0050001, 12);
+    await vi.waitFor(() => expect(link().getAttribute("aria-pressed")).toBe("true"));
+    expect(elements.logHost.textContent).toContain("Frame time set to 0.0050001 for full duty cycle");
+    const row = elements.paramsHost.querySelector('[data-key="detector:frame_time"]');
+    expect(row.querySelector(".detector-hint").textContent).toBe(EN["detector.hint.duty"]);
+  });
+
+  it("leaves a typed frame time to the detector, which fits the count time itself", async () => {
+    const { elements, sent, link } = await linkedSetup();
+    type(elements, "frame_time", "0.02");
+    await vi.waitFor(() => expect(sent()).toEqual([["frame_time", 0.02]]));
+    await vi.waitFor(() => expect(link().getAttribute("aria-pressed")).toBe("true"));
+  });
+
+  it("sets the times on their own once unlinked, and remembers that", async () => {
+    const { elements, sent, link } = await linkedSetup();
+    link().click();
+    await vi.waitFor(() => expect(link().getAttribute("aria-pressed")).toBe("false"));
+    expect(sent()).toEqual([]);
+    expect(link().textContent).toBe(EN["detector.timing.unlinked"]);
+    expect(localStorage.getItem("albis.detectorControl.linkTiming")).toBe("0");
+    type(elements, "count_time", "0.005");
+    await vi.waitFor(() => expect(sent()).toEqual([["count_time", 0.005]]));
+    await vi.waitFor(() => expect(elements.paramsHost.textContent).toContain("50 % duty cycle"));
+  });
+
+  it("shows a shorter count time as unlinked, and fills the frame time when linked again", async () => {
+    const { elements, sent, link, det } = await linkedSetup({ count: 0.005 });
+    expect(link().getAttribute("aria-pressed")).toBe("false");
+    link().click();
+    await vi.waitFor(() => expect(link().getAttribute("aria-pressed")).toBe("true"));
+    expect(sent()).toHaveLength(1);
+    expect(sent()[0][0]).toBe("count_time");
+    expect(sent()[0][1]).toBeCloseTo(0.0099999, 12);
+    expect(det.frame_time.value).toBe(0.01);
+    expect(elements.logHost.textContent).toContain(EN["detector.log.timing_linked"]);
+  });
+
+  it("has no chain where the detector does not say its readout time, or in an enable mode", async () => {
+    const { elements, controller } = await setup();
+    expect(elements.paramsHost.querySelector(".detector-link")).toBeNull();
+    const params = structuredClone(DESCRIPTORS);
+    params.detector.detector_readout_time = { value: READOUT, value_type: "float", unit: "s", access_mode: "r" };
+    params.detector.trigger_mode = { ...params.detector.trigger_mode, value: "inte", allowed_values: ["ints", "inte"] };
+    params.detector.nimages.value = 1;
+    controller._setParams(params);
+    controller._renderAll();
+    expect(elements.paramsHost.querySelector(".detector-link")).toBeNull();
+  });
+});

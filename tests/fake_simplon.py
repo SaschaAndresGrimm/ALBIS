@@ -92,6 +92,7 @@ def _default_params() -> dict[str, dict[str, dict[str, Any]]]:
             "threshold/1/mode": _param("enabled", "string", allowed_values=["enabled", "disabled"]),
             "count_time": _param(0.0099999, "float", "s", min=0.0001999, max=3600.0),
             "frame_time": _param(0.01, "float", "s", min=0.0002, max=3600.0),
+            "detector_readout_time": _param(READOUT_S, "float", "s", access="r"),
             "nimages": _param(10, "uint", min=1, max=2000000000),
             "ntrigger": _param(1, "uint", min=1, max=1000000),
             "trigger_mode": _param(

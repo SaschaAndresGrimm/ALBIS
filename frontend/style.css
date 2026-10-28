@@ -7722,6 +7722,63 @@ button.browse-details-header-cell[aria-sort="descending"] {
   margin: 2px 0 6px;
 }
 
+/* Between frame and count time, under their fields: the chain that links
+   them for full duty cycle. Same columns as a row, so it sits centred on the
+   fields it joins. */
+.detector-timing-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 140px) 16px;
+  column-gap: 6px;
+  margin: -3px -6px;
+  padding: 0 6px;
+}
+
+.detector-link {
+  grid-column: 2;
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.detector-link svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.detector-link.is-linked {
+  color: var(--accent-strong);
+}
+
+.detector-link:hover:not(:disabled) {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.detector-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.detector-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* The Detector tab's section labels ("Locked while busy", "100 images ·
    exposure per trigger") are longer than most; give them room. */
 .detector-content .section-summary {
