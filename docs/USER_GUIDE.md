@@ -261,36 +261,38 @@ so an image reads as one picture — useful for imaging, figures and anything
 that cannot cope with holes.
 
 ALBIS fills exactly the pixels the detector's mask marks as gaps or defective
-(for a PILATUS CBF, the `-1` and `-2` in its data), so there is nothing to tune.
-Each one is interpolated straight across its gap from the pixels on either side
-— each side the median of the five nearest, so a small spot at the edge does
-not streak across — and where a horizontal and a vertical gap cross, from both.
-An edge or a gradient in the sample carries straight through a gap. Filled
-pixels have no noise, so a filled gap looks a little smoother than its
-surroundings.
+(for a PILATUS CBF, the `-1` and `-2` in its data). Each side of a gap is read
+as the median of the five nearest pixels, so a small spot at its edge does not
+streak across, and where a horizontal and a vertical gap cross, both are used.
 
-- **Method:** **Interpolate** (the default) fills each pixel from its
-  neighbours as above. **Interpolate along edges** does the same for small
-  holes, but across a wide gap (6 pixels or more) it compares the pixels
-  beyond its two sides, finds the slope where they match, and fills along it:
-  an edge crossing a module gap at an angle carries on through it instead of
-  turning into a blurred step, and the gap does not fill as stripes. Edges
-  shallower than about 20° to the gap are filled straight across. **Nearest
-  value** gives each pixel the value of the nearer side of its gap: sharp and
-  never blurred, but a slanted edge becomes a step. **Fixed value** sets them
-  all to one **Value** instead —
-  for instance the background, so the gaps disappear into it. **Background**
-  and **Foreground** copy the contrast's current low or high end into the
-  field; the value then stays as it is when the contrast changes, so the same
-  settings always export the same file.
-- **Add Poisson noise** makes the filled pixels as noisy as the measured ones
-  around them, so a filled gap no longer stands out as smooth in an image. Each
-  filled value is taken as the expected count there and replaced by a
-  Poisson-distributed one; after flatfield correction it is drawn in raw counts
-  and corrected again, so the noise has the size it would have had in the
-  measurement. The same frame always gets the same noise, in the image and in
-  exports, and each frame of a series different noise. The noise is invented,
-  not measured: it is off by default, and exported files say it was added.
+- **Method** — how the holes are filled:
+  - **Interpolate** (the default): straight across the gap, from the pixels on
+    either side. Good for scattered defective pixels and narrow gaps; a
+    gradient carries straight through.
+  - **Interpolate along edges**: the same for small holes, but across a wide
+    gap (6 pixels or more) it compares the pixels beyond its two sides, finds
+    the slope where they match and fills along it. An edge crossing a module
+    gap at an angle carries on through it instead of turning into a blurred
+    step, and a wide gap does not fill as stripes. Edges shallower than about
+    20° to the gap are filled straight across. The choice for images with
+    wide module gaps.
+  - **Nearest value**: each pixel takes the value of the nearer side of its
+    gap. Sharp and never blurred, but a slanted edge becomes a step. For when
+    blur is worse than a step.
+  - **Fixed value**: every hole set to one **Value**, for instance the
+    background, so the gaps disappear into it. **Background** and
+    **Foreground** copy the contrast's current low or high end into the field;
+    the value then stays as it is when the contrast changes, so the same
+    settings always export the same file.
+- **Add Poisson noise**: filled pixels have no noise of their own, so a filled
+  gap looks smoother than its surroundings. With this ticked, each filled
+  value is taken as the expected count there and replaced by a
+  Poisson-distributed one, so the gap is as noisy as the measured pixels
+  around it. After flatfield correction the noise is drawn in raw counts and
+  corrected again, so it has the size it would have had in the measurement.
+  The same frame always gets the same noise, in the image and in exports, and
+  each frame of a series different noise. The noise is invented, not
+  measured: it is off by default, and exported files say it was added.
 - **Saturated pixels** fills those too. It is on by default; untick it to keep
   saturated pixels as they are, where they are real signal you want to see.
 - **Margin** also fills that many pixels around every flagged one (0–5 px, a
@@ -304,8 +306,8 @@ surroundings.
   both, e.g. "Value 0.437 (measured 1234)".
 - **Convert Dataset** has an **Inpaint** box, ticked while inpainting is on: the
   TIFF or CBF files then hold the filled values instead of `-1` and `-2`, and
-  their header says which pixels were filled, how, and whether noise was added. Live images are filled with their
-  source's mask.
+  their header says which pixels were filled, how, and whether noise was
+  added. Live images are filled with their source's mask.
 - The footer shows **Inpainted** while it is on, so a filled image is not
   mistaken for a measured one. The data itself is never changed.
 
