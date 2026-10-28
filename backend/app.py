@@ -274,6 +274,49 @@ def _get_h5py() -> Any:
     return h5py
 
 
+# One layout for every line on the console and in albis.log, ALBIS's and
+# uvicorn's alike, the level padded so the messages start in one column:
+# "2026-10-28 16:47:52,830 DEBUG   albis: GET /api/health -> 200 (3.6ms)".
+LOG_FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
+
+
+class _UvicornName(logging.Filter):
+    """Uvicorn logs its startup and shutdown as "uvicorn.error", which reads
+    as an error on every start; they are shown as "uvicorn"."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name == "uvicorn.error":
+            record.name = "uvicorn"
+        return True
+
+
+def uvicorn_log_config(level: str) -> dict[str, Any]:
+    """Uvicorn's logging in ALBIS's layout. Its access log is left out: the
+    request middleware below already logs every request, with its status and
+    duration, and raises it to a warning when it fails or is slow -- uvicorn's
+    line was the same request a second time, in another layout."""
+    level = str(level or "INFO").upper()
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {"albis": {"format": LOG_FORMAT}},
+        "filters": {"name": {"()": _UvicornName}},
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "albis",
+                "filters": ["name"],
+                "stream": "ext://sys.stderr",
+            }
+        },
+        "loggers": {
+            "uvicorn": {"handlers": ["console"], "level": level, "propagate": False},
+            "uvicorn.error": {"level": level},
+            "uvicorn.access": {"handlers": [], "level": "WARNING", "propagate": False},
+        },
+    }
+
+
 def _init_logging() -> logging.Logger:
     global LOG_DIR, LOG_PATH
     level_name = get_str(runtime_state.config, ("logging", "level"), "INFO").upper()
@@ -282,7 +325,7 @@ def _init_logging() -> logging.Logger:
     if logger.handlers:
         return logger
     logger.setLevel(level)
-    formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    formatter = logging.Formatter(LOG_FORMAT)
     stream = logging.StreamHandler()
     stream.setFormatter(formatter)
     logger.addHandler(stream)
@@ -1033,4 +1076,12 @@ if __name__ == "__main__":
     host = get_str(runtime_state.config, ("server", "host"), "127.0.0.1")
     port = max(0, min(65535, get_int(runtime_state.config, ("server", "port"), 0)))
     reload = get_bool(runtime_state.config, ("server", "reload"), False)
-    uvicorn.run("backend.app:app", host=host, port=port, reload=reload)
+    level = get_str(runtime_state.config, ("logging", "level"), "INFO")
+    uvicorn.run(
+        "backend.app:app",
+        host=host,
+        port=port,
+        reload=reload,
+        access_log=False,
+        log_config=uvicorn_log_config(level),
+    )

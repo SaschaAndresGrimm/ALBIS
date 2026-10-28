@@ -955,15 +955,16 @@ def main() -> None:
     # Use a direct object reference so frozen builds do not rely on dynamic module import strings.
     _launcher_log(start_ts, "importing backend app")
     from backend.app import app as asgi_app
-    from backend.app import idle_shutdown_busy, idle_shutdown_minutes
+    from backend.app import idle_shutdown_busy, idle_shutdown_minutes, uvicorn_log_config
     from backend.lifecycle import idle_watch, shutdown_controller
     from backend.request_guard import is_loopback_host
 
     _launcher_log(start_ts, "backend app imported")
 
-    # Uvicorn runs its own loggers (uvicorn / uvicorn.access / uvicorn.error)
-    # that ignore the "albis" logger level, so its access log stays at INFO
-    # unless we mirror the configured level here.
+    # Uvicorn runs its own loggers (uvicorn / uvicorn.error) that ignore the
+    # "albis" logger level, so the configured level is mirrored here, and
+    # they write in ALBIS's layout. Its access log stays off: ALBIS logs each
+    # request itself (see uvicorn_log_config).
     uvicorn_level = get_str(app_config, ("logging", "level"), "INFO").strip().lower()
     if uvicorn_level not in {"critical", "error", "warning", "info", "debug"}:
         uvicorn_level = "info"
@@ -972,7 +973,13 @@ def main() -> None:
     # throttling slows the tab down, and a pong arriving late would close it.
     # A tab, browser or process that goes away closes its socket by itself.
     uvicorn_config = uvicorn.Config(
-        asgi_app, host=host, port=port, log_level=uvicorn_level, ws_ping_interval=None
+        asgi_app,
+        host=host,
+        port=port,
+        log_level=uvicorn_level,
+        log_config=uvicorn_log_config(uvicorn_level),
+        access_log=False,
+        ws_ping_interval=None,
     )
     server = uvicorn.Server(uvicorn_config)
 
