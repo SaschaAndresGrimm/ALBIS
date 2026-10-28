@@ -74,7 +74,7 @@ def _service(
         data_dir=tmp_path,
         get_allow_abs_paths=lambda: True,
         is_within=lambda p, root: p.resolve().is_relative_to(root.resolve()),
-        logger=type("L", (), {"exception": lambda *_a, **_k: None})(),
+        logger=logging.getLogger("albis.test"),
         ensure_hdf5_stack=lambda: None,
         get_h5py=lambda: None,
         resolve_image_file=Path,

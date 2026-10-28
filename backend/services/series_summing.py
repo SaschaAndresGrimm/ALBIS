@@ -799,6 +799,7 @@ class SeriesSummingService:
         center_x_px: float | None,
         center_y_px: float | None,
     ) -> None:
+        started = time.perf_counter()
         try:
             source_path = self._deps.resolve_image_file(file)
             ext = self._deps.image_ext_name(source_path.name)
@@ -825,6 +826,23 @@ class SeriesSummingService:
             if pixel_size_um_value is None:
                 pixel_size_um_value = self._geometry_pixel_size_um(geometry_payload)
             normalize_image_path = str(normalize_image or "").strip()
+            # What was combined, how and where to.
+            frames = f"frames {range_start or 1}-{range_end or 'end'}"
+            if frame_step > 1:
+                frames += f" every {frame_step}"
+            grouping = f"groups of {group_size}" if group_size else f"{mode} step {step}"
+            self._deps.logger.info(
+                "Combine Frames started: %s%s -> %s (%s %s, %s, %s, normalize %s%s)",
+                source_path,
+                f" {dataset}" if dataset else "",
+                base_target,
+                operation,
+                output_format.upper(),
+                frames,
+                grouping,
+                normalize_method,
+                ", mask applied" if apply_mask else "",
+            )
             if normalize_method not in {"none", "frame", "scalar", "image"}:
                 raise HTTPException(status_code=400, detail="Invalid normalization method")
             if normalize_method == "frame" and normalize_frame_idx is None:
@@ -1470,6 +1488,12 @@ class SeriesSummingService:
             else:
                 raise HTTPException(status_code=400, detail="Unsupported output format")
 
+            self._deps.logger.info(
+                "Combine Frames done: %d file(s) in %.1f s%s",
+                len(outputs),
+                time.perf_counter() - started,
+                f" -> {outputs[0]}" if len(outputs) == 1 else "",
+            )
             self._update_job(
                 job_id,
                 status="done",
@@ -1480,6 +1504,9 @@ class SeriesSummingService:
                 done_at=time.time(),
             )
         except _SeriesSummingCancelledError:
+            self._deps.logger.info(
+                "Combine Frames cancelled after %.1f s", time.perf_counter() - started
+            )
             self._update_job(
                 job_id,
                 status="cancelled",

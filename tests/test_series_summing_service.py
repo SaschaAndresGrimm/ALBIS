@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Any
@@ -44,7 +45,7 @@ def _make_deps(
         data_dir=tmp_path,
         get_allow_abs_paths=lambda: True,
         is_within=lambda p, root: p.resolve().is_relative_to(root.resolve()),
-        logger=type("L", (), {"exception": lambda *_args, **_kwargs: None})(),
+        logger=logging.getLogger("albis.test"),
         ensure_hdf5_stack=ensure_hdf5_stack,
         get_h5py=get_h5py,
         resolve_image_file=resolve_image_file,

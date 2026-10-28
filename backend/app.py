@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import mimetypes
 import os
+import platform
 import sys
 import tempfile
 import time
@@ -66,6 +67,7 @@ from .install_kind import (
     install_kind_override,
 )
 from .lifecycle import idle_watch, shutdown_controller
+from .log_format import LOG_FORMAT, uvicorn_log_config
 from .request_guard import (
     RequestGuardMiddleware,
     is_cross_site_request,
@@ -274,49 +276,6 @@ def _get_h5py() -> Any:
     return h5py
 
 
-# One layout for every line on the console and in albis.log, ALBIS's and
-# uvicorn's alike, the level padded so the messages start in one column:
-# "2026-10-28 16:47:52,830 DEBUG   albis: GET /api/health -> 200 (3.6ms)".
-LOG_FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
-
-
-class _UvicornName(logging.Filter):
-    """Uvicorn logs its startup and shutdown as "uvicorn.error", which reads
-    as an error on every start; they are shown as "uvicorn"."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if record.name == "uvicorn.error":
-            record.name = "uvicorn"
-        return True
-
-
-def uvicorn_log_config(level: str) -> dict[str, Any]:
-    """Uvicorn's logging in ALBIS's layout. Its access log is left out: the
-    request middleware below already logs every request, with its status and
-    duration, and raises it to a warning when it fails or is slow -- uvicorn's
-    line was the same request a second time, in another layout."""
-    level = str(level or "INFO").upper()
-    return {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {"albis": {"format": LOG_FORMAT}},
-        "filters": {"name": {"()": _UvicornName}},
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "albis",
-                "filters": ["name"],
-                "stream": "ext://sys.stderr",
-            }
-        },
-        "loggers": {
-            "uvicorn": {"handlers": ["console"], "level": level, "propagate": False},
-            "uvicorn.error": {"level": level},
-            "uvicorn.access": {"handlers": [], "level": "WARNING", "propagate": False},
-        },
-    }
-
-
 def _init_logging() -> logging.Logger:
     global LOG_DIR, LOG_PATH
     level_name = get_str(runtime_state.config, ("logging", "level"), "INFO").upper()
@@ -430,6 +389,17 @@ async def _lifespan(_app: FastAPI):
     if not _startup_banner_logged:
         _startup_banner_logged = True
         pid = os.getpid()
+        # What a bug report needs first: which ALBIS, on what.
+        logger.info(
+            "ALBIS %s%s (pid=%s) · %s install · Python %s · %s %s",
+            ALBIS_VERSION,
+            f" ({ALBIS_COMMIT})" if ALBIS_COMMIT else "",
+            pid,
+            ALBIS_INSTALL_KIND,
+            platform.python_version(),
+            platform.platform(terse=True),
+            platform.machine(),
+        )
         logger.info("ALBIS data dir (pid=%s): %s", pid, runtime_state.data_dir)
         logger.info("ALBIS config (pid=%s): %s", pid, runtime_state.config_path)
         overrides = env_override_keys()
@@ -509,6 +479,39 @@ def _is_poll(path: str) -> bool:
     return path in _POLLED_PATHS or path.endswith(("/status", "/latest"))
 
 
+# A polled endpoint that keeps failing -- a detector switched off, a monitor
+# out of reach -- failed once a second, and logged a warning each time. The
+# first failure is logged as before, the rest at DEBUG, and the recovery once:
+# path -> (failed polls, since when).
+_poll_failures: dict[str, tuple[int, float]] = {}
+
+
+def _log_poll(request, status: int, duration_ms: float) -> None:
+    path = request.url.path
+    line = f"{request.method} {path} -> {status} ({duration_ms:.1f}ms)"
+    if status >= 400:
+        count, since = _poll_failures.get(path, (0, time.monotonic()))
+        _poll_failures[path] = (count + 1, since)
+        if count:
+            logger.debug(line)
+            return
+        query = f" [{request.url.query}]" if request.url.query else ""
+        level = logging.ERROR if status >= 500 else logging.WARNING
+        logger.log(level, "%s%s; until it answers again, repeats are DEBUG", line, query)
+        return
+    failed = _poll_failures.pop(path, None)
+    if failed:
+        logger.info(
+            "%s %s answers again, after %d failed poll(s) over %.0f s",
+            request.method,
+            path,
+            failed[0],
+            time.monotonic() - failed[1],
+        )
+    elif duration_ms >= 1000:
+        logger.info(line)
+
+
 @app.middleware("http")
 async def log_requests(request, call_next):
     """Emit request/response logs with severity based on status code and latency."""
@@ -523,6 +526,9 @@ async def log_requests(request, call_next):
         raise
     duration_ms = (time.perf_counter() - start) * 1000
     status = response.status_code
+    if _is_poll(request.url.path):
+        _log_poll(request, status, duration_ms)
+        return response
     if status >= 500:
         logger.error("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
     elif status >= 400:
@@ -534,7 +540,7 @@ async def log_requests(request, call_next):
             logger.info(
                 "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
             )
-        elif not _is_poll(request.url.path):
+        else:
             logger.debug(
                 "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
             )

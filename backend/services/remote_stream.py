@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import math
 import re
 import threading
@@ -27,6 +28,8 @@ from ..image_formats import (
     _read_edf,
     _read_tiff_bytes,
 )
+
+_logger = logging.getLogger("albis")
 
 _remote_frames: dict[str, dict[str, Any]] = {}
 _remote_frames_lock = threading.Lock()
@@ -267,6 +270,15 @@ def remote_store_frame(
     now = time.time()
     with _remote_frames_lock:
         previous = _remote_frames.get(source_id)
+        if previous is None:
+            # Once a source, not once a frame: which program started sending,
+            # and what. A frame every few milliseconds is not news.
+            _logger.info(
+                "Remote stream: frames from source %r (%s, %s)",
+                source_id,
+                "x".join(str(int(v)) for v in frame.shape),
+                frame.dtype,
+            )
         next_seq = (
             int(seq) if seq is not None else int(previous.get("seq", 0) + 1 if previous else 1)
         )

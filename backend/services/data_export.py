@@ -1442,7 +1442,7 @@ class DataExportService:
                 if not (out_dir / f"{candidate}{suffix}").exists():
                     safe = candidate
                     break
-        return self._write_frame(
+        written = self._write_frame(
             out_dir=out_dir,
             name=safe,
             output_format=normalized_format,
@@ -1458,6 +1458,9 @@ class DataExportService:
             flatfield_scale=flatfield_scale,
             data_type=data_type,
         )
+        # One line a frame, and the browser sends them one by one: DEBUG.
+        self._deps.logger.debug("Live frame exported: %s", written[0])
+        return written
 
     @staticmethod
     def _frame_indices(
@@ -1737,6 +1740,7 @@ class DataExportService:
         flatfield_scale: str = "counts",
         data_type: str = "auto",
     ) -> None:
+        started = time.perf_counter()
         try:
             self._update_job(job_id, status="running", progress=0.0, message="Resolving source")
             source_path = self._deps.resolve_image_file(file)
@@ -1745,6 +1749,27 @@ class DataExportService:
                 raise HTTPException(status_code=400, detail="Unsupported output format")
             normalized_format = "tiff" if output_format in {"tiff", "tif"} else "cbf"
             out_dir = self._resolve_output_dir(output_dir, source_path)
+            # What was converted, how and where to: the line to find when a
+            # file turns out not to be what was expected.
+            frames = "all frames"
+            if frame_mode == "range":
+                frames = f"frames {frame_start}-{frame_end}"
+            elif frame_mode == "current":
+                frames = f"frame {frame_start}"
+            options = [f"{normalized_format.upper()} {data_type}", frames]
+            if threshold_mode == "all":
+                options.append("all thresholds")
+            if flatfield:
+                options.append(f"flatfield {Path(flatfield).name} ({flatfield_scale})")
+            if inpaint != "off":
+                options.append(f"inpaint {inpaint} +{inpaint_margin} px {inpaint_method}")
+            self._deps.logger.info(
+                "Export started: %s%s -> %s (%s)",
+                source_path,
+                f" {dataset}" if dataset else "",
+                out_dir,
+                ", ".join(options),
+            )
             self._update_job(job_id, progress=0.0, message="Starting export")
             if ext in {".h5", ".hdf5"}:
                 outputs = self._run_hdf5_export(
@@ -1787,6 +1812,13 @@ class DataExportService:
                     flatfield_scale=flatfield_scale,
                     data_type=data_type,
                 )
+            self._deps.logger.info(
+                "Export done: %d file(s) in %.1f s -> %s%s",
+                len(outputs),
+                time.perf_counter() - started,
+                out_dir,
+                self._clipped_note(job_id),
+            )
             self._update_job(
                 job_id,
                 status="done",
@@ -1797,6 +1829,7 @@ class DataExportService:
                 done_at=time.time(),
             )
         except _DataExportCancelledError:
+            self._deps.logger.info("Export cancelled after %.1f s", time.perf_counter() - started)
             self._update_job(
                 job_id,
                 status="cancelled",

@@ -36,6 +36,7 @@ from backend.config import (
 )
 from backend.file_associations import is_associated_path
 from backend.host_env import restore_host_library_path
+from backend.log_format import LOG_FORMAT, uvicorn_log_config
 from backend.version import ALBIS_VERSION
 
 try:
@@ -540,7 +541,9 @@ def _quit_app_when_server_stops(server_thread: threading.Thread, start_ts: float
                 "terminate:", None, False
             )
         except Exception as exc:  # the event loop is gone or never ran
-            _launcher_log(start_ts, f"app quit after server stop failed ({exc}): exiting")
+            _launcher_log(
+                start_ts, f"app quit after server stop failed ({exc}): exiting", logging.WARNING
+            )
             os._exit(0)
 
     threading.Thread(target=_watch, name="albis-server-watch", daemon=True).start()
@@ -569,7 +572,9 @@ def _start_macos_menus(
         return False
     if AppKit is None or Foundation is None or _DockMenuHandler is None:
         if start_ts is not None:
-            _launcher_log(start_ts, "macos ui unavailable (missing AppKit/Foundation)")
+            _launcher_log(
+                start_ts, "macos ui unavailable (missing AppKit/Foundation)", logging.WARNING
+            )
         return False
     try:
         if config_path is not None:
@@ -606,9 +611,13 @@ def _start_macos_menus(
         _MACOS_RUNTIME["handler"] = handler
     except Exception as exc:
         if start_ts is not None:
-            _launcher_log(start_ts, f"dock delegate setup failed: {type(exc).__name__}: {exc}")
+            _launcher_log(
+                start_ts,
+                f"dock delegate setup failed: {type(exc).__name__}: {exc}",
+                logging.WARNING,
+            )
             for line in traceback.format_exc().strip().splitlines():
-                _launcher_log(start_ts, f"dock delegate traceback: {line}")
+                _launcher_log(start_ts, f"dock delegate traceback: {line}", logging.WARNING)
         return False
 
     try:
@@ -660,9 +669,11 @@ def _start_macos_menus(
         _MACOS_RUNTIME["status_bar_item"] = status_bar_item
     except Exception as exc:
         if start_ts is not None:
-            _launcher_log(start_ts, f"dock/menu setup failed: {type(exc).__name__}: {exc}")
+            _launcher_log(
+                start_ts, f"dock/menu setup failed: {type(exc).__name__}: {exc}", logging.WARNING
+            )
             for line in traceback.format_exc().strip().splitlines():
-                _launcher_log(start_ts, f"dock/menu traceback: {line}")
+                _launcher_log(start_ts, f"dock/menu traceback: {line}", logging.WARNING)
     return True
 
 
@@ -776,13 +787,16 @@ def _configure_launcher_logger(log_path: Path) -> None:
     logger = _LAUNCHER_LOGGER
     if logger is None:
         logger = logging.getLogger("albis.launcher")
-        logger.setLevel(logging.INFO)
+        # Everything to launcher.log; the console shows the configured level
+        # (set_launcher_console_level), INFO until the config is read.
+        logger.setLevel(logging.DEBUG)
         logger.propagate = False
         _LAUNCHER_LOGGER = logger
 
     if not any(getattr(handler, "_albis_launcher_stream", False) for handler in logger.handlers):
         stream = logging.StreamHandler(sys.stderr if sys.stderr is not None else sys.stdout)
-        stream.setFormatter(logging.Formatter("%(message)s"))
+        stream.setFormatter(logging.Formatter(LOG_FORMAT))
+        stream.setLevel(logging.INFO)
         stream._albis_launcher_stream = True  # type: ignore[attr-defined]
         logger.addHandler(stream)
 
@@ -804,7 +818,7 @@ def _configure_launcher_logger(log_path: Path) -> None:
             backupCount=_LAUNCHER_LOG_BACKUP_COUNT,
             encoding="utf-8",
         )
-        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
         file_handler._albis_launcher_file = True  # type: ignore[attr-defined]
         logger.addHandler(file_handler)
         _LAUNCHER_LOG_PATH = resolved_log_path
@@ -812,14 +826,29 @@ def _configure_launcher_logger(log_path: Path) -> None:
         _LAUNCHER_LOG_PATH = None
 
 
-def _launcher_log(start: float, message: str) -> None:
+def _set_launcher_console_level(level_name: str) -> None:
+    """The launcher's console lines at the configured level, like the
+    backend's: its startup steps are DEBUG, and stay in launcher.log."""
+    level = getattr(logging, str(level_name or "INFO").upper(), logging.INFO)
+    if _LAUNCHER_LOGGER is None:
+        return
+    for handler in _LAUNCHER_LOGGER.handlers:
+        if getattr(handler, "_albis_launcher_stream", False):
+            handler.setLevel(level)
+
+
+def _launcher_log(start: float, message: str, level: int = logging.INFO) -> None:
+    """A launcher line, with the time since it started: "socket ready
+    (+1896 ms)". Its steps through a normal start are DEBUG; what a user
+    may need to know -- the address, what it opens -- INFO; what went wrong
+    WARNING."""
     elapsed_ms = (time.perf_counter() - start) * 1000
-    text = f"[ALBIS launcher +{elapsed_ms:8.1f}ms] {message}"
+    text = f"{message} (+{elapsed_ms:.0f} ms)"
     try:
         if _LAUNCHER_LOGGER is None:
             _configure_launcher_logger(_default_launcher_log_path())
         if _LAUNCHER_LOGGER is not None:
-            _LAUNCHER_LOGGER.info(text)
+            _LAUNCHER_LOGGER.log(level, text)
             return
     except Exception:
         pass
@@ -834,7 +863,7 @@ def _launcher_log(start: float, message: str) -> None:
 
 def _log_macos_event(start: float, message: str) -> None:
     if _MACOS_EVENT_LOGS_ENABLED:
-        _launcher_log(start, f"macos event: {message}")
+        _launcher_log(start, f"macos event: {message}", logging.DEBUG)
 
 
 def _install_windows_shutdown_listener(start: float, request_shutdown: Callable[[], None]) -> None:
@@ -843,26 +872,30 @@ def _install_windows_shutdown_listener(start: float, request_shutdown: Callable[
 
     mutex_handle = _WINDOWS_KERNEL32.CreateMutexW(None, False, _WINDOWS_APP_MUTEX_NAME)
     if not mutex_handle:
-        _launcher_log(start, "failed to create Windows app mutex")
+        _launcher_log(start, "failed to create Windows app mutex", logging.WARNING)
         return
     _WINDOWS_RUNTIME_HANDLES.append(int(mutex_handle))
 
     event_handle = _WINDOWS_KERNEL32.CreateEventW(None, False, False, _WINDOWS_SHUTDOWN_EVENT_NAME)
     if not event_handle:
-        _launcher_log(start, "failed to create Windows shutdown event")
+        _launcher_log(start, "failed to create Windows shutdown event", logging.WARNING)
         return
     _WINDOWS_RUNTIME_HANDLES.append(int(event_handle))
 
     def _wait_for_shutdown_event() -> None:
         wait_result = _WINDOWS_KERNEL32.WaitForSingleObject(event_handle, _WINDOWS_INFINITE)
         if wait_result != _WINDOWS_WAIT_OBJECT_0:
-            _launcher_log(start, f"Windows shutdown wait failed: {wait_result}")
+            _launcher_log(start, f"Windows shutdown wait failed: {wait_result}", logging.WARNING)
             return
         _launcher_log(start, "Windows shutdown event received")
         try:
             request_shutdown()
         except Exception as exc:
-            _launcher_log(start, f"Windows shutdown callback failed: {type(exc).__name__}: {exc}")
+            _launcher_log(
+                start,
+                f"Windows shutdown callback failed: {type(exc).__name__}: {exc}",
+                logging.WARNING,
+            )
 
     listener = threading.Thread(
         target=_wait_for_shutdown_event,
@@ -881,14 +914,19 @@ def main() -> None:
     cli_applied, cli_ignored, open_target = _apply_cli_arguments()
     app_config, _config_path = load_config()
     _configure_launcher_logger(resolve_log_dir(app_config, _config_path) / "launcher.log")
-    _launcher_log(start_ts, "starting")
-    _launcher_log(start_ts, f"config loaded ({_config_path})")
+    _set_launcher_console_level(get_str(app_config, ("logging", "level"), "INFO"))
+    _launcher_log(start_ts, "starting", logging.DEBUG)
+    _launcher_log(start_ts, f"config loaded ({_config_path})", logging.DEBUG)
     if host_env_restored:
-        _launcher_log(start_ts, "restored the host LD_LIBRARY_PATH for programs ALBIS starts")
+        _launcher_log(
+            start_ts, "restored the host LD_LIBRARY_PATH for programs ALBIS starts", logging.DEBUG
+        )
     if cli_applied:
         _launcher_log(start_ts, f"command line set {', '.join(cli_applied)}")
     if cli_ignored:
-        _launcher_log(start_ts, f"ignored unrecognized arguments: {' '.join(cli_ignored)}")
+        _launcher_log(
+            start_ts, f"ignored unrecognized arguments: {' '.join(cli_ignored)}", logging.WARNING
+        )
     if open_target:
         _launcher_log(start_ts, f"asked to open {open_target}")
     overrides = env_override_keys()
@@ -896,7 +934,7 @@ def main() -> None:
         _launcher_log(start_ts, f"environment set {', '.join(overrides)}")
     _MACOS_EVENT_LOGS_ENABLED = get_bool(app_config, ("launcher", "debug_macos_events"), False)
     if _MACOS_EVENT_LOGS_ENABLED:
-        _launcher_log(start_ts, "macos event debug logging enabled")
+        _launcher_log(start_ts, "macos event debug logging enabled", logging.DEBUG)
 
     host = get_str(app_config, ("server", "host"), "127.0.0.1")
     # Single-port model: launcher and backend share server.port.
@@ -927,7 +965,7 @@ def main() -> None:
         bound_sock, reused = _bind_auto_port(host, last_port)
         port = int(bound_sock.getsockname()[1])
         if reused:
-            _launcher_log(start_ts, f"reusing port {port} from the last start")
+            _launcher_log(start_ts, f"reusing port {port} from the last start", logging.DEBUG)
     else:
         try:
             bound_sock = _create_bound_socket(host, port)
@@ -943,23 +981,23 @@ def main() -> None:
         try:
             root_path.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            _launcher_log(start_ts, f"data root unavailable: {root_path} ({exc})")
+            _launcher_log(start_ts, f"data root unavailable: {root_path} ({exc})", logging.WARNING)
             fallback_root = Path.home() / ".config" / "albis" / "data"
             if fallback_root != root_path:
                 try:
                     fallback_root.mkdir(parents=True, exist_ok=True)
-                    _launcher_log(start_ts, f"data root fallback: {fallback_root}")
+                    _launcher_log(start_ts, f"data root fallback: {fallback_root}", logging.WARNING)
                 except OSError:
                     pass
 
     # Use a direct object reference so frozen builds do not rely on dynamic module import strings.
-    _launcher_log(start_ts, "importing backend app")
+    _launcher_log(start_ts, "importing backend app", logging.DEBUG)
     from backend.app import app as asgi_app
-    from backend.app import idle_shutdown_busy, idle_shutdown_minutes, uvicorn_log_config
+    from backend.app import idle_shutdown_busy, idle_shutdown_minutes
     from backend.lifecycle import idle_watch, shutdown_controller
     from backend.request_guard import is_loopback_host
 
-    _launcher_log(start_ts, "backend app imported")
+    _launcher_log(start_ts, "backend app imported", logging.DEBUG)
 
     # Uvicorn runs its own loggers (uvicorn / uvicorn.error) that ignore the
     # "albis" logger level, so the configured level is mirrored here, and
@@ -1015,7 +1053,7 @@ def main() -> None:
     _sockets = [bound_sock] if bound_sock is not None else []
     thread = threading.Thread(target=server.run, kwargs={"sockets": _sockets}, daemon=True)
     thread.start()
-    _launcher_log(start_ts, "server thread started")
+    _launcher_log(start_ts, "server thread started", logging.DEBUG)
     _update_server_status(host, port, "starting")
 
     startup_timeout = max(0.5, get_float(app_config, ("launcher", "startup_timeout_sec"), 10.0))
@@ -1023,14 +1061,14 @@ def main() -> None:
         0.5, get_float(app_config, ("launcher", "startup_health_timeout_sec"), 15.0)
     )
     if _wait_for_server(host, port, timeout=startup_timeout):
-        _launcher_log(start_ts, "socket ready")
+        _launcher_log(start_ts, "socket ready", logging.DEBUG)
     else:
-        _launcher_log(start_ts, "socket wait timed out")
+        _launcher_log(start_ts, "socket wait timed out", logging.WARNING)
     if _wait_for_health(host, port, timeout=startup_health_timeout):
-        _launcher_log(start_ts, "health endpoint ready")
+        _launcher_log(start_ts, "health endpoint ready", logging.DEBUG)
         _update_server_status(host, port, "running", health=True)
     else:
-        _launcher_log(start_ts, "health check timed out")
+        _launcher_log(start_ts, "health check timed out", logging.WARNING)
         _update_server_status(host, port, "starting", health=False)
     if get_bool(app_config, ("launcher", "open_browser"), True):
         _launcher_log(start_ts, f"opening browser at {_open_target_url(host, port, open_target)}")
@@ -1043,7 +1081,7 @@ def main() -> None:
         config_path=_config_path,
         start_ts=start_ts,
     ):
-        _launcher_log(start_ts, "dock menu ready")
+        _launcher_log(start_ts, "dock menu ready", logging.DEBUG)
         _quit_app_when_server_stops(thread, start_ts)
         AppKit.NSApp().run()
         return
