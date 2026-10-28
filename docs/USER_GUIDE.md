@@ -582,6 +582,16 @@ are signed integers using the common detector convention: module gaps are `-1`,
 bad or saturated pixels are `-2` — or, with **Inpaint** ticked, filled from
 their neighbours (see [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)).
 
+For software that needs a particular type, **Data type** writes a TIFF as
+**Unsigned 16-bit** or **Unsigned 32-bit** instead (CBF stays signed 32-bit).
+Unsigned has no `-1` or `-2`: gaps, bad and saturated pixels all hold the
+type's highest value (65535 for 16 bits), the DECTRIS convention for a masked
+pixel. A count that does not fit is clipped one below it (65534), never wrapped
+around; the dialog warns beforehand when the data can count higher, the export
+says afterwards how many pixels were clipped, and each file's header states the
+type, the marker and the clipped pixels, with its count cutoff lowered to 65534
+so a clipped pixel reads as overloaded. The choice is remembered.
+
 The files are named so they read back as a series, in ALBIS as in XDS, DIALS
 or ALBULA: `<name>[_thr<n>]_<number>`, the number last and 5 digits wide, like
 a detector's own images. `<name>` is the source's (`series_190` for

@@ -547,6 +547,17 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
         scale = (metadata or {}).get("flatfield_scale")
         scale_text = "transmission, 0 to 1" if scale == "transmission" else "counts, times its mean"
         lines.append(f"# Flatfield: divided by {flat} ({scale_text}) by ALBIS")
+    # An unsigned export has no -1 or -2: every pixel without a value holds
+    # the type's highest value, and counts that did not fit were clipped.
+    marker = _export_int(metadata or {}, "marker_value")
+    data_type = _export_text(metadata or {}, "data_type")
+    if marker is not None and data_type:
+        bits = "".join(ch for ch in data_type if ch.isdigit())
+        clipped = _export_int(metadata or {}, "clipped_pixels") or 0
+        lines.append(
+            f"# Data type: unsigned {bits}-bit, chosen in ALBIS; "
+            f"counts outside 0 to {marker - 1} clipped ({clipped} pixels)"
+        )
     inpainted = (metadata or {}).get("inpainted")
     if inpainted in {"defects", "saturated"}:
         # Values that were not measured: say so, and which.
@@ -556,6 +567,10 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
             else "gaps and defective pixels"
         )
         remaining = "bad = -2" if inpainted == "saturated" else "bad or saturated = -2"
+        if marker is not None:
+            remaining = (
+                f"bad = {marker}" if inpainted == "saturated" else f"bad or saturated = {marker}"
+            )
         margin = _export_int(metadata or {}, "inpainted_margin") or 0
         if margin > 0:
             filled += f" and {margin} px around them"
@@ -565,6 +580,8 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
         else:
             how = "inpainted by ALBIS (interpolated from their neighbours)"
         lines.append(f"# Pixel substitutions: {filled} {how}; {remaining}")
+    elif marker is not None:
+        lines.append(f"# Pixel substitutions: masked gaps, bad or saturated = {marker}")
     else:
         lines.append("# Pixel substitutions: masked gaps = -1, bad or saturated = -2")
     return lines

@@ -533,6 +533,8 @@ const dataExportModal = document.getElementById("data-export-modal");
 const dataExportClose = document.getElementById("data-export-close");
 const dataExportSource = document.getElementById("data-export-source");
 const dataExportFormat = document.getElementById("data-export-format");
+const dataExportDataType = document.getElementById("data-export-data-type");
+const dataExportDataTypeHint = document.getElementById("data-export-data-type-hint");
 const dataExportFrameMode = document.getElementById("data-export-frame-mode");
 const dataExportRangeStartField = document.getElementById("data-export-range-start-field");
 const dataExportRangeEndField = document.getElementById("data-export-range-end-field");
@@ -1630,6 +1632,8 @@ const dataExportController = createDataExportController({
     dataExportClose,
     dataExportSource,
     dataExportFormat,
+    dataExportDataType,
+    dataExportDataTypeHint,
     dataExportFrameMode,
     dataExportRangeStartField,
     dataExportRangeEndField,

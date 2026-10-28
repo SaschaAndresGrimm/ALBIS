@@ -23,7 +23,7 @@ class DataExportRouteDeps:
     start_data_export_job: Callable[..., str]
     get_data_export_job: Callable[[str], dict[str, Any] | None]
     cancel_data_export_job: Callable[[str], bool]
-    write_live_frame: Callable[..., Path]
+    write_live_frame: Callable[..., tuple[Path, int]]
     save_flatfield: Callable[..., Path]
 
 
@@ -49,6 +49,10 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             raise HTTPException(status_code=400, detail="Missing dataset")
         if output_format not in {"tiff", "tif", "cbf"}:
             raise HTTPException(status_code=400, detail="Invalid format")
+        if payload.data_type != "auto" and output_format == "cbf":
+            raise HTTPException(
+                status_code=400, detail="Unsigned data types need TIFF: CBF is signed 32-bit"
+            )
         if frame_mode not in {"all", "current", "range"}:
             raise HTTPException(status_code=400, detail="Invalid frame mode")
         if threshold_mode not in {"all", "current"}:
@@ -80,6 +84,7 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             inpaint_value=payload.inpaint_value,
             flatfield=payload.flatfield.strip(),
             flatfield_scale=payload.flatfield_scale,
+            data_type=payload.data_type,
         )
         return DataExportStartResponse(job_id=job_id, status="queued")
 
@@ -99,7 +104,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         ("off", "defects" or "saturated") and `inpaint_margin` (0-5 pixels
         around each flagged one), `inpaint_method` ("interpolate" or "fixed") and
         `inpaint_value` (the fixed value), with the source's pixel `mask`
-        (uint32) sent alongside to say which pixels to fill.
+        (uint32) sent alongside to say which pixels to fill, and `data_type`
+        ("auto", "uint16" or "uint32"; the unsigned ones TIFF only).
         """
         try:
             config = json.loads(meta or "{}")
@@ -132,7 +138,10 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         flatfield_scale = str(config.get("flatfield_scale") or "counts")
         if flatfield_scale not in {"counts", "transmission"}:
             raise HTTPException(status_code=400, detail="Invalid flatfield scale")
-        path = deps.write_live_frame(
+        data_type = str(config.get("data_type") or "auto")
+        if data_type not in {"auto", "uint16", "uint32"}:
+            raise HTTPException(status_code=400, detail="Invalid data type")
+        path, clipped = deps.write_live_frame(
             payload=payload,
             dtype=str(config.get("dtype") or ""),
             shape=config.get("shape") or [],
@@ -148,8 +157,9 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             inpaint_value=inpaint_value,
             flatfield=flatfield,
             flatfield_scale=flatfield_scale,
+            data_type=data_type,
         )
-        return DataExportFrameResponse(path=str(path))
+        return DataExportFrameResponse(path=str(path), clipped=clipped)
 
     @app.get("/api/export/data/status")
     def data_export_status(job_id: str = Query(..., min_length=1)) -> dict[str, Any]:

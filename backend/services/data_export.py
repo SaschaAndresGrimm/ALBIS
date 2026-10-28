@@ -21,6 +21,10 @@ from .flatfield import Flat, apply_flat, prepare_flat
 from .inpainting import grow_holes
 from .inpainting import inpaint as inpaint_frame
 
+# The data types an export can be asked for besides "auto" (signed 32-bit
+# integers, or float32 for a flatfielded TIFF). TIFF only: a CBF is signed.
+UNSIGNED_TYPES = ("uint16", "uint32")
+
 
 class _DataExportCancelledError(Exception):
     """Internal control-flow exception for user requested cancellation."""
@@ -87,6 +91,7 @@ class DataExportService:
         inpaint_value: float = 0.0,
         flatfield: str = "",
         flatfield_scale: str = "counts",
+        data_type: str = "auto",
     ) -> str:
         job_id = uuid.uuid4().hex
         job_data = {
@@ -97,6 +102,9 @@ class DataExportService:
             "created_at": time.time(),
             "updated_at": time.time(),
             "outputs": [],
+            # Pixels clipped to fit the data type asked for, and in how many files.
+            "clipped_pixels": 0,
+            "clipped_files": 0,
             "error": None,
             "cancel_requested": False,
             "config": {
@@ -117,6 +125,7 @@ class DataExportService:
                 "inpaint_value": inpaint_value,
                 "flatfield": flatfield,
                 "flatfield_scale": flatfield_scale,
+                "data_type": data_type,
             },
         }
         with self._lock:
@@ -144,6 +153,7 @@ class DataExportService:
                 "inpaint_value": inpaint_value,
                 "flatfield": flatfield,
                 "flatfield_scale": flatfield_scale,
+                "data_type": data_type,
             },
             daemon=True,
         )
@@ -265,6 +275,22 @@ class DataExportService:
                 return
             job.update(changes)
             job["updated_at"] = time.time()
+
+    def _clipped_note(self, job_id: str) -> str:
+        with self._lock:
+            job = self._jobs.get(job_id) or {}
+            pixels = int(job.get("clipped_pixels") or 0)
+            files = int(job.get("clipped_files") or 0)
+        return f"; {pixels} pixel(s) clipped in {files} file(s)" if pixels else ""
+
+    def _count_clipped(self, job_id: str, clipped: int) -> None:
+        if not clipped:
+            return
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job:
+                job["clipped_pixels"] = int(job.get("clipped_pixels") or 0) + clipped
+                job["clipped_files"] = int(job.get("clipped_files") or 0) + 1
 
     @staticmethod
     def _safe_name(value: str, fallback: str = "dataset") -> str:
@@ -388,6 +414,22 @@ class DataExportService:
             dtype = np.int64
         return np.asarray(frame, dtype=dtype)
 
+    @staticmethod
+    def _cast_frame_to_unsigned(frame: np.ndarray, dtype: np.dtype) -> tuple[np.ndarray, int]:
+        """`frame` as `dtype`, and how many pixels did not fit: those are
+        clipped to 0 or one below the type's highest value, which is the marker
+        for a pixel without a value."""
+        top = int(np.iinfo(dtype).max) - 1
+        if np.issubdtype(frame.dtype, np.integer):
+            values = frame
+        else:
+            values = np.rint(np.where(np.isfinite(frame), frame, 0))
+        outside = (values < 0) | (values > top)
+        clipped = int(np.count_nonzero(outside))
+        if clipped:
+            values = np.clip(values, 0, top)
+        return np.asarray(values).astype(dtype), clipped
+
     def _normalize_frame(
         self,
         arr: np.ndarray,
@@ -400,8 +442,10 @@ class DataExportService:
         flat: Flat | None = None,
         flatfield_scale: str = "counts",
         keep_float: bool = False,
-    ) -> tuple[np.ndarray, int]:
-        """The frame as written, and how many of its pixels were inpainted.
+        data_type: str = "auto",
+    ) -> tuple[np.ndarray, int, int]:
+        """The frame as written, how many of its pixels were inpainted, and how
+        many were clipped to fit `data_type`.
 
         With a `flat`, the frame is first divided by it (see flatfield.py);
         pixels with nothing to divide -- the flat's holes, the frame's gaps and
@@ -411,6 +455,12 @@ class DataExportService:
         and uncorrectable pixels (by the mask, or a signed frame's own -1 and
         -2 without one), "saturated" the saturated pixels too. `keep_float`
         writes the values as float32 (a flatfielded TIFF) instead of integers.
+
+        `data_type` "uint16" or "uint32" writes unsigned integers instead, for
+        software that wants exactly that. No -1 or -2 there: gaps, bad and
+        saturated pixels all become the type's highest value (65535), the
+        DECTRIS convention for a masked pixel, and a count that does not fit
+        is clipped one below it (65534), never wrapped around.
         """
         frame = np.asarray(arr)
         if frame.ndim != 2:
@@ -514,6 +564,19 @@ class DataExportService:
             cast_source = frame.copy()
             cast_source[cast_mask] = 0
 
+        clipped = 0
+        if data_type in UNSIGNED_TYPES:
+            # A signed source's own -1 and -2, still there: no value either,
+            # not a count below zero.
+            if cbf_markers is not None and np.issubdtype(frame.dtype, np.signedinteger):
+                left = cbf_markers & ((frame == -1) | (frame == -2))
+                if np.any(left):
+                    cast_mask = left if cast_mask is None else (cast_mask | left)
+                    cast_source = np.where(left, 0, cast_source)
+            output, clipped = self._cast_frame_to_unsigned(cast_source, np.dtype(data_type))
+            if cast_mask is not None and np.any(cast_mask):
+                output[cast_mask] = np.iinfo(output.dtype).max
+            return output, filled, clipped
         if keep_float:
             output = np.where(np.isfinite(cast_source), cast_source, 0).astype(np.float32)
         else:
@@ -524,7 +587,7 @@ class DataExportService:
                 output[bad_mask] = -2
             if gap_mask is not None:
                 output[gap_mask] = -1
-        return output, filled
+        return output, filled, clipped
 
     @staticmethod
     def _finite_float(value: Any) -> float | None:
@@ -1026,7 +1089,10 @@ class DataExportService:
         inpaint_value: float = 0.0,
         flatfield: str = "",
         flatfield_scale: str = "counts",
-    ) -> Path:
+        data_type: str = "auto",
+    ) -> tuple[Path, int]:
+        """Write one frame; returns the file and how many pixels were clipped
+        to fit `data_type`."""
         suffix = ".cbf" if output_format == "cbf" else ".tiff"
         path = out_dir / f"{name}{suffix}"
         if path.exists() and not overwrite:
@@ -1038,7 +1104,18 @@ class DataExportService:
                 status_code=400,
                 detail="Transmission values need TIFF: CBF holds whole numbers only",
             )
-        frame, filled = self._normalize_frame(
+        if data_type not in {"auto", *UNSIGNED_TYPES}:
+            raise HTTPException(status_code=400, detail="Invalid data type")
+        if data_type != "auto" and output_format == "cbf":
+            raise HTTPException(
+                status_code=400, detail="Unsigned data types need TIFF: CBF is signed 32-bit"
+            )
+        if data_type != "auto" and flat is not None and flatfield_scale == "transmission":
+            raise HTTPException(
+                status_code=400,
+                detail="Transmission values need floating point: choose Automatic",
+            )
+        frame, filled, clipped = self._normalize_frame(
             arr,
             mask_bits=mask_bits,
             saturated_value=saturated_value,
@@ -1048,6 +1125,7 @@ class DataExportService:
             inpaint_value=inpaint_value,
             flat=flat,
             flatfield_scale=flatfield_scale,
+            data_type=data_type,
             # A corrected value is rarely a whole number: TIFF keeps it.
             keep_float=flat is not None and output_format != "cbf",
         )
@@ -1066,11 +1144,25 @@ class DataExportService:
                 "inpainted_method": inpaint_method,
                 "inpainted_value": float(inpaint_value),
             }
+        if data_type != "auto":
+            # The header says what the type did to the values.
+            marker = int(np.iinfo(frame.dtype).max)
+            metadata = {
+                **(metadata or {}),
+                "data_type": data_type,
+                "marker_value": marker,
+                "clipped_pixels": clipped,
+            }
+            # A clipped count sits at the top value: from there on the header's
+            # count cutoff must call it overloaded, not measured.
+            cutoff = self._finite_int(metadata.get("count_cutoff"))
+            if (cutoff is not None and cutoff > marker - 1) or (cutoff is None and clipped):
+                metadata["count_cutoff"] = marker - 1
         if output_format == "cbf":
             self._deps.write_cbf(path, frame, metadata)
         else:
             self._deps.write_tiff(path, frame, metadata)
-        return path
+        return path, clipped
 
     def _load_flat(self, flatfield: str) -> Flat:
         """The flat at `flatfield`, prepared once and kept while the file is
@@ -1193,8 +1285,10 @@ class DataExportService:
         inpaint_value: float = 0.0,
         flatfield: str = "",
         flatfield_scale: str = "counts",
-    ) -> Path:
-        """Write one frame sent by the browser; returns the file written.
+        data_type: str = "auto",
+    ) -> tuple[Path, int]:
+        """Write one frame sent by the browser; returns the file written and
+        how many pixels were clipped to fit `data_type`.
 
         `mask` is the source's pixel mask (uint32, the frame's shape), sent
         when the frame is to be inpainted: a live frame has no file to read
@@ -1238,6 +1332,7 @@ class DataExportService:
             inpaint_value=inpaint_value,
             flatfield=flatfield,
             flatfield_scale=flatfield_scale,
+            data_type=data_type,
         )
 
     @staticmethod
@@ -1319,6 +1414,7 @@ class DataExportService:
         inpaint_value: float = 0.0,
         flatfield: str = "",
         flatfield_scale: str = "counts",
+        data_type: str = "auto",
     ) -> list[str]:
         if not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
@@ -1384,7 +1480,7 @@ class DataExportService:
                             frame_count=frame_count,
                             threshold_count=threshold_count,
                         )
-                        out_file = self._write_frame(
+                        out_file, clipped = self._write_frame(
                             out_dir=out_dir,
                             name=name,
                             output_format=output_format,
@@ -1398,8 +1494,10 @@ class DataExportService:
                             inpaint_value=inpaint_value,
                             flatfield=flatfield,
                             flatfield_scale=flatfield_scale,
+                            data_type=data_type,
                         )
                         outputs.append(str(out_file))
+                        self._count_clipped(job_id, clipped)
                         completed += 1
                         self._update_job(
                             job_id,
@@ -1430,6 +1528,7 @@ class DataExportService:
         inpaint_value: float = 0.0,
         flatfield: str = "",
         flatfield_scale: str = "counts",
+        data_type: str = "auto",
     ) -> list[str]:
         series_files, current_index = self._deps.resolve_series_files(source_path)
         if not series_files:
@@ -1456,7 +1555,7 @@ class DataExportService:
             name = self.frame_name(base, numbers[frame_idx])
             arr = self._read_non_h5_image(src)
             metadata = self._image_source_export_metadata(src, frame_idx, len(series_files))
-            out_file = self._write_frame(
+            out_file, clipped = self._write_frame(
                 out_dir=out_dir,
                 name=name,
                 output_format=output_format,
@@ -1469,8 +1568,10 @@ class DataExportService:
                 inpaint_value=inpaint_value,
                 flatfield=flatfield,
                 flatfield_scale=flatfield_scale,
+                data_type=data_type,
             )
             outputs.append(str(out_file))
+            self._count_clipped(job_id, clipped)
             self._update_job(
                 job_id,
                 progress=completed / total,
@@ -1499,6 +1600,7 @@ class DataExportService:
         inpaint_value: float = 0.0,
         flatfield: str = "",
         flatfield_scale: str = "counts",
+        data_type: str = "auto",
     ) -> None:
         try:
             self._update_job(job_id, status="running", progress=0.0, message="Resolving source")
@@ -1529,6 +1631,7 @@ class DataExportService:
                     inpaint_value=inpaint_value,
                     flatfield=flatfield,
                     flatfield_scale=flatfield_scale,
+                    data_type=data_type,
                 )
             else:
                 outputs = self._run_image_series_export(
@@ -1547,12 +1650,13 @@ class DataExportService:
                     inpaint_value=inpaint_value,
                     flatfield=flatfield,
                     flatfield_scale=flatfield_scale,
+                    data_type=data_type,
                 )
             self._update_job(
                 job_id,
                 status="done",
                 progress=1.0,
-                message=f"Completed: wrote {len(outputs)} file(s)",
+                message=f"Completed: wrote {len(outputs)} file(s)" + self._clipped_note(job_id),
                 outputs=outputs,
                 cancel_requested=False,
                 done_at=time.time(),

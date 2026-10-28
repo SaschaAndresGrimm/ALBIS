@@ -244,6 +244,11 @@ class DataExportStartRequest(_StrictModel):
     # whether the result stays in counts or becomes transmission (0 to 1).
     flatfield: str = Field("", max_length=4096)
     flatfield_scale: Literal["counts", "transmission"] = "counts"
+    # "auto": signed 32-bit (float32 for a flatfielded TIFF), gaps -1 and bad
+    # pixels -2. "uint16"/"uint32" (TIFF only) for software that needs them:
+    # those pixels become the type's highest value, counts that do not fit
+    # are clipped one below it.
+    data_type: Literal["auto", "uint16", "uint32"] = "auto"
 
 
 class DataExportStartResponse(_StrictModel):
@@ -253,6 +258,8 @@ class DataExportStartResponse(_StrictModel):
 
 class DataExportFrameResponse(_StrictModel):
     path: str
+    # Pixels clipped to fit the data type asked for.
+    clipped: int = 0
 
 
 class DataExportCancelRequest(_StrictModel):

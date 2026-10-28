@@ -1989,6 +1989,17 @@
                 <option value="all" data-i18n="data_export.thresholds.all">All thresholds</option>
               </select>
             </label>
+            <label class="field data-export-span-2" id="data-export-data-type-field">
+              <span data-i18n="data_export.data_type">Data type</span>
+              <div class="data-export-type-row">
+                <select id="data-export-data-type">
+                  <option value="auto" data-i18n="data_export.data_type.auto">Automatic</option>
+                  <option value="uint16" data-i18n="data_export.data_type.uint16">Unsigned 16-bit</option>
+                  <option value="uint32" data-i18n="data_export.data_type.uint32">Unsigned 32-bit</option>
+                </select>
+                <span class="data-export-type-hint" id="data-export-data-type-hint" aria-live="polite"></span>
+              </div>
+            </label>
             <label class="field data-export-span-2">
               <span data-i18n="data_export.output_dir">Output folder</span>
               <div class="inline data-export-output-row">

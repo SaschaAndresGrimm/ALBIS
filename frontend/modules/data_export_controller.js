@@ -134,6 +134,36 @@ function liveFrameDtype(entry) {
   return DTYPE_OF_ARRAY.get(entry?.data?.constructor) || "";
 }
 
+// The data type asked for, remembered per browser: the software the files go
+// to stays the same from one export to the next. TIFF only; a CBF is signed.
+const DATA_TYPE_KEY = "albis.dataExport.dataType";
+const DATA_TYPES = new Set(["auto", "uint16", "uint32"]);
+// Unsigned: the highest value marks a pixel without one, counts stop below it.
+const UNSIGNED_MARKER = { uint16: 65535, uint32: 4294967295 };
+
+function readDataType() {
+  try {
+    const stored = window.localStorage?.getItem(DATA_TYPE_KEY);
+    return DATA_TYPES.has(stored) ? stored : "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+function writeDataType(value) {
+  try {
+    window.localStorage?.setItem(DATA_TYPE_KEY, value);
+  } catch {
+    // A remembered preference only.
+  }
+}
+
+// Bits per value of a dtype string: "<u4" -> 32, "<f8" -> 64.
+export function dtypeBits(dtype) {
+  const match = /^[<>|=]?[uif](\d+)$/.exec(String(dtype || ""));
+  return match ? Number(match[1]) * 8 : null;
+}
+
 export function createDataExportController({
   apiBase,
   state,
@@ -145,6 +175,8 @@ export function createDataExportController({
     dataExportClose,
     dataExportSource,
     dataExportFormat,
+    dataExportDataType,
+    dataExportDataTypeHint,
     dataExportFrameMode,
     dataExportRangeStartField,
     dataExportRangeEndField,
@@ -179,6 +211,7 @@ export function createDataExportController({
   } = callbacks;
 
   let pollTimer = null;
+  if (dataExportDataType) dataExportDataType.value = readDataType();
   // The Frames choice as the file dialog labels it, restored when the source
   // is a file again.
   const fileFrameLabels = new Map();
@@ -349,6 +382,7 @@ export function createDataExportController({
     ].forEach((element) => {
       if (element) element.disabled = running || !ready;
     });
+    syncDataType(running || !ready);
     // Only a flat that fits the source can divide it.
     if (dataExportFlatfield) dataExportFlatfield.disabled = running || !ready || !flatFor(sourceShape());
     if (dataExportRangeStart) dataExportRangeStart.disabled = running || !ready || !showRange;
@@ -395,7 +429,7 @@ export function createDataExportController({
         return;
       }
       if (status === "done") {
-        setStatus(t("status.data_export.done", { count: outputs.length }), { tone: "success" });
+        finish(outputs.length, Number(data.clipped_pixels) || 0, Number(data.clipped_files) || 0);
       } else if (status === "cancelled") {
         setStatus(t("status.data_export.cancelled"));
       } else if (status === "error") {
@@ -450,6 +484,7 @@ export function createDataExportController({
       inpaint_method: normalizeInpaintMethod(state.inpaintMethod),
       inpaint_value: normalizeInpaintValue(state.inpaintValue),
       ...flatfieldFields([state.height, state.width]),
+      data_type: dataTypeChoice(),
     };
     if (!flatfieldWritable(payload)) return;
     try {
@@ -479,6 +514,64 @@ export function createDataExportController({
       updateUi();
       setStatus(t("status.data_export.start_failed"), { tone: "error" });
     }
+  }
+
+  // Why the data type cannot be chosen now, if it cannot: CBF is signed
+  // 32-bit, and transmission values need floating point.
+  function dataTypeLock() {
+    if (String(dataExportFormat?.value || "tiff").toLowerCase() === "cbf") return "cbf";
+    const flat = flatfieldFields(sourceShape());
+    if (flat.flatfield && flat.flatfield_scale === "transmission") return "transmission";
+    return "";
+  }
+
+  // What is sent: the choice, unless the format or the flatfield rule it out.
+  function dataTypeChoice() {
+    const chosen = String(dataExportDataType?.value || "auto");
+    return dataTypeLock() || !DATA_TYPES.has(chosen) ? "auto" : chosen;
+  }
+
+  function sourceDtype() {
+    return isLive() ? liveFrameDtype(currentLiveEntry()) : state.dtype;
+  }
+
+  // Beside the select: what the type does to the values, and a warning
+  // where 16 bits cannot hold what this data can count.
+  function syncDataType(disabled) {
+    const lock = dataTypeLock();
+    if (dataExportDataType) dataExportDataType.disabled = disabled || Boolean(lock);
+    if (!dataExportDataTypeHint) return;
+    const type = dataTypeChoice();
+    let text;
+    let warn = false;
+    if (lock) {
+      text = t(`data_export.data_type.hint_${lock}`);
+    } else if (type === "auto") {
+      text = t(flatfieldFields(sourceShape()).flatfield ? "data_export.data_type.hint_float" : "data_export.data_type.hint_auto");
+    } else {
+      const marker = UNSIGNED_MARKER[type];
+      const values = { marker: marker.toLocaleString(), top: (marker - 1).toLocaleString() };
+      const bits = dtypeBits(sourceDtype());
+      warn = type === "uint16" && bits !== null && bits > 16;
+      text = warn
+        ? t("data_export.data_type.hint_wide", { ...values, bits })
+        : t(type === "uint16" ? "data_export.data_type.hint_uint16" : "data_export.data_type.hint_uint32", values);
+    }
+    dataExportDataTypeHint.textContent = text;
+    dataExportDataTypeHint.classList.toggle("is-warning", warn);
+  }
+
+  // "Export complete: wrote 12 files · 340 pixels clipped to fit, in 3 files".
+  function finish(count, pixels, files) {
+    const done = t("status.data_export.done", { count });
+    if (!pixels) {
+      setProgress(1, done);
+      setStatus(done, { tone: "success" });
+      return;
+    }
+    const text = `${done} · ${t("data_export.clipped", { pixels, files })}`;
+    setProgress(1, text);
+    setStatus(text, { tone: "warning" });
   }
 
   // What to fill instead of writing -1 and -2: the Analysis tab's setting,
@@ -539,6 +632,7 @@ export function createDataExportController({
     const prefix = String(dataExportPrefix?.value || "").trim() || LIVE_PREFIX[String(state.autoload?.mode || "")] || "live";
     const overwrite = Boolean(dataExportOverwrite?.checked);
     const inpaint = inpaintChoice();
+    const dataType = dataTypeChoice();
     if (!flatfieldWritable(flatfieldFields(chosen[0]?.shape))) return;
     stopPolling();
     state.dataExport.running = true;
@@ -549,6 +643,8 @@ export function createDataExportController({
     state.dataExport.openTarget = "";
     setStatus(t("status.data_export.started"));
     const outputs = [];
+    let clippedPixels = 0;
+    let clippedFiles = 0;
     let failure = "";
     for (let index = 0; index < chosen.length; index += 1) {
       if (state.dataExport.cancelling) break;
@@ -572,6 +668,7 @@ export function createDataExportController({
           inpaint_method: normalizeInpaintMethod(state.inpaintMethod),
           inpaint_value: normalizeInpaintValue(state.inpaintValue),
           ...flatfieldFields(entry.shape),
+          data_type: dataType,
         }),
       );
       form.append("pixels", new Blob([new Uint8Array(data.buffer, data.byteOffset, data.byteLength)]), "frame.bin");
@@ -580,6 +677,9 @@ export function createDataExportController({
       try {
         const written = await fetchJSONWithInit(`${apiBase}/export/data/frame`, { method: "POST", body: form });
         outputs.push(String(written?.path || ""));
+        const clipped = Number(written?.clipped) || 0;
+        clippedPixels += clipped;
+        if (clipped) clippedFiles += 1;
       } catch (err) {
         console.error(err);
         failure = err?.detail || err?.message || "";
@@ -599,8 +699,7 @@ export function createDataExportController({
       setProgress(1, t("status.data_export.cancelled"));
       setStatus(t("status.data_export.cancelled"));
     } else {
-      setProgress(1, t("status.data_export.done", { count: outputs.length }));
-      setStatus(t("status.data_export.done", { count: outputs.length }), { tone: "success" });
+      finish(outputs.length, clippedPixels, clippedFiles);
     }
     updateUi();
   }
@@ -738,8 +837,16 @@ export function createDataExportController({
     }
   });
   dataExportFrameMode?.addEventListener("change", updateUi);
+  // The format and the flatfield decide which types are possible.
+  dataExportFormat?.addEventListener("change", updateUi);
+  dataExportFlatfield?.addEventListener("change", updateUi);
+  dataExportDataType?.addEventListener("change", () => {
+    if (DATA_TYPES.has(dataExportDataType.value)) writeDataType(dataExportDataType.value);
+    updateUi();
+  });
   [
     dataExportFormat,
+    dataExportDataType,
     dataExportFrameMode,
     dataExportRangeStart,
     dataExportRangeEnd,

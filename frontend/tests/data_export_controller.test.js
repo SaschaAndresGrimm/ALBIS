@@ -116,6 +116,8 @@ describe("data_export_controller, live sources", () => {
     document.body.innerHTML = `
       <div id="source"></div>
       <select id="format"><option value="tiff">TIFF</option><option value="cbf">CBF</option></select>
+      <select id="dtype"><option value="auto">Automatic</option><option value="uint16">16</option><option value="uint32">32</option></select>
+      <span id="dtype-hint"></span>
       <select id="frames">
         <option value="all">All frames</option>
         <option value="current">Current frame</option>
@@ -129,6 +131,8 @@ describe("data_export_controller, live sources", () => {
     return {
       dataExportSource: $("source"),
       dataExportFormat: $("format"),
+      dataExportDataType: $("dtype"),
+      dataExportDataTypeHint: $("dtype-hint"),
       dataExportFrameMode: $("frames"),
       dataExportOutputDir: $("dir"),
       dataExportPrefix: $("prefix"),
@@ -168,6 +172,63 @@ describe("data_export_controller, live sources", () => {
     });
     return { mod, controller, elements, setStatus, openModal, sent };
   }
+
+  it("offers a data type for TIFF, says what it does, and remembers it", async () => {
+    localStorage.clear();
+    const state = liveState([entry(9, [1, 2, 3, 4])]);
+    const { controller, elements, sent } = await buildLive(state);
+    controller.openDialog();
+    const select = elements.dataExportDataType;
+    const hint = elements.dataExportDataTypeHint;
+    expect(select.value).toBe("auto");
+    expect(hint.textContent).toBe(EN["data_export.data_type.hint_auto"]);
+    // 16 bits for 32-bit data: what will be clipped, said before it is.
+    select.value = "uint16";
+    select.dispatchEvent(new Event("change"));
+    expect(hint.textContent).toBe(
+      "This data is 32-bit: counts above 65,534 will be clipped. Gaps, bad and saturated pixels → 65,535",
+    );
+    expect(hint.classList.contains("is-warning")).toBe(true);
+    expect(localStorage.getItem("albis.dataExport.dataType")).toBe("uint16");
+    await controller.startExport();
+    expect(sent[0].meta.data_type).toBe("uint16");
+    // CBF is signed 32-bit: the choice is kept, but not sent.
+    elements.dataExportFormat.value = "cbf";
+    elements.dataExportFormat.dispatchEvent(new Event("change"));
+    expect(select.disabled).toBe(true);
+    expect(hint.textContent).toBe(EN["data_export.data_type.hint_cbf"]);
+    state.dataExport.openTarget = "";
+    await controller.startExport();
+    expect(sent[1].meta.data_type).toBe("auto");
+    expect(select.value).toBe("uint16");
+    // The next dialog starts with the type chosen last.
+    const again = await buildLive(liveState([entry(9, [1, 2, 3, 4])]));
+    expect(again.elements.dataExportDataType.value).toBe("uint16");
+    localStorage.clear();
+  });
+
+  it("says how many pixels were clipped to fit the data type", async () => {
+    const state = liveState([entry(8, [1, 2, 3, 4]), entry(9, [5, 6, 7, 8])]);
+    const { controller, elements, setStatus } = await buildLive(state, (meta) => ({
+      path: `/out/${meta.name}.tiff`,
+      clipped: meta.name.endsWith("9") ? 3 : 0,
+    }));
+    controller.openDialog();
+    elements.dataExportFrameMode.value = "all";
+    await controller.startExport();
+    const text = "Export complete: wrote 2 files · 3 pixels clipped to fit, in 1 file";
+    expect(setStatus).toHaveBeenLastCalledWith(text, { tone: "warning" });
+    expect(elements.dataExportProgressText.textContent).toBe(text);
+  });
+
+  it("reads the bits of a dtype", async () => {
+    const { mod } = await buildLive(liveState([entry(1, [0, 0, 0, 0])]));
+    expect(mod.dtypeBits("<u2")).toBe(16);
+    expect(mod.dtypeBits("<i4")).toBe(32);
+    expect(mod.dtypeBits("|u1")).toBe(8);
+    expect(mod.dtypeBits("<f8")).toBe(64);
+    expect(mod.dtypeBits("")).toBeNull();
+  });
 
   it("states what a live frame's header can say, under the backend's keys", async () => {
     const { mod } = await buildLive(liveState([entry(9, [1, 2, 3, 4])]));

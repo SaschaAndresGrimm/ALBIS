@@ -727,3 +727,116 @@ def test_the_current_image_is_kept_as_a_flatfield(tmp_path: Path, monkeypatch) -
         files={"pixels": ("flat.bin", data.tobytes(), "application/octet-stream")},
     )
     assert bad.status_code == 400
+
+
+def _unsigned_source(tmp_path: Path) -> Path:
+    # Counts beyond 16 bits, a gap, a defective and a saturated pixel.
+    data = np.zeros((1, 2, 4), dtype=np.uint32)
+    data[0, 0] = [5, 65_534, 70_000, 9]
+    data[0, 1] = [1, 2, 3, np.iinfo(np.uint32).max]
+    mask = np.zeros((2, 4), dtype=np.uint32)
+    mask[1, 0] = 1  # gap
+    mask[1, 1] = 0b100  # defective
+    source = tmp_path / "wide.h5"
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=data)
+        h5.create_dataset("/entry/instrument/detector/detectorSpecific/pixel_mask", data=mask)
+        _write_h5_dataset(
+            h5, "/entry/instrument/detector/detectorSpecific/saturation_value", 1_000_000
+        )
+    return source
+
+
+def test_unsigned_16_bit_export_marks_and_clips_and_says_so(tmp_path: Path) -> None:
+    client = _client()
+    base = {"file": str(_unsigned_source(tmp_path)), "dataset": "/entry/data/data"}
+    response = client.post(
+        "/api/export/data/start",
+        json={**base, "format": "tiff", "data_type": "uint16", "output_dir": str(tmp_path / "u16")},
+    )
+    job = _wait_for_job(client, response.json()["job_id"])
+    assert job["status"] == "done", job
+    assert (job["clipped_pixels"], job["clipped_files"]) == (1, 1)
+    assert "1 pixel(s) clipped in 1 file(s)" in job["message"]
+    image = tifffile.imread(job["outputs"][0])
+    assert image.dtype == np.uint16
+    # 70 000 clipped one below the marker, never wrapped to 4464; gap,
+    # defective and saturated pixels all the marker.
+    assert image.tolist() == [[5, 65_534, 65_534, 9], [65_535, 65_535, 3, 65_535]]
+    description = tifffile.TiffFile(job["outputs"][0]).pages[0].description
+    assert "# Data type: unsigned 16-bit" in description
+    assert "clipped (1 pixels)" in description
+    assert "# Pixel substitutions: masked gaps, bad or saturated = 65535" in description
+    # A clipped count is an overload from the header's point of view.
+    assert "# Count_cutoff 65534 counts" in description
+
+
+def test_unsigned_32_bit_export_keeps_every_count(tmp_path: Path) -> None:
+    out = _export(
+        _client(),
+        {
+            "file": str(_unsigned_source(tmp_path)),
+            "dataset": "/entry/data/data",
+            "format": "tiff",
+            "data_type": "uint32",
+            "output_dir": str(tmp_path / "u32"),
+        },
+    )
+    image = tifffile.imread(out[0])
+    top = np.iinfo(np.uint32).max
+    assert image.dtype == np.uint32
+    assert image.tolist() == [[5, 65_534, 70_000, 9], [top, top, 3, top]]
+    description = tifffile.TiffFile(out[0]).pages[0].description
+    assert "# Count_cutoff 1000000 counts" in description
+
+
+def test_unsigned_export_rounds_a_flatfield_and_refuses_what_it_cannot_hold(
+    tmp_path: Path,
+) -> None:
+    source, flat_path = _flat_source(tmp_path)
+    client = _client()
+    base = {"file": str(source), "dataset": "/entry/data/data", "flatfield": str(flat_path)}
+    out = _export(
+        client,
+        {**base, "format": "tiff", "data_type": "uint16", "output_dir": str(tmp_path / "f")},
+    )
+    image = tifffile.imread(out[0])
+    mean = (500 * 12 + 1000 * 11) / 23
+    assert image.dtype == np.uint16
+    assert image[1, 0] == round(0.5 * mean)
+    assert image[0, 5] == 65_535  # nothing to divide by
+    # CBF is signed; transmission needs floating point.
+    cbf = client.post(
+        "/api/export/data/start", json={**base, "format": "cbf", "data_type": "uint16"}
+    )
+    assert cbf.status_code == 400
+    transmission = client.post(
+        "/api/export/data/start",
+        json={
+            **base,
+            "format": "tiff",
+            "data_type": "uint16",
+            "flatfield_scale": "transmission",
+            "output_dir": str(tmp_path / "t"),
+        },
+    )
+    job = _wait_for_job(client, transmission.json()["job_id"])
+    assert job["status"] == "error" and "floating point" in str(job["error"])
+    wrong = client.post("/api/export/data/start", json={**base, "data_type": "int8"})
+    assert wrong.status_code == 422
+
+
+def test_live_frame_can_be_written_unsigned(tmp_path: Path) -> None:
+    client = _client()
+    data = np.array([[1, 80_000], [-1, 7]], dtype=np.int32)
+    config = {"name": "live_u16", "format": "tiff", "output_dir": str(tmp_path)}
+    response = _post_live_frame(client, data, {**config, "data_type": "uint16"})
+    assert response.status_code == 200, response.text
+    assert response.json()["clipped"] == 1
+    image = tifffile.imread(response.json()["path"])
+    assert image.dtype == np.uint16
+    assert image.tolist() == [[1, 65_534], [65_535, 7]]
+    cbf = _post_live_frame(client, data, {**config, "format": "cbf", "data_type": "uint16"})
+    assert cbf.status_code == 400
+    bad = _post_live_frame(client, data, {**config, "data_type": "float64"})
+    assert bad.status_code == 400
