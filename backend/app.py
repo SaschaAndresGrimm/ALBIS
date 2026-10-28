@@ -498,6 +498,17 @@ async def presence(websocket: WebSocket) -> None:
         idle_watch.disconnect()
 
 
+# Asked by the interface on a timer -- a job, an export's progress, the
+# detector's state, the live monitor -- up to several times a second. Their
+# routine answers say nothing new and buried everything else at DEBUG, so
+# they are left out; one that fails or is slow is logged like any other.
+_POLLED_PATHS = frozenset({"/api/health", "/api/log-tail", "/api/simplon/monitor"})
+
+
+def _is_poll(path: str) -> bool:
+    return path in _POLLED_PATHS or path.endswith(("/status", "/latest"))
+
+
 @app.middleware("http")
 async def log_requests(request, call_next):
     """Emit request/response logs with severity based on status code and latency."""
@@ -523,7 +534,7 @@ async def log_requests(request, call_next):
             logger.info(
                 "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
             )
-        else:
+        elif not _is_poll(request.url.path):
             logger.debug(
                 "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
             )
