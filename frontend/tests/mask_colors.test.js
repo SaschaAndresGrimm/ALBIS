@@ -24,8 +24,9 @@ describe("mask colours", () => {
   it.each(MAPS)("on %s, picks three colours clear of the map and of each other", (name) => {
     const colors = currentMaskColors({ colormap: name });
     const map = mapColors(name);
-    // ALBULA HDR keeps black gaps on purpose, though the map itself has black.
-    const chosen = name === "albulaHdr" ? [colors.defective, colors.saturated] : Object.values(colors);
+    // ALBULA HDR keeps black gaps and white saturated pixels on purpose,
+    // though the map itself has both.
+    const chosen = name === "albulaHdr" ? [colors.defective] : Object.values(colors);
     for (const color of chosen) {
       const nearest = Math.min(...map.map((c) => colorDistance(color, c)));
       expect(nearest).toBeGreaterThanOrEqual(30);
@@ -42,8 +43,10 @@ describe("mask colours", () => {
     expect(colors.saturated).not.toEqual(DEFAULT_MASK_COLORS.saturated);
   });
 
-  it("keeps black gaps on ALBULA HDR, as ALBULA draws them", () => {
-    expect(currentMaskColors({ colormap: "albulaHdr" }).gap).toEqual([0, 0, 0]);
+  it("keeps black gaps and white saturated pixels on ALBULA HDR, as ALBULA draws them", () => {
+    const colors = currentMaskColors({ colormap: "albulaHdr" });
+    expect(colors.gap).toEqual([0, 0, 0]);
+    expect(colors.saturated).toEqual([255, 255, 255]);
   });
 
   it("does not draw gaps black on Grey Scale, where black is the lowest value", () => {

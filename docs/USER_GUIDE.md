@@ -158,8 +158,8 @@ provides no mask or no saturation limit.
 Masked pixels are drawn in their own colours, which ALBIS picks for each colour
 map from colours that map never uses: on Viridis, for example, gaps stay black
 while defective and saturated pixels turn magenta and red, because the map's
-own dark blue and teal would look like values. ALBULA HDR keeps black gaps, as
-ALBULA draws them. Under the histogram's colour bar, a chip for each class shows
+own dark blue and teal would look like values. ALBULA HDR keeps black gaps and
+white saturated pixels, as ALBULA draws them. Under the histogram's colour bar, a chip for each class shows
 its colour, dimmed when no such pixel is in the image. Click a chip to change
 the colour: to one that stands out, or to one of the colour map's own — its low
 end, middle or high end — to make that class blend into the image, gaps into

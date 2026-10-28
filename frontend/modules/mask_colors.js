@@ -25,11 +25,12 @@ export const DEFAULT_MASK_COLORS = Object.freeze({
   saturated: [88, 183, 198],
 });
 
-// Kept whatever the measure says. ALBULA HDR passes through black itself, but
-// black gaps on it are what users of ALBULA know and expect; the other two
-// classes are still chosen clear of the map and of black.
+// Kept whatever the measure says. ALBULA HDR passes through black and ends in
+// white, but black gaps and white saturated pixels on it are what users of
+// ALBULA know and expect; defective pixels are still chosen clear of the map
+// and of both.
 const PINNED = Object.freeze({
-  albulaHdr: Object.freeze({ gap: [0, 0, 0] }),
+  albulaHdr: Object.freeze({ gap: [0, 0, 0], saturated: [255, 255, 255] }),
 });
 
 // Tried in this order after a class's own default, and offered as the
