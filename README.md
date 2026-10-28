@@ -82,8 +82,8 @@ Check the [Releases](https://github.com/SaschaAndresGrimm/ALBIS/releases) page f
 - **macOS Apple Silicon (arm64)**: `ALBIS-macos-arm64-v<version>-<commit>.dmg` (installer) or `.zip` (portable).
 - **macOS Intel (x64)**: `ALBIS-macos-x64-v<version>-<commit>.dmg` (installer) or `.zip` (portable).
 - **Windows x64**: `ALBIS-Setup-windows-x64-v<version>-<commit>.exe` (installer) or `ALBIS-windows-x64-v<version>-<commit>.zip` (portable).
-- **Linux x64**: `ALBIS-<version>-x86_64.AppImage`, `ALBIS-<version>-x86_64-appimage-bundle.tar.gz` (AppImage + install/uninstall scripts), and `ALBIS-linux-x64-v<version>-<commit>.tar.gz`.
-- **Linux arm64** (aarch64, e.g. NVIDIA DGX Spark): `ALBIS-<version>-aarch64.AppImage`, `ALBIS-<version>-aarch64-appimage-bundle.tar.gz`, and `ALBIS-linux-arm64-v<version>-<commit>.tar.gz`.
+- **Linux x64**: `ALBIS-<version>-x86_64.AppImage` (single file, just run it), `ALBIS-<version>-x86_64-appimage-bundle.tar.gz` (the AppImage plus install/uninstall scripts that add a menu entry and icon), or `ALBIS-linux-x64-v<version>-<commit>.tar.gz` (portable folder, for machines without FUSE).
+- **Linux arm64** (aarch64, e.g. NVIDIA DGX Spark): the same three, `ALBIS-<version>-aarch64.AppImage`, `ALBIS-<version>-aarch64-appimage-bundle.tar.gz` and `ALBIS-linux-arm64-v<version>-<commit>.tar.gz`. arm64 and aarch64 are two names for the same architecture: the AppImages use the one Linux reports, the tarball ALBIS's own.
 
 macOS release binaries are supported on macOS 14+ on Apple Silicon and macOS 15+ on Intel Macs. Use the native `arm64` build on Apple Silicon and the native `x64` build on Intel Macs.
 Windows release binaries are supported on Windows 10 x64 and Windows 11 x64. Windows 8.1 x64 may work but is not part of the supported/tested release matrix; Windows 7, Windows 8.0, 32-bit Windows, and Windows ARM are not supported.
