@@ -10,6 +10,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Added
 
 - **Linux arm64 builds.** Releases now include an AppImage, an AppImage bundle and a tarball for 64-bit ARM Linux (`aarch64`), such as the NVIDIA DGX Spark. Like the x86_64 build, they need glibc 2.28 or newer, and every release is started on Rocky Linux 8 and 9 and Ubuntu 22.04 and 24.04 before it is published. Update checks on an arm64 machine offer the arm64 AppImage.
+- **Full duty cycle in detector control.** A chain between **Frame time** and **Count time** keeps the two linked: the count time fills the frame time but for the detector's readout. Linked, a typed count time moves the frame time along and a typed frame time takes the count time with it. The chain shows linked only while the detector really is at full duty cycle, so a shorter count time set elsewhere reads as **Independent**; clicking it stretches the count time to fill the frame time again. On by default, remembered per browser, and shown where the detector reports its readout time. The timing line says "full duty cycle", or the duty cycle in percent.
+- **Unsigned 16- or 32-bit TIFF exports.** **Convert Dataset** has a **Data type** choice for TIFF: **Automatic** (as before), **Unsigned 16-bit** or **Unsigned 32-bit**, for software that needs a fixed type. Unsigned has no -1 or -2: gaps, bad and saturated pixels become the type's highest value, the DECTRIS convention, and counts that do not fit are clipped one below it, never wrapped around. The dialog warns beforehand when the data is wider than 16 bits, the export says how many pixels were clipped, and each file's header states the type, the marker and the clipped pixels, with its count cutoff lowered so a clipped pixel reads as overloaded. CBF stays signed 32-bit.
+- **Convert Dataset says what it will write.** Before an export, the progress bar states how many files of which type it will write, about how large, and the name template they are read back with ("Writes 2000 TIFF files · Unsigned 16-bit · ≈ 4.0 GB · img_th2_?????.tiff"). The source line names the frame open, and the dialog's explanations sit behind (?) buttons, with only warnings and reasons left in sight.
+- **JUNGFRAU automatic pedestals** in the detector panel, where the detector offers `auto_pedestals`.
+- **More in the log.** Exports and Combine Frames log their source, destination and options when they start, and the files written, the time taken and any clipped pixels when they end. Startup states the ALBIS version, install, Python, OS and architecture. A polled endpoint that keeps failing, such as an unreachable detector, is logged once, with its recovery, instead of every second, and a Remote Stream source is logged when it starts sending.
+
+### Changed
+
+- **Convert Dataset is about five times faster** with flatfield and inpainting: 2000 projections of 1 Mpx take under 30 s instead of about 2.5 min on an M-series Mac, with identical files. Frames are converted side by side, within a memory budget so a 16M detector does not fill the machine's memory, and two cores stay free for the viewer and live data. A TIFF export the disk cannot hold is refused before its first file, and a cancelled or failed export leaves no files after the last one it reports.
+- **Saturated pixels are white on ALBULA HDR**, as ALBULA draws them, and its gaps stay black.
+- **One aligned log layout**, on the console and in the log files, for ALBIS, the launcher and the web server alike. Each request is logged once, and the interface's routine polling is left out.
+- **The default output folder of Convert Dataset is named after the series**, not the frame open: `img_th2_export`, not `img_th2_01999_export`.
+- Dependencies: fastapi 0.162.0, starlette 1.10.0 and certifi 2026.10.23. None changes behaviour.
+
+### Fixed
+
+- **Convert Dataset opens afresh after an export**, with Start Export instead of the last export's Open Image.
+- **A frame too large for the GPU says so.** A JUNGFRAU 16M frame stored module-stacked (1030 × 16448 px) exceeds the texture limit of most GPUs; the canvas stayed black under a "Ready" status. It now raises an error naming the frame size and the limit.
 
 ## [0.35.0] - 2026-10-26
 
