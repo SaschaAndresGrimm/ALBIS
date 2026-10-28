@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Inpainting is faster in exports.** Filling a 1 Mpx frame's gaps and defective pixels takes about half the time, with identical results. A whole Convert Dataset export with flatfield and inpainting gains 15–30% on machines that convert one to four frames at a time; on machines with more cores, reading and writing files sets the pace.
+
 ## [0.36.0] - 2026-10-28
 
 ### Added
