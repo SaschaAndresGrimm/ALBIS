@@ -290,6 +290,108 @@ export function mapAlbulaHdrToNorm(value, bg, fg) {
   return idx / (ALBULA_LUT_SIZE - 1);
 }
 
+// ---------------------------------------------------------------------------
+// Integer frames: a count per value
+//
+// Statistics, histogram and auto contrast went over every pixel three or four
+// times, each pixel through finiteness checks and a function call, and auto
+// contrast through a logarithm: 137 ms for a 4M frame, where one bare pass
+// takes 5. A detector frame holds a few hundred to a few thousand distinct
+// values, so for integer data one pass counts how often each occurs, and
+// everything after works on that table -- every formula once per value, the
+// same formula, so the results are identical. Float data, and integers
+// spread wider than COUNT_TABLE_MAX values, keep the per-pixel path.
+// ---------------------------------------------------------------------------
+
+const COUNT_TABLE_MAX = 1 << 20;
+// Per frame array, per value left out (the saturation value): its table.
+const countTables = new WeakMap();
+
+function isIntegerArray(data) {
+  return (
+    data instanceof Uint16Array ||
+    data instanceof Uint32Array ||
+    data instanceof Uint8Array ||
+    data instanceof Int32Array ||
+    data instanceof Int16Array ||
+    data instanceof Int8Array ||
+    data instanceof Uint8ClampedArray
+  );
+}
+
+// The non-negative values' minimum and maximum, and the largest value below
+// the maximum: what the saturation value leaves when it is the maximum.
+function integerExtremes(data) {
+  let min = Infinity;
+  let max = -1;
+  let below = -1;
+  for (let i = 0; i < data.length; i += 1) {
+    const v = data[i];
+    if (v < 0) continue;
+    if (v < min) min = v;
+    if (v > max) {
+      below = max;
+      max = v;
+    } else if (v < max && v > below) {
+      below = v;
+    }
+  }
+  return { min, max, below };
+}
+
+/**
+ * How often each non-negative value but `excluded` occurs in an integer frame:
+ * `{ min, counts, count, low, high }`, `counts[k]` for value `min + k`, `low`
+ * and `high` the smallest and largest counted value. Null for float data, or a
+ * range too wide for a table; `count` 0 when no value is left.
+ */
+function integerCounts(data, excluded, extremes = null) {
+  if (!isIntegerArray(data)) return null;
+  let perFrame = countTables.get(data);
+  if (perFrame?.has(excluded)) return perFrame.get(excluded);
+  const ext = extremes || integerExtremes(data);
+  let table;
+  if (ext.max < 0) {
+    table = { min: 0, counts: new Uint32Array(0), count: 0, low: Infinity, high: -Infinity };
+  } else {
+    const top = excluded === ext.max ? ext.below : ext.max;
+    if (top < ext.min) {
+      table = { min: 0, counts: new Uint32Array(0), count: 0, low: Infinity, high: -Infinity };
+    } else if (top - ext.min + 1 > COUNT_TABLE_MAX) {
+      table = null;
+    } else {
+      const base = ext.min;
+      const size = top - base + 1;
+      const counts = new Uint32Array(size);
+      for (let i = 0; i < data.length; i += 1) {
+        const k = data[i] - base;
+        if (k >= 0 && k < size) counts[k] += 1;
+      }
+      if (excluded !== null && excluded !== undefined && excluded >= base && excluded <= top) {
+        counts[excluded - base] = 0;
+      }
+      let count = 0;
+      let low = -1;
+      let high = -1;
+      for (let k = 0; k < size; k += 1) {
+        if (!counts[k]) continue;
+        count += counts[k];
+        if (low < 0) low = k;
+        high = k;
+      }
+      table = count
+        ? { min: base, counts, count, low: base + low, high: base + high }
+        : { min: 0, counts: new Uint32Array(0), count: 0, low: Infinity, high: -Infinity };
+    }
+  }
+  if (!perFrame) {
+    perFrame = new Map();
+    countTables.set(data, perFrame);
+  }
+  perFrame.set(excluded, table);
+  return table;
+}
+
 export function computeHistogram(data, min, max, satMax, bins, logX) {
   const hist = new Uint32Array(bins);
   if (!Number.isFinite(min) || !Number.isFinite(max) || bins <= 0) {
@@ -303,6 +405,21 @@ export function computeHistogram(data, min, max, satMax, bins, logX) {
     const maxMap = symlog(max);
     const mapRange = maxMap - minMap || 1;
     mapValue = (v) => (symlog(v) - minMap) / mapRange;
+  }
+
+  const table = integerCounts(data, satMax);
+  if (table) {
+    // Once per value, with the same mapping a pixel of it would get.
+    const { counts } = table;
+    for (let k = 0; k < counts.length; k += 1) {
+      const c = counts[k];
+      if (!c) continue;
+      const t = mapValue(table.min + k);
+      if (!Number.isFinite(t)) continue;
+      const idx = Math.min(bins - 1, Math.max(0, Math.floor(t * (bins - 1))));
+      hist[idx] += c;
+    }
+    return hist;
   }
 
   for (let i = 0; i < data.length; i += 1) {
@@ -324,7 +441,10 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
   // passes the `satMax` that computeStats just worked out, which made this a
   // full extra pass over every pixel for a value that was already in hand.
   let satMax = satMaxInput;
-  if (satMax === null || satMax === undefined) {
+  const extremes = isIntegerArray(data) ? integerExtremes(data) : null;
+  if ((satMax === null || satMax === undefined) && extremes) {
+    satMax = getSaturationMax(dtype, extremes.max >= 0 ? extremes.max : Number.NEGATIVE_INFINITY);
+  } else if (satMax === null || satMax === undefined) {
     let rawMax = Number.NEGATIVE_INFINITY;
     for (let i = 0; i < data.length; i += 1) {
       const v = data[i];
@@ -342,14 +462,21 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
   let maxValue = Number.NEGATIVE_INFINITY;
   let count = 0;
 
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (satMax !== null && v === satMax) continue;
-    if (v < minValue) minValue = v;
-    if (v > maxValue) maxValue = v;
-    count += 1;
+  const table = extremes ? integerCounts(data, satMax, extremes) : null;
+  if (table) {
+    minValue = table.low;
+    maxValue = table.high;
+    count = table.count;
+  } else {
+    for (let i = 0; i < data.length; i += 1) {
+      const v = data[i];
+      if (!Number.isFinite(v)) continue;
+      if (v < 0) continue;
+      if (satMax !== null && v === satMax) continue;
+      if (v < minValue) minValue = v;
+      if (v > maxValue) maxValue = v;
+      count += 1;
+    }
   }
 
   const minLog = count ? Math.log1p(minValue) : Number.POSITIVE_INFINITY;
@@ -363,14 +490,26 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
   const hist = new Uint32Array(bins);
   const range = maxLog - minLog || 1;
 
-  for (let i = 0; i < data.length; i += 1) {
-    const v = data[i];
-    if (!Number.isFinite(v)) continue;
-    if (v < 0) continue;
-    if (satMax !== null && v === satMax) continue;
-    const lv = Math.log1p(v);
-    const idx = Math.min(bins - 1, Math.max(0, Math.floor(((lv - minLog) / range) * (bins - 1))));
-    hist[idx] += 1;
+  if (table) {
+    // One logarithm per value, not per pixel.
+    const { counts } = table;
+    for (let k = 0; k < counts.length; k += 1) {
+      const c = counts[k];
+      if (!c) continue;
+      const lv = Math.log1p(table.min + k);
+      const idx = Math.min(bins - 1, Math.max(0, Math.floor(((lv - minLog) / range) * (bins - 1))));
+      hist[idx] += c;
+    }
+  } else {
+    for (let i = 0; i < data.length; i += 1) {
+      const v = data[i];
+      if (!Number.isFinite(v)) continue;
+      if (v < 0) continue;
+      if (satMax !== null && v === satMax) continue;
+      const lv = Math.log1p(v);
+      const idx = Math.min(bins - 1, Math.max(0, Math.floor(((lv - minLog) / range) * (bins - 1))));
+      hist[idx] += 1;
+    }
   }
 
   // Reject a detached cluster of extreme pixels (summed sentinels) before taking
@@ -465,6 +604,17 @@ export function computeAutoLevels(data, satMaxInput, fallbackStats, dtype) {
 }
 
 export function computeStats(data, dtype, histLogX) {
+  if (isIntegerArray(data)) {
+    const extremes = integerExtremes(data);
+    const satMax = getSaturationMax(dtype, extremes.max >= 0 ? extremes.max : Number.NEGATIVE_INFINITY);
+    const table = integerCounts(data, satMax, extremes);
+    if (table) {
+      if (!table.count) return { min: 0, max: 1, hist: new Uint32Array(0), satMax, bins: 0 };
+      const bins = chooseHistogramBins(data.length);
+      const hist = computeHistogram(data, table.low, table.high, satMax, bins, histLogX);
+      return { min: table.low, max: table.high, hist, satMax, bins };
+    }
+  }
   let rawMax = Number.NEGATIVE_INFINITY;
 
   for (let i = 0; i < data.length; i += 1) {
