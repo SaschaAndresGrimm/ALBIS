@@ -11,7 +11,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **Inpainting is faster in exports.** Filling a 1 Mpx frame's gaps and defective pixels takes about half the time, with identical results. A whole Convert Dataset export with flatfield and inpainting gains 15–30% on machines that convert one to four frames at a time; on machines with more cores, reading and writing files sets the pace.
 - **Stepping through frames and live view are quicker.** The statistics, histogram and auto contrast of a new frame take 5 ms instead of 22 ms for a 1 Mpx frame, and 30 ms instead of 100 ms for a 4M one, with identical results: for whole-number data, ALBIS now counts each value once instead of working pixel by pixel.
-- **Playback starts at 5 fps** instead of 1 fps, now that frames step quickly enough for it.
+- **Playback starts at 5 fps** instead of 1 fps, and goes up to 30 fps instead of 10, now that frames step quickly enough for it. A speed the machine cannot keep up with only becomes a ceiling: playback waits for a frame still loading.
 - **Exports on Apple silicon use only its performance cores.** A Mac with 4 performance and 4 efficiency cores now converts on 4 cores instead of 6, just as fast, leaving more room for the viewer, live data and detector control while an export runs.
 
 ## [0.36.0] - 2026-10-28

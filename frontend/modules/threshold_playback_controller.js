@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { MAX_PLAYBACK_FPS } from "./frame_playback_controller.js";
 
 export function createThresholdPlaybackController({
   state,
@@ -141,7 +142,7 @@ export function createThresholdPlaybackController({
   }
 
   function setFps(value) {
-    const clamped = Math.max(1, Math.min(10, Math.round(value)));
+    const clamped = Math.max(1, Math.min(MAX_PLAYBACK_FPS, Math.round(value)));
     state.fps = clamped;
     if (fpsSelect) fpsSelect.value = String(clamped);
     if (toolbarMoreFps) toolbarMoreFps.value = String(clamped);

@@ -146,6 +146,17 @@ describe("frame playback pacing", () => {
     expect(rendered.length - atOneFps).toBeGreaterThan(atOneFps);
   });
 
+  it("plays at 30 fps when frames load fast enough", () => {
+    // The ceiling used to be a 50 ms tick, 20 fps whatever was chosen.
+    const { controller, rendered } = harness({ fps: 30, loadMs: 5 });
+
+    controller.startPlayback();
+    vi.advanceTimersByTime(2000);
+
+    expect(rendered.length).toBeGreaterThanOrEqual(55);
+    expect(rendered.length).toBeLessThanOrEqual(61);
+  });
+
   it("stops issuing loads once playback is stopped", () => {
     const { controller, rendered } = harness({ fps: 10, loadMs: 50 });
 

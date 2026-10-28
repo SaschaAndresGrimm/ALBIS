@@ -4,6 +4,11 @@
 
 import { t } from "./i18n.js";
 
+// The fastest playback offered. A 1 Mpx frame takes about 10 ms from file to
+// screen, a 4M one about four times that; playback waits for a frame still
+// loading, so a speed the machine cannot keep up with only becomes a ceiling.
+export const MAX_PLAYBACK_FPS = 30;
+
 export function createFramePlaybackController({
   state,
   elements,
@@ -128,7 +133,7 @@ export function createFramePlaybackController({
         requestFrame(next);
       }
       scheduleNextPlaybackTick();
-    }, Math.max(1000 / state.fps, 50));
+    }, Math.max(1000 / state.fps, 1000 / MAX_PLAYBACK_FPS));
   }
 
   function startPlayback() {
