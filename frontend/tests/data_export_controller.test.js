@@ -158,14 +158,14 @@ describe("data_export_controller, live sources", () => {
       <div id="source"></div>
       <select id="format"><option value="tiff">TIFF</option><option value="cbf">CBF</option></select>
       <select id="dtype"><option value="auto">Automatic</option><option value="uint16">16</option><option value="uint32">32</option></select>
-      <span id="dtype-hint"></span>
+      <span id="dtype-hint"></span><button id="dtype-info"></button>
       <select id="frames">
         <option value="all">All frames</option>
         <option value="current">Current frame</option>
         <option value="range">Range</option>
       </select>
       <input id="dir" /><input id="prefix" /><input id="overwrite" type="checkbox" />
-      <input id="inpaint" type="checkbox" /><span id="inpaint-label"></span>
+      <input id="inpaint" type="checkbox" /><span id="inpaint-label"></span><button id="inpaint-info"></button>
       <button id="start"></button><button id="cancel"></button>
       <div id="progress"><div id="fill"></div><div id="text"></div></div>`;
     const $ = (id) => document.getElementById(id);
@@ -174,12 +174,14 @@ describe("data_export_controller, live sources", () => {
       dataExportFormat: $("format"),
       dataExportDataType: $("dtype"),
       dataExportDataTypeHint: $("dtype-hint"),
+      dataExportDataTypeInfo: $("dtype-info"),
       dataExportFrameMode: $("frames"),
       dataExportOutputDir: $("dir"),
       dataExportPrefix: $("prefix"),
       dataExportOverwrite: $("overwrite"),
       dataExportInpaint: $("inpaint"),
       dataExportInpaintLabel: $("inpaint-label"),
+      dataExportInpaintInfo: $("inpaint-info"),
       dataExportStart: $("start"),
       dataExportCancel: $("cancel"),
       dataExportProgress: $("progress"),
@@ -221,8 +223,11 @@ describe("data_export_controller, live sources", () => {
     controller.openDialog();
     const select = elements.dataExportDataType;
     const hint = elements.dataExportDataTypeHint;
+    const info = elements.dataExportDataTypeInfo;
     expect(select.value).toBe("auto");
-    expect(hint.textContent).toBe("Signed 32-bit · gaps −1, bad or saturated pixels −2");
+    // What the type does is in its "?"; beside it, nothing to warn about.
+    expect(info.dataset.infoDetail).toBe("Signed 32-bit · gaps −1, bad or saturated pixels −2");
+    expect(hint.textContent).toBe("");
     // In place of "Idle": what Start Export will do.
     expect(elements.dataExportProgressText.textContent).toBe(
       "Writes 1 TIFF file · Signed 32-bit · ≈ 1 kB · simplon_monitor_s189_00009.tiff",
@@ -230,10 +235,12 @@ describe("data_export_controller, live sources", () => {
     // 16 bits for 32-bit data: what will be clipped, said before it is.
     select.value = "uint16";
     select.dispatchEvent(new Event("change"));
-    expect(hint.textContent).toBe(
+    // The warning stays in sight; the rest is in the "?".
+    expect(hint.textContent).toBe("This data is 32-bit: counts above 65,534 will be clipped");
+    expect(hint.classList.contains("is-warning")).toBe(true);
+    expect(info.dataset.infoDetail).toBe(
       "This data is 32-bit: counts above 65,534 will be clipped · gaps, bad and saturated pixels → 65,535",
     );
-    expect(hint.classList.contains("is-warning")).toBe(true);
     expect(localStorage.getItem("albis.dataExport.dataType")).toBe("uint16");
     await controller.startExport();
     expect(sent[0].meta.data_type).toBe("uint16");
@@ -252,15 +259,16 @@ describe("data_export_controller, live sources", () => {
     localStorage.clear();
   });
 
-  it("says in the note what Inpaint fills instead of marking it", async () => {
+  it("says in the data type's ? what Inpaint fills instead of marking it", async () => {
     const state = liveState([entry(9, [1, 2, 3, 4])]);
     state.inpaintEnabled = true;
     const { controller, elements } = await buildLive(state);
     controller.openDialog();
-    expect(elements.dataExportDataTypeHint.textContent).toBe("Signed 32-bit · gaps and defective pixels filled, saturated −2");
+    const info = elements.dataExportDataTypeInfo;
+    expect(info.dataset.infoDetail).toBe("Signed 32-bit · gaps and defective pixels filled, saturated −2");
     state.inpaintSaturated = true;
     elements.dataExportInpaint.dispatchEvent(new Event("change"));
-    expect(elements.dataExportDataTypeHint.textContent).toBe("Signed 32-bit · gaps, defective and saturated pixels filled");
+    expect(info.dataset.infoDetail).toBe("Signed 32-bit · gaps, defective and saturated pixels filled");
   });
 
   it("names the output folder after the series, not the frame open", async () => {
@@ -398,7 +406,9 @@ describe("data_export_controller, live sources", () => {
     const { controller, elements, sent } = await buildLive(state);
     controller.openDialog();
     expect(elements.dataExportInpaint.checked).toBe(true);
-    expect(elements.dataExportInpaintLabel.textContent).toBe(
+    // A short label; what it fills is in its "?".
+    expect(elements.dataExportInpaintLabel.textContent).toBe(EN["data_export.inpaint_label"]);
+    expect(elements.dataExportInpaintInfo.dataset.infoDetail).toBe(
       EN["data_export.inpaint_saturated"] +
         EN["data_export.inpaint_margin"].replace("{{margin}}", "2") +
         EN["data_export.inpaint_fixed"].replace("{{value}}", "12"),

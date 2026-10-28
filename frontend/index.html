@@ -1990,7 +1990,7 @@
               </select>
             </label>
             <label class="field data-export-span-2" id="data-export-data-type-field">
-              <span data-i18n="data_export.data_type">Data type</span>
+              <span class="field-label-row"><span data-i18n="data_export.data_type">Data type</span><button type="button" class="info-tip" id="data-export-data-type-info" data-info-key="info.data_export.data_type" aria-label="More information" data-i18n-aria-label="info.button_label"></button></span>
               <div class="data-export-type-row">
                 <select id="data-export-data-type">
                   <option value="auto" data-i18n="data_export.data_type.auto">Automatic</option>
@@ -2015,14 +2015,20 @@
               <input id="data-export-overwrite" type="checkbox" />
               <span data-i18n="data_export.overwrite">Overwrite existing files</span>
             </label>
-            <label class="checkbox data-export-flatfield">
-              <input id="data-export-flatfield" type="checkbox" />
-              <span id="data-export-flatfield-label" data-i18n="data_export.flatfield">Flatfield: divide by the flat</span>
-            </label>
-            <label class="checkbox data-export-inpaint">
-              <input id="data-export-inpaint" type="checkbox" />
-              <span id="data-export-inpaint-label" data-i18n="data_export.inpaint">Inpaint: fill gaps and defective pixels</span>
-            </label>
+            <div class="data-export-option">
+              <label class="checkbox data-export-flatfield">
+                <input id="data-export-flatfield" type="checkbox" />
+                <span id="data-export-flatfield-label" data-i18n="data_export.flatfield_label">Flatfield</span>
+              </label>
+              <button type="button" class="info-tip" id="data-export-flatfield-info" data-info-key="info.data_export.flatfield" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
+            </div>
+            <div class="data-export-option">
+              <label class="checkbox data-export-inpaint">
+                <input id="data-export-inpaint" type="checkbox" />
+                <span id="data-export-inpaint-label" data-i18n="data_export.inpaint_label">Inpaint</span>
+              </label>
+              <button type="button" class="info-tip" id="data-export-inpaint-info" data-info-key="info.data_export.inpaint" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
+            </div>
           </div>
           <div class="data-export-progress" id="data-export-progress">
             <div class="data-export-progress-fill" id="data-export-progress-fill"></div>

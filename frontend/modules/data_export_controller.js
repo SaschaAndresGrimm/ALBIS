@@ -194,6 +194,9 @@ export function createDataExportController({
     dataExportOverwrite,
     dataExportInpaint,
     dataExportInpaintLabel,
+    dataExportInpaintInfo,
+    dataExportDataTypeInfo,
+    dataExportFlatfieldInfo,
     dataExportFlatfield,
     dataExportFlatfieldLabel,
     dataExportStart,
@@ -546,16 +549,18 @@ export function createDataExportController({
     return isLive() ? liveFrameDtype(currentLiveEntry()) : state.dtype;
   }
 
-  // Beside the select: what the type does to the values, and a warning
-  // where 16 bits cannot hold what this data can count.
+  // What the type does to the values, in its "?". Beside the select only
+  // what must not be missed: why no type can be chosen (CBF, transmission),
+  // or that 16 bits cannot hold what this data can count.
   function syncDataType(disabled) {
     const lock = dataTypeLock();
     if (dataExportDataType) dataExportDataType.disabled = disabled || Boolean(lock);
-    if (!dataExportDataTypeHint) return;
     let text;
+    let visible = "";
     let warn = false;
     if (lock) {
       text = t(`data_export.data_type.hint_${lock}`);
+      visible = text;
     } else {
       const type = dataTypeChoice();
       const marker = UNSIGNED_MARKER[type];
@@ -576,9 +581,13 @@ export function createDataExportController({
         type === "uint16" && !warn ? t("data_export.data_type.clipped_above", values) : "",
       ];
       text = parts.filter(Boolean).join(" · ");
+      if (warn) visible = parts[0];
     }
-    dataExportDataTypeHint.textContent = text;
-    dataExportDataTypeHint.classList.toggle("is-warning", warn);
+    if (dataExportDataTypeInfo) dataExportDataTypeInfo.dataset.infoDetail = text;
+    if (dataExportDataTypeHint) {
+      dataExportDataTypeHint.textContent = visible;
+      dataExportDataTypeHint.classList.toggle("is-warning", warn);
+    }
   }
 
   // The type an export writes, in words: "Signed 32-bit", "Unsigned 16-bit".
@@ -879,20 +888,27 @@ export function createDataExportController({
     if (dataExportFlatfield && !state.dataExport.running) {
       dataExportFlatfield.checked = Boolean(state.flatEnabled && flatFor(sourceShape()));
     }
-    // Unavailable, it says why: no flat yet, or one of another size.
+    // Short, with the flat in its "?"; unavailable, it says why: no flat
+    // yet, or one of another size.
+    const flatName = String(state.flatPath || "").split(/[\\/]/).pop();
     if (dataExportFlatfieldLabel) {
-      const name = String(state.flatPath || "").split(/[\\/]/).pop();
-      dataExportFlatfieldLabel.textContent = !name
+      dataExportFlatfieldLabel.textContent = !flatName
         ? t("data_export.flatfield_none")
         : flatFor(sourceShape())
-          ? t("data_export.flatfield_named", { name })
-          : t("data_export.flatfield_mismatch", { name });
+          ? t("data_export.flatfield_label")
+          : t("data_export.flatfield_mismatch", { name: flatName });
     }
-    // Inpainting as on screen: ticked while it is on, and saying what it fills.
+    if (dataExportFlatfieldInfo) {
+      dataExportFlatfieldInfo.dataset.infoDetail = flatName
+        ? `${t("data_export.flatfield_named", { name: flatName })} · ${t(`flatfield.scale.${normalizeFlatScale(state.flatScale)}`)}`
+        : "";
+    }
+    // Inpainting as on screen: ticked while it is on; what it fills in its "?".
     if (dataExportInpaint && !state.dataExport.running) dataExportInpaint.checked = Boolean(state.inpaintEnabled);
-    if (dataExportInpaintLabel) {
+    if (dataExportInpaintLabel) dataExportInpaintLabel.textContent = t("data_export.inpaint_label");
+    if (dataExportInpaintInfo) {
       const margin = normalizeInpaintMargin(state.inpaintMargin);
-      dataExportInpaintLabel.textContent =
+      dataExportInpaintInfo.dataset.infoDetail =
         t(state.inpaintSaturated ? "data_export.inpaint_saturated" : "data_export.inpaint") +
         (margin ? t("data_export.inpaint_margin", { margin }) : "") +
         (normalizeInpaintMethod(state.inpaintMethod) === "fixed"

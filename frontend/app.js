@@ -550,6 +550,9 @@ const dataExportInpaint = document.getElementById("data-export-inpaint");
 const dataExportFlatfield = document.getElementById("data-export-flatfield");
 const dataExportFlatfieldLabel = document.getElementById("data-export-flatfield-label");
 const dataExportInpaintLabel = document.getElementById("data-export-inpaint-label");
+const dataExportDataTypeInfo = document.getElementById("data-export-data-type-info");
+const dataExportFlatfieldInfo = document.getElementById("data-export-flatfield-info");
+const dataExportInpaintInfo = document.getElementById("data-export-inpaint-info");
 const dataExportStart = document.getElementById("data-export-start");
 const dataExportCancel = document.getElementById("data-export-cancel");
 const dataExportProgress = document.getElementById("data-export-progress");
@@ -1647,6 +1650,9 @@ const dataExportController = createDataExportController({
     dataExportOverwrite,
     dataExportInpaint,
     dataExportInpaintLabel,
+    dataExportInpaintInfo,
+    dataExportDataTypeInfo,
+    dataExportFlatfieldInfo,
     dataExportFlatfield,
     dataExportFlatfieldLabel,
     dataExportStart,

@@ -5891,6 +5891,15 @@ body.platform-windows select option:disabled {
   align-items: start;
 }
 
+/* A checkbox and its "?", outside the label so a click on the "?" does not
+   tick the box. */
+.data-export-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .data-export-option-hint {
   margin: 4px 0 0 24px;
   color: var(--muted);
