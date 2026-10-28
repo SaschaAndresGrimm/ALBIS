@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import math
 import re
+import shutil
 import threading
 import time
 import uuid
@@ -282,6 +283,29 @@ class DataExportService:
             pixels = int(job.get("clipped_pixels") or 0)
             files = int(job.get("clipped_files") or 0)
         return f"; {pixels} pixel(s) clipped in {files} file(s)" if pixels else ""
+
+    @staticmethod
+    def _check_room(
+        out_dir: Path, files: int, shape: tuple[int, ...], output_format: str, data_type: str
+    ) -> None:
+        """Refuse a TIFF export the disk cannot hold, before its first file
+        rather than part-way through a long series. A TIFF here is
+        uncompressed, so its size is known; a CBF's depends on the data."""
+        if output_format == "cbf" or len(shape) < 2:
+            return
+        try:
+            free = shutil.disk_usage(out_dir).free
+        except OSError:
+            return
+        per_pixel = 2 if data_type == "uint16" else 4
+        # A header of a few kB per file on top of the pixels.
+        needed = files * (int(shape[-2]) * int(shape[-1]) * per_pixel + 16_384)
+        if needed > free:
+            raise HTTPException(
+                status_code=507,
+                detail=f"Not enough disk space: about {needed / 1e9:.1f} GB needed, "
+                f"{free / 1e9:.1f} GB free in {out_dir}",
+            )
 
     def _count_clipped(self, job_id: str, clipped: int) -> None:
         if not clipped:
@@ -1467,6 +1491,7 @@ class DataExportService:
                 planned = [(f + 1, thr_tag(t)) for f in frames for t in thresholds]
                 suffix = ".cbf" if output_format == "cbf" else ".tiff"
                 base = self._free_base(out_dir, base, planned, suffix, overwrite)
+                self._check_room(out_dir, len(planned), shape, output_format, data_type)
                 for frame_idx in frames:
                     for thr_idx in thresholds:
                         self._raise_if_cancelled(job_id)
@@ -1554,6 +1579,8 @@ class DataExportService:
             src = series_files[frame_idx]
             name = self.frame_name(base, numbers[frame_idx])
             arr = self._read_non_h5_image(src)
+            if completed == 1:
+                self._check_room(out_dir, total, np.shape(arr), output_format, data_type)
             metadata = self._image_source_export_metadata(src, frame_idx, len(series_files))
             out_file, clipped = self._write_frame(
                 out_dir=out_dir,

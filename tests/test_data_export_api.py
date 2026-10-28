@@ -840,3 +840,25 @@ def test_live_frame_can_be_written_unsigned(tmp_path: Path) -> None:
     assert cbf.status_code == 400
     bad = _post_live_frame(client, data, {**config, "data_type": "float64"})
     assert bad.status_code == 400
+
+
+def test_a_tiff_export_the_disk_cannot_hold_is_refused_before_it_starts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import shutil
+    from collections import namedtuple
+
+    usage = namedtuple("usage", "total used free")
+    monkeypatch.setattr(shutil, "disk_usage", lambda _path: usage(10**9, 10**9, 1000))
+    source = tmp_path / "scan.h5"
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=np.ones((3, 64, 64), dtype=np.uint32))
+    client = _client()
+    out_dir = tmp_path / "out"
+    response = client.post(
+        "/api/export/data/start",
+        json={"file": str(source), "dataset": "/entry/data/data", "output_dir": str(out_dir)},
+    )
+    job = _wait_for_job(client, response.json()["job_id"])
+    assert job["status"] == "error" and "Not enough disk space" in str(job["error"])
+    assert not list(out_dir.glob("*.tiff"))

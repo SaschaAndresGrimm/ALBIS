@@ -6,6 +6,7 @@ import { t, getLanguage } from "./i18n.js";
 import { canExportData, isLiveExportSource, liveExportEntries } from "./command_availability.js";
 import { normalizeFlatScale } from "./flatfield.js";
 import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue } from "./inpainting.js";
+import { formatBytes } from "./detector_control_controller.js";
 
 function fileStem(path) {
   const normalized = String(path || "").replace(/\\/g, "/");
@@ -32,8 +33,11 @@ function safeName(value, fallback = "dataset") {
   return text || fallback;
 }
 
-function defaultOutputDir(path) {
-  const base = fileStem(path);
+// Next to the source, named after the series rather than the frame open:
+// image_00007.cbf -> image_export, the same folder from whichever frame.
+export function defaultOutputDir(path, dataset = "") {
+  const stem = fileStem(path);
+  const base = dataset ? stem : stem.replace(/[_.-]*\d+$/, "") || stem;
   const dir = dirname(path);
   return dir ? `${dir}/${base}_export` : `${base}_export`;
 }
@@ -299,7 +303,7 @@ export function createDataExportController({
   function syncDefaults(force = false) {
     // A live source: live_export in the data folder, named after the source.
     const live = isLive();
-    const dir = live ? "live_export" : defaultOutputDir(state.file);
+    const dir = live ? "live_export" : defaultOutputDir(state.file, state.dataset);
     const prefix = live
       ? LIVE_PREFIX[String(state.autoload?.mode || "")] || "live"
       : defaultOutputPrefix(state.file, state.dataset);
@@ -345,8 +349,10 @@ export function createDataExportController({
           ? `${entry.label} · ${t("data_export.source.live_count", { count })}`
           : t("data_export.source.none");
       } else {
+        const total = Math.round(Number(state.frameCount || 1));
+        const frame = total > 1 ? ` · ${t("data_export.source.frame", { n: Number(state.frameIndex || 0) + 1, total })}` : "";
         dataExportSource.textContent = state.file
-          ? `${state.file}${state.dataset ? `  ${state.dataset}` : ""}`
+          ? `${state.file}${state.dataset ? `  ${state.dataset}` : ""}${frame}`
           : t("data_export.source.none");
       }
     }
@@ -394,6 +400,11 @@ export function createDataExportController({
         : canOpen
           ? t("data_export.button.open_image")
           : t("data_export.button.start");
+    }
+    if (dataExportProgressText) {
+      if (ready && idle()) dataExportProgressText.textContent = exportSummary();
+      // Whole on hover, where the bar cuts it short.
+      dataExportProgressText.title = dataExportProgressText.textContent;
     }
     if (dataExportCancel) {
       dataExportCancel.classList.toggle("is-hidden", !running);
@@ -541,24 +552,87 @@ export function createDataExportController({
     const lock = dataTypeLock();
     if (dataExportDataType) dataExportDataType.disabled = disabled || Boolean(lock);
     if (!dataExportDataTypeHint) return;
-    const type = dataTypeChoice();
     let text;
     let warn = false;
     if (lock) {
       text = t(`data_export.data_type.hint_${lock}`);
-    } else if (type === "auto") {
-      text = t(flatfieldFields(sourceShape()).flatfield ? "data_export.data_type.hint_float" : "data_export.data_type.hint_auto");
     } else {
+      const type = dataTypeChoice();
       const marker = UNSIGNED_MARKER[type];
-      const values = { marker: marker.toLocaleString(), top: (marker - 1).toLocaleString() };
+      const values = marker ? { marker: marker.toLocaleString(), top: (marker - 1).toLocaleString() } : {};
       const bits = dtypeBits(sourceDtype());
       warn = type === "uint16" && bits !== null && bits > 16;
-      text = warn
-        ? t("data_export.data_type.hint_wide", { ...values, bits })
-        : t(type === "uint16" ? "data_export.data_type.hint_uint16" : "data_export.data_type.hint_uint32", values);
+      // What the values become, then what happens to the pixels without one:
+      // filled when Inpaint is ticked, marked otherwise.
+      const fill = inpaintChoice();
+      const marks =
+        fill === "saturated"
+          ? t("data_export.data_type.filled_all")
+          : t(`data_export.data_type.${fill === "defects" ? "filled_defects" : "marks"}_${marker ? "unsigned" : "signed"}`, values);
+      const parts = [
+        warn ? t("data_export.data_type.wide", { ...values, bits }) : "",
+        type === "auto" ? typeText() : "",
+        marks,
+        type === "uint16" && !warn ? t("data_export.data_type.clipped_above", values) : "",
+      ];
+      text = parts.filter(Boolean).join(" · ");
     }
     dataExportDataTypeHint.textContent = text;
     dataExportDataTypeHint.classList.toggle("is-warning", warn);
+  }
+
+  // The type an export writes, in words: "Signed 32-bit", "Unsigned 16-bit".
+  function typeText() {
+    const type = dataTypeChoice();
+    if (type !== "auto") return t(`data_export.data_type.${type}`);
+    const flat = flatfieldFields(sourceShape());
+    const float = flat.flatfield && String(dataExportFormat?.value || "tiff").toLowerCase() !== "cbf";
+    return t(float ? "data_export.data_type.float32" : "data_export.data_type.signed32");
+  }
+
+  // How many files the export writes, and the names they get: the template a
+  // series is read back with (img_?????.tiff), or the first and last name of
+  // a live export.
+  function plannedFiles() {
+    const ext = String(dataExportFormat?.value || "tiff").toLowerCase() === "cbf" ? "cbf" : "tiff";
+    const mode = String(dataExportFrameMode?.value || "all").toLowerCase();
+    if (isLive()) {
+      const chosen = mode === "all" ? liveExportEntries(state) : [currentLiveEntry()].filter(Boolean);
+      const prefix = safeName(String(dataExportPrefix?.value || "").trim() || LIVE_PREFIX[String(state.autoload?.mode || "")] || "live", "live");
+      const names = chosen.map((entry, index) => `${liveFrameName(prefix, entry, index)}.${ext}`);
+      const shape = chosen[0]?.shape || [0, 0];
+      return { count: chosen.length, names: names.length > 1 ? `${names[0]} … ${names[names.length - 1]}` : names[0] || "", pixels: shape[0] * shape[1], ext };
+    }
+    const total = Math.max(1, Math.round(Number(state.frameCount || 1)));
+    const start = Math.max(1, Math.round(Number(dataExportRangeStart?.value || 1)));
+    const end = Math.min(total, Math.max(1, Math.round(Number(dataExportRangeEnd?.value || total))));
+    const frames = mode === "all" ? total : mode === "current" ? 1 : Math.max(0, end - start + 1);
+    const thresholds = Math.max(1, Math.round(Number(state.thresholdCount || 1)));
+    const allThresholds = thresholds > 1 && String(dataExportThresholdMode?.value || "current").toLowerCase() === "all";
+    const thr = thresholds > 1 ? `_thr${allThresholds ? "?" : Number(state.thresholdIndex || 0) + 1}` : "";
+    const prefix = safeName(String(dataExportPrefix?.value || "").trim() || defaultOutputPrefix(state.file, state.dataset));
+    return {
+      count: frames * (allThresholds ? thresholds : 1),
+      names: `${prefix}${thr}_?????.${ext}`,
+      pixels: Number(state.width || 0) * Number(state.height || 0),
+      ext,
+    };
+  }
+
+  // In place of "Idle": what Start Export will do. "Writes 2000 TIFF files ·
+  // Unsigned 16-bit · ≈ 4.2 GB · img_th2_?????.tiff". A TIFF is
+  // uncompressed, so its size is known; a CBF's depends on the data.
+  function exportSummary() {
+    const { count, names, pixels, ext } = plannedFiles();
+    if (!count) return t("data_export.progress.idle");
+    const perPixel = dataTypeChoice() === "uint16" ? 2 : 4;
+    const size = ext === "tiff" && pixels > 0 ? `≈ ${formatBytes(count * pixels * perPixel)}` : "";
+    return [t("data_export.summary", { count, format: ext.toUpperCase() }), typeText(), size, names].filter(Boolean).join(" · ");
+  }
+
+  function idle() {
+    const message = state.dataExport.message;
+    return !state.dataExport.running && !state.dataExport.openTarget && (!message || message === t("data_export.progress.idle"));
   }
 
   // "Export complete: wrote 12 files · 340 pixels clipped to fit, in 3 files".
@@ -805,11 +879,14 @@ export function createDataExportController({
     if (dataExportFlatfield && !state.dataExport.running) {
       dataExportFlatfield.checked = Boolean(state.flatEnabled && flatFor(sourceShape()));
     }
+    // Unavailable, it says why: no flat yet, or one of another size.
     if (dataExportFlatfieldLabel) {
       const name = String(state.flatPath || "").split(/[\\/]/).pop();
-      dataExportFlatfieldLabel.textContent = name
-        ? t("data_export.flatfield_named", { name })
-        : t("data_export.flatfield");
+      dataExportFlatfieldLabel.textContent = !name
+        ? t("data_export.flatfield_none")
+        : flatFor(sourceShape())
+          ? t("data_export.flatfield_named", { name })
+          : t("data_export.flatfield_mismatch", { name });
     }
     // Inpainting as on screen: ticked while it is on, and saying what it fills.
     if (dataExportInpaint && !state.dataExport.running) dataExportInpaint.checked = Boolean(state.inpaintEnabled);
@@ -861,6 +938,11 @@ export function createDataExportController({
     element?.addEventListener("input", clearFinishedResult);
   });
   dataExportThresholdMode?.addEventListener("change", updateUi);
+  // The summary follows what it counts and names.
+  [dataExportRangeStart, dataExportRangeEnd, dataExportPrefix, dataExportInpaint].forEach((element) => {
+    element?.addEventListener("input", updateUi);
+    element?.addEventListener("change", updateUi);
+  });
   dataExportOutputBrowse?.addEventListener("click", browseOutputDir);
   dataExportStart?.addEventListener("click", startExport);
   dataExportCancel?.addEventListener("click", cancelExport);

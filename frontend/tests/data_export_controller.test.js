@@ -74,6 +74,47 @@ describe("data_export_controller", () => {
     });
   });
 
+  it("counts and names what a file export will write, and says why the flatfield is unavailable", async () => {
+    vi.resetModules();
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => EN }));
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createDataExportController } = await import("../modules/data_export_controller.js");
+    document.body.innerHTML = `
+      <div id="source"></div>
+      <select id="format"><option value="tiff">TIFF</option><option value="cbf">CBF</option></select>
+      <select id="dtype"><option value="auto">A</option><option value="uint16">16</option></select><span id="hint"></span>
+      <select id="frames"><option value="all">All</option><option value="current">Current</option><option value="range">Range</option></select>
+      <input id="start" value="1" /><input id="end" value="10" />
+      <input id="prefix" /><input id="flat" type="checkbox" /><span id="flat-label"></span>
+      <div id="text"></div>`;
+    const $ = (id) => document.getElementById(id);
+    const state = makeState({ file: "/data/img_th2_01999.tif", frameCount: 2000, frameIndex: 1999, width: 1000, height: 1000 });
+    const controller = createDataExportController({
+      apiBase: "/api",
+      state,
+      elements: {
+        dataExportSource: $("source"), dataExportFormat: $("format"), dataExportDataType: $("dtype"), dataExportDataTypeHint: $("hint"),
+        dataExportFrameMode: $("frames"), dataExportRangeStart: $("start"), dataExportRangeEnd: $("end"),
+        dataExportPrefix: $("prefix"), dataExportFlatfield: $("flat"), dataExportFlatfieldLabel: $("flat-label"), dataExportProgressText: $("text"),
+      },
+      callbacks: { isHdfFile, openModal: vi.fn(), closeModal: vi.fn(), setStatus: vi.fn() },
+    });
+    controller.openDialog();
+    expect($("source").textContent).toBe("/data/img_th2_01999.tif · frame 2000 of 2000");
+    expect($("text").textContent).toBe("Writes 2000 TIFF files · Signed 32-bit · ≈ 8.0 GB · img_th2_?????.tiff");
+    $("dtype").value = "uint16";
+    $("frames").value = "range";
+    $("dtype").dispatchEvent(new Event("change"));
+    expect($("text").textContent).toBe("Writes 10 TIFF files · Unsigned 16-bit · ≈ 20.0 MB · img_th2_?????.tiff");
+    $("format").value = "cbf";
+    $("format").dispatchEvent(new Event("change"));
+    expect($("text").textContent).toBe("Writes 10 CBF files · Signed 32-bit · img_th2_?????.cbf");
+    expect($("flat-label").textContent).toBe(EN["data_export.flatfield_none"]);
+    expect($("flat").disabled).toBe(true);
+    localStorage.clear();
+  });
+
   it("opens the dialog for an exportable source without a warning", async () => {
     const { controller, setStatus, openModal } = await build(
       makeState({ file: "/data/frame.cbf" })
@@ -181,12 +222,16 @@ describe("data_export_controller, live sources", () => {
     const select = elements.dataExportDataType;
     const hint = elements.dataExportDataTypeHint;
     expect(select.value).toBe("auto");
-    expect(hint.textContent).toBe(EN["data_export.data_type.hint_auto"]);
+    expect(hint.textContent).toBe("Signed 32-bit · gaps −1, bad or saturated pixels −2");
+    // In place of "Idle": what Start Export will do.
+    expect(elements.dataExportProgressText.textContent).toBe(
+      "Writes 1 TIFF file · Signed 32-bit · ≈ 1 kB · simplon_monitor_s189_00009.tiff",
+    );
     // 16 bits for 32-bit data: what will be clipped, said before it is.
     select.value = "uint16";
     select.dispatchEvent(new Event("change"));
     expect(hint.textContent).toBe(
-      "This data is 32-bit: counts above 65,534 will be clipped. Gaps, bad and saturated pixels → 65,535",
+      "This data is 32-bit: counts above 65,534 will be clipped · gaps, bad and saturated pixels → 65,535",
     );
     expect(hint.classList.contains("is-warning")).toBe(true);
     expect(localStorage.getItem("albis.dataExport.dataType")).toBe("uint16");
@@ -205,6 +250,24 @@ describe("data_export_controller, live sources", () => {
     const again = await buildLive(liveState([entry(9, [1, 2, 3, 4])]));
     expect(again.elements.dataExportDataType.value).toBe("uint16");
     localStorage.clear();
+  });
+
+  it("says in the note what Inpaint fills instead of marking it", async () => {
+    const state = liveState([entry(9, [1, 2, 3, 4])]);
+    state.inpaintEnabled = true;
+    const { controller, elements } = await buildLive(state);
+    controller.openDialog();
+    expect(elements.dataExportDataTypeHint.textContent).toBe("Signed 32-bit · gaps and defective pixels filled, saturated −2");
+    state.inpaintSaturated = true;
+    elements.dataExportInpaint.dispatchEvent(new Event("change"));
+    expect(elements.dataExportDataTypeHint.textContent).toBe("Signed 32-bit · gaps, defective and saturated pixels filled");
+  });
+
+  it("names the output folder after the series, not the frame open", async () => {
+    const { mod } = await buildLive(liveState([entry(1, [0, 0, 0, 0])]));
+    expect(mod.defaultOutputDir("/data/img_th2_01999.tif")).toBe("/data/img_th2_export");
+    expect(mod.defaultOutputDir("/data/sample.tif")).toBe("/data/sample_export");
+    expect(mod.defaultOutputDir("/data/series_190_master.h5", "/entry/data/data")).toBe("/data/series_190_master_export");
   });
 
   it("says how many pixels were clipped to fit the data type", async () => {

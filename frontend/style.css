@@ -5962,13 +5962,14 @@ body.platform-windows select option:disabled {
   transition: width var(--motion-med) linear;
 }
 
+/* A block, not a flex box: the ellipsis only applies to a block's own text,
+   and the summary before an export can be longer than the bar. */
 .data-export-progress-text {
   position: absolute;
   inset: 0;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  line-height: 20px;
   padding: 0 8px;
   color: #f0f0f0;
   font-size: 11px;
