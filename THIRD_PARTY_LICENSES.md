@@ -16,9 +16,9 @@ here.
 
 | Component | Version | License | Copyright |
 |---|---|---|---|
-| FastAPI | 0.148.0 | MIT | © 2018 Sebastián Ramírez |
+| FastAPI | 0.162.0 | MIT | © 2018 Sebastián Ramírez |
 | Uvicorn | 0.54.0 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
-| Starlette | 1.9.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
+| Starlette | 1.10.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
 | AnyIO | 4.15.1 | MIT | © 2018 Alex Grönholm |
 | python-multipart | 0.0.32 | Apache-2.0 | © Andrew Dunham |
 | hdf5plugin | 7.1.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
@@ -30,7 +30,7 @@ here.
 | PyZMQ | 27.2.0 | BSD-3-Clause | © 2009-2012 Brian Granger, Min Ragan-Kelley (bundles libzmq, MPL-2.0) |
 | dectris-compression | 0.4.0 | MIT | © 2020 DECTRIS Ltd. |
 | zstandard | 0.25.0 | BSD-3-Clause | © 2016 Gregory Szorc (bundles libzstd, © Meta Platforms, Inc., dual BSD-3-Clause/GPL-2.0 — used under BSD-3-Clause) |
-| certifi | 2026.10.19 | MPL-2.0 | © Kenneth Reitz (bundles Mozilla CA certificates) |
+| certifi | 2026.10.23 | MPL-2.0 | © Kenneth Reitz (bundles Mozilla CA certificates) |
 | pyobjc (macOS only) | 12.2.2 | MIT | © 2002-2025 Ronald Oussoren et al. |
 | html2canvas | 1.4.1 | MIT | © 2022 Niklas von Hertzen |
 | Inter | 4.1 | OFL-1.1 | © 2016 The Inter Project Authors |
