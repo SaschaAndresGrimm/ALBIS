@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-10-28
+
 ### Added
 
 - **Linux arm64 builds.** Releases now include an AppImage, an AppImage bundle and a tarball for 64-bit ARM Linux (`aarch64`), such as the NVIDIA DGX Spark. Like the x86_64 build, they need glibc 2.28 or newer, and every release is started on Rocky Linux 8 and 9 and Ubuntu 22.04 and 24.04 before it is published. Update checks on an arm64 machine offer the arm64 AppImage.
@@ -1729,7 +1731,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.1...v0.35.0
 [0.34.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.0...v0.34.1
 [0.34.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.33.1...v0.34.0
