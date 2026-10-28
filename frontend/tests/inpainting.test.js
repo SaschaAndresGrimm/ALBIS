@@ -124,3 +124,58 @@ describe("Background and Foreground", () => {
     expect(levelValue(Number.NaN)).toBe(0);
   });
 });
+
+describe("inpainting, the faster paths", () => {
+  function rand(seed) {
+    let s = seed;
+    return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+  }
+
+  // Within `margin` of a flagged pixel along the row, then the column: the
+  // definition, pixel by pixel.
+  function grownReference(holes, width, height, margin) {
+    const rows = new Uint8Array(holes.length);
+    for (let y = 0; y < height; y += 1)
+      for (let x = 0; x < width; x += 1)
+        for (let d = -margin; d <= margin; d += 1)
+          if (x + d >= 0 && x + d < width && holes[y * width + x + d]) rows[y * width + x] = 1;
+    const out = new Uint8Array(holes.length);
+    for (let y = 0; y < height; y += 1)
+      for (let x = 0; x < width; x += 1)
+        for (let d = -margin; d <= margin; d += 1)
+          if (y + d >= 0 && y + d < height && rows[(y + d) * width + x]) out[y * width + x] = 1;
+    return out;
+  }
+
+  it("grows holes as defined, four pixels at a time or one", () => {
+    const r = rand(9);
+    for (const width of [8, 12, 13, 31, 64]) {
+      for (const margin of [1, 2, 5]) {
+        const height = 5 + Math.floor(r() * 20);
+        const holes = new Uint8Array(width * height);
+        for (let i = 0; i < holes.length; i += 1) holes[i] = r() < 0.05 ? 1 : 0;
+        const expected = grownReference(holes, width, height, margin);
+        const count = growHoles(holes, width, height, margin);
+        expect(Array.from(holes)).toEqual(Array.from(expected));
+        expect(count).toBe(expected.reduce((a, v) => a + v, 0));
+      }
+    }
+  });
+
+  it("finds the same holes from the flatfield's as from scratch", () => {
+    const r = rand(4);
+    const width = 40;
+    const height = 30;
+    const data = Uint32Array.from({ length: width * height }, () => (r() < 0.03 ? 900 : Math.floor(r() * 500)));
+    const mask = Uint32Array.from({ length: width * height }, () => (r() < 0.04 ? 1 : 0));
+    const extra = Uint8Array.from({ length: width * height }, () => (r() < 0.02 ? 1 : 0));
+    const isSaturatedValue = (v, s) => v === s;
+    const params = { data, width, height, margin: 1, mask, satMax: 900, fillSaturated: true, isSaturatedValue, extraHoles: extra };
+    const base = inpaintHoles({ ...params, margin: 0, fillSaturated: false, extraHoles: null }).holes;
+    const fresh = inpaintHoles(params);
+    const reused = inpaintHoles({ ...params, baseHoles: base });
+    expect(Array.from(reused.holes)).toEqual(Array.from(fresh.holes));
+    expect(reused.count).toBe(fresh.count);
+    expect(base.reduce((a, v) => a + v, 0)).toBe(mask.reduce((a, v) => a + (v ? 1 : 0), 0));
+  });
+});
