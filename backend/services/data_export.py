@@ -68,10 +68,34 @@ class DataExportDeps:
     read_image_with_header: Callable[[Path], tuple[np.ndarray, dict[str, Any], str]]
 
 
-# Frames converted at once. The work is numpy and file I/O, which run outside
-# the GIL, so threads share the cores without copying frames between
-# processes; a few in flight per worker keep the disk busy while they compute.
-EXPORT_WORKERS = max(1, min(8, (os.cpu_count() or 2) - 1))
+# Frames converted at once, at most. The work is numpy and file I/O, which run
+# outside the GIL, so threads share the cores without copying frames between
+# processes. Two cores are left to the rest of ALBIS -- the viewer, the live
+# monitor, detector control -- which an export would otherwise slow down.
+EXPORT_WORKERS = max(1, min(8, (os.cpu_count() or 2) - 2))
+# Working memory a frame takes while it is converted, per pixel: flatfield and
+# inpainting hold float64 copies and full-size index arrays (0.84 GB for an
+# 18 Mpx EIGER2 16M frame), plus the frames read and waiting.
+BYTES_PER_PIXEL_IN_FLIGHT = 48
+
+
+def _physical_memory() -> int | None:
+    try:
+        return int(os.sysconf("SC_PAGE_SIZE")) * int(os.sysconf("SC_PHYS_PAGES"))
+    except (AttributeError, OSError, ValueError):
+        return None  # Windows: the fixed budget below
+
+
+def export_workers(pixels: int, memory: int | None = None) -> int:
+    """How many frames of `pixels` to convert at once: as many as the cores
+    allow, as long as they fit a working-memory budget of 2 GB (a quarter of
+    the machine's memory, where that is less). A 1 Mpx frame gets every
+    worker; an EIGER2 16M frame two, where seven would have needed 7 GB."""
+    memory = _physical_memory() if memory is None else memory
+    budget = min(2 * 1024**3, memory // 4) if memory else 2 * 1024**3
+    # Its own working memory, and the two raw frames it has waiting.
+    per_frame = max(1, int(pixels)) * BYTES_PER_PIXEL_IN_FLIGHT
+    return max(1, min(EXPORT_WORKERS, budget // per_frame))
 
 
 class DataExportService:
@@ -1120,12 +1144,22 @@ class DataExportService:
         return meta
 
     def _write_frames(
-        self, job_id: str, tasks: Iterator[Callable[[], tuple[Path, int]]], total: int
+        self,
+        job_id: str,
+        tasks: Iterator[Callable[[], tuple[Path, int]]],
+        total: int,
+        pixels: int,
     ) -> list[str]:
-        """Run the frame `tasks` (each writes one file) on EXPORT_WORKERS
-        threads; returns the files in the order of the tasks. The tasks are
-        drawn as there is room, so only a few frames are in memory at once, and
-        the job's progress, clipped pixels and cancellation are handled here."""
+        """Run the frame `tasks` (each writes one file) on worker threads, as
+        many as frames of `pixels` fit (export_workers); returns the files in
+        the order of the tasks. The tasks are drawn as there is room, so only a
+        few frames are in memory at once, and the job's progress, clipped pixels
+        and cancellation are handled here.
+
+        Stopped -- cancelled, or a frame failed -- the frames already being
+        converted finish, and their files are removed again: the folder ends
+        where the export says it did, not a few files further on."""
+        workers = export_workers(pixels)
         outputs: list[str] = []
         pending: deque[Future[tuple[Path, int]]] = deque()
 
@@ -1139,20 +1173,28 @@ class DataExportService:
                 message=f"Exported {len(outputs)}/{total} frame(s)",
             )
 
-        with ThreadPoolExecutor(EXPORT_WORKERS, thread_name_prefix="albis-export") as pool:
-            try:
-                for task in tasks:
-                    self._raise_if_cancelled(job_id)
-                    pending.append(pool.submit(task))
-                    if len(pending) >= 2 * EXPORT_WORKERS:
-                        finish_oldest()
-                while pending:
-                    self._raise_if_cancelled(job_id)
+        pool = ThreadPoolExecutor(workers, thread_name_prefix="albis-export")
+        try:
+            for task in tasks:
+                self._raise_if_cancelled(job_id)
+                pending.append(pool.submit(task))
+                if len(pending) >= 2 * workers:
                     finish_oldest()
-            except BaseException:
-                for future in pending:
-                    future.cancel()
-                raise
+            while pending:
+                self._raise_if_cancelled(job_id)
+                finish_oldest()
+        except BaseException:
+            for future in pending:
+                future.cancel()
+            pool.shutdown(wait=True)
+            for future in pending:
+                if future.cancelled() or future.exception() is not None:
+                    continue
+                with contextlib.suppress(OSError):
+                    future.result()[0].unlink()
+            raise
+        finally:
+            pool.shutdown(wait=True)
         return outputs
 
     def _write_frame(
@@ -1585,7 +1627,8 @@ class DataExportService:
                                 **options,
                             )
 
-                outputs = self._write_frames(job_id, tasks(), total)
+                pixels = int(shape[-2]) * int(shape[-1])
+                outputs = self._write_frames(job_id, tasks(), total, pixels)
             finally:
                 for handle in extra_files:
                     with contextlib.suppress(Exception):
@@ -1658,16 +1701,18 @@ class DataExportService:
                 **options,
             )
 
+        # The first frame read here, for its size: whether the disk has room
+        # for them all, before anything is written, and how many fit in memory.
+        first = self._deps.read_image_with_header(series_files[frames[0]])
+        shape = np.shape(first[0])
+        self._check_room(out_dir, total, shape, output_format, data_type)
+
         def tasks() -> Iterator[Callable[[], tuple[Path, int]]]:
-            # The first frame read here, for its size: whether the disk has
-            # room for them all, before anything is written.
-            first = self._deps.read_image_with_header(series_files[frames[0]])
-            self._check_room(out_dir, total, np.shape(first[0]), output_format, data_type)
             yield partial(convert, frames[0], first)
             for frame_idx in frames[1:]:
                 yield partial(convert, frame_idx)
 
-        return self._write_frames(job_id, tasks(), total)
+        return self._write_frames(job_id, tasks(), total, int(np.prod(shape[-2:])))
 
     def _run_job(
         self,

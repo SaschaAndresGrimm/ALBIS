@@ -1132,11 +1132,11 @@ def _read_image_with_header(path: Path) -> tuple[np.ndarray, dict[str, Any], str
             raise
         except Exception as exc:
             raise _unreadable_image_error(path, exc) from exc
-        meta = {**_parse_pilatus_header_text(desc), **simplon_meta}
+        meta = {**_parse_header_quietly(desc), **simplon_meta}
         if meta and desc:
             return arr, meta, desc
         fabio_text = _fabio_header_text(_open_fabio_image(path))
-        return arr, meta or _parse_pilatus_header_text(fabio_text), desc or fabio_text
+        return arr, meta or _parse_header_quietly(fabio_text), desc or fabio_text
     if ext in {".cbf", ".cbf.gz"}:
         opener = _open_fabio_cbf_image
     elif ext == ".edf":
@@ -1151,7 +1151,16 @@ def _read_image_with_header(path: Path) -> tuple[np.ndarray, dict[str, Any], str
 
     arr = _normalize_image_array(_decode_fabio_data(path, open_once))
     text = _fabio_header_text(opened[0] if opened else None)
-    return arr, _parse_pilatus_header_text(text), text
+    return arr, _parse_header_quietly(text), text
+
+
+def _parse_header_quietly(text: str) -> dict[str, Any]:
+    """The parsed header, or nothing: a header ALBIS cannot read costs the
+    export its metadata, not the frame."""
+    try:
+        return _parse_pilatus_header_text(text)
+    except Exception:
+        return {}
 
 
 def _pilatus_is_12m_header_text(text: str) -> bool:

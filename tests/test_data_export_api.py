@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -967,3 +968,60 @@ def test_cancel_stops_a_parallel_export_early(
     job = _wait_for_job(client, job_id)
     assert job["status"] == "cancelled"
     assert 0 < len(list(out_dir.glob("*.tiff"))) < 400
+
+
+def test_large_frames_get_fewer_workers_to_fit_in_memory() -> None:
+    from backend.services.data_export import EXPORT_WORKERS, export_workers
+
+    sixteen_gb = 16 * 1024**3
+    assert export_workers(1028 * 1062, memory=sixteen_gb) == EXPORT_WORKERS
+    # EIGER2 16M: about 0.87 GB a frame in flight, two in a 2 GB budget.
+    assert export_workers(4148 * 4362, memory=sixteen_gb) == min(2, EXPORT_WORKERS)
+    # A small machine: a quarter of its memory, and never none.
+    assert export_workers(4148 * 4362, memory=2 * 1024**3) == 1
+    assert export_workers(10**10) == 1
+    # Two cores stay with the rest of ALBIS.
+    assert max(1, (os.cpu_count() or 2) - 2) >= EXPORT_WORKERS
+
+
+def test_a_stopped_export_leaves_no_files_after_the_last_one_it_reports(tmp_path: Path) -> None:
+    from backend.app import data_export as svc
+
+    svc._jobs["stop-test"] = {"id": "stop-test", "status": "running", "cancel_requested": False}
+
+    def task(number: int) -> Any:
+        def write() -> tuple[Path, int]:
+            if number == 5:
+                time.sleep(0.3)  # the frames after it finish first
+                raise RuntimeError("frame 5 is unreadable")
+            path = tmp_path / f"f_{number:05d}.tiff"
+            path.write_bytes(b"x")
+            return path, 0
+
+        return write
+
+    try:
+        with pytest.raises(RuntimeError, match="frame 5"):
+            svc._write_frames("stop-test", (task(n) for n in range(1, 21)), 20, pixels=1)
+    finally:
+        # Not left "running": other tests ask whether an export is under way.
+        svc._jobs.pop("stop-test", None)
+    assert sorted(path.name for path in tmp_path.iterdir()) == [
+        f"f_{n:05d}.tiff" for n in range(1, 5)
+    ]
+
+
+def test_a_header_that_cannot_be_parsed_costs_the_metadata_not_the_frame(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from backend import image_formats as fmt
+
+    path = tmp_path / "odd.tiff"
+    tifffile.imwrite(path, np.ones((3, 4), dtype=np.int32), description="# Exposure_time 1 s")
+
+    def broken(_text: str) -> dict[str, Any]:
+        raise ValueError("unexpected header")
+
+    monkeypatch.setattr(fmt, "_parse_pilatus_header_text", broken)
+    pixels, parsed, text = fmt._read_image_with_header(path)
+    assert pixels.shape == (3, 4) and parsed == {} and "Exposure_time" in text
