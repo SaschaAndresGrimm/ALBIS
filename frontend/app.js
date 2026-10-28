@@ -5269,6 +5269,7 @@ inpaintingController = createInpaintingController({
   elements: {
     toggle: document.getElementById("inpaint-toggle"),
     saturatedToggle: document.getElementById("inpaint-saturated"),
+    noiseToggle: document.getElementById("inpaint-noise"),
     marginInput: document.getElementById("inpaint-margin"),
     methodSelect: document.getElementById("inpaint-method"),
     valueRow: document.getElementById("inpaint-value-row"),

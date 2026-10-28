@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createInpaintCache, createInpaintView, fillHoles, growHoles, inpaint, inpaintHoles } from "../modules/inpainting.js";
+import { addNoise, createInpaintCache, createInpaintView, fillHoles, growHoles, inpaint, inpaintHoles } from "../modules/inpainting.js";
+import { prepareFlat } from "../modules/flatfield.js";
 import { computeGlobalStats, createRoiAccumulator } from "../modules/roi_stats_engine.js";
 
-const { cases, growth } = JSON.parse(fs.readFileSync(path.join(process.cwd(), "tests", "fixtures", "inpainting_cases.json"), "utf8"));
+const { cases, growth, noise } = JSON.parse(fs.readFileSync(path.join(process.cwd(), "tests", "fixtures", "inpainting_cases.json"), "utf8"));
 
 describe("inpainting", () => {
   it.each(cases.map((c) => [c.name, c]))("fills %s like the exports do", (_name, c) => {
@@ -177,5 +178,27 @@ describe("inpainting, the faster paths", () => {
     expect(Array.from(reused.holes)).toEqual(Array.from(fresh.holes));
     expect(reused.count).toBe(fresh.count);
     expect(base.reduce((a, v) => a + v, 0)).toBe(mask.reduce((a, v) => a + (v ? 1 : 0), 0));
+  });
+});
+
+describe("inpainting noise", () => {
+  it.each(noise.cases.map((c) => [c.name, c]))("draws the same noise as the exports: %s", (_name, c) => {
+    const { width, height } = noise;
+    const out = Float32Array.from(noise.filled);
+    const flat = c.flat ? prepareFlat(Uint32Array.from(noise.flat_raw), width, height) : null;
+    addNoise(out, Uint8Array.from(noise.holes), Uint32Array.from(noise.raw), flat ? { flat, scale: c.scale } : null);
+    c.expected.forEach((value, i) => expect(out[i]).toBeCloseTo(value, 2));
+  });
+
+  it("leaves measured pixels alone and repeats itself for the same frame", () => {
+    const raw = Uint32Array.from({ length: 400 }, (_, i) => 100 + (i % 7));
+    const holes = Uint8Array.from({ length: 400 }, (_, i) => (i % 3 === 0 ? 1 : 0));
+    const a = addNoise(Float32Array.from(raw), holes, raw);
+    const b = addNoise(Float32Array.from(raw), holes, raw);
+    expect(Array.from(a)).toEqual(Array.from(b));
+    raw.forEach((v, i) => {
+      if (!holes[i]) expect(a[i]).toBe(v);
+    });
+    expect(Array.from(a).some((v, i) => holes[i] && v !== raw[i])).toBe(true);
   });
 });

@@ -283,6 +283,14 @@ surroundings.
   and **Foreground** copy the contrast's current low or high end into the
   field; the value then stays as it is when the contrast changes, so the same
   settings always export the same file.
+- **Add Poisson noise** makes the filled pixels as noisy as the measured ones
+  around them, so a filled gap no longer stands out as smooth in an image. Each
+  filled value is taken as the expected count there and replaced by a
+  Poisson-distributed one; after flatfield correction it is drawn in raw counts
+  and corrected again, so the noise has the size it would have had in the
+  measurement. The same frame always gets the same noise, in the image and in
+  exports, and each frame of a series different noise. The noise is invented,
+  not measured: it is off by default, and exported files say it was added.
 - **Saturated pixels** fills those too. It is on by default; untick it to keep
   saturated pixels as they are, where they are real signal you want to see.
 - **Margin** also fills that many pixels around every flagged one (0–5 px, a
@@ -296,7 +304,7 @@ surroundings.
   both, e.g. "Value 0.437 (measured 1234)".
 - **Convert Dataset** has an **Inpaint** box, ticked while inpainting is on: the
   TIFF or CBF files then hold the filled values instead of `-1` and `-2`, and
-  their header says which pixels were filled. Live images are filled with their
+  their header says which pixels were filled, how, and whether noise was added. Live images are filled with their
   source's mask.
 - The footer shows **Inpainted** while it is on, so a filled image is not
   mistaken for a measured one. The data itself is never changed.

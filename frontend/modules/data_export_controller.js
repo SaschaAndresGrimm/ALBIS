@@ -497,6 +497,7 @@ export function createDataExportController({
       inpaint_margin: inpaintMargin(),
       inpaint_method: normalizeInpaintMethod(state.inpaintMethod),
       inpaint_value: normalizeInpaintValue(state.inpaintValue),
+      inpaint_noise: Boolean(state.inpaintNoise),
       ...flatfieldFields([state.height, state.width]),
       data_type: dataTypeChoice(),
     };
@@ -750,6 +751,7 @@ export function createDataExportController({
           inpaint_margin: inpaintMargin(),
           inpaint_method: normalizeInpaintMethod(state.inpaintMethod),
           inpaint_value: normalizeInpaintValue(state.inpaintValue),
+          inpaint_noise: Boolean(state.inpaintNoise),
           ...flatfieldFields(entry.shape),
           data_type: dataType,
         }),
@@ -917,7 +919,8 @@ export function createDataExportController({
           fixed: t("data_export.inpaint_fixed", { value: normalizeInpaintValue(state.inpaintValue).toLocaleString() }),
           edges: t("data_export.inpaint_edges"),
           nearest: t("data_export.inpaint_nearest"),
-        }[normalizeInpaintMethod(state.inpaintMethod)] || "");
+        }[normalizeInpaintMethod(state.inpaintMethod)] || "") +
+        (state.inpaintNoise ? t("data_export.inpaint_noise") : "");
     }
     updateUi();
     openModal(dataExportModal, { focusTarget: dataExportFormat });

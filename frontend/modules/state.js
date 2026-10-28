@@ -207,6 +207,8 @@ function createMaskState() {
     // edges crossing a gap, "nearest" the nearer neighbour's value, or "fixed"
     // to inpaintValue.
     inpaintMethod: "interpolate",
+    // Poisson noise on the filled pixels, as noisy as measured ones: off.
+    inpaintNoise: false,
     inpaintValue: 0,
     maskAuto: true,
     maskFile: "",

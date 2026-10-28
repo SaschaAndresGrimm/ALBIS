@@ -130,3 +130,36 @@ def test_nearest_takes_the_nearer_side_and_never_blends() -> None:
     holes = np.array([[False, True, True, True, True, False]])
     # The first two holes are nearer the left, the last two the right.
     assert inpaint(frame, holes, "nearest").tolist() == [[1, 1, 1, 9, 9, 9]]
+
+
+NOISE = json.loads(
+    (Path(__file__).parent / "fixtures" / "inpainting_cases.json").read_text(encoding="utf-8")
+)["noise"]
+
+
+@pytest.mark.parametrize("case", NOISE["cases"], ids=[c["name"] for c in NOISE["cases"]])
+def test_draws_the_same_noise_as_the_viewer(case: dict) -> None:
+    from backend.services.flatfield import prepare_flat
+    from backend.services.inpainting import add_noise
+
+    shape = (NOISE["height"], NOISE["width"])
+    raw = np.array(NOISE["raw"], dtype=np.uint32).reshape(shape)
+    holes = np.array(NOISE["holes"], dtype=bool)
+    filled = np.array(NOISE["filled"], dtype=np.float64)
+    index = np.flatnonzero(holes)
+    flat = prepare_flat(np.array(NOISE["flat_raw"], dtype=np.uint32).reshape(shape))
+    out = filled.copy()
+    out[index] = add_noise(filled[index], index, raw, flat if case["flat"] else None, case["scale"])
+    np.testing.assert_allclose(out, case["expected"], rtol=1e-6)
+
+
+def test_noise_on_flatfielded_values_has_the_raw_counts_size() -> None:
+    from backend.services.flatfield import Flat
+    from backend.services.inpainting import add_noise
+
+    # Divided by a flat of 4 on the counts scale (factor = its mean, 2): a
+    # corrected 50 is 100 raw counts, sigma 10 raw, so 5 corrected.
+    n = 200_000
+    flat = Flat(data=np.full(n, 4.0), holes=np.zeros(n, dtype=bool), mean=2.0)
+    out = add_noise(np.full(n, 50.0), np.arange(n), np.arange(64), flat, "counts")
+    assert abs(out.mean() - 50) < 0.1 and abs(out.std() - 5) < 0.1

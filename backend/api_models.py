@@ -242,6 +242,9 @@ class DataExportStartRequest(_StrictModel):
     # pixel set to inpaint_value ("fixed").
     inpaint_method: Literal["interpolate", "edges", "nearest", "fixed"] = "interpolate"
     inpaint_value: float = Field(0.0, allow_inf_nan=False)
+    # Poisson noise on the filled pixels, so they are as noisy as measured
+    # ones; invented, and stated in each file's header.
+    inpaint_noise: bool = False
     # Divide every frame by this flat (an image file) first; the scale says
     # whether the result stays in counts or becomes transmission (0 to 1).
     flatfield: str = Field("", max_length=4096)

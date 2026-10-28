@@ -82,6 +82,7 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             inpaint_margin=payload.inpaint_margin,
             inpaint_method=payload.inpaint_method,
             inpaint_value=payload.inpaint_value,
+            inpaint_noise=payload.inpaint_noise,
             flatfield=payload.flatfield.strip(),
             flatfield_scale=payload.flatfield_scale,
             data_type=payload.data_type,
@@ -104,7 +105,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         ("off", "defects" or "saturated") and `inpaint_margin` (0-5 pixels
         around each flagged one), `inpaint_method` ("interpolate", "edges",
         "nearest" or "fixed") and
-        `inpaint_value` (the fixed value), with the source's pixel `mask`
+        `inpaint_value` (the fixed value) and `inpaint_noise` (Poisson noise on
+        the filled pixels), with the source's pixel `mask`
         (uint32) sent alongside to say which pixels to fill, and `data_type`
         ("auto", "uint16" or "uint32"; the unsigned ones TIFF only).
         """
@@ -156,6 +158,7 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
             inpaint_margin=inpaint_margin,
             inpaint_method=inpaint_method,
             inpaint_value=inpaint_value,
+            inpaint_noise=bool(config.get("inpaint_noise")),
             flatfield=flatfield,
             flatfield_scale=flatfield_scale,
             data_type=data_type,

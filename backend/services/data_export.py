@@ -25,7 +25,7 @@ from fastapi import HTTPException
 from ..image_formats import _to_little_endian
 from .flatfield import Flat, apply_flat, prepare_flat
 from .inpainting import METHODS as INPAINT_METHODS
-from .inpainting import grow_holes
+from .inpainting import add_noise, grow_holes
 from .inpainting import inpaint as inpaint_frame
 
 # The data types an export can be asked for besides "auto" (signed 32-bit
@@ -160,6 +160,7 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        inpaint_noise: bool = False,
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
@@ -194,6 +195,7 @@ class DataExportService:
                 "inpaint_margin": inpaint_margin,
                 "inpaint_method": inpaint_method,
                 "inpaint_value": inpaint_value,
+                "inpaint_noise": inpaint_noise,
                 "flatfield": flatfield,
                 "flatfield_scale": flatfield_scale,
                 "data_type": data_type,
@@ -222,6 +224,7 @@ class DataExportService:
                 "inpaint_margin": inpaint_margin,
                 "inpaint_method": inpaint_method,
                 "inpaint_value": inpaint_value,
+                "inpaint_noise": inpaint_noise,
                 "flatfield": flatfield,
                 "flatfield_scale": flatfield_scale,
                 "data_type": data_type,
@@ -533,6 +536,7 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        inpaint_noise: bool = False,
         flat: Flat | None = None,
         flatfield_scale: str = "counts",
         keep_float: bool = False,
@@ -626,6 +630,10 @@ class DataExportService:
                 else:
                     method = inpaint_method if inpaint_method in INPAINT_METHODS else "interpolate"
                     values = inpaint_frame(frame, holes, method)[holes]
+                if inpaint_noise:
+                    # As noisy as measured pixels: invented, and the header
+                    # says so. Drawn in raw counts when divided by a flat.
+                    values = add_noise(values, np.flatnonzero(holes), raw, flat, flatfield_scale)
                 frame = frame.copy()
                 if np.issubdtype(frame.dtype, np.integer):
                     info = np.iinfo(frame.dtype)
@@ -1245,6 +1253,7 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        inpaint_noise: bool = False,
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
@@ -1281,6 +1290,7 @@ class DataExportService:
             inpaint_margin=inpaint_margin,
             inpaint_method=inpaint_method,
             inpaint_value=inpaint_value,
+            inpaint_noise=inpaint_noise,
             flat=flat,
             flatfield_scale=flatfield_scale,
             data_type=data_type,
@@ -1301,6 +1311,7 @@ class DataExportService:
                 "inpainted_margin": int(inpaint_margin),
                 "inpainted_method": inpaint_method,
                 "inpainted_value": float(inpaint_value),
+                "inpainted_noise": bool(inpaint_noise),
             }
         if data_type != "auto":
             # The header says what the type did to the values.
@@ -1441,6 +1452,7 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        inpaint_noise: bool = False,
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
@@ -1488,6 +1500,7 @@ class DataExportService:
             inpaint_margin=inpaint_margin,
             inpaint_method=inpaint_method,
             inpaint_value=inpaint_value,
+            inpaint_noise=inpaint_noise,
             flatfield=flatfield,
             flatfield_scale=flatfield_scale,
             data_type=data_type,
@@ -1573,6 +1586,7 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        inpaint_noise: bool = False,
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
@@ -1636,6 +1650,7 @@ class DataExportService:
                     "inpaint_margin": inpaint_margin,
                     "inpaint_method": inpaint_method,
                     "inpaint_value": inpaint_value,
+                    "inpaint_noise": inpaint_noise,
                     "flatfield": flatfield,
                     "flatfield_scale": flatfield_scale,
                     "data_type": data_type,
@@ -1688,6 +1703,7 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        inpaint_noise: bool = False,
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
@@ -1718,6 +1734,7 @@ class DataExportService:
             "inpaint_margin": inpaint_margin,
             "inpaint_method": inpaint_method,
             "inpaint_value": inpaint_value,
+            "inpaint_noise": inpaint_noise,
             "flatfield": flatfield,
             "flatfield_scale": flatfield_scale,
             "data_type": data_type,
@@ -1770,6 +1787,7 @@ class DataExportService:
         inpaint_margin: int = 0,
         inpaint_method: str = "interpolate",
         inpaint_value: float = 0.0,
+        inpaint_noise: bool = False,
         flatfield: str = "",
         flatfield_scale: str = "counts",
         data_type: str = "auto",
@@ -1796,7 +1814,10 @@ class DataExportService:
             if flatfield:
                 options.append(f"flatfield {Path(flatfield).name} ({flatfield_scale})")
             if inpaint != "off":
-                options.append(f"inpaint {inpaint} +{inpaint_margin} px {inpaint_method}")
+                options.append(
+                    f"inpaint {inpaint} +{inpaint_margin} px {inpaint_method}"
+                    + (" with noise" if inpaint_noise else "")
+                )
             self._deps.logger.info(
                 "Export started: %s%s -> %s (%s)",
                 source_path,
@@ -1823,6 +1844,7 @@ class DataExportService:
                     inpaint_margin=inpaint_margin,
                     inpaint_method=inpaint_method,
                     inpaint_value=inpaint_value,
+                    inpaint_noise=inpaint_noise,
                     flatfield=flatfield,
                     flatfield_scale=flatfield_scale,
                     data_type=data_type,
@@ -1842,6 +1864,7 @@ class DataExportService:
                     inpaint_margin=inpaint_margin,
                     inpaint_method=inpaint_method,
                     inpaint_value=inpaint_value,
+                    inpaint_noise=inpaint_noise,
                     flatfield=flatfield,
                     flatfield_scale=flatfield_scale,
                     data_type=data_type,

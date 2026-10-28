@@ -584,6 +584,9 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
             how = "inpainted by ALBIS (each the value of its nearest valid neighbours)"
         else:
             how = "inpainted by ALBIS (interpolated from their neighbours)"
+        if (metadata or {}).get("inpainted_noise"):
+            # Invented: say so, so the noise is not taken for measured.
+            how += ", with Poisson noise added"
         lines.append(f"# Pixel substitutions: {filled} {how}; {remaining}")
     elif marker is not None:
         lines.append(f"# Pixel substitutions: masked gaps, bad or saturated = {marker}")

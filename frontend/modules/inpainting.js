@@ -23,7 +23,7 @@
  * are held to the same cases in tests/fixtures/inpainting_cases.json.
  */
 
-import { applyFlat, flatFits } from "./flatfield.js";
+import { applyFlat, flatFits, normalizeFlatScale } from "./flatfield.js";
 import { DATA_DEFECTIVE_VALUE, DATA_GAP_VALUE, usesInDataPixelFlags } from "./roi_stats_engine.js";
 
 const MAX_ROUNDS = 8;
@@ -72,6 +72,88 @@ function medianOf(k) {
 }
 
 export const MAX_INPAINT_MARGIN = 5;
+
+// ---------------------------------------------------------------------------
+// Poisson noise for filled pixels, as backend/services/inpainting.py (see
+// there): a seed from the frame's own values, per pixel a counter-based hash
+// of seed and position in 32-bit integer arithmetic, below NOISE_NORMAL_FROM
+// counts an inversion of the Poisson distribution, above the normal
+// approximation. Flatfield-corrected values are drawn as raw counts.
+// ---------------------------------------------------------------------------
+
+const NOISE_NORMAL_FROM = 30;
+const NOISE_SEED_SAMPLES = 64;
+
+function hash32(value) {
+  let x = value >>> 0;
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x7feb352d);
+  x ^= x >>> 15;
+  x = Math.imul(x, 0x846ca68b);
+  x ^= x >>> 16;
+  return x >>> 0;
+}
+
+/** The noise seed of a frame, from up to 64 of its raw values spread over it. */
+export function noiseSeed(raw) {
+  const n = raw.length;
+  const samples = Math.min(NOISE_SEED_SAMPLES, n);
+  let seed = 0x9e3779b9;
+  for (let k = 0; k < samples; k += 1) {
+    const index = samples > 1 ? Math.floor((k * (n - 1)) / (samples - 1)) : 0;
+    const value = Number(raw[index]);
+    const whole = Number.isFinite(value) ? Math.trunc(value) >>> 0 : 0;
+    seed = hash32((seed ^ whole) >>> 0);
+  }
+  return seed;
+}
+
+function noiseUniform(seed, index, j) {
+  const h = hash32((hash32((index * 2 + j) >>> 0) ^ seed) >>> 0);
+  return ((h >>> 8) + 0.5) / 16777216;
+}
+
+function poisson(lam, seed, index) {
+  if (!(lam > 0)) return 0;
+  if (lam < NOISE_NORMAL_FROM) {
+    const u = noiseUniform(seed, index, 0);
+    let p = Math.exp(-lam);
+    let cdf = p;
+    let k = 0;
+    while (u > cdf && k < 1000) {
+      k += 1;
+      p = (p * lam) / k;
+      cdf += p;
+    }
+    return k;
+  }
+  const u1 = noiseUniform(seed, index, 0);
+  const u2 = noiseUniform(seed, index, 1);
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return Math.max(0, Math.floor(lam + Math.sqrt(lam) * z + 0.5));
+}
+
+/**
+ * Poisson noise on the filled pixels (`holes`) of `out`, in place. `raw` is
+ * the frame as read, for the seed; `flat`, when the frame was divided by one,
+ * `{ flat, scale }`: the draw is then in raw counts.
+ */
+export function addNoise(out, holes, raw, flat = null) {
+  const seed = noiseSeed(raw);
+  const factor = flat ? (normalizeFlatScale(flat.scale) === "transmission" ? 1 : flat.flat.mean) : 1;
+  for (let i = 0; i < out.length; i += 1) {
+    if (!holes[i]) continue;
+    const value = out[i];
+    if (!flat) {
+      out[i] = poisson(value, seed, i);
+      continue;
+    }
+    const divisor = flat.flat.holes[i] ? flat.flat.mean : flat.flat.data[i];
+    const counts = poisson((value * divisor) / factor, seed, i);
+    out[i] = (counts / divisor) * factor;
+  }
+  return out;
+}
 
 /**
  * How holes are filled: interpolated from their neighbours, interpolated
@@ -589,8 +671,11 @@ export function createInpaintView({ state, getActiveSaturationMax, isSaturatedVa
       isSaturatedValue,
     });
     if (!count) return { data, holes: null, filled: 0, flatfielded: flatOn, inpainted: true };
+    const filled = fillHoles(data || raw, state.width, state.height, holes, params.method, params.value);
+    // On request, the filled pixels as noisy as measured ones.
+    if (state.inpaintNoise) addNoise(filled, holes, raw, flatOn ? { flat, scale: state.flatScale } : null);
     return {
-      data: fillHoles(data || raw, state.width, state.height, holes, params.method, params.value),
+      data: filled,
       holes,
       filled: count,
       flatfielded: flatOn,
@@ -605,7 +690,7 @@ export function createInpaintView({ state, getActiveSaturationMax, isSaturatedVa
       const params = inpaintParams(state, state.dataRaw, satMax);
       const next = [
         state.dataRaw, params.mask, params.satMax, state.inpaintEnabled, params.fillSaturated, params.margin,
-        params.method, params.value, state.flatEnabled, getFlat(), state.flatScale,
+        params.method, params.value, state.flatEnabled, getFlat(), state.flatScale, Boolean(state.inpaintNoise),
       ];
       if (key && next.every((part, i) => part === key[i])) return result;
       result = compute(state.dataRaw, satMax);

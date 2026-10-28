@@ -397,3 +397,114 @@ def inpaint(frame: np.ndarray, holes: np.ndarray, method: str = "interpolate") -
     # Nothing measured anywhere in reach (a frame that is all mask): zero.
     values[remaining] = 0.0
     return values
+
+
+# ---------------------------------------------------------------------------
+# Poisson noise for filled pixels
+#
+# A filled gap is smoother than the measured pixels around it, which gives it
+# away in an image. On request, each filled pixel's value is taken as the
+# expected count there and replaced by a Poisson-distributed one around it.
+# Invented, not measured: off by default and stated in the file's header.
+#
+# The viewer adds the same noise (frontend/modules/inpainting.js): a seed from
+# the frame's own pixel values -- so a frame always gets the same noise, and
+# every frame of a series different noise -- and per pixel a counter-based
+# hash of seed and position, in 32-bit integer arithmetic both languages do
+# alike. Below NOISE_NORMAL_FROM counts the draw inverts the Poisson
+# distribution with one uniform; above, the normal approximation, rounded.
+# Flatfield-corrected values are taken back to raw counts for the draw (times
+# the flat, over the scale's factor) and forward again, so the noise has the
+# size it would have had in the measurement, on either scale.
+# ---------------------------------------------------------------------------
+
+NOISE_NORMAL_FROM = 30
+NOISE_SEED_SAMPLES = 64
+_U32 = np.uint32
+
+
+def _hash32(x: np.ndarray) -> np.ndarray:
+    """A 32-bit integer hash ("lowbias32"), elementwise; wraps as uint32."""
+    x = np.asarray(x, dtype=_U32).copy()
+    with np.errstate(over="ignore"):
+        x ^= x >> _U32(16)
+        x *= _U32(0x7FEB352D)
+        x ^= x >> _U32(15)
+        x *= _U32(0x846CA68B)
+        x ^= x >> _U32(16)
+    return x
+
+
+def noise_seed(raw: np.ndarray) -> int:
+    """The noise seed of a frame, from up to 64 of its raw values evenly
+    spread over it: whole numbers, modulo 2**32, non-finite as 0."""
+    flat = np.asarray(raw).ravel()
+    n = flat.size
+    samples = min(NOISE_SEED_SAMPLES, n)
+    seed = 0x9E3779B9
+    for k in range(samples):
+        index = (k * (n - 1)) // (samples - 1) if samples > 1 else 0
+        value = float(flat[index])
+        whole = int(value) % 2**32 if np.isfinite(value) else 0
+        seed = int(_hash32(np.array([seed ^ whole], dtype=np.uint64).astype(_U32))[0])
+    return seed
+
+
+def _uniform(seed: int, index: np.ndarray, j: int) -> np.ndarray:
+    """A uniform number in (0, 1) per pixel ``index``, the ``j``-th."""
+    counter = (np.asarray(index, dtype=np.uint64) * 2 + j).astype(_U32)
+    h = _hash32(_hash32(counter) ^ _U32(seed))
+    return ((h >> _U32(8)).astype(np.float64) + 0.5) / 16777216
+
+
+def _poisson(lam: np.ndarray, seed: int, index: np.ndarray) -> np.ndarray:
+    """A Poisson-distributed count per pixel ``index`` with mean ``lam``."""
+    lam = np.asarray(lam, dtype=np.float64)
+    out = np.zeros(lam.shape)
+    positive = lam > 0
+    small = positive & (lam < NOISE_NORMAL_FROM)
+    if small.any():
+        lam_s = lam[small]
+        u = _uniform(seed, index[small], 0)
+        p = np.exp(-lam_s)
+        cdf = p.copy()
+        k = np.zeros(lam_s.shape)
+        active = u > cdf
+        step = 0
+        while active.any() and step < 1000:
+            step += 1
+            k[active] = step
+            p = p * lam_s / step
+            cdf = cdf + p
+            active &= u > cdf
+        out[small] = k
+    large = positive & ~small
+    if large.any():
+        lam_l = lam[large]
+        u1 = _uniform(seed, index[large], 0)
+        u2 = _uniform(seed, index[large], 1)
+        z = np.sqrt(-2 * np.log(u1)) * np.cos(2 * np.pi * u2)
+        out[large] = np.maximum(0.0, np.floor(lam_l + np.sqrt(lam_l) * z + 0.5))
+    return out
+
+
+def add_noise(
+    filled: np.ndarray,
+    index: np.ndarray,
+    raw: np.ndarray,
+    flat=None,
+    scale: str = "counts",
+) -> np.ndarray:
+    """The values ``filled`` at the flat pixel ``index``es of a frame, with
+    Poisson noise. ``raw`` is the frame as read, for the seed; ``flat`` the
+    Flat it was divided by, if any, on ``scale``. As the viewer, the values
+    are taken as float32, which is how it holds them."""
+    seed = noise_seed(raw)
+    values = np.asarray(filled, dtype=np.float32).astype(np.float64)
+    if flat is None:
+        return _poisson(values, seed, index)
+    factor = 1.0 if scale == "transmission" else flat.mean
+    flat_data = np.asarray(flat.data, dtype=np.float32).astype(np.float64).ravel()[index]
+    divisor = np.where(flat.holes.ravel()[index], flat.mean, flat_data)
+    counts = _poisson(values * divisor / factor, seed, index)
+    return counts / divisor * factor

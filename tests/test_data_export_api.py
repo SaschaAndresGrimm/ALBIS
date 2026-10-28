@@ -1078,3 +1078,32 @@ def test_inpainting_along_edges_and_nearest_through_an_export(tmp_path: Path) ->
     assert set(row["nearest"]) <= {10, 100}
     refused = client.post("/api/export/data/start", json={**base, "inpaint_method": "smudge"})
     assert refused.status_code == 422
+
+
+def test_inpainted_pixels_can_carry_poisson_noise(tmp_path: Path) -> None:
+    # A flat field of 400 counts with an 8-row gap: filled, every pixel would
+    # be 400; with noise, they spread as measured ones would (sigma 20).
+    height, width = 40, 60
+    frame = np.full((height, width), 400, dtype=np.uint32)
+    mask = np.zeros((height, width), dtype=np.uint32)
+    mask[16:24, :] = 1
+    source = tmp_path / "flat400.h5"
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=frame[None])
+        h5.create_dataset("/entry/instrument/detector/detectorSpecific/pixel_mask", data=mask)
+    client = _client()
+    base = {"file": str(source), "dataset": "/entry/data/data", "inpaint": "defects"}
+    smooth = tifffile.imread(_export(client, {**base, "output_dir": str(tmp_path / "a")})[0])
+    noisy_path = _export(
+        client, {**base, "inpaint_noise": True, "output_dir": str(tmp_path / "b")}
+    )[0]
+    noisy = tifffile.imread(noisy_path)
+    again = tifffile.imread(
+        _export(client, {**base, "inpaint_noise": True, "output_dir": str(tmp_path / "c")})[0]
+    )
+    gap = noisy[16:24]
+    assert np.all(smooth[16:24] == 400)
+    assert abs(gap.mean() - 400) < 5 and 12 < gap.std() < 28
+    assert np.array_equal(noisy[:16], frame[:16])  # measured pixels untouched
+    assert np.array_equal(noisy, again)  # the same frame, the same noise
+    assert "with Poisson noise added" in tifffile.TiffFile(noisy_path).pages[0].description

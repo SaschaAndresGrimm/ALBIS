@@ -28,6 +28,7 @@ export function createInpaintingController({ state, elements, callbacks }) {
   const {
     toggle,
     saturatedToggle,
+    noiseToggle,
     marginInput,
     methodSelect,
     valueRow,
@@ -77,6 +78,7 @@ export function createInpaintingController({ state, elements, callbacks }) {
   function apply() {
     state.inpaintEnabled = Boolean(toggle?.checked);
     state.inpaintSaturated = Boolean(saturatedToggle?.checked);
+    state.inpaintNoise = Boolean(noiseToggle?.checked);
     if (marginInput) {
       state.inpaintMargin = normalizeInpaintMargin(marginInput.value);
       marginInput.value = String(state.inpaintMargin);
@@ -95,6 +97,7 @@ export function createInpaintingController({ state, elements, callbacks }) {
 
   toggle?.addEventListener("change", apply);
   saturatedToggle?.addEventListener("change", apply);
+  noiseToggle?.addEventListener("change", apply);
   marginInput?.addEventListener("change", apply);
   methodSelect?.addEventListener("change", apply);
   valueInput?.addEventListener("change", apply);
@@ -116,6 +119,7 @@ export function createInpaintingController({ state, elements, callbacks }) {
   pick(foregroundBtn, () => state.max, "inpaint.value.foreground_title");
   if (toggle) toggle.checked = Boolean(state.inpaintEnabled);
   if (saturatedToggle) saturatedToggle.checked = Boolean(state.inpaintSaturated);
+  if (noiseToggle) noiseToggle.checked = Boolean(state.inpaintNoise);
   if (marginInput) marginInput.value = String(normalizeInpaintMargin(state.inpaintMargin));
   if (methodSelect) methodSelect.value = normalizeInpaintMethod(state.inpaintMethod);
   if (valueInput) valueInput.value = String(normalizeInpaintValue(state.inpaintValue));
