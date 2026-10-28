@@ -130,7 +130,7 @@ export function createChromeToolbarController({
       toolbarMoreStep.value = String(state.step || frameStepOptions[0]);
     }
     if (toolbarMoreFps) {
-      toolbarMoreFps.value = String(state.fps || 1);
+      toolbarMoreFps.value = String(state.fps || 5);
     }
     if (toolbarMoreThreshold) {
       toolbarMoreThreshold.value = String(state.thresholdIndex || 0);

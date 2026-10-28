@@ -126,7 +126,7 @@ function createTransientFrameLoadState() {
     pendingFrame: null,
     playing: false,
     playTimer: null,
-    fps: 1,
+    fps: 5,
     step: 1,
   };
 }
