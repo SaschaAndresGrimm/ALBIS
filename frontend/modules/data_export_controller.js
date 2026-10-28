@@ -872,11 +872,13 @@ export function createDataExportController({
       setStatus(t("status.data_export.no_dataset"), { tone: "warning" });
       return;
     }
-    const nextSourceKey = sourceKey();
-    if (!state.dataExport.running && state.dataExport.sourceKey !== nextSourceKey) {
+    // Opened again, it starts afresh: Start Export and what it will write, not
+    // the last export's Open Image or its result. One still running keeps
+    // showing its progress.
+    if (!state.dataExport.running) {
       state.dataExport.outputs = [];
       state.dataExport.openTarget = "";
-      state.dataExport.sourceKey = nextSourceKey;
+      state.dataExport.sourceKey = sourceKey();
       setProgress(0, t("data_export.progress.idle"));
     }
     // Switching between a file and a live source resets folder and prefix.

@@ -278,6 +278,30 @@ describe("data_export_controller, live sources", () => {
     expect(mod.defaultOutputDir("/data/series_190_master.h5", "/entry/data/data")).toBe("/data/series_190_master_export");
   });
 
+  it("opens afresh after an export, with Start Export rather than Open Image", async () => {
+    const state = liveState([entry(9, [1, 2, 3, 4])]);
+    const { controller, elements } = await buildLive(state);
+    controller.openDialog();
+    await controller.startExport();
+    expect(elements.dataExportStart.textContent).toBe(EN["data_export.button.open_image"]);
+    controller.closeDialog();
+    controller.openDialog();
+    expect(state.dataExport.openTarget).toBe("");
+    expect(elements.dataExportStart.textContent).toBe(EN["data_export.button.start"]);
+    expect(elements.dataExportProgressText.textContent).toMatch(/^Writes 1 TIFF file/);
+  });
+
+  it("keeps a running export's progress when opened again", async () => {
+    const state = liveState([entry(9, [1, 2, 3, 4])]);
+    const { controller, elements } = await buildLive(state);
+    controller.openDialog();
+    state.dataExport.running = true;
+    controller.setProgress(0.4, "Exported 4/10 frame(s)");
+    controller.openDialog();
+    expect(elements.dataExportProgressText.textContent).toBe("40%  Exported 4/10 frame(s)");
+    state.dataExport.running = false;
+  });
+
   it("says how many pixels were clipped to fit the data type", async () => {
     const state = liveState([entry(8, [1, 2, 3, 4]), entry(9, [5, 6, 7, 8])]);
     const { controller, elements, setStatus } = await buildLive(state, (meta) => ({
