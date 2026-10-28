@@ -8,7 +8,7 @@ const { cases, growth } = JSON.parse(fs.readFileSync(path.join(process.cwd(), "t
 
 describe("inpainting", () => {
   it.each(cases.map((c) => [c.name, c]))("fills %s like the exports do", (_name, c) => {
-    const out = inpaint(Float64Array.from(c.data), c.width, c.height, Uint8Array.from(c.holes));
+    const out = inpaint(Float64Array.from(c.data), c.width, c.height, Uint8Array.from(c.holes), c.method || "interpolate");
     expect(out).not.toBeNull();
     c.expected.forEach((value, i) => expect(out[i]).toBeCloseTo(value, 3));
   });

@@ -203,7 +203,9 @@ function createMaskState() {
     inpaintSaturated: true,
     // Pixels around each flagged one filled as well (0-5).
     inpaintMargin: 0,
-    // How: "interpolate" from the neighbours, or "fixed" to inpaintValue.
+    // How: "interpolate" from the neighbours, "edges" interpolated along the
+    // edges crossing a gap, "nearest" the nearer neighbour's value, or "fixed"
+    // to inpaintValue.
     inpaintMethod: "interpolate",
     inpaintValue: 0,
     maskAuto: true,

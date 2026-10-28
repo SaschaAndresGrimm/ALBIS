@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Two more inpainting methods.** **Interpolate along edges** fills small holes like Interpolate, but across a wide gap (6 pixels or more) compares the pixels beyond its two sides, finds the slope where they match and fills along it: an edge crossing a module gap at an angle carries on through it instead of turning into a blurred step, and a wide gap no longer fills as stripes. **Nearest value** gives each hole the value of the nearer side of its gap: sharp and never blurred. Both are in the Analysis tab's Inpainting method menu and in exports, where each file's header names the method; the viewer and the exports fill identically.
+
 ## [0.36.1] - 2026-10-28
 
 ### Changed

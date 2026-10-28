@@ -270,7 +270,15 @@ pixels have no noise, so a filled gap looks a little smoother than its
 surroundings.
 
 - **Method:** **Interpolate** (the default) fills each pixel from its
-  neighbours as above. **Fixed value** sets them all to one **Value** instead —
+  neighbours as above. **Interpolate along edges** does the same for small
+  holes, but across a wide gap (6 pixels or more) it compares the pixels
+  beyond its two sides, finds the slope where they match, and fills along it:
+  an edge crossing a module gap at an angle carries on through it instead of
+  turning into a blurred step, and the gap does not fill as stripes. Edges
+  shallower than about 20° to the gap are filled straight across. **Nearest
+  value** gives each pixel the value of the nearer side of its gap: sharp and
+  never blurred, but a slanted edge becomes a step. **Fixed value** sets them
+  all to one **Value** instead —
   for instance the background, so the gaps disappear into it. **Background**
   and **Foreground** copy the contrast's current low or high end into the
   field; the value then stays as it is when the contrast changes, so the same

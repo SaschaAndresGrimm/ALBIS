@@ -24,6 +24,7 @@ from fastapi import HTTPException
 
 from ..image_formats import _to_little_endian
 from .flatfield import Flat, apply_flat, prepare_flat
+from .inpainting import METHODS as INPAINT_METHODS
 from .inpainting import grow_holes
 from .inpainting import inpaint as inpaint_frame
 
@@ -623,7 +624,8 @@ class DataExportService:
                 if inpaint_method == "fixed":
                     values = np.full(filled, float(inpaint_value))
                 else:
-                    values = inpaint_frame(frame, holes)[holes]
+                    method = inpaint_method if inpaint_method in INPAINT_METHODS else "interpolate"
+                    values = inpaint_frame(frame, holes, method)[holes]
                 frame = frame.copy()
                 if np.issubdtype(frame.dtype, np.integer):
                     info = np.iinfo(frame.dtype)

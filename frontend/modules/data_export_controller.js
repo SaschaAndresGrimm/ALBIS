@@ -913,9 +913,11 @@ export function createDataExportController({
       dataExportInpaintInfo.dataset.infoDetail =
         t(state.inpaintSaturated ? "data_export.inpaint_saturated" : "data_export.inpaint") +
         (margin ? t("data_export.inpaint_margin", { margin }) : "") +
-        (normalizeInpaintMethod(state.inpaintMethod) === "fixed"
-          ? t("data_export.inpaint_fixed", { value: normalizeInpaintValue(state.inpaintValue).toLocaleString() })
-          : "");
+        ({
+          fixed: t("data_export.inpaint_fixed", { value: normalizeInpaintValue(state.inpaintValue).toLocaleString() }),
+          edges: t("data_export.inpaint_edges"),
+          nearest: t("data_export.inpaint_nearest"),
+        }[normalizeInpaintMethod(state.inpaintMethod)] || "");
     }
     updateUi();
     openModal(dataExportModal, { focusTarget: dataExportFormat });

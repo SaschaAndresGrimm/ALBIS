@@ -237,8 +237,10 @@ class DataExportStartRequest(_StrictModel):
     inpaint: Literal["off", "defects", "saturated"] = "off"
     # Pixels around each flagged one to fill as well (0-5).
     inpaint_margin: int = Field(0, ge=0, le=5)
-    # How: interpolated from the neighbours, or every pixel set to inpaint_value.
-    inpaint_method: Literal["interpolate", "fixed"] = "interpolate"
+    # How: interpolated from the neighbours, interpolated along the edges that
+    # cross a gap ("edges"), the nearer neighbour's value ("nearest"), or every
+    # pixel set to inpaint_value ("fixed").
+    inpaint_method: Literal["interpolate", "edges", "nearest", "fixed"] = "interpolate"
     inpaint_value: float = Field(0.0, allow_inf_nan=False)
     # Divide every frame by this flat (an image file) first; the scale says
     # whether the result stays in counts or becomes transmission (0 to 1).

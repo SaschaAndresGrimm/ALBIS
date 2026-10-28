@@ -574,9 +574,14 @@ def _provenance_lines(metadata: dict[str, Any] | None) -> list[str]:
         margin = _export_int(metadata or {}, "inpainted_margin") or 0
         if margin > 0:
             filled += f" and {margin} px around them"
-        if (metadata or {}).get("inpainted_method") == "fixed":
+        method = (metadata or {}).get("inpainted_method")
+        if method == "fixed":
             value = (metadata or {}).get("inpainted_value", 0)
             how = f"set to {value:g} by ALBIS"
+        elif method == "edges":
+            how = "inpainted by ALBIS (interpolated along the edges crossing them)"
+        elif method == "nearest":
+            how = "inpainted by ALBIS (each the value of its nearest valid neighbours)"
         else:
             how = "inpainted by ALBIS (interpolated from their neighbours)"
         lines.append(f"# Pixel substitutions: {filled} {how}; {remaining}")

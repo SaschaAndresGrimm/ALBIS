@@ -102,7 +102,8 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         live history. `meta` is JSON: `dtype`, `shape`, `name`, `format`,
         `output_dir`, `overwrite`, `metadata` for the header, and `inpaint`
         ("off", "defects" or "saturated") and `inpaint_margin` (0-5 pixels
-        around each flagged one), `inpaint_method` ("interpolate" or "fixed") and
+        around each flagged one), `inpaint_method` ("interpolate", "edges",
+        "nearest" or "fixed") and
         `inpaint_value` (the fixed value), with the source's pixel `mask`
         (uint32) sent alongside to say which pixels to fill, and `data_type`
         ("auto", "uint16" or "uint32"; the unsigned ones TIFF only).
@@ -126,7 +127,7 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
         if not 0 <= inpaint_margin <= 5:
             raise HTTPException(status_code=400, detail="Invalid inpaint margin")
         inpaint_method = str(config.get("inpaint_method") or "interpolate")
-        if inpaint_method not in {"interpolate", "fixed"}:
+        if inpaint_method not in {"interpolate", "edges", "nearest", "fixed"}:
             raise HTTPException(status_code=400, detail="Invalid inpaint method")
         try:
             inpaint_value = float(config.get("inpaint_value") or 0)

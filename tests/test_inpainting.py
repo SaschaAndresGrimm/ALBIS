@@ -22,7 +22,8 @@ def test_fills_the_shared_cases_like_the_viewer(case: dict) -> None:
     frame = np.array(case["data"], dtype=np.float64).reshape(shape)
     holes = np.array(case["holes"], dtype=bool).reshape(shape)
     expected = np.array(case["expected"]).reshape(shape)
-    np.testing.assert_allclose(inpaint(frame, holes), expected, rtol=1e-5, atol=1e-4)
+    method = case.get("method", "interpolate")
+    np.testing.assert_allclose(inpaint(frame, holes, method), expected, rtol=1e-5, atol=1e-4)
 
 
 def test_a_dead_pixel_takes_its_neighbours_and_the_rest_stays() -> None:
@@ -117,3 +118,15 @@ def test_the_side_median_is_np_nanmedian_of_the_valid_samples() -> None:
         expected = np.median(line[:count]) if count else 0.0
         assert value[0] == expected
         assert at[0] == (max(count, 1) - 1) / 2.0
+
+
+def test_an_unknown_method_is_refused() -> None:
+    with pytest.raises(ValueError):
+        inpaint(np.ones((3, 3)), np.eye(3, dtype=bool), "smudge")
+
+
+def test_nearest_takes_the_nearer_side_and_never_blends() -> None:
+    frame = np.array([[1.0, 0, 0, 0, 0, 9]])
+    holes = np.array([[False, True, True, True, True, False]])
+    # The first two holes are nearer the left, the last two the right.
+    assert inpaint(frame, holes, "nearest").tolist() == [[1, 1, 1, 9, 9, 9]]

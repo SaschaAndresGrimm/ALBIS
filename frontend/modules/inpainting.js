@@ -31,6 +31,17 @@ const MAX_ROUNDS = 8;
 // up to two pixels at a gap's edge.
 const SIDE_SAMPLES = 5;
 const sideScratch = new Float64Array(SIDE_SAMPLES);
+// "edges" (Interpolate along edges): the shortest run of holes treated as a
+// gap to follow edges across; the slopes tried, in tenths of a pixel sideways
+// per pixel across, straight first and then outwards; half the window the two
+// sides are compared over and of the smoothing along the gap; how much a
+// steeper slope must do better. As backend/services/inpainting.py.
+const EDGE_MIN_RUN = 6;
+const EDGE_SLOPES = [0];
+for (let m = 1; m <= 30; m += 1) EDGE_SLOPES.push(m, -m);
+const EDGE_WINDOW = 6;
+const EDGE_SMOOTH = 2;
+const EDGE_PENALTY = 0.05;
 
 // The valid pixels from `edge` outwards (direction `dir`), up to SIDE_SAMPLES,
 // stopping at the first hole or the line's end; into sideScratch. Returns how many.
@@ -62,8 +73,11 @@ function medianOf(k) {
 
 export const MAX_INPAINT_MARGIN = 5;
 
-/** How holes are filled: interpolated from their neighbours, or one value. */
-export const INPAINT_METHODS = ["interpolate", "fixed"];
+/**
+ * How holes are filled: interpolated from their neighbours, interpolated
+ * along the edges crossing a gap, the nearer neighbour's value, or one value.
+ */
+export const INPAINT_METHODS = ["interpolate", "edges", "nearest", "fixed"];
 
 export function normalizeInpaintMethod(value) {
   return INPAINT_METHODS.includes(value) ? value : "interpolate";
@@ -86,7 +100,7 @@ export function fillHoles(data, width, height, holes, method = "interpolate", va
     for (let i = 0; i < out.length; i += 1) if (holes[i]) out[i] = fill;
     return out;
   }
-  return inpaint(data, width, height, holes);
+  return inpaint(data, width, height, holes, normalizeInpaintMethod(method));
 }
 
 /** Clamp a margin to whole pixels in 0..MAX_INPAINT_MARGIN. */
@@ -278,6 +292,132 @@ function addRun(values, valid, num, den, slots, first, base, step, start, end, l
   }
 }
 
+// "nearest": each hole of the run takes the nearer side's value (on a tie,
+// the side before), kept where nearer than what the other direction found.
+function addNearestRun(values, valid, best, bestValue, slots, first, base, step, start, end, length) {
+  const left = start - 1;
+  const right = end;
+  const hasLeft = left >= 0;
+  const hasRight = right < length;
+  if (!hasLeft && !hasRight) return;
+  const leftValue = hasLeft ? medianOf(sideSamples(values, valid, base, step, left, -1, length)) : 0;
+  const rightValue = hasRight ? medianOf(sideSamples(values, valid, base, step, right, 1, length)) : 0;
+  for (let k = start; k < right; k += 1) {
+    const slot = slots[first + k - start];
+    const toLeft = k - left;
+    const toRight = right - k;
+    const useRight = hasRight && (!hasLeft || toRight < toLeft);
+    const distance = useRight ? toRight : toLeft;
+    if (distance < best[slot]) {
+      best[slot] = distance;
+      bestValue[slot] = useRight ? rightValue : leftValue;
+    }
+  }
+}
+
+// The pixels beyond one side of a gap, across it: for every line crossing
+// position `pos` (rows for runs along a row, `alongRows`; else columns), the
+// median of up to five valid pixels from there in direction `dir`. Smoothed
+// over EDGE_SMOOTH lines either way, holes bridged linearly, the ends held.
+// Null if no line has a value.
+function edgeProfile(values, valid, width, height, alongRows, pos, dir) {
+  const crossLen = alongRows ? height : width;
+  const lineLen = alongRows ? width : height;
+  const stride = alongRows ? 1 : width;
+  const raw = new Float64Array(crossLen);
+  const present = new Uint8Array(crossLen);
+  for (let c = 0; c < crossLen; c += 1) {
+    const base = alongRows ? c * width : c;
+    if (!valid[base + pos * stride]) continue;
+    present[c] = 1;
+    raw[c] = medianOf(sideSamples(values, valid, base, stride, pos, dir, lineLen));
+  }
+  const smooth = new Float64Array(crossLen);
+  const have = new Uint8Array(crossLen);
+  let any = false;
+  for (let c = 0; c < crossLen; c += 1) {
+    let total = 0;
+    let count = 0;
+    for (let d = -EDGE_SMOOTH; d <= EDGE_SMOOTH; d += 1) {
+      const other = c + d;
+      if (other >= 0 && other < crossLen && present[other]) {
+        total += raw[other];
+        count += 1;
+      }
+    }
+    if (count) {
+      smooth[c] = total / count;
+      have[c] = 1;
+      any = true;
+    }
+  }
+  if (!any) return null;
+  const out = smooth;
+  let before = -1;
+  for (let c = 0; c < crossLen; c += 1) {
+    if (have[c]) {
+      before = c;
+      continue;
+    }
+    let after = c + 1;
+    while (after < crossLen && !have[after]) after += 1;
+    for (let g = c; g < after; g += 1) {
+      if (before >= 0 && after < crossLen) out[g] = smooth[before] + (smooth[after] - smooth[before]) * ((g - before) / (after - before));
+      else out[g] = before >= 0 ? smooth[before] : smooth[after];
+    }
+    c = after - 1;
+  }
+  return out;
+}
+
+// A profile at a fractional position, linearly between pixels, held at the ends.
+function profileAt(profile, position) {
+  const last = profile.length - 1;
+  const p = Math.min(Math.max(position, 0), last);
+  const i = Math.floor(p);
+  if (i >= last) return profile[last];
+  return profile[i] + (profile[i + 1] - profile[i]) * (p - i);
+}
+
+// "edges": a run long enough to be a gap, valid on both sides, filled along
+// the slope where the two sides' profiles match best. False when it does not
+// qualify or a side has no profile, for addRun to fill it straight across.
+function addEdgeRun(values, valid, num, den, slots, first, start, end, length, cross, profileFor) {
+  const left = start - 1;
+  const right = end;
+  if (left < 0 || right >= length || right - left - 1 < EDGE_MIN_RUN) return false;
+  const top = profileFor(left, -1);
+  const bottom = profileFor(right, 1);
+  if (!top || !bottom) return false;
+  const span = right - left;
+  let best = Infinity;
+  let slope = 0;
+  for (const m of EDGE_SLOPES) {
+    const v = m / 10;
+    const shift = (v * span) / 2;
+    let cost = 0;
+    for (let j = -EDGE_WINDOW; j <= EDGE_WINDOW; j += 1) {
+      cost += Math.abs(profileAt(top, cross + shift + j) - profileAt(bottom, cross - shift + j));
+    }
+    const penalised = cost * (1 + EDGE_PENALTY * Math.abs(v));
+    if (penalised < best) {
+      best = penalised;
+      slope = v;
+    }
+  }
+  const weight = 1 / span;
+  for (let k = start; k < right; k += 1) {
+    const slot = slots[first + k - start];
+    const toTop = k - left;
+    const toBottom = right - k;
+    const t = toTop / span;
+    const value = (1 - t) * profileAt(top, cross + slope * toTop) + t * profileAt(bottom, cross - slope * toBottom);
+    num[slot] += value * weight;
+    den[slot] += weight;
+  }
+  return true;
+}
+
 // The slots of `holes` (row-major pixel indices) in column-major order: a
 // counting sort by column, stable, so each column's holes stay top to bottom.
 function columnOrder(holes, count, width, order, starts) {
@@ -298,7 +438,7 @@ function columnOrder(holes, count, width, order, starts) {
  * few percent of holes is filled in about half the time it took when every
  * pass went over every pixel, with the same arithmetic, so the same values.
  */
-export function inpaint(data, width, height, holes) {
+export function inpaint(data, width, height, holes, method = "interpolate") {
   const n = width * height;
   if (!data || data.length < n || !holes) return null;
   const values = new Float32Array(n);
@@ -316,6 +456,10 @@ export function inpaint(data, width, height, holes) {
   // The holes still to fill, row-major, and per slot their sums.
   const list = new Int32Array(count);
   for (let i = 0, j = 0; j < count; i += 1) if (holes[i]) list[j++] = i;
+  const nearest = method === "nearest";
+  const edges = method === "edges";
+  // Per slot the weighted sum and the weights; for "nearest", the distance
+  // to the nearest value found and that value.
   const num = new Float64Array(count);
   const den = new Float64Array(count);
   const order = new Int32Array(count);
@@ -323,8 +467,17 @@ export function inpaint(data, width, height, holes) {
   const identity = new Int32Array(count);
   for (let j = 0; j < count; j += 1) identity[j] = j;
   for (let round = 0; round < MAX_ROUNDS && count > 0; round += 1) {
-    num.fill(0, 0, count);
+    num.fill(nearest ? Infinity : 0, 0, count);
     den.fill(0, 0, count);
+    // "edges": the profiles beyond each gap side, made once a round.
+    const profiles = new Map();
+    const profileOf = (alongRows) => (pos, dir) => {
+      const key = `${alongRows ? "r" : "c"}${pos}:${dir}`;
+      if (!profiles.has(key)) profiles.set(key, edgeProfile(values, valid, width, height, alongRows, pos, dir));
+      return profiles.get(key);
+    };
+    const rowProfile = profileOf(true);
+    const columnProfile = profileOf(false);
     // Along the rows: a run is consecutive pixels of one row.
     for (let j = 0; j < count; ) {
       const first = j;
@@ -332,7 +485,11 @@ export function inpaint(data, width, height, holes) {
       const start = list[j] - row * width;
       j += 1;
       while (j < count && list[j] === list[j - 1] + 1 && list[j] - row * width < width) j += 1;
-      addRun(values, valid, num, den, identity, first, row * width, 1, start, start + (j - first), width);
+      const end = start + (j - first);
+      if (nearest) addNearestRun(values, valid, num, den, identity, first, row * width, 1, start, end, width);
+      else if (!(edges && addEdgeRun(values, valid, num, den, identity, first, start, end, width, row, rowProfile))) {
+        addRun(values, valid, num, den, identity, first, row * width, 1, start, end, width);
+      }
     }
     // Along the columns: the same holes in column order.
     columnOrder(list, count, width, order, starts);
@@ -342,14 +499,18 @@ export function inpaint(data, width, height, holes) {
       const start = (list[order[q]] - col) / width;
       q += 1;
       while (q < count && list[order[q]] === list[order[q - 1]] + width) q += 1;
-      addRun(values, valid, num, den, order, first, col, width, start, start + (q - first), height);
+      const end = start + (q - first);
+      if (nearest) addNearestRun(values, valid, num, den, order, first, col, width, start, end, height);
+      else if (!(edges && addEdgeRun(values, valid, num, den, order, first, start, end, height, col, columnProfile))) {
+        addRun(values, valid, num, den, order, first, col, width, start, end, height);
+      }
     }
     // Every run of this round is summed: what is filled now is valid from
     // the next round on, never from a neighbour's fresh guess within this one.
     let kept = 0;
     for (let j = 0; j < count; j += 1) {
-      if (den[j] > 0) {
-        values[list[j]] = num[j] / den[j];
+      if (nearest ? num[j] < Infinity : den[j] > 0) {
+        values[list[j]] = nearest ? den[j] : num[j] / den[j];
         valid[list[j]] = 1;
       } else {
         list[kept++] = list[j];

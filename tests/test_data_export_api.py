@@ -1041,3 +1041,40 @@ def test_export_workers_leave_two_cores_and_stay_on_performance_cores() -> None:
     assert default_export_workers(None, None) == 1
     found = _performance_cores()
     assert found is None or found >= 1
+
+
+def test_inpainting_along_edges_and_nearest_through_an_export(tmp_path: Path) -> None:
+    # A slanted edge across an 8-row module gap, marked in the pixel mask.
+    height, width = 22, 30
+    yy, xx = np.mgrid[0:height, 0:width]
+    frame = np.where(xx * 3 > 2 * yy + 30, 100, 10).astype(np.uint32)
+    mask = np.zeros((height, width), dtype=np.uint32)
+    mask[7:15, :] = 1
+    source = tmp_path / "edge.h5"
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=frame[None])
+        h5.create_dataset("/entry/instrument/detector/detectorSpecific/pixel_mask", data=mask)
+    client = _client()
+    base = {"file": str(source), "dataset": "/entry/data/data", "inpaint": "defects"}
+    row = {}
+    for method in ("interpolate", "edges", "nearest"):
+        out = _export(
+            client, {**base, "inpaint_method": method, "output_dir": str(tmp_path / method)}
+        )
+        image = tifffile.imread(out[0])
+        row[method] = image[11, 14:22].tolist()
+        description = tifffile.TiffFile(out[0]).pages[0].description
+        expected = {
+            "interpolate": "interpolated from their neighbours",
+            "edges": "interpolated along the edges crossing them",
+            "nearest": "each the value of its nearest valid neighbours",
+        }[method]
+        assert expected in description
+    # Straight across, the edge vanishes in the middle of the gap; along the
+    # edges it carries on near where it belongs (column 17.3); nearest never
+    # blends: every value is one of the two sides'.
+    assert len(set(row["interpolate"])) == 1
+    assert row["edges"][0] == 10 and row["edges"][-1] == 100
+    assert set(row["nearest"]) <= {10, 100}
+    refused = client.post("/api/export/data/start", json={**base, "inpaint_method": "smudge"})
+    assert refused.status_code == 422
