@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.36.1] - 2026-10-28
+
 ### Changed
 
 - **Inpainting is faster in exports.** Filling a 1 Mpx frame's gaps and defective pixels takes about half the time, with identical results. A whole Convert Dataset export with flatfield and inpainting gains 15–30% on machines that convert one to four frames at a time; on machines with more cores, reading and writing files sets the pace.
@@ -1739,7 +1741,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.1...HEAD
+[0.36.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.0...v0.36.1
 [0.36.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.1...v0.35.0
 [0.34.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.34.0...v0.34.1
