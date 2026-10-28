@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import contextlib
 import math
+import os
 import re
 import shutil
 import threading
 import time
 import uuid
-from collections.abc import Callable
+from collections import deque
+from collections.abc import Callable, Iterator
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +63,15 @@ class DataExportDeps:
     wavelength_to_ev: Callable[[float, str | None], float | None]
     pilatus_meta_from_image: Callable[[Path], dict[str, Any]]
     pilatus_header_text: Callable[[Path], str]
+    # Pixels, parsed header and header text of a single-image file, from one
+    # read of it.
+    read_image_with_header: Callable[[Path], tuple[np.ndarray, dict[str, Any], str]]
+
+
+# Frames converted at once. The work is numpy and file I/O, which run outside
+# the GIL, so threads share the cores without copying frames between
+# processes; a few in flight per worker keep the disk busy while they compute.
+EXPORT_WORKERS = max(1, min(8, (os.cpu_count() or 2) - 1))
 
 
 class DataExportService:
@@ -1026,8 +1039,14 @@ class DataExportService:
         return meta
 
     def _image_source_export_metadata(
-        self, path: Path, frame_index: int, frame_count: int | None = None
+        self,
+        path: Path,
+        frame_index: int,
+        frame_count: int | None = None,
+        header: tuple[dict[str, Any], str] | None = None,
     ) -> dict[str, Any]:
+        """The header facts of a single-image source; `header`, the parsed
+        header and its text, when the file was already read for its pixels."""
         meta: dict[str, Any] = {
             "source_path": str(path),
             "image_number": frame_index + 1,
@@ -1036,9 +1055,10 @@ class DataExportService:
         }
         if frame_count:
             meta["source_frame_count"] = int(frame_count)
-        parsed: dict[str, Any] = {}
-        with contextlib.suppress(Exception):
-            parsed = self._deps.pilatus_meta_from_image(path)
+        parsed: dict[str, Any] = header[0] if header else {}
+        if header is None:
+            with contextlib.suppress(Exception):
+                parsed = self._deps.pilatus_meta_from_image(path)
         if parsed.get("series_unique_id"):
             meta["series_unique_id"] = parsed.get("series_unique_id")
         if parsed.get("series_number") is not None:
@@ -1091,11 +1111,49 @@ class DataExportService:
         if isinstance(beam_center, list | tuple) and len(beam_center) >= 2:
             meta["beam_center_x_px"] = beam_center[0]
             meta["beam_center_y_px"] = beam_center[1]
-        with contextlib.suppress(Exception):
-            header_text = self._deps.pilatus_header_text(path)
-            if header_text:
-                meta["source_header_text"] = header_text
+        header_text = header[1] if header else ""
+        if header is None:
+            with contextlib.suppress(Exception):
+                header_text = self._deps.pilatus_header_text(path)
+        if header_text:
+            meta["source_header_text"] = header_text
         return meta
+
+    def _write_frames(
+        self, job_id: str, tasks: Iterator[Callable[[], tuple[Path, int]]], total: int
+    ) -> list[str]:
+        """Run the frame `tasks` (each writes one file) on EXPORT_WORKERS
+        threads; returns the files in the order of the tasks. The tasks are
+        drawn as there is room, so only a few frames are in memory at once, and
+        the job's progress, clipped pixels and cancellation are handled here."""
+        outputs: list[str] = []
+        pending: deque[Future[tuple[Path, int]]] = deque()
+
+        def finish_oldest() -> None:
+            path, clipped = pending.popleft().result()
+            outputs.append(str(path))
+            self._count_clipped(job_id, clipped)
+            self._update_job(
+                job_id,
+                progress=len(outputs) / total,
+                message=f"Exported {len(outputs)}/{total} frame(s)",
+            )
+
+        with ThreadPoolExecutor(EXPORT_WORKERS, thread_name_prefix="albis-export") as pool:
+            try:
+                for task in tasks:
+                    self._raise_if_cancelled(job_id)
+                    pending.append(pool.submit(task))
+                    if len(pending) >= 2 * EXPORT_WORKERS:
+                        finish_oldest()
+                while pending:
+                    self._raise_if_cancelled(job_id)
+                    finish_oldest()
+            except BaseException:
+                for future in pending:
+                    future.cancel()
+                raise
+        return outputs
 
     def _write_frame(
         self,
@@ -1466,7 +1524,6 @@ class DataExportService:
                     threshold_count, threshold_mode, threshold_index
                 )
                 total = max(1, len(frames) * len(thresholds))
-                completed = 0
                 mask_bits_by_thr: dict[int, np.ndarray | None] = {}
                 for thr_idx in thresholds:
                     mask_dset = self._deps.find_pixel_mask(
@@ -1492,43 +1549,43 @@ class DataExportService:
                 suffix = ".cbf" if output_format == "cbf" else ".tiff"
                 base = self._free_base(out_dir, base, planned, suffix, overwrite)
                 self._check_room(out_dir, len(planned), shape, output_format, data_type)
-                for frame_idx in frames:
-                    for thr_idx in thresholds:
-                        self._raise_if_cancelled(job_id)
-                        name = self.frame_name(base, frame_idx + 1, thr_tag(thr_idx))
-                        arr = self._deps.extract_frame(view, frame_idx, thr_idx)
-                        metadata = self._hdf5_frame_export_metadata(
-                            h5,
-                            base_metadata,
-                            frame_index=frame_idx,
-                            threshold_index=thr_idx,
-                            frame_count=frame_count,
-                            threshold_count=threshold_count,
-                        )
-                        out_file, clipped = self._write_frame(
-                            out_dir=out_dir,
-                            name=name,
-                            output_format=output_format,
-                            arr=arr,
-                            mask_bits=mask_bits_by_thr.get(thr_idx),
-                            metadata=metadata,
-                            overwrite=overwrite,
-                            inpaint=inpaint,
-                            inpaint_margin=inpaint_margin,
-                            inpaint_method=inpaint_method,
-                            inpaint_value=inpaint_value,
-                            flatfield=flatfield,
-                            flatfield_scale=flatfield_scale,
-                            data_type=data_type,
-                        )
-                        outputs.append(str(out_file))
-                        self._count_clipped(job_id, clipped)
-                        completed += 1
-                        self._update_job(
-                            job_id,
-                            progress=completed / total,
-                            message=f"Exported {completed}/{total} frame(s)",
-                        )
+                options = {
+                    "out_dir": out_dir,
+                    "output_format": output_format,
+                    "overwrite": overwrite,
+                    "inpaint": inpaint,
+                    "inpaint_margin": inpaint_margin,
+                    "inpaint_method": inpaint_method,
+                    "inpaint_value": inpaint_value,
+                    "flatfield": flatfield,
+                    "flatfield_scale": flatfield_scale,
+                    "data_type": data_type,
+                }
+
+                # Read here, one frame after the other: h5py reads one at a
+                # time anyway. The conversion and writing run on the workers.
+                def tasks() -> Iterator[Callable[[], tuple[Path, int]]]:
+                    for frame_idx in frames:
+                        for thr_idx in thresholds:
+                            arr = self._deps.extract_frame(view, frame_idx, thr_idx)
+                            metadata = self._hdf5_frame_export_metadata(
+                                h5,
+                                base_metadata,
+                                frame_index=frame_idx,
+                                threshold_index=thr_idx,
+                                frame_count=frame_count,
+                                threshold_count=threshold_count,
+                            )
+                            yield partial(
+                                self._write_frame,
+                                name=self.frame_name(base, frame_idx + 1, thr_tag(thr_idx)),
+                                arr=arr,
+                                mask_bits=mask_bits_by_thr.get(thr_idx),
+                                metadata=metadata,
+                                **options,
+                            )
+
+                outputs = self._write_frames(job_id, tasks(), total)
             finally:
                 for handle in extra_files:
                     with contextlib.suppress(Exception):
@@ -1562,7 +1619,6 @@ class DataExportService:
             len(series_files), frame_mode, frame_start, frame_end, current_index=current_index
         )
         total = max(1, len(frames))
-        outputs: list[str] = []
         base = (
             self._safe_name(output_prefix)
             if output_prefix
@@ -1574,37 +1630,44 @@ class DataExportService:
         base = self._free_base(
             out_dir, base, [(n, None) for n in numbers.values()], suffix, overwrite
         )
-        for completed, frame_idx in enumerate(frames, start=1):
-            self._raise_if_cancelled(job_id)
+        options = {
+            "out_dir": out_dir,
+            "output_format": output_format,
+            "overwrite": overwrite,
+            "inpaint": inpaint,
+            "inpaint_margin": inpaint_margin,
+            "inpaint_method": inpaint_method,
+            "inpaint_value": inpaint_value,
+            "flatfield": flatfield,
+            "flatfield_scale": flatfield_scale,
+            "data_type": data_type,
+        }
+
+        def convert(frame_idx: int, first: tuple | None = None) -> tuple[Path, int]:
+            # Reading on the worker too: files are separate, so their reads
+            # overlap, which is what a network drive needs.
             src = series_files[frame_idx]
-            name = self.frame_name(base, numbers[frame_idx])
-            arr = self._read_non_h5_image(src)
-            if completed == 1:
-                self._check_room(out_dir, total, np.shape(arr), output_format, data_type)
-            metadata = self._image_source_export_metadata(src, frame_idx, len(series_files))
-            out_file, clipped = self._write_frame(
-                out_dir=out_dir,
-                name=name,
-                output_format=output_format,
+            arr, parsed, text = first or self._deps.read_image_with_header(src)
+            metadata = self._image_source_export_metadata(
+                src, frame_idx, len(series_files), header=(parsed, text)
+            )
+            return self._write_frame(
+                name=self.frame_name(base, numbers[frame_idx]),
                 arr=arr,
                 metadata=metadata,
-                overwrite=overwrite,
-                inpaint=inpaint,
-                inpaint_margin=inpaint_margin,
-                inpaint_method=inpaint_method,
-                inpaint_value=inpaint_value,
-                flatfield=flatfield,
-                flatfield_scale=flatfield_scale,
-                data_type=data_type,
+                **options,
             )
-            outputs.append(str(out_file))
-            self._count_clipped(job_id, clipped)
-            self._update_job(
-                job_id,
-                progress=completed / total,
-                message=f"Exported {completed}/{total} frame(s)",
-            )
-        return outputs
+
+        def tasks() -> Iterator[Callable[[], tuple[Path, int]]]:
+            # The first frame read here, for its size: whether the disk has
+            # room for them all, before anything is written.
+            first = self._deps.read_image_with_header(series_files[frames[0]])
+            self._check_room(out_dir, total, np.shape(first[0]), output_format, data_type)
+            yield partial(convert, frames[0], first)
+            for frame_idx in frames[1:]:
+                yield partial(convert, frame_idx)
+
+        return self._write_frames(job_id, tasks(), total)
 
     def _run_job(
         self,

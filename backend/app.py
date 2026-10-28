@@ -49,6 +49,7 @@ from .image_formats import (
     _read_cbf,
     _read_cbf_gz,
     _read_edf,
+    _read_image_with_header,
     _read_mythen_acquisition,
     _read_tiff,
     _read_tiff_bytes_with_simplon_meta,
@@ -664,6 +665,7 @@ data_export = DataExportService(
         wavelength_to_ev=_wavelength_to_ev,
         pilatus_meta_from_image=_pilatus_meta_from_image,
         pilatus_header_text=_pilatus_header_text,
+        read_image_with_header=_read_image_with_header,
     )
 )
 

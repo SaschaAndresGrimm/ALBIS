@@ -862,3 +862,108 @@ def test_a_tiff_export_the_disk_cannot_hold_is_refused_before_it_starts(
     job = _wait_for_job(client, response.json()["job_id"])
     assert job["status"] == "error" and "Not enough disk space" in str(job["error"])
     assert not list(out_dir.glob("*.tiff"))
+
+
+def _old_reads(path: Path) -> tuple[np.ndarray, dict[str, Any], str]:
+    from backend import image_formats as fmt
+
+    ext = fmt._image_ext_name(path.name)
+    pixels = fmt._read_tiff(path) if ext in {".tif", ".tiff"} else fmt._read_cbf(path)
+    return pixels, fmt._pilatus_meta_from_image(path), fmt._pilatus_header_text(path)
+
+
+def test_one_read_gives_what_the_separate_reads_gave(tmp_path: Path) -> None:
+    from backend import image_formats as fmt
+
+    frame = (np.arange(48, dtype=np.int32) * 7).reshape(6, 8)
+    metadata = {
+        "detector_description": "PILATUS4 1M",
+        "exposure_time_s": 0.5,
+        "pixel_size_x_m": 75e-6,
+        "wavelength_a": 1.0,
+        "image_number": 7,
+        "series_number": 3,
+    }
+    plain_tiff = tmp_path / "plain.tif"
+    tifffile.imwrite(plain_tiff, frame.astype(np.uint32))
+    written_tiff = tmp_path / "written.tiff"
+    fmt._write_tiff(written_tiff, frame, metadata)
+    written_cbf = tmp_path / "written.cbf"
+    fmt._write_cbf(written_cbf, frame, metadata)
+    plain_cbf = tmp_path / "plain.cbf"
+    CbfImage(data=frame).write(str(plain_cbf))
+    for path in (plain_tiff, written_tiff, written_cbf, plain_cbf):
+        pixels, parsed, text = fmt._read_image_with_header(path)
+        old_pixels, old_parsed, old_text = _old_reads(path)
+        assert np.array_equal(pixels, old_pixels) and pixels.dtype == old_pixels.dtype, path
+        assert parsed == old_parsed, path
+        assert text == old_text, path
+    assert fmt._read_image_with_header(written_tiff)[1]["exposure_time_s"] == 0.5
+
+
+def test_frames_converted_side_by_side_land_in_order_each_in_its_own_file(
+    tmp_path: Path,
+) -> None:
+    from backend.services import data_export as service
+
+    assert service.EXPORT_WORKERS >= 1
+    frames = 37  # more than the workers keep in flight
+    data = np.stack([np.full((8, 9), index, dtype=np.uint32) for index in range(frames)])
+    source = tmp_path / "many.h5"
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=data)
+    out = _export(
+        _client(),
+        {
+            "file": str(source),
+            "dataset": "/entry/data/data",
+            "output_dir": str(tmp_path / "h5out"),
+            "inpaint": "defects",
+        },
+    )
+    assert [path.name for path in out] == [f"many_{n:05d}.tiff" for n in range(1, frames + 1)]
+    for index, path in enumerate(out):
+        assert np.all(tifffile.imread(path) == index)
+    # A series of single images: each read on a worker, same order.
+    series = tmp_path / "series"
+    series.mkdir()
+    for index in range(frames):
+        tifffile.imwrite(series / f"img_{index + 1:05d}.tif", data[index])
+    out = _export(
+        _client(),
+        {"file": str(series / "img_00001.tif"), "output_dir": str(tmp_path / "tifout")},
+    )
+    assert [path.name for path in out] == [f"img_{n:05d}.tiff" for n in range(1, frames + 1)]
+    for index, path in enumerate(out):
+        assert np.all(tifffile.imread(path) == index)
+
+
+def test_cancel_stops_a_parallel_export_early(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from backend.services.data_export import DataExportService
+
+    slow_write = DataExportService._write_frame
+
+    def write(self: DataExportService, **kwargs: Any) -> Any:
+        time.sleep(0.02)
+        return slow_write(self, **kwargs)
+
+    monkeypatch.setattr(DataExportService, "_write_frame", write)
+    source = tmp_path / "long.h5"
+    with h5py.File(source, "w") as h5:
+        h5.create_dataset("/entry/data/data", data=np.ones((400, 4, 4), dtype=np.uint32))
+    client = _client()
+    out_dir = tmp_path / "out"
+    job_id = client.post(
+        "/api/export/data/start",
+        json={"file": str(source), "dataset": "/entry/data/data", "output_dir": str(out_dir)},
+    ).json()["job_id"]
+    for _ in range(200):
+        if client.get("/api/export/data/status", params={"job_id": job_id}).json()["progress"]:
+            break
+        time.sleep(0.01)
+    assert client.post("/api/export/data/cancel", json={"job_id": job_id}).json()["accepted"]
+    job = _wait_for_job(client, job_id)
+    assert job["status"] == "cancelled"
+    assert 0 < len(list(out_dir.glob("*.tiff"))) < 400

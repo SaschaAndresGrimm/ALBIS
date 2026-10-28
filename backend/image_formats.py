@@ -1028,21 +1028,28 @@ def _open_fabio_image(path: Path):
         return None
 
 
-def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
-    image = _open_fabio_image(path)
+def _fabio_header_text(image: Any) -> str:
+    """The header of an open fabio image as text: a mini-CBF's header
+    contents, or every header key and value."""
     if image is None:
-        return {}
+        return ""
     header = getattr(image, "header", {}) or {}
     text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
     if isinstance(text, bytes):
         text = text.decode("utf-8", errors="ignore")
-    if not text:
-        try:
-            text = "\n".join(f"{k} {v}" for k, v in header.items())
-        except Exception:
-            text = ""
-    meta = _parse_pilatus_header_text(text)
-    return meta
+    if text:
+        return str(text)
+    try:
+        return "\n".join(f"{k} {v}" for k, v in header.items())
+    except Exception:
+        return ""
+
+
+def _pilatus_meta_from_fabio(path: Path) -> dict[str, Any]:
+    image = _open_fabio_image(path)
+    if image is None:
+        return {}
+    return _parse_pilatus_header_text(_fabio_header_text(image))
 
 
 def _pilatus_meta_from_tiff(path: Path) -> dict[str, Any]:
@@ -1096,19 +1103,55 @@ def _pilatus_header_text(path: Path) -> str:
                 return str(desc)
         except Exception:
             pass
-    image = _open_fabio_image(path)
-    if image is None:
-        return ""
-    header = getattr(image, "header", {}) or {}
-    text = header.get("_array_data.header_contents") if isinstance(header, dict) else ""
-    if isinstance(text, bytes):
-        text = text.decode("utf-8", errors="ignore")
-    if text:
-        return str(text)
-    try:
-        return "\n".join(f"{k} {v}" for k, v in header.items())
-    except Exception:
-        return ""
+    return _fabio_header_text(_open_fabio_image(path))
+
+
+def _read_image_with_header(path: Path) -> tuple[np.ndarray, dict[str, Any], str]:
+    """A single-image file's pixels, its parsed header and the header text,
+    from one read of the file.
+
+    The same as _read_tiff / _read_cbf / _read_edf, _pilatus_meta_from_image
+    and _pilatus_header_text together, which opened the file three to five
+    times: for a long series on a network drive, the opening was most of the
+    time. A TIFF without a header of its own still asks fabio, once.
+    """
+    ext = _image_ext_name(path.name)
+    if ext in {".tif", ".tiff"}:
+        _ensure_tifffile()
+        try:
+            with _tifffile.TiffFile(path) as tiff:
+                try:
+                    desc = str(tiff.pages[0].description or "")
+                except Exception:
+                    desc = ""
+                simplon_meta: dict[str, Any] = {}
+                with contextlib.suppress(Exception):
+                    simplon_meta = _simplon_meta_from_tiff(tiff)
+                arr = _normalize_image_array(np.asarray(tiff.asarray()))
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise _unreadable_image_error(path, exc) from exc
+        meta = {**_parse_pilatus_header_text(desc), **simplon_meta}
+        if meta and desc:
+            return arr, meta, desc
+        fabio_text = _fabio_header_text(_open_fabio_image(path))
+        return arr, meta or _parse_pilatus_header_text(fabio_text), desc or fabio_text
+    if ext in {".cbf", ".cbf.gz"}:
+        opener = _open_fabio_cbf_image
+    elif ext == ".edf":
+        opener = _open_fabio_edf_image
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported source format")
+    opened: list[Any] = []
+
+    def open_once(source: Path) -> Any:
+        opened.append(opener(source))
+        return opened[0]
+
+    arr = _normalize_image_array(_decode_fabio_data(path, open_once))
+    text = _fabio_header_text(opened[0] if opened else None)
+    return arr, _parse_pilatus_header_text(text), text
 
 
 def _pilatus_is_12m_header_text(text: str) -> bool:
