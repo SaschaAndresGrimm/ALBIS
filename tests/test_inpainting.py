@@ -93,3 +93,27 @@ def test_a_margin_is_a_square_and_capped() -> None:
     assert grow_holes(holes, 1).sum() == 9
     assert grow_holes(holes, 99).sum() == 11 * 11  # at most 5 px
     assert not grow_holes(holes, 0)[7, 8]
+
+
+def test_the_side_median_is_np_nanmedian_of_the_valid_samples() -> None:
+    from backend.services.inpainting import SIDE_SAMPLES, _side_medians
+
+    rng = np.random.default_rng(5)
+    for count in range(SIDE_SAMPLES + 1):
+        # One line per case: the gap edge at 0, then `count` valid pixels.
+        line = rng.integers(0, 1000, 12).astype(float)
+        holes = np.zeros(12, dtype=bool)
+        holes[count] = True  # the first hole ends the samples
+        value, at = _side_medians(
+            line,
+            holes,
+            np.zeros(1, dtype=np.int64),
+            1,
+            np.zeros(1, dtype=np.int64),
+            np.ones(1, dtype=bool),
+            np.ones(1, dtype=np.int64),
+            12,
+        )
+        expected = np.median(line[:count]) if count else 0.0
+        assert value[0] == expected
+        assert at[0] == (max(count, 1) - 1) / 2.0

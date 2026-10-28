@@ -62,55 +62,85 @@ def _run_edges(holes: np.ndarray, axis: int, flat: np.ndarray) -> tuple[np.ndarr
     return left, by_pixel[flat]
 
 
-def _first_median(samples: np.ndarray, count: np.ndarray) -> np.ndarray:
-    """The median of each row's first ``count`` values (0 where there are
-    none). The rest of the row is NaN. Sorting puts NaN last, so the middle
-    one or two are at fixed places: much faster than np.nanmedian, which on
-    short rows goes through masked arrays, and the same numbers."""
-    ordered = np.sort(samples, axis=1)
-    index = np.arange(samples.shape[0])
-    present = np.maximum(count, 1)
+# Compare-and-swap pairs of an optimal sorting network for five values: on
+# columns of samples, nine vectorised min/max steps sort every row at once,
+# several times faster than np.sort on rows that short.
+_SORT5 = ((0, 1), (3, 4), (2, 4), (2, 3), (0, 3), (0, 2), (1, 4), (1, 3), (1, 2))
+assert SIDE_SAMPLES == 5, "_SORT5 sorts exactly five samples"
+
+
+def _side_medians(
+    vals: np.ndarray,
+    hole_flat: np.ndarray,
+    line_start: np.ndarray,
+    stride: int,
+    edge: np.ndarray,
+    present: np.ndarray,
+    step: np.ndarray,
+    length: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Each gap side's value and where it sits: the median of up to
+    SIDE_SAMPLES valid pixels beyond the gap's edge, placed at their middle,
+    so a spot of a pixel or two next to the gap does not streak across it and
+    a gradient stays exact. Both sides of every gap come in at once (`step`
+    -1 or +1), sampled column by column: one pass, few temporaries."""
+    columns = []
+    count = np.zeros(edge.shape, dtype=np.int64)
+    usable = present.copy()
+    for j in range(SIDE_SAMPLES):
+        position = edge + step * j
+        # Stop at the first hole or the line's end.
+        usable &= (position >= 0) & (position < length)
+        at = line_start + np.clip(position, 0, length - 1) * stride
+        usable &= ~hole_flat[at]
+        # Inf sorts after every value, as NaN did with np.sort.
+        columns.append(np.where(usable, vals[at], np.inf))
+        count += usable
+    for a, b in _SORT5:
+        low = np.minimum(columns[a], columns[b])
+        columns[b] = np.maximum(columns[a], columns[b])
+        columns[a] = low
+    ordered = np.stack(columns)
+    index = np.arange(edge.shape[0])
+    filled = np.maximum(count, 1)
     # The same place for an odd count, the two middle ones for an even one.
-    low = ordered[index, (present - 1) // 2]
-    high = ordered[index, present // 2]
-    return np.where(count > 0, (low + high) / 2.0, 0.0)
+    low = ordered[(filled - 1) // 2, index]
+    high = ordered[filled // 2, index]
+    value = np.where(count > 0, (low + high) / 2.0, 0.0)
+    return value, edge + step * (filled - 1) / 2.0
 
 
 def _direction(
-    values: np.ndarray, holes: np.ndarray, axis: int
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """One direction's contribution, along ``axis``, for the hole pixels only:
-    their flat indices, value * weight, and weight."""
+    values: np.ndarray,
+    holes: np.ndarray,
+    axis: int,
+    flat: np.ndarray,
+    rows: np.ndarray,
+    cols: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """One direction's contribution, along ``axis``, for the hole pixels
+    ``flat`` (row-major, at ``rows``, ``cols``): value * weight, and weight."""
     length = values.shape[axis]
-    flat = np.flatnonzero(holes)
-    rows, cols = np.divmod(flat, values.shape[1])
+    width = values.shape[1]
     k = cols if axis == 1 else rows
     left, right = _run_edges(holes, axis, flat)
     has_left = left >= 0
     has_right = right < length
 
-    vals = values.ravel()
-    hole_flat = holes.ravel()
-
-    def side(edge: np.ndarray, present: np.ndarray, step: int) -> tuple[np.ndarray, np.ndarray]:
-        """Each side the median of up to SIDE_SAMPLES valid pixels beyond the
-        gap's edge, placed at their middle: a spot of a pixel or two next to
-        the gap does not streak across it, and a gradient stays exact."""
-        offsets = np.arange(SIDE_SAMPLES) * step
-        position = edge[:, None] + offsets[None, :]
-        inside = present[:, None] & (position >= 0) & (position < length)
-        clipped = np.clip(position, 0, length - 1)
-        width = values.shape[1]
-        flat_at = rows[:, None] * width + clipped if axis == 1 else clipped * width + cols[:, None]
-        usable = inside & ~hole_flat[flat_at]
-        # Stop at the first hole or the line's end.
-        usable = np.cumprod(usable, axis=1).astype(bool)
-        samples = np.where(usable, vals[flat_at], np.nan)
-        count = usable.sum(axis=1)
-        return _first_median(samples, count), edge + step * (np.maximum(count, 1) - 1) / 2.0
-
-    left_value, left_at = side(left, has_left, -1)
-    right_value, right_at = side(right, has_right, 1)
+    n = flat.shape[0]
+    line_start = rows * width if axis == 1 else cols
+    sides_value, sides_at = _side_medians(
+        values.ravel(),
+        holes.ravel(),
+        np.concatenate((line_start, line_start)),
+        1 if axis == 1 else width,
+        np.concatenate((left, right)),
+        np.concatenate((has_left, has_right)),
+        np.concatenate((np.full(n, -1, dtype=np.int64), np.ones(n, dtype=np.int64))),
+        length,
+    )
+    left_value, right_value = sides_value[:n], sides_value[n:]
+    left_at, right_at = sides_at[:n], sides_at[n:]
 
     both = has_left & has_right
     span = np.where(both, right - left, 1).astype(np.float64)
@@ -129,7 +159,7 @@ def _direction(
     w = 1.0 / (right - k + 1)
     num[only_right] = (right_value * w)[only_right]
     den[only_right] = w[only_right]
-    return flat, num, den
+    return num, den
 
 
 def grow_holes(holes: np.ndarray, margin: int) -> np.ndarray:
@@ -160,9 +190,11 @@ def inpaint(frame: np.ndarray, holes: np.ndarray) -> np.ndarray:
     flat_values = values.reshape(-1)
     flat_remaining = remaining.reshape(-1)
     for _ in range(MAX_ROUNDS):
-        # Both list the same holes, in the same (row-major) order.
-        flat, num_h, den_h = _direction(values, remaining, axis=1)
-        _, num_v, den_v = _direction(values, remaining, axis=0)
+        # The holes once a round, row-major, for both directions.
+        flat = np.flatnonzero(remaining)
+        rows, cols = np.divmod(flat, values.shape[1])
+        num_h, den_h = _direction(values, remaining, 1, flat, rows, cols)
+        num_v, den_v = _direction(values, remaining, 0, flat, rows, cols)
         num = num_h + num_v
         den = den_h + den_v
         now = den > 0
