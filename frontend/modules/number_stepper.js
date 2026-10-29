@@ -99,7 +99,7 @@ export function attachNumberStepper(input, { variant = "" } = {}) {
       stepNumberInput(input, direction);
       delayTimer = setTimeout(() => {
         repeatTimer = setInterval(() => {
-          if (!stepNumberInput(input, direction)) stop();
+          if (!input.isConnected || !stepNumberInput(input, direction)) stop();
         }, REPEAT_INTERVAL_MS);
       }, REPEAT_DELAY_MS);
     });
@@ -110,6 +110,15 @@ export function attachNumberStepper(input, { variant = "" } = {}) {
   return wrapper;
 }
 
-export function attachNumberSteppers(inputs, options) {
-  return inputs.filter(Boolean).map((input) => attachNumberStepper(input, options));
+// Fields that hide their spinner on purpose, for want of room: the pixel-mask
+// rules and the geometry axes, each behind a label of its own.
+const WITHOUT_STEPPER = ".pixel-mask-find-rules, .geometry-axis";
+
+/** Every number field under `root`, but those above; the toolbar's compact. */
+export function attachAllNumberSteppers(root = document) {
+  return [...root.querySelectorAll('input[type="number"]')]
+    .filter((input) => !input.closest(WITHOUT_STEPPER))
+    .map((input) =>
+      attachNumberStepper(input, { variant: input.closest(".toolbar") ? "num-stepper-compact" : "" }),
+    );
 }

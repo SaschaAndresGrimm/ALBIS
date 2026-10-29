@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { attachNumberStepper, stepNumberInput } from "../modules/number_stepper.js";
+import { attachAllNumberSteppers, attachNumberStepper, stepNumberInput } from "../modules/number_stepper.js";
 
 // ALBIS's own up and down buttons for a number field, in place of the
 // browser's spinner: they must step and notify exactly as the native one did.
@@ -125,5 +125,24 @@ describe("attachNumberStepper", () => {
     input.disabled = true;
     press(attachNumberStepper(input).querySelector(".num-stepper-btn.up"));
     expect(input.value).toBe("1");
+  });
+});
+
+describe("attachAllNumberSteppers", () => {
+  it("gives every number field a stepper but those that hide their spinner", () => {
+    document.body.innerHTML = `
+      <div class="toolbar"><input id="frame" type="number" /></div>
+      <label class="field"><input id="plain" type="number" /></label>
+      <input id="text" type="text" />
+      <div class="pixel-mask-find-rules"><input id="rule" type="number" /></div>
+      <span class="geometry-axis"><input id="axis" type="number" /></span>`;
+    const wrappers = attachAllNumberSteppers(document);
+    expect(wrappers).toHaveLength(2);
+    const parent = (id) => document.getElementById(id).parentElement;
+    expect(parent("frame").className).toBe("num-stepper num-stepper-compact");
+    expect(parent("plain").className).toBe("num-stepper");
+    expect(parent("rule").className).toBe("pixel-mask-find-rules");
+    expect(parent("axis").className).toBe("geometry-axis");
+    expect(parent("text").tagName).toBe("BODY");
   });
 });

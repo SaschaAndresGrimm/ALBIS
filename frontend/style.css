@@ -674,7 +674,9 @@ input[type="range"]:disabled::-moz-range-thumb {
 /* Up and down buttons of a number field (modules/number_stepper.js), in place
    of the browser's spinner, which Firefox does not let a page style. Only
    with a mouse or trackpad: touch screens show no spinner either way. The
-   selectors outrank the fields' own padding. */
+   selectors outrank the fields' own padding. The wrapper takes the field's
+   place in the layout: as wide as the field's own width, or as wide as a
+   grid or flex row stretches it, with the field filling it. */
 .num-stepper {
   position: relative;
   display: inline-flex;
@@ -682,8 +684,14 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .num-stepper > input.num-stepper-input[type="number"] {
+  flex: 1 1 auto;
+  min-width: 0;
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+.ring-entry > .num-stepper {
+  flex: 1;
 }
 
 .num-stepper > input.num-stepper-input[type="number"]::-webkit-inner-spin-button,

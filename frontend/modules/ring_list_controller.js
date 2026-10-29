@@ -14,6 +14,7 @@
  */
 
 import { t } from "./i18n.js";
+import { attachNumberStepper } from "./number_stepper.js";
 
 export const MAX_RINGS = 16;
 export const DEFAULT_RINGS = [1.0, 3.67, 11.01];
@@ -97,6 +98,7 @@ export function createRingListController({ analysisState, elements, callbacks = 
         remove.title = t("rings.remove");
         remove.setAttribute("aria-label", t("rings.remove"));
         row.append(input, remove);
+        attachNumberStepper(input);
         return row;
       }),
     );

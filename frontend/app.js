@@ -39,7 +39,7 @@ import { createUploadFlowController } from "./modules/upload_flow.js";
 import { createMenuActionHandler } from "./modules/menu_actions.js";
 import { createShortcutHandlers } from "./modules/shortcut_handlers.js";
 import { createPointerFocusRelease } from "./modules/pointer_focus_release.js";
-import { attachNumberStepper, attachNumberSteppers } from "./modules/number_stepper.js";
+import { attachAllNumberSteppers } from "./modules/number_stepper.js";
 import { attachRangeFill } from "./modules/range_fill.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
 import { createLiveSeriesWatch } from "./modules/live_series_watch.js";
@@ -3876,8 +3876,7 @@ async function handleMenuAction(action) {
 // clicked; see the module for why only pointer clicks release focus.
 createPointerFocusRelease().attach();
 attachRangeFill();
-attachNumberSteppers([minInput, maxInput]);
-attachNumberStepper(frameIndex, { variant: "num-stepper-compact" });
+attachAllNumberSteppers();
 
 const { handleShortcut, handleNavShortcut } = createShortcutHandlers({
   state,
