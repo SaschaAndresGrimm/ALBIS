@@ -132,6 +132,9 @@ familiar from ALBULA. **Invert Color** flips any of them.
 - Left-drag pans, including while zoomed out.
 - Double-click zooms in a step.
 - **Fit to Window** in the View tab returns to the whole frame.
+- The zoom slider beside it gives each doubling of the zoom the same length,
+  so the zooms around 1x have room. Clicked, its arrow keys zoom by about a fifth per press — four
+  presses double — and `Page Up` / `Page Down` double or halve.
 
 **Magnifier.** Hold **Z** and a round lens at the mouse shows the pixels under it
 enlarged — drawn from the data, so with the whole detector on screen you still
@@ -901,6 +904,7 @@ appears and `Alt` where `⌥` appears.
 | `⌘K` | Command palette — reaches everything below by name |
 | `⌘O` / `⌘W` / `⌘N` | Open… / Close file / New window |
 | `←` `→` | Previous / next frame |
+| Arrows / `Page Up` `Page Down` on the zoom slider | Zoom by about a fifth / double or halve |
 | `⌘S` / `⇧⌘S` / `⌥⌘S` | Save full image / visible area / viewer window |
 | `⇧⌘E` / `⌘G` / `⇧⌘X` | Export image… / Export animation… / Convert dataset… |
 | `⌘,` | Preferences… |
