@@ -65,6 +65,11 @@
      interface should land on the platform's own hinted UI face, not on Arial. */
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-wordmark: "Michroma", "Inter", system-ui, sans-serif;
+  /* The browser's own controls in their dark form -- checkboxes, scrollbars,
+     the list a dropdown opens -- instead of white ones on the dark panels,
+     with ALBIS's blue for a ticked box. */
+  color-scheme: dark;
+  accent-color: var(--accent);
 }
 
 /* One variable file covers 100-900, which is every weight the interface uses.
@@ -3979,14 +3984,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   -webkit-text-fill-color: #f2f7ff;
   box-shadow: 0 0 0 1000px rgba(10, 15, 24, 0.96) inset;
   caret-color: #f2f7ff;
-}
-
-body.platform-linux {
-  color-scheme: dark;
-}
-
-body.platform-linux select {
-  color-scheme: dark;
 }
 
 body.platform-linux select option,
@@ -9023,4 +9020,62 @@ button.browse-details-header-cell[aria-sort="descending"] {
   font-weight: 700;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+}
+
+/* Dropdowns draw their own chevron, the same in every browser: Firefox,
+   Chrome and Safari each drew a different one, Safari a double arrow. The
+   chevron sits over --select-fill, the gradient most dropdowns are painted
+   with; those painted in a flat colour set it to none. The two rules that
+   set a dropdown's padding more specifically than this one are named, so
+   the text keeps clear of the chevron. */
+:root {
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%23b4bfd4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+select:not([multiple], [size]) {
+  --select-fill: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 22px;
+  background-image: var(--select-chevron), var(--select-fill);
+  background-repeat: no-repeat, repeat;
+  background-position:
+    right 8px center,
+    0 0;
+  background-size:
+    8px 5px,
+    auto;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field select:not([multiple], [size]),
+.settings-grid .field select:not([multiple], [size]) {
+  padding-right: 22px;
+}
+
+.toolbar-step select,
+.toolbar-fps select,
+.toolbar-threshold select,
+.mask-edit-bar select,
+.browse-control select {
+  --select-fill: none;
+}
+
+/* Windows High Contrast drops background images, and with them the
+   chevrons and the slider's track: there the browser draws its own. */
+@media (forced-colors: active) {
+  select:not([multiple], [size]),
+  input[type="range"],
+  .num-stepper > input.num-stepper-input[type="number"] {
+    -webkit-appearance: auto;
+    appearance: auto;
+  }
+
+  .num-stepper > input.num-stepper-input[type="number"]::-webkit-inner-spin-button,
+  .num-stepper > input.num-stepper-input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: inner-spin-button;
+  }
+
+  .num-stepper-buttons {
+    display: none;
+  }
 }
