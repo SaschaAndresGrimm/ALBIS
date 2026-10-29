@@ -132,5 +132,8 @@ the **Versions** button in the bottom right, and in **Help → About**.
 
 ## Acknowledgements and Contributions
 
-This project stands on the shoulders of a giant: ALBULA. Thanks to Volker Pilipp for creating such an intuitive image viewer that set the benchmark.
-Thanks go also to Tilman Donath, Nicolas Pilet, Hans Gildenast, and Matthias Meffert for testing, breaking, and giving useful feedback for improvements, and to Carlo Amato for beta testing ALBIS in imaging use cases and suggesting features and reporting bugs. Thanks to Lyan Weibel for the splash screen artwork. And finnally big thanks to DECTRIS for promoting the usage of AI tools and financing the tokens.
+This project stands on the shoulders of a giant: ALBULA. Thanks to Volker Pilipp for creating such an intuitive image viewer, which set the benchmark.
+
+Thanks also go to Tilman Donath, Nicolas Pilet, Hans Gildenast, and Matthias Meffert for testing, breaking, and giving useful feedback for improvements; to Carlo Amato for beta testing ALBIS in imaging use cases, suggesting features, and reporting bugs; and to Lyan Weibel for the splash screen artwork.
+
+Finally, big thanks to DECTRIS for promoting the use of AI tools and financing the tokens.
