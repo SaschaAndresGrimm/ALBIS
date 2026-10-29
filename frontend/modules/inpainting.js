@@ -42,6 +42,9 @@ for (let m = 1; m <= 30; m += 1) EDGE_SLOPES.push(m, -m);
 const EDGE_WINDOW = 6;
 const EDGE_SMOOTH = 2;
 const EDGE_PENALTY = 0.05;
+// A slope only where its mismatch is below this share of straight across:
+// in flat, noisy areas the best of 61 slopes beats it by chance alone.
+const EDGE_CLEAR = 0.2;
 
 // The valid pixels from `edge` outwards (direction `dir`), up to SIDE_SAMPLES,
 // stopping at the first hole or the line's end; into sideScratch. Returns how many.
@@ -473,6 +476,8 @@ function addEdgeRun(values, valid, num, den, slots, first, start, end, length, c
   if (!top || !bottom) return false;
   const span = right - left;
   let best = Infinity;
+  let bestCost = Infinity;
+  let straight = 0;
   let slope = 0;
   for (const m of EDGE_SLOPES) {
     const v = m / 10;
@@ -481,12 +486,15 @@ function addEdgeRun(values, valid, num, den, slots, first, start, end, length, c
     for (let j = -EDGE_WINDOW; j <= EDGE_WINDOW; j += 1) {
       cost += Math.abs(profileAt(top, cross + shift + j) - profileAt(bottom, cross - shift + j));
     }
+    if (m === 0) straight = cost;
     const penalised = cost * (1 + EDGE_PENALTY * Math.abs(v));
     if (penalised < best) {
       best = penalised;
+      bestCost = cost;
       slope = v;
     }
   }
+  if (!(bestCost < EDGE_CLEAR * straight)) slope = 0;
   const weight = 1 / span;
   for (let k = start; k < right; k += 1) {
     const slot = slots[first + k - start];

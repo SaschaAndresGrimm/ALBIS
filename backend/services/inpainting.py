@@ -55,6 +55,13 @@ EDGE_SLOPES = (0, *(sign * m for m in range(1, 31) for sign in (1, -1)))
 EDGE_WINDOW = 6
 EDGE_SMOOTH = 2
 EDGE_PENALTY = 0.05
+# A slope is followed only where its mismatch is below this share of straight
+# across. In flat, noisy areas the best of 61 slopes beats straight across by
+# chance alone (to about 0.4 of it, sometimes 0.12) and filled the gap with
+# streaks along it, reading pixels far to the side; across a real edge,
+# straight across compares bright with dark, and the edge's slope brings the
+# mismatch down to 0.07 of it, at most 0.17, on PILATUS4 projections.
+EDGE_CLEAR = 0.2
 
 
 def _run_edges(holes: np.ndarray, axis: int, flat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -324,7 +331,11 @@ def _along_edges(
         a = _profile_at(tops, top_of[rb][:, None, None], x + shift + offsets)
         b = _profile_at(bottoms, bottom_of[rb][:, None, None], x - shift + offsets)
         cost = np.cumsum(np.abs(a - b), axis=2)[:, :, -1]
-        slope[block : block + 512] = slopes[np.argmin(cost * penalty, axis=1)]
+        choice = np.argmin(cost * penalty, axis=1)
+        # A slope only where it clearly beats straight across (slopes[0]).
+        rows = np.arange(choice.size)
+        clear = cost[rows, choice] < EDGE_CLEAR * cost[:, 0]
+        slope[block : block + 512] = np.where(clear, slopes[choice], 0.0)
     # Back to the holes of the usable runs.
     run_slope = np.full(span.shape, np.nan)
     run_slope[r] = slope
