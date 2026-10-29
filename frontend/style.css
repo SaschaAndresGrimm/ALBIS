@@ -539,6 +539,254 @@ body {
   display: none;
 }
 
+/* Sliders are drawn here rather than by the browser, so they look the same in
+   every engine: Firefox's and Safari's own were grey and heavy on the dark
+   panels. The track fills up to the thumb, from ::-moz-range-progress in
+   Firefox and from --range-fill elsewhere (modules/range_fill.js). */
+input[type="range"] {
+  --range-track: rgba(104, 126, 163, 0.3);
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]:focus {
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0 var(--range-fill, 0%),
+    var(--range-track) var(--range-fill, 0%) 100%
+  );
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--range-track);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #eaf3ff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  transition:
+    box-shadow var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #eaf3ff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  transition:
+    box-shadow var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 4px var(--accent-soft),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:hover::-moz-range-thumb {
+  box-shadow:
+    0 0 0 4px var(--accent-soft),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  background: #fff;
+  transform: scale(1.15);
+  box-shadow:
+    0 0 0 6px rgba(78, 161, 255, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:active::-moz-range-thumb {
+  background: #fff;
+  transform: scale(1.15);
+  box-shadow:
+    0 0 0 6px rgba(78, 161, 255, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+input[type="range"]:disabled {
+  --range-track: rgba(104, 126, 163, 0.16);
+  cursor: default;
+}
+
+input[type="range"]:disabled::-webkit-slider-runnable-track {
+  background: var(--range-track);
+}
+
+input[type="range"]:disabled::-moz-range-progress {
+  background: transparent;
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: #5d6a80;
+  border-color: #5d6a80;
+  box-shadow: none;
+  transform: none;
+}
+
+input[type="range"]:disabled::-moz-range-thumb {
+  background: #5d6a80;
+  border-color: #5d6a80;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Up and down buttons of a number field (modules/number_stepper.js), in place
+   of the browser's spinner, which Firefox does not let a page style. Only
+   with a mouse or trackpad: touch screens show no spinner either way. The
+   selectors outrank the fields' own padding. */
+.num-stepper {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.num-stepper > input.num-stepper-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.num-stepper > input.num-stepper-input[type="number"]::-webkit-inner-spin-button,
+.num-stepper > input.num-stepper-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.num-stepper-buttons {
+  display: none;
+}
+
+@media (pointer: fine) {
+  .num-stepper > input.num-stepper-input[type="number"] {
+    padding-right: 24px;
+  }
+
+  .num-stepper.num-stepper-compact > input.num-stepper-input[type="number"] {
+    padding-right: 20px;
+  }
+
+  .num-stepper-buttons {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 18px;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border-subtle);
+    border-radius: 0 3px 3px 0;
+    overflow: hidden;
+    opacity: 0.6;
+    transition: opacity var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  .num-stepper.num-stepper-compact .num-stepper-buttons {
+    width: 15px;
+  }
+
+  .num-stepper:hover .num-stepper-buttons,
+  .num-stepper:focus-within .num-stepper-buttons {
+    opacity: 1;
+  }
+
+  .num-stepper:has(> input:disabled) .num-stepper-buttons,
+  .num-stepper:has(> input:read-only) .num-stepper-buttons {
+    opacity: 0.25;
+    pointer-events: none;
+  }
+}
+
+.num-stepper-btn {
+  flex: 1 1 0;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.num-stepper-btn + .num-stepper-btn {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.num-stepper-btn::before {
+  content: "";
+  width: 8px;
+  height: 5px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 4 4 1l3 3' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 4 4 1l3 3' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.num-stepper.num-stepper-compact .num-stepper-btn::before {
+  width: 7px;
+  height: 4px;
+}
+
+.num-stepper-btn.down::before {
+  transform: rotate(180deg);
+}
+
+.num-stepper-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.num-stepper-btn:active {
+  background: rgba(78, 161, 255, 0.34);
+  color: #fff;
+}
+
 .toolbar-frame input[type="range"] {
   flex: 1 1 auto;
   min-width: 120px;
@@ -3696,7 +3944,6 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .inpaint-method select,
 .field select,
 .field input[type="number"],
-.field input[type="range"],
 .field input[type="text"] {
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
   color: #f2f7ff;

@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { syncRangeFill } from "./range_fill.js";
 
 // The fastest playback offered. A 1 Mpx frame takes about 10 ms from file to
 // screen, a 4M one about four times that; playback waits for a frame still
@@ -70,6 +71,7 @@ export function createFramePlaybackController({
       frameRange.max = String(total);
       frameRange.value = String(displayValue);
       frameRange.disabled = total <= 1;
+      syncRangeFill(frameRange);
     }
     if (frameIndex) {
       frameIndex.min = "1";

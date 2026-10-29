@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Sliders and number spinners look the same in every browser.** The frame and zoom sliders are drawn by ALBIS: a thin track filled in blue up to a light thumb, instead of Firefox's and Safari's grey, heavy ones. Background, foreground and the frame number have slim up and down chevrons in place of the browser's spinner, which Firefox does not let a page restyle; they step, repeat when held and notify exactly as before, and the arrow keys and mouse wheel still work. Touch screens show no spinner, as before.
+
 ## [0.37.0] - 2026-10-29
 
 ### Added

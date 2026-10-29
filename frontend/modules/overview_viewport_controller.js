@@ -3,6 +3,7 @@
  */
 
 import { canvasFont } from "./canvas_fonts.js";
+import { syncRangeFill } from "./range_fill.js";
 
 export function createOverviewViewportController({
   state,
@@ -653,6 +654,7 @@ export function createOverviewViewportController({
     if (zoomRange) {
       zoomRange.min = String(minZoom);
       zoomRange.value = String(clamped);
+      syncRangeFill(zoomRange);
     }
     if (zoomValue) {
       const zoomLabel = `${clamped.toFixed(1)}x`;
