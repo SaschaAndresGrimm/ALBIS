@@ -5264,11 +5264,13 @@ body.platform-windows select option:disabled {
   min-height: 42px;
 }
 
+/* Tall enough to read a profile from the start; the corner handle still
+   resizes each one. At 120px the plot area itself was some 70px. */
 #roi-line-plot,
 #roi-box-plot-x,
 #roi-box-plot-y,
 #roi-hist-plot {
-  height: 120px;
+  height: 220px;
 }
 
 .roi-plot-title {
