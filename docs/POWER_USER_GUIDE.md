@@ -165,6 +165,12 @@ The application bundle declares the types, so ALBIS appears under *Open With* in
 Finder once it has been moved to `/Applications` and launched once. Use *Get Info → Open
 with → Change All…* to make it the default for a type.
 
+It claims `.h5`, `.hdf5`, `.cbf` and `.edf` by extension as well as by type: another
+viewer installed on the same Mac, ALBULA for one, may declare its own type for those
+files, and macOS then gives them that type. ALBIS stays offered either way, but it never
+takes the default by itself; if another viewer has it, choose ALBIS once with *Change
+All…*.
+
 ## Data Export
 
 Use **File -> Convert Dataset...** or `Ctrl+Shift+X` (`Cmd+Shift+X` on macOS) to batch-export the currently selected dataset or image series to TIFF or CBF.
