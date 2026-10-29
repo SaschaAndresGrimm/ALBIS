@@ -4,6 +4,8 @@
  * ROI geometry-edit bindings are intentionally left in app.js for now.
  */
 
+import { sliderToZoom } from "./zoom_slider.js";
+
 export function bindViewerControls({
   state,
   elements,
@@ -201,13 +203,14 @@ export function bindViewerControls({
 
   zoomRange.addEventListener("input", () => {
     deferViewportInteraction();
+    const zoom = sliderToZoom(zoomRange.value);
     if (!canvasWrap) {
-      setZoom(zoomRange.value);
+      setZoom(zoom);
       scheduleOverview();
       return;
     }
     const rect = canvasWrap.getBoundingClientRect();
-    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, Number(zoomRange.value));
+    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, zoom);
   });
 
   const parseZoomValue = (rawValue) => {

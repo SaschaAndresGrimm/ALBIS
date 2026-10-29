@@ -10,6 +10,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Changed
 
 - **Sliders and number spinners look the same in every browser.** The frame and zoom sliders are drawn by ALBIS: a thin track filled in blue up to a light thumb, instead of Firefox's and Safari's grey, heavy ones. Number fields, from background and foreground to the frame number, ring d-spacings and settings, have slim up and down chevrons in place of the browser's spinner, which Firefox does not let a page restyle; they step, repeat when held and notify exactly as before, and the arrow keys and mouse wheel still work. Touch screens show no spinner, as before.
+- **The zoom slider is logarithmic.** Each doubling of the zoom takes the same length of track, so the zooms most images are viewed at have room: 0.9x of a 1 Mpx frame sits at about 40% of the slider instead of 2%, where nearly all the track went to zooms above 10x.
 
 ## [0.37.0] - 2026-10-29
 

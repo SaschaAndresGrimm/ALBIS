@@ -4,6 +4,7 @@
 
 import { canvasFont } from "./canvas_fonts.js";
 import { syncRangeFill } from "./range_fill.js";
+import { zoomToSlider } from "./zoom_slider.js";
 
 export function createOverviewViewportController({
   state,
@@ -652,8 +653,9 @@ export function createOverviewViewportController({
     applyCanvasTransform();
     updatePanCapability();
     if (zoomRange) {
-      zoomRange.min = String(minZoom);
-      zoomRange.value = String(clamped);
+      zoomRange.max = String(zoomToSlider(MAX_ZOOM));
+      zoomRange.min = String(zoomToSlider(minZoom));
+      zoomRange.value = String(zoomToSlider(clamped));
       syncRangeFill(zoomRange);
     }
     if (zoomValue) {
