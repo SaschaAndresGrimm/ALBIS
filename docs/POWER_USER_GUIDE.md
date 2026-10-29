@@ -167,9 +167,17 @@ with → Change All…* to make it the default for a type.
 
 It claims `.h5`, `.hdf5`, `.cbf` and `.edf` by extension as well as by type: another
 viewer installed on the same Mac, ALBULA for one, may declare its own type for those
-files, and macOS then gives them that type. ALBIS stays offered either way, but it never
-takes the default by itself; if another viewer has it, choose ALBIS once with *Change
-All…*.
+files, and should macOS give them that type, ALBIS stays offered. It never takes the
+default by itself; if another viewer has it, choose ALBIS once with *Change All…*.
+
+If ALBIS is greyed out in the *Open With* chooser, macOS has not registered the copy in
+`/Applications` -- typically after it was started from the mounted disk image, or right
+after an update. Eject the disk image, start ALBIS from `/Applications` once, or register
+it by hand:
+
+```bash
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/ALBIS.app
+```
 
 ## Data Export
 
