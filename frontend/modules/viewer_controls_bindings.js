@@ -6,6 +6,16 @@
 
 import { sliderToZoom } from "./zoom_slider.js";
 
+// In log2 of the zoom, the slider's own scale.
+const ZOOM_SLIDER_KEY_STEPS = {
+  ArrowUp: 0.25,
+  ArrowRight: 0.25,
+  ArrowDown: -0.25,
+  ArrowLeft: -0.25,
+  PageUp: 1,
+  PageDown: -1,
+};
+
 export function bindViewerControls({
   state,
   elements,
@@ -211,6 +221,20 @@ export function bindViewerControls({
     }
     const rect = canvasWrap.getBoundingClientRect();
     zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, zoom);
+  });
+
+  // The slider has no step, so a drag zooms smoothly; the keys get steps of
+  // their own, as zoom factors: four arrow presses double the zoom, Page Up
+  // doubles it outright.
+  zoomRange.addEventListener("keydown", (event) => {
+    const step = ZOOM_SLIDER_KEY_STEPS[event.key];
+    if (!step || event.altKey || event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    const min = Number(zoomRange.min);
+    const max = Number(zoomRange.max);
+    const next = Math.max(min, Math.min(max, Number(zoomRange.value) + step));
+    zoomRange.value = String(next);
+    zoomRange.dispatchEvent(new window.Event("input", { bubbles: true }));
   });
 
   const parseZoomValue = (rawValue) => {

@@ -25,29 +25,78 @@ describe("zoom slider scale", () => {
   });
 });
 
+function bindSlider() {
+  document.body.innerHTML = `
+    <input id="auto" type="checkbox" /><input id="min" /><input id="max" /><button id="autoc"></button>
+    <input id="invert" type="checkbox" /><input id="zoom" type="range" min="-5" max="5" step="any" value="0" /><button id="reset"></button>`;
+  const $ = (id) => document.getElementById(id);
+  const setZoom = vi.fn();
+  bindViewerControls({
+    state: { stats: null },
+    elements: {
+      autoScaleToggle: $("auto"), minInput: $("min"), maxInput: $("max"), autoContrastBtn: $("autoc"),
+      invertToggle: $("invert"), zoomRange: $("zoom"), resetView: $("reset"),
+    },
+    callbacks: {
+      setZoom, scheduleOverview: vi.fn(), deferViewportInteraction: vi.fn(),
+      registerChromeActivity: () => {}, updateFullscreenUi: () => {},
+    },
+  });
+  const press = (key, init = {}) => {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+    $("zoom").dispatchEvent(event);
+    return event;
+  };
+  return { slider: $("zoom"), setZoom, press };
+}
+
 describe("dragging the zoom slider", () => {
   it("zooms to 2 to the power of its value", () => {
-    document.body.innerHTML = `
-      <input id="auto" type="checkbox" /><input id="min" /><input id="max" /><button id="autoc"></button>
-      <input id="invert" type="checkbox" /><input id="zoom" type="range" min="-5" max="5" step="0.01" /><button id="reset"></button>`;
-    const $ = (id) => document.getElementById(id);
-    const setZoom = vi.fn();
-    bindViewerControls({
-      state: { stats: null },
-      elements: {
-        autoScaleToggle: $("auto"), minInput: $("min"), maxInput: $("max"), autoContrastBtn: $("autoc"),
-        invertToggle: $("invert"), zoomRange: $("zoom"), resetView: $("reset"),
-      },
-      callbacks: {
-        setZoom, scheduleOverview: vi.fn(), deferViewportInteraction: vi.fn(),
-        registerChromeActivity: () => {}, updateFullscreenUi: () => {},
-      },
-    });
-    $("zoom").value = "1";
-    $("zoom").dispatchEvent(new Event("input"));
+    const { slider, setZoom } = bindSlider();
+    slider.value = "1";
+    slider.dispatchEvent(new Event("input"));
     expect(setZoom).toHaveBeenCalledWith(2);
-    $("zoom").value = "-2";
-    $("zoom").dispatchEvent(new Event("input"));
+    slider.value = "-2";
+    slider.dispatchEvent(new Event("input"));
     expect(setZoom).toHaveBeenLastCalledWith(0.25);
+  });
+});
+
+describe("the zoom slider's keys", () => {
+  it("zoom by a fourth of a doubling per arrow press", () => {
+    const { setZoom, press } = bindSlider();
+    expect(press("ArrowRight").defaultPrevented).toBe(true);
+    expect(setZoom).toHaveBeenLastCalledWith(2 ** 0.25);
+    press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowUp");
+    expect(setZoom.mock.lastCall[0]).toBeCloseTo(2);
+    press("ArrowDown");
+    press("ArrowLeft");
+    expect(setZoom.mock.lastCall[0]).toBeCloseTo(2 ** 0.5);
+  });
+
+  it("double and halve with Page Up and Page Down", () => {
+    const { setZoom, press } = bindSlider();
+    press("PageUp");
+    expect(setZoom).toHaveBeenLastCalledWith(2);
+    press("PageDown");
+    press("PageDown");
+    expect(setZoom).toHaveBeenLastCalledWith(0.5);
+  });
+
+  it("stop at the slider's ends", () => {
+    const { slider, setZoom, press } = bindSlider();
+    slider.value = "4.9";
+    press("PageUp");
+    expect(slider.value).toBe("5");
+    expect(setZoom).toHaveBeenLastCalledWith(32);
+  });
+
+  it("leave other keys and modified presses to the browser", () => {
+    const { setZoom, press } = bindSlider();
+    expect(press("Home").defaultPrevented).toBe(false);
+    expect(press("ArrowUp", { metaKey: true }).defaultPrevented).toBe(false);
+    expect(setZoom).not.toHaveBeenCalled();
   });
 });
