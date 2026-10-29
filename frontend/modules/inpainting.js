@@ -484,7 +484,8 @@ function addEdgeRun(values, valid, num, den, slots, first, start, end, length, c
     const shift = (v * span) / 2;
     let cost = 0;
     for (let j = -EDGE_WINDOW; j <= EDGE_WINDOW; j += 1) {
-      cost += Math.abs(profileAt(top, cross + shift + j) - profileAt(bottom, cross - shift + j));
+      // (column + offset) + shift, as the export, which sums whole gaps at once.
+      cost += Math.abs(profileAt(top, cross + j + shift) - profileAt(bottom, cross + j - shift));
     }
     if (m === 0) straight = cost;
     const penalised = cost * (1 + EDGE_PENALTY * Math.abs(v));

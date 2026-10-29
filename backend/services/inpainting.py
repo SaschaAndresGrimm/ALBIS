@@ -212,56 +212,67 @@ def _direction(
     return num, den
 
 
-def _edge_profile(values: np.ndarray, holes: np.ndarray, axis: int, pos: int, step: int):
-    """The pixels beyond one side of a gap, across it: for every line crossing
-    position ``pos`` (rows for a run along a row, ``axis`` 1; columns for one
-    along a column), the median of up to five valid pixels from there on in
-    direction ``step``. Smoothed over EDGE_SMOOTH lines either way, holes
-    bridged linearly, the ends continued. None if no line has a value."""
+def _edge_profiles(
+    values: np.ndarray, holes: np.ndarray, axis: int, positions: np.ndarray, step: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """The pixels beyond one side of a gap, across it, for each of
+    ``positions`` at once: for every line crossing a position (rows for a run
+    along a row, ``axis`` 1; columns for one along a column), the median of up
+    to five valid pixels from there on in direction ``step``. Smoothed over
+    EDGE_SMOOTH lines either way, holes bridged linearly, the ends continued.
+    Returns the profiles, one row per position, and whether each has a value
+    at all. All at once, not one by one: a few large array operations instead
+    of a hundred small ones, which held the GIL and kept the export's threads
+    waiting on each other."""
     height, width = values.shape
     if axis == 1:
         cross_len, line_len, stride = height, width, 1
-        line_start = np.arange(height, dtype=np.int64) * width
+        base = np.arange(height, dtype=np.int64) * width
     else:
         cross_len, line_len, stride = width, height, width
-        line_start = np.arange(width, dtype=np.int64)
+        base = np.arange(width, dtype=np.int64)
+    count_pos = positions.size
+    line_start = np.tile(base, count_pos)
+    edge = np.repeat(positions.astype(np.int64), cross_len)
     hole_flat = holes.ravel()
-    present = ~hole_flat[line_start + pos * stride]
+    present = ~hole_flat[line_start + edge * stride]
     raw, _ = _side_medians(
         values.ravel(),
         hole_flat,
         line_start,
         stride,
-        np.full(cross_len, pos, dtype=np.int64),
+        edge,
         present,
-        np.full(cross_len, step, dtype=np.int64),
+        np.full(edge.size, step, dtype=np.int64),
         line_len,
     )
+    raw = raw.reshape(count_pos, cross_len)
+    present = present.reshape(count_pos, cross_len)
     index = np.arange(cross_len)
-    total = np.zeros(cross_len)
-    count = np.zeros(cross_len, dtype=np.int64)
+    total = np.zeros((count_pos, cross_len))
+    count = np.zeros((count_pos, cross_len), dtype=np.int64)
     for d in range(-EDGE_SMOOTH, EDGE_SMOOTH + 1):
         other = index + d
         inside = (other >= 0) & (other < cross_len)
         src = np.clip(other, 0, cross_len - 1)
-        use = inside & present[src]
-        total = total + np.where(use, raw[src], 0.0)
+        use = inside[None, :] & present[:, src]
+        total = total + np.where(use, raw[:, src], 0.0)
         count = count + use
     have = count > 0
-    if not have.any():
-        return None
     smooth = np.where(have, total / np.maximum(count, 1), 0.0)
-    before = np.maximum.accumulate(np.where(have, index, -1))
-    after = np.flip(np.minimum.accumulate(np.flip(np.where(have, index, cross_len))))
+    before = np.maximum.accumulate(np.where(have, index, -1), axis=1)
+    after = np.flip(
+        np.minimum.accumulate(np.flip(np.where(have, index, cross_len), axis=1), axis=1), axis=1
+    )
     out = smooth.copy()
-    gap = ~have & (before >= 0) & (after < cross_len)
-    p, q, c = before[gap], after[gap], index[gap]
-    out[gap] = smooth[p] + (smooth[q] - smooth[p]) * ((c - p) / (q - p))
-    tail = ~have & (before >= 0) & (after >= cross_len)
-    out[tail] = smooth[before[tail]]
-    head = ~have & (before < 0) & (after < cross_len)
-    out[head] = smooth[after[head]]
-    return out
+    gr, gc = np.nonzero(~have & (before >= 0) & (after < cross_len))
+    p, q = before[gr, gc], after[gr, gc]
+    out[gr, gc] = smooth[gr, p] + (smooth[gr, q] - smooth[gr, p]) * ((gc - p) / (q - p))
+    tr, tc = np.nonzero(~have & (before >= 0) & (after >= cross_len))
+    out[tr, tc] = smooth[tr, before[tr, tc]]
+    hr, hc = np.nonzero(~have & (before < 0) & (after < cross_len))
+    out[hr, hc] = smooth[hr, after[hr, hc]]
+    return out, have.any(axis=1)
 
 
 def _profile_at(profiles: np.ndarray, which: np.ndarray, position: np.ndarray) -> np.ndarray:
@@ -273,6 +284,71 @@ def _profile_at(profiles: np.ndarray, which: np.ndarray, position: np.ndarray) -
     low = profiles[which, i]
     high = profiles[which, np.minimum(i + 1, n - 1)]
     return np.where(i >= n - 1, low, low + (high - low) * (position - i))
+
+
+def _edge_slopes(
+    tops: np.ndarray,
+    bottoms: np.ndarray,
+    top_of: np.ndarray,
+    bottom_of: np.ndarray,
+    cross: np.ndarray,
+    span: np.ndarray,
+) -> np.ndarray:
+    """The slope to fill each run along: of EDGE_SLOPES, the one whose
+    profiles match best over the window (a steeper one having to do
+    EDGE_PENALTY better), if it clearly beats straight across (EDGE_CLEAR);
+    else 0. A sample sits at (column + window offset) + shift, the window is
+    summed in order, and of equal costs the first slope wins: as the viewer.
+
+    The runs of one gap share both profiles and the span, so for them the
+    mismatch is worked out once per slope along the whole gap and summed over
+    each run's window: about 13 times less work than per run, which is how
+    the odd runs elsewhere are done."""
+    slopes = np.array(EDGE_SLOPES, dtype=np.float64) / 10
+    penalty = 1 + EDGE_PENALTY * np.abs(slopes)
+    offsets = np.arange(-EDGE_WINDOW, EDGE_WINDOW + 1)
+    cross_len = tops.shape[1]
+    out = np.zeros(cross.shape)
+    key = (top_of * (bottoms.shape[0] + 1) + bottom_of) * (int(span.max()) + 1) + span.astype(
+        np.int64
+    )
+    groups, group_of = np.unique(key, return_inverse=True)
+    small = np.zeros(cross.shape, dtype=bool)
+    positions = np.arange(-EDGE_WINDOW, cross_len + EDGE_WINDOW, dtype=np.float64)
+    for g in range(groups.size):
+        members = np.flatnonzero(group_of == g)
+        if members.size < 64:
+            small[members] = True
+            continue
+        t_i, b_i, h = top_of[members[0]], bottom_of[members[0]], span[members[0]]
+        xs = cross[members].astype(np.int64)
+        # Every slope at once (one row each): the mismatch at every column
+        # (+ window offset) of the gap, then each run's window, in order.
+        shift = slopes[:, None] * h / 2
+        d = np.abs(
+            _profile_at(tops, t_i, positions[None, :] + shift)
+            - _profile_at(bottoms, b_i, positions[None, :] - shift)
+        )
+        cost = np.zeros((slopes.size, xs.size))
+        for j in offsets:
+            cost = cost + d[:, xs + j + EDGE_WINDOW]
+        choice = np.argmin(cost * penalty[:, None], axis=0)
+        best_cost = cost[choice, np.arange(xs.size)]
+        out[members] = np.where(best_cost < EDGE_CLEAR * cost[0], slopes[choice], 0.0)
+    odd = np.flatnonzero(small)
+    for block in range(0, odd.size, 512):
+        rb = odd[block : block + 512]
+        x = cross[rb].astype(np.float64)[:, None, None]
+        h = span[rb][:, None, None]
+        shift = slopes[None, :, None] * h / 2
+        a = _profile_at(tops, top_of[rb][:, None, None], (x + offsets) + shift)
+        b = _profile_at(bottoms, bottom_of[rb][:, None, None], (x + offsets) - shift)
+        cost = np.cumsum(np.abs(a - b), axis=2)[:, :, -1]
+        choice = np.argmin(cost * penalty, axis=1)
+        rows = np.arange(choice.size)
+        clear = cost[rows, choice] < EDGE_CLEAR * cost[:, 0]
+        out[rb] = np.where(clear, slopes[choice], 0.0)
+    return out
 
 
 def _along_edges(
@@ -301,13 +377,9 @@ def _along_edges(
     span = (r_right - r_left).astype(np.float64)
 
     def profiles(positions: np.ndarray, step: int) -> tuple[np.ndarray, np.ndarray]:
-        found, which = [], np.full(positions.shape, -1, dtype=np.int64)
-        for pos in np.unique(positions):
-            profile = _edge_profile(values, holes, axis, int(pos), step)
-            if profile is not None:
-                which[positions == pos] = len(found)
-                found.append(profile)
-        return (np.stack(found) if found else np.zeros((0, 1))), which
+        unique, which = np.unique(positions, return_inverse=True)
+        found, has_value = _edge_profiles(values, holes, axis, unique, step)
+        return found, np.where(has_value[which], which, -1)
 
     tops, top_of = profiles(r_left, -1)
     bottoms, bottom_of = profiles(r_right, 1)
@@ -315,27 +387,7 @@ def _along_edges(
     if not usable.any():
         return
     r = np.flatnonzero(usable)
-    slopes = np.array(EDGE_SLOPES, dtype=np.float64) / 10
-    penalty = 1 + EDGE_PENALTY * np.abs(slopes)
-    offsets = np.arange(-EDGE_WINDOW, EDGE_WINDOW + 1, dtype=np.float64)
-    slope = np.zeros(r.shape)
-    # Every slope and window position at once, a block of runs at a time.
-    # The window is summed in order (a running sum), as the viewer's loop
-    # does, and of equal costs the first slope in EDGE_SLOPES wins, as a
-    # strict "better than" in that order would pick.
-    for block in range(0, r.size, 512):
-        rb = r[block : block + 512]
-        x = r_cross[rb].astype(np.float64)[:, None, None]
-        h = span[rb][:, None, None]
-        shift = slopes[None, :, None] * h / 2
-        a = _profile_at(tops, top_of[rb][:, None, None], x + shift + offsets)
-        b = _profile_at(bottoms, bottom_of[rb][:, None, None], x - shift + offsets)
-        cost = np.cumsum(np.abs(a - b), axis=2)[:, :, -1]
-        choice = np.argmin(cost * penalty, axis=1)
-        # A slope only where it clearly beats straight across (slopes[0]).
-        rows = np.arange(choice.size)
-        clear = cost[rows, choice] < EDGE_CLEAR * cost[:, 0]
-        slope[block : block + 512] = np.where(clear, slopes[choice], 0.0)
+    slope = _edge_slopes(tops, bottoms, top_of[r], bottom_of[r], r_cross[r], span[r])
     # Back to the holes of the usable runs.
     run_slope = np.full(span.shape, np.nan)
     run_slope[r] = slope
