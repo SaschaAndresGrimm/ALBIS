@@ -355,4 +355,14 @@ describe("overview_viewport_controller", () => {
 
     expect(onViewportChanged).toHaveBeenCalledWith({ reason: "pan" });
   });
+
+  it("resizes the overview's view from an edge about the middle of the side across", async () => {
+    const { controller } = await createController();
+    const view = { viewX: 100, viewY: 50, viewW: 200, viewH: 120 };
+    expect(controller.getAnchorForHandle(view, "n", false)).toEqual({ x: 200, y: 170 });
+    expect(controller.getAnchorForHandle(view, "s", false)).toEqual({ x: 200, y: 50 });
+    expect(controller.getAnchorForHandle(view, "e", false)).toEqual({ x: 100, y: 110 });
+    expect(controller.getAnchorForHandle(view, "w", false)).toEqual({ x: 300, y: 110 });
+    expect(controller.getAnchorForHandle(view, "e", true)).toEqual({ x: 200, y: 110 });
+  });
 });

@@ -2,6 +2,17 @@
  * Overview minimap pointer interaction bindings.
  */
 
+const OVERVIEW_HANDLE_CURSORS = {
+  nw: "nwse-resize",
+  se: "nwse-resize",
+  ne: "nesw-resize",
+  sw: "nesw-resize",
+  n: "ns-resize",
+  s: "ns-resize",
+  e: "ew-resize",
+  w: "ew-resize",
+};
+
 export function bindOverviewInteractions({
   state,
   overviewState,
@@ -83,12 +94,7 @@ export function bindOverviewInteractions({
       const overviewPoint = overviewEventToOverview(event);
       if (!overviewPoint) return;
       const handle = getOverviewHandleAt(overviewPoint);
-      if (handle) {
-        overviewCanvas.style.cursor =
-          handle === "nw" || handle === "se" ? "nwse-resize" : "nesw-resize";
-      } else {
-        overviewCanvas.style.cursor = "";
-      }
+      overviewCanvas.style.cursor = handle ? OVERVIEW_HANDLE_CURSORS[handle] : "";
       return;
     }
 

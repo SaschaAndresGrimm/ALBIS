@@ -1430,6 +1430,14 @@ input[type="range"]:disabled::-moz-range-thumb {
   cursor: nesw-resize;
 }
 
+.canvas-wrap[data-roi-hover="ns"] {
+  cursor: ns-resize;
+}
+
+.canvas-wrap[data-roi-hover="ew"] {
+  cursor: ew-resize;
+}
+
 .canvas-wrap[data-roi-hover="point"] {
   cursor: pointer;
 }

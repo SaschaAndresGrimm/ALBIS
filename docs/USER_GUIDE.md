@@ -182,8 +182,8 @@ image to place the region. **Center on beam** snaps a circle or annulus to the
 beam centre, which is usually what you want for powder rings.
 
 To move a region, drag its **centre handle** (a line: drag the line). The
-corner, radius and end handles resize it, and the cursor shows which a handle
-does. Inside the region a drag pans the image as anywhere else, so a large
+corner, radius and end handles resize it, a box's edge handles move one of its
+sides, and the cursor shows which a handle does. Inside the region a drag pans the image as anywhere else, so a large
 region never gets in the way.
 
 For the region you draw, ALBIS reports **min, max, sum, mean, median and

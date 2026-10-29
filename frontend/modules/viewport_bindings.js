@@ -526,6 +526,10 @@ export function bindViewportInteractions({
     "box-se": "nwse",
     "box-ne": "nesw",
     "box-sw": "nesw",
+    "box-n": "ns",
+    "box-s": "ns",
+    "box-e": "ew",
+    "box-w": "ew",
   };
   function updateRoiHover(event) {
     let hover = "";

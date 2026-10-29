@@ -12,6 +12,8 @@ import {
   physicalRoiRadius,
 } from "./roi_geometry_utils.js";
 
+const BOX_EDGE_HANDLES = new Set(["box-n", "box-e", "box-s", "box-w"]);
+
 export function createRoiInteractionController({
   state,
   roiState,
@@ -159,6 +161,13 @@ export function createRoiInteractionController({
       if (hit(right, top)) return "box-ne";
       if (hit(right, bottom)) return "box-se";
       if (hit(left, bottom)) return "box-sw";
+      // Edge midpoints move one side only.
+      const midX = (left + right) / 2;
+      const midY = (top + bottom) / 2;
+      if (hit(midX, top)) return "box-n";
+      if (hit(right, midY)) return "box-e";
+      if (hit(midX, bottom)) return "box-s";
+      if (hit(left, midY)) return "box-w";
       return null;
     }
     if (roiState.mode === "circle" || roiState.mode === "annulus") {
@@ -294,6 +303,20 @@ export function createRoiInteractionController({
       } else if (roiEditHandle === "box-sw") {
         roiState.start = { x: point.x, y: anchor.start.y };
         roiState.end = { x: anchor.end.x, y: point.y };
+      } else if (BOX_EDGE_HANDLES.has(roiEditHandle)) {
+        // From the box's own sides, whichever corner it was drawn from: the
+        // dragged side follows the pointer, the other three stay; dragged past
+        // the opposite side, the box turns over rather than collapsing.
+        let left = Math.min(anchor.start.x, anchor.end.x);
+        let right = Math.max(anchor.start.x, anchor.end.x);
+        let top = Math.min(anchor.start.y, anchor.end.y);
+        let bottom = Math.max(anchor.start.y, anchor.end.y);
+        if (roiEditHandle === "box-n") top = point.y;
+        else if (roiEditHandle === "box-s") bottom = point.y;
+        else if (roiEditHandle === "box-w") left = point.x;
+        else right = point.x;
+        roiState.start = { x: Math.min(left, right), y: Math.min(top, bottom) };
+        roiState.end = { x: Math.max(left, right), y: Math.max(top, bottom) };
       }
     } else if (roiState.mode === "line") {
       if (roiEditHandle === "line-start") {
@@ -405,6 +428,10 @@ export function createRoiInteractionController({
       drawHandle(right, top);
       drawHandle(right, bottom);
       drawHandle(left, bottom);
+      drawHandle((left + right) / 2, top);
+      drawHandle(right, (top + bottom) / 2);
+      drawHandle((left + right) / 2, bottom);
+      drawHandle(left, (top + bottom) / 2);
       drawCenter((left + right) / 2, (top + bottom) / 2);
     } else if (roiState.mode === "circle" || roiState.mode === "annulus") {
       drawCenter(x0, y0);

@@ -119,6 +119,67 @@ describe("roi_interaction_controller", () => {
     expect(roiState.end).toEqual({ x: 130, y: 105 });
   });
 
+  describe("a box's edge handles", () => {
+    function boxController(start, end) {
+      const state = { width: 200, height: 200, zoom: 1, renderOffsetX: 0, renderOffsetY: 0 };
+      const roiState = { enabled: true, active: true, mode: "box", start, end };
+      const canvasWrap = document.createElement("div");
+      canvasWrap.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 200 });
+      const controller = createRoiInteractionController({
+        state,
+        roiState,
+        elements: { canvasWrap, roiOverlay: null, roiCtx: null },
+        callbacks: {
+          getEffectiveScrollLeft: () => 0,
+          getEffectiveScrollTop: () => 0,
+          syncOverlayCanvas: () => null,
+          updateRoiCenterInputs: vi.fn(),
+          updateRoiStats: vi.fn(),
+        },
+      });
+      return { controller, roiState, at: (x, y) => ({ clientX: x, clientY: y }) };
+    }
+
+    it("sit at the middle of each side, the corners keeping theirs", () => {
+      // The box spans 20..120 x 40..100 on screen.
+      const { controller, at } = boxController({ x: 20, y: 40 }, { x: 120, y: 100 });
+      expect(controller.getRoiHandleAt(at(70, 40))).toBe("box-n");
+      expect(controller.getRoiHandleAt(at(120, 70))).toBe("box-e");
+      expect(controller.getRoiHandleAt(at(70, 100))).toBe("box-s");
+      expect(controller.getRoiHandleAt(at(20, 70))).toBe("box-w");
+      expect(controller.getRoiHandleAt(at(20, 40))).toBe("box-nw");
+      expect(controller.getRoiHandleAt(at(95, 40))).toBeNull();
+    });
+
+    it("move one side and leave the other three", () => {
+      const { controller, roiState } = boxController({ x: 20, y: 40 }, { x: 120, y: 100 });
+      controller.startRoiEdit("box-n", { x: 70, y: 40 });
+      controller.applyRoiEdit({ x: 90, y: 10 });
+      expect(roiState.start).toEqual({ x: 20, y: 10 });
+      expect(roiState.end).toEqual({ x: 120, y: 100 });
+      controller.startRoiEdit("box-e", { x: 120, y: 55 });
+      controller.applyRoiEdit({ x: 150, y: 0 });
+      expect(roiState.start).toEqual({ x: 20, y: 10 });
+      expect(roiState.end).toEqual({ x: 150, y: 100 });
+    });
+
+    it("work on a box drawn from its bottom-right corner", () => {
+      const { controller, roiState } = boxController({ x: 120, y: 100 }, { x: 20, y: 40 });
+      controller.startRoiEdit("box-w", { x: 20, y: 70 });
+      controller.applyRoiEdit({ x: 5, y: 70 });
+      expect(roiState.start).toEqual({ x: 5, y: 40 });
+      expect(roiState.end).toEqual({ x: 120, y: 100 });
+    });
+
+    it("turn the box over when dragged past the opposite side", () => {
+      const { controller, roiState } = boxController({ x: 20, y: 40 }, { x: 120, y: 100 });
+      controller.startRoiEdit("box-s", { x: 70, y: 100 });
+      controller.applyRoiEdit({ x: 70, y: 30 });
+      expect(roiState.start).toEqual({ x: 20, y: 30 });
+      expect(roiState.end).toEqual({ x: 120, y: 40 });
+    });
+  });
+
   it("updates slow statistics less often during a drag, and always for the last change", () => {
     vi.useFakeTimers();
     let clock = 1000;
