@@ -14,6 +14,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **ALBIS stays offered for .h5 files on macOS when another viewer is installed.** Another app (ALBULA, for one) can declare a file type of its own for `.h5` or `.cbf`, which then takes precedence, and ALBIS was greyed out under Finder's "Recommended Applications", its default lost. ALBIS now also claims `.h5`, `.hdf5`, `.cbf` and `.edf` by extension, still as an alternative that never takes the default by itself. Already affected? Choose ALBIS once under Get Info → Open with → Change All.
 - **Background and foreground take the value typed.** A value typed into either field was clamped to the frame's own minimum and maximum, so a fixed range across a series, or a foreground above anything in the current frame, could not be set. Only the order is kept now, background below foreground; a level outside the frame's range sits at the histogram's edge, its label saying where it is.
 
 ## [0.36.1] - 2026-10-28

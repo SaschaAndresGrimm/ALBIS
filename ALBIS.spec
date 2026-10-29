@@ -292,6 +292,21 @@ if sys.platform == "darwin":
                     "LSHandlerRank": "Alternate",
                     "LSItemContentTypes": ["public.tiff"],
                 },
+                # The same files by extension, whatever type they are given.
+                # Another viewer can declare a type of its own for .h5 or
+                # .cbf -- ALBULA, say -- and an exported declaration beats an
+                # imported one, so the files then carry that type, and ALBIS,
+                # listed only for org.hdfgroup.hdf5, was greyed out under
+                # "Recommended Applications". Claiming the extensions keeps it
+                # offered either way. A separate entry: one that lists
+                # LSItemContentTypes has its extensions ignored. TIFF needs
+                # none: public.tiff is Apple's, and no app overrides it.
+                {
+                    "CFBundleTypeName": "Detector data",
+                    "CFBundleTypeRole": "Viewer",
+                    "LSHandlerRank": "Alternate",
+                    "CFBundleTypeExtensions": ["h5", "hdf5", "cbf", "edf"],
+                },
             ],
             # `public.tiff` is Apple's own and `org.hdfgroup.hdf5` is declared
             # by the HDF Group's tools, so both are imported rather than

@@ -284,8 +284,27 @@ def test_macos_bundle_declares_a_document_type_per_uti() -> None:
     plist = _spec_info_plist()
     declared: set[str] = set()
     for entry in plist["CFBundleDocumentTypes"]:
-        declared.update(entry["LSItemContentTypes"])
+        declared.update(entry.get("LSItemContentTypes", []))
     assert declared == {item.uti for item in FILE_ASSOCIATIONS}
+
+
+def test_macos_also_claims_the_extensions_whatever_their_type() -> None:
+    """Another app's exported type for .h5 or .cbf (ALBULA's, say) beats the
+    one ALBIS imports, and ALBIS was then greyed out in Finder. An entry by
+    extension keeps it offered: every registered extension but Apple's TIFF.
+    """
+    entries = _spec_info_plist()["CFBundleDocumentTypes"]
+    by_extension = [entry for entry in entries if "CFBundleTypeExtensions" in entry]
+    assert len(by_extension) == 1
+    entry = by_extension[0]
+    # Launch Services ignores the extensions of an entry that lists types.
+    assert "LSItemContentTypes" not in entry
+    assert entry["CFBundleTypeRole"] == "Viewer"
+    assert entry["LSHandlerRank"] == "Alternate", "an alternative, never taking a default over"
+    expected = {
+        item.extension.lstrip(".") for item in FILE_ASSOCIATIONS if item.uti != "public.tiff"
+    }
+    assert set(entry["CFBundleTypeExtensions"]) == expected
 
 
 def test_macos_document_types_are_viewer_only() -> None:
