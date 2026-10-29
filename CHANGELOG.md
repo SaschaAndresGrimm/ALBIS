@@ -12,6 +12,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **Two more inpainting methods.** **Interpolate along edges** fills small holes like Interpolate, but across a wide gap (6 pixels or more) compares the pixels beyond its two sides, finds the slope where they match and fills along it: an edge crossing a module gap at an angle carries on through it instead of turning into a blurred step, and a wide gap no longer fills as stripes. **Nearest value** gives each hole the value of the nearer side of its gap: sharp and never blurred. Both are in the Analysis tab's Inpainting method menu and in exports, where each file's header names the method; the viewer and the exports fill identically.
 - **Poisson noise for inpainted pixels.** **Add Poisson noise** under Inpainting makes the filled pixels as noisy as the measured ones, so a filled gap no longer stands out as smooth: each filled value is taken as the expected count and replaced by a Poisson-distributed one, drawn in raw counts also after flatfield correction, on either scale. The same frame always gets the same noise, in the image and in exports, and each frame of a series different noise. Off by default; exported files say the noise was added.
 
+### Fixed
+
+- **Background and foreground take the value typed.** A value typed into either field was clamped to the frame's own minimum and maximum, so a fixed range across a series, or a foreground above anything in the current frame, could not be set. Only the order is kept now, background below foreground; a level outside the frame's range sits at the histogram's edge, its label saying where it is.
+
 ## [0.36.1] - 2026-10-28
 
 ### Changed

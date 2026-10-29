@@ -167,15 +167,19 @@ export function bindViewerControls({
     });
   });
 
+  // A typed background or foreground is taken as typed, whatever the frame
+  // holds: a fixed range across a series, or a foreground above anything in
+  // this frame. It used to be clamped to the frame's own minimum and maximum.
+  // Only the order is kept, background below foreground.
   [minInput, maxInput].forEach((input) => {
     input.addEventListener("change", () => {
       if (!state.dataRaw) return;
-      const statsMin = Number.isFinite(state.stats?.min) ? state.stats.min : Math.min(state.min, state.max);
-      const statsMax = Number.isFinite(state.stats?.max) ? state.stats.max : Math.max(state.min, state.max);
-      let nextMin = snapHistogramValue(Number(minInput.value || state.min));
-      let nextMax = snapHistogramValue(Number(maxInput.value || state.max));
-      nextMin = Math.max(statsMin, Math.min(statsMax, nextMin));
-      nextMax = Math.max(statsMin, Math.min(statsMax, nextMax));
+      const typed = (field, fallback) => {
+        const value = Number(field.value === "" ? fallback : field.value);
+        return Number.isFinite(value) ? snapHistogramValue(value) : fallback;
+      };
+      let nextMin = typed(minInput, state.min);
+      let nextMax = typed(maxInput, state.max);
       if (input === minInput && nextMin > nextMax) {
         nextMin = nextMax;
       } else if (input === maxInput && nextMax < nextMin) {

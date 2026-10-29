@@ -36,7 +36,9 @@ export function createHistogramRenderController({
     }
     const range = maxVal - minVal || 1;
     if (!state.histLogX) {
-      return ((value - minVal) / range) * width;
+      // A level outside the frame's range (typed in) sits at the edge, its
+      // label saying where it really is.
+      return Math.min(width, Math.max(0, ((value - minVal) / range) * width));
     }
     const symlog = (v) => Math.sign(v) * Math.log10(1 + Math.abs(v));
     const minMap = symlog(minVal);
