@@ -22,11 +22,13 @@ The frontend has **no build step**: it is plain ES modules served statically by 
 ## Run (backend + frontend)
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -r backend/requirements.txt
-python albis_launcher.py
+scripts/dev_setup.sh          # .venv on Python 3.13, dev requirements, npm ci, pre-commit
+.venv/bin/python albis_launcher.py
 ```
+
+By hand, name the interpreter: `python3.13 -m venv .venv`. A bare `python`
+may be another version — an Anaconda install shadows it — and the venv
+inherits whatever it was.
 
 Default config uses `server.port: 0` (random free port), and the launcher opens the browser for you.
 For the backend alone — no browser launch, no desktop integration — use `python -m uvicorn backend.app:app`
