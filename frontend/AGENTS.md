@@ -33,7 +33,7 @@ everywhere.
 | **A calculation or transform** | A pure helper, with a test that needs no DOM. |
 | **A control or a feature** | Markup in `index.html` (`data-i18n*` on every string), behaviour on the owning controller, the listener in the matching `*_bindings.js`, wiring in `app.js`, styles in the area's file in `styles/` from the tokens (see the UI guide), keys in all 13 locales, a test. The worked example in the developer guide walks through it. |
 | **A dialog** | The `.modal` structure and layout in the UI guide; open and close it through the existing modal handling, so Esc and the backdrop work. |
-| **A call to the backend** | `fetchJSON` / `fetchJSONWithInit` from `modules/http.js`, which turns failures into a translated message. Many older modules call `fetch` directly; do not copy that. |
+| **A call to the backend** | `fetchJSON` / `fetchJSONWithInit` from `modules/http.js`, or `fetchResponse` when the answer is bytes, headers or a 204; all turn a failure into a translated message, with `status` and the server's `detail` on the error. `native_picker.js` for the system's file and folder dialogs. |
 | **A setting** | Backend first (see [backend/AGENTS.md](../backend/AGENTS.md)), then the Settings dialog's tab, its keys, the user guide. |
 | **A user-visible message** | `setStatus(…, { tone })` for the status line, `notify*` for a toast, `dialogs.js` to ask. Never `alert()`. |
 
@@ -68,6 +68,6 @@ on what the user would see or what the module calls. Run them with
 - **Bindings**: `modules/colorbar_window_bindings.js` with its test.
 - **A self-contained widget**: `modules/mask_legend.js`.
 
-Do not copy `app.js`'s size or the direct `fetch` calls in older modules.
-`tests/code_size_guard.test.js` holds both: a file over 1,000 lines may not
-get longer, and a module may not add a `fetch` outside `http.js`.
+Do not copy `app.js`'s size. `tests/code_size_guard.test.js` holds it: a file
+over 1,000 lines may not get longer. The same test fails on a `fetch()` outside
+`http.js` (and `i18n.js`, which loads the locales).
