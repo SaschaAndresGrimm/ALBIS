@@ -339,7 +339,10 @@ body {
 .dropdown-panel {
   display: none;
   min-width: 180px;
-  background: var(--surface-well);
+  background: rgba(17, 22, 31, 0.96);
+  /* Frosted, as the bars it opens from: the toolbar under it read through. */
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   box-shadow: 0 14px 30px rgba(4, 8, 16, 0.45);
@@ -389,7 +392,7 @@ body {
   top: -4px;
   left: calc(100% - 2px);
   min-width: 180px;
-  background: var(--surface-well);
+  background: rgba(17, 22, 31, 0.96);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   box-shadow: 0 14px 30px rgba(4, 8, 16, 0.45);
@@ -473,7 +476,7 @@ body {
   max-width: calc(100vw - 24px);
   height: 18px;
   margin: 6px 0 0 10px;
-  background: var(--surface-well);
+  background: rgba(8, 14, 23, 0.9);
   border: 1px solid var(--border-bold);
   border-radius: 999px;
   display: none;
@@ -1602,7 +1605,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   right: 12px;
   padding: 8px 10px;
   font-size: var(--font-size-sm);
-  background: var(--surface-well);
+  background: rgba(13, 19, 28, 0.84);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
 }
@@ -1875,7 +1878,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   left: 12px;
   top: 12px;
   padding: 4px 6px;
-  background: var(--surface-well);
+  background: rgba(13, 19, 28, 0.9);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -2074,7 +2077,7 @@ body.canvas-first .section-title {
 }
 
 body.canvas-first .viewer-footer {
-  background: var(--surface-well);
+  background: rgba(10, 17, 27, 0.86);
   box-shadow: var(--shadow-soft);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
@@ -3877,7 +3880,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   top: 6px;
   left: 6px;
   padding: 4px 6px;
-  background: var(--surface-well);
+  background: rgba(13, 19, 28, 0.95);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -3896,7 +3899,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   position: fixed;
   z-index: 3000;
   padding: 5px 8px;
-  background: var(--surface-well);
+  background: rgba(13, 19, 28, 0.95);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: #f2f2f2;
@@ -3958,7 +3961,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   z-index: 3001;
   max-width: 300px;
   padding: 7px 9px;
-  background: var(--surface-well);
+  background: rgba(13, 19, 28, 0.97);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -5633,7 +5636,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   top: 8px;
   left: 8px;
   padding: 4px 6px;
-  background: var(--surface-well);
+  background: rgba(13, 19, 28, 0.95);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -5669,13 +5672,15 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   background: linear-gradient(135deg, transparent 50%, rgba(139, 180, 243, 0.8) 50%);
 }
 
+/* Above the collapsed panel and its "Open menu" button (62-82), which showed
+   over a dialog's corner; below confirmations, toasts and tooltips. */
 .modal {
   position: fixed;
   inset: 0;
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: 90;
 }
 
 .file-input {
@@ -6935,7 +6940,9 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .browse-content {
   --browse-folder-pane-width: 320px;
-  --browse-details-columns: minmax(360px, max-content) 96px 170px 96px;
+  /* The name takes the width to spare, so Type, Modified and Size sit at the
+     right and line up in the header and every row alike. */
+  --browse-details-columns: minmax(360px, 1fr) 96px 170px 96px;
   display: grid;
   grid-template-columns: minmax(220px, var(--browse-folder-pane-width)) 8px minmax(280px, 1fr);
   gap: 0;
@@ -7050,6 +7057,9 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 .browse-item-content-details {
   display: grid;
   grid-template-columns: var(--browse-details-columns);
+  /* Not .browse-item-content's space-between: spread over a row's columns,
+     it pushed each value further right of its heading than the last. */
+  justify-content: start;
   gap: 12px;
   align-items: center;
   width: max-content;

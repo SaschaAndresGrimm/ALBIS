@@ -24,6 +24,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **Menus are no longer see-through.** The File, Settings and Help menus are frosted like the bars they open from; the toolbar under a menu read through it.
+- **Dialogs open above the collapsed panel's Open menu button,** which showed over a dialog's top-right corner on narrower windows.
+- **The file browser's columns line up.** In Details view, Type, Modified and Size each sat further right of their heading than the last; they now sit under their headings at the right, with the name taking the width to spare.
 - **The arrow keys stay on the panel tabs that are shown.** Without a detector connected, the right arrow on Analysis moved to the hidden Detector tab and its empty panel, and keyboard focus was lost; the arrows, Home and End now go through the visible tabs only.
 - **The File menu no longer looks pressed when closed.** It was highlighted from the moment ALBIS opened, and whichever menu was opened last stayed highlighted after it closed; a menu name now lights up only while its menu is open.
 
