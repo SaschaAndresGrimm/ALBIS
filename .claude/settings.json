@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run check)",
+      "Bash(npm run test:js *)",
+      "Bash(npm run test:js)",
+      "Bash(npm run lint:js *)",
+      "Bash(npm run lint:js)",
+      "Bash(npm run review:i18n *)",
+      "Bash(npm run review:i18n)",
+      "Bash(npm run ui:snapshots *)",
+      "Bash(.venv/bin/pytest *)",
+      "Bash(.venv/bin/ruff check *)",
+      "Bash(.venv/bin/black --check *)",
+      "Bash(ruff check *)",
+      "Bash(black --check *)",
+      "Bash(scripts/check.sh *)",
+      "Bash(scripts/check.sh)",
+      "Bash(git status *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git diff)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)"
+    ],
+    "deny": [
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean -fd *)",
+      "Bash(git clean -fdx *)",
+      "Bash(rm -rf *)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Read(**/*.pfx)"
+    ]
+  }
+}

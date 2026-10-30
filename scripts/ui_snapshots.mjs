@@ -10,8 +10,11 @@
  * the Data tab's file list, never by upload (an upload would leave a copy in
  * the data folder).
  *
- *   .venv/bin/python -m uvicorn backend.app:app --port 8731 &
- *   npm run ui:snapshots -- --out /tmp/albis-ui [--file Image_master.h5]
+ *   ALBIS_DATA_ROOT=testdata .venv/bin/python -m uvicorn backend.app:app --port 8731 &
+ *   npm run ui:snapshots -- --out /tmp/albis-ui [--file compressed_stack.h5]
+ *
+ * ALBIS_DATA_ROOT=testdata serves the test files tracked in the repository,
+ * so this works on a fresh clone; leave it out to use your own data folder.
  *
  * Options:
  *   --url     ALBIS to open (default http://127.0.0.1:8731/)

@@ -41,10 +41,12 @@ albis.config.json
 # project skills (.claude/skills/) are shared with the repo.
 .claude/*
 !.claude/skills/
+!.claude/settings.json
 ALBIS_REVIEW.md
 IMPROVEMENTS_SUMMARY.md
 ROI_PLOT_ANALYSIS.md
 
-# Local code-graph tooling (graphify) and its agent instructions: personal, not shared.
-CLAUDE.md
+# Personal agent instructions (e.g. local code-graph tooling): not shared.
+# CLAUDE.md itself is shared; it imports AGENTS.md.
+CLAUDE.local.md
 graphify-out/

@@ -21,6 +21,15 @@ body:
     validations:
       required: true
   - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How will we know it is done? Observable outcomes someone could check, one per line.
+      placeholder: |
+        - Opening a 4M HDF5 series shows ...
+        - The setting is kept after a restart
+        - Works in Chrome and Firefox
+  - type: textarea
     id: alternatives
     attributes:
       label: Alternatives considered
