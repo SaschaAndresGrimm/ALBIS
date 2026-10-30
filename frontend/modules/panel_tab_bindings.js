@@ -29,7 +29,9 @@ export function bindPanelAndSectionInteractions({
       setPanelTab(target);
     });
     tab.addEventListener("keydown", (event) => {
-      const tabs = Array.from(panelTabs);
+      // Only the tabs on screen: the Detector tab stays hidden until a
+      // detector is connected, and the arrows went on to its empty panel.
+      const tabs = Array.from(panelTabs).filter((item) => !item.hidden);
       const currentIndex = tabs.indexOf(tab);
       if (currentIndex < 0) return;
       let nextIndex = null;

@@ -147,6 +147,16 @@ optgroup {
   font-family: inherit;
 }
 
+/* One keyboard focus ring for every control without its own: the browsers'
+   defaults differ (Chrome's double ring, Safari's glow, Firefox's dotted
+   line). It looks like --focus-ring, a dark gap and 2px of blue, but as an
+   outline, so it neither replaces a control's own shadow nor is replaced by
+   it. Zero specificity: a control's own :focus-visible rule still wins. */
+:where(a[href], button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .is-hidden {
   display: none !important;
 }
