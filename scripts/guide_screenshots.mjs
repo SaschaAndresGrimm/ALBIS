@@ -51,6 +51,7 @@ const DEFAULT_CHROME = {
 };
 
 const outDir = path.resolve(ROOT, arg("out", "docs/images/user-guide"));
+const outDirGiven = Boolean(arg("out", ""));
 const force = process.argv.includes("--force");
 const only = arg("only", "")
   .split(",")
@@ -59,10 +60,12 @@ const only = arg("only", "")
 const python = path.resolve(ROOT, arg("python", process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python"));
 const chromePath = arg("chrome", process.env.CHROME || DEFAULT_CHROME[process.platform] || "google-chrome");
 
-// One size for every picture, so the interface is drawn the same way in all
-// of them. Wide enough for the side panel to sit beside the image.
-const WIDTH = 1440;
-const HEIGHT = 900;
+// One size for the guide's pictures, so the interface is drawn the same way
+// in all of them. Wide enough for the side panel to sit beside the image. A
+// scene may ask for another (`size`), as the README's 16:9 picture does.
+const DEFAULT_SIZE = { width: 1440, height: 900 };
+let WIDTH = DEFAULT_SIZE.width;
+let HEIGHT = DEFAULT_SIZE.height;
 // The insulin series: 487 x 619 pixels, beam centre (244, 308).
 const SERIES = "in16c_010001.cbf";
 const BEAM = { x: 244, y: 308 };
@@ -266,9 +269,11 @@ const rectOf = (selectors) =>
 const written = [];
 /**
  * Save a picture: the whole window, the box around `selector` (one or a
- * list) grown by `pad`, or an explicit `clip`.
+ * list) grown by `pad`, or an explicit `clip`. `file` puts it somewhere other
+ * than --out (a path from the repository root, kept in --out by its name when
+ * --out is given), and its extension picks the format.
  */
-async function shot(name, { selector, clip, pad = 8 } = {}) {
+async function shot(name, { selector, clip, pad = 8, file: target } = {}) {
   let area = clip;
   if (selector) {
     const r = await rectOf(selector);
@@ -279,11 +284,20 @@ async function shot(name, { selector, clip, pad = 8 } = {}) {
     const y = Math.max(0, Math.floor(area.y));
     area = { x, y, width: Math.min(WIDTH - x, Math.ceil(area.width)), height: Math.min(HEIGHT - y, Math.ceil(area.height)), scale: 1 };
   }
+  const file = target
+    ? outDirGiven
+      ? path.join(outDir, path.basename(target))
+      : path.join(ROOT, target)
+    : path.join(outDir, `${name}.webp`);
+  const format = file.endsWith(".png") ? "png" : "webp";
   // WebP at 90: text stays crisp, and a full window is about 130 KB where a
   // PNG is 500 KB -- the pictures live in the repository for good.
-  const reply = await send("Page.captureScreenshot", { format: "webp", quality: 90, ...(area ? { clip: area } : {}) });
-  const file = path.join(outDir, `${name}.webp`);
-  if (!force && existsSync(file) && (await looksTheSame(readFileSync(file).toString("base64"), reply.data))) {
+  const reply = await send("Page.captureScreenshot", {
+    format,
+    ...(format === "webp" ? { quality: 90 } : {}),
+    ...(area ? { clip: area } : {}),
+  });
+  if (!force && existsSync(file) && (await looksTheSame(readFileSync(file).toString("base64"), reply.data, format))) {
     process.stdout.write(`${path.relative(ROOT, file)} (unchanged)\n`);
     return;
   }
@@ -301,15 +315,15 @@ async function shot(name, { selector, clip, pad = 8 } = {}) {
  * which needs no image library here.
  */
 const TOLERANCE = 20;
-const looksTheSame = (before, after) =>
+const looksTheSame = (before, after, format) =>
   page(
-    async (a, b, tolerance) => {
+    async (a, b, tolerance, type) => {
       const load = (data) =>
         new Promise((resolve, reject) => {
           const img = new Image();
           img.onload = () => resolve(img);
           img.onerror = reject;
-          img.src = `data:image/webp;base64,${data}`;
+          img.src = `data:image/${type};base64,${data}`;
         });
       const pixels = (img) => {
         const canvas = document.createElement("canvas");
@@ -329,6 +343,7 @@ const looksTheSame = (before, after) =>
     before,
     after,
     TOLERANCE,
+    format,
   );
 
 /**
@@ -537,11 +552,15 @@ const scenes = [
     async run() {
       await loadSeries();
       await fitToWindow();
-      const p = await screenOf(300, 250);
-      await mouse("mouseMoved", p.x, p.y);
+      const p = await screenOf(260, 250);
+      await mouse("mouseMoved", p.x - 2, p.y - 2);
       await key("keyDown", "z", "KeyZ", "z");
-      await sleep(800);
-      await shot("magnifier", { clip: { x: p.x - 200, y: p.y - 150, width: 440, height: 300 } });
+      await sleep(400);
+      // The readout moves clear of the lens with the mouse, as it does for
+      // someone holding Z and looking around.
+      await mouse("mouseMoved", p.x, p.y);
+      await sleep(600);
+      await shot("magnifier", { clip: { x: p.x - 180, y: p.y - 150, width: 480, height: 300 } });
       await key("keyUp", "z", "KeyZ");
     },
   },
@@ -737,6 +756,47 @@ const scenes = [
       await shot("detector-tab", { selector: "#side-panel" });
     },
   },
+  {
+    // The README's picture, also the screenshot Linux software centres show
+    // (packaging/linux/ALBIS.metainfo.xml): PNG, which AppStream expects,
+    // and 16:9.
+    name: "readme",
+    size: { width: 1600, height: 900 },
+    async run() {
+      await loadSeries();
+      await fitToWindow();
+      await tab("analysis");
+      await collapseAll();
+      await section("roi", { on: true });
+      await setValue("#roi-mode", "circle");
+      const centre = await screenOf(BEAM.x, BEAM.y);
+      await drag(centre, await screenOf(BEAM.x + 200, BEAM.y), "right");
+      await sleep(800);
+      await click("#roi-center-snap");
+      await section("resolution-rings", { on: true });
+      await click("#ring-clear");
+      for (const d of [5, 3.3, 2.5]) {
+        await click("#ring-add");
+        await page((v) => {
+          const inputs = document.querySelectorAll("#ring-list input");
+          const input = inputs[inputs.length - 1];
+          input.value = v;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          input.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+        }, d);
+        await sleep(200);
+      }
+      await section("peak-finder", { on: true });
+      await setValue("#peaks-count", 30);
+      await page(() => {
+        document.querySelector('section[data-section="resolution-rings"] > [data-section-toggle]').click();
+      });
+      await sleep(2500);
+      await parkMouse();
+      await shot("readme", { file: "frontend/resources/albis.png" });
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -777,6 +837,11 @@ async function main() {
     if (Boolean(scene.betas) !== betas) {
       betas = Boolean(scene.betas);
       await saveSettings({ detector_control: betas, pixel_mask: betas });
+    }
+    const size = scene.size || DEFAULT_SIZE;
+    if (size.width !== WIDTH || size.height !== HEIGHT) {
+      ({ width: WIDTH, height: HEIGHT } = size);
+      await send("Emulation.setDeviceMetricsOverride", { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false });
     }
     const started = Date.now();
     let timer;
