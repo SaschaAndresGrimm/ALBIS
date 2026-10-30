@@ -25,6 +25,7 @@
     "review:i18n": "npx -y node@24 ./scripts/review_i18n.mjs",
     "test:js": "npx -y node@24 ./node_modules/vitest/vitest.mjs run",
     "ui:snapshots": "npx -y node@24 ./scripts/ui_snapshots.mjs",
+    "ui:diff": "npx -y node@24 ./scripts/ui_snapshot_diff.mjs",
     "guide:screenshots": "npx -y node@24 ./scripts/guide_screenshots.mjs"
   },
   "devDependencies": {
