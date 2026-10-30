@@ -30,6 +30,8 @@ npm ci
 - API Contracts: `docs/API_CONTRACTS.md`
 - Release process checklist: `docs/RELEASE_CHECKLIST.md`
 - Translation review guide: `docs/I18N_REVIEW_GUIDE.md`
+- UI guide (tokens, controls, dialogs, checking a change): `docs/UI_GUIDE.md`
+- Notes for coding agents: `AGENTS.md`
 
 ## How to help
 
@@ -102,7 +104,7 @@ Requirements:
 
 - Use clear, readable names.
 - Prefer small helper functions over long blocks.
-- Keep CSS and JS changes aligned with existing patterns.
+- Keep CSS and JS changes aligned with existing patterns; for the interface, follow `docs/UI_GUIDE.md` (enforced in part by `frontend/tests/style_guard.test.js`).
 
 ## License
 

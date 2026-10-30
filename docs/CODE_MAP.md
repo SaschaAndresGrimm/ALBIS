@@ -19,7 +19,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 - `frontend/index.html`:
   - UI structure and mount points referenced by `app.js`.
 - `frontend/style.css`:
-  - Styling and responsive layout.
+  - Styling and responsive layout. Shared values are the tokens in `:root`; see [UI Guide](UI_GUIDE.md). `frontend/tests/style_guard.test.js` keeps new rules on them.
 
 ## Frontend Module Map
 

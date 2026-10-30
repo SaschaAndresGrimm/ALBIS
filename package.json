@@ -22,7 +22,8 @@
   "scripts": {
     "lint:js": "npx -y node@24 ./node_modules/eslint/bin/eslint.js frontend/app.js frontend/modules/*.js",
     "review:i18n": "npx -y node@24 ./scripts/review_i18n.mjs",
-    "test:js": "npx -y node@24 ./node_modules/vitest/vitest.mjs run"
+    "test:js": "npx -y node@24 ./node_modules/vitest/vitest.mjs run",
+    "ui:snapshots": "npx -y node@24 ./scripts/ui_snapshots.mjs"
   },
   "devDependencies": {
     "eslint": "^10.13.0",
