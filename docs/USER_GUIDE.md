@@ -135,8 +135,9 @@ familiar from ALBULA. **Invert Color** flips any of them.
 - Double-click zooms in a step.
 - **Fit to Window** in the View tab returns to the whole frame.
 - The zoom slider beside it gives each doubling of the zoom the same length,
-  so the zooms around 1x have room. Clicked, its arrow keys zoom by about a fifth per press — four
-  presses double — and `Page Up` / `Page Down` double or halve.
+  so the zooms around 1x have room. Clicked, its arrow keys zoom by about a
+  fifth per press — four presses double — and `Page Up` / `Page Down` double
+  or halve.
 
 **Magnifier.** Hold **Z** and a round lens at the mouse shows the pixels under it
 enlarged — drawn from the data, so with the whole detector on screen you still
@@ -696,21 +697,17 @@ so typically **Visible area** with **As on screen** while zoomed in. Labels in
 a GIF have a heavier dark outline than on screen, so the digits stay readable
 with only two colours to draw them in.
 
-Tick **Include overlays** to draw the resolution rings and the spot finder into
-the GIF as well. The option is only available when at least one of them is
+Tick **Include overlays** to draw the resolution rings and the Peak Finder's
+peaks into the GIF as well. The option is only available when at least one of them is
 switched on in the Analysis tab. Two things are worth knowing:
 
-- The spot finder **re-runs on every exported frame**, so the markers belong to
+- The Peak Finder **re-runs on every exported frame**, so the markers belong to
   the frame they sit on rather than to whichever frame was on screen when you
   started. That is the honest result, and it is also the slow one — a long
-  series with the spot finder on takes noticeably longer to export.
+  series with the Peak Finder on takes noticeably longer to export.
 - Overlays are drawn opaque, not translucent as on screen. A GIF has 256
   colours and no alpha channel, so the halos that soften the rings on screen
   become solid; the rings are a little heavier in the file than in the viewer.
-
-The three **save image** entries differ in what they capture: the whole frame at
-full resolution, only the part you are looking at, or the viewer window as it
-appears.
 
 ---
 
@@ -721,7 +718,7 @@ datasets side by side, or the same dataset at two thresholds.
 
 **File → Duplicate Window** (`⇧⌘N`) opens the *current* image again in a second
 window, set up the way this one is: same frame and threshold, colour map,
-contrast, zoom and position, mask, resolution rings, spot finder and ROI. It is
+contrast, zoom and position, mask, resolution rings, Peak Finder and ROI. It is
 the quicker way into a side-by-side comparison — duplicate, then change one
 thing in the copy.
 
@@ -820,7 +817,6 @@ To try it without a detector, `python test_scripts/fake_simplon_dcu.py` runs a
 simulated one at `http://127.0.0.1:8100` (`--thresholds 4` for a
 PILATUS4-like detector).
 
-
 ### Known detectors
 
 Every detector that answers — a Connect in the Detector tab, a Test or a started
@@ -846,6 +842,8 @@ everyone sees the same list. To move it, or to share one list between several
 installations, see `known_detectors_file` in the
 [Power User Guide](POWER_USER_GUIDE.md#settings-reference). Lists kept in the
 browser by earlier versions are taken over the first time.
+
+---
 
 ## Work from another machine
 
