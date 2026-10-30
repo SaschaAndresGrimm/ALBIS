@@ -11,6 +11,8 @@
   --surface-1: #181f2b;
   --surface-2: #20293a;
   --surface-3: #2a3448;
+  /* The dark inset behind plots, lists, overviews and tooltips. */
+  --surface-well: rgba(13, 19, 28, 0.92);
   --text: #edf3ff;
   --muted: #b4bfd4;
   --muted-strong: #cad6ec;
@@ -327,7 +329,7 @@ body {
 .dropdown-panel {
   display: none;
   min-width: 180px;
-  background: rgba(17, 22, 31, 0.96);
+  background: var(--surface-well);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   box-shadow: 0 14px 30px rgba(4, 8, 16, 0.45);
@@ -346,7 +348,7 @@ body {
   width: 100%;
   background: transparent;
   border: none;
-  color: #e9f1ff;
+  color: var(--text);
   padding: 6px 12px;
   font-size: var(--font-size-md);
   cursor: pointer;
@@ -377,7 +379,7 @@ body {
   top: -4px;
   left: calc(100% - 2px);
   min-width: 180px;
-  background: rgba(17, 22, 31, 0.96);
+  background: var(--surface-well);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   box-shadow: 0 14px 30px rgba(4, 8, 16, 0.45);
@@ -461,7 +463,7 @@ body {
   max-width: calc(100vw - 24px);
   height: 18px;
   margin: 6px 0 0 10px;
-  background: rgba(8, 14, 23, 0.9);
+  background: var(--surface-well);
   border: 1px solid var(--border-bold);
   border-radius: 999px;
   display: none;
@@ -832,7 +834,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   width: calc(max(3, var(--frame-digits, 3)) * 1ch + 32px);
   font-variant-numeric: tabular-nums;
   background: rgba(11, 18, 28, 0.82);
-  color: #f0f6ff;
+  color: var(--text);
   border: 1px solid rgba(12, 20, 32, 0.62);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
@@ -851,7 +853,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .toolbar-step select {
   background: rgba(11, 18, 28, 0.82);
-  color: #f0f6ff;
+  color: var(--text);
   border: 1px solid rgba(12, 20, 32, 0.62);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
@@ -871,7 +873,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .toolbar-fps select {
   background: rgba(11, 18, 28, 0.82);
-  color: #f0f6ff;
+  color: var(--text);
   border: 1px solid rgba(12, 20, 32, 0.62);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
@@ -893,7 +895,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .toolbar-threshold select {
   background: rgba(11, 18, 28, 0.82);
-  color: #f0f6ff;
+  color: var(--text);
   border: 1px solid rgba(12, 20, 32, 0.62);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
@@ -977,7 +979,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .tool-btn {
   background: linear-gradient(to bottom, rgba(23, 33, 49, 0.95), rgba(13, 20, 32, 0.95));
-  color: #f5f9ff;
+  color: var(--text);
   border: 1px solid rgba(10, 19, 31, 0.68);
   padding: 2px 8px;
   font-size: var(--font-size-md);
@@ -1020,7 +1022,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--font-size-md);
-  color: #e8f3ff;
+  color: var(--text);
   font-weight: 500;
   letter-spacing: 0.01em;
   padding: 4px 10px;
@@ -1388,14 +1390,14 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .file-drop-title {
-  color: #f4f8ff;
+  color: var(--text);
   font-size: 18px;
   font-weight: 800;
   line-height: 1.2;
 }
 
 .file-drop-detail {
-  color: #c5d4ee;
+  color: var(--muted-strong);
   font-size: var(--font-size-lg);
   line-height: 1.45;
 }
@@ -1538,7 +1540,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 .mask-edit-title {
   font-size: var(--font-size-md);
   font-weight: 700;
-  color: #f5f9ff;
+  color: var(--text);
 }
 
 .mask-edit-bar [data-mask-tool],
@@ -1590,7 +1592,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   right: 12px;
   padding: 8px 10px;
   font-size: var(--font-size-sm);
-  background: rgba(13, 19, 28, 0.84);
+  background: var(--surface-well);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
 }
@@ -1648,7 +1650,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   border-radius: 999px;
   background: rgba(18, 29, 45, 0.88);
   border: 1px solid var(--border-bold);
-  color: #e6f0ff;
+  color: var(--text);
   font-size: var(--font-size-lg);
   font-weight: 600;
   line-height: 1.35;
@@ -1659,7 +1661,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .viewer-footer-status {
-  color: #f0f6ff;
+  color: var(--text);
   border-color: rgba(132, 194, 255, 0.68);
   background: rgba(22, 49, 84, 0.86);
   min-width: 78px;
@@ -1748,7 +1750,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 .viewer-footer-version-build {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   letter-spacing: 0.01em;
-  color: #eaf3ff;
+  color: var(--text);
 }
 
 /* Update state and the copy action are buttons in markup, but only the update
@@ -1780,7 +1782,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .viewer-footer-version-update.is-actionable:hover,
 .viewer-footer-version-copy:hover {
-  color: #eaf3ff;
+  color: var(--text);
 }
 
 .viewer-footer-version-update:focus-visible,
@@ -1848,7 +1850,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 }
 
 .viewer-footer-link:hover {
-  color: #ecf5ff;
+  color: var(--text);
   border-color: rgba(121, 181, 255, 0.68);
   background: rgba(32, 51, 80, 0.7);
 }
@@ -1863,7 +1865,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   left: 12px;
   top: 12px;
   padding: 4px 6px;
-  background: rgba(13, 19, 28, 0.9);
+  background: var(--surface-well);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -2062,7 +2064,7 @@ body.canvas-first .section-title {
 }
 
 body.canvas-first .viewer-footer {
-  background: rgba(10, 17, 27, 0.86);
+  background: var(--surface-well);
   box-shadow: var(--shadow-soft);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
@@ -2103,7 +2105,7 @@ body.canvas-first .panel.is-collapsed .panel-fab {
   height: 46px;
   border-radius: var(--radius-md);
   font-size: 14px;
-  color: #f6fbff;
+  color: var(--text);
   background: linear-gradient(to bottom, rgba(13, 20, 31, 0.97), rgba(23, 34, 50, 0.97));
   border: 1px solid rgba(194, 220, 255, 0.86);
   box-shadow:
@@ -2207,7 +2209,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .panel-collapse-btn:hover {
   background: rgba(24, 39, 61, 0.55);
   border-color: rgba(112, 152, 205, 0.58);
-  color: #f6fbff;
+  color: var(--text);
 }
 
 .panel-collapse-btn:focus-visible {
@@ -2244,7 +2246,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   background: linear-gradient(to bottom, rgba(85, 122, 181, 0.55), rgba(38, 65, 106, 0.55));
   box-shadow: inset 0 0 0 1px rgba(139, 189, 255, 0.35);
   border-color: rgba(95, 138, 207, 0.66);
-  color: #f5f9ff;
+  color: var(--text);
 }
 
 .panel-tab:focus-visible {
@@ -2306,7 +2308,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding: 6px 8px;
   background: linear-gradient(to bottom, #2f3b51, #212b3b);
   border: 1px solid rgba(25, 34, 48, 0.95);
-  color: #eaf1ff;
+  color: var(--text);
   width: 100%;
   text-align: left;
   margin-bottom: 8px;
@@ -2374,7 +2376,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   border-top-right-radius: var(--radius-md);
   width: calc(100% + 16px);
   text-align: left;
-  color: #eef4ff;
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2399,7 +2401,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   border-radius: 999px;
   border: 1px solid var(--border-strong);
   background: rgba(13, 21, 33, 0.65);
-  color: #c9d8f3;
+  color: var(--muted-strong);
   font-size: var(--font-size-xs);
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -2419,7 +2421,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .section-summary.is-active {
   border-color: rgba(102, 170, 255, 0.62);
   background: rgba(24, 48, 76, 0.62);
-  color: #e7f2ff;
+  color: var(--text);
 }
 
 .section-summary.is-warning {
@@ -2447,7 +2449,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .section-summary-status.is-empty {
   border-color: var(--border-strong);
   background: rgba(13, 21, 33, 0.65);
-  color: #c9d8f3;
+  color: var(--muted-strong);
 }
 
 .section-summary-status.is-loading {
@@ -2627,7 +2629,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .inspector-search input {
   flex: 1;
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.98), rgba(10, 15, 24, 0.98));
-  color: #f2f7ff;
+  color: var(--text);
   border: 1px solid rgba(20, 31, 46, 0.95);
   border-radius: var(--radius-sm);
   padding: 4px 6px;
@@ -2638,7 +2640,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   min-width: 64px;
   background: linear-gradient(to bottom, rgba(48, 61, 84, 0.96), rgba(30, 40, 57, 0.96));
   border: 1px solid rgba(24, 35, 52, 0.95);
-  color: #edf4ff;
+  color: var(--text);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: var(--font-size-sm);
@@ -2657,7 +2659,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .inspector-results {
   max-height: 120px;
   overflow: auto;
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 4px;
@@ -2690,7 +2692,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .inspector-result-name {
-  color: #e7efff;
+  color: var(--text);
   word-break: break-all;
 }
 
@@ -2705,7 +2707,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .inspector-tree {
   max-height: 220px;
   overflow: auto;
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 6px;
@@ -2833,12 +2835,12 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .inspector-preview {
-  background: rgba(12, 18, 27, 0.92);
+  background: var(--surface-well);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 6px;
   font-size: var(--font-size-sm);
-  color: #e7efff;
+  color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 220px;
@@ -2885,7 +2887,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 
 .thumb-view {
   height: 140px;
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   display: grid;
@@ -2920,7 +2922,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(90, 140, 200, 0.35);
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(9, 14, 22, 0.95));
-  color: #eaf2ff;
+  color: var(--text);
 }
 
 .zoom-value-input:focus-visible {
@@ -3112,7 +3114,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .pixel-mask-find-title {
   font-size: var(--font-size-md);
   font-weight: 700;
-  color: #e7f2ff;
+  color: var(--text);
 }
 
 .pixel-mask-find-close {
@@ -3127,7 +3129,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .pixel-mask-find-close:hover {
-  color: #e7f2ff;
+  color: var(--text);
 }
 
 .pixel-mask-find-rules {
@@ -3206,7 +3208,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   border: none;
   border-radius: var(--radius-sm);
   background: none;
-  color: #e7f2ff;
+  color: var(--text);
   font-size: var(--font-size-md);
   text-align: left;
   cursor: pointer;
@@ -3224,7 +3226,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 
 #pixel-mask-edit.is-active {
   border-color: rgba(121, 181, 255, 0.9);
-  color: #e7f2ff;
+  color: var(--text);
 }
 
 /* The same, on the Detector tab: what the detector holds, and its backup. */
@@ -3497,7 +3499,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .peaks-list {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
 }
 
 .peaks-head,
@@ -3623,7 +3625,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #a9bfdc;
+  color: var(--muted);
 }
 
 /* Frames, Use every, Operation, Result: "Use every" holds a small number, and
@@ -3688,7 +3690,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   height: 20px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
   overflow: hidden;
   min-width: 0;
   width: 100%;
@@ -3825,7 +3827,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   width: 100%;
   height: 100%;
   display: block;
-  background: rgba(12, 18, 27, 0.96);
+  background: var(--surface-well);
   cursor: grab;
   touch-action: none;
 }
@@ -3835,7 +3837,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 }
 
 .histogram {
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 6px;
@@ -3857,7 +3859,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   margin-top: 6px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: rgba(9, 15, 23, 0.95);
+  background: var(--surface-well);
 }
 
 .hist-tooltip {
@@ -3865,10 +3867,10 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   top: 6px;
   left: 6px;
   padding: 4px 6px;
-  background: rgba(13, 19, 28, 0.95);
+  background: var(--surface-well);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  color: #f3f8ff;
+  color: var(--text);
   font-size: var(--font-size-xs);
   white-space: nowrap;
   pointer-events: none;
@@ -3884,7 +3886,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   position: fixed;
   z-index: 3000;
   padding: 5px 8px;
-  background: rgba(13, 19, 28, 0.95);
+  background: var(--surface-well);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: #f2f2f2;
@@ -3946,7 +3948,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   z-index: 3001;
   max-width: 300px;
   padding: 7px 9px;
-  background: rgba(13, 19, 28, 0.97);
+  background: var(--surface-well);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -4000,7 +4002,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 .field input[type="number"],
 .field input[type="text"] {
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
-  color: #f2f7ff;
+  color: var(--text);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   padding: 6px 8px;
@@ -4030,7 +4032,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
 body.platform-linux select option,
 body.platform-linux select optgroup {
   background: #111a27;
-  color: #e8f0ff;
+  color: var(--text);
   -webkit-text-fill-color: #e8f0ff;
 }
 
@@ -4591,7 +4593,7 @@ body.platform-windows select option:disabled {
   width: 78px;
   min-width: 0;
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
-  color: #f2f7ff;
+  color: var(--text);
   border: 1px solid var(--border-soft);
   padding: 6px 8px;
   font-size: var(--font-size-md);
@@ -5142,7 +5144,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .pill {
   padding: 4px 8px;
-  background: rgba(12, 19, 29, 0.95);
+  background: var(--surface-well);
   border: 1px solid rgba(20, 32, 49, 0.92);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
@@ -5152,7 +5154,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   background: linear-gradient(to bottom, rgba(48, 61, 84, 0.84), rgba(30, 40, 57, 0.84));
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
-  color: #edf4ff;
+  color: var(--text);
   padding: 6px 10px;
   font-size: var(--font-size-md);
   cursor: pointer;
@@ -5289,7 +5291,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 .roi-mini-field input {
   width: 100%;
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
-  color: #f2f7ff;
+  color: var(--text);
   border: 1px solid var(--border-soft);
   padding: 6px 8px;
   font-size: var(--font-size-md);
@@ -5300,7 +5302,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 #simplon-version,
 #simplon-timeout {
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
-  color: #f2f7ff;
+  color: var(--text);
   border: 1px solid var(--border-soft);
 }
 
@@ -5308,7 +5310,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 #simplon-version:focus,
 #simplon-timeout:focus {
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
-  color: #f2f7ff;
+  color: var(--text);
 }
 
 .roi-stats {
@@ -5358,7 +5360,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 }
 
 .roi-plot {
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 6px;
@@ -5441,7 +5443,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: rgba(16, 25, 38, 0.9);
-  color: #e5f0ff;
+  color: var(--text);
   font-size: var(--font-size-lg);
   line-height: 1;
   cursor: pointer;
@@ -5509,12 +5511,12 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   justify-content: space-between;
   gap: 8px;
   font-size: var(--font-size-sm);
-  color: #c9d9ef;
+  color: var(--muted-strong);
 }
 
 .roi-plot-unit-row select {
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
-  color: #f2f7ff;
+  color: var(--text);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   padding: 3px 6px;
@@ -5532,7 +5534,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   gap: 3px;
   min-width: 0;
   font-size: var(--font-size-xs);
-  color: #c9d9ef;
+  color: var(--muted-strong);
 }
 
 .roi-axis-limits-grid input {
@@ -5584,7 +5586,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: rgba(16, 25, 38, 0.86);
-  color: #e8f3ff;
+  color: var(--text);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
@@ -5621,10 +5623,10 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   top: 8px;
   left: 8px;
   padding: 4px 6px;
-  background: rgba(13, 19, 28, 0.95);
+  background: var(--surface-well);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  color: #f3f8ff;
+  color: var(--text);
   font-size: var(--font-size-xs);
   white-space: nowrap;
   pointer-events: none;
@@ -5695,7 +5697,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   box-shadow: 0 20px 40px rgba(4, 8, 16, 0.56);
-  color: #edf4ff;
+  color: var(--text);
 }
 
 .modal-header {
@@ -5769,7 +5771,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .about-wordmark {
   margin: 0;
-  color: #f5f7ff;
+  color: var(--text);
   font-family: var(--font-wordmark);
   font-size: 34px;
   font-weight: 400;
@@ -5815,7 +5817,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .about-fact > strong {
   font-size: var(--font-size-md);
-  color: #edf4ff;
+  color: var(--text);
 }
 
 /* The author's affiliation, under the name rather than beside it: at 12px a
@@ -5951,12 +5953,12 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .update-check-version-row > strong {
   font-size: var(--font-size-lg);
-  color: #edf4ff;
+  color: var(--text);
 }
 
 .update-check-instruction {
   font-size: var(--font-size-md);
-  color: #c6d8f5;
+  color: var(--muted-strong);
   line-height: 1.5;
 }
 
@@ -5979,7 +5981,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 .update-check-download > code {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: var(--font-size-md);
-  color: #edf4ff;
+  color: var(--text);
   /* Asset names run to ~40 characters and must not widen the dialog. */
   overflow-wrap: anywhere;
 }
@@ -5998,7 +6000,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   flex: 1 1 auto;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: var(--font-size-md);
-  color: #edf4ff;
+  color: var(--text);
   /* The command is meant to be selected and copied by hand as well. */
   user-select: all;
   overflow-wrap: anywhere;
@@ -6015,7 +6017,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   height: 22px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
   overflow: hidden;
 }
 
@@ -6070,7 +6072,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .update-check-verify code {
   font-family: var(--font-mono, ui-monospace, monospace);
-  color: #cfe0f8;
+  color: var(--muted-strong);
   overflow-wrap: anywhere;
 }
 
@@ -6174,7 +6176,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 
 .log-viewer-meta-row > code,
 .log-viewer-meta-row > strong {
-  color: #edf4ff;
+  color: var(--text);
   word-break: break-word;
 }
 
@@ -6188,7 +6190,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: rgba(10, 15, 23, 0.98);
-  color: #e3efff;
+  color: var(--text);
   font: 12px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   white-space: pre-wrap;
   word-break: break-word;
@@ -6220,7 +6222,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: rgba(12, 18, 27, 0.54);
-  color: #c8d8ee;
+  color: var(--muted-strong);
   font-size: var(--font-size-sm);
   overflow-wrap: anywhere;
 }
@@ -6308,7 +6310,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   height: 22px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: rgba(13, 19, 28, 0.92);
+  background: var(--surface-well);
   overflow: hidden;
 }
 
@@ -6400,7 +6402,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   margin: 0;
   font-size: var(--font-size-md);
   font-weight: 700;
-  color: #edf4ff;
+  color: var(--text);
   letter-spacing: 0.01em;
 }
 
@@ -6700,7 +6702,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   position: static;
   z-index: 1;
   text-align: center;
-  color: #f5f7ff;
+  color: var(--text);
   font-size: var(--font-size-xl);
   /* px, not em, and deliberately: this is a container, and its children run
      from 12px to 56px. A px value inherits as one computed length, so they all
@@ -6828,7 +6830,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 }
 
 .browse-control span {
-  color: #aebad1;
+  color: var(--muted);
   font-size: var(--font-size-sm);
 }
 
@@ -6836,9 +6838,9 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 .browse-search-row input {
   width: 100%;
   min-height: 32px;
-  background: rgba(12, 18, 27, 0.96);
+  background: var(--surface-well);
   border: 1px solid rgba(48, 64, 89, 0.92);
-  color: #eaf3ff;
+  color: var(--text);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-size: var(--font-size-md);
@@ -6881,7 +6883,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 }
 
 .breadcrumb-btn {
-  background: rgba(17, 23, 33, 0.85);
+  background: var(--surface-well);
   border: 1px solid rgba(48, 64, 89, 0.92);
   color: #d5e3fb;
   padding: 4px 8px;
@@ -6943,7 +6945,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
 .browse-files {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: rgba(16, 22, 31, 0.84);
+  background: var(--surface-well);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -6957,7 +6959,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   border-bottom: 1px solid var(--border);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #bfd0ec;
+  color: var(--muted-strong);
   text-transform: uppercase;
 }
 
@@ -6978,7 +6980,7 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   cursor: pointer;
   border: none;
   background: transparent;
-  color: #e5eeff;
+  color: var(--text);
   font-size: var(--font-size-md);
   text-align: left;
   width: max-content;
@@ -7137,16 +7139,16 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 .browse-path span {
-  color: #aebad1;
+  color: var(--muted);
   flex-shrink: 0;
 }
 
 .browse-path input {
   flex: 1;
-  background: rgba(12, 18, 27, 0.96);
+  background: var(--surface-well);
   border: 1px solid rgba(48, 64, 89, 0.92);
   padding: 4px 6px;
-  color: #eaf3ff;
+  color: var(--text);
   font-size: var(--font-size-sm);
   border-radius: var(--radius-sm);
 }
@@ -7251,13 +7253,13 @@ button.browse-details-header-cell[aria-sort="descending"] {
   justify-content: space-between;
   align-items: baseline;
   padding: 10px 12px 6px;
-  color: #e5efff;
+  color: var(--text);
   border-bottom: 1px solid var(--border-soft);
 }
 
 .command-hint {
   font-size: var(--font-size-sm);
-  color: #a9bfdc;
+  color: var(--muted);
 }
 
 .command-search {
@@ -7267,7 +7269,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .command-search input {
   width: 100%;
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.98), rgba(10, 15, 24, 0.98));
-  color: #f2f7ff;
+  color: var(--text);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
@@ -7286,7 +7288,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: rgba(14, 20, 30, 0.75);
-  color: #e7efff;
+  color: var(--text);
   padding: 8px 10px;
   display: grid;
   grid-template-columns: 1fr auto;
@@ -7307,7 +7309,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 .command-label {
   font-size: var(--font-size-md);
-  color: #ecf3ff;
+  color: var(--text);
 }
 
 .command-shortcut {
@@ -8433,7 +8435,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
-  color: #f2f7ff;
+  color: var(--text);
   font-size: var(--font-size-md);
 }
 
@@ -8533,7 +8535,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
-  color: #f2f7ff;
+  color: var(--text);
   font-size: var(--font-size-md);
 }
 
@@ -8592,7 +8594,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   padding: 1px 6px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: rgba(13, 19, 28, 0.97);
+  background: var(--surface-well);
   pointer-events: none;
 }
 
@@ -8936,7 +8938,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #a9bfdc;
+  color: var(--muted);
 }
 
 .settings-tools-presets {
@@ -9066,7 +9068,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   letter-spacing: 0.06em;
   font-size: var(--font-size-xs);
   font-weight: 700;
-  color: #a9bfdc;
+  color: var(--muted);
 }
 
 .mask-popover-swatches {
