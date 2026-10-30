@@ -4,24 +4,28 @@ Thanks for considering a contribution! ALBIS is an ALBULA-style viewer for DECTR
 
 ## Quick start (dev)
 
+ALBIS needs **Python 3.13** exactly and **Node.js 22.22** or later. A `python`
+on your PATH may be another version (an Anaconda install shadows it), so let
+the setup script find 3.13 for you:
+
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -r backend/requirements.txt
-python albis_launcher.py
+scripts/dev_setup.sh          # PYTHON=/path/to/python3.13 if it cannot find one
+.venv/bin/python albis_launcher.py
+```
+
+The script creates `.venv` with the dev requirements, runs `npm ci` and
+installs the pre-commit hooks; it is safe to run again. To do it by hand, make
+the virtualenv with 3.13 named explicitly:
+
+```bash
+python3.13 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+npm ci
 ```
 
 Default config uses `server.port: 0` (random free port), and the launcher opens the browser for you.
-For the backend on its own, without the browser launch, run `python -m uvicorn backend.app:app` and open the
-URL Uvicorn prints.
-
-Install contributor tooling (or run `scripts/dev_setup.sh`, which sets up the
-virtualenv, the tooling and the pre-commit hooks in one go):
-
-```bash
-pip install -r requirements-dev.txt
-npm ci
-```
+For the backend on its own, without the browser launch, run `.venv/bin/python -m uvicorn backend.app:app`
+and open the URL Uvicorn prints.
 
 Before opening a pull request, `npm run check` runs every gate CI runs.
 
