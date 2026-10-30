@@ -85,11 +85,13 @@ The rules that cut across all of them:
 - New logic goes into a pure helper so it can be tested without the DOM.
   Frontend: Vitest + jsdom in `frontend/tests/`. Backend: pytest in `tests/`.
 - Never lower the coverage floor (77%) or loosen a test to make it pass. The
-  baselines of the style guard and the code size guards may only go *down*,
-  in the change that removes the literals, lines or `fetch` calls.
+  baselines of the style guard and the `fetch` guard may only go *down*, in
+  the change that removes the literals or calls.
 - No source file grows past 1,000 lines, and the few already over it may not
   get longer (`frontend/tests/code_size_guard.test.js`,
-  `tests/test_code_size_guard.py`). Put new code in a module of its own.
+  `tests/test_code_size_guard.py`). Put new code in a module of its own. A
+  line baseline may go up only when nothing smaller will do, with the reason
+  in the pull request, where the reviewer sees it.
 
 ## Interface
 

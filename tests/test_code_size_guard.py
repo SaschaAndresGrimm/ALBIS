@@ -8,7 +8,9 @@ change lands wherever the reader happened to look and the file grows again.
 
 A new module stays under MAX_LINES; one already over it may not get longer.
 When you shorten one, lower its baseline in the same change, so the gain
-stays. frontend/tests/code_size_guard.test.js does the same for the frontend.
+stays. A baseline may go up only when nothing smaller will do, with the reason
+in the pull request. frontend/tests/code_size_guard.test.js does the same for
+the frontend.
 """
 
 from __future__ import annotations
