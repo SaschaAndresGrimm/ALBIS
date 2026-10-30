@@ -73,4 +73,5 @@ and their docstring says what broke, or would, without them.
   and `services/log_safety.py`, each with its test.
 
 Do not take `app.py`'s size as licence: it is the composition root, and new
-logic belongs in a service.
+logic belongs in a service. `tests/test_code_size_guard.py` fails when a
+module over 1,000 lines gets longer, or a new one passes 1,000.
