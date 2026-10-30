@@ -21,6 +21,8 @@ import path from "node:path";
  *
  * When one of these fails because you made a file shorter or removed a fetch,
  * lower its baseline to the new number in the same change, so the gain stays.
+ * A line baseline may go up only when nothing smaller will do, with the reason
+ * in the pull request; a fetch baseline never does.
  */
 
 const ROOT = process.cwd();
