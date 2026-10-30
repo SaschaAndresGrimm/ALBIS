@@ -62,7 +62,23 @@ Look for: clipped or wrapping text, misaligned controls, a surface that lost
 its frosting or opacity, a focus ring missing, more than one primary button,
 a colour that is not from the tokens.
 
-## 4. Clean up and report
+## 4. The user guide's pictures
+
+If the change alters something a picture in `docs/USER_GUIDE.md` shows, make
+that picture again and commit it with the change, or the guide shows the old
+interface:
+
+```bash
+npm run guide:screenshots -- --only roi,histogram   # scene names, by prefix
+```
+
+It starts its own ALBIS and needs no server running. The scenes are listed in
+`scripts/guide_screenshots.mjs`; `git status docs/images/user-guide` shows
+which pictures changed. Look at each one, as in step 3. A new picture in the
+guide is a new scene there; see `docs/UI_GUIDE.md`, "The user guide's
+pictures".
+
+## 5. Clean up and report
 
 Stop every server you started (`jobs`, then `kill`). Attach the before and
 after pairs that show the change to the pull request, and name the browsers
