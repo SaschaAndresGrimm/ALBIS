@@ -3,27 +3,28 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * Two ratchets on the shape of the frontend code, in the manner of
- * style_guard.test.js: what is there may stay, but it may not grow, and
- * nothing new may start out the same way.
+ * Two checks on the shape of the frontend code. File length is a ratchet, in
+ * the manner of style_guard.test.js: what is there may stay, but it may not
+ * grow, and nothing new may start out the same way. Direct fetch is a rule.
  *
  * File length. frontend/AGENTS.md says not to copy app.js's size, and the
  * composition root kept growing anyway, to 5,659 lines by 0.38.1, with
  * style.css at 9,241 until it was split into frontend/styles/. A file that
  * size cannot be read whole -- by a person scrolling or by a coding agent
  * with a context window -- so changes land where the reader happened to
- * look, and the file grows again. A new file
- * stays under MAX_LINES; one already over it may not get longer.
+ * look, and the file grows again. A new file stays under MAX_LINES; one
+ * already over it may not get longer.
  *
- * Direct fetch. http.js's fetchJSON / fetchJSONWithInit turn a failed request
- * into a translated message; a bare fetch() shows the user whatever the
- * browser says, in English. 24 modules called fetch() directly, and new
- * code copies its neighbours.
+ * Direct fetch. http.js's helpers turn a failed request into a translated
+ * message; a bare fetch() shows the user whatever the browser says, in
+ * English. 24 modules called fetch() directly until they were moved onto
+ * http.js, and new code copies its neighbours, so no module but http.js and
+ * i18n.js may.
  *
- * When one of these fails because you made a file shorter or removed a fetch,
- * lower its baseline to the new number in the same change, so the gain stays.
- * A line baseline may go up only when nothing smaller will do, with the reason
- * in the pull request; a fetch baseline never does.
+ * When the line check fails because you made a file shorter, lower its
+ * baseline to the new number in the same change, so the gain stays. A line
+ * baseline may go up only when nothing smaller will do, with the reason in
+ * the pull request.
  */
 
 const ROOT = process.cwd();
@@ -34,19 +35,16 @@ const LINE_BASELINE = {
   "frontend/app.js": 5466,
   // +17 in the stylesheet split: one <link> per part in frontend/styles/.
   "frontend/index.html": 2600,
-  "frontend/modules/detector_control_controller.js": 2903,
+  "frontend/modules/detector_control_controller.js": 2901,
   "frontend/modules/file_browser.js": 1676,
-  "frontend/modules/pixel_mask_controller.js": 1063,
+  "frontend/modules/pixel_mask_controller.js": 1059,
   "frontend/modules/roi_stats_controller.js": 1263,
 };
 
-// Direct fetch() calls per file. http.js is where they belong; i18n.js loads
-// the locale files before any translated message exists to show.
+// The only modules that call fetch() themselves: http.js, which every other
+// call goes through, and i18n.js, which loads the locale files before any
+// translated message exists to show.
 const FETCH_ALLOWED = new Set(["frontend/modules/http.js", "frontend/modules/i18n.js"]);
-const FETCH_BASELINE = {
-  "frontend/modules/detector_control_controller.js": 1,
-  "frontend/modules/pixel_mask_controller.js": 1,
-};
 
 function sourceFiles() {
   const modules = fs
@@ -100,15 +98,13 @@ describe("code size guard: no file grows past what it is", () => {
 
 describe("code size guard: backend calls go through http.js", () => {
   it.each(sourceFiles().filter((file) => file.endsWith(".js") && !FETCH_ALLOWED.has(file)))(
-    "%s adds no direct fetch() calls",
+    "%s calls fetch() only through http.js",
     (file) => {
-      const count = directFetchCount(file);
-      const baseline = FETCH_BASELINE[file] ?? 0;
       expect(
-        count,
-        `${file} calls fetch() ${count} time(s), baseline ${baseline}. Use fetchJSON / fetchJSONWithInit from modules/http.js; ` +
-          "for a response that is not JSON, add a helper there. If you removed calls, lower FETCH_BASELINE.",
-      ).toBe(baseline);
+        directFetchCount(file),
+        `${file} calls fetch() directly. Use fetchJSON / fetchJSONWithInit, or fetchResponse for bytes, headers ` +
+          "or a 204, from modules/http.js.",
+      ).toBe(0);
     },
   );
 });

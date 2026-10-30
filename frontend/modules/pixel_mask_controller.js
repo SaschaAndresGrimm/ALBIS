@@ -799,22 +799,18 @@ export function createPixelMaskController({
       return;
     }
     try {
-      const res = await fetch(`${apiBase}/pixel-mask/detector`, {
-        method: "POST",
-        body: maskForm(
-          { url: connection.url, version: connection.version, serial: connection.serial || hostOf(connection.url) },
-          mask,
-        ),
-      });
-      let body = null;
+      let body;
       try {
-        body = await res.json();
-      } catch {
-        body = null;
-      }
-      if (!res.ok) {
-        const detail = body?.detail;
-        throw new Error(typeof detail === "string" ? detail : detail?.summary || `HTTP ${res.status}`);
+        body = await fetchJSONWithInit(`${apiBase}/pixel-mask/detector`, {
+          method: "POST",
+          body: maskForm(
+            { url: connection.url, version: connection.version, serial: connection.serial || hostOf(connection.url) },
+            mask,
+          ),
+        });
+      } catch (err) {
+        if (!(err?.status >= 400)) throw err;
+        throw new Error(failureReason(err));
       }
       detectorSeen.set(connection.url, { masked: body.masked, at: Date.now() });
       if (staleCopy && pinned?.detectorHost === hostOf(connection.url)) unpin();

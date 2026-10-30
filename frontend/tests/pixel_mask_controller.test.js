@@ -299,6 +299,26 @@ describe("pixel mask on the Detector tab", () => {
     expect(elements.detBackupText.textContent).toContain("pixel_mask.detector.backup");
   });
 
+  it("says why the detector refused the mask, with the server's summary", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi.fn(async (url, init = {}) => {
+      if (url.startsWith("/api/pixel-mask/detector") && (init.method || "GET") === "GET") return maskResponse([0, 0], [1, 2]);
+      if (url === "/api/pixel-mask/detector" && init.method === "POST") {
+        return jsonResponse({ detail: { code: "write_failed", summary: "the detector is armed" } }, 409);
+      }
+      throw new Error(`unexpected ${init.method || "GET"} ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    showConfirmDialogMock.mockResolvedValue(true);
+    const { controller, callbacks } = setup({ detector, state: { maskRaw: new Uint32Array([1, 0]), maskShape: [1, 2] } });
+    controller.setEnabled(true);
+    await controller.sendCurrent();
+    const [message, options] = callbacks.setStatus.mock.calls.at(-1);
+    expect(message).toContain("pixel_mask.detector.status.send_failed");
+    expect(message).toContain("the detector is armed");
+    expect(options).toEqual({ tone: "error" });
+  });
+
   it("sends nothing when the question is declined", async () => {
     const fetchMock = detectorFetch({ onDetector: () => maskResponse([0, 0], [1, 2]) });
     vi.stubGlobal("fetch", fetchMock);
