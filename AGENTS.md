@@ -31,17 +31,27 @@ npm run ui:snapshots -- --out /tmp/albis-ui
 - Releases happen only when the maintainer asks (`.claude/skills/release/`,
   [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)).
 
-## Code
+## Per area
 
-- **Frontend layers**: state → pure helpers (`*_utils`, `*_engine`: no DOM,
-  no state) → controllers (own a domain) → bindings (listeners only) →
-  `app.js` (composition root). Dependencies come in by callback injection;
-  only `t()`, `notify*` and `dialogs` are imported singletons. See
-  [DEVELOPER_GUIDE.md › Frontend Mental Model](docs/DEVELOPER_GUIDE.md#frontend-mental-model-for-new-contributors)
-  and the worked example after it.
-- **Backend**: routes stay thin; logic lives in `backend/services/`. Resolve
-  every user-supplied path through `PathPolicy` (`services/path_policy.py`) —
-  never join or open a request path directly.
+Each area has its own notes, with a "where does it go" table and files worth
+copying. Read the one for where you are working:
+
+- [backend/AGENTS.md](backend/AGENTS.md) — routes, services, config keys,
+  file formats, errors, logging, path confinement.
+- [frontend/AGENTS.md](frontend/AGENTS.md) — the layers, wiring, backend
+  calls, tests; with [docs/UI_GUIDE.md](docs/UI_GUIDE.md) for the interface.
+- [docs/AGENTS.md](docs/AGENTS.md) — which document is for whom, what to
+  update when, the house style for prose and comments.
+- [docs/decisions/](docs/decisions/README.md) — why deliberate choices were
+  made (no frontend framework, black, `PathPolicy`, drawn controls). Read the
+  record before changing one of them.
+
+The rules that cut across all of them:
+
+- **Backend**: routes stay thin, logic in `backend/services/`, every
+  user-supplied path through `PathPolicy`.
+- **Frontend**: state → pure helpers → controllers → bindings → `app.js`;
+  eslint keeps the pure helpers free of the DOM and of the layers above.
 - **HTTP API**: a change to an endpoint updates
   [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md) and `tests/test_api_contracts.py`.
 - **Network and privacy**: ALBIS has no telemetry and loads nothing from a

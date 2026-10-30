@@ -34,7 +34,8 @@ Before opening a pull request, `npm run check` runs every gate CI runs.
 - Release process checklist: `docs/RELEASE_CHECKLIST.md`
 - Translation review guide: `docs/I18N_REVIEW_GUIDE.md`
 - UI guide (tokens, controls, dialogs, checking a change): `docs/UI_GUIDE.md`
-- Notes for coding agents: `AGENTS.md`
+- Notes for coding agents: `AGENTS.md`, with one per area in `backend/`, `frontend/` and `docs/`
+- Decision records (why things are the way they are): `docs/decisions/`
 
 ## How to help
 
