@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-10-30
+
 ### Added
 
 - **The User Guide starts with a walk-through and has pictures.** **Getting started** takes a newcomer from opening a file to saving a picture in eight steps, on ten images of an insulin crystal from the ALBIS repository, and names the parts of the window on an annotated picture. Every section shows the controls it describes; the sections are grouped into everyday tasks, specialised tools and reference, task sections open with their steps in short, and the detail only some readers need, such as what an exported header keeps, folds away. A glossary explains the terms the guide uses, from BG and FG to threshold. Until now the guide named buttons and panels it never showed, which left a first-time reader searching the screen for them.
@@ -1784,7 +1786,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.0...HEAD
+[0.38.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.1...v0.37.0
 [0.36.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.0...v0.36.1
 [0.36.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.35.0...v0.36.0
