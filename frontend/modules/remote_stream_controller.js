@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { fetchResponse } from "./http.js";
 
 export function createRemoteStreamController({
   apiBase,
@@ -64,14 +65,16 @@ export function createRemoteStreamController({
       params.set("seq", String(Math.round(seq)));
     }
     try {
-      const res = await fetch(`${apiBase}/remote/v1/meta?${params.toString()}`, { cache: "no-store" });
-      if (res.status === 204 || res.status === 409 || !res.ok) return null;
+      const res = await fetchResponse(`${apiBase}/remote/v1/meta?${params.toString()}`, { cache: "no-store" });
+      if (res.status === 204) return null;
       const payload = await res.json();
       if (!payload || typeof payload !== "object") return null;
       const normalized = normalizePeakSets(payload);
       return { payload, normalized };
     } catch (err) {
-      console.warn(err);
+      // An HTTP answer (409: the frame is gone already) is routine while
+      // polling; only a failure to ask is worth a warning.
+      if (!(err?.status >= 400)) console.warn(err);
       return null;
     }
   }
@@ -100,16 +103,19 @@ export function createRemoteStreamController({
     if (state.autoload.lastJfjochSeq > 0) {
       params.set("after_seq", String(state.autoload.lastJfjochSeq));
     }
-    const res = await fetch(`${apiBase}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
-    if (res.status === 204) {
+    let res;
+    try {
+      res = await fetchResponse(`${apiBase}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
+    } catch (err) {
+      if (!(err?.status >= 400)) throw err;
       await fetchJfjochPreviewStatus();
-      setAutoloadStatus(t("autoload.status.jfjoch.waiting"));
+      setAutoloadStatus(t("autoload.status.jfjoch.error"));
       updateLiveBadge();
       return;
     }
-    if (!res.ok) {
+    if (res.status === 204) {
       await fetchJfjochPreviewStatus();
-      setAutoloadStatus(t("autoload.status.jfjoch.error"));
+      setAutoloadStatus(t("autoload.status.jfjoch.waiting"));
       updateLiveBadge();
       return;
     }
@@ -216,14 +222,17 @@ export function createRemoteStreamController({
     if (state.autoload.lastRemoteSeq > 0) {
       params.set("after_seq", String(state.autoload.lastRemoteSeq));
     }
-    const res = await fetch(`${apiBase}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
-    if (res.status === 204) {
-      setAutoloadStatus(t("autoload.status.remote.waiting"));
+    let res;
+    try {
+      res = await fetchResponse(`${apiBase}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
+    } catch (err) {
+      if (!(err?.status >= 400)) throw err;
+      setAutoloadStatus(t("autoload.status.remote.error"));
       updateLiveBadge();
       return;
     }
-    if (!res.ok) {
-      setAutoloadStatus(t("autoload.status.remote.error"));
+    if (res.status === 204) {
+      setAutoloadStatus(t("autoload.status.remote.waiting"));
       updateLiveBadge();
       return;
     }

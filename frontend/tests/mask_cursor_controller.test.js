@@ -323,6 +323,28 @@ describe("mask_cursor_controller mask request races", () => {
     return { state, controller, release, fetchMock };
   }
 
+  it("switches the mask off for a file without one, and logs only a failure to ask", async () => {
+    // A 404 is the server saying "no mask in this file", routine for many
+    // files; logging it would fill the backend log (console.error goes there).
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { state, controller } = setup();
+    state.maskEnabled = true;
+    global.fetch = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({ detail: "no mask" }) }));
+    await controller.loadMask();
+    expect(state.maskEnabled).toBe(false);
+    expect(state.maskAvailable).toBe(false);
+    expect(logged).not.toHaveBeenCalled();
+
+    state.maskFile = "";
+    global.fetch = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await controller.loadMask();
+    expect(state.maskAvailable).toBe(false);
+    expect(logged).toHaveBeenCalled();
+  });
+
   it("ignores a mask that arrives after the file has changed", async () => {
     const { state, controller, release } = setup();
 

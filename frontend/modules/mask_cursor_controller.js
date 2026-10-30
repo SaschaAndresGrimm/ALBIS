@@ -3,7 +3,7 @@
  */
 
 import { t } from "./i18n.js";
-import { readHeaderText } from "./http.js";
+import { fetchResponse, readHeaderText } from "./http.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
 
 export function createMaskCursorController({
@@ -299,13 +299,8 @@ export function createMaskCursorController({
     updateMaskUI();
     try {
       const thresholdParam = hasThresholdDimension ? `&threshold=${state.thresholdIndex}` : "";
-      const res = await fetch(`${apiBase}/mask?file=${encodeURIComponent(requestFile)}${thresholdParam}`);
+      const res = await fetchResponse(`${apiBase}/mask?file=${encodeURIComponent(requestFile)}${thresholdParam}`);
       if (requestId !== maskRequestId) return;
-      if (!res.ok) {
-        state.maskEnabled = false;
-        updateMaskUI();
-        return;
-      }
       const buffer = await res.arrayBuffer();
       if (requestId !== maskRequestId) return;
       const dtype = parseDtype(res.headers.get("X-Dtype"));
@@ -323,7 +318,9 @@ export function createMaskCursorController({
       }
     } catch (err) {
       if (requestId !== maskRequestId) return;
-      console.error(err);
+      // A file without a mask answers 404, which is routine; only a failure
+      // to ask is worth logging.
+      if (!(err?.status >= 400)) console.error(err);
       state.maskEnabled = false;
       state.maskAvailable = false;
       updateMaskUI();
@@ -475,14 +472,10 @@ export function createMaskCursorController({
     if (!baseUrl) return;
     const version = simplonVersion?.value?.trim() || "1.8.0";
     try {
-      const res = await fetch(
+      const res = await fetchResponse(
         `${apiBase}/simplon/mask?url=${encodeURIComponent(baseUrl)}&version=${encodeURIComponent(version)}`,
       );
       if (res.status === 204) {
-        return;
-      }
-      if (!res.ok) {
-        setAutoloadStatus(t("status.autoload.simplon_mask_unavailable"));
         return;
       }
       const buffer = await res.arrayBuffer();
@@ -501,6 +494,11 @@ export function createMaskCursorController({
         scheduleRoiUpdate();
       }
     } catch (err) {
+      // The detector answering without a mask is not ALBIS failing.
+      if (err?.status >= 400) {
+        setAutoloadStatus(t("status.autoload.simplon_mask_unavailable"));
+        return;
+      }
       console.error(err);
       setAutoloadStatus(t("status.autoload.simplon_mask_failed"));
     }
