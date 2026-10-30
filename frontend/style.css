@@ -6226,13 +6226,20 @@ input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch inp
   gap: 12px;
 }
 
+/* What is being exported: a line under the title, not a box -- boxed, it
+   read as a field to type in. */
 .data-export-source {
-  min-height: 24px;
-  padding: 6px 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: rgba(12, 18, 27, 0.54);
-  color: var(--muted-strong);
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* What the export will give, in the footer beside the button that makes it. */
+.data-export-summary {
+  margin-right: auto;
+  align-self: center;
+  min-width: 0;
+  color: var(--muted);
   font-size: var(--font-size-sm);
   overflow-wrap: anywhere;
 }
