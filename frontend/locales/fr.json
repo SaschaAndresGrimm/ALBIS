@@ -68,7 +68,7 @@
   "animation_export.frames.range": "Plage",
   "animation_export.loop": "Boucle infinie",
   "animation_export.overlays": "Inclure les calques",
-  "animation_export.overlays.unavailable": "Rien à superposer — activez d'abord les anneaux de résolution ou le détecteur de taches.",
+  "animation_export.overlays.unavailable": "Rien à superposer — activez d'abord les Anneaux de résolution ou la Recherche de pics.",
   "animation_export.progress.done": "Terminé",
   "animation_export.progress.encoding": "Encodage...",
   "animation_export.progress.idle": "Inactif",

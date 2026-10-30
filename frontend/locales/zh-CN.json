@@ -68,7 +68,7 @@
   "animation_export.frames.range": "范围",
   "animation_export.loop": "无限循环",
   "animation_export.overlays": "包含叠加层",
-  "animation_export.overlays.unavailable": "没有可叠加的内容 — 请先启用分辨率环或斑点查找器。",
+  "animation_export.overlays.unavailable": "没有可叠加的内容 — 请先启用分辨率环或峰值查找。",
   "animation_export.progress.done": "完成",
   "animation_export.progress.encoding": "正在编码...",
   "animation_export.progress.idle": "空闲",

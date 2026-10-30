@@ -68,7 +68,7 @@
   "animation_export.frames.range": "Intervallo",
   "animation_export.loop": "Ripeti all'infinito",
   "animation_export.overlays": "Includi sovrapposizioni",
-  "animation_export.overlays.unavailable": "Niente da sovrapporre — attiva prima gli anelli di risoluzione o il rilevatore di spot.",
+  "animation_export.overlays.unavailable": "Niente da sovrapporre — attiva prima gli Anelli di risoluzione o la Ricerca picchi.",
   "animation_export.progress.done": "Completato",
   "animation_export.progress.encoding": "Codifica...",
   "animation_export.progress.idle": "Inattivo",

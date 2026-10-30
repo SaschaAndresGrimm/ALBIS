@@ -68,7 +68,7 @@
   "animation_export.frames.range": "Range",
   "animation_export.loop": "Loop forever",
   "animation_export.overlays": "Include overlays",
-  "animation_export.overlays.unavailable": "Nothing to overlay — switch on resolution rings or the spot finder first.",
+  "animation_export.overlays.unavailable": "Nothing to overlay — switch on Resolution Rings or the Peak Finder first.",
   "animation_export.progress.done": "Done",
   "animation_export.progress.encoding": "Encoding…",
   "animation_export.progress.idle": "Idle",

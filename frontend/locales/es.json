@@ -68,7 +68,7 @@
   "animation_export.frames.range": "Rango",
   "animation_export.loop": "Bucle infinito",
   "animation_export.overlays": "Incluir superposiciones",
-  "animation_export.overlays.unavailable": "Nada que superponer: activa primero los anillos de resolución o el buscador de picos.",
+  "animation_export.overlays.unavailable": "Nada que superponer: activa primero los Anillos de resolución o la Búsqueda de picos.",
   "animation_export.progress.done": "Listo",
   "animation_export.progress.encoding": "Codificando...",
   "animation_export.progress.idle": "Inactivo",
