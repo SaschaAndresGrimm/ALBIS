@@ -32,6 +32,7 @@ import {
   regionView,
 } from "./overlay_painters.js";
 import { currentMaskColors } from "./mask_colors.js";
+import { fetchResponse } from "./http.js";
 
 // Number of colormap colours reserved in the GIF global colour table. Three
 // further slots carry the mask (black + flagged blue) and saturation highlight
@@ -468,8 +469,7 @@ export function createAnimationExportController({
   async function fetchFrame(frameNumber, signal) {
     const url = frameUrl(frameNumber);
     if (!url) return null;
-    const res = await fetch(url, { signal, cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetchResponse(url, { signal, cache: "no-store" });
     const buffer = await res.arrayBuffer();
     const dtype = parseDtype(res.headers.get("X-Dtype"));
     const shape = parseShape(res.headers.get("X-Shape"));

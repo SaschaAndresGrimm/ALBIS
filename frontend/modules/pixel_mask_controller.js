@@ -31,6 +31,7 @@ import { getLanguage, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
 import { countEdits } from "./pixel_mask_edit.js";
 import { addFound, findBadPixels } from "./pixel_mask_find.js";
+import { fetchJSONWithInit, fetchResponse } from "./http.js";
 
 const GAP_BIT = 0x1;
 const DEFECTIVE_BITS = 0x1e;
@@ -555,16 +556,21 @@ export function createPixelMaskController({
 
   // ---- talking to the backend -----------------------------------------------
 
-  async function readMaskResponse(res) {
-    if (!res.ok) {
-      let detail = "";
-      try {
-        detail = (await res.json())?.detail || "";
-      } catch {
-        detail = "";
-      }
-      const error = new Error(typeof detail === "string" ? detail : detail?.summary || `HTTP ${res.status}`);
-      error.status = res.status;
+  // The server's reason for a failed request: its sentence, or the summary of a
+  // structured one, else http.js's translated message.
+  function failureReason(err) {
+    const summary = err?.detailData?.summary;
+    return typeof summary === "string" && summary ? summary : err?.detail || err?.message || "";
+  }
+
+  async function readMask(url) {
+    let res;
+    try {
+      res = await fetchResponse(url);
+    } catch (err) {
+      if (!(err?.status >= 400)) throw err;
+      const error = new Error(failureReason(err));
+      error.status = err.status;
       throw error;
     }
     const shape = String(res.headers.get("X-Shape") || "")
@@ -584,12 +590,12 @@ export function createPixelMaskController({
   }
 
   async function readFileMask(path) {
-    return readMaskResponse(await fetch(`${apiBase}/pixel-mask/file?file=${encodeURIComponent(path)}`));
+    return readMask(`${apiBase}/pixel-mask/file?file=${encodeURIComponent(path)}`);
   }
 
   async function readDetectorMask(connection) {
     const query = `url=${encodeURIComponent(connection.url)}&version=${encodeURIComponent(connection.version)}`;
-    return readMaskResponse(await fetch(`${apiBase}/pixel-mask/detector?${query}`));
+    return readMask(`${apiBase}/pixel-mask/detector?${query}`);
   }
 
   async function withBusy(task) {
@@ -611,11 +617,10 @@ export function createPixelMaskController({
     if (!mask) return Promise.resolve();
     return withBusy(async () => {
       try {
-        const res = await fetch(`${apiBase}/pixel-mask/encode`, {
+        const res = await fetchResponse(`${apiBase}/pixel-mask/encode`, {
           method: "POST",
           body: maskForm({ format, name: mask.name }, mask),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const name = filenameFrom(res.headers.get("Content-Disposition"), `${mask.name}.${format}`);
         const link = document.createElement("a");
@@ -683,19 +688,11 @@ export function createPixelMaskController({
         const form = new FormData();
         const serial = connection.serial || hostOf(connection.url);
         form.append("meta", JSON.stringify({ url: connection.url, version: connection.version, serial }));
-        const res = await fetch(`${apiBase}/pixel-mask/detector/copy`, { method: "POST", body: form });
-        try {
-          body = await res.json();
-        } catch {
-          body = null;
-        }
-        if (!res.ok || !body?.path) {
-          const detail = body?.detail;
-          throw new Error(typeof detail === "string" ? detail : detail?.summary || `HTTP ${res.status}`);
-        }
+        body = await fetchJSONWithInit(`${apiBase}/pixel-mask/detector/copy`, { method: "POST", body: form });
+        if (!body?.path) throw new Error(t("http.error.generic"));
       } catch (err) {
         console.error(err);
-        setStatus?.(t("pixel_mask.detector.status.read_failed", { reason: err.message || "" }), { tone: "error" });
+        setStatus?.(t("pixel_mask.detector.status.read_failed", { reason: failureReason(err) }), { tone: "error" });
         return;
       }
       detectorSeen.set(connection.url, { masked: body.masked, at: Date.now() });

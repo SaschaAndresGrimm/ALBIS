@@ -13,6 +13,7 @@
 
 import { showConfirmDialog as defaultConfirm } from "./dialogs.js";
 import { t } from "./i18n.js";
+import { fetchResponse } from "./http.js";
 
 export function createQuitController({ apiBase, state, elements, callbacks }) {
   const { menuItem } = elements;
@@ -53,7 +54,7 @@ export function createQuitController({ apiBase, state, elements, callbacks }) {
   }
 
   async function send(force) {
-    return fetch(`${apiBase}/quit`, {
+    return fetchResponse(`${apiBase}/quit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ force }),
@@ -66,15 +67,15 @@ export function createQuitController({ apiBase, state, elements, callbacks }) {
     const local = collectBusyWork().filter(Boolean);
     if (local.length && !(await confirmBusy(local))) return false;
     try {
-      let res = await send(local.length > 0);
-      if (res.status === 409) {
+      try {
+        await send(local.length > 0);
+      } catch (err) {
+        if (err?.status !== 409) throw err;
         // The server's own work (a series sum, a conversion from another tab).
-        const detail = (await res.json().catch(() => null))?.detail;
-        const busy = Array.isArray(detail?.busy) ? detail.busy : ["unknown"];
+        const busy = Array.isArray(err.detailData?.busy) ? err.detailData.busy : ["unknown"];
         if (!(await confirmBusy(busy))) return false;
-        res = await send(true);
+        await send(true);
       }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       stopping = true;
       showStopped();
       return true;

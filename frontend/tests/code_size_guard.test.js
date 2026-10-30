@@ -36,7 +36,7 @@ const LINE_BASELINE = {
   "frontend/index.html": 2600,
   "frontend/modules/detector_control_controller.js": 2903,
   "frontend/modules/file_browser.js": 1676,
-  "frontend/modules/pixel_mask_controller.js": 1066,
+  "frontend/modules/pixel_mask_controller.js": 1063,
   "frontend/modules/roi_stats_controller.js": 1263,
 };
 
@@ -44,15 +44,8 @@ const LINE_BASELINE = {
 // the locale files before any translated message exists to show.
 const FETCH_ALLOWED = new Set(["frontend/modules/http.js", "frontend/modules/i18n.js"]);
 const FETCH_BASELINE = {
-  "frontend/modules/animation_export_controller.js": 1,
-  "frontend/modules/autoload_mode_controller.js": 1,
   "frontend/modules/detector_control_controller.js": 1,
-  "frontend/modules/file_data_pipeline_controller.js": 3,
-  "frontend/modules/flatfield_controller.js": 2,
-  "frontend/modules/mask_cursor_controller.js": 2,
-  "frontend/modules/pixel_mask_controller.js": 5,
-  "frontend/modules/quit_controller.js": 1,
-  "frontend/modules/remote_stream_controller.js": 3,
+  "frontend/modules/pixel_mask_controller.js": 1,
 };
 
 function sourceFiles() {

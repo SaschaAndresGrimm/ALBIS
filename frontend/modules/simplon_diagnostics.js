@@ -52,23 +52,16 @@ export function describeSimplonFailure(diagnosis) {
 }
 
 /**
- * Pull the diagnosis out of a failed ALBIS API response body.
+ * Pull the diagnosis out of a failed ALBIS API request.
  *
- * FastAPI wraps our classified payload in `detail`; a plain-string detail (or a
- * non-JSON body from a proxy) yields null so callers fall back to generic text.
+ * FastAPI wraps our classified payload in `detail`, which http.js keeps on the
+ * error as `detailData`; a plain-string detail (or a non-JSON body from a
+ * proxy) yields null so callers fall back to generic text.
  *
- * @param {Response} response Failed `fetch` response.
- * @returns {Promise<object|null>} Diagnosis payload, or null when absent.
+ * @param {Error} err The error fetchResponse / fetchJSON threw.
+ * @returns {object|null} Diagnosis payload, or null when absent.
  */
-export async function readSimplonFailure(response) {
-  try {
-    const payload = await response.json();
-    const detail = payload?.detail;
-    if (detail && typeof detail === "object" && detail.code) {
-      return detail;
-    }
-  } catch {
-    // Non-JSON or empty body — fall back to generic wording.
-  }
-  return null;
+export function simplonFailureOf(err) {
+  const detail = err?.detailData;
+  return detail && typeof detail === "object" && detail.code ? detail : null;
 }

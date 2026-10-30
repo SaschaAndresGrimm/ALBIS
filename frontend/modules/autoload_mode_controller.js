@@ -3,7 +3,7 @@
  */
 
 import { t } from "./i18n.js";
-import { describeSimplonFailure, readSimplonFailure } from "./simplon_diagnostics.js";
+import { describeSimplonFailure, simplonFailureOf } from "./simplon_diagnostics.js";
 import { hashBuffer } from "./buffer_hash.js";
 import { fetchResponse } from "./http.js";
 
@@ -169,16 +169,14 @@ export function createAutoloadModeController({
     const url = `${apiBase}/simplon/monitor?url=${encodeURIComponent(baseUrl)}&version=${encodeURIComponent(
       version
     )}&timeout=${encodeURIComponent(timeout)}&enable=${enable}`;
-    const res = await fetch(url);
-    if (res.status === 204) {
-      setAutoloadStatus(t("autoload.status.simplon.no_frame"));
-      updateLiveBadge();
-      return;
-    }
-    if (!res.ok) {
+    let res;
+    try {
+      res = await fetchResponse(url);
+    } catch (err) {
+      if (!(err?.status >= 400)) throw err;
       // Report the classified reason (wrong port, unknown host, wrong API
       // version) rather than a status line that says only "error".
-      const diagnosis = await readSimplonFailure(res);
+      const diagnosis = simplonFailureOf(err);
       if (diagnosis) {
         const reason = describeSimplonFailure({ api_version: version, ...diagnosis });
         setAutoloadStatus(t("autoload.status.simplon.error_reason", { reason }));
@@ -189,6 +187,11 @@ export function createAutoloadModeController({
       } else {
         setAutoloadStatus(t("autoload.status.simplon.error"));
       }
+      updateLiveBadge();
+      return;
+    }
+    if (res.status === 204) {
+      setAutoloadStatus(t("autoload.status.simplon.no_frame"));
       updateLiveBadge();
       return;
     }

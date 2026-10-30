@@ -14,6 +14,7 @@ import { t } from "./i18n.js";
 import { flatFits, normalizeFlatScale, prepareFlat } from "./flatfield.js";
 import { DATA_DEFECTIVE_VALUE, DATA_GAP_VALUE, usesInDataPixelFlags } from "./roi_stats_engine.js";
 import { chooseNativePath } from "./native_picker.js";
+import { fetchJSONWithInit, fetchResponse } from "./http.js";
 
 function fileName(path) {
   return String(path || "").split(/[\\/]/).pop();
@@ -140,9 +141,7 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
       const form = new FormData();
       form.append("meta", JSON.stringify({ dtype: state.dtype, shape: [state.height, state.width] }));
       form.append("pixels", new Blob([new Uint8Array(data.buffer, data.byteOffset, data.byteLength)]), "flat.bin");
-      const res = await fetch(`${apiBase}/flatfield/save`, { method: "POST", body: form });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { path } = await res.json();
+      const { path } = await fetchJSONWithInit(`${apiBase}/flatfield/save`, { method: "POST", body: form });
       const prepared = prepareFlat(data, state.width, state.height);
       if (!prepared) {
         setStatus(t("flatfield.status.unusable"), { tone: "warning" });
@@ -160,8 +159,7 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
 
   /** Read a TIFF or CBF from the server and divide by it from now on. */
   async function loadFlat(path) {
-    const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(path)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetchResponse(`${apiBase}/image?file=${encodeURIComponent(path)}`);
     const dtype = parseDtype(res.headers.get("X-Dtype"));
     const [height, width] = parseShape(res.headers.get("X-Shape"));
     const data = typedArrayFrom(await res.arrayBuffer(), dtype);

@@ -6,6 +6,7 @@ import { t } from "./i18n.js";
 import { getGeometryScopeKey } from "./geometry_override_utils.js";
 import { createFrameCache } from "./frame_cache.js";
 import { createTransientFrameLoadState } from "./transient_frame_load_state.js";
+import { fetchResponse } from "./http.js";
 
 // Generous ceiling for a single binary frame/image transfer. Long enough not to
 // trip on large frames over a slow link, short enough that a hung connection no
@@ -223,11 +224,7 @@ export function createFileDataPipelineController({
     setStatus(t("status.data.loading_image"));
     const geometryPromise = loadImageGeometry(file, getGeometryScopeKey(state, file));
     try {
-      const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`);
-      if (!res.ok) {
-        setStatus(t("status.data.failed_load_image"), { tone: "error" });
-        return false;
-      }
+      const res = await fetchResponse(`${apiBase}/image?file=${encodeURIComponent(file)}`);
       const buffer = await res.arrayBuffer();
       const dtype = parseDtype(res.headers.get("X-Dtype"));
       const shape = parseShape(res.headers.get("X-Shape"));
@@ -361,17 +358,10 @@ export function createFileDataPipelineController({
     const geometryScopeKey = getGeometryScopeKey(state, file);
     const geometryPromise = loadImageGeometry(state.file || file, geometryScopeKey);
     try {
-      const res = await fetch(`${apiBase}/image?file=${encodeURIComponent(file)}`, {
+      const res = await fetchResponse(`${apiBase}/image?file=${encodeURIComponent(file)}`, {
         signal: requestController.signal,
         cache: "no-store",
       });
-      if (!res.ok) {
-        setStatus(t("status.data.failed_load_image"), { tone: "error" });
-        if (!state.hasFrame) {
-          showSplash();
-        }
-        return false;
-      }
       const buffer = await res.arrayBuffer();
       const dtype = parseDtype(res.headers.get("X-Dtype"));
       const shape = parseShape(res.headers.get("X-Shape"));
@@ -451,17 +441,10 @@ export function createFileDataPipelineController({
       requestController.abort();
     }, FRAME_LOAD_TIMEOUT_MS);
     try {
-      const res = await fetch(url, {
+      const res = await fetchResponse(url, {
         signal: requestController.signal,
         cache: "no-store",
       });
-      if (!res.ok) {
-        setStatus(t("status.data.failed_load_frame"), { tone: "error" });
-        if (!state.hasFrame) {
-          showSplash();
-        }
-        return false;
-      }
       const buffer = await res.arrayBuffer();
       const dtype = parseDtype(res.headers.get("X-Dtype"));
       const shape = parseShape(res.headers.get("X-Shape"));
