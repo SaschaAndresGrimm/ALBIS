@@ -9,6 +9,7 @@ Companion references:
 - [Code Map](CODE_MAP.md) — backend/frontend code navigation guide.
 - [API Contracts](API_CONTRACTS.md) — stable HTTP contract reference.
 - [UI Guide](UI_GUIDE.md) — design tokens, controls, dialog layout, and how to check a UI change.
+- [Decision records](decisions/README.md) — why deliberate choices were made; read before changing one.
 
 ## Prerequisites
 
