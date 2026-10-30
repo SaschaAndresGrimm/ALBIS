@@ -25,6 +25,7 @@ follows one house style, below.
 | You changed | Update |
 | --- | --- |
 | Anything a user can see or do | `CHANGELOG.md` under `## [Unreleased]`; the user guide if a control's behaviour or name changed. |
+| Something a picture in the user guide shows | Its picture: `npm run guide:screenshots -- --only <scene>` (see [UI_GUIDE.md](UI_GUIDE.md#the-user-guides-pictures)). |
 | A config key or environment variable | `POWER_USER_GUIDE.md` and `albis.config.schema.json` (tests enforce both). |
 | An endpoint | `API_CONTRACTS.md`. |
 | A file format | `README.md`'s format list and the in-app help (a test enforces it). |

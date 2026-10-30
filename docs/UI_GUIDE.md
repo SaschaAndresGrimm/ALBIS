@@ -209,6 +209,27 @@ uses the test files tracked in the repository, so it works on a fresh clone. Run
 change and compare. `--width 1100` shows the layout with the side panel
 collapsed.
 
+### The user guide's pictures
+
+The pictures in [USER_GUIDE.md](USER_GUIDE.md) are made, not taken:
+
+```bash
+npm run guide:screenshots                     # every picture
+npm run guide:screenshots -- --only roi,rings # those whose scene name starts so
+```
+
+`scripts/guide_screenshots.mjs` starts its own ALBIS, with a temporary config
+and a copy of the insulin series from `testdata/`, and a simulated detector;
+no server needs to be running, and your settings are not touched. Each
+picture is a scene that sets the interface up and crops to the part a section
+is about, written as WebP into `docs/images/user-guide/`.
+
+When a change alters something a picture shows, run the scenes for it and
+commit the new pictures with the change. A new picture is a new scene;
+`tests/test_user_guide_images.py` fails when the guide shows a picture that is
+missing or has no alt text, when a picture is shown nowhere, or when no scene
+makes it.
+
 ## Checklist
 
 - [ ] Colours, sizes, corners and borders come from `:root` tokens; any new
@@ -220,3 +241,5 @@ collapsed.
 - [ ] Every string translated in all 13 locales; every control has a name.
 - [ ] Keyboard: reachable with Tab, same focus ring, Esc closes.
 - [ ] `npm run check` passes; screenshots before/after attached, browser named.
+- [ ] The user guide's pictures of what changed are made again
+      (`npm run guide:screenshots -- --only …`).
