@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { fetchJSON, fetchResponse } from "./http.js";
 
 export function createJfjochBridgeController({
   apiBase,
@@ -27,12 +28,15 @@ export function createJfjochBridgeController({
       topic: state.autoload.jfjochTopic || "",
       channel: state.autoload.jfjochChannel || "",
     };
-    const res = await fetch(`${apiBase}/jfjoch/preview/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
+    let res;
+    try {
+      res = await fetchResponse(`${apiBase}/jfjoch/preview/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      if (!(err?.status >= 400)) throw err;
       setAutoloadStatus(t("autoload.status.jfjoch.bridge_start_failed"));
       return false;
     }
@@ -47,8 +51,7 @@ export function createJfjochBridgeController({
 
   async function stopJfjochPreviewBridge() {
     try {
-      const res = await fetch(`${apiBase}/jfjoch/preview/stop`, { method: "POST" });
-      if (!res.ok) return false;
+      const res = await fetchResponse(`${apiBase}/jfjoch/preview/stop`, { method: "POST" });
       const payload = await res.json().catch(() => ({}));
       state.autoload.jfjochStatus = { ...(state.autoload.jfjochStatus || {}), ...(payload || {}) };
       return true;
@@ -60,9 +63,7 @@ export function createJfjochBridgeController({
 
   async function fetchJfjochPreviewStatus() {
     try {
-      const res = await fetch(`${apiBase}/jfjoch/preview/status`, { cache: "no-store" });
-      if (!res.ok) return null;
-      const payload = await res.json();
+      const payload = await fetchJSON(`${apiBase}/jfjoch/preview/status`, { cache: "no-store" });
       if (!payload || typeof payload !== "object") return null;
       state.autoload.jfjochStatus = payload;
       updateJfjochMetaUI(state.autoload.jfjochMeta || {}, payload);

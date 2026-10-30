@@ -23,6 +23,7 @@
  */
 
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
+import { fetchJSONWithInit } from "./http.js";
 
 export const MAX_RECENT_DETECTORS = 8;
 export const MAX_KEPT_DETECTORS = 50;
@@ -211,13 +212,11 @@ export function createKnownDetectors({ apiBase = "/api" } = {}) {
   }
 
   async function call(method, path = "", body = undefined) {
-    const res = await fetch(`${apiBase}/known-detectors${path}`, {
+    const payload = await fetchJSONWithInit(`${apiBase}/known-detectors${path}`, {
       method,
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const payload = await res.json();
     return sanitizeDetectors(payload?.detectors);
   }
 

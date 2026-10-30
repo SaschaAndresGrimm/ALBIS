@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **When saving the known detectors or Settings fails, ALBIS says why, in your language.** The known-detectors list showed only `HTTP 500`, and a failed Settings save without a reason from the server showed `Save failed (500)`. Both now show the server's own reason when it gives one (a full disk, a value out of range), inside a translated message that says whether the server, the network or the request failed.
+
 ## [0.38.1] - 2026-10-30
 
 ### Fixed

@@ -7,6 +7,7 @@
 
 import { t } from "./i18n.js";
 import { CBF_EXTS, EDF_EXTS, HDF_EXTS, SERIES_IMAGE_EXTS, TIFF_EXTS } from "./file_type_utils.js";
+import { fetchJSON } from "./http.js";
 
 const DEFAULT_SORT = "name_asc";
 const DEFAULT_SERIES_MODE = "first_only";
@@ -1239,12 +1240,7 @@ export function createFileBrowserController({
       params.set("sort", state.sort);
       params.set("series_mode", state.seriesMode);
       const query = params.toString() ? `?${params.toString()}` : "";
-      const res = await fetch(`${apiBase}/browse${query}`);
-      if (!res.ok) {
-        console.error("Failed to browse directory:", res.status);
-        return null;
-      }
-      return await res.json();
+      return await fetchJSON(`${apiBase}/browse${query}`);
     } catch (err) {
       console.error("Browse directory error:", err);
       return null;
