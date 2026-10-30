@@ -11,7 +11,10 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 // saving drops it back to its default -- the 0.10.9 bug.
 describe("settings dialog wiring", () => {
   const html = read("index.html");
+  // app.js looks the elements index.html declares by id up in
+  // modules/app_elements.js; a few others are looked up in app.js itself.
   const app = read("app.js");
+  const elements = read("modules/app_elements.js");
   const controller = read("modules/settings_controller.js");
 
   const destructured = controller
@@ -25,7 +28,9 @@ describe("settings dialog wiring", () => {
   });
 
   it.each(destructured)("%s resolves to an element that exists in index.html", (name) => {
-    const byId = app.match(new RegExp(`const ${name} = document\\.getElementById\\("([^"]+)"\\)`));
+    const byId =
+      elements.match(new RegExp(`^ {4}${name}: byId\\("([^"]+)"\\)`, "m")) ||
+      app.match(new RegExp(`const ${name} = document\\.getElementById\\("([^"]+)"\\)`));
     if (byId) {
       expect(html, `id="${byId[1]}" is missing from index.html`).toContain(`id="${byId[1]}"`);
       return;
@@ -35,7 +40,7 @@ describe("settings dialog wiring", () => {
     const bySelector = app.match(
       new RegExp(`const ${name} = document\\.querySelector\\("\\.([^"]+)"\\)`),
     );
-    expect(bySelector, `${name} is never looked up in app.js`).not.toBeNull();
+    expect(bySelector, `${name} is never looked up in app.js or modules/app_elements.js`).not.toBeNull();
     expect(html, `class "${bySelector[1]}" is missing from index.html`).toContain(bySelector[1]);
   });
 

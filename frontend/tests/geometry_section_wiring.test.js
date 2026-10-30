@@ -10,10 +10,11 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 // can work in the tests and still be unreachable in the app if an id drifts.
 describe("Detector Geometry wiring", () => {
   const html = read("index.html");
-  const app = read("app.js");
-  const ids = [...app.matchAll(/document\.getElementById\("(geometry-[^"]+|detector-geometry-section|summary-geometry)"\)/g)].map(
-    (match) => match[1],
-  );
+  // app.js looks its elements up in modules/app_elements.js, by id.
+  const app = read("app.js") + read("modules/app_elements.js");
+  const ids = [
+    ...app.matchAll(/(?:document\.getElementById|byId)\("(geometry-[^"]+|detector-geometry-section|summary-geometry)"\)/g),
+  ].map((match) => match[1]);
 
   it("looks up the section's controls", () => {
     expect(ids.length).toBeGreaterThanOrEqual(18);

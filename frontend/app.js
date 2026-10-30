@@ -13,6 +13,7 @@
 import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
 import { PIXEL_LABEL_MIN_CELL_PX, pixelLabelResolver, pixelLabelsAreFloat } from "./modules/overlay_painters.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
+import { queryAppElements } from "./modules/app_elements.js";
 import { computeMedian, parseShape, toFloat32, typedArrayFrom } from "./modules/typed_array_utils.js";
 import { dirnameFromPath, formatEnergy, formatInspectorValue, formatRoiTick, formatStat, middleTruncate } from "./modules/format_utils.js";
 import {
@@ -161,274 +162,118 @@ if (isWindowsPlatform) {
   document.body?.classList.add("platform-linux");
 }
 
-const fileSelect = document.getElementById("file-select");
-const datasetSelect = document.getElementById("dataset-select");
-const fileField = document.getElementById("file-field");
-const datasetField = document.getElementById("dataset-field");
-const thresholdField = document.getElementById("threshold-field");
-const thresholdSelect = document.getElementById("threshold-select");
-const toolbarThresholdWrap = document.getElementById("toolbar-threshold-wrap");
-const toolbarThresholdSelect = document.getElementById("toolbar-threshold");
-const toolbarFrameWrap = document.getElementById("toolbar-frame-wrap");
-const toolbarFrameIndexWrap = document.getElementById("toolbar-frame-index-wrap");
-const toolbarStepWrap = document.getElementById("toolbar-step-wrap");
-const toolbarFpsWrap = document.getElementById("toolbar-fps-wrap");
-const toolbarPlaybackWrap = document.getElementById("toolbar-playback-wrap");
-const toolbarPlaybackToggle = document.getElementById("toolbar-playback-toggle");
-const toolbarPlaybackPopover = document.getElementById("toolbar-playback-popover");
-const toolbarMoreWrap = document.getElementById("toolbar-more-wrap");
-const toolbarMoreToggle = document.getElementById("toolbar-more-toggle");
-const toolbarMorePopover = document.getElementById("toolbar-more-popover");
-const toolbarMoreStep = document.getElementById("toolbar-more-step");
-const toolbarMoreFps = document.getElementById("toolbar-more-fps");
-const toolbarMoreStepField = document.getElementById("toolbar-more-step-field");
-const toolbarMoreFpsField = document.getElementById("toolbar-more-fps-field");
-const toolbarMoreThresholdField = document.getElementById("toolbar-more-threshold-field");
-const toolbarMoreThreshold = document.getElementById("toolbar-more-threshold");
-const toolbarMorePanelToggle = document.getElementById("toolbar-more-panel-toggle");
-const toolbarMoreFullscreen = document.getElementById("toolbar-more-fullscreen");
-const viewerSyncWrap = document.getElementById("viewer-sync-wrap");
-const viewerSyncToggle = document.getElementById("viewer-sync-toggle");
-const viewerSyncOptionsToggle = document.getElementById("viewer-sync-options-toggle");
-const viewerSyncPopover = document.getElementById("viewer-sync-popover");
-const viewerSyncPositionToggle = document.getElementById("viewer-sync-position");
-const viewerSyncContrastToggle = document.getElementById("viewer-sync-contrast");
-const viewerSyncRoiToggle = document.getElementById("viewer-sync-roi");
-const frameRange = document.getElementById("frame-range");
-const frameIndex = document.getElementById("frame-index");
-const frameStep = document.getElementById("frame-step");
-const fpsSelect = document.getElementById("fps-select");
-const autoScaleToggle = document.getElementById("auto-scale");
-const minInput = document.getElementById("min-input");
-const maxInput = document.getElementById("max-input");
-const maskToggle = document.getElementById("mask-toggle");
-const maskSaturatedToggle = document.getElementById("mask-saturated-toggle");
-const zoomRange = document.getElementById("zoom-range");
-const zoomValue = document.getElementById("zoom-value");
-const resetView = document.getElementById("reset-view");
-const exportBtn = document.getElementById("export-btn");
-const statusEl = document.getElementById("status");
-const loadingEl = document.getElementById("loading");
+// The elements index.html declares by id (modules/app_elements.js).
+const {
+  fileSelect, datasetSelect, fileField, datasetField, thresholdField, thresholdSelect, toolbarThresholdWrap,
+  toolbarThresholdSelect, toolbarFrameWrap, toolbarFrameIndexWrap, toolbarStepWrap, toolbarFpsWrap,
+  toolbarPlaybackWrap, toolbarPlaybackToggle, toolbarPlaybackPopover, toolbarMoreWrap, toolbarMoreToggle,
+  toolbarMorePopover, toolbarMoreStep, toolbarMoreFps, toolbarMoreStepField, toolbarMoreFpsField,
+  toolbarMoreThresholdField, toolbarMoreThreshold, toolbarMorePanelToggle, toolbarMoreFullscreen,
+  viewerSyncWrap, viewerSyncToggle, viewerSyncOptionsToggle, viewerSyncPopover, viewerSyncPositionToggle,
+  viewerSyncContrastToggle, viewerSyncRoiToggle, frameRange, frameIndex, frameStep, fpsSelect,
+  autoScaleToggle, minInput, maxInput, maskToggle, maskSaturatedToggle, zoomRange, zoomValue, resetView,
+  exportBtn, statusEl, loadingEl, metaShape, metaDtype, metaRange, metaSaturation, metaRenderer, toolbarPath,
+  backendBadge, fullscreenToggle, aboutVersion, invertToggle, colormapSelect, prevBtn, nextBtn, playBtn,
+  toolsPanel, panelSheetHandle, panelResizer, panelFab, panelCollapseBtn, canvasWrap, canvas, pixelOverlay,
+  roiOverlay, histCanvas, histColorbar, histTooltip, histLogX, histLogY, overviewCanvas, cursorOverlay,
+  pixelLabelToggle, splash, splashCanvas, splashStatus, splashOpenFileBtn, footerFileEl, footerZoomEl,
+  footerVersionToggleEl, footerVersionPopoverEl, footerVersionBuildEl, footerVersionUpdateEl,
+  footerVersionStaleEl, footerVersionStaleTextEl, footerVersionReloadEl, footerVersionCopyEl,
+  resolutionOverlay, peakOverlay, autoloadMode, filesystemMode, autoloadDir, autoloadInterval, autoloadStatus,
+  autoloadLatest, autoloadFolder, autoloadWatch, autoloadWatchEnabled, autoloadWatchOptions, autoloadTypesRow,
+  autoloadSimplon, autoloadSimplonAdvanced, autoloadStatusBlock, autoloadStatusPrimarySlot,
+  autoloadStatusAdvancedSlot, autoloadRemote, autoloadJfjoch, filesystemField, simplonMetaPanel,
+  simplonSeriesEl, simplonImageEl, simplonTimeEl, simplonEnergyEl, simplonThresholdEl, simplonWavelengthEl,
+  simplonDistanceEl, simplonCenterEl, remoteSourceInput, remoteIntervalInput, remoteMetaPanel, remoteSourceEl,
+  remoteSeqEl, remoteSeriesEl, remoteImageEl, remoteTimeEl, remoteEnergyEl, remoteWavelengthEl,
+  remoteDistanceEl, remoteCenterEl, remotePeakSetsEl, jfjochMetaPanel, jfjochSourceEl, jfjochSeqEl,
+  jfjochSeriesEl, jfjochImageEl, jfjochTimeEl, jfjochReflectionsEl, jfjochChannelMetaEl, jfjochBridgeStatusEl,
+  dataSourceSummaryEl, dataSourceStateEl, dataSourceSkeletonEl, imageHeaderSection, imageHeaderStateEl,
+  imageHeaderText, imageHeaderEmpty, imageHeaderLoading, inspectorTree, inspectorDetails, inspectorPath,
+  inspectorType, inspectorShape, inspectorDtype, inspectorAttrs, inspectorPreview, inspectorSearchInput,
+  inspectorSearchClear, inspectorResults, inspectorStateEl, autoloadBrowse, autoloadSelectFile,
+  autoloadDirList, autoloadPattern, autoloadTypeHdf5, autoloadTypeTiff, autoloadTypeCbf, simplonUrl,
+  simplonTest, simplonProbeMessage, simplonVersion, simplonTimeout, simplonEnable, jfjochEndpointInput,
+  jfjochTest, jfjochProbeMessage, jfjochSourceInput, jfjochTopicInput, jfjochChannelInput,
+  jfjochIntervalInput, liveBadge, roiHelp, roiModeSelect, roiHistogramToggle, roiPlotControls, roiParams,
+  roiRadiusField, roiRadiusInput, roiCenterFields, roiCenterXInput, roiCenterYInput, roiCenterSnapBtn,
+  roiRingFields, roiInnerInput, roiOuterInput, roiExportCsvBtn, roiClearBtn, roiStartEl, roiEndEl,
+  roiSizeLabel, roiSizeEl, roiAreaEl, roiTotalEl, roiGapEl, roiDefectiveEl, roiSaturatedEl, roiMinEl,
+  roiMaxEl, roiSumEl, roiMedianEl, roiMeanEl, roiStdEl, roiLinePlot, roiBoxPlotX, roiBoxPlotY, roiHistPlot,
+  roiHistBinsAuto, roiHistBinCount, roiHistBinChip, roiHistBinManualRow, roiLineCanvas, roiXCanvas,
+  roiYCanvas, roiHistCanvas, roiEnableToggle, roiSectionStateEl, roiSummaryEl, ringsToggle, geometrySection,
+  geometryStateEl, geometrySummaryEl, geometryOverrideToggle, geometryOverrideHint, geometryResetButton,
+  geometryFileInput, geometryFileHint, geometryFileBrowse, geometryFileClear, geometryFileStatusEl,
+  ringsSectionStateEl, ringsSummaryEl, peaksEnableToggle, peaksCountInput, peaksCountHint, peaksSnrInput,
+  peaksSnrHint, peaksExportBtn, peaksBody, peaksSectionStateEl, peaksSummaryEl, seriesSumFrames,
+  seriesSumEvery, seriesSumOperation, seriesSumResult, seriesSumStepField, seriesSumStep, seriesSumStepHint,
+  seriesSumRangeStartField, seriesSumRangeEndField, seriesSumRangeStart, seriesSumRangeEnd,
+  seriesSumMedianEstimate, seriesSumOutput, seriesSumBrowse, seriesSumFormat, seriesSumMask, seriesSumStart,
+  seriesSumCancel, seriesSumUseFlat, seriesSumProgress, seriesSumProgressFill, seriesSumProgressText,
+  dropdown, recentFilesSubmenu, recentFilesParent, saveAsParent, aboutModal, aboutClose, updateCheckModal,
+  updateCheckCloseIcon, updateCheckMessage, updateCheckDetail, updateCheckCurrentVersionValue,
+  updateCheckLatestRow, updateCheckLatestVersionValue, updateCheckInstruction, updateCheckDownloadRow,
+  updateCheckDownloadName, updateCheckCommandRow, updateCheckCommand, updateCheckCommandCopy,
+  updateCheckProgress, updateCheckProgressFill, updateCheckProgressText, updateCheckVerify,
+  updateCheckApplyNote, updateCheckCancel, updateCheckReveal, updateCheckReleaseNotes, updateCheckAction,
+  updateCheckClose, logViewerModal, logViewerCloseIcon, logViewerPathValue, logViewerUpdatedValue,
+  logViewerMessage, logViewerLineCount, logViewerRefresh, logViewerFollow, logViewerContent,
+  logViewerOpenHost, logViewerDownload, logViewerClose, dataExportModal, dataExportClose, dataExportSource,
+  dataExportFormat, dataExportDataType, dataExportDataTypeHint, dataExportFrameMode,
+  dataExportRangeStartField, dataExportRangeEndField, dataExportRangeStart, dataExportRangeEnd,
+  dataExportThresholdModeField, dataExportThresholdMode, dataExportOutputDir, dataExportOutputBrowse,
+  dataExportPrefix, dataExportOverwrite, dataExportInpaint, dataExportFlatfield, dataExportFlatfieldLabel,
+  dataExportInpaintLabel, dataExportDataTypeInfo, dataExportFlatfieldInfo, dataExportInpaintInfo,
+  dataExportStart, dataExportCancel, dataExportProgress, dataExportProgressFill, dataExportProgressText,
+  imageExportModal, imageExportClose, imageExportSource, imageExportRegion, imageExportScale, imageExportDpi,
+  imageExportOverlays, imageExportOverlaysField, imageExportPixelValues, imageExportPixelValuesField,
+  imageExportOverlaysHint, imageExportPixelValuesHint, imageExportSummary, imageExportStart,
+  animationExportModal, animationExportClose, animationExportSource, animationExportFrameMode,
+  animationExportFrameStep, animationExportRangeStartField, animationExportRangeEndField,
+  animationExportRangeStart, animationExportRangeEnd, animationExportRegion, animationExportScale,
+  animationExportFps, animationExportLoop, animationExportOverlays, animationExportOverlaysField,
+  animationExportPixelValues, animationExportPixelValuesField, animationExportOverlaysHint,
+  animationExportPixelValuesHint, animationExportSummary, animationExportProgress,
+  animationExportProgressFill, animationExportProgressText, animationExportStart, animationExportCancel,
+  toolbarPlaybackExportGif, settingsModal, settingsClose, settingsCancel, settingsSave, settingsRestartNote,
+  settingsEnvNote, settingsConfigPath, settingsMessage, settingsServerExternal, settingsServerExternalWarning,
+  settingsServerPort, settingsAllowedHosts, settingsCompression, settingsStartupHealthTimeout,
+  settingsServerReload, settingsStartupTimeout, settingsOpenBrowser, settingsAutoCheckUpdates,
+  settingsAllowUpdateDownload, settingsAllowUpdateApply, settingsToolHints, settingsDetectorControl,
+  settingsPixelMask, settingsHiddenTools, settingsLanguage, settingsPixelLabelMin, settingsPixelLabelMax,
+  settingsFrameCache, settingsPixelLabelFormat, settingsPixelLabelDrag, settingsDataRoot,
+  settingsDataRootBrowse, settingsAllowAbs, settingsScanCache, settingsMaxScanDepth, settingsMaxUpload,
+  settingsLogLevel, settingsLogDir, settingsLogDirBrowse, fileInput, uploadBar, uploadBarFill, uploadBarText,
+  commandModal, commandInput, commandList, browseModal, browseTitle, browseBreadcrumb, browseUp,
+  browseSearchInput, browseSearchClear, browseFormatField, browseFormat, browseSort, browseSeriesMode,
+  browseSeriesField, browseViewMode, browseViewField, browseContent, browseSplitter, browseFoldersList,
+  browseFilesList, browsePathInput, browseStatus, browseSelectBtn, browseCancelBtn, browseCloseBtn,
+  maskEditBar,
+} = queryAppElements();
 const splashHint = document.querySelector(".splash-hint");
-const metaShape = document.getElementById("meta-shape");
-const metaDtype = document.getElementById("meta-dtype");
-const metaRange = document.getElementById("meta-range");
-const metaSaturation = document.getElementById("meta-saturation");
-const metaRenderer = document.getElementById("meta-renderer");
-const toolbarPath = document.getElementById("toolbar-path");
-const backendBadge = document.getElementById("backend-badge");
-const fullscreenToggle = document.getElementById("fullscreen-toggle");
-const aboutVersion = document.getElementById("about-version");
-const invertToggle = document.getElementById("invert-color");
-const colormapSelect = document.getElementById("colormap-select");
-const prevBtn = document.getElementById("btn-prev");
-const nextBtn = document.getElementById("btn-next");
-const playBtn = document.getElementById("btn-play");
-const toolsPanel = document.getElementById("side-panel");
-const panelSheetHandle = document.getElementById("panel-sheet-handle");
-const panelResizer = document.getElementById("panel-resizer");
-const panelFab = document.getElementById("panel-fab");
-const panelCollapseBtn = document.getElementById("panel-collapse-btn");
 const panelBody = toolsPanel?.querySelector(".panel-body");
 const panelTabs = document.querySelectorAll(".panel-tab");
 const panelTabContents = document.querySelectorAll(".panel-tab-content");
 const appLayout = document.querySelector(".app");
-const canvasWrap = document.getElementById("canvas-wrap");
-const canvas = document.getElementById("image-canvas");
-const pixelOverlay = document.getElementById("pixel-overlay");
 const pixelCtx = pixelOverlay?.getContext("2d");
-const roiOverlay = document.getElementById("roi-overlay");
 const roiCtx = roiOverlay?.getContext("2d");
-const histCanvas = document.getElementById("hist-canvas");
 const histCtx = histCanvas.getContext("2d");
-const histColorbar = document.getElementById("hist-colorbar");
 const histColorCtx = histColorbar?.getContext("2d");
-const histTooltip = document.getElementById("hist-tooltip");
-const histLogX = document.getElementById("hist-log-x");
-const histLogY = document.getElementById("hist-log-y");
-const overviewCanvas = document.getElementById("overview-canvas");
 const overviewCtx = overviewCanvas?.getContext("2d");
-const cursorOverlay = document.getElementById("cursor-overlay");
 const canvasShell = document.querySelector(".canvas-shell");
-const pixelLabelToggle = document.getElementById("pixel-label-toggle");
 const sectionToggles = document.querySelectorAll("[data-section-toggle]");
 const sectionSwitches = document.querySelectorAll(".section-switch");
-const splash = document.getElementById("splash");
-const splashCanvas = document.getElementById("splash-canvas");
 const splashCtx = splashCanvas?.getContext("2d");
-const splashStatus = document.getElementById("splash-status");
 const splashActions = document.querySelector(".splash-actions");
-const splashOpenFileBtn = document.getElementById("splash-open-file");
 const viewerFooterEl = document.querySelector(".viewer-footer");
-const footerFileEl = document.getElementById("footer-file");
-const footerZoomEl = document.getElementById("footer-zoom");
-const footerVersionToggleEl = document.getElementById("footer-version-toggle");
-const footerVersionPopoverEl = document.getElementById("footer-version-popover");
-const footerVersionBuildEl = document.getElementById("footer-version-build");
-const footerVersionUpdateEl = document.getElementById("footer-version-update");
-const footerVersionStaleEl = document.getElementById("footer-version-stale");
-const footerVersionStaleTextEl = document.getElementById("footer-version-stale-text");
-const footerVersionReloadEl = document.getElementById("footer-version-reload");
-const footerVersionCopyEl = document.getElementById("footer-version-copy");
-const resolutionOverlay = document.getElementById("resolution-overlay");
 const resolutionCtx = resolutionOverlay?.getContext("2d");
-const peakOverlay = document.getElementById("peak-overlay");
 const peakCtx = peakOverlay?.getContext("2d");
-const autoloadMode = document.getElementById("autoload-mode");
-const filesystemMode = document.getElementById("filesystem-mode");
-const autoloadDir = document.getElementById("autoload-dir");
-const autoloadInterval = document.getElementById("autoload-interval");
-const autoloadStatus = document.getElementById("autoload-status");
-const autoloadLatest = document.getElementById("autoload-latest");
-const autoloadFolder = document.getElementById("autoload-folder");
-const autoloadWatch = document.getElementById("autoload-watch");
-const autoloadWatchEnabled = document.getElementById("autoload-watch-enabled");
-const autoloadWatchOptions = document.getElementById("autoload-watch-options");
-const autoloadTypesRow = document.getElementById("autoload-types");
-const autoloadSimplon = document.getElementById("autoload-simplon");
-const autoloadSimplonAdvanced = document.getElementById("autoload-simplon-advanced");
-const autoloadStatusBlock = document.getElementById("autoload-status-block");
-const autoloadStatusPrimarySlot = document.getElementById("autoload-status-primary-slot");
-const autoloadStatusAdvancedSlot = document.getElementById("autoload-status-advanced-slot");
-const autoloadRemote = document.getElementById("autoload-remote");
-const autoloadJfjoch = document.getElementById("autoload-jfjoch");
-const filesystemField = document.getElementById("filesystem-field");
-const simplonMetaPanel = document.getElementById("simplon-meta");
-const simplonSeriesEl = document.getElementById("simplon-series");
-const simplonImageEl = document.getElementById("simplon-image");
-const simplonTimeEl = document.getElementById("simplon-time");
-const simplonEnergyEl = document.getElementById("simplon-energy");
-const simplonThresholdEl = document.getElementById("simplon-threshold");
-const simplonWavelengthEl = document.getElementById("simplon-wavelength");
-const simplonDistanceEl = document.getElementById("simplon-distance");
-const simplonCenterEl = document.getElementById("simplon-center");
-const remoteSourceInput = document.getElementById("remote-source-id");
-const remoteIntervalInput = document.getElementById("remote-interval");
-const remoteMetaPanel = document.getElementById("remote-meta");
-const remoteSourceEl = document.getElementById("remote-source");
-const remoteSeqEl = document.getElementById("remote-seq");
-const remoteSeriesEl = document.getElementById("remote-series");
-const remoteImageEl = document.getElementById("remote-image");
-const remoteTimeEl = document.getElementById("remote-time");
-const remoteEnergyEl = document.getElementById("remote-energy");
-const remoteWavelengthEl = document.getElementById("remote-wavelength");
-const remoteDistanceEl = document.getElementById("remote-distance");
-const remoteCenterEl = document.getElementById("remote-center");
-const remotePeakSetsEl = document.getElementById("remote-peak-sets");
-const jfjochMetaPanel = document.getElementById("jfjoch-meta");
-const jfjochSourceEl = document.getElementById("jfjoch-source");
-const jfjochSeqEl = document.getElementById("jfjoch-seq");
-const jfjochSeriesEl = document.getElementById("jfjoch-series");
-const jfjochImageEl = document.getElementById("jfjoch-image");
-const jfjochTimeEl = document.getElementById("jfjoch-time");
-const jfjochReflectionsEl = document.getElementById("jfjoch-reflections");
-const jfjochChannelMetaEl = document.getElementById("jfjoch-channel-meta");
-const jfjochBridgeStatusEl = document.getElementById("jfjoch-bridge-status");
-const dataSourceSummaryEl = document.getElementById("summary-data-source");
-const dataSourceStateEl = document.getElementById("data-source-state");
-const dataSourceSkeletonEl = document.getElementById("data-source-skeleton");
 const inspectorSection = document.querySelector(".panel-section.inspector");
-const imageHeaderSection = document.getElementById("image-header-section");
-const imageHeaderStateEl = document.getElementById("image-header-state");
-const imageHeaderText = document.getElementById("image-header-text");
-const imageHeaderEmpty = document.getElementById("image-header-empty");
-const imageHeaderLoading = document.getElementById("image-header-loading");
-const inspectorTree = document.getElementById("inspector-tree");
-const inspectorDetails = document.getElementById("inspector-details");
-const inspectorPath = document.getElementById("inspector-path");
-const inspectorType = document.getElementById("inspector-type");
-const inspectorShape = document.getElementById("inspector-shape");
-const inspectorDtype = document.getElementById("inspector-dtype");
-const inspectorAttrs = document.getElementById("inspector-attrs");
-const inspectorPreview = document.getElementById("inspector-preview");
-const inspectorSearchInput = document.getElementById("inspector-search-input");
-const inspectorSearchClear = document.getElementById("inspector-search-clear");
-const inspectorResults = document.getElementById("inspector-results");
-const inspectorStateEl = document.getElementById("inspector-state");
-const autoloadBrowse = document.getElementById("autoload-browse");
-const autoloadSelectFile = document.getElementById("autoload-select-file");
-const autoloadDirList = document.getElementById("autoload-dir-list");
-const autoloadPattern = document.getElementById("autoload-pattern");
-const autoloadTypeHdf5 = document.getElementById("autoload-type-hdf5");
-const autoloadTypeTiff = document.getElementById("autoload-type-tiff");
-const autoloadTypeCbf = document.getElementById("autoload-type-cbf");
-const simplonUrl = document.getElementById("simplon-url");
-const simplonTest = document.getElementById("simplon-test");
-const simplonProbeMessage = document.getElementById("simplon-probe-message");
-const simplonVersion = document.getElementById("simplon-version");
-const simplonTimeout = document.getElementById("simplon-timeout");
-const simplonEnable = document.getElementById("simplon-enable");
-const jfjochEndpointInput = document.getElementById("jfjoch-preview-endpoint");
-const jfjochTest = document.getElementById("jfjoch-test");
-const jfjochProbeMessage = document.getElementById("jfjoch-probe-message");
-const jfjochSourceInput = document.getElementById("jfjoch-source-id");
-const jfjochTopicInput = document.getElementById("jfjoch-topic");
-const jfjochChannelInput = document.getElementById("jfjoch-channel");
-const jfjochIntervalInput = document.getElementById("jfjoch-interval");
-const liveBadge = document.getElementById("live-badge");
-const roiHelp = document.getElementById("roi-help");
-const roiModeSelect = document.getElementById("roi-mode");
-const roiHistogramToggle = document.getElementById("roi-histogram");
-const roiPlotControls = document.getElementById("roi-plot-controls");
-const roiParams = document.getElementById("roi-params");
-const roiRadiusField = document.getElementById("roi-radius-field");
-const roiRadiusInput = document.getElementById("roi-radius");
-const roiCenterFields = document.getElementById("roi-center-fields");
-const roiCenterXInput = document.getElementById("roi-center-x");
-const roiCenterYInput = document.getElementById("roi-center-y");
-const roiCenterSnapBtn = document.getElementById("roi-center-snap");
-const roiRingFields = document.getElementById("roi-ring-fields");
-const roiInnerInput = document.getElementById("roi-inner-radius");
-const roiOuterInput = document.getElementById("roi-outer-radius");
-const roiExportCsvBtn = document.getElementById("roi-export-csv");
-const roiClearBtn = document.getElementById("roi-clear-btn");
-const roiStartEl = document.getElementById("roi-start");
-const roiEndEl = document.getElementById("roi-end");
-const roiSizeLabel = document.getElementById("roi-size-label");
-const roiSizeEl = document.getElementById("roi-size");
-const roiAreaEl = document.getElementById("roi-area");
-const roiTotalEl = document.getElementById("roi-total");
-const roiGapEl = document.getElementById("roi-gap");
-const roiDefectiveEl = document.getElementById("roi-defective");
-const roiSaturatedEl = document.getElementById("roi-saturated");
-const roiMinEl = document.getElementById("roi-min");
-const roiMaxEl = document.getElementById("roi-max");
-const roiSumEl = document.getElementById("roi-sum");
-const roiMedianEl = document.getElementById("roi-median");
-const roiMeanEl = document.getElementById("roi-mean");
-const roiStdEl = document.getElementById("roi-std");
-const roiLinePlot = document.getElementById("roi-line-plot");
-const roiBoxPlotX = document.getElementById("roi-box-plot-x");
-const roiBoxPlotY = document.getElementById("roi-box-plot-y");
-const roiHistPlot = document.getElementById("roi-hist-plot");
-const roiHistBinsAuto = document.getElementById("roi-hist-bins-auto");
-const roiHistBinCount = document.getElementById("roi-hist-bin-count");
-const roiHistBinChip = document.getElementById("roi-hist-bin-chip");
-const roiHistBinManualRow = document.getElementById("roi-hist-bin-manual-row");
 const roiHistBinPresetBtns = document.querySelectorAll(".roi-histogram-bin-preset");
-const roiLineCanvas = document.getElementById("roi-line-canvas");
 const roiLineCtx = roiLineCanvas?.getContext("2d");
-const roiXCanvas = document.getElementById("roi-x-canvas");
 const roiXCtx = roiXCanvas?.getContext("2d");
-const roiYCanvas = document.getElementById("roi-y-canvas");
 const roiYCtx = roiYCanvas?.getContext("2d");
-const roiHistCanvas = document.getElementById("roi-hist-canvas");
 const roiHistCtx = roiHistCanvas?.getContext("2d");
-const roiEnableToggle = document.getElementById("roi-enable");
-const roiSectionStateEl = document.getElementById("roi-state");
-const roiSummaryEl = document.getElementById("summary-roi");
-const ringsToggle = document.getElementById("rings-toggle");
-const geometrySection = document.getElementById("detector-geometry-section");
-const geometryStateEl = document.getElementById("geometry-state");
-const geometrySummaryEl = document.getElementById("summary-geometry");
-const geometryOverrideToggle = document.getElementById("geometry-override");
-const geometryOverrideHint = document.getElementById("geometry-override-hint");
-const geometryResetButton = document.getElementById("geometry-reset");
-const geometryFileInput = document.getElementById("geometry-file");
-const geometryFileHint = document.getElementById("geometry-file-hint");
-const geometryFileBrowse = document.getElementById("geometry-file-browse");
-const geometryFileClear = document.getElementById("geometry-file-clear");
-const geometryFileStatusEl = document.getElementById("geometry-file-status");
 const geometryInputs = {
   distanceMm: document.getElementById("geometry-distance"),
   pixelSizeXUm: document.getElementById("geometry-pixel-x"),
@@ -443,226 +288,15 @@ const geometryHints = {
   energyEv: document.getElementById("geometry-energy-hint"),
   center: document.getElementById("geometry-center-hint"),
 };
-const ringsSectionStateEl = document.getElementById("rings-state");
-const ringsSummaryEl = document.getElementById("summary-rings");
-const peaksEnableToggle = document.getElementById("peaks-enable");
-const peaksCountInput = document.getElementById("peaks-count");
-const peaksCountHint = document.getElementById("peaks-count-hint");
-const peaksSnrInput = document.getElementById("peaks-snr");
-const peaksSnrHint = document.getElementById("peaks-snr-hint");
-const peaksExportBtn = document.getElementById("peaks-export");
-const peaksBody = document.getElementById("peaks-body");
-const peaksSectionStateEl = document.getElementById("peaks-state");
-const peaksSummaryEl = document.getElementById("summary-peaks");
-const seriesSumFrames = document.getElementById("series-sum-frames");
-const seriesSumEvery = document.getElementById("series-sum-every");
-const seriesSumOperation = document.getElementById("series-sum-operation");
-const seriesSumResult = document.getElementById("series-sum-result");
-const seriesSumStepField = document.getElementById("series-sum-step-field");
-const seriesSumStep = document.getElementById("series-sum-step");
-const seriesSumStepHint = document.getElementById("series-sum-step-hint");
-const seriesSumRangeStartField = document.getElementById("series-sum-range-start-field");
-const seriesSumRangeEndField = document.getElementById("series-sum-range-end-field");
-const seriesSumRangeStart = document.getElementById("series-sum-range-start");
-const seriesSumRangeEnd = document.getElementById("series-sum-range-end");
-const seriesSumMedianEstimate = document.getElementById("series-sum-median-estimate");
-const seriesSumOutput = document.getElementById("series-sum-output");
-const seriesSumBrowse = document.getElementById("series-sum-browse");
-const seriesSumFormat = document.getElementById("series-sum-format");
-const seriesSumMask = document.getElementById("series-sum-mask");
-const seriesSumStart = document.getElementById("series-sum-start");
-const seriesSumCancel = document.getElementById("series-sum-cancel");
-const seriesSumUseFlat = document.getElementById("series-sum-use-flat");
-const seriesSumProgress = document.getElementById("series-sum-progress");
-const seriesSumProgressFill = document.getElementById("series-sum-progress-fill");
-const seriesSumProgressText = document.getElementById("series-sum-progress-text");
 const menuButtons = document.querySelectorAll(".menu-item[data-menu]");
-const dropdown = document.getElementById("menu-dropdown");
 const dropdownPanels = document.querySelectorAll(".dropdown-panel");
 const submenuParents = document.querySelectorAll(".dropdown-submenu-parent");
-const recentFilesSubmenu = document.getElementById("recent-files-submenu");
-const recentFilesParent = document.getElementById("recent-files-parent");
 const recentFiles = createRecentFiles();
 const menuActions = document.querySelectorAll(".dropdown-item[data-action]");
 const menuItemsByAction = new Map(
   Array.from(menuActions, (item) => [item.dataset.action, item])
 );
-const saveAsParent = document.getElementById("save-as-parent");
-const aboutModal = document.getElementById("about-modal");
-const aboutClose = document.getElementById("about-close");
-const updateCheckModal = document.getElementById("update-check-modal");
-const updateCheckCloseIcon = document.getElementById("update-check-close-icon");
-const updateCheckMessage = document.getElementById("update-check-message");
-const updateCheckDetail = document.getElementById("update-check-detail");
-const updateCheckCurrentVersionValue = document.getElementById("update-check-current-version");
-const updateCheckLatestRow = document.getElementById("update-check-latest-row");
-const updateCheckLatestVersionValue = document.getElementById("update-check-latest-version");
-const updateCheckInstruction = document.getElementById("update-check-instruction");
-const updateCheckDownloadRow = document.getElementById("update-check-download-row");
-const updateCheckDownloadName = document.getElementById("update-check-download-name");
-const updateCheckCommandRow = document.getElementById("update-check-command-row");
-const updateCheckCommand = document.getElementById("update-check-command");
-const updateCheckCommandCopy = document.getElementById("update-check-command-copy");
-const updateCheckProgress = document.getElementById("update-check-progress");
-const updateCheckProgressFill = document.getElementById("update-check-progress-fill");
-const updateCheckProgressText = document.getElementById("update-check-progress-text");
-const updateCheckVerify = document.getElementById("update-check-verify");
-const updateCheckApplyNote = document.getElementById("update-check-apply-note");
-const updateCheckCancel = document.getElementById("update-check-cancel");
-const updateCheckReveal = document.getElementById("update-check-reveal");
-const updateCheckReleaseNotes = document.getElementById("update-check-release-notes");
-const updateCheckAction = document.getElementById("update-check-action");
-const updateCheckClose = document.getElementById("update-check-close");
-const logViewerModal = document.getElementById("log-viewer-modal");
-const logViewerCloseIcon = document.getElementById("log-viewer-close-icon");
-const logViewerPathValue = document.getElementById("log-viewer-path-value");
-const logViewerUpdatedValue = document.getElementById("log-viewer-updated-value");
-const logViewerMessage = document.getElementById("log-viewer-message");
-const logViewerLineCount = document.getElementById("log-viewer-line-count");
-const logViewerRefresh = document.getElementById("log-viewer-refresh");
-const logViewerFollow = document.getElementById("log-viewer-follow");
-const logViewerContent = document.getElementById("log-viewer-content");
-const logViewerOpenHost = document.getElementById("log-viewer-open-host");
-const logViewerDownload = document.getElementById("log-viewer-download");
-const logViewerClose = document.getElementById("log-viewer-close");
-const dataExportModal = document.getElementById("data-export-modal");
-const dataExportClose = document.getElementById("data-export-close");
-const dataExportSource = document.getElementById("data-export-source");
-const dataExportFormat = document.getElementById("data-export-format");
-const dataExportDataType = document.getElementById("data-export-data-type");
-const dataExportDataTypeHint = document.getElementById("data-export-data-type-hint");
-const dataExportFrameMode = document.getElementById("data-export-frame-mode");
-const dataExportRangeStartField = document.getElementById("data-export-range-start-field");
-const dataExportRangeEndField = document.getElementById("data-export-range-end-field");
-const dataExportRangeStart = document.getElementById("data-export-range-start");
-const dataExportRangeEnd = document.getElementById("data-export-range-end");
-const dataExportThresholdModeField = document.getElementById("data-export-threshold-mode-field");
-const dataExportThresholdMode = document.getElementById("data-export-threshold-mode");
-const dataExportOutputDir = document.getElementById("data-export-output-dir");
-const dataExportOutputBrowse = document.getElementById("data-export-output-browse");
-const dataExportPrefix = document.getElementById("data-export-prefix");
-const dataExportOverwrite = document.getElementById("data-export-overwrite");
-const dataExportInpaint = document.getElementById("data-export-inpaint");
-const dataExportFlatfield = document.getElementById("data-export-flatfield");
-const dataExportFlatfieldLabel = document.getElementById("data-export-flatfield-label");
-const dataExportInpaintLabel = document.getElementById("data-export-inpaint-label");
-const dataExportDataTypeInfo = document.getElementById("data-export-data-type-info");
-const dataExportFlatfieldInfo = document.getElementById("data-export-flatfield-info");
-const dataExportInpaintInfo = document.getElementById("data-export-inpaint-info");
-const dataExportStart = document.getElementById("data-export-start");
-const dataExportCancel = document.getElementById("data-export-cancel");
-const dataExportProgress = document.getElementById("data-export-progress");
-const dataExportProgressFill = document.getElementById("data-export-progress-fill");
-const dataExportProgressText = document.getElementById("data-export-progress-text");
-const imageExportModal = document.getElementById("image-export-modal");
-const imageExportClose = document.getElementById("image-export-close");
-const imageExportSource = document.getElementById("image-export-source");
-const imageExportRegion = document.getElementById("image-export-region");
-const imageExportScale = document.getElementById("image-export-scale");
-const imageExportDpi = document.getElementById("image-export-dpi");
-const imageExportOverlays = document.getElementById("image-export-overlays");
-const imageExportOverlaysField = document.getElementById("image-export-overlays-field");
-const imageExportPixelValues = document.getElementById("image-export-pixel-values");
-const imageExportPixelValuesField = document.getElementById("image-export-pixel-values-field");
-const imageExportOverlaysHint = document.getElementById("image-export-overlays-hint");
-const imageExportPixelValuesHint = document.getElementById("image-export-pixel-values-hint");
-const imageExportSummary = document.getElementById("image-export-summary");
-const imageExportStart = document.getElementById("image-export-start");
-const animationExportModal = document.getElementById("animation-export-modal");
-const animationExportClose = document.getElementById("animation-export-close");
-const animationExportSource = document.getElementById("animation-export-source");
-const animationExportFrameMode = document.getElementById("animation-export-frame-mode");
-const animationExportFrameStep = document.getElementById("animation-export-frame-step");
-const animationExportRangeStartField = document.getElementById("animation-export-range-start-field");
-const animationExportRangeEndField = document.getElementById("animation-export-range-end-field");
-const animationExportRangeStart = document.getElementById("animation-export-range-start");
-const animationExportRangeEnd = document.getElementById("animation-export-range-end");
-const animationExportRegion = document.getElementById("animation-export-region");
-const animationExportScale = document.getElementById("animation-export-scale");
-const animationExportFps = document.getElementById("animation-export-fps");
-const animationExportLoop = document.getElementById("animation-export-loop");
-const animationExportOverlays = document.getElementById("animation-export-overlays");
-const animationExportOverlaysField = document.getElementById("animation-export-overlays-field");
-const animationExportPixelValues = document.getElementById("animation-export-pixel-values");
-const animationExportPixelValuesField = document.getElementById("animation-export-pixel-values-field");
-const animationExportOverlaysHint = document.getElementById("animation-export-overlays-hint");
-const animationExportPixelValuesHint = document.getElementById("animation-export-pixel-values-hint");
-const animationExportSummary = document.getElementById("animation-export-summary");
-const animationExportProgress = document.getElementById("animation-export-progress");
-const animationExportProgressFill = document.getElementById("animation-export-progress-fill");
-const animationExportProgressText = document.getElementById("animation-export-progress-text");
-const animationExportStart = document.getElementById("animation-export-start");
-const animationExportCancel = document.getElementById("animation-export-cancel");
-const toolbarPlaybackExportGif = document.getElementById("toolbar-playback-export-gif");
-const settingsModal = document.getElementById("settings-modal");
-const settingsClose = document.getElementById("settings-close");
-const settingsCancel = document.getElementById("settings-cancel");
-const settingsSave = document.getElementById("settings-save");
 const settingsTabs = document.querySelector(".settings-tabs");
-const settingsRestartNote = document.getElementById("settings-restart-note");
-const settingsEnvNote = document.getElementById("settings-env-note");
-const settingsConfigPath = document.getElementById("settings-config-path");
-const settingsMessage = document.getElementById("settings-message");
-const settingsServerExternal = document.getElementById("settings-server-external");
-const settingsServerExternalWarning = document.getElementById("settings-server-external-warning");
-const settingsServerPort = document.getElementById("settings-server-port");
-const settingsAllowedHosts = document.getElementById("settings-allowed-hosts");
-const settingsCompression = document.getElementById("settings-compression");
-const settingsStartupHealthTimeout = document.getElementById("settings-startup-health-timeout");
-const settingsServerReload = document.getElementById("settings-server-reload");
-const settingsStartupTimeout = document.getElementById("settings-startup-timeout");
-const settingsOpenBrowser = document.getElementById("settings-open-browser");
-const settingsAutoCheckUpdates = document.getElementById("settings-auto-check-updates");
-const settingsAllowUpdateDownload = document.getElementById("settings-allow-update-download");
-const settingsAllowUpdateApply = document.getElementById("settings-allow-update-apply");
-const settingsToolHints = document.getElementById("settings-tool-hints");
-const settingsDetectorControl = document.getElementById("settings-detector-control");
-const settingsPixelMask = document.getElementById("settings-pixel-mask");
-const settingsHiddenTools = document.getElementById("settings-hidden-tools");
-const settingsLanguage = document.getElementById("settings-language");
-const settingsPixelLabelMin = document.getElementById("settings-pixel-label-min");
-const settingsPixelLabelMax = document.getElementById("settings-pixel-label-max");
-const settingsFrameCache = document.getElementById("settings-frame-cache");
-const settingsPixelLabelFormat = document.getElementById("settings-pixel-label-format");
-const settingsPixelLabelDrag = document.getElementById("settings-pixel-label-drag");
-const settingsDataRoot = document.getElementById("settings-data-root");
-const settingsDataRootBrowse = document.getElementById("settings-data-root-browse");
-const settingsAllowAbs = document.getElementById("settings-allow-abs");
-const settingsScanCache = document.getElementById("settings-scan-cache");
-const settingsMaxScanDepth = document.getElementById("settings-max-scan-depth");
-const settingsMaxUpload = document.getElementById("settings-max-upload");
-const settingsLogLevel = document.getElementById("settings-log-level");
-const settingsLogDir = document.getElementById("settings-log-dir");
-const settingsLogDirBrowse = document.getElementById("settings-log-dir-browse");
-const fileInput = document.getElementById("file-input");
-const uploadBar = document.getElementById("upload-bar");
-const uploadBarFill = document.getElementById("upload-bar-fill");
-const uploadBarText = document.getElementById("upload-bar-text");
-const commandModal = document.getElementById("command-modal");
-const commandInput = document.getElementById("command-input");
-const commandList = document.getElementById("command-list");
-const browseModal = document.getElementById("browse-modal");
-const browseTitle = document.getElementById("browse-title");
-const browseBreadcrumb = document.getElementById("browse-breadcrumb");
-const browseUp = document.getElementById("browse-up");
-const browseSearchInput = document.getElementById("browse-search-input");
-const browseSearchClear = document.getElementById("browse-search-clear");
-const browseFormatField = document.getElementById("browse-format-field");
-const browseFormat = document.getElementById("browse-format");
-const browseSort = document.getElementById("browse-sort");
-const browseSeriesMode = document.getElementById("browse-series-mode");
-const browseSeriesField = document.getElementById("browse-series-field");
-const browseViewMode = document.getElementById("browse-view-mode");
-const browseViewField = document.getElementById("browse-view-field");
-const browseContent = document.getElementById("browse-content");
-const browseSplitter = document.getElementById("browse-splitter");
-const browseFoldersList = document.getElementById("browse-folders-list");
-const browseFilesList = document.getElementById("browse-files-list");
-const browsePathInput = document.getElementById("browse-path-input");
-const browseStatus = document.getElementById("browse-status");
-const browseSelectBtn = document.getElementById("browse-select");
-const browseCancelBtn = document.getElementById("browse-cancel");
-const browseCloseBtn = document.getElementById("browse-close");
 
 let renderer = null;
 let overviewViewportController = null;
@@ -893,7 +527,6 @@ function currentFrameStatusText() {
   return framePlaybackController.currentFrameStatusText();
 }
 
-
 function setSummaryChip(element, text, tone = "default") {
   if (!element) return;
   element.textContent = text || "";
@@ -960,7 +593,6 @@ function formatPixelLabelValue(value, cellPx, mode = "auto") {
   return formatPixelLabelValueUtil(value, cellPx, mode, state.dtype);
 }
 
-
 const {
   setToolHintsEnabled,
   initHelpTooltips,
@@ -973,7 +605,6 @@ const {
 
 window.addEventListener("DOMContentLoaded", initHelpTooltips, { once: true });
 const infoTips = createInfoTips();
-
 
 function resetInspectorDetails() {
   if (inspectorPath) inspectorPath.textContent = "-";
@@ -2232,7 +1863,6 @@ function cancelClose() {
   window.clearTimeout(closeTimer);
 }
 
-
 function syncSeriesSumOutputPath(force = false) {
   seriesSumController.syncSeriesSumOutputPath(force);
 }
@@ -2783,7 +2413,6 @@ async function waitForBackendReady(timeoutMs = 20000) {
   return backendStatusController.waitForBackendReady(timeoutMs);
 }
 
-
 async function fetchSettingsConfig() {
   try {
     const payload = await fetchJSON(`${API}/settings`);
@@ -3129,7 +2758,6 @@ const liveSeriesWatch = createLiveSeriesWatch({
   },
 });
 
-
 fileDataPipelineController = createFileDataPipelineController({
   apiBase: API,
   state,
@@ -3423,8 +3051,6 @@ pixelMaskController = createPixelMaskController({
   },
 });
 
-// Data -> Pixel Mask -> Edit on image: the toolbar over the image.
-const maskEditBar = document.getElementById("mask-edit-bar");
 pixelMaskEditController = createPixelMaskEditController({
   state,
   isMac: isMacPlatform,
@@ -3743,7 +3369,6 @@ function option(label, value) {
   return opt;
 }
 
-
 function isSeriesCapable(path) {
   return isSeriesCapableFileUtil(path);
 }
@@ -3772,7 +3397,6 @@ async function loadDatasets() {
 async function loadMetadata() {
   return frameMetadataController?.loadMetadata();
 }
-
 
 function formatSimplonTimestamp(raw) {
   return sourceMetadataController
@@ -3892,7 +3516,6 @@ function parseDtype(header) {
   return header || state.dtype;
 }
 
-
 // Pixel values for an export, as the viewer shows them: whether they are on,
 // the smallest cell they are drawn into, and each pixel's label in a frame.
 function getPixelLabelSettings() {
@@ -3937,7 +3560,6 @@ function isSaturatedValue(value, satMax) {
   return Math.abs(value - satMax) <= tolerance;
 }
 
-
 function computeAutoLevels(data, satMaxInput) {
   // The type of the values given: a flatfield-corrected frame is float even
   // when the raw one is integer, and integer data keeps a span of at least one
@@ -3969,7 +3591,6 @@ function getHistTooltipPosition(canvasRect, x) {
   const top = canvasRect.top - containerRect.top + 6;
   return { left, top };
 }
-
 
 overviewViewportController = createOverviewViewportController({
   state,

@@ -31,7 +31,7 @@ everywhere.
 | You are adding | Touch |
 | --- | --- |
 | **A calculation or transform** | A pure helper, with a test that needs no DOM. |
-| **A control or a feature** | Markup in `index.html` (`data-i18n*` on every string), behaviour on the owning controller, the listener in the matching `*_bindings.js`, wiring in `app.js`, styles in the area's file in `styles/` from the tokens (see the UI guide), keys in all 13 locales, a test. The worked example in the developer guide walks through it. |
+| **A control or a feature** | Markup in `index.html` (`data-i18n*` on every string), its id in `modules/app_elements.js` and its name in `app.js`'s list from it if `app.js` needs the element, behaviour on the owning controller, the listener in the matching `*_bindings.js`, wiring in `app.js`, styles in the area's file in `styles/` from the tokens (see the UI guide), keys in all 13 locales, a test. The worked example in the developer guide walks through it. |
 | **A dialog** | The `.modal` structure and layout in the UI guide; open and close it through the existing modal handling, so Esc and the backdrop work. |
 | **A call to the backend** | `fetchJSON` / `fetchJSONWithInit` from `modules/http.js`, or `fetchResponse` when the answer is bytes, headers or a 204; all turn a failure into a translated message, with `status` and the server's `detail` on the error. `native_picker.js` for the system's file and folder dialogs. |
 | **A setting** | Backend first (see [backend/AGENTS.md](../backend/AGENTS.md)), then the Settings dialog's tab, its keys, the user guide. |
@@ -46,7 +46,9 @@ everywhere.
   `data-i18n-placeholder` in markup, `t("key", { vars })` in JS; the key in all
   13 locales.
 - **Stable wrappers**: when one module must call another created later, add a
-  named function in `app.js` and pass that, not the controller's method.
+  named function in `app.js` and pass that, not the controller's method. They
+  look like boilerplate and are deliberate; see
+  [decision 0005](../docs/decisions/0005-app-elements-table-and-stable-wrappers.md).
 - **State lives in `state` or a controller**, not in the DOM: read values from
   `state`, write the DOM from it.
 - `console.warn`/`error`/`info` only; eslint flags `console.log`.
