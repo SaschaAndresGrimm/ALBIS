@@ -13,6 +13,8 @@
 import { API, fetchJSON, fetchJSONWithInit, fetchResponse } from "./modules/http.js";
 import { PIXEL_LABEL_MIN_CELL_PX, pixelLabelResolver, pixelLabelsAreFloat } from "./modules/overlay_painters.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
+import { computeMedian, parseShape, toFloat32, typedArrayFrom } from "./modules/typed_array_utils.js";
+import { dirnameFromPath, formatEnergy, formatInspectorValue, formatRoiTick, formatStat, middleTruncate } from "./modules/format_utils.js";
 import {
   applyI18nToDom,
   getLanguage,
@@ -132,23 +134,23 @@ import {
   createRuntimeBootstrapContext,
 } from "./modules/app_binding_contexts.js";
 import {
-  getWebglUnsignedDtypeKey as getWebglUnsignedDtypeKeyUtil,
-  isWebglUnsignedRawCandidate as isWebglUnsignedRawCandidateUtil,
-  getWebglUnsignedUploadInfo as getWebglUnsignedUploadInfoUtil,
-  getDtypeInfo as getDtypeInfoUtil,
+  getWebglUnsignedDtypeKey,
+  isWebglUnsignedRawCandidate,
+  getWebglUnsignedUploadInfo,
+  getDtypeInfo,
   formatPixelLabelValue as formatPixelLabelValueUtil,
-  chooseHistogramBins as chooseHistogramBinsUtil,
-  computeHistogram as computeHistogramUtil,
+  chooseHistogramBins,
+  computeHistogram,
   computeAutoLevels as computeAutoLevelsUtil,
   computeStats as computeStatsUtil,
-  getPaletteColorCount as getPaletteColorCountUtil,
+  getPaletteColorCount,
   mapValueToNorm as mapValueToNormUtil,
-  buildPalette as buildPaletteUtil,
+  buildPalette,
 } from "./modules/intensity_scale_utils.js";
 import {
-  isHdf5File as isHdf5FileUtil,
-  isHdfFile as isHdfFileUtil,
-  isHeaderCapableFile as isHeaderCapableFileUtil,
+  isHdf5File,
+  isHdfFile,
+  isHeaderCapableFile,
   isSeriesCapableFile as isSeriesCapableFileUtil,
 } from "./modules/file_type_utils.js";
 
@@ -949,14 +951,6 @@ function currentFrameStatusText() {
   return framePlaybackController.currentFrameStatusText();
 }
 
-function middleTruncate(text, maxChars) {
-  const value = String(text || "");
-  if (!value) return "";
-  const limit = Math.max(6, Math.floor(Number(maxChars) || 0));
-  if (value.length <= limit) return value;
-  const side = Math.max(2, Math.floor((limit - 1) / 2));
-  return `${value.slice(0, side)}…${value.slice(-side)}`;
-}
 
 function setSummaryChip(element, text, tone = "default") {
   if (!element) return;
@@ -1024,31 +1018,6 @@ function formatPixelLabelValue(value, cellPx, mode = "auto") {
   return formatPixelLabelValueUtil(value, cellPx, mode, state.dtype);
 }
 
-function formatStat(value) {
-  if (!Number.isFinite(value)) return "-";
-  const abs = Math.abs(value);
-  if (abs >= 1e6 || (abs > 0 && abs < 1e-3)) {
-    return value.toExponential(3);
-  }
-  if (Number.isInteger(value)) {
-    return value.toString();
-  }
-  return value.toFixed(3);
-}
-
-function formatRoiTick(value) {
-  if (!Number.isFinite(value)) return "-";
-  const abs = Math.abs(value);
-  if (abs >= 1e5 || (abs > 0 && abs < 1e-3)) {
-    return value.toExponential(2);
-  }
-  if (abs >= 1000) return value.toFixed(0);
-  if (abs >= 100) return value.toFixed(1);
-  if (abs >= 10) return value.toFixed(2);
-  return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-
 
 const {
   setToolHintsEnabled,
@@ -1063,73 +1032,6 @@ const {
 window.addEventListener("DOMContentLoaded", initHelpTooltips, { once: true });
 const infoTips = createInfoTips();
 
-function quickSelect(values, k) {
-  let left = 0;
-  let right = values.length - 1;
-  while (left < right) {
-    const pivot = values[(left + right) >> 1];
-    let i = left;
-    let j = right;
-    while (i <= j) {
-      while (values[i] < pivot) i += 1;
-      while (values[j] > pivot) j -= 1;
-      if (i <= j) {
-        [values[i], values[j]] = [values[j], values[i]];
-        i += 1;
-        j -= 1;
-      }
-    }
-    if (k <= j) {
-      right = j;
-    } else if (k >= i) {
-      left = i;
-    } else {
-      break;
-    }
-  }
-  return values[k];
-}
-
-function computeMedian(values) {
-  if (!values || values.length === 0) return Number.NaN;
-  const n = values.length;
-  const work = values.slice();
-  const mid = Math.floor(n / 2);
-  const high = quickSelect(work, mid);
-  if (n % 2 === 1) {
-    return high;
-  }
-  const low = quickSelect(work, mid - 1);
-  return (low + high) * 0.5;
-}
-
-function formatEnergy(value) {
-  if (!Number.isFinite(value)) return "";
-  const rounded = Math.round(value);
-  if (Math.abs(value - rounded) < 0.05) {
-    return String(rounded);
-  }
-  return value.toFixed(1);
-}
-
-function isHdf5File(path) {
-  return isHdf5FileUtil(path);
-}
-
-function isHeaderCapableFile(path) {
-  return isHeaderCapableFileUtil(path);
-}
-
-function formatInspectorValue(value) {
-  if (value === null || value === undefined) return "-";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
 
 function resetInspectorDetails() {
   if (inspectorPath) inspectorPath.textContent = "-";
@@ -2388,15 +2290,6 @@ function cancelClose() {
   window.clearTimeout(closeTimer);
 }
 
-function dirnameFromPath(path) {
-  if (!path) return "";
-  const normalized = path.replace(/\\/g, "/");
-  const idx = normalized.lastIndexOf("/");
-  if (idx <= 0) {
-    return normalized.startsWith("/") ? "/" : "";
-  }
-  return normalized.slice(0, idx);
-}
 
 function syncSeriesSumOutputPath(force = false) {
   seriesSumController.syncSeriesSumOutputPath(force);
@@ -3908,9 +3801,6 @@ function option(label, value) {
   return opt;
 }
 
-function isHdfFile(path) {
-  return isHdfFileUtil(path);
-}
 
 function isSeriesCapable(path) {
   return isSeriesCapableFileUtil(path);
@@ -3941,10 +3831,6 @@ async function loadMetadata() {
   return frameMetadataController?.loadMetadata();
 }
 
-function parseShape(header) {
-  if (!header) return [];
-  return header.split(",").map((v) => parseInt(v, 10));
-}
 
 function formatSimplonTimestamp(raw) {
   return sourceMetadataController
@@ -4064,68 +3950,6 @@ function parseDtype(header) {
   return header || state.dtype;
 }
 
-function typedArrayFrom(buffer, dtype) {
-  switch (dtype) {
-    case "<u1":
-    case "|u1":
-      return new Uint8Array(buffer);
-    case "<u2":
-      return new Uint16Array(buffer);
-    case "<u4":
-      return new Uint32Array(buffer);
-    case "<i2":
-      return new Int16Array(buffer);
-    case "<i4":
-      return new Int32Array(buffer);
-    case "<u8": {
-      const in64 = new BigUint64Array(buffer);
-      const out = new Float64Array(in64.length);
-      for (let i = 0; i < in64.length; i += 1) {
-        out[i] = Number(in64[i]);
-      }
-      return out;
-    }
-    case "<i8": {
-      const in64 = new BigInt64Array(buffer);
-      const out = new Float64Array(in64.length);
-      for (let i = 0; i < in64.length; i += 1) {
-        out[i] = Number(in64[i]);
-      }
-      return out;
-    }
-    case "<f4":
-      return new Float32Array(buffer);
-    case "<f8":
-      return new Float64Array(buffer);
-    default:
-      return new Uint32Array(buffer);
-  }
-}
-
-function toFloat32(data) {
-  if (data instanceof Float32Array) return data;
-  const out = new Float32Array(data.length);
-  for (let i = 0; i < data.length; i += 1) {
-    out[i] = data[i];
-  }
-  return out;
-}
-
-function getWebglUnsignedDtypeKey(dtype) {
-  return getWebglUnsignedDtypeKeyUtil(dtype);
-}
-
-function isWebglUnsignedRawCandidate(dtype, data) {
-  return isWebglUnsignedRawCandidateUtil(dtype, data);
-}
-
-function getWebglUnsignedUploadInfo(gl, key) {
-  return getWebglUnsignedUploadInfoUtil(gl, key);
-}
-
-function getDtypeInfo(dtype) {
-  return getDtypeInfoUtil(dtype);
-}
 
 // Pixel values for an export, as the viewer shows them: whether they are on,
 // the smallest cell they are drawn into, and each pixel's label in a frame.
@@ -4171,17 +3995,6 @@ function isSaturatedValue(value, satMax) {
   return Math.abs(value - satMax) <= tolerance;
 }
 
-function chooseHistogramBins(count) {
-  return chooseHistogramBinsUtil(count);
-}
-
-function getPaletteColorCount(palette) {
-  return getPaletteColorCountUtil(palette);
-}
-
-function computeHistogram(data, min, max, satMax, bins, logX) {
-  return computeHistogramUtil(data, min, max, satMax, bins, logX);
-}
 
 function computeAutoLevels(data, satMaxInput) {
   // The type of the values given: a flatfield-corrected frame is float even
@@ -4215,9 +4028,6 @@ function getHistTooltipPosition(canvasRect, x) {
   return { left, top };
 }
 
-function buildPalette(name) {
-  return buildPaletteUtil(name);
-}
 
 overviewViewportController = createOverviewViewportController({
   state,
