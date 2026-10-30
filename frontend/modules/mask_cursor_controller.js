@@ -354,11 +354,27 @@ export function createMaskCursorController({
     histTooltip.setAttribute("aria-hidden", "true");
   }
 
+  // Where the mouse was when the readout was last placed, so it can be placed
+  // again when the magnifier's lens appears, goes or changes size under a
+  // mouse that has not moved.
+  let cursorAt = null;
+
   function showCursorOverlay(text, clientX, clientY) {
     if (!cursorOverlay || !canvasShell) return;
     cursorOverlay.textContent = text;
     cursorOverlay.classList.add("is-visible");
     cursorOverlay.setAttribute("aria-hidden", "false");
+    placeCursorOverlay(clientX, clientY);
+  }
+
+  /** Place the readout again for the lens as it is now, if it shows. */
+  function repositionCursorOverlay() {
+    if (!cursorOverlay?.classList.contains("is-visible") || !cursorAt) return;
+    placeCursorOverlay(cursorAt.clientX, cursorAt.clientY);
+  }
+
+  function placeCursorOverlay(clientX, clientY) {
+    cursorAt = { clientX, clientY };
     const shellRect = canvasShell.getBoundingClientRect();
     // Beside the magnifier's lens when it shows, not under it.
     const offset = 12 + (getCursorClearance?.() || 0);
@@ -508,5 +524,6 @@ export function createMaskCursorController({
     hideHistTooltip,
     hideCursorOverlay,
     updateCursorOverlay,
+    repositionCursorOverlay,
   };
 }

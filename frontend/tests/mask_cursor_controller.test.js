@@ -119,6 +119,78 @@ describe("mask_cursor_controller", () => {
     expect(cursorOverlay.textContent).toBe("X 0 Y 0 Value 24");
   });
 
+  it("moves the readout clear of the magnifier's lens when the lens appears under a still mouse", () => {
+    const canvasWrap = document.createElement("div");
+    canvasWrap.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 400 });
+    const canvasShell = document.createElement("div");
+    canvasShell.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 400 });
+    const cursorOverlay = document.createElement("div");
+    let clearance = 0;
+
+    const controller = createMaskCursorController({
+      apiBase: "/api",
+      state: {
+        hasFrame: true,
+        width: 4,
+        height: 4,
+        zoom: 100,
+        renderOffsetX: 0,
+        renderOffsetY: 0,
+        dataRaw: new Uint32Array(16).fill(5),
+        dtype: "<u4",
+        maskEnabled: false,
+        maskAvailable: false,
+        maskRaw: null,
+        maskShape: null,
+        maskSaturatedEnabled: false,
+      },
+      elements: {
+        canvasWrap,
+        canvasShell,
+        cursorOverlay,
+        histTooltip: document.createElement("div"),
+        maskToggle: document.createElement("input"),
+        maskSaturatedToggle: document.createElement("input"),
+        simplonUrl: document.createElement("input"),
+        simplonVersion: document.createElement("input"),
+      },
+      callbacks: {
+        isHdfFile: vi.fn(),
+        parseDtype: vi.fn(),
+        parseShape: vi.fn(),
+        typedArrayFrom: vi.fn(),
+        getActiveSaturationMax: vi.fn(() => null),
+        updateGlobalStats: vi.fn(),
+        redraw: vi.fn(),
+        scheduleRoiUpdate: vi.fn(),
+        getDtypeInfo: vi.fn(() => ({ kind: "u", bits: 32 })),
+        formatValue: vi.fn(() => "5"),
+        isSaturatedValue: vi.fn(() => false),
+        getCursorClearance: () => clearance,
+        getResolutionAtPixel: vi.fn(() => null),
+        getEffectiveScrollLeft: vi.fn(() => 0),
+        getEffectiveScrollTop: vi.fn(() => 0),
+        setAutoloadStatus: vi.fn(),
+      },
+    });
+
+    controller.updateCursorOverlay({ clientX: 100, clientY: 100 });
+    expect(cursorOverlay.style.left).toBe("112px");
+
+    // Z pressed: the lens shows, the mouse has not moved.
+    clearance = 78;
+    controller.repositionCursorOverlay();
+    expect(cursorOverlay.style.left).toBe("190px");
+    expect(cursorOverlay.style.top).toBe("190px");
+
+    // A hidden readout stays hidden and where it was.
+    controller.hideCursorOverlay();
+    clearance = 0;
+    controller.repositionCursorOverlay();
+    expect(cursorOverlay.classList.contains("is-visible")).toBe(false);
+    expect(cursorOverlay.style.left).toBe("190px");
+  });
+
   it("shows the corrected value with the measured one beside it, while flatfield correction is on", () => {
     const canvasWrap = document.createElement("div");
     canvasWrap.getBoundingClientRect = () => ({ left: 20, top: 30, width: 100, height: 100 });

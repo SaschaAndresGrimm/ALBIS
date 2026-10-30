@@ -5231,6 +5231,7 @@ magnifierController = createMagnifierController({
     getEffectiveScrollTop,
     getPixelLabelSettings,
     pixelLabelsForFrame,
+    onClearanceChange: () => maskCursorController.repositionCursorOverlay(),
   },
 });
 
