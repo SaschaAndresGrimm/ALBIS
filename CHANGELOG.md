@@ -7,9 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.38.1] - 2026-10-30
+
 ### Fixed
 
-- **On Windows, files and folders with umlauts or other special characters open from the system's file dialog.** Picking `a¦b.tiff`, or any file under a folder such as `Jürg`, opened ALBIS's own file browser instead of the image: the chosen path reached ALBIS garbled and was taken for a file that does not exist.
+- **On Windows, files and folders with umlauts or other special characters open from the system's file dialog.** Picking `a¦b.tiff`, or any file under a folder such as `Jürg`, opened ALBIS's own file browser instead of the image: the chosen path reached ALBIS garbled and was taken for a file that does not exist. Reported by Benjamin Luethi.
 - **On Linux, a file with a name in a foreign encoding no longer empties the file browser.** A name stored in bytes that are not UTF-8 — `a¦b.tiff` copied from Windows or out of an old archive, or from a share mounted with another character set — made the whole folder listing fail, so the dialog showed no folders and no files at all. Such a file is now left out, the rest of the folder is listed, and the log names the file so it can be renamed.
 - **An HDF5 dataset whose name holds Greek, Japanese or other non-Latin characters saves as CSV.** The download failed with a server error, because the name went into the download header as it was; a `"` in the name broke the header too. Downloads now carry the real name the way browsers expect it.
 - **The log file is written as UTF-8 on Windows too.** A file name with characters outside the Windows code page lost its log entry, and **View Log** showed umlauts and other accented letters as `�`.
@@ -1793,7 +1795,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.1...HEAD
+[0.38.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.0...v0.38.1
 [0.38.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.1...v0.37.0
 [0.36.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.0...v0.36.1
