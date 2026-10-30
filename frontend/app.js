@@ -10,7 +10,7 @@
  * Use `docs/CODE_MAP.md` for a quick file-level navigation guide.
  */
 
-import { API, fetchJSON, fetchJSONWithInit, fetchResponse } from "./modules/http.js";
+import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
 import { PIXEL_LABEL_MIN_CELL_PX, pixelLabelResolver, pixelLabelsAreFloat } from "./modules/overlay_painters.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import { computeMedian, parseShape, toFloat32, typedArrayFrom } from "./modules/typed_array_utils.js";
@@ -46,16 +46,9 @@ import { attachRangeFill } from "./modules/range_fill.js";
 import { createFileOpenController } from "./modules/file_open_flow.js";
 import { createLiveSeriesWatch } from "./modules/live_series_watch.js";
 import { createRecentFiles } from "./modules/recent_files.js";
-import { readLaunchTargetFromHash } from "./modules/launch_target.js";
-import {
-  CLONE_HASH_PREFIX,
-  captureWindowState,
-  claimClonePayload,
-  discardClonePayload,
-  readCloneTokenFromHash,
-  stashClonePayload,
-  sweepStaleClonePayloads,
-} from "./modules/window_clone_state.js";
+import { createWindowCloneController } from "./modules/window_clone_controller.js";
+import { createHandoffController } from "./modules/handoff_controller.js";
+import { createClientLog, formatClientArg } from "./modules/client_log.js";
 import { createRecentFilesController } from "./modules/recent_files_controller.js";
 import { createSeriesSumController } from "./modules/series_sum_controller.js";
 import { createDataExportController } from "./modules/data_export_controller.js";
@@ -757,61 +750,10 @@ const PLOT_THEME = {
   peak: "rgba(255, 196, 110, 0.95)",
 };
 
-const clientLogBuffer = [];
-let clientLogTimer = null;
-let clientLogSending = false;
 const SECTION_STATE_VARIANTS = ["is-empty", "is-loading", "is-active", "is-warning"];
 const CHROME_IDLE_DELAY_MS = 2200;
 
-function formatClientArg(arg) {
-  if (arg instanceof Error) {
-    return `${arg.message}${arg.stack ? `\n${arg.stack}` : ""}`;
-  }
-  if (typeof arg === "object") {
-    try {
-      return JSON.stringify(arg);
-    } catch {
-      return String(arg);
-    }
-  }
-  return String(arg);
-}
-
-function logClient(level, message, context, extra) {
-  if (!message) return;
-  clientLogBuffer.push({
-    level,
-    message: String(message).slice(0, 2000),
-    context,
-    extra,
-    url: window.location.href,
-    userAgent: navigator.userAgent,
-  });
-  if (!clientLogTimer) {
-    clientLogTimer = window.setTimeout(flushClientLogs, 250);
-  }
-}
-
-async function flushClientLogs() {
-  clientLogTimer = null;
-  if (clientLogSending || clientLogBuffer.length === 0) return;
-  clientLogSending = true;
-  const entry = clientLogBuffer.shift();
-  try {
-    await fetchResponse(`${API}/client-log`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(entry),
-    });
-  } catch {
-    // drop on network errors
-  } finally {
-    clientLogSending = false;
-    if (clientLogBuffer.length) {
-      clientLogTimer = window.setTimeout(flushClientLogs, 250);
-    }
-  }
-}
+const { logClient } = createClientLog({ apiBase: API });
 
 bindClientLogging({
   formatClientArg,
@@ -5216,251 +5158,61 @@ finalizeRuntimeBootstrap(createRuntimeBootstrapContext({
   },
 }));
 
-let handoffLastId = Number(localStorage.getItem("albis.handoff.lastId") || "0");
-let handoffPollBusy = false;
-let handoffPollTimer = null;
+/** Switch to `dataset` if the open HDF5 file lists it; false when it does not. */
+async function selectDatasetIfPresent(dataset) {
+  if (!datasetSelect) return false;
+  const exists = Array.from(datasetSelect.options).some((opt) => opt.value === dataset);
+  if (!exists) return false;
+  state.dataset = dataset;
+  datasetSelect.value = dataset;
+  await loadMetadata();
+  return true;
+}
 
-/**
- * File > Duplicate Window: open this image again, set up the same way.
- *
- * The snapshot goes through a single-use localStorage slot named by a nonce in
- * the URL fragment, not through the URL itself -- a path in the address bar
- * would end up in history and in anything that logs `location.href`.
- */
+const windowCloneController = createWindowCloneController({
+  state,
+  analysisState,
+  roiState,
+  callbacks: {
+    fileCommandUnavailableReason,
+    setStatus,
+    getViewport: () => viewerSyncController?.readViewport() || null,
+    applyViewportCenter: (center) => viewerSyncController?.applyViewportCenter(center),
+    openPathInViewer,
+    ensureFileMode,
+    isHdfFile,
+    selectDatasetIfPresent,
+    setThresholdIndex,
+    requestFrame,
+    updateMaskUI,
+    applySyncedContrast,
+    applySyncedRoi,
+    setRings: (rings) => ringListController.setRings(rings),
+    updateRingsSectionState,
+    updatePeaksSectionState: () => analysisOverlayController.updatePeaksSectionState(),
+    schedulePeakFinder: () => analysisOverlayController.schedulePeakFinder(),
+    scheduleResolutionOverlay,
+    schedulePeakOverlay,
+  },
+});
+
+// Stable wrappers: the menu and the boot sequence are handed these before the
+// controller above exists.
 function duplicateWindow() {
-  const reason = fileCommandUnavailableReason("duplicate-window");
-  if (reason) {
-    setStatus(reason, { tone: "warning" });
-    return;
-  }
-  const payload = captureWindowState({
-    state,
-    analysisState,
-    roiState,
-    viewport: viewerSyncController?.readViewport() || null,
-  });
-  if (!payload) {
-    setStatus(t("status.duplicate_window.failed"), { tone: "warning" });
-    return;
-  }
-  // Sweep first: a slot whose popup was blocked earlier would otherwise sit
-  // there until its TTL, and one per blocked attempt adds up.
-  sweepStaleClonePayloads();
-  const token = stashClonePayload(payload);
-  if (!token) {
-    setStatus(t("status.duplicate_window.failed"), { tone: "warning" });
-    return;
-  }
-  const url = new URL(window.location.href);
-  url.hash = CLONE_HASH_PREFIX + token;
-  const opened = window.open(url.toString(), "_blank");
-  if (!opened) {
-    // Pop-up blocked: take the slot back rather than leaving the snapshot for
-    // a window that will never come.
-    discardClonePayload(token);
-    setStatus(t("status.duplicate_window.blocked"), { tone: "warning" });
-  }
+  windowCloneController.duplicateWindow();
 }
 
-/**
- * The receiving half, run once at boot when the fragment names a slot.
- *
- * Order matters and every step is awaited: loadMetadata resets the frame and
- * threshold indices and re-derives pixelAspect, and the mask load can force the
- * mask on, so anything applied before them would be quietly undone. The
- * viewport goes last because it is expressed as an image-space centre and needs
- * the frame's real dimensions to convert into a scroll position.
- */
-async function restoreClonedWindow(payload) {
-  const source = payload.source || {};
-  await openPathInViewer(source.file, { refreshFileList: true });
-
-  if (source.dataset && isHdfFile(source.file) && datasetSelect) {
-    const exists = Array.from(datasetSelect.options).some((opt) => opt.value === source.dataset);
-    if (exists) {
-      state.dataset = source.dataset;
-      datasetSelect.value = source.dataset;
-      await loadMetadata();
-    }
-  }
-
-  if (Number(state.thresholdCount) > 1 && Number(source.thresholdIndex) > 0) {
-    await setThresholdIndex(Number(source.thresholdIndex));
-  }
-
-  const frameIndex = Number(source.frameIndex) || 0;
-  if (frameIndex > 0 && frameIndex < Number(state.frameCount)) {
-    await requestFrame(frameIndex);
-  }
-
-  const mask = payload.mask || {};
-  state.maskAuto = Boolean(mask.auto);
-  state.maskSaturatedEnabled = Boolean(mask.saturated);
-  state.maskEnabled = Boolean(mask.enabled);
-  updateMaskUI();
-
-  if (payload.contrast) applySyncedContrast(payload.contrast);
-
-  const analysis = payload.analysis || {};
-  analysisState.ringsEnabled = Boolean(analysis.ringsEnabled);
-  analysisState.ringMode = analysis.ringMode || analysisState.ringMode;
-  if (Array.isArray(analysis.rings)) {
-    ringListController.setRings(analysis.rings);
-  }
-  // The detector geometry does not travel: the file the clone just opened
-  // states its own, and the geometry override lives in localStorage, which
-  // the clone shares with this window.
-  analysisState.peaksEnabled = Boolean(analysis.peaksEnabled);
-  analysisState.peakCount = Number(analysis.peakCount) || analysisState.peakCount;
-  analysisState.peakMinSnr = Number(analysis.peakMinSnr) || 0;
-  updateRingsSectionState();
-  analysisOverlayController.updatePeaksSectionState();
-  if (analysisState.peaksEnabled) analysisOverlayController.schedulePeakFinder();
-
-  if (payload.roi?.start && payload.roi?.end) applySyncedRoi(payload.roi);
-
-  if (payload.viewport) viewerSyncController?.applyViewportCenter(payload.viewport);
-
-  scheduleResolutionOverlay();
-  schedulePeakOverlay();
+function openLaunchTargetFromHash() {
+  return windowCloneController.openLaunchTargetFromHash();
 }
 
-/** Clear one key out of the fragment, leaving any others in place. */
-function stripHashKey(prefix) {
-  try {
-    const url = new URL(window.location.href);
-    const rest = url.hash
-      .replace(/^#/, "")
-      .split("&")
-      .filter((part) => part && !part.startsWith(prefix));
-    url.hash = rest.length ? rest.join("&") : "";
-    window.history.replaceState(null, "", url.toString());
-  } catch {
-    // A browser that refuses replaceState is not a reason to skip the open.
-  }
+function restoreCloneFromHash() {
+  return windowCloneController.restoreCloneFromHash();
 }
 
-/**
- * Open the file ALBIS was launched with, if it was launched with one.
- *
- * Runs before the clone restore: that strips the whole fragment once it finds
- * its own token, and the two cannot both be honoured anyway -- a duplicated
- * window restores a file of its own.
- */
-async function openLaunchTargetFromHash() {
-  const target = readLaunchTargetFromHash(window.location.hash);
-  if (!target) return;
-  // Strip first, so a reload gives a clean window instead of reopening the
-  // file the user may since have navigated away from.
-  stripHashKey("albis-open=");
-  try {
-    // The window restored the saved data source, which may be a live one --
-    // the SIMPLON monitor, still running. A file opened with ALBIS is the
-    // source now, as with File -> Open. The detector's monitor is left alone:
-    // another ALBIS window may still be showing it live.
-    await ensureFileMode({ disableMonitor: false });
-    await openPathInViewer(target, { refreshFileList: true });
-  } catch (err) {
-    console.error(err);
-    setStatus(t("status.launch_target.failed", { path: target }), { tone: "error" });
-  }
-}
-
-/** Consume a clone slot if this window was opened as one. */
-async function restoreCloneFromHash() {
-  const token = readCloneTokenFromHash(window.location.hash);
-  if (!token) {
-    sweepStaleClonePayloads();
-    return;
-  }
-  const payload = claimClonePayload(token);
-  // Strip the fragment either way: a reload should give a clean window rather
-  // than re-running a restore whose slot is already gone.
-  try {
-    const url = new URL(window.location.href);
-    url.hash = "";
-    window.history.replaceState(null, "", url.toString());
-  } catch {
-    // A browser that refuses replaceState is not a reason to skip the restore.
-  }
-  if (!payload) return;
-  try {
-    await restoreClonedWindow(payload);
-  } catch (err) {
-    console.warn("Failed restoring duplicated window", err);
-    setStatus(t("status.duplicate_window.restore_failed"), { tone: "warning" });
-  }
-}
-
-async function applyHandoffJob(job) {
-  const targetPath = String(job?.open_path || "").trim();
-  if (!targetPath) {
-    setStatus(t("status.handoff.no_target", { id: job?.id || "?" }));
-    return;
-  }
-
-  await openPathInViewer(targetPath, { refreshFileList: true });
-
-  const targetDataset = String(job?.dataset || "").trim();
-  if (targetDataset && isHdfFile(targetPath)) {
-    try {
-      if (datasetSelect) {
-        const exists = Array.from(datasetSelect.options).some((opt) => opt.value === targetDataset);
-        if (exists) {
-          state.dataset = targetDataset;
-          datasetSelect.value = targetDataset;
-          await loadMetadata();
-        }
-      }
-    } catch (err) {
-      console.warn("Failed applying handoff dataset", err);
-    }
-  }
-
-  const runId = String(job?.run_id || "").trim();
-  if (runId) {
-    setStatus(t("status.handoff.opened_with_run", { runId, targetPath }));
-  } else {
-    setStatus(t("status.handoff.opened", { targetPath }));
-  }
-}
-
-async function pollHandoffJobs() {
-  if (handoffPollBusy) return;
-  handoffPollBusy = true;
-  try {
-    const res = await fetchResponse(`${API}/handoff/v1/jobs/latest?after_id=${encodeURIComponent(String(handoffLastId))}`, {
-      cache: "no-store",
-    });
-    if (res.status === 204) {
-      return;
-    }
-    const job = await res.json();
-    const id = Number(job?.id || 0);
-    if (!Number.isFinite(id) || id <= handoffLastId) {
-      return;
-    }
-    handoffLastId = id;
-    localStorage.setItem("albis.handoff.lastId", String(handoffLastId));
-    await applyHandoffJob(job);
-  } catch (err) {
-    // Keep handoff polling non-blocking and quiet during normal UI use.
-    console.warn("Handoff polling error", err);
-  } finally {
-    handoffPollBusy = false;
-  }
-}
-
-function startHandoffPolling() {
-  if (handoffPollTimer) {
-    window.clearInterval(handoffPollTimer);
-  }
-  handoffPollTimer = window.setInterval(() => {
-    pollHandoffJobs();
-  }, 1000);
-  pollHandoffJobs();
-}
-
-startHandoffPolling();
+createHandoffController({
+  apiBase: API,
+  callbacks: { openPathInViewer, isHdfFile, selectDatasetIfPresent, setStatus },
+}).start();
 // Held for as long as this tab is open: see modules/presence.js.
 startPresence({ apiBase: API });
