@@ -86,6 +86,12 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The bounded LRU cache of decoded frames, a hash for telling live frames apart, and the shared in-flight frame-load state.
 - `frontend/modules/canvas_fonts.js`, `frontend/modules/range_fill.js`, `frontend/modules/number_stepper.js`, `frontend/modules/zoom_slider.js`, `frontend/modules/control_availability.js`:
   - Drawn-control helpers: the canvas font stack, the filled part of a slider track, the number field's up/down buttons, the logarithmic zoom slider scale, and marking a control unavailable while keeping its reason reachable.
+- `frontend/modules/client_log.js`:
+  - The page's half of the log: entries queued and posted to `/api/client-log` one at a time; `client_logging_bindings.js` routes `console.warn`/`error` and uncaught errors to it.
+- `frontend/modules/handoff_controller.js`:
+  - Polls the handoff queue (`/api/handoff/v1/jobs/latest`) and opens the newest job's file; the last job handled is kept in localStorage.
+- `frontend/modules/window_clone_controller.js`:
+  - File → Duplicate Window, and what a new window does at boot: restore a duplicated window, or open the file ALBIS was launched with. What travels is `window_clone_state.js`.
 - `frontend/modules/launch_target.js`, `frontend/modules/pointer_focus_release.js`:
   - The file ALBIS was launched to open (from the URL fragment), and returning focus after a pointer click so keyboard shortcuts keep working.
 
