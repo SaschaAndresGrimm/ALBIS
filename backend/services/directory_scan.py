@@ -101,6 +101,22 @@ class _Budget:
         return True
 
 
+def is_utf8_name(name: str) -> bool:
+    """False for a name stored on disk in bytes that are not UTF-8.
+
+    Linux hands such a name to Python as text with lone surrogates in it
+    (`a\\udca6b.tiff` for a Latin-1 `a¦b.tiff` copied from Windows or an old
+    archive). It cannot go into JSON or a URL, so it can never be opened
+    through the API, and listed it made the whole response fail: one such
+    file emptied the folder it was in. Callers skip it instead.
+    """
+    try:
+        name.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 class BoundedWalk:
     """One bounded walk. Read `truncated` after the iterator is exhausted."""
 
@@ -130,7 +146,7 @@ class BoundedWalk:
                         if not self._budget.charge():
                             return
                         name = entry.name
-                        if name.startswith("."):
+                        if name.startswith(".") or not is_utf8_name(name):
                             continue
                         try:
                             if entry.is_dir(follow_symlinks=False):
