@@ -29,6 +29,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **The cursor readout moves clear of the magnifier as it appears.** Pressing Z without moving the mouse left the readout half under the lens until the mouse moved, because the readout was placed only on a mouse move; it now moves aside as soon as the lens shows, goes or changes size.
 - **Export Animation names the Peak Finder by its name.** With no overlay to include, the dialog said to switch on "the spot finder", a tool the Analysis tab calls **Peak Finder**, so the hint pointed at nothing a reader could find; it now names **Resolution Rings** and the **Peak Finder** as the panel does, in every language.
 - **Menus are no longer see-through.** The File, Settings and Help menus are frosted like the bars they open from; the toolbar under a menu read through it.
 - **Dialogs open above the collapsed panel's Open menu button,** which showed over a dialog's top-right corner on narrower windows.

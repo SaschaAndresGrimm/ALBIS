@@ -4,7 +4,7 @@ vi.mock("../modules/i18n.js", () => ({ t: (key) => key }));
 
 import { LENS_SIZES, MAGNIFICATIONS, createMagnifierController, isTypingTarget, lensSourcePixel, stepAlong } from "../modules/magnifier_controller.js";
 
-function setup() {
+function setup(extraCallbacks = {}) {
   document.body.innerHTML = `<div id="shell"><div id="wrap"></div></div><button id="btn"></button><input id="field" />`;
   const canvasWrap = document.getElementById("wrap");
   canvasWrap.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 400 });
@@ -22,6 +22,7 @@ function setup() {
       isSaturatedValue: () => false,
       getEffectiveScrollLeft: () => 0,
       getEffectiveScrollTop: () => 0,
+      ...extraCallbacks,
     },
   });
   return { controller, canvasWrap, state };
@@ -100,5 +101,35 @@ describe("magnifier", () => {
     expect(isTypingTarget(box)).toBe(false);
     expect(isTypingTarget(document.createElement("select"))).toBe(true);
     expect(isTypingTarget(Object.assign(document.createElement("input"), { type: "number" }))).toBe(true);
+  });
+
+  it("says when the readout must move: the lens appeared or went under a still mouse", () => {
+    // jsdom has no canvas; a context whose every method does nothing is enough
+    // to let the lens draw, and so become visible.
+    const context = new Proxy(
+      {
+        measureText: () => ({ width: 10 }),
+        createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }),
+      },
+      { get: (target, name) => (name in target ? target[name] : () => {}), set: () => true },
+    );
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context);
+    vi.stubGlobal("requestAnimationFrame", (draw) => {
+      draw();
+      return 0;
+    });
+    const onClearanceChange = vi.fn();
+    const { controller, canvasWrap } = setup({ onClearanceChange });
+    canvasWrap.dispatchEvent(new MouseEvent("pointermove", { clientX: 200, clientY: 200, bubbles: true }));
+    expect(controller.clearance()).toBe(0);
+
+    key("keydown", "z");
+    expect(controller.isShowing).toBe(true);
+    expect(controller.clearance()).toBeGreaterThan(0);
+    expect(onClearanceChange).toHaveBeenCalledTimes(1);
+
+    key("keyup", "z");
+    expect(controller.clearance()).toBe(0);
+    expect(onClearanceChange).toHaveBeenCalledTimes(2);
   });
 });
