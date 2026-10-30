@@ -29,6 +29,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **The file browser's columns line up.** In Details view, Type, Modified and Size each sat further right of their heading than the last; they now sit under their headings at the right, with the name taking the width to spare.
 - **The arrow keys stay on the panel tabs that are shown.** Without a detector connected, the right arrow on Analysis moved to the hidden Detector tab and its empty panel, and keyboard focus was lost; the arrows, Home and End now go through the visible tabs only.
 - **The File menu no longer looks pressed when closed.** It was highlighted from the moment ALBIS opened, and whichever menu was opened last stayed highlighted after it closed; a menu name now lights up only while its menu is open.
+- **Running from a clone inside a container, the update notice says `git pull`.** In a devcontainer, a Codespace or a CI job, ALBIS took itself for the Docker image and offered `docker pull` for an image that was never run there. A git checkout now counts as running from source wherever it runs; the published image still says `docker pull`.
 
 ## [0.37.0] - 2026-10-29
 

@@ -23,6 +23,7 @@ def _isolate(monkeypatch, *, frozen: bool, platform: str, docker: bool = False) 
     monkeypatch.setattr(sys, "platform", platform)
     monkeypatch.setattr(module, "_docker_from_env", lambda: docker)
     monkeypatch.setattr(module, "_docker_marker_present", lambda: False)
+    monkeypatch.setattr(module, "_git_checkout_present", lambda: False)
 
 
 def test_docker_env_var_wins_over_a_frozen_desktop_build(monkeypatch) -> None:
@@ -36,6 +37,34 @@ def test_dockerenv_marker_is_honoured_for_images_not_built_here(monkeypatch) -> 
     _isolate(monkeypatch, frozen=False, platform="linux")
     monkeypatch.setattr(module, "_docker_marker_present", lambda: True)
     assert read_install_kind() == INSTALL_KIND_DOCKER
+
+
+def test_a_checkout_inside_a_container_is_still_a_checkout(monkeypatch) -> None:
+    """A devcontainer, Codespace or CI job has `/.dockerenv` too.
+
+    Running ALBIS from a clone in one was reported as the Docker image, so the
+    update notification said `docker pull` to someone who updates with
+    `git pull`, and the update-check endpoint test failed inside the
+    project's own devcontainer.
+    """
+    _isolate(monkeypatch, frozen=False, platform="linux")
+    monkeypatch.setattr(module, "_docker_marker_present", lambda: True)
+    monkeypatch.setattr(module, "_git_checkout_present", lambda: True)
+    assert read_install_kind() == INSTALL_KIND_SOURCE
+
+
+def test_our_image_stays_docker_even_with_a_checkout_mounted_in(monkeypatch) -> None:
+    # ALBIS_IN_DOCKER comes from our Dockerfile: that container runs the image,
+    # whatever else is on disk, and cannot update itself by `git pull`.
+    _isolate(monkeypatch, frozen=False, platform="linux", docker=True)
+    monkeypatch.setattr(module, "_git_checkout_present", lambda: True)
+    assert read_install_kind() == INSTALL_KIND_DOCKER
+
+
+def test_the_checkout_probe_sees_this_repository() -> None:
+    # The suite runs from a clone or a worktree, so the real probe must say so;
+    # a wrong root path would make the checkout rule silently dead.
+    assert module._git_checkout_present()
 
 
 def test_docker_env_var_is_read_as_a_flag_not_as_text(monkeypatch) -> None:
