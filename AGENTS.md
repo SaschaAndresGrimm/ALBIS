@@ -19,8 +19,12 @@ every window before and after and look at them — tests do not see layout:
 
 ```bash
 ALBIS_DATA_ROOT=testdata .venv/bin/python -m uvicorn backend.app:app --port 8731 &
-npm run ui:snapshots -- --out /tmp/albis-ui
+npm run ui:snapshots -- --out /tmp/albis-ui/after   # and --out …/before on main
+npm run ui:diff -- /tmp/albis-ui/before /tmp/albis-ui/after
 ```
+
+`ui:diff` points at the shots that changed, with the changed pixels marked;
+it does not replace looking at them.
 
 ## How changes land
 
