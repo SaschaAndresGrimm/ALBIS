@@ -49,8 +49,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Shared HDF5/header/series capability checks used across controllers.
 - `frontend/modules/overlay_render_controller.js` + `frontend/modules/histogram_render_controller.js`:
   - Overlay and histogram drawing/scheduling.
-- `frontend/modules/autoload_*_controller.js`:
-  - Autoload mode, settings persistence/UI sync, orchestration, and status/meta control.
+- `frontend/modules/autoload_mode_controller.js`, `autoload_orchestration_controller.js`, `autoload_settings_controller.js`, `autoload_status_controller.js`:
+  - Autoload: the file-watch and SIMPLON runtime, the start/stop/tick state machine, settings persistence and UI sync, and the status/meta labels.
 - `frontend/modules/file_browser.js`:
   - File browser modal state and filesystem browsing interactions.
 - `frontend/modules/flatfield.js` + `frontend/modules/flatfield_controller.js` + `backend/services/flatfield.py`:
@@ -67,6 +67,91 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Beta Edit on image: which pixels a brush stroke, box, polygon or circle covers, the user mask bit, undo history; the toolbar over the image, its pointer and key handling (ahead of panning while open) and the overlay of pixels changed by hand.
 - `frontend/modules/pixel_mask_controller.js`:
   - The beta Data → Pixel Mask section and its counterpart on the Detector tab: the data's own mask (or an edited copy of it, which `mask_cursor_controller.js` keeps in place across files and live frames until Discard edits), saving it, sending it to a detector after a confirmation that counts what changes, Restore of the backup, and opening a detector's mask as a file.
+
+### State, shared services and small helpers
+
+- `frontend/modules/state.js`:
+  - The state objects (`createAppState`, `createRoiState`, `createAnalysisState`); no logic.
+- `frontend/modules/http.js`:
+  - `fetchJSON` / `fetchJSONWithInit`: every backend call should go through these, which turn a failure into a translated message.
+- `frontend/modules/i18n.js`:
+  - `t()`, the language preference, and applying `data-i18n*` attributes.
+- `frontend/modules/toast.js`, `frontend/modules/dialogs.js`, `frontend/modules/modal_manager.js`:
+  - Toasts (`notify*`), promise-based prompt and confirm dialogs in place of `window.prompt`/`confirm`, and the modal stack with its focus handling.
+- `frontend/modules/frame_cache.js`, `frontend/modules/buffer_hash.js`, `frontend/modules/transient_frame_load_state.js`:
+  - The bounded LRU cache of decoded frames, a hash for telling live frames apart, and the shared in-flight frame-load state.
+- `frontend/modules/canvas_fonts.js`, `frontend/modules/range_fill.js`, `frontend/modules/number_stepper.js`, `frontend/modules/zoom_slider.js`, `frontend/modules/control_availability.js`:
+  - Drawn-control helpers: the canvas font stack, the filled part of a slider track, the number field's up/down buttons, the logarithmic zoom slider scale, and marking a control unavailable while keeping its reason reachable.
+- `frontend/modules/launch_target.js`, `frontend/modules/pointer_focus_release.js`:
+  - The file ALBIS was launched to open (from the URL fragment), and returning focus after a pointer click so keyboard shortcuts keep working.
+
+### Bootstrap, chrome and menus
+
+- `frontend/modules/runtime_bootstrap.js`:
+  - Initial UI defaults and the startup sequence.
+- `frontend/modules/chrome_toolbar_controller.js`, `frontend/modules/chrome_bindings.js`, `frontend/modules/window_bindings.js`, `frontend/modules/client_logging_bindings.js`:
+  - Toolbar, footer and idle-chrome state; their listeners; window-level listeners; global client-side error logging.
+- `frontend/modules/menu_actions.js`, `frontend/modules/menu_bindings.js`, `frontend/modules/shortcut_handlers.js`:
+  - The menu action dispatcher, menu and global listeners, and the keyboard shortcuts.
+- `frontend/modules/command_palette.js`, `frontend/modules/command_palette_commands.js`, `frontend/modules/command_availability.js`:
+  - The command palette, its command list, and the one place that says whether a file command can run now (shared by the File menu, the palette and the shortcuts).
+- `frontend/modules/panel_layout_controller.js`, `frontend/modules/panel_tab_bindings.js`, `frontend/modules/ui_panels.js`, `frontend/modules/analysis_tools.js`:
+  - Side-panel layout, sections and mobile drag; tab and section listeners; the remembered tab; which optional Analysis tools a user hides.
+- `frontend/modules/help_tooltips.js`, `frontend/modules/info_tips.js`:
+  - Hover hints (`ui.tool_hints`) and the "?" buttons that explain an option in place.
+- `frontend/modules/settings_controller.js`, `frontend/modules/backend_status_controller.js`, `frontend/modules/backend_log_viewer_controller.js`, `frontend/modules/update_check_controller.js`:
+  - The Settings dialog, the backend health and live badge, View Log, and the release check with what to do for each kind of install.
+
+### Opening files and live sources
+
+- `frontend/modules/file_open_flow.js`, `frontend/modules/upload_flow.js`, `frontend/modules/file_ingress_bindings.js`:
+  - Opening a picked file, uploading one, and the file picker and drag-and-drop listeners.
+- `frontend/modules/recent_files.js`, `frontend/modules/recent_files_controller.js`:
+  - The store of recently opened files and the File → Open Recent submenu.
+- `frontend/modules/data_controls_bindings.js`, `frontend/modules/threshold_playback_controller.js`, `frontend/modules/source_metadata_controller.js`:
+  - Data-source and frame listeners, the threshold selector and playback controls, and parsing the source's metadata into the interface.
+- `frontend/modules/autoload_controls.js`, `frontend/modules/live_series_watch.js`, `frontend/modules/live_history_controller.js`:
+  - Autoload and live-source listeners, following a series that is still being written, and the ring buffer of recent live frames.
+- `frontend/modules/remote_stream_controller.js`, `frontend/modules/jfjoch_bridge_controller.js`, `frontend/modules/jfjoch_probe_controller.js`, `frontend/modules/jfjoch_endpoint_utils.js`:
+  - The Remote Stream and JUNGFRAUJOCH runtime, the JUNGFRAUJOCH bridge lifecycle, its Test button, and normalising the endpoint field.
+- `frontend/modules/simplon_probe_controller.js`, `frontend/modules/simplon_url_utils.js`, `frontend/modules/simplon_diagnostics.js`:
+  - The SIMPLON Test connection button, normalising the base URL, and wording for the backend's failure codes.
+- `frontend/modules/inspector_panel_controller.js`, `frontend/modules/inspector_bindings.js`:
+  - The HDF5 inspector tree, search and image header panel, and their listeners.
+
+### Viewing, overlays and analysis
+
+- `frontend/modules/viewport_bindings.js`, `frontend/modules/overview_bindings.js`, `frontend/modules/viewer_controls_bindings.js`, `frontend/modules/histogram_drag_bindings.js`, `frontend/modules/colorbar_window_bindings.js`:
+  - Canvas gestures, the overview minimap, the viewer controls, dragging the histogram's limits, and the colour bar as a window/level control.
+- `frontend/modules/magnifier_controller.js`:
+  - The magnifier lens, drawn from the data rather than the screen.
+- `frontend/modules/mask_colors.js`, `frontend/modules/mask_legend.js`, `frontend/modules/pixel_mask_find.js`:
+  - Mask colours chosen to stay distinct from the colour map, the chips under the colour bar that show and change them, and finding hot, dead and cold pixels in one image (beta).
+- `frontend/modules/overlay_painters.js`:
+  - Overlay drawing shared by the on-screen canvases and the GIF export.
+- `frontend/modules/analysis_overlay_controller.js`, `frontend/modules/analysis_controls_bindings.js`:
+  - Rings and peak analysis, and the Analysis tab's listeners.
+- `frontend/modules/ring_geometry_utils.js`, `frontend/modules/ring_list_controller.js`, `frontend/modules/resolution_ring_interaction_controller.js`:
+  - Resolution ring geometry (including tilted and multi-panel detectors), the list of d-spacings with presets, and dragging the beam centre and rings on the canvas.
+- `frontend/modules/geometry_params.js`, `frontend/modules/geometry_params_controller.js`, `frontend/modules/geometry_override_utils.js`:
+  - The detector geometry ALBIS calculates with (the data's values and the user's override), Data → Detector Geometry, and geometry-file scoping per file or series.
+- `frontend/modules/roi_geometry_utils.js`, `frontend/modules/roi_controls_bindings.js`, `frontend/modules/roi_plot_bindings.js`:
+  - ROI geometry in physical units (non-square pixels), the ROI controls' listeners, and the ROI plot's pan, zoom and resize.
+- `frontend/modules/series_sum_controller.js`:
+  - Analysis → Combine Frames, run as a background job.
+- `frontend/modules/viewer_sync_controller.js`, `frontend/modules/window_clone_state.js`:
+  - Linking viewport, contrast and ROI between windows, and what a duplicated window takes with it.
+
+### Exports
+
+- `frontend/modules/image_export.js`, `frontend/modules/image_export_controller.js`:
+  - File → Export Image…: output sizes, the resolution stamp, and the dialog.
+- `frontend/modules/export_splash_controller.js`:
+  - The image as the viewer shows it, composed onto one canvas for the quick exports and the splash.
+- `frontend/modules/animation_export_controller.js`, `frontend/modules/gif_encoder.js`:
+  - The animated GIF export and a dependency-free GIF encoder.
+- `frontend/modules/data_export_controller.js`, `frontend/modules/csv_export_utils.js`:
+  - The data-format (TIFF/CBF/HDF5) export workflow, and the one CSV shape every CSV export uses.
 
 ## Backend Route Modules
 
@@ -90,6 +175,11 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Beta Detector tab endpoints (`/api/detector/*`): describe, status, config writes, commands, files and series fetch; 404 unless `ui.detector_control` is on.
 - `backend/routes/pixel_mask.py` + `backend/services/pixel_mask.py`:
   - Beta pixel masks (`/api/pixel-mask/*`): read a mask from an HDF5 file or TIFF, encode one as HDF5 or TIFF to download, read a detector's mask over SIMPLON, copy it to an HDF5 file in `masks/`, and replace it with a backup in `masks/backups/` and a read-back check; 404 unless `ui.pixel_mask` is on (and `ui.detector_control` for the detector).
+
+- `backend/routes/data_export.py` + `backend/services/data_export.py`:
+  - Data-format exports as background jobs (`/api/export/data/start|frame|status|cancel`) and saving a flatfield (`/api/flatfield/save`).
+- `backend/routes/binary_response_utils.py`:
+  - Shared OpenAPI docs and headers for the endpoints that answer with binary frames.
 
 ## Backend Services
 
@@ -118,6 +208,30 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - TTL cache for scan results with single-flight loading, so concurrent pollers share one walk.
 - `backend/services/os_actions.py`:
   - Shared desktop open actions and native picker integrations.
+
+- `backend/services/handoff_queue.py`:
+  - The thread-safe in-memory queue behind the handoff endpoints.
+- `backend/services/content_disposition.py`:
+  - A `Content-Disposition` header for a download, whatever characters its file name holds.
+- `backend/services/log_safety.py`, `backend/services/log_tail.py`:
+  - Making a caller-influenced string safe as one log line, and reading the end of the log for View Log.
+- `backend/services/ui_prompts.py`:
+  - Titles for the native file and folder choosers, in the user's language.
+- `backend/services/update_check.py`, `backend/services/update_download.py`, `backend/services/update_apply.py`:
+  - The GitHub release check, downloading and verifying a release asset, and applying it where that is safe.
+
+## Backend Support Modules
+
+- `backend/request_guard.py`, `backend/response_compression.py`:
+  - Middleware: rejecting cross-site requests made on the user's behalf, and client-aware response compression.
+- `backend/log_format.py`:
+  - The one layout of log lines for the backend, uvicorn and the launcher.
+- `backend/version.py`, `backend/build_info.py`, `backend/install_kind.py`:
+  - Which version, which build, and how this copy was installed; the update check decides what to offer from them.
+- `backend/detector_profiles.py`:
+  - Detectors recognised by serial number, with their geometry.
+- `backend/file_associations.py`, `backend/host_env.py`:
+  - The file types ALBIS registers with the desktop, and a clean environment for programs ALBIS starts.
 
 ## Format and Detector Parsers
 
