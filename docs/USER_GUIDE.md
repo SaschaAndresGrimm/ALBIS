@@ -16,25 +16,36 @@ reference of the same material.
 
 ## Contents
 
+**Start here**
+
 - [Getting started](#getting-started)
+
+**Everyday tasks**
+
 - [Open your data](#open-your-data)
 - [Move through a series](#move-through-a-series)
 - [Make the image readable](#make-the-image-readable)
 - [Measure a region](#measure-a-region)
-- [Flatfield correction](#flatfield-correction)
-- [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)
-- [Detector geometry](#detector-geometry)
-- [Pixel masks (beta)](#pixel-masks-beta)
 - [Resolution rings and reflections](#resolution-rings-and-reflections)
-- [Follow a running experiment](#follow-a-running-experiment)
-- [Combine frames](#combine-frames)
-- [Show only the tools you use](#show-only-the-tools-you-use)
 - [Get data back out](#get-data-back-out)
 - [Compare two views](#compare-two-views)
+
+**Specialised tools**
+
+- [Detector geometry](#detector-geometry)
+- [Flatfield correction](#flatfield-correction)
+- [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)
+- [Combine frames](#combine-frames)
+- [Follow a running experiment](#follow-a-running-experiment)
+- [Pixel masks (beta)](#pixel-masks-beta)
 - [Test a detector (beta)](#test-a-detector-beta)
+- [Show only the tools you use](#show-only-the-tools-you-use)
 - [Work from another machine](#work-from-another-machine)
-- [Quit ALBIS](#quit-albis)
+
+**Reference**
+
 - [Keyboard shortcuts](#keyboard-shortcuts)
+- [Quit ALBIS](#quit-albis)
 - [What ALBIS sends over the network](#what-albis-sends-over-the-network)
 - [When something looks wrong](#when-something-looks-wrong)
 - [Glossary](#glossary)
@@ -315,6 +326,13 @@ other pixel.
 
 ## Measure a region
 
+**In short:**
+
+1. Open the **Analysis** tab and switch on **Statistics and ROI**.
+2. Choose **Line ROI**, **Box ROI**, **Circle ROI** or **Annulus ROI**.
+3. Right-drag on the image.
+4. Read the statistics and the plots under it.
+
 Everything here is in the **Analysis** tab, under **Statistics and ROI**.
 
 Pick a **Mode** — Line, Box, Circle or Annulus — then **right-drag** on the
@@ -361,7 +379,280 @@ can be recomputed from the exported columns.
 
 ---
 
+## Resolution rings and reflections
+
+**In short:**
+
+1. Open the **Analysis** tab and switch on **Resolution Rings**.
+2. Type the d-spacings you want in **Rings (Å)**, or press **Ice rings**.
+3. Switch on **Peak Finder** to circle the reflections and list them.
+
+Both need the [detector geometry](#detector-geometry); it is usually read from
+the file.
+
+**Resolution Rings** draws rings at the d-spacings you choose, from the values
+in [Detector geometry](#detector-geometry); the line at the top of the section
+shows them, and **Edit** goes there.
+
+Enter the ring positions you want in **Rings (Å)**, as many as you need (up
+to 16): **+ Add ring** adds a field, **×** removes one, and the list is sorted
+by d when you leave it. **Ice rings** adds the ten rings of hexagonal ice, the
+quickest way to see whether ice is on an image, and **Clear** removes them all.
+The rings are remembered for the next session. On the image, a ring can also be
+dragged to a new radius. Once rings are on, the cursor readout gains a **d**
+value, so pointing at a feature tells you its resolution.
+
+![Resolution rings at 10, 5, 3.3 and 2.5 Å and 30 found peaks circled on the image, with the peak table in the Analysis tab](images/user-guide/rings-peaks.webp)
+
+**Peak Finder** detects reflections in the current frame. Set how many to look
+for and a minimum signal-to-noise ratio; found peaks are listed with position,
+intensity, SNR and resolution, and are drawn over the image. Selecting a row
+highlights that peak.
+
+---
+
+## Get data back out
+
+| You want | Use |
+| --- | --- |
+| The frames as TIFF or CBF | **File → Convert Dataset…** (`⇧⌘X`) |
+| A figure for a slide or a paper | **File → Export Image…** (`⇧⌘E`) |
+| An animation of a series | **File → Export Animation…** (`⌘G`) |
+| A quick picture of what is on screen | **File → Save As → Full Image / Visible Area / Viewer Window** |
+| ROI numbers for analysis | **Export CSV** in the Analysis tab |
+
+![The Export Image dialog: Region, Size, Print resolution, Include overlays and Pixel values](images/user-guide/export-image.webp)
+
+**Export Image** writes the frame, or the visible area, as a PNG made for
+slides and papers. **Size** enlarges it by 1×, 2×, 4× or 8×, turning each
+detector pixel into a sharp square; the default is the smallest size at least
+2000 pixels wide. Without that, a small image is enlarged by whichever program
+shows it, and looks blurry. Sizes too large for a browser to create are greyed
+out. **As on screen** uses the viewer's zoom instead: zoom in, choose
+**Visible area** and **As on screen**, and the PNG is what you see. Non-square
+detector pixels are drawn at their true proportions. **Print resolution** (300
+dpi by default) is stored in the file, so a layout program gives it the right
+printed size; the dialog shows that size. **Include overlays** draws the
+resolution rings, found peaks and the ROI as the viewer shows them. **Pixel
+values** draws each pixel's value into it, as the viewer does when zoomed in.
+It needs the pixel values switched on in the viewer, and a size at which each
+pixel is at least as large as the viewer's minimum for them (18 px unless
+changed in Settings) — in practice **As on screen** while zoomed in. An option
+that cannot be used right now says why underneath it.
+
+The quick exports under **Save As** need no dialog. **Full Image** writes one
+image pixel per detector pixel: the exact data, for analysis or another
+program. **Visible Area** writes what you see, without the interface: at the
+viewer's zoom and pixel proportions, each detector pixel a sharp block (zoomed
+out below 1×, it keeps one pixel per detector pixel). **Viewer Window** is a
+screenshot of the whole window, the image in it as sharp as on screen.
+
+![The Convert Dataset dialog](images/user-guide/convert-dataset.webp)
+
+**Convert Dataset** writes all frames, the current frame, or a range. Exports
+are signed integers using the common detector convention: module gaps are `-1`,
+bad or saturated pixels are `-2` — or, with **Inpaint** ticked, filled from
+their neighbours (see [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)).
+
+<details>
+<summary><b>Unsigned data types</b></summary>
+
+For software that needs a particular type, **Data type** writes a TIFF as
+**Unsigned 16-bit** or **Unsigned 32-bit** instead (CBF stays signed 32-bit).
+Unsigned has no `-1` or `-2`: gaps, bad and saturated pixels all hold the
+type's highest value (65535 for 16 bits), the DECTRIS convention for a masked
+pixel. A count that does not fit is clipped one below it (65534), never wrapped
+around; the dialog warns beforehand when the data can count higher, the export
+says afterwards how many pixels were clipped, and each file's header states the
+type, the marker and the clipped pixels, with its count cutoff lowered to 65534
+so a clipped pixel reads as overloaded. The choice is remembered.
+
+</details>
+
+The files are named so they read back as a series, in ALBIS as in XDS, DIALS
+or ALBULA: `<name>[_thr<n>]_<number>`, the number last and 5 digits wide, like
+a detector's own images. `<name>` is the source's (`series_190` for
+`series_190_master.h5`) unless you give a prefix; a detector with several
+thresholds gets one series per threshold (`series_190_thr2_00007.cbf`, template
+`series_190_thr2_?????.cbf`). A frame keeps its number: its place in the
+dataset, or the number in a source image's name. With **Overwrite existing
+files** off and files of that name already there, the whole export takes a new
+name (`series_190_2_…`) rather than numbering some files twice.
+
+It works for a live source too — the SIMPLON monitor, a JUNGFRAUJOCH preview or
+the Remote Stream: choose **Current image** or **All images in the live
+history**, the frames ALBIS keeps of what it has shown. They are written to
+`live_export` in the data folder unless you choose another, named by series and
+image number where the source gives them (`simplon_monitor_s189_00009.cbf`),
+with the energy, distance and beam centre the source reported. These are the
+preview images: a SIMPLON monitor need not show every frame, and the complete
+series is in the detector's files.
+
+<details>
+<summary><b>What the exported header keeps</b></summary>
+
+TIFF and CBF exports carry the same header text — CBF in its miniCBF header,
+TIFF in the standard `ImageDescription` tag, which `tifffile`, PIL and ImageJ
+all show. A TIFF additionally keeps the DECTRIS private tag, which holds the
+series id, image number, threshold ids and lost-pixel count that the text has
+no place for. The header states, where the source states them: detector model, serial and location,
+the acquisition timestamp, pixel size, sensor thickness, exposure time and
+period, tau, count cutoff, threshold setting, gain setting, wavelength,
+incident energy, detector distance, beam centre, start angle and angle
+increment. Three further lines record that ALBIS produced the file, which
+source and frame it came from, and the pixel substitutions above — an exported
+frame is derived data, and a header that did not say so would read to XDS or
+DIALS as raw detector output.
+
+Four kinds of line are deliberately **not** carried over from a source CBF:
+`N_excluded_pixels`, `Excluded_pixels`, `Flat_field` and `Trim_file` describe
+corrections applied to the raw pixel array, which the export has already
+altered, so repeating them would describe an array that no longer exists.
+`Image_path` is dropped too — the provenance line records the source file's
+name rather than its directory, so that a file you send to a collaborator does
+not carry your folder layout.
+
+How much survives depends on the source. HDF5 and DECTRIS TIFF carry the most.
+A CBF or EDF source gives what its own header states, which for a PILATUS
+miniCBF is nearly all of the list above.
+
+A summed or averaged **TIFF** keeps the instrument facts — detector model,
+serial and location, pixel size, sensor thickness, tau, threshold setting,
+gain, wavelength, incident energy, detector distance and beam centre — and
+states what it is made of (`# Combined: sum of 10 frames 1-10`). The
+per-exposure fields are deliberately left out: a sum of ten one-second frames
+is not a one-second exposure, its values can exceed the per-frame count cutoff,
+and it spans a wedge of rotation rather than one step. The header says so
+rather than leaving you to wonder whether they were simply unknown.
+
+A summed or averaged **HDF5** output keeps the source's `/entry/instrument`
+detector and beam metadata — description, sensor thickness, `count_time`,
+`frame_time`, `saturation_value`, incident wavelength — with their units, plus
+the per-threshold channel groups. The pixel mask and any bulk array are not
+copied: a summed output has its own masking applied, and the mask describes the
+source frames. Geometry you have corrected in ALBIS is written afterwards and
+wins over the source's own copy of it.
+
+</details>
+
+**Export Animation** renders a GIF matching the screen exactly — colour map,
+contrast, mask and saturation highlighting all apply, and non-square pixels
+keep their proportions. Choose the frame range and step, the full image or just
+the visible area, a size, and the frame rate. Sizes above 1× (2×, 4×) enlarge
+each detector pixel into a sharp block; **As on screen** uses the viewer's
+zoom. The default is the largest size up to 1600 pixels on its longer side —
+enough for a slide without an outsized file. A live summary estimates the file
+size before you commit; frame count, region and size are the levers that
+control it.
+
+Tick **Pixel values** to write each pixel's value into every frame, read from
+that frame. It has the same conditions as in Export Image: pixel values shown
+in the viewer, and pixels exported at least as large as the viewer draws them,
+so typically **Visible area** with **As on screen** while zoomed in. Labels in
+a GIF have a heavier dark outline than on screen, so the digits stay readable
+with only two colours to draw them in.
+
+Tick **Include overlays** to draw the resolution rings and the Peak Finder's
+peaks into the GIF as well. The option is only available when at least one of them is
+switched on in the Analysis tab. Two things are worth knowing:
+
+- The Peak Finder **re-runs on every exported frame**, so the markers belong to
+  the frame they sit on rather than to whichever frame was on screen when you
+  started. That is the honest result, and it is also the slow one — a long
+  series with the Peak Finder on takes noticeably longer to export.
+- Overlays are drawn opaque, not translucent as on screen. A GIF has 256
+  colours and no alpha channel, so the halos that soften the rings on screen
+  become solid; the rings are a little heavier in the file than in the viewer.
+
+---
+
+## Compare two views
+
+**In short:**
+
+1. **File → Duplicate Window** opens the image again, set up the same way.
+2. Change one thing in the copy: the frame, the contrast, the colour map.
+3. With the **link** control in the toolbar, choose what the two windows
+   share as you move around.
+
+**File → New Window** (`⌘N`) opens an empty second viewer. Use it to put two
+datasets side by side, or the same dataset at two thresholds.
+
+**File → Duplicate Window** (`⇧⌘N`) opens the *current* image again in a second
+window, set up the way this one is: same frame and threshold, colour map,
+contrast, zoom and position, mask, resolution rings, Peak Finder and ROI. It is
+the quicker way into a side-by-side comparison — duplicate, then change one
+thing in the copy.
+
+The duplicate starts **independent**: it does not follow this window unless you
+switch the link control on. That is deliberate, since the usual reason to
+duplicate a view is to make the two differ. What is not copied is anything the
+new window works out for itself — the decoded frame, and the image's position
+within a window that may be a different size.
+
+A duplicate cannot be made of a live source (SIMPLON, JUNGFRAUJOCH, or pushed
+frames): those frames arrive over a stream this window alone is subscribed to,
+and there is no file for a second window to open. The menu entry greys out and
+says so.
+
+![The link menu open under the toolbar: Position, Contrast and ROI](images/user-guide/link-popover.webp)
+
+The **link** control in the toolbar chooses what the windows share: **Position**
+(pan and zoom), **Contrast**, and **ROI**. Link position to keep both views on
+the same feature while you navigate; unlink to look at different regions with
+the same contrast.
+
+---
+
+## Detector geometry
+
+In the **Data** tab, **Detector Geometry** shows the numbers ALBIS calculates
+with: detector distance (mm), pixel size X and Y (µm), photon energy (eV), beam
+centre (px), and a DIALS `.expt` **geometry file** if one is in use. They drive
+the resolution rings, the cursor's **d** readout, the d column of the peak
+table, and the geometry a series sum records. ALBIS reads them from the image
+metadata: the file header, the HDF5 master file, or the live stream. The
+badge says whether they came from the metadata, are incomplete, or are manual.
+
+![The Detector Geometry section: distance, pixel size, photon energy, beam centre and geometry file, from the metadata](images/user-guide/geometry-section.webp)
+
+When the metadata is missing a value, or states a wrong one that you cannot fix
+at the detector, switch on **Override manually** and type the value in. A
+changed field is outlined, and the hint below it shows what the metadata says.
+Your values replace the metadata **for every image**, from file to file and
+from one session to the next, until you switch the override off. Fields you
+leave alone keep following the metadata, so the energy still changes with each
+frame, for example. Empty a field to hand it back to the metadata. **Reset to
+metadata** discards all your values at once, and a geometry file with them.
+Dragging the beam centre on the image is the same as typing it, and switches
+the override on. What a geometry file has to contain, and how to make one, is
+in the [Power User Guide](POWER_USER_GUIDE.md#geometry-files).
+
+Because the override outlasts the image you set it for, the **Resolution Rings**
+and **Peak Finder** sections repeat the values in effect in one line, marked
+*manual* while the override is on. **Edit** there opens this section.
+
+The **PILATUS 12M at Diamond beamline I23** needs no geometry file. Its 24
+module rows sit on a half cylinder around the sample, which a file header cannot
+describe, so ALBIS recognises the detector by its serial number (S/N 120-0100)
+in CBF and DECTRIS TIFF files and uses the detector's fixed geometry, shown as
+*Auto geometry: DLS I23 PILATUS 12M 120-0100*. The distance shows the
+sample-to-detector distance along the beam, about 260 mm: the header's
+`Detector_distance` (0.010 m at I23) is an offset from the detector's fixed
+position, and ALBIS reads it the way DIALS does. An `imported.expt` next to the
+data, or one chosen as the geometry file, still takes precedence.
+
+---
+
 ## Flatfield correction
+
+**In short:**
+
+1. Open an image of the beam with no sample in it: the *flat*.
+2. In the **Analysis** tab's **Flatfield** section, press **Use current
+   image**. Flatfield switches on.
+3. Open the images to correct; each is divided by the flat while the switch is
+   on.
 
 **Flatfield**, in the **Analysis** tab, divides every image by a *flat*: an
 image of the beam taken with no sample in it. The beam's profile, and what is
@@ -401,6 +692,12 @@ No dark image is subtracted: a photon-counting detector has no dark current.
 ---
 
 ## Fill gaps and defective pixels
+
+**In short:**
+
+1. Open the **Analysis** tab and switch on **Inpainting**.
+2. For wide module gaps, choose **Interpolate along edges** as the
+   **Method**; tick **Add Poisson noise** if the filled gaps look too smooth.
 
 **Inpainting**, the last section of the **Analysis** tab, fills the gaps
 between the detector's modules and its defective pixels from their neighbours,
@@ -466,43 +763,78 @@ streak across, and where a horizontal and a vertical gap cross, both are used.
 
 ---
 
-## Detector geometry
+## Combine frames
 
-In the **Data** tab, **Detector Geometry** shows the numbers ALBIS calculates
-with: detector distance (mm), pixel size X and Y (µm), photon energy (eV), beam
-centre (px), and a DIALS `.expt` **geometry file** if one is in use. They drive
-the resolution rings, the cursor's **d** readout, the d column of the peak
-table, and the geometry a series sum records. ALBIS reads them from the image
-metadata: the file header, the HDF5 master file, or the live stream. The
-badge says whether they came from the metadata, are incomplete, or are manual.
+**In short:**
 
-![The Detector Geometry section: distance, pixel size, photon energy, beam centre and geometry file, from the metadata](images/user-guide/geometry-section.webp)
+1. Open the series.
+2. In the **Analysis** tab's **Combine Frames** section, choose the frames,
+   **Sum**, **Mean** or **Median**, and how many images to make.
+3. Press **Start**, and open the result from the section when it is done.
 
-When the metadata is missing a value, or states a wrong one that you cannot fix
-at the detector, switch on **Override manually** and type the value in. A
-changed field is outlined, and the hint below it shows what the metadata says.
-Your values replace the metadata **for every image**, from file to file and
-from one session to the next, until you switch the override off. Fields you
-leave alone keep following the metadata, so the energy still changes with each
-frame, for example. Empty a field to hand it back to the metadata. **Reset to
-metadata** discards all your values at once, and a geometry file with them.
-Dragging the beam centre on the image is the same as typing it, and switches
-the override on. What a geometry file has to contain, and how to make one, is
-in the [Power User Guide](POWER_USER_GUIDE.md#geometry-files).
+**Combine Frames**, in the **Analysis** tab, reduces many frames to fewer:
+**Sum**, **Mean** or **Median**. It answers two questions separately:
 
-Because the override outlasts the image you set it for, the **Resolution Rings**
-and **Peak Finder** sections repeat the values in effect in one line, marked
-*manual* while the override is on. **Edit** there opens this section.
+- **Which frames:** **All frames** or a **Range** from a start to an end frame,
+  and **Use every** N to take only every Nth of them (1, 1+N, 1+2N …).
+- **How many images:** **One image** of all of them, or **One image per N
+  frames**, each consecutive group of N combined into its own image.
 
-The **PILATUS 12M at Diamond beamline I23** needs no geometry file. Its 24
-module rows sit on a half cylinder around the sample, which a file header cannot
-describe, so ALBIS recognises the detector by its serial number (S/N 120-0100)
-in CBF and DECTRIS TIFF files and uses the detector's fixed geometry, shown as
-*Auto geometry: DLS I23 PILATUS 12M 120-0100*. The distance shows the
-sample-to-detector distance along the beam, about 260 mm: the header's
-`Detector_distance` (0.010 m at I23) is an offset from the detector's fixed
-position, and ALBIS reads it the way DIALS does. An `imported.expt` next to the
-data, or one chosen as the geometry file, still takes precedence.
+![The Combine Frames section: Frames, Use every, Operation, Result, Apply mask, the output format and path, and Start](images/user-guide/combine-frames.webp)
+
+**Apply mask** keeps masked pixels out of the result. The **?** next to Frames,
+Operation and Result explains each choice; hover over it, or click or tap it to
+keep the explanation open. A sum of whole counts stays whole counts; mean and
+median are written as decimals.
+
+Long runs report progress and can be cancelled. The output path is prefilled,
+and the result opens directly from the panel when it finishes. When the result
+is a single TIFF, **Use as flat** makes it the [Flatfield](#flatfield-correction)
+section's flat — the way to get a low-noise flat from a run of open-beam frames.
+
+There is no normalisation step: dividing every frame by the same reference
+before combining gives the same image as dividing the result afterwards, which
+is what **Flatfield** does, for any image, with its masking and scales.
+
+---
+
+## Follow a running experiment
+
+**In short**, for a DECTRIS detector:
+
+1. In the **Data** tab, set **Data Source** to **SIMPLON Monitor**.
+2. Type the detector's address into **Base URL** and press **Test**.
+3. Tick **Enable monitor**. The newest image appears as it arrives.
+
+The **Data** tab's source selector switches between file and live modes.
+
+**Watch folder** polls a directory and loads the newest matching file. Choose
+which file types to watch and, if you need it, a filename pattern. Use this when
+another program is writing frames to disk.
+
+**SIMPLON monitor** reads the live monitor image straight from a DECTRIS
+detector. Enter the hostname or IP — `http://` and port 80 are filled in for
+you — and press **Test** (or Enter in the address field). On success it names
+the detector and serial number, so you can confirm you are pointed at the right
+instrument; on failure it tells you which failure it was: unknown host, refused
+port, wrong API version, or timeout. Detectors that have answered before are
+listed under the field — see [Known detectors](#known-detectors).
+
+![The Data Source section set to SIMPLON Monitor, after a successful Test naming the detector and its serial number](images/user-guide/simplon-test.webp)
+
+**JUNGFRAUJOCH Preview** subscribes to a JUNGFRAUJOCH ZeroMQ preview stream and
+draws its indexed and unindexed reflections over the image. Enter `host:port`;
+`tcp://` is filled in, but there is no default preview port so the port is
+required. **Test** checks the port accepts connections — frames confirm once the
+preview starts.
+
+**Remote stream** displays frames pushed to ALBIS by your own script through the
+Remote Stream API, including any peak overlays the script supplies. See the
+[Power User Guide](POWER_USER_GUIDE.md#remote-stream-api) for the endpoints.
+
+While a live source runs, the toolbar shows **live**, and a badge shows when you
+have scrolled away from the newest frame — one click returns you to it. Pausing
+lets you examine a frame without losing the stream.
 
 ---
 
@@ -609,298 +941,6 @@ detector shows the new mask at once after Send, Clear or Restore, and fetches
 the detector's mask again with every new series, so a mask changed by other
 software shows from the next series on. Edits of that live view's old mask are
 dropped after Clear or Restore, after asking.
-
----
-
-## Resolution rings and reflections
-
-Also in the **Analysis** tab.
-
-**Resolution Rings** draws rings at the d-spacings you choose, from the values
-in [Detector geometry](#detector-geometry); the line at the top of the section
-shows them, and **Edit** goes there.
-
-Enter the ring positions you want in **Rings (Å)**, as many as you need (up
-to 16): **+ Add ring** adds a field, **×** removes one, and the list is sorted
-by d when you leave it. **Ice rings** adds the ten rings of hexagonal ice, the
-quickest way to see whether ice is on an image, and **Clear** removes them all.
-The rings are remembered for the next session. On the image, a ring can also be
-dragged to a new radius. Once rings are on, the cursor readout gains a **d**
-value, so pointing at a feature tells you its resolution.
-
-![Resolution rings at 10, 5, 3.3 and 2.5 Å and 30 found peaks circled on the image, with the peak table in the Analysis tab](images/user-guide/rings-peaks.webp)
-
-**Peak Finder** detects reflections in the current frame. Set how many to look
-for and a minimum signal-to-noise ratio; found peaks are listed with position,
-intensity, SNR and resolution, and are drawn over the image. Selecting a row
-highlights that peak.
-
----
-
-## Follow a running experiment
-
-The **Data** tab's source selector switches between file and live modes.
-
-**Watch folder** polls a directory and loads the newest matching file. Choose
-which file types to watch and, if you need it, a filename pattern. Use this when
-another program is writing frames to disk.
-
-**SIMPLON monitor** reads the live monitor image straight from a DECTRIS
-detector. Enter the hostname or IP — `http://` and port 80 are filled in for
-you — and press **Test** (or Enter in the address field). On success it names
-the detector and serial number, so you can confirm you are pointed at the right
-instrument; on failure it tells you which failure it was: unknown host, refused
-port, wrong API version, or timeout. Detectors that have answered before are
-listed under the field — see [Known detectors](#known-detectors).
-
-![The Data Source section set to SIMPLON Monitor, after a successful Test naming the detector and its serial number](images/user-guide/simplon-test.webp)
-
-**JUNGFRAUJOCH Preview** subscribes to a JUNGFRAUJOCH ZeroMQ preview stream and
-draws its indexed and unindexed reflections over the image. Enter `host:port`;
-`tcp://` is filled in, but there is no default preview port so the port is
-required. **Test** checks the port accepts connections — frames confirm once the
-preview starts.
-
-**Remote stream** displays frames pushed to ALBIS by your own script through the
-Remote Stream API, including any peak overlays the script supplies. See the
-[Power User Guide](POWER_USER_GUIDE.md#remote-stream-api) for the endpoints.
-
-While a live source runs, the toolbar shows **live**, and a badge shows when you
-have scrolled away from the newest frame — one click returns you to it. Pausing
-lets you examine a frame without losing the stream.
-
----
-
-## Combine frames
-
-**Combine Frames**, in the **Analysis** tab, reduces many frames to fewer:
-**Sum**, **Mean** or **Median**. It answers two questions separately:
-
-- **Which frames:** **All frames** or a **Range** from a start to an end frame,
-  and **Use every** N to take only every Nth of them (1, 1+N, 1+2N …).
-- **How many images:** **One image** of all of them, or **One image per N
-  frames**, each consecutive group of N combined into its own image.
-
-![The Combine Frames section: Frames, Use every, Operation, Result, Apply mask, the output format and path, and Start](images/user-guide/combine-frames.webp)
-
-**Apply mask** keeps masked pixels out of the result. The **?** next to Frames,
-Operation and Result explains each choice; hover over it, or click or tap it to
-keep the explanation open. A sum of whole counts stays whole counts; mean and
-median are written as decimals.
-
-Long runs report progress and can be cancelled. The output path is prefilled,
-and the result opens directly from the panel when it finishes. When the result
-is a single TIFF, **Use as flat** makes it the [Flatfield](#flatfield-correction)
-section's flat — the way to get a low-noise flat from a run of open-beam frames.
-
-There is no normalisation step: dividing every frame by the same reference
-before combining gives the same image as dividing the result afterwards, which
-is what **Flatfield** does, for any image, with its masking and scales.
-
----
-
-## Show only the tools you use
-
-The **Analysis** tab holds tools for different kinds of work: **Resolution
-Rings** and **Peak Finder** for diffraction, **Flatfield** and **Inpainting**
-for imaging, **Combine Frames** for processing. **Settings → Tools** chooses
-which of them the tab shows; **Statistics and ROI** is always there.
-
-![Settings, Tools tab: a box for each tool, the Diffraction, Imaging and Everything buttons, and the two beta switches](images/user-guide/settings-tools.webp)
-
-- **Diffraction**, **Imaging** and **Everything** set the boxes in one click;
-  each box can still be changed on its own. Inpainting and Combine Frames stay
-  in both, because diffraction fills module gaps and both sum frames.
-- **A hidden tool is switched off.** A flatfield or an overlay acting with its
-  section out of sight would change every image with nothing to say why.
-- While any tool is hidden, the bottom of the Analysis tab says how many, with
-  **Customise…** to bring them back. The command palette has it too
-  (**Analysis: Customise…**), and a hidden tool's commands leave the palette
-  with it.
-- The same page switches the **Detector** tab (beta) and
-  [pixel masks](#pixel-masks-beta) (beta) on and off.
-
-The choice is stored in the config file as `ui.hidden_tools`, so a facility can
-ship ALBIS set up for one kind of station (see the
-[Power User Guide](POWER_USER_GUIDE.md)).
-
----
-
-## Get data back out
-
-| You want | Use |
-| --- | --- |
-| The frames as TIFF or CBF | **File → Convert Dataset…** (`⇧⌘X`) |
-| A figure for a slide or a paper | **File → Export Image…** (`⇧⌘E`) |
-| An animation of a series | **File → Export Animation…** (`⌘G`) |
-| A quick picture of what is on screen | **File → Save As → Full Image / Visible Area / Viewer Window** |
-| ROI numbers for analysis | **Export CSV** in the Analysis tab |
-
-![The Export Image dialog: Region, Size, Print resolution, Include overlays and Pixel values](images/user-guide/export-image.webp)
-
-**Export Image** writes the frame, or the visible area, as a PNG made for
-slides and papers. **Size** enlarges it by 1×, 2×, 4× or 8×, turning each
-detector pixel into a sharp square; the default is the smallest size at least
-2000 pixels wide. Without that, a small image is enlarged by whichever program
-shows it, and looks blurry. Sizes too large for a browser to create are greyed
-out. **As on screen** uses the viewer's zoom instead: zoom in, choose
-**Visible area** and **As on screen**, and the PNG is what you see. Non-square
-detector pixels are drawn at their true proportions. **Print resolution** (300
-dpi by default) is stored in the file, so a layout program gives it the right
-printed size; the dialog shows that size. **Include overlays** draws the
-resolution rings, found peaks and the ROI as the viewer shows them. **Pixel
-values** draws each pixel's value into it, as the viewer does when zoomed in.
-It needs the pixel values switched on in the viewer, and a size at which each
-pixel is at least as large as the viewer's minimum for them (18 px unless
-changed in Settings) — in practice **As on screen** while zoomed in. An option
-that cannot be used right now says why underneath it.
-
-The quick exports under **Save As** need no dialog. **Full Image** writes one
-image pixel per detector pixel: the exact data, for analysis or another
-program. **Visible Area** writes what you see, without the interface: at the
-viewer's zoom and pixel proportions, each detector pixel a sharp block (zoomed
-out below 1×, it keeps one pixel per detector pixel). **Viewer Window** is a
-screenshot of the whole window, the image in it as sharp as on screen.
-
-![The Convert Dataset dialog](images/user-guide/convert-dataset.webp)
-
-**Convert Dataset** writes all frames, the current frame, or a range. Exports
-are signed integers using the common detector convention: module gaps are `-1`,
-bad or saturated pixels are `-2` — or, with **Inpaint** ticked, filled from
-their neighbours (see [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels)).
-
-For software that needs a particular type, **Data type** writes a TIFF as
-**Unsigned 16-bit** or **Unsigned 32-bit** instead (CBF stays signed 32-bit).
-Unsigned has no `-1` or `-2`: gaps, bad and saturated pixels all hold the
-type's highest value (65535 for 16 bits), the DECTRIS convention for a masked
-pixel. A count that does not fit is clipped one below it (65534), never wrapped
-around; the dialog warns beforehand when the data can count higher, the export
-says afterwards how many pixels were clipped, and each file's header states the
-type, the marker and the clipped pixels, with its count cutoff lowered to 65534
-so a clipped pixel reads as overloaded. The choice is remembered.
-
-The files are named so they read back as a series, in ALBIS as in XDS, DIALS
-or ALBULA: `<name>[_thr<n>]_<number>`, the number last and 5 digits wide, like
-a detector's own images. `<name>` is the source's (`series_190` for
-`series_190_master.h5`) unless you give a prefix; a detector with several
-thresholds gets one series per threshold (`series_190_thr2_00007.cbf`, template
-`series_190_thr2_?????.cbf`). A frame keeps its number: its place in the
-dataset, or the number in a source image's name. With **Overwrite existing
-files** off and files of that name already there, the whole export takes a new
-name (`series_190_2_…`) rather than numbering some files twice.
-
-It works for a live source too — the SIMPLON monitor, a JUNGFRAUJOCH preview or
-the Remote Stream: choose **Current image** or **All images in the live
-history**, the frames ALBIS keeps of what it has shown. They are written to
-`live_export` in the data folder unless you choose another, named by series and
-image number where the source gives them (`simplon_monitor_s189_00009.cbf`),
-with the energy, distance and beam centre the source reported. These are the
-preview images: a SIMPLON monitor need not show every frame, and the complete
-series is in the detector's files.
-
-### What the exported header keeps
-
-TIFF and CBF exports carry the same header text — CBF in its miniCBF header,
-TIFF in the standard `ImageDescription` tag, which `tifffile`, PIL and ImageJ
-all show. A TIFF additionally keeps the DECTRIS private tag, which holds the
-series id, image number, threshold ids and lost-pixel count that the text has
-no place for. The header states, where the source states them: detector model, serial and location,
-the acquisition timestamp, pixel size, sensor thickness, exposure time and
-period, tau, count cutoff, threshold setting, gain setting, wavelength,
-incident energy, detector distance, beam centre, start angle and angle
-increment. Three further lines record that ALBIS produced the file, which
-source and frame it came from, and the pixel substitutions above — an exported
-frame is derived data, and a header that did not say so would read to XDS or
-DIALS as raw detector output.
-
-Four kinds of line are deliberately **not** carried over from a source CBF:
-`N_excluded_pixels`, `Excluded_pixels`, `Flat_field` and `Trim_file` describe
-corrections applied to the raw pixel array, which the export has already
-altered, so repeating them would describe an array that no longer exists.
-`Image_path` is dropped too — the provenance line records the source file's
-name rather than its directory, so that a file you send to a collaborator does
-not carry your folder layout.
-
-How much survives depends on the source. HDF5 and DECTRIS TIFF carry the most.
-A CBF or EDF source gives what its own header states, which for a PILATUS
-miniCBF is nearly all of the list above.
-
-A summed or averaged **TIFF** keeps the instrument facts — detector model,
-serial and location, pixel size, sensor thickness, tau, threshold setting,
-gain, wavelength, incident energy, detector distance and beam centre — and
-states what it is made of (`# Combined: sum of 10 frames 1-10`). The
-per-exposure fields are deliberately left out: a sum of ten one-second frames
-is not a one-second exposure, its values can exceed the per-frame count cutoff,
-and it spans a wedge of rotation rather than one step. The header says so
-rather than leaving you to wonder whether they were simply unknown.
-
-A summed or averaged **HDF5** output keeps the source's `/entry/instrument`
-detector and beam metadata — description, sensor thickness, `count_time`,
-`frame_time`, `saturation_value`, incident wavelength — with their units, plus
-the per-threshold channel groups. The pixel mask and any bulk array are not
-copied: a summed output has its own masking applied, and the mask describes the
-source frames. Geometry you have corrected in ALBIS is written afterwards and
-wins over the source's own copy of it.
-
-**Export Animation** renders a GIF matching the screen exactly — colour map,
-contrast, mask and saturation highlighting all apply, and non-square pixels
-keep their proportions. Choose the frame range and step, the full image or just
-the visible area, a size, and the frame rate. Sizes above 1× (2×, 4×) enlarge
-each detector pixel into a sharp block; **As on screen** uses the viewer's
-zoom. The default is the largest size up to 1600 pixels on its longer side —
-enough for a slide without an outsized file. A live summary estimates the file
-size before you commit; frame count, region and size are the levers that
-control it.
-
-Tick **Pixel values** to write each pixel's value into every frame, read from
-that frame. It has the same conditions as in Export Image: pixel values shown
-in the viewer, and pixels exported at least as large as the viewer draws them,
-so typically **Visible area** with **As on screen** while zoomed in. Labels in
-a GIF have a heavier dark outline than on screen, so the digits stay readable
-with only two colours to draw them in.
-
-Tick **Include overlays** to draw the resolution rings and the Peak Finder's
-peaks into the GIF as well. The option is only available when at least one of them is
-switched on in the Analysis tab. Two things are worth knowing:
-
-- The Peak Finder **re-runs on every exported frame**, so the markers belong to
-  the frame they sit on rather than to whichever frame was on screen when you
-  started. That is the honest result, and it is also the slow one — a long
-  series with the Peak Finder on takes noticeably longer to export.
-- Overlays are drawn opaque, not translucent as on screen. A GIF has 256
-  colours and no alpha channel, so the halos that soften the rings on screen
-  become solid; the rings are a little heavier in the file than in the viewer.
-
----
-
-## Compare two views
-
-**File → New Window** (`⌘N`) opens an empty second viewer. Use it to put two
-datasets side by side, or the same dataset at two thresholds.
-
-**File → Duplicate Window** (`⇧⌘N`) opens the *current* image again in a second
-window, set up the way this one is: same frame and threshold, colour map,
-contrast, zoom and position, mask, resolution rings, Peak Finder and ROI. It is
-the quicker way into a side-by-side comparison — duplicate, then change one
-thing in the copy.
-
-The duplicate starts **independent**: it does not follow this window unless you
-switch the link control on. That is deliberate, since the usual reason to
-duplicate a view is to make the two differ. What is not copied is anything the
-new window works out for itself — the decoded frame, and the image's position
-within a window that may be a different size.
-
-A duplicate cannot be made of a live source (SIMPLON, JUNGFRAUJOCH, or pushed
-frames): those frames arrive over a stream this window alone is subscribed to,
-and there is no file for a second window to open. The menu entry greys out and
-says so.
-
-![The link menu open under the toolbar: Position, Contrast and ROI](images/user-guide/link-popover.webp)
-
-The **link** control in the toolbar chooses what the windows share: **Position**
-(pan and zoom), **Contrast**, and **ROI**. Link position to keep both views on
-the same feature while you navigate; unlink to look at different regions with
-the same contrast.
 
 ---
 
@@ -1011,6 +1051,33 @@ browser by earlier versions are taken over the first time.
 
 ---
 
+## Show only the tools you use
+
+The **Analysis** tab holds tools for different kinds of work: **Resolution
+Rings** and **Peak Finder** for diffraction, **Flatfield** and **Inpainting**
+for imaging, **Combine Frames** for processing. **Settings → Tools** chooses
+which of them the tab shows; **Statistics and ROI** is always there.
+
+![Settings, Tools tab: a box for each tool, the Diffraction, Imaging and Everything buttons, and the two beta switches](images/user-guide/settings-tools.webp)
+
+- **Diffraction**, **Imaging** and **Everything** set the boxes in one click;
+  each box can still be changed on its own. Inpainting and Combine Frames stay
+  in both, because diffraction fills module gaps and both sum frames.
+- **A hidden tool is switched off.** A flatfield or an overlay acting with its
+  section out of sight would change every image with nothing to say why.
+- While any tool is hidden, the bottom of the Analysis tab says how many, with
+  **Customise…** to bring them back. The command palette has it too
+  (**Analysis: Customise…**), and a hidden tool's commands leave the palette
+  with it.
+- The same page switches the **Detector** tab (beta) and
+  [pixel masks](#pixel-masks-beta) (beta) on and off.
+
+The choice is stored in the config file as `ui.hidden_tools`, so a facility can
+ship ALBIS set up for one kind of station (see the
+[Power User Guide](POWER_USER_GUIDE.md)).
+
+---
+
 ## Work from another machine
 
 ALBIS runs a local server, so the browser does not have to be on the machine
@@ -1039,28 +1106,6 @@ can reach the port.
 
 ---
 
-## Quit ALBIS
-
-ALBIS runs as a small server in the background; the browser tab is only its
-window. Closing the tab leaves the server running, holding its memory and, on
-Windows, the files it opened (they cannot be moved or deleted meanwhile).
-
-- **File → Quit ALBIS** (or **ALBIS: Quit** in the command palette) stops it.
-  It asks first only if a conversion, an export, a series sum or a live watch
-  is still running; the tab then says ALBIS has stopped. On macOS, **Quit** in
-  the Dock menu does the same.
-- **It stops by itself** 15 minutes after the last ALBIS tab was closed, unless
-  a conversion or a series sum is still writing its files. A tab left open in
-  the background keeps it running, however long. On macOS, ALBIS then also
-  leaves the Dock and the menu bar. Change the time, or
-  switch this off, with `launcher.idle_shutdown_min` in the
-  [Power User Guide](POWER_USER_GUIDE.md#settings-reference).
-
-Both apply to ALBIS started on your own computer. A shared ALBIS server, or the
-Docker image, is never stopped from a browser and never stops on its own.
-
----
-
 ## Keyboard shortcuts
 
 Shown with the macOS modifier. On Windows and Linux use `Ctrl` where `⌘`
@@ -1082,6 +1127,28 @@ The command palette is the fastest route to anything you do not have a shortcut
 for, including switching panel tabs and stepping thresholds.
 
 ![The command palette: a search field over a list of commands with their shortcuts](images/user-guide/command-palette.webp)
+
+---
+
+## Quit ALBIS
+
+ALBIS runs as a small server in the background; the browser tab is only its
+window. Closing the tab leaves the server running, holding its memory and, on
+Windows, the files it opened (they cannot be moved or deleted meanwhile).
+
+- **File → Quit ALBIS** (or **ALBIS: Quit** in the command palette) stops it.
+  It asks first only if a conversion, an export, a series sum or a live watch
+  is still running; the tab then says ALBIS has stopped. On macOS, **Quit** in
+  the Dock menu does the same.
+- **It stops by itself** 15 minutes after the last ALBIS tab was closed, unless
+  a conversion or a series sum is still writing its files. A tab left open in
+  the background keeps it running, however long. On macOS, ALBIS then also
+  leaves the Dock and the menu bar. Change the time, or
+  switch this off, with `launcher.idle_shutdown_min` in the
+  [Power User Guide](POWER_USER_GUIDE.md#settings-reference).
+
+Both apply to ALBIS started on your own computer. A shared ALBIS server, or the
+Docker image, is never stopped from a browser and never stops on its own.
 
 ---
 
