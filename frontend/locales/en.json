@@ -907,7 +907,7 @@
   "log_viewer.lines_label": "Lines",
   "log_viewer.load_failed": "Failed to load backend log: {{detail}}",
   "log_viewer.loading": "Loading backend log...",
-  "log_viewer.open_host": "Open On Server Host",
+  "log_viewer.open_host": "Open on Server Host",
   "log_viewer.opening_host": "Opening backend log on server host...",
   "log_viewer.path_label": "Path",
   "log_viewer.refresh": "Refresh",
