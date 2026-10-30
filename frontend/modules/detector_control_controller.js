@@ -16,6 +16,7 @@
 import { t } from "./i18n.js";
 import { attachDetectorPicker } from "./detector_picker.js";
 import { knownDetectors } from "./known_detectors.js";
+import { fetchResponse } from "./http.js";
 import { describeSimplonFailure } from "./simplon_diagnostics.js";
 import { normalizeSimplonBaseUrl } from "./simplon_url_utils.js";
 
@@ -866,19 +867,16 @@ export function createDetectorControlController({ apiBase, elements, callbacks =
   }
 
   async function request(path, init) {
-    const res = await fetch(`${apiBase}${path}`, init);
-    let body = null;
+    let res;
     try {
-      body = await res.json();
-    } catch {
-      body = null;
+      res = await fetchResponse(`${apiBase}${path}`, init);
+    } catch (err) {
+      if (!(err?.status >= 400)) throw err;
+      // http.js keeps a structured detail as detailData, a sentence as detail.
+      throw Object.assign(new Error(reason(err.detailData ?? err.detail) || err.message), { status: err.status });
     }
-    if (!res.ok) {
-      const error = new Error(reason(body?.detail) || `HTTP ${res.status}`);
-      error.status = res.status;
-      throw error;
-    }
-    return body;
+    // A command may answer with an empty body, which is a success.
+    return res.json().catch(() => null);
   }
 
   const query = () => `url=${encodeURIComponent(url)}&version=${encodeURIComponent(version)}`;
