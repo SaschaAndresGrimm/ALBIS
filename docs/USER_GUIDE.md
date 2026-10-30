@@ -12,6 +12,7 @@ reference of the same material.
 
 ## Contents
 
+- [The ALBIS window](#the-albis-window)
 - [Open your data](#open-your-data)
 - [Move through a series](#move-through-a-series)
 - [Make the image readable](#make-the-image-readable)
@@ -35,9 +36,30 @@ reference of the same material.
 
 ---
 
+## The ALBIS window
+
+![The ALBIS window with an insulin diffraction image open, six parts numbered](images/user-guide/window-overview.webp)
+
+1. **Menu bar** — **File**, **Settings** and **Help**.
+2. **Toolbar** — step through frames, the frame slider and number,
+   **Playback**, linking windows, pixel values (**123**), the magnifier
+   (**🔍**) and full screen.
+3. **The image** — scroll to zoom, drag to pan, right-drag to draw a region.
+4. **Side panel** — the **View**, **Data** and **Analysis** tabs, and
+   **Detector** when it is switched on. The **▸** beside the tabs folds the
+   panel away; **Open menu** brings it back.
+5. **Histogram** — contrast and colour map, in the View tab.
+6. **Status line** — what ALBIS is doing, the file and frame shown, and the
+   zoom.
+
+---
+
 ## Open your data
 
-**File → Open…** (`⌘O` / `Ctrl+O`) opens the file browser. ALBIS reads:
+**File → Open…** (`⌘O` / `Ctrl+O`), or **Open file** in the middle of an
+empty window, opens the file browser. ALBIS reads:
+
+![ALBIS before a file is opened, with the Open file button under the ALBIS logo](images/user-guide/start-window.webp)
 
 | What you have | What to open |
 | --- | --- |
@@ -80,7 +102,10 @@ itself.
 ### Choosing the dataset and threshold
 
 An HDF5 file usually contains more than one dataset. The **Data** tab lists the
-image-capable ones; pick the one you want. Multi-threshold (multi-channel) data
+image-capable ones; pick the one you want.
+
+![The Data tab's Data Source section, with a CBF series file selected](images/user-guide/data-tab.webp)
+ Multi-threshold (multi-channel) data
 gains a **Threshold** selector in the toolbar, and `⌘K → Threshold: Next` steps
 between channels without leaving the keyboard.
 
@@ -91,6 +116,8 @@ where it lives.
 ---
 
 ## Move through a series
+
+![The toolbar: frame buttons, the frame slider at frame 4, Playback, link, 123, magnifier and full screen](images/user-guide/toolbar.webp)
 
 - The **slider** and the frame number field jump anywhere in the series.
 - `←` and `→` step one frame.
@@ -124,6 +151,8 @@ cached while a live source is running, since the file may still be growing.
   its width, **scroll** on it to widen or narrow the range, and
   **double-click** it for Auto Contrast.
 
+![The Histogram section: the histogram with the BG and FG markers, the colour bar, the mask colour chips, Auto, BG and FG, the colour map, Apply mask and Mask saturated](images/user-guide/histogram.webp)
+
 **Colour maps** are in the **View** tab: Grey Scale, Heat, Viridis, Magma,
 Inferno, Cividis, Turbo, and **ALBULA HDR** for a high-dynamic-range look
 familiar from ALBULA. **Invert Color** flips any of them.
@@ -148,6 +177,8 @@ palette, keeps it on. It uses the image's colour map, contrast and mask colours,
 follows flatfield correction and inpainting, outlines the pixel under the mouse,
 prints the pixel values once the lens makes them big enough to read (with
 **Pixel values** on), and never appears in exports.
+
+![The magnifier: a round lens at 4× over a module gap and reflections, with the cursor readout beside it](images/user-guide/magnifier.webp)
 
 **Pixel values** — the **123** button in the toolbar, beside the magnifier, or
 **View: Pixel Values On/Off** in the command palette — prints the number in
@@ -197,6 +228,8 @@ gap is not a mean of anything, and the counts tell you when that is happening.
 
 With no ROI drawn, the same statistics describe the whole image.
 
+![A line ROI drawn from the beam outwards, with its statistics and the line profile with d-spacings in the Analysis tab](images/user-guide/roi.webp)
+
 Three plots accompany the region:
 
 - **Line Profile** — intensity along a line ROI, with the X axis switchable to
@@ -237,6 +270,8 @@ remains — the standard open-beam normalisation in imaging.
   TIFF or CBF instead. For a less noisy flat, average many frames in
   [Combine frames](#combine-frames) into one TIFF; **Use as flat** there takes
   the result.
+![The Flatfield section: Use current image, Choose file and the Scale](images/user-guide/flatfield-section.webp)
+
 - **Scale:** **Counts** (the default) keeps the image's own scale — divided by
   the flat, times the flat's mean. **Transmission** gives 0 to 1: 1 means
   nothing was absorbed, 0.3 that 70 % was.
@@ -271,6 +306,12 @@ ALBIS fills exactly the pixels the detector's mask marks as gaps or defective
 (for a PILATUS CBF, the `-1` and `-2` in its data). Each side of a gap is read
 as the median of the five nearest pixels, so a small spot at its edge does not
 streak across, and where a horizontal and a vertical gap cross, both are used.
+
+| Before | After: Interpolate along edges, with Poisson noise |
+| --- | --- |
+| <img src="images/user-guide/inpainting-before.webp" alt="A module gap as a black band across the image, zoomed in" width="400"> | <img src="images/user-guide/inpainting-after.webp" alt="The same gap filled from its neighbours, with noise like the pixels around it" width="400"> |
+
+![The Inpainting section, switched on](images/user-guide/inpainting-section.webp)
 
 - **Method** — how the holes are filled:
   - **Interpolate** (the default): straight across the gap, from the pixels on
@@ -330,6 +371,8 @@ table, and the geometry a series sum records. ALBIS reads them from the image
 metadata: the file header, the HDF5 master file, or the live stream. The
 badge says whether they came from the metadata, are incomplete, or are manual.
 
+![The Detector Geometry section: distance, pixel size, photon energy, beam centre and geometry file, from the metadata](images/user-guide/geometry-section.webp)
+
 When the metadata is missing a value, or states a wrong one that you cannot fix
 at the detector, switch on **Override manually** and type the value in. A
 changed field is outlined, and the hint below it shows what the metadata says.
@@ -386,6 +429,8 @@ section says so.
 
 **Edit on image** opens a toolbar over the image to mask and unmask pixels by
 hand. It works on the mask in use, or on a new, empty one if the data has none.
+
+![Editing a mask: a box masked by hand shown in magenta, the Edit mask toolbar over the image, and the Pixel Mask section counting the edits](images/user-guide/mask-edit.webp)
 
 - **Tools:** the pixel brush (**B**, 1 to 15 px), a box (**R**), a polygon
   (**P**: click the corners, then double-click, press Enter or click the first
@@ -478,6 +523,8 @@ The rings are remembered for the next session. On the image, a ring can also be
 dragged to a new radius. Once rings are on, the cursor readout gains a **d**
 value, so pointing at a feature tells you its resolution.
 
+![Resolution rings at 10, 5, 3.3 and 2.5 Å and 30 found peaks circled on the image, with the peak table in the Analysis tab](images/user-guide/rings-peaks.webp)
+
 **Peak Finder** detects reflections in the current frame. Set how many to look
 for and a minimum signal-to-noise ratio; found peaks are listed with position,
 intensity, SNR and resolution, and are drawn over the image. Selecting a row
@@ -500,6 +547,8 @@ the detector and serial number, so you can confirm you are pointed at the right
 instrument; on failure it tells you which failure it was: unknown host, refused
 port, wrong API version, or timeout. Detectors that have answered before are
 listed under the field — see [Known detectors](#known-detectors).
+
+![The Data Source section set to SIMPLON Monitor, after a successful Test naming the detector and its serial number](images/user-guide/simplon-test.webp)
 
 **JUNGFRAUJOCH Preview** subscribes to a JUNGFRAUJOCH ZeroMQ preview stream and
 draws its indexed and unindexed reflections over the image. Enter `host:port`;
@@ -527,6 +576,8 @@ lets you examine a frame without losing the stream.
 - **How many images:** **One image** of all of them, or **One image per N
   frames**, each consecutive group of N combined into its own image.
 
+![The Combine Frames section: Frames, Use every, Operation, Result, Apply mask, the output format and path, and Start](images/user-guide/combine-frames.webp)
+
 **Apply mask** keeps masked pixels out of the result. The **?** next to Frames,
 Operation and Result explains each choice; hover over it, or click or tap it to
 keep the explanation open. A sum of whole counts stays whole counts; mean and
@@ -549,6 +600,8 @@ The **Analysis** tab holds tools for different kinds of work: **Resolution
 Rings** and **Peak Finder** for diffraction, **Flatfield** and **Inpainting**
 for imaging, **Combine Frames** for processing. **Settings → Tools** chooses
 which of them the tab shows; **Statistics and ROI** is always there.
+
+![Settings, Tools tab: a box for each tool, the Diffraction, Imaging and Everything buttons, and the two beta switches](images/user-guide/settings-tools.webp)
 
 - **Diffraction**, **Imaging** and **Everything** set the boxes in one click;
   each box can still be changed on its own. Inpainting and Combine Frames stay
@@ -578,6 +631,8 @@ ship ALBIS set up for one kind of station (see the
 | A quick picture of what is on screen | **File → Save As → Full Image / Visible Area / Viewer Window** |
 | ROI numbers for analysis | **Export CSV** in the Analysis tab |
 
+![The Export Image dialog: Region, Size, Print resolution, Include overlays and Pixel values](images/user-guide/export-image.webp)
+
 **Export Image** writes the frame, or the visible area, as a PNG made for
 slides and papers. **Size** enlarges it by 1×, 2×, 4× or 8×, turning each
 detector pixel into a sharp square; the default is the smallest size at least
@@ -601,6 +656,8 @@ program. **Visible Area** writes what you see, without the interface: at the
 viewer's zoom and pixel proportions, each detector pixel a sharp block (zoomed
 out below 1×, it keeps one pixel per detector pixel). **Viewer Window** is a
 screenshot of the whole window, the image in it as sharp as on screen.
+
+![The Convert Dataset dialog](images/user-guide/convert-dataset.webp)
 
 **Convert Dataset** writes all frames, the current frame, or a range. Exports
 are signed integers using the common detector convention: module gaps are `-1`,
@@ -733,6 +790,8 @@ frames): those frames arrive over a stream this window alone is subscribed to,
 and there is no file for a second window to open. The menu entry greys out and
 says so.
 
+![The link menu open under the toolbar: Position, Contrast and ROI](images/user-guide/link-popover.webp)
+
 The **link** control in the toolbar chooses what the windows share: **Position**
 (pan and zoom), **Contrast**, and **ROI**. Link position to keep both views on
 the same feature while you navigate; unlink to look at different regions with
@@ -765,6 +824,8 @@ detector's address and press **Connect** (or pick it from the
 [known detectors](#known-detectors)). Every field is built from what the
 detector reports, so limits and choices are that detector's own (where it
 reports no unit, ALBIS adds the one from the SIMPLON reference):
+
+![The Detector tab connected to a simulated EIGER2 4M: Acquire, Single image and Live, the temperature, humidity and high voltage, and the Acquisition and Data output sections](images/user-guide/detector-tab.webp)
 
 - **The main button** offers the one sensible next step: **Initialize** after
   power-up (up to two minutes), **Acquire** when ready. Beside it, **Single
@@ -914,6 +975,8 @@ appears and `Alt` where `⌥` appears.
 
 The command palette is the fastest route to anything you do not have a shortcut
 for, including switching panel tabs and stepping thresholds.
+
+![The command palette: a search field over a list of commands with their shortcuts](images/user-guide/command-palette.webp)
 
 ---
 
