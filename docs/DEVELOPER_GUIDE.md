@@ -43,6 +43,9 @@ pip install -r requirements-dev.txt
 npm ci
 ```
 
+`npm run check` (`scripts/check.sh`) runs the first five of these in one go, as
+CI does; `npm run check -- --fast` skips pytest while you iterate.
+
 Run local checks:
 
 ```bash

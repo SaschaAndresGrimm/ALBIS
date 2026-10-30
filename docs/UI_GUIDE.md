@@ -193,11 +193,10 @@ Pick a layer from this scale; a new one goes into both this table and
 ## Checking a change
 
 ```bash
-npm run test:js            # includes the style guard and locale tests
-npm run lint:js
+npm run check              # all CI gates, the style guard and locale tests included
 
-# Screenshots of every window, with an image from the data folder loaded:
-.venv/bin/python -m uvicorn backend.app:app --port 8731 &
+# Screenshots of every window, with an image from testdata/ loaded:
+ALBIS_DATA_ROOT=testdata .venv/bin/python -m uvicorn backend.app:app --port 8731 &
 npm run ui:snapshots -- --out /tmp/albis-ui
 ```
 
@@ -205,7 +204,8 @@ npm run ui:snapshots -- --out /tmp/albis-ui
 Settings tab, About, Check for Updates, the backend log, the command palette,
 the file browser, the export dialogs, the menus and the toolbar popovers. It
 opens the image through the Data tab's file list (`--file` picks one), never
-by upload, so the data folder is left as it was. Run it before and after your
+by upload, so the data folder is left as it was. `ALBIS_DATA_ROOT=testdata`
+uses the test files tracked in the repository, so it works on a fresh clone. Run it before and after your
 change and compare. `--width 1100` shows the layout with the side panel
 collapsed.
 
@@ -219,4 +219,4 @@ collapsed.
 - [ ] Unavailable options are faded with a reason, not hidden.
 - [ ] Every string translated in all 13 locales; every control has a name.
 - [ ] Keyboard: reachable with Tab, same focus ring, Esc closes.
-- [ ] `npm run test:js` passes; screenshots before/after attached, browser named.
+- [ ] `npm run check` passes; screenshots before/after attached, browser named.

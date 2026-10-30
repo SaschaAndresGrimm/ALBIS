@@ -15,12 +15,15 @@ Default config uses `server.port: 0` (random free port), and the launcher opens 
 For the backend on its own, without the browser launch, run `python -m uvicorn backend.app:app` and open the
 URL Uvicorn prints.
 
-Install contributor tooling:
+Install contributor tooling (or run `scripts/dev_setup.sh`, which sets up the
+virtualenv, the tooling and the pre-commit hooks in one go):
 
 ```bash
 pip install -r requirements-dev.txt
 npm ci
 ```
+
+Before opening a pull request, `npm run check` runs every gate CI runs.
 
 ## Contributor docs
 
@@ -65,7 +68,26 @@ Use the GitHub issue forms:
 - If you add/reshape major logic paths, update `docs/DEVELOPER_GUIDE.md`.
 - If you move frontend module boundaries or callback/context contracts, update the frontend module map in `docs/CODE_MAP.md`.
 
+## Using coding agents
+
+Contributions written with coding agents (Claude Code, Codex, Copilot, Cursor,
+…) are welcome on the same terms as any other:
+
+- Agents read [`AGENTS.md`](AGENTS.md) (Claude Code through `CLAUDE.md`,
+  which imports it). It holds the rules, the checks and the pitfalls; keep it
+  current when you change how the project works.
+- You are the author. Read and understand every line before you open the pull
+  request, and be ready to explain it in review.
+- Agent work goes through a branch and a pull request with green CI, like
+  everyone's.
+- The shared `.claude/settings.json` allows the routine checks and blocks
+  force-pushes, `rm -rf` and reading key files. Put personal settings in
+  `.claude/settings.local.json` and personal instructions in
+  `CLAUDE.local.md`; both stay out of the repository.
+
 ## Local checks before PR
+
+`npm run check` runs the first five of these, as CI does:
 
 ```bash
 ruff check backend albis_launcher.py tests scripts test_scripts

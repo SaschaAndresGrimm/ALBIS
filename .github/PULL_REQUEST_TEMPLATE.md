@@ -12,6 +12,7 @@ Describe the change and why it is needed.
 
 ## Validation
 
+- [ ] `npm run check` (runs all of the below)
 - [ ] `ruff check backend albis_launcher.py tests scripts test_scripts`
 - [ ] `black --check backend albis_launcher.py tests scripts test_scripts`
 - [ ] `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_cov --cov=backend --cov-fail-under=77`
