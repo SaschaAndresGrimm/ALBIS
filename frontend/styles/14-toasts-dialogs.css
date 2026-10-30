@@ -1,4 +1,4 @@
-/* Toasts and the prompt/confirm dialogs.
+/* Toasts, the prompt/confirm dialogs, and the notice when ALBIS has stopped.
 
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
@@ -178,4 +178,38 @@
 .autoload-action-btn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+/* ALBIS stopped (File -> Quit ALBIS): the page says so instead of failing quietly. */
+.albis-stopped {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 12, 18, 0.88);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.albis-stopped-card {
+  max-width: 420px;
+  padding: 24px 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  color: var(--text);
+  text-align: center;
+}
+
+.albis-stopped-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.albis-stopped-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }

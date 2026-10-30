@@ -1,0 +1,65 @@
+/* The drawn dropdown chevron and the Windows High Contrast fallbacks. Last on
+   purpose: these rules have to come after every other select rule.
+
+   Part of the stylesheet split from style.css; the files load in the order of
+   their numbers (index.html), and that order is the cascade. */
+
+/* Dropdowns draw their own chevron, the same in every browser: Firefox,
+   Chrome and Safari each drew a different one, Safari a double arrow. The
+   chevron sits over --select-fill, the gradient most dropdowns are painted
+   with; those painted in a flat colour set it to none. The two rules that
+   set a dropdown's padding more specifically than this one are named, so
+   the text keeps clear of the chevron. */
+:root {
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%23b4bfd4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* The same chevron as a mask, for those painted in the text's colour. */
+  --chevron-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+select:not([multiple], [size]) {
+  --select-fill: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 22px;
+  background-image: var(--select-chevron), var(--select-fill);
+  background-repeat: no-repeat, repeat;
+  background-position:
+    right 8px center,
+    0 0;
+  background-size:
+    8px 5px,
+    auto;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field select:not([multiple], [size]),
+.settings-grid .field select:not([multiple], [size]) {
+  padding-right: 22px;
+}
+
+.toolbar-step select,
+.toolbar-fps select,
+.toolbar-threshold select,
+.mask-edit-bar select,
+.browse-control select {
+  --select-fill: none;
+}
+
+/* Windows High Contrast drops background images, and with them the
+   chevrons and the slider's track: there the browser draws its own. */
+@media (forced-colors: active) {
+  select:not([multiple], [size]),
+  input[type="range"],
+  .num-stepper > input.num-stepper-input[type="number"] {
+    -webkit-appearance: auto;
+    appearance: auto;
+  }
+
+  .num-stepper > input.num-stepper-input[type="number"]::-webkit-inner-spin-button,
+  .num-stepper > input.num-stepper-input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: inner-spin-button;
+  }
+
+  .num-stepper-buttons {
+    display: none;
+  }
+}

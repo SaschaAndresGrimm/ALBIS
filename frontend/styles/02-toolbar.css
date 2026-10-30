@@ -1,8 +1,129 @@
-/* The toolbar: sliders, number steppers, frame, step, FPS, threshold and playback
-   controls, tool buttons, and the backend and live badges.
+/* The toolbar: upload progress, sliders, number steppers, frame, step, FPS,
+   threshold and playback controls, tool buttons, the magnifier and pixel-value
+   buttons, and the backend and live badges.
 
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: linear-gradient(to bottom, var(--toolbar-blue), var(--toolbar-blue-dark));
+  border-top: 1px solid rgba(154, 195, 255, 0.12);
+  border-bottom: 1px solid rgba(11, 18, 27, 0.62);
+  position: relative;
+}
+
+.toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.upload-bar {
+  position: relative;
+  width: clamp(220px, 28vw, 360px);
+  max-width: calc(100vw - 24px);
+  height: 18px;
+  margin: 6px 0 0 10px;
+  background: rgba(8, 14, 23, 0.9);
+  border: 1px solid var(--border-bold);
+  border-radius: 999px;
+  display: none;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(187, 214, 255, 0.08),
+    0 4px 12px rgba(4, 8, 16, 0.3);
+}
+
+.upload-bar.is-active {
+  display: block;
+}
+
+.upload-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(to right, #3a8bd9, #1f6fb8);
+  transition: width var(--motion-fast) linear;
+}
+
+.upload-bar.is-processing .upload-bar-fill {
+  width: 40%;
+  animation: uploadSlide 1.2s ease-in-out infinite;
+}
+
+.upload-bar-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--font-size-xs);
+  color: #e6e6e6;
+  text-shadow: 0 1px 0 #000;
+  pointer-events: none;
+}
+
+@keyframes uploadSlide {
+  0% {
+    transform: translateX(-40%);
+  }
+  50% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(-40%);
+  }
+}
+
+.toolbar-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.toolbar-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 5px;
+  border-radius: var(--radius-md);
+  background: rgba(7, 14, 22, 0.2);
+  border: 1px solid rgba(9, 18, 29, 0.36);
+}
+
+.toolbar-cluster-frame {
+  min-width: 196px;
+}
+
+.toolbar-cluster .toolbar-frame {
+  min-width: 132px;
+  max-width: 220px;
+}
+
+.toolbar-cluster .toolbar-step select {
+  min-width: 76px;
+}
+
+.toolbar-cluster .toolbar-fps select {
+  min-width: 62px;
+}
+
+.toolbar-frame {
+  display: flex;
+  align-items: center;
+  min-width: 152px;
+  max-width: 260px;
+}
+
+.toolbar-frame.is-hidden {
+  display: none;
+}
 
 /* Sliders are drawn here rather than by the browser, so they look the same in
    every engine: Firefox's and Safari's own were grey and heavy on the dark
@@ -741,4 +862,18 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .live-badge[aria-hidden="true"] {
   display: none;
+}
+
+#magnifier-toggle.is-active,
+.pixel-values-btn.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* "123": Pixel values on/off, beside the magnifier. */
+.pixel-values-btn {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }

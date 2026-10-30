@@ -279,8 +279,6 @@
   cursor: pointer;
 }
 
-
-
 /* A hint rather than a fault: amber, like the "changed elsewhere" notice. */
 .detector-warning.is-caution {
   background: rgba(242, 184, 75, 0.14);

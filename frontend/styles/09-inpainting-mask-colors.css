@@ -1,0 +1,223 @@
+/* Inpainting and the histogram's mask colours. Both restyle the shared field,
+   checkbox and button rules of 08-controls.css for their own rows, so they
+   come after it: moved before it, the generic rules win again.
+
+   Part of the stylesheet split from style.css; the files load in the order of
+   their numbers (index.html), and that order is the cascade. */
+
+/* Fill gaps and defective pixels (inpainting). */
+
+/* Inpainting: the margin around flagged pixels, a small number and its unit. */
+.inpaint-margin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.inpaint-margin-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.inpaint-margin-field input {
+  width: 48px;
+  min-height: 26px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inpainting: the method, and the fixed value with its two quick picks. */
+.inpaint-method,
+.inpaint-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inpaint-method {
+  margin-right: 8px;
+}
+
+.inpaint-method select {
+  width: 130px;
+  min-height: 26px;
+  padding: 2px 6px;
+}
+
+.inpaint-value input[type="number"] {
+  width: 96px;
+  min-height: 26px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.inpaint-value-row[hidden] {
+  display: none;
+}
+
+.inpaint-value-row .inpaint-value-btn {
+  min-height: 26px;
+  padding: 2px 10px;
+  font-size: var(--font-size-md);
+}
+
+/* Mask colours under the colour bar: a chip per class, both the key and the
+   way to change it, and the small popover a chip opens. */
+.hist-mask-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+
+.hist-mask-key[hidden] {
+  display: none;
+}
+
+.hist-mask-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.mask-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgba(12, 18, 27, 0.55);
+  color: var(--text, #e6edf7);
+  font-size: var(--font-size-sm);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.mask-chip:hover,
+.mask-chip:focus-visible,
+.mask-chip[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+
+/* No such pixel on screen: still a key entry, and still adjustable. */
+.mask-chip.is-absent {
+  opacity: 0.5;
+}
+
+.mask-chip.is-custom span:last-child {
+  font-style: italic;
+}
+
+.mask-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.mask-colors-auto {
+  padding: 2px 10px;
+  font-size: var(--font-size-sm);
+}
+
+.mask-colors-auto[hidden] {
+  display: none;
+}
+
+.mask-popover {
+  position: absolute;
+  z-index: 1000;
+  width: 248px;
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #121a26;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  display: grid;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+}
+
+.mask-popover-title {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--text, #e6edf7);
+}
+
+.mask-popover-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.mask-popover-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mask-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.mask-swatch:hover,
+.mask-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.mask-swatch[aria-pressed="true"] {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.mask-popover-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+#hist-colorbar {
+  cursor: grab;
+}
+
+#hist-colorbar.is-dragging {
+  cursor: grabbing;
+}
+
+/* Histogram: which pixels are not values (mask switches) and their colours. */
+.hist-masks {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.hist-mask-row {
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 0;
+}
+
+.hist-mask-row .checkbox {
+  white-space: nowrap;
+  min-height: 24px;
+}
+
+.hist-mask-row .info-tip {
+  align-self: center;
+}

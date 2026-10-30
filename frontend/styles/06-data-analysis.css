@@ -1,5 +1,5 @@
 /* Data and Analysis sections: pixel mask, detector geometry, resolution rings,
-   peaks, combine frames, ROI quick controls, overview.
+   peaks, combine frames, ROI quick controls, and the note on hidden tools.
 
    Part of the stylesheet split from style.css; the files load in the order of
    their numbers (index.html), and that order is the cascade. */
@@ -607,7 +607,6 @@
   margin-top: 2px;
 }
 
-
 .series-sum-output-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -718,17 +717,6 @@
   flex: 1 1 auto;
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
-}
-
 .roi-plot-controls {
   display: flex;
   align-items: center;
@@ -759,4 +747,32 @@
   margin-left: auto;
   padding: 4px 10px;
   font-size: var(--font-size-sm);
+}
+
+/* The Analysis tab's reminder that some tools are hidden, and where to bring them back. */
+.analysis-hidden-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: var(--font-size-md);
+  color: var(--muted, #8fa3bf);
+}
+
+.analysis-hidden-tools[hidden] {
+  display: none;
+}
+
+/* "Use every" holds a small number in a narrow column: keep its label on one line. */
+#series-sum-every-field > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 720px) {
+  .settings-tools {
+    grid-template-columns: 1fr;
+  }
 }

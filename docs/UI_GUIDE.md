@@ -32,7 +32,7 @@ not just its value — and use it.
 
 `frontend/style.css` holds the tokens, the fonts and the base rules. Everything
 else is in `frontend/styles/`, one file per area of the interface
-(`02-toolbar.css`, `11-export-settings.css`, …), each under 1,000 lines.
+(`02-toolbar.css`, `12-export-settings.css`, …), each under 1,000 lines.
 `index.html` links them in the order of their numbers, and that order is the
 cascade: at equal specificity a rule in a later file wins, as one further down
 a single file would. So:

@@ -182,7 +182,6 @@
   transition: width 100ms linear;
 }
 
-
 .detector-notice,
 .detector-confirm,
 .detector-warning {
@@ -478,7 +477,6 @@
   gap: 8px;
   min-height: 17px;
 }
-
 
 /* Internal enable: the exposure for the next Trigger, beside the button. */
 .detector-exposure {

@@ -30,8 +30,8 @@ const MAX_LINES = 1000;
 // Files over MAX_LINES, at the length they may not exceed.
 const LINE_BASELINE = {
   "frontend/app.js": 5659,
-  // +16 in the stylesheet split: one <link> per part in frontend/styles/.
-  "frontend/index.html": 2599,
+  // +17 in the stylesheet split: one <link> per part in frontend/styles/.
+  "frontend/index.html": 2600,
   "frontend/modules/detector_control_controller.js": 2903,
   "frontend/modules/file_browser.js": 1680,
   "frontend/modules/pixel_mask_controller.js": 1066,
