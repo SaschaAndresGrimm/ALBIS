@@ -31,7 +31,7 @@ everywhere.
 | You are adding | Touch |
 | --- | --- |
 | **A calculation or transform** | A pure helper, with a test that needs no DOM. |
-| **A control or a feature** | Markup in `index.html` (`data-i18n*` on every string), behaviour on the owning controller, the listener in the matching `*_bindings.js`, wiring in `app.js`, styles in `style.css` from the tokens, keys in all 13 locales, a test. The worked example in the developer guide walks through it. |
+| **A control or a feature** | Markup in `index.html` (`data-i18n*` on every string), behaviour on the owning controller, the listener in the matching `*_bindings.js`, wiring in `app.js`, styles in the area's file in `styles/` from the tokens (see the UI guide), keys in all 13 locales, a test. The worked example in the developer guide walks through it. |
 | **A dialog** | The `.modal` structure and layout in the UI guide; open and close it through the existing modal handling, so Esc and the backdrop work. |
 | **A call to the backend** | `fetchJSON` / `fetchJSONWithInit` from `modules/http.js`, which turns failures into a translated message. Many older modules call `fetch` directly; do not copy that. |
 | **A setting** | Backend first (see [backend/AGENTS.md](../backend/AGENTS.md)), then the Settings dialog's tab, its keys, the user guide. |

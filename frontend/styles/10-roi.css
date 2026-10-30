@@ -1,0 +1,365 @@
+/* ROI statistics and plots.
+
+   Part of the stylesheet split from style.css; the files load in the order of
+   their numbers (index.html), and that order is the cascade. */
+
+#simplon-url,
+#simplon-version,
+#simplon-timeout {
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+}
+
+#simplon-url:focus,
+#simplon-version:focus,
+#simplon-timeout:focus {
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  color: var(--text);
+}
+
+.roi-stats {
+  display: grid;
+  row-gap: 3px;
+  margin-bottom: 6px;
+  font-size: var(--font-size-sm);
+}
+
+.roi-stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+}
+
+.roi-stats-col {
+  display: grid;
+  row-gap: 3px;
+}
+
+/* Subtle divider so the two columns read as one table rather than scattered pairs. */
+.roi-stats-col + .roi-stats-col {
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 12px;
+}
+
+.roi-stats .meta-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+}
+
+.roi-stats .meta-row span {
+  justify-self: start;
+  color: var(--muted);
+}
+
+.roi-stats .meta-row strong {
+  justify-self: end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.roi-plots {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.roi-plot {
+  background: var(--surface-well);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 42px;
+}
+
+/* Tall enough to read a profile from the start; the corner handle still
+   resizes each one. At 120px the plot area itself was some 70px. */
+#roi-line-plot,
+#roi-box-plot-x,
+#roi-box-plot-y,
+#roi-hist-plot {
+  height: 220px;
+}
+
+.roi-plot-title {
+  font-size: var(--font-size-sm);
+  color: #dce8fb;
+  margin-bottom: 3px;
+  flex-shrink: 0;
+}
+
+.roi-plot-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  margin-bottom: 3px;
+  flex-shrink: 0;
+}
+
+.roi-plot-header .roi-plot-title {
+  margin-bottom: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.roi-plot-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.roi-axis-limit-chip,
+.roi-histogram-bin-chip {
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid rgba(110, 181, 255, 0.36);
+  border-radius: var(--radius-sm);
+  background: rgba(37, 67, 96, 0.6);
+  color: #dbeeff;
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.roi-axis-limit-chip {
+  border-color: rgba(143, 196, 255, 0.32);
+  background: rgba(34, 52, 76, 0.62);
+}
+
+.roi-axis-limit-chip.is-hidden,
+.roi-histogram-bin-chip.is-hidden {
+  display: none;
+}
+
+.roi-plot-icon-btn {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(16, 25, 38, 0.9);
+  color: var(--text);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.roi-plot-icon-btn:hover,
+.roi-plot-icon-btn[aria-expanded="true"] {
+  border-color: rgba(118, 154, 214, 0.75);
+  background: rgba(31, 47, 70, 0.96);
+}
+
+.roi-plot-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.roi-axis-limits-popover {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: min(248px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  box-shadow: var(--shadow-soft);
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s linear var(--motion-med);
+}
+
+.roi-axis-limits-popover.is-open {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s;
+}
+
+.roi-axis-auto-toggle,
+.roi-plot-log-toggle,
+.roi-histogram-auto-bins {
+  margin: 0;
+}
+
+.roi-plot-unit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--muted-strong);
+}
+
+.roi-plot-unit-row select {
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+  font-size: var(--font-size-sm);
+}
+
+.roi-axis-limits-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.roi-axis-limits-grid label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  font-size: var(--font-size-xs);
+  color: var(--muted-strong);
+}
+
+.roi-axis-limits-grid input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: var(--font-size-sm);
+}
+
+.roi-axis-reset-btn {
+  min-height: 24px;
+  justify-self: end;
+  padding: 2px 8px;
+  font-size: var(--font-size-sm);
+}
+
+.roi-histogram-bin-manual {
+  display: grid;
+  gap: 8px;
+}
+
+.roi-histogram-bin-manual.is-hidden {
+  display: none;
+}
+
+.roi-histogram-bin-count-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  color: #dce8fb;
+}
+
+.roi-histogram-bin-count-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.roi-histogram-bin-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.roi-histogram-bin-preset {
+  min-width: 0;
+  min-height: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(16, 25, 38, 0.86);
+  color: var(--text);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.roi-histogram-bin-preset:hover,
+.roi-histogram-bin-preset.is-active {
+  border-color: rgba(110, 181, 255, 0.72);
+  background: rgba(45, 82, 118, 0.82);
+}
+
+.roi-histogram-bin-preset:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.roi-plot canvas {
+  width: 100%;
+  flex: 1;
+  min-height: 30px;
+  display: block;
+}
+
+.roi-plot canvas.is-pan-ready {
+  cursor: grab;
+}
+
+.roi-plot canvas.is-panning {
+  cursor: grabbing;
+}
+
+.roi-tooltip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 6px;
+  background: rgba(13, 19, 28, 0.95);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  pointer-events: none;
+  display: none;
+  z-index: 2;
+}
+
+.roi-tooltip.is-visible {
+  display: block;
+}
+
+.roi-plot.is-hidden {
+  display: none;
+}
+
+.roi-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(131, 157, 200, 0.55) 50%);
+  border-top: 1px solid var(--border-strong);
+  border-left: 1px solid var(--border-strong);
+  border-radius: 2px 0 0 0;
+}
+
+.roi-resize-handle:hover {
+  background: linear-gradient(135deg, transparent 50%, rgba(139, 180, 243, 0.8) 50%);
+}

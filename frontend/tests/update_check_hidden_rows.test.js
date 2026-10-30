@@ -1,7 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
+
+import { readAllCss } from "./stylesheets.js";
 
 /**
  * The update dialog hides rows with the `hidden` attribute, which is a
@@ -13,9 +12,7 @@ import { describe, expect, it } from "vitest";
  */
 // Comments are stripped before parsing: a comma inside one would otherwise be
 // read as a selector separator.
-const CSS = fs
-  .readFileSync(path.resolve(__dirname, "..", "style.css"), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, "");
+const CSS = readAllCss().replace(/\/\*[\s\S]*?\*\//g, "");
 
 // Containers that hold the dialog together and are never hidden on their own.
 // A new `.update-check-*` class that carries a display must either guard

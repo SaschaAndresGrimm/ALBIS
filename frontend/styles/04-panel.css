@@ -1,0 +1,709 @@
+/* The side panel: sheet, tabs, sections, their titles, summaries and states.
+
+   Part of the stylesheet split from style.css; the files load in the order of
+   their numbers (index.html), and that order is the cascade. */
+
+.panel {
+  background: linear-gradient(to bottom, var(--panel-light), var(--panel-dark));
+  border-left: 1px solid var(--border-subtle);
+  padding: 8px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-sheet-handle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0 6px;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.panel-sheet-grip {
+  width: 52px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(166, 191, 233, 0.58);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 4px rgba(6, 10, 18, 0.42);
+}
+
+body.canvas-first {
+  --overlay-panel-top: var(--overlay-anchor-top);
+  --overlay-panel-right: var(--overlay-gutter);
+  --overlay-panel-footer-gap: 72px;
+  --overlay-panel-trigger-top: var(--overlay-anchor-top);
+}
+
+body.canvas-first .chrome {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 30;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+body.canvas-first .menu-bar,
+body.canvas-first .toolbar,
+body.canvas-first .menu-dropdown,
+body.canvas-first .upload-bar {
+  pointer-events: auto;
+}
+
+/* The bars float over the image, so they are frosted as the panel is and
+   opaque enough that their controls read over a white frame too. */
+body.canvas-first .menu-bar {
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  background: linear-gradient(to bottom, rgba(47, 62, 86, 0.88), rgba(22, 31, 45, 0.9));
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+body.canvas-first .toolbar {
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 8px 0 0 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(to bottom, rgba(34, 93, 145, 0.88), rgba(18, 66, 110, 0.9));
+  box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+body.canvas-first .toolbar-main {
+  flex: 0 0 auto;
+}
+
+body.canvas-first .toolbar-path {
+  display: none;
+}
+
+body.canvas-first .upload-bar {
+  margin: 8px 0 0 0;
+  width: min(300px, calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+}
+
+body.canvas-first .app {
+  grid-template-columns: minmax(0, 1fr);
+  position: relative;
+}
+
+body.canvas-first .viewer {
+  padding: 6px;
+}
+
+body.canvas-first .canvas-shell {
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 34px rgba(5, 9, 16, 0.35);
+}
+
+body.canvas-first .panel-resizer {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 8px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(to bottom, rgba(68, 112, 173, 0.58), rgba(34, 66, 108, 0.52));
+  cursor: col-resize;
+  z-index: 32;
+}
+
+body.canvas-first .panel-resizer:hover {
+  background: linear-gradient(to bottom, rgba(95, 153, 236, 0.68), rgba(44, 84, 136, 0.62));
+  border-color: rgba(123, 175, 255, 0.7);
+}
+
+body.canvas-first .panel {
+  position: absolute;
+  top: var(--overlay-panel-top);
+  right: var(--overlay-panel-right);
+  bottom: auto;
+  width: min(var(--panel-width, 360px), calc(100vw - (var(--overlay-panel-right) * 2)));
+  max-width: calc(100vw - (var(--overlay-panel-right) * 2));
+  height: auto;
+  max-height: calc(100vh - var(--overlay-panel-top) - var(--overlay-panel-footer-gap));
+  z-index: 24;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(to bottom, rgba(37, 48, 66, 0.78), rgba(19, 27, 39, 0.76));
+  box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
+  overflow: visible;
+}
+
+body.canvas-first .panel.is-collapsed {
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  max-height: 0;
+  z-index: 62;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Content scrolls under the sticky tab bar: at 72% it showed through. */
+body.canvas-first .panel-topbar {
+  background: linear-gradient(to bottom, rgba(44, 58, 82, 0.97), rgba(24, 34, 49, 0.97));
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
+}
+
+body.canvas-first .panel-section {
+  background: rgba(28, 38, 54, 0.68);
+}
+
+body.canvas-first .section-title {
+  background: linear-gradient(to bottom, rgba(58, 73, 99, 0.78), rgba(35, 47, 67, 0.78));
+}
+
+body.canvas-first .viewer-footer {
+  background: rgba(10, 17, 27, 0.86);
+  box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+body.canvas-first .panel:not(.is-collapsed) .panel-fab {
+  display: none;
+}
+
+body.canvas-first .panel-fab {
+  left: 50%;
+  top: auto;
+  bottom: -18px;
+  transform: translateX(-50%);
+  width: 158px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  line-height: 1;
+  background: linear-gradient(to bottom, rgba(86, 135, 206, 0.9), rgba(48, 83, 130, 0.9));
+  border: 1px solid rgba(150, 195, 255, 0.72);
+  box-shadow:
+    0 8px 18px rgba(2, 6, 12, 0.4),
+    0 0 0 1px rgba(120, 170, 255, 0.32);
+  z-index: 28;
+}
+
+body.canvas-first .panel.is-collapsed .panel-fab {
+  position: fixed;
+  top: var(--overlay-panel-trigger-top);
+  right: var(--overlay-panel-right);
+  bottom: auto;
+  left: auto;
+  transform: none;
+  width: 196px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text);
+  background: linear-gradient(to bottom, rgba(13, 20, 31, 0.97), rgba(23, 34, 50, 0.97));
+  border: 1px solid rgba(194, 220, 255, 0.86);
+  box-shadow:
+    0 14px 28px rgba(2, 6, 12, 0.58),
+    0 0 0 1px rgba(142, 188, 255, 0.4);
+  z-index: 70;
+  pointer-events: auto;
+}
+
+body.canvas-first .menu-bar,
+body.canvas-first .toolbar,
+body.canvas-first .viewer-footer {
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    filter var(--motion-med) var(--motion-ease-standard);
+}
+
+/* Idle, the bars stand back but stay legible over a bright frame. */
+body.canvas-first.chrome-idle .menu-bar,
+body.canvas-first.chrome-idle .toolbar,
+body.canvas-first.chrome-idle .viewer-footer {
+  opacity: 0.7;
+  filter: saturate(0.8);
+}
+
+body.canvas-first.chrome-idle .menu-bar:hover,
+body.canvas-first.chrome-idle .toolbar:hover,
+body.canvas-first.chrome-idle .viewer-footer:hover {
+  opacity: 1;
+  filter: none;
+}
+
+body.canvas-first .panel-fab:hover {
+  background: linear-gradient(to bottom, rgba(103, 158, 240, 0.95), rgba(58, 104, 163, 0.95));
+  border-color: rgba(186, 219, 255, 0.86);
+}
+
+body.canvas-first .panel-fab:focus-visible {
+  outline: none;
+  box-shadow:
+    var(--focus-ring),
+    0 14px 28px rgba(2, 6, 12, 0.52),
+    0 0 0 1px rgba(152, 204, 255, 0.5);
+}
+
+body.canvas-first .panel.is-collapsed .panel-resizer {
+  display: none;
+}
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.panel-topbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: linear-gradient(to bottom, #2b364a, #1f2735);
+  padding: 8px;
+  margin: -8px -8px 8px -8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.panel-collapse-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: rgba(12, 20, 32, 0.35);
+  color: rgba(220, 233, 255, 0.86);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.panel-collapse-btn:hover {
+  background: rgba(24, 39, 61, 0.55);
+  border-color: rgba(112, 152, 205, 0.58);
+  color: var(--text);
+}
+
+.panel-collapse-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.panel-tab {
+  flex: 1 1 0;
+  background: linear-gradient(to bottom, rgba(41, 51, 70, 0.95), rgba(27, 35, 49, 0.95));
+  border: 1px solid rgba(20, 28, 40, 0.64);
+  border-right-width: 0;
+  color: #dbe6fb;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  padding: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.panel-tab:hover {
+  background: linear-gradient(to bottom, rgba(52, 67, 93, 0.96), rgba(35, 46, 65, 0.96));
+}
+
+.panel-tab:last-child {
+  border-right-width: 1px;
+}
+
+.panel-tab.is-active {
+  background: linear-gradient(to bottom, rgba(85, 122, 181, 0.55), rgba(38, 65, 106, 0.55));
+  box-shadow: inset 0 0 0 1px rgba(139, 189, 255, 0.35);
+  border-color: rgba(95, 138, 207, 0.66);
+  color: var(--text);
+}
+
+.panel-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.panel-tab-content {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.panel-tab-content.is-active {
+  display: flex;
+}
+
+.panel-tab-card {
+  background: var(--panel-mid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  transition: box-shadow var(--motion-slow) var(--motion-ease-standard);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+  min-width: 0;
+}
+
+.panel-tab-card.flash {
+  box-shadow: 0 0 0 2px rgba(120, 170, 255, 0.6);
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.panel.is-collapsed {
+  padding: 4px;
+}
+
+.panel.is-collapsed .panel-body {
+  display: none;
+}
+
+.panel.is-collapsed .panel-head {
+  display: none;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  padding: 6px 8px;
+  background: linear-gradient(to bottom, #2f3b51, #212b3b);
+  border: 1px solid rgba(25, 34, 48, 0.95);
+  color: var(--text);
+  width: 100%;
+  text-align: left;
+  margin-bottom: 8px;
+}
+
+.panel-head-label {
+  cursor: default;
+}
+
+.panel-group {
+  margin-bottom: 0;
+}
+
+.panel-group.is-collapsed .panel-group-body {
+  display: none;
+}
+
+.panel-group.is-collapsed .section-chevron {
+  transform: rotate(-90deg);
+}
+
+.panel-group > .panel-head {
+  margin-bottom: 0;
+}
+
+.panel-group-body {
+  background: var(--panel-mid);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  border-top: none;
+  padding: 8px;
+}
+
+.panel-group-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+}
+
+.panel-section {
+  background: var(--panel-mid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 0;
+  padding: 8px;
+  transition:
+    box-shadow var(--motion-med) var(--motion-ease-standard),
+    border-color var(--motion-med) var(--motion-ease-standard);
+  min-width: 0;
+}
+
+.panel-section.flash {
+  box-shadow: 0 0 0 2px rgba(120, 170, 255, 0.6);
+}
+
+.section-title {
+  font-size: var(--section-title-size);
+  font-weight: 600;
+  background: linear-gradient(to bottom, rgba(47, 60, 82, 0.9), rgba(35, 45, 61, 0.9));
+  padding: 8px;
+  margin: -8px -8px 8px -8px;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
+  width: calc(100% + 16px);
+  text-align: left;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.section-title-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.section-summary {
+  display: inline-flex;
+  align-items: center;
+  max-width: 170px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: rgba(13, 21, 33, 0.65);
+  color: var(--muted-strong);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    border-color var(--motion-fast) var(--motion-ease-standard),
+    background var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.section-summary:empty {
+  display: none;
+}
+
+.section-summary.is-active {
+  border-color: rgba(102, 170, 255, 0.62);
+  background: rgba(24, 48, 76, 0.62);
+  color: var(--text);
+}
+
+.section-summary.is-warning {
+  border-color: rgba(224, 93, 93, 0.55);
+  background: rgba(67, 24, 24, 0.5);
+  color: #f7cccc;
+}
+
+.section-summary-status {
+  max-width: 230px;
+  font-weight: 500;
+  gap: 6px;
+}
+
+.section-summary-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.88;
+  flex: 0 0 6px;
+}
+
+.section-summary-status.is-empty {
+  border-color: var(--border-strong);
+  background: rgba(13, 21, 33, 0.65);
+  color: var(--muted-strong);
+}
+
+.section-summary-status.is-loading {
+  border-color: rgba(224, 178, 74, 0.5);
+  background: rgba(60, 46, 20, 0.45);
+  color: #f2d38b;
+}
+
+.section-summary-status.is-active {
+  border-color: rgba(78, 161, 255, 0.5);
+  background: rgba(18, 35, 58, 0.5);
+  color: #bad8ff;
+}
+
+.section-summary-status.is-warning {
+  border-color: rgba(224, 93, 93, 0.52);
+  background: rgba(67, 24, 24, 0.48);
+  color: #f0b6b6;
+}
+
+.section-title:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* A drawn chevron, as the dropdowns': the ▾ in the markup came from
+   whichever font had one, so its size and shape changed with the system. */
+.section-chevron {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 6px;
+  font-size: 0;
+  background: currentColor;
+  -webkit-mask: var(--chevron-mask) center / contain no-repeat;
+  mask: var(--chevron-mask) center / contain no-repeat;
+  opacity: 0.8;
+  transition: transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+.panel-section.is-collapsed .section-chevron {
+  transform: rotate(-90deg);
+}
+
+.panel-section.is-collapsed {
+  padding-bottom: 6px;
+}
+
+/* An open section is as tall as its content: a fixed cap (it was 2000px, for
+   the height animation) cut off long ones, such as a detector's Advanced
+   settings. Opening and closing fade instead of sliding. */
+.panel-section > .section-content {
+  max-height: none;
+  opacity: 1;
+  transform: translateY(0);
+  overflow: hidden;
+  will-change: opacity, transform;
+  transition:
+    opacity 90ms var(--motion-ease-standard),
+    transform 90ms var(--motion-ease-standard);
+}
+
+.panel-section.is-collapsed > .section-content {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+}
+
+.panel-section.is-collapsed .section-title {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.panel-section.inspector {
+  margin-top: 8px;
+}
+
+.panel-section.image-header {
+  margin-top: 8px;
+}
+
+.section-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(11, 17, 26, 0.5);
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
+.section-state::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.88;
+  flex: 0 0 6px;
+}
+
+.section-state.is-loading {
+  color: #f2d38b;
+  border-color: rgba(224, 178, 74, 0.4);
+  background: rgba(60, 46, 20, 0.3);
+}
+
+.section-state.is-active {
+  color: #bad8ff;
+  border-color: rgba(78, 161, 255, 0.38);
+  background: rgba(18, 35, 58, 0.36);
+}
+
+.section-state.is-warning {
+  color: #f0b6b6;
+  border-color: rgba(224, 93, 93, 0.4);
+  background: rgba(67, 24, 24, 0.3);
+}
+
+.section-skeleton,
+.image-header-loading {
+  margin-bottom: 6px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(11, 17, 26, 0.45);
+  min-height: 56px;
+  overflow: hidden;
+}
+
+.panel-section[data-section="data-source"] .section-skeleton {
+  min-height: 124px;
+}

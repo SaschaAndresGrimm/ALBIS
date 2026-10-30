@@ -18,8 +18,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Frontend composition root and bootstrap wiring.
 - `frontend/index.html`:
   - UI structure and mount points referenced by `app.js`.
-- `frontend/style.css`:
-  - Styling and responsive layout. Shared values are the tokens in `:root`; see [UI Guide](UI_GUIDE.md). `frontend/tests/style_guard.test.js` keeps new rules on them.
+- `frontend/style.css` + `frontend/styles/NN-area.css`:
+  - Styling and responsive layout. `style.css` holds the tokens in `:root`, the fonts and the base rules; `styles/` one file per area, linked from `index.html` in the order of their numbers, which is the cascade. See [UI Guide](UI_GUIDE.md#where-a-style-goes). `frontend/tests/style_guard.test.js` keeps every file on the tokens.
 
 ## Frontend Module Map
 
@@ -285,6 +285,6 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Add DOM structure in `frontend/index.html`.
   - Implement domain behavior in the relevant `frontend/modules/*` controller/binding module.
   - Keep `frontend/app.js` changes limited to composition wiring/wrapper callbacks/context assembly.
-  - Add styles in `frontend/style.css`.
+  - Add styles to the area's file in `frontend/styles/` (see the UI Guide).
 - User-visible behavior changes:
   - Update `README.md`, `CHANGELOG.md`, and relevant docs in `docs/`.

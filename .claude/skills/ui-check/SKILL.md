@@ -1,6 +1,6 @@
 ---
 name: ui-check
-description: Check a visible ALBIS change by eye - start ALBIS on the test data, screenshot every window before and after the change with ui:snapshots, and compare. Use after touching frontend/index.html, style.css, a locale file, or anything else that changes what the interface shows.
+description: Check a visible ALBIS change by eye - start ALBIS on the test data, screenshot every window before and after the change with ui:snapshots, and compare. Use after touching frontend/index.html, style.css or styles/, a locale file, or anything else that changes what the interface shows.
 argument-hint: "[--file name-in-testdata] [--width 1100]"
 ---
 

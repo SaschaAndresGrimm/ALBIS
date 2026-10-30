@@ -9,7 +9,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) Â· [Code Map](CODE_MAP.md) Â
 ALBIS is a local server-client application:
 
 - Backend: FastAPI service in `backend/app.py`
-- Frontend: Single-page browser UI in `frontend/index.html`, `frontend/app.js`, `frontend/style.css`
+- Frontend: Single-page browser UI in `frontend/index.html`, `frontend/app.js`, `frontend/style.css` with `frontend/styles/`
 - Launcher: local process starter in `albis_launcher.py`
 
 The browser UI calls backend REST endpoints to load frames, metadata, analysis outputs, and live monitor images.

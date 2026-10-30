@@ -1,0 +1,479 @@
+/* The image header and HDF5 inspector, and the View tab: zoom, colour, rings grid.
+
+   Part of the stylesheet split from style.css; the files load in the order of
+   their numbers (index.html), and that order is the cascade. */
+
+.image-header-loading {
+  min-height: 98px;
+}
+
+.panel-section[data-section="image-header"] .image-header-loading {
+  min-height: 188px;
+}
+
+.image-header-empty {
+  color: #b8c8e2;
+  font-size: var(--font-size-sm);
+  padding: 6px 4px;
+}
+
+.image-header-text {
+  max-height: 220px;
+  overflow: auto;
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.98), rgba(10, 15, 24, 0.98));
+  border: 1px solid rgba(20, 31, 46, 0.95);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  line-height: 1.38;
+  color: #dfeeff;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+.inspector-search {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.inspector-search input {
+  flex: 1;
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.98), rgba(10, 15, 24, 0.98));
+  color: var(--text);
+  border: 1px solid rgba(20, 31, 46, 0.95);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  font-size: var(--font-size-md);
+}
+
+.inspector-search button {
+  min-width: 64px;
+  background: linear-gradient(to bottom, rgba(48, 61, 84, 0.96), rgba(30, 40, 57, 0.96));
+  border: 1px solid rgba(24, 35, 52, 0.95);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-fast) var(--motion-ease-standard);
+}
+
+.inspector-search button:hover {
+  background: linear-gradient(to bottom, rgba(58, 75, 103, 0.98), rgba(36, 48, 68, 0.98));
+  border-color: rgba(74, 103, 150, 0.88);
+}
+
+.inspector-results {
+  max-height: 120px;
+  overflow: auto;
+  background: var(--surface-well);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  font-size: var(--font-size-sm);
+  margin-bottom: 6px;
+}
+
+.inspector-results.is-hidden {
+  display: none;
+}
+
+.inspector-result {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.inspector-result:hover {
+  background: rgba(120, 170, 255, 0.2);
+}
+
+.inspector-result:focus-visible {
+  outline: none;
+  background: rgba(120, 170, 255, 0.24);
+  box-shadow: var(--focus-ring);
+}
+
+.inspector-result-name {
+  color: var(--text);
+  word-break: break-all;
+}
+
+.inspector-result-meta {
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+
+.inspector-tree {
+  max-height: 220px;
+  overflow: auto;
+  background: var(--surface-well);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  font-size: var(--font-size-md);
+}
+
+.inspector-empty {
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+  padding: 6px;
+}
+
+.inspector-node {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.inspector-node > .inspector-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.inspector-row:hover {
+  background: rgba(120, 170, 255, 0.15);
+}
+
+/* The "listing truncated" row states a fact about the group rather than naming
+   a node in it, so it takes none of the row affordances: no pointer, no hover,
+   no selection. Single column, because it has no name/meta split to align.
+
+   Its left padding matches a sibling row's rather than the name column's 26px:
+   `.is-hidden` is `display: none !important` globally, which beats this file's
+   `.inspector-toggle.is-hidden { visibility: hidden }`, so a leaf row's toggle
+   collapses and its name sits at the row padding. Indenting the note to where
+   the name column nominally starts put it 22px right of every entry it
+   describes, reading as a child of the last one. */
+.inspector-node > .inspector-row-note {
+  display: block;
+  grid-template-columns: none;
+  cursor: default;
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+  padding: 3px 4px;
+}
+
+.inspector-row-note:hover {
+  background: transparent;
+}
+
+.inspector-row.is-selected {
+  background: rgba(64, 123, 211, 0.35);
+}
+
+.inspector-toggle {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: #d8e3f8;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: 0;
+}
+
+.inspector-toggle.is-hidden {
+  visibility: hidden;
+}
+
+.inspector-meta {
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+  text-align: right;
+}
+
+.inspector-children {
+  margin: 2px 0 2px 16px;
+  padding-left: 8px;
+  border-left: 1px dotted rgba(95, 119, 162, 0.52);
+  display: none;
+}
+
+.inspector-node.is-open > .inspector-children {
+  display: block;
+}
+
+.inspector-details {
+  margin-top: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+  display: grid;
+  gap: 6px;
+}
+
+.inspector-details .meta-row strong {
+  text-align: right;
+  font-weight: 600;
+  color: #f2f2f2;
+  word-break: break-all;
+}
+
+.inspector-attrs {
+  display: grid;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+}
+
+.inspector-attr-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inspector-attr-row span:last-child {
+  color: #f2f2f2;
+  word-break: break-all;
+  text-align: right;
+}
+
+.inspector-preview {
+  background: var(--surface-well);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.inspector-preview-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.inspector-preview-actions a {
+  color: #9cc6ff;
+  text-decoration: none;
+  font-size: var(--font-size-xs);
+}
+
+.inspector-preview-note {
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+}
+
+.inspector-table {
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+  width: max-content;
+}
+
+.inspector-table th,
+.inspector-table td {
+  border: 1px solid var(--border-soft);
+  padding: 2px 4px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.inspector-table th {
+  background: rgba(37, 49, 67, 0.88);
+  color: #dbe8ff;
+}
+
+.thumb-view {
+  height: 140px;
+  background: var(--surface-well);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  padding: 6px;
+}
+
+.view-zoom-row {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-section[data-section="view"] #reset-view {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.view-zoom-row #zoom-range {
+  width: 100%;
+  min-width: 0;
+}
+
+.zoom-value-input {
+  width: 64px;
+  min-width: 64px;
+  min-height: var(--control-h);
+  padding: 0 8px;
+  text-align: right;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(90, 140, 200, 0.35);
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(9, 14, 22, 0.95));
+  color: var(--text);
+}
+
+.zoom-value-input:focus-visible {
+  outline: none;
+  border-color: rgba(110, 181, 255, 0.75);
+  /* Was an 18%-alpha ring, fainter still than the token it bypassed. */
+  box-shadow: var(--focus-ring);
+}
+
+.view-color-controls {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.view-check-row {
+  margin-top: 0;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.view-check-row .checkbox {
+  white-space: nowrap;
+  min-height: 24px;
+}
+
+.color-map-row {
+  gap: 10px;
+  align-items: center;
+}
+
+.color-map-row select {
+  flex: 1 1 auto;
+}
+
+.rings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  margin-top: 0;
+}
+
+.panel-section[data-section="resolution-rings"] .rings-grid {
+  justify-content: start;
+}
+
+.panel-section[data-section="resolution-rings"] .rings-grid-top {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+}
+
+.panel-section[data-section="resolution-rings"] .rings-grid-bottom {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px 0;
+}
+
+.rings-grid .field {
+  margin: 0;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field {
+  gap: 8px;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field input,
+.panel-tab-content[data-panel-tab="analysis"] .field select {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+}
+
+.panel-tab-content[data-panel-tab="data"] .field input,
+.panel-tab-content[data-panel-tab="data"] .field select {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .field .inline {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panel-tab-content[data-panel-tab="analysis"] .panel-section {
+  gap: 6px;
+}
+
+.rings-grid-top {
+  margin-top: 1px;
+}
+
+.rings-geometry-file-field {
+  grid-column: span 2;
+}
+
+.rings-geometry-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--control-h) auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.rings-geometry-file-row input {
+  min-width: 0;
+}
+
+.rings-geometry-icon-btn {
+  padding: 0;
+  width: var(--control-h);
+  min-width: var(--control-h);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.rings-geometry-clear-btn {
+  padding: 6px 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.rings-grid-bottom {
+  align-items: end;
+}
+
+.rings-geometry-status {
+  margin-top: 4px;
+}
+
+/* Data → Pixel Mask (beta): where the mask in use came from, and what it masks. */
+.panel-section[data-section="pixel-mask"] > .section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Open, the Save as menu may reach past the section; closed, it still clips. */
+.panel-section[data-section="pixel-mask"]:not(.is-collapsed) > .section-content {
+  overflow: visible;
+}

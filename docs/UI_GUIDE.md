@@ -12,7 +12,7 @@ because a one-off value drifted away from its neighbours.
 ## How this is enforced
 
 - **`frontend/tests/style_guard.test.js`** (part of `npm run test:js`) fails
-  when `frontend/style.css` adds a colour, text size or corner radius literal
+  when a stylesheet adds a colour, text size or corner radius literal
   outside `:root`, uses a z-index off the [stacking scale](#stacking), removes
   a focus outline without a replacement ring, or uses `backdrop-filter`
   without its `-webkit-` twin. Its failure message names the token to use.
@@ -27,6 +27,25 @@ because a one-off value drifted away from its neighbours.
 All shared values live in `:root` at the top of `frontend/style.css`. Use the
 token; if none fits, add one there with a comment saying what it is *for* —
 not just its value — and use it.
+
+## Where a style goes
+
+`frontend/style.css` holds the tokens, the fonts and the base rules. Everything
+else is in `frontend/styles/`, one file per area of the interface
+(`02-toolbar.css`, `12-export-settings.css`, …), each under 1,000 lines.
+`index.html` links them in the order of their numbers, and that order is the
+cascade: at equal specificity a rule in a later file wins, as one further down
+a single file would. So:
+
+- Add a rule to the file for the area it styles, next to the rules for the
+  same component.
+- A rule that must come after another, to win over it, goes in the same file
+  below it, or in a later one, with a comment saying which rule it overrides.
+- A `url()` resolves against the stylesheet's own folder: from `styles/`, an
+  image in `frontend/resources/` is `url("../resources/…")`.
+  `frontend/tests/stylesheets.test.js` checks that every one exists.
+- A new area is a new file with the next number, linked in `index.html`; the
+  same test fails until it is linked, in order.
 
 ### Text
 

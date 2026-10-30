@@ -98,6 +98,13 @@ def test_the_wordmark_font_is_present_and_unmodified() -> None:
     )
 
 
+def _all_stylesheets() -> str:
+    """style.css and the parts in styles/, as index.html links them."""
+    html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    hrefs = re.findall(r'<link rel="stylesheet" href="([^"]+)"', html)
+    return "\n".join((ROOT / "frontend" / href).read_text(encoding="utf-8") for href in hrefs)
+
+
 def test_the_wordmark_face_is_used_for_the_wordmark_only() -> None:
     css = STYLE.read_text(encoding="utf-8")
     face = re.search(
@@ -105,8 +112,9 @@ def test_the_wordmark_face_is_used_for_the_wordmark_only() -> None:
     )
     assert face, "no @font-face for Michroma"
     assert (STYLE.parent / face.group(1)).resolve() == WORDMARK.resolve()
-    # Through --font-wordmark, and that only on the two wordmarks.
-    users = re.findall(r"([^{}]+)\{[^}]*var\(--font-wordmark\)", css)
+    # Through --font-wordmark, and that only on the two wordmarks, in whichever
+    # stylesheet part they are.
+    users = re.findall(r"([^{}]+)\{[^}]*var\(--font-wordmark\)", _all_stylesheets())
     assert sorted(sel.strip() for sel in users) == [".about-wordmark", ".splash-title"]
 
 
