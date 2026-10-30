@@ -80,6 +80,10 @@ export function createMagnifierController({ state, elements, callbacks }) {
     getEffectiveScrollTop,
     getPixelLabelSettings = () => null,
     pixelLabelsForFrame = null,
+    // Called when clearance() changes: the lens appeared, went or changed
+    // size. The cursor readout moves only with the mouse, so without this it
+    // stayed under a lens that appeared beneath a still mouse.
+    onClearanceChange = () => {},
   } = callbacks;
 
   let settings = readSettings();
@@ -106,8 +110,21 @@ export function createMagnifierController({ state, elements, callbacks }) {
     return (held || locked) && Boolean(state.hasFrame && state.dataRaw && pointer);
   }
 
+  function clearance() {
+    return lens.hidden ? 0 : Math.round(settings.size / 2 * 0.71);
+  }
+
+  let reportedClearance = 0;
+  function reportClearance() {
+    const now = clearance();
+    if (now === reportedClearance) return;
+    reportedClearance = now;
+    onClearanceChange();
+  }
+
   function hide() {
     lens.hidden = true;
+    reportClearance();
   }
 
   function schedule() {
@@ -268,6 +285,7 @@ export function createMagnifierController({ state, elements, callbacks }) {
     lens.style.left = `${pointer.clientX - shellRect.left - size / 2}px`;
     lens.style.top = `${pointer.clientY - shellRect.top - size / 2}px`;
     lens.hidden = false;
+    reportClearance();
   }
 
   function syncButton() {
@@ -353,8 +371,6 @@ export function createMagnifierController({ state, elements, callbacks }) {
       return !lens.hidden;
     },
     /** How far the cursor readout must stay from the mouse: past the lens. */
-    clearance() {
-      return lens.hidden ? 0 : Math.round(settings.size / 2 * 0.71);
-    },
+    clearance,
   };
 }
