@@ -52,9 +52,24 @@ npm run ui:snapshots -- --out /tmp/albis-ui/after
 
 ## 3. Compare
 
-Open each `after/*.png` and its `before/` counterpart and look at them. Look
-at every window, not only the one you changed: tokens and shared controls
-carry a change into other windows. For a string change, also check a
+First let the diff say which pairs changed and where:
+
+```bash
+npm run ui:diff -- /tmp/albis-ui/before /tmp/albis-ui/after
+```
+
+It lists each changed shot with the share of pixels that moved and the box
+around them, and writes `/tmp/albis-ui/diff/<shot>.png`: the after picture
+faded, the changed pixels in magenta. Two runs of the same build differ only
+in `help-log` (the backend log grows between them); any other changed shot
+is your change, or something it reached. A shot listed as "only before" or
+"only after" is a window that stopped or started opening.
+
+The diff tells you where to look, not whether it is right. Open each changed
+`after/*.png` and its `before/` counterpart and look at them, and glance at
+the unchanged ones too: a window you expected to change and did not is a
+finding as well. Tokens and shared controls carry a change into other
+windows. For a string change, also check a
 long-worded language (`de`, `rm`) by switching the language in Settings and
 re-running.
 
