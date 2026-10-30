@@ -263,20 +263,22 @@ def _windows_dialog_runner(script: str) -> str | None:
     shell = shutil.which("powershell") or shutil.which("pwsh")
     if not shell:
         raise RuntimeError("No supported Windows file dialog found (PowerShell unavailable)")
+    # Bytes, decoded here: the script switches PowerShell's output to UTF-8,
+    # while `text=True` would decode it with the ANSI code page (cp1252 on a
+    # German Windows). Every non-ASCII path then came back mangled --
+    # `a¦b.tiff` as `aÂ¦b.tiff` -- and was refused as not found. `utf-8-sig`
+    # also drops the byte-order mark Windows PowerShell may write first.
     result = subprocess.run(
         [shell, "-NoProfile", "-NonInteractive", "-STA", "-Command", script],
         capture_output=True,
-        text=True,
         check=False,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
+    stdout = (result.stdout or b"").decode("utf-8-sig", errors="replace").strip()
     if result.returncode == 0:
-        picked = result.stdout.strip()
-        return picked or None
-    detail = (
-        (result.stderr or "").strip() or (result.stdout or "").strip() or "Windows dialog failed"
-    )
-    raise RuntimeError(detail)
+        return stdout or None
+    stderr = (result.stderr or b"").decode(errors="replace").strip()
+    raise RuntimeError(stderr or stdout or "Windows dialog failed")
 
 
 def _windows_picker_filter(exts: tuple[str, ...]) -> str:

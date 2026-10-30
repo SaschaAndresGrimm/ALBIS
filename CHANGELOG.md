@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **On Windows, files and folders with umlauts or other special characters open from the system's file dialog.** Picking `a¦b.tiff`, or any file under a folder such as `Jürg`, opened ALBIS's own file browser instead of the image: the chosen path reached ALBIS garbled and was taken for a file that does not exist.
+
 ## [0.38.0] - 2026-10-30
 
 ### Added

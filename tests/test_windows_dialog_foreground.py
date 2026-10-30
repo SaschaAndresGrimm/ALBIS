@@ -14,6 +14,8 @@ why each test names the specific way the dialog goes back to being lost.
 
 from __future__ import annotations
 
+import subprocess
+
 import pytest
 
 from backend.services import os_actions
@@ -139,3 +141,44 @@ def test_the_file_dialog_keeps_its_filter_and_prompt(file_script: str) -> None:
     assert "OpenFileDialog" in file_script
     assert "Select an image" in file_script
     assert "*.h5" in file_script
+
+
+def _fake_powershell(
+    monkeypatch: pytest.MonkeyPatch, stdout: bytes, returncode: int = 0, stderr: bytes = b""
+) -> None:
+    monkeypatch.setattr(os_actions.shutil, "which", lambda name: "powershell.exe")
+    monkeypatch.setattr(
+        os_actions.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args, returncode, stdout=stdout, stderr=stderr
+        ),
+    )
+
+
+def test_a_picked_path_with_non_ascii_characters_comes_back_intact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The script writes UTF-8; reading it with the ANSI code page broke it.
+
+    A tester on a German Windows picked `a¦b.tiff` and got the web file
+    browser instead of the image: the path came back as `aÂ¦b.tiff`, which
+    does not exist, so the backend answered 404 and the page fell back.
+    Umlauts in a folder or user name broke the same way.
+    """
+    picked = "C:\\Users\\Jürg\\Daten\\a¦b.tiff"
+    _fake_powershell(monkeypatch, picked.encode("utf-8") + b"\r\n")
+    assert os_actions._windows_dialog_runner("script") == picked
+
+
+def test_a_byte_order_mark_is_not_part_of_the_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Windows PowerShell may write a BOM before UTF-8 output; left in, it
+    # would be the first character of the path.
+    _fake_powershell(monkeypatch, "\ufeffC:\\data\\x.h5".encode("utf-8"))
+    assert os_actions._windows_dialog_runner("script") == "C:\\data\\x.h5"
+
+
+def test_a_failed_dialog_reports_powershells_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake_powershell(monkeypatch, b"", returncode=1, stderr="Zugriff für Jürg verweigert".encode())
+    with pytest.raises(RuntimeError, match="Zugriff für Jürg verweigert"):
+        os_actions._windows_dialog_runner("script")
