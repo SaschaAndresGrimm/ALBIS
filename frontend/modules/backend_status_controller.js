@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { fetchResponse } from "./http.js";
 
 export function createBackendStatusController({
   apiBase,
@@ -126,26 +127,24 @@ export function createBackendStatusController({
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 1500);
     try {
-      const res = await fetch(`${apiBase}/health`, { signal: controller.signal, cache: "no-store" });
-      if (res.ok) {
-        alive = true;
-        try {
-          const data = await res.json();
-          if (data?.version) {
-            version = String(data.version);
-          }
-          // Absent on a server older than this field, which is a valid answer:
-          // an unstamped build reports no commit rather than a wrong one.
-          commit = data?.commit ? String(data.commit) : "";
-          // Whether File -> Quit ALBIS may stop this server.
-          const canQuit = Boolean(data?.can_quit);
-          if (state.canQuit !== canQuit) {
-            state.canQuit = canQuit;
-            onQuitAvailability();
-          }
-        } catch {
-          // ignore parse errors
+      const res = await fetchResponse(`${apiBase}/health`, { signal: controller.signal, cache: "no-store" });
+      alive = true;
+      try {
+        const data = await res.json();
+        if (data?.version) {
+          version = String(data.version);
         }
+        // Absent on a server older than this field, which is a valid answer:
+        // an unstamped build reports no commit rather than a wrong one.
+        commit = data?.commit ? String(data.commit) : "";
+        // Whether File -> Quit ALBIS may stop this server.
+        const canQuit = Boolean(data?.can_quit);
+        if (state.canQuit !== canQuit) {
+          state.canQuit = canQuit;
+          onQuitAvailability();
+        }
+      } catch {
+        // ignore parse errors
       }
     } catch {
       alive = false;

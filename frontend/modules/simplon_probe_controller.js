@@ -12,6 +12,7 @@ import { t } from "./i18n.js";
 import { describeSimplonFailure } from "./simplon_diagnostics.js";
 import { knownDetectors } from "./known_detectors.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
+import { fetchJSON } from "./http.js";
 
 export function createSimplonProbeController({ apiBase, state, elements, callbacks = {} }) {
   const { simplonUrl, simplonVersion, simplonTest, simplonProbeMessage } = elements;
@@ -66,19 +67,9 @@ export function createSimplonProbeController({ apiBase, state, elements, callbac
     if (simplonTest) simplonTest.disabled = true;
     setMessage(t("simplon.probe.testing", { url }), "busy");
     try {
-      const res = await fetch(
+      const payload = await fetchJSON(
         `${apiBase}/simplon/probe?url=${encodeURIComponent(url)}&version=${encodeURIComponent(version)}`,
       );
-      if (!res.ok) {
-        // 400 means the address itself is unusable; anything else is our own
-        // backend failing, which is not a detector diagnosis.
-        setMessage(
-          res.status === 400 ? t("simplon.probe.invalid_address") : t("simplon.probe.request_failed"),
-          "error",
-        );
-        return;
-      }
-      const payload = await res.json();
       logClient?.("info", "SIMPLON probe result", payload);
       if (payload?.status === "ok") {
         // A working address is worth offering back next time, with what
@@ -100,7 +91,9 @@ export function createSimplonProbeController({ apiBase, state, elements, callbac
       }
     } catch (err) {
       console.error(err);
-      setMessage(t("simplon.probe.request_failed"), "error");
+      // 400 means the address itself is unusable; anything else is our own
+      // backend failing, which is not a detector diagnosis.
+      setMessage(t(err?.status === 400 ? "simplon.probe.invalid_address" : "simplon.probe.request_failed"), "error");
     } finally {
       inFlight = false;
       if (simplonTest) simplonTest.disabled = false;

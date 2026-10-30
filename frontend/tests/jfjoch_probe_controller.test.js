@@ -152,6 +152,20 @@ describe("jfjoch_probe_controller", () => {
     expect(elements.jfjochTest.disabled).toBe(false);
   });
 
+  it("separates an endpoint the backend refuses (400) from a backend failure (500)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const en = readLocale("en");
+    let { createJfjochProbeController } = await loadController(async () => ({ ok: false, status: 400, json: async () => ({}) }));
+    let elements = buildElements("jf.local:31003");
+    await createJfjochProbeController({ apiBase: "/api", elements, callbacks: {} }).probeJfjochEndpoint();
+    expect(elements.jfjochProbeMessage.textContent).toBe(en["jfjoch.probe.problem.transport"]);
+
+    ({ createJfjochProbeController } = await loadController(async () => ({ ok: false, status: 500, json: async () => ({}) })));
+    elements = buildElements("jf.local:31003");
+    await createJfjochProbeController({ apiBase: "/api", elements, callbacks: {} }).probeJfjochEndpoint();
+    expect(elements.jfjochProbeMessage.textContent).toBe(en["jfjoch.probe.request_failed"]);
+  });
+
   it("clears a stale result when asked", async () => {
     const { createJfjochProbeController } = await loadController(async () => ({
       ok: true,

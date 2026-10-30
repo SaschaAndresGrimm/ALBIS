@@ -3,6 +3,7 @@
  */
 
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
+import { fetchResponse } from "./http.js";
 
 export function createAutoloadStatusController({
   apiBase,
@@ -64,7 +65,7 @@ export function createAutoloadStatusController({
     const version = simplonVersion.value.trim() || "1.8.0";
     const mode = enabled ? "enabled" : "disabled";
     try {
-      await fetch(
+      await fetchResponse(
         `${apiBase}/simplon/mode?url=${encodeURIComponent(url)}&version=${encodeURIComponent(version)}&mode=${mode}`,
         { method: "POST" },
       );

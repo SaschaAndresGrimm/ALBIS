@@ -5,6 +5,7 @@
 import { t } from "./i18n.js";
 import { describeSimplonFailure, readSimplonFailure } from "./simplon_diagnostics.js";
 import { hashBuffer } from "./buffer_hash.js";
+import { fetchResponse } from "./http.js";
 
 /**
  * Which SIMPLON frame this is: the series, image number and timestamp the
@@ -74,7 +75,14 @@ export function createAutoloadModeController({
     const url = `${apiBase}/autoload/latest?folder=${encodeURIComponent(folder)}&exts=${encodeURIComponent(
       exts.join(",")
     )}&pattern=${encodeURIComponent(pattern)}`;
-    const res = await fetch(url);
+    let res;
+    try {
+      res = await fetchResponse(url);
+    } catch (err) {
+      if (!(err?.status >= 400)) throw err;
+      setAutoloadStatus(t("autoload.status.watch.error"));
+      return;
+    }
     // A 204 carries no body, so a search that ran out of scan budget before it
     // reached any file says so in a header. Without it, "the folder is too big
     // to scan" would be reported as "the folder is empty".
@@ -84,10 +92,6 @@ export function createAutoloadModeController({
         t(truncated ? "autoload.status.watch.truncated" : "autoload.status.watch.no_files"),
       );
       setAutoloadLatest("-");
-      return;
-    }
-    if (!res.ok) {
-      setAutoloadStatus(t("autoload.status.watch.error"));
       return;
     }
     const payload = await res.json();

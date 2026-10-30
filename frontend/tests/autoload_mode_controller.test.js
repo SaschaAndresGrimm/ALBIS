@@ -117,7 +117,8 @@ describe("autoload_mode_controller", () => {
       async (url) => {
         if (url.includes("/autoload/latest")) {
           return {
-            ok: false,
+            // A 204 is a success: fetch() sets ok for every 2xx.
+            ok: true,
             status: 204,
             headers: new Headers({ "X-Scan-Truncated": "1" }),
             json: async () => ({}),

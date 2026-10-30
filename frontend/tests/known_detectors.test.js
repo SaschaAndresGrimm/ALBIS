@@ -127,7 +127,7 @@ function fakeServer({ fail = false } = {}) {
     const method = init.method || "GET";
     const body = init.body ? JSON.parse(init.body) : null;
     calls.push(`${method} ${url}`);
-    if (fail && method !== "GET") return { ok: false, status: 500, json: async () => ({}) };
+    if (fail && method !== "GET") return { ok: false, status: 500, json: async () => ({ detail: "disk full" }) };
     if (method === "POST" && url.endsWith("/seen")) entries = recordDetector(entries, body);
     if (method === "POST" && url.endsWith("/import")) {
       for (const item of body.detectors) entries = updateDetector(recordDetector(entries, item, item.lastUsed), item.address, { kept: item.kept, ...(item.name ? { name: item.name } : {}) });
@@ -175,7 +175,8 @@ describe("the shared store", () => {
     const store = createKnownDetectors();
     await store.record(P4);
     expect(store.list()).toEqual([]);
-    expect(store.lastError).toContain("500");
+    // The server's own reason, inside http.js's translated message.
+    expect(store.lastError).toContain("disk full");
   });
 
   it("reads changes made by others", async () => {

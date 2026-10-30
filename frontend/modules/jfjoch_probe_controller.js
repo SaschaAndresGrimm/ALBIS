@@ -14,6 +14,7 @@ import {
   describeJfjochEndpointProblem,
   normalizeJfjochEndpointInput,
 } from "./jfjoch_endpoint_utils.js";
+import { fetchJSON } from "./http.js";
 
 export function createJfjochProbeController({ apiBase, elements, callbacks = {} }) {
   const { jfjochEndpointInput, jfjochTest, jfjochProbeMessage } = elements;
@@ -64,17 +65,7 @@ export function createJfjochProbeController({ apiBase, elements, callbacks = {} 
     if (jfjochTest) jfjochTest.disabled = true;
     setMessage(t("jfjoch.probe.testing", { endpoint }), "busy");
     try {
-      const res = await fetch(`${apiBase}/jfjoch/probe?endpoint=${encodeURIComponent(endpoint)}`);
-      if (!res.ok) {
-        setMessage(
-          res.status === 400
-            ? t("jfjoch.probe.problem.transport")
-            : t("jfjoch.probe.request_failed"),
-          "error",
-        );
-        return;
-      }
-      const payload = await res.json();
+      const payload = await fetchJSON(`${apiBase}/jfjoch/probe?endpoint=${encodeURIComponent(endpoint)}`);
       logClient?.("info", "JUNGFRAUJOCH probe result", payload);
       if (payload?.status === "ok") {
         const port = payload.port;
@@ -87,7 +78,7 @@ export function createJfjochProbeController({ apiBase, elements, callbacks = {} 
       }
     } catch (err) {
       console.error(err);
-      setMessage(t("jfjoch.probe.request_failed"), "error");
+      setMessage(t(err?.status === 400 ? "jfjoch.probe.problem.transport" : "jfjoch.probe.request_failed"), "error");
     } finally {
       inFlight = false;
       if (jfjochTest) jfjochTest.disabled = false;

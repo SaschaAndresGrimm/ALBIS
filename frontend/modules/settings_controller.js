@@ -6,6 +6,7 @@ import { onLanguageChange, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
 import { ANALYSIS_TOOLS, TOOL_PRESETS, normalizeHiddenTools } from "./analysis_tools.js";
 import { chooseNativePath } from "./native_picker.js";
+import { fetchJSON, fetchJSONWithInit } from "./http.js";
 
 export function createSettingsController({
   apiBase,
@@ -602,11 +603,7 @@ export function createSettingsController({
     setSettingsModalBusy(true);
     setSettingsMessage(t("settings.message.loading"), false, true);
     try {
-      const res = await fetch(`${apiBase}/settings`);
-      if (!res.ok) {
-        throw new Error(`Settings request failed: ${res.status}`);
-      }
-      const payload = await res.json();
+      const payload = await fetchJSON(`${apiBase}/settings`);
       if (requestId !== settingsRequestId) return;
       const config = payload?.config || {};
       fillSettingsForm(config, payload?.path || "", payload?.effective || null);
@@ -634,15 +631,11 @@ export function createSettingsController({
     setSettingsModalBusy(true);
     setSettingsMessage(t("settings.message.saving"), false, true);
     try {
-      const res = await fetch(`${apiBase}/settings`, {
+      const data = await fetchJSONWithInit(`${apiBase}/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ config }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.detail || `Save failed (${res.status})`);
-      }
       fillSettingsForm(data?.config || config, data?.path || "", data?.effective || null);
       applyEnvOverrides(data?.env_overrides);
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
@@ -654,7 +647,9 @@ export function createSettingsController({
       }
     } catch (err) {
       console.error(err);
-      const detail = String(err?.message || "").trim();
+      // The server's own reason when it gave one ("server.port must be ..."),
+      // else the translated failure.
+      const detail = String(err?.detail || err?.message || "").trim();
       setSettingsMessage(detail || t("settings.message.save_failed"), true);
     } finally {
       setSettingsModalBusy(false);

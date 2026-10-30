@@ -10,7 +10,7 @@
  * Use `docs/CODE_MAP.md` for a quick file-level navigation guide.
  */
 
-import { API, fetchJSON, fetchJSONWithInit } from "./modules/http.js";
+import { API, fetchJSON, fetchJSONWithInit, fetchResponse } from "./modules/http.js";
 import { PIXEL_LABEL_MIN_CELL_PX, pixelLabelResolver, pixelLabelsAreFloat } from "./modules/overlay_painters.js";
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import {
@@ -796,7 +796,7 @@ async function flushClientLogs() {
   clientLogSending = true;
   const entry = clientLogBuffer.shift();
   try {
-    await fetch(`${API}/client-log`, {
+    await fetchResponse(`${API}/client-log`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entry),
@@ -5619,13 +5619,10 @@ async function pollHandoffJobs() {
   if (handoffPollBusy) return;
   handoffPollBusy = true;
   try {
-    const res = await fetch(`${API}/handoff/v1/jobs/latest?after_id=${encodeURIComponent(String(handoffLastId))}`, {
+    const res = await fetchResponse(`${API}/handoff/v1/jobs/latest?after_id=${encodeURIComponent(String(handoffLastId))}`, {
       cache: "no-store",
     });
     if (res.status === 204) {
-      return;
-    }
-    if (!res.ok) {
       return;
     }
     const job = await res.json();
