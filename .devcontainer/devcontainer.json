@@ -1,0 +1,23 @@
+// A ready development environment for ALBIS, for contributors and for coding
+// agents that work in a sandbox (Codespaces, VS Code Dev Containers, cloud
+// agents that read this file). It pins what the pitfalls in AGENTS.md are
+// about: Python 3.13 exactly and Node 24, with nothing else on PATH to shadow
+// them. scripts/dev_setup.sh does the rest, the same as on a laptop.
+//
+// Chrome is not installed, so `npm run ui:snapshots` runs on the host, not in
+// here.
+{
+  "name": "ALBIS",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" }
+  },
+  "postCreateCommand": "scripts/dev_setup.sh",
+  "forwardPorts": [8731],
+  // ALBIS_DATA_ROOT is deliberately not set container-wide: config reads it on
+  // every load, so it would also change what the test suite sees. Set it on
+  // the command that starts the server, as AGENTS.md shows.
+  "portsAttributes": {
+    "8731": { "label": "ALBIS" }
+  }
+}

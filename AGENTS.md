@@ -24,12 +24,29 @@ npm run ui:snapshots -- --out /tmp/albis-ui
 
 ## How changes land
 
-- Work on a branch and open a pull request; it merges when CI is green. Do not
+- Work on a branch and open a pull request. A maintainer reviews it and merges
+  it once CI is green; an agent does not merge its own pull request. Do not
   push to `main`, force-push, or bypass required checks.
 - One topic per pull request, with the reasoning in the description. Fill in
   the template, screenshots for UI changes included.
 - Releases happen only when the maintainer asks (`.claude/skills/release/`,
   [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)).
+
+## Recipes
+
+Step-by-step guides for the jobs that touch many files at once. They live in
+`.claude/skills/` (Claude Code loads them as skills), but they are plain
+Markdown, so any agent can read and follow them:
+
+- [ui-check](.claude/skills/ui-check/SKILL.md) — screenshot every window
+  before and after a visible change, and compare.
+- [ui-strings](.claude/skills/ui-strings/SKILL.md) — a visible string: the
+  key, all 13 locales, the glossary, the checks.
+- [api-endpoint](.claude/skills/api-endpoint/SKILL.md) — an HTTP endpoint end
+  to end: service, models, route, tests, contract.
+
+A fresh sandbox can start from `.devcontainer/`: Python 3.13 and Node 24, with
+`scripts/dev_setup.sh` run on creation.
 
 ## Per area
 

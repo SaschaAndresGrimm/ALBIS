@@ -80,7 +80,13 @@ Contributions written with coding agents (Claude Code, Codex, Copilot, Cursor,
 - You are the author. Read and understand every line before you open the pull
   request, and be ready to explain it in review.
 - Agent work goes through a branch and a pull request with green CI, like
-  everyone's.
+  everyone's, and a maintainer merges it.
+- Recipes for the jobs that span many files (checking a UI change, adding a
+  translated string, adding an endpoint) are in `.claude/skills/`, linked from
+  `AGENTS.md`. When you find yourself explaining the same multi-step job to
+  an agent twice, it is worth a recipe.
+- `.devcontainer/` gives a sandboxed agent, or you, Python 3.13 and Node 24
+  ready to go.
 - The shared `.claude/settings.json` allows the routine checks and blocks
   force-pushes, `rm -rf` and reading key files. Put personal settings in
   `.claude/settings.local.json` and personal instructions in
