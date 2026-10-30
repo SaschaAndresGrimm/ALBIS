@@ -1,6 +1,6 @@
 # 0002 — Black formats the Python, not `ruff format`
 
-**Status:** Accepted — *recorded after the fact*, 2026-10-30.
+**Status:** Accepted — *recorded after the fact*, 2026-10-30; reasons confirmed by the maintainer.
 
 ## Context
 

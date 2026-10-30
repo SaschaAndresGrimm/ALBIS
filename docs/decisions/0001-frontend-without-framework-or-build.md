@@ -1,13 +1,24 @@
 # 0001 — The frontend has no framework and no build step
 
-**Status:** Accepted — *recorded after the fact*, 2026-10-30.
+**Status:** Accepted — *recorded after the fact*, 2026-10-30; reasons confirmed by the maintainer.
 
 ## Context
 
 The interface is a single page: an image canvas with overlays, a side panel,
 dialogs. ALBIS ships as a desktop app (PyInstaller) and a Docker image, runs
 offline on beamline and lab machines, and is maintained by a small team with
-outside contributors.
+outside contributors. It is meant to keep working for years: a detector
+viewer outlives several generations of frontend frameworks.
+
+Two reasons decided it:
+
+- **Longevity, no churn.** A framework brings major versions, deprecations
+  and toolchain upgrades that have to be followed whether or not ALBIS needs
+  anything new. Plain ES modules on the web platform keep working without
+  that upkeep.
+- **Offline use and simple packaging.** The frontend has to ship inside the
+  desktop app and the Docker image exactly as it is, and run on machines with
+  no network — nothing to fetch, build or update at install time.
 
 ## Decision
 

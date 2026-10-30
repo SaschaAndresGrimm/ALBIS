@@ -1,6 +1,6 @@
 # 0003 — Request paths go through `PathPolicy`; routes get their dependencies injected
 
-**Status:** Accepted — *recorded after the fact*, 2026-10-30.
+**Status:** Accepted — *recorded after the fact*, 2026-10-30; reasons confirmed by the maintainer.
 
 ## Context
 

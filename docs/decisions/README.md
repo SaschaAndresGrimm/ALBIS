@@ -5,7 +5,8 @@ look, to someone new, like something to fix. One short record per decision;
 the format is in [docs/AGENTS.md](../AGENTS.md#decision-records).
 
 Records marked *recorded after the fact* describe a choice that predates this
-folder, from what the code, docs and history show.
+folder, from what the code, docs and history show, with the reasons confirmed
+by the maintainer.
 
 | # | Decision |
 | --- | --- |
