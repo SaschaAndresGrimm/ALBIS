@@ -222,7 +222,9 @@ npm run guide:screenshots -- --only roi,rings # those whose scene name starts so
 and a copy of the insulin series from `testdata/`, and a simulated detector;
 no server needs to be running, and your settings are not touched. Each
 picture is a scene that sets the interface up and crops to the part a section
-is about, written as WebP into `docs/images/user-guide/`.
+is about, written as WebP into `docs/images/user-guide/`. A picture that looks
+the same as the one already there is left alone, so only what changed shows
+in `git status`; `--force` writes them all.
 
 When a change alters something a picture shows, run the scenes for it and
 commit the new pictures with the change. A new picture is a new scene;

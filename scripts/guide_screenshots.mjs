@@ -23,6 +23,7 @@
  *   --out     folder for the pictures (WebP) (default docs/images/user-guide)
  *   --only    comma-separated scene-name prefixes
  *   --python  Python to run ALBIS with (default .venv/bin/python)
+ *   --force   write every picture, even one that looks the same as before
  *   --chrome  Chrome or Chromium binary (default: $CHROME, else the usual
  *             install path for this platform)
  *
@@ -30,7 +31,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -50,6 +51,7 @@ const DEFAULT_CHROME = {
 };
 
 const outDir = path.resolve(ROOT, arg("out", "docs/images/user-guide"));
+const force = process.argv.includes("--force");
 const only = arg("only", "")
   .split(",")
   .map((s) => s.trim())
@@ -281,10 +283,53 @@ async function shot(name, { selector, clip, pad = 8 } = {}) {
   // PNG is 500 KB -- the pictures live in the repository for good.
   const reply = await send("Page.captureScreenshot", { format: "webp", quality: 90, ...(area ? { clip: area } : {}) });
   const file = path.join(outDir, `${name}.webp`);
+  if (!force && existsSync(file) && (await looksTheSame(readFileSync(file).toString("base64"), reply.data))) {
+    process.stdout.write(`${path.relative(ROOT, file)} (unchanged)\n`);
+    return;
+  }
   writeFileSync(file, Buffer.from(reply.data, "base64"));
   written.push(file);
   process.stdout.write(`${path.relative(ROOT, file)}\n`);
 }
+
+/**
+ * Whether two WebP pictures show the same thing. Two runs over an unchanged
+ * interface differ in a few pixels by up to about 12 levels of 255 --
+ * antialiasing, the encoder -- and writing those would put every picture in
+ * every diff. A real change (a moved control, other text, another colour)
+ * differs by far more than `TOLERANCE` somewhere. Decoded by the browser,
+ * which needs no image library here.
+ */
+const TOLERANCE = 20;
+const looksTheSame = (before, after) =>
+  page(
+    async (a, b, tolerance) => {
+      const load = (data) =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = `data:image/webp;base64,${data}`;
+        });
+      const pixels = (img) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const context = canvas.getContext("2d");
+        context.drawImage(img, 0, 0);
+        return context.getImageData(0, 0, canvas.width, canvas.height).data;
+      };
+      const [x, y] = await Promise.all([load(a), load(b)]);
+      if (x.naturalWidth !== y.naturalWidth || x.naturalHeight !== y.naturalHeight) return false;
+      const p = pixels(x);
+      const q = pixels(y);
+      for (let i = 0; i < p.length; i += 1) if (Math.abs(p[i] - q[i]) > tolerance) return false;
+      return true;
+    },
+    before,
+    after,
+    TOLERANCE,
+  );
 
 /**
  * Numbered markers drawn over the page, for the picture that names the parts
@@ -649,6 +694,13 @@ const scenes = [
       await click("#simplon-test");
       await waitFor(() => /PILATUS|EIGER|S\/N|serial/i.test(document.getElementById("simplon-probe-message")?.textContent || ""), "the SIMPLON test", 15000).catch(async (e) => {
         throw new Error(`${e.message}: "${await page(() => document.getElementById("simplon-probe-message")?.textContent)}"`);
+      });
+      // The time of the last poll would make the picture differ on every run.
+      await page(() => {
+        const style = document.createElement("style");
+        style.textContent = `#autoload-status { visibility: hidden; position: relative; }
+          #autoload-status::after { content: "12:00:00"; visibility: visible; position: absolute; right: 0; }`;
+        document.head.append(style);
       });
       await sleep(500);
       await shot("simplon-test", { selector: "#data-section", pad: 4 });
