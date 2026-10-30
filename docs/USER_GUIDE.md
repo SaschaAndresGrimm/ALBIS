@@ -2,8 +2,12 @@
 
 ALBIS is a free, open-source viewer for DECTRIS detector data, in the style of ALBULA. It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or on the machine that holds the data, viewed from a browser elsewhere.
 
-This guide is organised by what you are trying to do, not by where the buttons
-live. Each section is self-contained — jump to the one that matches your task.
+**New to ALBIS?** Start with [Getting started](#getting-started): ten minutes
+with a small example dataset, from opening a file to saving a picture. The
+rest of the guide is organised by what you are trying to do, not by where the
+buttons live. Each section is self-contained — jump to the one that matches
+your task. Words you may not know are explained in the
+[Glossary](#glossary).
 
 If you only want to install ALBIS, see the [README](../README.md). If you are
 configuring a server, scripting against the API, or running in Docker, see the
@@ -12,7 +16,7 @@ reference of the same material.
 
 ## Contents
 
-- [The ALBIS window](#the-albis-window)
+- [Getting started](#getting-started)
 - [Open your data](#open-your-data)
 - [Move through a series](#move-through-a-series)
 - [Make the image readable](#make-the-image-readable)
@@ -33,12 +37,47 @@ reference of the same material.
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [What ALBIS sends over the network](#what-albis-sends-over-the-network)
 - [When something looks wrong](#when-something-looks-wrong)
+- [Glossary](#glossary)
 
 ---
 
-## The ALBIS window
+## Getting started
 
-![The ALBIS window with an insulin diffraction image open, six parts numbered](images/user-guide/window-overview.webp)
+This walk-through uses the example data the ALBIS project tests with: ten
+images of an insulin crystal, taken with a PILATUS 300K detector while the
+crystal turned by 0.1° per image. Every picture in this guide shows them, so
+what you see on your screen should match.
+
+### 1. Get the example data
+
+The ten files `in16c_010001.cbf` to `in16c_010010.cbf`, about 300 KB each, are
+in the [`testdata` folder](https://github.com/SaschaAndresGrimm/ALBIS/tree/main/testdata)
+of the ALBIS repository. Click each file there, then **Download raw file**
+(the ↓ icon), and keep all ten in one folder. One file is enough for an image;
+all ten make a series you can step through.
+
+From a terminal, this does the same:
+
+```bash
+for i in 01 02 03 04 05 06 07 08 09 10; do
+  curl -LO "https://github.com/SaschaAndresGrimm/ALBIS/raw/main/testdata/in16c_0100$i.cbf"
+done
+```
+
+### 2. Open the first image
+
+Start ALBIS ([README](../README.md) says how to install it). It opens in your
+web browser, with nothing loaded yet:
+
+![ALBIS before a file is opened, with the Open file button under the ALBIS logo](images/user-guide/start-window.webp)
+
+Click **Open file** (or **File → Open…**, `⌘O` on a Mac, `Ctrl+O` elsewhere)
+and choose `in16c_010001.cbf`. ALBIS recognises the other nine as the same
+series: the status line at the bottom says **in16c_010001.cbf 1 / 10**.
+
+### 3. Find your way around
+
+![The ALBIS window with the insulin image open, six parts numbered](images/user-guide/window-overview.webp)
 
 1. **Menu bar** — **File**, **Settings** and **Help**.
 2. **Toolbar** — step through frames, the frame slider and number,
@@ -52,14 +91,80 @@ reference of the same material.
 6. **Status line** — what ALBIS is doing, the file and frame shown, and the
    zoom.
 
+On the image, the dark spots are **reflections**: X-rays diffracted by the
+crystal. The two black bands are the **gaps** between the detector's three
+modules, where there are no pixels. The pale streak from the middle is the
+shadow of the beamstop, which keeps the direct beam off the detector. In the
+default colour map, **ALBULA HDR**, white is few counts, black many, and red
+the most.
+
+### 4. Step through the series
+
+![The toolbar, showing frame 4 of the series](images/user-guide/toolbar.webp)
+
+Press `→` to go to the next image and `←` to go back, or drag the frame
+slider. As the crystal turns, some reflections fade and others appear. **▶**
+plays the series; **Playback** sets how fast.
+
+### 5. Make the spots easier to see
+
+![The Histogram section with the BG and FG markers](images/user-guide/histogram.webp)
+
+The **Histogram**, in the **View** tab, shows how many pixels have each value.
+**BG** (background) and **FG** (foreground) set the range the colours are
+spread over. **Auto**, lit, picks them for each image. Drag the yellow **FG**
+marker to the left, and weak reflections turn darker; double-click the colour
+bar under the histogram to go back to Auto. Try another **Color Map**, such as
+**Viridis**.
+
+Scroll on the image to zoom in where the mouse is, drag to move around, and
+press **Fit to Window** in the **View** section to see the whole image again.
+
+### 6. Look closer
+
+![The magnifier over a module gap and some reflections](images/user-guide/magnifier.webp)
+
+Hold `Z` and a magnifier follows the mouse, showing each pixel as a square.
+Next to the mouse, ALBIS shows the pixel's value and its **d**, the resolution
+that position on the detector stands for. Let go of `Z` to hide it.
+
+### 7. Measure along a line
+
+![A line ROI from the beam outwards, with its line profile](images/user-guide/roi.webp)
+
+1. Open the **Analysis** tab.
+2. Switch on **Statistics and ROI** with the switch in its title.
+3. Choose **Line ROI**.
+4. Right-drag on the image from near the centre outwards.
+
+The section now lists the statistics of the pixels under the line, and the
+**Line Profile** plots their values along it: each peak is a reflection the
+line crosses, labelled with its d-spacing in Å.
+
+### 8. Save a picture
+
+![The Export Image dialog](images/user-guide/export-image.webp)
+
+**File → Export Image…** writes the image as a PNG, enlarged so that each
+detector pixel stays a sharp square, ready for a slide. Choose **Export PNG**.
+
+### Where to go next
+
+| You want to | Read |
+| --- | --- |
+| Open HDF5 files and choose a dataset | [Open your data](#open-your-data) |
+| See which resolution a ring of spots is at, and find the spots | [Resolution rings and reflections](#resolution-rings-and-reflections) |
+| Fill the gaps between modules | [Fill gaps and defective pixels](#fill-gaps-and-defective-pixels) |
+| Watch images arrive from a detector | [Follow a running experiment](#follow-a-running-experiment) |
+| Save frames for other programs | [Get data back out](#get-data-back-out) |
+| Do everything from the keyboard | [Keyboard shortcuts](#keyboard-shortcuts) |
+
 ---
 
 ## Open your data
 
 **File → Open…** (`⌘O` / `Ctrl+O`), or **Open file** in the middle of an
-empty window, opens the file browser. ALBIS reads:
-
-![ALBIS before a file is opened, with the Open file button under the ALBIS logo](images/user-guide/start-window.webp)
+empty window, opens a file dialog. ALBIS reads:
 
 | What you have | What to open |
 | --- | --- |
@@ -1065,3 +1170,65 @@ and the log can be downloaded from there to attach to an issue. The **Versions**
 button in the bottom right names the exact build you are running and copies it
 to the clipboard — quote that in a report, because a version number alone cannot
 distinguish two builds of the same release.
+
+---
+
+## Glossary
+
+**Auto contrast** — ALBIS choosing **BG** and **FG** for each image from its
+values, so it is readable without adjusting anything. The **Auto** button
+under the histogram switches it on and off.
+
+**Beam centre** — the pixel the direct X-ray beam would hit if nothing
+stopped it. Resolution rings are centred on it.
+
+**BG, FG** — background and foreground: the values drawn in the colour map's
+first and last colour. Everything below BG looks like BG, everything above FG
+like FG.
+
+**CBF, TIFF, EDF** — file formats that hold one image each. A numbered set of
+them (`scan_00001.cbf`, `scan_00002.cbf`, …) is a **series**.
+
+**d, d-spacing, resolution** — the distance between planes in the crystal that
+a reflection comes from, in ångström (Å). Smaller d is higher resolution and
+lies further from the beam centre. ALBIS works it out from the
+[detector geometry](#detector-geometry).
+
+**Defective pixel** — a pixel that does not count properly: dead, cold, hot or
+noisy. The detector's **pixel mask** lists them.
+
+**Flat, flatfield** — an image of the beam with no sample in it; dividing by it
+evens out the beam and the pixels. See [Flatfield correction](#flatfield-correction).
+
+**Frame** — one image of a series.
+
+**Gap, module gap** — the strips between a detector's modules, where there are
+no pixels. ALBIS draws them in a colour of their own, black in most colour
+maps.
+
+**HDF5, master file** — the format DECTRIS detectors write a series in: a
+`_master.h5` file with the metadata, and `_data_*.h5` files with the images.
+Open the master file.
+
+**Inpainting** — filling gaps and defective pixels from their neighbours. See
+[Fill gaps and defective pixels](#fill-gaps-and-defective-pixels).
+
+**Pixel mask** — for each pixel, whether to leave it out and why: a gap,
+defective, and so on. See [Pixel masks](#pixel-masks-beta).
+
+**Reflection, peak, spot** — a bright spot where X-rays diffracted by a crystal
+hit the detector.
+
+**ROI** — region of interest: a line, box, circle or ring you draw on the
+image to measure the pixels inside it. See [Measure a region](#measure-a-region).
+
+**Saturated pixel** — a pixel that reached the highest count it can measure,
+so its value is a floor, not a measurement.
+
+**SIMPLON** — the interface a DECTRIS detector is controlled and read through
+over the network. ALBIS uses it to show a detector's newest image and, in the
+**Detector** tab, to run it.
+
+**Threshold** — the photon energy below which a photon-counting detector does
+not count a photon. A detector with several thresholds records an image for
+each; the **Threshold** selector in the toolbar switches between them.

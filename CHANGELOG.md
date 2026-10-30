@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **The User Guide starts with a walk-through and has pictures.** **Getting started** takes a newcomer from opening a file to saving a picture in eight steps, on ten images of an insulin crystal from the ALBIS repository, and names the parts of the window on an annotated picture. Every section shows the controls it describes, and a glossary explains the terms the guide uses, from BG and FG to threshold. Until now the guide named buttons and panels it never showed, which left a first-time reader searching the screen for them.
+
 ### Changed
 
 - **One Auto toggle for contrast.** The Auto Contrast button and the Auto checkbox beside it, which switched the same thing, are one **Auto** button under the histogram, lit while the contrast follows every frame; click it to switch it off or on, and typing a level or dragging a marker still switches it off. Background and foreground share the rest of the row, so the foreground field is no longer cut off at the panel's edge. The mask colours' Auto at the end of their row is now **Reset colours**, shown only once a colour has been changed.
