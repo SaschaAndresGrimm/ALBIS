@@ -43,8 +43,10 @@ pip install -r requirements-dev.txt
 npm ci
 ```
 
-Run local checks — `npm run check` runs the first five in one go, as CI does
-(`scripts/check.sh`; `-- --fast` skips pytest):
+`npm run check` (`scripts/check.sh`) runs the first five of these in one go, as
+CI does; `npm run check -- --fast` skips pytest while you iterate.
+
+Run local checks:
 
 ```bash
 ruff check backend albis_launcher.py tests scripts test_scripts

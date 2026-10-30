@@ -143,3 +143,34 @@ def test_every_documented_coverage_gate_agrees_with_ci(ci_steps) -> None:
                 offenders.append(f"{path.relative_to(REPO_ROOT)}: {gate} (ci.yml says {ci_gate})")
 
     assert not offenders, "coverage gate disagrees with ci.yml:\n  " + "\n  ".join(offenders)
+
+
+def test_the_check_script_runs_what_ci_runs(ci_steps) -> None:
+    """`npm run check` (scripts/check.sh) is what agents and contributors take
+    as "done", so it must meet the gate CI applies: the same ruff and black
+    scope, pytest with the coverage plugin and the same floor, eslint, vitest.
+    """
+    script = (REPO_ROOT / "scripts" / "check.sh").read_text(encoding="utf-8")
+
+    paths = re.search(r"^PY_PATHS=\(([^)]*)\)", script, flags=re.MULTILINE)
+    assert paths, "scripts/check.sh no longer defines PY_PATHS"
+    scope = paths.group(1).split()
+    assert ci_steps["Ruff"] == " ".join(
+        ["ruff check", *scope]
+    ), "check.sh ruff scope drifted from ci.yml"
+    assert ci_steps["Black"] == " ".join(
+        ["black --check", *scope]
+    ), "check.sh black scope drifted from ci.yml"
+
+    ci_gate = re.search(r"--cov-fail-under=(\d+)", ci_steps["Pytest"]).group(1)
+    pytest_line = next(line for line in script.splitlines() if "-m pytest" in line)
+    assert "-p pytest_cov" in pytest_line and "--cov=backend" in pytest_line
+    assert (
+        f"--cov-fail-under={ci_gate}" in pytest_line
+    ), "check.sh coverage floor drifted from ci.yml"
+
+    for step in ("ESLint", "Vitest"):
+        script_name = ci_steps[step].removeprefix("npm run ")
+        assert (
+            f"npm run --silent {script_name}" in script
+        ), f"check.sh does not run `{ci_steps[step]}`"
