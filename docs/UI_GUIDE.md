@@ -225,6 +225,9 @@ picture is a scene that sets the interface up and crops to the part a section
 is about, written as WebP into `docs/images/user-guide/`. A picture that looks
 the same as the one already there is left alone, so only what changed shows
 in `git status`; `--force` writes them all.
+The README's picture, `frontend/resources/albis.png`, is a scene too
+(`readme`): a PNG, because the Linux software centres show it as well
+(`packaging/linux/ALBIS.metainfo.xml`) and AppStream expects PNG.
 
 When a change alters something a picture shows, run the scenes for it and
 commit the new pictures with the change. A new picture is a new scene;

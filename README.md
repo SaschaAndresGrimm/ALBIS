@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/SaschaAndresGrimm/ALBIS)](https://github.com/SaschaAndresGrimm/ALBIS/releases)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22046648.svg)](https://doi.org/10.5281/zenodo.22046648)
 
-![ALBIS screenshot](frontend/resources/albis.png)
+![ALBIS showing a diffraction image of an insulin crystal with resolution rings, found peaks circled, a circular ROI on the beam centre and its radial profile](frontend/resources/albis.png)
 
 ALBIS is a free, open-source viewer for **DECTRIS detector data**, in the style of ALBULA. It opens HDF5 stacks, TIFF, CBF, EDF and MYTHEN acquisitions, follows a running experiment live, and runs on your own computer or on the machine that holds the data, viewed from a browser elsewhere.
 
