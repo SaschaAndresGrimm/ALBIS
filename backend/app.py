@@ -306,6 +306,10 @@ def _init_logging() -> logging.Logger:
             LOG_PATH,
             maxBytes=5 * 1024 * 1024,
             backupCount=5,
+            # Not the locale's encoding: on Windows that is cp1252, which
+            # cannot hold a Greek or Japanese file name, and the entry naming
+            # it was lost to a "Logging error" on the console.
+            encoding="utf-8",
         )
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)

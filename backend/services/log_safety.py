@@ -52,6 +52,11 @@ def sanitize_log_value(value: object, limit: int = _LOG_VALUE_MAX) -> str:
             out.append("\\t")
         elif code < 0x20 or code == 0x7F or code in (0x2028, 0x2029):
             out.append(f"\\x{code:02x}")
+        elif 0xD800 <= code <= 0xDFFF:
+            # A lone surrogate: a file name whose bytes are not UTF-8, as
+            # Python decodes it on Linux. Written as is, it cannot be encoded
+            # for the log file and the whole entry is lost.
+            out.append(f"\\u{code:04x}")
         else:
             out.append(char)
     escaped = "".join(out)

@@ -37,6 +37,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from .content_disposition import attachment_disposition
 from .simplon import _raise_simplon_failure, _simplon_api_base, normalize_simplon_base_url
 
 SUBSYSTEMS = ("detector", "monitor", "filewriter", "stream")
@@ -656,7 +657,7 @@ def open_download(url: str, name: str) -> tuple[Iterator[bytes], dict[str, str]]
         _raise_simplon_failure(exc, target, f"Failed to download {name}")
     except Exception as exc:
         _raise_simplon_failure(exc, target, f"Failed to download {name}")
-    headers = {"Content-Disposition": f'attachment; filename="{name.rsplit("/", 1)[-1]}"'}
+    headers = {"Content-Disposition": attachment_disposition(name.rsplit("/", 1)[-1])}
     length = resp.headers.get("Content-Length")
     if length and length.isdigit():
         headers["Content-Length"] = length

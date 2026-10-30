@@ -21,6 +21,7 @@ from ..api_models import (
     HDF5ValueResponse,
 )
 from ..image_formats import producer_string
+from ..services.content_disposition import attachment_disposition
 from ..services.hdf5_stack import WalkReport, open_hdf5_for_read
 from ..services.log_safety import sanitize_log_value
 
@@ -452,5 +453,5 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                 for row in data.tolist():
                     writer.writerow([deps.serialize_h5_value(v) for v in row])
             filename = path.strip("/").replace("/", "_") or "dataset"
-            headers = {"Content-Disposition": f'attachment; filename="{filename}.csv"'}
+            headers = {"Content-Disposition": attachment_disposition(f"{filename}.csv")}
             return Response(content=output.getvalue(), media_type="text/csv", headers=headers)

@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **On Linux, a file with a name in a foreign encoding no longer empties the file browser.** A name stored in bytes that are not UTF-8 — `a¦b.tiff` copied from Windows or out of an old archive, or from a share mounted with another character set — made the whole folder listing fail, so the dialog showed no folders and no files at all. Such a file is now left out, the rest of the folder is listed, and the log names the file so it can be renamed.
+- **An HDF5 dataset whose name holds Greek, Japanese or other non-Latin characters saves as CSV.** The download failed with a server error, because the name went into the download header as it was; a `"` in the name broke the header too. Downloads now carry the real name the way browsers expect it.
+- **The log file is written as UTF-8 on Windows too.** A file name with characters outside the Windows code page lost its log entry, and **View Log** showed umlauts and other accented letters as `�`.
+
 ## [0.38.0] - 2026-10-30
 
 ### Added

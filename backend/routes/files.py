@@ -25,7 +25,8 @@ from ..api_models import (
     UploadResponse,
 )
 from ..config import UI_LANGUAGES, normalize_ui_language
-from ..services.directory_scan import LatestFileResult, ScanResult
+from ..services.directory_scan import LatestFileResult, ScanResult, is_utf8_name
+from ..services.log_safety import sanitize_log_value
 from ..services.os_actions import (
     choose_file as _choose_file,
 )
@@ -465,9 +466,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         try:
             with os.scandir(path.parent) as it:
                 for entry in it:
-                    if not entry.is_file(follow_symlinks=False):
-                        continue
                     name = entry.name
+                    if not is_utf8_name(name) or not entry.is_file(follow_symlinks=False):
+                        continue
                     if deps.image_ext_name(name) != ext:
                         continue
                     stem = deps.strip_image_ext(name, ext)
@@ -645,6 +646,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         # read anyway.
         budget = _BrowseBudget(deps.get_max_scan_entries())
 
+        # Names whose bytes are not UTF-8 are left out of both passes; one in
+        # the listing made the whole response fail. See `is_utf8_name`.
+        unreadable: set[str] = set()
         dirs: set[str] = set()
         try:
             with os.scandir(target_dir) as it:
@@ -652,6 +656,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                     if not budget.charge():
                         break
                     if entry.name.startswith("."):
+                        continue
+                    if not is_utf8_name(entry.name):
+                        unreadable.add(entry.name)
                         continue
                     try:
                         if entry.is_dir(follow_symlinks=False):
@@ -668,6 +675,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                     if not budget.charge():
                         break
                     if entry.name.startswith("."):
+                        continue
+                    if not is_utf8_name(entry.name):
+                        unreadable.add(entry.name)
                         continue
                     try:
                         if entry.is_file(follow_symlinks=False):
@@ -694,6 +704,14 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         except OSError:
             pass
 
+        if unreadable:
+            deps.logger.warning(
+                "Browse: %d name(s) in %s are not UTF-8 and were left out; rename them to"
+                " open them in ALBIS (first: %s)",
+                len(unreadable),
+                sanitize_log_value(target_dir),
+                sanitize_log_value(min(unreadable)),
+            )
         if series_mode == "first_only":
             file_items = _aggregate_browse_series(file_items, deps.split_series_name)
         file_items = _sort_browse_items(file_items, sort)
