@@ -17,7 +17,7 @@ import path from "node:path";
  *
  * Direct fetch. http.js's fetchJSON / fetchJSONWithInit turn a failed request
  * into a translated message; a bare fetch() shows the user whatever the
- * browser says, in English. 24 modules still called fetch() directly, and new
+ * browser says, in English. 24 modules called fetch() directly, and new
  * code copies its neighbours.
  *
  * When one of these fails because you made a file shorter or removed a fetch,
@@ -45,19 +45,14 @@ const LINE_BASELINE = {
 const FETCH_ALLOWED = new Set(["frontend/modules/http.js", "frontend/modules/i18n.js"]);
 const FETCH_BASELINE = {
   "frontend/app.js": 2,
-  "frontend/modules/analysis_controls_bindings.js": 1,
   "frontend/modules/animation_export_controller.js": 1,
-  "frontend/modules/autoload_controls.js": 1,
   "frontend/modules/autoload_mode_controller.js": 2,
   "frontend/modules/autoload_status_controller.js": 1,
   "frontend/modules/backend_status_controller.js": 1,
-  "frontend/modules/data_export_controller.js": 1,
   "frontend/modules/detector_control_controller.js": 1,
   "frontend/modules/file_browser.js": 1,
   "frontend/modules/file_data_pipeline_controller.js": 3,
-  "frontend/modules/file_open_flow.js": 1,
-  "frontend/modules/flatfield_controller.js": 3,
-  "frontend/modules/geometry_params_controller.js": 1,
+  "frontend/modules/flatfield_controller.js": 2,
   "frontend/modules/jfjoch_bridge_controller.js": 3,
   "frontend/modules/jfjoch_probe_controller.js": 1,
   "frontend/modules/known_detectors.js": 1,
@@ -65,7 +60,7 @@ const FETCH_BASELINE = {
   "frontend/modules/pixel_mask_controller.js": 5,
   "frontend/modules/quit_controller.js": 1,
   "frontend/modules/remote_stream_controller.js": 3,
-  "frontend/modules/settings_controller.js": 3,
+  "frontend/modules/settings_controller.js": 2,
   "frontend/modules/simplon_probe_controller.js": 1,
 };
 

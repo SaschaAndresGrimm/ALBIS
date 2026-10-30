@@ -2,7 +2,8 @@
  * File open/select flow.
  */
 
-import { t, getLanguage } from "./i18n.js";
+import { t } from "./i18n.js";
+import { chooseNativePath } from "./native_picker.js";
 
 export function createFileOpenController({
   apiBase,
@@ -71,15 +72,10 @@ export function createFileOpenController({
 
     if (getBackendIsLocal()) {
       try {
-        const res = await fetch(`${apiBase}/choose-file?lang=${encodeURIComponent(getLanguage())}`);
-        if (res.status === 204) return;
-        if (res.ok) {
-          const data = await res.json();
-          const path = data?.path;
-          if (!path) return;
-          await openPathInViewer(path);
-          return;
-        }
+        const path = await chooseNativePath(apiBase);
+        if (!path) return;
+        await openPathInViewer(path);
+        return;
       } catch (err) {
         console.error(err);
       }

@@ -1,4 +1,3 @@
-import { getLanguage } from "./i18n.js";
 /**
  * Bind autoload + live-source control listeners.
  *
@@ -10,6 +9,7 @@ import { createJfjochProbeController } from "./jfjoch_probe_controller.js";
 import { normalizeJfjochEndpointInput } from "./jfjoch_endpoint_utils.js";
 import { createSimplonProbeController } from "./simplon_probe_controller.js";
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
+import { chooseNativePath } from "./native_picker.js";
 
 export function bindAutoloadControls({
   apiBase,
@@ -226,25 +226,19 @@ export function bindAutoloadControls({
   autoloadBrowse?.addEventListener("click", async () => {
     if (backendIsLocal) {
       try {
-        const res = await fetch(`${apiBase}/choose-folder?purpose=autoload&lang=${encodeURIComponent(getLanguage())}`);
-        if (res.status === 204) {
-          return;
-        }
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.path && autoloadDir) {
-            autoloadDir.value = data.path;
-            state.autoload.dir = data.path;
-            persistAutoloadSettings();
-            if (state.autoload.mode === "file") {
-              loadFiles().catch((err) => console.error(err));
-            }
-            if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-              autoloadTick();
-            }
+        const path = await chooseNativePath(apiBase, { kind: "folder", purpose: "autoload" });
+        if (path && autoloadDir) {
+          autoloadDir.value = path;
+          state.autoload.dir = path;
+          persistAutoloadSettings();
+          if (state.autoload.mode === "file") {
+            loadFiles().catch((err) => console.error(err));
           }
-          return;
+          if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
+            autoloadTick();
+          }
         }
+        return;
       } catch (err) {
         console.error(err);
       }

@@ -125,6 +125,53 @@ describe("data_export_controller", () => {
   });
 });
 
+describe("data_export_controller, Browse for the output folder", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  async function mountBrowse(chooseFolder) {
+    vi.resetModules();
+    global.fetch = vi.fn(async (url) =>
+      String(url).includes("/choose-folder") ? chooseFolder() : { ok: true, json: async () => EN },
+    );
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const { createDataExportController } = await import("../modules/data_export_controller.js");
+    document.body.innerHTML = `<input id="out" value="/old" /><button id="browse"></button>`;
+    const setStatus = vi.fn();
+    createDataExportController({
+      apiBase: "/api",
+      state: makeState({ file: "/data/frame.cbf" }),
+      elements: { dataExportOutputDir: document.getElementById("out"), dataExportOutputBrowse: document.getElementById("browse") },
+      callbacks: { isHdfFile, openModal: vi.fn(), closeModal: vi.fn(), setStatus },
+    });
+    document.getElementById("browse").click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return { out: document.getElementById("out"), setStatus };
+  }
+
+  it("fills the field with the chosen folder, without its trailing separator", async () => {
+    const { out, setStatus } = await mountBrowse(() => ({ ok: true, status: 200, json: async () => ({ path: "/beamline/out/" }) }));
+    expect(out.value).toBe("/beamline/out");
+    expect(setStatus).not.toHaveBeenCalled();
+  });
+
+  it("leaves the field alone when the dialog is cancelled", async () => {
+    const { out, setStatus } = await mountBrowse(() => ({ ok: true, status: 204, json: async () => ({}) }));
+    expect(out.value).toBe("/old");
+    expect(setStatus).not.toHaveBeenCalled();
+  });
+
+  it("says so when the chooser fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { out, setStatus } = await mountBrowse(() => ({ ok: false, status: 500, json: async () => ({}) }));
+    expect(out.value).toBe("/old");
+    expect(setStatus).toHaveBeenCalledWith(EN["status.data_export.browse_failed"], { tone: "error" });
+  });
+});
+
 describe("data_export_controller, live sources", () => {
   afterEach(() => {
     vi.restoreAllMocks();

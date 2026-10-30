@@ -2,9 +2,10 @@
  * Settings modal controller.
  */
 
-import { getLanguage, onLanguageChange, t } from "./i18n.js";
+import { onLanguageChange, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
 import { ANALYSIS_TOOLS, TOOL_PRESETS, normalizeHiddenTools } from "./analysis_tools.js";
+import { chooseNativePath } from "./native_picker.js";
 
 export function createSettingsController({
   apiBase,
@@ -685,15 +686,7 @@ export function createSettingsController({
     try {
       // `purpose` titles the chooser: both of these used to open saying
       // "Select Auto Load folder", which is neither of them.
-      const response = await fetch(
-        `${apiBase}/choose-folder?purpose=${encodeURIComponent(purpose)}` +
-          `&lang=${encodeURIComponent(getLanguage())}`
-      );
-      // 204 is the picker being dismissed, which is not a failure.
-      if (response.status === 204) return;
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      const picked = String(data?.path || "");
+      const picked = await chooseNativePath(apiBase, { kind: "folder", purpose });
       if (!picked) return;
       // Trailing separator stripped to match what the other pickers store, so
       // the same folder does not read two ways across the config.

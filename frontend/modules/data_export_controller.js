@@ -2,11 +2,12 @@
  * Data-format export workflow and UI state.
  */
 
-import { t, getLanguage } from "./i18n.js";
+import { t } from "./i18n.js";
 import { canExportData, isLiveExportSource, liveExportEntries } from "./command_availability.js";
 import { normalizeFlatScale } from "./flatfield.js";
 import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue } from "./inpainting.js";
 import { formatBytes } from "./detector_control_controller.js";
+import { chooseNativePath } from "./native_picker.js";
 
 function fileStem(path) {
   const normalized = String(path || "").replace(/\\/g, "/");
@@ -848,12 +849,9 @@ export function createDataExportController({
   async function browseOutputDir() {
     if (state.dataExport.running) return;
     try {
-      const response = await fetch(`${apiBase}/choose-folder?purpose=export_output&lang=${encodeURIComponent(getLanguage())}`);
-      if (response.status === 204) return;
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      if (data?.path && dataExportOutputDir) {
-        dataExportOutputDir.value = String(data.path).replace(/[\\/]$/, "");
+      const path = await chooseNativePath(apiBase, { kind: "folder", purpose: "export_output" });
+      if (path && dataExportOutputDir) {
+        dataExportOutputDir.value = path.replace(/[\\/]$/, "");
       }
     } catch (err) {
       console.error(err);

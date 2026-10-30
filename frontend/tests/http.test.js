@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchJSON, fetchJSONWithInit, readHeaderText } from "../modules/http.js";
+import { fetchJSON, fetchJSONWithInit, fetchResponse, readHeaderText } from "../modules/http.js";
 
 // Reject like a real fetch() does when its AbortSignal fires.
 function abortableFetch() {
@@ -110,6 +110,61 @@ describe("http", () => {
     await fetchJSON("/x");
     const init = fetchMock.mock.calls[0][1] || {};
     expect(init.signal).toBeUndefined();
+  });
+});
+
+describe("fetchResponse", () => {
+  // For answers that are not one JSON document -- frame bytes, header values,
+  // a 204 meaning "nothing new" -- with fetchJSON's translated failures.
+  beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    delete globalThis.fetch;
+  });
+
+  it("hands back the response itself, unread, on success", async () => {
+    const response = { ok: true, status: 200, json: vi.fn(), arrayBuffer: vi.fn() };
+    globalThis.fetch = vi.fn(async () => response);
+    await expect(fetchResponse("/x")).resolves.toBe(response);
+    expect(response.json).not.toHaveBeenCalled();
+  });
+
+  it("treats a 204 as success, for the caller to read as nothing new", async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 204 }));
+    await expect(fetchResponse("/x")).resolves.toMatchObject({ status: 204 });
+  });
+
+  it("fails the way fetchJSON does: status and server detail on the error", async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 409, json: async () => ({ detail: "no dialog" }) }));
+    await expect(fetchResponse("/x")).rejects.toMatchObject({ status: 409, detail: "no dialog" });
+  });
+
+  it("maps a network failure to status 0", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await expect(fetchResponse("/x")).rejects.toMatchObject({ status: 0 });
+  });
+
+  it("passes the request options through, and keeps a caller cancel an AbortError", async () => {
+    const controller = new AbortController();
+    globalThis.fetch = abortableFetch();
+    const result = fetchResponse("/x", { method: "POST", signal: controller.signal }).catch((err) => err);
+    expect(globalThis.fetch.mock.calls[0][1]).toMatchObject({ method: "POST" });
+    controller.abort();
+    expect((await result).name).toBe("AbortError");
+  });
+
+  it("times out headers that never arrive", async () => {
+    vi.useFakeTimers();
+    globalThis.fetch = abortableFetch();
+    const result = fetchResponse("/x", { timeoutMs: 1000 }).catch((err) => err);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect((await result).status).toBe(408);
   });
 });
 

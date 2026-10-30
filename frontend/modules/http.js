@@ -52,7 +52,10 @@ async function readDetail(res) {
 // rather than globally so legitimately slow operations (large-file scans, job
 // starts) are never false-aborted. A caller-supplied `init.signal` is honored
 // and forwarded; a caller cancel rethrows as AbortError, a timeout does not.
-async function request(url, init = {}) {
+//
+// `readBody` turns a successful response into the result: its JSON for
+// fetchJSON, the response itself for fetchResponse.
+async function request(url, init = {}, readBody = readJson) {
   const { timeoutMs, signal: callerSignal, ...fetchInit } = init || {};
 
   let timer = null;
@@ -109,13 +112,13 @@ async function request(url, init = {}) {
   }
   if (!timer) {
     done();
-    return res.json();
+    return readBody(res);
   }
   // With a timeout, it covers the body too: a response whose headers arrived
   // but whose body never completes (seen in Firefox with a response-filtering
   // extension) would otherwise leave the caller waiting for good.
   try {
-    return await res.json();
+    return await readBody(res);
   } catch (cause) {
     if (timedOut) throw httpError(408, "");
     throw cause;
@@ -124,15 +127,32 @@ async function request(url, init = {}) {
   }
 }
 
+function readJson(res) {
+  return res.json();
+}
+
+function keepResponse(res) {
+  return res;
+}
+
 // Plain pass-throughs (not async) so they add no extra microtask hop over the
 // single await inside request() — callers and tests see the original timing.
-// Both accept an optional init/options object that may carry `timeoutMs`.
+// All accept an optional init/options object that may carry `timeoutMs`.
 export function fetchJSON(url, opts) {
   return request(url, opts);
 }
 
 export function fetchJSONWithInit(url, init) {
   return request(url, init);
+}
+
+// For an answer that is not one JSON document: a frame or mask as bytes, a
+// value carried in headers, or a 204 that means "nothing new". Failures are
+// the same translated errors as fetchJSON's, with `status` on them; a success
+// is the Response, for the caller to read. A `timeoutMs` covers the headers
+// only, since the body is read after this returns.
+export function fetchResponse(url, init) {
+  return request(url, init, keepResponse);
 }
 
 // Read a text-valued response header written by the backend.
