@@ -54,9 +54,11 @@ def test_choose_file_uses_windows_powershell_dialog(monkeypatch) -> None:
     def _fake_run(cmd, **kwargs):  # noqa: ANN001
         captured.append(cmd)
         assert kwargs["capture_output"] is True
-        assert kwargs["text"] is True
+        # Bytes, not text: PowerShell writes UTF-8, and text mode would
+        # decode it with the ANSI code page. See test_windows_dialog_foreground.py.
+        assert not kwargs.get("text")
         return subprocess.CompletedProcess(
-            cmd, 0, stdout="C:\\Users\\test\\frame_0001.h5\r\n", stderr=""
+            cmd, 0, stdout=b"C:\\Users\\test\\frame_0001.h5\r\n", stderr=b""
         )
 
     monkeypatch.setattr("backend.services.os_actions.platform.system", lambda: "Windows")
@@ -89,7 +91,7 @@ def test_choose_folder_uses_windows_powershell_dialog(monkeypatch) -> None:
 
     def _fake_run(cmd, **kwargs):  # noqa: ANN001
         captured.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, stdout="C:\\Users\\test\\data\r\n", stderr="")
+        return subprocess.CompletedProcess(cmd, 0, stdout=b"C:\\Users\\test\\data\r\n", stderr=b"")
 
     monkeypatch.setattr("backend.services.os_actions.platform.system", lambda: "Windows")
     monkeypatch.setattr(
