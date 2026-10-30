@@ -1,0 +1,773 @@
+/* Shared controls: contrast row, Auto toggle, checkboxes, switches, fields,
+   autoload and live-source rows, the detector picker, buttons, meta rows, ROI
+   parameters.
+
+   Part of the stylesheet split from style.css; the files load in the order of
+   their numbers (index.html), and that order is the cascade. */
+
+/* Auto, BG and FG on one row: the two fields share what Auto leaves, so
+   neither is pushed past the panel's edge, whatever its width or language. */
+.contrast-row {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.contrast-row .range-inline.compact {
+  min-width: 0;
+}
+
+.contrast-row .range-inline.compact > input,
+.contrast-row .range-inline.compact > .num-stepper {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+/* Auto Contrast as one toggle: a checkbox underneath, shown as a button
+   that is lit while the contrast follows every frame. */
+.auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.auto-toggle:has(input:checked) {
+  border-color: rgba(110, 181, 255, 0.72);
+  background: rgba(45, 82, 118, 0.82);
+}
+
+/* Outranks .btn:hover, so a click that turns Auto on or off shows at once. */
+.btn.auto-toggle:has(input:checked):hover:not(.is-disabled) {
+  border-color: rgba(130, 195, 255, 0.85);
+  background: rgba(55, 98, 140, 0.9);
+}
+
+.auto-toggle:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+.range-inline.compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.range-inline.compact span {
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+}
+
+.range-inline.compact input {
+  width: 78px;
+  min-width: 0;
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  padding: 6px 8px;
+  font-size: var(--font-size-md);
+  min-height: var(--control-h);
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-tight) var(--space-base);
+  font-size: var(--font-size-md);
+}
+
+.check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--font-size-md);
+}
+
+.hist-options {
+  margin-top: 6px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-md);
+  min-height: var(--control-h);
+  color: var(--muted-strong);
+}
+
+/* A checkbox whose option is not available right now: greyed but still
+   hoverable, so its title can say why. */
+.checkbox.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ALBIS draws its own checkbox: the browsers' dark native ones differ, and in
+   some (Safari, several Chromium builds) an unticked box all but disappears
+   on the dark panels. The hidden inputs behind switches and toggles are left
+   alone. */
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input) {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1.5px solid rgba(160, 182, 214, 0.75);
+  border-radius: 3px;
+  background: rgba(8, 13, 21, 0.6) center / 12px 12px no-repeat;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):hover:not(:disabled) {
+  border-color: rgba(196, 214, 240, 0.95);
+}
+
+/* The tick dark on the blue, as .btn-primary's text is. */
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):checked {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%2306101d' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):indeterminate {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8h8' fill='none' stroke='%2306101d' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Not dimmed twice inside a .checkbox.is-disabled row, which dims itself. */
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input, .is-disabled *):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.section-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 16px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.section-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.section-switch-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  border: 1px solid #0f0f0f;
+  background: linear-gradient(to bottom, #2a2a2a, #191919);
+  transition: background var(--motion-med) var(--motion-ease-standard);
+}
+
+.section-switch-track::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  top: 1px;
+  left: 1px;
+  border-radius: 50%;
+  background: #d8d8d8;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  transition: transform var(--motion-med) var(--motion-ease-standard);
+}
+
+.section-switch input:checked + .section-switch-track {
+  background: linear-gradient(to bottom, #3a84d5, #205f9c);
+}
+
+.section-switch input:checked + .section-switch-track::after {
+  transform: translateX(14px);
+}
+
+/* The input itself is 0x0 and fully transparent, so keyboard focus landed on
+   nothing a sighted user could see. Put the ring on the track it drives. */
+.section-switch input:focus-visible + .section-switch-track {
+  box-shadow: var(--focus-ring);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--font-size-md);
+  min-width: 0;
+}
+
+.field > span {
+  font-size: var(--label-size);
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
+.field-hint {
+  font-size: var(--font-size-xs);
+  color: #f2c285;
+  line-height: 1.2;
+}
+
+.field-hint.is-hidden {
+  display: none;
+}
+
+.field input.is-invalid,
+.field select.is-invalid {
+  border-color: rgba(224, 93, 93, 0.72) !important;
+  box-shadow: 0 0 0 1px rgba(224, 93, 93, 0.22);
+}
+
+.field.data-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.field.data-row > span {
+  min-width: 72px;
+  color: var(--muted);
+  font-size: var(--font-size-md);
+}
+
+.field.data-row > input,
+.field.data-row .inline {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field.data-row .inline {
+  align-items: center;
+}
+
+.field.data-row .pill {
+  min-width: 48px;
+  text-align: center;
+}
+
+.data-row-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  align-items: center;
+}
+
+.autoload-group {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.autoload-source-inline {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
+/* The Detector tab's address while changing a connected detector: Cancel
+   beside Connect, not on a line of its own. */
+#detector-address .autoload-source-inline:has(> .btn + .btn:not([hidden])) {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.autoload-source-inline > input,
+.autoload-source-inline > select {
+  min-width: 0;
+  width: 100%;
+}
+
+/* Known detectors: a ▾ inside the address field, and the list under the
+   field and its buttons, in the page flow. */
+.detector-picker-field {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.detector-picker-field > input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 28px;
+}
+
+.detector-picker-toggle {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.detector-picker-toggle:hover {
+  color: var(--text);
+}
+
+.detector-picker-list {
+  /* Under the field, where a field puts its label beside it (Data source). */
+  grid-column: -2 / -1;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+}
+
+.detector-picker-head {
+  padding: 6px 8px 2px;
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detector-picker-error {
+  padding: 6px 8px 2px;
+  color: #ff8f8f;
+  font-size: var(--font-size-sm);
+}
+
+.detector-picker-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 2px 6px;
+  padding: 5px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.detector-picker-row:hover,
+.detector-picker-row.is-active {
+  background: var(--accent-soft);
+}
+
+.detector-picker-text {
+  display: grid;
+  min-width: 0;
+}
+
+.detector-picker-name,
+.detector-picker-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detector-picker-name {
+  color: var(--text);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.detector-picker-meta {
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.detector-picker-rename {
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  font-size: var(--font-size-lg);
+}
+
+.detector-picker-icon {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.detector-picker-icon:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* Rename and remove only on the row under the pointer or keys; the star
+   always, it says whether the detector is kept. */
+.detector-picker-row:not(:hover, .is-active) .detector-picker-icon:not(:first-child) {
+  visibility: hidden;
+}
+
+.detector-picker-icon.is-kept,
+.detector-content .detector-keep.is-kept {
+  color: #f4c752;
+}
+
+@media (hover: none) {
+  .detector-picker-row .detector-picker-icon:not(:first-child) {
+    visibility: visible;
+  }
+}
+
+.autoload-action-btn {
+  width: var(--control-h);
+  min-width: var(--control-h);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.autoload-action-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.simplon-test-btn {
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.simplon-probe-message {
+  margin: -2px 0 0 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.simplon-probe-message.is-hidden {
+  display: none;
+}
+
+.simplon-probe-message.is-busy::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  border: 2px solid rgba(150, 176, 220, 0.45);
+  border-top-color: rgba(224, 236, 255, 0.95);
+  animation: splash-spin 0.8s linear infinite;
+  vertical-align: -1px;
+}
+
+.simplon-probe-message.is-ok {
+  color: #7fd6a2;
+}
+
+.simplon-probe-message.is-error {
+  color: #ff8888;
+}
+
+#autoload-watch-options {
+  display: grid;
+  gap: 8px;
+}
+
+.advanced-details {
+  margin: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(11, 17, 26, 0.45);
+}
+
+.advanced-details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: var(--label-size);
+}
+
+.advanced-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-details > summary::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 9px;
+  height: 5px;
+  margin-left: auto;
+  background: currentColor;
+  -webkit-mask: var(--chevron-mask) center / contain no-repeat;
+  mask: var(--chevron-mask) center / contain no-repeat;
+  opacity: 0.82;
+  transition: transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+.advanced-details:not([open]) > summary::after {
+  transform: rotate(-90deg);
+}
+
+.advanced-inner {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px 10px 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.autoload-status-block {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.autoload-group.is-hidden,
+.autoload-status-block.is-hidden {
+  display: none;
+}
+
+.autoload-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.autoload-meta .meta-row {
+  font-size: var(--font-size-md);
+}
+
+.autoload-meta strong {
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  text-align: right;
+  margin-left: 8px;
+  word-break: break-all;
+}
+
+.simplon-meta {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.remote-meta {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.simplon-meta .meta-row {
+  font-size: var(--font-size-md);
+}
+
+.remote-meta .meta-row {
+  font-size: var(--font-size-md);
+}
+
+.simplon-meta strong {
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  text-align: right;
+  margin-left: 8px;
+  word-break: break-word;
+}
+
+.remote-meta strong {
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  text-align: right;
+  margin-left: 8px;
+  word-break: break-word;
+}
+
+.inline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.pill {
+  padding: 4px 8px;
+  background: var(--surface-well);
+  border: 1px solid rgba(20, 32, 49, 0.92);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.btn {
+  background: linear-gradient(to bottom, rgba(48, 61, 84, 0.84), rgba(30, 40, 57, 0.84));
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-fast) var(--motion-ease-standard);
+  min-height: var(--control-h);
+}
+
+.btn:hover:not(:disabled):not(.is-disabled) {
+  background: linear-gradient(to bottom, rgba(58, 75, 103, 0.92), rgba(36, 48, 68, 0.92));
+  border-color: var(--border-strong);
+}
+
+.btn:disabled,
+.btn.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-primary {
+  background: linear-gradient(to bottom, #74bbff, #3a80d9);
+  border-color: rgba(126, 187, 255, 0.9);
+  color: #06101d;
+}
+
+.btn-primary:hover:not(:disabled):not(.is-disabled) {
+  background: linear-gradient(to bottom, #86c6ff, #4a91e4);
+  border-color: rgba(150, 205, 255, 0.95);
+}
+
+.btn-danger {
+  background: linear-gradient(to bottom, #e06b6b, #c23f3f);
+  border-color: rgba(224, 93, 93, 0.9);
+  color: #2a0c0c;
+}
+
+.btn-danger:hover:not(:disabled):not(.is-disabled) {
+  background: linear-gradient(to bottom, #e98080, #d04f4f);
+  border-color: rgba(240, 130, 130, 0.95);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.meta {
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.meta-row span {
+  color: var(--muted);
+}
+
+.meta-row strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.roi-help {
+  margin-top: 4px;
+  margin-bottom: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+}
+
+.roi-params {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.roi-params.is-circle {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.roi-params.is-circle .roi-center-fields {
+  display: contents;
+}
+
+.roi-radius-field.is-hidden,
+.roi-ring-fields.is-hidden,
+.roi-center-fields.is-hidden,
+.roi-snap-btn.is-hidden {
+  display: none;
+}
+
+.roi-snap-btn {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  font-size: var(--font-size-md);
+  min-height: var(--control-h);
+  padding: 6px 10px;
+}
+
+.roi-ring-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.roi-center-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.roi-mini-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.roi-mini-label {
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+}
+
+.roi-mini-field input {
+  width: 100%;
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  padding: 6px 8px;
+  font-size: var(--font-size-md);
+  min-height: var(--control-h);
+}

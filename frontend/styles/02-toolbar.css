@@ -1,0 +1,744 @@
+/* The toolbar: sliders, number steppers, frame, step, FPS, threshold and playback
+   controls, tool buttons, and the backend and live badges.
+
+   Part of the stylesheet split from style.css; the files load in the order of
+   their numbers (index.html), and that order is the cascade. */
+
+/* Sliders are drawn here rather than by the browser, so they look the same in
+   every engine: Firefox's and Safari's own were grey and heavy on the dark
+   panels. The track fills up to the thumb, from ::-moz-range-progress in
+   Firefox and from --range-fill elsewhere (modules/range_fill.js). */
+input[type="range"] {
+  --range-track: rgba(104, 126, 163, 0.3);
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]:focus {
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0 var(--range-fill, 0%),
+    var(--range-track) var(--range-fill, 0%) 100%
+  );
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--range-track);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #eaf3ff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  transition:
+    box-shadow var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #eaf3ff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  transition:
+    box-shadow var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 4px var(--accent-soft),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:hover::-moz-range-thumb {
+  box-shadow:
+    0 0 0 4px var(--accent-soft),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  background: #fff;
+  transform: scale(1.15);
+  box-shadow:
+    0 0 0 6px rgba(78, 161, 255, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:active::-moz-range-thumb {
+  background: #fff;
+  transform: scale(1.15);
+  box-shadow:
+    0 0 0 6px rgba(78, 161, 255, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+input[type="range"]:disabled {
+  --range-track: rgba(104, 126, 163, 0.16);
+  cursor: default;
+}
+
+input[type="range"]:disabled::-webkit-slider-runnable-track {
+  background: var(--range-track);
+}
+
+input[type="range"]:disabled::-moz-range-progress {
+  background: transparent;
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: #5d6a80;
+  border-color: #5d6a80;
+  box-shadow: none;
+  transform: none;
+}
+
+input[type="range"]:disabled::-moz-range-thumb {
+  background: #5d6a80;
+  border-color: #5d6a80;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Up and down buttons of a number field (modules/number_stepper.js), in place
+   of the browser's spinner, which Firefox does not let a page style. Only
+   with a mouse or trackpad: touch screens show no spinner either way. The
+   selectors outrank the fields' own padding. The wrapper takes the field's
+   place in the layout: as wide as the field's own width, or as wide as a
+   grid or flex row stretches it, with the field filling it. */
+.num-stepper {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.num-stepper > input.num-stepper-input[type="number"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.ring-entry > .num-stepper {
+  flex: 1;
+}
+
+.num-stepper > input.num-stepper-input[type="number"]::-webkit-inner-spin-button,
+.num-stepper > input.num-stepper-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.num-stepper-buttons {
+  display: none;
+}
+
+@media (pointer: fine) {
+  .num-stepper > input.num-stepper-input[type="number"] {
+    padding-right: 24px;
+  }
+
+  .num-stepper.num-stepper-compact > input.num-stepper-input[type="number"] {
+    padding-right: 20px;
+  }
+
+  .num-stepper-buttons {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 18px;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border-subtle);
+    border-radius: 0 3px 3px 0;
+    overflow: hidden;
+    opacity: 0.6;
+    transition: opacity var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  .num-stepper.num-stepper-compact .num-stepper-buttons {
+    width: 15px;
+  }
+
+  .num-stepper:hover .num-stepper-buttons,
+  .num-stepper:focus-within .num-stepper-buttons {
+    opacity: 1;
+  }
+
+  .num-stepper:has(> input:disabled) .num-stepper-buttons,
+  .num-stepper:has(> input:read-only) .num-stepper-buttons {
+    opacity: 0.25;
+    pointer-events: none;
+  }
+}
+
+.num-stepper-btn {
+  flex: 1 1 0;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.num-stepper-btn + .num-stepper-btn {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.num-stepper-btn::before {
+  content: "";
+  width: 8px;
+  height: 5px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 4 4 1l3 3' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 4 4 1l3 3' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.num-stepper.num-stepper-compact .num-stepper-btn::before {
+  width: 7px;
+  height: 4px;
+}
+
+.num-stepper-btn.down::before {
+  transform: rotate(180deg);
+}
+
+.num-stepper-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.num-stepper-btn:active {
+  background: rgba(78, 161, 255, 0.34);
+  color: #fff;
+}
+
+.toolbar-frame input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.toolbar-frame-index {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-frame-index.is-hidden {
+  display: none;
+}
+
+/* Wide enough for the largest frame number (--frame-digits, set with the
+   frame count) beside the spinner, never narrower than three digits. */
+.toolbar-frame-index input[type="number"] {
+  width: calc(max(3, var(--frame-digits, 3)) * 1ch + 32px);
+  font-variant-numeric: tabular-nums;
+  background: rgba(11, 18, 28, 0.82);
+  color: var(--text);
+  border: 1px solid rgba(12, 20, 32, 0.62);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: var(--font-size-md);
+  min-height: var(--toolbar-control-h);
+}
+
+.toolbar-step {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-step.is-hidden {
+  display: none;
+}
+
+.toolbar-step select {
+  background: rgba(11, 18, 28, 0.82);
+  color: var(--text);
+  border: 1px solid rgba(12, 20, 32, 0.62);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: var(--font-size-md);
+  min-width: 78px;
+  min-height: var(--toolbar-control-h);
+}
+
+.toolbar-fps {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-fps.is-hidden {
+  display: none;
+}
+
+.toolbar-fps select {
+  background: rgba(11, 18, 28, 0.82);
+  color: var(--text);
+  border: 1px solid rgba(12, 20, 32, 0.62);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: var(--font-size-md);
+  min-width: 66px;
+  min-height: var(--toolbar-control-h);
+}
+
+.toolbar-threshold {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.toolbar-threshold.is-hidden {
+  display: none;
+}
+
+.toolbar-threshold select {
+  background: rgba(11, 18, 28, 0.82);
+  color: var(--text);
+  border: 1px solid rgba(12, 20, 32, 0.62);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: var(--font-size-md);
+  min-width: 52px;
+  min-height: var(--toolbar-control-h);
+}
+
+.toolbar-threshold select:disabled {
+  opacity: 0.6;
+}
+
+.toolbar-playback {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-playback.is-hidden {
+  display: none;
+}
+
+.toolbar-playback-btn {
+  min-width: 86px;
+}
+
+.toolbar-playback-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 25;
+  min-width: 136px;
+  display: grid;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  box-shadow: var(--shadow-soft);
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s linear var(--motion-med);
+}
+
+.toolbar-playback.is-open .toolbar-playback-popover {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s;
+}
+
+.toolbar-playback.is-open .toolbar-playback-btn {
+  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 1px rgba(120, 170, 255, 0.2);
+}
+
+.toolbar-playback-popover .toolbar-step,
+.toolbar-playback-popover .toolbar-fps {
+  display: flex;
+}
+
+.toolbar-playback-popover .toolbar-step.is-hidden,
+.toolbar-playback-popover .toolbar-fps.is-hidden {
+  display: none;
+}
+
+.toolbar-playback-popover .toolbar-step select,
+.toolbar-playback-popover .toolbar-fps select {
+  width: 100%;
+  min-width: 112px;
+}
+
+.tool-btn {
+  background: linear-gradient(to bottom, rgba(23, 33, 49, 0.95), rgba(13, 20, 32, 0.95));
+  color: var(--text);
+  border: 1px solid rgba(10, 19, 31, 0.68);
+  padding: 2px 8px;
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard);
+  min-height: var(--toolbar-control-h);
+}
+
+.tool-btn:hover:not(:disabled):not(.is-disabled) {
+  border-color: rgba(118, 154, 214, 0.7);
+  background: linear-gradient(to bottom, rgba(33, 48, 70, 0.98), rgba(18, 29, 45, 0.98));
+}
+
+.tool-btn:disabled,
+.tool-btn.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tool-btn.is-active {
+  background: linear-gradient(to bottom, #68aeff, #3a81da);
+  border-color: rgba(121, 181, 255, 0.9);
+  color: #08131f;
+}
+
+.tool-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), inset 0 1px 0 rgba(200, 232, 255, 0.2);
+}
+
+.tool-close {
+  background: #1f1f1f;
+}
+
+.toolbar-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--font-size-md);
+  color: var(--text);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 4px 10px;
+  background: rgba(8, 15, 24, 0.28);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(11, 20, 32, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: var(--toolbar-control-h);
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: 0;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.toolbar-more {
+  position: relative;
+  display: none;
+}
+
+.toolbar-sync {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.toolbar-sync-toggle {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.toolbar-sync-options-toggle {
+  min-width: 24px;
+  padding-inline: 5px;
+  border-left-color: rgba(148, 163, 184, 0.18);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.toolbar-sync-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 36;
+  min-width: 152px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  box-shadow: var(--shadow-soft);
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s linear var(--motion-med);
+}
+
+.toolbar-sync.is-open .toolbar-sync-popover {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s;
+}
+
+.toolbar-sync-option {
+  min-height: 26px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.toolbar-more-toggle {
+  min-width: 76px;
+}
+
+.toolbar-more-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 36;
+  min-width: 198px;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(to bottom, rgba(17, 24, 35, 0.98), rgba(12, 18, 27, 0.98));
+  box-shadow: var(--shadow-soft);
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s linear var(--motion-med);
+}
+
+.toolbar-more.is-open .toolbar-more-popover {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    visibility 0s;
+}
+
+.toolbar-more-field {
+  gap: 4px;
+}
+
+.toolbar-more-field > span {
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+}
+
+.toolbar-more-field select {
+  width: 100%;
+}
+
+.toolbar-more-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.tool-btn-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 2px 8px;
+}
+
+.tool-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.backend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: rgba(9, 18, 29, 0.45);
+  border: 1px solid rgba(12, 22, 35, 0.65);
+  color: #9bd4ff;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard),
+    color var(--motion-med) var(--motion-ease-standard);
+  pointer-events: none;
+  min-width: 88px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.backend-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5bb9ff;
+  box-shadow: 0 0 6px rgba(90, 180, 255, 0.7);
+}
+
+.backend-badge.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.backend-badge.is-off {
+  color: #f0a0a0;
+}
+
+.backend-badge.is-off::before {
+  background: #e05d5d;
+  box-shadow: 0 0 6px rgba(224, 93, 93, 0.7);
+}
+
+.backend-badge[aria-hidden="true"] {
+  display: none;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: rgba(9, 18, 29, 0.45);
+  border: 1px solid rgba(12, 22, 35, 0.65);
+  color: #9bd49f;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--motion-med) var(--motion-ease-standard),
+    transform var(--motion-med) var(--motion-ease-standard);
+  pointer-events: none;
+  min-width: 72px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #43d66d;
+  box-shadow: 0 0 6px rgba(67, 214, 109, 0.8);
+  display: inline-block;
+}
+
+.live-badge.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.live-badge.is-wait {
+  color: #f2d38b;
+}
+
+.live-badge.is-wait::before {
+  background: #e0b24a;
+  box-shadow: 0 0 6px rgba(224, 178, 74, 0.7);
+}
+
+.live-badge.is-paused {
+  color: #d7e1ef;
+}
+
+.live-badge.is-paused::before {
+  background: #9fb0c9;
+  box-shadow: 0 0 6px rgba(159, 176, 201, 0.55);
+}
+
+.live-badge[aria-hidden="true"] {
+  display: none;
+}

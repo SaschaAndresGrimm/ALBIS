@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
+
+import { readAllCss } from "./stylesheets.js";
 
 /**
- * Keeps frontend/style.css on the design tokens described in
- * docs/UI_GUIDE.md. The interface reads as one piece because colours, text
+ * Keeps the stylesheets (frontend/style.css and frontend/styles/) on the
+ * design tokens described in docs/UI_GUIDE.md. The interface reads as one
+ * piece because colours, text
  * sizes, corners, stacking and focus rings come from a small set of shared
  * values; each literal added beside them is a near-copy that drifts, and by
  * 2026-10 there were 42 shades of the same border blue.
@@ -20,7 +21,7 @@ import path from "node:path";
  * none fits, add one there, with a comment saying what it is for.
  */
 
-const CSS_PATH = path.join(process.cwd(), "frontend", "style.css");
+
 
 // Literals outside :root and @font-face. Lower these as they are removed.
 const BASELINE = {
@@ -40,7 +41,7 @@ const OUTLINE_EXCEPTIONS = {
 };
 
 function parseRules() {
-  const css = fs.readFileSync(CSS_PATH, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const css = readAllCss().replace(/\/\*[\s\S]*?\*\//g, "");
   // Innermost blocks only: "selector { declarations }". @media and other
   // wrappers are not matched themselves; the rules inside them are.
   return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((match) => {

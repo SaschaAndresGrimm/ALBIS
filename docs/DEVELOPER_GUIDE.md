@@ -183,7 +183,7 @@ There are exactly two ways a module gets what it needs. Pick by whether the depe
 
 To add, say, a "Reset view" button:
 
-1. **DOM** — add the `<button id="reset-view">` in `frontend/index.html`, with `data-i18n` for its label and styles in `frontend/style.css`.
+1. **DOM** — add the `<button id="reset-view">` in `frontend/index.html`, with `data-i18n` for its label and styles in the toolbar's file, `frontend/styles/02-toolbar.css`.
 2. **Behavior** — implement it on the relevant controller (here `overview_viewport_controller.js`), exposing a `resetView()` method.
 3. **Wiring** — in `app.js`, grab the element (`const resetViewBtn = document.getElementById("reset-view")`), and if other modules need to trigger it, add a stable wrapper (`function resetView() { overviewViewportController?.resetView(); }`).
 4. **Event** — bind the click in the appropriate `*_bindings.js` (or its context map), calling the controller method / wrapper.

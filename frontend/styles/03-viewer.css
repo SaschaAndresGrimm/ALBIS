@@ -1,0 +1,593 @@
+/* The viewer: canvas, file drop, the overlay layers, mask editing over the image,
+   loading state, the footer and the cursor readout.
+
+   Part of the stylesheet split from style.css; the files load in the order of
+   their numbers (index.html), and that order is the cascade. */
+
+.app {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6px minmax(28px, var(--panel-width, 28px));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.viewer {
+  padding: 12px;
+  background: linear-gradient(to bottom, #273243, #1c2432);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-resizer {
+  width: 6px;
+  cursor: col-resize;
+  background: linear-gradient(to right, rgba(10, 14, 19, 0.68), rgba(84, 105, 139, 0.14));
+  border-left: 1px solid rgba(9, 14, 22, 0.8);
+  border-right: 1px solid rgba(9, 14, 22, 0.8);
+}
+
+.panel-resizer:hover {
+  background: linear-gradient(to right, rgba(74, 136, 222, 0.42), rgba(36, 76, 124, 0.3));
+}
+
+.canvas-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: rgba(12, 18, 27, 0.96);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 18px rgba(7, 11, 20, 0.24);
+}
+
+.canvas-shell.is-file-drop-target {
+  box-shadow:
+    0 0 0 2px rgba(109, 179, 255, 0.62),
+    0 14px 28px rgba(5, 10, 18, 0.4);
+}
+
+.canvas-shell.is-file-drop-disabled {
+  box-shadow:
+    0 0 0 2px rgba(245, 167, 66, 0.72),
+    0 14px 28px rgba(5, 10, 18, 0.4);
+}
+
+.file-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 42;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  background: rgba(7, 12, 20, 0.56);
+  transition: opacity var(--motion-fast) var(--motion-ease-standard), visibility 0s linear var(--motion-fast);
+}
+
+.canvas-shell.is-file-drop-target .file-drop-overlay,
+.canvas-shell.is-file-drop-disabled .file-drop-overlay {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.file-drop-message {
+  display: none;
+  max-width: min(480px, 92vw);
+  padding: 18px 22px;
+  border: 1px solid rgba(148, 177, 219, 0.36);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 22, 34, 0.92);
+  box-shadow: 0 18px 36px rgba(3, 7, 14, 0.38);
+  text-align: center;
+}
+
+.canvas-shell.is-file-drop-target .file-drop-message-upload,
+.canvas-shell.is-file-drop-disabled .file-drop-message-disabled {
+  display: grid;
+  gap: 7px;
+}
+
+.canvas-shell.is-file-drop-disabled .file-drop-message {
+  border-color: rgba(245, 167, 66, 0.54);
+}
+
+.file-drop-title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.file-drop-detail {
+  color: var(--muted-strong);
+  font-size: var(--font-size-lg);
+  line-height: 1.45;
+}
+
+.canvas-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background: linear-gradient(to bottom, rgba(13, 19, 28, 0.96), rgba(10, 15, 24, 0.96));
+  cursor: default;
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.canvas-wrap.can-pan {
+  /* Keep the normal arrow when hovering a pannable image; the open-hand "grab"
+     renders as a distracting glove on some Linux cursor themes. The closed-hand
+     "grabbing" below still signals an active drag. */
+  cursor: default;
+}
+
+.canvas-wrap::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.canvas-wrap.is-panning {
+  cursor: grabbing;
+}
+
+/* Over an ROI handle: what a drag there does. */
+.canvas-wrap[data-roi-hover="move"] {
+  cursor: move;
+}
+
+.canvas-wrap[data-roi-hover="nwse"] {
+  cursor: nwse-resize;
+}
+
+.canvas-wrap[data-roi-hover="nesw"] {
+  cursor: nesw-resize;
+}
+
+.canvas-wrap[data-roi-hover="ns"] {
+  cursor: ns-resize;
+}
+
+.canvas-wrap[data-roi-hover="ew"] {
+  cursor: ew-resize;
+}
+
+.canvas-wrap[data-roi-hover="point"] {
+  cursor: pointer;
+}
+
+.canvas-wrap.is-roi {
+  cursor: crosshair;
+}
+
+.canvas-wrap.is-windowing {
+  cursor: crosshair;
+}
+
+.canvas-wrap.is-ring-target {
+  cursor: grab;
+}
+
+.canvas-wrap.is-ring-dragging {
+  cursor: grabbing;
+}
+
+#pixel-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 4;
+}
+
+#resolution-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+}
+
+#peak-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+}
+
+#roi-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Data → Pixel Mask → Edit on image (beta): the pixels changed by hand and the
+   shape being drawn, over everything but the toolbar. */
+#mask-edit-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.canvas-wrap.is-mask-editing {
+  cursor: crosshair;
+}
+
+.canvas-wrap.is-mask-editing.is-mask-pan {
+  cursor: grab;
+}
+
+/* Bottom centre, above the footer: clear of the toolbar top left and the
+   panel on the right, and near where the hand is. */
+.mask-edit-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  z-index: 8;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: calc(100% - 24px);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(to bottom, var(--toolbar-blue), var(--toolbar-blue-dark));
+  border: 1px solid rgba(154, 195, 255, 0.22);
+  box-shadow: 0 8px 22px rgba(4, 8, 16, 0.45);
+}
+
+.mask-edit-bar[hidden] {
+  display: none;
+}
+
+.mask-edit-title {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mask-edit-bar [data-mask-tool],
+.mask-edit-bar #mask-edit-undo,
+.mask-edit-bar #mask-edit-redo {
+  min-width: 30px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.mask-edit-bar select {
+  min-height: var(--toolbar-control-h);
+  font-size: var(--font-size-md);
+}
+
+/* Holding Alt flips Mask and Unmask for the next stroke: show which applies. */
+.mask-edit-bar.is-flipped .mask-edit-mode {
+  outline: 1px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.mask-edit-count {
+  min-width: 9em;
+  color: #dbe7fb;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.mask-edit-hint {
+  flex-basis: 100%;
+  text-align: center;
+  color: rgba(219, 231, 251, 0.75);
+  font-size: var(--font-size-sm);
+}
+
+#image-canvas {
+  display: block;
+  transform-origin: 0 0;
+  image-rendering: pixelated;
+  background: rgba(12, 18, 27, 0.96);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.loading {
+  position: absolute;
+  display: none;
+  top: 12px;
+  right: 12px;
+  padding: 8px 10px;
+  font-size: var(--font-size-sm);
+  background: rgba(13, 19, 28, 0.84);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.viewer-footer {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 34;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(136, 170, 221, 0.44);
+  background: rgba(8, 14, 23, 0.78);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.viewer-footer-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.viewer-footer-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.viewer-footer-pill[hidden] {
+  display: none;
+}
+
+/* Inpainting on: the image holds values that were not measured. */
+.viewer-footer-pill.viewer-footer-inpainted {
+  border-color: rgba(242, 184, 75, 0.6);
+  color: #ffe1a3;
+}
+
+.viewer-footer-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 520px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(18, 29, 45, 0.88);
+  border: 1px solid var(--border-bold);
+  color: var(--text);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewer-footer-status {
+  color: var(--text);
+  border-color: rgba(132, 194, 255, 0.68);
+  background: rgba(22, 49, 84, 0.86);
+  min-width: 78px;
+  justify-content: center;
+}
+
+#footer-file {
+  max-width: min(64vw, 760px);
+}
+
+#footer-file.is-empty {
+  display: none;
+}
+
+#footer-zoom {
+  min-width: 92px;
+  justify-content: center;
+}
+
+.viewer-footer-version {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  padding: 4px 9px;
+  min-width: 68px;
+  justify-content: center;
+  color: #cfe1ff;
+  border-color: var(--border-strong);
+  background: rgba(14, 24, 37, 0.72);
+}
+
+.viewer-footer-version-toggle {
+  position: relative;
+  cursor: pointer;
+  min-width: 96px;
+  justify-content: center;
+}
+
+.viewer-footer-version-toggle[aria-expanded="true"] {
+  border-color: rgba(126, 174, 238, 0.72);
+  background: rgba(26, 43, 68, 0.88);
+}
+
+.viewer-footer-version-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  min-width: 176px;
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(113, 145, 201, 0.56);
+  background: linear-gradient(to bottom, rgba(11, 18, 28, 0.98), rgba(8, 14, 22, 0.98));
+  box-shadow: 0 12px 26px rgba(2, 8, 16, 0.56);
+  color: #d7e9ff;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(3px);
+  pointer-events: none;
+  z-index: 48;
+  transition:
+    opacity var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard),
+    visibility 0s linear var(--motion-fast);
+}
+
+.viewer-footer-version-popover.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition:
+    opacity var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard),
+    visibility 0s;
+}
+
+.viewer-footer-version-row {
+  white-space: nowrap;
+}
+
+/* The build identity is the line people are asked to quote, so it reads as a
+   token rather than as prose. */
+.viewer-footer-version-build {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+/* Update state and the copy action are buttons in markup, but only the update
+   row ever becomes interactive, so the rest must not look clickable. */
+.viewer-footer-version-update,
+.viewer-footer-version-copy {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  color: #9fb8da;
+  cursor: default;
+}
+
+.viewer-footer-version-update.is-actionable {
+  color: #8ecbff;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.viewer-footer-version-copy {
+  cursor: pointer;
+  color: #c6defd;
+}
+
+.viewer-footer-version-update.is-actionable:hover,
+.viewer-footer-version-copy:hover {
+  color: var(--text);
+}
+
+.viewer-footer-version-update:focus-visible,
+.viewer-footer-version-copy:focus-visible,
+.viewer-footer-version-reload:focus-visible {
+  outline: 2px solid rgba(142, 203, 255, 0.9);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Only shown when this tab has fallen behind the server, where it is the most
+   important thing in the popover. */
+.viewer-footer-version-stale {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(113, 145, 201, 0.36);
+  white-space: normal;
+  max-width: 240px;
+  color: #ffd8a8;
+  font-weight: 600;
+}
+
+.viewer-footer-version-stale[hidden] {
+  display: none;
+}
+
+.viewer-footer-version-reload {
+  appearance: none;
+  justify-self: start;
+  border: 1px solid rgba(255, 216, 168, 0.5);
+  background: rgba(255, 216, 168, 0.12);
+  color: #ffe6c4;
+  font: inherit;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.viewer-footer-version-reload:hover {
+  background: rgba(255, 216, 168, 0.2);
+}
+
+.viewer-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: #c6defd;
+  text-decoration: none;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: rgba(15, 24, 38, 0.6);
+  flex: 0 0 auto;
+}
+
+.viewer-footer-github-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  fill: currentColor;
+}
+
+.viewer-footer-link:hover {
+  color: var(--text);
+  border-color: rgba(121, 181, 255, 0.68);
+  background: rgba(32, 51, 80, 0.7);
+}
+
+.viewer-footer-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.cursor-overlay {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  padding: 4px 6px;
+  background: rgba(13, 19, 28, 0.9);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--font-size-md);
+  /* This label is rebuilt on every pointer move. With proportional figures a
+     "1" is narrower than a "0", so the whole readout changed width -- and,
+     being right of the cursor, visibly shuffled -- as the coordinates ticked
+     over. The ROI statistics and the footer pills already set this. */
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  display: none;
+  z-index: 5;
+}
+
+.cursor-overlay.is-visible {
+  display: block;
+}
