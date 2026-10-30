@@ -267,6 +267,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Build metadata helper reading `VERSION`.
 - `ALBIS.spec`:
   - PyInstaller bundle definition.
+- `docs/PACKAGING.md`:
+  - How the PyInstaller bundle and the per-platform installers are built.
 - `docs/RELEASE_CHECKLIST.md`:
   - Human release procedure and verification checklist.
 

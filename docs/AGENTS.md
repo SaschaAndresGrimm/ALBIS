@@ -16,7 +16,7 @@ follows one house style, below.
 | [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md), [ARCHITECTURE.md](ARCHITECTURE.md), [CODE_MAP.md](CODE_MAP.md) | Contributors | Setup and gates; how the parts run together; which file owns what. |
 | [API_CONTRACTS.md](API_CONTRACTS.md) | Anyone calling the HTTP API | The stable contract. |
 | [UI_GUIDE.md](UI_GUIDE.md), [I18N_REVIEW_GUIDE.md](I18N_REVIEW_GUIDE.md) + `I18N_GLOSSARY.csv` | Contributors | Interface rules; translation rules and fixed terms. |
-| [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), [WINDOWS_SIGNING.md](WINDOWS_SIGNING.md) | Maintainers | Cutting and signing releases. |
+| [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), [PACKAGING.md](PACKAGING.md), [WINDOWS_SIGNING.md](WINDOWS_SIGNING.md) | Maintainers | Cutting, building and signing releases. |
 | `CHANGELOG.md`, `release-notes/` | Users deciding whether to update | What changed, in their terms. |
 | `decisions/` | Contributors | Why a deliberate choice was made, so it is not undone by accident. |
 
