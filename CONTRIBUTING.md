@@ -36,6 +36,7 @@ Before opening a pull request, `npm run check` runs every gate CI runs.
 - Code Map: `docs/CODE_MAP.md`
 - API Contracts: `docs/API_CONTRACTS.md`
 - Release process checklist: `docs/RELEASE_CHECKLIST.md`
+- Building the installers: `docs/PACKAGING.md`
 - Translation review guide: `docs/I18N_REVIEW_GUIDE.md`
 - UI guide (tokens, controls, dialogs, checking a change): `docs/UI_GUIDE.md`
 - Notes for coding agents: `AGENTS.md`, with one per area in `backend/`, `frontend/` and `docs/`

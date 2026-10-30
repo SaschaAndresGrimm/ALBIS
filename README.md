@@ -112,7 +112,8 @@ For power users looking to configure the server, use the advanced Stream API, or
 
 For developers looking to build, test, and contribute:
 
-- [Developer Guide](docs/DEVELOPER_GUIDE.md) — how ALBIS is built, tested, packaged and organised
+- [Developer Guide](docs/DEVELOPER_GUIDE.md) — how ALBIS is set up, tested and organised
+- [Packaging and Builds](docs/PACKAGING.md) — how the installers are built, for each platform
 - [Contributing](CONTRIBUTING.md) — how to report a problem or propose a change
 - [Support](SUPPORT.md) — where to ask, and what to expect
 - [Governance](GOVERNANCE.md) — who maintains ALBIS, and what you can rely on
