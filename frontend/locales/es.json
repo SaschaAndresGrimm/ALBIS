@@ -1556,6 +1556,7 @@
   "view.invert_color": "Invertir color",
   "view.mask_colors": "Colores de máscara",
   "view.mask_colors.auto": "Automático",
+  "view.mask_colors.reset": "Restablecer colores",
   "view.mask_saturated": "Enmascarar píxeles saturados",
   "view.mask_saturated_unavailable_hint": "Disponible cuando los datos cargados tienen un límite de saturación",
   "view.mask_unavailable_hint": "Disponible cuando los datos cargados incluyen una máscara de píxeles",

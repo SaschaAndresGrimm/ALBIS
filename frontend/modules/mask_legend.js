@@ -12,7 +12,8 @@
  *     both ends, its most different colour instead of the high end);
  *   - Auto for that class.
  * A colour that blends into the map is labelled so, not refused: hiding is a
- * legitimate choice. Auto at the end of the row drops every hand-set colour.
+ * legitimate choice. Reset colours at the end of the row, shown only once a
+ * colour has been hand-set, drops every hand-set colour.
  *
  * Which classes count as on screen mirrors render_engine_controller's
  * redraw(): the mask applies only when on, available and the frame's size,
@@ -269,9 +270,9 @@ export function createMaskLegend({
     resetAll.type = "button";
     resetAll.className = "btn btn-secondary inpaint-value-btn mask-colors-auto";
     resetAll.id = "mask-colors-auto";
-    resetAll.textContent = t("view.mask_colors.auto");
+    resetAll.textContent = t("view.mask_colors.reset");
     resetAll.title = t("mask.auto_all_title");
-    resetAll.disabled = MASK_CLASSES.every((cls) => !state.maskColorOverrides?.[cls]);
+    resetAll.hidden = MASK_CLASSES.every((cls) => !state.maskColorOverrides?.[cls]);
     resetAll.addEventListener("click", () => {
       state.maskColorOverrides = { gap: null, defective: null, saturated: null };
       storeMaskColorOverrides(state.maskColorOverrides);

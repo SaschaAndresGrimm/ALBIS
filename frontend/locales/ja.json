@@ -1556,6 +1556,7 @@
   "view.invert_color": "色反転",
   "view.mask_colors": "マスクの色",
   "view.mask_colors.auto": "自動",
+  "view.mask_colors.reset": "色をリセット",
   "view.mask_saturated": "飽和ピクセルをマスク",
   "view.mask_saturated_unavailable_hint": "読み込んだデータに飽和限界がある場合に利用できます",
   "view.mask_unavailable_hint": "読み込んだデータにピクセルマスクが含まれる場合に利用できます",

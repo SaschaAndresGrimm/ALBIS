@@ -1556,6 +1556,7 @@
   "view.invert_color": "Invertera färg",
   "view.mask_colors": "Maskfärger",
   "view.mask_colors.auto": "Automatisk",
+  "view.mask_colors.reset": "Återställ färger",
   "view.mask_saturated": "Maskera mättade pixlar",
   "view.mask_saturated_unavailable_hint": "Tillgängligt när inläst data har en mättnadsgräns",
   "view.mask_unavailable_hint": "Tillgängligt när inläst data innehåller en pixelmask",

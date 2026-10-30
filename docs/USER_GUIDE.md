@@ -112,9 +112,11 @@ cached while a live source is running, since the file may still be growing.
 
 **Contrast** is the control you will reach for most.
 
-- **Autoscale** (on by default) picks a sensible range for each frame.
-- Turn it off and set **min** and **max** by hand to compare frames on a fixed
-  scale — essential when judging whether a spot got stronger.
+- **Auto** under the histogram (lit, on by default) picks a sensible range for
+  each frame. Click it to switch it off or back on.
+- With it off, set **BG** and **FG** by hand to compare frames on a fixed
+  scale — essential when judging whether a spot got stronger. Typing a value
+  or dragging a marker switches Auto off by itself.
 - **Shift + left-drag** on the image adjusts contrast and brightness directly:
   horizontal for contrast, vertical for brightness.
 - In the **Histogram**, drag the **BG** and **FG** markers, or use the colour bar
@@ -166,8 +168,9 @@ white saturated pixels, as ALBULA draws them. Under the histogram's colour bar, 
 its colour, dimmed when no such pixel is in the image. Click a chip to change
 the colour: to one that stands out, or to one of the colour map's own — its low
 end, middle or high end — to make that class blend into the image, gaps into
-the background for instance. **Auto** goes back, for one class in its popover
-or for all three at the end of the row. A gap that the file does not mark — no
+the background for instance. **Auto** in a chip's popover goes back for that
+class; **Reset colours**, at the end of the row once a colour has been changed,
+for all three. A gap that the file does not mark — no
 mask, no -1 — is not known to be one, and is drawn from its value like any
 other pixel.
 

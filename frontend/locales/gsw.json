@@ -1556,6 +1556,7 @@
   "view.invert_color": "Farbe umdräh",
   "view.mask_colors": "Maskefarbe",
   "view.mask_colors.auto": "Automatisch",
+  "view.mask_colors.reset": "Farbe zrüggsetze",
   "view.mask_saturated": "Sättigti maskiere",
   "view.mask_saturated_unavailable_hint": "Verfiegbar, wenn d Date e Sättigungsgränze hei",
   "view.mask_unavailable_hint": "Verfiegbar, wenn d Date e Pixelmaske enthalte",

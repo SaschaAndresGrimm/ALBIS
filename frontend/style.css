@@ -249,6 +249,7 @@ body {
   top: 0;
   z-index: 20;
   background: linear-gradient(to bottom, rgba(8, 13, 21, 0.82), rgba(8, 13, 21, 0.74));
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -289,7 +290,9 @@ body {
   background: rgba(102, 134, 184, 0.14);
 }
 
-.menu-item.is-active {
+/* Lit while its menu is open. Not .is-active: that stays on the last menu
+   opened after it closes, so File looked pressed from the first load on. */
+.menu-item[aria-expanded="true"] {
   border-color: rgba(96, 140, 213, 0.62);
   background: linear-gradient(to bottom, rgba(94, 136, 206, 0.32), rgba(40, 68, 112, 0.3));
 }
@@ -1177,7 +1180,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   align-items: center;
   gap: 6px;
   padding: 3px 10px;
-  border-radius: 11px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -1228,7 +1231,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   align-items: center;
   gap: 6px;
   padding: 3px 10px;
-  border-radius: 11px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -1597,6 +1600,7 @@ input[type="range"]:disabled::-moz-range-thumb {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(136, 170, 221, 0.44);
   background: rgba(8, 14, 23, 0.78);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
 
@@ -1775,7 +1779,7 @@ input[type="range"]:disabled::-moz-range-thumb {
 .viewer-footer-version-reload:focus-visible {
   outline: 2px solid rgba(142, 203, 255, 0.9);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* Only shown when this tab has fallen behind the server, where it is the most
@@ -1917,6 +1921,7 @@ body.canvas-first .chrome {
   border: none;
   background: transparent;
   box-shadow: none;
+  -webkit-backdrop-filter: none;
   backdrop-filter: none;
   pointer-events: none;
 }
@@ -1928,22 +1933,28 @@ body.canvas-first .upload-bar {
   pointer-events: auto;
 }
 
+/* The bars float over the image, so they are frosted as the panel is and
+   opaque enough that their controls read over a white frame too. */
 body.canvas-first .menu-bar {
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-  background: linear-gradient(to bottom, rgba(47, 62, 86, 0.68), rgba(22, 31, 45, 0.72));
-  border: 1px solid rgba(104, 126, 163, 0.32);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  background: linear-gradient(to bottom, rgba(47, 62, 86, 0.88), rgba(22, 31, 45, 0.9));
+  border: 1px solid rgba(104, 126, 163, 0.46);
   box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 body.canvas-first .toolbar {
   width: max-content;
   max-width: calc(100vw - 32px);
   margin: 8px 0 0 0;
-  border-radius: 10px;
-  border: 1px solid rgba(104, 126, 163, 0.32);
-  background: linear-gradient(to bottom, rgba(34, 93, 145, 0.66), rgba(18, 66, 110, 0.66));
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(104, 126, 163, 0.46);
+  background: linear-gradient(to bottom, rgba(34, 93, 145, 0.88), rgba(18, 66, 110, 0.9));
   box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 body.canvas-first .toolbar-main {
@@ -1969,7 +1980,7 @@ body.canvas-first .viewer {
 }
 
 body.canvas-first .canvas-shell {
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 16px 34px rgba(5, 9, 16, 0.35);
 }
 
@@ -2003,9 +2014,10 @@ body.canvas-first .panel {
   max-height: calc(100vh - var(--overlay-panel-top) - var(--overlay-panel-footer-gap));
   z-index: 24;
   border: 1px solid rgba(104, 126, 163, 0.36);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(to bottom, rgba(37, 48, 66, 0.78), rgba(19, 27, 39, 0.76));
   box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(9px);
   backdrop-filter: blur(9px);
   overflow: visible;
 }
@@ -2019,6 +2031,7 @@ body.canvas-first .panel.is-collapsed {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
+  -webkit-backdrop-filter: none;
   backdrop-filter: none;
   overflow: visible;
   pointer-events: none;
@@ -2027,6 +2040,7 @@ body.canvas-first .panel.is-collapsed {
 /* Content scrolls under the sticky tab bar: at 72% it showed through. */
 body.canvas-first .panel-topbar {
   background: linear-gradient(to bottom, rgba(44, 58, 82, 0.97), rgba(24, 34, 49, 0.97));
+  -webkit-backdrop-filter: blur(9px);
   backdrop-filter: blur(9px);
 }
 
@@ -2039,7 +2053,10 @@ body.canvas-first .section-title {
 }
 
 body.canvas-first .viewer-footer {
-  background: rgba(10, 17, 27, 0.56);
+  background: rgba(10, 17, 27, 0.86);
+  box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 body.canvas-first .panel:not(.is-collapsed) .panel-fab {
@@ -2075,7 +2092,7 @@ body.canvas-first .panel.is-collapsed .panel-fab {
   transform: none;
   width: 196px;
   height: 46px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   color: #f6fbff;
   background: linear-gradient(to bottom, rgba(13, 20, 31, 0.97), rgba(23, 34, 50, 0.97));
@@ -2095,14 +2112,12 @@ body.canvas-first .viewer-footer {
     filter var(--motion-med) var(--motion-ease-standard);
 }
 
+/* Idle, the bars stand back but stay legible over a bright frame. */
 body.canvas-first.chrome-idle .menu-bar,
-body.canvas-first.chrome-idle .toolbar {
-  opacity: 0.42;
-  filter: saturate(0.8);
-}
-
+body.canvas-first.chrome-idle .toolbar,
 body.canvas-first.chrome-idle .viewer-footer {
-  opacity: 0.5;
+  opacity: 0.7;
+  filter: saturate(0.8);
 }
 
 body.canvas-first.chrome-idle .menu-bar:hover,
@@ -2163,7 +2178,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(82, 106, 140, 0.46);
   background: rgba(12, 20, 32, 0.35);
   color: rgba(220, 233, 255, 0.86);
@@ -2449,8 +2464,17 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   box-shadow: var(--focus-ring);
 }
 
+/* A drawn chevron, as the dropdowns': the ▾ in the markup came from
+   whichever font had one, so its size and shape changed with the system. */
 .section-chevron {
-  font-size: 11px;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 6px;
+  font-size: 0;
+  background: currentColor;
+  -webkit-mask: var(--chevron-mask) center / contain no-repeat;
+  mask: var(--chevron-mask) center / contain no-repeat;
   opacity: 0.8;
   transition: transform var(--motion-fast) var(--motion-ease-standard);
 }
@@ -2641,7 +2665,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   grid-template-columns: 1fr auto;
   gap: 6px;
   padding: 2px 4px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background-color var(--motion-fast) var(--motion-ease-standard);
 }
@@ -2697,7 +2721,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   align-items: center;
   gap: 6px;
   padding: 2px 4px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background-color var(--motion-fast) var(--motion-ease-standard);
 }
@@ -3395,7 +3419,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   width: 24px;
   border: 1px solid rgba(78, 100, 137, 0.45);
   border-left: 0;
-  border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: rgba(12, 18, 27, 0.6);
   color: var(--muted);
   cursor: pointer;
@@ -3814,7 +3838,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   width: 100%;
   height: 120px;
   display: block;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 #hist-colorbar {
@@ -3823,7 +3847,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   display: block;
   margin-top: 6px;
   border: 1px solid rgba(78, 100, 137, 0.3);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: rgba(9, 15, 23, 0.95);
 }
 
@@ -3834,7 +3858,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding: 4px 6px;
   background: rgba(13, 19, 28, 0.95);
   border: 1px solid rgba(78, 100, 137, 0.55);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: #f3f8ff;
   font-size: 10px;
   white-space: nowrap;
@@ -3853,7 +3877,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding: 5px 8px;
   background: rgba(13, 19, 28, 0.95);
   border: 1px solid rgba(78, 100, 137, 0.62);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: #f2f2f2;
   font-size: 11px;
   line-height: 1.2;
@@ -3915,7 +3939,7 @@ body.canvas-first .panel.is-collapsed .panel-resizer {
   padding: 7px 9px;
   background: rgba(13, 19, 28, 0.97);
   border: 1px solid rgba(78, 100, 137, 0.62);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   color: #f2f2f2;
   font-size: 11px;
@@ -4195,11 +4219,6 @@ body.platform-windows select option:disabled {
     min-width: 0;
   }
 
-  .range-actions-compact {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
   .viewer-footer {
     left: 8px;
     right: 8px;
@@ -4380,7 +4399,7 @@ body.platform-windows select option:disabled {
     width: clamp(132px, 42vw, 168px);
     height: 38px;
     font-size: 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     z-index: 82;
   }
 
@@ -4501,27 +4520,50 @@ body.platform-windows select option:disabled {
   }
 }
 
-.range-actions {
-  margin-top: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.range-actions-compact {
+/* Auto, BG and FG on one row: the two fields share what Auto leaves, so
+   neither is pushed past the panel's edge, whatever its width or language. */
+.contrast-row {
   margin-top: 6px;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
 }
 
-.range-actions-compact .btn {
-  white-space: nowrap;
-  padding: 4px 8px;
+.contrast-row .range-inline.compact {
+  min-width: 0;
 }
 
-.range-actions-compact .checkbox {
+.contrast-row .range-inline.compact > input,
+.contrast-row .range-inline.compact > .num-stepper {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+/* Auto Contrast as one toggle: a checkbox underneath, shown as a button
+   that is lit while the contrast follows every frame. */
+.auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
   white-space: nowrap;
+}
+
+.auto-toggle:has(input:checked) {
+  border-color: rgba(110, 181, 255, 0.72);
+  background: rgba(45, 82, 118, 0.82);
+}
+
+/* Outranks .btn:hover, so a click that turns Auto on or off shows at once. */
+.btn.auto-toggle:has(input:checked):hover:not(.is-disabled) {
+  border-color: rgba(130, 195, 255, 0.85);
+  background: rgba(55, 98, 140, 0.9);
+}
+
+.auto-toggle:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
 }
 
 .range-inline.compact {
@@ -4580,6 +4622,54 @@ body.platform-windows select option:disabled {
 .checkbox.is-disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ALBIS draws its own checkbox: the browsers' dark native ones differ, and in
+   some (Safari, several Chromium builds) an unticked box all but disappears
+   on the dark panels. The hidden inputs behind switches and toggles are left
+   alone. */
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input) {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1.5px solid rgba(160, 182, 214, 0.75);
+  border-radius: 3px;
+  background: rgba(8, 13, 21, 0.6) center / 12px 12px no-repeat;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):hover:not(:disabled) {
+  border-color: rgba(196, 214, 240, 0.95);
+}
+
+/* The tick dark on the blue, as .btn-primary's text is. */
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):checked {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%2306101d' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):indeterminate {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8h8' fill='none' stroke='%2306101d' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Not dimmed twice inside a .checkbox.is-disabled row, which dims itself. */
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input, .is-disabled *):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+input[type="checkbox"]:not(.sr-only, .section-switch input, .detector-switch input):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .section-switch {
@@ -4946,9 +5036,14 @@ body.platform-windows select option:disabled {
 }
 
 .advanced-details > summary::after {
-  content: "▾";
+  content: "";
+  flex: 0 0 auto;
+  width: 9px;
+  height: 5px;
   margin-left: auto;
-  font-size: 10px;
+  background: currentColor;
+  -webkit-mask: var(--chevron-mask) center / contain no-repeat;
+  mask: var(--chevron-mask) center / contain no-repeat;
   opacity: 0.82;
   transition: transform var(--motion-fast) var(--motion-ease-standard);
 }
@@ -5412,7 +5507,7 @@ body.platform-windows select option:disabled {
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.92), rgba(10, 15, 24, 0.92));
   color: #f2f7ff;
   border: 1px solid var(--border-soft);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 3px 6px;
   font-size: 11px;
 }
@@ -5519,7 +5614,7 @@ body.platform-windows select option:disabled {
   padding: 4px 6px;
   background: rgba(13, 19, 28, 0.95);
   border: 1px solid rgba(78, 100, 137, 0.55);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: #f3f8ff;
   font-size: 10px;
   white-space: nowrap;
@@ -6576,7 +6671,7 @@ body.platform-windows select option:disabled {
   width: min(960px, 86vw);
   aspect-ratio: 16 / 9;
   max-height: 68vh;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: none;
   background: #000 url("resources/splash.webp") center/cover no-repeat;
   /* The picture fades into the black splash on every side, instead of ending
@@ -8782,6 +8877,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   place-items: center;
   padding: 24px;
   background: rgba(8, 12, 18, 0.88);
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
 }
 
@@ -8931,13 +9027,17 @@ button.browse-details-header-cell[aria-sort="descending"] {
   font-size: 11px;
 }
 
+.mask-colors-auto[hidden] {
+  display: none;
+}
+
 .mask-popover {
   position: absolute;
   z-index: 1000;
   width: 248px;
   padding: 10px;
   border: 1px solid rgba(78, 100, 137, 0.6);
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius-sm);
   background: #121a26;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   display: grid;
@@ -8971,7 +9071,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   height: 20px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -9040,6 +9140,8 @@ button.browse-details-header-cell[aria-sort="descending"] {
    the text keeps clear of the chevron. */
 :root {
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%23b4bfd4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* The same chevron as a mask, for those painted in the text's colour. */
+  --chevron-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 select:not([multiple], [size]) {

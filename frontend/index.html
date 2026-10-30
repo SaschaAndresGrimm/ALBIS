@@ -521,10 +521,9 @@
                 <div class="hist-mask-legend" id="hist-mask-legend"></div>
                 <button type="button" class="info-tip" data-info-key="info.mask_colors" aria-label="More information" data-i18n-aria-label="info.button_label"></button>
               </div>
-              <div class="range-actions range-actions-compact">
-                <button id="auto-contrast" class="btn" data-i18n="histogram.auto_contrast">Auto Contrast</button>
-                <label class="checkbox">
-                  <input id="auto-scale" type="checkbox" checked />
+              <div class="contrast-row">
+                <label class="btn auto-toggle" data-i18n-title="histogram.auto_contrast" title="Auto Contrast">
+                  <input id="auto-scale" class="sr-only" type="checkbox" checked />
                   <span data-i18n="common.auto">Auto</span>
                 </label>
                 <label class="range-inline compact">

@@ -27,14 +27,14 @@ describe("zoom slider scale", () => {
 
 function bindSlider() {
   document.body.innerHTML = `
-    <input id="auto" type="checkbox" /><input id="min" /><input id="max" /><button id="autoc"></button>
+    <input id="auto" type="checkbox" /><input id="min" /><input id="max" />
     <input id="invert" type="checkbox" /><input id="zoom" type="range" min="-5" max="5" step="any" value="0" /><button id="reset"></button>`;
   const $ = (id) => document.getElementById(id);
   const setZoom = vi.fn();
   bindViewerControls({
     state: { stats: null },
     elements: {
-      autoScaleToggle: $("auto"), minInput: $("min"), maxInput: $("max"), autoContrastBtn: $("autoc"),
+      autoScaleToggle: $("auto"), minInput: $("min"), maxInput: $("max"),
       invertToggle: $("invert"), zoomRange: $("zoom"), resetView: $("reset"),
     },
     callbacks: {

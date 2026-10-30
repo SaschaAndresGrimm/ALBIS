@@ -123,13 +123,14 @@ describe("mask legend", () => {
     expect(document.querySelector(".mask-popover")).toBeNull();
   });
 
-  it("Auto at the end of the row drops every hand-set colour", async () => {
+  it("Reset colours, shown once a colour is hand-set, drops every hand-set colour", async () => {
     const { legend, state } = await setup();
     legend.update();
-    expect(document.getElementById("mask-colors-auto").disabled).toBe(true);
+    expect(document.getElementById("mask-colors-auto").hidden).toBe(true);
     const { setMaskColorOverride } = await import("../modules/mask_colors.js");
     setMaskColorOverride(state, "saturated", "#123456");
     legend.refresh();
+    expect(document.getElementById("mask-colors-auto").hidden).toBe(false);
     document.getElementById("mask-colors-auto").click();
     expect(state.maskColorOverrides).toEqual({ gap: null, defective: null, saturated: null });
   });

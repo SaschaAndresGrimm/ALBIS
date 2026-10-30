@@ -1556,6 +1556,7 @@
   "view.invert_color": "Inverter colur",
   "view.mask_colors": "Colurs da la mascra",
   "view.mask_colors.auto": "Automatic",
+  "view.mask_colors.reset": "Reinizialisar las colurs",
   "view.mask_saturated": "Mascrar saturads",
   "view.mask_saturated_unavailable_hint": "Disponibel sche las datas chargiadas han ina limita da saturaziun",
   "view.mask_unavailable_hint": "Disponibel sche las datas chargiadas cuntegnan ina mascrina da pixels",

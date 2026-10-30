@@ -124,14 +124,22 @@ export function createHistogramRenderController({
         if (label) {
           histCtx.font = canvasFont(10, 600);
           histCtx.textBaseline = "top";
-          histCtx.fillStyle = PLOT_THEME.text;
           const metrics = histCtx.measureText(label);
+          const pad = 4;
           let textX;
           if (preferRight) {
-            textX = Math.min(width - metrics.width - 4, Math.max(4, x + 6));
+            textX = Math.min(width - metrics.width - 4 - pad, Math.max(4 + pad, x + 6 + pad));
           } else {
-            textX = Math.max(4, Math.min(width - metrics.width - 4, x - metrics.width - 6));
+            textX = Math.max(4 + pad, Math.min(width - metrics.width - 4 - pad, x - metrics.width - 6 - pad));
           }
+          // On a small dark backing, as the magnifier's caption: readable over
+          // the bars too.
+          histCtx.fillStyle = "rgba(13, 19, 28, 0.82)";
+          histCtx.beginPath();
+          if (histCtx.roundRect) histCtx.roundRect(textX - pad, labelY - 2, metrics.width + pad * 2, 14, 3);
+          else histCtx.rect(textX - pad, labelY - 2, metrics.width + pad * 2, 14);
+          histCtx.fill();
+          histCtx.fillStyle = PLOT_THEME.text;
           histCtx.fillText(label, textX, labelY);
         }
       };

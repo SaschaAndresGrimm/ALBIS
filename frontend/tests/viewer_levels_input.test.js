@@ -7,7 +7,7 @@ import { bindViewerControls } from "../modules/viewer_controls_bindings.js";
 function setup() {
   document.body.innerHTML = `
     <input id="auto" type="checkbox" checked /><input id="min" /><input id="max" />
-    <button id="autoc"></button><input id="invert" type="checkbox" />
+    <input id="invert" type="checkbox" />
     <input id="zoom" type="range" /><button id="reset"></button>`;
   const $ = (id) => document.getElementById(id);
   const state = { dataRaw: new Uint16Array(4), stats: { min: 10, max: 200 }, min: 20, max: 150, autoScale: true };
@@ -15,7 +15,7 @@ function setup() {
   bindViewerControls({
     state,
     elements: {
-      autoScaleToggle: $("auto"), minInput: $("min"), maxInput: $("max"), autoContrastBtn: $("autoc"),
+      autoScaleToggle: $("auto"), minInput: $("min"), maxInput: $("max"),
       invertToggle: $("invert"), zoomRange: $("zoom"), resetView: $("reset"),
     },
     callbacks: {

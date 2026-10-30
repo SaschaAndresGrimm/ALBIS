@@ -28,7 +28,6 @@ export function bindViewerControls({
     maxInput,
     maskToggle,
     maskSaturatedToggle,
-    autoContrastBtn,
     invertToggle,
     histLogX,
     histLogY,
@@ -114,7 +113,7 @@ export function bindViewerControls({
     }
     redraw();
     scheduleHistogram();
-    handleContrastChanged?.("levels");
+    handleContrastChanged?.(state.autoScale ? "auto" : "levels");
   });
 
   maskToggle?.addEventListener("change", () => {
@@ -132,21 +131,6 @@ export function bindViewerControls({
     redraw();
     scheduleRoiUpdate();
     schedulePeakFinder();
-  });
-
-  autoContrastBtn.addEventListener("click", () => {
-    if (!state.stats || !state.dataRaw) return;
-    state.autoScale = true;
-    autoScaleToggle.checked = true;
-    const shown = getContrastData?.() || null;
-    const levels = computeAutoLevels(shown || state.dataRaw, shown ? null : (state.stats.satMax ?? null));
-    state.min = levels.min;
-    state.max = levels.max;
-    minInput.value = formatValue(state.min);
-    maxInput.value = formatValue(state.max);
-    redraw();
-    scheduleHistogram();
-    handleContrastChanged?.("auto");
   });
 
   invertToggle.addEventListener("change", () => {

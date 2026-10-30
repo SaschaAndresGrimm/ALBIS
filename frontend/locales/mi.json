@@ -1556,6 +1556,7 @@
   "view.invert_color": "Hurihia te Tae",
   "view.mask_colors": "Ngā tae kōpaki",
   "view.mask_colors.auto": "Aunoa",
+  "view.mask_colors.reset": "Tautuhi anō ngā tae",
   "view.mask_saturated": "Kopare kūkū",
   "view.mask_saturated_unavailable_hint": "Wātea ina whai tepe kūkū ngā raraunga kua utaina",
   "view.mask_unavailable_hint": "Wātea ina whai kopare pika ngā raraunga kua utaina",

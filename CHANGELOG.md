@@ -9,11 +9,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **One Auto toggle for contrast.** The Auto Contrast button and the Auto checkbox beside it, which switched the same thing, are one **Auto** button under the histogram, lit while the contrast follows every frame; click it to switch it off or on, and typing a level or dragging a marker still switches it off. Background and foreground share the rest of the row, so the foreground field is no longer cut off at the panel's edge. The mask colours' Auto at the end of their row is now **Reset colours**, shown only once a colour has been changed.
+- **The menu bar, toolbar and status bar stay legible over the image.** They are frosted like the side panel and nearly opaque, and when idle they fade to 70% instead of about 40%, so their buttons read over a bright frame too. Safari before version 18 now blurs them as well.
+- **BG and FG labels on the histogram** sit on a small dark backing, readable over the bars.
+- **Section chevrons are drawn by ALBIS,** the same as the dropdowns': larger, and the same in every browser, where the ▾ character came from whichever font had one. Corners follow three sizes throughout.
 - **Sliders and number spinners look the same in every browser.** The frame and zoom sliders are drawn by ALBIS: a thin track filled in blue up to a light thumb, instead of Firefox's and Safari's grey, heavy ones. Number fields, from background and foreground to the frame number, ring d-spacings and settings, have slim up and down chevrons in place of the browser's spinner, which Firefox does not let a page restyle; they step, repeat when held and notify exactly as before, and the arrow keys still step a field. Touch screens show no spinner, as before.
-- **Checkboxes and dropdowns match the dark interface.** Checkboxes are dark, ticked in ALBIS's blue, instead of white boxes in the system's blue, and scrollbars and the lists dropdowns open are dark as well. Dropdowns draw the same chevron in every browser, where Firefox, Chrome and Safari each drew their own. With Windows High Contrast on, the browser's own sliders, spinners and dropdowns come back.
+- **Checkboxes and dropdowns match the dark interface.** Checkboxes are drawn by ALBIS, the same in every browser: a clearly outlined box, filled in ALBIS's blue when ticked, where some browsers' dark boxes all but disappeared unticked; scrollbars and the lists dropdowns open are dark as well. Dropdowns draw the same chevron in every browser, where Firefox, Chrome and Safari each drew their own. With Windows High Contrast on, the browser's own sliders, spinners and dropdowns come back.
 - **Edge handles on a box ROI and the overview.** A box ROI has a handle at the middle of each side besides its corners: dragging one moves that side only. The view box in the View tab's overview has them too, resizing the view from the opposite side.
 - **ROI plots start at a readable size.** The line profile, the X and Y profiles of a box and the ROI histogram open 220px tall instead of 120px, so a profile can be read without resizing it first; the corner handle still resizes each.
 - **The zoom slider is logarithmic.** Each doubling of the zoom takes the same length of track, so the zooms most images are viewed at have room: 0.9x of a 1 Mpx frame sits at about 40% of the slider instead of 2%, where nearly all the track went to zooms above 10x. Dragging it zooms smoothly; with the slider focused, each arrow key press zooms by about a fifth and Page Up and Page Down double or halve it, where an arrow press used to change it by 0.01x.
+
+### Fixed
+
+- **The File menu no longer looks pressed when closed.** It was highlighted from the moment ALBIS opened, and whichever menu was opened last stayed highlighted after it closed; a menu name now lights up only while its menu is open.
 
 ## [0.37.0] - 2026-10-29
 

@@ -224,7 +224,6 @@ const toolbarPath = document.getElementById("toolbar-path");
 const backendBadge = document.getElementById("backend-badge");
 const fullscreenToggle = document.getElementById("fullscreen-toggle");
 const aboutVersion = document.getElementById("about-version");
-const autoContrastBtn = document.getElementById("auto-contrast");
 const invertToggle = document.getElementById("invert-color");
 const colormapSelect = document.getElementById("colormap-select");
 const prevBtn = document.getElementById("btn-prev");
@@ -4419,7 +4418,7 @@ maskLegend = createMaskLegend({
 });
 bindColorbarWindowInteractions({
   state,
-  elements: { colorbar: histColorbar, minInput, maxInput, autoScaleToggle, autoContrastBtn },
+  elements: { colorbar: histColorbar, minInput, maxInput, autoScaleToggle },
   callbacks: {
     histogramValueToX: (value, width) => histogramValueToX(value, width),
     histogramXToValue: (x, width) => histogramXToValue(x, width),
@@ -4945,7 +4944,6 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
   maxInput,
   maskToggle,
   maskSaturatedToggle,
-  autoContrastBtn,
   invertToggle,
   histLogX,
   histLogY,

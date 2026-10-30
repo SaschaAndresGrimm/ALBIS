@@ -13,7 +13,7 @@ const WHEEL_STEP = 0.0015; // relative width change per wheel delta unit
 const MIN_WIDTH_PX = 2;
 
 export function bindColorbarWindowInteractions({ state, elements, callbacks }) {
-  const { colorbar, minInput, maxInput, autoScaleToggle, autoContrastBtn } = elements;
+  const { colorbar, minInput, maxInput, autoScaleToggle } = elements;
   const {
     histogramValueToX,
     histogramXToValue,
@@ -112,7 +112,10 @@ export function bindColorbarWindowInteractions({ state, elements, callbacks }) {
     { passive: false },
   );
 
-  colorbar.addEventListener("dblclick", () => autoContrastBtn?.click());
+  // Double-click turns Auto Contrast back on, as the Auto toggle does.
+  colorbar.addEventListener("dblclick", () => {
+    if (!autoScaleToggle.checked) autoScaleToggle.click();
+  });
 
   return { windowFromX };
 }

@@ -3,7 +3,7 @@ import { bindColorbarWindowInteractions } from "../modules/colorbar_window_bindi
 
 function setup() {
   document.body.innerHTML = `<canvas id="bar"></canvas><input id="min" /><input id="max" />
-    <input id="auto" type="checkbox" checked /><button id="ac"></button>`;
+    <input id="auto" type="checkbox" checked />`;
   const colorbar = document.getElementById("bar");
   Object.defineProperty(colorbar, "clientWidth", { value: 100 });
   colorbar.setPointerCapture = () => {};
@@ -12,7 +12,7 @@ function setup() {
   const state = { stats: { min: 0, max: 1000 }, min: 200, max: 400, autoScale: true };
   const handleContrastChanged = vi.fn();
   const autoContrast = vi.fn();
-  document.getElementById("ac").addEventListener("click", autoContrast);
+  document.getElementById("auto").addEventListener("change", autoContrast);
   bindColorbarWindowInteractions({
     state,
     elements: {
@@ -20,7 +20,6 @@ function setup() {
       minInput: document.getElementById("min"),
       maxInput: document.getElementById("max"),
       autoScaleToggle: document.getElementById("auto"),
-      autoContrastBtn: document.getElementById("ac"),
     },
     callbacks: {
       histogramValueToX: (v, w) => (v / 1000) * w,
@@ -82,8 +81,13 @@ describe("colour bar as window/level", () => {
     expect(state.max - state.min).toBeGreaterThan(200);
   });
 
-  it("runs Auto Contrast on double-click", () => {
+  it("turns Auto Contrast back on on double-click", () => {
     const { fire, autoContrast } = setup();
+    const toggle = document.getElementById("auto");
+    toggle.checked = false;
+    fire("dblclick", {});
+    expect(toggle.checked).toBe(true);
+    expect(autoContrast).toHaveBeenCalledTimes(1);
     fire("dblclick", {});
     expect(autoContrast).toHaveBeenCalledTimes(1);
   });

@@ -1556,6 +1556,7 @@
   "view.invert_color": "Farbe umkehren",
   "view.mask_colors": "Maskenfarben",
   "view.mask_colors.auto": "Automatisch",
+  "view.mask_colors.reset": "Farben zurücksetzen",
   "view.mask_saturated": "Gesättigte Pixel maskieren",
   "view.mask_saturated_unavailable_hint": "Verfügbar, wenn die geladenen Daten ein Sättigungslimit haben",
   "view.mask_unavailable_hint": "Verfügbar, wenn die geladenen Daten eine Pixelmaske enthalten",

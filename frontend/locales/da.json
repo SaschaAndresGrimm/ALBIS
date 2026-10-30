@@ -1556,6 +1556,7 @@
   "view.invert_color": "Inverter farve",
   "view.mask_colors": "Maskefarver",
   "view.mask_colors.auto": "Automatisk",
+  "view.mask_colors.reset": "Nulstil farver",
   "view.mask_saturated": "Masker mættede pixel",
   "view.mask_saturated_unavailable_hint": "Tilgængelig, når de indlæste data har en mætningsgrænse",
   "view.mask_unavailable_hint": "Tilgængelig, når de indlæste data indeholder en pixelmaske",

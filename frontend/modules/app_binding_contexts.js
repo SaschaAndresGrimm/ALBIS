@@ -134,7 +134,6 @@ export function createPostFilePickerBindingsElements(elements) {
     maxInput: elements.maxInput,
     maskToggle: elements.maskToggle,
     maskSaturatedToggle: elements.maskSaturatedToggle,
-    autoContrastBtn: elements.autoContrastBtn,
     invertToggle: elements.invertToggle,
     histLogX: elements.histLogX,
     histLogY: elements.histLogY,

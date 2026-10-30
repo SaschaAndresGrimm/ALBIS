@@ -1556,6 +1556,7 @@
   "view.invert_color": "Invert Color",
   "view.mask_colors": "Mask colours",
   "view.mask_colors.auto": "Auto",
+  "view.mask_colors.reset": "Reset colours",
   "view.mask_saturated": "Mask saturated",
   "view.mask_saturated_unavailable_hint": "Available when the loaded data has a saturation limit",
   "view.mask_unavailable_hint": "Available when the loaded data includes a pixel mask",
