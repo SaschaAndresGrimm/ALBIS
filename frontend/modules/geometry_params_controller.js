@@ -13,7 +13,7 @@
  * table and a series sum already read. Nothing else writes those fields.
  */
 
-import { getLanguage, t } from "./i18n.js";
+import { t } from "./i18n.js";
 import {
   GEOMETRY_KEYS,
   GEOMETRY_OVERRIDE_STORAGE_KEY,
@@ -27,6 +27,7 @@ import {
   saveGeometryOverride,
 } from "./geometry_params.js";
 import { isExptPath } from "./geometry_override_utils.js";
+import { chooseNativePath } from "./native_picker.js";
 
 const VALIDATION_KEYS = {
   distanceMm: "validation.rings.distance_positive",
@@ -441,22 +442,17 @@ export function createGeometryParamsController({
   geometryBrowse?.addEventListener("click", async () => {
     try {
       if (isBackendLocal()) {
-        const res = await fetch(`${apiBase}/choose-file?exts=.expt&lang=${encodeURIComponent(getLanguage())}`);
-        if (res.status === 204) return;
-        if (!res.ok) {
-          setStatus?.(
-            res.status === 409 ? t("status.file_picker.unavailable") : t("status.analysis.geometry_picker_failed"),
-          );
-          return;
-        }
-        const data = await res.json();
-        applyPickedGeometryFile(data?.path);
+        const path = await chooseNativePath(apiBase, { exts: ".expt" });
+        if (path) applyPickedGeometryFile(path);
         return;
       }
       applyPickedGeometryFile(await openFileDialog?.({ exts: ".expt" }));
     } catch (err) {
       console.error(err);
-      setStatus?.(t("status.analysis.geometry_picker_failed"), { tone: "error" });
+      // 409: this machine has no native dialog, which is not a failure of
+      // the geometry file.
+      if (err?.status === 409) setStatus?.(t("status.file_picker.unavailable"));
+      else setStatus?.(t("status.analysis.geometry_picker_failed"), { tone: "error" });
     }
   });
 

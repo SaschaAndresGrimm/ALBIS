@@ -2,7 +2,8 @@
  * Analysis controls bindings (rings, peaks, series-sum, pixel labels).
  */
 
-import { t, getLanguage } from "./i18n.js";
+import { t } from "./i18n.js";
+import { chooseNativePath } from "./native_picker.js";
 
 function clampFrameIndex(rawValue, total, fallback) {
   const parsed = Number(rawValue);
@@ -231,16 +232,12 @@ export function bindAnalysisControlInteractions({
 
     if (backendIsLocal) {
       try {
-        const res = await fetch(`${apiBase}/choose-folder?purpose=series_output&lang=${encodeURIComponent(getLanguage())}`);
-        if (res.status === 204) return;
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.path && seriesSumOutput) {
-            const picked = String(data.path).replace(/[\\/]$/, "");
-            seriesSumOutput.value = `${picked}/series_sum`;
-          }
-          return;
+        const path = await chooseNativePath(apiBase, { kind: "folder", purpose: "series_output" });
+        if (path && seriesSumOutput) {
+          const picked = path.replace(/[\\/]$/, "");
+          seriesSumOutput.value = `${picked}/series_sum`;
         }
+        return;
       } catch (err) {
         console.error(err);
       }

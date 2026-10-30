@@ -10,9 +10,10 @@
  * `state`, and handed to inpainting.js's frame pipeline through `getFlat`.
  */
 
-import { t, getLanguage } from "./i18n.js";
+import { t } from "./i18n.js";
 import { flatFits, normalizeFlatScale, prepareFlat } from "./flatfield.js";
 import { DATA_DEFECTIVE_VALUE, DATA_GAP_VALUE, usesInDataPixelFlags } from "./roi_stats_engine.js";
+import { chooseNativePath } from "./native_picker.js";
 
 function fileName(path) {
   return String(path || "").split(/[\\/]/).pop();
@@ -177,12 +178,8 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
     if (busy) return;
     busy = true;
     try {
-      const pick = await fetch(
-        `${apiBase}/choose-file?exts=${encodeURIComponent(".tif,.tiff,.cbf")}&lang=${encodeURIComponent(getLanguage())}`,
-      );
-      if (pick.status === 204) return;
-      if (!pick.ok) throw new Error(`HTTP ${pick.status}`);
-      const { path } = await pick.json();
+      const path = await chooseNativePath(apiBase, { exts: ".tif,.tiff,.cbf" });
+      if (!path) return;
       await loadFlat(path);
     } catch (err) {
       console.error(err);
