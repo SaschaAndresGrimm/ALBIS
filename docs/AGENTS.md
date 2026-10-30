@@ -31,7 +31,7 @@ follows one house style, below.
 | A file format | `README.md`'s format list and the in-app help (a test enforces it). |
 | An outgoing connection or external URL | `NETWORK_AND_PRIVACY.md`. |
 | A check command or CI gate | `CONTRIBUTING.md`, `DEVELOPER_GUIDE.md`, `RELEASE_CHECKLIST.md`, the PR template, `scripts/check.sh` (a test compares them with `ci.yml`). |
-| Where code lives, or a module boundary | `CODE_MAP.md`; `DEVELOPER_GUIDE.md` for a new pattern. |
+| Where code lives, or a module boundary | `CODE_MAP.md` (a test fails on a module it does not name); `DEVELOPER_GUIDE.md` for a new pattern. |
 | A rule agents should follow | The nearest `AGENTS.md`. |
 | A deliberate, non-obvious choice | A record in `decisions/`. |
 
