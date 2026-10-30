@@ -14,10 +14,15 @@ Resolution order, first hit wins:
    cannot replace its own image, so this has to win over everything below it.
    Checked before `/.dockerenv` because that file does not exist under Podman
    and other runtimes, while the environment variable travels with the image.
-2. `/.dockerenv`, for an image built from something other than our Dockerfile.
-3. Not frozen -- no PyInstaller bundle -- means a checkout or a venv, and the
+2. A git checkout around the running code, when not frozen. Every container
+   has `/.dockerenv`, including a devcontainer, Codespace or CI job running
+   ALBIS from a clone, and those were told to `docker pull` an image they never
+   ran. Our image copies `backend/` and `frontend/` but never `.git`, so a
+   checkout is the working tree to update wherever it runs.
+3. `/.dockerenv`, for an image built from something other than our Dockerfile.
+4. Not frozen -- no PyInstaller bundle -- means a checkout or a venv, and the
    working tree is the thing to update.
-4. Frozen, by platform: an AppImage on Linux, a `.dmg`-installed app bundle on
+5. Frozen, by platform: an AppImage on Linux, a `.dmg`-installed app bundle on
    macOS, and on Windows either the installer or the portable zip, which are
    told apart by the uninstall key the installer writes.
 
@@ -65,6 +70,9 @@ INSTALL_KIND_ENV_VAR = "ALBIS_INSTALL_KIND"
 
 _DOCKER_ENV_VAR = "ALBIS_IN_DOCKER"
 _DOCKER_MARKER_FILE = "/.dockerenv"
+# The repository root, when this module runs from a checkout: backend/ sits
+# directly under it.
+_CHECKOUT_ROOT = Path(__file__).resolve().parent.parent
 
 # The InnoSetup `AppId` from `scripts/installer_windows.iss`. InnoSetup appends
 # `_is1` to form the uninstall key, and the installer runs with
@@ -84,6 +92,17 @@ def _docker_from_env() -> bool:
 def _docker_marker_present() -> bool:
     try:
         return Path(_DOCKER_MARKER_FILE).exists()
+    except OSError:  # pragma: no cover - defensive; exists() rarely raises
+        return False
+
+
+def _git_checkout_present() -> bool:
+    """Whether the running code is a git checkout.
+
+    `.git` is a directory in a clone and a file in a worktree; either counts.
+    """
+    try:
+        return (_CHECKOUT_ROOT / ".git").exists()
     except OSError:  # pragma: no cover - defensive; exists() rarely raises
         return False
 
@@ -166,7 +185,11 @@ def read_install_kind() -> str:
     if override:
         return override
     try:
-        if _docker_from_env() or _docker_marker_present():
+        if _docker_from_env():
+            return INSTALL_KIND_DOCKER
+        if not _is_frozen() and _git_checkout_present():
+            return INSTALL_KIND_SOURCE
+        if _docker_marker_present():
             return INSTALL_KIND_DOCKER
         if not _is_frozen():
             return INSTALL_KIND_SOURCE
