@@ -68,7 +68,7 @@
   "animation_export.frames.range": "Intervalo",
   "animation_export.loop": "Repetir infinitamente",
   "animation_export.overlays": "Incluir sobreposições",
-  "animation_export.overlays.unavailable": "Nada a sobrepor — ative primeiro os anéis de resolução ou o localizador de picos.",
+  "animation_export.overlays.unavailable": "Nada a sobrepor — ative primeiro os Anéis de resolução ou a Busca de picos.",
   "animation_export.progress.done": "Concluído",
   "animation_export.progress.encoding": "Codificando...",
   "animation_export.progress.idle": "Inativo",

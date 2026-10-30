@@ -68,7 +68,7 @@
   "animation_export.frames.range": "Interval",
   "animation_export.loop": "Gentag uendeligt",
   "animation_export.overlays": "Medtag overlejringer",
-  "animation_export.overlays.unavailable": "Intet at lægge over — slå først opløsningsringe eller spotfinderen til.",
+  "animation_export.overlays.unavailable": "Intet at lægge over — slå først Opløsningsringe eller Peaksøgning til.",
   "animation_export.progress.done": "Færdig",
   "animation_export.progress.encoding": "Koder...",
   "animation_export.progress.idle": "Inaktiv",

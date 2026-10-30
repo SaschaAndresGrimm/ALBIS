@@ -68,7 +68,7 @@
   "animation_export.frames.range": "Intervall",
   "animation_export.loop": "Upprepa för alltid",
   "animation_export.overlays": "Inkludera överlägg",
-  "animation_export.overlays.unavailable": "Inget att lägga över — slå först på upplösningsringar eller spotfinnaren.",
+  "animation_export.overlays.unavailable": "Inget att lägga över — slå först på Upplösningsringar eller Toppsökning.",
   "animation_export.progress.done": "Klart",
   "animation_export.progress.encoding": "Kodar...",
   "animation_export.progress.idle": "På tomgång",
