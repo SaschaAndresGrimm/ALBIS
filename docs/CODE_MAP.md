@@ -76,6 +76,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - `fetchJSON` / `fetchJSONWithInit`, and `fetchResponse` for answers that are not one JSON document (bytes, headers, 204): every backend call should go through these, which turn a failure into a translated message.
 - `frontend/modules/native_picker.js`:
   - `chooseNativePath`: the system's own file and folder dialogs via `/api/choose-file|folder` (204 a cancel, 409 no native dialog).
+- `frontend/modules/app_elements.js`:
+  - The elements `index.html` declares by id that `app.js` uses, looked up in one place (`queryAppElements`); see [decision 0005](decisions/0005-app-elements-table-and-stable-wrappers.md).
 - `frontend/modules/format_utils.js`, `frontend/modules/typed_array_utils.js`:
   - Pure helpers: how values read in the interface (statistics, plot ticks, energies, inspector values, shortened paths), and frames as the backend sends them (dtype to typed array, shape header, float32 copy, median).
 - `frontend/modules/i18n.js`:

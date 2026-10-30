@@ -14,3 +14,4 @@ by the maintainer.
 | [0002](0002-black-formats-python.md) | Black formats the Python, not `ruff format` |
 | [0003](0003-backend-paths-and-injected-route-deps.md) | Request paths go through `PathPolicy`; routes get their dependencies injected |
 | [0004](0004-drawn-controls-and-design-tokens.md) | The interface draws its own controls and takes its values from tokens |
+| [0005](0005-app-elements-table-and-stable-wrappers.md) | `app.js` takes its elements from one table; late-created controllers keep stable wrappers |
