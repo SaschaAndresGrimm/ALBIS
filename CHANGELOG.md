@@ -10,6 +10,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Added
 
 - **The User Guide starts with a walk-through and has pictures.** **Getting started** takes a newcomer from opening a file to saving a picture in eight steps, on ten images of an insulin crystal from the ALBIS repository, and names the parts of the window on an annotated picture. Every section shows the controls it describes; the sections are grouped into everyday tasks, specialised tools and reference, task sections open with their steps in short, and the detail only some readers need, such as what an exported header keeps, folds away. A glossary explains the terms the guide uses, from BG and FG to threshold. Until now the guide named buttons and panels it never showed, which left a first-time reader searching the screen for them.
+- **Help points newcomers to the walk-through.** Help (F1) links to the User Guide's Getting started from its "New here?" box and at the end of the Quick start, which led to the section on opening files.
 
 ### Changed
 
