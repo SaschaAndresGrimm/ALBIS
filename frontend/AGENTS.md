@@ -69,3 +69,5 @@ on what the user would see or what the module calls. Run them with
 - **A self-contained widget**: `modules/mask_legend.js`.
 
 Do not copy `app.js`'s size or the direct `fetch` calls in older modules.
+`tests/code_size_guard.test.js` holds both: a file over 1,000 lines may not
+get longer, and a module may not add a `fetch` outside `http.js`.
