@@ -135,8 +135,6 @@ export function createPostFilePickerBindingsElements(elements) {
     maskToggle: elements.maskToggle,
     maskSaturatedToggle: elements.maskSaturatedToggle,
     invertToggle: elements.invertToggle,
-    histLogX: elements.histLogX,
-    histLogY: elements.histLogY,
     zoomRange: elements.zoomRange,
     zoomValue: elements.zoomValue,
     resetView: elements.resetView,
@@ -189,7 +187,6 @@ export function createPostFilePickerBindingsElements(elements) {
     roiHistogramPlot: elements.roiHistogramPlot,
     overviewCanvas: elements.overviewCanvas,
     histCanvas: elements.histCanvas,
-    exportBtn: elements.exportBtn,
   };
 }
 
@@ -225,8 +222,6 @@ export function createPostFilePickerBindingsCallbacks(callbacks) {
     handleRoiChanged: callbacks.handleRoiChanged,
     redrawRoiPlots: callbacks.redrawRoiPlots,
     schedulePeakFinder: callbacks.schedulePeakFinder,
-    chooseHistogramBins: callbacks.chooseHistogramBins,
-    computeHistogram: callbacks.computeHistogram,
     snapHistogramValue: callbacks.snapHistogramValue,
     deferViewportInteraction: callbacks.deferViewportInteraction,
     setZoom: callbacks.setZoom,
@@ -317,7 +312,6 @@ export function createPostFilePickerBindingsCallbacks(callbacks) {
     getHistTooltipPosition: callbacks.getHistTooltipPosition,
     showHistTooltip: callbacks.showHistTooltip,
     hideHistTooltip: callbacks.hideHistTooltip,
-    exportFullImage: callbacks.exportFullImage,
     updateToolbar: callbacks.updateToolbar,
     drawHistogram: callbacks.drawHistogram,
     drawSplash: callbacks.drawSplash,

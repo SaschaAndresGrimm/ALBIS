@@ -61,7 +61,6 @@ export function queryAppElements(doc = document) {
     zoomRange: byId("zoom-range"),
     zoomValue: byId("zoom-value"),
     resetView: byId("reset-view"),
-    exportBtn: byId("export-btn"), // not in index.html: always null
     statusEl: byId("status"),
     loadingEl: byId("loading"),
 
@@ -96,8 +95,6 @@ export function queryAppElements(doc = document) {
     histColorbar: byId("hist-colorbar"),
 
     histTooltip: byId("hist-tooltip"),
-    histLogX: byId("hist-log-x"), // not in index.html: always null
-    histLogY: byId("hist-log-y"), // not in index.html: always null
     overviewCanvas: byId("overview-canvas"),
 
     cursorOverlay: byId("cursor-overlay"),
