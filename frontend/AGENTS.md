@@ -45,6 +45,12 @@ everywhere.
 - **Strings**: `data-i18n`, `data-i18n-title`, `data-i18n-aria-label`,
   `data-i18n-placeholder` in markup, `t("key", { vars })` in JS; the key in all
   13 locales.
+- **Controllers reach each other through `core`**
+  ([decision 0006](../docs/decisions/0006-viewer-core-wiring.md)): a module
+  that calls another controller takes `core` and calls it at the time of the
+  call (`core.framePlayback?.stopPlayback()`); `app.js` sets `core.<name>`
+  right after creating each controller. Tests pass a fake `core` with just the
+  methods used. The controllers not yet moved onto it still use wrappers:
 - **Stable wrappers**: when one module must call another created later, add a
   named function in `app.js` and pass that, not the controller's method. When
   the controller already exists where the function is needed, take the method

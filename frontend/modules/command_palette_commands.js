@@ -19,12 +19,12 @@ export function buildCommandPaletteCommands({
   isHdfFile,
   getThresholdIndexAtOffset,
   actions,
+  core,
 }) {
   const {
     openFileModal,
     closeCurrentFile,
     openSettingsModal,
-    stopPlayback,
     startPlayback,
     requestFrame,
     setThresholdIndex,
@@ -136,7 +136,7 @@ export function buildCommandPaletteCommands({
       when: hasNavigableFrames,
       run: () => {
         if (state.playing) {
-          stopPlayback();
+          core.framePlayback?.stopPlayback();
         } else {
           startPlayback();
         }
@@ -149,7 +149,7 @@ export function buildCommandPaletteCommands({
       search: "frame previous left",
       when: hasNavigableFrames,
       run: () => {
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
         requestFrame(state.frameIndex - 1);
       },
     },
@@ -160,7 +160,7 @@ export function buildCommandPaletteCommands({
       search: "frame next right",
       when: hasNavigableFrames,
       run: () => {
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
         requestFrame(state.frameIndex + 1);
       },
     },
@@ -171,7 +171,7 @@ export function buildCommandPaletteCommands({
       search: "threshold detector previous",
       when: hasThresholds,
       run: async () => {
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
         await setThresholdIndex(getThresholdIndexAtOffset(-1));
       },
     },
@@ -182,7 +182,7 @@ export function buildCommandPaletteCommands({
       search: "threshold detector next",
       when: hasThresholds,
       run: async () => {
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
         await setThresholdIndex(getThresholdIndexAtOffset(1));
       },
     },

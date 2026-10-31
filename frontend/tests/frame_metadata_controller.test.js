@@ -73,7 +73,6 @@ describe("frame_metadata_controller", () => {
         setDataControlsForHdf5: () => {},
         setDataSourceSectionState: () => {},
         setStatus: () => {},
-        stopPlayback: () => {},
         updateToolbar: () => {},
         showSplash: () => {},
         setSplashStatus: () => {},
@@ -85,12 +84,14 @@ describe("frame_metadata_controller", () => {
         updateFrameControls: () => {},
         updateThresholdOptions: () => {},
         loadMask: async () => {},
-        loadFrame: async () => {},
         isHdf5File: () => true,
         geometryParams,
         loadImageGeometry,
-        resetTransientFrameLoadState: () => {},
         scheduleResolutionOverlay: () => {},
+      },
+      core: {
+        framePlayback: { stopPlayback: () => {} },
+        fileDataPipeline: { loadFrame: async () => {}, resetTransientLoadState: () => {} },
       },
     });
 
@@ -179,7 +180,6 @@ describe("frame_metadata_controller", () => {
         setDataControlsForHdf5: () => {},
         setDataSourceSectionState: () => {},
         setStatus: () => {},
-        stopPlayback,
         updateToolbar: () => {},
         showSplash: () => {},
         setSplashStatus: () => {},
@@ -191,12 +191,14 @@ describe("frame_metadata_controller", () => {
         updateFrameControls: () => {},
         updateThresholdOptions: () => {},
         loadMask: async () => {},
-        loadFrame,
         isHdf5File: () => true,
         getDefaultCenter: () => ({ x: 0, y: 0 }),
         loadImageGeometry: async () => {},
-        resetTransientFrameLoadState,
         scheduleResolutionOverlay: () => {},
+      },
+      core: {
+        framePlayback: { stopPlayback },
+        fileDataPipeline: { loadFrame, resetTransientLoadState: resetTransientFrameLoadState },
       },
     });
 
@@ -261,7 +263,6 @@ describe("frame_metadata_controller", () => {
         setDataControlsForHdf5: () => {},
         setDataSourceSectionState: () => {},
         setStatus: () => {},
-        stopPlayback,
         updateToolbar: () => {},
         showSplash: () => {},
         setSplashStatus: () => {},
@@ -273,12 +274,14 @@ describe("frame_metadata_controller", () => {
         updateFrameControls: () => {},
         updateThresholdOptions: () => {},
         loadMask: async () => {},
-        loadFrame: async () => true,
         isHdf5File: () => true,
         getDefaultCenter: () => ({ x: 0, y: 0 }),
         loadImageGeometry: async () => {},
-        resetTransientFrameLoadState,
         scheduleResolutionOverlay: () => {},
+      },
+      core: {
+        framePlayback: { stopPlayback },
+        fileDataPipeline: { loadFrame: async () => true, resetTransientLoadState: resetTransientFrameLoadState },
       },
     });
 
@@ -333,7 +336,6 @@ describe("frame_metadata_controller", () => {
         setDataControlsForHdf5: () => {},
         setDataSourceSectionState,
         setStatus,
-        stopPlayback: () => {},
         updateToolbar: () => {},
         showSplash: () => {},
         setSplashStatus: () => {},
@@ -345,12 +347,14 @@ describe("frame_metadata_controller", () => {
         updateFrameControls: () => {},
         updateThresholdOptions: () => {},
         loadMask: async () => {},
-        loadFrame: async () => {},
         isHdf5File: () => true,
         getDefaultCenter: () => ({ x: 0, y: 0 }),
         loadImageGeometry: async () => {},
-        resetTransientFrameLoadState: () => {},
         scheduleResolutionOverlay: () => {},
+      },
+      core: {
+        framePlayback: { stopPlayback: () => {} },
+        fileDataPipeline: { loadFrame: async () => {}, resetTransientLoadState: () => {} },
       },
     });
 

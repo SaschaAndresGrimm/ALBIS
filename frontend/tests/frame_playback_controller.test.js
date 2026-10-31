@@ -53,14 +53,18 @@ function harness({ fps = 1, loadMs = 100, frameCount = 100 } = {}) {
       setLoading() {},
       updateToolbar() {},
       isViewportInteractionActive: () => viewportBusy,
-      cancelActiveFrameLoad() {
-        cancels.push(state.frameIndex);
-        if (abortInFlight) abortInFlight();
-      },
-      loadFrame,
       queuePendingFrameRequest: transient.queuePendingFrame,
       consumePendingFrameRequest: transient.consumePendingFrameRequest,
       isFrameLoading: transient.isFrameLoading,
+    },
+    core: {
+      fileDataPipeline: {
+        cancelActiveLoad() {
+          cancels.push(state.frameIndex);
+          if (abortInFlight) abortInFlight();
+        },
+        loadFrame,
+      },
     },
   });
 

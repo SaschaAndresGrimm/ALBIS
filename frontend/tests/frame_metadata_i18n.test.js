@@ -109,10 +109,12 @@ describe("frame metadata i18n", () => {
         updateFrameControls: () => {},
         updateThresholdOptions: () => {},
         loadMask: async () => {},
-        loadFrame: async () => {},
         isHdf5File: () => false,
         getDefaultCenter: () => ({ x: 0, y: 0 }),
         scheduleResolutionOverlay: () => {},
+      },
+      core: {
+        fileDataPipeline: { loadFrame: async () => {} },
       },
     });
 

@@ -20,6 +20,7 @@ export function bindViewerControls({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     colormapSelect,
@@ -67,7 +68,6 @@ export function bindViewerControls({
     scheduleOverview,
     zoomAt,
     fitImageToView,
-    stopPlayback,
     requestFrame,
     startPlayback,
     toggleToolbarPlaybackPopover,
@@ -240,18 +240,18 @@ export function bindViewerControls({
   });
 
   prevBtn?.addEventListener("click", () => {
-    stopPlayback();
+    core.framePlayback?.stopPlayback();
     requestFrame(state.frameIndex - Math.max(1, state.step));
   });
 
   nextBtn?.addEventListener("click", () => {
-    stopPlayback();
+    core.framePlayback?.stopPlayback();
     requestFrame(state.frameIndex + Math.max(1, state.step));
   });
 
   playBtn?.addEventListener("click", () => {
     if (state.playing) {
-      stopPlayback();
+      core.framePlayback?.stopPlayback();
     } else {
       startPlayback();
     }

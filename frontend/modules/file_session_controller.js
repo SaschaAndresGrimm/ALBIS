@@ -9,6 +9,7 @@ export function createFileSessionController({
   analysisState,
   elements,
   callbacks,
+  core,
 }) {
   const {
     fileSelect,
@@ -23,8 +24,6 @@ export function createFileSessionController({
   } = elements;
 
   const {
-    stopPlayback,
-    resetTransientFrameLoadState,
     clearImageGeometry,
     clearGeometrySource,
     clearMaskState,
@@ -81,13 +80,8 @@ export function createFileSessionController({
   let lastStatsRefreshAt = 0;
 
   function closeCurrentFile() {
-    stopPlayback();
-    if (resetTransientFrameLoadState) {
-      resetTransientFrameLoadState();
-    } else {
-      state.pendingFrame = null;
-      state.isLoading = false;
-    }
+    core.framePlayback?.stopPlayback();
+    core.fileDataPipeline?.resetTransientLoadState();
     state.file = "";
     state.dataset = "";
     state.shape = [];
@@ -255,7 +249,7 @@ export function createFileSessionController({
     if (!Array.isArray(shape) || shape.length < 2) return;
     const keepPlaying = Boolean(options.keepPlaying);
     if (!(keepPlaying && state.playing)) {
-      stopPlayback();
+      core.framePlayback?.stopPlayback();
     }
     const preserveSeries = Boolean(options.preserveSeries);
     if (fitView) {

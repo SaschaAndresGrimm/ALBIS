@@ -12,6 +12,7 @@ export function initializeMainUiBindings({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     menuButtons,
@@ -84,7 +85,6 @@ export function initializeMainUiBindings({
     closeCommandPalette,
     ensureFileMode,
     syncSeriesSumOutputPath,
-    stopPlayback,
     isHdfFile,
     loadDatasets,
     recordRecentFile,
@@ -175,6 +175,7 @@ export function initializeMainUiBindings({
   });
 
   bindDataControlInteractions({
+    core,
     state,
     elements: {
       fileSelect,
@@ -189,7 +190,6 @@ export function initializeMainUiBindings({
     callbacks: {
       ensureFileMode,
       syncSeriesSumOutputPath,
-      stopPlayback,
       isHdfFile,
       loadDatasets,
       loadImageSeries,

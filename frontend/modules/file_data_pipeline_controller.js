@@ -30,6 +30,7 @@ export function createFileDataPipelineController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     fileSelect,
@@ -56,7 +57,6 @@ export function createFileDataPipelineController({
     parseShape,
     typedArrayFrom,
     applyImageMeta,
-    applyExternalFrame,
     processPendingFrameRequest,
     currentFrameStatusText,
     setLoading,
@@ -66,7 +66,6 @@ export function createFileDataPipelineController({
     setDataSourceSectionState,
     showProcessingProgress,
     hideProcessingProgress,
-    stopPlayback,
     loadMask,
     updateToolbar,
   } = callbacks;
@@ -115,7 +114,7 @@ export function createFileDataPipelineController({
   }
 
   function resetFrameLoadState() {
-    stopPlayback();
+    core.framePlayback?.stopPlayback();
     if (activeFrameLoadController) {
       try {
         activeFrameLoadController.abort();
@@ -231,7 +230,7 @@ export function createFileDataPipelineController({
       const data = typedArrayFrom(buffer, dtype);
       applyImageMeta(res.headers);
       await geometryPromise;
-      applyExternalFrame(data, shape, dtype, file, true, false, {
+      core.fileSession.applyExternalFrame(data, shape, dtype, file, true, false, {
         autoMask: true,
         maskKey: `auto:${file}`,
         maskColumns: parseBadChannels(res.headers.get("X-Image-Bad-Channels")),
@@ -376,7 +375,7 @@ export function createFileDataPipelineController({
 
       const seriesKey = state.seriesLabel || state.file || file;
       const reuseMask = Boolean(state.maskRaw && state.maskFile === `auto:${seriesKey}`);
-      applyExternalFrame(data, shape, dtype, state.file || file, false, reuseMask, {
+      core.fileSession.applyExternalFrame(data, shape, dtype, state.file || file, false, reuseMask, {
         preserveSeries: true,
         keepPlaying: true,
         autoMask: !reuseMask,
