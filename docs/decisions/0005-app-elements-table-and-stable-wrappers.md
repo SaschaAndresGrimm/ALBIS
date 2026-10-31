@@ -1,7 +1,10 @@
 # 0005 — `app.js` takes its elements from one table; late-created controllers keep stable wrappers
 
 **Status:** Accepted, 2026-10-31; amended the same day (wrappers that were
-not needed are gone, see the end).
+not needed are gone, see the end). The stable-wrapper part is superseded by
+[0006](0006-viewer-core-wiring.md): controllers now reach each other through
+the `core` registry, and `app.js` has no forwarding wrappers left. The
+element table stands.
 
 ## Context
 

@@ -60,7 +60,6 @@ export function bindViewerControls({
     formatValue,
     schedulePeakFinder,
     snapHistogramValue,
-    setZoom,
     zoomAt,
     requestFrame,
     startPlayback,
@@ -163,7 +162,7 @@ export function bindViewerControls({
     core.overviewViewport?.deferViewportInteraction();
     const zoom = sliderToZoom(zoomRange.value);
     if (!canvasWrap) {
-      setZoom(zoom);
+      core.overviewViewport?.setZoom(zoom);
       core.overviewViewport?.scheduleOverview();
       return;
     }
@@ -205,12 +204,12 @@ export function bindViewerControls({
     if (!zoomValue) return;
     const parsedZoom = parseZoomValue(zoomValue.value);
     if (!Number.isFinite(parsedZoom) || parsedZoom <= 0) {
-      setZoom(state.zoom || 1);
+      core.overviewViewport?.setZoom(state.zoom || 1);
       return;
     }
     core.overviewViewport?.deferViewportInteraction();
     if (!canvasWrap) {
-      setZoom(parsedZoom);
+      core.overviewViewport?.setZoom(parsedZoom);
       core.overviewViewport?.scheduleOverview();
       return;
     }

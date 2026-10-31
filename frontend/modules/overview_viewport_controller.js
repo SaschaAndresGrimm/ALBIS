@@ -37,7 +37,6 @@ export function createOverviewViewportController({
   } = theme;
 
   const {
-    deferPixelOverlayRedraw,
     scheduleRoiOverlay,
     requestFrame,
     hasPendingFrameRequest: hasPendingFrameRequestCallback,
@@ -212,7 +211,7 @@ export function createOverviewViewportController({
     state.panOffsetY = appliedScrollTop - desiredY;
     applyCanvasTransform();
     if (schedule) {
-      deferPixelOverlayRedraw();
+      core.overlayRender.deferPixelOverlayRedraw();
       syncViewportOverlays();
     }
     notifyViewportChanged("pan");
@@ -261,7 +260,7 @@ export function createOverviewViewportController({
   function deferViewportInteraction(delayMs = VIEWPORT_INTERACTION_IDLE_MS) {
     const delay = Math.max(60, Number(delayMs) || VIEWPORT_INTERACTION_IDLE_MS);
     viewportInteractionUntil = Date.now() + delay;
-    deferPixelOverlayRedraw(delay);
+    core.overlayRender.deferPixelOverlayRedraw(delay);
     if (state.playing && isFrameLoading()) {
       core.fileDataPipeline?.cancelActiveLoad();
     }

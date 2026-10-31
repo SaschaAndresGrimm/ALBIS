@@ -74,7 +74,6 @@ export function initializeMainUiBindings({
     isDocumentDropEnabled,
     showDocumentDropDisabledStatus,
     closeAboutModal,
-    closeSettingsModal,
     setCommandPaletteIndex,
     renderCommandPalette,
     isHdfFile,
@@ -155,7 +154,6 @@ export function initializeMainUiBindings({
     },
     callbacks: {
       closeAboutModal,
-      closeSettingsModal,
       setCommandPaletteIndex,
       renderCommandPalette,
     },

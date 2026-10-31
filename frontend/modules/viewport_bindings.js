@@ -44,7 +44,6 @@ export function bindViewportInteractions({
     isTouchGestureActive,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
-    setEffectiveScroll,
     getImagePointFromEvent,
     getRoiHandleAt,
     isPointInRoi,
@@ -317,7 +316,7 @@ export function bindViewportInteractions({
         const dy = touch.clientY - touchDragStart.y;
         const nextEffectiveX = touchDragStart.effectiveLeft - dx;
         const nextEffectiveY = touchDragStart.effectiveTop - dy;
-        setEffectiveScroll(nextEffectiveX, nextEffectiveY);
+        core.overviewViewport?.setEffectiveScroll(nextEffectiveX, nextEffectiveY);
         event.preventDefault();
       }
     },
@@ -491,7 +490,7 @@ export function bindViewportInteractions({
     const dy = event.clientY - panStart.y;
     const nextEffectiveX = panStart.effectiveLeft - dx;
     const nextEffectiveY = panStart.effectiveTop - dy;
-    setEffectiveScroll(nextEffectiveX, nextEffectiveY);
+    core.overviewViewport?.setEffectiveScroll(nextEffectiveX, nextEffectiveY);
   });
 
   canvasWrap.addEventListener("pointerup", (event) => {

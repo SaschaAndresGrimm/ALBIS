@@ -49,14 +49,10 @@ everywhere.
   ([decision 0006](../docs/decisions/0006-viewer-core-wiring.md)): a module
   that calls another controller takes `core` and calls it at the time of the
   call (`core.framePlayback?.stopPlayback()`); `app.js` sets `core.<name>`
-  right after creating each controller. Tests pass a fake `core` with just the
-  methods used. The controllers not yet moved onto it still use wrappers:
-- **Stable wrappers**: when one module must call another created later, add a
-  named function in `app.js` and pass that, not the controller's method. When
-  the controller already exists where the function is needed, take the method
-  from it instead (`const { redraw } = viewerController;` after creating it).
-  [Decision 0005](../docs/decisions/0005-app-elements-table-and-stable-wrappers.md)
-  says when which applies.
+  right after creating each controller, and passes `core` to every module
+  that uses it (binding contexts and bootstraps pass it on). Do not add a
+  forwarding function to `app.js` for this: there are none left. Tests pass a
+  fake `core` with just the methods used.
 - **State lives in `state` or a controller**, not in the DOM: read values from
   `state`, write the DOM from it.
 - `console.warn`/`error`/`info` only; eslint flags `console.log`.

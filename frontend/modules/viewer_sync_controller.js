@@ -120,6 +120,7 @@ export function createViewerSyncController({
   roiState = null,
   elements,
   callbacks,
+  core,
   options = {},
 }) {
   const {
@@ -137,8 +138,6 @@ export function createViewerSyncController({
     getViewRect,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
-    setZoom,
-    setEffectiveScroll,
     applySyncedContrast,
     applySyncedRoi,
   } = callbacks;
@@ -428,12 +427,12 @@ export function createViewerSyncController({
     cancelQueuedPublish("viewport");
     applyingRemote = true;
     try {
-      setZoom?.(viewport.zoom);
+      core.overviewViewport?.setZoom(viewport.zoom);
       const zoom = Number.isFinite(state.zoom) ? state.zoom : viewport.zoom;
       const zoomY = zoom * (state.pixelAspect || 1);
       const targetX = centerX * zoom - viewWidth / 2 + (state.renderOffsetX || 0);
       const targetY = centerY * zoomY - viewHeight / 2 + (state.renderOffsetY || 0);
-      setEffectiveScroll?.(targetX, targetY, true);
+      core.overviewViewport?.setEffectiveScroll(targetX, targetY, true);
     } finally {
       applyingRemote = false;
     }

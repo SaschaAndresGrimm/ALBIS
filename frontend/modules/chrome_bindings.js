@@ -20,7 +20,6 @@ export function bindChromeUiInteractions({
 
   const {
     closeAboutModal,
-    closeSettingsModal,
     setCommandPaletteIndex,
     renderCommandPalette,
   } = callbacks;
@@ -35,8 +34,8 @@ export function bindChromeUiInteractions({
     }
   });
 
-  settingsClose?.addEventListener("click", closeSettingsModal);
-  settingsCancel?.addEventListener("click", closeSettingsModal);
+  settingsClose?.addEventListener("click", (event) => core.settings.closeSettingsModal(event));
+  settingsCancel?.addEventListener("click", (event) => core.settings.closeSettingsModal(event));
 
   settingsSave?.addEventListener("click", () => {
     void core.settings.saveSettingsFromModal(true);
@@ -44,7 +43,7 @@ export function bindChromeUiInteractions({
 
   settingsModal?.addEventListener("click", (event) => {
     if (event.target === settingsModal || event.target.classList?.contains("modal-backdrop")) {
-      closeSettingsModal();
+      core.settings.closeSettingsModal();
     }
   });
 

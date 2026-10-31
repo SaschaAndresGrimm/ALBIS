@@ -412,10 +412,6 @@ function isFrameLoading() {
   return fileDataPipelineController ? fileDataPipelineController.isFrameLoading() : Boolean(state.isLoading);
 }
 
-function setEffectiveScroll(targetX, targetY, schedule = true) {
-  overviewViewportController?.setEffectiveScroll(targetX, targetY, schedule);
-}
-
 function applyLanguagePreference(language, options = {}) {
   const { source = "user" } = options;
   const next = setLanguage(language, { persist: source !== "runtime", applyDom: true });
@@ -1200,10 +1196,6 @@ function getAnchorForHandle(view, handle, keepCenter) {
     : null;
 }
 
-function setZoom(value) {
-  overviewViewportController?.setZoom(value);
-}
-
 function normalizeWheelDelta(event) {
   return overviewViewportController ? overviewViewportController.normalizeWheelDelta(event) : 0;
 }
@@ -1396,10 +1388,6 @@ const fileOpenController = createFileOpenController({
 });
 core.fileOpen = fileOpenController;
 
-async function openPathInViewer(path, options = {}) {
-  await fileOpenController.openPathInViewer(path, options);
-}
-
 const recentFilesController = createRecentFilesController({
   recentFiles,
   elements: {
@@ -1407,7 +1395,7 @@ const recentFilesController = createRecentFilesController({
     parent: recentFilesParent,
   },
   callbacks: {
-    openPath: (path) => openPathInViewer(path),
+    openPath: (path) => core.fileOpen.openPathInViewer(path),
     closeMenu: () => closeMenu(),
     setStatus: (...args) => setStatus(...args),
   },
@@ -1429,7 +1417,6 @@ const uploadFlowController = createUploadFlowController({
   callbacks: {
     setLoading,
     setStatus,
-    openPathInViewer: (...args) => openPathInViewer(...args),
     fileLabel: (...args) => fileLabel(...args),
     fetchJSON,
   },
@@ -1561,7 +1548,7 @@ geometryParamsController = createGeometryParamsController({
     // Same zoom, new aspect: recomputes the centring, the canvas transform,
     // the pan limits and the overlays drawn over the image.
     onPixelAspectChanged: () => {
-      setZoom(state.zoom);
+      core.overviewViewport?.setZoom(state.zoom);
       core.overviewViewport?.scheduleOverview();
     },
     reloadGeometry: () => reloadGeometryForCurrentFile(),
@@ -1612,7 +1599,7 @@ panelLayoutController = createPanelLayoutController({
   callbacks: {
     scheduleHistogram,
     recenterCanvas: () => {
-      if (state.hasFrame) setZoom(state.zoom);
+      if (state.hasFrame) core.overviewViewport?.setZoom(state.zoom);
     },
     getSectionStateStore: () => sectionStateStore,
     setSectionStateStore: (next) => {
@@ -2141,7 +2128,7 @@ detectorControlController = createDetectorControlController({
     // becomes File, as with File -> Open, instead of staying on the live view.
     openPath: async (path) => {
       await core.autoloadOrchestration.ensureFileMode({ disableMonitor: false });
-      await openPathInViewer(path);
+      await core.fileOpen.openPathInViewer(path);
     },
     // The monitor's images are what ALBIS's SIMPLON data source shows: point it
     // at the same detector and switch to it.
@@ -2229,7 +2216,7 @@ pixelMaskController = createPixelMaskController({
     // The detector's mask, saved as a file, opens like a series copied from it.
     openPath: async (path) => {
       await core.autoloadOrchestration.ensureFileMode({ disableMonitor: false });
-      await openPathInViewer(path);
+      await core.fileOpen.openPathInViewer(path);
     },
     openEditor: () => pixelMaskEditController?.open() || false,
     closeEditor: (options) => pixelMaskEditController?.close(options),
@@ -2338,15 +2325,15 @@ function closeTopModal(options = {}) {
     return true;
   }
   if (modalEl === settingsModal) {
-    closeSettingsModal(options);
+    core.settings.closeSettingsModal(options);
     return true;
   }
   if (modalEl === updateCheckModal) {
-    closeUpdateCheckModal(options);
+    core.updateCheck?.close(options);
     return true;
   }
   if (modalEl === logViewerModal) {
-    closeBackendLogViewer(options);
+    core.backendLogViewer?.close(options);
     return true;
   }
   if (modalEl === aboutModal) {
@@ -2363,18 +2350,6 @@ function openAboutModal() {
 
 function closeAboutModal({ restoreFocus = true } = {}) {
   closeModal(aboutModal, { restoreFocus });
-}
-
-function closeUpdateCheckModal({ restoreFocus = true } = {}) {
-  updateCheckController?.close({ restoreFocus });
-}
-
-function closeBackendLogViewer({ restoreFocus = true } = {}) {
-  backendLogViewerController?.close({ restoreFocus });
-}
-
-function closeSettingsModal({ restoreFocus = true } = {}) {
-  settingsController.closeSettingsModal({ restoreFocus });
 }
 
 function isCommandPaletteOpen() {
@@ -2684,7 +2659,6 @@ overviewViewportController = createOverviewViewportController({
     PLOT_THEME,
   },
   callbacks: {
-    deferPixelOverlayRedraw,
     scheduleRoiOverlay,
     requestFrame,
     hasPendingFrameRequest,
@@ -2708,6 +2682,7 @@ const {
 core.overviewViewport = overviewViewportController;
 
 viewerSyncController = createViewerSyncController({
+  core,
   state,
   roiState,
   elements: {
@@ -2724,8 +2699,6 @@ viewerSyncController = createViewerSyncController({
     getViewRect,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
-    setZoom,
-    setEffectiveScroll,
     applySyncedContrast,
     applySyncedRoi,
   },
@@ -2810,10 +2783,6 @@ const overlayRenderController = createOverlayRenderController({
   },
 });
 core.overlayRender = overlayRenderController;
-
-function deferPixelOverlayRedraw(delayMs = PIXEL_LABEL_INTERACTION_IDLE_MS) {
-  overlayRenderController.deferPixelOverlayRedraw(delayMs);
-}
 
 const histogramRenderController = createHistogramRenderController({
   state,
@@ -3093,7 +3062,6 @@ const mainUiBindingsCallbacks = createMainUiBindingsCallbacks({
   isDocumentDropEnabled: () => !backendIsLocal,
   showDocumentDropDisabledStatus,
   closeAboutModal,
-  closeSettingsModal,
   renderCommandPalette,
   isHdfFile,
   loadDatasets,
@@ -3224,7 +3192,6 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   redrawRoiPlots,
   schedulePeakFinder,
   snapHistogramValue,
-  setZoom,
   zoomAt,
   requestFrame,
   startPlayback,
@@ -3261,7 +3228,6 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   isTouchGestureActive,
   getEffectiveScrollLeft,
   getEffectiveScrollTop,
-  setEffectiveScroll,
   getImagePointFromEvent,
   getRoiHandleAt,
   isPointInRoi,
@@ -3562,7 +3528,6 @@ const windowCloneController = createWindowCloneController({
     setStatus,
     getViewport: () => viewerSyncController?.readViewport() || null,
     applyViewportCenter: (center) => viewerSyncController?.applyViewportCenter(center),
-    openPathInViewer,
     isHdfFile,
     selectDatasetIfPresent,
     requestFrame,
@@ -3580,8 +3545,9 @@ core.windowClone = windowCloneController;
 // Stable wrappers: the menu and the boot sequence are handed these before the
 // controller above exists.
 createHandoffController({
+  core,
   apiBase: API,
-  callbacks: { openPathInViewer, isHdfFile, selectDatasetIfPresent, setStatus },
+  callbacks: { isHdfFile, selectDatasetIfPresent, setStatus },
 }).start();
 // Held for as long as this tab is open: see modules/presence.js.
 startPresence({ apiBase: API });

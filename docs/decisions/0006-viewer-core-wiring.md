@@ -126,3 +126,27 @@ would merge about five callbacks per frame into one, which no user would
 notice; what users feel (frame transfer and decoding, WebGL upload, ROI
 statistics) neither option touches. So performance did not decide between
 A and B.
+
+## Outcome
+
+Done in four steps, each checked with `npm run ui:live` against `main`'s
+recorded values (25/25 checks, three runs) and `ui:snapshots`:
+
+| Step | Controllers on `core` | Wrappers removed | `app.js` lines |
+| --- | --- | --- | --- |
+| 1: playback, file pipeline, session | 3 | 5 | 3,981 -> 3,965 |
+| 2: live sources and autoload | +9 | 25 | -> 3,835 |
+| 3: overlays, viewport, ROI, chrome, dialogs | +20 | 43 | -> 3,587 |
+| 4: the last seven | 0 | 7 | -> 3,553 |
+
+A wrapper went only where the direct call is provably the same for every
+caller: one forwarding call, its own parameters passed in order, defaults
+equal to the method's (or, for the last seven, checked by hand: the same
+destructured options, the same constant, no caller passing more arguments),
+its result returned or the method returning none, and no call before the
+controller exists (instrumented, five ways of starting ALBIS). What remains
+in `app.js` under these names does more than forward (`redraw`,
+`updateFrameControls`, `scheduleRoiOverlay`, ...).
+
+The cycle itself remains, as this record expected; every dependency in it is
+now a named `core.<controller>.<method>` call.

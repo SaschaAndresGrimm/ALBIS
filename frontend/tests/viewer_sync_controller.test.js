@@ -75,8 +75,9 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: () => ({ viewX: 100, viewY: 50, viewW: 200, viewH: 100 }),
-        setZoom: vi.fn(),
-        setEffectiveScroll: vi.fn(),
+      },
+      core: {
+        overviewViewport: { setZoom: vi.fn(), setEffectiveScroll: vi.fn() },
       },
       options: {
         createChannel,
@@ -93,8 +94,9 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: vi.fn(),
-        setZoom: setZoomB,
-        setEffectiveScroll: setEffectiveScrollB,
+      },
+      core: {
+        overviewViewport: { setZoom: setZoomB, setEffectiveScroll: setEffectiveScrollB },
       },
       options: {
         createChannel,
@@ -134,8 +136,9 @@ describe("viewer_sync_controller", () => {
         getViewRect: vi.fn(),
         getEffectiveScrollLeft: () => effectiveLeft,
         getEffectiveScrollTop: () => effectiveTop,
-        setZoom: vi.fn(),
-        setEffectiveScroll: vi.fn(),
+      },
+      core: {
+        overviewViewport: { setZoom: vi.fn(), setEffectiveScroll: vi.fn() },
       },
       options: {
         createChannel,
@@ -152,8 +155,9 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: vi.fn(),
-        setZoom: setZoomB,
-        setEffectiveScroll: setEffectiveScrollB,
+      },
+      core: {
+        overviewViewport: { setZoom: setZoomB, setEffectiveScroll: setEffectiveScrollB },
       },
       options: {
         createChannel,
@@ -195,8 +199,9 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: () => ({ viewX: 10, viewY: 20, viewW: 100, viewH: 80 }),
-        setZoom: vi.fn(),
-        setEffectiveScroll: vi.fn(),
+      },
+      core: {
+        overviewViewport: { setZoom: vi.fn(), setEffectiveScroll: vi.fn() },
       },
       options: {
         createChannel,
@@ -212,8 +217,9 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: vi.fn(),
-        setZoom: setZoomB,
-        setEffectiveScroll: setEffectiveScrollB,
+      },
+      core: {
+        overviewViewport: { setZoom: setZoomB, setEffectiveScroll: setEffectiveScrollB },
       },
       options: {
         createChannel,
@@ -254,8 +260,9 @@ describe("viewer_sync_controller", () => {
         getViewRect: () => ({ viewX: 0, viewY: 0, viewW: 1000, viewH: 800 }),
         getEffectiveScrollLeft: () => -70,
         getEffectiveScrollTop: () => 180,
-        setZoom: vi.fn(),
-        setEffectiveScroll: vi.fn(),
+      },
+      core: {
+        overviewViewport: { setZoom: vi.fn(), setEffectiveScroll: vi.fn() },
       },
       options: {
         createChannel,
@@ -272,8 +279,9 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: vi.fn(),
-        setZoom: setZoomB,
-        setEffectiveScroll: setEffectiveScrollB,
+      },
+      core: {
+        overviewViewport: { setZoom: setZoomB, setEffectiveScroll: setEffectiveScrollB },
       },
       options: {
         createChannel,
@@ -325,8 +333,9 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: vi.fn(),
-        setZoom: vi.fn(),
-        setEffectiveScroll: vi.fn(),
+      },
+      core: {
+        overviewViewport: { setZoom: vi.fn(), setEffectiveScroll: vi.fn() },
       },
       options: {
         createChannel,
@@ -343,9 +352,10 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: vi.fn(),
-        setZoom: vi.fn(),
-        setEffectiveScroll: vi.fn(),
         applySyncedContrast: applySyncedContrastB,
+      },
+      core: {
+        overviewViewport: { setZoom: vi.fn(), setEffectiveScroll: vi.fn() },
       },
       options: {
         createChannel,
@@ -416,8 +426,9 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: vi.fn(),
-        setZoom: vi.fn(),
-        setEffectiveScroll: vi.fn(),
+      },
+      core: {
+        overviewViewport: { setZoom: vi.fn(), setEffectiveScroll: vi.fn() },
       },
       options: {
         createChannel,
@@ -435,9 +446,10 @@ describe("viewer_sync_controller", () => {
       },
       callbacks: {
         getViewRect: vi.fn(),
-        setZoom: vi.fn(),
-        setEffectiveScroll: vi.fn(),
         applySyncedRoi: applySyncedRoiB,
+      },
+      core: {
+        overviewViewport: { setZoom: vi.fn(), setEffectiveScroll: vi.fn() },
       },
       options: {
         createChannel,
