@@ -174,6 +174,7 @@ export function createDataExportController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     dataExportModal,
@@ -214,7 +215,6 @@ export function createDataExportController({
     setStatus,
     fetchJSON,
     fetchJSONWithInit,
-    ensureFileMode,
     loadAutoloadFile,
   } = callbacks;
 
@@ -829,7 +829,7 @@ export function createDataExportController({
     try {
       // Leaves a live source for the file, but keeps the detector's monitor
       // on: another window, or the next live view, may need it.
-      await ensureFileMode({ disableMonitor: false });
+      await core.autoloadOrchestration.ensureFileMode({ disableMonitor: false });
       const loaded = await loadAutoloadFile(target);
       if (!loaded) {
         setStatus(t("status.data_export.output_open_failed"), { tone: "error" });

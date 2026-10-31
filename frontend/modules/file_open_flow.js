@@ -11,6 +11,7 @@ export function createFileOpenController({
   getBackendIsLocal,
   elements,
   callbacks,
+  core,
 }) {
   const {
     autoloadDir,
@@ -22,14 +23,12 @@ export function createFileOpenController({
   const {
     dirnameFromPath,
     syncSeriesSumOutputPath,
-    loadFiles,
     option,
     fileLabel,
     isHdfFile,
     loadDatasets,
     loadImageSeries,
     closeMenu,
-    ensureFileMode,
     setStatus,
     openFileDialog,
     recordRecentFile,
@@ -47,7 +46,7 @@ export function createFileOpenController({
     state.file = path;
     syncSeriesSumOutputPath();
     if (refreshFileList) {
-      await loadFiles();
+      await core.frameMetadata?.loadFiles();
     }
     if (fileSelect) {
       const existing = Array.from(fileSelect.options).some((opt) => opt.value === path);
@@ -68,7 +67,7 @@ export function createFileOpenController({
 
   async function runOpenFileModal() {
     closeMenu();
-    await ensureFileMode();
+    await core.autoloadOrchestration.ensureFileMode();
 
     if (getBackendIsLocal()) {
       try {

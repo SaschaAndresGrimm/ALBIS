@@ -107,13 +107,13 @@ async function createController({
       scheduleResolutionOverlay: vi.fn(),
       schedulePeakOverlay: vi.fn(),
       requestFrame: vi.fn(),
-      cancelActiveFrameLoad: vi.fn(),
       hasPendingFrameRequest: () => false,
       consumePendingFrameRequest: () => null,
       isFrameLoading: () => false,
       updateViewerFooter: vi.fn(),
       onViewportChanged,
     },
+    core: { fileDataPipeline: { cancelActiveLoad: vi.fn() } },
   });
 
   return { controller, state, canvasWrap, canvas, onViewportChanged };
@@ -176,7 +176,6 @@ describe("overview_viewport_controller", () => {
         scheduleResolutionOverlay: vi.fn(),
         schedulePeakOverlay: vi.fn(),
         requestFrame,
-        cancelActiveFrameLoad: vi.fn(),
         hasPendingFrameRequest: () => pendingFrame !== null,
         consumePendingFrameRequest: () => {
           const next = pendingFrame;
@@ -186,6 +185,7 @@ describe("overview_viewport_controller", () => {
         isFrameLoading: () => frameLoading,
         updateViewerFooter: vi.fn(),
       },
+      core: { fileDataPipeline: { cancelActiveLoad: vi.fn() } },
     });
 
     controller.deferViewportInteraction(60);

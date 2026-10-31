@@ -655,6 +655,7 @@ function syncOverlayCanvas(overlay, ctx) {
 }
 
 const maskCursorController = createMaskCursorController({
+  core,
   apiBase: API,
   state,
   elements: {
@@ -678,7 +679,6 @@ const maskCursorController = createMaskCursorController({
     getResolutionAtPixel,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
-    setAutoloadStatus,
     // Late-bound: the Pixel Mask section is created after this controller.
     getPinnedMask: () => pixelMaskController?.getPinnedMask() || null,
     onMaskChanged: () => pixelMaskController?.render(),
@@ -697,18 +697,7 @@ const {
   updateCursorOverlay,
   updateMaskUI,
 } = maskCursorController;
-
-function buildColumnMask(width, height, columns, base = null) {
-  return maskCursorController.buildColumnMask(width, height, columns, base);
-}
-
-function syncMaskAvailability(forceEnable = false) {
-  maskCursorController.syncMaskAvailability(forceEnable);
-}
-
-async function loadMask(forceEnable = false) {
-  await maskCursorController.loadMask(forceEnable);
-}
+core.maskCursor = maskCursorController;
 
 const roiInteractionController = createRoiInteractionController({
   state,
@@ -901,6 +890,7 @@ function getSeriesSumGeometryContext() {
 }
 
 const seriesSumController = createSeriesSumController({
+  core,
   apiBase: API,
   state,
   elements: {
@@ -912,7 +902,6 @@ const seriesSumController = createSeriesSumController({
     validateSeriesStepInput,
     useAsFlat: (path) => flatfieldController?.useFile(path),
     setStatus,
-    ensureFileMode,
     loadAutoloadFile,
     fetchJSON,
     fetchJSONWithInit,
@@ -922,6 +911,7 @@ const seriesSumController = createSeriesSumController({
 const { setSeriesSumProgress, updateSeriesSumUi } = seriesSumController;
 
 const dataExportController = createDataExportController({
+  core,
   apiBase: API,
   state,
   elements: {
@@ -935,7 +925,6 @@ const dataExportController = createDataExportController({
     setStatus,
     fetchJSON,
     fetchJSONWithInit,
-    ensureFileMode,
     loadAutoloadFile,
   },
 });
@@ -1202,7 +1191,7 @@ function refreshLocalizedUi() {
   updateToolbar();
   updateViewerFooter();
   updatePlayButtons();
-  updateLiveBadge();
+  core.backendStatus.updateLiveBadge();
   updateAboutVersion();
   updateDataSourceSummary();
   updateRingsSectionState();
@@ -1326,7 +1315,7 @@ function startPlayback() {
   if (liveHistoryController?.isLiveHistoryActive()) {
     if (state.autoload.livePaused) {
       liveHistoryController.goLive();
-      void autoloadTick();
+      void core.autoloadOrchestration.autoloadTick();
     } else {
       liveHistoryController.pauseLive();
     }
@@ -1468,6 +1457,7 @@ async function openSeriesSumOutputTarget() {
 }
 
 const fileOpenController = createFileOpenController({
+  core,
   apiBase: API,
   state,
   getBackendIsLocal: () => backendIsLocal,
@@ -1478,14 +1468,12 @@ const fileOpenController = createFileOpenController({
   callbacks: {
     dirnameFromPath,
     syncSeriesSumOutputPath,
-    loadFiles,
     option,
     fileLabel: (...args) => fileLabel(...args),
     isHdfFile,
     loadDatasets,
     loadImageSeries,
     closeMenu,
-    ensureFileMode,
     setStatus,
     openFileDialog: (...args) => openFileDialog(...args),
     recordRecentFile: (path) => recordRecentFile(path),
@@ -1515,6 +1503,7 @@ function recordRecentFile(path) {
 }
 
 const uploadFlowController = createUploadFlowController({
+  core,
   apiBase: API,
   state,
   elements: {
@@ -1522,10 +1511,8 @@ const uploadFlowController = createUploadFlowController({
 
   },
   callbacks: {
-    ensureFileMode,
     setLoading,
     setStatus,
-    loadFiles,
     openPathInViewer: (...args) => openPathInViewer(...args),
     fileLabel: (...args) => fileLabel(...args),
     fetchJSON,
@@ -1619,15 +1606,8 @@ function setDataControlsForSeries() {
   updateInspectorHeaderVisibility(state.file);
 }
 
-function setAutoloadStatus(text, markUpdate = false) {
-  autoloadStatusController?.setAutoloadStatus(text, markUpdate);
-}
-
-async function setSimplonMode(enabled) {
-  await autoloadStatusController?.setSimplonMode(enabled);
-}
-
 autoloadStatusController = createAutoloadStatusController({
+  core,
   apiBase: API,
   state,
   elements: {
@@ -1637,10 +1617,10 @@ autoloadStatusController = createAutoloadStatusController({
   callbacks: {
     setStatus,
     updateToolbar,
-    updateLiveBadge,
   },
 });
 const { setAutoloadLatest, updateAutoloadMeta } = autoloadStatusController;
+core.autoloadStatus = autoloadStatusController;
 
 // The geometry ALBIS calculates with, and the user's override of it. Created
 // before anything that reports metadata, since all of that goes through it.
@@ -1703,6 +1683,7 @@ const {
   updateRemoteMetaUI,
   updateSimplonMetaUI,
 } = sourceMetadataController;
+core.sourceMetadata = sourceMetadataController;
 sourceMetadataController.updateGeometryUi();
 
 panelLayoutController = createPanelLayoutController({
@@ -1806,7 +1787,6 @@ thresholdPlaybackController = createThresholdPlaybackController({
     updateViewerFooter,
     updateFpsLabel,
     startPlayback,
-    loadMask,
     requestFrame,
   },
 });
@@ -1850,7 +1830,6 @@ fileSessionController = createFileSessionController({
 
   },
   callbacks: {
-    clearImageGeometry,
     clearGeometrySource: () => geometryParamsController?.clearSource(),
     clearMaskState,
     clearImageHeader,
@@ -1879,7 +1858,6 @@ fileSessionController = createFileSessionController({
     setDataControlsForImage,
     setDataControlsForSeries,
     buildNegativeMask,
-    buildColumnMask,
     updateMaskUI,
     getRenderer: () => renderer,
     isWebglUnsignedRawCandidate,
@@ -1890,7 +1868,6 @@ fileSessionController = createFileSessionController({
     getContrastData,
     formatValue,
     alignMaskToFrame,
-    syncMaskAvailability,
     redraw,
     fitImageToView,
     hideSplash,
@@ -1933,14 +1910,7 @@ const backendStatusController = createBackendStatusController({
   },
 });
 const { startBackendHeartbeat, updateAboutVersion } = backendStatusController;
-
-function updateLiveBadge() {
-  backendStatusController.updateLiveBadge();
-}
-
-async function waitForBackendReady(timeoutMs = 20000) {
-  return backendStatusController.waitForBackendReady(timeoutMs);
-}
+core.backendStatus = backendStatusController;
 
 async function fetchSettingsConfig() {
   try {
@@ -1978,21 +1948,18 @@ async function bootstrapApp() {
   showSplash();
   drawSplash();
   setSplashStatus("splash.status.starting_backend");
-  await waitForBackendReady();
+  await core.backendStatus.waitForBackendReady();
   setSplashStatus("splash.status.loading_settings");
   await fetchSettingsConfig();
   setSplashStatus("splash.status.loading_file_list");
-  await loadAutoloadFolders();
-  await loadFiles();
+  await core.frameMetadata?.loadAutoloadFolders();
+  await core.frameMetadata?.loadFiles();
   setSplashStatus("splash.status.ready_open_file");
   maybeCheckForStartupUpdates();
 }
 
-async function loadAutoloadFolders() {
-  await frameMetadataController?.loadAutoloadFolders();
-}
-
 const autoloadSettingsController = createAutoloadSettingsController({
+  core,
   state,
   elements: {
     ...appElements,
@@ -2002,17 +1969,13 @@ const autoloadSettingsController = createAutoloadSettingsController({
     closeToolbarPlaybackPopover,
     updateSimplonMetaUI,
     updateRemoteMetaUI,
-    updateJfjochMetaUI,
     updateAutoloadMeta,
-    updateLiveBadge,
     updateThresholdOptions,
     updateDataSourceSummary,
     setDataSourceSectionState,
-    setAutoloadStatus,
     setAutoloadLatest,
     updatePlayButtons,
     isBackendLocal: () => backendIsLocal,
-    startAutoload: (...args) => startAutoload(...args),
   },
 });
 const { loadAutoloadSettings, persistAutoloadSettings } = autoloadSettingsController;
@@ -2023,6 +1986,7 @@ function updateAutoloadUI() {
 }
 
 const autoloadOrchestrationController = createAutoloadOrchestrationController({
+  core,
   state,
   analysisState,
   elements: {
@@ -2032,49 +1996,23 @@ const autoloadOrchestrationController = createAutoloadOrchestrationController({
   callbacks: {
     updateAutoloadUI,
     updateAutoloadMeta,
-    setAutoloadStatus,
     setStatus,
     persistAutoloadSettings,
     resetLiveHistory: () => resetLiveHistory(),
-    setSimplonMode,
-    fetchSimplonMask,
-    updateLiveBadge,
-    stopJfjochPreviewBridge: (...args) => stopJfjochPreviewBridge(...args),
     updateRemoteMetaUI,
-    updateJfjochMetaUI,
     schedulePeakOverlay,
-    autoloadWatchTick: (...args) => autoloadWatchTick(...args),
-    autoloadSimplonTick: (...args) => autoloadSimplonTick(...args),
-    autoloadJfjochTick: (...args) => autoloadJfjochTick(...args),
-    autoloadRemoteTick: (...args) => autoloadRemoteTick(...args),
   },
 });
-
-async function startAutoload() {
-  await autoloadOrchestrationController.startAutoload();
-}
-
-async function stopAutoload(options = {}) {
-  await autoloadOrchestrationController.stopAutoload(options);
-}
-
-async function ensureFileMode(options) {
-  await autoloadOrchestrationController.ensureFileMode(options);
-}
-
-async function autoloadTick() {
-  await autoloadOrchestrationController.autoloadTick();
-}
+core.autoloadOrchestration = autoloadOrchestrationController;
 
 const autoloadModeController = createAutoloadModeController({
+  core,
   apiBase: API,
   state,
   callbacks: {
-    setAutoloadStatus,
     setAutoloadLatest,
     updateAutoloadMeta,
     loadAutoloadFile: (...args) => loadAutoloadFile(...args),
-    fetchSimplonMask,
     parseDtype,
     parseShape,
     typedArrayFrom,
@@ -2083,49 +2021,25 @@ const autoloadModeController = createAutoloadModeController({
     appendLiveFrame,
     logClient,
     formatSimplonTimestamp,
-    updateLiveBadge,
   },
 });
-
-async function autoloadWatchTick() {
-  await autoloadModeController.autoloadWatchTick();
-}
-
-async function autoloadSimplonTick() {
-  await autoloadModeController.autoloadSimplonTick();
-}
+core.autoloadMode = autoloadModeController;
 
 const jfjochBridgeController = createJfjochBridgeController({
+  core,
   apiBase: API,
   state,
   callbacks: {
-    setAutoloadStatus,
-    updateJfjochMetaUI,
   },
 });
-
-async function startJfjochPreviewBridge() {
-  return jfjochBridgeController.startJfjochPreviewBridge();
-}
-
-async function stopJfjochPreviewBridge() {
-  return jfjochBridgeController.stopJfjochPreviewBridge();
-}
-
-async function fetchJfjochPreviewStatus() {
-  return jfjochBridgeController.fetchJfjochPreviewStatus();
-}
+core.jfjochBridge = jfjochBridgeController;
 
 const remoteStreamController = createRemoteStreamController({
   core,
   apiBase: API,
   state,
   callbacks: {
-    setAutoloadStatus,
-    updateLiveBadge,
     updateAutoloadMeta,
-    startJfjochPreviewBridge: (...args) => startJfjochPreviewBridge(...args),
-    fetchJfjochPreviewStatus: (...args) => fetchJfjochPreviewStatus(...args),
     parseDtype,
     parseShape,
     typedArrayFrom,
@@ -2137,14 +2051,7 @@ const remoteStreamController = createRemoteStreamController({
     resetLiveHistory,
   },
 });
-
-async function autoloadJfjochTick() {
-  await remoteStreamController.autoloadJfjochTick();
-}
-
-async function autoloadRemoteTick() {
-  await remoteStreamController.autoloadRemoteTick();
-}
+core.remoteStream = remoteStreamController;
 
 framePlaybackController = createFramePlaybackController({
   core,
@@ -2192,13 +2099,13 @@ frameMetadataController = createFrameMetadataController({
     syncSeriesSumOutputPath,
     updateFrameControls,
     updateThresholdOptions,
-    loadMask,
     isHdf5File,
     geometryParams: geometryParamsController,
     loadImageGeometry,
     scheduleResolutionOverlay,
   },
 });
+core.frameMetadata = frameMetadataController;
 
 const liveSeriesWatch = createLiveSeriesWatch({
   refreshFrameCount: () => frameMetadataController.refreshFrameCount(),
@@ -2228,7 +2135,6 @@ fileDataPipelineController = createFileDataPipelineController({
     isHdfFile,
     setDataControlsForHdf5,
     setDataControlsForSeries,
-    loadMetadata: (...args) => loadMetadata(...args),
     loadImageGeometry,
     loadInspectorRoot,
     updateFrameControls,
@@ -2248,7 +2154,6 @@ fileDataPipelineController = createFileDataPipelineController({
     setDataSourceSectionState,
     showProcessingProgress,
     hideProcessingProgress,
-    loadMask,
     updateToolbar,
   },
 });
@@ -2262,10 +2167,6 @@ async function loadAutoloadFile(file) {
 async function loadImageSeries(file) {
   resetLiveHistory();
   return fileDataPipelineController.loadImageSeries(file);
-}
-
-async function fetchSimplonMask() {
-  await maskCursorController.fetchSimplonMask();
 }
 
 async function exportViewerWindow(options) {
@@ -2355,7 +2256,7 @@ detectorControlController = createDetectorControlController({
     // A series copied from the detector opens like any file: the data source
     // becomes File, as with File -> Open, instead of staying on the live view.
     openPath: async (path) => {
-      await ensureFileMode({ disableMonitor: false });
+      await core.autoloadOrchestration.ensureFileMode({ disableMonitor: false });
       await openPathInViewer(path);
     },
     // The monitor's images are what ALBIS's SIMPLON data source shows: point it
@@ -2377,7 +2278,7 @@ detectorControlController = createDetectorControlController({
         autoloadMode.value = "simplon";
         autoloadMode.dispatchEvent(new window.Event("change"));
       } else if (!state.autoload.running || before !== state.autoload.simplonUrl) {
-        void startAutoload();
+        void core.autoloadOrchestration.startAutoload();
       }
     },
     onChange: () => pixelMaskController?.render(),
@@ -2443,7 +2344,7 @@ pixelMaskController = createPixelMaskController({
     setSectionBadgeState,
     // The detector's mask, saved as a file, opens like a series copied from it.
     openPath: async (path) => {
-      await ensureFileMode({ disableMonitor: false });
+      await core.autoloadOrchestration.ensureFileMode({ disableMonitor: false });
       await openPathInViewer(path);
     },
     openEditor: () => pixelMaskEditController?.open() || false,
@@ -2754,17 +2655,9 @@ function fileLabel(path) {
 
 let renderEngineController = null;
 
-async function loadFiles() {
-  await frameMetadataController?.loadFiles();
-}
-
 async function loadDatasets() {
   resetLiveHistory();
   return fileDataPipelineController.loadDatasets();
-}
-
-async function loadMetadata() {
-  return frameMetadataController?.loadMetadata();
 }
 
 function formatSimplonTimestamp(raw) {
@@ -2773,24 +2666,12 @@ function formatSimplonTimestamp(raw) {
     : (raw ? String(raw) : "");
 }
 
-function updateJfjochMetaUI(meta, status = {}) {
-  sourceMetadataController?.updateJfjochMetaUI(meta, status);
-}
-
-function applyImageGeometry(payload, cacheKey = "", options = {}) {
-  sourceMetadataController?.applyImageGeometry(payload, cacheKey, options);
-}
-
-function clearImageGeometry(options = {}) {
-  sourceMetadataController?.clearImageGeometry(options);
-}
-
 async function loadImageGeometry(file, scopeKey = getGeometryScopeKey(state, file)) {
   const key = String(scopeKey || getGeometryScopeKey(state, file) || "");
   const overridePath = geometryParamsController?.getActiveGeometryFile() || "";
   const requestKey = buildGeometryRequestKey(key || file || "", overridePath);
   if (!file) {
-    applyImageGeometry({ mode: "planar", panels: [] }, requestKey);
+    core.sourceMetadata?.applyImageGeometry({ mode: "planar", panels: [] }, requestKey);
     return;
   }
   if (
@@ -2809,11 +2690,11 @@ async function loadImageGeometry(file, scopeKey = getGeometryScopeKey(state, fil
   try {
     const payload = await fetchJSON(`${API}/image/geometry?${params.toString()}`);
     if (analysisState.ringGeometryKey !== requestKey) return;
-    applyImageGeometry(payload, requestKey, { overrideActive: Boolean(overridePath) });
+    core.sourceMetadata?.applyImageGeometry(payload, requestKey, { overrideActive: Boolean(overridePath) });
   } catch (err) {
     console.error(err);
     if (analysisState.ringGeometryKey !== requestKey) return;
-    applyImageGeometry({ mode: "planar", panels: [] }, requestKey);
+    core.sourceMetadata?.applyImageGeometry({ mode: "planar", panels: [] }, requestKey);
   }
 }
 
@@ -3416,13 +3297,11 @@ const mainUiBindingsCallbacks = createMainUiBindingsCallbacks({
   saveSettingsFromModal,
   renderCommandPalette,
   closeCommandPalette,
-  ensureFileMode,
   syncSeriesSumOutputPath,
   isHdfFile,
   loadDatasets,
   recordRecentFile,
   loadImageSeries,
-  loadMetadata,
   setThresholdIndex,
   requestFrame,
   setFrameStep,
@@ -3443,6 +3322,7 @@ function initializeMainUiBindings() {
 }
 
 const fileBrowserControllerContext = createFileBrowserControllerContext({
+  core,
   apiBase: API,
   elements: {
     ...appElements,
@@ -3454,8 +3334,6 @@ const fileBrowserControllerContext = createFileBrowserControllerContext({
     setStatus,
     getAutoloadState: () => state.autoload,
     persistAutoloadSettings,
-    loadFiles,
-    autoloadTick,
   },
 });
 
@@ -3516,7 +3394,7 @@ async function handleLocalFileSelection(mode) {
       state.autoload.dir = file.name;
       persistAutoloadSettings();
       // Note: actual file loading from user's machine would require additional upload endpoint
-      setAutoloadStatus(t("autoload.status.local_file_selected_upload_needed"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.local_file_selected_upload_needed"));
     }
   };
   fileInput.click();
@@ -3534,17 +3412,10 @@ const postFilePickerBindingsElements = createPostFilePickerBindingsElements({
 
 const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   getRingParams,
-  stopAutoload,
-  startAutoload,
   updateAutoloadUI,
   persistAutoloadSettings,
-  loadFiles,
-  autoloadTick,
   updateRemoteMetaUI,
-  updateJfjochMetaUI,
   schedulePeakOverlay,
-  setSimplonMode,
-  setAutoloadStatus,
   openFileBrowser,
   openFileModal,
   handleLocalFileSelection,
@@ -3654,7 +3525,6 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   isHdfFile,
   loadDatasets,
   loadImageSeries,
-  loadMetadata,
   setRoiDragging: (next) => {
     roiDragging = next;
   },
@@ -3912,11 +3782,12 @@ async function selectDatasetIfPresent(dataset) {
   if (!exists) return false;
   state.dataset = dataset;
   datasetSelect.value = dataset;
-  await loadMetadata();
+  await core.frameMetadata?.loadMetadata();
   return true;
 }
 
 const windowCloneController = createWindowCloneController({
+  core,
   state,
   analysisState,
   roiState,
@@ -3926,7 +3797,6 @@ const windowCloneController = createWindowCloneController({
     getViewport: () => viewerSyncController?.readViewport() || null,
     applyViewportCenter: (center) => viewerSyncController?.applyViewportCenter(center),
     openPathInViewer,
-    ensureFileMode,
     isHdfFile,
     selectDatasetIfPresent,
     setThresholdIndex,

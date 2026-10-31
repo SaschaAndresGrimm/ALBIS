@@ -18,6 +18,7 @@ export function bindAutoloadControls({
   backendIsLocal,
   elements,
   callbacks,
+  core,
 }) {
   const {
     autoloadMode,
@@ -49,16 +50,10 @@ export function bindAutoloadControls({
   } = elements;
 
   const {
-    stopAutoload,
-    startAutoload,
     updateAutoloadUI,
     persistAutoloadSettings,
-    loadFiles,
-    autoloadTick,
     updateRemoteMetaUI,
-    updateJfjochMetaUI,
     schedulePeakOverlay,
-    setSimplonMode,
     openFileBrowser,
     openFileModal,
     handleLocalFileSelection,
@@ -68,18 +63,18 @@ export function bindAutoloadControls({
   autoloadMode?.addEventListener("change", async () => {
     const nextMode = autoloadMode.value;
     if (state.autoload.running) {
-      await stopAutoload();
+      await core.autoloadOrchestration.stopAutoload();
     }
     state.autoload.mode = nextMode;
     updateAutoloadUI();
     persistAutoloadSettings();
     if (state.autoload.mode === "file") {
-      loadFiles().catch((err) => console.error(err));
+      core.frameMetadata?.loadFiles().catch((err) => console.error(err));
       if (state.autoload.watchEnabled) {
-        startAutoload().catch((err) => console.error(err));
+        core.autoloadOrchestration.startAutoload().catch((err) => console.error(err));
       }
     } else {
-      startAutoload().catch((err) => console.error(err));
+      core.autoloadOrchestration.startAutoload().catch((err) => console.error(err));
     }
   });
 
@@ -89,9 +84,9 @@ export function bindAutoloadControls({
     persistAutoloadSettings();
     if (state.autoload.mode !== "file") return;
     if (state.autoload.watchEnabled) {
-      startAutoload();
+      core.autoloadOrchestration.startAutoload();
     } else if (state.autoload.running) {
-      stopAutoload({ keepMode: true, disableMonitor: false });
+      core.autoloadOrchestration.stopAutoload({ keepMode: true, disableMonitor: false });
     }
   });
 
@@ -99,10 +94,10 @@ export function bindAutoloadControls({
     state.autoload.dir = autoloadDir.value.trim();
     persistAutoloadSettings();
     if (state.autoload.mode === "file") {
-      loadFiles().catch((err) => console.error(err));
+      core.frameMetadata?.loadFiles().catch((err) => console.error(err));
     }
     if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-      autoloadTick();
+      core.autoloadOrchestration.autoloadTick();
     }
   });
 
@@ -110,7 +105,7 @@ export function bindAutoloadControls({
     state.autoload.interval = Math.max(200, Number(autoloadInterval.value || 1000));
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-      startAutoload();
+      core.autoloadOrchestration.startAutoload();
     }
   });
 
@@ -118,7 +113,7 @@ export function bindAutoloadControls({
     state.autoload.interval = Math.max(100, Number(remoteIntervalInput.value || 1000));
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "remote") {
-      startAutoload();
+      core.autoloadOrchestration.startAutoload();
     }
   });
 
@@ -126,7 +121,7 @@ export function bindAutoloadControls({
     state.autoload.jfjochInterval = Math.max(100, Number(jfjochIntervalInput.value || 250));
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
-      startAutoload();
+      core.autoloadOrchestration.startAutoload();
     }
   });
 
@@ -140,7 +135,7 @@ export function bindAutoloadControls({
       analysisState.externalPeakSets = [];
       updateRemoteMetaUI({});
       schedulePeakOverlay();
-      autoloadTick();
+      core.autoloadOrchestration.autoloadTick();
     }
   });
 
@@ -151,9 +146,9 @@ export function bindAutoloadControls({
       state.autoload.lastJfjochSeq = 0;
       state.autoload.jfjochMeta = {};
       analysisState.externalPeakSets = [];
-      updateJfjochMetaUI(state.autoload.jfjochMeta || {}, state.autoload.jfjochStatus || {});
+      core.sourceMetadata?.updateJfjochMetaUI(state.autoload.jfjochMeta || {}, state.autoload.jfjochStatus || {});
       schedulePeakOverlay();
-      autoloadTick();
+      core.autoloadOrchestration.autoloadTick();
     }
   });
 
@@ -181,7 +176,7 @@ export function bindAutoloadControls({
     jfjochProbeController.clearJfjochProbeMessage();
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
-      startAutoload();
+      core.autoloadOrchestration.startAutoload();
     }
   });
 
@@ -189,7 +184,7 @@ export function bindAutoloadControls({
     state.autoload.jfjochTopic = (jfjochTopicInput.value || "").trim();
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
-      startAutoload();
+      core.autoloadOrchestration.startAutoload();
     }
   });
 
@@ -197,7 +192,7 @@ export function bindAutoloadControls({
     state.autoload.jfjochChannel = (jfjochChannelInput.value || "").trim();
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
-      startAutoload();
+      core.autoloadOrchestration.startAutoload();
     }
   });
 
@@ -210,7 +205,7 @@ export function bindAutoloadControls({
       };
       persistAutoloadSettings();
       if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-        autoloadTick();
+        core.autoloadOrchestration.autoloadTick();
       }
     });
   });
@@ -219,7 +214,7 @@ export function bindAutoloadControls({
     state.autoload.pattern = autoloadPattern.value.trim();
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-      autoloadTick();
+      core.autoloadOrchestration.autoloadTick();
     }
   });
 
@@ -232,10 +227,10 @@ export function bindAutoloadControls({
           state.autoload.dir = path;
           persistAutoloadSettings();
           if (state.autoload.mode === "file") {
-            loadFiles().catch((err) => console.error(err));
+            core.frameMetadata?.loadFiles().catch((err) => console.error(err));
           }
           if (state.autoload.running && state.autoload.mode === "file" && state.autoload.watchEnabled) {
-            autoloadTick();
+            core.autoloadOrchestration.autoloadTick();
           }
         }
         return;
@@ -310,7 +305,7 @@ export function bindAutoloadControls({
     state.autoload.simplonEnable = simplonEnable.checked;
     persistAutoloadSettings();
     if (state.autoload.running && state.autoload.mode === "simplon") {
-      await setSimplonMode(state.autoload.simplonEnable);
+      await core.autoloadStatus?.setSimplonMode(state.autoload.simplonEnable);
     }
   });
 }

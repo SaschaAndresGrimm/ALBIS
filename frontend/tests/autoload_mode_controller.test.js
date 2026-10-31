@@ -77,11 +77,9 @@ describe("autoload_mode_controller", () => {
       apiBase: "/api",
       state,
       callbacks: {
-        setAutoloadStatus,
         setAutoloadLatest: vi.fn(),
         updateAutoloadMeta,
         loadAutoloadFile: vi.fn(async () => false),
-        fetchSimplonMask: vi.fn(),
         parseDtype: vi.fn(),
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
@@ -90,7 +88,11 @@ describe("autoload_mode_controller", () => {
         appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
         logClient: vi.fn(),
         formatSimplonTimestamp: vi.fn(),
-        updateLiveBadge: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus },
+        maskCursor: { fetchSimplonMask: vi.fn() },
+        backendStatus: { updateLiveBadge: vi.fn() },
       },
     });
 
@@ -145,11 +147,9 @@ describe("autoload_mode_controller", () => {
         },
       },
       callbacks: {
-        setAutoloadStatus,
         setAutoloadLatest: vi.fn(),
         updateAutoloadMeta: vi.fn(),
         loadAutoloadFile: vi.fn(async () => true),
-        fetchSimplonMask: vi.fn(),
         parseDtype: vi.fn(),
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
@@ -158,7 +158,11 @@ describe("autoload_mode_controller", () => {
         appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
         logClient: vi.fn(),
         formatSimplonTimestamp: vi.fn(),
-        updateLiveBadge: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus },
+        maskCursor: { fetchSimplonMask: vi.fn() },
+        backendStatus: { updateLiveBadge: vi.fn() },
       },
     });
 
@@ -207,11 +211,9 @@ describe("autoload_mode_controller", () => {
         },
       },
       callbacks: {
-        setAutoloadStatus,
         setAutoloadLatest: vi.fn(),
         updateAutoloadMeta: vi.fn(),
         loadAutoloadFile: vi.fn(async () => true),
-        fetchSimplonMask: vi.fn(),
         parseDtype: vi.fn(),
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
@@ -220,7 +222,11 @@ describe("autoload_mode_controller", () => {
         appendLiveFrame: vi.fn(() => ({ appended: false, rendered: false })),
         logClient: vi.fn(),
         formatSimplonTimestamp: vi.fn(),
-        updateLiveBadge: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus },
+        maskCursor: { fetchSimplonMask: vi.fn() },
+        backendStatus: { updateLiveBadge: vi.fn() },
       },
     });
 
@@ -293,11 +299,9 @@ describe("autoload_mode_controller", () => {
       apiBase: "/api",
       state,
       callbacks: {
-        setAutoloadStatus: vi.fn(),
         setAutoloadLatest: vi.fn(),
         updateAutoloadMeta,
         loadAutoloadFile: vi.fn(),
-        fetchSimplonMask: vi.fn(),
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint16Array(buffer),
@@ -309,7 +313,11 @@ describe("autoload_mode_controller", () => {
         appendLiveFrame,
         logClient: vi.fn(),
         formatSimplonTimestamp: vi.fn(() => "12:00"),
-        updateLiveBadge: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
+        maskCursor: { fetchSimplonMask: vi.fn() },
+        backendStatus: { updateLiveBadge: vi.fn() },
       },
     });
 
@@ -367,11 +375,9 @@ describe("autoload_mode_controller", () => {
         },
       },
       callbacks: {
-        setAutoloadStatus: vi.fn(),
         setAutoloadLatest: vi.fn(),
         updateAutoloadMeta: vi.fn(),
         loadAutoloadFile: vi.fn(),
-        fetchSimplonMask,
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint32Array(buffer),
@@ -384,7 +390,11 @@ describe("autoload_mode_controller", () => {
         appendLiveFrame,
         logClient: vi.fn(),
         formatSimplonTimestamp: vi.fn(() => ""),
-        updateLiveBadge: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
+        maskCursor: { fetchSimplonMask },
+        backendStatus: { updateLiveBadge: vi.fn() },
       },
     });
     await controller.autoloadSimplonTick();
@@ -475,11 +485,9 @@ describe("autoload_mode_controller", () => {
       apiBase: "/api",
       state,
       callbacks: {
-        setAutoloadStatus: vi.fn(),
         setAutoloadLatest: vi.fn(),
         updateAutoloadMeta,
         loadAutoloadFile: vi.fn(),
-        fetchSimplonMask: vi.fn(),
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint16Array(buffer),
@@ -491,7 +499,11 @@ describe("autoload_mode_controller", () => {
         appendLiveFrame,
         logClient: vi.fn(),
         formatSimplonTimestamp: vi.fn(() => "12:00"),
-        updateLiveBadge,
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
+        maskCursor: { fetchSimplonMask: vi.fn() },
+        backendStatus: { updateLiveBadge },
       },
     });
 

@@ -98,11 +98,7 @@ describe("remote_stream_controller", () => {
       apiBase: "/api",
       state,
       callbacks: {
-        setAutoloadStatus: vi.fn(),
-        updateLiveBadge: vi.fn(),
         updateAutoloadMeta: vi.fn(),
-        startJfjochPreviewBridge: vi.fn(),
-        fetchJfjochPreviewStatus: vi.fn(),
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint16Array(buffer),
@@ -121,7 +117,12 @@ describe("remote_stream_controller", () => {
         appendLiveFrame,
         updateLiveHistoryEntry,
         resetLiveHistory: vi.fn(),
-        applyExternalFrame,
+      },
+      core: {
+        fileSession: { applyExternalFrame },
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
+        backendStatus: { updateLiveBadge: vi.fn() },
+        jfjochBridge: { startJfjochPreviewBridge: vi.fn(), fetchJfjochPreviewStatus: vi.fn() },
       },
     });
 
@@ -179,11 +180,7 @@ describe("remote_stream_controller", () => {
       apiBase: "/api",
       state,
       callbacks: {
-        setAutoloadStatus: vi.fn(),
-        updateLiveBadge,
         updateAutoloadMeta: vi.fn(),
-        startJfjochPreviewBridge: vi.fn(),
-        fetchJfjochPreviewStatus: vi.fn(),
         parseDtype: (value) => value,
         parseShape: (value) => String(value).split(",").map((item) => Number.parseInt(item, 10)),
         typedArrayFrom: (buffer) => new Uint16Array(buffer),
@@ -202,7 +199,12 @@ describe("remote_stream_controller", () => {
         appendLiveFrame,
         updateLiveHistoryEntry: vi.fn(),
         resetLiveHistory: vi.fn(),
-        applyExternalFrame: vi.fn(),
+      },
+      core: {
+        fileSession: { applyExternalFrame: vi.fn() },
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
+        backendStatus: { updateLiveBadge },
+        jfjochBridge: { startJfjochPreviewBridge: vi.fn(), fetchJfjochPreviewStatus: vi.fn() },
       },
     });
 

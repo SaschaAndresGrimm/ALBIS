@@ -99,7 +99,6 @@ describe("file_session_controller", () => {
         canvas: null,
       },
       callbacks: {
-        clearImageGeometry: vi.fn(),
         clearMaskState: vi.fn(),
         clearImageHeader: vi.fn(),
         updateToolbar: vi.fn(),
@@ -136,7 +135,6 @@ describe("file_session_controller", () => {
         computeAutoLevels: vi.fn(() => ({ min: 1, max: 3 })),
         formatValue: vi.fn((value) => String(value)),
         alignMaskToFrame: vi.fn(),
-        syncMaskAvailability: vi.fn(),
         redraw: vi.fn(),
         fitImageToView: vi.fn(),
         hideSplash: vi.fn(),
@@ -148,6 +146,8 @@ describe("file_session_controller", () => {
         scheduleHistogram: vi.fn(),
       },
       core: {
+        sourceMetadata: { clearImageGeometry: vi.fn() },
+        maskCursor: { syncMaskAvailability: vi.fn() },
         framePlayback: { stopPlayback },
         fileDataPipeline: { resetTransientLoadState: resetTransientFrameLoadState },
       },
@@ -227,7 +227,6 @@ describe("file_session_controller", () => {
         canvas: null,
       },
       callbacks: {
-        clearImageGeometry: vi.fn(),
         clearMaskState: vi.fn(),
         clearImageHeader: vi.fn(),
         updateToolbar: vi.fn(),
@@ -264,7 +263,6 @@ describe("file_session_controller", () => {
         computeAutoLevels: vi.fn(() => ({ min: 1, max: 4 })),
         formatValue: vi.fn((value) => String(value)),
         alignMaskToFrame: vi.fn(),
-        syncMaskAvailability: vi.fn(),
         redraw: vi.fn(),
         fitImageToView: vi.fn(),
         hideSplash: vi.fn(),
@@ -276,6 +274,8 @@ describe("file_session_controller", () => {
         scheduleHistogram: vi.fn(),
       },
       core: {
+        sourceMetadata: { clearImageGeometry: vi.fn() },
+        maskCursor: { syncMaskAvailability: vi.fn() },
         framePlayback: { stopPlayback: vi.fn() },
         fileDataPipeline: { resetTransientLoadState: vi.fn() },
       },
@@ -359,7 +359,6 @@ describe("file_session_controller", () => {
         canvas: null,
       },
       callbacks: {
-        clearImageGeometry: vi.fn(),
         clearMaskState: vi.fn(),
         clearImageHeader: vi.fn(),
         updateToolbar: vi.fn(),
@@ -396,7 +395,6 @@ describe("file_session_controller", () => {
         computeAutoLevels: vi.fn(() => ({ min: 1, max: 4 })),
         formatValue: vi.fn((value) => String(value)),
         alignMaskToFrame: vi.fn(() => calls.push("alignMaskToFrame")),
-        syncMaskAvailability,
         redraw: vi.fn(),
         fitImageToView: vi.fn(),
         hideSplash: vi.fn(),
@@ -408,6 +406,8 @@ describe("file_session_controller", () => {
         scheduleHistogram: vi.fn(),
       },
       core: {
+        sourceMetadata: { clearImageGeometry: vi.fn() },
+        maskCursor: { syncMaskAvailability },
         framePlayback: { stopPlayback: vi.fn() },
         fileDataPipeline: { resetTransientLoadState: vi.fn() },
       },

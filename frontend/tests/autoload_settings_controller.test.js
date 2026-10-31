@@ -6,16 +6,22 @@ describe("autoload_settings_controller", () => {
       closeToolbarPlaybackPopover: vi.fn(),
       updateSimplonMetaUI: vi.fn(),
       updateRemoteMetaUI: vi.fn(),
-      updateJfjochMetaUI: vi.fn(),
       updateAutoloadMeta: vi.fn(),
-      updateLiveBadge: vi.fn(),
       updateThresholdOptions: vi.fn(),
       updateDataSourceSummary: vi.fn(),
       setDataSourceSectionState: vi.fn(),
-      setAutoloadStatus: vi.fn(),
       setAutoloadLatest: vi.fn(),
       updatePlayButtons: vi.fn(),
-      startAutoload: vi.fn(),
+    };
+  }
+
+  // The controllers it reaches through the registry (decision 0006).
+  function baseCore() {
+    return {
+      sourceMetadata: { updateJfjochMetaUI: vi.fn() },
+      backendStatus: { updateLiveBadge: vi.fn() },
+      autoloadStatus: { setAutoloadStatus: vi.fn() },
+      autoloadOrchestration: { startAutoload: vi.fn() },
     };
   }
 
@@ -90,6 +96,7 @@ describe("autoload_settings_controller", () => {
       callbacks: {
         ...baseCallbacks(),
       },
+      core: baseCore(),
     });
 
     controller.updateAutoloadUI();
@@ -189,6 +196,7 @@ describe("autoload_settings_controller", () => {
         ...baseCallbacks(),
         isBackendLocal: () => true,
       },
+      core: baseCore(),
     });
 
     controller.updateAutoloadUI();

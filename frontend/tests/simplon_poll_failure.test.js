@@ -53,11 +53,9 @@ async function runTick({ failureBody, ok = false, status = 502 }) {
     apiBase: "/api",
     state,
     callbacks: {
-      setAutoloadStatus,
       setAutoloadLatest: vi.fn(),
       updateAutoloadMeta: vi.fn(),
       loadAutoloadFile: vi.fn(),
-      fetchSimplonMask: vi.fn(),
       parseDtype: (value) => value,
       parseShape: (value) => String(value).split(",").map(Number),
       typedArrayFrom: (buffer) => new Uint16Array(buffer),
@@ -66,7 +64,11 @@ async function runTick({ failureBody, ok = false, status = 502 }) {
       appendLiveFrame: vi.fn(() => ({ appended: true, rendered: true })),
       logClient,
       formatSimplonTimestamp: vi.fn(() => ""),
-      updateLiveBadge: vi.fn(),
+    },
+    core: {
+      autoloadStatus: { setAutoloadStatus },
+      maskCursor: { fetchSimplonMask: vi.fn() },
+      backendStatus: { updateLiveBadge: vi.fn() },
     },
   });
 
