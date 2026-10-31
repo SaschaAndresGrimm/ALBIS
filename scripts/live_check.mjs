@@ -198,7 +198,7 @@ const recorded = {};
 // Page text in a detail is printed: no control characters reach the terminal.
 const printable = (detail) =>
   String(detail ?? "")
-    .replace(/\r|\n/g, " ")
+    .replace(/\n|\r/g, "")
     .replace(/[\u0000-\u001f\u007f]/g, " ");
 function check(step, ok, detail) {
   results.push({ step, ok: Boolean(ok), detail: printable(detail) });
