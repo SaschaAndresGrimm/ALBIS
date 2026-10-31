@@ -36,18 +36,24 @@
 
 ## Consequences
 
-- An element is added in three places: its id in `index.html`, an entry in
-  `app_elements.js`, its name in the destructuring in `app.js`.
+- An element is added in two places: its id in `index.html` and an entry in
+  `app_elements.js`. Controllers receive the whole table (`elements:
+  { ...appElements, … }`) and take what they need; `app.js` names an element
+  in its own destructuring only if it uses it itself.
   `frontend/tests/app_elements.test.js` fails if an id is missing from
-  `index.html` or the two lists differ; eslint reports a name taken but unused.
+  `index.html` or an entry is read nowhere; eslint reports a name `app.js`
+  takes but does not use.
+- Passing the whole table was checked per controller before it was done: no
+  controller reads an element from the table that it was not given before
+  (that would switch on a path that had been off), and nothing in the
+  frontend iterates or spreads an elements object.
 - An element a script creates later does not belong in the table: looked up
   early, it would be `null`. Such lookups stay where the element is made.
 - Gathering the lookups showed three ids `index.html` no longer had
   (`export-btn`, `hist-log-x`, `hist-log-y`): always `null`, wired through
   the binding contexts to listeners that never ran. They were removed with
   that code; the table test now fails on any id `index.html` lacks.
-- `app.js` lost 379 lines; the binding contexts in `app.js` still list
-  element names one by one, since they are `app.js`'s own variables.
+- `app.js` lost 379 lines to the table and 511 more when the controllers'
+  element lists gave way to `...appElements`.
 - **Revisit if** controllers come to be created from a single declarative list
-  (then the wrappers can go), or if the elements object is passed to the
-  binding-context factories whole instead of name by name.
+  (then the wrappers can go).
