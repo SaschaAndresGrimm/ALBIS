@@ -101,7 +101,6 @@ async function createController({
       PLOT_THEME: {},
     },
     callbacks: {
-      deferPixelOverlayRedraw: vi.fn(),
       scheduleRoiOverlay: vi.fn(),
       requestFrame: vi.fn(),
       hasPendingFrameRequest: () => false,
@@ -111,7 +110,7 @@ async function createController({
       onViewportChanged,
     },
     core: {
-      overlayRender: { schedulePixelOverlay: vi.fn(), scheduleResolutionOverlay: vi.fn(), schedulePeakOverlay: vi.fn() },
+      overlayRender: { deferPixelOverlayRedraw: vi.fn(), schedulePixelOverlay: vi.fn(), scheduleResolutionOverlay: vi.fn(), schedulePeakOverlay: vi.fn() },
       fileDataPipeline: { cancelActiveLoad: vi.fn() },
     },
   });
@@ -170,7 +169,6 @@ describe("overview_viewport_controller", () => {
         PLOT_THEME: {},
       },
       callbacks: {
-        deferPixelOverlayRedraw: vi.fn(),
         scheduleRoiOverlay: vi.fn(),
         requestFrame,
         hasPendingFrameRequest: () => pendingFrame !== null,
@@ -183,7 +181,7 @@ describe("overview_viewport_controller", () => {
         updateViewerFooter: vi.fn(),
       },
       core: {
-        overlayRender: { schedulePixelOverlay: vi.fn(), scheduleResolutionOverlay: vi.fn(), schedulePeakOverlay: vi.fn() },
+        overlayRender: { deferPixelOverlayRedraw: vi.fn(), schedulePixelOverlay: vi.fn(), scheduleResolutionOverlay: vi.fn(), schedulePeakOverlay: vi.fn() },
         fileDataPipeline: { cancelActiveLoad: vi.fn() },
       },
     });

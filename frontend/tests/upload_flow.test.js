@@ -36,11 +36,11 @@ function buildController(fetchJSON) {
     callbacks: {
       setLoading: () => {},
       setStatus: (text) => statuses.push(text),
-      openPathInViewer: async (path) => opened.push(path),
       fileLabel: (path) => path,
       fetchJSON,
     },
     core: {
+      fileOpen: { openPathInViewer: async (path) => opened.push(path) },
       autoloadOrchestration: { ensureFileMode: async () => {} },
       frameMetadata: { loadFiles: async () => {} },
     },

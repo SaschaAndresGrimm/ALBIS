@@ -12,8 +12,8 @@ import { t } from "./i18n.js";
 
 const LAST_ID_KEY = "albis.handoff.lastId";
 
-export function createHandoffController({ apiBase, callbacks, intervalMs = 1000 }) {
-  const { openPathInViewer, isHdfFile, selectDatasetIfPresent, setStatus } = callbacks;
+export function createHandoffController({ apiBase, callbacks, intervalMs = 1000, core }) {
+  const { isHdfFile, selectDatasetIfPresent, setStatus } = callbacks;
   let lastId = Number(localStorage.getItem(LAST_ID_KEY) || "0");
   let busy = false;
   let timer = null;
@@ -25,7 +25,7 @@ export function createHandoffController({ apiBase, callbacks, intervalMs = 1000 
       return;
     }
 
-    await openPathInViewer(targetPath, { refreshFileList: true });
+    await core.fileOpen.openPathInViewer(targetPath, { refreshFileList: true });
 
     const targetDataset = String(job?.dataset || "").trim();
     if (targetDataset && isHdfFile(targetPath)) {

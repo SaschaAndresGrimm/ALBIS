@@ -8,7 +8,6 @@ export function bindWindowUiInteractions({
   core,
 }) {
   const {
-    setZoom,
     drawHistogram,
     drawSplash,
     applyPanelState,
@@ -18,7 +17,7 @@ export function bindWindowUiInteractions({
 
   window.addEventListener("resize", () => {
     if (state.hasFrame) {
-      setZoom(state.zoom);
+      core.overviewViewport?.setZoom(state.zoom);
     }
     core.chromeToolbar?.updateToolbar();
     if (state.histogram) {

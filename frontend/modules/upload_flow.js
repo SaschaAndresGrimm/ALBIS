@@ -102,7 +102,6 @@ export function createUploadFlowController({
   const {
     setLoading,
     setStatus,
-    openPathInViewer,
     fileLabel,
     fetchJSON,
   } = callbacks;
@@ -203,7 +202,7 @@ export function createUploadFlowController({
       const openTarget = uploadedTargets[0];
       if (openTarget) {
         setStatus(t("status.upload.opening", { target: fileLabel(openTarget) }));
-        await openPathInViewer(openTarget, { refreshFileList: false });
+        await core.fileOpen.openPathInViewer(openTarget, { refreshFileList: false });
       }
     } catch (err) {
       console.error(err);

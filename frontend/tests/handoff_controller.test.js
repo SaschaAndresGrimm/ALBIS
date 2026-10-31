@@ -8,12 +8,13 @@ function job(body) {
 
 function build() {
   const callbacks = {
-    openPathInViewer: vi.fn(async () => {}),
     isHdfFile: (path) => path.endsWith(".h5"),
     selectDatasetIfPresent: vi.fn(async () => true),
     setStatus: vi.fn(),
   };
-  return { controller: createHandoffController({ apiBase: "/api", callbacks }), callbacks };
+  // The file opener it reaches through the registry (decision 0006).
+  const core = { fileOpen: { openPathInViewer: vi.fn(async () => {}) } };
+  return { controller: createHandoffController({ apiBase: "/api", callbacks, core }), callbacks, core };
 }
 
 describe("handoff_controller", () => {
@@ -29,10 +30,10 @@ describe("handoff_controller", () => {
 
   it("opens the newest job, with its dataset, and remembers it was handled", async () => {
     globalThis.fetch = vi.fn(async () => job({ id: 4, open_path: "/data/run_master.h5", dataset: "/entry/data/data", run_id: "r7" }));
-    const { controller, callbacks } = build();
+    const { controller, callbacks, core } = build();
     await controller.poll();
     expect(globalThis.fetch.mock.calls[0][0]).toBe("/api/handoff/v1/jobs/latest?after_id=0");
-    expect(callbacks.openPathInViewer).toHaveBeenCalledWith("/data/run_master.h5", { refreshFileList: true });
+    expect(core.fileOpen.openPathInViewer).toHaveBeenCalledWith("/data/run_master.h5", { refreshFileList: true });
     expect(callbacks.selectDatasetIfPresent).toHaveBeenCalledWith("/entry/data/data");
     expect(localStorage.getItem("albis.handoff.lastId")).toBe("4");
 
@@ -45,11 +46,11 @@ describe("handoff_controller", () => {
   it("does nothing when there is no new job, or one already handled", async () => {
     localStorage.setItem("albis.handoff.lastId", "9");
     globalThis.fetch = vi.fn(async () => job({ id: 9, open_path: "/data/old.cbf" }));
-    const { controller, callbacks } = build();
+    const { controller, callbacks, core } = build();
     await controller.poll();
     globalThis.fetch = vi.fn(async () => ({ ok: true, status: 204 }));
     await controller.poll();
-    expect(callbacks.openPathInViewer).not.toHaveBeenCalled();
+    expect(core.fileOpen.openPathInViewer).not.toHaveBeenCalled();
   });
 
   it("does not pick a dataset for a file that is not HDF5, and says when a job names no file", async () => {

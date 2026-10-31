@@ -26,7 +26,6 @@ export function createWindowCloneController({ state, analysisState, roiState, ca
     setStatus,
     getViewport,
     applyViewportCenter,
-    openPathInViewer,
     isHdfFile,
     selectDatasetIfPresent,
     requestFrame,
@@ -92,7 +91,7 @@ export function createWindowCloneController({ state, analysisState, roiState, ca
    */
   async function restoreClonedWindow(payload) {
     const source = payload.source || {};
-    await openPathInViewer(source.file, { refreshFileList: true });
+    await core.fileOpen.openPathInViewer(source.file, { refreshFileList: true });
 
     if (source.dataset && isHdfFile(source.file)) {
       await selectDatasetIfPresent(source.dataset);
@@ -173,7 +172,7 @@ export function createWindowCloneController({ state, analysisState, roiState, ca
       // source now, as with File -> Open. The detector's monitor is left alone:
       // another ALBIS window may still be showing it live.
       await core.autoloadOrchestration.ensureFileMode({ disableMonitor: false });
-      await openPathInViewer(target, { refreshFileList: true });
+      await core.fileOpen.openPathInViewer(target, { refreshFileList: true });
     } catch (err) {
       console.error(err);
       setStatus(t("status.launch_target.failed", { path: target }), { tone: "error" });
