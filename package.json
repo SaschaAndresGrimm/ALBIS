@@ -26,6 +26,7 @@
     "test:js": "npx -y node@24 ./node_modules/vitest/vitest.mjs run",
     "ui:snapshots": "npx -y node@24 ./scripts/ui_snapshots.mjs",
     "ui:diff": "npx -y node@24 ./scripts/ui_snapshot_diff.mjs",
+    "ui:live": "npx -y node@24 ./scripts/live_check.mjs",
     "guide:screenshots": "npx -y node@24 ./scripts/guide_screenshots.mjs"
   },
   "devDependencies": {
