@@ -97,10 +97,6 @@ function send(method, params = {}, ws = socket) {
     ws.send(JSON.stringify({ id, method, params }));
   });
 }
-async function evaluate(expression, ws = socket) {
-  const reply = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, ws);
-  return reply.result?.result?.value;
-}
 async function connect(target) {
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   ws.onmessage = (event) => {
@@ -122,39 +118,99 @@ async function connect(target) {
   return ws;
 }
 
-// Page-side helpers.
-const text = (id) => `(document.getElementById(${JSON.stringify(id)})?.textContent || "").replace(/\\s+/g, " ").trim()`;
-const value = (id) => `(document.getElementById(${JSON.stringify(id)})?.value ?? "")`;
-const setValue = (id, v, eventName = "change") =>
-  `(() => { const e = document.getElementById(${JSON.stringify(id)}); if (!e) return false; e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event("input", { bubbles: true })); e.dispatchEvent(new Event(${JSON.stringify(eventName)}, { bubbles: true })); return true; })()`;
-const setChecked = (id, on) =>
-  `(() => { const e = document.getElementById(${JSON.stringify(id)}); if (!e) return false; if (e.checked !== ${on}) { e.checked = ${on}; e.dispatchEvent(new Event("change", { bubbles: true })); } return true; })()`;
-// The Data tab's file list holds the names the backend gave; pick by file name.
-const openFile = (name) =>
-  `(() => { const s = document.getElementById("file-select"); const o = [...s.options].find((o) => o.value === ${JSON.stringify(name)} || o.value.endsWith("/" + ${JSON.stringify(name)})); if (!o) return false; s.value = o.value; s.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`;
-const click = (id) => `(() => { const e = document.getElementById(${JSON.stringify(id)}); if (!e) return false; e.click(); return true; })()`;
-const viewer = `({
-  file: ${text("footer-file")},
-  frame: ${value("frame-index")},
-  range: ${text("meta-range")},
-  shape: ${text("meta-shape")},
-  dtype: ${text("meta-dtype")},
-})`;
+// Runs fn in the page. Its arguments go over the DevTools protocol as values,
+// never spliced into the source, so a file name or id cannot become code.
+async function call(fn, args = [], ws = socket) {
+  const global = await send("Runtime.evaluate", { expression: "globalThis" }, ws);
+  const reply = await send(
+    "Runtime.callFunctionOn",
+    {
+      functionDeclaration: fn.toString(),
+      objectId: global.result?.result?.objectId,
+      arguments: args.map((value) => ({ value })),
+      awaitPromise: true,
+      returnByValue: true,
+    },
+    ws,
+  );
+  return reply.result?.result?.value;
+}
+
+// Functions that run in the page through call(): self-contained, values as
+// arguments.
+const inPage = {
+  text: (id) => (document.getElementById(id)?.textContent || "").replace(/\s+/g, " ").trim(),
+  value: (id) => document.getElementById(id)?.value ?? "",
+  setValue: (id, v) => {
+    const e = document.getElementById(id);
+    if (!e) return false;
+    e.value = v;
+    e.dispatchEvent(new Event("input", { bubbles: true }));
+    e.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  },
+  setChecked: (id, on) => {
+    const e = document.getElementById(id);
+    if (!e) return false;
+    if (e.checked !== on) {
+      e.checked = on;
+      e.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    return true;
+  },
+  click: (selector) => {
+    const e = document.querySelector(selector);
+    if (!e) return false;
+    e.click();
+    return true;
+  },
+  // The Data tab's file list holds the names the backend gave; pick by file name.
+  findFile: (name) => {
+    const options = [...(document.getElementById("file-select")?.options || [])];
+    return options.find((o) => o.value === name || o.value.endsWith(`/${name}`))?.value ?? "";
+  },
+  fileOptions: () => document.getElementById("file-select")?.options.length ?? 0,
+  viewer: () => {
+    const text = (id) => (document.getElementById(id)?.textContent || "").replace(/\s+/g, " ").trim();
+    return {
+      file: text("footer-file"),
+      frame: document.getElementById("frame-index")?.value ?? "",
+      range: text("meta-range"),
+      shape: text("meta-shape"),
+      dtype: text("meta-dtype"),
+    };
+  },
+  hash: () => location.hash,
+};
+const text = (id, ws = socket) => call(inPage.text, [id], ws);
+const value = (id) => call(inPage.value, [id]);
+const setValue = (id, v) => call(inPage.setValue, [id, v]);
+const setChecked = (id, on) => call(inPage.setChecked, [id, on]);
+const click = (selector) => call(inPage.click, [selector]);
+const viewer = () => call(inPage.viewer);
+async function openFile(name) {
+  const option = await call(inPage.findFile, [name]);
+  return Boolean(option) && setValue("file-select", option);
+}
 
 const results = [];
 const recorded = {};
+// Page text in a detail is printed: no control characters reach the terminal.
+const printable = (detail) => String(detail ?? "").replace(/[\u0000-\u001f\u007f]/g, " ");
 function check(step, ok, detail) {
-  results.push({ step, ok: Boolean(ok), detail });
-  console.info(`${ok ? "ok  " : "FAIL"} ${step}${detail ? `: ${detail}` : ""}`);
+  results.push({ step, ok: Boolean(ok), detail: printable(detail) });
+  console.info(`${ok ? "ok  " : "FAIL"} ${step}${detail ? `: ${printable(detail)}` : ""}`);
 }
-async function until(expression, timeoutMs = 15000) {
+async function until(predicate, timeoutMs = 15000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
-    if (await evaluate(expression)) return true;
+    if (await predicate()) return true;
     await sleep(250);
   }
   return false;
 }
+const footerHas = (needle) => async () => (await text("footer-file")).includes(needle);
+const filled = (id) => async () => !["", "-"].includes(await text(id));
 
 async function main() {
   const albisPort = await freePort();
@@ -180,58 +236,67 @@ async function main() {
   socket = await connect(targets[0]);
   await send("Emulation.setDeviceMetricsOverride", { width: 1400, height: 1000, deviceScaleFactor: 1, mobile: false });
   await send("Page.navigate", { url });
-  await until(`document.getElementById("file-select")?.options.length > 2`, 20000);
+  await until(async () => (await call(inPage.fileOptions)) > 2, 20000);
 
   // 1. A file series: open, step, play.
-  check("the file list offers the series", await evaluate(openFile(series[0])));
-  check("open a CBF series", await until(`${text("footer-file")}.includes("in16c_010001.cbf 1 / 5") && ${text("meta-shape")} !== "-"`), await evaluate(text("footer-file")));
-  recorded.series_open = await evaluate(viewer);
+  check("the file list offers the series", await openFile(series[0]));
+  check(
+    "open a CBF series",
+    await until(async () => (await text("footer-file")).includes("in16c_010001.cbf 1 / 5") && (await text("meta-shape")) !== "-"),
+    await text("footer-file"),
+  );
+  recorded.series_open = await viewer();
   // A click while a frame is still loading is dropped, as it is for a user;
   // step until the frame is reached, clicking again if one was dropped.
   async function stepTo(frame, total) {
     for (let attempt = 0; attempt < 4; attempt += 1) {
-      await evaluate(click("btn-next"));
-      if (await until(`${value("frame-index")} === "${frame}" && ${text("footer-file")}.includes("${frame} / ${total}")`, 3000)) return true;
+      await click("#btn-next");
+      const reached = async () => (await value("frame-index")) === String(frame) && (await text("footer-file")).includes(`${frame} / ${total}`);
+      if (await until(reached, 3000)) return true;
     }
     return false;
   }
-  check("step two frames forward", (await stepTo(2, 5)) && (await stepTo(3, 5)), `frame ${await evaluate(value("frame-index"))}`);
+  check("step two frames forward", (await stepTo(2, 5)) && (await stepTo(3, 5)), `frame ${await value("frame-index")}`);
   await sleep(800);
-  recorded.series_step = await evaluate(viewer);
-  const beforePlay = Number(await evaluate(value("frame-index")));
-  await evaluate(click("btn-play"));
+  recorded.series_step = await viewer();
+  const beforePlay = Number(await value("frame-index"));
+  await click("#btn-play");
   await sleep(2500);
-  await evaluate(click("btn-play"));
-  const afterPlay = Number(await evaluate(value("frame-index")));
+  await click("#btn-play");
+  const afterPlay = Number(await value("frame-index"));
   check("playback moves the frame", afterPlay !== beforePlay, `frame ${beforePlay} -> ${afterPlay}`);
 
   // 2. An HDF5 stack.
-  check("the file list offers the HDF5 stack", await evaluate(openFile("compressed_stack.h5")));
-  check("open an HDF5 stack", await until(`${text("footer-file")}.includes("compressed_stack.h5") && ${value("dataset-select")} !== ""`), await evaluate(value("dataset-select")));
+  check("the file list offers the HDF5 stack", await openFile("compressed_stack.h5"));
+  check(
+    "open an HDF5 stack",
+    await until(async () => (await text("footer-file")).includes("compressed_stack.h5") && (await value("dataset-select")) !== ""),
+    await value("dataset-select"),
+  );
   await sleep(1500);
-  recorded.hdf5_open = { ...(await evaluate(viewer)), dataset: await evaluate(value("dataset-select")) };
-  await evaluate(click("btn-next"));
-  check("step an HDF5 frame", await until(`${value("frame-index")} === "2"`), `frame ${await evaluate(value("frame-index"))}`);
+  recorded.hdf5_open = { ...(await viewer()), dataset: await value("dataset-select") };
+  await click("#btn-next");
+  check("step an HDF5 frame", await until(async () => (await value("frame-index")) === "2"), `frame ${await value("frame-index")}`);
   await sleep(800);
-  recorded.hdf5_step = await evaluate(viewer);
+  recorded.hdf5_step = await viewer();
 
   // 3. Folder watch: a file written into the folder is opened.
-  await evaluate(setValue("autoload-mode", "file"));
-  await evaluate(setValue("autoload-dir", path.join(data, "watch")));
-  await evaluate(setValue("autoload-interval", "500"));
-  await evaluate(setChecked("autoload-watch-enabled", true));
+  await setValue("autoload-mode", "file");
+  await setValue("autoload-dir", path.join(data, "watch"));
+  await setValue("autoload-interval", "500");
+  await setChecked("autoload-watch-enabled", true);
   await sleep(1500);
   copyFileSync(path.join(data, series[1]), path.join(data, "watch", "watched_0001.cbf"));
-  check("folder watch opens a new file", await until(`${text("footer-file")}.includes("watched_0001.cbf")`, 20000), await evaluate(text("footer-file")));
+  check("folder watch opens a new file", await until(footerHas("watched_0001.cbf"), 20000), await text("footer-file"));
   await sleep(800);
-  recorded.watch_first = await evaluate(viewer);
+  recorded.watch_first = await viewer();
   await sleep(1200);
   copyFileSync(path.join(data, series[2]), path.join(data, "watch", "watched_0002.cbf"));
-  check("folder watch follows the next file", await until(`${text("footer-file")}.includes("watched_0002.cbf")`, 20000), await evaluate(text("footer-file")));
-  await evaluate(setChecked("autoload-watch-enabled", false));
+  check("folder watch follows the next file", await until(footerHas("watched_0002.cbf"), 20000), await text("footer-file"));
+  await setChecked("autoload-watch-enabled", false);
 
   // 4. Remote Stream API: frames pushed by another program.
-  await evaluate(setValue("autoload-mode", "remote"));
+  await setValue("autoload-mode", "remote");
   await sleep(1000);
   for (const image of [42, 43]) {
     const pixels = new Uint16Array(64 * 64).map((_, i) => (i * 7 + image) % 1000);
@@ -240,59 +305,59 @@ async function main() {
     form.append("image", new Blob([pixels.buffer]), "frame.raw");
     const res = await fetch(`${url}api/remote/v1/frame?source_id=default`, { method: "POST", body: form });
     check(`push remote frame ${image}`, res.ok, `HTTP ${res.status}`);
-    check(`viewer shows remote frame ${image}`, await until(`${text("remote-image")} === "${image}"`, 15000), await evaluate(text("remote-image")));
+    check(`viewer shows remote frame ${image}`, await until(async () => (await text("remote-image")) === String(image), 15000), await text("remote-image"));
   }
   await sleep(800);
-  recorded.remote = { ...(await evaluate(viewer)), series: await evaluate(text("remote-series")), image: await evaluate(text("remote-image")) };
+  recorded.remote = { ...(await viewer()), series: await text("remote-series"), image: await text("remote-image") };
 
   // 5. SIMPLON monitor of the simulated detector.
   const dcu = `http://127.0.0.1:${dcuPort}`;
   const put = (p) => fetch(`${dcu}${p}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: "{}" });
   await put("/detector/api/1.8.0/command/initialize");
   await waitFor(async () => (await (await fetch(`${dcu}/detector/api/1.8.0/status/state`)).json()).value === "idle", 15000, "the detector to initialize");
-  await evaluate(setValue("simplon-url", dcu));
-  await evaluate(setChecked("simplon-enable", true));
-  await evaluate(setValue("autoload-mode", "simplon"));
+  await setValue("simplon-url", dcu);
+  await setChecked("simplon-enable", true);
+  await setValue("autoload-mode", "simplon");
   await sleep(1000);
   await put("/detector/api/1.8.0/command/arm");
   put("/detector/api/1.8.0/command/trigger"); // answers when the series ends
-  check("SIMPLON monitor shows a frame", await until(`${text("simplon-series")} !== "" && ${text("simplon-series")} !== "-"`, 20000), `series ${await evaluate(text("simplon-series"))}`);
+  check("SIMPLON monitor shows a frame", await until(filled("simplon-series"), 20000), `series ${await text("simplon-series")}`);
   await sleep(800);
-  const simplon = await evaluate(viewer);
-  recorded.simplon = { shape: simplon.shape, dtype: simplon.dtype, series: await evaluate(text("simplon-series")) };
+  const simplon = await viewer();
+  recorded.simplon = { shape: simplon.shape, dtype: simplon.dtype, series: await text("simplon-series") };
 
   // 6. JUNGFRAUJOCH preview stream from the simulated publisher.
-  await evaluate(setValue("jfjoch-preview-endpoint", `tcp://127.0.0.1:${jfjochPort}`));
-  await evaluate(setValue("autoload-mode", "jungfraujoch"));
-  check("JUNGFRAUJOCH stream shows a frame", await until(`${text("jfjoch-seq")} !== "" && ${text("jfjoch-seq")} !== "-"`, 20000), `seq ${await evaluate(text("jfjoch-seq"))}`);
-  const firstSeq = Number(await evaluate(text("jfjoch-seq")));
-  check("JUNGFRAUJOCH stream keeps coming", await until(`Number(${text("jfjoch-seq")}) > ${firstSeq}`, 10000), `seq ${await evaluate(text("jfjoch-seq"))}`);
-  check("JUNGFRAUJOCH spots arrive with the frames", await until(`${text("jfjoch-reflections")} === "2"`, 10000), await evaluate(text("jfjoch-reflections")));
-  const jfjoch = await evaluate(viewer);
-  recorded.jfjoch = { shape: jfjoch.shape, dtype: jfjoch.dtype, series: await evaluate(text("jfjoch-series")) };
+  await setValue("jfjoch-preview-endpoint", `tcp://127.0.0.1:${jfjochPort}`);
+  await setValue("autoload-mode", "jungfraujoch");
+  check("JUNGFRAUJOCH stream shows a frame", await until(filled("jfjoch-seq"), 20000), `seq ${await text("jfjoch-seq")}`);
+  const firstSeq = Number(await text("jfjoch-seq"));
+  check("JUNGFRAUJOCH stream keeps coming", await until(async () => Number(await text("jfjoch-seq")) > firstSeq, 10000), `seq ${await text("jfjoch-seq")}`);
+  check("JUNGFRAUJOCH spots arrive with the frames", await until(async () => (await text("jfjoch-reflections")) === "2", 10000), await text("jfjoch-reflections"));
+  const jfjoch = await viewer();
+  recorded.jfjoch = { shape: jfjoch.shape, dtype: jfjoch.dtype, series: await text("jfjoch-series") };
 
   // 7. Back to a file from a live source.
-  await evaluate(setValue("autoload-mode", "file"));
-  await evaluate(setValue("autoload-dir", data));
-  await until(`[...document.getElementById("file-select").options].some((o) => o.value.endsWith(${JSON.stringify(series[4])}))`, 10000);
-  check("the file list offers a file again", await evaluate(openFile(series[4])));
-  check("open a file after live sources", await until(`${text("footer-file")}.includes("in16c_010005.cbf")`), await evaluate(text("footer-file")));
+  await setValue("autoload-mode", "file");
+  await setValue("autoload-dir", data);
+  await until(async () => Boolean(await call(inPage.findFile, [series[4]])), 10000);
+  check("the file list offers a file again", await openFile(series[4]));
+  check("open a file after live sources", await until(footerHas("in16c_010005.cbf")), await text("footer-file"));
   await sleep(800);
-  recorded.back_to_file = await evaluate(viewer);
+  recorded.back_to_file = await viewer();
 
   // 8. A handoff job, a launch target, Duplicate Window.
   const queued = await fetch(`${url}api/handoff/v1/jobs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ manifest_path: path.join(data, "manifest.json") }) });
   check("queue a handoff job", queued.ok, `HTTP ${queued.status}`);
-  check("the handoff job is opened", await until(`${text("footer-file")}.includes("in16c_010004.cbf")`), await evaluate(text("footer-file")));
+  check("the handoff job is opened", await until(footerHas("in16c_010004.cbf")), await text("footer-file"));
   await send("Page.navigate", { url: "about:blank" });
   await sleep(300);
   await send("Page.navigate", { url: `${url}#albis-open=${encodeURIComponent(path.join(data, series[2]))}` });
-  check("a launch target is opened", await until(`${text("footer-file")}.includes("in16c_010003.cbf")`, 20000), await evaluate(text("footer-file")));
-  check("the launch target leaves the address", (await evaluate("location.hash")) === "", await evaluate("location.hash"));
+  check("a launch target is opened", await until(footerHas("in16c_010003.cbf"), 20000), await text("footer-file"));
+  check("the launch target leaves the address", (await call(inPage.hash)) === "", await call(inPage.hash));
   const before = (await (await fetch(`http://127.0.0.1:${chromePort}/json/list`)).json()).filter((t) => t.type === "page");
-  await evaluate(`document.querySelector('.menu-item[data-menu="file"]')?.click()`);
+  await click('.menu-item[data-menu="file"]');
   await sleep(400);
-  await evaluate(`document.querySelector('[data-action="duplicate-window"]')?.click()`);
+  await click('[data-action="duplicate-window"]');
   let clone;
   await waitFor(async () => {
     const now = (await (await fetch(`http://127.0.0.1:${chromePort}/json/list`)).json()).filter((t) => t.type === "page");
@@ -304,7 +369,7 @@ async function main() {
     const end = Date.now() + 15000;
     let cloneFile = "";
     while (Date.now() < end && !cloneFile.includes("in16c_010003.cbf")) {
-      cloneFile = (await evaluate(text("footer-file"), cloneSocket)) || "";
+      cloneFile = (await text("footer-file", cloneSocket)) || "";
       await sleep(300);
     }
     check("Duplicate Window opens the same file", cloneFile.includes("in16c_010003.cbf"), cloneFile);
