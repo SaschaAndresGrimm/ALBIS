@@ -69,7 +69,7 @@ describe("command_palette_commands", () => {
       openFileModal: vi.fn(),
       closeCurrentFile: vi.fn(),
       openSettingsModal: vi.fn(),
-      stopPlayback: vi.fn(),
+      core: { framePlayback: { stopPlayback: vi.fn() } },
       startPlayback: vi.fn(),
       requestFrame: vi.fn(),
       setThresholdIndex: vi.fn(async () => {}),

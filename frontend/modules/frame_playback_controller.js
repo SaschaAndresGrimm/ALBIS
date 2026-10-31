@@ -14,6 +14,7 @@ export function createFramePlaybackController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     frameRange,
@@ -24,9 +25,7 @@ export function createFramePlaybackController({
     updatePlayButtons,
     setLoading,
     isViewportInteractionActive,
-    cancelActiveFrameLoad,
     updateToolbar,
-    loadFrame,
     queuePendingFrameRequest: queuePendingFrameRequestCallback,
     consumePendingFrameRequest: consumePendingFrameRequestCallback,
     isFrameLoading: isFrameLoadingCallback,
@@ -108,14 +107,14 @@ export function createFramePlaybackController({
       // once a load outlasts the tick interval. Every interactive caller stops
       // playback first, so `playing` separates the two cleanly.
       if (!state.playing) {
-        cancelActiveFrameLoad();
+        core.fileDataPipeline?.cancelActiveLoad();
       }
       return;
     }
     state.frameIndex = clamped;
     updateFrameControls();
     updateToolbar();
-    loadFrame();
+    core.fileDataPipeline.loadFrame();
   }
 
   // Playback paces itself instead of running on a fixed interval. A tick that

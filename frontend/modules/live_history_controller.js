@@ -78,9 +78,9 @@ function mergeSnapshot(baseSnapshot, patchSnapshot) {
 export function createLiveHistoryController({
   state,
   callbacks,
+  core,
 }) {
   const {
-    applyExternalFrame,
     applyLiveSourceSnapshot,
     updateFrameControls,
     updatePlayButtons,
@@ -156,7 +156,7 @@ export function createLiveHistoryController({
     state.autoload.livePaused = Boolean(livePaused);
     syncPendingNewFrames();
     applyLiveSourceSnapshot(entry.snapshot);
-    applyExternalFrame(
+    core.fileSession.applyExternalFrame(
       entry.data,
       entry.shape,
       entry.dtype,

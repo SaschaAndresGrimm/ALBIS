@@ -53,7 +53,6 @@ function build({ shape = [4, 8, 8], writerPresent = true, state: overrides = {} 
     setDataControlsForHdf5: vi.fn(),
     setDataSourceSectionState: vi.fn(),
     setStatus: vi.fn(),
-    stopPlayback: vi.fn(),
     onWriterPresenceChange: vi.fn(),
     updateToolbar: vi.fn(),
     showSplash: vi.fn(),
@@ -66,12 +65,15 @@ function build({ shape = [4, 8, 8], writerPresent = true, state: overrides = {} 
     updateFrameControls: vi.fn(),
     updateThresholdOptions: vi.fn(),
     loadMask: vi.fn(async () => true),
-    loadFrame: vi.fn(async () => true),
     isHdf5File: () => true,
     getDefaultCenter: vi.fn(),
     loadImageGeometry: vi.fn(async () => {}),
-    resetTransientFrameLoadState: vi.fn(),
     scheduleResolutionOverlay: vi.fn(),
+  };
+  // The controllers it reaches through the registry (decision 0006).
+  const core = {
+    framePlayback: { stopPlayback: vi.fn() },
+    fileDataPipeline: { loadFrame: vi.fn(async () => true), resetTransientLoadState: vi.fn() },
   };
 
   const controller = createFrameMetadataController({
@@ -87,9 +89,10 @@ function build({ shape = [4, 8, 8], writerPresent = true, state: overrides = {} 
       ringInputs: [],
     },
     callbacks,
+    core,
   });
 
-  return { controller, state, callbacks, fetchJSON };
+  return { controller, state, callbacks, core, fetchJSON };
 }
 
 function buildWithFailingFetch(state) {
@@ -133,14 +136,14 @@ describe("live frame count refresh", () => {
   });
 
   it("leaves the frame on screen, the playback and the mask alone", async () => {
-    const { controller, state, callbacks } = build({ shape: [7, 8, 8] });
+    const { controller, state, callbacks, core } = build({ shape: [7, 8, 8] });
 
     await controller.refreshFrameCount();
 
     expect(state.frameIndex).toBe(1);
     expect(state.playing).toBe(true);
-    expect(callbacks.stopPlayback).not.toHaveBeenCalled();
-    expect(callbacks.loadFrame).not.toHaveBeenCalled();
+    expect(core.framePlayback.stopPlayback).not.toHaveBeenCalled();
+    expect(core.fileDataPipeline.loadFrame).not.toHaveBeenCalled();
     expect(callbacks.loadMask).not.toHaveBeenCalled();
     expect(callbacks.setLoading).not.toHaveBeenCalled();
     expect(callbacks.showProcessingProgress).not.toHaveBeenCalled();

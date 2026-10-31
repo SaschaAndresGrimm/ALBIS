@@ -93,10 +93,12 @@ describe("threshold_playback_controller", () => {
         syncToolbarMoreControls: vi.fn(),
         updateViewerFooter: vi.fn(),
         updateFpsLabel: vi.fn(),
-        stopPlayback: vi.fn(),
         startPlayback: vi.fn(),
         loadMask: vi.fn(),
         requestFrame: vi.fn(),
+      },
+      core: {
+        framePlayback: { stopPlayback: vi.fn() },
       },
     });
 

@@ -14,6 +14,7 @@ export function createFrameMetadataController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     autoloadDir,
@@ -30,7 +31,6 @@ export function createFrameMetadataController({
     setDataControlsForHdf5,
     setDataSourceSectionState,
     setStatus,
-    stopPlayback,
     onWriterPresenceChange,
     updateToolbar,
     showSplash,
@@ -43,11 +43,9 @@ export function createFrameMetadataController({
     updateFrameControls,
     updateThresholdOptions,
     loadMask,
-    loadFrame,
     isHdf5File,
     geometryParams,
     loadImageGeometry,
-    resetTransientFrameLoadState,
     scheduleResolutionOverlay,
   } = callbacks;
 
@@ -144,13 +142,8 @@ export function createFrameMetadataController({
       || Boolean(state.isLoading)
       || Boolean(state.playing);
     if (shouldResetTransientLoadState) {
-      stopPlayback();
-      if (resetTransientFrameLoadState) {
-        resetTransientFrameLoadState();
-      } else {
-        state.pendingFrame = null;
-        state.isLoading = false;
-      }
+      core.framePlayback?.stopPlayback();
+      core.fileDataPipeline?.resetTransientLoadState();
     }
     showProcessingProgress(t("status.frame.loading_metadata"));
     setStatus(t("status.frame.loading_metadata"));
@@ -182,7 +175,7 @@ export function createFrameMetadataController({
       updateToolbar();
       await loadAnalysisParams();
       await loadMask(true);
-      const loadedFrame = await loadFrame();
+      const loadedFrame = await core.fileDataPipeline.loadFrame();
       if (!loadedFrame) {
         setDataSourceSectionState("warning", t("status.data.failed_load_frame"));
         return false;

@@ -77,13 +77,15 @@ describe("live_history_controller", () => {
     const controller = createLiveHistoryController({
       state,
       callbacks: {
-        applyExternalFrame,
         applyLiveSourceSnapshot: vi.fn(),
         updateFrameControls: vi.fn(),
         updatePlayButtons: vi.fn(),
         updateToolbar: vi.fn(),
         updateAutoloadUI: vi.fn(),
         setStatus: vi.fn(),
+      },
+      core: {
+        fileSession: { applyExternalFrame },
       },
     });
 
@@ -116,13 +118,15 @@ describe("live_history_controller", () => {
     const controller = createLiveHistoryController({
       state,
       callbacks: {
-        applyExternalFrame,
         applyLiveSourceSnapshot: vi.fn(),
         updateFrameControls: vi.fn(),
         updatePlayButtons: vi.fn(),
         updateToolbar: vi.fn(),
         updateAutoloadUI: vi.fn(),
         setStatus,
+      },
+      core: {
+        fileSession: { applyExternalFrame },
       },
     });
 
@@ -165,13 +169,15 @@ describe("live_history_controller", () => {
     const controller = createLiveHistoryController({
       state,
       callbacks: {
-        applyExternalFrame,
         applyLiveSourceSnapshot: vi.fn(),
         updateFrameControls: vi.fn(),
         updatePlayButtons: vi.fn(),
         updateToolbar: vi.fn(),
         updateAutoloadUI: vi.fn(),
         setStatus: vi.fn(),
+      },
+      core: {
+        fileSession: { applyExternalFrame },
       },
     });
 
@@ -203,13 +209,15 @@ describe("live_history_controller", () => {
     const controller = createLiveHistoryController({
       state,
       callbacks: {
-        applyExternalFrame: vi.fn(),
         applyLiveSourceSnapshot: vi.fn(),
         updateFrameControls: vi.fn(),
         updatePlayButtons: vi.fn(),
         updateToolbar: vi.fn(),
         updateAutoloadUI: vi.fn(),
         setStatus: vi.fn(),
+      },
+      core: {
+        fileSession: { applyExternalFrame: vi.fn() },
       },
     });
 

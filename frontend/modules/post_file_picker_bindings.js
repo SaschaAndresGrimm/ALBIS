@@ -22,6 +22,7 @@ export function initializePostFilePickerBindings({
   constants,
   elements,
   callbacks,
+  core,
 }) {
   const {
     MAX_ZOOM,
@@ -148,7 +149,6 @@ export function initializePostFilePickerBindings({
     scheduleOverview,
     zoomAt,
     fitImageToView,
-    stopPlayback,
     requestFrame,
     startPlayback,
     toggleToolbarPlaybackPopover,
@@ -294,6 +294,7 @@ export function initializePostFilePickerBindings({
   });
 
   bindViewerControls({
+    core,
     state,
     elements: {
       colormapSelect,
@@ -340,7 +341,6 @@ export function initializePostFilePickerBindings({
       scheduleOverview,
       zoomAt,
       fitImageToView,
-      stopPlayback,
       requestFrame,
       startPlayback,
       toggleToolbarPlaybackPopover,

@@ -9,6 +9,7 @@ export function createRemoteStreamController({
   apiBase,
   state,
   callbacks,
+  core,
 }) {
   const {
     setAutoloadStatus,
@@ -25,7 +26,6 @@ export function createRemoteStreamController({
     appendLiveFrame,
     updateLiveHistoryEntry,
     resetLiveHistory,
-    applyExternalFrame,
   } = callbacks;
 
   function normalizePeakSets(payload) {
@@ -207,7 +207,7 @@ export function createRemoteStreamController({
             externalPeakSets: [],
           }),
         );
-        applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
+        core.fileSession.applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
         state.autoload.lastUpdate = Date.now();
         updateAutoloadMeta();
         setAutoloadStatus(t("autoload.status.jfjoch.updated"));
@@ -303,7 +303,7 @@ export function createRemoteStreamController({
             externalPeakSets: [],
           }),
         );
-        applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
+        core.fileSession.applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
         state.autoload.lastUpdate = Date.now();
         updateAutoloadMeta();
         setAutoloadStatus(t("autoload.status.remote.updated"));

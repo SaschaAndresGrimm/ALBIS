@@ -13,6 +13,7 @@ export function createOverviewViewportController({
   constants,
   theme,
   callbacks,
+  core,
 }) {
   const {
     canvasWrap,
@@ -42,7 +43,6 @@ export function createOverviewViewportController({
     scheduleResolutionOverlay,
     schedulePeakOverlay,
     requestFrame,
-    cancelActiveFrameLoad,
     hasPendingFrameRequest: hasPendingFrameRequestCallback,
     consumePendingFrameRequest: consumePendingFrameRequestCallback,
     isFrameLoading: isFrameLoadingCallback,
@@ -266,7 +266,7 @@ export function createOverviewViewportController({
     viewportInteractionUntil = Date.now() + delay;
     deferPixelOverlayRedraw(delay);
     if (state.playing && isFrameLoading()) {
-      cancelActiveFrameLoad();
+      core.fileDataPipeline?.cancelActiveLoad();
     }
     if (viewportInteractionResumeTimer) {
       window.clearTimeout(viewportInteractionResumeTimer);

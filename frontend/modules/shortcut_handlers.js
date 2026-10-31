@@ -42,6 +42,7 @@ export function createShortcutHandlers({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     thresholdSelect,
@@ -56,7 +57,6 @@ export function createShortcutHandlers({
     openCommandPalette,
     openFileModal,
     closeCurrentFile,
-    stopPlayback,
     startPlayback,
     setThresholdIndex,
     getThresholdIndexAtOffset,
@@ -145,7 +145,7 @@ export function createShortcutHandlers({
       if (isFocusableChrome(event.target)) return false;
       event.preventDefault();
       if (state.playing) {
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
       } else {
         startPlayback();
       }
@@ -159,7 +159,7 @@ export function createShortcutHandlers({
     if (hasThresholds && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
       if (!isThresholdTarget && isFormElement(event.target)) return false;
       event.preventDefault();
-      stopPlayback();
+      core.framePlayback?.stopPlayback();
       const delta = event.key === "ArrowUp" ? -1 : 1;
       void setThresholdIndex(getThresholdIndexAtOffset(delta));
       return true;
@@ -181,24 +181,24 @@ export function createShortcutHandlers({
         return true;
       case "ArrowLeft":
         event.preventDefault();
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
         requestFrame(state.frameIndex - 1);
         return true;
       case "ArrowRight":
         event.preventDefault();
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
         requestFrame(state.frameIndex + 1);
         return true;
       case "ArrowUp": {
         event.preventDefault();
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
         const step = Math.max(1, state.step || 1);
         requestFrame(state.frameIndex - step);
         return true;
       }
       case "ArrowDown": {
         event.preventDefault();
-        stopPlayback();
+        core.framePlayback?.stopPlayback();
         const step = Math.max(1, state.step || 1);
         requestFrame(state.frameIndex + step);
         return true;

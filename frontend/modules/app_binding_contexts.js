@@ -83,7 +83,6 @@ export function createMainUiBindingsCallbacks(callbacks) {
     closeCommandPalette: callbacks.closeCommandPalette,
     ensureFileMode: callbacks.ensureFileMode,
     syncSeriesSumOutputPath: callbacks.syncSeriesSumOutputPath,
-    stopPlayback: callbacks.stopPlayback,
     isHdfFile: callbacks.isHdfFile,
     loadDatasets: callbacks.loadDatasets,
     recordRecentFile: callbacks.recordRecentFile,
@@ -228,7 +227,6 @@ export function createPostFilePickerBindingsCallbacks(callbacks) {
     scheduleOverview: callbacks.scheduleOverview,
     zoomAt: callbacks.zoomAt,
     fitImageToView: callbacks.fitImageToView,
-    stopPlayback: callbacks.stopPlayback,
     requestFrame: callbacks.requestFrame,
     startPlayback: callbacks.startPlayback,
     toggleToolbarPlaybackPopover: callbacks.toggleToolbarPlaybackPopover,
@@ -394,12 +392,14 @@ export function createMainUiBindingsContext({
   state,
   elements,
   callbacks,
+  core,
   activeMenuRef,
   commandPaletteController,
 }) {
   return {
     state,
     elements,
+    core,
     callbacks: {
       ...callbacks,
       isMenuActive: (menuId) => activeMenuRef() === menuId,
@@ -427,6 +427,7 @@ export function createPostFilePickerBindingsContext({
   constants,
   elements,
   callbacks,
+  core,
   stateRefs,
 }) {
   const resolvedStateRefs = stateRefs || {
@@ -452,6 +453,7 @@ export function createPostFilePickerBindingsContext({
     overviewState,
     constants,
     elements,
+    core,
     callbacks: {
       ...callbacks,
       setRoiDragging,

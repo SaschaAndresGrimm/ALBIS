@@ -27,7 +27,6 @@ function makeHandlers(callbackOverrides = {}) {
         openCommandPalette: noop,
         openFileModal: noop,
         closeCurrentFile: noop,
-        stopPlayback: noop,
         startPlayback: noop,
         setThresholdIndex: noop,
         getThresholdIndexAtOffset: () => 0,
@@ -35,6 +34,9 @@ function makeHandlers(callbackOverrides = {}) {
         togglePanel: noop,
         requestFrame: noop,
         ...callbackOverrides,
+      },
+      core: {
+        framePlayback: { stopPlayback: noop },
       },
     }),
   };

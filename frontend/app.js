@@ -339,6 +339,12 @@ bindClientLogging({
   formatClientArg,
   logClient,
 });
+// The controllers, under short names, for those that call each other
+// (decision 0006). Filled as each is created, so a call reaches it as soon as
+// it exists, as the forwarding functions it replaces did; a controller that
+// needs one created after it calls through here at the time of the call.
+const core = {};
+
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 50;
 const MOBILE_PANEL_SNAP_POINTS = [0.6, 1];
@@ -382,14 +388,6 @@ function applyCanvasTransform() {
 
 function isViewportInteractionActive() {
   return overviewViewportController ? overviewViewportController.isViewportInteractionActive() : false;
-}
-
-function cancelActiveFrameLoad() {
-  fileDataPipelineController?.cancelActiveLoad();
-}
-
-function resetTransientFrameLoadState() {
-  fileDataPipelineController?.resetTransientLoadState();
 }
 
 function queuePendingFrameRequest(index) {
@@ -1319,10 +1317,6 @@ function stopMobilePanelDrag(event, cancelled = false) {
   panelLayoutController?.stopMobilePanelDrag(event, cancelled);
 }
 
-function stopPlayback() {
-  framePlaybackController?.stopPlayback();
-}
-
 function updateFrameControls() {
   framePlaybackController?.updateFrameControls();
   syncFileCommandAvailability();
@@ -1796,6 +1790,7 @@ const {
 } = chromeToolbarController;
 
 thresholdPlaybackController = createThresholdPlaybackController({
+  core,
   state,
   constants: {
     frameStepOptions: FRAME_STEP_OPTIONS,
@@ -1810,7 +1805,6 @@ thresholdPlaybackController = createThresholdPlaybackController({
     syncToolbarMoreControls,
     updateViewerFooter,
     updateFpsLabel,
-    stopPlayback,
     startPlayback,
     loadMask,
     requestFrame,
@@ -1848,6 +1842,7 @@ const {
 } = exportSplashController;
 
 fileSessionController = createFileSessionController({
+  core,
   state,
   analysisState,
   elements: {
@@ -1855,8 +1850,6 @@ fileSessionController = createFileSessionController({
 
   },
   callbacks: {
-    stopPlayback,
-    resetTransientFrameLoadState,
     clearImageGeometry,
     clearGeometrySource: () => geometryParamsController?.clearSource(),
     clearMaskState,
@@ -1909,12 +1902,13 @@ fileSessionController = createFileSessionController({
     scheduleHistogram,
   },
 });
+core.fileSession = fileSessionController;
 const { applyFrame } = fileSessionController;
 
 liveHistoryController = createLiveHistoryController({
+  core,
   state,
   callbacks: {
-    applyExternalFrame,
     applyLiveSourceSnapshot,
     updateFrameControls,
     updatePlayButtons,
@@ -2123,6 +2117,7 @@ async function fetchJfjochPreviewStatus() {
 }
 
 const remoteStreamController = createRemoteStreamController({
+  core,
   apiBase: API,
   state,
   callbacks: {
@@ -2140,7 +2135,6 @@ const remoteStreamController = createRemoteStreamController({
     appendLiveFrame,
     updateLiveHistoryEntry,
     resetLiveHistory,
-    applyExternalFrame,
   },
 });
 
@@ -2153,6 +2147,7 @@ async function autoloadRemoteTick() {
 }
 
 framePlaybackController = createFramePlaybackController({
+  core,
   state,
   elements: {
     frameRange,
@@ -2162,17 +2157,17 @@ framePlaybackController = createFramePlaybackController({
     updatePlayButtons,
     setLoading,
     isViewportInteractionActive,
-    cancelActiveFrameLoad,
     queuePendingFrameRequest,
     consumePendingFrameRequest,
     isFrameLoading,
     updateToolbar,
-    loadFrame,
   },
 });
+core.framePlayback = framePlaybackController;
 const { processPendingFrameRequest } = framePlaybackController;
 
 frameMetadataController = createFrameMetadataController({
+  core,
   apiBase: API,
   state,
   elements: {
@@ -2186,7 +2181,6 @@ frameMetadataController = createFrameMetadataController({
     setDataControlsForHdf5,
     setDataSourceSectionState,
     setStatus,
-    stopPlayback,
     onWriterPresenceChange: (present) => liveSeriesWatch?.setWriterPresent(present),
     updateToolbar,
     showSplash,
@@ -2199,11 +2193,9 @@ frameMetadataController = createFrameMetadataController({
     updateFrameControls,
     updateThresholdOptions,
     loadMask,
-    loadFrame,
     isHdf5File,
     geometryParams: geometryParamsController,
     loadImageGeometry,
-    resetTransientFrameLoadState,
     scheduleResolutionOverlay,
   },
 });
@@ -2221,6 +2213,7 @@ const liveSeriesWatch = createLiveSeriesWatch({
 });
 
 fileDataPipelineController = createFileDataPipelineController({
+  core,
   apiBase: API,
   state,
   elements: {
@@ -2245,7 +2238,6 @@ fileDataPipelineController = createFileDataPipelineController({
     parseShape,
     typedArrayFrom,
     applyImageMeta,
-    applyExternalFrame,
     applyFrame,
     processPendingFrameRequest,
     currentFrameStatusText,
@@ -2256,11 +2248,11 @@ fileDataPipelineController = createFileDataPipelineController({
     setDataSourceSectionState,
     showProcessingProgress,
     hideProcessingProgress,
-    stopPlayback,
     loadMask,
     updateToolbar,
   },
 });
+core.fileDataPipeline = fileDataPipelineController;
 
 async function loadAutoloadFile(file) {
   resetLiveHistory();
@@ -2270,10 +2262,6 @@ async function loadAutoloadFile(file) {
 async function loadImageSeries(file) {
   resetLiveHistory();
   return fileDataPipelineController.loadImageSeries(file);
-}
-
-function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = false, options = {}) {
-  fileSessionController.applyExternalFrame(data, shape, dtype, label, fitView, preserveMask, options);
 }
 
 async function fetchSimplonMask() {
@@ -2629,6 +2617,7 @@ function isCommandPaletteOpen() {
 
 function getCommandPaletteCommands() {
   return buildCommandPaletteCommands({
+    core,
     state,
     panelTabState,
     backendIsLocal,
@@ -2639,7 +2628,6 @@ function getCommandPaletteCommands() {
       openFileModal,
       closeCurrentFile,
       openSettingsModal,
-      stopPlayback,
       startPlayback,
       requestFrame,
       setThresholdIndex,
@@ -2725,6 +2713,7 @@ attachRangeFill();
 attachAllNumberSteppers();
 
 const { handleShortcut, handleNavShortcut } = createShortcutHandlers({
+  core,
   state,
   elements: {
     ...appElements,
@@ -2737,7 +2726,6 @@ const { handleShortcut, handleNavShortcut } = createShortcutHandlers({
     openCommandPalette,
     openFileModal,
     closeCurrentFile,
-    stopPlayback,
     startPlayback,
     setThresholdIndex,
     getThresholdIndexAtOffset,
@@ -2958,6 +2946,7 @@ function getHistTooltipPosition(canvasRect, x) {
 }
 
 overviewViewportController = createOverviewViewportController({
+  core,
   state,
   overviewState: overviewInteractionState,
   elements: {
@@ -2980,7 +2969,6 @@ overviewViewportController = createOverviewViewportController({
     scheduleResolutionOverlay,
     schedulePeakOverlay,
     requestFrame,
-    cancelActiveFrameLoad,
     hasPendingFrameRequest,
     consumePendingFrameRequest,
     isFrameLoading,
@@ -3383,10 +3371,6 @@ function redraw() {
   magnifierController?.refresh();
 }
 
-async function loadFrame() {
-  return fileDataPipelineController.loadFrame();
-}
-
 const mainUiBindingsElements = createMainUiBindingsElements({
   ...appElements,
   menuButtons,
@@ -3434,7 +3418,6 @@ const mainUiBindingsCallbacks = createMainUiBindingsCallbacks({
   closeCommandPalette,
   ensureFileMode,
   syncSeriesSumOutputPath,
-  stopPlayback,
   isHdfFile,
   loadDatasets,
   recordRecentFile,
@@ -3449,6 +3432,7 @@ const mainUiBindingsCallbacks = createMainUiBindingsCallbacks({
 function initializeMainUiBindings() {
   initializeMainUiBindingsBootstrap(
     createMainUiBindingsContext({
+      core,
       state,
       elements: mainUiBindingsElements,
       callbacks: mainUiBindingsCallbacks,
@@ -3582,7 +3566,6 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   scheduleOverview,
   zoomAt,
   fitImageToView,
-  stopPlayback,
   requestFrame,
   startPlayback,
   toggleToolbarPlaybackPopover,
@@ -3683,6 +3666,7 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
 });
 
 initializePostFilePickerBindings(createPostFilePickerBindingsContext({
+  core,
   apiBase: API,
   state,
   analysisState,

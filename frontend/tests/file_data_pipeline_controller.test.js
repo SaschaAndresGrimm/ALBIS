@@ -72,7 +72,6 @@ async function makeScanFailureController({ detail, detailData, setStatus }) {
       parseShape: vi.fn(),
       typedArrayFrom: vi.fn(),
       applyImageMeta: vi.fn(),
-      applyExternalFrame: vi.fn(),
       processPendingFrameRequest: vi.fn(),
       currentFrameStatusText: vi.fn(() => "Ready"),
       setLoading: vi.fn(),
@@ -82,9 +81,12 @@ async function makeScanFailureController({ detail, detailData, setStatus }) {
       setDataSourceSectionState: vi.fn(),
       showProcessingProgress: vi.fn(),
       hideProcessingProgress: vi.fn(),
-      stopPlayback: vi.fn(),
       loadMask: vi.fn(async () => {}),
       updateToolbar: vi.fn(),
+    },
+    core: {
+      fileSession: { applyExternalFrame: vi.fn() },
+      framePlayback: { stopPlayback: vi.fn() },
     },
   });
 }
@@ -191,7 +193,6 @@ describe("file_data_pipeline_controller", () => {
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
         applyImageMeta: vi.fn(),
-        applyExternalFrame: vi.fn(),
         processPendingFrameRequest: vi.fn(),
         currentFrameStatusText: vi.fn(() => "Ready"),
         setLoading: vi.fn(),
@@ -201,9 +202,12 @@ describe("file_data_pipeline_controller", () => {
         setDataSourceSectionState: vi.fn(),
         showProcessingProgress: vi.fn(),
         hideProcessingProgress: vi.fn(),
-        stopPlayback: vi.fn(),
         loadMask: vi.fn(async () => {}),
         updateToolbar: vi.fn(),
+      },
+      core: {
+        fileSession: { applyExternalFrame: vi.fn() },
+        framePlayback: { stopPlayback: vi.fn() },
       },
     });
 
@@ -295,7 +299,6 @@ describe("file_data_pipeline_controller frame cache", () => {
         parseShape: (header) => String(header).split(",").map(Number),
         typedArrayFrom: (buffer) => new Uint16Array(buffer),
         applyImageMeta: vi.fn(),
-        applyExternalFrame: vi.fn(),
         applyFrame,
         processPendingFrameRequest: vi.fn(),
         currentFrameStatusText: () => "Ready",
@@ -306,9 +309,12 @@ describe("file_data_pipeline_controller frame cache", () => {
         setDataSourceSectionState: vi.fn(),
         showProcessingProgress: vi.fn(),
         hideProcessingProgress: vi.fn(),
-        stopPlayback: vi.fn(),
         loadMask: vi.fn(async () => {}),
         updateToolbar: vi.fn(),
+      },
+      core: {
+        fileSession: { applyExternalFrame: vi.fn() },
+        framePlayback: { stopPlayback: vi.fn() },
       },
     });
 
@@ -506,7 +512,6 @@ describe("file_data_pipeline_controller frame cache", () => {
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
         applyImageMeta: vi.fn(),
-        applyExternalFrame: vi.fn(),
         processPendingFrameRequest: vi.fn(),
         currentFrameStatusText: vi.fn(() => "Ready"),
         setLoading: vi.fn(),
@@ -516,9 +521,12 @@ describe("file_data_pipeline_controller frame cache", () => {
         setDataSourceSectionState,
         showProcessingProgress: vi.fn(),
         hideProcessingProgress: vi.fn(),
-        stopPlayback: vi.fn(),
         loadMask: vi.fn(async () => {}),
         updateToolbar: vi.fn(),
+      },
+      core: {
+        fileSession: { applyExternalFrame: vi.fn() },
+        framePlayback: { stopPlayback: vi.fn() },
       },
     });
 
@@ -595,7 +603,6 @@ describe("file_data_pipeline_controller frame cache", () => {
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
         applyImageMeta: vi.fn(),
-        applyExternalFrame: vi.fn(),
         processPendingFrameRequest: vi.fn(),
         currentFrameStatusText: vi.fn(() => "Ready"),
         setLoading: vi.fn(),
@@ -605,9 +612,12 @@ describe("file_data_pipeline_controller frame cache", () => {
         setDataSourceSectionState: vi.fn(),
         showProcessingProgress: vi.fn(),
         hideProcessingProgress: vi.fn(),
-        stopPlayback: vi.fn(),
         loadMask: vi.fn(async () => {}),
         updateToolbar: vi.fn(),
+      },
+      core: {
+        fileSession: { applyExternalFrame: vi.fn() },
+        framePlayback: { stopPlayback: vi.fn() },
       },
     });
 

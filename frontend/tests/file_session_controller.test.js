@@ -99,8 +99,6 @@ describe("file_session_controller", () => {
         canvas: null,
       },
       callbacks: {
-        stopPlayback,
-        resetTransientFrameLoadState,
         clearImageGeometry: vi.fn(),
         clearMaskState: vi.fn(),
         clearImageHeader: vi.fn(),
@@ -148,6 +146,10 @@ describe("file_session_controller", () => {
         scheduleResolutionOverlay: vi.fn(),
         schedulePeakFinder: vi.fn(),
         scheduleHistogram: vi.fn(),
+      },
+      core: {
+        framePlayback: { stopPlayback },
+        fileDataPipeline: { resetTransientLoadState: resetTransientFrameLoadState },
       },
     });
 
@@ -225,8 +227,6 @@ describe("file_session_controller", () => {
         canvas: null,
       },
       callbacks: {
-        stopPlayback: vi.fn(),
-        resetTransientFrameLoadState: vi.fn(),
         clearImageGeometry: vi.fn(),
         clearMaskState: vi.fn(),
         clearImageHeader: vi.fn(),
@@ -274,6 +274,10 @@ describe("file_session_controller", () => {
         scheduleResolutionOverlay: vi.fn(),
         schedulePeakFinder: vi.fn(),
         scheduleHistogram: vi.fn(),
+      },
+      core: {
+        framePlayback: { stopPlayback: vi.fn() },
+        fileDataPipeline: { resetTransientLoadState: vi.fn() },
       },
     });
 
@@ -355,8 +359,6 @@ describe("file_session_controller", () => {
         canvas: null,
       },
       callbacks: {
-        stopPlayback: vi.fn(),
-        resetTransientFrameLoadState: vi.fn(),
         clearImageGeometry: vi.fn(),
         clearMaskState: vi.fn(),
         clearImageHeader: vi.fn(),
@@ -404,6 +406,10 @@ describe("file_session_controller", () => {
         scheduleResolutionOverlay: vi.fn(),
         schedulePeakFinder: vi.fn(),
         scheduleHistogram: vi.fn(),
+      },
+      core: {
+        framePlayback: { stopPlayback: vi.fn() },
+        fileDataPipeline: { resetTransientLoadState: vi.fn() },
       },
     });
 

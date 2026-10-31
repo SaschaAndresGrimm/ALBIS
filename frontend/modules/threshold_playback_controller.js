@@ -10,6 +10,7 @@ export function createThresholdPlaybackController({
   constants,
   elements,
   callbacks,
+  core,
 }) {
   const { frameStepOptions } = constants;
 
@@ -35,7 +36,6 @@ export function createThresholdPlaybackController({
     syncToolbarMoreControls,
     updateViewerFooter,
     updateFpsLabel,
-    stopPlayback,
     startPlayback,
     loadMask,
     requestFrame,
@@ -148,7 +148,7 @@ export function createThresholdPlaybackController({
     if (toolbarMoreFps) toolbarMoreFps.value = String(clamped);
     updateFpsLabel();
     if (state.playing) {
-      stopPlayback();
+      core.framePlayback?.stopPlayback();
       startPlayback();
     }
   }

@@ -6,6 +6,7 @@ export function bindDataControlInteractions({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     fileSelect,
@@ -21,7 +22,6 @@ export function bindDataControlInteractions({
   const {
     ensureFileMode,
     syncSeriesSumOutputPath,
-    stopPlayback,
     isHdfFile,
     loadDatasets,
     loadImageSeries,
@@ -39,7 +39,7 @@ export function bindDataControlInteractions({
     state.file = event.target.value;
     if (!state.file) return;
     syncSeriesSumOutputPath();
-    stopPlayback();
+    core.framePlayback?.stopPlayback();
     if (isHdfFile(state.file)) {
       await loadDatasets();
     } else {
@@ -50,7 +50,7 @@ export function bindDataControlInteractions({
 
   datasetSelect.addEventListener("change", async (event) => {
     state.dataset = event.target.value;
-    stopPlayback();
+    core.framePlayback?.stopPlayback();
     await loadMetadata();
   });
 
@@ -65,13 +65,13 @@ export function bindDataControlInteractions({
   });
 
   frameRange.addEventListener("input", async (event) => {
-    stopPlayback();
+    core.framePlayback?.stopPlayback();
     const value = Math.round(Number(event.target.value || 1));
     requestFrame(value - 1);
   });
 
   frameIndex.addEventListener("change", async (event) => {
-    stopPlayback();
+    core.framePlayback?.stopPlayback();
     const value = Math.round(Number(event.target.value || 1));
     requestFrame(value - 1);
   });

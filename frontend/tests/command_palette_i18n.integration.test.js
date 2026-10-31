@@ -130,7 +130,7 @@ describe("command palette re-localization", () => {
       openFileModal: noop,
       closeCurrentFile: noop,
       openSettingsModal: noop,
-      stopPlayback: noop,
+      core: { framePlayback: { stopPlayback: noop } },
       startPlayback: noop,
       requestFrame: noop,
       setThresholdIndex: async () => {},
