@@ -600,29 +600,17 @@ const inspectorPanelController = createInspectorPanelController({
     resetInspectorDetails,
   },
 });
-
-function clearImageHeader() {
-  inspectorPanelController.clearImageHeader();
-}
-
-function updateInspectorHeaderVisibility(file) {
-  inspectorPanelController.updateInspectorHeaderVisibility(file);
-}
-
-function clearInspectorSearch() {
-  inspectorPanelController.clearInspectorSearch();
-}
+const {
+  clearImageHeader,
+  clearInspectorSearch,
+  renderInspectorLink,
+  renderInspectorTree,
+  selectInspectorRow,
+  updateInspectorHeaderVisibility,
+} = inspectorPanelController;
 
 async function runInspectorSearch(query) {
   await inspectorPanelController.runInspectorSearch(query);
-}
-
-function renderInspectorLink(path, target) {
-  inspectorPanelController.renderInspectorLink(path, target);
-}
-
-function renderInspectorTree(nodes, container) {
-  inspectorPanelController.renderInspectorTree(nodes, container);
 }
 
 async function fetchInspectorTree(path = "/") {
@@ -631,10 +619,6 @@ async function fetchInspectorTree(path = "/") {
 
 async function loadInspectorRoot() {
   await inspectorPanelController.loadInspectorRoot();
-}
-
-function selectInspectorRow(row) {
-  inspectorPanelController.selectInspectorRow(row);
 }
 
 async function showInspectorNode(path) {
@@ -703,57 +687,29 @@ const maskCursorController = createMaskCursorController({
     getCursorNote: (index) => pixelMaskController?.cursorNote(index) || "",
   },
 });
-
-function getImagePointFromEvent(event, options) {
-  return maskCursorController.getImagePointFromEvent(event, options);
-}
-
-function buildNegativeMask(data) {
-  return maskCursorController.buildNegativeMask(data);
-}
+const {
+  alignMaskToFrame,
+  buildNegativeMask,
+  clearMaskState,
+  getImagePointFromEvent,
+  hideCursorOverlay,
+  hideHistTooltip,
+  showHistTooltip,
+  snapHistogramValue,
+  updateCursorOverlay,
+  updateMaskUI,
+} = maskCursorController;
 
 function buildColumnMask(width, height, columns, base = null) {
   return maskCursorController.buildColumnMask(width, height, columns, base);
-}
-
-function alignMaskToFrame() {
-  maskCursorController.alignMaskToFrame();
-}
-
-function updateMaskUI() {
-  maskCursorController.updateMaskUI();
 }
 
 function syncMaskAvailability(forceEnable = false) {
   maskCursorController.syncMaskAvailability(forceEnable);
 }
 
-function clearMaskState() {
-  maskCursorController.clearMaskState();
-}
-
 async function loadMask(forceEnable = false) {
   await maskCursorController.loadMask(forceEnable);
-}
-
-function snapHistogramValue(value) {
-  return maskCursorController.snapHistogramValue(value);
-}
-
-function showHistTooltip(text, x, y) {
-  maskCursorController.showHistTooltip(text, x, y);
-}
-
-function hideHistTooltip() {
-  maskCursorController.hideHistTooltip();
-}
-
-function hideCursorOverlay() {
-  maskCursorController.hideCursorOverlay();
-}
-
-function updateCursorOverlay(event) {
-  maskCursorController.updateCursorOverlay(event);
 }
 
 const roiInteractionController = createRoiInteractionController({
@@ -772,15 +728,20 @@ const roiInteractionController = createRoiInteractionController({
     handleRoiChanged,
   },
 });
+const {
+  applyRoiEdit,
+  drawRoiOverlay,
+  getRoiHandleAt,
+  isPointInRoi,
+  isRoiEditing,
+  startRoiEdit,
+  stopRoiEdit,
+} = roiInteractionController;
 
 function scheduleRoiOverlay() {
   roiInteractionController.scheduleRoiOverlay();
   // Redrawn with the view like the ROI: the pixel mask editor's overlay.
   pixelMaskEditController?.scheduleDraw();
-}
-
-function drawRoiOverlay() {
-  roiInteractionController.drawRoiOverlay();
 }
 
 const analysisOverlayController = createAnalysisOverlayController({
@@ -805,6 +766,14 @@ const analysisOverlayController = createAnalysisOverlayController({
     setStatus,
   },
 });
+const {
+  exportPeakCsv,
+  getRingParams,
+  refreshPeakResolutions,
+  renderPeakList,
+  schedulePeakFinder,
+  updateRingsSectionState,
+} = analysisOverlayController;
 
 // The ring d-spacings: as many as wanted, the one list everything reads.
 const ringListController = createRingListController({
@@ -823,10 +792,6 @@ const ringListController = createRingListController({
     },
   },
 });
-
-function getRingParams() {
-  return analysisOverlayController.getRingParams();
-}
 
 function getResolutionAtPixel(ix, iy, params = getRingParams()) {
   return analysisOverlayController.getResolutionAtPixel(ix, iy, params);
@@ -849,38 +814,16 @@ const resolutionRingInteractionController = createResolutionRingInteractionContr
     commitRings: () => ringListController.commit(),
   },
 });
-
-function getRingHandleAt(event) {
-  return resolutionRingInteractionController.getRingHandleAt(event);
-}
-
-function startRingEdit(handle) {
-  resolutionRingInteractionController.startRingEdit(handle);
-}
-
-function applyRingEdit(point) {
-  resolutionRingInteractionController.applyRingEdit(point);
-}
-
-function stopRingEdit(event) {
-  resolutionRingInteractionController.stopRingEdit(event);
-}
-
-function isRingEditing() {
-  return resolutionRingInteractionController.isRingEditing();
-}
-
-function updateRingHover(event) {
-  return resolutionRingInteractionController.updateRingHover(event);
-}
-
-function clearRingHover() {
-  resolutionRingInteractionController.clearRingHover();
-}
-
-function getRingInteractionState() {
-  return resolutionRingInteractionController.getRingInteractionState();
-}
+const {
+  applyRingEdit,
+  clearRingHover,
+  getRingHandleAt,
+  getRingInteractionState,
+  isRingEditing,
+  startRingEdit,
+  stopRingEdit,
+  updateRingHover,
+} = resolutionRingInteractionController;
 
 function getRoiModeLabel(mode) {
   if (mode === "line") return t("roi.mode.line");
@@ -930,30 +873,10 @@ function updateRoiSectionState() {
   setSummaryChip(roiSummaryEl, t("roi.summary.mode_active", { mode: modeLabel }), "active");
 }
 
-function updateRingsSectionState() {
-  analysisOverlayController.updateRingsSectionState();
-}
-
 function updatePeaksSectionState() {
   analysisOverlayController.updatePeaksSectionState();
   // Inpainting's section follows the frame the same way (and empties with it).
   inpaintingController?.updateState();
-}
-
-function renderPeakList() {
-  analysisOverlayController.renderPeakList();
-}
-
-function schedulePeakFinder() {
-  analysisOverlayController.schedulePeakFinder();
-}
-
-function refreshPeakResolutions() {
-  analysisOverlayController.refreshPeakResolutions();
-}
-
-function exportPeakCsv() {
-  analysisOverlayController.exportPeakCsv();
 }
 
 function getSeriesSumGeometryContext() {
@@ -998,6 +921,7 @@ const seriesSumController = createSeriesSumController({
     getSeriesSumGeometryContext,
   },
 });
+const { setSeriesSumProgress, updateSeriesSumUi } = seriesSumController;
 
 const dataExportController = createDataExportController({
   apiBase: API,
@@ -1017,18 +941,11 @@ const dataExportController = createDataExportController({
     loadAutoloadFile,
   },
 });
-
-function openDataExportDialog() {
-  dataExportController.openDialog();
-}
-
-function setDataExportProgress(progress, text) {
-  dataExportController.setProgress(progress, text);
-}
-
-function updateDataExportUi() {
-  dataExportController.updateUi();
-}
+const {
+  openDialog: openDataExportDialog,
+  setProgress: setDataExportProgress,
+  updateUi: updateDataExportUi,
+} = dataExportController;
 
 const animationExportController = createAnimationExportController({
   apiBase: API,
@@ -1094,10 +1011,7 @@ const animationExportController = createAnimationExportController({
     inpaintFrameFull: (data) => inpaintView.frameForFull(data, getActiveSaturationMax()),
   },
 });
-
-function openAnimationExportDialog() {
-  animationExportController.openDialog();
-}
+const { openDialog: openAnimationExportDialog } = animationExportController;
 
 const imageExportController = createImageExportController({
   state,
@@ -1144,10 +1058,7 @@ const imageExportController = createImageExportController({
     setStatus,
   },
 });
-
-function openImageExportDialog() {
-  imageExportController.openDialog();
-}
+const { openDialog: openImageExportDialog } = imageExportController;
 
 // Why a File menu command cannot run right now, or "" when it can. The rules
 // themselves live in command_availability.js, shared with the command palette
@@ -1214,14 +1125,6 @@ toolbarPlaybackExportGif?.addEventListener("click", () => {
   openAnimationExportDialog();
 });
 
-function setSeriesSumProgress(progress, text) {
-  seriesSumController.setSeriesSumProgress(progress, text);
-}
-
-function updateSeriesSumUi() {
-  seriesSumController.updateSeriesSumUi();
-}
-
 async function startSeriesSumming() {
   await seriesSumController.startSeriesSumming();
 }
@@ -1230,32 +1133,8 @@ async function cancelSeriesSumming() {
   await seriesSumController.cancelSeriesSumming();
 }
 
-function getRoiHandleAt(event) {
-  return roiInteractionController.getRoiHandleAt(event);
-}
-
-function isPointInRoi(point) {
-  return roiInteractionController.isPointInRoi(point);
-}
-
-function startRoiEdit(handle, point) {
-  roiInteractionController.startRoiEdit(handle, point);
-}
-
-function applyRoiEdit(point) {
-  roiInteractionController.applyRoiEdit(point);
-}
-
-function stopRoiEdit(event) {
-  roiInteractionController.stopRoiEdit(event);
-}
-
 function scheduleRoiUpdate() {
   roiInteractionController.scheduleRoiUpdate();
-}
-
-function isRoiEditing() {
-  return roiInteractionController.isRoiEditing();
 }
 
 function setLoading(show) {
@@ -1368,10 +1247,6 @@ function overviewEventToOverview(event) {
   return overviewViewportController ? overviewViewportController.overviewEventToOverview(event) : null;
 }
 
-function panToImageCenter(x, y) {
-  overviewViewportController?.panToImageCenter(x, y);
-}
-
 function getOverviewHandleAt(point) {
   return overviewViewportController ? overviewViewportController.getOverviewHandleAt(point) : null;
 }
@@ -1382,36 +1257,12 @@ function getAnchorForHandle(view, handle, keepCenter) {
     : null;
 }
 
-function resizeViewFromHandle(point, handle, keepCenter) {
-  overviewViewportController?.resizeViewFromHandle(point, handle, keepCenter);
-}
-
 function setZoom(value) {
   overviewViewportController?.setZoom(value);
 }
 
-function zoomAt(clientX, clientY, nextZoom) {
-  overviewViewportController?.zoomAt(clientX, clientY, nextZoom);
-}
-
 function normalizeWheelDelta(event) {
   return overviewViewportController ? overviewViewportController.normalizeWheelDelta(event) : 0;
-}
-
-function startTouchGesture(touches) {
-  overviewViewportController?.startTouchGesture(touches);
-}
-
-function stopTouchGesture() {
-  overviewViewportController?.stopTouchGesture();
-}
-
-function updateTouchGesture(touches) {
-  overviewViewportController?.updateTouchGesture(touches);
-}
-
-function queueWheelZoom(delta, clientX, clientY) {
-  overviewViewportController?.queueWheelZoom(delta, clientX, clientY);
 }
 
 function isTouchGestureActive() {
@@ -1420,26 +1271,6 @@ function isTouchGestureActive() {
 
 function fitImageToView() {
   overviewViewportController?.fitImageToView();
-}
-
-function updateFpsLabel() {
-  chromeToolbarController?.updateFpsLabel();
-}
-
-function closeToolbarPlaybackPopover() {
-  chromeToolbarController?.closeToolbarPlaybackPopover();
-}
-
-function toggleToolbarPlaybackPopover() {
-  chromeToolbarController?.toggleToolbarPlaybackPopover();
-}
-
-function closeToolbarMorePopover() {
-  chromeToolbarController?.closeToolbarMorePopover();
-}
-
-function toggleToolbarMorePopover() {
-  chromeToolbarController?.toggleToolbarMorePopover();
 }
 
 function syncToolbarMoreControls() {
@@ -1458,24 +1289,8 @@ function getThresholdIndexAtOffset(offset) {
     : 0;
 }
 
-function updateThresholdOptions() {
-  thresholdPlaybackController?.updateThresholdOptions();
-}
-
 async function setThresholdIndex(nextIndex) {
   await thresholdPlaybackController?.setThresholdIndex(nextIndex);
-}
-
-function setFps(value) {
-  thresholdPlaybackController?.setFps(value);
-}
-
-function setFrameStep(value) {
-  thresholdPlaybackController?.setFrameStep(value);
-}
-
-function updatePlayButtons() {
-  thresholdPlaybackController?.updatePlayButtons();
 }
 
 function getMaxPanelWidth() {
@@ -1494,40 +1309,8 @@ function setMobilePanelSnap(value, snap = true, persist = false) {
   panelLayoutController?.setMobilePanelSnap(value, snap, persist);
 }
 
-function applyPanelState() {
-  panelLayoutController?.applyPanelState();
-}
-
-function togglePanel() {
-  panelLayoutController?.togglePanel();
-}
-
-function initializePanelTabA11y() {
-  panelLayoutController?.initializePanelTabA11y();
-}
-
-function toggleSection(event) {
-  panelLayoutController?.toggleSection(event);
-}
-
 function setSectionState(section, collapsed, persist = true) {
   panelLayoutController?.setSectionState(section, collapsed, persist);
-}
-
-function initializeSectionContentWrappers() {
-  panelLayoutController?.initializeSectionContentWrappers();
-}
-
-function setPanelWidth(width) {
-  panelLayoutController?.setPanelWidth(width);
-}
-
-function startMobilePanelDrag(event) {
-  panelLayoutController?.startMobilePanelDrag(event);
-}
-
-function updateMobilePanelDrag(event) {
-  panelLayoutController?.updateMobilePanelDrag(event);
 }
 
 function stopMobilePanelDrag(event, cancelled = false) {
@@ -1556,36 +1339,12 @@ function startPlayback() {
   framePlaybackController?.startPlayback();
 }
 
-function processPendingFrameRequest(appliedFrame) {
-  framePlaybackController?.processPendingFrameRequest(appliedFrame);
-}
-
 function requestFrame(index) {
   if (liveHistoryController?.isLiveHistoryActive()) {
     liveHistoryController.showLiveHistoryFrame(index);
     return;
   }
   framePlaybackController?.requestFrame(index);
-}
-
-function drawSplash() {
-  exportSplashController?.drawSplash();
-}
-
-function updateSplashCallToAction() {
-  exportSplashController?.updateSplashCallToAction();
-}
-
-function showSplash() {
-  exportSplashController?.showSplash();
-}
-
-function setSplashStatus(status, vars, options) {
-  exportSplashController?.setSplashStatus(status, vars, options);
-}
-
-function hideSplash() {
-  exportSplashController?.hideSplash();
 }
 
 function updateFullscreenUi() {
@@ -1615,36 +1374,8 @@ async function toggleFullscreen() {
   }
 }
 
-function updateFooterVersions() {
-  chromeToolbarController?.updateFooterVersions();
-}
-
-function updateViewerFooter() {
-  chromeToolbarController?.updateViewerFooter();
-}
-
-function closeFooterVersionPopover() {
-  chromeToolbarController?.closeFooterVersionPopover();
-}
-
-function toggleFooterVersionPopover() {
-  chromeToolbarController?.toggleFooterVersionPopover();
-}
-
-function registerChromeActivity() {
-  chromeToolbarController?.registerChromeActivity();
-}
-
-function syncOverlayAnchors() {
-  chromeToolbarController?.syncOverlayAnchors();
-}
-
 function updateUiIdleAndAnchors() {
   chromeToolbarController?.updateUiIdleAndAnchors();
-}
-
-function updateDataSourceSummary() {
-  chromeToolbarController?.updateDataSourceSummary();
 }
 
 function updateToolbar() {
@@ -1804,6 +1535,7 @@ const uploadFlowController = createUploadFlowController({
     fetchJSON,
   },
 });
+const { hideUploadProgress } = uploadFlowController;
 
 async function openFileModal() {
   await fileOpenController.openFileModal();
@@ -1815,10 +1547,6 @@ async function uploadAndOpenSelectedFiles(selectedFiles) {
 
 function showDocumentDropDisabledStatus() {
   setStatus(t("status.upload.local_drop_disabled"));
-}
-
-function hideUploadProgress() {
-  uploadFlowController.hideUploadProgress();
 }
 
 function showProcessingProgress(label = "Processing…") {
@@ -1903,14 +1631,6 @@ function setAutoloadStatus(text, markUpdate = false) {
   autoloadStatusController?.setAutoloadStatus(text, markUpdate);
 }
 
-function setAutoloadLatest() {
-  autoloadStatusController?.setAutoloadLatest();
-}
-
-function updateAutoloadMeta() {
-  autoloadStatusController?.updateAutoloadMeta();
-}
-
 async function setSimplonMode(enabled) {
   await autoloadStatusController?.setSimplonMode(enabled);
 }
@@ -1928,6 +1648,7 @@ autoloadStatusController = createAutoloadStatusController({
     updateLiveBadge,
   },
 });
+const { setAutoloadLatest, updateAutoloadMeta } = autoloadStatusController;
 
 // The geometry ALBIS calculates with, and the user's override of it. Created
 // before anything that reports metadata, since all of that goes through it.
@@ -1984,6 +1705,12 @@ sourceMetadataController = createSourceMetadataController({
     schedulePeakOverlay,
   },
 });
+const {
+  applyImageMeta,
+  applyLiveSourceSnapshot,
+  updateRemoteMetaUI,
+  updateSimplonMetaUI,
+} = sourceMetadataController;
 sourceMetadataController.updateGeometryUi();
 
 panelLayoutController = createPanelLayoutController({
@@ -2015,6 +1742,16 @@ panelLayoutController = createPanelLayoutController({
     },
   },
 });
+const {
+  applyPanelState,
+  initializePanelTabA11y,
+  initializeSectionContentWrappers,
+  setPanelWidth,
+  startMobilePanelDrag,
+  togglePanel,
+  toggleSection,
+  updateMobilePanelDrag,
+} = panelLayoutController;
 
 chromeToolbarController = createChromeToolbarController({
   state,
@@ -2045,6 +1782,20 @@ chromeToolbarController = createChromeToolbarController({
     },
   },
 });
+const {
+  closeFooterVersionPopover,
+  closeToolbarMorePopover,
+  closeToolbarPlaybackPopover,
+  registerChromeActivity,
+  syncOverlayAnchors,
+  toggleFooterVersionPopover,
+  toggleToolbarMorePopover,
+  toggleToolbarPlaybackPopover,
+  updateDataSourceSummary,
+  updateFooterVersions,
+  updateFpsLabel,
+  updateViewerFooter,
+} = chromeToolbarController;
 
 thresholdPlaybackController = createThresholdPlaybackController({
   state,
@@ -2067,6 +1818,7 @@ thresholdPlaybackController = createThresholdPlaybackController({
     requestFrame,
   },
 });
+const { setFps, setFrameStep, updatePlayButtons, updateThresholdOptions } = thresholdPlaybackController;
 
 exportSplashController = createExportSplashController({
   state,
@@ -2087,6 +1839,15 @@ exportSplashController = createExportSplashController({
     getInpaintedFrame,
   },
 });
+const {
+  drawSplash,
+  exportFullImage,
+  exportVisibleArea,
+  hideSplash,
+  setSplashStatus,
+  showSplash,
+  updateSplashCallToAction,
+} = exportSplashController;
 
 fileSessionController = createFileSessionController({
   state,
@@ -2150,6 +1911,7 @@ fileSessionController = createFileSessionController({
     scheduleHistogram,
   },
 });
+const { applyFrame } = fileSessionController;
 
 liveHistoryController = createLiveHistoryController({
   state,
@@ -2178,17 +1940,10 @@ const backendStatusController = createBackendStatusController({
     onQuitAvailability: () => quitController?.sync(),
   },
 });
+const { startBackendHeartbeat, updateAboutVersion } = backendStatusController;
 
 function updateLiveBadge() {
   backendStatusController.updateLiveBadge();
-}
-
-function updateAboutVersion() {
-  backendStatusController.updateAboutVersion();
-}
-
-function startBackendHeartbeat() {
-  backendStatusController.startBackendHeartbeat();
 }
 
 async function waitForBackendReady(timeoutMs = 20000) {
@@ -2268,18 +2023,11 @@ const autoloadSettingsController = createAutoloadSettingsController({
     startAutoload: (...args) => startAutoload(...args),
   },
 });
-
-function persistAutoloadSettings() {
-  autoloadSettingsController.persistAutoloadSettings();
-}
+const { loadAutoloadSettings, persistAutoloadSettings } = autoloadSettingsController;
 
 function updateAutoloadUI() {
   autoloadSettingsController.updateAutoloadUI();
   geometryParamsController?.render();
-}
-
-function loadAutoloadSettings() {
-  autoloadSettingsController.loadAutoloadSettings();
 }
 
 const autoloadOrchestrationController = createAutoloadOrchestrationController({
@@ -2424,6 +2172,7 @@ framePlaybackController = createFramePlaybackController({
     loadFrame,
   },
 });
+const { processPendingFrameRequest } = framePlaybackController;
 
 frameMetadataController = createFrameMetadataController({
   apiBase: API,
@@ -2531,14 +2280,6 @@ function applyExternalFrame(data, shape, dtype, label, fitView, preserveMask = f
 
 async function fetchSimplonMask() {
   await maskCursorController.fetchSimplonMask();
-}
-
-function exportFullImage(options) {
-  return exportSplashController?.exportFullImage(options);
-}
-
-function exportVisibleArea(options) {
-  return exportSplashController?.exportVisibleArea(options);
 }
 
 async function exportViewerWindow(options) {
@@ -2943,10 +2684,7 @@ const commandPaletteController = createCommandPaletteController({
     closeModal,
   },
 });
-
-function renderCommandPalette() {
-  commandPaletteController.render();
-}
+const { handleKeydown: handleCommandPaletteKeydown, render: renderCommandPalette } = commandPaletteController;
 
 function openCommandPalette(prefill = "") {
   commandPaletteController.open(prefill);
@@ -2954,10 +2692,6 @@ function openCommandPalette(prefill = "") {
 
 function closeCommandPalette(options = {}) {
   commandPaletteController.close(options);
-}
-
-function handleCommandPaletteKeydown(event) {
-  return commandPaletteController.handleKeydown(event);
 }
 
 const menuActionHandler = createMenuActionHandler({
@@ -3034,10 +2768,6 @@ function fileLabel(path) {
 
 let renderEngineController = null;
 
-function initRenderer() {
-  renderEngineController.initRenderer();
-}
-
 async function loadFiles() {
   await frameMetadataController?.loadFiles();
 }
@@ -3057,20 +2787,8 @@ function formatSimplonTimestamp(raw) {
     : (raw ? String(raw) : "");
 }
 
-function updateSimplonMetaUI(meta) {
-  sourceMetadataController?.updateSimplonMetaUI(meta);
-}
-
-function updateRemoteMetaUI(meta) {
-  sourceMetadataController?.updateRemoteMetaUI(meta);
-}
-
 function updateJfjochMetaUI(meta, status = {}) {
   sourceMetadataController?.updateJfjochMetaUI(meta, status);
-}
-
-function applyImageMeta(headers) {
-  sourceMetadataController?.applyImageMeta(headers);
 }
 
 function applyImageGeometry(payload, cacheKey = "", options = {}) {
@@ -3144,10 +2862,6 @@ function parseRemoteMeta(headers) {
 
 function createLiveSourceSnapshot(payload) {
   return sourceMetadataController ? sourceMetadataController.createLiveSourceSnapshot(payload) : payload;
-}
-
-function applyLiveSourceSnapshot(snapshot) {
-  sourceMetadataController?.applyLiveSourceSnapshot(snapshot);
 }
 
 function appendLiveFrame(entry) {
@@ -3278,6 +2992,15 @@ overviewViewportController = createOverviewViewportController({
     },
   },
 });
+const {
+  panToImageCenter,
+  queueWheelZoom,
+  resizeViewFromHandle,
+  startTouchGesture,
+  stopTouchGesture,
+  updateTouchGesture,
+  zoomAt,
+} = overviewViewportController;
 
 viewerSyncController = createViewerSyncController({
   state,
@@ -3350,6 +3073,7 @@ renderEngineController = createRenderEngineController({
     },
   },
 });
+const { initRenderer } = renderEngineController;
 
 const overlayRenderController = createOverlayRenderController({
   state,
@@ -3416,10 +3140,7 @@ const histogramRenderController = createHistogramRenderController({
     PLOT_THEME,
   },
 });
-
-function histogramValueToX(value, width) {
-  return histogramRenderController.histogramValueToX(value, width);
-}
+const { drawHistogram, histogramValueToX, histogramXToValue } = histogramRenderController;
 
 // Mask colours chosen for the colour map (modules/mask_colors.js), with a key
 // under the colour bar, and the colour bar as a window/level control.
@@ -3447,14 +3168,6 @@ bindColorbarWindowInteractions({
     handleContrastChanged: (reason) => handleContrastChanged(reason),
   },
 });
-
-function histogramXToValue(x, width) {
-  return histogramRenderController.histogramXToValue(x, width);
-}
-
-function drawHistogram(hist) {
-  histogramRenderController.drawHistogram(hist);
-}
 
 function clearHistogram() {
   histogramRenderController.clearHistogram();
@@ -3620,53 +3333,26 @@ const roiStatsController = createRoiStatsController({
   getRingParams,
   getResolutionAtPixel,
 });
+const {
+  applyRoiCenterFromInputs,
+  clearRoiPlotLimitsForKey,
+  exportRoiCsv,
+  getRoiPlotKey,
+  getRoiPlotLimits,
+  getRoiPlotLog,
+  hasAnyManualRoiPlotLimits,
+  hasManualRoiPlotLimits,
+  hideRoiTooltip,
+  redrawRoiPlots,
+  setRoiPlotAxisLimits,
+  setRoiPlotLog,
+  syncRoiPlotLimitControls,
+  updateRoiModeUI,
+  updateRoiTooltip,
+} = roiStatsController;
 
 function updateRoiCenterInputs() {
   roiStatsController.updateRoiCenterInputs();
-}
-
-function applyRoiCenterFromInputs() {
-  return roiStatsController.applyRoiCenterFromInputs();
-}
-
-function getRoiPlotKey(canvasEl) {
-  return roiStatsController.getRoiPlotKey(canvasEl);
-}
-
-function getRoiPlotLimits(plotKey) {
-  return roiStatsController.getRoiPlotLimits(plotKey);
-}
-
-function getRoiPlotLog(plotKey) {
-  return roiStatsController.getRoiPlotLog(plotKey);
-}
-
-function setRoiPlotLog(plotKey, enabled) {
-  roiStatsController.setRoiPlotLog(plotKey, enabled);
-}
-
-function syncRoiPlotLimitControls() {
-  roiStatsController.syncRoiPlotLimitControls();
-}
-
-function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
-  roiStatsController.setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue);
-}
-
-function clearRoiPlotLimitsForKey(plotKey) {
-  roiStatsController.clearRoiPlotLimitsForKey(plotKey);
-}
-
-function hasManualRoiPlotLimits(plotKey) {
-  return roiStatsController.hasManualRoiPlotLimits(plotKey);
-}
-
-function hasAnyManualRoiPlotLimits() {
-  return roiStatsController.hasAnyManualRoiPlotLimits();
-}
-
-function updateRoiModeUI() {
-  roiStatsController.updateRoiModeUI();
 }
 
 function clearRoi() {
@@ -3677,34 +3363,14 @@ function updateGlobalStats() {
   roiStatsController.updateGlobalStats();
 }
 
-function hideRoiTooltip(canvasEl) {
-  roiStatsController.hideRoiTooltip(canvasEl);
-}
-
-function updateRoiTooltip(event, canvasEl) {
-  roiStatsController.updateRoiTooltip(event, canvasEl);
-}
-
 function updateRoiStats() {
   roiStatsController.updateRoiStats();
-}
-
-function redrawRoiPlots() {
-  roiStatsController.redrawRoiPlots();
-}
-
-function exportRoiCsv() {
-  roiStatsController.exportRoiCsv();
 }
 
 function closeCurrentFile() {
   liveSeriesWatch.stop();
   resetLiveHistory();
   fileSessionController.closeCurrentFile();
-}
-
-function applyFrame(data, width, height, dtype) {
-  fileSessionController.applyFrame(data, width, height, dtype);
 }
 
 function redraw() {
