@@ -15,6 +15,7 @@ export function createSourceMetadataController({
   analysisState,
   elements,
   callbacks,
+  core,
 }) {
   const {
     simplonMetaPanel,
@@ -50,7 +51,7 @@ export function createSourceMetadataController({
 
   // What the values mean, and what overrides them, lives in
   // geometry_params_controller: this only reports what each source states.
-  const { geometryParams, schedulePeakOverlay } = callbacks;
+  const { geometryParams } = callbacks;
 
   function parseHeaderFloat(headers, key) {
     if (!headers) return null;
@@ -318,7 +319,7 @@ export function createSourceMetadataController({
     }
 
     analysisState.externalPeakSets = clonePeakSets(source.externalPeakSets);
-    schedulePeakOverlay?.();
+    core.overlayRender.schedulePeakOverlay();
   }
 
   function clearImageGeometry({ clearKey = true } = {}) {

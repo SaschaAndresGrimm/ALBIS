@@ -92,11 +92,13 @@ function buildController(createAnalysisOverlayController, stateOverrides = {}, a
       },
       buildSkeletonList: () => document.createElement("div"),
       formatStat: (value) => String(value),
-      schedulePeakOverlay: vi.fn(),
       setFieldHint: vi.fn(),
       getActiveSaturationMax: () => null,
       isSaturatedValue: () => false,
       setStatus,
+    },
+    core: {
+      overlayRender: { schedulePeakOverlay: vi.fn() },
     },
   });
 

@@ -40,12 +40,13 @@ describe("roi_controls_bindings", () => {
         stopRoiEdit: vi.fn(),
         updateRoiModeUI: vi.fn(),
         scheduleRoiOverlay: vi.fn(),
-        scheduleRoiUpdate: vi.fn(),
-        clearRoi: vi.fn(),
         setStatus: vi.fn(),
         exportRoiCsv: vi.fn(),
         applyRoiCenterFromInputs: vi.fn(() => null),
-        updateRoiCenterInputs: vi.fn(),
+      },
+      core: {
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
+        roiStats: { clearRoi: vi.fn(), updateRoiCenterInputs: vi.fn() },
       },
     });
 
@@ -95,12 +96,13 @@ describe("roi_controls_bindings", () => {
         stopRoiEdit: vi.fn(),
         updateRoiModeUI: vi.fn(),
         scheduleRoiOverlay: vi.fn(),
-        scheduleRoiUpdate: vi.fn(),
-        clearRoi: vi.fn(),
         setStatus: vi.fn(),
         exportRoiCsv: vi.fn(),
         applyRoiCenterFromInputs: vi.fn(() => ({ x: -15, y: 125 })),
-        updateRoiCenterInputs: vi.fn(),
+      },
+      core: {
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
+        roiStats: { clearRoi: vi.fn(), updateRoiCenterInputs: vi.fn() },
       },
     });
 
@@ -150,12 +152,13 @@ describe("roi_controls_bindings", () => {
         stopRoiEdit: vi.fn(),
         updateRoiModeUI: vi.fn(),
         scheduleRoiOverlay: vi.fn(),
-        scheduleRoiUpdate,
-        clearRoi,
         setStatus: vi.fn(),
         exportRoiCsv: vi.fn(),
         applyRoiCenterFromInputs: vi.fn(() => null),
-        updateRoiCenterInputs: vi.fn(),
+      },
+      core: {
+        roiInteraction: { scheduleRoiUpdate },
+        roiStats: { clearRoi, updateRoiCenterInputs: vi.fn() },
       },
     });
 

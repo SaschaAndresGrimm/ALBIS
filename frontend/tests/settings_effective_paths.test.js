@@ -78,8 +78,10 @@ async function mount(payload) {
       openModal: vi.fn(),
       closeModal: vi.fn(),
       setToolHintsEnabled: vi.fn(),
-      schedulePixelOverlay: vi.fn(),
       applyLanguagePreference: vi.fn(),
+    },
+    core: {
+      overlayRender: { schedulePixelOverlay: vi.fn() },
     },
   });
 

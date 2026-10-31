@@ -20,11 +20,9 @@ export function bindDataControlInteractions({
   } = elements;
 
   const {
-    syncSeriesSumOutputPath,
     isHdfFile,
     loadDatasets,
     loadImageSeries,
-    setThresholdIndex,
     requestFrame,
     setFrameStep,
     closeToolbarPlaybackPopover,
@@ -36,7 +34,7 @@ export function bindDataControlInteractions({
     await core.autoloadOrchestration.ensureFileMode();
     state.file = event.target.value;
     if (!state.file) return;
-    syncSeriesSumOutputPath();
+    core.seriesSum.syncSeriesSumOutputPath();
     core.framePlayback?.stopPlayback();
     if (isHdfFile(state.file)) {
       await loadDatasets();
@@ -54,12 +52,12 @@ export function bindDataControlInteractions({
 
   thresholdSelect?.addEventListener("change", async (event) => {
     const value = Math.max(0, Number(event.target.value || 0));
-    await setThresholdIndex(value);
+    await core.thresholdPlayback?.setThresholdIndex(value);
   });
 
   toolbarThresholdSelect?.addEventListener("change", async (event) => {
     const value = Math.max(0, Number(event.target.value || 0));
-    await setThresholdIndex(value);
+    await core.thresholdPlayback?.setThresholdIndex(value);
   });
 
   frameRange.addEventListener("input", async (event) => {

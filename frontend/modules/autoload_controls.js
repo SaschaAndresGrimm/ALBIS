@@ -53,9 +53,7 @@ export function bindAutoloadControls({
     updateAutoloadUI,
     persistAutoloadSettings,
     updateRemoteMetaUI,
-    schedulePeakOverlay,
     openFileBrowser,
-    openFileModal,
     handleLocalFileSelection,
     logClient,
   } = callbacks;
@@ -134,7 +132,7 @@ export function bindAutoloadControls({
       state.autoload.remoteMeta = {};
       analysisState.externalPeakSets = [];
       updateRemoteMetaUI({});
-      schedulePeakOverlay();
+      core.overlayRender.schedulePeakOverlay();
       core.autoloadOrchestration.autoloadTick();
     }
   });
@@ -147,7 +145,7 @@ export function bindAutoloadControls({
       state.autoload.jfjochMeta = {};
       analysisState.externalPeakSets = [];
       core.sourceMetadata?.updateJfjochMetaUI(state.autoload.jfjochMeta || {}, state.autoload.jfjochStatus || {});
-      schedulePeakOverlay();
+      core.overlayRender.schedulePeakOverlay();
       core.autoloadOrchestration.autoloadTick();
     }
   });
@@ -247,7 +245,7 @@ export function bindAutoloadControls({
   });
 
   autoloadSelectFile?.addEventListener("click", () => {
-    void openFileModal();
+    void core.fileOpen.openFileModal();
   });
 
   const simplonProbeController = createSimplonProbeController({

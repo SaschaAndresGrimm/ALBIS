@@ -46,6 +46,7 @@ async function setup({ state, analysisState }) {
     analysisState,
     elements: NO_META_ELEMENTS,
     callbacks: { geometryParams },
+    core: { overlayRender: { schedulePeakOverlay: vi.fn() } },
   });
   return { controller, geometryParams, geometryStatusEl };
 }

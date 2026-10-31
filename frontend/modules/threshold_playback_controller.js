@@ -33,7 +33,6 @@ export function createThresholdPlaybackController({
   const {
     formatEnergy,
     option,
-    syncToolbarMoreControls,
     updateViewerFooter,
     updateFpsLabel,
     startPlayback,
@@ -121,7 +120,7 @@ export function createThresholdPlaybackController({
     if (toolbarThresholdSelect) {
       toolbarThresholdSelect.disabled = count <= 1;
     }
-    syncToolbarMoreControls();
+    core.chromeToolbar?.syncToolbarMoreControls();
     updateViewerFooter();
   }
 

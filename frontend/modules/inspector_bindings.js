@@ -11,17 +11,15 @@ export function bindInspectorInteractions({
   inspectorResults,
   inspectorStateEl,
   callbacks,
+  core,
 }) {
   const {
     selectInspectorRow,
     renderInspectorLink,
     setSectionBadgeState,
     renderSkeletonBlock,
-    fetchInspectorTree,
     renderInspectorTree,
-    showInspectorNode,
     clearInspectorSearch,
-    runInspectorSearch,
   } = callbacks;
 
   inspectorTree?.addEventListener("click", async (event) => {
@@ -51,7 +49,7 @@ export function bindInspectorInteractions({
           setSectionBadgeState(inspectorStateEl, "loading", t("inspector.tree.loading_children"));
           const container = node.querySelector(".inspector-children");
           renderSkeletonBlock(container, 4);
-          const children = await fetchInspectorTree(nodePath);
+          const children = await core.inspectorPanel.fetchInspectorTree(nodePath);
           if (container) {
             renderInspectorTree(children, container);
           }
@@ -64,7 +62,7 @@ export function bindInspectorInteractions({
       }
     }
     if (nodePath) {
-      await showInspectorNode(nodePath);
+      await core.inspectorPanel.showInspectorNode(nodePath);
     }
   });
 
@@ -75,13 +73,13 @@ export function bindInspectorInteractions({
     }
     const query = inspectorSearchInput.value.trim();
     inspectorSearchTimer = window.setTimeout(() => {
-      runInspectorSearch(query);
+      core.inspectorPanel.runInspectorSearch(query);
     }, 250);
   });
 
   inspectorSearchClear?.addEventListener("click", () => {
     clearInspectorSearch();
-    runInspectorSearch("");
+    core.inspectorPanel.runInspectorSearch("");
   });
 
   inspectorResults?.addEventListener("click", async (event) => {
@@ -94,7 +92,7 @@ export function bindInspectorInteractions({
       renderInspectorLink(nodePath, row.dataset.target || "-");
       return;
     }
-    await showInspectorNode(nodePath);
+    await core.inspectorPanel.showInspectorNode(nodePath);
   });
 
   inspectorResults?.addEventListener("keydown", (event) => {

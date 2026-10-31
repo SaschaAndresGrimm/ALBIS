@@ -28,7 +28,9 @@ function setup() {
       formatValue: (v) => String(v),
       redraw: vi.fn(),
       scheduleHistogram: vi.fn(),
-      handleContrastChanged,
+    },
+    core: {
+      viewerSync: { handleContrastChanged },
     },
   });
   const fire = (type, init) => colorbar.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), init));

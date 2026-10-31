@@ -49,13 +49,15 @@ function build() {
       panelTabContents: [],
     },
     callbacks: {
-      scheduleOverview: vi.fn(),
       scheduleHistogram: vi.fn(),
-      schedulePixelOverlay: vi.fn(),
       getSectionStateStore: () => ({}),
       setSectionStateStore: vi.fn(),
       persistPanelWidth: vi.fn(),
       onPanelToggled: vi.fn(),
+    },
+    core: {
+      overviewViewport: { scheduleOverview: vi.fn() },
+      overlayRender: { schedulePixelOverlay: vi.fn() },
     },
   });
 

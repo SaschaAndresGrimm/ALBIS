@@ -5,38 +5,33 @@
 export function bindWindowUiInteractions({
   state,
   callbacks,
+  core,
 }) {
   const {
     setZoom,
-    updateToolbar,
     drawHistogram,
     drawSplash,
     applyPanelState,
-    scheduleOverview,
     scheduleHistogram,
-    schedulePixelOverlay,
     scheduleRoiOverlay,
-    scheduleRoiUpdate,
-    scheduleResolutionOverlay,
-    schedulePeakOverlay,
   } = callbacks;
 
   window.addEventListener("resize", () => {
     if (state.hasFrame) {
       setZoom(state.zoom);
     }
-    updateToolbar();
+    core.chromeToolbar?.updateToolbar();
     if (state.histogram) {
       drawHistogram(state.histogram);
     }
     drawSplash();
     applyPanelState();
-    scheduleOverview();
+    core.overviewViewport?.scheduleOverview();
     scheduleHistogram();
-    schedulePixelOverlay();
+    core.overlayRender.schedulePixelOverlay();
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
-    scheduleResolutionOverlay();
-    schedulePeakOverlay();
+    core.roiInteraction.scheduleRoiUpdate();
+    core.overlayRender.scheduleResolutionOverlay();
+    core.overlayRender.schedulePeakOverlay();
   });
 }

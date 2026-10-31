@@ -90,13 +90,13 @@ describe("threshold_playback_controller", () => {
       callbacks: {
         formatEnergy: vi.fn(),
         option: vi.fn(() => document.createElement("option")),
-        syncToolbarMoreControls: vi.fn(),
         updateViewerFooter: vi.fn(),
         updateFpsLabel: vi.fn(),
         startPlayback: vi.fn(),
         requestFrame: vi.fn(),
       },
       core: {
+        chromeToolbar: { syncToolbarMoreControls: vi.fn() },
         maskCursor: { loadMask: vi.fn() },
         framePlayback: { stopPlayback: vi.fn() },
       },

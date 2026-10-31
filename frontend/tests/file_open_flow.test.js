@@ -48,7 +48,6 @@ describe("file_open_flow", () => {
       },
       callbacks: {
         dirnameFromPath: (value) => String(value).replace(/\/[^/]+$/, ""),
-        syncSeriesSumOutputPath: vi.fn(),
         option: (label, value) => {
           const opt = document.createElement("option");
           opt.textContent = label;
@@ -64,6 +63,7 @@ describe("file_open_flow", () => {
         openFileDialog: vi.fn(async () => null),
       },
       core: {
+        seriesSum: { syncSeriesSumOutputPath: vi.fn() },
         frameMetadata: { loadFiles },
         autoloadOrchestration: { ensureFileMode: vi.fn(async () => {}) },
       },

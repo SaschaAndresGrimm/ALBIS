@@ -29,7 +29,6 @@ export function createWindowCloneController({ state, analysisState, roiState, ca
     openPathInViewer,
     isHdfFile,
     selectDatasetIfPresent,
-    setThresholdIndex,
     requestFrame,
     updateMaskUI,
     applySyncedContrast,
@@ -38,8 +37,6 @@ export function createWindowCloneController({ state, analysisState, roiState, ca
     updateRingsSectionState,
     updatePeaksSectionState,
     schedulePeakFinder,
-    scheduleResolutionOverlay,
-    schedulePeakOverlay,
   } = callbacks;
 
   /**
@@ -102,7 +99,7 @@ export function createWindowCloneController({ state, analysisState, roiState, ca
     }
 
     if (Number(state.thresholdCount) > 1 && Number(source.thresholdIndex) > 0) {
-      await setThresholdIndex(Number(source.thresholdIndex));
+      await core.thresholdPlayback?.setThresholdIndex(Number(source.thresholdIndex));
     }
 
     const frameIndex = Number(source.frameIndex) || 0;
@@ -138,8 +135,8 @@ export function createWindowCloneController({ state, analysisState, roiState, ca
 
     if (payload.viewport) applyViewportCenter(payload.viewport);
 
-    scheduleResolutionOverlay();
-    schedulePeakOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
+    core.overlayRender.schedulePeakOverlay();
   }
 
   /** Clear one key out of the fragment, leaving any others in place. */

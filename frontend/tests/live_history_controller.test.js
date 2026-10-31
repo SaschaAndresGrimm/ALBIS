@@ -80,11 +80,11 @@ describe("live_history_controller", () => {
         applyLiveSourceSnapshot: vi.fn(),
         updateFrameControls: vi.fn(),
         updatePlayButtons: vi.fn(),
-        updateToolbar: vi.fn(),
         updateAutoloadUI: vi.fn(),
         setStatus: vi.fn(),
       },
       core: {
+        chromeToolbar: { updateToolbar: vi.fn() },
         fileSession: { applyExternalFrame },
       },
     });
@@ -121,11 +121,11 @@ describe("live_history_controller", () => {
         applyLiveSourceSnapshot: vi.fn(),
         updateFrameControls: vi.fn(),
         updatePlayButtons: vi.fn(),
-        updateToolbar: vi.fn(),
         updateAutoloadUI: vi.fn(),
         setStatus,
       },
       core: {
+        chromeToolbar: { updateToolbar: vi.fn() },
         fileSession: { applyExternalFrame },
       },
     });
@@ -172,11 +172,11 @@ describe("live_history_controller", () => {
         applyLiveSourceSnapshot: vi.fn(),
         updateFrameControls: vi.fn(),
         updatePlayButtons: vi.fn(),
-        updateToolbar: vi.fn(),
         updateAutoloadUI: vi.fn(),
         setStatus: vi.fn(),
       },
       core: {
+        chromeToolbar: { updateToolbar: vi.fn() },
         fileSession: { applyExternalFrame },
       },
     });
@@ -212,11 +212,11 @@ describe("live_history_controller", () => {
         applyLiveSourceSnapshot: vi.fn(),
         updateFrameControls: vi.fn(),
         updatePlayButtons: vi.fn(),
-        updateToolbar: vi.fn(),
         updateAutoloadUI: vi.fn(),
         setStatus: vi.fn(),
       },
       core: {
+        chromeToolbar: { updateToolbar: vi.fn() },
         fileSession: { applyExternalFrame: vi.fn() },
       },
     });

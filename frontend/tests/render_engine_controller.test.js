@@ -137,14 +137,15 @@ function buildController(userAgent) {
       mapValueToNorm: vi.fn((value) => value / 10),
       buildPalette: vi.fn(() => buildPalette()),
       getActiveSaturationMax: vi.fn(() => null),
-      scheduleOverview: vi.fn(),
-      schedulePixelOverlay: vi.fn(),
-      schedulePeakOverlay: vi.fn(),
       getUserAgent: vi.fn(() => userAgent),
       getRenderer: () => renderer,
       setRenderer: (nextRenderer) => {
         renderer = nextRenderer;
       },
+    },
+    core: {
+      overviewViewport: { scheduleOverview: vi.fn() },
+      overlayRender: { schedulePixelOverlay: vi.fn(), schedulePeakOverlay: vi.fn() },
     },
   });
   return {

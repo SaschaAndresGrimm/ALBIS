@@ -19,6 +19,7 @@ export function createRoiInteractionController({
   roiState,
   elements,
   callbacks,
+  core,
 }) {
   const {
     canvasWrap,
@@ -33,8 +34,6 @@ export function createRoiInteractionController({
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
     syncOverlayCanvas,
-    updateRoiCenterInputs,
-    updateRoiStats,
     handleRoiChanged,
   } = callbacks;
 
@@ -288,7 +287,7 @@ export function createRoiInteractionController({
         roiState.innerRadius = snap.innerRadius;
         roiState.outerRadius = snap.outerRadius;
       }
-      updateRoiCenterInputs();
+      core.roiStats.updateRoiCenterInputs();
     } else if (roiState.mode === "box") {
       const anchor = snap;
       if (roiEditHandle === "box-nw") {
@@ -360,7 +359,7 @@ export function createRoiInteractionController({
         if (roiInnerInput) roiInnerInput.value = String(inner);
         if (roiOuterInput) roiOuterInput.value = String(Math.round(outer));
       }
-      updateRoiCenterInputs();
+      core.roiStats.updateRoiCenterInputs();
     }
     roiState.active = true;
     scheduleRoiOverlay();
@@ -557,7 +556,7 @@ export function createRoiInteractionController({
 
   function runRoiStats() {
     const started = performance.now();
-    updateRoiStats();
+    core.roiStats.updateRoiStats();
     lastStatsAt = performance.now();
     lastStatsMs = lastStatsAt - started;
   }

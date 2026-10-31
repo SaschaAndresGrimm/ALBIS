@@ -4,23 +4,17 @@
 
 export function createMenuActionHandler({
   callbacks,
+  core,
 }) {
   const {
-    openSettingsModal,
-    checkForUpdates,
-    openCommandPalette,
-    openBackendLogViewer,
     toggleFullscreen,
     openAboutModal,
-    openFileModal,
-    duplicateWindow,
     closeCurrentFile,
     openDataExportDialog,
     openAnimationExportDialog,
     openImageExportDialog,
     exportFullImage,
     exportVisibleArea,
-    exportViewerWindow,
     quitAlbis = () => {},
   } = callbacks;
 
@@ -33,16 +27,16 @@ export function createMenuActionHandler({
         window.open("docs.html", "_blank");
         break;
       case "help-check-updates":
-        await checkForUpdates();
+        await core.updateCheck?.openAndCheck();
         break;
       case "help-log":
-        openBackendLogViewer();
+        core.backendLogViewer?.open();
         break;
       case "settings-open":
-        openSettingsModal();
+        core.settings.openSettingsModal();
         break;
       case "command-palette":
-        openCommandPalette();
+        core.commandPalette.open();
         break;
       case "toggle-fullscreen":
         toggleFullscreen();
@@ -54,10 +48,10 @@ export function createMenuActionHandler({
         window.open(window.location.href, "_blank");
         break;
       case "duplicate-window":
-        duplicateWindow();
+        core.windowClone.duplicateWindow();
         break;
       case "open":
-        openFileModal();
+        core.fileOpen.openFileModal();
         break;
       case "close-file":
         closeCurrentFile();
@@ -78,7 +72,7 @@ export function createMenuActionHandler({
         await exportVisibleArea({ saveAs: true });
         break;
       case "save-window":
-        await exportViewerWindow({ saveAs: true });
+        await core.exportSplash?.exportViewerWindow({ saveAs: true });
         break;
       default:
         break;

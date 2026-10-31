@@ -22,7 +22,6 @@ export function createFileOpenController({
 
   const {
     dirnameFromPath,
-    syncSeriesSumOutputPath,
     option,
     fileLabel,
     isHdfFile,
@@ -44,7 +43,7 @@ export function createFileOpenController({
     }
     state.autoload.dir = folder;
     state.file = path;
-    syncSeriesSumOutputPath();
+    core.seriesSum.syncSeriesSumOutputPath();
     if (refreshFileList) {
       await core.frameMetadata?.loadFiles();
     }

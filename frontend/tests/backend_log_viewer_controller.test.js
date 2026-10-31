@@ -132,17 +132,19 @@ async function initializeModules({ tailResponses, backendIsLocal = false }) {
   const handler = createMenuActionHandler({
     state: { frameIndex: 0, file: "" },
     callbacks: {
-      openBackendLogViewer: () => controller.open(),
-      openSettingsModal: vi.fn(),
-      checkForUpdates: vi.fn(),
-      openCommandPalette: vi.fn(),
       toggleFullscreen: vi.fn(),
       openAboutModal: vi.fn(),
-      openFileModal: vi.fn(),
       closeCurrentFile: vi.fn(),
       exportFullImage: vi.fn(),
       exportVisibleArea: vi.fn(),
-      exportViewerWindow: vi.fn(),
+    },
+    core: {
+      backendLogViewer: { open: () => controller.open() },
+      settings: { openSettingsModal: vi.fn() },
+      updateCheck: { openAndCheck: vi.fn() },
+      commandPalette: { open: vi.fn() },
+      fileOpen: { openFileModal: vi.fn() },
+      exportSplash: { exportViewerWindow: vi.fn() },
     },
   });
 

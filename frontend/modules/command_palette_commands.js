@@ -22,22 +22,14 @@ export function buildCommandPaletteCommands({
   core,
 }) {
   const {
-    openFileModal,
     closeCurrentFile,
-    openSettingsModal,
     startPlayback,
     requestFrame,
-    setThresholdIndex,
-    fitImageToView,
     exportFullImage,
     exportVisibleArea,
-    exportViewerWindow,
     openDataExportDialog,
     openAnimationExportDialog,
     openImageExportDialog,
-    startSeriesSumming,
-    openSeriesSumOutputTarget,
-    cancelSeriesSumming,
     toggleFullscreen,
     toggleMagnifier = () => {},
     togglePixelValues = () => {},
@@ -73,7 +65,7 @@ export function buildCommandPaletteCommands({
       label: t("command.label.file_open"),
       shortcut: platformShortcutLabel("open"),
       search: "file open load",
-      run: () => openFileModal(),
+      run: () => core.fileOpen.openFileModal(),
     },
     {
       id: "close-file",
@@ -95,14 +87,14 @@ export function buildCommandPaletteCommands({
       label: t("command.label.settings_preferences"),
       shortcut: platformShortcutLabel("settings-open"),
       search: "settings preferences options",
-      run: () => openSettingsModal(),
+      run: () => core.settings.openSettingsModal(),
     },
     {
       id: "customise-tools",
       label: t("command.label.customise_tools"),
       shortcut: "",
       search: "tools analysis customise customize hide show sections diffraction imaging",
-      run: () => openSettingsModal("tools"),
+      run: () => core.settings.openSettingsModal("tools"),
     },
     {
       id: "debug-picker-file",
@@ -172,7 +164,7 @@ export function buildCommandPaletteCommands({
       when: hasThresholds,
       run: async () => {
         core.framePlayback?.stopPlayback();
-        await setThresholdIndex(getThresholdIndexAtOffset(-1));
+        await core.thresholdPlayback?.setThresholdIndex(getThresholdIndexAtOffset(-1));
       },
     },
     {
@@ -183,7 +175,7 @@ export function buildCommandPaletteCommands({
       when: hasThresholds,
       run: async () => {
         core.framePlayback?.stopPlayback();
-        await setThresholdIndex(getThresholdIndexAtOffset(1));
+        await core.thresholdPlayback?.setThresholdIndex(getThresholdIndexAtOffset(1));
       },
     },
     {
@@ -192,7 +184,7 @@ export function buildCommandPaletteCommands({
       shortcut: "",
       search: "fit reset zoom view",
       when: hasFrame,
-      run: () => fitImageToView(),
+      run: () => core.overviewViewport?.fitImageToView(),
     },
     {
       id: "export-full",
@@ -216,7 +208,7 @@ export function buildCommandPaletteCommands({
       shortcut: platformShortcutLabel("save-window"),
       search: "export save viewer window screenshot",
       when: canSaveCurrentImage,
-      run: () => exportViewerWindow({ saveAs: true }),
+      run: () => core.exportSplash?.exportViewerWindow({ saveAs: true }),
     },
     {
       id: "export-image",
@@ -248,7 +240,7 @@ export function buildCommandPaletteCommands({
       shortcut: "",
       search: "series sum mean median start analysis",
       when: canStartSeriesOps,
-      run: () => startSeriesSumming(),
+      run: () => core.seriesSum.startSeriesSumming(),
     },
     {
       id: "series-open-output",
@@ -256,7 +248,7 @@ export function buildCommandPaletteCommands({
       shortcut: "",
       search: "series sum output open result",
       when: combineShown && canOpenSeriesOutput,
-      run: () => openSeriesSumOutputTarget(),
+      run: () => core.seriesSum.openSeriesSumOutputTarget(),
     },
     {
       id: "series-cancel",
@@ -264,7 +256,7 @@ export function buildCommandPaletteCommands({
       shortcut: "",
       search: "series cancel stop abort",
       when: canCancelSeriesOps,
-      run: () => cancelSeriesSumming(),
+      run: () => core.seriesSum.cancelSeriesSumming(),
     },
     {
       id: "toggle-fullscreen",

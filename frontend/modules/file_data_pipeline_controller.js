@@ -48,7 +48,6 @@ export function createFileDataPipelineController({
     setDataControlsForHdf5,
     setDataControlsForSeries,
     loadImageGeometry,
-    loadInspectorRoot,
     updateFrameControls,
     updatePlayButtons,
     requestFrame,
@@ -65,7 +64,6 @@ export function createFileDataPipelineController({
     setDataSourceSectionState,
     showProcessingProgress,
     hideProcessingProgress,
-    updateToolbar,
   } = callbacks;
 
   const transientFrameLoadState = createTransientFrameLoadState(state);
@@ -99,7 +97,7 @@ export function createFileDataPipelineController({
     metaDtype.textContent = dtype;
     callbacks.applyFrame(data, width, height, dtype);
     setStatus(currentFrameStatusText(), { frameStatus: true });
-    updateToolbar();
+    core.chromeToolbar?.updateToolbar();
   }
 
   function cancelActiveLoad() {
@@ -296,7 +294,7 @@ export function createFileDataPipelineController({
       datasetSelect.innerHTML = "";
       const ordered = sortDatasets(candidates);
       ordered.forEach((d) => datasetSelect.appendChild(option(`${d.path} (${d.shape.join("x")})`, d.path)));
-      await loadInspectorRoot();
+      await core.inspectorPanel.loadInspectorRoot();
 
       if (ordered.length > 0) {
         state.dataset = ordered[0].path;
@@ -381,7 +379,7 @@ export function createFileDataPipelineController({
       });
       appliedFrame = true;
       setStatus(currentFrameStatusText(), { frameStatus: true });
-      updateToolbar();
+      core.chromeToolbar?.updateToolbar();
     } catch (err) {
       // A timeout aborts our own controller, so treat it as a surfaced failure
       // rather than the silent navigation-cancel case below.

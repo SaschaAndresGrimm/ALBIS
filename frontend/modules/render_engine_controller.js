@@ -19,6 +19,7 @@ export function createRenderEngineController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     canvas,
@@ -37,9 +38,6 @@ export function createRenderEngineController({
     buildPalette,
     getActiveSaturationMax,
     getInpaintedFrame,
-    scheduleOverview,
-    schedulePixelOverlay,
-    schedulePeakOverlay,
     getUserAgent,
     getRenderer,
     setRenderer,
@@ -555,9 +553,9 @@ export function createRenderEngineController({
         maskColors,
       });
     }
-    scheduleOverview();
-    schedulePixelOverlay();
-    schedulePeakOverlay();
+    core.overviewViewport?.scheduleOverview();
+    core.overlayRender.schedulePixelOverlay();
+    core.overlayRender.schedulePeakOverlay();
   }
 
   return {

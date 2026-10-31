@@ -41,8 +41,9 @@ describe("roi_interaction_controller", () => {
         getEffectiveScrollLeft: () => 0,
         getEffectiveScrollTop: () => 0,
         syncOverlayCanvas: () => null,
-        updateRoiCenterInputs: vi.fn(),
-        updateRoiStats: vi.fn(),
+      },
+      core: {
+        roiStats: { updateRoiCenterInputs: vi.fn(), updateRoiStats: vi.fn() },
       },
     });
 
@@ -82,8 +83,9 @@ describe("roi_interaction_controller", () => {
         getEffectiveScrollLeft: () => 0,
         getEffectiveScrollTop: () => 0,
         syncOverlayCanvas: () => null,
-        updateRoiCenterInputs: vi.fn(),
-        updateRoiStats: vi.fn(),
+      },
+      core: {
+        roiStats: { updateRoiCenterInputs: vi.fn(), updateRoiStats: vi.fn() },
       },
     });
 
@@ -105,8 +107,9 @@ describe("roi_interaction_controller", () => {
         getEffectiveScrollLeft: () => 0,
         getEffectiveScrollTop: () => 0,
         syncOverlayCanvas: () => null,
-        updateRoiCenterInputs: vi.fn(),
-        updateRoiStats: vi.fn(),
+      },
+      core: {
+        roiStats: { updateRoiCenterInputs: vi.fn(), updateRoiStats: vi.fn() },
       },
     });
     const at = (x, y) => ({ clientX: x, clientY: y });
@@ -133,8 +136,9 @@ describe("roi_interaction_controller", () => {
           getEffectiveScrollLeft: () => 0,
           getEffectiveScrollTop: () => 0,
           syncOverlayCanvas: () => null,
-          updateRoiCenterInputs: vi.fn(),
-          updateRoiStats: vi.fn(),
+        },
+        core: {
+          roiStats: { updateRoiCenterInputs: vi.fn(), updateRoiStats: vi.fn() },
         },
       });
       return { controller, roiState, at: (x, y) => ({ clientX: x, clientY: y }) };
@@ -194,11 +198,15 @@ describe("roi_interaction_controller", () => {
         getEffectiveScrollLeft: () => 0,
         getEffectiveScrollTop: () => 0,
         syncOverlayCanvas: () => null,
-        updateRoiCenterInputs: vi.fn(),
-        // A large ROI: 30 ms of statistics.
-        updateRoiStats: () => {
-          seen.push(roiState.start.x);
-          clock += 30;
+      },
+      core: {
+        roiStats: {
+          updateRoiCenterInputs: vi.fn(),
+          // A large ROI: 30 ms of statistics.
+          updateRoiStats: () => {
+            seen.push(roiState.start.x);
+            clock += 30;
+          },
         },
       },
     });

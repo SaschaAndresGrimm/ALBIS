@@ -38,10 +38,7 @@ export function createOverviewViewportController({
 
   const {
     deferPixelOverlayRedraw,
-    schedulePixelOverlay,
     scheduleRoiOverlay,
-    scheduleResolutionOverlay,
-    schedulePeakOverlay,
     requestFrame,
     hasPendingFrameRequest: hasPendingFrameRequestCallback,
     consumePendingFrameRequest: consumePendingFrameRequestCallback,
@@ -243,10 +240,10 @@ export function createOverviewViewportController({
 
   function syncViewportOverlays() {
     scheduleOverview();
-    schedulePixelOverlay();
+    core.overlayRender.schedulePixelOverlay();
     scheduleRoiOverlay();
-    scheduleResolutionOverlay();
-    schedulePeakOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
+    core.overlayRender.schedulePeakOverlay();
   }
 
   function isViewportInteractionActive() {
@@ -680,10 +677,10 @@ export function createOverviewViewportController({
       }
     }
     updateViewerFooter();
-    schedulePixelOverlay();
+    core.overlayRender.schedulePixelOverlay();
     scheduleRoiOverlay();
-    scheduleResolutionOverlay();
-    schedulePeakOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
+    core.overlayRender.schedulePeakOverlay();
     notifyViewportChanged("zoom");
   }
 

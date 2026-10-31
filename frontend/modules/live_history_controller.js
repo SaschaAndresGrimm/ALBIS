@@ -84,7 +84,6 @@ export function createLiveHistoryController({
     applyLiveSourceSnapshot,
     updateFrameControls,
     updatePlayButtons,
-    updateToolbar,
     updateAutoloadUI,
     setStatus,
   } = callbacks;
@@ -122,7 +121,7 @@ export function createLiveHistoryController({
     if (!isLiveMode()) {
       updateFrameControls();
       updatePlayButtons();
-      updateToolbar();
+      core.chromeToolbar?.updateToolbar();
       return;
     }
     const entries = getEntries();
@@ -135,7 +134,7 @@ export function createLiveHistoryController({
     updateFrameControls();
     updatePlayButtons();
     updateAutoloadUI?.();
-    updateToolbar();
+    core.chromeToolbar?.updateToolbar();
   }
 
   function renderEntryAt(
@@ -305,7 +304,7 @@ export function createLiveHistoryController({
       applyLiveSourceSnapshot(entries[index].snapshot);
       if (patch.label !== undefined) {
         state.file = entries[index].label;
-        updateToolbar();
+        core.chromeToolbar?.updateToolbar();
       }
       updatePlayButtons();
     }

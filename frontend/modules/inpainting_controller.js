@@ -24,7 +24,7 @@ function integralData(state) {
   return /[iu]\d+$/.test(String(state.dtype || "")) || !(state.dataRaw instanceof Float32Array || state.dataRaw instanceof Float64Array);
 }
 
-export function createInpaintingController({ state, elements, callbacks }) {
+export function createInpaintingController({ state, elements, callbacks, core }) {
   const {
     toggle,
     saturatedToggle,
@@ -42,8 +42,6 @@ export function createInpaintingController({ state, elements, callbacks }) {
   const {
     getInpaintedFrame,
     redraw,
-    updateGlobalStats,
-    scheduleRoiUpdate,
     setSectionBadgeState,
     setSummaryChip,
   } = callbacks;
@@ -90,8 +88,8 @@ export function createInpaintingController({ state, elements, callbacks }) {
     }
     if (valueRow) valueRow.hidden = state.inpaintMethod !== "fixed";
     redraw();
-    updateGlobalStats();
-    scheduleRoiUpdate();
+    core.roiStats.updateGlobalStats();
+    core.roiInteraction.scheduleRoiUpdate();
     updateState();
   }
 

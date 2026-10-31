@@ -22,7 +22,6 @@ export function createAutoloadStatusController({
 
   const {
     setStatus,
-    updateToolbar,
   } = callbacks;
 
   function updateAutoloadMeta() {
@@ -36,7 +35,7 @@ export function createAutoloadStatusController({
         ? formatTimeStamp(state.autoload.lastUpdate)
         : "-";
     }
-    updateToolbar();
+    core.chromeToolbar?.updateToolbar();
   }
 
   function setAutoloadStatus(text, markUpdate = false) {

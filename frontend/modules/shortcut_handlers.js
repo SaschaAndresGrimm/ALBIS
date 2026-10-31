@@ -53,12 +53,8 @@ export function createShortcutHandlers({
   const {
     handleMenuAction,
     isCommandPaletteOpen,
-    closeCommandPalette,
-    openCommandPalette,
-    openFileModal,
     closeCurrentFile,
     startPlayback,
-    setThresholdIndex,
     getThresholdIndexAtOffset,
     toggleFullscreen,
     togglePanel,
@@ -80,7 +76,7 @@ export function createShortcutHandlers({
     }
     switch (key) {
       case "o":
-        openFileModal();
+        core.fileOpen.openFileModal();
         break;
       case "g":
         if (!isShift && !isAlt) {
@@ -119,9 +115,9 @@ export function createShortcutHandlers({
         break;
       case "k":
         if (isCommandPaletteOpen()) {
-          closeCommandPalette();
+          core.commandPalette.close();
         } else {
-          openCommandPalette();
+          core.commandPalette.open();
         }
         break;
       default:
@@ -161,7 +157,7 @@ export function createShortcutHandlers({
       event.preventDefault();
       core.framePlayback?.stopPlayback();
       const delta = event.key === "ArrowUp" ? -1 : 1;
-      void setThresholdIndex(getThresholdIndexAtOffset(delta));
+      void core.thresholdPlayback?.setThresholdIndex(getThresholdIndexAtOffset(delta));
       return true;
     }
 
