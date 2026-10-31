@@ -1,6 +1,6 @@
 # 0006 — How the viewer's core controllers reach each other
 
-**Status:** Proposed, 2026-10-31 — for the maintainer to choose an option.
+**Status:** Accepted, 2026-10-31 — option A (registry), chosen by the maintainer.
 
 ## Context
 
@@ -88,7 +88,13 @@ Break the cycle by changing how the core talks:
 
 The 81 wrappers stay, documented by decision 0005.
 
-## Recommendation
+## Decision
+
+Option A. Asked which suits a project meant to live for years, the maintainer
+chose it for the reasons below; a measurement settled the performance question
+(see the end).
+
+## Why A
 
 **A now; B's render scheduler later, if wanted.** A removes the wrappers and
 names every dependency at little risk, which is most of what a reorder was
@@ -109,3 +115,14 @@ and `ui:snapshots`:
 
 No step changes behaviour, so none needs the detector session to merge; a
 session after step 2 is still worth it, as the live code moved.
+
+## Performance
+
+Measured on `main` before choosing (redraw calls per animation frame, Chrome):
+playback, scrubbing the frame slider, dragging the zoom slider and a remote
+stream at 10 Hz drew each layer at most once per frame -- every overlay
+scheduler already coalesces its own requests. A central render scheduler
+would merge about five callbacks per frame into one, which no user would
+notice; what users feel (frame transfer and decoding, WebGL upload, ROI
+statistics) neither option touches. So performance did not decide between
+A and B.
