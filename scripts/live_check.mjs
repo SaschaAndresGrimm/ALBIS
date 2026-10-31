@@ -196,7 +196,10 @@ async function openFile(name) {
 const results = [];
 const recorded = {};
 // Page text in a detail is printed: no control characters reach the terminal.
-const printable = (detail) => String(detail ?? "").replace(/[\u0000-\u001f\u007f]/g, " ");
+const printable = (detail) =>
+  String(detail ?? "")
+    .replace(/\r|\n/g, " ")
+    .replace(/[\u0000-\u001f\u007f]/g, " ");
 function check(step, ok, detail) {
   results.push({ step, ok: Boolean(ok), detail: printable(detail) });
   console.info(`${ok ? "ok  " : "FAIL"} ${step}${detail ? `: ${printable(detail)}` : ""}`);
