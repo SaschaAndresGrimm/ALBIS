@@ -2,7 +2,7 @@
   "name": "dectris-albis",
   "private": true,
   "version": "0.38.1",
-  "description": "ALBIS — ALBULA-style viewer for DECTRIS detector data: HDF5, TIFF, CBF, EDF, MYTHEN and live streams. Free and open source, for Windows, macOS and Linux.",
+  "description": "ALBIS \u2014 ALBULA-style viewer for DECTRIS detector data: HDF5, TIFF, CBF, EDF, MYTHEN and live streams. Free and open source, for Windows, macOS and Linux.",
   "author": "Sascha Andres Grimm",
   "license": "MIT",
   "repository": {
@@ -36,5 +36,8 @@
   },
   "engines": {
     "node": ">=22.22.2"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }
