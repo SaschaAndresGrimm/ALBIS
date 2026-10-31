@@ -49,7 +49,6 @@ describe("file_open_flow", () => {
       callbacks: {
         dirnameFromPath: (value) => String(value).replace(/\/[^/]+$/, ""),
         syncSeriesSumOutputPath: vi.fn(),
-        loadFiles,
         option: (label, value) => {
           const opt = document.createElement("option");
           opt.textContent = label;
@@ -61,9 +60,12 @@ describe("file_open_flow", () => {
         loadDatasets: vi.fn(async () => {}),
         loadImageSeries,
         closeMenu: vi.fn(),
-        ensureFileMode: vi.fn(async () => {}),
         setStatus: vi.fn(),
         openFileDialog: vi.fn(async () => null),
+      },
+      core: {
+        frameMetadata: { loadFiles },
+        autoloadOrchestration: { ensureFileMode: vi.fn(async () => {}) },
       },
     });
 

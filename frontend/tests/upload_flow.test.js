@@ -34,13 +34,15 @@ function buildController(fetchJSON) {
     state: { autoload: { dir: "/data/run" } },
     elements: {},
     callbacks: {
-      ensureFileMode: async () => {},
       setLoading: () => {},
       setStatus: (text) => statuses.push(text),
-      loadFiles: async () => {},
       openPathInViewer: async (path) => opened.push(path),
       fileLabel: (path) => path,
       fetchJSON,
+    },
+    core: {
+      autoloadOrchestration: { ensureFileMode: async () => {} },
+      frameMetadata: { loadFiles: async () => {} },
     },
   });
   return { controller, statuses, opened };

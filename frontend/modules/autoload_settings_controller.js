@@ -10,6 +10,7 @@ export function createAutoloadSettingsController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     autoloadMode,
@@ -63,16 +64,12 @@ export function createAutoloadSettingsController({
     closeToolbarPlaybackPopover,
     updateSimplonMetaUI,
     updateRemoteMetaUI,
-    updateJfjochMetaUI,
     updateAutoloadMeta,
-    updateLiveBadge,
     updateThresholdOptions,
     updateDataSourceSummary,
     setDataSourceSectionState,
-    setAutoloadStatus,
     setAutoloadLatest,
     updatePlayButtons,
-    startAutoload,
     isBackendLocal = () => false,
   } = callbacks;
 
@@ -178,11 +175,11 @@ export function createAutoloadSettingsController({
     if (jfjochMetaPanel) {
       jfjochMetaPanel.classList.toggle("is-hidden", state.autoload.mode !== "jungfraujoch");
       if (state.autoload.mode === "jungfraujoch") {
-        updateJfjochMetaUI(state.autoload.jfjochMeta || {}, state.autoload.jfjochStatus || {});
+        core.sourceMetadata?.updateJfjochMetaUI(state.autoload.jfjochMeta || {}, state.autoload.jfjochStatus || {});
       }
     }
     updateAutoloadMeta();
-    updateLiveBadge();
+    core.backendStatus.updateLiveBadge();
     updateThresholdOptions();
     updatePlayButtons();
     updateDataSourceSummary();
@@ -273,10 +270,10 @@ export function createAutoloadSettingsController({
     if (jfjochChannelInput) jfjochChannelInput.value = state.autoload.jfjochChannel || "";
     if (jfjochIntervalInput) jfjochIntervalInput.value = String(state.autoload.jfjochInterval || 250);
     updateAutoloadUI();
-    setAutoloadStatus(t("autoload.status.idle"));
+    core.autoloadStatus?.setAutoloadStatus(t("autoload.status.idle"));
     setAutoloadLatest("-");
     if (state.autoload.mode !== "file" || state.autoload.watchEnabled) {
-      startAutoload();
+      core.autoloadOrchestration.startAutoload();
     }
   }
 

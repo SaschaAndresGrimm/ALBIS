@@ -37,7 +37,6 @@ export function createThresholdPlaybackController({
     updateViewerFooter,
     updateFpsLabel,
     startPlayback,
-    loadMask,
     requestFrame,
   } = callbacks;
 
@@ -137,7 +136,7 @@ export function createThresholdPlaybackController({
     if (toolbarThresholdSelect) toolbarThresholdSelect.value = String(clamped);
     if (toolbarMoreThreshold) toolbarMoreThreshold.value = String(clamped);
     state.maskFile = "";
-    await loadMask(true);
+    await core.maskCursor.loadMask(true);
     requestFrame(state.frameIndex);
   }
 

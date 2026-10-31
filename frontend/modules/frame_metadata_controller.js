@@ -42,7 +42,6 @@ export function createFrameMetadataController({
     syncSeriesSumOutputPath,
     updateFrameControls,
     updateThresholdOptions,
-    loadMask,
     isHdf5File,
     geometryParams,
     loadImageGeometry,
@@ -174,7 +173,7 @@ export function createFrameMetadataController({
       metaDtype.textContent = data.dtype;
       updateToolbar();
       await loadAnalysisParams();
-      await loadMask(true);
+      await core.maskCursor.loadMask(true);
       const loadedFrame = await core.fileDataPipeline.loadFrame();
       if (!loadedFrame) {
         setDataSourceSectionState("warning", t("status.data.failed_load_frame"));

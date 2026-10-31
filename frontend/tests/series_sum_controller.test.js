@@ -69,7 +69,6 @@ function createController({ geometryContext = null } = {}) {
     isHdfFile: () => false,
     validateSeriesStepInput: () => Number(elements.seriesSumStep.value),
     setStatus: vi.fn(),
-    ensureFileMode: async () => {},
     loadAutoloadFile: async () => {},
     fetchJSON: vi.fn(async () => ({ status: "done", progress: 1, outputs: [] })),
     fetchJSONWithInit: vi.fn(async (_url, init) => {
@@ -79,7 +78,9 @@ function createController({ geometryContext = null } = {}) {
     getSeriesSumGeometryContext: () => geometryContext,
     useAsFlat: vi.fn(async () => true),
   };
-  return { state, elements, callbacks, payloads };
+  // The controllers it reaches through the registry (decision 0006).
+  const core = { autoloadOrchestration: { ensureFileMode: async () => {} } };
+  return { state, elements, callbacks, core, payloads };
 }
 
 describe("series_sum_controller", () => {
@@ -122,12 +123,13 @@ describe("series_sum_controller", () => {
       centerX: 1083.9,
       centerY: 2593.48,
     };
-    const { state, elements, callbacks, payloads } = createController({ geometryContext });
+    const { state, elements, callbacks, core, payloads } = createController({ geometryContext });
     const controller = createSeriesSumController({
       apiBase: "/api",
       state,
       elements,
       callbacks,
+      core,
     });
 
     await controller.startSeriesSumming();
@@ -146,12 +148,13 @@ describe("series_sum_controller", () => {
     await i18n.initializeI18n({ backendLanguage: "en" });
     const { createSeriesSumController } = await import("../modules/series_sum_controller.js");
 
-    const { state, elements, callbacks, payloads } = createController();
+    const { state, elements, callbacks, core, payloads } = createController();
     const controller = createSeriesSumController({
       apiBase: "/api",
       state,
       elements,
       callbacks,
+      core,
     });
 
     await controller.startSeriesSumming();
@@ -174,6 +177,7 @@ describe("series_sum_controller", () => {
       state: parts.state,
       elements: parts.elements,
       callbacks: parts.callbacks,
+      core: parts.core,
     });
     return { ...parts, controller };
   }
@@ -237,7 +241,7 @@ describe("series_sum_controller", () => {
     await i18n.initializeI18n({ backendLanguage: "en" });
     const { createSeriesSumController } = await import("../modules/series_sum_controller.js");
 
-    const { state, elements, callbacks } = createController();
+    const { state, elements, callbacks, core } = createController();
     state.seriesSum.openTarget = "output/series_sum.h5";
     callbacks.loadAutoloadFile = vi.fn(async () => false);
 
@@ -246,6 +250,7 @@ describe("series_sum_controller", () => {
       state,
       elements,
       callbacks,
+      core,
     });
 
     await controller.openSeriesSumOutputTarget();

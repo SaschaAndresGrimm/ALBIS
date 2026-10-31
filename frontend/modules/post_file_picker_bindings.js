@@ -117,17 +117,10 @@ export function initializePostFilePickerBindings({
   } = elements;
 
   const {
-    stopAutoload,
-    startAutoload,
     updateAutoloadUI,
     persistAutoloadSettings,
-    loadFiles,
-    autoloadTick,
     updateRemoteMetaUI,
-    updateJfjochMetaUI,
     schedulePeakOverlay,
-    setSimplonMode,
-    setAutoloadStatus,
     openFileBrowser,
     openFileModal,
     handleLocalFileSelection,
@@ -242,6 +235,7 @@ export function initializePostFilePickerBindings({
   } = callbacks;
 
   bindAutoloadControls({
+    core,
     apiBase,
     state,
     analysisState,
@@ -275,17 +269,10 @@ export function initializePostFilePickerBindings({
       simplonEnable,
     },
     callbacks: {
-      stopAutoload,
-      startAutoload,
       updateAutoloadUI,
       persistAutoloadSettings,
-      loadFiles,
-      autoloadTick,
       updateRemoteMetaUI,
-      updateJfjochMetaUI,
       schedulePeakOverlay,
-      setSimplonMode,
-      setAutoloadStatus,
       openFileBrowser,
       openFileModal,
       handleLocalFileSelection,

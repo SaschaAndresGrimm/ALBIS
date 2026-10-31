@@ -20,14 +20,13 @@ import {
   sweepStaleClonePayloads,
 } from "./window_clone_state.js";
 
-export function createWindowCloneController({ state, analysisState, roiState, callbacks }) {
+export function createWindowCloneController({ state, analysisState, roiState, callbacks, core }) {
   const {
     fileCommandUnavailableReason,
     setStatus,
     getViewport,
     applyViewportCenter,
     openPathInViewer,
-    ensureFileMode,
     isHdfFile,
     selectDatasetIfPresent,
     setThresholdIndex,
@@ -176,7 +175,7 @@ export function createWindowCloneController({ state, analysisState, roiState, ca
       // the SIMPLON monitor, still running. A file opened with ALBIS is the
       // source now, as with File -> Open. The detector's monitor is left alone:
       // another ALBIS window may still be showing it live.
-      await ensureFileMode({ disableMonitor: false });
+      await core.autoloadOrchestration.ensureFileMode({ disableMonitor: false });
       await openPathInViewer(target, { refreshFileList: true });
     } catch (err) {
       console.error(err);

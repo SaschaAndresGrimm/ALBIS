@@ -89,6 +89,7 @@ export function createUploadFlowController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     autoloadDir,
@@ -99,10 +100,8 @@ export function createUploadFlowController({
   } = elements;
 
   const {
-    ensureFileMode,
     setLoading,
     setStatus,
-    loadFiles,
     openPathInViewer,
     fileLabel,
     fetchJSON,
@@ -156,7 +155,7 @@ export function createUploadFlowController({
       return;
     }
 
-    await ensureFileMode();
+    await core.autoloadOrchestration.ensureFileMode();
     const uploadFolder = (autoloadDir?.value || state.autoload.dir || "").trim();
     const total = files.length;
     setLoading(true);
@@ -200,7 +199,7 @@ export function createUploadFlowController({
       }
 
       updateUploadProgress(100);
-      await loadFiles();
+      await core.frameMetadata?.loadFiles();
       const openTarget = uploadedTargets[0];
       if (openTarget) {
         setStatus(t("status.upload.opening", { target: fileLabel(openTarget) }));

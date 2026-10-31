@@ -29,13 +29,12 @@ export function createAutoloadModeController({
   apiBase,
   state,
   callbacks,
+  core,
 }) {
   const {
-    setAutoloadStatus,
     setAutoloadLatest,
     updateAutoloadMeta,
     loadAutoloadFile,
-    fetchSimplonMask,
     parseDtype,
     parseShape,
     typedArrayFrom,
@@ -44,7 +43,6 @@ export function createAutoloadModeController({
     appendLiveFrame,
     logClient,
     formatSimplonTimestamp,
-    updateLiveBadge,
   } = callbacks;
 
   let _watchTickInFlight = false;
@@ -68,7 +66,7 @@ export function createAutoloadModeController({
     if (state.autoload.types.cbf) exts.push("cbf", "cbf.gz");
     if (state.autoload.types.edf) exts.push("edf");
     if (exts.length === 0) {
-      setAutoloadStatus(t("autoload.status.watch.no_types_selected"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.watch.no_types_selected"));
       return;
     }
     const pattern = state.autoload.pattern || "";
@@ -80,7 +78,7 @@ export function createAutoloadModeController({
       res = await fetchResponse(url);
     } catch (err) {
       if (!(err?.status >= 400)) throw err;
-      setAutoloadStatus(t("autoload.status.watch.error"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.watch.error"));
       return;
     }
     // A 204 carries no body, so a search that ran out of scan budget before it
@@ -88,7 +86,7 @@ export function createAutoloadModeController({
     // to scan" would be reported as "the folder is empty".
     const truncated = res.headers?.get("X-Scan-Truncated") === "1";
     if (res.status === 204) {
-      setAutoloadStatus(
+      core.autoloadStatus?.setAutoloadStatus(
         t(truncated ? "autoload.status.watch.truncated" : "autoload.status.watch.no_files"),
       );
       setAutoloadLatest("-");
@@ -96,7 +94,7 @@ export function createAutoloadModeController({
     }
     const payload = await res.json();
     if (!payload?.file) {
-      setAutoloadStatus(
+      core.autoloadStatus?.setAutoloadStatus(
         t(truncated ? "autoload.status.watch.truncated" : "autoload.status.watch.no_files"),
       );
       return;
@@ -107,7 +105,7 @@ export function createAutoloadModeController({
     const partial = truncated || Boolean(payload.truncated);
     const mtime = Number(payload.mtime || 0);
     if (payload.file === state.autoload.lastFile && mtime <= state.autoload.lastMtime) {
-      if (partial) setAutoloadStatus(t("autoload.status.watch.truncated"));
+      if (partial) core.autoloadStatus?.setAutoloadStatus(t("autoload.status.watch.truncated"));
       return;
     }
     const previousFile = state.autoload.lastFile;
@@ -120,7 +118,7 @@ export function createAutoloadModeController({
       loaded = false;
     }
     if (!loaded) {
-      setAutoloadStatus(t("autoload.status.watch.error"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.watch.error"));
       return;
     }
     state.autoload.lastFile = payload.file;
@@ -131,9 +129,9 @@ export function createAutoloadModeController({
       updateAutoloadMeta();
     }
     if (partial) {
-      setAutoloadStatus(t("autoload.status.watch.truncated"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.watch.truncated"));
     } else {
-      setAutoloadStatus(
+      core.autoloadStatus?.setAutoloadStatus(
         payload.file === previousFile ? t("autoload.status.watch.updated") : t("autoload.status.watch.loaded"),
       );
     }
@@ -152,7 +150,7 @@ export function createAutoloadModeController({
   async function _autoloadSimplonTickImpl() {
     const baseUrl = state.autoload.simplonUrl || "";
     if (!baseUrl) {
-      setAutoloadStatus(t("autoload.status.simplon.set_base_url"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.simplon.set_base_url"));
       return;
     }
     if (!state.maskAvailable) {
@@ -160,7 +158,7 @@ export function createAutoloadModeController({
       const lastAttempt = state.autoload.lastMaskAttempt || 0;
       if (now - lastAttempt > 5000) {
         state.autoload.lastMaskAttempt = now;
-        await fetchSimplonMask();
+        await core.maskCursor.fetchSimplonMask();
       }
     }
     const version = state.autoload.simplonVersion || "1.8.0";
@@ -179,20 +177,20 @@ export function createAutoloadModeController({
       const diagnosis = simplonFailureOf(err);
       if (diagnosis) {
         const reason = describeSimplonFailure({ api_version: version, ...diagnosis });
-        setAutoloadStatus(t("autoload.status.simplon.error_reason", { reason }));
+        core.autoloadStatus?.setAutoloadStatus(t("autoload.status.simplon.error_reason", { reason }));
         if (state.autoload.lastSimplonFailure !== diagnosis.code) {
           state.autoload.lastSimplonFailure = diagnosis.code;
           logClient("error", "SIMPLON monitor poll failed", diagnosis);
         }
       } else {
-        setAutoloadStatus(t("autoload.status.simplon.error"));
+        core.autoloadStatus?.setAutoloadStatus(t("autoload.status.simplon.error"));
       }
-      updateLiveBadge();
+      core.backendStatus.updateLiveBadge();
       return;
     }
     if (res.status === 204) {
-      setAutoloadStatus(t("autoload.status.simplon.no_frame"));
-      updateLiveBadge();
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.simplon.no_frame"));
+      core.backendStatus.updateLiveBadge();
       return;
     }
     state.autoload.lastSimplonFailure = "";
@@ -211,7 +209,7 @@ export function createAutoloadModeController({
       state.autoload.maskSeriesKey = maskKey;
       if (previous && previous !== maskKey) {
         state.autoload.lastMaskAttempt = Date.now();
-        await fetchSimplonMask();
+        await core.maskCursor.fetchSimplonMask();
       }
     }
     const sig = simplonFrameIdentity(simplonMeta, buffer);
@@ -241,11 +239,11 @@ export function createAutoloadModeController({
       label = `${label} ${detailParts.join(" ")}`;
     }
     if (state.autoload.livePaused) {
-      updateLiveBadge();
+      core.backendStatus.updateLiveBadge();
       return;
     }
     if (!changed) {
-      updateLiveBadge();
+      core.backendStatus.updateLiveBadge();
       return;
     }
     state.autoload.lastMonitorSig = sig;
@@ -266,9 +264,9 @@ export function createAutoloadModeController({
       }),
     });
     if (result.rendered) {
-      setAutoloadStatus(t("autoload.status.simplon.updated"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.simplon.updated"));
     }
-    updateLiveBadge();
+    core.backendStatus.updateLiveBadge();
   }
 
   return {

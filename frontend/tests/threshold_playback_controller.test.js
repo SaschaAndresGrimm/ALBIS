@@ -94,10 +94,10 @@ describe("threshold_playback_controller", () => {
         updateViewerFooter: vi.fn(),
         updateFpsLabel: vi.fn(),
         startPlayback: vi.fn(),
-        loadMask: vi.fn(),
         requestFrame: vi.fn(),
       },
       core: {
+        maskCursor: { loadMask: vi.fn() },
         framePlayback: { stopPlayback: vi.fn() },
       },
     });

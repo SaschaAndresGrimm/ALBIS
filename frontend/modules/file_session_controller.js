@@ -24,7 +24,6 @@ export function createFileSessionController({
   } = elements;
 
   const {
-    clearImageGeometry,
     clearGeometrySource,
     clearMaskState,
     clearImageHeader,
@@ -53,7 +52,6 @@ export function createFileSessionController({
     setDataControlsForImage,
     setDataControlsForSeries,
     buildNegativeMask,
-    buildColumnMask,
     updateMaskUI,
     getRenderer,
     isWebglUnsignedRawCandidate,
@@ -64,7 +62,6 @@ export function createFileSessionController({
     getContrastData = () => null,
     formatValue,
     alignMaskToFrame,
-    syncMaskAvailability,
     redraw,
     fitImageToView,
     hideSplash,
@@ -113,7 +110,7 @@ export function createFileSessionController({
     // The closed file's metadata goes; the user's geometry override stays,
     // since it is meant for every file until switched off.
     clearGeometrySource?.();
-    clearImageGeometry();
+    core.sourceMetadata?.clearImageGeometry();
     clearMaskState();
     clearImageHeader();
     updateToolbar();
@@ -180,7 +177,7 @@ export function createFileSessionController({
     // frame of a series as having no gap and no defective pixels at all, and
     // only stepping to the next frame corrected it.
     alignMaskToFrame();
-    syncMaskAvailability(false);
+    core.maskCursor.syncMaskAvailability(false);
     const now = typeof performance !== "undefined" && typeof performance.now === "function"
       ? performance.now()
       : Date.now();
@@ -299,7 +296,7 @@ export function createFileSessionController({
     if (options.autoMask) {
       let autoMask = buildNegativeMask(data);
       if (Array.isArray(options.maskColumns) && options.maskColumns.length) {
-        autoMask = buildColumnMask(width, height, options.maskColumns, autoMask);
+        autoMask = core.maskCursor.buildColumnMask(width, height, options.maskColumns, autoMask);
       }
       if (autoMask) {
         state.maskRaw = autoMask;

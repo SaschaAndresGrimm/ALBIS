@@ -12,11 +12,7 @@ export function createRemoteStreamController({
   core,
 }) {
   const {
-    setAutoloadStatus,
-    updateLiveBadge,
     updateAutoloadMeta,
-    startJfjochPreviewBridge,
-    fetchJfjochPreviewStatus,
     parseDtype,
     parseShape,
     typedArrayFrom,
@@ -82,8 +78,8 @@ export function createRemoteStreamController({
   async function autoloadJfjochTick() {
     const endpoint = (state.autoload.jfjochEndpoint || "").trim();
     if (!endpoint) {
-      setAutoloadStatus(t("autoload.status.jfjoch.set_preview_endpoint"));
-      updateLiveBadge();
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.jfjoch.set_preview_endpoint"));
+      core.backendStatus.updateLiveBadge();
       return;
     }
     const sourceId = (state.autoload.jfjochSourceId || "jungfraujoch").trim() || "jungfraujoch";
@@ -92,9 +88,9 @@ export function createRemoteStreamController({
       String(status.endpoint || endpoint) !== endpoint ||
       String(status.source_id || sourceId) !== sourceId;
     if (!status.running || statusMismatch) {
-      const started = await startJfjochPreviewBridge();
+      const started = await core.jfjochBridge.startJfjochPreviewBridge();
       if (!started) {
-        updateLiveBadge();
+        core.backendStatus.updateLiveBadge();
         return;
       }
     }
@@ -108,15 +104,15 @@ export function createRemoteStreamController({
       res = await fetchResponse(`${apiBase}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
     } catch (err) {
       if (!(err?.status >= 400)) throw err;
-      await fetchJfjochPreviewStatus();
-      setAutoloadStatus(t("autoload.status.jfjoch.error"));
-      updateLiveBadge();
+      await core.jfjochBridge.fetchJfjochPreviewStatus();
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.jfjoch.error"));
+      core.backendStatus.updateLiveBadge();
       return;
     }
     if (res.status === 204) {
-      await fetchJfjochPreviewStatus();
-      setAutoloadStatus(t("autoload.status.jfjoch.waiting"));
-      updateLiveBadge();
+      await core.jfjochBridge.fetchJfjochPreviewStatus();
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.jfjoch.waiting"));
+      core.backendStatus.updateLiveBadge();
       return;
     }
 
@@ -135,7 +131,7 @@ export function createRemoteStreamController({
         seqSuffix: Number.isFinite(seq) && seq > 0 ? ` #${seq}` : "",
       });
     if (state.autoload.livePaused) {
-      updateLiveBadge();
+      core.backendStatus.updateLiveBadge();
       return;
     }
     const initialJfjochMeta = {
@@ -172,7 +168,7 @@ export function createRemoteStreamController({
       const normalized = Array.isArray(metaResult?.normalized) ? metaResult.normalized : [];
       const totalPoints = normalized.reduce((sum, set) => sum + (set.points?.length || 0), 0);
       const extra = payload?.extra && typeof payload.extra === "object" ? payload.extra : {};
-      const latestStatus = await fetchJfjochPreviewStatus();
+      const latestStatus = await core.jfjochBridge.fetchJfjochPreviewStatus();
       const finalMeta = {
         source: sourceId,
         seq,
@@ -192,12 +188,12 @@ export function createRemoteStreamController({
         }),
       });
       if (result.rendered) {
-        setAutoloadStatus(t("autoload.status.jfjoch.updated"));
+        core.autoloadStatus?.setAutoloadStatus(t("autoload.status.jfjoch.updated"));
       }
     } else {
       if (!(Number.isFinite(seq) && seq > 0)) {
         resetLiveHistory?.();
-        const latestStatus = await fetchJfjochPreviewStatus();
+        const latestStatus = await core.jfjochBridge.fetchJfjochPreviewStatus();
         applyLiveSourceSnapshot(
           createLiveSourceSnapshot({
             sourceKind: "jungfraujoch",
@@ -210,10 +206,10 @@ export function createRemoteStreamController({
         core.fileSession.applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
         state.autoload.lastUpdate = Date.now();
         updateAutoloadMeta();
-        setAutoloadStatus(t("autoload.status.jfjoch.updated"));
+        core.autoloadStatus?.setAutoloadStatus(t("autoload.status.jfjoch.updated"));
       }
     }
-    updateLiveBadge();
+    core.backendStatus.updateLiveBadge();
   }
 
   async function autoloadRemoteTick() {
@@ -227,13 +223,13 @@ export function createRemoteStreamController({
       res = await fetchResponse(`${apiBase}/remote/v1/latest?${params.toString()}`, { cache: "no-store" });
     } catch (err) {
       if (!(err?.status >= 400)) throw err;
-      setAutoloadStatus(t("autoload.status.remote.error"));
-      updateLiveBadge();
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.remote.error"));
+      core.backendStatus.updateLiveBadge();
       return;
     }
     if (res.status === 204) {
-      setAutoloadStatus(t("autoload.status.remote.waiting"));
-      updateLiveBadge();
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.remote.waiting"));
+      core.backendStatus.updateLiveBadge();
       return;
     }
     const buffer = await res.arrayBuffer();
@@ -251,7 +247,7 @@ export function createRemoteStreamController({
         seqSuffix: Number.isFinite(seq) && seq > 0 ? ` #${seq}` : "",
       });
     if (state.autoload.livePaused) {
-      updateLiveBadge();
+      core.backendStatus.updateLiveBadge();
       return;
     }
     if (seqChanged) {
@@ -290,7 +286,7 @@ export function createRemoteStreamController({
         }),
       });
       if (result.rendered) {
-        setAutoloadStatus(t("autoload.status.remote.updated"));
+        core.autoloadStatus?.setAutoloadStatus(t("autoload.status.remote.updated"));
       }
     } else {
       if (!(Number.isFinite(seq) && seq > 0)) {
@@ -306,10 +302,10 @@ export function createRemoteStreamController({
         core.fileSession.applyExternalFrame(data, shape, dtype, label, false, false, { autoMask: false });
         state.autoload.lastUpdate = Date.now();
         updateAutoloadMeta();
-        setAutoloadStatus(t("autoload.status.remote.updated"));
+        core.autoloadStatus?.setAutoloadStatus(t("autoload.status.remote.updated"));
       }
     }
-    updateLiveBadge();
+    core.backendStatus.updateLiveBadge();
   }
 
   return {

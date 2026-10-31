@@ -108,12 +108,12 @@ describe("frame metadata i18n", () => {
         syncSeriesSumOutputPath: () => {},
         updateFrameControls: () => {},
         updateThresholdOptions: () => {},
-        loadMask: async () => {},
         isHdf5File: () => false,
         getDefaultCenter: () => ({ x: 0, y: 0 }),
         scheduleResolutionOverlay: () => {},
       },
       core: {
+        maskCursor: { loadMask: async () => {} },
         fileDataPipeline: { loadFrame: async () => {} },
       },
     });

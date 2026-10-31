@@ -49,7 +49,9 @@ describe("mask_cursor_controller", () => {
         getResolutionAtPixel: vi.fn(() => null),
         getEffectiveScrollLeft: vi.fn(() => 0),
         getEffectiveScrollTop: vi.fn(() => 0),
-        setAutoloadStatus: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
 
@@ -110,7 +112,9 @@ describe("mask_cursor_controller", () => {
         getResolutionAtPixel: vi.fn(() => null),
         getEffectiveScrollLeft: vi.fn(() => 0),
         getEffectiveScrollTop: vi.fn(() => 0),
-        setAutoloadStatus: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
 
@@ -170,7 +174,9 @@ describe("mask_cursor_controller", () => {
         getResolutionAtPixel: vi.fn(() => null),
         getEffectiveScrollLeft: vi.fn(() => 0),
         getEffectiveScrollTop: vi.fn(() => 0),
-        setAutoloadStatus: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
 
@@ -240,8 +246,10 @@ describe("mask_cursor_controller", () => {
         getResolutionAtPixel: vi.fn(() => null),
         getEffectiveScrollLeft: vi.fn(() => 0),
         getEffectiveScrollTop: vi.fn(() => 0),
-        setAutoloadStatus: vi.fn(),
         getInpaintedFrame: () => ({ data: new Float32Array([0.5]), holes: null }),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
 
@@ -317,7 +325,9 @@ describe("mask_cursor_controller mask request races", () => {
         getResolutionAtPixel: () => null,
         getEffectiveScrollLeft: () => 0,
         getEffectiveScrollTop: () => 0,
-        setAutoloadStatus: vi.fn(),
+      },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
     return { state, controller, release, fetchMock };
@@ -413,7 +423,6 @@ describe("mask_cursor_controller with a pinned mask (Data -> Pixel Mask)", () =>
       getResolutionAtPixel: vi.fn(() => null),
       getEffectiveScrollLeft: vi.fn(() => 0),
       getEffectiveScrollTop: vi.fn(() => 0),
-      setAutoloadStatus: vi.fn(),
       getPinnedMask: vi.fn(() => pinned.current),
       onMaskChanged: vi.fn(),
     };
@@ -422,6 +431,7 @@ describe("mask_cursor_controller with a pinned mask (Data -> Pixel Mask)", () =>
       state,
       elements: { maskToggle: document.createElement("input"), ...extraElements },
       callbacks,
+      core: { autoloadStatus: { setAutoloadStatus: vi.fn() } },
     });
     return { controller, callbacks };
   }

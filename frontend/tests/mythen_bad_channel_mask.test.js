@@ -38,7 +38,9 @@ function makeMaskController() {
       getResolutionAtPixel: vi.fn(() => null),
       getEffectiveScrollLeft: vi.fn(() => 0),
       getEffectiveScrollTop: vi.fn(() => 0),
-      setAutoloadStatus: vi.fn(),
+    },
+    core: {
+      autoloadStatus: { setAutoloadStatus: vi.fn() },
     },
   });
 }

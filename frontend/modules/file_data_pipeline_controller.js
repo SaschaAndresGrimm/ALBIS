@@ -47,7 +47,6 @@ export function createFileDataPipelineController({
     isHdfFile,
     setDataControlsForHdf5,
     setDataControlsForSeries,
-    loadMetadata,
     loadImageGeometry,
     loadInspectorRoot,
     updateFrameControls,
@@ -66,7 +65,6 @@ export function createFileDataPipelineController({
     setDataSourceSectionState,
     showProcessingProgress,
     hideProcessingProgress,
-    loadMask,
     updateToolbar,
   } = callbacks;
 
@@ -282,7 +280,7 @@ export function createFileDataPipelineController({
     state.hasFrame = false;
     resetSeriesState();
     setDataControlsForHdf5();
-    await loadMask(true);
+    await core.maskCursor.loadMask(true);
     showProcessingProgress(t("status.data.scanning_datasets"));
     setLoading(true);
     setStatus(t("status.data.scanning_datasets"));
@@ -303,7 +301,7 @@ export function createFileDataPipelineController({
       if (ordered.length > 0) {
         state.dataset = ordered[0].path;
         datasetSelect.value = state.dataset;
-        const loaded = await loadMetadata();
+        const loaded = await core.frameMetadata?.loadMetadata();
         if (loaded) {
           setDataSourceSectionState("active", t("status.data.dataset_metadata_loaded"));
         }

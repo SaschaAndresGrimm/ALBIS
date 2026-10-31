@@ -64,7 +64,6 @@ function build({ shape = [4, 8, 8], writerPresent = true, state: overrides = {} 
     syncSeriesSumOutputPath: vi.fn(),
     updateFrameControls: vi.fn(),
     updateThresholdOptions: vi.fn(),
-    loadMask: vi.fn(async () => true),
     isHdf5File: () => true,
     getDefaultCenter: vi.fn(),
     loadImageGeometry: vi.fn(async () => {}),
@@ -74,6 +73,7 @@ function build({ shape = [4, 8, 8], writerPresent = true, state: overrides = {} 
   const core = {
     framePlayback: { stopPlayback: vi.fn() },
     fileDataPipeline: { loadFrame: vi.fn(async () => true), resetTransientLoadState: vi.fn() },
+    maskCursor: { loadMask: vi.fn(async () => true) },
   };
 
   const controller = createFrameMetadataController({
@@ -144,7 +144,7 @@ describe("live frame count refresh", () => {
     expect(state.playing).toBe(true);
     expect(core.framePlayback.stopPlayback).not.toHaveBeenCalled();
     expect(core.fileDataPipeline.loadFrame).not.toHaveBeenCalled();
-    expect(callbacks.loadMask).not.toHaveBeenCalled();
+    expect(core.maskCursor.loadMask).not.toHaveBeenCalled();
     expect(callbacks.setLoading).not.toHaveBeenCalled();
     expect(callbacks.showProcessingProgress).not.toHaveBeenCalled();
   });

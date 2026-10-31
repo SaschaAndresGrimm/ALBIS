@@ -9,16 +9,15 @@ export function createJfjochBridgeController({
   apiBase,
   state,
   callbacks,
+  core,
 }) {
   const {
-    setAutoloadStatus,
-    updateJfjochMetaUI,
   } = callbacks;
 
   async function startJfjochPreviewBridge() {
     const endpoint = (state.autoload.jfjochEndpoint || "").trim();
     if (!endpoint) {
-      setAutoloadStatus(t("autoload.status.jfjoch.set_preview_endpoint"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.jfjoch.set_preview_endpoint"));
       return false;
     }
     const sourceId = (state.autoload.jfjochSourceId || "jungfraujoch").trim() || "jungfraujoch";
@@ -37,7 +36,7 @@ export function createJfjochBridgeController({
       });
     } catch (err) {
       if (!(err?.status >= 400)) throw err;
-      setAutoloadStatus(t("autoload.status.jfjoch.bridge_start_failed"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.jfjoch.bridge_start_failed"));
       return false;
     }
     try {
@@ -66,7 +65,7 @@ export function createJfjochBridgeController({
       const payload = await fetchJSON(`${apiBase}/jfjoch/preview/status`, { cache: "no-store" });
       if (!payload || typeof payload !== "object") return null;
       state.autoload.jfjochStatus = payload;
-      updateJfjochMetaUI(state.autoload.jfjochMeta || {}, payload);
+      core.sourceMetadata?.updateJfjochMetaUI(state.autoload.jfjochMeta || {}, payload);
       return payload;
     } catch (err) {
       console.warn(err);

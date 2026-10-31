@@ -11,6 +11,7 @@ export function createMaskCursorController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     canvasWrap,
@@ -40,7 +41,6 @@ export function createMaskCursorController({
     getResolutionAtPixel,
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
-    setAutoloadStatus,
     // Data -> Pixel Mask (beta): a mask the user chose, used instead of the
     // data's own until they go back to it; null when there is none.
     getPinnedMask = () => null,
@@ -496,11 +496,11 @@ export function createMaskCursorController({
     } catch (err) {
       // The detector answering without a mask is not ALBIS failing.
       if (err?.status >= 400) {
-        setAutoloadStatus(t("status.autoload.simplon_mask_unavailable"));
+        core.autoloadStatus?.setAutoloadStatus(t("status.autoload.simplon_mask_unavailable"));
         return;
       }
       console.error(err);
-      setAutoloadStatus(t("status.autoload.simplon_mask_failed"));
+      core.autoloadStatus?.setAutoloadStatus(t("status.autoload.simplon_mask_failed"));
     }
   }
 

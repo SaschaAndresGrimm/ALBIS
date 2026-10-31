@@ -12,6 +12,7 @@ export function createAutoloadOrchestrationController({
   analysisState,
   elements,
   callbacks,
+  core,
 }) {
   const {
     autoloadMode,
@@ -38,21 +39,11 @@ export function createAutoloadOrchestrationController({
   const {
     updateAutoloadUI,
     updateAutoloadMeta,
-    setAutoloadStatus,
     setStatus,
     persistAutoloadSettings,
     resetLiveHistory,
-    setSimplonMode,
-    fetchSimplonMask,
-    updateLiveBadge,
-    stopJfjochPreviewBridge,
     updateRemoteMetaUI,
-    updateJfjochMetaUI,
     schedulePeakOverlay,
-    autoloadWatchTick,
-    autoloadSimplonTick,
-    autoloadJfjochTick,
-    autoloadRemoteTick,
   } = callbacks;
 
   async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
@@ -62,10 +53,10 @@ export function createAutoloadOrchestrationController({
       state.autoload.timer = null;
     }
     if (state.autoload.running && state.autoload.mode === "simplon" && disableMonitor) {
-      await setSimplonMode(false);
+      await core.autoloadStatus?.setSimplonMode(false);
     }
     if (state.autoload.running && state.autoload.mode === "jungfraujoch") {
-      await stopJfjochPreviewBridge();
+      await core.jfjochBridge.stopJfjochPreviewBridge();
     }
     state.autoload.running = false;
     state.autoload.busy = false;
@@ -87,12 +78,12 @@ export function createAutoloadOrchestrationController({
       state.autoload.jfjochStatus = {};
       state.autoload.lastJfjochSeq = 0;
       analysisState.externalPeakSets = [];
-      updateJfjochMetaUI({}, {});
+      core.sourceMetadata?.updateJfjochMetaUI({}, {});
       schedulePeakOverlay();
     }
     updateAutoloadUI();
-    setAutoloadStatus(state.autoload.mode === "file" ? t("autoload.status.idle") : t("autoload.status.stopped"));
-    updateLiveBadge();
+    core.autoloadStatus?.setAutoloadStatus(state.autoload.mode === "file" ? t("autoload.status.idle") : t("autoload.status.stopped"));
+    core.backendStatus.updateLiveBadge();
     persistAutoloadSettings();
   }
 
@@ -153,7 +144,7 @@ export function createAutoloadOrchestrationController({
     resetLiveHistory?.();
     updateAutoloadUI();
     updateAutoloadMeta();
-    setAutoloadStatus(
+    core.autoloadStatus?.setAutoloadStatus(
       `${t("autoload.running")} (${
         state.autoload.mode === "file" && state.autoload.watchEnabled
           ? t("autoload.mode.watch_folder")
@@ -169,14 +160,14 @@ export function createAutoloadOrchestrationController({
     if (state.autoload.mode === "simplon" && state.autoload.simplonEnable) {
       knownDetectors.record({ address: state.autoload.simplonUrl });
       setStatus(t("status.autoload.simplon_monitor"));
-      await setSimplonMode(true);
+      await core.autoloadStatus?.setSimplonMode(true);
       state.autoload.lastMaskAttempt = Date.now();
-      await fetchSimplonMask();
+      await core.maskCursor.fetchSimplonMask();
     } else if (state.autoload.mode === "jungfraujoch") {
       setStatus(t("status.autoload.jfjoch_preview"));
     }
 
-    updateLiveBadge();
+    core.backendStatus.updateLiveBadge();
     autoloadTick();
     state.autoload.timer = window.setInterval(autoloadTick, state.autoload.interval);
   }
@@ -191,7 +182,7 @@ export function createAutoloadOrchestrationController({
       await stopAutoload({ keepMode: false, disableMonitor });
     } else {
       updateAutoloadUI();
-      setAutoloadStatus(t("autoload.status.idle"));
+      core.autoloadStatus?.setAutoloadStatus(t("autoload.status.idle"));
       persistAutoloadSettings();
     }
     if (analysisState.externalPeakSets.length) {
@@ -209,13 +200,13 @@ export function createAutoloadOrchestrationController({
     updateAutoloadMeta();
     try {
       if (state.autoload.mode === "file" && state.autoload.watchEnabled) {
-        await autoloadWatchTick();
+        await core.autoloadMode.autoloadWatchTick();
       } else if (state.autoload.mode === "simplon") {
-        await autoloadSimplonTick();
+        await core.autoloadMode.autoloadSimplonTick();
       } else if (state.autoload.mode === "jungfraujoch") {
-        await autoloadJfjochTick();
+        await core.remoteStream.autoloadJfjochTick();
       } else if (state.autoload.mode === "remote") {
-        await autoloadRemoteTick();
+        await core.remoteStream.autoloadRemoteTick();
       }
     } finally {
       state.autoload.busy = false;

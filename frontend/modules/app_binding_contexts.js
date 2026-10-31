@@ -81,13 +81,11 @@ export function createMainUiBindingsCallbacks(callbacks) {
     saveSettingsFromModal: callbacks.saveSettingsFromModal,
     renderCommandPalette: callbacks.renderCommandPalette,
     closeCommandPalette: callbacks.closeCommandPalette,
-    ensureFileMode: callbacks.ensureFileMode,
     syncSeriesSumOutputPath: callbacks.syncSeriesSumOutputPath,
     isHdfFile: callbacks.isHdfFile,
     loadDatasets: callbacks.loadDatasets,
     recordRecentFile: callbacks.recordRecentFile,
     loadImageSeries: callbacks.loadImageSeries,
-    loadMetadata: callbacks.loadMetadata,
     setThresholdIndex: callbacks.setThresholdIndex,
     requestFrame: callbacks.requestFrame,
     setFrameStep: callbacks.setFrameStep,
@@ -196,17 +194,10 @@ export function createPostFilePickerBindingsElements(elements) {
  */
 export function createPostFilePickerBindingsCallbacks(callbacks) {
   return {
-    stopAutoload: callbacks.stopAutoload,
-    startAutoload: callbacks.startAutoload,
     updateAutoloadUI: callbacks.updateAutoloadUI,
     persistAutoloadSettings: callbacks.persistAutoloadSettings,
-    loadFiles: callbacks.loadFiles,
-    autoloadTick: callbacks.autoloadTick,
     updateRemoteMetaUI: callbacks.updateRemoteMetaUI,
-    updateJfjochMetaUI: callbacks.updateJfjochMetaUI,
     schedulePeakOverlay: callbacks.schedulePeakOverlay,
-    setSimplonMode: callbacks.setSimplonMode,
-    setAutoloadStatus: callbacks.setAutoloadStatus,
     openFileBrowser: callbacks.openFileBrowser,
     openFileModal: callbacks.openFileModal,
     handleLocalFileSelection: callbacks.handleLocalFileSelection,
@@ -316,7 +307,6 @@ export function createPostFilePickerBindingsCallbacks(callbacks) {
     isHdfFile: callbacks.isHdfFile,
     loadDatasets: callbacks.loadDatasets,
     loadImageSeries: callbacks.loadImageSeries,
-    loadMetadata: callbacks.loadMetadata,
     setRoiDragging: callbacks.setRoiDragging,
     getRoiDragging: callbacks.getRoiDragging,
     getSectionStateStore: callbacks.getSectionStateStore,
@@ -334,6 +324,7 @@ export function createFileBrowserControllerContext({
   apiBase,
   elements,
   callbacks,
+  core,
 }) {
   return {
     apiBase,
@@ -370,10 +361,10 @@ export function createFileBrowserControllerContext({
         autoloadState.dir = selectedPath;
         callbacks.persistAutoloadSettings();
         if (autoloadState.mode === "file") {
-          callbacks.loadFiles().catch((err) => console.error(err));
+          core.frameMetadata?.loadFiles().catch((err) => console.error(err));
         }
         if (autoloadState.running && autoloadState.mode === "file" && autoloadState.watchEnabled) {
-          callbacks.autoloadTick();
+          core.autoloadOrchestration.autoloadTick();
         }
       } else if (mode === "series-sum") {
         const picked = selectedPath.replace(/[\\/]$/, "");

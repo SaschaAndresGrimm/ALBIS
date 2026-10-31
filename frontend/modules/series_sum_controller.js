@@ -17,6 +17,7 @@ export function createSeriesSumController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     seriesSumFrames,
@@ -46,7 +47,6 @@ export function createSeriesSumController({
     isHdfFile,
     validateSeriesStepInput,
     setStatus,
-    ensureFileMode,
     loadAutoloadFile,
     fetchJSON,
     fetchJSONWithInit,
@@ -477,7 +477,7 @@ export function createSeriesSumController({
   async function openSeriesSumOutputTarget() {
     if (state.seriesSum.running || !state.seriesSum.openTarget) return;
     try {
-      await ensureFileMode();
+      await core.autoloadOrchestration.ensureFileMode();
       const loaded = await loadAutoloadFile(state.seriesSum.openTarget);
       if (!loaded) {
         setStatus(t("status.series.output_open_failed"), { tone: "error" });

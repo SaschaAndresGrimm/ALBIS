@@ -11,6 +11,7 @@ export function createAutoloadStatusController({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     autoloadStatus,
@@ -22,7 +23,6 @@ export function createAutoloadStatusController({
   const {
     setStatus,
     updateToolbar,
-    updateLiveBadge,
   } = callbacks;
 
   function updateAutoloadMeta() {
@@ -47,7 +47,7 @@ export function createAutoloadStatusController({
       state.autoload.lastUpdate = Date.now();
     }
     updateAutoloadMeta();
-    updateLiveBadge();
+    core.backendStatus.updateLiveBadge();
   }
 
   function setAutoloadLatest() {
