@@ -28,6 +28,12 @@ git switch main && npm run ui:live -- --out /tmp/live-main.json
 git switch <branch> && npm run ui:live -- --out /tmp/live-branch.json --compare /tmp/live-main.json
 ```
 
+Run it on a quiet machine. The checks wait for what the viewer shows, so
+anything else competing for the browser shifts their timing: other ALBIS pages
+left open (each polls the server every second), or headless Chrome instances
+left over from an interrupted script. With three such pages running, an
+unchanged `main` failed four checks; with them closed, it passed every time.
+
 It fails on any failed check and on any recorded value (file, frame, shape,
 data range, dataset, series) that differs from the earlier run. Three runs of
 an unchanged `main` record the same values.
