@@ -15,7 +15,7 @@ import { PIXEL_LABEL_MIN_CELL_PX, pixelLabelResolver, pixelLabelsAreFloat } from
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import { queryAppElements } from "./modules/app_elements.js";
 import { computeMedian, parseShape, toFloat32, typedArrayFrom } from "./modules/typed_array_utils.js";
-import { dirnameFromPath, formatEnergy, formatInspectorValue, formatRoiTick, formatStat, middleTruncate } from "./modules/format_utils.js";
+import { dirnameFromPath, formatEnergy, formatInspectorValue, formatRoiTick, formatStat, formatTimeStamp, middleTruncate } from "./modules/format_utils.js";
 import {
   applyI18nToDom,
   getLanguage,
@@ -1297,8 +1297,10 @@ function getMaxPanelWidth() {
   return panelLayoutController ? panelLayoutController.getMaxPanelWidth() : Math.max(220, Math.min(900, window.innerWidth - 24));
 }
 
+// The same test panel_layout_controller.js makes; asked of the browser, so the
+// toolbar can use it before the panel layout exists.
 function isPhonePanelLayout() {
-  return panelLayoutController ? panelLayoutController.isPhonePanelLayout() : (Boolean(coarsePointerQuery?.matches) && window.innerWidth < 768);
+  return Boolean(coarsePointerQuery?.matches) && window.innerWidth < 768;
 }
 
 function nearestMobilePanelSnap(value) {
@@ -1621,10 +1623,6 @@ function setDataControlsForSeries() {
   if (frameStep) frameStep.disabled = false;
   if (fpsSelect) fpsSelect.disabled = false;
   updateInspectorHeaderVisibility(state.file);
-}
-
-function formatTimeStamp(ts) {
-  return autoloadStatusController?.formatTimeStamp(ts) || "";
 }
 
 function setAutoloadStatus(text, markUpdate = false) {
