@@ -67,3 +67,9 @@ export function dirnameFromPath(path) {
   }
   return normalized.slice(0, idx);
 }
+
+/** A poll or frame time as the status line shows it, in the browser's locale. */
+export function formatTimeStamp(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString();
+}
