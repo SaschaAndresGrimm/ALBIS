@@ -1,6 +1,7 @@
 # 0005 — `app.js` takes its elements from one table; late-created controllers keep stable wrappers
 
-**Status:** Accepted, 2026-10-31.
+**Status:** Accepted, 2026-10-31; amended the same day (wrappers that were
+not needed are gone, see the end).
 
 ## Context
 
@@ -28,11 +29,13 @@
   document after boot and after opening an image (checked in Chrome by
   instrumenting `getElementById`; a deliberately replaced element was
   reported). Moving a `const` earlier cannot cause a temporal-dead-zone error.
-- **The stable wrappers stay.** Removing them means creating controllers in an
-  order where nothing is needed before it exists, or passing getters instead
-  of functions. Either changes how every controller is wired, at once, in the
-  one file that wires them, with little a test can see; the wrappers are short
-  and the pattern is documented.
+- **Stable wrappers stay where a function is needed before its controller
+  exists.** Removing those means creating controllers in an order where
+  nothing is needed early, or passing getters instead of functions. Three
+  groups of controllers need each other (live sources and file loading,
+  18 controllers; overlays, 3; ROI, 2), so no order removes all of them.
+- **Everywhere else, `app.js` takes the method from the controller** right
+  after creating it (`const { updateRoiStats, … } = roiStatsController;`).
 
 ## Consequences
 
@@ -57,3 +60,26 @@
   element lists gave way to `...appElements`.
 - **Revisit if** controllers come to be created from a single declarative list
   (then the wrappers can go).
+
+## Amendment: the wrappers that were not needed
+
+Of 197 forwarding wrappers, 116 went the same day. A wrapper was replaced by
+taking the method from its controller only when all of these held:
+
+- its call passes exactly its own parameters, and the method declares no
+  more (else a caller's extra argument, such as an event, would now reach it);
+- it returns the method's result, or the method returns none (a wrapper
+  that dropped a returned promise would otherwise hand it to callers that
+  then wait for it);
+- nothing reads it while `app.js`'s top level runs before the controller is
+  created;
+- for wrappers written `controller?.method()`, which did nothing when called
+  before the controller existed: no such early call happens. Checked by
+  instrumenting them and starting ALBIS five ways (fresh, with saved folder
+  watch, remote and SIMPLON modes, and with a launch target); a call planted
+  on purpose was reported.
+
+`npm run ui:live` (docs/LIVE_TEST_PLAN.md) passed all 25 checks, with the
+same recorded values as `main`, three times. The 81 that remain are async,
+take default parameters, drop a result, or are needed before their
+controller exists.

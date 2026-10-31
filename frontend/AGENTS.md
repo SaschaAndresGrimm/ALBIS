@@ -46,9 +46,11 @@ everywhere.
   `data-i18n-placeholder` in markup, `t("key", { vars })` in JS; the key in all
   13 locales.
 - **Stable wrappers**: when one module must call another created later, add a
-  named function in `app.js` and pass that, not the controller's method. They
-  look like boilerplate and are deliberate; see
-  [decision 0005](../docs/decisions/0005-app-elements-table-and-stable-wrappers.md).
+  named function in `app.js` and pass that, not the controller's method. When
+  the controller already exists where the function is needed, take the method
+  from it instead (`const { redraw } = viewerController;` after creating it).
+  [Decision 0005](../docs/decisions/0005-app-elements-table-and-stable-wrappers.md)
+  says when which applies.
 - **State lives in `state` or a controller**, not in the DOM: read values from
   `state`, write the DOM from it.
 - `console.warn`/`error`/`info` only; eslint flags `console.log`.
@@ -69,6 +71,10 @@ on what the user would see or what the module calls. Run them with
   `tests/ring_list_controller.test.js`.
 - **Bindings**: `modules/colorbar_window_bindings.js` with its test.
 - **A self-contained widget**: `modules/mask_legend.js`.
+
+After changing how `app.js` wires controllers or a live source, run
+`npm run ui:live` on `main` and on the change and compare
+([docs/LIVE_TEST_PLAN.md](../docs/LIVE_TEST_PLAN.md)).
 
 Do not copy `app.js`'s size. `tests/code_size_guard.test.js` holds it: a file
 over 1,000 lines may not get longer. The same test fails on a `fetch()` outside

@@ -3,6 +3,7 @@
  */
 
 import { normalizeSimplonUrlInput } from "./simplon_url_utils.js";
+import { formatTimeStamp } from "./format_utils.js";
 import { fetchResponse } from "./http.js";
 
 export function createAutoloadStatusController({
@@ -23,11 +24,6 @@ export function createAutoloadStatusController({
     updateToolbar,
     updateLiveBadge,
   } = callbacks;
-
-  function formatTimeStamp(ts) {
-    if (!ts) return "";
-    return new Date(ts).toLocaleTimeString();
-  }
 
   function updateAutoloadMeta() {
     if (autoloadStatus) {

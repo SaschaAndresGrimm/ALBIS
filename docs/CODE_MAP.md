@@ -279,6 +279,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Build metadata helper reading `VERSION`.
 - `ALBIS.spec`:
   - PyInstaller bundle definition.
+- `scripts/live_check.mjs` (`npm run ui:live`), `test_scripts/fake_simplon_dcu.py`, `test_scripts/fake_jfjoch_publisher.py`:
+  - The live-source check in Chrome against a simulated detector and JUNGFRAUJOCH stream; see [Live Test Plan](LIVE_TEST_PLAN.md).
 - `docs/PACKAGING.md`:
   - How the PyInstaller bundle and the per-platform installers are built.
 - `docs/RELEASE_CHECKLIST.md`:
