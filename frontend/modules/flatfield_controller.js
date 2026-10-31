@@ -20,14 +20,12 @@ function fileName(path) {
   return String(path || "").split(/[\\/]/).pop();
 }
 
-export function createFlatfieldController({ apiBase, state, elements, callbacks }) {
+export function createFlatfieldController({ apiBase, state, elements, callbacks, core }) {
   const { toggle, useCurrentBtn, chooseBtn, scaleSelect, stateEl, summaryEl, footerChip } = elements;
   const {
     redraw,
     refreshDisplayContrast,
     scheduleHistogram,
-    updateGlobalStats,
-    scheduleRoiUpdate,
     setSectionBadgeState,
     setSummaryChip,
     setStatus,
@@ -90,8 +88,8 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks 
     refreshDisplayContrast(state.autoScale);
     redraw();
     scheduleHistogram();
-    updateGlobalStats();
-    scheduleRoiUpdate();
+    core.roiStats.updateGlobalStats();
+    core.roiInteraction.scheduleRoiUpdate();
     updateState();
   }
 

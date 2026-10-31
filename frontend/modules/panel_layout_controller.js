@@ -9,6 +9,7 @@ export function createPanelLayoutController({
   constants,
   elements,
   callbacks,
+  core,
 }) {
   const {
     mobilePanelSnapPoints,
@@ -28,12 +29,8 @@ export function createPanelLayoutController({
   } = elements;
 
   const {
-    syncToolbarMoreControls,
-    scheduleOverview,
     scheduleHistogram,
-    schedulePixelOverlay,
     recenterCanvas,
-    updateUiIdleAndAnchors,
     getSectionStateStore,
     setSectionStateStore,
   } = callbacks;
@@ -123,14 +120,14 @@ export function createPanelLayoutController({
       panelCollapseBtn.setAttribute("aria-hidden", state.panelCollapsed ? "true" : "false");
       panelCollapseBtn.tabIndex = state.panelCollapsed ? -1 : 0;
     }
-    syncToolbarMoreControls();
+    core.chromeToolbar?.syncToolbarMoreControls();
     // Opening, closing or dragging the panel changes how much of the canvas is
     // visible, and in canvas-first mode the panel floats over it -- so the
     // frame has to be re-centred in the band that is left.
     recenterCanvas?.();
-    scheduleOverview();
+    core.overviewViewport?.scheduleOverview();
     scheduleHistogram();
-    updateUiIdleAndAnchors();
+    core.chromeToolbar?.updateUiIdleAndAnchors();
   }
 
   function togglePanel() {
@@ -209,9 +206,9 @@ export function createPanelLayoutController({
     const section = button.closest(".panel-section");
     if (!section) return;
     setSectionState(section, !section.classList.contains("is-collapsed"));
-    scheduleOverview();
+    core.overviewViewport?.scheduleOverview();
     scheduleHistogram();
-    schedulePixelOverlay();
+    core.overlayRender.schedulePixelOverlay();
   }
 
   function setSectionState(section, collapsed, persist = true) {

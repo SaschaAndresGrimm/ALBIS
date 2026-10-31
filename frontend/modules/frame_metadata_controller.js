@@ -32,20 +32,17 @@ export function createFrameMetadataController({
     setDataSourceSectionState,
     setStatus,
     onWriterPresenceChange,
-    updateToolbar,
     showSplash,
     setSplashStatus,
     setLoading,
     showProcessingProgress,
     hideProcessingProgress,
     getDefaultThresholdIndex,
-    syncSeriesSumOutputPath,
     updateFrameControls,
     updateThresholdOptions,
     isHdf5File,
     geometryParams,
     loadImageGeometry,
-    scheduleResolutionOverlay,
   } = callbacks;
 
   async function loadAutoloadFolders() {
@@ -103,7 +100,7 @@ export function createFrameMetadataController({
           state.file = "";
           state.dataset = "";
           setStatus(t("status.frame.select_file_to_begin"));
-          updateToolbar();
+          core.chromeToolbar?.updateToolbar();
           showSplash();
           setSplashStatus("splash.status.ready_open_file");
           setLoading(false);
@@ -166,12 +163,12 @@ export function createFrameMetadataController({
       }
       state.thresholdIndex = getDefaultThresholdIndex();
       state.frameIndex = 0;
-      syncSeriesSumOutputPath();
+      core.seriesSum.syncSeriesSumOutputPath();
       updateFrameControls();
       updateThresholdOptions();
       metaShape.textContent = data.shape.join(" × ");
       metaDtype.textContent = data.dtype;
-      updateToolbar();
+      core.chromeToolbar?.updateToolbar();
       await loadAnalysisParams();
       await core.maskCursor.loadMask(true);
       const loadedFrame = await core.fileDataPipeline.loadFrame();
@@ -239,7 +236,7 @@ export function createFrameMetadataController({
       state.shape = data.shape;
       if (metaShape) metaShape.textContent = data.shape.join(" × ");
       updateFrameControls();
-      updateToolbar();
+      core.chromeToolbar?.updateToolbar();
     }
     return { writerPresent: Boolean(data.writer_present), changed, frameCount: nextCount };
   }
@@ -269,7 +266,7 @@ export function createFrameMetadataController({
         },
         "hdf5",
       );
-      scheduleResolutionOverlay();
+      core.overlayRender.scheduleResolutionOverlay();
       await loadImageGeometry(state.file, getGeometryScopeKey(state, state.file));
     } catch (err) {
       console.error(err);

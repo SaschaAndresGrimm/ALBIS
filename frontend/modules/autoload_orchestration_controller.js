@@ -43,7 +43,6 @@ export function createAutoloadOrchestrationController({
     persistAutoloadSettings,
     resetLiveHistory,
     updateRemoteMetaUI,
-    schedulePeakOverlay,
   } = callbacks;
 
   async function stopAutoload({ keepMode = true, disableMonitor = true } = {}) {
@@ -72,14 +71,14 @@ export function createAutoloadOrchestrationController({
       state.autoload.remoteSeq = 0;
       analysisState.externalPeakSets = [];
       updateRemoteMetaUI({});
-      schedulePeakOverlay();
+      core.overlayRender.schedulePeakOverlay();
     } else if (previousMode === "jungfraujoch") {
       state.autoload.jfjochMeta = {};
       state.autoload.jfjochStatus = {};
       state.autoload.lastJfjochSeq = 0;
       analysisState.externalPeakSets = [];
       core.sourceMetadata?.updateJfjochMetaUI({}, {});
-      schedulePeakOverlay();
+      core.overlayRender.schedulePeakOverlay();
     }
     updateAutoloadUI();
     core.autoloadStatus?.setAutoloadStatus(state.autoload.mode === "file" ? t("autoload.status.idle") : t("autoload.status.stopped"));
@@ -187,7 +186,7 @@ export function createAutoloadOrchestrationController({
     }
     if (analysisState.externalPeakSets.length) {
       analysisState.externalPeakSets = [];
-      schedulePeakOverlay();
+      core.overlayRender.schedulePeakOverlay();
     }
   }
 

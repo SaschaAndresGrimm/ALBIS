@@ -55,36 +55,27 @@ export function bindViewerControls({
   const {
     redraw,
     scheduleHistogram,
-    handleContrastChanged,
     computeAutoLevels,
     getContrastData,
     formatValue,
-    updateGlobalStats,
-    scheduleRoiUpdate,
     schedulePeakFinder,
     snapHistogramValue,
-    deferViewportInteraction,
     setZoom,
-    scheduleOverview,
     zoomAt,
-    fitImageToView,
     requestFrame,
     startPlayback,
     toggleToolbarPlaybackPopover,
     toggleToolbarMorePopover,
     setFrameStep,
     setFps,
-    setThresholdIndex,
     togglePanel,
     closeToolbarMorePopover,
     toggleFullscreen,
-    openFileModal,
     toggleFooterVersionPopover,
     registerChromeActivity,
     updateFullscreenUi,
     startMobilePanelDrag,
     updateMobilePanelDrag,
-    stopMobilePanelDrag,
   } = callbacks;
 
   colormapSelect?.addEventListener("change", () => {
@@ -93,7 +84,7 @@ export function bindViewerControls({
       state.colormap = value;
       redraw();
       scheduleHistogram();
-      handleContrastChanged?.("colormap");
+      core.viewerSync?.handleContrastChanged("colormap");
     }
   });
 
@@ -109,23 +100,23 @@ export function bindViewerControls({
     }
     redraw();
     scheduleHistogram();
-    handleContrastChanged?.(state.autoScale ? "auto" : "levels");
+    core.viewerSync?.handleContrastChanged(state.autoScale ? "auto" : "levels");
   });
 
   maskToggle?.addEventListener("change", () => {
     state.maskEnabled = maskToggle.checked;
     state.maskAuto = false;
-    updateGlobalStats();
+    core.roiStats.updateGlobalStats();
     redraw();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     schedulePeakFinder();
   });
 
   maskSaturatedToggle?.addEventListener("change", () => {
     state.maskSaturatedEnabled = maskSaturatedToggle.checked;
-    updateGlobalStats();
+    core.roiStats.updateGlobalStats();
     redraw();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     schedulePeakFinder();
   });
 
@@ -133,7 +124,7 @@ export function bindViewerControls({
     state.invert = invertToggle.checked;
     redraw();
     scheduleHistogram();
-    handleContrastChanged?.("invert");
+    core.viewerSync?.handleContrastChanged("invert");
   });
 
   // A typed background or foreground is taken as typed, whatever the frame
@@ -164,16 +155,16 @@ export function bindViewerControls({
       autoScaleToggle.checked = false;
       redraw();
       scheduleHistogram();
-      handleContrastChanged?.("levels");
+      core.viewerSync?.handleContrastChanged("levels");
     });
   });
 
   zoomRange.addEventListener("input", () => {
-    deferViewportInteraction();
+    core.overviewViewport?.deferViewportInteraction();
     const zoom = sliderToZoom(zoomRange.value);
     if (!canvasWrap) {
       setZoom(zoom);
-      scheduleOverview();
+      core.overviewViewport?.scheduleOverview();
       return;
     }
     const rect = canvasWrap.getBoundingClientRect();
@@ -217,10 +208,10 @@ export function bindViewerControls({
       setZoom(state.zoom || 1);
       return;
     }
-    deferViewportInteraction();
+    core.overviewViewport?.deferViewportInteraction();
     if (!canvasWrap) {
       setZoom(parsedZoom);
-      scheduleOverview();
+      core.overviewViewport?.scheduleOverview();
       return;
     }
     const rect = canvasWrap.getBoundingClientRect();
@@ -236,7 +227,7 @@ export function bindViewerControls({
   });
 
   resetView.addEventListener("click", () => {
-    fitImageToView();
+    core.overviewViewport?.fitImageToView();
   });
 
   prevBtn?.addEventListener("click", () => {
@@ -277,7 +268,7 @@ export function bindViewerControls({
 
   toolbarMoreThreshold?.addEventListener("change", async (event) => {
     const value = Math.max(0, Number(event.target.value || 0));
-    await setThresholdIndex(value);
+    await core.thresholdPlayback?.setThresholdIndex(value);
   });
 
   toolbarMorePanelToggle?.addEventListener("click", () => {
@@ -295,7 +286,7 @@ export function bindViewerControls({
   });
 
   splashOpenFileBtn?.addEventListener("click", () => {
-    void openFileModal();
+    void core.fileOpen.openFileModal();
   });
 
   footerVersionToggleEl?.addEventListener("click", (event) => {
@@ -323,11 +314,11 @@ export function bindViewerControls({
   });
 
   window.addEventListener("pointerup", (event) => {
-    stopMobilePanelDrag(event, false);
+    core.panelLayout?.stopMobilePanelDrag(event, false);
   });
 
   window.addEventListener("pointercancel", (event) => {
-    stopMobilePanelDrag(event, true);
+    core.panelLayout?.stopMobilePanelDrag(event, true);
   });
 
   window.addEventListener("pointermove", registerChromeActivity, { passive: true });

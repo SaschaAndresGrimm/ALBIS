@@ -64,14 +64,12 @@ export function initializeUiDefaults({
 export function finalizeRuntimeBootstrap({
   state,
   callbacks,
+  core,
 }) {
   const {
     getMaxPanelWidth,
     nearestMobilePanelSnap,
-    setMobilePanelSnap,
     applyPanelState,
-    applyCanvasTransform,
-    updatePanCapability,
     loadAutoloadSettings,
     updatePlayButtons,
     updateViewerFooter,
@@ -81,8 +79,6 @@ export function finalizeRuntimeBootstrap({
     initHelpTooltips,
     startBackendHeartbeat,
     bootstrapApp,
-    openLaunchTargetFromHash,
-    restoreCloneFromHash,
     setSplashStatus,
     setStatus,
     showSplash,
@@ -102,15 +98,15 @@ export function finalizeRuntimeBootstrap({
       state.panelCollapsed = true;
     }
     if (Number.isFinite(storedMobileSnap) && storedMobileSnap > 0) {
-      setMobilePanelSnap(nearestMobilePanelSnap(storedMobileSnap));
+      core.panelLayout?.setMobilePanelSnap(nearestMobilePanelSnap(storedMobileSnap));
     }
   } catch {
     // Ignore storage errors and continue with defaults.
   }
 
   applyPanelState();
-  applyCanvasTransform();
-  updatePanCapability();
+  core.overviewViewport?.applyCanvasTransform();
+  core.overviewViewport?.updatePanCapability();
   loadAutoloadSettings();
   updatePlayButtons();
   updateViewerFooter();
@@ -129,8 +125,8 @@ export function finalizeRuntimeBootstrap({
     //
     // A file the desktop environment asked ALBIS to open comes first, because
     // the clone restore strips the whole fragment once it finds its own token.
-    .then(() => openLaunchTargetFromHash?.())
-    .then(() => restoreCloneFromHash?.())
+    .then(() => core.windowClone.openLaunchTargetFromHash())
+    .then(() => core.windowClone.restoreCloneFromHash())
     .catch((err) => {
       console.error(err);
       setSplashStatus("splash.status.initialization_failed");

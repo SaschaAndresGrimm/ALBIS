@@ -138,16 +138,18 @@ async function initializeModules({ updateJson }) {
     state: {},
     callbacks: {
       setStatus: vi.fn(),
-      openSettingsModal: vi.fn(),
-      checkForUpdates: () => controller.openAndCheck(),
-      openCommandPalette: vi.fn(),
       toggleFullscreen: vi.fn(),
       openAboutModal: vi.fn(),
-      openFileModal: vi.fn(),
       closeCurrentFile: vi.fn(),
       exportFullImage: vi.fn(),
       exportVisibleArea: vi.fn(),
-      exportViewerWindow: vi.fn(),
+    },
+    core: {
+      settings: { openSettingsModal: vi.fn() },
+      updateCheck: { openAndCheck: () => controller.openAndCheck() },
+      commandPalette: { open: vi.fn() },
+      fileOpen: { openFileModal: vi.fn() },
+      exportSplash: { exportViewerWindow: vi.fn() },
     },
   });
 

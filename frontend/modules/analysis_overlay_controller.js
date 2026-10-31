@@ -17,6 +17,7 @@ export function createAnalysisOverlayController({
   elements,
   constants,
   callbacks,
+  core,
 }) {
   const {
     ringsSectionStateEl,
@@ -38,7 +39,6 @@ export function createAnalysisOverlayController({
     setSummaryChip,
     buildSkeletonList,
     formatStat,
-    schedulePeakOverlay,
     setFieldHint,
     getActiveSaturationMax,
     isSaturatedValue,
@@ -307,7 +307,7 @@ export function createAnalysisOverlayController({
           analysisState.peakSelectionAnchor = idx;
         }
         renderPeakList();
-        schedulePeakOverlay();
+        core.overlayRender.schedulePeakOverlay();
       });
       peaksBody.appendChild(row);
     });
@@ -689,7 +689,7 @@ export function createAnalysisOverlayController({
       analysisState.selectedPeaks = [];
       analysisState.peakSelectionAnchor = null;
       renderPeakList();
-      schedulePeakOverlay();
+      core.overlayRender.schedulePeakOverlay();
       return;
     }
     const requested = Math.max(1, Math.min(1000, Math.round(Number(peaksCountInput?.value || analysisState.peakCount || 25))));
@@ -716,7 +716,7 @@ export function createAnalysisOverlayController({
       analysisState.peakSelectionAnchor = null;
     }
     renderPeakList();
-    schedulePeakOverlay();
+    core.overlayRender.schedulePeakOverlay();
   }
 
   function schedulePeakFinder() {

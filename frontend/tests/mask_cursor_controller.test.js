@@ -40,9 +40,7 @@ describe("mask_cursor_controller", () => {
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
         getActiveSaturationMax: vi.fn(() => null),
-        updateGlobalStats: vi.fn(),
         redraw: vi.fn(),
-        scheduleRoiUpdate: vi.fn(),
         getDtypeInfo: vi.fn(),
         formatValue: vi.fn(),
         isSaturatedValue: vi.fn(() => false),
@@ -51,6 +49,8 @@ describe("mask_cursor_controller", () => {
         getEffectiveScrollTop: vi.fn(() => 0),
       },
       core: {
+        roiStats: { updateGlobalStats: vi.fn() },
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
         autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
@@ -103,9 +103,7 @@ describe("mask_cursor_controller", () => {
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
         getActiveSaturationMax: vi.fn(() => null),
-        updateGlobalStats: vi.fn(),
         redraw: vi.fn(),
-        scheduleRoiUpdate: vi.fn(),
         getDtypeInfo: vi.fn(() => ({ kind: "f", bits: 32 })),
         formatValue: vi.fn(() => "24.000"),
         isSaturatedValue: vi.fn(() => false),
@@ -114,6 +112,8 @@ describe("mask_cursor_controller", () => {
         getEffectiveScrollTop: vi.fn(() => 0),
       },
       core: {
+        roiStats: { updateGlobalStats: vi.fn() },
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
         autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
@@ -164,9 +164,7 @@ describe("mask_cursor_controller", () => {
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
         getActiveSaturationMax: vi.fn(() => null),
-        updateGlobalStats: vi.fn(),
         redraw: vi.fn(),
-        scheduleRoiUpdate: vi.fn(),
         getDtypeInfo: vi.fn(() => ({ kind: "u", bits: 32 })),
         formatValue: vi.fn(() => "5"),
         isSaturatedValue: vi.fn(() => false),
@@ -176,6 +174,8 @@ describe("mask_cursor_controller", () => {
         getEffectiveScrollTop: vi.fn(() => 0),
       },
       core: {
+        roiStats: { updateGlobalStats: vi.fn() },
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
         autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
@@ -237,9 +237,7 @@ describe("mask_cursor_controller", () => {
         parseShape: vi.fn(),
         typedArrayFrom: vi.fn(),
         getActiveSaturationMax: vi.fn(() => null),
-        updateGlobalStats: vi.fn(),
         redraw: vi.fn(),
-        scheduleRoiUpdate: vi.fn(),
         getDtypeInfo: vi.fn(() => ({ kind: "f", bits: 32 })),
         formatValue: vi.fn((v) => String(v)),
         isSaturatedValue: vi.fn(() => false),
@@ -249,6 +247,8 @@ describe("mask_cursor_controller", () => {
         getInpaintedFrame: () => ({ data: new Float32Array([0.5]), holes: null }),
       },
       core: {
+        roiStats: { updateGlobalStats: vi.fn() },
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
         autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
@@ -316,9 +316,7 @@ describe("mask_cursor_controller mask request races", () => {
         parseShape: (value) => String(value).split(",").map(Number),
         typedArrayFrom: (buffer) => new Uint32Array(buffer),
         getActiveSaturationMax: () => null,
-        updateGlobalStats: vi.fn(),
         redraw: vi.fn(),
-        scheduleRoiUpdate: vi.fn(),
         getDtypeInfo: () => null,
         formatValue: String,
         isSaturatedValue: () => false,
@@ -327,6 +325,8 @@ describe("mask_cursor_controller mask request races", () => {
         getEffectiveScrollTop: () => 0,
       },
       core: {
+        roiStats: { updateGlobalStats: vi.fn() },
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
         autoloadStatus: { setAutoloadStatus: vi.fn() },
       },
     });
@@ -414,9 +414,7 @@ describe("mask_cursor_controller with a pinned mask (Data -> Pixel Mask)", () =>
       parseShape: vi.fn(),
       typedArrayFrom: vi.fn(),
       getActiveSaturationMax: vi.fn(() => null),
-      updateGlobalStats: vi.fn(),
       redraw: vi.fn(),
-      scheduleRoiUpdate: vi.fn(),
       getDtypeInfo: vi.fn(),
       formatValue: vi.fn(),
       isSaturatedValue: vi.fn(() => false),
@@ -431,7 +429,11 @@ describe("mask_cursor_controller with a pinned mask (Data -> Pixel Mask)", () =>
       state,
       elements: { maskToggle: document.createElement("input"), ...extraElements },
       callbacks,
-      core: { autoloadStatus: { setAutoloadStatus: vi.fn() } },
+      core: {
+        autoloadStatus: { setAutoloadStatus: vi.fn() },
+        roiStats: { updateGlobalStats: vi.fn() },
+        roiInteraction: { scheduleRoiUpdate: vi.fn() },
+      },
     });
     return { controller, callbacks };
   }

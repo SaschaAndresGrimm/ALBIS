@@ -18,6 +18,7 @@ export function bindAnalysisControlInteractions({
   backendIsLocal,
   elements,
   callbacks,
+  core,
 }) {
   const {
     ringsToggle,
@@ -48,20 +49,14 @@ export function bindAnalysisControlInteractions({
   const {
     setFieldHint,
     updateRingsSectionState,
-    scheduleResolutionOverlay,
     schedulePeakFinder,
     refreshPeakResolutions,
     exportPeakCsv,
-    syncSeriesSumOutputPath,
     updateSeriesSumUi,
     validateSeriesStepInput,
     handleLocalFileSelection,
     openFileBrowser,
-    openSeriesSumOutputTarget,
-    startSeriesSumming,
-    cancelSeriesSumming,
     useSeriesOutputAsFlat,
-    schedulePixelOverlay,
   } = callbacks;
 
   // Distance, pixel size, energy and beam centre are edited in Data → Detector
@@ -72,7 +67,7 @@ export function bindAnalysisControlInteractions({
       analysisState.ringsEnabled = ringsToggle.checked;
     }
     updateRingsSectionState();
-    scheduleResolutionOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
     refreshPeakResolutions?.();
   }
 
@@ -178,7 +173,7 @@ export function bindAnalysisControlInteractions({
   });
 
   if (seriesSumOutput && !seriesSumOutput.value.trim()) {
-    syncSeriesSumOutputPath(true);
+    core.seriesSum.syncSeriesSumOutputPath(true);
   }
 
   seriesSumFrames?.addEventListener("change", () => {
@@ -196,7 +191,7 @@ export function bindAnalysisControlInteractions({
   });
 
   seriesSumOperation?.addEventListener("change", () => {
-    syncSeriesSumOutputPath();
+    core.seriesSum.syncSeriesSumOutputPath();
     updateSeriesSumUi();
   });
 
@@ -251,15 +246,15 @@ export function bindAnalysisControlInteractions({
   });
 
   seriesSumProgress?.addEventListener("click", () => {
-    openSeriesSumOutputTarget();
+    core.seriesSum.openSeriesSumOutputTarget();
   });
 
   seriesSumStart?.addEventListener("click", () => {
-    startSeriesSumming();
+    core.seriesSum.startSeriesSumming();
   });
 
   seriesSumCancel?.addEventListener("click", () => {
-    void cancelSeriesSumming();
+    void core.seriesSum.cancelSeriesSumming();
   });
 
   seriesSumUseFlat?.addEventListener("click", () => {
@@ -274,7 +269,7 @@ export function bindAnalysisControlInteractions({
       state.pixelLabels = !state.pixelLabels;
       pixelLabelToggle.setAttribute("aria-pressed", String(state.pixelLabels));
       pixelLabelToggle.classList.toggle("is-active", state.pixelLabels);
-      schedulePixelOverlay();
+      core.overlayRender.schedulePixelOverlay();
     });
   }
 

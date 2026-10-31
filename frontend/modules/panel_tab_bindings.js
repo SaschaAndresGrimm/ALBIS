@@ -7,6 +7,7 @@ export function bindPanelAndSectionInteractions({
   sectionToggles,
   sectionSwitches,
   callbacks,
+  core,
 }) {
   const {
     initializeSectionContentWrappers,
@@ -16,7 +17,6 @@ export function bindPanelAndSectionInteractions({
     loadStoredPanelTab,
     getSectionStateStore,
     setSectionStateStore,
-    setSectionState,
   } = callbacks;
 
   initializeSectionContentWrappers();
@@ -81,7 +81,7 @@ export function bindPanelAndSectionInteractions({
     const section = btn.closest(".panel-section");
     const id = section?.dataset.section;
     if (id && Object.prototype.hasOwnProperty.call(sectionStateStore, id)) {
-      setSectionState(section, Boolean(sectionStateStore[id]), false);
+      core.panelLayout?.setSectionState(section, Boolean(sectionStateStore[id]), false);
     }
   });
 

@@ -181,11 +181,13 @@ async function initializeController({ initialConfig, envOverrides = [] }) {
       closeModal: vi.fn(),
       closeMenu: vi.fn(),
       setStatus: vi.fn(),
-      schedulePixelOverlay: vi.fn(),
       applyLanguagePreference: vi.fn((language) => language),
       setHiddenTools: vi.fn((hidden) => {
         state.hiddenTools = hidden;
       }),
+    },
+    core: {
+      overlayRender: { schedulePixelOverlay: vi.fn() },
     },
   });
 

@@ -25,7 +25,6 @@ export function createFramePlaybackController({
     updatePlayButtons,
     setLoading,
     isViewportInteractionActive,
-    updateToolbar,
     queuePendingFrameRequest: queuePendingFrameRequestCallback,
     consumePendingFrameRequest: consumePendingFrameRequestCallback,
     isFrameLoading: isFrameLoadingCallback,
@@ -113,7 +112,7 @@ export function createFramePlaybackController({
     }
     state.frameIndex = clamped;
     updateFrameControls();
-    updateToolbar();
+    core.chromeToolbar?.updateToolbar();
     core.fileDataPipeline.loadFrame();
   }
 

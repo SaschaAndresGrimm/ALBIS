@@ -33,9 +33,11 @@ function setup({ params, ringValues = [], getResolutionAtPixel = () => null } = 
       getEffectiveScrollTop: () => 0,
       getRingParams: () => ({ ...defaultParams, ...params }),
       getResolutionAtPixel,
-      scheduleResolutionOverlay,
       setRingValue,
       commitRings,
+    },
+    core: {
+      overlayRender: { scheduleResolutionOverlay },
     },
   });
 

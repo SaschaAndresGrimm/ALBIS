@@ -14,6 +14,7 @@ export function bindViewportInteractions({
   constants,
   elements,
   callbacks,
+  core,
 }) {
   const { MAX_ZOOM } = constants;
   const {
@@ -34,15 +35,9 @@ export function bindViewportInteractions({
     setPanelWidth,
     redraw,
     scheduleHistogram,
-    handleContrastChanged,
-    deferViewportInteraction,
     normalizeWheelDelta,
     queueWheelZoom,
-    scheduleOverview,
-    schedulePixelOverlay,
     scheduleRoiOverlay,
-    scheduleResolutionOverlay,
-    schedulePeakOverlay,
     startTouchGesture,
     updateTouchGesture,
     stopTouchGesture,
@@ -51,7 +46,6 @@ export function bindViewportInteractions({
     getEffectiveScrollTop,
     setEffectiveScroll,
     getImagePointFromEvent,
-    updateRoiCenterInputs,
     getRoiHandleAt,
     isPointInRoi,
     startRoiEdit,
@@ -71,7 +65,6 @@ export function bindViewportInteractions({
     zoomAt,
     getRoiDragging,
     setRoiDragging,
-    scheduleRoiUpdate,
     handleRoiChanged,
     formatValue,
     snapHistogramValue,
@@ -93,7 +86,7 @@ export function bindViewportInteractions({
     if (!panning) return;
     panning = false;
     canvasWrap.classList.remove("is-panning");
-    schedulePixelOverlay();
+    core.overlayRender.schedulePixelOverlay();
     if (event && canvasWrap.hasPointerCapture(event.pointerId)) {
       canvasWrap.releasePointerCapture(event.pointerId);
     }
@@ -190,7 +183,7 @@ export function bindViewportInteractions({
     if (maxInput) maxInput.value = formatValue(state.max);
     redraw();
     scheduleHistogram();
-    handleContrastChanged?.("windowing");
+    core.viewerSync?.handleContrastChanged("windowing");
   }
 
   function stopRoi(event) {
@@ -201,7 +194,7 @@ export function bindViewportInteractions({
       canvasWrap.releasePointerCapture(event.pointerId);
     }
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
   }
 
@@ -226,7 +219,7 @@ export function bindViewportInteractions({
       }
     }
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
   }
 
@@ -266,7 +259,7 @@ export function bindViewportInteractions({
     "wheel",
     (event) => {
       event.preventDefault();
-      deferViewportInteraction();
+      core.overviewViewport?.deferViewportInteraction();
       const delta = normalizeWheelDelta(event);
       queueWheelZoom(delta, event.clientX, event.clientY);
     },
@@ -274,12 +267,12 @@ export function bindViewportInteractions({
   );
 
   canvasWrap.addEventListener("scroll", () => {
-    deferViewportInteraction();
-    scheduleOverview();
-    schedulePixelOverlay();
+    core.overviewViewport?.deferViewportInteraction();
+    core.overviewViewport?.scheduleOverview();
+    core.overlayRender.schedulePixelOverlay();
     scheduleRoiOverlay();
-    scheduleResolutionOverlay();
-    schedulePeakOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
+    core.overlayRender.schedulePeakOverlay();
   });
 
   canvasWrap.addEventListener("contextmenu", (event) => {
@@ -318,7 +311,7 @@ export function bindViewportInteractions({
       }
 
       if (event.touches.length === 1 && touchDragActive && touchDragStart) {
-        deferViewportInteraction();
+        core.overviewViewport?.deferViewportInteraction();
         const touch = event.touches[0];
         const dx = touch.clientX - touchDragStart.x;
         const dy = touch.clientY - touchDragStart.y;
@@ -368,7 +361,7 @@ export function bindViewportInteractions({
       roiState.start = point;
       roiState.end = point;
       if (roiState.mode === "circle" || roiState.mode === "annulus") {
-        updateRoiCenterInputs();
+        core.roiStats.updateRoiCenterInputs();
         roiState.outerRadius = 0;
         if (roiState.mode === "circle") {
           roiState.innerRadius = 0;
@@ -385,7 +378,7 @@ export function bindViewportInteractions({
       canvasWrap.setPointerCapture(event.pointerId);
       event.preventDefault();
       scheduleRoiOverlay();
-      scheduleRoiUpdate();
+      core.roiInteraction.scheduleRoiUpdate();
       handleRoiChanged?.("roi");
       return;
     }
@@ -439,7 +432,7 @@ export function bindViewportInteractions({
       effectiveTop: getEffectiveScrollTop(),
     };
     canvasWrap.classList.add("is-panning");
-    deferViewportInteraction();
+    core.overviewViewport?.deferViewportInteraction();
     canvasWrap.setPointerCapture(event.pointerId);
     event.preventDefault();
   });
@@ -447,7 +440,7 @@ export function bindViewportInteractions({
   canvasWrap.addEventListener("pointermove", (event) => {
     if (event.pointerType === "touch") return;
     if (windowing) {
-      deferViewportInteraction();
+      core.overviewViewport?.deferViewportInteraction();
       hideCursorOverlay();
       applyWindowing(event);
       event.preventDefault();
@@ -493,7 +486,7 @@ export function bindViewportInteractions({
       return;
     }
 
-    deferViewportInteraction();
+    core.overviewViewport?.deferViewportInteraction();
     const dx = event.clientX - panStart.x;
     const dy = event.clientY - panStart.y;
     const nextEffectiveX = panStart.effectiveLeft - dx;

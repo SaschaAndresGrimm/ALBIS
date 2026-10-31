@@ -20,6 +20,7 @@ export function createResolutionRingInteractionController({
   analysisState,
   elements,
   callbacks,
+  core,
 }) {
   const { canvasWrap } = elements;
   const {
@@ -28,7 +29,6 @@ export function createResolutionRingInteractionController({
     getEffectiveScrollTop,
     getRingParams,
     getResolutionAtPixel,
-    scheduleResolutionOverlay,
     setRingValue,
     commitRings,
   } = callbacks;
@@ -110,7 +110,7 @@ export function createResolutionRingInteractionController({
     hoverHandle = null;
     canvasWrap.classList.add("is-ring-dragging");
     canvasWrap.classList.remove("is-ring-target");
-    scheduleResolutionOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
   }
 
   function applyRingEdit(point) {
@@ -137,7 +137,7 @@ export function createResolutionRingInteractionController({
     if (event && Number.isInteger(event.pointerId) && canvasWrap.hasPointerCapture?.(event.pointerId)) {
       canvasWrap.releasePointerCapture(event.pointerId);
     }
-    scheduleResolutionOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
   }
 
   function isRingEditing() {
@@ -158,7 +158,7 @@ export function createResolutionRingInteractionController({
     const changed = handleKey(handle) !== handleKey(hoverHandle);
     hoverHandle = handle;
     canvasWrap.classList.toggle("is-ring-target", Boolean(handle));
-    if (changed) scheduleResolutionOverlay();
+    if (changed) core.overlayRender.scheduleResolutionOverlay();
     return Boolean(handle);
   }
 
@@ -166,7 +166,7 @@ export function createResolutionRingInteractionController({
     if (!hoverHandle) return;
     hoverHandle = null;
     canvasWrap.classList.remove("is-ring-target");
-    scheduleResolutionOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
   }
 
   // Consumed by the overlay renderer to highlight the active/hovered handle.

@@ -14,6 +14,7 @@ export function createSettingsController({
   constants,
   elements,
   callbacks,
+  core,
 }) {
   const {
     pixelLabelDefaultMinCellPx,
@@ -72,7 +73,6 @@ export function createSettingsController({
     closeModal,
     closeMenu,
     setStatus,
-    schedulePixelOverlay,
     applyLanguagePreference,
     setDetectorControlEnabled,
     setPixelMaskEnabled,
@@ -639,7 +639,7 @@ export function createSettingsController({
       fillSettingsForm(data?.config || config, data?.path || "", data?.effective || null);
       applyEnvOverrides(data?.env_overrides);
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
-      schedulePixelOverlay();
+      core.overlayRender.schedulePixelOverlay();
       updateExternalAccessUi();
       setStatus(t("status.settings.saved"), { tone: "success" });
       if (closeAfter) {

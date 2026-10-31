@@ -12,7 +12,7 @@
 const WHEEL_STEP = 0.0015; // relative width change per wheel delta unit
 const MIN_WIDTH_PX = 2;
 
-export function bindColorbarWindowInteractions({ state, elements, callbacks }) {
+export function bindColorbarWindowInteractions({ state, elements, callbacks, core }) {
   const { colorbar, minInput, maxInput, autoScaleToggle } = elements;
   const {
     histogramValueToX,
@@ -21,7 +21,6 @@ export function bindColorbarWindowInteractions({ state, elements, callbacks }) {
     formatValue,
     redraw,
     scheduleHistogram,
-    handleContrastChanged,
   } = callbacks;
   if (!colorbar) return null;
 
@@ -51,7 +50,7 @@ export function bindColorbarWindowInteractions({ state, elements, callbacks }) {
     autoScaleToggle.checked = false;
     redraw();
     scheduleHistogram();
-    handleContrastChanged?.("levels");
+    core.viewerSync?.handleContrastChanged("levels");
   }
 
   function schedule(next) {

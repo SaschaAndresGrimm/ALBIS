@@ -382,10 +382,6 @@ function getEffectiveScrollTop() {
   return overviewViewportController ? overviewViewportController.getEffectiveScrollTop() : 0;
 }
 
-function applyCanvasTransform() {
-  overviewViewportController?.applyCanvasTransform();
-}
-
 function isViewportInteractionActive() {
   return overviewViewportController ? overviewViewportController.isViewportInteractionActive() : false;
 }
@@ -416,16 +412,8 @@ function isFrameLoading() {
   return fileDataPipelineController ? fileDataPipelineController.isFrameLoading() : Boolean(state.isLoading);
 }
 
-function deferViewportInteraction(delayMs = VIEWPORT_INTERACTION_IDLE_MS) {
-  overviewViewportController?.deferViewportInteraction(delayMs);
-}
-
 function setEffectiveScroll(targetX, targetY, schedule = true) {
   overviewViewportController?.setEffectiveScroll(targetX, targetY, schedule);
-}
-
-function updatePanCapability() {
-  overviewViewportController?.updatePanCapability();
 }
 
 function applyLanguagePreference(language, options = {}) {
@@ -606,22 +594,7 @@ const {
   selectInspectorRow,
   updateInspectorHeaderVisibility,
 } = inspectorPanelController;
-
-async function runInspectorSearch(query) {
-  await inspectorPanelController.runInspectorSearch(query);
-}
-
-async function fetchInspectorTree(path = "/") {
-  return inspectorPanelController.fetchInspectorTree(path);
-}
-
-async function loadInspectorRoot() {
-  await inspectorPanelController.loadInspectorRoot();
-}
-
-async function showInspectorNode(path) {
-  await inspectorPanelController.showInspectorNode(path);
-}
+core.inspectorPanel = inspectorPanelController;
 
 function syncOverlayCanvas(overlay, ctx) {
   if (!overlay || !ctx || !canvasWrap) return null;
@@ -668,9 +641,7 @@ const maskCursorController = createMaskCursorController({
     parseShape,
     typedArrayFrom,
     getActiveSaturationMax,
-    updateGlobalStats,
     redraw,
-    scheduleRoiUpdate,
     getDtypeInfo,
     formatValue,
     isSaturatedValue,
@@ -700,6 +671,7 @@ const {
 core.maskCursor = maskCursorController;
 
 const roiInteractionController = createRoiInteractionController({
+  core,
   state,
   roiState,
   elements: {
@@ -710,8 +682,6 @@ const roiInteractionController = createRoiInteractionController({
     getEffectiveScrollLeft,
     getEffectiveScrollTop,
     syncOverlayCanvas,
-    updateRoiCenterInputs,
-    updateRoiStats,
     handleRoiChanged,
   },
 });
@@ -724,6 +694,7 @@ const {
   startRoiEdit,
   stopRoiEdit,
 } = roiInteractionController;
+core.roiInteraction = roiInteractionController;
 
 function scheduleRoiOverlay() {
   roiInteractionController.scheduleRoiOverlay();
@@ -732,6 +703,7 @@ function scheduleRoiOverlay() {
 }
 
 const analysisOverlayController = createAnalysisOverlayController({
+  core,
   state,
   analysisState,
   elements: {
@@ -746,7 +718,6 @@ const analysisOverlayController = createAnalysisOverlayController({
     setSummaryChip,
     buildSkeletonList,
     formatStat,
-    schedulePeakOverlay,
     setFieldHint,
     getActiveSaturationMax,
     isSaturatedValue,
@@ -774,7 +745,7 @@ const ringListController = createRingListController({
   callbacks: {
     onChange: () => {
       updateRingsSectionState();
-      scheduleResolutionOverlay();
+      core.overlayRender.scheduleResolutionOverlay();
       analysisOverlayController.refreshPeakResolutions?.();
     },
   },
@@ -785,6 +756,7 @@ function getResolutionAtPixel(ix, iy, params = getRingParams()) {
 }
 
 const resolutionRingInteractionController = createResolutionRingInteractionController({
+  core,
   state,
   analysisState,
   elements: {
@@ -796,7 +768,6 @@ const resolutionRingInteractionController = createResolutionRingInteractionContr
     getEffectiveScrollTop,
     getRingParams,
     getResolutionAtPixel,
-    scheduleResolutionOverlay,
     setRingValue: (index, d) => ringListController.setRingValue(index, d),
     commitRings: () => ringListController.commit(),
   },
@@ -909,6 +880,7 @@ const seriesSumController = createSeriesSumController({
   },
 });
 const { setSeriesSumProgress, updateSeriesSumUi } = seriesSumController;
+core.seriesSum = seriesSumController;
 
 const dataExportController = createDataExportController({
   core,
@@ -1112,18 +1084,6 @@ toolbarPlaybackExportGif?.addEventListener("click", () => {
   openAnimationExportDialog();
 });
 
-async function startSeriesSumming() {
-  await seriesSumController.startSeriesSumming();
-}
-
-async function cancelSeriesSumming() {
-  await seriesSumController.cancelSeriesSumming();
-}
-
-function scheduleRoiUpdate() {
-  roiInteractionController.scheduleRoiUpdate();
-}
-
 function setLoading(show) {
   if (!loadingEl) return;
   loadingEl.style.display = show ? "block" : "none";
@@ -1186,9 +1146,9 @@ function refreshLocalizedUi() {
   localizePlaybackOptionLabels();
   refreshHelpTooltips();
   updateRoiModeUI();
-  scheduleRoiUpdate();
+  core.roiInteraction.scheduleRoiUpdate();
   applyPanelState();
-  updateToolbar();
+  core.chromeToolbar?.updateToolbar();
   updateViewerFooter();
   updatePlayButtons();
   core.backendStatus.updateLiveBadge();
@@ -1205,10 +1165,6 @@ function refreshLocalizedUi() {
   if (commandPaletteController?.isOpen()) {
     commandPaletteController.render();
   }
-}
-
-function scheduleOverview() {
-  overviewViewportController?.scheduleOverview();
 }
 
 function scheduleHistogram() {
@@ -1256,14 +1212,6 @@ function isTouchGestureActive() {
   return overviewViewportController ? overviewViewportController.isTouchGestureActive() : false;
 }
 
-function fitImageToView() {
-  overviewViewportController?.fitImageToView();
-}
-
-function syncToolbarMoreControls() {
-  chromeToolbarController?.syncToolbarMoreControls();
-}
-
 function getDefaultThresholdIndex() {
   return thresholdPlaybackController
     ? thresholdPlaybackController.getDefaultThresholdIndex()
@@ -1274,10 +1222,6 @@ function getThresholdIndexAtOffset(offset) {
   return thresholdPlaybackController
     ? thresholdPlaybackController.getThresholdIndexAtOffset(offset)
     : 0;
-}
-
-async function setThresholdIndex(nextIndex) {
-  await thresholdPlaybackController?.setThresholdIndex(nextIndex);
 }
 
 function getMaxPanelWidth() {
@@ -1292,18 +1236,6 @@ function isPhonePanelLayout() {
 
 function nearestMobilePanelSnap(value) {
   return panelLayoutController ? panelLayoutController.nearestMobilePanelSnap(value) : MOBILE_PANEL_SNAP_POINTS[0];
-}
-
-function setMobilePanelSnap(value, snap = true, persist = false) {
-  panelLayoutController?.setMobilePanelSnap(value, snap, persist);
-}
-
-function setSectionState(section, collapsed, persist = true) {
-  panelLayoutController?.setSectionState(section, collapsed, persist);
-}
-
-function stopMobilePanelDrag(event, cancelled = false) {
-  panelLayoutController?.stopMobilePanelDrag(event, cancelled);
 }
 
 function updateFrameControls() {
@@ -1342,7 +1274,7 @@ function updateFullscreenUi() {
     fullscreenToggle.setAttribute("aria-label", ariaLabel);
     fullscreenToggle.title = `${ariaLabel} (F)`;
   }
-  syncToolbarMoreControls();
+  core.chromeToolbar?.syncToolbarMoreControls();
   syncOverlayAnchors();
 }
 
@@ -1357,14 +1289,6 @@ async function toggleFullscreen() {
     console.error(err);
     setStatus(t("status.fullscreen_unavailable"), { tone: "warning" });
   }
-}
-
-function updateUiIdleAndAnchors() {
-  chromeToolbarController?.updateUiIdleAndAnchors();
-}
-
-function updateToolbar() {
-  chromeToolbarController?.updateToolbar();
 }
 
 function setActiveMenu(menu, anchor) {
@@ -1448,14 +1372,6 @@ function cancelClose() {
   window.clearTimeout(closeTimer);
 }
 
-function syncSeriesSumOutputPath(force = false) {
-  seriesSumController.syncSeriesSumOutputPath(force);
-}
-
-async function openSeriesSumOutputTarget() {
-  await seriesSumController.openSeriesSumOutputTarget();
-}
-
 const fileOpenController = createFileOpenController({
   core,
   apiBase: API,
@@ -1467,7 +1383,6 @@ const fileOpenController = createFileOpenController({
   },
   callbacks: {
     dirnameFromPath,
-    syncSeriesSumOutputPath,
     option,
     fileLabel: (...args) => fileLabel(...args),
     isHdfFile,
@@ -1479,6 +1394,7 @@ const fileOpenController = createFileOpenController({
     recordRecentFile: (path) => recordRecentFile(path),
   },
 });
+core.fileOpen = fileOpenController;
 
 async function openPathInViewer(path, options = {}) {
   await fileOpenController.openPathInViewer(path, options);
@@ -1519,14 +1435,7 @@ const uploadFlowController = createUploadFlowController({
   },
 });
 const { hideUploadProgress } = uploadFlowController;
-
-async function openFileModal() {
-  await fileOpenController.openFileModal();
-}
-
-async function uploadAndOpenSelectedFiles(selectedFiles) {
-  await uploadFlowController.uploadAndOpenSelectedFiles(selectedFiles);
-}
+core.uploadFlow = uploadFlowController;
 
 function showDocumentDropDisabledStatus() {
   setStatus(t("status.upload.local_drop_disabled"));
@@ -1558,15 +1467,15 @@ function setPanelTab(tabId, persist = true) {
     persist,
     persistKey: "albis.panelTab",
     onAfterChange: (activeTabId) => {
-      scheduleOverview();
+      core.overviewViewport?.scheduleOverview();
       scheduleHistogram();
-      schedulePixelOverlay();
-      scheduleResolutionOverlay();
+      core.overlayRender.schedulePixelOverlay();
+      core.overlayRender.scheduleResolutionOverlay();
       if (activeTabId === "analysis") {
         // Defer ROI refresh so projection canvases are visible and sized after tab switch.
         window.requestAnimationFrame(() => {
           scheduleRoiOverlay();
-          scheduleRoiUpdate();
+          core.roiInteraction.scheduleRoiUpdate();
         });
       }
     },
@@ -1616,7 +1525,6 @@ autoloadStatusController = createAutoloadStatusController({
   },
   callbacks: {
     setStatus,
-    updateToolbar,
   },
 });
 const { setAutoloadLatest, updateAutoloadMeta } = autoloadStatusController;
@@ -1647,14 +1555,14 @@ geometryParamsController = createGeometryParamsController({
   callbacks: {
     onParamsChanged: () => {
       updateRingsSectionState();
-      scheduleResolutionOverlay();
+      core.overlayRender.scheduleResolutionOverlay();
       refreshPeakResolutions();
     },
     // Same zoom, new aspect: recomputes the centring, the canvas transform,
     // the pan limits and the overlays drawn over the image.
     onPixelAspectChanged: () => {
       setZoom(state.zoom);
-      scheduleOverview();
+      core.overviewViewport?.scheduleOverview();
     },
     reloadGeometry: () => reloadGeometryForCurrentFile(),
     revealSection: () => revealGeometrySection(),
@@ -1666,6 +1574,7 @@ geometryParamsController = createGeometryParamsController({
 });
 
 sourceMetadataController = createSourceMetadataController({
+  core,
   state,
   analysisState,
   elements: {
@@ -1674,7 +1583,6 @@ sourceMetadataController = createSourceMetadataController({
   },
   callbacks: {
     geometryParams: geometryParamsController,
-    schedulePeakOverlay,
   },
 });
 const {
@@ -1687,6 +1595,7 @@ core.sourceMetadata = sourceMetadataController;
 sourceMetadataController.updateGeometryUi();
 
 panelLayoutController = createPanelLayoutController({
+  core,
   state,
   constants: {
     mobilePanelSnapPoints: MOBILE_PANEL_SNAP_POINTS,
@@ -1701,14 +1610,10 @@ panelLayoutController = createPanelLayoutController({
     panelTabContents,
   },
   callbacks: {
-    syncToolbarMoreControls,
-    scheduleOverview,
     scheduleHistogram,
-    schedulePixelOverlay,
     recenterCanvas: () => {
       if (state.hasFrame) setZoom(state.zoom);
     },
-    updateUiIdleAndAnchors,
     getSectionStateStore: () => sectionStateStore,
     setSectionStateStore: (next) => {
       sectionStateStore = next;
@@ -1725,6 +1630,7 @@ const {
   toggleSection,
   updateMobilePanelDrag,
 } = panelLayoutController;
+core.panelLayout = panelLayoutController;
 
 chromeToolbarController = createChromeToolbarController({
   state,
@@ -1769,6 +1675,7 @@ const {
   updateFpsLabel,
   updateViewerFooter,
 } = chromeToolbarController;
+core.chromeToolbar = chromeToolbarController;
 
 thresholdPlaybackController = createThresholdPlaybackController({
   core,
@@ -1783,7 +1690,6 @@ thresholdPlaybackController = createThresholdPlaybackController({
   callbacks: {
     formatEnergy,
     option,
-    syncToolbarMoreControls,
     updateViewerFooter,
     updateFpsLabel,
     startPlayback,
@@ -1791,6 +1697,7 @@ thresholdPlaybackController = createThresholdPlaybackController({
   },
 });
 const { setFps, setFrameStep, updatePlayButtons, updateThresholdOptions } = thresholdPlaybackController;
+core.thresholdPlayback = thresholdPlaybackController;
 
 exportSplashController = createExportSplashController({
   state,
@@ -1820,6 +1727,7 @@ const {
   showSplash,
   updateSplashCallToAction,
 } = exportSplashController;
+core.exportSplash = exportSplashController;
 
 fileSessionController = createFileSessionController({
   core,
@@ -1833,7 +1741,6 @@ fileSessionController = createFileSessionController({
     clearGeometrySource: () => geometryParamsController?.clearSource(),
     clearMaskState,
     clearImageHeader,
-    updateToolbar,
     setDataSourceSectionState,
     setStatus,
     setLoading,
@@ -1844,13 +1751,7 @@ fileSessionController = createFileSessionController({
     updateInspectorHeaderVisibility,
     updateFrameControls,
     updateThresholdOptions,
-    applyCanvasTransform,
-    updatePanCapability,
-    clearHistogram,
     renderPeakList,
-    schedulePeakOverlay,
-    syncSeriesSumOutputPath,
-    clearRoi,
     updateRingsSectionState,
     updatePeaksSectionState,
     updatePlayButtons,
@@ -1863,18 +1764,12 @@ fileSessionController = createFileSessionController({
     isWebglUnsignedRawCandidate,
     toFloat32,
     computeStats,
-    updateGlobalStats,
     computeAutoLevels,
     getContrastData,
     formatValue,
     alignMaskToFrame,
     redraw,
-    fitImageToView,
     hideSplash,
-    scheduleOverview,
-    scheduleRoiUpdate,
-    schedulePixelOverlay,
-    scheduleResolutionOverlay,
     schedulePeakFinder,
     scheduleHistogram,
   },
@@ -1889,7 +1784,6 @@ liveHistoryController = createLiveHistoryController({
     applyLiveSourceSnapshot,
     updateFrameControls,
     updatePlayButtons,
-    updateToolbar,
     updateAutoloadUI,
     setStatus,
   },
@@ -1916,8 +1810,8 @@ async function fetchSettingsConfig() {
   try {
     const payload = await fetchJSON(`${API}/settings`);
     const config = payload?.config || {};
-    applyUiSettings(config?.ui, { source: "config" });
-    schedulePixelOverlay();
+    core.settings.applyUiSettings(config?.ui, { source: "config" });
+    core.overlayRender.schedulePixelOverlay();
   } catch (err) {
     console.warn("Settings fetch failed", err);
   }
@@ -2000,7 +1894,6 @@ const autoloadOrchestrationController = createAutoloadOrchestrationController({
     persistAutoloadSettings,
     resetLiveHistory: () => resetLiveHistory(),
     updateRemoteMetaUI,
-    schedulePeakOverlay,
   },
 });
 core.autoloadOrchestration = autoloadOrchestrationController;
@@ -2067,7 +1960,6 @@ framePlaybackController = createFramePlaybackController({
     queuePendingFrameRequest,
     consumePendingFrameRequest,
     isFrameLoading,
-    updateToolbar,
   },
 });
 core.framePlayback = framePlaybackController;
@@ -2089,20 +1981,17 @@ frameMetadataController = createFrameMetadataController({
     setDataSourceSectionState,
     setStatus,
     onWriterPresenceChange: (present) => liveSeriesWatch?.setWriterPresent(present),
-    updateToolbar,
     showSplash,
     setSplashStatus,
     setLoading,
     showProcessingProgress,
     hideProcessingProgress,
     getDefaultThresholdIndex,
-    syncSeriesSumOutputPath,
     updateFrameControls,
     updateThresholdOptions,
     isHdf5File,
     geometryParams: geometryParamsController,
     loadImageGeometry,
-    scheduleResolutionOverlay,
   },
 });
 core.frameMetadata = frameMetadataController;
@@ -2114,7 +2003,7 @@ const liveSeriesWatch = createLiveSeriesWatch({
       // Only when the count actually changes, so a run in progress does not
       // rewrite the status line every second.
       setStatus(t("status.frame.series_growing", { count: frameCount }));
-      scheduleOverview();
+      core.overviewViewport?.scheduleOverview();
     },
   },
 });
@@ -2136,7 +2025,6 @@ fileDataPipelineController = createFileDataPipelineController({
     setDataControlsForHdf5,
     setDataControlsForSeries,
     loadImageGeometry,
-    loadInspectorRoot,
     updateFrameControls,
     updatePlayButtons,
     requestFrame,
@@ -2154,7 +2042,6 @@ fileDataPipelineController = createFileDataPipelineController({
     setDataSourceSectionState,
     showProcessingProgress,
     hideProcessingProgress,
-    updateToolbar,
   },
 });
 core.fileDataPipeline = fileDataPipelineController;
@@ -2169,11 +2056,8 @@ async function loadImageSeries(file) {
   return fileDataPipelineController.loadImageSeries(file);
 }
 
-async function exportViewerWindow(options) {
-  await exportSplashController?.exportViewerWindow(options);
-}
-
 const settingsController = createSettingsController({
+  core,
   apiBase: API,
   state,
   constants: {
@@ -2190,7 +2074,6 @@ const settingsController = createSettingsController({
     closeModal: (...args) => closeModal(...args),
     closeMenu,
     setStatus,
-    schedulePixelOverlay,
     applyLanguagePreference,
     // Late-bound: settings can be applied before the controller below exists.
     setDetectorControlEnabled: (enabled) => detectorControlController?.setEnabled(enabled),
@@ -2203,6 +2086,7 @@ const settingsController = createSettingsController({
     },
   },
 });
+core.settings = settingsController;
 
 // Beta: the Detector tab. Hidden until ui.detector_control is on; the
 // backend refuses its endpoints until then too.
@@ -2395,10 +2279,6 @@ pixelMaskController.setEnabled(state.pixelMask);
 // The detectors this server has talked to, under the SIMPLON address fields.
 void knownDetectors.start();
 
-function applyUiSettings(uiConfig, options = {}) {
-  settingsController.applyUiSettings(uiConfig, options);
-}
-
 const {
   getTopOpenModal,
   focusModal,
@@ -2444,12 +2324,13 @@ updateCheckController = createUpdateCheckController({
     getApplyBlockers: () => collectUpdateApplyBlockers(),
   },
 });
+core.updateCheck = updateCheckController;
 
 function closeTopModal(options = {}) {
   const modalEl = getTopOpenModal();
   if (!modalEl) return false;
   if (modalEl === commandModal) {
-    closeCommandPalette(options);
+    core.commandPalette.close(options);
     return true;
   }
   if (modalEl === browseModal) {
@@ -2488,28 +2369,12 @@ function closeUpdateCheckModal({ restoreFocus = true } = {}) {
   updateCheckController?.close({ restoreFocus });
 }
 
-function openBackendLogViewer() {
-  backendLogViewerController?.open();
-}
-
 function closeBackendLogViewer({ restoreFocus = true } = {}) {
   backendLogViewerController?.close({ restoreFocus });
 }
 
-async function checkForUpdates() {
-  await updateCheckController?.openAndCheck();
-}
-
 function closeSettingsModal({ restoreFocus = true } = {}) {
   settingsController.closeSettingsModal({ restoreFocus });
-}
-
-async function openSettingsModal(tab = "viewer") {
-  await settingsController.openSettingsModal(tab);
-}
-
-async function saveSettingsFromModal(closeAfter = false) {
-  await settingsController.saveSettingsFromModal(closeAfter);
 }
 
 function isCommandPaletteOpen() {
@@ -2526,22 +2391,14 @@ function getCommandPaletteCommands() {
     isHdfFile,
     getThresholdIndexAtOffset,
     actions: {
-      openFileModal,
       closeCurrentFile,
-      openSettingsModal,
       startPlayback,
       requestFrame,
-      setThresholdIndex,
-      fitImageToView,
       exportFullImage,
       exportVisibleArea,
-      exportViewerWindow,
       openDataExportDialog,
       openAnimationExportDialog,
       openImageExportDialog,
-      startSeriesSumming,
-      openSeriesSumOutputTarget,
-      cancelSeriesSumming,
       toggleFullscreen,
       toggleMagnifier: () => magnifierController?.toggleLocked(),
       togglePixelValues: () => pixelLabelToggle?.click(),
@@ -2572,33 +2429,20 @@ const commandPaletteController = createCommandPaletteController({
   },
 });
 const { handleKeydown: handleCommandPaletteKeydown, render: renderCommandPalette } = commandPaletteController;
-
-function openCommandPalette(prefill = "") {
-  commandPaletteController.open(prefill);
-}
-
-function closeCommandPalette(options = {}) {
-  commandPaletteController.close(options);
-}
+core.commandPalette = commandPaletteController;
 
 const menuActionHandler = createMenuActionHandler({
+  core,
   state,
   callbacks: {
-    openSettingsModal,
-    checkForUpdates,
-    openCommandPalette,
-    openBackendLogViewer,
     toggleFullscreen,
     openAboutModal,
-    openFileModal,
-    duplicateWindow,
     closeCurrentFile,
     openDataExportDialog,
     openAnimationExportDialog,
     openImageExportDialog,
     exportFullImage,
     exportVisibleArea,
-    exportViewerWindow,
     quitAlbis: () => quitController?.quit(),
   },
 });
@@ -2623,12 +2467,8 @@ const { handleShortcut, handleNavShortcut } = createShortcutHandlers({
   callbacks: {
     handleMenuAction,
     isCommandPaletteOpen,
-    closeCommandPalette,
-    openCommandPalette,
-    openFileModal,
     closeCurrentFile,
     startPlayback,
-    setThresholdIndex,
     getThresholdIndexAtOffset,
     toggleFullscreen,
     togglePanel,
@@ -2712,7 +2552,7 @@ async function reloadGeometryForCurrentFile() {
 function revealGeometrySection() {
   setPanelTab("data");
   if (geometrySection) {
-    setSectionState(geometrySection, false);
+    core.panelLayout?.setSectionState(geometrySection, false);
     geometrySection.scrollIntoView({ block: "nearest", behavior: "smooth" });
     const firstField = geometryOverrideToggle?.checked ? geometryInputs.distanceMm : geometryOverrideToggle;
     firstField?.focus({ preventScroll: true });
@@ -2845,10 +2685,7 @@ overviewViewportController = createOverviewViewportController({
   },
   callbacks: {
     deferPixelOverlayRedraw,
-    schedulePixelOverlay,
     scheduleRoiOverlay,
-    scheduleResolutionOverlay,
-    schedulePeakOverlay,
     requestFrame,
     hasPendingFrameRequest,
     consumePendingFrameRequest,
@@ -2868,6 +2705,7 @@ const {
   updateTouchGesture,
   zoomAt,
 } = overviewViewportController;
+core.overviewViewport = overviewViewportController;
 
 viewerSyncController = createViewerSyncController({
   state,
@@ -2892,6 +2730,7 @@ viewerSyncController = createViewerSyncController({
     applySyncedRoi,
   },
 });
+core.viewerSync = viewerSyncController;
 
 // The frame with its gaps and defective pixels filled, while inpainting is on:
 // worked out once per frame, for the renderer, the statistics and the exports.
@@ -2913,6 +2752,7 @@ function getContrastData() {
 }
 
 renderEngineController = createRenderEngineController({
+  core,
   state,
   elements: {
     canvas,
@@ -2930,9 +2770,6 @@ renderEngineController = createRenderEngineController({
     buildPalette,
     getActiveSaturationMax,
     getInpaintedFrame,
-    scheduleOverview,
-    schedulePixelOverlay,
-    schedulePeakOverlay,
     getUserAgent: () => navigator.userAgent,
     getRenderer: () => renderer,
     setRenderer: (nextRenderer) => {
@@ -2972,21 +2809,10 @@ const overlayRenderController = createOverlayRenderController({
     getRoiImageBounds: () => getRoiImageBounds(roiState, state.pixelAspect || 1),
   },
 });
+core.overlayRender = overlayRenderController;
 
 function deferPixelOverlayRedraw(delayMs = PIXEL_LABEL_INTERACTION_IDLE_MS) {
   overlayRenderController.deferPixelOverlayRedraw(delayMs);
-}
-
-function schedulePeakOverlay() {
-  overlayRenderController.schedulePeakOverlay();
-}
-
-function scheduleResolutionOverlay() {
-  overlayRenderController.scheduleResolutionOverlay();
-}
-
-function schedulePixelOverlay() {
-  overlayRenderController.schedulePixelOverlay();
 }
 
 const histogramRenderController = createHistogramRenderController({
@@ -3008,6 +2834,7 @@ const histogramRenderController = createHistogramRenderController({
   },
 });
 const { drawHistogram, histogramValueToX, histogramXToValue } = histogramRenderController;
+core.histogramRender = histogramRenderController;
 
 // Mask colours chosen for the colour map (modules/mask_colors.js), with a key
 // under the colour bar, and the colour bar as a window/level control.
@@ -3023,6 +2850,7 @@ maskLegend = createMaskLegend({
   },
 });
 bindColorbarWindowInteractions({
+  core,
   state,
   elements: { colorbar: histColorbar, minInput, maxInput, autoScaleToggle },
   callbacks: {
@@ -3032,13 +2860,9 @@ bindColorbarWindowInteractions({
     formatValue: (value) => formatValue(value),
     redraw: () => redraw(),
     scheduleHistogram: () => scheduleHistogram(),
-    handleContrastChanged: (reason) => handleContrastChanged(reason),
+    handleContrastChanged: (reason) => core.viewerSync?.handleContrastChanged(reason),
   },
 });
-
-function clearHistogram() {
-  histogramRenderController.clearHistogram();
-}
 
 const SYNC_ROI_MODES = new Set(["line", "box", "circle", "annulus"]);
 
@@ -3117,14 +2941,10 @@ function applySyncedRoi(payload) {
     if (roiInnerInput) roiInnerInput.value = "";
     if (roiOuterInput) roiOuterInput.value = "";
   }
-  updateRoiCenterInputs();
+  core.roiStats.updateRoiCenterInputs();
   scheduleRoiOverlay();
-  scheduleRoiUpdate();
+  core.roiInteraction.scheduleRoiUpdate();
   return true;
-}
-
-function handleContrastChanged(reason = "change") {
-  viewerSyncController?.handleContrastChanged(reason);
 }
 
 function handleRoiChanged(reason = "change") {
@@ -3133,7 +2953,7 @@ function handleRoiChanged(reason = "change") {
   // stale the moment it moves. Every ROI mutation funnels through here. Via
   // the hoisted wrapper, not overlayRenderController directly: that is a const
   // declared further down the file, and this function can run before it.
-  scheduleResolutionOverlay();
+  core.overlayRender.scheduleResolutionOverlay();
 }
 
 const roiStatsController = createRoiStatsController({
@@ -3186,7 +3006,6 @@ const roiStatsController = createRoiStatsController({
   roiHistBinChip,
   roiHistBinManualRow,
   roiHistBinPresetBtns,
-  scheduleRoiUpdate: (...args) => scheduleRoiUpdate(...args),
   updateRoiSectionState,
   drawRoiOverlay: (...args) => drawRoiOverlay(...args),
   getActiveSaturationMax,
@@ -3217,22 +3036,7 @@ const {
   updateRoiModeUI,
   updateRoiTooltip,
 } = roiStatsController;
-
-function updateRoiCenterInputs() {
-  roiStatsController.updateRoiCenterInputs();
-}
-
-function clearRoi() {
-  roiStatsController.clearRoi();
-}
-
-function updateGlobalStats() {
-  roiStatsController.updateGlobalStats();
-}
-
-function updateRoiStats() {
-  roiStatsController.updateRoiStats();
-}
+core.roiStats = roiStatsController;
 
 function closeCurrentFile() {
   liveSeriesWatch.stop();
@@ -3284,25 +3088,17 @@ const mainUiBindingsCallbacks = createMainUiBindingsCallbacks({
   renderInspectorLink,
   setSectionBadgeState,
   renderSkeletonBlock,
-  fetchInspectorTree,
   renderInspectorTree,
-  showInspectorNode,
   clearInspectorSearch,
-  runInspectorSearch,
-  uploadAndOpenSelectedFiles,
   isDocumentDropEnabled: () => !backendIsLocal,
   showDocumentDropDisabledStatus,
   closeAboutModal,
   closeSettingsModal,
-  saveSettingsFromModal,
   renderCommandPalette,
-  closeCommandPalette,
-  syncSeriesSumOutputPath,
   isHdfFile,
   loadDatasets,
   recordRecentFile,
   loadImageSeries,
-  setThresholdIndex,
   requestFrame,
   setFrameStep,
   setFps,
@@ -3361,6 +3157,7 @@ backendLogViewerController = createBackendLogViewerController({
     setStatus,
   },
 });
+core.backendLogViewer = backendLogViewerController;
 
 initializeMainUiBindings();
 
@@ -3373,12 +3170,12 @@ initializeMainUiBindings();
 whenCanvasFontReady().then(() => {
   drawSplash();
   if (state.histogram) drawHistogram(state.histogram);
-  scheduleOverview();
+  core.overviewViewport?.scheduleOverview();
   scheduleHistogram();
-  schedulePixelOverlay();
+  core.overlayRender.schedulePixelOverlay();
   scheduleRoiOverlay();
-  scheduleResolutionOverlay();
-  schedulePeakOverlay();
+  core.overlayRender.scheduleResolutionOverlay();
+  core.overlayRender.schedulePeakOverlay();
 });
 
 async function handleLocalFileSelection(mode) {
@@ -3415,35 +3212,26 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   updateAutoloadUI,
   persistAutoloadSettings,
   updateRemoteMetaUI,
-  schedulePeakOverlay,
   openFileBrowser,
-  openFileModal,
   handleLocalFileSelection,
   logClient,
   redraw,
   scheduleHistogram,
-  handleContrastChanged,
   computeAutoLevels,
   getContrastData,
   formatValue,
-  updateGlobalStats,
-  scheduleRoiUpdate,
   handleRoiChanged,
   redrawRoiPlots,
   schedulePeakFinder,
   snapHistogramValue,
-  deferViewportInteraction,
   setZoom,
-  scheduleOverview,
   zoomAt,
-  fitImageToView,
   requestFrame,
   startPlayback,
   toggleToolbarPlaybackPopover,
   toggleToolbarMorePopover,
   setFrameStep,
   setFps,
-  setThresholdIndex,
   togglePanel,
   closeToolbarMorePopover,
   toggleFullscreen,
@@ -3452,27 +3240,21 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   updateFullscreenUi,
   startMobilePanelDrag,
   updateMobilePanelDrag,
-  stopMobilePanelDrag,
   stopRoiEdit,
   updateRoiModeUI,
   scheduleRoiOverlay,
-  clearRoi,
   setStatus,
   exportRoiCsv,
   applyRoiCenterFromInputs,
-  updateRoiCenterInputs,
   initializeSectionContentWrappers,
   initializePanelTabA11y,
   setPanelTab,
   toggleSection,
   loadStoredPanelTab,
-  setSectionState,
   applyPanelState,
   setPanelWidth,
   normalizeWheelDelta,
   queueWheelZoom,
-  schedulePixelOverlay,
-  scheduleResolutionOverlay,
   startTouchGesture,
   updateTouchGesture,
   stopTouchGesture,
@@ -3519,7 +3301,6 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   getHistTooltipPosition,
   showHistTooltip,
   hideHistTooltip,
-  updateToolbar,
   drawHistogram,
   drawSplash,
   isHdfFile,
@@ -3626,6 +3407,7 @@ magnifierController = createMagnifierController({
 });
 
 flatfieldController = createFlatfieldController({
+  core,
   apiBase: API,
   state,
   elements: {
@@ -3644,8 +3426,6 @@ flatfieldController = createFlatfieldController({
     },
     refreshDisplayContrast: (updateLevels) => fileSessionController?.refreshDisplayContrast(updateLevels),
     scheduleHistogram,
-    updateGlobalStats,
-    scheduleRoiUpdate,
     setSectionBadgeState,
     setSummaryChip,
     setStatus,
@@ -3658,6 +3438,7 @@ flatfieldController = createFlatfieldController({
 });
 
 inpaintingController = createInpaintingController({
+  core,
   state,
   elements: {
     toggle: document.getElementById("inpaint-toggle"),
@@ -3676,8 +3457,6 @@ inpaintingController = createInpaintingController({
   callbacks: {
     getInpaintedFrame,
     redraw,
-    updateGlobalStats,
-    scheduleRoiUpdate,
     setSectionBadgeState,
     setSummaryChip,
   },
@@ -3693,12 +3472,13 @@ analysisToolsController = createAnalysisToolsController({
     customiseBtn: document.getElementById("analysis-hidden-tools-customise"),
   },
   callbacks: {
-    openToolSettings: () => openSettingsModal("tools"),
+    openToolSettings: () => core.settings.openSettingsModal("tools"),
   },
 });
 analysisToolsController.apply(state.hiddenTools || []);
 
 bindAnalysisControlInteractions({
+  core,
   apiBase: API,
   state,
   analysisState,
@@ -3710,20 +3490,14 @@ bindAnalysisControlInteractions({
   callbacks: {
     setFieldHint,
     updateRingsSectionState,
-    scheduleResolutionOverlay,
     schedulePeakFinder,
     refreshPeakResolutions,
     exportPeakCsv,
-    syncSeriesSumOutputPath,
     updateSeriesSumUi,
     validateSeriesStepInput,
     handleLocalFileSelection,
     openFileBrowser,
-    openSeriesSumOutputTarget,
-    startSeriesSumming,
-    cancelSeriesSumming,
     useSeriesOutputAsFlat: () => seriesSumController.useOutputAsFlat(),
-    schedulePixelOverlay,
   },
 });
 
@@ -3740,7 +3514,7 @@ onLanguageChange(() => {
   infoTips.refresh();
   updateDataExportUi();
   if (isHdf5File(state.file)) {
-    void loadInspectorRoot();
+    void core.inspectorPanel.loadInspectorRoot();
   }
 });
 refreshLocalizedUi();
@@ -3750,8 +3524,6 @@ finalizeRuntimeBootstrap(createRuntimeBootstrapContext({
     getMaxPanelWidth,
     nearestMobilePanelSnap,
     applyPanelState,
-    applyCanvasTransform,
-    updatePanCapability,
     loadAutoloadSettings,
     updatePlayButtons,
     updateViewerFooter,
@@ -3761,18 +3533,12 @@ finalizeRuntimeBootstrap(createRuntimeBootstrapContext({
     initHelpTooltips,
     startBackendHeartbeat,
     bootstrapApp,
-    openLaunchTargetFromHash,
-    restoreCloneFromHash,
     setSplashStatus,
     setStatus,
     showSplash,
     setLoading,
   },
-  stateRefs: {
-    setMobilePanelSnap: (next) => {
-      setMobilePanelSnap(next);
-    },
-  },
+  core,
 }));
 
 /** Switch to `dataset` if the open HDF5 file lists it; false when it does not. */
@@ -3799,7 +3565,6 @@ const windowCloneController = createWindowCloneController({
     openPathInViewer,
     isHdfFile,
     selectDatasetIfPresent,
-    setThresholdIndex,
     requestFrame,
     updateMaskUI,
     applySyncedContrast,
@@ -3808,25 +3573,12 @@ const windowCloneController = createWindowCloneController({
     updateRingsSectionState,
     updatePeaksSectionState: () => analysisOverlayController.updatePeaksSectionState(),
     schedulePeakFinder: () => analysisOverlayController.schedulePeakFinder(),
-    scheduleResolutionOverlay,
-    schedulePeakOverlay,
   },
 });
+core.windowClone = windowCloneController;
 
 // Stable wrappers: the menu and the boot sequence are handed these before the
 // controller above exists.
-function duplicateWindow() {
-  windowCloneController.duplicateWindow();
-}
-
-function openLaunchTargetFromHash() {
-  return windowCloneController.openLaunchTargetFromHash();
-}
-
-function restoreCloneFromHash() {
-  return windowCloneController.restoreCloneFromHash();
-}
-
 createHandoffController({
   apiBase: API,
   callbacks: { openPathInViewer, isHdfFile, selectDatasetIfPresent, setStatus },

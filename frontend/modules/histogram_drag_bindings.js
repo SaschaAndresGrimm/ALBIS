@@ -8,6 +8,7 @@ export function bindHistogramDragInteractions({
   state,
   elements,
   callbacks,
+  core,
 }) {
   const {
     histCanvas,
@@ -21,7 +22,6 @@ export function bindHistogramDragInteractions({
     formatValue,
     redraw,
     scheduleHistogram,
-    handleContrastChanged,
     histogramValueToX,
     histogramXToValue,
     getHistTooltipPosition,
@@ -55,7 +55,7 @@ export function bindHistogramDragInteractions({
     autoScaleToggle.checked = false;
     redraw();
     scheduleHistogram();
-    handleContrastChanged?.("levels");
+    core.viewerSync?.handleContrastChanged("levels");
   }
 
   function flushHistogramDragFrame() {

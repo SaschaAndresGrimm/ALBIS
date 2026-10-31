@@ -69,26 +69,18 @@ export function initializeMainUiBindings({
     renderInspectorLink,
     setSectionBadgeState,
     renderSkeletonBlock,
-    fetchInspectorTree,
     renderInspectorTree,
-    showInspectorNode,
     clearInspectorSearch,
-    runInspectorSearch,
-    uploadAndOpenSelectedFiles,
     isDocumentDropEnabled,
     showDocumentDropDisabledStatus,
     closeAboutModal,
     closeSettingsModal,
-    saveSettingsFromModal,
     setCommandPaletteIndex,
     renderCommandPalette,
-    closeCommandPalette,
-    syncSeriesSumOutputPath,
     isHdfFile,
     loadDatasets,
     recordRecentFile,
     loadImageSeries,
-    setThresholdIndex,
     requestFrame,
     setFrameStep,
     setFps,
@@ -125,6 +117,7 @@ export function initializeMainUiBindings({
   });
 
   bindInspectorInteractions({
+    core,
     inspectorTree,
     inspectorSearchInput,
     inspectorSearchClear,
@@ -135,23 +128,21 @@ export function initializeMainUiBindings({
       renderInspectorLink,
       setSectionBadgeState,
       renderSkeletonBlock,
-      fetchInspectorTree,
       renderInspectorTree,
-      showInspectorNode,
       clearInspectorSearch,
-      runInspectorSearch,
     },
   });
 
   bindFileIngress({
     fileInput,
     canvasShell,
-    onFilesSelected: uploadAndOpenSelectedFiles,
+    onFilesSelected: (selectedFiles) => core.uploadFlow.uploadAndOpenSelectedFiles(selectedFiles),
     allowDocumentDrop: typeof isDocumentDropEnabled === "function" ? isDocumentDropEnabled() : true,
     onDocumentDropDisabled: showDocumentDropDisabledStatus,
   });
 
   bindChromeUiInteractions({
+    core,
     elements: {
       aboutClose,
       aboutModal,
@@ -165,10 +156,8 @@ export function initializeMainUiBindings({
     callbacks: {
       closeAboutModal,
       closeSettingsModal,
-      saveSettingsFromModal,
       setCommandPaletteIndex,
       renderCommandPalette,
-      closeCommandPalette,
     },
   });
 
@@ -186,11 +175,9 @@ export function initializeMainUiBindings({
       fpsSelect,
     },
     callbacks: {
-      syncSeriesSumOutputPath,
       isHdfFile,
       loadDatasets,
       loadImageSeries,
-      setThresholdIndex,
       requestFrame,
       setFrameStep,
       closeToolbarPlaybackPopover,

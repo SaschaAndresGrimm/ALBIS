@@ -39,9 +39,7 @@ function makeController(state) {
       parseShape: vi.fn(),
       typedArrayFrom: vi.fn(),
       getActiveSaturationMax: vi.fn(() => null),
-      updateGlobalStats: vi.fn(),
       redraw: vi.fn(),
-      scheduleRoiUpdate: vi.fn(),
       getDtypeInfo: vi.fn(),
       formatValue: vi.fn(),
       isSaturatedValue: vi.fn(() => false),
@@ -50,6 +48,8 @@ function makeController(state) {
       getEffectiveScrollTop: vi.fn(() => 0),
     },
     core: {
+      roiStats: { updateGlobalStats: vi.fn() },
+      roiInteraction: { scheduleRoiUpdate: vi.fn() },
       autoloadStatus: { setAutoloadStatus: vi.fn() },
     },
   });

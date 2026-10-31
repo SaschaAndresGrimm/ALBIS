@@ -23,12 +23,8 @@ function makeHandlers(callbackOverrides = {}) {
       callbacks: {
         handleMenuAction,
         isCommandPaletteOpen: () => false,
-        closeCommandPalette: noop,
-        openCommandPalette: noop,
-        openFileModal: noop,
         closeCurrentFile: noop,
         startPlayback: noop,
-        setThresholdIndex: noop,
         getThresholdIndexAtOffset: () => 0,
         toggleFullscreen: noop,
         togglePanel: noop,
@@ -36,6 +32,9 @@ function makeHandlers(callbackOverrides = {}) {
         ...callbackOverrides,
       },
       core: {
+        commandPalette: { close: noop, open: noop },
+        fileOpen: { openFileModal: noop },
+        thresholdPlayback: { setThresholdIndex: noop },
         framePlayback: { stopPlayback: noop },
       },
     }),

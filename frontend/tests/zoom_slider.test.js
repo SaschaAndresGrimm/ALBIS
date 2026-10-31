@@ -38,9 +38,10 @@ function bindSlider() {
       invertToggle: $("invert"), zoomRange: $("zoom"), resetView: $("reset"),
     },
     callbacks: {
-      setZoom, scheduleOverview: vi.fn(), deferViewportInteraction: vi.fn(),
+      setZoom,
       registerChromeActivity: () => {}, updateFullscreenUi: () => {},
     },
+    core: { overviewViewport: { scheduleOverview: vi.fn(), deferViewportInteraction: vi.fn() } },
   });
   const press = (key, init = {}) => {
     const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });

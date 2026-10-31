@@ -15,6 +15,7 @@ export function bindRoiControlInteractions({
   roiState,
   elements,
   callbacks,
+  core,
 }) {
   const {
     roiEnableToggle,
@@ -39,13 +40,10 @@ export function bindRoiControlInteractions({
     stopRoiEdit,
     updateRoiModeUI,
     scheduleRoiOverlay,
-    scheduleRoiUpdate,
     handleRoiChanged,
-    clearRoi,
     setStatus,
     exportRoiCsv,
     applyRoiCenterFromInputs,
-    updateRoiCenterInputs,
     getRingParams,
   } = callbacks;
 
@@ -56,7 +54,7 @@ export function bindRoiControlInteractions({
       count: normalizeRoiHistogramBinCount(count),
     };
     updateRoiModeUI();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
   }
 
   roiEnableToggle?.addEventListener("change", () => {
@@ -70,7 +68,7 @@ export function bindRoiControlInteractions({
     }
     updateRoiModeUI();
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
   });
 
@@ -103,14 +101,14 @@ export function bindRoiControlInteractions({
     }
     roiState.active = Boolean(roiState.start && roiState.end);
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
   });
 
   roiHistogramToggle?.addEventListener("change", () => {
     roiState.histogramEnabled = Boolean(roiHistogramToggle.checked);
     updateRoiModeUI();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
   });
 
   roiHistBinsAuto?.addEventListener("change", () => {
@@ -133,11 +131,11 @@ export function bindRoiControlInteractions({
   });
 
   roiClearBtn?.addEventListener("click", () => {
-    clearRoi();
+    core.roiStats.clearRoi();
     // `clearRoi` only blanks the readouts; the whole-image statistics that an
     // enabled ROI with no area shows are put back by `updateRoiStats`, so
     // clearing has to schedule one or the panel is left reading "-".
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
     setStatus(t("status.roi.cleared"));
   });
@@ -162,9 +160,9 @@ export function bindRoiControlInteractions({
       getCircularRoiDirection(roiState.start, roiState.end),
     );
     roiState.active = true;
-    updateRoiCenterInputs();
+    core.roiStats.updateRoiCenterInputs();
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
   });
 
@@ -185,9 +183,9 @@ export function bindRoiControlInteractions({
     roiState.innerRadius = inner;
     if (roiInnerInput) roiInnerInput.value = String(inner);
     roiState.active = true;
-    updateRoiCenterInputs();
+    core.roiStats.updateRoiCenterInputs();
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
   });
 
@@ -211,9 +209,9 @@ export function bindRoiControlInteractions({
     roiState.innerRadius = clampCircularRoiInnerRadius(roiState.innerRadius, outer);
     if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
     roiState.active = true;
-    updateRoiCenterInputs();
+    core.roiStats.updateRoiCenterInputs();
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
   });
 
@@ -238,9 +236,9 @@ export function bindRoiControlInteractions({
         if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
       }
       roiState.active = true;
-      updateRoiCenterInputs();
+      core.roiStats.updateRoiCenterInputs();
       scheduleRoiOverlay();
-      scheduleRoiUpdate();
+      core.roiInteraction.scheduleRoiUpdate();
       handleRoiChanged?.("roi");
     });
   });
@@ -270,9 +268,9 @@ export function bindRoiControlInteractions({
       if (roiInnerInput) roiInnerInput.value = String(roiState.innerRadius);
     }
     roiState.active = true;
-    updateRoiCenterInputs();
+    core.roiStats.updateRoiCenterInputs();
     scheduleRoiOverlay();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
     handleRoiChanged?.("roi");
     setStatus?.(t("status.roi.snapped_beam", { x: center.x, y: center.y }));
   });

@@ -54,26 +54,26 @@ function build({ shape = [4, 8, 8], writerPresent = true, state: overrides = {} 
     setDataSourceSectionState: vi.fn(),
     setStatus: vi.fn(),
     onWriterPresenceChange: vi.fn(),
-    updateToolbar: vi.fn(),
     showSplash: vi.fn(),
     setSplashStatus: vi.fn(),
     setLoading: vi.fn(),
     showProcessingProgress: vi.fn(),
     hideProcessingProgress: vi.fn(),
     getDefaultThresholdIndex: vi.fn(() => 0),
-    syncSeriesSumOutputPath: vi.fn(),
     updateFrameControls: vi.fn(),
     updateThresholdOptions: vi.fn(),
     isHdf5File: () => true,
     getDefaultCenter: vi.fn(),
     loadImageGeometry: vi.fn(async () => {}),
-    scheduleResolutionOverlay: vi.fn(),
   };
   // The controllers it reaches through the registry (decision 0006).
   const core = {
     framePlayback: { stopPlayback: vi.fn() },
     fileDataPipeline: { loadFrame: vi.fn(async () => true), resetTransientLoadState: vi.fn() },
     maskCursor: { loadMask: vi.fn(async () => true) },
+    chromeToolbar: { updateToolbar: vi.fn() },
+    seriesSum: { syncSeriesSumOutputPath: vi.fn() },
+    overlayRender: { scheduleResolutionOverlay: vi.fn() },
   };
 
   const controller = createFrameMetadataController({
@@ -110,7 +110,9 @@ function buildWithFailingFetch(state) {
         throw new Error("file momentarily unreadable");
       }),
       updateFrameControls: vi.fn(),
-      updateToolbar: vi.fn(),
+    },
+    core: {
+      chromeToolbar: { updateToolbar: vi.fn() },
     },
   });
 }

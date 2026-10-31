@@ -31,9 +31,9 @@ describe("autoload_orchestration_controller", () => {
         persistAutoloadSettings: vi.fn(),
         resetLiveHistory: vi.fn(),
         updateRemoteMetaUI: vi.fn(),
-        schedulePeakOverlay: vi.fn(),
       },
       core: {
+        overlayRender: { schedulePeakOverlay: vi.fn() },
         autoloadStatus: { setAutoloadStatus: vi.fn(), setSimplonMode: vi.fn(async () => {}) },
         maskCursor: { fetchSimplonMask: vi.fn(async () => {}) },
         backendStatus: { updateLiveBadge: vi.fn() },
@@ -81,9 +81,9 @@ describe("autoload_orchestration_controller", () => {
         persistAutoloadSettings: vi.fn(),
         resetLiveHistory: vi.fn(),
         updateRemoteMetaUI: vi.fn(),
-        schedulePeakOverlay: vi.fn(),
       },
       core: {
+        overlayRender: { schedulePeakOverlay: vi.fn() },
         autoloadStatus: { setAutoloadStatus: vi.fn(), setSimplonMode: vi.fn(async () => {}) },
         maskCursor: { fetchSimplonMask: vi.fn(async () => {}) },
         backendStatus: { updateLiveBadge: vi.fn() },
@@ -135,9 +135,9 @@ describe("autoload_orchestration_controller", () => {
           persistAutoloadSettings,
           resetLiveHistory: vi.fn(),
           updateRemoteMetaUI: vi.fn(),
-          schedulePeakOverlay: vi.fn(),
         },
         core: {
+          overlayRender: { schedulePeakOverlay: vi.fn() },
           autoloadStatus: { setAutoloadStatus, setSimplonMode: vi.fn(async () => {}) },
           maskCursor: { fetchSimplonMask: vi.fn(async () => {}) },
           backendStatus: { updateLiveBadge: vi.fn() },
@@ -174,10 +174,11 @@ describe("autoload_orchestration_controller", () => {
         elements: {},
         callbacks: {
           updateAutoloadUI: noop, updateAutoloadMeta: noop, setStatus: noop,
-          persistAutoloadSettings: noop, resetLiveHistory: noop, updateRemoteMetaUI: noop, schedulePeakOverlay: noop,
+          persistAutoloadSettings: noop, resetLiveHistory: noop, updateRemoteMetaUI: noop,
         },
         core: {
           autoloadStatus: { setAutoloadStatus: noop, setSimplonMode },
+          overlayRender: { schedulePeakOverlay: noop },
           backendStatus: { updateLiveBadge: noop },
           maskCursor: { fetchSimplonMask: vi.fn(async () => {}) },
           jfjochBridge: { stopJfjochPreviewBridge: vi.fn(async () => {}) },

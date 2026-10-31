@@ -27,7 +27,6 @@ export function createFileSessionController({
     clearGeometrySource,
     clearMaskState,
     clearImageHeader,
-    updateToolbar,
     setDataSourceSectionState,
     setStatus,
     setLoading,
@@ -38,13 +37,7 @@ export function createFileSessionController({
     updateInspectorHeaderVisibility,
     updateFrameControls,
     updateThresholdOptions,
-    applyCanvasTransform,
-    updatePanCapability,
-    clearHistogram,
     renderPeakList,
-    schedulePeakOverlay,
-    syncSeriesSumOutputPath,
-    clearRoi,
     updateRingsSectionState,
     updatePeaksSectionState,
     updatePlayButtons,
@@ -57,18 +50,12 @@ export function createFileSessionController({
     isWebglUnsignedRawCandidate,
     toFloat32,
     computeStats,
-    updateGlobalStats,
     computeAutoLevels,
     getContrastData = () => null,
     formatValue,
     alignMaskToFrame,
     redraw,
-    fitImageToView,
     hideSplash,
-    scheduleOverview,
-    scheduleRoiUpdate,
-    schedulePixelOverlay,
-    scheduleResolutionOverlay,
     schedulePeakFinder,
     scheduleHistogram,
   } = callbacks;
@@ -113,7 +100,7 @@ export function createFileSessionController({
     core.sourceMetadata?.clearImageGeometry();
     clearMaskState();
     clearImageHeader();
-    updateToolbar();
+    core.chromeToolbar?.updateToolbar();
     setDataSourceSectionState("empty", t("status.file.no_file_loaded"));
     setStatus(t("status.file.no_file_loaded"));
     setLoading(false);
@@ -146,13 +133,13 @@ export function createFileSessionController({
         ctx.clearRect(0, 0, 1, 1);
       }
     }
-    applyCanvasTransform();
-    updatePanCapability();
-    clearHistogram();
+    core.overviewViewport?.applyCanvasTransform();
+    core.overviewViewport?.updatePanCapability();
+    core.histogramRender.clearHistogram();
     renderPeakList();
-    schedulePeakOverlay();
-    syncSeriesSumOutputPath(true);
-    clearRoi();
+    core.overlayRender.schedulePeakOverlay();
+    core.seriesSum.syncSeriesSumOutputPath(true);
+    core.roiStats.clearRoi();
     updateRingsSectionState();
     updatePeaksSectionState();
     updatePlayButtons();
@@ -193,7 +180,7 @@ export function createFileSessionController({
       // unticked while saturated pixels were already being masked.
       updateMaskUI();
       refreshDisplayContrast(state.autoScale);
-      updateGlobalStats();
+      core.roiStats.updateGlobalStats();
       lastStatsRefreshAt = now;
       scheduleHistogram();
     }
@@ -208,16 +195,16 @@ export function createFileSessionController({
     }
     redraw();
     if (!state.hasFrame) {
-      fitImageToView();
+      core.overviewViewport?.fitImageToView();
     }
     state.hasFrame = true;
-    updatePanCapability();
+    core.overviewViewport?.updatePanCapability();
     hideSplash();
     updatePlayButtons();
-    scheduleOverview();
-    scheduleRoiUpdate();
-    schedulePixelOverlay();
-    scheduleResolutionOverlay();
+    core.overviewViewport?.scheduleOverview();
+    core.roiInteraction.scheduleRoiUpdate();
+    core.overlayRender.schedulePixelOverlay();
+    core.overlayRender.scheduleResolutionOverlay();
     schedulePeakFinder();
   }
 
@@ -310,7 +297,7 @@ export function createFileSessionController({
     if (metaDtype) metaDtype.textContent = dtype;
     applyFrame(data, width, height, dtype);
     setDataSourceSectionState("active", preserveSeries ? t("status.data.series_image_loaded") : t("status.data.image_loaded"));
-    updateToolbar();
+    core.chromeToolbar?.updateToolbar();
   }
 
   return {

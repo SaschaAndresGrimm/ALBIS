@@ -19,9 +19,10 @@ function setup() {
       invertToggle: $("invert"), zoomRange: $("zoom"), resetView: $("reset"),
     },
     callbacks: {
-      redraw, scheduleHistogram: vi.fn(), handleContrastChanged: vi.fn(), formatValue: (v) => String(v),
+      redraw, scheduleHistogram: vi.fn(), formatValue: (v) => String(v),
       snapHistogramValue: (v) => Math.round(v), registerChromeActivity: () => {}, updateFullscreenUi: () => {},
     },
+    core: { viewerSync: { handleContrastChanged: vi.fn() } },
   });
   const type = (field, value) => {
     $(field).value = value;

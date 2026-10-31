@@ -44,6 +44,8 @@ function bind({ mode = "box", handle = null, inside = true } = {}) {
     constants: { MAX_ZOOM: 50 },
     elements: { canvasWrap },
     callbacks,
+    // Any controller reached through core (decision 0006): every method a stub.
+    core: new Proxy({}, { get: () => new Proxy({}, { get: () => vi.fn() }) }),
   });
   return { canvasWrap, startRoiEdit };
 }

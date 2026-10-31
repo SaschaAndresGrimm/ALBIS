@@ -23,7 +23,9 @@ function setup({ detectorHidden }) {
       loadStoredPanelTab: () => "",
       getSectionStateStore: () => ({}),
       setSectionStateStore: () => {},
-      setSectionState: () => {},
+    },
+    core: {
+      panelLayout: { setSectionState: () => {} },
     },
   });
   setPanelTab.mockClear();

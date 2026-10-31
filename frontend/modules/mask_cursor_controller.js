@@ -30,9 +30,7 @@ export function createMaskCursorController({
     parseShape,
     typedArrayFrom,
     getActiveSaturationMax,
-    updateGlobalStats,
     redraw,
-    scheduleRoiUpdate,
     getDtypeInfo,
     formatValue,
     isSaturatedValue,
@@ -245,9 +243,9 @@ export function createMaskCursorController({
 
   function redrawWithMask() {
     if (!state.hasFrame) return;
-    updateGlobalStats();
+    core.roiStats.updateGlobalStats();
     redraw();
-    scheduleRoiUpdate();
+    core.roiInteraction.scheduleRoiUpdate();
   }
 
   /**
@@ -312,9 +310,9 @@ export function createMaskCursorController({
       alignMaskToFrame();
       syncMaskAvailability(forceEnable);
       if (state.hasFrame) {
-        updateGlobalStats();
+        core.roiStats.updateGlobalStats();
         redraw();
-        scheduleRoiUpdate();
+        core.roiInteraction.scheduleRoiUpdate();
       }
     } catch (err) {
       if (requestId !== maskRequestId) return;
@@ -489,9 +487,9 @@ export function createMaskCursorController({
       alignMaskToFrame();
       syncMaskAvailability(true);
       if (state.hasFrame) {
-        updateGlobalStats();
+        core.roiStats.updateGlobalStats();
         redraw();
-        scheduleRoiUpdate();
+        core.roiInteraction.scheduleRoiUpdate();
       }
     } catch (err) {
       // The detector answering without a mask is not ALBIS failing.
