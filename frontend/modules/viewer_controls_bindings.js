@@ -29,8 +29,6 @@ export function bindViewerControls({
     maskToggle,
     maskSaturatedToggle,
     invertToggle,
-    histLogX,
-    histLogY,
     zoomRange,
     zoomValue,
     resetView,
@@ -63,8 +61,6 @@ export function bindViewerControls({
     updateGlobalStats,
     scheduleRoiUpdate,
     schedulePeakFinder,
-    chooseHistogramBins,
-    computeHistogram,
     snapHistogramValue,
     deferViewportInteraction,
     setZoom,
@@ -138,29 +134,6 @@ export function bindViewerControls({
     redraw();
     scheduleHistogram();
     handleContrastChanged?.("invert");
-  });
-
-  [histLogX, histLogY].forEach((toggle) => {
-    if (!toggle) return;
-    toggle.addEventListener("change", () => {
-      state.histLogX = histLogX?.checked ?? state.histLogX;
-      state.histLogY = histLogY?.checked ?? state.histLogY;
-      if (state.dataRaw && state.stats) {
-        // The frame as shown: flatfield-corrected, with its own range.
-        const shown = getContrastData?.() || null;
-        const stats = (shown && state.displayStats) || state.stats;
-        const bins = stats.bins || chooseHistogramBins(state.dataRaw.length);
-        state.histogram = computeHistogram(
-          shown || state.dataRaw,
-          stats.min,
-          stats.max,
-          shown ? null : (stats.satMax ?? null),
-          bins,
-          state.histLogX
-        );
-      }
-      scheduleHistogram();
-    });
   });
 
   // A typed background or foreground is taken as typed, whatever the frame

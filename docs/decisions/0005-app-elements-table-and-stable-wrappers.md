@@ -42,10 +42,10 @@
   `index.html` or the two lists differ; eslint reports a name taken but unused.
 - An element a script creates later does not belong in the table: looked up
   early, it would be `null`. Such lookups stay where the element is made.
-- Three entries name ids that `index.html` no longer has (`export-btn`,
-  `hist-log-x`, `hist-log-y`) and are always `null`; the table marks them.
-  Removing them, with the binding-context entries they feed, is a separate
-  clean-up.
+- Gathering the lookups showed three ids `index.html` no longer had
+  (`export-btn`, `hist-log-x`, `hist-log-y`): always `null`, wired through
+  the binding contexts to listeners that never ran. They were removed with
+  that code; the table test now fails on any id `index.html` lacks.
 - `app.js` lost 379 lines; the binding contexts in `app.js` still list
   element names one by one, since they are `app.js`'s own variables.
 - **Revisit if** controllers come to be created from a single declarative list

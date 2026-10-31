@@ -15,8 +15,6 @@ export function initializeUiDefaults({
     filesystemMode,
     fpsSelect,
     frameStep,
-    histLogX,
-    histLogY,
     colormapSelect,
     roiEnableToggle,
     roiModeSelect,
@@ -46,12 +44,6 @@ export function initializeUiDefaults({
   }
   if (frameStep) {
     setFrameStep(frameStep.value);
-  }
-  if (histLogX) {
-    state.histLogX = histLogX.checked;
-  }
-  if (histLogY) {
-    state.histLogY = histLogY.checked;
   }
   if (colormapSelect) {
     colormapSelect.value = state.colormap;

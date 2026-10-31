@@ -4,13 +4,9 @@
 
 export function bindWindowUiInteractions({
   state,
-  elements,
   callbacks,
 }) {
-  const { exportBtn } = elements;
-
   const {
-    exportFullImage,
     setZoom,
     updateToolbar,
     drawHistogram,
@@ -24,10 +20,6 @@ export function bindWindowUiInteractions({
     scheduleResolutionOverlay,
     schedulePeakOverlay,
   } = callbacks;
-
-  exportBtn?.addEventListener("click", () => {
-    exportFullImage();
-  });
 
   window.addEventListener("resize", () => {
     if (state.hasFrame) {

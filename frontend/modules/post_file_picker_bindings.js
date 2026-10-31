@@ -61,8 +61,6 @@ export function initializePostFilePickerBindings({
     maskToggle,
     maskSaturatedToggle,
     invertToggle,
-    histLogX,
-    histLogY,
     zoomRange,
     zoomValue,
     resetView,
@@ -115,7 +113,6 @@ export function initializePostFilePickerBindings({
     roiHistogramPlot,
     overviewCanvas,
     histCanvas,
-    exportBtn,
   } = elements;
 
   const {
@@ -145,8 +142,6 @@ export function initializePostFilePickerBindings({
     handleRoiChanged,
     redrawRoiPlots,
     schedulePeakFinder,
-    chooseHistogramBins,
-    computeHistogram,
     snapHistogramValue,
     deferViewportInteraction,
     setZoom,
@@ -241,7 +236,6 @@ export function initializePostFilePickerBindings({
     getHistTooltipPosition,
     showHistTooltip,
     hideHistTooltip,
-    exportFullImage,
     updateToolbar,
     drawHistogram,
     drawSplash,
@@ -309,8 +303,6 @@ export function initializePostFilePickerBindings({
       maskToggle,
       maskSaturatedToggle,
       invertToggle,
-      histLogX,
-      histLogY,
       zoomRange,
       zoomValue,
       resetView,
@@ -342,8 +334,6 @@ export function initializePostFilePickerBindings({
       updateGlobalStats,
       scheduleRoiUpdate,
       schedulePeakFinder,
-      chooseHistogramBins,
-      computeHistogram,
       snapHistogramValue,
       deferViewportInteraction,
       setZoom,
@@ -562,11 +552,7 @@ export function initializePostFilePickerBindings({
 
   bindWindowUiInteractions({
     state,
-    elements: {
-      exportBtn,
-    },
     callbacks: {
-      exportFullImage,
       setZoom,
       updateToolbar,
       drawHistogram,
