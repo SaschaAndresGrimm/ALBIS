@@ -50,3 +50,4 @@ ROI_PLOT_ANALYSIS.md
 # CLAUDE.md itself is shared; it imports AGENTS.md.
 CLAUDE.local.md
 graphify-out/
+live-check.json

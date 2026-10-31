@@ -17,6 +17,7 @@ follows one house style, below.
 | [API_CONTRACTS.md](API_CONTRACTS.md) | Anyone calling the HTTP API | The stable contract. |
 | [UI_GUIDE.md](UI_GUIDE.md), [I18N_REVIEW_GUIDE.md](I18N_REVIEW_GUIDE.md) + `I18N_GLOSSARY.csv` | Contributors | Interface rules; translation rules and fixed terms. |
 | [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), [PACKAGING.md](PACKAGING.md), [WINDOWS_SIGNING.md](WINDOWS_SIGNING.md) | Maintainers | Cutting, building and signing releases. |
+| [LIVE_TEST_PLAN.md](LIVE_TEST_PLAN.md) | Contributors and maintainers | Checking the live sources after a wiring change: `npm run ui:live`, and the session at a detector. |
 | `CHANGELOG.md`, `release-notes/` | Users deciding whether to update | What changed, in their terms. |
 | `decisions/` | Contributors | Why a deliberate choice was made, so it is not undone by accident. |
 

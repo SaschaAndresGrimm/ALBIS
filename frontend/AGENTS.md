@@ -70,6 +70,10 @@ on what the user would see or what the module calls. Run them with
 - **Bindings**: `modules/colorbar_window_bindings.js` with its test.
 - **A self-contained widget**: `modules/mask_legend.js`.
 
+After changing how `app.js` wires controllers or a live source, run
+`npm run ui:live` on `main` and on the change and compare
+([docs/LIVE_TEST_PLAN.md](../docs/LIVE_TEST_PLAN.md)).
+
 Do not copy `app.js`'s size. `tests/code_size_guard.test.js` holds it: a file
 over 1,000 lines may not get longer. The same test fails on a `fetch()` outside
 `http.js` (and `i18n.js`, which loads the locales).
