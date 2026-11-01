@@ -23,8 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MAX_LINES = 1000
 
 # Modules over MAX_LINES, at the length they may not exceed.
-LINE_BASELINE = {
-}
+LINE_BASELINE = {}
 
 
 def _modules() -> list[str]:
