@@ -57,17 +57,17 @@ def test_routine_polls_stay_out_of_the_log_but_failures_do_not(caplog) -> None:
 def test_a_poll_that_keeps_failing_is_logged_once_and_its_recovery_once(caplog) -> None:
     from types import SimpleNamespace
 
-    from backend import app as app_module
+    from backend import server_logging
 
     request = SimpleNamespace(
         method="GET", url=SimpleNamespace(path="/api/detector/status", query="url=x")
     )
-    app_module._poll_failures.clear()
+    server_logging._poll_failures.clear()
     with caplog.at_level(logging.DEBUG, logger="albis"):
         for _ in range(5):
-            app_module._log_poll(request, 502, 3.0)
-        app_module._log_poll(request, 200, 3.0)
-        app_module._log_poll(request, 200, 3.0)
+            server_logging._log_poll(request, 502, 3.0)
+        server_logging._log_poll(request, 200, 3.0)
+        server_logging._log_poll(request, 200, 3.0)
     by_level = [(record.levelname, record.getMessage()) for record in caplog.records]
     assert [level for level, _ in by_level] == ["ERROR", "DEBUG", "DEBUG", "DEBUG", "DEBUG", "INFO"]
     assert "[url=x]" in by_level[0][1] and "repeats are DEBUG" in by_level[0][1]

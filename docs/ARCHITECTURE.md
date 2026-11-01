@@ -46,7 +46,7 @@ Registered in `backend/app.py`, listed from innermost (closest to the router) ou
    responses for remote clients only, negotiating zstd or gzip from the client's
    `Accept-Encoding`. ALBIS is local-first, so under the default `auto` mode a
    loopback client is never compressed and pays nothing.
-2. `log_requests` — request/response logging with severity by status and latency.
+2. `log_requests` (`backend/server_logging.py`) — request/response logging with severity by status and latency.
 3. `_static_cache_policy` — `no-store` for entry documents, `no-cache` for module
    assets so `StaticFiles` can answer an unchanged file with a bodyless `304`.
 
