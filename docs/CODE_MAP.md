@@ -43,6 +43,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Pan/zoom/touch/overview interaction model and viewport transforms.
 - `frontend/modules/roi_stats_controller.js` + `frontend/modules/roi_interaction_controller.js`:
   - ROI wiring/orchestration and ROI interaction overlay editing.
+- `frontend/modules/roi_plot_controller.js` + `frontend/modules/roi_profile_utils.js`:
+  - The ROI plots (axis limits, log scale, histogram bins, hover tooltip, drawing), and the readouts' millimetre formatting, calibration check and profile peak finder.
 - `frontend/modules/roi_stats_engine.js` + `frontend/modules/roi_plot_renderer.js` + `frontend/modules/roi_csv_export.js`:
   - Pure ROI compute helpers, ROI plot rendering, and CSV payload generation.
 - `frontend/modules/file_type_utils.js`:
