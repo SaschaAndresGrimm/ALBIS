@@ -20,11 +20,9 @@ from pathlib import Path
 
 import pytest
 
-from backend.image_formats import (
-    _mini_cbf_header_text,
-    _parse_pilatus_header_text,
-    _pilatus_header_text,
-)
+from backend.image_formats import _pilatus_header_text
+from backend.services.export_header import _mini_cbf_header_text
+from backend.services.pilatus_header import _parse_pilatus_header_text
 
 FIXTURE = Path(__file__).resolve().parents[1] / "testdata" / "in16c_010001.cbf"
 
