@@ -24,10 +24,6 @@ MAX_LINES = 1000
 
 # Modules over MAX_LINES, at the length they may not exceed.
 LINE_BASELINE = {
-    "backend/image_formats.py": 2071,
-    "backend/services/data_export.py": 1909,
-    "backend/services/hdf5_stack.py": 1230,
-    "backend/services/series_summing.py": 1529,
 }
 
 
