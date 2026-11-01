@@ -201,6 +201,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Pure scalar coercion/unit conversion helpers for detector metadata extraction.
 - `backend/services/series_summing.py`:
   - Background job manager for series aggregation operations.
+- `backend/services/series_output_files.py`, `backend/services/series_reduction.py`:
+  - The two halves of the series job it inherits: where an output file goes and what metadata and geometry it carries; reducing a group of frames and the type the result is written in.
 - `backend/services/series_ops.py`:
   - Series grouping/masking helpers used by summing workflows.
 - `backend/services/remote_stream.py`:
