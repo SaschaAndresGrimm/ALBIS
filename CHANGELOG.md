@@ -10,6 +10,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Fixed
 
 - **The log file no longer gains a line every second while the handoff queue answers with an error.** Since 0.39.0, each failed poll of the queue another program uses to have ALBIS open a file wrote a warning to the log, once a second for as long as the failure lasted; 0.38.1 and earlier asked again on the next poll without a word. They do so again, and a backend that cannot be reached at all is still logged.
+- **Combine Frames writes "every 2nd frame", not "every 2th frame".** With a frame step, the description saved in the TIFF header read "every 2th frame", "every 3th frame" and so on; it now uses the right ending for every step, 21st and 111th included.
 
 ## [0.39.0] - 2026-11-01
 

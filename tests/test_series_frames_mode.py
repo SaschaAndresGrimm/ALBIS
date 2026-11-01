@@ -100,8 +100,8 @@ def _run(service: SeriesSummingService, first: Path, tmp_path: Path, **kw) -> di
     job_id = service.start_job(
         file=str(first),
         dataset="",
-        mode="frames",
-        step=10,
+        mode=kw.pop("mode", "frames"),
+        step=kw.pop("step", 10),
         operation=kw.pop("operation", "sum"),
         output_path=str(tmp_path / "out"),
         output_format="tiff",
@@ -139,7 +139,18 @@ def test_a_range_with_every_nth_frame_names_and_describes_its_frames(tmp_path: P
     [(path, arr, meta)] = written
     np.testing.assert_array_equal(arr, np.full((2, 2), 2 + 5 + 8))
     assert "_f000002-000008_every003_" in path.name
-    assert meta["description"] == "sum of 3 frames 2-8, every 3th frame"
+    assert meta["description"] == "sum of 3 frames 2-8, every 3rd frame"
+
+
+def test_every_nth_frame_mode_describes_its_step_as_an_ordinal(tmp_path: Path) -> None:
+    """The description read "sum of every 2th frame" before."""
+    written: list = []
+    service, files = _service(tmp_path, 10, written)
+    job = _run(service, files[0], tmp_path, mode="nth", step=2)
+    assert job["status"] == "done", job
+    assert written, job
+    for _path, _arr, meta in written:
+        assert meta["description"].startswith("sum of every 2nd frame ("), meta
 
 
 def test_groups_write_one_numbered_image_each(tmp_path: Path) -> None:

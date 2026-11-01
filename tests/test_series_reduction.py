@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 
 from backend.services.series_output_files import SeriesOutputFilesMixin
-from backend.services.series_reduction import SeriesReductionMixin
+from backend.services.series_reduction import SeriesReductionMixin, _ordinal
 
 
 def test_cast_clips_to_the_target_range_instead_of_wrapping() -> None:
@@ -69,7 +69,7 @@ def test_frames_label_for_the_whole_series_and_for_a_chunk() -> None:
         frame_step=2,
     )
     assert tag == "_chunk0002_f000006-000010_every002"
-    assert what == "mean of 3 frames 6-10, every 2th frame"
+    assert what == "mean of 3 frames 6-10, every 2nd frame"
 
 
 def test_operation_base_name_replaces_an_existing_operation_suffix() -> None:
@@ -96,3 +96,10 @@ def test_geometry_payload_is_rejected_unless_every_panel_is_complete() -> None:
     assert SeriesOutputFilesMixin._geometry_pixel_size_um(good) == 75.0
     assert normalize({"mode": "geometry", "panels": [{**panel, "pixel_size_mm": [0, 1]}]}) is None
     assert normalize({"mode": "simple", "panels": [panel]}) is None
+
+
+def test_the_frame_step_reads_as_an_english_ordinal() -> None:
+    """A bare "th" wrote "every 2th frame" into a Combine Frames TIFF's header."""
+    expected = {2: "2nd", 3: "3rd", 4: "4th", 11: "11th", 12: "12th", 13: "13th"}
+    expected.update({21: "21st", 22: "22nd", 23: "23rd", 101: "101st", 111: "111th"})
+    assert {n: _ordinal(n) for n in expected} == expected

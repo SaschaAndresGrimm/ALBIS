@@ -17,7 +17,7 @@ import numpy as np
 from fastapi import HTTPException
 
 from .series_output_files import SeriesOutputFilesMixin
-from .series_reduction import SeriesReductionMixin
+from .series_reduction import SeriesReductionMixin, _ordinal
 
 
 class _SeriesSummingCancelledError(Exception):
@@ -911,9 +911,7 @@ class SeriesSummingService(SeriesOutputFilesMixin, SeriesReductionMixin):
                     elif mode == "all":
                         combined_what = f"{operation} of {frame_count_in_sum} frames"
                     elif mode == "nth":
-                        combined_what = (
-                            f"{operation} of every {step}th frame " f"({frame_count_in_sum} frames)"
-                        )
+                        combined_what = f"{operation} of every {_ordinal(step)} frame ({frame_count_in_sum} frames)"
                     else:
                         combined_what = (
                             f"{operation} of {frame_count_in_sum} frames "
