@@ -3001,7 +3001,6 @@ const {
   redrawRoiPlots,
   setRoiPlotAxisLimits,
   setRoiPlotLog,
-  syncRoiPlotLimitControls,
   updateRoiModeUI,
   updateRoiTooltip,
 } = roiStatsController;
@@ -3251,7 +3250,6 @@ const postFilePickerBindingsCallbacks = createPostFilePickerBindingsCallbacks({
   getRoiPlotLog,
   setRoiPlotLog,
   setRoiPlotAxisLimits,
-  syncRoiPlotLimitControls,
   clearRoiPlotLimitsForKey,
   hasManualRoiPlotLimits,
   hasAnyManualRoiPlotLimits,
