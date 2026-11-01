@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 import contextlib
-import errno
 import itertools
 import logging
 import math
 import re
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from fastapi import HTTPException
 
+from .hdf5_open import _text, open_hdf5_read_only
 from .hdf5_units import (
     coerce_scalar as _coerce_scalar,
 )
@@ -37,196 +37,9 @@ from .hdf5_units import (
 from .hdf5_units import (
     wavelength_to_ev as _wavelength_to_ev,
 )
+from .hdf5_walk_report import GROUP_CHILD_LIMIT, WalkReport
 
 _log = logging.getLogger("albis.hdf5_stack")
-
-
-def _text(value: Any) -> str:
-    """Decode a name libhdf5 handed back, which may be bytes or str."""
-    if isinstance(value, bytes):
-        return value.decode("utf-8", "replace")
-    return str(value or "")
-
-
-def open_hdf5_read_only(h5py: Any, path: Path) -> Any:
-    """Open an HDF5 file for reading, including one a writer still holds open.
-
-    A detector filewriter keeps its output open in SWMR mode for the length of a
-    series, and HDF5 refuses a plain read-only open of such a file: it reports
-    `file is already open for write`, the same bare `OSError` it uses for a
-    corrupt file. Read as "unreadable" that is simply wrong -- the file is
-    readable, it just has to be asked for in the mode the writer promised. A
-    reader that opens with `swmr=True` sees the frames flushed so far, and
-    because every request opens its own handle, the next one sees the frames
-    written since.
-
-    Plain first, SWMR second. The plain open is the overwhelmingly common case
-    (a finished file) and stays exactly as fast as it was; the retry costs one
-    failed open, and only for a file that would otherwise have been refused
-    outright. When both fail the *first* error is raised, because for a genuinely
-    truncated file it is the one that names the real problem.
-    """
-    handle, _writer_present = open_hdf5_read_only_reporting_writer(h5py, path)
-    return handle
-
-
-# What HDF5 reports when it cannot take the file lock: EAGAIN (errno 35 on
-# macOS, 11 on Linux) or EACCES. The message is matched too, because the errno
-# HDF5 surfaces has not been consistent across versions.
-_LOCK_ERRNOS = frozenset({errno.EACCES, errno.EAGAIN, errno.EWOULDBLOCK})
-
-
-def is_hdf5_lock_failure(exc: OSError) -> bool:
-    """True when HDF5 refused a file because it could not lock it.
-
-    This is emphatically not corruption -- not one byte of the file was read.
-    Something else holds it open (a filewriter mid-acquisition, another viewer,
-    a crashed process whose handle has not been reaped), or the filesystem
-    cannot take POSIX locks at all, which is routine on the network mounts a
-    beamline serves data from. Reporting it as a damaged file sends the user
-    looking for a problem with their data that does not exist.
-    """
-    if exc.errno in _LOCK_ERRNOS:
-        return True
-    return "unable to lock file" in str(exc).lower()
-
-
-def open_hdf5_read_only_reporting_writer(h5py: Any, path: Path) -> tuple[Any, bool]:
-    """Open for reading, and say whether a writer is still holding the file.
-
-    The second half matters to the interface. A reader that only ever asks once
-    sees the frame count the series happened to have at open time, and a series
-    being written grows -- so "is someone still writing this" is the difference
-    between a slider that follows an acquisition and one that is quietly stale.
-    Needing SWMR to open the file at all is exactly that signal, and it costs
-    nothing extra to report it.
-
-    Three attempts, narrowing: a plain read; SWMR, for a writer that opened the
-    file for concurrent reading; and finally, only for a lock failure, a read
-    with locking disabled.
-    """
-    try:
-        return h5py.File(path, "r"), False
-    except FileNotFoundError:
-        raise
-    except OSError as plain_exc:
-        try:
-            handle = h5py.File(path, "r", swmr=True)
-        except (OSError, ValueError, RuntimeError):
-            # ValueError is what older HDF5 raises when it cannot do SWMR at
-            # all; RuntimeError is what it raises for a malformed superblock,
-            # which a truncated file reaches on this second attempt even
-            # though the first failed with a plain OSError. Fall through --
-            # the plain error is the better diagnosis either way.
-            pass
-        else:
-            _log.info("Opened %s in SWMR mode: a writer still holds it open", path)
-            return handle, True
-
-        if not is_hdf5_lock_failure(plain_exc):
-            raise plain_exc from None
-
-        # SWMR only helps when the writer opted into it. A file held by an
-        # ordinary writer, or sitting on a mount that cannot lock, refuses
-        # both attempts -- and a viewer that will not open a perfectly
-        # readable file is worse than one that reads it unsynchronised. For a
-        # finished file there is nothing to synchronise with anyway.
-        #
-        # Warning rather than info because it is not free: if a writer really
-        # is appending, an unlocked read can catch a chunk mid-write. That is
-        # the same exposure SWMR exists to remove, and the reason this is the
-        # last attempt rather than the first.
-        try:
-            handle = h5py.File(path, "r", locking=False)
-        except TypeError:
-            # h5py predating the `locking` argument.
-            raise plain_exc from None
-        except (OSError, ValueError, RuntimeError):
-            raise plain_exc from None
-        _log.warning(
-            "Opened %s with file locking disabled (%s). Another process holds "
-            "the file, or the filesystem cannot lock it.",
-            path,
-            plain_exc,
-        )
-        # Deliberately not reported as a writer: a refused lock says something
-        # holds the file, not that frames are still arriving, and claiming a
-        # writer would leave the client polling a static file forever.
-        return handle, False
-
-
-def open_hdf5_for_read(h5py: Any, path: Path) -> Any:
-    """Open an HDF5 file for reading, reporting an undecodable file as 422.
-
-    h5py signals a truncated or corrupt file with a bare `OSError`, or a
-    `RuntimeError` when the superblock itself will not decode -- either would
-    otherwise escape a route as a 500. That is the wrong story to tell: the
-    request was fine, the bytes on disk are not -- and at a beamline the usual
-    reason is a file the filewriter has not finished writing yet, which the
-    user can simply retry. 422 with the cause named matches how the MYTHEN
-    readers already report an unreadable acquisition.
-    """
-    handle, _writer_present = open_hdf5_for_read_reporting_writer(h5py, path)
-    return handle
-
-
-def open_hdf5_for_read_reporting_writer(h5py: Any, path: Path) -> tuple[Any, bool]:
-    """`open_hdf5_for_read`, plus whether a writer still holds the file."""
-    try:
-        return open_hdf5_read_only_reporting_writer(h5py, path)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="File not found") from exc
-    except RuntimeError as exc:
-        # "Can't decode file superblock prefix" and friends: the file is not
-        # HDF5, or not intact. Same story for the caller as an OSError.
-        _log.warning("Cannot open HDF5 file %s: %s", path, exc)
-        raise HTTPException(
-            status_code=422,
-            detail=f"Cannot read {path.name}: not a readable HDF5 file "
-            "(it may be incomplete or corrupt)",
-        ) from exc
-    except OSError as exc:
-        _log.warning("Cannot open HDF5 file %s: %s", path, exc)
-        if is_hdf5_lock_failure(exc):
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"Cannot read {path.name}: the file is locked by another "
-                    "program. Close whatever is holding it -- a filewriter "
-                    "still running, another viewer, an open analysis session "
-                    "-- and try again. The file itself is not damaged."
-                ),
-            ) from exc
-        raise HTTPException(
-            status_code=422,
-            detail=f"Cannot read {path.name}: not a readable HDF5 file "
-            "(it may be incomplete or corrupt)",
-        ) from exc
-
-
-def read_hdf5_array(path: Path, read: Callable[[], Any]) -> Any:
-    """Run an HDF5 read, reporting a failure to decode the data as 422.
-
-    Opening a file successfully does not mean its contents can be read. Detector
-    data is stored with a compression filter, and HDF5 only needs the matching
-    plugin library when the bytes are actually pulled in -- so a missing filter,
-    or a chunk the filewriter has not finished flushing, surfaces here rather
-    than at open time and would otherwise escape the route as a 500.
-    """
-    try:
-        return read()
-    except HTTPException:
-        raise
-    except OSError as exc:
-        _log.warning("Cannot read HDF5 data from %s: %s", path, exc)
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Cannot read data from {path.name}: {exc}. The file may be "
-                "incomplete, or its compression filter may be unavailable."
-            ),
-        ) from exc
-
 
 MASK_PATHS = (
     "/entry/instrument/detector/detectorSpecific/pixel_mask",
@@ -239,124 +52,6 @@ MASK_PATHS = (
 
 _LINKED_DATA_NAME_RE = re.compile(r"^data(?:[_-]?(\d+))?$")
 _THRESHOLD_GROUP_NAME_RE = re.compile(r"^threshold_(\d+)_channel$")
-
-GROUP_CHILD_LIMIT = 10_000
-"""How many children of any one group an enumeration will look at.
-
-A filewriter told to emit one companion file per frame writes one external link
-per frame into a single group, and a long burn-in run reaches millions: an ARINA
-master measured here held 5,000,000 links in `/entry/data`. Nothing downstream
-can present that many nodes -- the tree route alone needed 7.2 GiB to model them
--- so every enumeration stops at this cap and reports the group's true size
-instead of trying to carry it.
-"""
-
-_MAX_SKIP_EXAMPLES = 5
-"""Distinct example names carried in a walk's aggregated skip summary."""
-
-
-def _remember(examples: list[str], filename: str | None) -> None:
-    """Keep up to `_MAX_SKIP_EXAMPLES` distinct names for a summary line."""
-    name = str(filename or "").strip()
-    if name and len(examples) < _MAX_SKIP_EXAMPLES and name not in examples:
-        examples.append(name)
-
-
-@dataclass
-class WalkReport:
-    """What a dataset walk had to skip, aggregated rather than logged per node.
-
-    A master whose companion files are missing has every link fail for the same
-    reason. Logging each one wrote five million WARNING lines for the file that
-    prompted this class, which is its own denial of service; the walk now counts
-    reasons here and logs one line per walk.
-    """
-
-    skipped: dict[str, int] = field(default_factory=dict)
-    missing_external: list[str] = field(default_factory=list)
-    missing_external_count: int = 0
-    unreadable_external: list[str] = field(default_factory=list)
-    unreadable_external_count: int = 0
-    unreadable_reasons: list[str] = field(default_factory=list)
-    truncated_groups: list[tuple[str, int]] = field(default_factory=list)
-    dead_link_groups: list[tuple[str, int]] = field(default_factory=list)
-    """Groups where links were the only content and none of them resolved.
-
-    This, not "the file held no images", is what an orphaned master looks like:
-    a master carries its own calibration arrays, and `flatfield` and
-    `pixel_mask` are both 2D, so a file with no frames at all still offers
-    something displayable. Judging the group that should hold the frames keeps a
-    partly-downloaded series openable -- if any link resolved, the group is not
-    dead and whatever arrived is still served.
-    """
-
-    def note_skip(self, reason: str) -> None:
-        self.skipped[reason] = self.skipped.get(reason, 0) + 1
-
-    def note_dead_link_group(self, path: str, missing: int, total: int) -> None:
-        """Record a dead group. `total` is its real size, `missing` what we saw."""
-        if len(self.dead_link_groups) < _MAX_SKIP_EXAMPLES:
-            self.dead_link_groups.append((path, max(missing, total)))
-
-    def note_missing_external(self, filename: str | None) -> None:
-        """Record a link whose target file is not there to open."""
-        self.missing_external_count += 1
-        _remember(self.missing_external, filename)
-
-    def note_unreadable_external(self, filename: str | None, exc: BaseException) -> None:
-        """Record a link whose target file is there but would not open.
-
-        Kept apart from a missing file because by this point the path has been
-        resolved, which means it existed and sat inside the data root -- so the
-        file is on disk and something else stopped the read: no descriptors
-        left, no permission, a mount that dropped out. Telling the user those
-        files are "missing" would send them looking for data that is right
-        where they put it.
-        """
-        self.unreadable_external_count += 1
-        _remember(self.unreadable_external, filename)
-        reason = str(exc).strip() or exc.__class__.__name__
-        _remember(self.unreadable_reasons, reason)
-
-    def note_truncated_group(self, path: str, total: int) -> None:
-        if len(self.truncated_groups) < _MAX_SKIP_EXAMPLES:
-            self.truncated_groups.append((path, total))
-
-    def log_summary(self, file_path: Path) -> None:
-        """Emit at most one line per category for the whole walk."""
-        for path, total in self.truncated_groups:
-            _log.warning(
-                "Only the first %d of %d children of %s in %s were inspected",
-                GROUP_CHILD_LIMIT,
-                total,
-                path,
-                file_path,
-            )
-        if self.missing_external_count:
-            _log.warning(
-                "Skipped %d external link(s) in %s whose target file is missing (e.g. %s)",
-                self.missing_external_count,
-                file_path,
-                ", ".join(self.missing_external) or "unknown",
-            )
-        if self.unreadable_external_count:
-            _log.warning(
-                "Skipped %d external link(s) in %s whose target file is present but "
-                "would not open (e.g. %s): %s",
-                self.unreadable_external_count,
-                file_path,
-                ", ".join(self.unreadable_external) or "unknown",
-                "; ".join(self.unreadable_reasons) or "unknown",
-            )
-        for path, missing in self.dead_link_groups:
-            _log.warning(
-                "%s in %s holds only links and none of its %d link(s) resolved",
-                path,
-                file_path,
-                missing,
-            )
-        for reason, count in sorted(self.skipped.items()):
-            _log.warning("Skipped %d node(s) in %s: %s", count, file_path, reason)
 
 
 @dataclass

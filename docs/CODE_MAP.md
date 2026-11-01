@@ -199,6 +199,10 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 
 - `backend/services/hdf5_stack.py`:
   - HDF5 dataset discovery, metadata extraction, path resolution, frame extraction.
+- `backend/services/hdf5_open.py`:
+  - Opening HDF5 files for reading (plain, SWMR, unlocked) and reporting a lock failure or an undecodable file as a 422.
+- `backend/services/hdf5_walk_report.py`:
+  - `WalkReport`: what a dataset walk skipped (missing or unreadable link targets, truncated and dead groups), logged once per walk.
 - `backend/services/hdf5_units.py`:
   - Pure scalar coercion/unit conversion helpers for detector metadata extraction.
 - `backend/services/series_summing.py`:
