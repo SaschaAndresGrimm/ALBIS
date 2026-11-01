@@ -26,7 +26,6 @@ MAX_LINES = 1000
 LINE_BASELINE = {
     "albis_launcher.py": 1097,
     "backend/app.py": 1107,
-    "backend/services/data_export.py": 1909,
     "backend/services/hdf5_stack.py": 1230,
     "backend/services/series_summing.py": 1529,
 }
