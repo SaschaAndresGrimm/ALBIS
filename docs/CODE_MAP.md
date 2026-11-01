@@ -190,6 +190,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 
 - `backend/routes/data_export.py` + `backend/services/data_export.py`:
   - Data-format exports as background jobs (`/api/export/data/start|frame|status|cancel`) and saving a flatfield (`/api/flatfield/save`).
+- `backend/services/data_export_names.py`, `backend/services/data_export_frames.py`, `backend/services/data_export_metadata.py`, `backend/services/data_export_live.py`:
+  - Mixins of `DataExportService`, split out so none of them, nor the job runner left in `data_export.py`, passes 1,000 lines: the names of the files written (`<name>[_thr<n>]_<number>`, a free name), a frame as written (flatfield, inpainting, -1/-2 or unsigned markers, clipping), the header facts read from an HDF5 or single-image source, and frames the browser sends (live frames, flatfields).
 - `backend/routes/binary_response_utils.py`:
   - Shared OpenAPI docs and headers for the endpoints that answer with binary frames.
 

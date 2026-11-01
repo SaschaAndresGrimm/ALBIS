@@ -27,7 +27,6 @@ LINE_BASELINE = {
     "albis_launcher.py": 1097,
     "backend/app.py": 1108,
     "backend/image_formats.py": 2071,
-    "backend/services/data_export.py": 1909,
     "backend/services/hdf5_stack.py": 1230,
     "backend/services/series_summing.py": 1529,
 }
