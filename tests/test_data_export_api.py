@@ -120,7 +120,7 @@ def test_data_export_hdf5_range_to_tiff(tmp_path: Path) -> None:
 
 
 def test_data_export_hdf5_to_tiff_writes_dectris_header(tmp_path: Path) -> None:
-    from backend.image_formats import _simplon_meta_from_tiff
+    from backend.services.dectris_tiff_tag import _simplon_meta_from_tiff
 
     source = tmp_path / "source_header.h5"
     out_dir = tmp_path / "tiff_header"

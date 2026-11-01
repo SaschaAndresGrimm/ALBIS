@@ -48,9 +48,18 @@ export function createHandoffController({ apiBase, callbacks, intervalMs = 1000,
     if (busy) return;
     busy = true;
     try {
-      const res = await fetchResponse(`${apiBase}/handoff/v1/jobs/latest?after_id=${encodeURIComponent(String(lastId))}`, {
-        cache: "no-store",
-      });
+      let res;
+      try {
+        res = await fetchResponse(`${apiBase}/handoff/v1/jobs/latest?after_id=${encodeURIComponent(String(lastId))}`, {
+          cache: "no-store",
+        });
+      } catch (err) {
+        // An error status is asked again on the next tick without a word: a
+        // warning here would reach the log file once a second for as long as
+        // the endpoint fails. Only an unreachable backend is worth a line.
+        if (err?.status >= 400) return;
+        throw err;
+      }
       if (res.status === 204) {
         return;
       }
