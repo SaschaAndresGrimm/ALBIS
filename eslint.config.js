@@ -41,7 +41,13 @@ module.exports = [
       "no-constant-condition": ["error", { "checkLoops": false }],
       "no-debugger": "warn",
       "no-duplicate-imports": "error",
-      "no-unreachable": "error"
+      "no-unreachable": "error",
+      // A const used before its line in the same scope throws at startup
+      // (app.js) or when a controller is created. Since decision 0006 app.js
+      // reaches controller methods through consts set as it goes, where the
+      // hoisted wrappers used to do nothing until the controller existed.
+      // `variables: false` leaves alone uses inside functions that run later.
+      "no-use-before-define": ["error", { "functions": false, "classes": true, "variables": false }]
     }
   },
   {

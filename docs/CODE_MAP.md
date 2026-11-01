@@ -190,6 +190,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 
 - `backend/routes/data_export.py` + `backend/services/data_export.py`:
   - Data-format exports as background jobs (`/api/export/data/start|frame|status|cancel`) and saving a flatfield (`/api/flatfield/save`).
+- `backend/services/data_export_names.py`, `backend/services/data_export_frames.py`, `backend/services/data_export_metadata.py`, `backend/services/data_export_live.py`:
+  - Mixins of `DataExportService`, split out so none of them, nor the job runner left in `data_export.py`, passes 1,000 lines: the names of the files written (`<name>[_thr<n>]_<number>`, a free name), a frame as written (flatfield, inpainting, -1/-2 or unsigned markers, clipping), the header facts read from an HDF5 or single-image source, and frames the browser sends (live frames, flatfields).
 - `backend/routes/binary_response_utils.py`:
   - Shared OpenAPI docs and headers for the endpoints that answer with binary frames.
 
@@ -250,7 +252,19 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 ## Format and Detector Parsers
 
 - `backend/image_formats.py`:
-  - TIFF/CBF/EDF readers, detector metadata parsing, Pilatus header extraction.
+  - TIFF/CBF/EDF readers and writers, series file names, reading a frame with its header in one pass.
+- `backend/services/dectris_tiff_tag.py`:
+  - The private DECTRIS TIFF tag: reading its IFD into SIMPLON metadata, packing it for an export, rebasing its offsets.
+- `backend/services/pilatus_header.py`:
+  - Parsing a PILATUS mini-CBF text header.
+- `backend/services/export_header.py`:
+  - The mini-CBF header and provenance lines written into an exported CBF or TIFF.
+- `backend/services/image_values.py`:
+  - Turning loosely typed metadata values (scalars, lists, arrays, bytes) into numbers and text.
+- `backend/services/detector_geometry.py`:
+  - Multi-panel geometry: DIALS `.expt` files, geometry embedded in an ALBIS HDF5, the PILATUS 12M blueprint.
+- `backend/services/mythen.py`:
+  - MYTHEN strip-detector acquisitions, assembled into a frames-by-channels image.
 
 ## Tests
 

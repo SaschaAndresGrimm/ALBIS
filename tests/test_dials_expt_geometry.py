@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from backend.image_formats import _load_dials_expt_geometry
+from backend.services.detector_geometry import _load_dials_expt_geometry
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 FLAT_EXPT = FIXTURES / "dials_pilatus_flat_imported.expt"

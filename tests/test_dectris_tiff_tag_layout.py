@@ -23,11 +23,11 @@ import pytest
 
 tifffile = pytest.importorskip("tifffile")
 
-from backend.image_formats import (  # noqa: E402
+from backend.image_formats import _write_tiff  # noqa: E402
+from backend.services.dectris_tiff_tag import (  # noqa: E402
     _DECTRIS_TIFF_TAG,
     _rebase_dectris_ifd,
     _simplon_meta_from_tiff,
-    _write_tiff,
 )
 
 METADATA = {
@@ -165,7 +165,7 @@ def test_a_file_from_an_older_albis_still_reads(tmp_path: Path) -> None:
 
 def test_the_named_entries_tifffile_2026_returns_are_understood() -> None:
     """The dict fallback, for when the file bytes are not available to re-parse."""
-    from backend.image_formats import _parse_dectris_tag_value
+    from backend.services.dectris_tiff_tag import _parse_dectris_tag_value
 
     entries = _parse_dectris_tag_value(
         {"SeriesUniqueId": "series-abc", "ImageNumber": 101, "BeamCenter": (123.4, 234.5)},
@@ -179,6 +179,6 @@ def test_the_named_entries_tifffile_2026_returns_are_understood() -> None:
 
 def test_an_unknown_entry_name_is_dropped_rather_than_raising() -> None:
     """tifffile naming an entry ALBIS does not know must not fail the read."""
-    from backend.image_formats import _parse_dectris_tag_value
+    from backend.services.dectris_tiff_tag import _parse_dectris_tag_value
 
     assert _parse_dectris_tag_value({"SomethingNew": 1, "ImageNumber": 7}, "<") == {0x0003: 7}
