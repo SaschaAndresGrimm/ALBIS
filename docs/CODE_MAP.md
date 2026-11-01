@@ -248,7 +248,19 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 ## Format and Detector Parsers
 
 - `backend/image_formats.py`:
-  - TIFF/CBF/EDF readers, detector metadata parsing, Pilatus header extraction.
+  - TIFF/CBF/EDF readers and writers, series file names, reading a frame with its header in one pass.
+- `backend/services/dectris_tiff_tag.py`:
+  - The private DECTRIS TIFF tag: reading its IFD into SIMPLON metadata, packing it for an export, rebasing its offsets.
+- `backend/services/pilatus_header.py`:
+  - Parsing a PILATUS mini-CBF text header.
+- `backend/services/export_header.py`:
+  - The mini-CBF header and provenance lines written into an exported CBF or TIFF.
+- `backend/services/image_values.py`:
+  - Turning loosely typed metadata values (scalars, lists, arrays, bytes) into numbers and text.
+- `backend/services/detector_geometry.py`:
+  - Multi-panel geometry: DIALS `.expt` files, geometry embedded in an ALBIS HDF5, the PILATUS 12M blueprint.
+- `backend/services/mythen.py`:
+  - MYTHEN strip-detector acquisitions, assembled into a frames-by-channels image.
 
 ## Tests
 
