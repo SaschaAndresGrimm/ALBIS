@@ -77,7 +77,7 @@ def to_mm(value: float, unit: str | None) -> float:
     # detector sits to a sample), above it only millimetres. It used to sit at
     # 0.5, which put ordinary MX and SAXS camera lengths expressed in metres --
     # 0.5 to 5 -- on the millimetre side and reported them 1000x short.
-    # `image_formats._distance_to_mm` and `jungfraujoch_preview._to_mm` are the
+    # `image_values._distance_to_mm` and `jungfraujoch_preview._to_mm` are the
     # same heuristic and already break at 10; this was the outlier.
     if value <= 10:
         return value * 1000

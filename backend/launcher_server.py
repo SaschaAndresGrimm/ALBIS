@@ -69,21 +69,6 @@ def _server_running(host: str, port: int) -> bool:
     return _wait_for_health(host, port, timeout=0.8)
 
 
-def _port_available(host: str, port: int) -> bool:
-    if port <= 0:
-        return False
-    bind_host = host if host not in {"::"} else "::"
-    try:
-        with socket.socket(
-            socket.AF_INET6 if ":" in bind_host else socket.AF_INET, socket.SOCK_STREAM
-        ) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind((bind_host, port))
-        return True
-    except OSError:
-        return False
-
-
 def _bind_socket(host: str, port: int, *, exclusive: bool = False) -> socket.socket:
     """Bind the server socket: the one place ALBIS binds it.
 
