@@ -67,6 +67,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Beta Edit on image: which pixels a brush stroke, box, polygon or circle covers, the user mask bit, undo history; the toolbar over the image, its pointer and key handling (ahead of panning while open) and the overlay of pixels changed by hand.
 - `frontend/modules/pixel_mask_controller.js`:
   - The beta Data → Pixel Mask section and its counterpart on the Detector tab: the data's own mask (or an edited copy of it, which `mask_cursor_controller.js` keeps in place across files and live frames until Discard edits), saving it, sending it to a detector after a confirmation that counts what changes, Restore of the backup, and opening a detector's mask as a file.
+- `frontend/modules/pixel_mask_utils.js`:
+  - The section's pure arithmetic and naming: counting a mask by reason (gap, defective, other), what replacing one mask with another changes, and the names masks are saved under.
 
 ### State, shared services and small helpers
 
