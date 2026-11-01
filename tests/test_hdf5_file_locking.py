@@ -31,7 +31,7 @@ from fastapi import HTTPException
 
 h5py = pytest.importorskip("h5py")
 
-from backend.services.hdf5_stack import (  # noqa: E402
+from backend.services.hdf5_open import (  # noqa: E402
     is_hdf5_lock_failure,
     open_hdf5_for_read_reporting_writer,
     open_hdf5_read_only_reporting_writer,

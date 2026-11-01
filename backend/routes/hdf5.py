@@ -22,7 +22,8 @@ from ..api_models import (
 )
 from ..image_formats import producer_string
 from ..services.content_disposition import attachment_disposition
-from ..services.hdf5_stack import WalkReport, open_hdf5_for_read
+from ..services.hdf5_open import open_hdf5_for_read
+from ..services.hdf5_walk_report import WalkReport
 from ..services.log_safety import sanitize_log_value
 
 _log = logging.getLogger("albis.hdf5_routes")

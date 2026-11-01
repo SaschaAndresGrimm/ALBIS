@@ -11,7 +11,7 @@ from fastapi.responses import Response
 
 from ..api_models import FrameMetadataResponse
 from ..image_formats import _to_little_endian
-from ..services.hdf5_stack import (
+from ..services.hdf5_open import (
     open_hdf5_for_read,
     open_hdf5_for_read_reporting_writer,
     read_hdf5_array,
