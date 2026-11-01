@@ -51,8 +51,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Overlay and histogram drawing/scheduling.
 - `frontend/modules/autoload_mode_controller.js`, `autoload_orchestration_controller.js`, `autoload_settings_controller.js`, `autoload_status_controller.js`:
   - Autoload: the file-watch and SIMPLON runtime, the start/stop/tick state machine, settings persistence and UI sync, and the status/meta labels.
-- `frontend/modules/file_browser.js`:
-  - File browser modal state and filesystem browsing interactions.
+- `frontend/modules/file_browser.js` + `frontend/modules/file_browser_renderer.js` + `frontend/modules/file_browser_bindings.js` + `frontend/modules/file_browser_utils.js`:
+  - File browser modal: state, browse requests and selection; the breadcrumb, folder and file lists (List and Details view); the modal's listeners and keyboard navigation; and the pure helpers (extension filters, natural sort, path splitting, local series grouping, size formatting).
 - `frontend/modules/flatfield.js` + `frontend/modules/flatfield_controller.js` + `backend/services/flatfield.py`:
   - Flatfield correction: frames divided by a flat (counts: × the flat's mean; transmission: 0–1); unusable flat pixels (masked, ≤0, type max, <5 % of the mean) and the frame's flagged pixels become NaN, filled by inpainting when on. "Use current image" saves the frame via `/api/flatfield/save` to `<data>/flatfields/`; exports take `flatfield` (a path) and `flatfield_scale`, writing float32 TIFF. The viewer's frame pipeline (raw → flatfield → inpaint) is `createInpaintView` in inpainting.js; the histogram and auto contrast follow the corrected frame (`refreshDisplayContrast`).
 - `frontend/modules/inpainting.js` + `frontend/modules/inpainting_controller.js` + `backend/services/inpainting.py`:
