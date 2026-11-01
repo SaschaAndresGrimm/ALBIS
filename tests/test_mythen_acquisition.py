@@ -4,7 +4,7 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from backend.app import app
-from backend.image_formats import (
+from backend.services.mythen import (
     _mythen_counts_column,
     _mythen_header_text,
     _read_mythen_acquisition,
