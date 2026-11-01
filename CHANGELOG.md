@@ -7,11 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The log file no longer gains a line every second while the handoff queue answers with an error.** Since 0.39.0, each failed poll of the queue another program uses to have ALBIS open a file wrote a warning to the log, once a second for as long as the failure lasted; 0.38.1 and earlier asked again on the next poll without a word. They do so again, and a backend that cannot be reached at all is still logged.
+
 ## [0.39.0] - 2026-11-01
 
 ### Changed
 
-- **When saving the known detectors, Settings or a pixel mask fails, ALBIS says why, in your language.** The known-detectors list and the Pixel Mask section showed only `HTTP 500`, and a failed Settings save without a reason from the server showed `Save failed (500)`. All now show the server's own reason when it gives one (a full disk, a value out of range), or a translated message that says whether the server, the network or the request failed.
+- **When saving the known detectors, Settings or a pixel mask fails, or a command on the Detector tab does, ALBIS says why, in your language.** The known-detectors list, the Pixel Mask section and the Detector tab showed only `HTTP 500` (the Detector tab the browser's English `Failed to fetch` when ALBIS's own server could not be reached), and a failed Settings save without a reason from the server showed `Save failed (500)`. All now show the server's own reason when it gives one (a full disk, a value out of range), or a translated message that says whether the server, the network or the request failed.
 - **Behind the scenes, ALBIS was reorganised to be easier to read and change, for people and AI assistants alike; nothing is meant to look or work differently.** The main script shrank from about 5,700 to 3,550 lines, and the 9,200-line stylesheet became seventeen files named by what they style. Every request to the server now goes through one place that reports failures the same way, and the parts of the viewer reach each other through one registry instead of over a hundred forwarding functions (decisions 0005 and 0006). A new automated check, `npm run ui:live`, drives ALBIS against simulated SIMPLON and JUNGFRAUJOCH sources, the Remote Stream API and folder watch, and `docs/LIVE_TEST_PLAN.md` describes it together with a session on a real detector. The changes were checked against simulated sources and a real PILATUS4, but they touch most of the frontend: anything that behaves differently from 0.38.1 is a bug, please report it.
 
 ## [0.38.1] - 2026-10-30

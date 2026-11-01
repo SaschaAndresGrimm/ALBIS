@@ -22,7 +22,7 @@ h5py = pytest.importorskip("h5py")
 tifffile = pytest.importorskip("tifffile")
 CbfImage = pytest.importorskip("fabio.cbfimage").CbfImage
 
-from backend.image_formats import producer_string  # noqa: E402
+from backend.services.export_header import producer_string  # noqa: E402
 from backend.version import ALBIS_VERSION  # noqa: E402
 
 

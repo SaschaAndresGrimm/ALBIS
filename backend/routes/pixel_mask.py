@@ -21,7 +21,7 @@ from fastapi.responses import Response
 from ..api_models import PixelMaskDetectorCopyResponse, PixelMaskDetectorWriteResponse
 from ..services import pixel_mask, simplon_control
 from ..services.content_disposition import attachment_disposition
-from ..services.hdf5_stack import open_hdf5_for_read, read_hdf5_array
+from ..services.hdf5_open import open_hdf5_for_read, read_hdf5_array
 from .binary_response_utils import (
     add_optional_header,
     build_binary_headers,
