@@ -7,9 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-01
+
 ### Changed
 
 - **When saving the known detectors, Settings or a pixel mask fails, ALBIS says why, in your language.** The known-detectors list and the Pixel Mask section showed only `HTTP 500`, and a failed Settings save without a reason from the server showed `Save failed (500)`. All now show the server's own reason when it gives one (a full disk, a value out of range), or a translated message that says whether the server, the network or the request failed.
+- **Behind the scenes, ALBIS was reorganised to be easier to read and change, for people and AI assistants alike; nothing is meant to look or work differently.** The main script shrank from about 5,700 to 3,550 lines, and the 9,200-line stylesheet became seventeen files named by what they style. Every request to the server now goes through one place that reports failures the same way, and the parts of the viewer reach each other through one registry instead of over a hundred forwarding functions (decisions 0005 and 0006). A new automated check, `npm run ui:live`, drives ALBIS against simulated SIMPLON and JUNGFRAUJOCH sources, the Remote Stream API and folder watch, and `docs/LIVE_TEST_PLAN.md` describes it together with a session on a real detector. The changes were checked against simulated sources and a real PILATUS4, but they touch most of the frontend: anything that behaves differently from 0.38.1 is a bug, please report it.
 
 ## [0.38.1] - 2026-10-30
 
@@ -1799,7 +1802,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.39.0...HEAD
+[0.39.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.1...v0.39.0
 [0.38.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.0...v0.38.1
 [0.38.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.36.1...v0.37.0
