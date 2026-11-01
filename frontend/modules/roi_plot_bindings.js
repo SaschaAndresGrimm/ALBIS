@@ -37,7 +37,6 @@ export function bindRoiPlotInteractions({
     getRoiPlotLog,
     setRoiPlotLog,
     setRoiPlotAxisLimits,
-    syncRoiPlotLimitControls,
     redrawRoiPlots,
     clearRoiPlotLimitsForKey,
     hasManualRoiPlotLimits,
@@ -236,7 +235,6 @@ export function bindRoiPlotInteractions({
     setRoiPlotAxisLimits(entry.key, "x", plot.xMin, plot.xMax);
     setRoiPlotAxisLimits(entry.key, "y", plot.yMin, plot.yMax);
     roiState.plotLimits.autoscale = false;
-    syncRoiPlotLimitControls();
     syncRoiAxisLimitControls(entry.key);
     scheduleRoiPlotRedraw();
     return true;
@@ -246,7 +244,6 @@ export function bindRoiPlotInteractions({
     if (!entry) return;
     clearRoiPlotLimitsForKey(entry.key);
     updateGlobalAutoscaleFromManualLimits();
-    syncRoiPlotLimitControls();
     syncRoiAxisLimitControls(entry.key);
     scheduleRoiPlotRedraw();
   }
@@ -277,7 +274,6 @@ export function bindRoiPlotInteractions({
     }
     setRoiPlotAxisLimits(entry.key, axis, nextMin, nextMax);
     updateGlobalAutoscaleFromManualLimits();
-    syncRoiPlotLimitControls();
     syncRoiAxisLimitControls(entry.key, { preserveInput: commit ? null : input });
     scheduleRoiPlotRedraw();
   }
@@ -417,7 +413,6 @@ export function bindRoiPlotInteractions({
 
     setRoiPlotAxisLimits(plotKey, "x", nextXMin, nextXMax);
     setRoiPlotAxisLimits(plotKey, "y", nextYMin, nextYMax);
-    syncRoiPlotLimitControls();
     syncRoiAxisLimitControls(plotKey);
     scheduleRoiPlotRedraw();
     event.preventDefault();
@@ -482,7 +477,6 @@ export function bindRoiPlotInteractions({
       if (!hasAnyManualRoiPlotLimits()) {
         roiState.plotLimits.autoscale = true;
       }
-      syncRoiPlotLimitControls();
       syncRoiAxisLimitControls(plotKey);
       scheduleRoiPlotRedraw();
     });
@@ -546,7 +540,6 @@ export function bindRoiPlotInteractions({
           setRoiPlotAxisLimits(plotKey, "y", newYMin, newYMax);
         }
 
-        syncRoiPlotLimitControls();
         syncRoiAxisLimitControls(plotKey);
         scheduleRoiPlotRedraw();
       },

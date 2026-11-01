@@ -1,8 +1,9 @@
-"""ALBIS backend API service.
+"""ALBIS backend API service: the composition root.
 
-This module keeps backend runtime logic centralized for simple packaged
-execution. It handles path safety, image IO, metadata extraction, analysis
-endpoints, monitor integration, and long-running series jobs.
+Builds the FastAPI app, its middleware and `PathPolicy`, the stores and
+services, and registers every route module with the dependencies it declares.
+The logic lives in `services/` and the endpoints in `routes/`; what stays here
+is wiring (backend/AGENTS.md).
 """
 
 from __future__ import annotations

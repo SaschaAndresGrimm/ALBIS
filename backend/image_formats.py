@@ -365,7 +365,8 @@ def _unreadable_image_error(path: Path, exc: Exception) -> HTTPException:
     routinely includes a file the filewriter has not finished writing. Letting
     the decoder's own exception escape reports that as a 500 -- an ALBIS fault
     the user cannot act on -- when the honest answer is that the bytes are not
-    readable yet. Mirrors how the MYTHEN readers below already report one.
+    readable yet. Mirrors how the MYTHEN readers (`services/mythen.py`) already
+    report one.
     """
     # An empty message (fabio raises bare AssertionErrors) is useless to a
     # user, so fall back to the exception type; either way it is capped so a

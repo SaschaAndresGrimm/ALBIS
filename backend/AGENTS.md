@@ -13,7 +13,7 @@ Read the root [AGENTS.md](../AGENTS.md) first; this adds what applies inside
 | `services/*.py` | The logic: file formats, HDF5, scanning, exports, detector control, updates. No FastAPI imports beyond what a service genuinely raises. |
 | `api_models.py` | Pydantic request and response models. |
 | `config.py` | Defaults (`DEFAULT_CONFIG`), validation (`normalize_config`), loading, environment overrides. |
-| `image_formats.py` | Readers shared by several endpoints (TIFF, CBF, EDF, MYTHEN, …). |
+| `image_formats.py` | Readers shared by several endpoints (TIFF, CBF, EDF) and the array normalisation they share. Format-specific parts are services of their own: `mythen.py`, `pilatus_header.py`, `dectris_tiff_tag.py`, `detector_geometry.py`, `export_header.py`, `image_values.py`. |
 | `request_guard.py`, `response_compression.py` | Middleware. |
 
 ## Where does it go

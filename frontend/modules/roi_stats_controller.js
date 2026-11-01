@@ -95,7 +95,6 @@ export function createRoiStatsController(ctx) {
     getRoiPlotLimits,
     getRoiPlotLog,
     setRoiPlotLog,
-    syncRoiPlotLimitControls,
     setRoiPlotAxisLimits,
     clearRoiPlotLimitsForKey,
     hasManualRoiPlotLimits,
@@ -224,7 +223,6 @@ function updateRoiModeUI() {
   }
   syncRoiHistogramBinsUi();
   updateRoiCenterInputs();
-  syncRoiPlotLimitControls();
   updateRoiSectionState();
 }
 
@@ -905,7 +903,6 @@ function exportRoiCsv() {
     getRoiPlotLimits,
     getRoiPlotLog,
     setRoiPlotLog,
-    syncRoiPlotLimitControls,
     setRoiPlotAxisLimits,
     clearRoiPlotLimitsForKey,
     hasManualRoiPlotLimits,

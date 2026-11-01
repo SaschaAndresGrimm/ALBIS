@@ -26,7 +26,7 @@ do. If that cannot work, stop and ask the maintainer before going on.
 Logic goes into `backend/services/<area>.py`: plain Python, no FastAPI beyond
 an exception it genuinely raises, testable without a server.
 `services/known_detectors.py` is the model. Reading HDF5 goes through
-`open_hdf5_for_read` and `read_hdf5_array` (`services/hdf5_stack.py`).
+`open_hdf5_for_read` and `read_hdf5_array` (`services/hdf5_open.py`).
 
 ## 2. The models
 

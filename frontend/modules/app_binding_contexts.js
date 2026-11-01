@@ -259,7 +259,6 @@ export function createPostFilePickerBindingsCallbacks(callbacks) {
     getRoiPlotLog: callbacks.getRoiPlotLog,
     setRoiPlotLog: callbacks.setRoiPlotLog,
     setRoiPlotAxisLimits: callbacks.setRoiPlotAxisLimits,
-    syncRoiPlotLimitControls: callbacks.syncRoiPlotLimitControls,
     clearRoiPlotLimitsForKey: callbacks.clearRoiPlotLimitsForKey,
     hasManualRoiPlotLimits: callbacks.hasManualRoiPlotLimits,
     hasAnyManualRoiPlotLimits: callbacks.hasAnyManualRoiPlotLimits,

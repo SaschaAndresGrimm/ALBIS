@@ -111,8 +111,6 @@ function syncRoiHistogramBinsUi() {
   });
 }
 
-function syncRoiPlotLimitControls() {}
-
 function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
   if (axis !== "x" && axis !== "y") return;
   const limits = getRoiPlotLimits(plotKey);
@@ -288,7 +286,6 @@ function redrawRoiPlots() {
     getRoiPlotLimits,
     getRoiPlotLog,
     setRoiPlotLog,
-    syncRoiPlotLimitControls,
     setRoiPlotAxisLimits,
     clearRoiPlotLimitsForKey,
     hasManualRoiPlotLimits,

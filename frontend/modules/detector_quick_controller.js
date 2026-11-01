@@ -66,7 +66,7 @@ export function createDetectorQuickController({
     ["detector", "count_time", exposure],
   ];
 
-  // One image of SNAP_EXPOSURE_S now, shown live.
+  // One image of quick.snapExposure seconds now, shown live.
   async function snap() {
     ctx.quickRunning = true;
     ctx.quickCancelled = false;

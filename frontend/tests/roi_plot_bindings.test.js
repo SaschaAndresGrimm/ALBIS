@@ -48,7 +48,6 @@ function createBindings() {
     getRoiPlotLog: vi.fn(() => false),
     setRoiPlotLog: vi.fn(),
     setRoiPlotAxisLimits: vi.fn(),
-    syncRoiPlotLimitControls: vi.fn(),
     redrawRoiPlots: vi.fn(),
     clearRoiPlotLimitsForKey: vi.fn(),
     hasManualRoiPlotLimits: vi.fn(() => false),
@@ -161,7 +160,6 @@ describe("roi_plot_bindings", () => {
     roiLineCanvas.dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true }));
 
     expect(callbacks.clearRoiPlotLimitsForKey).toHaveBeenCalledWith("line");
-    expect(callbacks.syncRoiPlotLimitControls).toHaveBeenCalledTimes(1);
     expect(callbacks.redrawRoiPlots).toHaveBeenCalledTimes(1);
   });
 
@@ -228,7 +226,6 @@ describe("roi_plot_bindings", () => {
         },
         setRoiPlotAxisLimits: (_plotKey, axis, minValue, maxValue) =>
           setAxisLimits(limits, axis, minValue, maxValue),
-        syncRoiPlotLimitControls: vi.fn(),
         redrawRoiPlots,
         clearRoiPlotLimitsForKey: () => clearAxisLimits(limits),
         hasManualRoiPlotLimits: () => hasManualLimits(limits),
