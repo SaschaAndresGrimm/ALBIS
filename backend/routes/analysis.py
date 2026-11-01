@@ -16,7 +16,7 @@ from ..api_models import (
     SeriesSumStartResponse,
 )
 from ..detector_profiles import ring_meta
-from ..services.hdf5_stack import open_hdf5_for_read
+from ..services.hdf5_open import open_hdf5_for_read
 
 
 @dataclass(frozen=True)

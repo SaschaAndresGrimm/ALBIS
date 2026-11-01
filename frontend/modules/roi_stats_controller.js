@@ -1,21 +1,26 @@
 /**
- * ROI statistics, plots, and ROI plot interaction helpers.
+ * ROI statistics and readouts; the plots are drawn by roi_plot_controller.js.
  */
 
 import {
   applyMaskToValue as applyMaskToValueEngine,
   accumulateRoiPixelCounters as accumulateRoiPixelCountersEngine,
-  buildRoiHistogram as buildRoiHistogramEngine,
   computeGlobalStats as computeGlobalStatsEngine,
   createRoiPixelCounters as createRoiPixelCountersEngine,
   usesInDataPixelFlags,
   getPixelFlags,
-  normalizeRoiHistogramBinCount,
   createRoiAccumulator,
   medianOfAccumulated,
   isIntegralData,
 } from "./roi_stats_engine.js";
-import { renderRoiPlot } from "./roi_plot_renderer.js";
+import { createRoiPlotController } from "./roi_plot_controller.js";
+import {
+  BEAM_CENTER_TOLERANCE_PX,
+  detectProfilePeaks,
+  formatArea,
+  formatMm,
+  isResolutionCalibrated,
+} from "./roi_profile_utils.js";
 import {
   buildRoiCsvExportPayload,
   roiCsvExportUnavailableReason,
@@ -73,11 +78,6 @@ export function createRoiStatsController(ctx) {
     roiHistCanvas,
     roiHistCtx,
     roiHistogramToggle,
-    roiHistBinsAuto,
-    roiHistBinCount,
-    roiHistBinChip,
-    roiHistBinManualRow,
-    roiHistBinPresetBtns,
     updateRoiSectionState,
     drawRoiOverlay,
     getActiveSaturationMax,
@@ -85,20 +85,29 @@ export function createRoiStatsController(ctx) {
     getInpaintedFrame = () => null,
     computeMedian,
     formatStat,
-    formatRoiTick,
-    PLOT_THEME,
     setStatus,
     getRingParams,
     getResolutionAtPixel,
   } = ctx;
 
-// d-spacing axis / feature-detection tuning.
-const PROFILE_PEAK_MAX = 6;
-const PROFILE_PEAK_MIN_PROMINENCE_FRAC = 0.08;
-// Radial d-axis only makes physical sense when the ROI is centred on the beam.
-// Floor for the beam-offset tolerance (the effective tolerance scales with the
-// ROI radius, see beamOffsetTolerance).
-const BEAM_CENTER_TOLERANCE_PX = 6;
+  const {
+    getRoiPlotKey,
+    getRoiPlotLimits,
+    getRoiPlotLog,
+    setRoiPlotLog,
+    syncRoiPlotLimitControls,
+    setRoiPlotAxisLimits,
+    clearRoiPlotLimitsForKey,
+    hasManualRoiPlotLimits,
+    hasAnyManualRoiPlotLimits,
+    showRoiTooltip,
+    hideRoiTooltip,
+    updateRoiTooltip,
+    drawRoiPlot,
+    redrawRoiPlots,
+    syncRoiHistogramBinsUi,
+    updateRoiHistogramPlot,
+  } = createRoiPlotController(ctx);
 
 function setRoiText(el, value) {
   if (!el) return;
@@ -114,101 +123,6 @@ function setRoiTwoLine(el, line1, line2) {
   if (line2) {
     el.append(document.createElement("br"), document.createTextNode(line2));
   }
-}
-
-// Same calibration requirements as getResolutionAtPixel (planar needs distance +
-// pixel size + energy; geometry mode needs energy + a loaded geometry).
-function isResolutionCalibrated(params) {
-  if (!params) return false;
-  if (params.mode === "geometry") {
-    return Number.isFinite(params.energyEv) && params.energyEv > 0 && !!params.geometry;
-  }
-  // Planar mode measures the radius from the beam centre, so an unknown one
-  // is not a calibrated geometry. Geometry mode is exempt above: the panel
-  // origins carry the centre, so it does not come from these inputs.
-  return (
-    Boolean(params.centerKnown) &&
-    Number.isFinite(params.distanceMm) && params.distanceMm > 0 &&
-    Number.isFinite(params.pixelSizeUm) && params.pixelSizeUm > 0 &&
-    Number.isFinite(params.energyEv) && params.energyEv > 0
-  );
-}
-
-// Format a physical length (mm) with precision that scales with magnitude.
-function formatMm(value) {
-  if (!Number.isFinite(value)) return null;
-  const abs = Math.abs(value);
-  const digits = abs >= 100 ? 1 : abs >= 1 ? 2 : 3;
-  return value.toFixed(digits);
-}
-
-// Format a physical area (mm^2) with magnitude-aware precision.
-function formatArea(value) {
-  if (!Number.isFinite(value) || value < 0) return null;
-  const digits = value >= 100 ? 0 : value >= 1 ? 1 : value >= 0.01 ? 3 : 5;
-  return value.toFixed(digits);
-}
-
-// Cheap 1D peak finder over a projection array. Returns axis-space peak
-// positions ({ x, value }) so they survive plot zoom/pan (which re-slices data).
-function detectProfilePeaks(values, xStart = 0, xStep = 1) {
-  const n = values.length;
-  if (n < 3) return [];
-  let maxV = -Infinity;
-  let minV = Infinity;
-  for (let i = 0; i < n; i += 1) {
-    const v = values[i];
-    if (Number.isFinite(v)) {
-      if (v > maxV) maxV = v;
-      if (v < minV) minV = v;
-    }
-  }
-  const range = maxV - minV;
-  if (!(range > 0)) return [];
-  const minProminence = range * PROFILE_PEAK_MIN_PROMINENCE_FRAC;
-  const candidates = [];
-  for (let i = 0; i < n; i += 1) {
-    const v = values[i];
-    if (!Number.isFinite(v)) continue;
-    let leftVal = -Infinity;
-    for (let k = i - 1; k >= 0; k -= 1) {
-      if (Number.isFinite(values[k])) { leftVal = values[k]; break; }
-    }
-    let rightVal = -Infinity;
-    for (let k = i + 1; k < n; k += 1) {
-      if (Number.isFinite(values[k])) { rightVal = values[k]; break; }
-    }
-    if (!(v >= leftVal && v >= rightVal)) continue;
-    if (v === leftVal && v === rightVal) continue;
-    // Topographic prominence: scan outward until higher ground, tracking the valley.
-    let leftValley = v;
-    for (let k = i - 1; k >= 0; k -= 1) {
-      const val = values[k];
-      if (!Number.isFinite(val)) continue;
-      if (val > v) break;
-      if (val < leftValley) leftValley = val;
-    }
-    let rightValley = v;
-    for (let k = i + 1; k < n; k += 1) {
-      const val = values[k];
-      if (!Number.isFinite(val)) continue;
-      if (val > v) break;
-      if (val < rightValley) rightValley = val;
-    }
-    const prominence = v - Math.max(leftValley, rightValley);
-    if (prominence < minProminence) continue;
-    candidates.push({ index: i, value: v, prominence });
-  }
-  candidates.sort((a, b) => b.prominence - a.prominence);
-  const minSeparation = Math.max(2, Math.round(n * 0.02));
-  const selected = [];
-  for (const cand of candidates) {
-    if (selected.some((s) => Math.abs(s.index - cand.index) < minSeparation)) continue;
-    selected.push(cand);
-    if (selected.length >= PROFILE_PEAK_MAX) break;
-  }
-  selected.sort((a, b) => a.index - b.index);
-  return selected.map((p) => ({ x: xStart + p.index * xStep, value: p.value }));
 }
 
 function updateRoiCenterInputs() {
@@ -228,129 +142,6 @@ function applyRoiCenterFromInputs() {
   const yVal = Number(roiCenterYInput.value);
   if (!Number.isFinite(xVal) || !Number.isFinite(yVal)) return null;
   return { x: Math.round(xVal), y: Math.round(yVal) };
-}
-
-function getRoiPlotKey(canvasEl) {
-  const id = canvasEl?.id || "";
-  if (id === "roi-line-canvas") return "line";
-  if (id === "roi-x-canvas") return "x";
-  if (id === "roi-y-canvas") return "y";
-  if (id === "roi-hist-canvas") return "hist";
-  return "line";
-}
-
-function getRoiPlotLimits(plotKey) {
-  return roiState.plotLimits[plotKey] || roiState.plotLimits.line;
-}
-
-function getRoiPlotLogMap() {
-  if (!roiState.plotLog || typeof roiState.plotLog !== "object") {
-    const fallback = Boolean(roiState.log);
-    roiState.plotLog = {
-      line: fallback,
-      x: fallback,
-      y: fallback,
-      hist: fallback,
-    };
-  }
-  ["line", "x", "y", "hist"].forEach((key) => {
-    if (typeof roiState.plotLog[key] !== "boolean") {
-      roiState.plotLog[key] = Boolean(roiState.log);
-    }
-  });
-  return roiState.plotLog;
-}
-
-function getRoiPlotLog(plotKey) {
-  const plotLog = getRoiPlotLogMap();
-  return Boolean(plotLog[plotKey] ?? roiState.log);
-}
-
-function setRoiPlotLog(plotKey, enabled) {
-  if (!["line", "x", "y", "hist"].includes(plotKey)) return;
-  const plotLog = getRoiPlotLogMap();
-  plotLog[plotKey] = Boolean(enabled);
-  roiState.log = ["line", "x", "y", "hist"].some((key) => Boolean(plotLog[key]));
-}
-
-function getRoiHistogramBinsConfig() {
-  if (!roiState.histogramBins || typeof roiState.histogramBins !== "object") {
-    roiState.histogramBins = { mode: "auto", count: 128 };
-  }
-  const mode = roiState.histogramBins.mode === "fixed" ? "fixed" : "auto";
-  const count = normalizeRoiHistogramBinCount(roiState.histogramBins.count);
-  roiState.histogramBins.mode = mode;
-  roiState.histogramBins.count = count;
-  return { mode, count };
-}
-
-function syncRoiHistogramBinsUi() {
-  const { mode, count } = getRoiHistogramBinsConfig();
-  const isFixed = mode === "fixed";
-  if (roiHistBinsAuto) {
-    roiHistBinsAuto.checked = !isFixed;
-    roiHistBinsAuto.disabled = !roiState.enabled;
-  }
-  if (roiHistBinCount) {
-    roiHistBinCount.value = String(count);
-    roiHistBinCount.disabled = !roiState.enabled || !isFixed;
-  }
-  if (roiHistBinManualRow) {
-    roiHistBinManualRow.classList.toggle("is-hidden", !isFixed);
-  }
-  if (roiHistBinChip) {
-    roiHistBinChip.textContent = isFixed ? t("roi.histogram.bins_chip", { count }) : "";
-    roiHistBinChip.classList.toggle("is-hidden", !isFixed);
-  }
-  roiHistBinPresetBtns?.forEach((button) => {
-    const presetCount = normalizeRoiHistogramBinCount(button.dataset?.bins);
-    button.classList.toggle("is-active", isFixed && presetCount === count);
-    button.disabled = !roiState.enabled || !isFixed;
-  });
-}
-
-function syncRoiPlotLimitControls() {}
-
-function setRoiPlotAxisLimits(plotKey, axis, minValue, maxValue) {
-  if (axis !== "x" && axis !== "y") return;
-  const limits = getRoiPlotLimits(plotKey);
-  const minKey = axis === "x" ? "xMin" : "yMin";
-  const maxKey = axis === "x" ? "xMax" : "yMax";
-  let lo = Number.isFinite(minValue) ? minValue : null;
-  let hi = Number.isFinite(maxValue) ? maxValue : null;
-  if (lo !== null && hi !== null && lo > hi) {
-    [lo, hi] = [hi, lo];
-  }
-  if (plotKey === "hist" && axis === "y") {
-    if (lo !== null) lo = Math.max(0, lo);
-    if (hi !== null) hi = Math.max(0, hi);
-  }
-  limits[minKey] = lo;
-  limits[maxKey] = hi;
-}
-
-function clearRoiPlotLimitsForKey(plotKey) {
-  const limits = getRoiPlotLimits(plotKey);
-  if (!limits) return;
-  limits.xMin = null;
-  limits.xMax = null;
-  limits.yMin = null;
-  limits.yMax = null;
-}
-
-function hasManualRoiPlotLimits(plotKey) {
-  const limits = getRoiPlotLimits(plotKey);
-  if (!limits) return false;
-  return (
-    Number.isFinite(limits.xMin) ||
-    Number.isFinite(limits.xMax) ||
-    Number.isFinite(limits.yMin) ||
-    Number.isFinite(limits.yMax)
-  );
-}
-
-function hasAnyManualRoiPlotLimits() {
-  return ["line", "x", "y", "hist"].some((key) => hasManualRoiPlotLimits(key));
 }
 
 function updateRoiModeUI() {
@@ -565,60 +356,6 @@ function updateGlobalStats() {
   state.globalStats = computeGlobalStats();
 }
 
-function showRoiTooltip(canvasEl, text, clientX, clientY) {
-  if (!canvasEl) return;
-  const container = canvasEl.parentElement;
-  if (!container) return;
-  const tooltip = container.querySelector(".roi-tooltip");
-  if (!tooltip) return;
-  tooltip.textContent = text;
-  tooltip.classList.add("is-visible");
-  tooltip.setAttribute("aria-hidden", "false");
-  const rect = container.getBoundingClientRect();
-  let left = clientX - rect.left + 8;
-  let top = clientY - rect.top + 8;
-  const maxLeft = rect.width - tooltip.offsetWidth - 6;
-  const maxTop = rect.height - tooltip.offsetHeight - 6;
-  left = Math.min(maxLeft, Math.max(6, left));
-  top = Math.min(maxTop, Math.max(6, top));
-  tooltip.style.left = `${left}px`;
-  tooltip.style.top = `${top}px`;
-}
-
-function hideRoiTooltip(canvasEl) {
-  if (!canvasEl) return;
-  const container = canvasEl.parentElement;
-  const tooltip = container?.querySelector(".roi-tooltip");
-  if (!tooltip) return;
-  tooltip.classList.remove("is-visible");
-  tooltip.setAttribute("aria-hidden", "true");
-}
-
-function updateRoiTooltip(event, canvasEl) {
-  const plot = canvasEl?._roiPlot;
-  if (!plot || !plot.data || plot.data.length === 0) {
-    hideRoiTooltip(canvasEl);
-    return;
-  }
-  const rect = canvasEl.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  const plotX = x - plot.padL;
-  const plotW = plot.width - plot.padL - plot.padR;
-  const plotH = plot.height - plot.padT - plot.padB;
-  if (plotX < 0 || plotX > plotW || y < plot.padT || y > plot.padT + plotH) {
-    hideRoiTooltip(canvasEl);
-    return;
-  }
-  const xFraction = plotW ? plotX / plotW : 0;
-  const idx = Math.max(0, Math.min(plot.data.length - 1, Math.round(xFraction * (plot.data.length - 1))));
-  const xValue = plot.xStart + idx * plot.xStep;
-  const value = plot.data[idx];
-  const xText = plot.xTickMode === "integer" ? `${Math.round(xValue)}` : formatRoiTick(xValue);
-  const label = `${plot.xLabel} ${xText}  ${t("roi.tooltip.value")} ${formatStat(value)}`;
-  showRoiTooltip(canvasEl, label, event.clientX, event.clientY);
-}
-
 function createRoiPixelCounters() {
   return createRoiPixelCountersEngine();
 }
@@ -642,41 +379,6 @@ function updateRoiPixelCounterFields(counters) {
   setRoiText(roiGapEl, show(counters?.gap, filled));
   setRoiText(roiDefectiveEl, show(counters?.defective, filled));
   setRoiText(roiSaturatedEl, show(counters?.saturated, filled && state.inpaintSaturated));
-}
-
-function buildRoiHistogram(values) {
-  return buildRoiHistogramEngine(values, getRoiHistogramBinsConfig());
-}
-
-function updateRoiHistogramPlot(values) {
-  if (!roiHistCanvas || !roiHistCtx || !roiHistogramPlot) return;
-  const enabled = Boolean(roiState.enabled && roiState.histogramEnabled);
-  roiHistogramPlot.classList.toggle("is-hidden", !enabled);
-  if (!enabled) {
-    roiState.histogramDistribution = null;
-    roiHistCanvas._roiPlotMeta = null;
-    drawRoiPlot(roiHistCanvas, roiHistCtx, null);
-    return;
-  }
-
-  const histogram = buildRoiHistogram(values);
-  if (!histogram || !histogram.data?.length) {
-    roiState.histogramDistribution = null;
-    roiHistCanvas._roiPlotMeta = null;
-    drawRoiPlot(roiHistCanvas, roiHistCtx, null);
-    return;
-  }
-
-  roiState.histogramDistribution = histogram.data;
-  roiHistCanvas._roiPlotMeta = {
-    xLabel: t("roi.plot.intensity"),
-    yLabel: t("roi.plot.count"),
-    xStart: histogram.xStart,
-    xStep: histogram.xStep,
-    xTickMode: histogram.xTickMode,
-    seriesType: "histogram",
-  };
-  drawRoiPlot(roiHistCanvas, roiHistCtx, roiState.histogramDistribution);
 }
 
 // Per-axis pixel sizes in mm for physical ROI readouts. X is the reference
@@ -1163,45 +865,6 @@ function updateRoiStats() {
   updateRoiHistogramPlot(statsValues);
   drawRoiOverlay();
   updateRoiSectionState();
-}
-
-function drawRoiPlot(canvasEl, ctx, data) {
-  const plotKey = getRoiPlotKey(canvasEl);
-  renderRoiPlot({
-    canvasEl,
-    ctx,
-    data,
-    logScale: getRoiPlotLog(plotKey),
-    plotTheme: PLOT_THEME,
-    getRoiPlotKey,
-    getRoiPlotLimits,
-    autoscale: !hasManualRoiPlotLimits(plotKey),
-    formatRoiTick,
-    resolutionAxisUnit: roiState.resolutionAxisUnit === "q" ? "q" : "d",
-  });
-}
-
-function redrawRoiPlots() {
-  const hasActiveRoi = Boolean(roiState.enabled && roiState.active && roiState.start && roiState.end);
-  const showsLineProfile =
-    hasActiveRoi &&
-    (roiState.mode === "line" || roiState.mode === "circle" || roiState.mode === "annulus");
-  const showsBoxProfiles = hasActiveRoi && roiState.mode === "box";
-  const showsHistogram = Boolean(
-    roiState.enabled &&
-    roiState.histogramEnabled &&
-    roiState.histogramDistribution &&
-    roiState.histogramDistribution.length > 0
-  );
-
-  drawRoiPlot(roiLineCanvas, roiLineCtx, showsLineProfile ? roiState.lineProfile : null);
-  drawRoiPlot(roiXCanvas, roiXCtx, showsBoxProfiles ? roiState.xProjection : null);
-  drawRoiPlot(roiYCanvas, roiYCtx, showsBoxProfiles ? roiState.yProjection : null);
-  drawRoiPlot(
-    roiHistCanvas,
-    roiHistCtx,
-    showsHistogram ? roiState.histogramDistribution : null
-  );
 }
 
 function exportRoiCsv() {

@@ -52,7 +52,9 @@ everywhere.
   right after creating each controller, and passes `core` to every module
   that uses it (binding contexts and bootstraps pass it on). Do not add a
   forwarding function to `app.js` for this: there are none left. Tests pass a
-  fake `core` with just the methods used.
+  fake `core` with just the methods used. A const that `app.js` takes off a
+  controller exists only from its line on; eslint's `no-use-before-define`
+  fails a call that runs before it at startup.
 - **State lives in `state` or a controller**, not in the DOM: read values from
   `state`, write the DOM from it.
 - `console.warn`/`error`/`info` only; eslint flags `console.log`.

@@ -43,6 +43,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Pan/zoom/touch/overview interaction model and viewport transforms.
 - `frontend/modules/roi_stats_controller.js` + `frontend/modules/roi_interaction_controller.js`:
   - ROI wiring/orchestration and ROI interaction overlay editing.
+- `frontend/modules/roi_plot_controller.js` + `frontend/modules/roi_profile_utils.js`:
+  - The ROI plots (axis limits, log scale, histogram bins, hover tooltip, drawing), and the readouts' millimetre formatting, calibration check and profile peak finder.
 - `frontend/modules/roi_stats_engine.js` + `frontend/modules/roi_plot_renderer.js` + `frontend/modules/roi_csv_export.js`:
   - Pure ROI compute helpers, ROI plot rendering, and CSV payload generation.
 - `frontend/modules/file_type_utils.js`:
@@ -51,8 +53,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Overlay and histogram drawing/scheduling.
 - `frontend/modules/autoload_mode_controller.js`, `autoload_orchestration_controller.js`, `autoload_settings_controller.js`, `autoload_status_controller.js`:
   - Autoload: the file-watch and SIMPLON runtime, the start/stop/tick state machine, settings persistence and UI sync, and the status/meta labels.
-- `frontend/modules/file_browser.js`:
-  - File browser modal state and filesystem browsing interactions.
+- `frontend/modules/file_browser.js` + `frontend/modules/file_browser_renderer.js` + `frontend/modules/file_browser_bindings.js` + `frontend/modules/file_browser_utils.js`:
+  - File browser modal: state, browse requests and selection; the breadcrumb, folder and file lists (List and Details view); the modal's listeners and keyboard navigation; and the pure helpers (extension filters, natural sort, path splitting, local series grouping, size formatting).
 - `frontend/modules/flatfield.js` + `frontend/modules/flatfield_controller.js` + `backend/services/flatfield.py`:
   - Flatfield correction: frames divided by a flat (counts: × the flat's mean; transmission: 0–1); unusable flat pixels (masked, ≤0, type max, <5 % of the mean) and the frame's flagged pixels become NaN, filled by inpainting when on. "Use current image" saves the frame via `/api/flatfield/save` to `<data>/flatfields/`; exports take `flatfield` (a path) and `flatfield_scale`, writing float32 TIFF. The viewer's frame pipeline (raw → flatfield → inpaint) is `createInpaintView` in inpainting.js; the histogram and auto contrast follow the corrected frame (`refreshDisplayContrast`).
 - `frontend/modules/inpainting.js` + `frontend/modules/inpainting_controller.js` + `backend/services/inpainting.py`:
@@ -68,6 +70,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Beta Edit on image: which pixels a brush stroke, box, polygon or circle covers, the user mask bit, undo history; the toolbar over the image, its pointer and key handling (ahead of panning while open) and the overlay of pixels changed by hand.
 - `frontend/modules/pixel_mask_controller.js`:
   - The beta Data → Pixel Mask section and its counterpart on the Detector tab: the data's own mask (or an edited copy of it, which `mask_cursor_controller.js` keeps in place across files and live frames until Discard edits), saving it, sending it to a detector after a confirmation that counts what changes, Restore of the backup, and opening a detector's mask as a file.
+- `frontend/modules/pixel_mask_utils.js`:
+  - The section's pure arithmetic and naming: counting a mask by reason (gap, defective, other), what replacing one mask with another changes, and the names masks are saved under.
 
 ### State, shared services and small helpers
 
@@ -191,6 +195,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 
 - `backend/routes/data_export.py` + `backend/services/data_export.py`:
   - Data-format exports as background jobs (`/api/export/data/start|frame|status|cancel`) and saving a flatfield (`/api/flatfield/save`).
+- `backend/services/data_export_names.py`, `backend/services/data_export_frames.py`, `backend/services/data_export_metadata.py`, `backend/services/data_export_live.py`:
+  - Mixins of `DataExportService`, split out so none of them, nor the job runner left in `data_export.py`, passes 1,000 lines: the names of the files written (`<name>[_thr<n>]_<number>`, a free name), a frame as written (flatfield, inpainting, -1/-2 or unsigned markers, clipping), the header facts read from an HDF5 or single-image source, and frames the browser sends (live frames, flatfields).
 - `backend/routes/binary_response_utils.py`:
   - Shared OpenAPI docs and headers for the endpoints that answer with binary frames.
 
@@ -198,10 +204,16 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 
 - `backend/services/hdf5_stack.py`:
   - HDF5 dataset discovery, metadata extraction, path resolution, frame extraction.
+- `backend/services/hdf5_open.py`:
+  - Opening HDF5 files for reading (plain, SWMR, unlocked) and reporting a lock failure or an undecodable file as a 422.
+- `backend/services/hdf5_walk_report.py`:
+  - `WalkReport`: what a dataset walk skipped (missing or unreadable link targets, truncated and dead groups), logged once per walk.
 - `backend/services/hdf5_units.py`:
   - Pure scalar coercion/unit conversion helpers for detector metadata extraction.
 - `backend/services/series_summing.py`:
   - Background job manager for series aggregation operations.
+- `backend/services/series_output_files.py`, `backend/services/series_reduction.py`:
+  - The two halves of the series job it inherits: where an output file goes and what metadata and geometry it carries; reducing a group of frames and the type the result is written in.
 - `backend/services/series_ops.py`:
   - Series grouping/masking helpers used by summing workflows.
 - `backend/services/remote_stream.py`:
@@ -249,7 +261,19 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 ## Format and Detector Parsers
 
 - `backend/image_formats.py`:
-  - TIFF/CBF/EDF readers, detector metadata parsing, Pilatus header extraction.
+  - TIFF/CBF/EDF readers and writers, series file names, reading a frame with its header in one pass.
+- `backend/services/dectris_tiff_tag.py`:
+  - The private DECTRIS TIFF tag: reading its IFD into SIMPLON metadata, packing it for an export, rebasing its offsets.
+- `backend/services/pilatus_header.py`:
+  - Parsing a PILATUS mini-CBF text header.
+- `backend/services/export_header.py`:
+  - The mini-CBF header and provenance lines written into an exported CBF or TIFF.
+- `backend/services/image_values.py`:
+  - Turning loosely typed metadata values (scalars, lists, arrays, bytes) into numbers and text.
+- `backend/services/detector_geometry.py`:
+  - Multi-panel geometry: DIALS `.expt` files, geometry embedded in an ALBIS HDF5, the PILATUS 12M blueprint.
+- `backend/services/mythen.py`:
+  - MYTHEN strip-detector acquisitions, assembled into a frames-by-channels image.
 
 ## Tests
 

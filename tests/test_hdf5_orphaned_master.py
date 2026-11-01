@@ -37,9 +37,9 @@ from fastapi.testclient import TestClient
 h5py = pytest.importorskip("h5py")
 
 from backend.app import app  # noqa: E402
-from backend.services.hdf5_stack import (  # noqa: E402
+from backend.services.hdf5_stack import HDF5StackService  # noqa: E402
+from backend.services.hdf5_walk_report import (  # noqa: E402
     GROUP_CHILD_LIMIT,
-    HDF5StackService,
     WalkReport,
 )
 
