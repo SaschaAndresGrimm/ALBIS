@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The log file no longer gains a line every second while the handoff queue answers with an error.** Since 0.39.0, each failed poll of the queue another program uses to have ALBIS open a file wrote a warning to the log, once a second for as long as the failure lasted; 0.38.1 and earlier asked again on the next poll without a word. They do so again, and a backend that cannot be reached at all is still logged.
+
 ## [0.39.0] - 2026-11-01
 
 ### Changed

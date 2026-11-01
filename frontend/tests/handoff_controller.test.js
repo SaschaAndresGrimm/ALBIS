@@ -6,6 +6,8 @@ function job(body) {
   return { ok: true, status: 200, json: async () => body };
 }
 
+const pollWarnings = () => console.warn.mock.calls.filter(([message]) => message === "Handoff polling error").length;
+
 function build() {
   const callbacks = {
     isHdfFile: (path) => path.endsWith(".h5"),
@@ -51,6 +53,22 @@ describe("handoff_controller", () => {
     globalThis.fetch = vi.fn(async () => ({ ok: true, status: 204 }));
     await controller.poll();
     expect(core.fileOpen.openPathInViewer).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet when the queue answers with an error status, and warns only when it cannot be reached", async () => {
+    // Polled every second: a warning per failed poll filled the log file.
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 500, statusText: "Internal Server Error", text: async () => "", json: async () => ({}) }));
+    const { controller, core } = build();
+    await controller.poll();
+    await controller.poll();
+    expect(pollWarnings()).toBe(0);
+    expect(core.fileOpen.openPathInViewer).not.toHaveBeenCalled();
+
+    globalThis.fetch = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await controller.poll();
+    expect(pollWarnings()).toBe(1);
   });
 
   it("does not pick a dataset for a file that is not HDF5, and says when a job names no file", async () => {
