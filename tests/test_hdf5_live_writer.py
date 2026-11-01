@@ -29,7 +29,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app import app
-from backend.services.hdf5_stack import open_hdf5_read_only
+from backend.services.hdf5_open import open_hdf5_read_only
 
 DATASET = "/entry/data/data"
 HEIGHT, WIDTH = 8, 8

@@ -36,8 +36,6 @@ const LINE_BASELINE = {
   // +17 in the stylesheet split: one <link> per part in frontend/styles/.
   "frontend/index.html": 2600,
   "frontend/modules/detector_control_controller.js": 2901,
-  "frontend/modules/file_browser.js": 1676,
-  "frontend/modules/roi_stats_controller.js": 1263,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

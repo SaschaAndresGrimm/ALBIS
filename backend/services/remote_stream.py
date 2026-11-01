@@ -19,8 +19,6 @@ import numpy as np
 from fastapi import HTTPException
 
 from ..image_formats import (
-    _as_int,
-    _first_number,
     _image_ext_name,
     _normalize_image_array,
     _read_cbf,
@@ -28,6 +26,7 @@ from ..image_formats import (
     _read_edf,
     _read_tiff_bytes,
 )
+from .image_values import _as_int, _first_number
 
 _logger = logging.getLogger("albis")
 

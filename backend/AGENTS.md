@@ -35,7 +35,7 @@ Read the root [AGENTS.md](../AGENTS.md) first; this adds what applies inside
   takes a path gets a test that `../` and an absolute path outside the root
   are refused — see `tests/test_hdf5_storage_confinement.py`.
 - **HDF5** is opened with `open_hdf5_for_read` and read through
-  `read_hdf5_array` (`services/hdf5_stack.py`): they handle file locking and
+  `read_hdf5_array` (`services/hdf5_open.py`): they handle file locking and
   tell a lock failure apart from a broken file.
 - **Handlers are plain `def`.** FastAPI runs them in a thread pool, which is
   what file and HDF5 work needs. `async def` only for a handler that never

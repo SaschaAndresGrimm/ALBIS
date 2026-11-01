@@ -171,7 +171,7 @@ def test_the_undeclared_length_break_matches_its_two_siblings() -> None:
     They already broke at 10 while this one broke at 0.5, so the same file
     could yield different distances depending on which path read it.
     """
-    from backend.image_formats import _distance_to_mm
+    from backend.services.image_values import _distance_to_mm
     from backend.services.jungfraujoch_preview import _to_mm as jfjoch_to_mm
 
     for value in (0.15, 0.8, 2.0, 9.9, 10.0, 150.0, 1000.0):

@@ -41,9 +41,7 @@ from .config import (
 )
 from .image_formats import (
     _image_ext_name,
-    _mythen_header_text,
     _pilatus_header_text,
-    _pilatus_image_geometry,
     _pilatus_meta_from_fabio,
     _pilatus_meta_from_image,
     _pilatus_meta_from_tiff,
@@ -51,7 +49,6 @@ from .image_formats import (
     _read_cbf_gz,
     _read_edf,
     _read_image_with_header,
-    _read_mythen_acquisition,
     _read_tiff,
     _read_tiff_bytes_with_simplon_meta,
     _resolve_series_files,
@@ -93,6 +90,7 @@ from .routes.stream import StreamRouteDeps, register_stream_routes
 from .routes.system import SystemRouteDeps, register_system_routes
 from .services import simplon_control
 from .services.data_export import DataExportDeps, DataExportService
+from .services.detector_geometry import _pilatus_image_geometry
 from .services.directory_scan import (
     LatestFileResult,
     ScanLimits,
@@ -109,6 +107,7 @@ from .services.jungfraujoch_preview import (
 )
 from .services.known_detectors import KnownDetectorStore
 from .services.known_detectors import resolve_path as resolve_known_detectors_path
+from .services.mythen import _mythen_header_text, _read_mythen_acquisition
 from .services.path_policy import PathPolicy
 from .services.remote_stream import (
     remote_extract_metadata as _remote_extract_metadata,
