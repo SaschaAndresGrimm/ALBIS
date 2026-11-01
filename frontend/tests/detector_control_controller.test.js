@@ -39,7 +39,9 @@ async function loadModule(routes = {}) {
   });
   const i18n = await import("../modules/i18n.js");
   await i18n.initializeI18n({ backendLanguage: "en" });
-  return import("../modules/detector_control_controller.js");
+  // The pure helpers live in detector_control_utils.js since the split.
+  const utils = await import("../modules/detector_control_utils.js");
+  return { ...utils, ...(await import("../modules/detector_control_controller.js")) };
 }
 
 function buildElements() {

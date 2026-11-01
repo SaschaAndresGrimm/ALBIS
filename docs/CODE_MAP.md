@@ -43,6 +43,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Pan/zoom/touch/overview interaction model and viewport transforms.
 - `frontend/modules/roi_stats_controller.js` + `frontend/modules/roi_interaction_controller.js`:
   - ROI wiring/orchestration and ROI interaction overlay editing.
+- `frontend/modules/roi_plot_controller.js` + `frontend/modules/roi_profile_utils.js`:
+  - The ROI plots (axis limits, log scale, histogram bins, hover tooltip, drawing), and the readouts' millimetre formatting, calibration check and profile peak finder.
 - `frontend/modules/roi_stats_engine.js` + `frontend/modules/roi_plot_renderer.js` + `frontend/modules/roi_csv_export.js`:
   - Pure ROI compute helpers, ROI plot rendering, and CSV payload generation.
 - `frontend/modules/file_type_utils.js`:
@@ -51,8 +53,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Overlay and histogram drawing/scheduling.
 - `frontend/modules/autoload_mode_controller.js`, `autoload_orchestration_controller.js`, `autoload_settings_controller.js`, `autoload_status_controller.js`:
   - Autoload: the file-watch and SIMPLON runtime, the start/stop/tick state machine, settings persistence and UI sync, and the status/meta labels.
-- `frontend/modules/file_browser.js`:
-  - File browser modal state and filesystem browsing interactions.
+- `frontend/modules/file_browser.js` + `frontend/modules/file_browser_renderer.js` + `frontend/modules/file_browser_bindings.js` + `frontend/modules/file_browser_utils.js`:
+  - File browser modal: state, browse requests and selection; the breadcrumb, folder and file lists (List and Details view); the modal's listeners and keyboard navigation; and the pure helpers (extension filters, natural sort, path splitting, local series grouping, size formatting).
 - `frontend/modules/flatfield.js` + `frontend/modules/flatfield_controller.js` + `backend/services/flatfield.py`:
   - Flatfield correction: frames divided by a flat (counts: × the flat's mean; transmission: 0–1); unusable flat pixels (masked, ≤0, type max, <5 % of the mean) and the frame's flagged pixels become NaN, filled by inpainting when on. "Use current image" saves the frame via `/api/flatfield/save` to `<data>/flatfields/`; exports take `flatfield` (a path) and `flatfield_scale`, writing float32 TIFF. The viewer's frame pipeline (raw → flatfield → inpaint) is `createInpaintView` in inpainting.js; the histogram and auto contrast follow the corrected frame (`refreshDisplayContrast`).
 - `frontend/modules/inpainting.js` + `frontend/modules/inpainting_controller.js` + `backend/services/inpainting.py`:
@@ -63,10 +65,13 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The known-detectors list shared by the SIMPLON address fields (Detector tab, SIMPLON monitor): a client of `/api/known-detectors` that shows changes at once and takes the server's answer, the same rules for that instant view; and the dropdown under each field.
 - `frontend/modules/detector_control_controller.js`:
   - The beta Detector tab: connect, state and buttons (Acquire, Single image, Live), pre-flight check, progress and result, Acquisition and Data output built from the detector's own descriptors, Commands, Advanced, Activity; command feedback and the status poll.
+  - The controller itself connects, polls, sends commands, arms and triggers, and holds the panel's state; its parts read and write that state through one `ctx`: `detector_params_controller.js` (a row per setting, writing a value, the main view, frame and count time linked), `detector_outputs_controller.js` (Data output and the detector's files), `detector_advanced_controller.js` (Advanced, its groups and filter), `detector_commands_controller.js` (command feedback, recovery steps, Commands), `detector_state_controller.js` (state pill and line, buttons, pre-flight, progress, result, sensors) and `detector_quick_controller.js` (Snap and Continuous). Shared by them: `detector_control_utils.js` (pure: what a SIMPLON value means, how it is shown and checked), `detector_control_storage.js` (what is remembered per browser) and `detector_control_dom.js` (small element builders).
 - `frontend/modules/pixel_mask_edit.js` + `frontend/modules/pixel_mask_edit_controller.js`:
   - Beta Edit on image: which pixels a brush stroke, box, polygon or circle covers, the user mask bit, undo history; the toolbar over the image, its pointer and key handling (ahead of panning while open) and the overlay of pixels changed by hand.
 - `frontend/modules/pixel_mask_controller.js`:
   - The beta Data → Pixel Mask section and its counterpart on the Detector tab: the data's own mask (or an edited copy of it, which `mask_cursor_controller.js` keeps in place across files and live frames until Discard edits), saving it, sending it to a detector after a confirmation that counts what changes, Restore of the backup, and opening a detector's mask as a file.
+- `frontend/modules/pixel_mask_utils.js`:
+  - The section's pure arithmetic and naming: counting a mask by reason (gap, defective, other), what replacing one mask with another changes, and the names masks are saved under.
 
 ### State, shared services and small helpers
 

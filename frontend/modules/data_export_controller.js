@@ -6,7 +6,7 @@ import { t } from "./i18n.js";
 import { canExportData, isLiveExportSource, liveExportEntries } from "./command_availability.js";
 import { normalizeFlatScale } from "./flatfield.js";
 import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue } from "./inpainting.js";
-import { formatBytes } from "./detector_control_controller.js";
+import { formatBytes } from "./detector_control_utils.js";
 import { chooseNativePath } from "./native_picker.js";
 
 function fileStem(path) {
