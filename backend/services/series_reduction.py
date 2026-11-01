@@ -13,6 +13,19 @@ from collections.abc import Callable
 
 import numpy as np
 
+_SUFFIXES = {1: "st", 2: "nd", 3: "rd"}
+
+
+def _ordinal(n: int) -> str:
+    """2nd, 3rd, 11th, 21st: the frame step as the header description reads it.
+
+    A bare "th" wrote "every 2th frame" and "every 3th frame" into the header of
+    a Combine Frames TIFF.
+    """
+    if n % 100 in (11, 12, 13):
+        return f"{n}th"
+    return f"{n}{_SUFFIXES.get(n % 10, 'th')}"
+
 
 class SeriesReductionMixin:
     """Frame-group reduction and output dtype selection for series jobs."""
@@ -153,7 +166,7 @@ class SeriesReductionMixin:
     ) -> tuple[str, str]:
         """File-name tag and header description for one image of mode "frames"."""
         every_tag = f"_every{frame_step:03d}" if frame_step > 1 else ""
-        every_what = f", every {frame_step}th frame" if frame_step > 1 else ""
+        every_what = f", every {_ordinal(frame_step)} frame" if frame_step > 1 else ""
         whole = group_total == 1 and start_idx == 0 and end_idx == frame_count - 1
         if whole and frame_step == 1:
             return "_all", f"{operation} of {count} frames"
