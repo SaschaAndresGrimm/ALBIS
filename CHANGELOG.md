@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-11-01
+
 ### Fixed
 
 - **The log file no longer gains a line every second while the handoff queue answers with an error.** Since 0.39.0, each failed poll of the queue another program uses to have ALBIS open a file wrote a warning to the log, once a second for as long as the failure lasted; 0.38.1 and earlier asked again on the next poll without a word. They do so again, and a backend that cannot be reached at all is still logged.
@@ -1807,7 +1809,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.39.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.39.1...HEAD
+[0.39.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.39.0...v0.39.1
 [0.39.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.1...v0.39.0
 [0.38.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.0...v0.38.1
 [0.38.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.37.0...v0.38.0
