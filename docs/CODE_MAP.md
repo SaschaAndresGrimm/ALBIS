@@ -238,6 +238,10 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Middleware: rejecting cross-site requests made on the user's behalf, and client-aware response compression.
 - `backend/log_format.py`:
   - The one layout of log lines for the backend, uvicorn and the launcher.
+- `backend/server_logging.py`:
+  - The request log middleware, which keeps routine polls quiet until they fail, and the startup line saying what a non-loopback bind accepts.
+- `backend/launcher_server.py`:
+  - The launcher's server socket and discovery: binding the port (the last start's again when `server.port` is 0), waiting for the server to answer, and the `server.json` that remembers it.
 - `backend/version.py`, `backend/build_info.py`, `backend/install_kind.py`:
   - Which version, which build, and how this copy was installed; the update check decides what to offer from them.
 - `backend/detector_profiles.py`:
