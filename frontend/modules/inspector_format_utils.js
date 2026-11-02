@@ -48,5 +48,8 @@ export function inspectorRowMeta(node, { typeLabel = "", scalarLabel = "" } = {}
   if (type === "link" && node.target) {
     return { text: node.target, title: node.target };
   }
+  // A group's icon says what it is; the column stays empty rather than
+  // repeating "group" down the tree.
+  if (type === "group") return { text: "", title: "" };
   return { text: typeLabel, title: "" };
 }

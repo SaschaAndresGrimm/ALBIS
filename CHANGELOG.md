@@ -16,6 +16,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **Links in the File Inspector lead somewhere.** Clicking a link, such as a master file's `start_time` or `data_000001`, showed only the name of the file and path it points to. It now shows what is there, with the link's target on top: a dataset's shape, type, attributes and value, read from the linked file; a link to a group opens like a group. A link whose file is missing says so and still shows where it points.
 
+- **The File Inspector's details are easier to read, and its path can be copied.** The path above the details is a breadcrumb: click any group in it to go back up to it, or the copy button beside it to put the whole path on the clipboard. Only the rows an entry has are shown (a group has no shape, only a link a target), instead of rows of `-`; attributes sit under their own heading; and nothing is shown until an entry is selected, where there used to be an empty box. **Open in new tab** is now **View as JSON**, which is what it opens.
+- **Each entry in the File Inspector's tree is marked as a group, dataset or link,** so the column on the right no longer repeats "group"; and the tree can be dragged taller by its bottom-right corner.
+- **The File Inspector's status line names the open file.** It used to say "Loaded group" or "Loaded dataset" after every click, repeating what had just been done; it now names the file, and speaks up only while loading, after a search, or when something fails.
+
 ### Fixed
 
 - **A File Inspector entry that cannot be read no longer empties the tree.** The whole tree was replaced by "Failed to load node", so one broken entry cost the user their place in the file; now only the details say so.

@@ -23,6 +23,7 @@
  */
 
 import { fetchJSONWithInit } from "./http.js";
+import { copyText } from "./clipboard_copy.js";
 import { t } from "./i18n.js";
 
 const FALLBACK_RELEASES_URL = "https://github.com/SaschaAndresGrimm/ALBIS/releases";
@@ -579,51 +580,11 @@ export function createUpdateCheckController({
     window.open(downloadUrl, "_blank", "noopener");
   }
 
-  /**
-   * Copy without the Clipboard API, which needs a secure context.
-   *
-   * ALBIS is routinely reached over plain HTTP on a LAN, so
-   * `navigator.clipboard` being absent is the ordinary case for a remote
-   * session rather than an edge case -- and a `docker pull` line is exactly
-   * the text someone in that session wants to paste into a shell.
-   */
-  function copyViaSelection(text) {
-    if (typeof document === "undefined" || !document.body) return false;
-    const scratch = document.createElement("textarea");
-    scratch.value = text;
-    scratch.setAttribute("aria-hidden", "true");
-    scratch.style.position = "fixed";
-    scratch.style.top = "-1000px";
-    scratch.style.opacity = "0";
-    document.body.appendChild(scratch);
-    let copied = false;
-    try {
-      scratch.select();
-      copied = document.execCommand?.("copy") === true;
-    } catch {
-      copied = false;
-    } finally {
-      scratch.remove();
-    }
-    return copied;
-  }
-
   async function copyUpdateCommand() {
     const command = String(latestPayload.update_command || "");
     if (!command || !updateCheckCommandCopy) return false;
 
-    let copied = false;
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(command);
-        copied = true;
-      }
-    } catch {
-      copied = false;
-    }
-    if (!copied) {
-      copied = copyViaSelection(command);
-    }
+    const copied = await copyText(command);
     // When both routes refuse, the command is still on screen and selectable,
     // so the button says so rather than silently doing nothing.
     updateCheckCommandCopy.textContent = copied

@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { copyText } from "./clipboard_copy.js";
 
 export function createChromeToolbarController({
   state,
@@ -365,52 +366,10 @@ export function createChromeToolbarController({
 
   let copyFeedbackTimer = null;
 
-  /**
-   * Copy without the Clipboard API, which needs a secure context.
-   *
-   * ALBIS is routinely reached over plain HTTP on a LAN -- that is a documented
-   * way to use it -- so `navigator.clipboard` being absent is the ordinary case
-   * for a remote session, not an edge case. A hidden textarea and
-   * `execCommand` still work there, and a button that copies is worth more than
-   * a modern API that does nothing.
-   */
-  function copyViaSelection(text) {
-    if (typeof document === "undefined" || !document.body) return false;
-    const scratch = document.createElement("textarea");
-    scratch.value = text;
-    // Off-screen rather than hidden: a display:none element cannot be selected.
-    scratch.setAttribute("aria-hidden", "true");
-    scratch.style.position = "fixed";
-    scratch.style.top = "-1000px";
-    scratch.style.opacity = "0";
-    document.body.appendChild(scratch);
-    let copied = false;
-    try {
-      scratch.select();
-      copied = document.execCommand?.("copy") === true;
-    } catch {
-      copied = false;
-    } finally {
-      scratch.remove();
-    }
-    return copied;
-  }
-
   async function copyBuildInfo() {
     if (!footerVersionCopyEl) return;
     const text = buildInfoText();
-    let copied = false;
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        copied = true;
-      }
-    } catch {
-      copied = false;
-    }
-    if (!copied) {
-      copied = copyViaSelection(text);
-    }
+    const copied = await copyText(text);
     if (!copied) {
       onCopyBuildInfoUnavailable?.(text);
       return;

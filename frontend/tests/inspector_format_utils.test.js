@@ -56,8 +56,9 @@ describe("inspectorRowMeta", () => {
     expect(meta.text).toBe("3×4 uint32");
   });
 
-  it("shows a link's target and a group's type", () => {
+  it("shows a link's target, and nothing for a group, whose icon says it all", () => {
     expect(inspectorRowMeta({ type: "link", target: "a.h5:/x" }, LABELS).text).toBe("a.h5:/x");
-    expect(inspectorRowMeta({ type: "group" }, { typeLabel: "group" }).text).toBe("group");
+    expect(inspectorRowMeta({ type: "group" }, { typeLabel: "group" }).text).toBe("");
+    expect(inspectorRowMeta({ type: "other" }, { typeLabel: "node" }).text).toBe("node");
   });
 });

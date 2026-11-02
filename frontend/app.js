@@ -171,8 +171,7 @@ const {
   frameIndex, frameStep, fpsSelect, autoScaleToggle, minInput, maxInput, statusEl, loadingEl, metaRenderer,
   toolbarPath, fullscreenToggle, invertToggle, colormapSelect, toolsPanel, canvasWrap, canvas, pixelOverlay,
   roiOverlay, histCanvas, histColorbar, overviewCanvas, pixelLabelToggle, splashCanvas, resolutionOverlay,
-  peakOverlay, autoloadMode, autoloadDir, dataSourceStateEl, dataSourceSkeletonEl, inspectorPath,
-  inspectorType, inspectorShape, inspectorDtype, inspectorAttrs, inspectorPreview, simplonUrl, simplonVersion,
+  peakOverlay, autoloadMode, autoloadDir, dataSourceStateEl, dataSourceSkeletonEl, simplonUrl, simplonVersion,
   roiHelp, roiModeSelect, roiHistogramToggle, roiPlotControls, roiParams, roiRadiusField, roiRadiusInput,
   roiCenterFields, roiCenterXInput, roiCenterYInput, roiCenterSnapBtn, roiRingFields, roiInnerInput,
   roiOuterInput, roiExportCsvBtn, roiClearBtn, roiStartEl, roiEndEl, roiSizeLabel, roiSizeEl, roiAreaEl,
@@ -534,15 +533,6 @@ const {
 window.addEventListener("DOMContentLoaded", initHelpTooltips, { once: true });
 const infoTips = createInfoTips();
 
-function resetInspectorDetails() {
-  if (inspectorPath) inspectorPath.textContent = "-";
-  if (inspectorType) inspectorType.textContent = "-";
-  if (inspectorShape) inspectorShape.textContent = "-";
-  if (inspectorDtype) inspectorDtype.textContent = "-";
-  if (inspectorAttrs) inspectorAttrs.innerHTML = "";
-  if (inspectorPreview) inspectorPreview.innerHTML = "";
-}
-
 function setSectionBadgeState(element, tone, message) {
   if (!element) return;
   const nextTone = tone === "loading" || tone === "active" || tone === "warning" ? tone : "empty";
@@ -579,7 +569,6 @@ const inspectorPanelController = createInspectorPanelController({
     setSectionBadgeState,
     renderSkeletonBlock,
     formatInspectorValue,
-    resetInspectorDetails,
   },
 });
 const {

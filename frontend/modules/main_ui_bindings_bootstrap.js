@@ -23,6 +23,8 @@ export function initializeMainUiBindings({
     inspectorSearchInput,
     inspectorSearchClear,
     inspectorResults,
+    inspectorDetails,
+    inspectorCopyPath,
     fileInput,
     canvasShell,
     aboutClose,
@@ -115,6 +117,8 @@ export function initializeMainUiBindings({
     inspectorSearchInput,
     inspectorSearchClear,
     inspectorResults,
+    inspectorDetails,
+    inspectorCopyPath,
     callbacks: {
       clearInspectorSearch,
     },

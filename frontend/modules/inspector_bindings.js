@@ -7,6 +7,8 @@ export function bindInspectorInteractions({
   inspectorSearchInput,
   inspectorSearchClear,
   inspectorResults,
+  inspectorDetails,
+  inspectorCopyPath,
   callbacks,
   core,
 }) {
@@ -25,6 +27,16 @@ export function bindInspectorInteractions({
 
   inspectorTree?.addEventListener("focusin", (event) => {
     core.inspectorPanel.noteInspectorFocus(event.target);
+  });
+
+  inspectorDetails?.addEventListener("click", (event) => {
+    const crumb = event.target.closest("[data-crumb-path]");
+    if (!crumb) return;
+    void core.inspectorPanel.revealInspectorPath(crumb.dataset.crumbPath);
+  });
+
+  inspectorCopyPath?.addEventListener("click", () => {
+    void core.inspectorPanel.copyInspectorPath();
   });
 
   let inspectorSearchTimer = null;
