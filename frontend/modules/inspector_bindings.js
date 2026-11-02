@@ -2,68 +2,29 @@
  * Inspector tree + search interaction bindings.
  */
 
-import { t } from "./i18n.js";
-
 export function bindInspectorInteractions({
   inspectorTree,
   inspectorSearchInput,
   inspectorSearchClear,
   inspectorResults,
-  inspectorStateEl,
   callbacks,
   core,
 }) {
-  const {
-    selectInspectorRow,
-    renderInspectorLink,
-    setSectionBadgeState,
-    renderSkeletonBlock,
-    renderInspectorTree,
-    clearInspectorSearch,
-  } = callbacks;
+  const { renderInspectorLink, clearInspectorSearch } = callbacks;
 
-  inspectorTree?.addEventListener("click", async (event) => {
+  inspectorTree?.addEventListener("click", (event) => {
     const row = event.target.closest(".inspector-row");
     if (!row) return;
-    const node = row.parentElement;
-    if (!node) return;
-    const nodeType = String(node.dataset.type || "").toLowerCase();
-    const nodePath = node.dataset.path || "";
-    // The "listing truncated" row is a note about the group, not a node in it.
-    if (nodeType === "truncated") return;
-    selectInspectorRow(row);
-    if (nodeType === "link") {
-      renderInspectorLink(nodePath || "-", node.dataset.target || "-");
-      return;
-    }
-    if (nodeType === "group") {
-      const toggle = node.querySelector(".inspector-toggle");
-      const willOpen = !node.classList.contains("is-open");
-      node.classList.toggle("is-open", willOpen);
-      if (toggle) {
-        toggle.textContent = willOpen ? "▾" : "▸";
-        toggle.setAttribute("aria-expanded", String(willOpen));
-      }
-      if (willOpen && node.dataset.loaded !== "true") {
-        try {
-          setSectionBadgeState(inspectorStateEl, "loading", t("inspector.tree.loading_children"));
-          const container = node.querySelector(".inspector-children");
-          renderSkeletonBlock(container, 4);
-          const children = await core.inspectorPanel.fetchInspectorTree(nodePath);
-          if (container) {
-            renderInspectorTree(children, container);
-          }
-          node.dataset.loaded = "true";
-          setSectionBadgeState(inspectorStateEl, "active", t("inspector.tree.loaded"));
-        } catch (err) {
-          console.error(err);
-          setSectionBadgeState(inspectorStateEl, "warning", t("inspector.tree.failed_children"));
-        }
-      }
-    }
-    if (nodePath) {
-      await core.inspectorPanel.showInspectorNode(nodePath);
-    }
+    const toggleOnly = Boolean(event.target.closest(".inspector-toggle"));
+    void core.inspectorPanel.activateInspectorNode(row.parentElement, { toggleOnly });
+  });
+
+  inspectorTree?.addEventListener("keydown", (event) => {
+    core.inspectorPanel.handleInspectorTreeKey(event);
+  });
+
+  inspectorTree?.addEventListener("focusin", (event) => {
+    core.inspectorPanel.noteInspectorFocus(event.target);
   });
 
   let inspectorSearchTimer = null;

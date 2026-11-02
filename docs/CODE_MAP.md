@@ -135,6 +135,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The SIMPLON Test connection button, normalising the base URL, and wording for the backend's failure codes.
 - `frontend/modules/inspector_panel_controller.js`, `frontend/modules/inspector_bindings.js`:
   - The HDF5 inspector tree, search and image header panel, and their listeners.
+- `frontend/modules/inspector_tree_nav_utils.js`:
+  - Pure: what an arrow key, Home, End or Enter does in the inspector tree (the WAI-ARIA tree pattern).
 - `frontend/modules/inspector_format_utils.js`:
   - Pure: what an inspector row shows beside its name (value and units, shape and dtype, link target) and its tooltip.
 

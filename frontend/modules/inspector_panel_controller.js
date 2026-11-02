@@ -4,6 +4,7 @@
 
 import { t } from "./i18n.js";
 import { formatInspectorShape, inspectorRowMeta } from "./inspector_format_utils.js";
+import { treeKeyAction } from "./inspector_tree_nav_utils.js";
 
 export function createInspectorPanelController({
   apiBase,
@@ -406,14 +407,16 @@ export function createInspectorPanelController({
     }
   }
 
-  function buildInspectorRow(node) {
+  function buildInspectorRow(node, level = 1) {
     const li = document.createElement("li");
     li.className = "inspector-node";
     li.dataset.path = node.path || "";
     li.dataset.type = node.type || "";
     const nodeType = normalizeInspectorType(node.type);
     if (nodeType === "truncated") {
-      // A note, not a node: no path to select, nothing to expand.
+      // A note, not a node: no path to select, nothing to expand, and not an
+      // item the keyboard stops on.
+      li.setAttribute("role", "none");
       li.classList.add("is-note");
       li.dataset.path = "";
       const note = document.createElement("div");
@@ -425,25 +428,32 @@ export function createInspectorPanelController({
     if (nodeType === "link" && node.target) {
       li.dataset.target = node.target;
     }
+    // The item, not its toggle, takes focus and carries the state, as the
+    // ARIA tree pattern has it; the toggle stays a mouse target only.
+    li.setAttribute("role", "treeitem");
+    li.setAttribute("aria-level", String(level));
+    li.setAttribute("aria-selected", "false");
+    li.tabIndex = -1;
     const row = document.createElement("div");
     row.className = "inspector-row";
 
     const toggle = document.createElement("button");
+    toggle.type = "button";
     toggle.className = "inspector-toggle";
+    toggle.tabIndex = -1;
+    toggle.setAttribute("aria-hidden", "true");
     if (nodeType === "group" && node.hasChildren) {
       toggle.textContent = "▸";
-      toggle.setAttribute("aria-expanded", "false");
-      toggle.setAttribute("aria-label", t("inspector.toggle_group"));
+      li.setAttribute("aria-expanded", "false");
     } else {
       // A placeholder that keeps its width, not `.is-hidden`: that is
       // `display: none`, which pulled every leaf's name left of its siblings'.
       toggle.textContent = "";
       toggle.classList.add("is-placeholder");
-      toggle.setAttribute("aria-hidden", "true");
-      toggle.tabIndex = -1;
     }
 
     const name = document.createElement("span");
+    name.className = "inspector-name";
     name.textContent = node.name || node.path || "/";
 
     const meta = document.createElement("span");
@@ -456,10 +466,12 @@ export function createInspectorPanelController({
     row.appendChild(name);
     row.appendChild(meta);
     li.appendChild(row);
+    li.setAttribute("aria-label", metaText ? `${name.textContent}, ${metaText}` : name.textContent);
 
     if (nodeType === "group") {
       const children = document.createElement("ul");
       children.className = "inspector-children";
+      children.setAttribute("role", "group");
       li.appendChild(children);
     }
 
@@ -469,17 +481,139 @@ export function createInspectorPanelController({
   function renderInspectorTree(nodes, container) {
     if (!container) return;
     container.innerHTML = "";
-    const target =
-      container.classList.contains("inspector-children") ? container : document.createElement("ul");
-    if (!container.classList.contains("inspector-children")) {
+    const isChildren = container.classList.contains("inspector-children");
+    const target = isChildren ? container : document.createElement("ul");
+    if (!isChildren) {
       target.className = "inspector-node";
+      target.setAttribute("role", "tree");
+      target.setAttribute("aria-label", t("inspector.title"));
     }
+    const parentItem = isChildren ? container.closest('[role="treeitem"]') : null;
+    const level = parentItem ? Number(parentItem.getAttribute("aria-level") || 0) + 1 : 1;
     nodes.forEach((node) => {
-      target.appendChild(buildInspectorRow(node));
+      target.appendChild(buildInspectorRow(node, level));
     });
     if (target !== container) {
       container.appendChild(target);
     }
+    ensureInspectorTabStop();
+  }
+
+  function treeItems() {
+    return inspectorTree ? [...inspectorTree.querySelectorAll('[role="treeitem"]')] : [];
+  }
+
+  // Items inside a closed group are in the DOM but not on screen.
+  function visibleTreeItems() {
+    return treeItems().filter(
+      (item) => !item.parentElement?.closest('[role="treeitem"]:not(.is-open)'),
+    );
+  }
+
+  // One item in the tree is reachable with Tab (roving tabindex); arrows move
+  // between the rest.
+  function setInspectorTabStop(item) {
+    treeItems().forEach((other) => {
+      other.tabIndex = other === item ? 0 : -1;
+    });
+  }
+
+  function ensureInspectorTabStop() {
+    const visible = visibleTreeItems();
+    if (!visible.some((item) => item.tabIndex === 0) && visible.length) {
+      setInspectorTabStop(visible.find((item) => item.getAttribute("aria-selected") === "true") || visible[0]);
+    }
+  }
+
+  function noteInspectorFocus(target) {
+    const item = target?.closest?.('[role="treeitem"]');
+    if (item && inspectorTree?.contains(item)) setInspectorTabStop(item);
+  }
+
+  function focusInspectorItem(item) {
+    if (!item) return;
+    setInspectorTabStop(item);
+    item.focus();
+  }
+
+  async function setInspectorGroupOpen(item, open) {
+    if (!item || normalizeInspectorType(item.dataset.type) !== "group") return;
+    if (!item.hasAttribute("aria-expanded")) return;
+    item.classList.toggle("is-open", open);
+    item.setAttribute("aria-expanded", String(open));
+    const toggle = item.querySelector(":scope > .inspector-row > .inspector-toggle");
+    if (toggle) toggle.textContent = open ? "▾" : "▸";
+    if (!open) {
+      // Focus inside a group that closes would be left on a hidden item.
+      if (item.querySelector(":scope .inspector-children [tabindex='0']")) setInspectorTabStop(item);
+      return;
+    }
+    if (item.dataset.loaded === "true") return;
+    const container = item.querySelector(":scope > .inspector-children");
+    try {
+      setSectionBadgeState(inspectorStateEl, "loading", t("inspector.tree.loading_children"));
+      renderSkeletonBlock(container, 4);
+      const children = await fetchInspectorTree(item.dataset.path || "");
+      renderInspectorTree(children, container);
+      item.dataset.loaded = "true";
+      setSectionBadgeState(inspectorStateEl, "active", t("inspector.tree.loaded"));
+    } catch (err) {
+      console.error(err);
+      setSectionBadgeState(inspectorStateEl, "warning", t("inspector.tree.failed_children"));
+    }
+  }
+
+  /**
+   * A click or Enter on an item. The toggle only opens and closes. The row
+   * selects and shows the details, and opens a closed group; a second click on
+   * the selected, open group closes it. Clicking a group used to toggle it
+   * every time, so reading an open group's attributes meant collapsing it.
+   */
+  async function activateInspectorNode(item, { toggleOnly = false } = {}) {
+    if (!item || item.getAttribute("role") !== "treeitem") return;
+    const nodeType = normalizeInspectorType(item.dataset.type);
+    const isGroup = nodeType === "group" && item.hasAttribute("aria-expanded");
+    const isOpen = item.classList.contains("is-open");
+    if (toggleOnly) {
+      await setInspectorGroupOpen(item, !isOpen);
+      return;
+    }
+    const wasSelected = item.getAttribute("aria-selected") === "true";
+    selectInspectorRow(item.querySelector(":scope > .inspector-row"));
+    setInspectorTabStop(item);
+    if (nodeType === "link") {
+      renderInspectorLink(item.dataset.path || "-", item.dataset.target || "-");
+      return;
+    }
+    if (isGroup) {
+      void setInspectorGroupOpen(item, !(wasSelected && isOpen));
+    }
+    if (item.dataset.path) {
+      await showInspectorNode(item.dataset.path);
+    }
+  }
+
+  function handleInspectorTreeKey(event) {
+    const item = event.target?.closest?.('[role="treeitem"]');
+    if (!item) return;
+    const items = visibleTreeItems();
+    const index = items.indexOf(item);
+    const plan = treeKeyAction(
+      items.map((el) => ({
+        level: Number(el.getAttribute("aria-level") || 1),
+        expandable: el.hasAttribute("aria-expanded"),
+        expanded: el.getAttribute("aria-expanded") === "true",
+      })),
+      index,
+      event.key,
+    );
+    if (!plan) return;
+    event.preventDefault();
+    const target = items[plan.index];
+    if (plan.action === "focus") focusInspectorItem(target);
+    else if (plan.action === "expand") void setInspectorGroupOpen(target, true);
+    else if (plan.action === "collapse") void setInspectorGroupOpen(target, false);
+    else if (plan.action === "activate") void activateInspectorNode(target);
   }
 
   async function fetchInspectorTree(path = "/") {
@@ -531,10 +665,12 @@ export function createInspectorPanelController({
   function selectInspectorRow(row) {
     if (inspectorSelectedRow) {
       inspectorSelectedRow.classList.remove("is-selected");
+      inspectorSelectedRow.parentElement?.setAttribute("aria-selected", "false");
     }
     inspectorSelectedRow = row;
     if (inspectorSelectedRow) {
       inspectorSelectedRow.classList.add("is-selected");
+      inspectorSelectedRow.parentElement?.setAttribute("aria-selected", "true");
     }
   }
 
@@ -599,5 +735,9 @@ export function createInspectorPanelController({
     loadInspectorRoot,
     selectInspectorRow,
     showInspectorNode,
+    activateInspectorNode,
+    setInspectorGroupOpen,
+    handleInspectorTreeKey,
+    noteInspectorFocus,
   };
 }

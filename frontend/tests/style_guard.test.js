@@ -38,6 +38,8 @@ const Z_SCALE = new Set([1, 2, 3, 4, 5, 6, 8, 20, 24, 25, 28, 30, 32, 34, 36, 42
 const OUTLINE_EXCEPTIONS = {
   // The slider draws its ring on the thumb: input[type="range"]:focus-visible::-webkit-slider-thumb / ::-moz-range-thumb.
   'input[type="range"]:focus': "ring on the thumb",
+  // A tree item contains its open children; the ring goes on its own row: .inspector-node[role="treeitem"]:focus-visible > .inspector-row.
+  '.inspector-node[role="treeitem"]:focus-visible': "ring on the item's row",
 };
 
 function parseRules() {

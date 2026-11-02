@@ -11,6 +11,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The File Inspector shows a single value right in the tree, and names text as `string`.** A NeXus master keeps most of its metadata in fields that hold one value, such as `definition`, `program_name` or a detector's `count_time`. The tree showed only `object` beside them, which says nothing; it now shows the value itself, with its unit (`NXmx`, `0.001 s`, `12.4 keV`), and the whole value as a tooltip. The details call such a field's shape `scalar` instead of leaving it blank, and its type `string` instead of `object`.
 
+- **The File Inspector's tree works from the keyboard.** Tab into the tree, then ↑ and ↓ move between entries, → opens a group and steps into it, ← closes it or goes back to the parent, Home and End jump to the first and last entry, and Enter shows the details. Until now only groups could be focused, through their small arrow, so a dataset or link could not be reached without a mouse; screen readers now also hear the tree as a tree, with each entry's level and whether it is open.
+- **Clicking an open group in the File Inspector selects it instead of closing it.** Every click on a group's row opened or closed it, so reading the attributes of an open group meant collapsing it first. A click now selects the group and opens it if it is closed; a second click on the selected group closes it, and the arrow in front of it still opens and closes it without selecting.
+
 ### Fixed
 
 - **In the File Inspector, entries without children line up with the groups beside them.** Datasets and links sat one column to the left of their sibling groups, so they looked as if they belonged to the level above. A long link target no longer squeezes the name; it is shortened, and shown in full as a tooltip.

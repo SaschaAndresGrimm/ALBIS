@@ -173,6 +173,16 @@
   background: transparent;
 }
 
+/* The focused item wraps its whole subtree, so the ring goes on its own row:
+   an outline on the item would box every open child with it. */
+.inspector-node[role="treeitem"]:focus-visible {
+  outline: none;
+}
+
+.inspector-node[role="treeitem"]:focus-visible > .inspector-row {
+  box-shadow: var(--focus-ring);
+}
+
 .inspector-row.is-selected {
   background: rgba(64, 123, 211, 0.35);
 }
