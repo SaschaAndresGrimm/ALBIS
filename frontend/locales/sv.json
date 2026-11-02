@@ -855,6 +855,7 @@
   "inspector.search.no_matches_for": "Inga matchningar för \"{{query}}\"",
   "inspector.search.placeholder": "Sök sökvägar...",
   "inspector.select_hdf5": "Välj en HDF5-fil för att bläddra i datamängder.",
+  "inspector.shape.scalar": "skalär",
   "inspector.table.index": "Index",
   "inspector.table.value": "Värde",
   "inspector.target": "Mål",

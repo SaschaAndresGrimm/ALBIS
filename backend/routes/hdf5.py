@@ -22,6 +22,7 @@ from ..api_models import (
 )
 from ..services.content_disposition import attachment_disposition
 from ..services.export_header import producer_string
+from ..services.hdf5_inspect import describe_link, describe_object, dtype_label
 from ..services.hdf5_open import open_hdf5_for_read
 from ..services.hdf5_walk_report import WalkReport
 from ..services.log_safety import sanitize_log_value
@@ -194,51 +195,16 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                     link = obj.get(name, getlink=True)
                 except Exception:
                     link = None
-                if isinstance(link, h5py.ExternalLink):
-                    children.append(
-                        {
-                            "name": name,
-                            "path": child_path,
-                            "type": "link",
-                            "link": "external",
-                            "target": f"{link.filename}:{link.path}",
-                        }
-                    )
-                    continue
-                if isinstance(link, h5py.SoftLink):
-                    children.append(
-                        {
-                            "name": name,
-                            "path": child_path,
-                            "type": "link",
-                            "link": "soft",
-                            "target": str(link.path),
-                        }
-                    )
-                    continue
-                try:
-                    child = obj[name]
-                except Exception:
-                    continue
-                if isinstance(child, h5py.Group):
-                    children.append(
-                        {
-                            "name": name,
-                            "path": child_path,
-                            "type": "group",
-                            "hasChildren": len(child.keys()) > 0,
-                        }
-                    )
-                elif isinstance(child, h5py.Dataset):
-                    children.append(
-                        {
-                            "name": name,
-                            "path": child_path,
-                            "type": "dataset",
-                            "shape": tuple(int(x) for x in child.shape),
-                            "dtype": str(child.dtype),
-                        }
-                    )
+                row = describe_link(h5py, link, name, child_path)
+                if row is None:
+                    try:
+                        row = describe_object(
+                            h5py, obj[name], name, child_path, deps.serialize_h5_value
+                        )
+                    except Exception:
+                        row = None
+                if row is not None:
+                    children.append(row)
             children.sort(key=lambda item: (item.get("type") != "group", item.get("name", "")))
             truncated = child_count > len(names)
             if truncated:
@@ -284,7 +250,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                     path=path,
                     type="dataset",
                     shape=[int(x) for x in obj.shape],
-                    dtype=str(obj.dtype),
+                    dtype=dtype_label(h5py, obj.dtype),
                     attrs=deps.collect_h5_attrs(obj),
                     preview=preview,
                 )
@@ -313,7 +279,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                 path=path,
                 type="dataset",
                 shape=[int(x) for x in obj.shape],
-                dtype=str(obj.dtype),
+                dtype=dtype_label(h5py, obj.dtype),
                 preview=preview,
                 preview_shape=[int(x) for x in preview_shape] if preview_shape else None,
                 truncated=truncated,
@@ -351,55 +317,23 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                         link = group.get(name, getlink=True)
                     except Exception:
                         link = None
-                    if isinstance(link, h5py.ExternalLink):
+                    row = describe_link(h5py, link, name, child_path)
+                    if row is not None:
                         if is_match:
-                            matches.append(
-                                {
-                                    "name": name,
-                                    "path": child_path,
-                                    "type": "link",
-                                    "link": "external",
-                                    "target": f"{link.filename}:{link.path}",
-                                }
-                            )
-                        continue
-                    if isinstance(link, h5py.SoftLink):
-                        if is_match:
-                            matches.append(
-                                {
-                                    "name": name,
-                                    "path": child_path,
-                                    "type": "link",
-                                    "link": "soft",
-                                    "target": str(link.path),
-                                }
-                            )
+                            matches.append(row)
                         continue
                     try:
                         child = group[name]
                     except Exception:
                         continue
                     if isinstance(child, h5py.Group):
-                        if is_match:
-                            matches.append(
-                                {
-                                    "name": name,
-                                    "path": child_path,
-                                    "type": "group",
-                                    "hasChildren": len(child.keys()) > 0,
-                                }
-                            )
                         stack.append((child_path, child))
-                    elif isinstance(child, h5py.Dataset) and is_match:
-                        matches.append(
-                            {
-                                "name": name,
-                                "path": child_path,
-                                "type": "dataset",
-                                "shape": tuple(int(x) for x in child.shape),
-                                "dtype": str(child.dtype),
-                            }
+                    if is_match:
+                        row = describe_object(
+                            h5py, child, name, child_path, deps.serialize_h5_value
                         )
+                        if row is not None:
+                            matches.append(row)
                     if len(matches) >= limit:
                         break
         return HDF5SearchResponse(matches=[HDF5TreeChild(**item) for item in matches])

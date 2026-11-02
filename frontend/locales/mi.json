@@ -855,6 +855,7 @@
   "inspector.search.no_matches_for": "Karekau he ōrite mō \"{{query}}\"",
   "inspector.search.placeholder": "Rapu ara...",
   "inspector.select_hdf5": "Tīpakohia he kōnae HDF5 hei tirotiro i ngā huingararaunga.",
+  "inspector.shape.scalar": "uara kotahi",
   "inspector.table.index": "Taupū",
   "inspector.table.value": "Uara",
   "inspector.target": "Whāinga",

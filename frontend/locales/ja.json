@@ -855,6 +855,7 @@
   "inspector.search.no_matches_for": "「{{query}}」に一致なし",
   "inspector.search.placeholder": "パスを検索...",
   "inspector.select_hdf5": "データセットを参照するには HDF5 ファイルを選択してください。",
+  "inspector.shape.scalar": "スカラー",
   "inspector.table.index": "インデックス",
   "inspector.table.value": "値",
   "inspector.target": "ターゲット",

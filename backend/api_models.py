@@ -474,6 +474,10 @@ class HDF5TreeChild(_StrictModel):
     dtype: str | None = None
     link: str | None = None
     target: str | None = None
+    # A one-element dataset's value and `units` attribute, so the listing can
+    # show `NXmx` or `12.4 keV` without a request per row.
+    value: str | int | float | bool | None = None
+    units: str | None = None
 
 
 class HDF5TreeResponse(_StrictModel):

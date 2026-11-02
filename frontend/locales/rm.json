@@ -855,6 +855,7 @@
   "inspector.search.no_matches_for": "Nagins resultats per \"{{query}}\"",
   "inspector.search.placeholder": "Tschertgar vias...",
   "inspector.select_hdf5": "Tscherna ina datoteca HDF5 per navigar ils sets da datas.",
+  "inspector.shape.scalar": "scalar",
   "inspector.table.index": "Posiziun",
   "inspector.table.value": "Valur",
   "inspector.target": "Destinaziun",

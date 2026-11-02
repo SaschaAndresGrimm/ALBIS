@@ -144,6 +144,15 @@ children, when the listing stopped at the cap. A filewriter told to write one
 companion file per frame can put millions of external links in one group, and
 modelling all of them is what a bounded listing exists to avoid.
 
+A dataset row in `GET /api/hdf5/tree` and `GET /api/hdf5/search` carries
+`value`, and `units` from its `units` attribute, when the dataset holds one
+number or one string (shape `()` or `(1,)`); text is cut at 200 characters.
+Datasets whose bytes live in another file (external raw storage, virtual
+datasets) are left without a value, since a listing does not apply the
+storage confinement. `dtype` in these rows, and in `GET /api/hdf5/node` and
+`GET /api/hdf5/value`, is `string` for HDF5 text, which h5py reports as
+`object`.
+
 ## Error Details
 
 `detail` on an error response is usually a sentence, but some endpoints answer
