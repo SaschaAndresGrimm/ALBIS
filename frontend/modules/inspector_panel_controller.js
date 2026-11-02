@@ -25,6 +25,7 @@ export function createInspectorPanelController({
     inspectorPreview,
     inspectorDetails,
     inspectorSection,
+    datasetSelect,
     imageHeaderSection,
     imageHeaderStateEl,
     imageHeaderLoading,
@@ -469,6 +470,50 @@ export function createInspectorPanelController({
     return table;
   }
 
+  function datasetIsListed(path) {
+    return Boolean(path) && [...(datasetSelect?.options || [])].some((option) => option.value === path);
+  }
+
+  /**
+   * "Show in viewer" for a dataset the Dataset list offers, so an image found
+   * by browsing opens without hunting for it in a second list. It goes through
+   * the list's own change handler, so it loads exactly as picking it there
+   * does. The dataset already on show says so instead.
+   */
+  function buildViewerAction(path) {
+    if (!datasetIsListed(path)) return null;
+    if (state.dataset === path) {
+      const note = document.createElement("span");
+      note.className = "inspector-preview-note inspector-viewer-action";
+      note.textContent = t("inspector.shown_in_viewer");
+      return note;
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "inspector-show-in-viewer inspector-viewer-action";
+    button.textContent = t("inspector.show_in_viewer");
+    button.addEventListener("click", () => showDatasetInViewer(path));
+    return button;
+  }
+
+  function showDatasetInViewer(path) {
+    if (!datasetSelect || !datasetIsListed(path)) return false;
+    datasetSelect.value = path;
+    datasetSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
+    refreshViewerAction();
+    return true;
+  }
+
+  // The dataset on show changed (here or in the Dataset list): the action
+  // under the preview would otherwise claim the wrong one is shown.
+  function refreshViewerAction() {
+    const actions = inspectorPreview?.querySelector(".inspector-preview-actions");
+    if (!actions) return;
+    actions.querySelector(".inspector-viewer-action")?.remove();
+    const next = buildViewerAction(actions.dataset.path || "");
+    if (next) actions.prepend(next);
+  }
+
   function renderInspectorPreview(data) {
     if (!inspectorPreview) return;
     inspectorPreview.innerHTML = "";
@@ -477,6 +522,7 @@ export function createInspectorPanelController({
     }
     const actions = document.createElement("div");
     actions.className = "inspector-preview-actions";
+    actions.dataset.path = data.path || "";
     const link = document.createElement("a");
     link.href = `${apiBase}/hdf5/value?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(
       data.path || "",
@@ -493,6 +539,10 @@ export function createInspectorPanelController({
       csvLink.textContent = t("inspector.download_csv");
       actions.appendChild(csvLink);
     }
+    // First: the row is as wide as the table under it, so anything pushed to
+    // its far end can sit outside the visible part of the preview.
+    const viewerAction = buildViewerAction(data.path || "");
+    if (viewerAction) actions.prepend(viewerAction);
     inspectorPreview.appendChild(actions);
 
     const preview = data.preview;
@@ -905,6 +955,8 @@ export function createInspectorPanelController({
     setInspectorGroupOpen,
     copyInspectorPath,
     revealInspectorPath,
+    showDatasetInViewer,
+    refreshViewerAction,
     handleInspectorTreeKey,
     noteInspectorFocus,
   };

@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "Search paths...",
   "inspector.select_hdf5": "Select an HDF5 file to browse datasets.",
   "inspector.shape.scalar": "scalar",
+  "inspector.show_in_viewer": "Show in viewer",
+  "inspector.shown_in_viewer": "Shown in viewer",
   "inspector.table.index": "Index",
   "inspector.table.value": "Value",
   "inspector.target": "Target",

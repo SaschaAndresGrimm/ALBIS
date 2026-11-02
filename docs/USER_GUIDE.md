@@ -235,7 +235,8 @@ the keyboard: Tab into it, ↑ and ↓ move, → and ← open and close groups, 
 Enter shows the details. A link shows what it points to, with its target on top,
 and a link to a group opens like one. Above the details, the path is a breadcrumb: click a group
 in it to go back up, or the copy button to copy the path. Drag the tree's
-bottom-right corner to make it taller.
+bottom-right corner to make it taller. A dataset the **Dataset** list offers has a **Show in
+viewer** button above its values.
 
 ---
 

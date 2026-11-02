@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Show in viewer, from the File Inspector.** A dataset that the **Dataset** list offers, such as a flat field or a second image stack found while browsing the file, has a **Show in viewer** button above its values; it opens the dataset exactly as picking it in the list does. The dataset already on show says **Shown in viewer**. Until now the inspector and the viewer did not talk to each other: a dataset found in the tree had to be looked up again in the list.
+
 ### Changed
 
 - **The File Inspector shows a single value right in the tree, and names text as `string`.** A NeXus master keeps most of its metadata in fields that hold one value, such as `definition`, `program_name` or a detector's `count_time`. The tree showed only `object` beside them, which says nothing; it now shows the value itself, with its unit (`NXmx`, `0.001 s`, `12.4 keV`), and the whole value as a tooltip. The details call such a field's shape `scalar` instead of leaving it blank, and its type `string` instead of `object`.

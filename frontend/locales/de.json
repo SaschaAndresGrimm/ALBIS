@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "Pfade suchen …",
   "inspector.select_hdf5": "Wähle eine HDF5-Datei aus, um Datensätze zu durchsuchen.",
   "inspector.shape.scalar": "Skalar",
+  "inspector.show_in_viewer": "Im Viewer anzeigen",
+  "inspector.shown_in_viewer": "Im Viewer angezeigt",
   "inspector.table.index": "Index",
   "inspector.table.value": "Wert",
   "inspector.target": "Ziel",

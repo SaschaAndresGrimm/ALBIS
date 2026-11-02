@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "搜索路径...",
   "inspector.select_hdf5": "选择 HDF5 文件以浏览数据集。",
   "inspector.shape.scalar": "标量",
+  "inspector.show_in_viewer": "在查看器中显示",
+  "inspector.shown_in_viewer": "已在查看器中显示",
   "inspector.table.index": "索引",
   "inspector.table.value": "值",
   "inspector.target": "目标",

@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "Cerca percorsi...",
   "inspector.select_hdf5": "Seleziona un file HDF5 per sfogliare i set di dati.",
   "inspector.shape.scalar": "scalare",
+  "inspector.show_in_viewer": "Mostra nel visualizzatore",
+  "inspector.shown_in_viewer": "Mostrato nel visualizzatore",
   "inspector.table.index": "Indice",
   "inspector.table.value": "Valore",
   "inspector.target": "Destinazione",
