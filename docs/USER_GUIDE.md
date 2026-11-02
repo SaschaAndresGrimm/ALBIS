@@ -232,7 +232,8 @@ unit; hover over a row for the whole value, its shape and its type.
 Click a group to select it and open it, click it again to close it; the arrow in
 front of it opens and closes it without selecting it. The tree also works from
 the keyboard: Tab into it, ↑ and ↓ move, → and ← open and close groups, and
-Enter shows the details.
+Enter shows the details. A link shows what it points to, with its target on top,
+and a link to a group opens like one.
 
 ---
 

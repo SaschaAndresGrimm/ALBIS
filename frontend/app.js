@@ -585,9 +585,6 @@ const inspectorPanelController = createInspectorPanelController({
 const {
   clearImageHeader,
   clearInspectorSearch,
-  renderInspectorLink,
-  renderInspectorTree,
-  selectInspectorRow,
   updateInspectorHeaderVisibility,
 } = inspectorPanelController;
 core.inspectorPanel = inspectorPanelController;
@@ -3052,11 +3049,6 @@ const mainUiBindingsCallbacks = createMainUiBindingsCallbacks({
   handleNavShortcut,
   handleMenuAction,
   handleShortcut,
-  selectInspectorRow,
-  renderInspectorLink,
-  setSectionBadgeState,
-  renderSkeletonBlock,
-  renderInspectorTree,
   clearInspectorSearch,
   isDocumentDropEnabled: () => !backendIsLocal,
   showDocumentDropDisabledStatus,
