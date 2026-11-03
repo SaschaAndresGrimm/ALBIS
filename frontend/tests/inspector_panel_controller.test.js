@@ -61,11 +61,12 @@ async function setup(responses) {
       formatInspectorValue: (v) => String(v),
     },
   });
-  // The value of a details row by its label, or undefined when it is absent.
+  // The value shown for a fact, found by its label ("Shape: 40000" is the
+  // part's tooltip and spoken text), or undefined when it is absent.
   const fact = (label) =>
-    [...byId("facts").querySelectorAll(".meta-row")]
-      .find((row) => row.firstChild.textContent === label)
-      ?.lastChild.textContent;
+    [...byId("facts").querySelectorAll("[title]")]
+      .find((part) => part.title.startsWith(`${label}: `))
+      ?.querySelector('[aria-hidden="true"]').textContent;
   return { controller, byId, fetchJSON, fact, setSectionBadgeState, state };
 }
 
@@ -427,5 +428,80 @@ describe("show in viewer", () => {
     await other.controller.showInspectorNode("/entry/other");
     expect(other.byId("preview").textContent).not.toContain("viewer");
     expect(other.controller.showDatasetInViewer("/entry/other")).toBe(false);
+  });
+});
+
+describe("compact facts", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("puts type, shape, dtype and units on one line, labelled for screen readers", async () => {
+    const { controller, byId, fact } = await setup({
+      "/hdf5/node": { path: "/entry/data/start_time", type: "dataset", shape: [40000], dtype: "float64", attrs: [{ name: "units", value: "s" }] },
+      "/hdf5/value": { path: "/entry/data/start_time", type: "dataset", shape: [40000], dtype: "float64", preview: [0, 1], truncated: true },
+    });
+    await controller.showInspectorNode("/entry/data/start_time");
+
+    const lines = byId("facts").querySelectorAll(".inspector-summary");
+    expect(lines).toHaveLength(1);
+    expect(lines[0].querySelectorAll(".inspector-summary-part")).toHaveLength(4);
+    expect(fact("Units")).toBe("s");
+    expect(fact("Shape")).toBe("40000");
+    expect([...lines[0].querySelectorAll(".sr-only")].map((el) => el.textContent)).toEqual([
+      "Type: dataset",
+      "Shape: 40000",
+      "DType: float64",
+      "Units: s",
+    ]);
+  });
+});
+
+describe("search results and the tree", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const TREE = {
+    "path=%2F&": { path: "/", children: [{ name: "entry", path: "/entry", type: "group", hasChildren: true }] },
+    "path=%2Fentry&": { path: "/entry", children: [{ name: "data", path: "/entry/data", type: "group", hasChildren: true }] },
+    "path=%2Fentry%2Fdata&": {
+      path: "/entry/data",
+      children: [{ name: "start_time", path: "/entry/data/start_time", type: "dataset", shape: [3], dtype: "float64" }],
+    },
+    "/hdf5/node": { path: "/entry/data/start_time", type: "dataset", shape: [3], dtype: "float64", attrs: [] },
+    "/hdf5/value": { path: "/entry/data/start_time", type: "dataset", shape: [3], dtype: "float64", preview: [0, 1, 2], truncated: false },
+  };
+
+  async function withTree() {
+    const ctx = await setup({});
+    ctx.fetchJSON.mockImplementation(async (url) => {
+      const key = Object.keys(TREE).find((k) => `${url}&`.includes(k));
+      return TREE[key];
+    });
+    await ctx.controller.loadInspectorRoot();
+    return ctx;
+  }
+
+  it("opens the groups above a result and selects it in the tree", async () => {
+    // The details showed the result while the tree kept its old highlight.
+    const { controller, byId } = await withTree();
+    await controller.revealInspectorPath("/entry/data/start_time");
+
+    const item = byId("tree").querySelector('[data-path="/entry/data/start_time"]');
+    expect(item).not.toBeNull();
+    expect(item.getAttribute("aria-selected")).toBe("true");
+    expect(byId("tree").querySelector('[data-path="/entry"]').getAttribute("aria-expanded")).toBe("true");
+    expect(byId("tree").querySelector('[data-path="/entry/data"]').getAttribute("aria-expanded")).toBe("true");
+    expect(byId("tree").querySelectorAll('[aria-selected="true"]')).toHaveLength(1);
+  });
+
+  it("clears the tree selection when a result cannot be reached in the tree", async () => {
+    const { controller, byId } = await withTree();
+    await controller.revealInspectorPath("/entry");
+    expect(byId("tree").querySelectorAll('[aria-selected="true"]')).toHaveLength(1);
+
+    await controller.revealInspectorPath("/elsewhere/thing");
+    expect(byId("tree").querySelectorAll('[aria-selected="true"]')).toHaveLength(0);
   });
 });

@@ -65,30 +65,57 @@ export function createInspectorPanelController({
     setSectionBadgeState(inspectorStateEl, "active", name || t("inspector.tree.loaded"));
   }
 
+  // One part of the summary line: the value on screen, "Shape: 40000" for a
+  // screen reader and as the tooltip, since the line has no labels.
+  function summaryPart(key, value, className) {
+    const part = document.createElement("span");
+    part.className = className;
+    const spoken = t("inspector.fact", { label: t(key), value });
+    part.title = spoken;
+    const hidden = document.createElement("span");
+    hidden.className = "sr-only";
+    hidden.textContent = spoken;
+    const shown = document.createElement("span");
+    shown.setAttribute("aria-hidden", "true");
+    shown.textContent = value;
+    part.appendChild(hidden);
+    part.appendChild(shown);
+    return part;
+  }
+
   /**
-   * The Type, Target, Shape and DType rows, only those with a value. A group
-   * has no shape and only a link has a target; they used to show as "-".
+   * Type, shape, dtype and units on one line, and a link's target under it.
+   * They were a labelled row each, three or four rows of panel height for
+   * values that say what they are (`float64` is plainly a dtype); the labels
+   * live on in the tooltips.
    */
-  function renderInspectorFacts({ type = "", target = "", shape = "", dtype = "" } = {}) {
+  function renderInspectorFacts({ type = "", target = "", shape = "", dtype = "", units = "" } = {}) {
     if (!inspectorFacts) return;
     inspectorFacts.innerHTML = "";
-    [
+    const parts = [
       ["inspector.label.type", type],
-      ["inspector.target", target],
       ["inspector.label.shape", shape],
       ["inspector.label.dtype", dtype],
-    ].forEach(([key, value]) => {
-      if (!value) return;
-      const row = document.createElement("div");
-      row.className = "meta-row";
-      const label = document.createElement("span");
-      label.textContent = t(key);
-      const strong = document.createElement("strong");
-      strong.textContent = value;
-      row.appendChild(label);
-      row.appendChild(strong);
-      inspectorFacts.appendChild(row);
-    });
+      ["inspector.label.units", units],
+    ].filter(([, value]) => value);
+    if (parts.length) {
+      const line = document.createElement("p");
+      line.className = "inspector-summary";
+      parts.forEach(([key, value], index) => {
+        if (index) {
+          const sep = document.createElement("span");
+          sep.className = "inspector-summary-sep";
+          sep.setAttribute("aria-hidden", "true");
+          sep.textContent = "·";
+          line.appendChild(sep);
+        }
+        line.appendChild(summaryPart(key, value, "inspector-summary-part"));
+      });
+      inspectorFacts.appendChild(line);
+    }
+    if (target) {
+      inspectorFacts.appendChild(summaryPart("inspector.target", target, "inspector-summary-target"));
+    }
   }
 
   function resetInspectorDetails() {
@@ -155,10 +182,27 @@ export function createInspectorPanelController({
 
   // A breadcrumb's group is always in the tree, since its child was reached
   // through it; a search result's may not be, and then only the details move.
-  async function revealInspectorPath(path) {
-    const item = treeItems().find((el) => el.dataset.path === path);
-    if (!item) {
-      await showInspectorNode(path);
+  /**
+   * Select `path` in the tree, opening the groups above it on the way. A
+   * search result used to load only its details, leaving the tree's
+   * highlight on whatever was selected before, so the two disagreed. When the
+   * path cannot be reached in the tree (a capped listing, a path through a
+   * link), the details still load and the tree selection is cleared.
+   */
+  async function revealInspectorPath(path, { linkTarget = "" } = {}) {
+    const parts = String(path || "").split("/").filter(Boolean);
+    let item = null;
+    for (let depth = 1; depth <= parts.length; depth += 1) {
+      const prefix = `/${parts.slice(0, depth).join("/")}`;
+      item = treeItems().find((el) => el.dataset.path === prefix) || null;
+      if (!item) break;
+      if (depth < parts.length && item.hasAttribute("aria-expanded") && !item.classList.contains("is-open")) {
+        await setInspectorGroupOpen(item, true);
+      }
+    }
+    if (!item || item.dataset.path !== path) {
+      selectInspectorRow(null);
+      await showInspectorNode(path, { linkTarget });
       return;
     }
     focusInspectorItem(item);
@@ -629,11 +673,13 @@ export function createInspectorPanelController({
       if (requestId !== inspectorNodeRequestId) return null;
       const typeLabel = localizeInspectorType(data.type);
       renderInspectorCrumbs(data.path || path);
+      const unitsAttr = Array.isArray(data.attrs) ? data.attrs.find((attr) => attr.name === "units") : null;
       renderInspectorFacts({
         type: linkTarget ? t("inspector.type.link_to", { type: typeLabel }) : typeLabel,
         target: linkTarget,
         shape: formatInspectorShape(data.shape, t("inspector.shape.scalar")),
         dtype: data.dtype || "",
+        units: typeof unitsAttr?.value === "string" ? unitsAttr.value.trim() : "",
       });
       if (inspectorAttrs) {
         inspectorAttrs.innerHTML = "";

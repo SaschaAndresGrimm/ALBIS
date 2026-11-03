@@ -290,7 +290,41 @@
 
 .inspector-facts {
   display: grid;
-  gap: 6px;
+  gap: 2px;
+}
+
+.inspector-summary {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.inspector-summary-part {
+  overflow-wrap: anywhere;
+}
+
+/* The type leads in the muted colour: shape and dtype are what is read. */
+.inspector-summary-part:first-child {
+  color: var(--muted);
+}
+
+.inspector-summary-sep {
+  color: var(--muted);
+}
+
+.inspector-summary-target {
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.inspector-summary-target > [aria-hidden="true"]::before {
+  content: "→ ";
 }
 
 .inspector-details-head {
