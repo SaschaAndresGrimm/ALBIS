@@ -59,7 +59,7 @@ async function setup(responses) {
       resetInspectorDetails: () => {},
     },
   });
-  return { controller, byId };
+  return { controller, byId, fetchJSON };
 }
 
 const ROOT = {
@@ -107,5 +107,114 @@ describe("inspector tree rows", () => {
 
     expect(byId("shape").textContent).toBe("scalar");
     expect(byId("dtype").textContent).toBe("string");
+  });
+});
+
+const CHILDREN = {
+  path: "/entry/data",
+  children: [{ name: "data", path: "/entry/data/data", type: "dataset", shape: [3, 4, 4], dtype: "uint32" }],
+};
+
+function routesWithChildren() {
+  return {
+    "path=%2Fentry%2Fdata": CHILDREN,
+    "/hdf5/tree": ROOT,
+    "/hdf5/node": { path: "/entry/data", type: "group", attrs: [] },
+  };
+}
+
+const key = (target, k) => {
+  const event = new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true });
+  target.dispatchEvent(event);
+  return event;
+};
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe("inspector tree from the keyboard", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  async function loaded() {
+    const ctx = await setup(routesWithChildren());
+    await ctx.controller.loadInspectorRoot();
+    ctx.byId("tree").addEventListener("keydown", (e) => ctx.controller.handleInspectorTreeKey(e));
+    ctx.items = () => [...ctx.byId("tree").querySelectorAll('[role="treeitem"]')];
+    return ctx;
+  }
+
+  it("is a tree with one tab stop", async () => {
+    const { byId, items } = await loaded();
+    expect(byId("tree").querySelector('[role="tree"]')).not.toBeNull();
+    expect(items().map((el) => el.tabIndex)).toEqual([0, -1, -1]);
+    expect(items().map((el) => el.getAttribute("aria-level"))).toEqual(["1", "1", "1"]);
+    expect(items()[0].getAttribute("aria-expanded")).toBe("false");
+    expect(items()[1].hasAttribute("aria-expanded")).toBe(false);
+  });
+
+  it("reaches a dataset with the arrows and moves the tab stop with focus", async () => {
+    const { items } = await loaded();
+    items()[0].focus();
+    const event = key(items()[0], "ArrowDown");
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(items()[1]);
+    expect(items().map((el) => el.tabIndex)).toEqual([-1, 0, -1]);
+  });
+
+  it("opens a group on the right and gives its children the next level", async () => {
+    const { items } = await loaded();
+    key(items()[0], "ArrowRight");
+    await flush();
+    expect(items()[0].getAttribute("aria-expanded")).toBe("true");
+    const child = items()[1];
+    expect(child.dataset.path).toBe("/entry/data/data");
+    expect(child.getAttribute("aria-level")).toBe("2");
+    key(items()[0], "ArrowRight");
+    expect(document.activeElement).toBe(child);
+    key(child, "ArrowLeft");
+    expect(document.activeElement).toBe(items()[0]);
+  });
+
+  it("shows a dataset's details on Enter", async () => {
+    const ctx = await loaded();
+    key(ctx.items()[1], "Enter");
+    await flush();
+    expect(ctx.items()[1].getAttribute("aria-selected")).toBe("true");
+    const urls = ctx.fetchJSON.mock.calls.map(([url]) => url);
+    expect(urls.some((url) => url.includes("/hdf5/node") && url.includes("%2Fentry%2Fdefinition"))).toBe(true);
+  });
+});
+
+describe("inspector tree clicks", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("opens a group on the first click and closes it only once it is selected", async () => {
+    const { controller, byId } = await setup(routesWithChildren());
+    await controller.loadInspectorRoot();
+    const group = byId("tree").querySelector('[role="treeitem"]');
+
+    await controller.activateInspectorNode(group);
+    await flush();
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+    expect(group.getAttribute("aria-selected")).toBe("true");
+
+    await controller.activateInspectorNode(group);
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("keeps an open group open when selecting it from elsewhere", async () => {
+    const { controller, byId } = await setup(routesWithChildren());
+    await controller.loadInspectorRoot();
+    const [group, leaf] = byId("tree").querySelectorAll('[role="treeitem"]');
+
+    await controller.activateInspectorNode(group, { toggleOnly: true });
+    await flush();
+    expect(group.getAttribute("aria-selected")).toBe("false");
+    await controller.activateInspectorNode(leaf);
+    await controller.activateInspectorNode(group);
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+    expect(group.getAttribute("aria-selected")).toBe("true");
   });
 });
