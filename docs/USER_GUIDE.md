@@ -61,19 +61,10 @@ what you see on your screen should match.
 
 ### 1. Get the example data
 
-The ten files `in16c_010001.cbf` to `in16c_010010.cbf`, about 300 KB each, are
-in the [`testdata` folder](https://github.com/SaschaAndresGrimm/ALBIS/tree/main/testdata)
-of the ALBIS repository. Click each file there, then **Download raw file**
-(the ↓ icon), and keep all ten in one folder. One file is enough for an image;
-all ten make a series you can step through.
-
-From a terminal, this does the same:
-
-```bash
-for i in 01 02 03 04 05 06 07 08 09 10; do
-  curl -LO "https://github.com/SaschaAndresGrimm/ALBIS/raw/main/testdata/in16c_0100$i.cbf"
-done
-```
+Download [`albis-example-data.zip`](https://github.com/SaschaAndresGrimm/ALBIS/raw/main/testdata/albis-example-data.zip)
+(1.5 MB) and unzip it. It holds ten files, `in16c_010001.cbf` to
+`in16c_010010.cbf`; keep them together in one folder. One file is enough for
+an image; all ten make a series you can step through.
 
 ### 2. Open the first image
 

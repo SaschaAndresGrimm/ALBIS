@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The example data for the Getting started walk-through is one zip file.** Download `albis-example-data.zip`, unzip it and open the first image, instead of saving ten files one by one from GitHub or typing a command in a terminal.
+
 ## [0.40.0] - 2026-11-03
 
 ### Added
