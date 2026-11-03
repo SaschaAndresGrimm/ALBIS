@@ -22,4 +22,4 @@ pyzmq==27.2.0
 dectris-compression==0.4.0
 zstandard==0.25.0
 certifi==2026.10.23
-pyobjc==12.2.2; sys_platform == "darwin"
+pyobjc==13.0; sys_platform == "darwin"
