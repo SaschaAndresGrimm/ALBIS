@@ -139,6 +139,10 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - `copyText`: the Clipboard API, or a selection where there is none (plain HTTP on a LAN); used by the footer's build info, the update command and the inspector's path.
 - `frontend/modules/inspector_tree_nav_utils.js`:
   - Pure: what an arrow key, Home, End or Enter does in the inspector tree (the WAI-ARIA tree pattern).
+- `frontend/modules/image_header_panel.js`:
+  - The Image Header section (TIFF, CBF, EDF text headers); created by the inspector controller, which decides whether it or the HDF5 inspector shows.
+- `frontend/modules/inspector_preview_renderer.js`:
+  - The inspector's value preview: table or text, the JSON and CSV links, and Show in viewer.
 - `frontend/modules/inspector_format_utils.js`:
   - Pure: what an inspector row shows beside its name (value and units, shape and dtype, link target) and its tooltip.
 
