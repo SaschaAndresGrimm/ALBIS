@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "Sök sökvägar...",
   "inspector.select_hdf5": "Välj en HDF5-fil för att bläddra i datamängder.",
   "inspector.shape.scalar": "skalär",
+  "inspector.show_in_viewer": "Visa i visaren",
+  "inspector.shown_in_viewer": "Visas i visaren",
   "inspector.table.index": "Index",
   "inspector.table.value": "Värde",
   "inspector.target": "Mål",

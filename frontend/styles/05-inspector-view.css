@@ -423,6 +423,7 @@
 
 .inspector-preview-actions {
   display: flex;
+  align-items: baseline;
   justify-content: flex-start;
   gap: 8px;
 }
@@ -431,6 +432,24 @@
   color: #9cc6ff;
   text-decoration: none;
   font-size: var(--font-size-xs);
+}
+
+/* A button, since it acts rather than goes somewhere, but drawn like the
+   links beside it; bolder, as the one most people will want. */
+.inspector-show-in-viewer {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.inspector-show-in-viewer:hover {
+  text-decoration: underline;
 }
 
 .inspector-preview-note {

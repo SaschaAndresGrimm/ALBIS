@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "Søg stier...",
   "inspector.select_hdf5": "Vælg en HDF5-fil for at gennemse datasæt.",
   "inspector.shape.scalar": "skalar",
+  "inspector.show_in_viewer": "Vis i fremviseren",
+  "inspector.shown_in_viewer": "Vises i fremviseren",
   "inspector.table.index": "Indeks",
   "inspector.table.value": "Værdi",
   "inspector.target": "Mål",

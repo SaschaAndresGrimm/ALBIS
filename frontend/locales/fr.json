@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "Chemins de recherche...",
   "inspector.select_hdf5": "Sélectionnez un fichier HDF5 pour parcourir les ensembles de données.",
   "inspector.shape.scalar": "scalaire",
+  "inspector.show_in_viewer": "Afficher dans la visionneuse",
+  "inspector.shown_in_viewer": "Affiché dans la visionneuse",
   "inspector.table.index": "Indice",
   "inspector.table.value": "Valeur",
   "inspector.target": "Cible",

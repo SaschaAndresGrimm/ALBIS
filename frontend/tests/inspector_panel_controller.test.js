@@ -30,22 +30,25 @@ async function setup(responses) {
       <nav id="path"></nav><button id="copy"></button>
       <div id="facts"></div>
       <div id="attrs"></div><div id="preview"></div>
-    </div>`;
+    </div>
+    <select id="datasets"><option value="/entry/data/data">/entry/data/data</option><option value="/entry/flat">/entry/flat</option></select>`;
   const byId = (id) => document.getElementById(id);
   const setSectionBadgeState = vi.fn();
   const fetchJSON = vi.fn(async (url) => {
     const route = Object.keys(responses).find((key) => url.includes(key));
     return responses[route];
   });
+  const state = { file: "/data/master.h5", dataset: "/entry/data/data" };
   const controller = createInspectorPanelController({
     apiBase: "/api",
-    state: { file: "/data/master.h5", dataset: "" },
+    state,
     elements: {
       inspectorTree: byId("tree"),
       inspectorDetails: byId("details"),
       inspectorPath: byId("path"),
       inspectorFacts: byId("facts"),
       inspectorCopyPath: byId("copy"),
+      datasetSelect: byId("datasets"),
       inspectorAttrs: byId("attrs"),
       inspectorPreview: byId("preview"),
     },
@@ -63,7 +66,7 @@ async function setup(responses) {
     [...byId("facts").querySelectorAll(".meta-row")]
       .find((row) => row.firstChild.textContent === label)
       ?.lastChild.textContent;
-  return { controller, byId, fetchJSON, fact, setSectionBadgeState };
+  return { controller, byId, fetchJSON, fact, setSectionBadgeState, state };
 }
 
 const ROOT = {
@@ -377,5 +380,52 @@ describe("inspector details", () => {
     const kinds = [...byId("tree").querySelectorAll(".inspector-icon")].map((i) => i.dataset.kind);
     expect(kinds).toEqual(["group", "dataset", "dataset"]);
     expect(byId("tree").querySelector('[data-path="/entry/data"]').getAttribute("aria-label")).toBe("data, group");
+  });
+});
+
+describe("show in viewer", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const flat = (path) => ({
+    "/hdf5/node": { path, type: "dataset", shape: [4, 4], dtype: "float32", attrs: [] },
+    "/hdf5/value": { path, type: "dataset", shape: [4, 4], dtype: "float32", preview: [[1, 1], [1, 1]], truncated: false },
+  });
+
+  it("opens a listed dataset through the Dataset list's own change handler", async () => {
+    const { controller, byId, state } = await setup(flat("/entry/flat"));
+    // As the Dataset list's handler does, synchronously within dispatch.
+    const onChange = vi.fn((event) => {
+      state.dataset = event.target.value;
+    });
+    byId("datasets").addEventListener("change", onChange);
+    await controller.showInspectorNode("/entry/flat");
+
+    const button = byId("preview").querySelector(".inspector-show-in-viewer");
+    expect(button.textContent).toBe("Show in viewer");
+    button.click();
+
+    expect(byId("datasets").value).toBe("/entry/flat");
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(byId("preview").querySelector(".inspector-show-in-viewer")).toBeNull();
+    expect(byId("preview").textContent).toContain("Shown in viewer");
+
+    // Picking another dataset in the list takes the claim back.
+    state.dataset = "/entry/data/data";
+    controller.refreshViewerAction();
+    expect(byId("preview").querySelector(".inspector-show-in-viewer")).not.toBeNull();
+  });
+
+  it("says so for the dataset already on show, and offers nothing for one not listed", async () => {
+    const shown = await setup(flat("/entry/data/data"));
+    await shown.controller.showInspectorNode("/entry/data/data");
+    expect(shown.byId("preview").querySelector(".inspector-show-in-viewer")).toBeNull();
+    expect(shown.byId("preview").textContent).toContain("Shown in viewer");
+
+    const other = await setup(flat("/entry/other"));
+    await other.controller.showInspectorNode("/entry/other");
+    expect(other.byId("preview").textContent).not.toContain("viewer");
+    expect(other.controller.showDatasetInViewer("/entry/other")).toBe(false);
   });
 });

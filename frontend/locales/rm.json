@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "Tschertgar vias...",
   "inspector.select_hdf5": "Tscherna ina datoteca HDF5 per navigar ils sets da datas.",
   "inspector.shape.scalar": "scalar",
+  "inspector.show_in_viewer": "Mussar en il visualisader",
+  "inspector.shown_in_viewer": "Mussà en il visualisader",
   "inspector.table.index": "Posiziun",
   "inspector.table.value": "Valur",
   "inspector.target": "Destinaziun",

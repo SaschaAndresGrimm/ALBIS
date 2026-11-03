@@ -858,6 +858,8 @@
   "inspector.search.placeholder": "Rapu ara...",
   "inspector.select_hdf5": "Tīpakohia he kōnae HDF5 hei tirotiro i ngā huingararaunga.",
   "inspector.shape.scalar": "uara kotahi",
+  "inspector.show_in_viewer": "Whakaatu ki te mātakitaki",
+  "inspector.shown_in_viewer": "E whakaaturia ana ki te mātakitaki",
   "inspector.table.index": "Taupū",
   "inspector.table.value": "Uara",
   "inspector.target": "Whāinga",

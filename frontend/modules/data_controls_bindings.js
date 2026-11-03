@@ -46,6 +46,7 @@ export function bindDataControlInteractions({
 
   datasetSelect.addEventListener("change", async (event) => {
     state.dataset = event.target.value;
+    core.inspectorPanel?.refreshViewerAction();
     core.framePlayback?.stopPlayback();
     await core.frameMetadata?.loadMetadata();
   });
