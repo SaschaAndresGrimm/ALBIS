@@ -28,6 +28,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **Each entry in the File Inspector's tree is marked as a group, dataset or link,** so the column on the right no longer repeats "group"; and the tree can be dragged taller by its bottom-right corner.
 - **The File Inspector's status line names the open file.** It used to say "Loaded group" or "Loaded dataset" after every click, repeating what had just been done; it now names the file, and speaks up only while loading, after a search, or when something fails.
 
+- **Long values in the File Inspector stay in their own box, and a single value can be copied.** An attribute too long to sit beside its name, such as a detector configuration stored as text, now shows under its name in a box of about six lines that scrolls on its own; JSON in it is indented to read. Until now such a value wrapped right-aligned and stretched the panel by dozens of lines. A dataset holding one value has a **Copy value** button next to **View as JSON**.
+
 ### Fixed
 
 - **A File Inspector entry that cannot be read no longer empties the tree.** The whole tree was replaced by "Failed to load node", so one broken entry cost the user their place in the file; now only the details say so.

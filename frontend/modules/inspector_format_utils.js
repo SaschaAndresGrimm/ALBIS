@@ -81,3 +81,31 @@ export function splitMatches(text, query) {
   if (from < source.length || !pieces.length) pieces.push({ text: source.slice(from), match: false });
   return pieces;
 }
+
+// Past this, a value no longer fits beside its name in a panel row.
+export const INSPECTOR_LONG_VALUE_CHARS = 48;
+
+/**
+ * How to show an attribute's or a scalar's value: `{ text, long }`. JSON that
+ * a writer stored as text (a detector's whole configuration in one
+ * attribute) is indented, and anything long or multi-line is `long`, to go
+ * in its own scrolling block: such values used to wrap right-aligned beside
+ * their name and stretch the panel by dozens of lines.
+ */
+export function inspectorValueText(value) {
+  const text = String(value ?? "");
+  const trimmed = text.trim();
+  const fits = text.length <= INSPECTOR_LONG_VALUE_CHARS && !text.includes("\n");
+  if (fits) return { text, long: false };
+  if (/^[[{]/.test(trimmed)) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object") {
+        return { text: JSON.stringify(parsed, null, 2), long: true };
+      }
+    } catch {
+      // Not JSON after all; shown as written.
+    }
+  }
+  return { text, long: true };
+}

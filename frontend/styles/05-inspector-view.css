@@ -466,6 +466,41 @@
   text-align: right;
 }
 
+.inspector-attr-row.is-long {
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* About six lines, then it scrolls inside itself instead of the panel. */
+.inspector-attr-row.is-long > .inspector-long-value {
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  max-height: 7.5em;
+  overflow: auto;
+  padding: 4px 6px;
+  background: var(--surface-well);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.inspector-copy-value {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.inspector-copy-value:hover {
+  text-decoration: underline;
+}
+
 .inspector-preview {
   background: var(--surface-well);
   border: 1px solid var(--border-subtle);
