@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "Fondo: {{value}} (extremo bajo del contraste)",
   "inpaint.value.foreground": "Primer plano",
   "inpaint.value.foreground_title": "Primer plano: {{value}} (extremo alto del contraste)",
-  "inspector.attributes": "Atributos",
+  "inspector.attributes_count": "Atributos · {{count}}",
   "inspector.chart.hint": "Señale el gráfico para leer los valores",
   "inspector.chart.label": "Gráfico de líneas de {{count}} valores, de {{min}} a {{max}}",
   "inspector.chart.point": "Índice {{index}}: {{value}}",

@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "背景：{{value}}（对比度下限）",
   "inpaint.value.foreground": "前景",
   "inpaint.value.foreground_title": "前景：{{value}}（对比度上限）",
-  "inspector.attributes": "属性",
+  "inspector.attributes_count": "属性：{{count}}",
   "inspector.chart.hint": "将指针移到图表上以读取数值",
   "inspector.chart.label": "{{count}} 个值的折线图，范围 {{min}} 至 {{max}}",
   "inspector.chart.point": "索引 {{index}}：{{value}}",

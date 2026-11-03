@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "Papamuri: {{value}} (te pito raro o te pūrata)",
   "inpaint.value.foreground": "Mua",
   "inpaint.value.foreground_title": "Mua: {{value}} (te pito runga o te pūrata)",
-  "inspector.attributes": "Āhuatanga",
+  "inspector.attributes_count": "Āhuatanga · {{count}}",
   "inspector.chart.hint": "Tohua te kauwhata kia pānui i ngā uara",
   "inspector.chart.label": "Kauwhata rārangi o ngā uara {{count}}, mai i {{min}} ki {{max}}",
   "inspector.chart.point": "Taupū {{index}}: {{value}}",

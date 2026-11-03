@@ -73,10 +73,12 @@ export function createInspectorPanelController({
 
   // One part of the summary line: the value on screen, "Shape: 40000" for a
   // screen reader and as the tooltip, since the line has no labels.
-  function summaryPart(key, value, className) {
+  // `label` is a locale key, or `{ text }` for a name that is not translated
+  // (an HDF5 attribute such as NX_class).
+  function summaryPart(label, value, className) {
     const part = document.createElement("span");
     part.className = className;
-    const spoken = t("inspector.fact", { label: t(key), value });
+    const spoken = t("inspector.fact", { label: typeof label === "string" ? t(label) : label.text, value });
     part.title = spoken;
     const hidden = document.createElement("span");
     hidden.className = "sr-only";
@@ -95,11 +97,12 @@ export function createInspectorPanelController({
    * values that say what they are (`float64` is plainly a dtype); the labels
    * live on in the tooltips.
    */
-  function renderInspectorFacts({ type = "", target = "", shape = "", dtype = "", units = "" } = {}) {
+  function renderInspectorFacts({ type = "", nxClass = "", target = "", shape = "", dtype = "", units = "" } = {}) {
     if (!inspectorFacts) return;
     inspectorFacts.innerHTML = "";
     const parts = [
       ["inspector.label.type", type],
+      [{ text: "NX_class" }, nxClass],
       ["inspector.label.shape", shape],
       ["inspector.label.dtype", dtype],
       ["inspector.label.units", units],
@@ -779,22 +782,34 @@ export function createInspectorPanelController({
       if (requestId !== inspectorNodeRequestId) return null;
       const typeLabel = localizeInspectorType(data.type);
       renderInspectorCrumbs(data.path || path);
-      const unitsAttr = Array.isArray(data.attrs) ? data.attrs.find((attr) => attr.name === "units") : null;
+      // `units` and `NX_class` go on the summary line and out of the list: for
+      // most NeXus datasets `units` is the only attribute, and a block with a
+      // heading of its own for one row the line above already said was noise.
+      const attrs = Array.isArray(data.attrs) ? data.attrs : [];
+      const textAttr = (name) => {
+        const value = attrs.find((attr) => attr.name === name)?.value;
+        return typeof value === "string" ? value.trim() : "";
+      };
+      const units = textAttr("units");
+      const nxClass = textAttr("NX_class");
+      const shown = new Set([units && "units", nxClass && "NX_class"].filter(Boolean));
+      const rest = attrs.filter((attr) => !shown.has(attr.name));
       renderInspectorFacts({
         type: linkTarget ? t("inspector.type.link_to", { type: typeLabel }) : typeLabel,
+        nxClass,
         target: linkTarget,
         shape: formatInspectorShape(data.shape, t("inspector.shape.scalar")),
         dtype: data.dtype || "",
-        units: typeof unitsAttr?.value === "string" ? unitsAttr.value.trim() : "",
+        units,
       });
       if (inspectorAttrs) {
         inspectorAttrs.innerHTML = "";
-        if (Array.isArray(data.attrs) && data.attrs.length) {
+        if (rest.length) {
           const heading = document.createElement("div");
           heading.className = "inspector-subhead";
-          heading.textContent = t("inspector.attributes");
+          heading.textContent = t("inspector.attributes_count", { count: rest.length });
           inspectorAttrs.appendChild(heading);
-          data.attrs.forEach((attr) => appendAttrRow(attr.name, formatInspectorValue(attr.value)));
+          rest.forEach((attr) => appendAttrRow(attr.name, formatInspectorValue(attr.value)));
         }
       }
       const nodeType = normalizeInspectorType(data.type);

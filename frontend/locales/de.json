@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "Hintergrund: {{value}} (unteres Ende des Kontrasts)",
   "inpaint.value.foreground": "Vordergrund",
   "inpaint.value.foreground_title": "Vordergrund: {{value}} (oberes Ende des Kontrasts)",
-  "inspector.attributes": "Attribute",
+  "inspector.attributes_count": "Attribute · {{count}}",
   "inspector.chart.hint": "Zeigen Sie auf das Diagramm, um Werte abzulesen",
   "inspector.chart.label": "Liniendiagramm von {{count}} Werten, von {{min}} bis {{max}}",
   "inspector.chart.point": "Index {{index}}: {{value}}",

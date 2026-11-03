@@ -432,13 +432,13 @@
   --inspector-copy-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.5l2.5 2.5L11 4.5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
+/* As quiet as the other labels in the details: it used to be the loudest
+   text there, bold capitals over what was often a single row. */
 .inspector-subhead {
-  margin-top: 4px;
-  color: var(--muted-strong);
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  color: var(--muted);
   font-size: var(--font-size-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .inspector-details .meta-row strong {
@@ -448,27 +448,33 @@
   word-break: break-all;
 }
 
+/* Name and value side by side in two columns, so each pair reads as one:
+   with the value flush right, the eye had to cross the panel to match
+   "units" with "s". The rows are transparent to the grid. */
 .inspector-attrs {
   display: grid;
-  gap: 4px;
+  grid-template-columns: fit-content(45%) minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 4px;
   font-size: var(--font-size-sm);
 }
 
 .inspector-attr-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
+  display: contents;
 }
 
-.inspector-attr-row span:last-child {
-  color: #f2f2f2;
-  word-break: break-all;
-  text-align: right;
+.inspector-attr-row > span:first-child {
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
-.inspector-attr-row.is-long {
-  flex-direction: column;
-  gap: 2px;
+.inspector-attr-row > span:last-child {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.inspector-attr-row.is-long > span {
+  grid-column: 1 / -1;
 }
 
 /* About six lines, then it scrolls inside itself instead of the panel. */

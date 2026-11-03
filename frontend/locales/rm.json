@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "Fund: {{value}} (la fin bassa dal contrast)",
   "inpaint.value.foreground": "Emprim plan",
   "inpaint.value.foreground_title": "Emprim plan: {{value}} (la fin auta dal contrast)",
-  "inspector.attributes": "Attributs",
+  "inspector.attributes_count": "Attributs · {{count}}",
   "inspector.chart.hint": "Mussai sin il diagram per leger las valurs",
   "inspector.chart.label": "Diagram da lingias da {{count}} valurs, da {{min}} fin {{max}}",
   "inspector.chart.point": "Index {{index}}: {{value}}",

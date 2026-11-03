@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "Hintergrund: {{value}} (unters Änd vom Kontrascht)",
   "inpaint.value.foreground": "Vordergrund",
   "inpaint.value.foreground_title": "Vordergrund: {{value}} (obers Änd vom Kontrascht)",
-  "inspector.attributes": "Attribut",
+  "inspector.attributes_count": "Attribut · {{count}}",
   "inspector.chart.hint": "Zeiged Si uf s Diagramm, zum d Wärt abläse",
   "inspector.chart.label": "Liniediagramm vo {{count}} Wärt, vo {{min}} bis {{max}}",
   "inspector.chart.point": "Index {{index}}: {{value}}",
