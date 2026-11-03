@@ -2,6 +2,7 @@
  * Inspector tree/search and image-header panel orchestration.
  */
 
+import { copyText } from "./clipboard_copy.js";
 import { t } from "./i18n.js";
 import { formatInspectorShape, inspectorRowMeta } from "./inspector_format_utils.js";
 import { treeKeyAction } from "./inspector_tree_nav_utils.js";
@@ -18,9 +19,8 @@ export function createInspectorPanelController({
     inspectorResults,
     inspectorStateEl,
     inspectorPath,
-    inspectorType,
-    inspectorShape,
-    inspectorDtype,
+    inspectorFacts,
+    inspectorCopyPath,
     inspectorAttrs,
     inspectorPreview,
     inspectorDetails,
@@ -39,15 +39,125 @@ export function createInspectorPanelController({
     setSectionBadgeState,
     renderSkeletonBlock,
     formatInspectorValue,
-    resetInspectorDetails,
   } = callbacks;
 
   let inspectorSelectedRow = null;
   let inspectorSearchRequestId = 0;
   let inspectorNodeRequestId = 0;
+  let inspectorDetailsPath = "";
+  let copyFeedbackTimer = null;
 
   function normalizeInspectorType(type) {
     return String(type || "").trim().toLowerCase();
+  }
+
+  // The status line names the open file once the inspector is idle. It used
+  // to announce "Loaded group" or "Loaded dataset" after every click, which
+  // repeated what the user had just done, and a live region read it aloud.
+  function setInspectorIdle() {
+    const name = String(state.file || "").split(/[\\/]/).pop();
+    setSectionBadgeState(inspectorStateEl, "active", name || t("inspector.tree.loaded"));
+  }
+
+  /**
+   * The Type, Target, Shape and DType rows, only those with a value. A group
+   * has no shape and only a link has a target; they used to show as "-".
+   */
+  function renderInspectorFacts({ type = "", target = "", shape = "", dtype = "" } = {}) {
+    if (!inspectorFacts) return;
+    inspectorFacts.innerHTML = "";
+    [
+      ["inspector.label.type", type],
+      ["inspector.target", target],
+      ["inspector.label.shape", shape],
+      ["inspector.label.dtype", dtype],
+    ].forEach(([key, value]) => {
+      if (!value) return;
+      const row = document.createElement("div");
+      row.className = "meta-row";
+      const label = document.createElement("span");
+      label.textContent = t(key);
+      const strong = document.createElement("strong");
+      strong.textContent = value;
+      row.appendChild(label);
+      row.appendChild(strong);
+      inspectorFacts.appendChild(row);
+    });
+  }
+
+  function resetInspectorDetails() {
+    inspectorDetailsPath = "";
+    if (inspectorPath) inspectorPath.innerHTML = "";
+    renderInspectorFacts();
+    if (inspectorAttrs) inspectorAttrs.innerHTML = "";
+    if (inspectorPreview) inspectorPreview.innerHTML = "";
+    inspectorDetails?.classList.add("is-empty");
+  }
+
+  /**
+   * The path as a breadcrumb: each ancestor a button that selects it, so the
+   * way back up from a search result or a deep dataset is one click.
+   */
+  function renderInspectorCrumbs(path) {
+    inspectorDetailsPath = path || "";
+    inspectorDetails?.classList.remove("is-empty");
+    if (!inspectorPath) return;
+    inspectorPath.innerHTML = "";
+    const parts = String(path || "").split("/").filter(Boolean);
+    parts.forEach((part, index) => {
+      const sep = document.createElement("span");
+      sep.className = "inspector-crumb-sep";
+      sep.textContent = "/";
+      sep.setAttribute("aria-hidden", "true");
+      inspectorPath.appendChild(sep);
+      const crumbPath = `/${parts.slice(0, index + 1).join("/")}`;
+      if (index === parts.length - 1) {
+        const current = document.createElement("strong");
+        current.className = "inspector-crumb is-current";
+        current.setAttribute("aria-current", "location");
+        current.textContent = part;
+        inspectorPath.appendChild(current);
+        return;
+      }
+      const crumb = document.createElement("button");
+      crumb.type = "button";
+      crumb.className = "inspector-crumb";
+      crumb.dataset.crumbPath = crumbPath;
+      crumb.textContent = part;
+      inspectorPath.appendChild(crumb);
+    });
+  }
+
+  async function copyInspectorPath() {
+    if (!inspectorDetailsPath || !inspectorCopyPath) return false;
+    const copied = await copyText(inspectorDetailsPath);
+    const label = copied ? t("inspector.path_copied") : t("inspector.copy_failed");
+    inspectorCopyPath.classList.toggle("is-copied", copied);
+    inspectorCopyPath.title = label;
+    inspectorCopyPath.setAttribute("aria-label", label);
+    setSectionBadgeState(inspectorStateEl, copied ? "active" : "warning", label);
+    if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer);
+    copyFeedbackTimer = window.setTimeout(() => {
+      copyFeedbackTimer = null;
+      inspectorCopyPath.classList.remove("is-copied");
+      inspectorCopyPath.title = t("inspector.copy_path");
+      inspectorCopyPath.setAttribute("aria-label", t("inspector.copy_path"));
+      setInspectorIdle();
+    }, 1500);
+    return copied;
+  }
+
+  // A breadcrumb's group is always in the tree, since its child was reached
+  // through it; a search result's may not be, and then only the details move.
+  async function revealInspectorPath(path) {
+    const item = treeItems().find((el) => el.dataset.path === path);
+    if (!item) {
+      await showInspectorNode(path);
+      return;
+    }
+    focusInspectorItem(item);
+    item.scrollIntoView?.({ block: "nearest" });
+    await activateInspectorNode(item);
   }
 
   function localizeInspectorType(type) {
@@ -64,6 +174,20 @@ export function createInspectorPanelController({
       typeLabel: localizeInspectorType(node.type),
       scalarLabel: t("inspector.shape.scalar"),
     });
+  }
+
+  // A small drawn mark for the node's kind, so the right-hand column can say
+  // something more useful than "group".
+  function typeIcon(type) {
+    const icon = document.createElement("span");
+    icon.className = "inspector-icon";
+    icon.dataset.kind = normalizeInspectorType(type) || "node";
+    icon.setAttribute("aria-hidden", "true");
+    return icon;
+  }
+
+  function rowLabel(name, node, metaText) {
+    return [name, localizeInspectorType(node.type), metaText].filter(Boolean).join(", ");
   }
 
   function setImageHeaderSectionState(tone, message) {
@@ -194,7 +318,7 @@ export function createInspectorPanelController({
     if (!query) {
       inspectorResults.innerHTML = "";
       inspectorResults.classList.add("is-hidden");
-      setSectionBadgeState(inspectorStateEl, "active", t("inspector.browser_ready"));
+      setInspectorIdle();
       return;
     }
     inspectorResults.classList.remove("is-hidden");
@@ -229,7 +353,8 @@ export function createInspectorPanelController({
       meta.textContent = metaText;
       if (metaTitle) row.title = metaTitle;
       const resultName = String(name.textContent || "").trim();
-      row.setAttribute("aria-label", metaText ? `${resultName}, ${metaText}` : resultName);
+      row.setAttribute("aria-label", rowLabel(resultName, item, metaText));
+      row.appendChild(typeIcon(item.type));
       row.appendChild(name);
       row.appendChild(meta);
       inspectorResults.appendChild(row);
@@ -269,24 +394,11 @@ export function createInspectorPanelController({
   }
 
   function renderInspectorLink(path, target) {
-    if (inspectorPath) inspectorPath.textContent = path || "-";
-    if (inspectorType) inspectorType.textContent = t("inspector.type.link");
-    if (inspectorShape) inspectorShape.textContent = "-";
-    if (inspectorDtype) inspectorDtype.textContent = "-";
-    if (inspectorAttrs) {
-      inspectorAttrs.innerHTML = "";
-      const attrRow = document.createElement("div");
-      attrRow.className = "inspector-attr-row";
-      const name = document.createElement("span");
-      name.textContent = t("inspector.target");
-      const value = document.createElement("span");
-      value.textContent = target || "-";
-      attrRow.appendChild(name);
-      attrRow.appendChild(value);
-      inspectorAttrs.appendChild(attrRow);
-    }
+    renderInspectorCrumbs(path);
+    renderInspectorFacts({ type: t("inspector.type.link"), target });
+    if (inspectorAttrs) inspectorAttrs.innerHTML = "";
     if (inspectorPreview) inspectorPreview.innerHTML = "";
-    setSectionBadgeState(inspectorStateEl, "active", t("inspector.link_loaded"));
+    setInspectorIdle();
   }
 
   function formatInspectorCell(value) {
@@ -371,7 +483,7 @@ export function createInspectorPanelController({
     )}&max_cells=65536`;
     link.target = "_blank";
     link.rel = "noopener";
-    link.textContent = t("inspector.open_new_tab");
+    link.textContent = t("inspector.open_json");
     actions.appendChild(link);
     if (Array.isArray(data.shape) && data.shape.length > 0) {
       const csvLink = document.createElement("a");
@@ -464,10 +576,11 @@ export function createInspectorPanelController({
     if (metaTitle) row.title = metaTitle;
 
     row.appendChild(toggle);
+    row.appendChild(typeIcon(node.type));
     row.appendChild(name);
     row.appendChild(meta);
     li.appendChild(row);
-    li.setAttribute("aria-label", metaText ? `${name.textContent}, ${metaText}` : name.textContent);
+    li.setAttribute("aria-label", rowLabel(name.textContent, node, metaText));
 
     if (nodeType === "group") {
       const children = document.createElement("ul");
@@ -556,7 +669,7 @@ export function createInspectorPanelController({
       const children = await fetchInspectorTree(item.dataset.path || "");
       renderInspectorTree(children, container);
       item.dataset.loaded = "true";
-      setSectionBadgeState(inspectorStateEl, "active", t("inspector.tree.loaded"));
+      setInspectorIdle();
     } catch (err) {
       console.error(err);
       setSectionBadgeState(inspectorStateEl, "warning", t("inspector.tree.failed_children"));
@@ -655,7 +768,7 @@ export function createInspectorPanelController({
       inspectorSelectedRow = null;
       resetInspectorDetails();
       if (children.length) {
-        setSectionBadgeState(inspectorStateEl, "active", t("inspector.tree.loaded"));
+        setInspectorIdle();
       } else {
         setSectionBadgeState(inspectorStateEl, "empty", t("inspector.tree.no_nodes"));
       }
@@ -710,17 +823,20 @@ export function createInspectorPanelController({
       );
       if (requestId !== inspectorNodeRequestId) return null;
       const typeLabel = localizeInspectorType(data.type);
-      if (inspectorPath) inspectorPath.textContent = data.path || path;
-      if (inspectorType) {
-        inspectorType.textContent = linkTarget ? t("inspector.type.link_to", { type: typeLabel }) : typeLabel;
-      }
-      if (inspectorShape) inspectorShape.textContent =
-          formatInspectorShape(data.shape, t("inspector.shape.scalar")) || "-";
-      if (inspectorDtype) inspectorDtype.textContent = data.dtype || "-";
+      renderInspectorCrumbs(data.path || path);
+      renderInspectorFacts({
+        type: linkTarget ? t("inspector.type.link_to", { type: typeLabel }) : typeLabel,
+        target: linkTarget,
+        shape: formatInspectorShape(data.shape, t("inspector.shape.scalar")),
+        dtype: data.dtype || "",
+      });
       if (inspectorAttrs) {
         inspectorAttrs.innerHTML = "";
-        if (linkTarget) appendAttrRow(t("inspector.target"), linkTarget);
-        if (Array.isArray(data.attrs)) {
+        if (Array.isArray(data.attrs) && data.attrs.length) {
+          const heading = document.createElement("div");
+          heading.className = "inspector-subhead";
+          heading.textContent = t("inspector.attributes");
+          inspectorAttrs.appendChild(heading);
           data.attrs.forEach((attr) => appendAttrRow(attr.name, formatInspectorValue(attr.value)));
         }
       }
@@ -739,7 +855,7 @@ export function createInspectorPanelController({
       } else if (inspectorPreview) {
         inspectorPreview.innerHTML = "";
       }
-      setSectionBadgeState(inspectorStateEl, "active", t("inspector.node.loaded", { type: typeLabel }));
+      setInspectorIdle();
       return data;
     } catch (err) {
       if (requestId !== inspectorNodeRequestId) return null;
@@ -787,6 +903,8 @@ export function createInspectorPanelController({
     showInspectorNode,
     activateInspectorNode,
     setInspectorGroupOpen,
+    copyInspectorPath,
+    revealInspectorPath,
     handleInspectorTreeKey,
     noteInspectorFocus,
   };

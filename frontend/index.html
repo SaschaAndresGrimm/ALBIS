@@ -1060,11 +1060,10 @@
               <div class="inspector-tree" id="inspector-tree">
                 <div class="inspector-empty" data-i18n="inspector.select_hdf5">Select an HDF5 file to browse metadata.</div>
               </div>
-              <div class="inspector-details" id="inspector-details">
-                <div class="meta-row"><span data-i18n="inspector.label.path">Path</span><strong id="inspector-path">-</strong></div>
-                <div class="meta-row"><span data-i18n="inspector.label.type">Type</span><strong id="inspector-type">-</strong></div>
-                <div class="meta-row"><span data-i18n="inspector.label.shape">Shape</span><strong id="inspector-shape">-</strong></div>
-                <div class="meta-row"><span data-i18n="inspector.label.dtype">DType</span><strong id="inspector-dtype">-</strong></div>
+              <div class="inspector-details is-empty" id="inspector-details">
+                <div class="inspector-details-head"><nav class="inspector-crumbs" id="inspector-path" aria-label="Path" data-i18n-aria-label="inspector.label.path"></nav>
+                  <button type="button" class="inspector-copy" id="inspector-copy-path" title="Copy path" aria-label="Copy path" data-i18n-title="inspector.copy_path" data-i18n-aria-label="inspector.copy_path"></button></div>
+                <div class="inspector-facts" id="inspector-facts"></div>
                 <div class="inspector-attrs" id="inspector-attrs"></div>
                 <div class="inspector-preview" id="inspector-preview"></div>
               </div>

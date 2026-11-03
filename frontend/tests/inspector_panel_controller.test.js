@@ -27,11 +27,12 @@ async function setup(responses) {
   document.body.innerHTML = `
     <div id="tree"></div>
     <div id="details">
-      <strong id="path"></strong><strong id="type"></strong>
-      <strong id="shape"></strong><strong id="dtype"></strong>
+      <nav id="path"></nav><button id="copy"></button>
+      <div id="facts"></div>
       <div id="attrs"></div><div id="preview"></div>
     </div>`;
   const byId = (id) => document.getElementById(id);
+  const setSectionBadgeState = vi.fn();
   const fetchJSON = vi.fn(async (url) => {
     const route = Object.keys(responses).find((key) => url.includes(key));
     return responses[route];
@@ -43,9 +44,8 @@ async function setup(responses) {
       inspectorTree: byId("tree"),
       inspectorDetails: byId("details"),
       inspectorPath: byId("path"),
-      inspectorType: byId("type"),
-      inspectorShape: byId("shape"),
-      inspectorDtype: byId("dtype"),
+      inspectorFacts: byId("facts"),
+      inspectorCopyPath: byId("copy"),
       inspectorAttrs: byId("attrs"),
       inspectorPreview: byId("preview"),
     },
@@ -53,13 +53,17 @@ async function setup(responses) {
       fetchJSON,
       isHdf5File: () => true,
       isHeaderCapableFile: () => false,
-      setSectionBadgeState: () => {},
+      setSectionBadgeState,
       renderSkeletonBlock: () => {},
       formatInspectorValue: (v) => String(v),
-      resetInspectorDetails: () => {},
     },
   });
-  return { controller, byId, fetchJSON };
+  // The value of a details row by its label, or undefined when it is absent.
+  const fact = (label) =>
+    [...byId("facts").querySelectorAll(".meta-row")]
+      .find((row) => row.firstChild.textContent === label)
+      ?.lastChild.textContent;
+  return { controller, byId, fetchJSON, fact, setSectionBadgeState };
 }
 
 const ROOT = {
@@ -94,19 +98,19 @@ describe("inspector tree rows", () => {
     await controller.loadInspectorRoot();
 
     const metas = [...byId("tree").querySelectorAll(".inspector-meta")].map((m) => m.textContent);
-    expect(metas).toEqual(["group", "NXmx", "12.4 keV"]);
+    expect(metas).toEqual(["", "NXmx", "12.4 keV"]);
     expect(byId("tree").textContent).not.toContain("object");
   });
 
   it("names a scalar's shape in the details", async () => {
-    const { controller, byId } = await setup({
+    const { controller, fact } = await setup({
       "/hdf5/node": { path: "/entry/definition", type: "dataset", shape: [], dtype: "string", attrs: [] },
       "/hdf5/value": { path: "/entry/definition", type: "dataset", shape: [], dtype: "string", preview: "NXmx", truncated: false },
     });
     await controller.showInspectorNode("/entry/definition");
 
-    expect(byId("shape").textContent).toBe("scalar");
-    expect(byId("dtype").textContent).toBe("string");
+    expect(fact("Shape")).toBe("scalar");
+    expect(fact("DType")).toBe("string");
   });
 });
 
@@ -251,15 +255,15 @@ describe("inspector links", () => {
   }
 
   it("shows what a link points to, with its target on top", async () => {
-    const { controller, byId, item } = await withLinks({
+    const { controller, byId, fact, item } = await withLinks({
       "node?file=%2Fdata%2Fmaster.h5&path=%2Fentry%2Fstart_time": { path: "/entry/start_time", type: "dataset", shape: [], dtype: "string", attrs: [] },
       "/hdf5/value": { path: "/entry/start_time", type: "dataset", shape: [], dtype: "string", preview: "2026-11-02T20:05:00", truncated: false },
     });
     await controller.activateInspectorNode(item("start_time"));
 
-    expect(byId("type").textContent).toBe("link to dataset");
-    expect(byId("dtype").textContent).toBe("string");
-    expect(byId("attrs").textContent).toContain("data_000001.h5:/entry/start_time");
+    expect(fact("Type")).toBe("link to dataset");
+    expect(fact("DType")).toBe("string");
+    expect(fact("Target")).toBe("data_000001.h5:/entry/start_time");
     expect(byId("preview").textContent).toContain("2026-11-02T20:05:00");
   });
 
@@ -284,12 +288,12 @@ describe("inspector links", () => {
   });
 
   it("keeps the tree when a link does not resolve", async () => {
-    const { controller, byId, item } = await withLinks({});
+    const { controller, byId, fact, item } = await withLinks({});
     await controller.activateInspectorNode(item("gone"));
 
     expect(byId("tree").querySelectorAll('[role="treeitem"]')).toHaveLength(3);
-    expect(byId("type").textContent).toBe("link");
-    expect(byId("attrs").textContent).toContain("missing.h5:/x");
+    expect(fact("Type")).toBe("link");
+    expect(fact("Target")).toBe("missing.h5:/x");
   });
 
   it("keeps the tree when any node fails to load", async () => {
@@ -298,5 +302,80 @@ describe("inspector links", () => {
     await controller.showInspectorNode("/entry/gone");
 
     expect(byId("tree").querySelectorAll('[role="treeitem"]')).toHaveLength(3);
+  });
+});
+
+describe("inspector details", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const DETECTOR = {
+    "/hdf5/tree": {
+      path: "/",
+      children: [{ name: "entry", path: "/entry", type: "group", hasChildren: true }],
+    },
+    "/hdf5/node": {
+      path: "/entry/instrument/detector",
+      type: "group",
+      attrs: [{ name: "NX_class", value: "NXdetector" }],
+    },
+  };
+
+  it("leaves out rows a node has no value for, and heads the attributes", async () => {
+    const { controller, byId, fact } = await setup(DETECTOR);
+    await controller.showInspectorNode("/entry/instrument/detector");
+
+    expect(fact("Type")).toBe("group");
+    expect(fact("Shape")).toBeUndefined();
+    expect(fact("DType")).toBeUndefined();
+    expect(fact("Target")).toBeUndefined();
+    expect(byId("attrs").querySelector(".inspector-subhead").textContent).toBe("Attributes");
+    expect(byId("details").classList.contains("is-empty")).toBe(false);
+  });
+
+  it("shows the path as a breadcrumb whose ancestors select their entry", async () => {
+    const { controller, byId } = await setup(DETECTOR);
+    await controller.loadInspectorRoot();
+    await controller.showInspectorNode("/entry/instrument/detector");
+
+    const crumbs = [...byId("path").querySelectorAll("[data-crumb-path]")].map((b) => b.dataset.crumbPath);
+    expect(crumbs).toEqual(["/entry", "/entry/instrument"]);
+    expect(byId("path").querySelector('[aria-current="location"]').textContent).toBe("detector");
+
+    await controller.revealInspectorPath("/entry");
+    const entry = byId("tree").querySelector('[data-path="/entry"]');
+    expect(entry.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(entry);
+  });
+
+  it("copies the selected path", async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const { controller, byId } = await setup(DETECTOR);
+    await controller.showInspectorNode("/entry/instrument/detector");
+
+    expect(await controller.copyInspectorPath()).toBe(true);
+    expect(writeText).toHaveBeenCalledWith("/entry/instrument/detector");
+    expect(byId("copy").getAttribute("aria-label")).toBe("Path copied");
+    delete navigator.clipboard;
+  });
+
+  it("names the file in the status line instead of announcing every click", async () => {
+    const { controller, setSectionBadgeState } = await setup(DETECTOR);
+    await controller.showInspectorNode("/entry/instrument/detector");
+
+    const [, tone, message] = setSectionBadgeState.mock.calls.at(-1);
+    expect(tone).toBe("active");
+    expect(message).toBe("master.h5");
+  });
+
+  it("marks each row with its kind", async () => {
+    const { controller, byId } = await setup({ "/hdf5/tree": ROOT });
+    await controller.loadInspectorRoot();
+
+    const kinds = [...byId("tree").querySelectorAll(".inspector-icon")].map((i) => i.dataset.kind);
+    expect(kinds).toEqual(["group", "dataset", "dataset"]);
+    expect(byId("tree").querySelector('[data-path="/entry/data"]').getAttribute("aria-label")).toBe("data, group");
   });
 });
