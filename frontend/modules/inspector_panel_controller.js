@@ -4,7 +4,7 @@
 
 import { copyText } from "./clipboard_copy.js";
 import { t } from "./i18n.js";
-import { formatInspectorShape, inspectorRowMeta } from "./inspector_format_utils.js";
+import { formatInspectorShape, inspectorRowMeta, splitInspectorPath, splitMatches } from "./inspector_format_utils.js";
 import { treeKeyAction } from "./inspector_tree_nav_utils.js";
 import { createImageHeaderPanel } from "./image_header_panel.js";
 import { createInspectorPreviewRenderer } from "./inspector_preview_renderer.js";
@@ -248,7 +248,7 @@ export function createInspectorPanelController({
     setSectionBadgeState(inspectorStateEl, tone, message);
     if (inspectorResults) {
       inspectorResults.innerHTML = "";
-      inspectorResults.classList.add("is-hidden");
+      setSearchMode(false);
     }
   }
 
@@ -273,26 +273,51 @@ export function createInspectorPanelController({
     }
   }
 
+  /**
+   * While a query has results on show, they take the tree's place: results,
+   * tree and preview used to be three small scrolling boxes stacked in the
+   * panel. Picking a result hands the space back to the tree, with the entry
+   * selected; focusing the search field again brings the results back.
+   */
+  function setSearchMode(on) {
+    const show = Boolean(on) && Boolean(inspectorResults?.childElementCount);
+    inspectorSection?.classList.toggle("is-searching", show);
+    inspectorResults?.classList.toggle("is-hidden", !show);
+  }
+
   function clearInspectorSearch() {
     if (inspectorSearchInput) inspectorSearchInput.value = "";
-    if (inspectorResults) {
-      inspectorResults.innerHTML = "";
-      inspectorResults.classList.add("is-hidden");
-    }
+    if (inspectorResults) inspectorResults.innerHTML = "";
+    setSearchMode(false);
+  }
+
+  function highlighted(text, query, className) {
+    const el = document.createElement("span");
+    el.className = className;
+    splitMatches(text, query).forEach((piece) => {
+      if (!piece.match) {
+        el.appendChild(document.createTextNode(piece.text));
+        return;
+      }
+      const mark = document.createElement("mark");
+      mark.textContent = piece.text;
+      el.appendChild(mark);
+    });
+    return el;
   }
 
   function renderInspectorResults(results, query) {
     if (!inspectorResults) return;
+    inspectorResults.innerHTML = "";
     if (!query) {
-      inspectorResults.innerHTML = "";
-      inspectorResults.classList.add("is-hidden");
+      setSearchMode(false);
       setInspectorIdle();
       return;
     }
-    inspectorResults.classList.remove("is-hidden");
     if (!Array.isArray(results) || results.length === 0) {
       inspectorResults.innerHTML = `<div class=\"inspector-empty\">${t("inspector.search.no_matches")}</div>`;
       setSectionBadgeState(inspectorStateEl, "empty", t("inspector.search.no_matches_for", { query }));
+      setSearchMode(true);
       return;
     }
     setSectionBadgeState(
@@ -300,7 +325,6 @@ export function createInspectorPanelController({
       "active",
       t("inspector.search.found_count", { count: results.length, query }),
     );
-    inspectorResults.innerHTML = "";
     results.forEach((item) => {
       const row = document.createElement("div");
       row.className = "inspector-result";
@@ -312,21 +336,89 @@ export function createInspectorPanelController({
       if (itemType === "link" && item.target) {
         row.dataset.target = item.target;
       }
-      const name = document.createElement("span");
-      name.className = "inspector-result-name";
-      name.textContent = item.path || item.name || "";
+      // Name first, where the eye starts, and the group it lives in after it:
+      // a full path put every result's distinguishing part at the far end.
+      const { name: nodeName, parent } = splitInspectorPath(item.path || item.name || "");
+      const label = document.createElement("span");
+      label.className = "inspector-result-label";
+      label.appendChild(highlighted(nodeName, query, "inspector-result-name"));
+      label.appendChild(highlighted(parent, query, "inspector-result-parent"));
       const meta = document.createElement("span");
       meta.className = "inspector-result-meta";
       const { text: metaText, title: metaTitle } = rowMeta(item);
       meta.textContent = metaText;
-      if (metaTitle) row.title = metaTitle;
-      const resultName = String(name.textContent || "").trim();
-      row.setAttribute("aria-label", rowLabel(resultName, item, metaText));
+      row.title = [item.path, metaTitle].filter(Boolean).join("\n");
+      row.setAttribute("aria-label", rowLabel(item.path || nodeName, item, metaText));
       row.appendChild(typeIcon(item.type));
-      row.appendChild(name);
+      row.appendChild(label);
       row.appendChild(meta);
       inspectorResults.appendChild(row);
     });
+    setSearchMode(true);
+  }
+
+  async function pickSearchResult(row) {
+    if (!row?.dataset.path) return;
+    const linkTarget = normalizeInspectorType(row.dataset.type) === "link" ? row.dataset.target || "-" : "";
+    setSearchMode(false);
+    await revealInspectorPath(row.dataset.path, { linkTarget });
+  }
+
+  function resultRows() {
+    return inspectorResults ? [...inspectorResults.querySelectorAll(".inspector-result")] : [];
+  }
+
+  // Escape leaves the search wherever focus is in it; with nothing typed it
+  // is left to the panel (and to whatever closes on Escape).
+  function leaveSearch(event) {
+    if (!inspectorSearchInput?.value) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    clearInspectorSearch();
+    runInspectorSearch("");
+    inspectorSearchInput.focus();
+    return true;
+  }
+
+  function handleSearchInputKey(event) {
+    if (event.key === "Escape") {
+      leaveSearch(event);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      const first = resultRows()[0];
+      if (!first) return;
+      event.preventDefault();
+      setSearchMode(true);
+      first.focus();
+    }
+  }
+
+  function handleResultsKey(event) {
+    const rows = resultRows();
+    const index = rows.indexOf(event.target?.closest?.(".inspector-result"));
+    if (index < 0) return;
+    let next = null;
+    if (event.key === "Escape") {
+      leaveSearch(event);
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      void pickSearchResult(rows[index]);
+      return;
+    }
+    if (event.key === "ArrowDown") next = rows[index + 1];
+    else if (event.key === "ArrowUp") next = index === 0 ? inspectorSearchInput : rows[index - 1];
+    else if (event.key === "Home") next = rows[0];
+    else if (event.key === "End") next = rows[rows.length - 1];
+    else return;
+    event.preventDefault();
+    next?.focus();
+  }
+
+  function showSearchResultsAgain() {
+    if (inspectorSearchInput?.value.trim()) setSearchMode(true);
   }
 
   async function runInspectorSearch(query) {
@@ -335,7 +427,7 @@ export function createInspectorPanelController({
       setSectionBadgeState(inspectorStateEl, "empty", t("inspector.hdf5_only"));
       if (inspectorResults) {
         inspectorResults.innerHTML = "";
-        inspectorResults.classList.add("is-hidden");
+        setSearchMode(false);
       }
       return;
     }
@@ -355,8 +447,8 @@ export function createInspectorPanelController({
       console.error(err);
       setSectionBadgeState(inspectorStateEl, "warning", t("inspector.search.failed"));
       if (inspectorResults) {
-        inspectorResults.classList.remove("is-hidden");
         inspectorResults.innerHTML = `<div class=\"inspector-empty\">${t("inspector.search.failed_short")}</div>`;
+        setSearchMode(true);
       }
     }
   }
@@ -751,6 +843,10 @@ export function createInspectorPanelController({
     fetchInspectorTree,
     loadInspectorRoot,
     selectInspectorRow,
+    pickSearchResult,
+    handleSearchInputKey,
+    handleResultsKey,
+    showSearchResultsAgain,
     showInspectorNode,
     activateInspectorNode,
     setInspectorGroupOpen,

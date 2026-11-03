@@ -228,8 +228,9 @@ between channels without leaving the keyboard.
 The same tab has the **HDF5 inspector**: browse the file tree, read attributes,
 and search for a dataset by name when you know what you are looking for but not
 where it lives. A field that holds a single value shows it in the tree, with its
-unit; hover over a row for the whole value, its shape and its type. Picking a search result
-selects it in the tree.
+unit; hover over a row for the whole value, its shape and its type. While you search, the results take the
+tree's place; picking one (click, or ↓ and Enter) brings the tree back with that
+entry selected, and Esc clears the search.
 Click a group to select it and open it, click it again to close it; the arrow in
 front of it opens and closes it without selecting it. The tree also works from
 the keyboard: Tab into it, ↑ and ↓ move, → and ← open and close groups, and
