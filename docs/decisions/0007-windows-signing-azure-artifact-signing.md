@@ -15,11 +15,9 @@ and in whether CI can do the signing unattended:
 - **SignPath Foundation.** Free for eligible open-source projects, and ALBIS
   is MIT licensed. It needs project approval, a code signing policy, GitHub
   origin verification and usually a manual approval step per signing.
-- **Azure Artifact Signing.** A low-cost paid service (the Basic plan was
-  listed at $9.99 a month for 5,000 signatures) with managed certificates and
-  HSM-backed keys. It needs identity validation and GitHub OIDC setup, and it
-  limits Public Trust profiles to organizations and individuals in certain
-  countries.
+- **Azure Artifact Signing.** A low-cost paid service with managed
+  certificates and HSM-backed keys. It needs identity validation and GitHub
+  OIDC setup.
 - **A traditional OV or EV certificate.** Since 1 June 2023 the CA/Browser
   Forum requires the private key of a new public certificate to live in
   hardware or a cloud HSM, so "put a PFX in CI" mostly no longer works. EV no
@@ -41,9 +39,6 @@ exportable certificate. Setup is in [WINDOWS_SIGNING.md](../WINDOWS_SIGNING.md).
 
 - A tagged release needs a complete Azure or a complete PFX configuration, so
   an unsigned Windows build cannot reach a release by an empty secret.
-- Public Trust eligibility depends on the country of the signing organization.
-  It must be confirmed with Microsoft before the account is created and
-  identity validation starts.
-- **Revisit if** Azure eligibility or billing becomes a blocker. SignPath
-  Foundation is the fallback; it uses the PFX wiring already in CI. Revisit
-  the Store as well if the SmartScreen warning drives users away.
+- **Revisit if** Azure becomes a blocker: SignPath Foundation is the
+  fallback and uses the PFX wiring already in CI. Revisit the Store as well if
+  the SmartScreen warning drives users away.
