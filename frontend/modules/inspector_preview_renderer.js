@@ -5,9 +5,11 @@
  * Split out of inspector_panel_controller.js, which passed 1,000 lines.
  */
 
+import { copyText } from "./clipboard_copy.js";
 import { formatStat } from "./format_utils.js";
 import { t } from "./i18n.js";
 import { outlineGeometry, outlinePointAt } from "./inspector_chart_utils.js";
+import { inspectorValueText } from "./inspector_format_utils.js";
 
 export function createInspectorPreviewRenderer({ apiBase, state, elements, callbacks }) {
   const { inspectorPreview, datasetSelect } = elements;
@@ -245,6 +247,28 @@ export function createInspectorPreviewRenderer({ apiBase, state, elements, callb
     return figure;
   }
 
+  /**
+   * "Copy value" for a single value: a timestamp, a sample name or a stored
+   * configuration is what one pastes elsewhere, and a long one is tedious to
+   * select by hand inside a scrolling box.
+   */
+  function buildCopyValueAction(text) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "inspector-copy-value";
+    button.textContent = t("inspector.copy_value");
+    let timer = null;
+    button.addEventListener("click", async () => {
+      const copied = await copyText(text);
+      button.textContent = copied ? t("inspector.value_copied") : t("inspector.copy_value_failed");
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        button.textContent = t("inspector.copy_value");
+      }, 1500);
+    });
+    return button;
+  }
+
   function renderInspectorPreview(data) {
     if (!inspectorPreview) return;
     inspectorPreview.innerHTML = "";
@@ -288,9 +312,11 @@ export function createInspectorPreviewRenderer({ apiBase, state, elements, callb
       const table = Array.isArray(preview[0]) ? buildInspectorTable2D(preview) : buildInspectorTable1D(preview);
       body.appendChild(table);
     } else {
+      const raw = formatInspectorValue(preview);
       const text = document.createElement("div");
-      text.textContent = formatInspectorValue(preview);
+      text.textContent = inspectorValueText(raw).text;
       body.appendChild(text);
+      actions.appendChild(buildCopyValueAction(raw));
     }
     inspectorPreview.appendChild(body);
 

@@ -239,7 +239,9 @@ and a link to a group opens like one. Above the details, the path is a breadcrum
 in it to go back up, or the copy button to copy the path. Drag the tree's
 bottom-right corner to make it taller. A dataset the **Dataset** list offers has a **Show in
 viewer** button above its values. A numeric array shows its minimum, maximum and mean,
-and a one-dimensional one also a line chart: point at it to read the values.
+and a one-dimensional one also a line chart: point at it to read the values. A
+single value can be copied with **Copy value**; a long attribute, such as a
+configuration stored as text, shows in its own scrolling box, with JSON indented.
 
 ---
 

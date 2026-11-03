@@ -4,7 +4,13 @@
 
 import { copyText } from "./clipboard_copy.js";
 import { t } from "./i18n.js";
-import { formatInspectorShape, inspectorRowMeta, splitInspectorPath, splitMatches } from "./inspector_format_utils.js";
+import {
+  formatInspectorShape,
+  inspectorRowMeta,
+  inspectorValueText,
+  splitInspectorPath,
+  splitMatches,
+} from "./inspector_format_utils.js";
 import { treeKeyAction } from "./inspector_tree_nav_utils.js";
 import { createImageHeaderPanel } from "./image_header_panel.js";
 import { createInspectorPreviewRenderer } from "./inspector_preview_renderer.js";
@@ -738,7 +744,15 @@ export function createInspectorPanelController({
     const nameEl = document.createElement("span");
     nameEl.textContent = name;
     const valueEl = document.createElement("span");
-    valueEl.textContent = value;
+    const { text, long } = inspectorValueText(value);
+    valueEl.textContent = text;
+    if (long) {
+      // Its own scrolling block under the name: a configuration stored as one
+      // attribute stretched the panel by dozens of right-aligned lines.
+      row.classList.add("is-long");
+      valueEl.className = "inspector-long-value";
+      valueEl.tabIndex = 0;
+    }
     row.appendChild(nameEl);
     row.appendChild(valueEl);
     inspectorAttrs.appendChild(row);

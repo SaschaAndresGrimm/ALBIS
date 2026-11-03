@@ -9,7 +9,9 @@ import {
   INSPECTOR_VALUE_CHARS,
   formatInspectorShape,
   formatInspectorScalar,
+  INSPECTOR_LONG_VALUE_CHARS,
   inspectorRowMeta,
+  inspectorValueText,
   splitInspectorPath,
   splitMatches,
 } from "../modules/inspector_format_utils.js";
@@ -90,5 +92,26 @@ describe("splitMatches", () => {
     expect(splitMatches("count_time", "")).toEqual([{ text: "count_time", match: false }]);
     expect(splitMatches("count_time", "zzz")).toEqual([{ text: "count_time", match: false }]);
     expect(splitMatches("", "x")).toEqual([{ text: "", match: false }]);
+  });
+});
+
+describe("inspectorValueText", () => {
+  it("indents JSON stored as text and marks it long", () => {
+    const { text, long } = inspectorValueText('{"detector": {"name": "EIGER2", "thresholds": [6000]}}');
+    expect(long).toBe(true);
+    expect(text).toBe('{\n  "detector": {\n    "name": "EIGER2",\n    "thresholds": [\n      6000\n    ]\n  }\n}');
+  });
+
+  it("marks long or multi-line text long and leaves short text inline", () => {
+    expect(inspectorValueText("x".repeat(INSPECTOR_LONG_VALUE_CHARS + 1)).long).toBe(true);
+    expect(inspectorValueText("line one\nline two").long).toBe(true);
+    expect(inspectorValueText("NXdetector")).toEqual({ text: "NXdetector", long: false });
+    expect(inspectorValueText(12.5)).toEqual({ text: "12.5", long: false });
+  });
+
+  it("keeps short JSON inline as written, and text that only looks like JSON as is", () => {
+    expect(inspectorValueText("[6000, 12000]")).toEqual({ text: "[6000, 12000]", long: false });
+    const broken = `[not json ${"x".repeat(60)}`;
+    expect(inspectorValueText(broken)).toEqual({ text: broken, long: true });
   });
 });

@@ -634,3 +634,59 @@ describe("array statistics and chart", () => {
     expect(byId("preview").querySelector(".inspector-chart")).toBeNull();
   });
 });
+
+describe("long values and copying them", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("puts a long attribute in its own block, JSON indented, and short ones inline", async () => {
+    const config = JSON.stringify({ detector: { name: "EIGER2 Si 4M", thresholds: [6000, 12000], notes: "x".repeat(80) } });
+    const { controller, byId } = await setup({
+      "/hdf5/node": {
+        path: "/entry",
+        type: "group",
+        attrs: [
+          { name: "NX_class", value: "NXentry" },
+          { name: "config", value: config },
+        ],
+      },
+    });
+    await controller.showInspectorNode("/entry");
+
+    const rows = [...byId("attrs").querySelectorAll(".inspector-attr-row")];
+    expect(rows[0].classList.contains("is-long")).toBe(false);
+    expect(rows[1].classList.contains("is-long")).toBe(true);
+    const block = rows[1].querySelector(".inspector-long-value");
+    expect(block.textContent.startsWith('{\n  "detector": {')).toBe(true);
+    expect(block.tabIndex).toBe(0);
+  });
+
+  it("copies a scalar's value as stored", async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const { controller, byId } = await setup({
+      "/hdf5/node": { path: "/entry/start_time", type: "dataset", shape: [], dtype: "string", attrs: [] },
+      "/hdf5/value": { path: "/entry/start_time", type: "dataset", shape: [], dtype: "string", preview: "2026-11-02T20:05:00+01:00", truncated: false },
+    });
+    await controller.showInspectorNode("/entry/start_time");
+
+    const button = byId("preview").querySelector(".inspector-copy-value");
+    expect(button.textContent).toBe("Copy value");
+    button.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(writeText).toHaveBeenCalledWith("2026-11-02T20:05:00+01:00");
+    expect(button.textContent).toBe("Value copied");
+    delete navigator.clipboard;
+  });
+
+  it("offers no Copy value for an array", async () => {
+    const { controller, byId } = await setup({
+      "/hdf5/node": { path: "/v", type: "dataset", shape: [2], dtype: "int32", attrs: [] },
+      "/hdf5/value": { path: "/v", type: "dataset", shape: [2], dtype: "int32", preview: [1, 2], truncated: false },
+    });
+    await controller.showInspectorNode("/v");
+
+    expect(byId("preview").querySelector(".inspector-copy-value")).toBeNull();
+  });
+});
