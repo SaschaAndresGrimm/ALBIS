@@ -6,6 +6,8 @@ import { copyText } from "./clipboard_copy.js";
 import { t } from "./i18n.js";
 import { formatInspectorShape, inspectorRowMeta } from "./inspector_format_utils.js";
 import { treeKeyAction } from "./inspector_tree_nav_utils.js";
+import { createImageHeaderPanel } from "./image_header_panel.js";
+import { createInspectorPreviewRenderer } from "./inspector_preview_renderer.js";
 
 export function createInspectorPanelController({
   apiBase,
@@ -25,12 +27,7 @@ export function createInspectorPanelController({
     inspectorPreview,
     inspectorDetails,
     inspectorSection,
-    datasetSelect,
     imageHeaderSection,
-    imageHeaderStateEl,
-    imageHeaderLoading,
-    imageHeaderText,
-    imageHeaderEmpty,
   } = elements;
 
   const {
@@ -41,6 +38,14 @@ export function createInspectorPanelController({
     renderSkeletonBlock,
     formatInspectorValue,
   } = callbacks;
+
+  const { clearImageHeader, loadImageHeader } = createImageHeaderPanel({ apiBase, state, elements, callbacks });
+  const { renderInspectorPreview, showDatasetInViewer, refreshViewerAction } = createInspectorPreviewRenderer({
+    apiBase,
+    state,
+    elements,
+    callbacks,
+  });
 
   let inspectorSelectedRow = null;
   let inspectorSearchRequestId = 0;
@@ -191,23 +196,6 @@ export function createInspectorPanelController({
     return [name, localizeInspectorType(node.type), metaText].filter(Boolean).join(", ");
   }
 
-  function setImageHeaderSectionState(tone, message) {
-    setSectionBadgeState(imageHeaderStateEl, tone, message);
-  }
-
-  function setImageHeaderLoading(loading) {
-    if (!imageHeaderLoading) return;
-    if (loading) {
-      renderSkeletonBlock(imageHeaderLoading, 7);
-      imageHeaderLoading.classList.remove("is-hidden");
-      imageHeaderLoading.setAttribute("aria-hidden", "false");
-      return;
-    }
-    imageHeaderLoading.classList.add("is-hidden");
-    imageHeaderLoading.setAttribute("aria-hidden", "true");
-    imageHeaderLoading.innerHTML = "";
-  }
-
   function setInspectorMessage(message, tone = "empty") {
     if (!inspectorTree) return;
     inspectorSelectedRow = null;
@@ -217,71 +205,6 @@ export function createInspectorPanelController({
     if (inspectorResults) {
       inspectorResults.innerHTML = "";
       inspectorResults.classList.add("is-hidden");
-    }
-  }
-
-  function setImageHeader(text) {
-    if (!imageHeaderText || !imageHeaderEmpty) return;
-    const headerText = typeof text === "string" ? text.trim() : "";
-    const hasText = headerText.length > 0;
-    setImageHeaderLoading(false);
-    imageHeaderText.textContent = hasText ? text : "";
-    imageHeaderText.classList.toggle("is-hidden", !hasText);
-    imageHeaderEmpty.classList.toggle("is-hidden", hasText);
-    if (hasText) {
-      setImageHeaderSectionState("active", t("inspector.header.loaded"));
-    } else {
-      setImageHeaderSectionState("empty", t("inspector.no_header"));
-    }
-  }
-
-  function clearImageHeader() {
-    state.imageHeaderFile = "";
-    state.imageHeaderText = "";
-    setImageHeaderLoading(false);
-    setImageHeader("");
-  }
-
-  async function loadImageHeader(file) {
-    if (!file || !isHeaderCapableFile(file)) {
-      clearImageHeader();
-      return;
-    }
-    if (state.imageHeaderFile === file && state.imageHeaderText) {
-      setImageHeader(state.imageHeaderText);
-      return;
-    }
-    setImageHeaderSectionState("loading", t("inspector.header.loading"));
-    setImageHeaderLoading(true);
-    if (imageHeaderText) {
-      imageHeaderText.textContent = "";
-      imageHeaderText.classList.add("is-hidden");
-    }
-    if (imageHeaderEmpty) {
-      imageHeaderEmpty.classList.add("is-hidden");
-    }
-    try {
-      const data = await fetchJSON(`${apiBase}/image/header?file=${encodeURIComponent(file)}`, {
-        timeoutMs: 30000,
-      });
-      const text = typeof data.header === "string" ? data.header : "";
-      state.imageHeaderFile = file;
-      state.imageHeaderText = text;
-      setImageHeader(text);
-    } catch (err) {
-      console.warn(err);
-      state.imageHeaderFile = file;
-      state.imageHeaderText = "";
-      setImageHeaderLoading(false);
-      if (imageHeaderText) {
-        imageHeaderText.textContent = "";
-        imageHeaderText.classList.add("is-hidden");
-      }
-      if (imageHeaderEmpty) {
-        imageHeaderEmpty.classList.remove("is-hidden");
-        imageHeaderEmpty.textContent = t("inspector.no_header");
-      }
-      setImageHeaderSectionState("warning", t("inspector.header.unavailable"));
     }
   }
 
@@ -400,174 +323,6 @@ export function createInspectorPanelController({
     if (inspectorAttrs) inspectorAttrs.innerHTML = "";
     if (inspectorPreview) inspectorPreview.innerHTML = "";
     setInspectorIdle();
-  }
-
-  function formatInspectorCell(value) {
-    if (value === null || value === undefined) return "-";
-    if (typeof value === "number") {
-      return Number.isFinite(value) ? String(value) : "-";
-    }
-    return String(value);
-  }
-
-  function buildInspectorTable1D(values) {
-    const table = document.createElement("table");
-    table.className = "inspector-table";
-    const head = document.createElement("thead");
-    const headRow = document.createElement("tr");
-    [t("inspector.table.index"), t("inspector.table.value")].forEach((label) => {
-      const th = document.createElement("th");
-      th.textContent = label;
-      headRow.appendChild(th);
-    });
-    head.appendChild(headRow);
-    table.appendChild(head);
-    const body = document.createElement("tbody");
-    values.forEach((value, idx) => {
-      const row = document.createElement("tr");
-      const indexCell = document.createElement("td");
-      indexCell.textContent = String(idx);
-      const valueCell = document.createElement("td");
-      valueCell.textContent = formatInspectorCell(value);
-      row.appendChild(indexCell);
-      row.appendChild(valueCell);
-      body.appendChild(row);
-    });
-    table.appendChild(body);
-    return table;
-  }
-
-  function buildInspectorTable2D(values) {
-    const table = document.createElement("table");
-    table.className = "inspector-table";
-    const head = document.createElement("thead");
-    const headRow = document.createElement("tr");
-    const corner = document.createElement("th");
-    corner.textContent = "";
-    headRow.appendChild(corner);
-    const cols = values.length ? values[0].length : 0;
-    for (let c = 0; c < cols; c += 1) {
-      const th = document.createElement("th");
-      th.textContent = String(c);
-      headRow.appendChild(th);
-    }
-    head.appendChild(headRow);
-    table.appendChild(head);
-    const body = document.createElement("tbody");
-    values.forEach((rowValues, r) => {
-      const row = document.createElement("tr");
-      const indexCell = document.createElement("td");
-      indexCell.textContent = String(r);
-      row.appendChild(indexCell);
-      rowValues.forEach((value) => {
-        const cell = document.createElement("td");
-        cell.textContent = formatInspectorCell(value);
-        row.appendChild(cell);
-      });
-      body.appendChild(row);
-    });
-    table.appendChild(body);
-    return table;
-  }
-
-  function datasetIsListed(path) {
-    return Boolean(path) && [...(datasetSelect?.options || [])].some((option) => option.value === path);
-  }
-
-  /**
-   * "Show in viewer" for a dataset the Dataset list offers, so an image found
-   * by browsing opens without hunting for it in a second list. It goes through
-   * the list's own change handler, so it loads exactly as picking it there
-   * does. The dataset already on show says so instead.
-   */
-  function buildViewerAction(path) {
-    if (!datasetIsListed(path)) return null;
-    if (state.dataset === path) {
-      const note = document.createElement("span");
-      note.className = "inspector-preview-note inspector-viewer-action";
-      note.textContent = t("inspector.shown_in_viewer");
-      return note;
-    }
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "inspector-show-in-viewer inspector-viewer-action";
-    button.textContent = t("inspector.show_in_viewer");
-    button.addEventListener("click", () => showDatasetInViewer(path));
-    return button;
-  }
-
-  function showDatasetInViewer(path) {
-    if (!datasetSelect || !datasetIsListed(path)) return false;
-    datasetSelect.value = path;
-    datasetSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
-    refreshViewerAction();
-    return true;
-  }
-
-  // The dataset on show changed (here or in the Dataset list): the action
-  // under the preview would otherwise claim the wrong one is shown.
-  function refreshViewerAction() {
-    const actions = inspectorPreview?.querySelector(".inspector-preview-actions");
-    if (!actions) return;
-    actions.querySelector(".inspector-viewer-action")?.remove();
-    const next = buildViewerAction(actions.dataset.path || "");
-    if (next) actions.prepend(next);
-  }
-
-  function renderInspectorPreview(data) {
-    if (!inspectorPreview) return;
-    inspectorPreview.innerHTML = "";
-    if (!data || data.preview === null || data.preview === undefined) {
-      return;
-    }
-    const actions = document.createElement("div");
-    actions.className = "inspector-preview-actions";
-    actions.dataset.path = data.path || "";
-    const link = document.createElement("a");
-    link.href = `${apiBase}/hdf5/value?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(
-      data.path || "",
-    )}&max_cells=65536`;
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.textContent = t("inspector.open_json");
-    actions.appendChild(link);
-    if (Array.isArray(data.shape) && data.shape.length > 0) {
-      const csvLink = document.createElement("a");
-      csvLink.href = `${apiBase}/hdf5/csv?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(
-        data.path || "",
-      )}&max_cells=65536`;
-      csvLink.textContent = t("inspector.download_csv");
-      actions.appendChild(csvLink);
-    }
-    // First: the row is as wide as the table under it, so anything pushed to
-    // its far end can sit outside the visible part of the preview.
-    const viewerAction = buildViewerAction(data.path || "");
-    if (viewerAction) actions.prepend(viewerAction);
-    inspectorPreview.appendChild(actions);
-
-    const preview = data.preview;
-    if (Array.isArray(preview)) {
-      const table = Array.isArray(preview[0]) ? buildInspectorTable2D(preview) : buildInspectorTable1D(preview);
-      inspectorPreview.appendChild(table);
-    } else {
-      const text = document.createElement("div");
-      text.textContent = formatInspectorValue(preview);
-      inspectorPreview.appendChild(text);
-    }
-
-    if (data.preview_shape) {
-      const note = document.createElement("div");
-      note.className = "inspector-preview-note";
-      const shapeText = data.preview_shape.join("×");
-      note.textContent = t("inspector.preview", {
-        shapeText,
-        suffix: data.truncated ? t("inspector.preview.truncated_suffix") : "",
-      });
-      if (data.slice && Array.isArray(data.slice.lead) && data.slice.lead.length) {
-        note.textContent += ` • ${t("inspector.preview.slice")} [${data.slice.lead.join(", ")}]`;
-      }
-      inspectorPreview.appendChild(note);
-    }
   }
 
   function buildInspectorRow(node, level = 1) {
