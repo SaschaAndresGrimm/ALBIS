@@ -30,7 +30,7 @@
  * Needs Node 22+ (built-in WebSocket), Chrome, and the dev setup.
  */
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -474,6 +474,43 @@ async function saveSettings(ui) {
 }
 
 // ---------------------------------------------------------------------------
+// The File Inspector needs an HDF5 master with something to show, and the only
+// HDF5 file in testdata/ holds a single dataset. So the scene writes a small
+// NeXus-style one -- detector scalars with units, a per-frame flux array with
+// a beam dip, an external link to a data file -- with the Python that runs
+// ALBIS, rather than the repository carrying another binary. The files exist
+// only during that scene: every scene loads the file list afresh, so no other
+// picture can show them.
+const INSPECTOR_MASTER = "lysozyme_0001_master.h5";
+const INSPECTOR_FILES = [INSPECTOR_MASTER, "lysozyme_0001_data_000001.h5"];
+const NEXUS_SCRIPT = `
+import sys, h5py, numpy as np
+root = sys.argv[1]
+rng = np.random.default_rng(7)
+with h5py.File(f"{root}/lysozyme_0001_data_000001.h5", "w") as d:
+    d.create_dataset("entry/data/data", data=rng.poisson(3, (4, 96, 96)).astype("uint16"))
+with h5py.File(f"{root}/${INSPECTOR_MASTER}", "w") as f:
+    e = f.create_group("entry"); e.attrs["NX_class"] = "NXentry"
+    e["definition"] = "NXmx"
+    e["start_time"] = "2026-11-03T09:12:04.118+01:00"
+    e["end_time"] = "2026-11-03T09:15:04.531+01:00"
+    data = e.create_group("data"); data.attrs["NX_class"] = "NXdata"
+    data["data_000001"] = h5py.ExternalLink("lysozyme_0001_data_000001.h5", "/entry/data/data")
+    det = e.create_group("instrument/detector"); det.attrs["NX_class"] = "NXdetector"
+    det["description"] = "Dectris EIGER2 X 4M"
+    for name, value, units in (("count_time", 0.0999, "s"), ("frame_time", 0.1, "s"),
+                               ("x_pixel_size", 7.5e-5, "m"), ("y_pixel_size", 7.5e-5, "m")):
+        det.create_dataset(name, data=value).attrs["units"] = units
+    beam = e.create_group("instrument/beam"); beam.attrs["NX_class"] = "NXbeam"
+    beam.create_dataset("incident_wavelength", data=0.9763).attrs["units"] = "angstrom"
+    frames = np.arange(1800)
+    flux = 2.4e12 * (1 + 0.004 * rng.standard_normal(1800))
+    flux *= 1 - 0.55 * np.exp(-((frames - 1130) / 35.0) ** 2)
+    beam.create_dataset("flux", data=flux).attrs["units"] = "ph/s"
+    s = e.create_group("sample"); s.attrs["NX_class"] = "NXsample"
+    s["name"] = "lysozyme"
+`;
+
 // The scenes, in the order the guide shows them. Each starts from a freshly
 // loaded page, so one scene's state cannot leak into the next.
 
@@ -527,6 +564,40 @@ const scenes = [
       await collapseAll();
       await section("data-source");
       await shot("data-tab", { selector: "#side-panel" });
+    },
+  },
+  {
+    name: "file-inspector",
+    // Tall enough for the whole section, tree to chart, below the panel's
+    // tabs: scrolled into view, its header slid under them.
+    size: { width: 1440, height: 1500 },
+    async run() {
+      const made = spawnSync(python, ["-c", NEXUS_SCRIPT, dataDir], { encoding: "utf8" });
+      if (made.status !== 0) throw new Error(`writing the NeXus file failed: ${made.stderr}`);
+      try {
+        // ALBIS reuses a folder scan for data.scan_cache_sec (2 s), so a list
+        // asked for sooner would not have the new files in it yet.
+        await sleep(2500);
+        await openApp();
+        await setValue("#file-select", INSPECTOR_MASTER);
+        await tab("data");
+        await collapseAll();
+        await section("inspector");
+        await waitFor(() => document.querySelector('#inspector-tree [data-path="/entry"]'), "the inspector tree", 20000);
+        for (const item of ["/entry", "/entry/instrument", "/entry/instrument/beam", "/entry/instrument/beam/flux"]) {
+          await waitFor((p) => document.querySelector(`#inspector-tree [data-path="${p}"]`), item, 10000, item);
+          await page((p) => document.querySelector(`#inspector-tree [data-path="${p}"] > .inspector-row`).click(), item);
+          await sleep(500);
+        }
+        await waitFor(() => document.querySelector(".inspector-chart svg"), "the chart", 10000);
+        // Point at the dip, so the picture shows the readout under the chart.
+        const plot = await rectOf([".inspector-chart svg"]);
+        await mouse("mouseMoved", plot.x + (plot.width * 1130) / 1799, plot.y + plot.height / 2);
+        await sleep(600);
+        await shot("file-inspector", { selector: 'section[data-section="inspector"]', pad: 4 });
+      } finally {
+        for (const name of INSPECTOR_FILES) rmSync(path.join(dataDir, name), { force: true });
+      }
     },
   },
   {

@@ -225,24 +225,42 @@ image-capable ones; pick the one you want.
 gains a **Threshold** selector in the toolbar, and `⌘K → Threshold: Next` steps
 between channels without leaving the keyboard.
 
-The same tab has the **HDF5 inspector**: browse the file tree, read attributes,
-and search for a dataset by name when you know what you are looking for but not
-where it lives. A field that holds a single value shows it in the tree, with its
-unit; hover over a row for the whole value, its shape and its type. While you search, the results take the
-tree's place; picking one (click, or ↓ and Enter) brings the tree back with that
-entry selected, and Esc clears the search.
-Click a group to select it and open it, click it again to close it; the arrow in
-front of it opens and closes it without selecting it. The tree also works from
-the keyboard: Tab into it, ↑ and ↓ move, → and ← open and close groups, and
-Enter shows the details. A link shows what it points to, with its target on top,
-and a link to a group opens like one. Above the details, the path is a breadcrumb: click a group
-in it to go back up, or the copy button to copy the path. Drag the tree's
-bottom-right corner to make it taller. A dataset the **Dataset** list offers has a **Show in
-viewer** button above its values. A numeric array shows its minimum, maximum and mean,
-and a one-dimensional one also a line chart: point at it to read the values. Attributes follow the value; a unit and a group's NeXus
-class are on the summary line instead. A
-single value can be copied with **Copy value**; a long attribute, such as a
-configuration stored as text, shows in its own scrolling box, with JSON indented.
+### Look inside an HDF5 file
+
+The **File Inspector**, at the bottom of the **Data** tab, shows what an HDF5
+file holds besides its images: the detector's settings, the time of each frame,
+whatever the beamline wrote alongside. It appears when an HDF5 file is open.
+
+![The File Inspector with a per-frame flux array selected: the tree, the path, the summary line, minimum, maximum and mean, and a line chart with a dip in the middle](images/user-guide/file-inspector.webp)
+
+- **Browse.** Click a group to open it. A field that holds a single value shows
+  it right in the tree, with its unit.
+- **Search.** Type part of a name; the matches take the tree's place, with
+  what you typed highlighted. Pick one to jump to it in the tree.
+- **Read.** Under the path: type, shape, data type and unit on one line, then
+  the value. An array of numbers adds its minimum, maximum and mean, and a
+  one-dimensional one a line chart; point at it to read the values. Other
+  attributes follow.
+- **Take it elsewhere.** **Show in viewer** opens a dataset the **Dataset**
+  list offers. **Copy value**, the copy button beside the path, **View as
+  JSON** and **Download CSV** take values to other programs.
+
+<details>
+<summary><b>Links, the keyboard and other details</b></summary>
+
+- A link shows what it points to, with its target under the summary line; a
+  link to a group opens like a group.
+- Click a selected group again to close it. The arrow in front of a group
+  opens and closes it without selecting it.
+- Click a group in the path to go back up to it.
+- From the keyboard: Tab into the tree, then ↑ and ↓ move, → and ← open and
+  close groups, and Enter shows the details. In the search field, ↓ moves into
+  the results, Enter picks one and Esc clears the search.
+- Drag the tree's bottom-right corner to make it taller.
+- A long attribute, such as a configuration stored as text, gets its own
+  scrolling box, with JSON indented.
+
+</details>
 
 ---
 
