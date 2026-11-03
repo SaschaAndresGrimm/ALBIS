@@ -44,6 +44,7 @@ export function createInspectorPanelController({
 
   let inspectorSelectedRow = null;
   let inspectorSearchRequestId = 0;
+  let inspectorNodeRequestId = 0;
 
   function normalizeInspectorType(type) {
     return String(type || "").trim().toLowerCase();
@@ -537,8 +538,7 @@ export function createInspectorPanelController({
   }
 
   async function setInspectorGroupOpen(item, open) {
-    if (!item || normalizeInspectorType(item.dataset.type) !== "group") return;
-    if (!item.hasAttribute("aria-expanded")) return;
+    if (!item || !item.hasAttribute("aria-expanded")) return;
     item.classList.toggle("is-open", open);
     item.setAttribute("aria-expanded", String(open));
     const toggle = item.querySelector(":scope > .inspector-row > .inspector-toggle");
@@ -572,7 +572,7 @@ export function createInspectorPanelController({
   async function activateInspectorNode(item, { toggleOnly = false } = {}) {
     if (!item || item.getAttribute("role") !== "treeitem") return;
     const nodeType = normalizeInspectorType(item.dataset.type);
-    const isGroup = nodeType === "group" && item.hasAttribute("aria-expanded");
+    const isExpandable = item.hasAttribute("aria-expanded");
     const isOpen = item.classList.contains("is-open");
     if (toggleOnly) {
       await setInspectorGroupOpen(item, !isOpen);
@@ -581,16 +581,19 @@ export function createInspectorPanelController({
     const wasSelected = item.getAttribute("aria-selected") === "true";
     selectInspectorRow(item.querySelector(":scope > .inspector-row"));
     setInspectorTabStop(item);
-    if (nodeType === "link") {
-      renderInspectorLink(item.dataset.path || "-", item.dataset.target || "-");
-      return;
-    }
-    if (isGroup) {
+    if (isExpandable) {
       void setInspectorGroupOpen(item, !(wasSelected && isOpen));
     }
-    if (item.dataset.path) {
-      await showInspectorNode(item.dataset.path);
+    if (!item.dataset.path) return;
+    if (nodeType === "link") {
+      const data = await showInspectorNode(item.dataset.path, { linkTarget: item.dataset.target || "-" });
+      if (data && normalizeInspectorType(data.type) === "group" && !isExpandable) {
+        makeExpandable(item);
+        void setInspectorGroupOpen(item, true);
+      }
+      return;
     }
+    await showInspectorNode(item.dataset.path);
   }
 
   function handleInspectorTreeKey(event) {
@@ -674,32 +677,51 @@ export function createInspectorPanelController({
     }
   }
 
-  async function showInspectorNode(path) {
-    if (!inspectorDetails) return;
+  function appendAttrRow(name, value) {
+    if (!inspectorAttrs) return;
+    const row = document.createElement("div");
+    row.className = "inspector-attr-row";
+    const nameEl = document.createElement("span");
+    nameEl.textContent = name;
+    const valueEl = document.createElement("span");
+    valueEl.textContent = value;
+    row.appendChild(nameEl);
+    row.appendChild(valueEl);
+    inspectorAttrs.appendChild(row);
+  }
+
+  /**
+   * Fill the details for `path` and return the node, or null if it could not
+   * be read. With `linkTarget`, `path` is a link: the backend follows it (with
+   * the same confinement as the frame path), and the details show what it
+   * points to, with the target on top. A link that does not resolve keeps its
+   * target on show; it used to be all a link ever showed.
+   *
+   * A failure leaves the tree alone. It used to replace the whole tree with
+   * an error message, so one dangling link lost the user their place.
+   */
+  async function showInspectorNode(path, { linkTarget = "" } = {}) {
+    if (!inspectorDetails) return null;
+    const requestId = ++inspectorNodeRequestId;
     setSectionBadgeState(inspectorStateEl, "loading", t("inspector.node.loading"));
     try {
       const data = await fetchJSON(
         `${apiBase}/hdf5/node?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`,
       );
+      if (requestId !== inspectorNodeRequestId) return null;
+      const typeLabel = localizeInspectorType(data.type);
       if (inspectorPath) inspectorPath.textContent = data.path || path;
-      if (inspectorType) inspectorType.textContent = localizeInspectorType(data.type);
+      if (inspectorType) {
+        inspectorType.textContent = linkTarget ? t("inspector.type.link_to", { type: typeLabel }) : typeLabel;
+      }
       if (inspectorShape) inspectorShape.textContent =
           formatInspectorShape(data.shape, t("inspector.shape.scalar")) || "-";
       if (inspectorDtype) inspectorDtype.textContent = data.dtype || "-";
       if (inspectorAttrs) {
         inspectorAttrs.innerHTML = "";
-        if (Array.isArray(data.attrs) && data.attrs.length) {
-          data.attrs.forEach((attr) => {
-            const row = document.createElement("div");
-            row.className = "inspector-attr-row";
-            const name = document.createElement("span");
-            name.textContent = attr.name;
-            const val = document.createElement("span");
-            val.textContent = formatInspectorValue(attr.value);
-            row.appendChild(name);
-            row.appendChild(val);
-            inspectorAttrs.appendChild(row);
-          });
+        if (linkTarget) appendAttrRow(t("inspector.target"), linkTarget);
+        if (Array.isArray(data.attrs)) {
+          data.attrs.forEach((attr) => appendAttrRow(attr.name, formatInspectorValue(attr.value)));
         }
       }
       const nodeType = normalizeInspectorType(data.type);
@@ -708,6 +730,7 @@ export function createInspectorPanelController({
           const valueData = await fetchJSON(
             `${apiBase}/hdf5/value?file=${encodeURIComponent(state.file)}&path=${encodeURIComponent(path)}`,
           );
+          if (requestId !== inspectorNodeRequestId) return null;
           renderInspectorPreview(valueData);
         } catch (err) {
           console.error(err);
@@ -716,10 +739,37 @@ export function createInspectorPanelController({
       } else if (inspectorPreview) {
         inspectorPreview.innerHTML = "";
       }
-      setSectionBadgeState(inspectorStateEl, "active", t("inspector.node.loaded", { type: localizeInspectorType(data.type) }));
+      setSectionBadgeState(inspectorStateEl, "active", t("inspector.node.loaded", { type: typeLabel }));
+      return data;
     } catch (err) {
+      if (requestId !== inspectorNodeRequestId) return null;
       console.error(err);
-      setInspectorMessage(t("inspector.node.failed"), "warning");
+      if (linkTarget) {
+        renderInspectorLink(path, linkTarget);
+        setSectionBadgeState(inspectorStateEl, "warning", t("inspector.link.unresolved"));
+      } else {
+        resetInspectorDetails();
+        setSectionBadgeState(inspectorStateEl, "warning", t("inspector.node.failed"));
+      }
+      return null;
+    }
+  }
+
+  // A link found to point at a group becomes expandable like one; the tree
+  // route follows the link the same way the node route does.
+  function makeExpandable(item) {
+    if (item.hasAttribute("aria-expanded")) return;
+    item.setAttribute("aria-expanded", "false");
+    const toggle = item.querySelector(":scope > .inspector-row > .inspector-toggle");
+    if (toggle) {
+      toggle.classList.remove("is-placeholder");
+      toggle.textContent = "▸";
+    }
+    if (!item.querySelector(":scope > .inspector-children")) {
+      const children = document.createElement("ul");
+      children.className = "inspector-children";
+      children.setAttribute("role", "group");
+      item.appendChild(children);
     }
   }
 

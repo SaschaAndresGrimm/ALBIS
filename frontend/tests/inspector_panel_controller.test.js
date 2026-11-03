@@ -218,3 +218,85 @@ describe("inspector tree clicks", () => {
     expect(group.getAttribute("aria-selected")).toBe("true");
   });
 });
+
+describe("inspector links", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const LINKS = {
+    path: "/entry",
+    children: [
+      { name: "beam", path: "/entry/beam", type: "link", link: "soft", target: "/entry/instrument/beam" },
+      { name: "start_time", path: "/entry/start_time", type: "link", link: "external", target: "data_000001.h5:/entry/start_time" },
+      { name: "gone", path: "/entry/gone", type: "link", link: "external", target: "missing.h5:/x" },
+    ],
+  };
+
+  async function withLinks(extra) {
+    const routes = {
+      "path=%2Fentry%2Fbeam&": undefined,
+      ...extra,
+      "/hdf5/tree": LINKS,
+    };
+    const ctx = await setup(routes);
+    ctx.fetchJSON.mockImplementation(async (url) => {
+      if (url.includes("%2Fentry%2Fgone")) throw new Error("Path not found");
+      const route = Object.keys(routes).find((k) => routes[k] && url.includes(k));
+      return routes[route];
+    });
+    await ctx.controller.loadInspectorRoot();
+    ctx.item = (name) => [...ctx.byId("tree").querySelectorAll('[role="treeitem"]')].find((el) => el.dataset.path === `/entry/${name}`);
+    return ctx;
+  }
+
+  it("shows what a link points to, with its target on top", async () => {
+    const { controller, byId, item } = await withLinks({
+      "node?file=%2Fdata%2Fmaster.h5&path=%2Fentry%2Fstart_time": { path: "/entry/start_time", type: "dataset", shape: [], dtype: "string", attrs: [] },
+      "/hdf5/value": { path: "/entry/start_time", type: "dataset", shape: [], dtype: "string", preview: "2026-11-02T20:05:00", truncated: false },
+    });
+    await controller.activateInspectorNode(item("start_time"));
+
+    expect(byId("type").textContent).toBe("link to dataset");
+    expect(byId("dtype").textContent).toBe("string");
+    expect(byId("attrs").textContent).toContain("data_000001.h5:/entry/start_time");
+    expect(byId("preview").textContent).toContain("2026-11-02T20:05:00");
+  });
+
+  it("makes a link to a group expandable and opens it", async () => {
+    const { controller, item } = await withLinks({
+      "tree?file=%2Fdata%2Fmaster.h5&path=%2Fentry%2Fbeam": {
+        path: "/entry/beam",
+        children: [{ name: "incident_wavelength", path: "/entry/beam/incident_wavelength", type: "dataset", shape: [1], dtype: "float64", value: 1.03, units: "angstrom" }],
+      },
+      "node?file=%2Fdata%2Fmaster.h5&path=%2Fentry%2Fbeam": { path: "/entry/beam", type: "group", attrs: [] },
+    });
+    const beam = item("beam");
+    expect(beam.hasAttribute("aria-expanded")).toBe(false);
+
+    await controller.activateInspectorNode(beam);
+    await flush();
+
+    expect(beam.getAttribute("aria-expanded")).toBe("true");
+    const child = beam.querySelector('[role="treeitem"]');
+    expect(child.dataset.path).toBe("/entry/beam/incident_wavelength");
+    expect(child.getAttribute("aria-level")).toBe("2");
+  });
+
+  it("keeps the tree when a link does not resolve", async () => {
+    const { controller, byId, item } = await withLinks({});
+    await controller.activateInspectorNode(item("gone"));
+
+    expect(byId("tree").querySelectorAll('[role="treeitem"]')).toHaveLength(3);
+    expect(byId("type").textContent).toBe("link");
+    expect(byId("attrs").textContent).toContain("missing.h5:/x");
+  });
+
+  it("keeps the tree when any node fails to load", async () => {
+    // It used to be replaced by "Failed to load node", losing the user's place.
+    const { controller, byId } = await withLinks({});
+    await controller.showInspectorNode("/entry/gone");
+
+    expect(byId("tree").querySelectorAll('[role="treeitem"]')).toHaveLength(3);
+  });
+});

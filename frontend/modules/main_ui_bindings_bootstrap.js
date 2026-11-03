@@ -64,7 +64,6 @@ export function initializeMainUiBindings({
     handleNavShortcut,
     handleMenuAction,
     handleShortcut,
-    renderInspectorLink,
     clearInspectorSearch,
     isDocumentDropEnabled,
     showDocumentDropDisabledStatus,
@@ -117,7 +116,6 @@ export function initializeMainUiBindings({
     inspectorSearchClear,
     inspectorResults,
     callbacks: {
-      renderInspectorLink,
       clearInspectorSearch,
     },
   });

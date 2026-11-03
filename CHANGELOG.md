@@ -14,8 +14,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **The File Inspector's tree works from the keyboard.** Tab into the tree, then ↑ and ↓ move between entries, → opens a group and steps into it, ← closes it or goes back to the parent, Home and End jump to the first and last entry, and Enter shows the details. Until now only groups could be focused, through their small arrow, so a dataset or link could not be reached without a mouse; screen readers now also hear the tree as a tree, with each entry's level and whether it is open.
 - **Clicking an open group in the File Inspector selects it instead of closing it.** Every click on a group's row opened or closed it, so reading the attributes of an open group meant collapsing it first. A click now selects the group and opens it if it is closed; a second click on the selected group closes it, and the arrow in front of it still opens and closes it without selecting.
 
+- **Links in the File Inspector lead somewhere.** Clicking a link, such as a master file's `start_time` or `data_000001`, showed only the name of the file and path it points to. It now shows what is there, with the link's target on top: a dataset's shape, type, attributes and value, read from the linked file; a link to a group opens like a group. A link whose file is missing says so and still shows where it points.
+
 ### Fixed
 
+- **A File Inspector entry that cannot be read no longer empties the tree.** The whole tree was replaced by "Failed to load node", so one broken entry cost the user their place in the file; now only the details say so.
 - **In the File Inspector, entries without children line up with the groups beside them.** Datasets and links sat one column to the left of their sibling groups, so they looked as if they belonged to the level above. A long link target no longer squeezes the name; it is shortened, and shown in full as a tooltip.
 
 ## [0.39.1] - 2026-11-01

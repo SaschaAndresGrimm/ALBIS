@@ -10,7 +10,7 @@ export function bindInspectorInteractions({
   callbacks,
   core,
 }) {
-  const { renderInspectorLink, clearInspectorSearch } = callbacks;
+  const { clearInspectorSearch } = callbacks;
 
   inspectorTree?.addEventListener("click", (event) => {
     const row = event.target.closest(".inspector-row");
@@ -49,11 +49,8 @@ export function bindInspectorInteractions({
     const nodePath = row.dataset.path || "";
     const nodeType = String(row.dataset.type || "").toLowerCase();
     if (!nodePath) return;
-    if (nodeType === "link") {
-      renderInspectorLink(nodePath, row.dataset.target || "-");
-      return;
-    }
-    await core.inspectorPanel.showInspectorNode(nodePath);
+    const linkTarget = nodeType === "link" ? row.dataset.target || "-" : "";
+    await core.inspectorPanel.showInspectorNode(nodePath, { linkTarget });
   });
 
   inspectorResults?.addEventListener("keydown", (event) => {
