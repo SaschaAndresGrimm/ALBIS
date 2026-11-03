@@ -25,12 +25,15 @@ async function setup(responses) {
     "../modules/inspector_panel_controller.js"
   );
   document.body.innerHTML = `
+    <section id="section">
+    <input id="search" /><div id="results" class="is-hidden"></div>
     <div id="tree"></div>
     <div id="details">
       <nav id="path"></nav><button id="copy"></button>
       <div id="facts"></div>
       <div id="attrs"></div><div id="preview"></div>
     </div>
+    </section>
     <select id="datasets"><option value="/entry/data/data">/entry/data/data</option><option value="/entry/flat">/entry/flat</option></select>`;
   const byId = (id) => document.getElementById(id);
   const setSectionBadgeState = vi.fn();
@@ -44,6 +47,9 @@ async function setup(responses) {
     state,
     elements: {
       inspectorTree: byId("tree"),
+      inspectorSection: byId("section"),
+      inspectorSearchInput: byId("search"),
+      inspectorResults: byId("results"),
       inspectorDetails: byId("details"),
       inspectorPath: byId("path"),
       inspectorFacts: byId("facts"),
@@ -503,5 +509,84 @@ describe("search results and the tree", () => {
 
     await controller.revealInspectorPath("/elsewhere/thing");
     expect(byId("tree").querySelectorAll('[aria-selected="true"]')).toHaveLength(0);
+  });
+});
+
+describe("search mode", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const MATCHES = {
+    "/hdf5/search": {
+      matches: [
+        { name: "count_time", path: "/entry/instrument/detector/count_time", type: "dataset", shape: [], dtype: "float64", value: 0.0004, units: "s" },
+        { name: "frame_time", path: "/entry/instrument/detector/frame_time", type: "dataset", shape: [], dtype: "float64", value: 0.0005, units: "s" },
+      ],
+    },
+    "/hdf5/tree": ROOT,
+  };
+
+  async function searching() {
+    const ctx = await setup(MATCHES);
+    await ctx.controller.loadInspectorRoot();
+    ctx.byId("search").value = "time";
+    await ctx.controller.runInspectorSearch("time");
+    ctx.rows = () => [...ctx.byId("results").querySelectorAll(".inspector-result")];
+    return ctx;
+  }
+
+  it("shows results in the tree's place, name first, with the match marked", async () => {
+    const { byId, rows } = await searching();
+
+    expect(byId("section").classList.contains("is-searching")).toBe(true);
+    expect(byId("results").classList.contains("is-hidden")).toBe(false);
+    const first = rows()[0];
+    expect(first.querySelector(".inspector-result-name").textContent).toBe("count_time");
+    expect(first.querySelector(".inspector-result-parent").textContent).toBe("/entry/instrument/detector");
+    expect([...first.querySelectorAll("mark")].map((m) => m.textContent)).toEqual(["time"]);
+  });
+
+  it("hands the space back to the tree when a result is picked, and back again on focus", async () => {
+    const { controller, byId, rows } = await searching();
+
+    await controller.pickSearchResult(rows()[0]);
+    expect(byId("section").classList.contains("is-searching")).toBe(false);
+    expect(byId("results").classList.contains("is-hidden")).toBe(true);
+
+    controller.showSearchResultsAgain();
+    expect(byId("section").classList.contains("is-searching")).toBe(true);
+  });
+
+  it("moves from the field into the results and between them with the arrows", async () => {
+    const { controller, byId, rows } = await searching();
+    const press = (target, key) => {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      Object.defineProperty(event, "target", { value: target });
+      return event;
+    };
+
+    controller.handleSearchInputKey(press(byId("search"), "ArrowDown"));
+    expect(document.activeElement).toBe(rows()[0]);
+    controller.handleResultsKey(press(rows()[0], "ArrowDown"));
+    expect(document.activeElement).toBe(rows()[1]);
+    controller.handleResultsKey(press(rows()[1], "ArrowUp"));
+    controller.handleResultsKey(press(rows()[0], "ArrowUp"));
+    expect(document.activeElement).toBe(byId("search"));
+  });
+
+  it("leaves the search on Escape, and lets Escape through when nothing is typed", async () => {
+    const { controller, byId } = await searching();
+    const escape = () => new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+
+    const first = escape();
+    controller.handleSearchInputKey(first);
+    expect(first.defaultPrevented).toBe(true);
+    expect(byId("search").value).toBe("");
+    expect(byId("section").classList.contains("is-searching")).toBe(false);
+
+    const second = escape();
+    controller.handleSearchInputKey(second);
+    expect(second.defaultPrevented).toBe(false);
   });
 });

@@ -10,6 +10,8 @@ import {
   formatInspectorShape,
   formatInspectorScalar,
   inspectorRowMeta,
+  splitInspectorPath,
+  splitMatches,
 } from "../modules/inspector_format_utils.js";
 
 const LABELS = { typeLabel: "dataset", scalarLabel: "scalar" };
@@ -60,5 +62,33 @@ describe("inspectorRowMeta", () => {
     expect(inspectorRowMeta({ type: "link", target: "a.h5:/x" }, LABELS).text).toBe("a.h5:/x");
     expect(inspectorRowMeta({ type: "group" }, { typeLabel: "group" }).text).toBe("");
     expect(inspectorRowMeta({ type: "other" }, { typeLabel: "node" }).text).toBe("node");
+  });
+});
+
+describe("splitInspectorPath", () => {
+  it("separates the name from its parent", () => {
+    expect(splitInspectorPath("/entry/data/start_time")).toEqual({ name: "start_time", parent: "/entry/data" });
+    expect(splitInspectorPath("/entry")).toEqual({ name: "entry", parent: "/" });
+    expect(splitInspectorPath("/")).toEqual({ name: "/", parent: "/" });
+  });
+});
+
+describe("splitMatches", () => {
+  const join = (pieces) => pieces.map((p) => p.text).join("");
+
+  it("marks every case-insensitive occurrence and joins back exactly", () => {
+    const pieces = splitMatches("Start_Time_start", "start");
+    expect(pieces).toEqual([
+      { text: "Start", match: true },
+      { text: "_Time_", match: false },
+      { text: "start", match: true },
+    ]);
+    expect(join(pieces)).toBe("Start_Time_start");
+  });
+
+  it("returns the text whole without a query or a match", () => {
+    expect(splitMatches("count_time", "")).toEqual([{ text: "count_time", match: false }]);
+    expect(splitMatches("count_time", "zzz")).toEqual([{ text: "count_time", match: false }]);
+    expect(splitMatches("", "x")).toEqual([{ text: "", match: false }]);
   });
 });

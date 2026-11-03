@@ -69,8 +69,13 @@
   border-color: rgba(74, 103, 150, 0.88);
 }
 
+/* With results on show they stand in for the tree, so they get its height. */
+.panel-section.inspector.is-searching .inspector-tree {
+  display: none;
+}
+
 .inspector-results {
-  max-height: 120px;
+  max-height: 220px;
   overflow: auto;
   background: var(--surface-well);
   border: 1px solid var(--border-subtle);
@@ -105,9 +110,30 @@
   box-shadow: var(--focus-ring);
 }
 
+.inspector-result-label {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+}
+
 .inspector-result-name {
   color: var(--text);
-  word-break: break-all;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.inspector-result-parent {
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.inspector-result mark {
+  background: var(--accent-soft);
+  color: inherit;
+  border-radius: var(--radius-sm);
 }
 
 .inspector-result-meta {

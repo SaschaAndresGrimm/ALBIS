@@ -53,3 +53,31 @@ export function inspectorRowMeta(node, { typeLabel = "", scalarLabel = "" } = {}
   if (type === "group") return { text: "", title: "" };
   return { text: typeLabel, title: "" };
 }
+
+/** `/entry/data/start_time` → `{ name: "start_time", parent: "/entry/data" }`. */
+export function splitInspectorPath(path) {
+  const parts = String(path || "").split("/").filter(Boolean);
+  const name = parts.pop() || "/";
+  return { name, parent: parts.length ? `/${parts.join("/")}` : "/" };
+}
+
+/**
+ * `text` cut into `{ text, match }` pieces around every case-insensitive
+ * occurrence of `query`, for highlighting what a search found. The pieces
+ * join back to `text` exactly.
+ */
+export function splitMatches(text, query) {
+  const source = String(text ?? "");
+  const needle = String(query ?? "").trim().toLowerCase();
+  if (!needle) return [{ text: source, match: false }];
+  const lower = source.toLowerCase();
+  const pieces = [];
+  let from = 0;
+  for (let at = lower.indexOf(needle); at !== -1; at = lower.indexOf(needle, from)) {
+    if (at > from) pieces.push({ text: source.slice(from, at), match: false });
+    pieces.push({ text: source.slice(at, at + needle.length), match: true });
+    from = at + needle.length;
+  }
+  if (from < source.length || !pieces.length) pieces.push({ text: source.slice(from), match: false });
+  return pieces;
+}

@@ -55,21 +55,21 @@ export function bindInspectorInteractions({
     core.inspectorPanel.runInspectorSearch("");
   });
 
-  inspectorResults?.addEventListener("click", async (event) => {
+  inspectorSearchInput?.addEventListener("keydown", (event) => {
+    core.inspectorPanel.handleSearchInputKey(event);
+  });
+
+  inspectorSearchInput?.addEventListener("focus", () => {
+    core.inspectorPanel.showSearchResultsAgain();
+  });
+
+  inspectorResults?.addEventListener("click", (event) => {
     const row = event.target.closest(".inspector-result");
     if (!row) return;
-    const nodePath = row.dataset.path || "";
-    const nodeType = String(row.dataset.type || "").toLowerCase();
-    if (!nodePath) return;
-    const linkTarget = nodeType === "link" ? row.dataset.target || "-" : "";
-    await core.inspectorPanel.revealInspectorPath(nodePath, { linkTarget });
+    void core.inspectorPanel.pickSearchResult(row);
   });
 
   inspectorResults?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    const row = event.target.closest(".inspector-result");
-    if (!row) return;
-    event.preventDefault();
-    row.click();
+    core.inspectorPanel.handleResultsKey(event);
   });
 }
