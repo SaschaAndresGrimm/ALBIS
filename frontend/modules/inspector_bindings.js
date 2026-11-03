@@ -62,7 +62,7 @@ export function bindInspectorInteractions({
     const nodeType = String(row.dataset.type || "").toLowerCase();
     if (!nodePath) return;
     const linkTarget = nodeType === "link" ? row.dataset.target || "-" : "";
-    await core.inspectorPanel.showInspectorNode(nodePath, { linkTarget });
+    await core.inspectorPanel.revealInspectorPath(nodePath, { linkTarget });
   });
 
   inspectorResults?.addEventListener("keydown", (event) => {
