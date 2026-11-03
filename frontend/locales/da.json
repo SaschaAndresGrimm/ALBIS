@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "Baggrund: {{value}} (kontrastens nedre ende)",
   "inpaint.value.foreground": "Forgrund",
   "inpaint.value.foreground_title": "Forgrund: {{value}} (kontrastens øvre ende)",
-  "inspector.attributes": "Attributter",
+  "inspector.attributes_count": "Attributter · {{count}}",
   "inspector.chart.hint": "Peg på diagrammet for at aflæse værdier",
   "inspector.chart.label": "Linjediagram over {{count}} værdier, fra {{min}} til {{max}}",
   "inspector.chart.point": "Indeks {{index}}: {{value}}",

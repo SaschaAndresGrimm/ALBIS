@@ -332,16 +332,40 @@ describe("inspector details", () => {
     },
   };
 
-  it("leaves out rows a node has no value for, and heads the attributes", async () => {
+  it("leaves out facts a node has no value for, and puts NX_class on the summary line", async () => {
     const { controller, byId, fact } = await setup(DETECTOR);
     await controller.showInspectorNode("/entry/instrument/detector");
 
     expect(fact("Type")).toBe("group");
+    expect(fact("NX_class")).toBe("NXdetector");
     expect(fact("Shape")).toBeUndefined();
     expect(fact("DType")).toBeUndefined();
     expect(fact("Target")).toBeUndefined();
-    expect(byId("attrs").querySelector(".inspector-subhead").textContent).toBe("Attributes");
+    // Its only attribute is on the line above, so there is no attribute block.
+    expect(byId("attrs").childElementCount).toBe(0);
     expect(byId("details").classList.contains("is-empty")).toBe(false);
+  });
+
+  it("lists only the attributes the summary does not show, under a counted heading", async () => {
+    const { controller, byId, fact } = await setup({
+      "/hdf5/node": {
+        path: "/entry/instrument/detector/x_pixel_size",
+        type: "dataset",
+        shape: [],
+        dtype: "float64",
+        attrs: [
+          { name: "units", value: "m" },
+          { name: "long_name", value: "Pixel size along x" },
+        ],
+      },
+      "/hdf5/value": { path: "/entry/instrument/detector/x_pixel_size", type: "dataset", shape: [], dtype: "float64", preview: 7.5e-5, truncated: false },
+    });
+    await controller.showInspectorNode("/entry/instrument/detector/x_pixel_size");
+
+    expect(fact("Units")).toBe("m");
+    expect(byId("attrs").querySelector(".inspector-subhead").textContent).toBe("Attributes · 1");
+    const names = [...byId("attrs").querySelectorAll(".inspector-attr-row > span:first-child")].map((el) => el.textContent);
+    expect(names).toEqual(["long_name"]);
   });
 
   it("shows the path as a breadcrumb whose ancestors select their entry", async () => {
@@ -649,15 +673,18 @@ describe("long values and copying them", () => {
         attrs: [
           { name: "NX_class", value: "NXentry" },
           { name: "config", value: config },
+          { name: "default", value: "data" },
         ],
       },
     });
     await controller.showInspectorNode("/entry");
 
+    // NX_class went to the summary line; config and default are left.
     const rows = [...byId("attrs").querySelectorAll(".inspector-attr-row")];
-    expect(rows[0].classList.contains("is-long")).toBe(false);
-    expect(rows[1].classList.contains("is-long")).toBe(true);
-    const block = rows[1].querySelector(".inspector-long-value");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].classList.contains("is-long")).toBe(true);
+    expect(rows[1].classList.contains("is-long")).toBe(false);
+    const block = rows[0].querySelector(".inspector-long-value");
     expect(block.textContent.startsWith('{\n  "detector": {')).toBe(true);
     expect(block.tabIndex).toBe(0);
   });

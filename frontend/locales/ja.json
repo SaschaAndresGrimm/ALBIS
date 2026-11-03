@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "背景: {{value}} (コントラストの下限)",
   "inpaint.value.foreground": "前景",
   "inpaint.value.foreground_title": "前景: {{value}} (コントラストの上限)",
-  "inspector.attributes": "属性",
+  "inspector.attributes_count": "属性：{{count}}",
   "inspector.chart.hint": "グラフにポインターを合わせると値が表示されます",
   "inspector.chart.label": "{{count}} 個の値の折れ線グラフ（{{min}} 〜 {{max}}）",
   "inspector.chart.point": "インデックス {{index}}：{{value}}",

@@ -28,6 +28,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **Each entry in the File Inspector's tree is marked as a group, dataset or link,** so the column on the right no longer repeats "group"; and the tree can be dragged taller by its bottom-right corner.
 - **The File Inspector's status line names the open file.** It used to say "Loaded group" or "Loaded dataset" after every click, repeating what had just been done; it now names the file, and speaks up only while loading, after a search, or when something fails.
 
+- **The File Inspector shows an entry's value before its attributes, and lists only attributes the summary line does not already show.** A unit and a group's NeXus class (`group · NXdetector`) are on the summary line, so they are no longer repeated in a block below it; for most datasets, whose only attribute is their unit, that block is gone. Other attributes follow the value under a small "Attributes · 2" label, each name beside its value instead of at the opposite edge of the panel.
 - **Long values in the File Inspector stay in their own box, and a single value can be copied.** An attribute too long to sit beside its name, such as a detector configuration stored as text, now shows under its name in a box of about six lines that scrolls on its own; JSON in it is indented to read. Until now such a value wrapped right-aligned and stretched the panel by dozens of lines. A dataset holding one value has a **Copy value** button next to **View as JSON**.
 
 ### Fixed

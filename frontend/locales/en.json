@@ -825,7 +825,7 @@
   "inpaint.value.background_title": "Background: {{value}} (the contrast's low end)",
   "inpaint.value.foreground": "Foreground",
   "inpaint.value.foreground_title": "Foreground: {{value}} (the contrast's high end)",
-  "inspector.attributes": "Attributes",
+  "inspector.attributes_count": "Attributes · {{count}}",
   "inspector.chart.hint": "Point at the chart to read values",
   "inspector.chart.label": "Line chart of {{count}} values, from {{min}} to {{max}}",
   "inspector.chart.point": "Index {{index}}: {{value}}",
