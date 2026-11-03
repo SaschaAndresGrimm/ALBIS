@@ -11,7 +11,7 @@ starlette==1.10.0
 # Pinning it is also what makes a local run and a CI run agree.
 anyio==4.15.1
 uvicorn[standard]==0.54.0
-python-multipart==0.0.32
+python-multipart==0.0.33
 hdf5plugin==7.1.0
 h5py==3.16.0
 numpy==2.5.4
