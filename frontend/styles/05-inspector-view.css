@@ -473,12 +473,107 @@
   padding: 6px;
   font-size: var(--font-size-sm);
   color: var(--text);
+  display: grid;
+  gap: 6px;
+}
+
+.inspector-preview-body {
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 220px;
   overflow: auto;
+}
+
+.inspector-stats {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 12px;
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.inspector-stat {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.inspector-stat-label {
+  color: var(--muted);
+}
+
+/* Not a status colour: a count of NaN or infinite values is information,
+   and its text says what it is. */
+.inspector-stat-warning {
+  color: var(--muted-strong);
+  font-style: italic;
+}
+
+.inspector-chart {
+  margin: 0;
   display: grid;
-  gap: 6px;
+  gap: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.inspector-chart-plot {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 6px;
+  cursor: crosshair;
+}
+
+.inspector-chart-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  line-height: 1;
+}
+
+.inspector-chart-plot svg {
+  width: 100%;
+  height: 64px;
+  border-left: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.inspector-chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+
+.inspector-chart-band {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1px;
+  stroke-linejoin: round;
+}
+
+.inspector-chart-cursor {
+  stroke: var(--muted);
+  stroke-width: 1px;
+  visibility: hidden;
+}
+
+.inspector-chart.is-hovering .inspector-chart-cursor {
+  visibility: visible;
+}
+
+/* In the plot's grid, under the chart column, so the first and last index
+   line up with the chart's ends whatever the width of the y labels. */
+.inspector-chart-x {
+  display: flex;
+  justify-content: space-between;
+}
+
+.inspector-chart figcaption {
+  min-height: 1.3em;
 }
 
 .inspector-preview-actions {

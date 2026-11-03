@@ -5,7 +5,9 @@
  * Split out of inspector_panel_controller.js, which passed 1,000 lines.
  */
 
+import { formatStat } from "./format_utils.js";
 import { t } from "./i18n.js";
+import { outlineGeometry, outlinePointAt } from "./inspector_chart_utils.js";
 
 export function createInspectorPreviewRenderer({ apiBase, state, elements, callbacks }) {
   const { inspectorPreview, datasetSelect } = elements;
@@ -123,6 +125,126 @@ export function createInspectorPreviewRenderer({ apiBase, state, elements, callb
     if (next) actions.prepend(next);
   }
 
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  // The chart's own units; CSS stretches it to the panel's width.
+  const CHART_W = 400;
+  const CHART_H = 64;
+
+  function statPart(key, value) {
+    const part = document.createElement("span");
+    part.className = "inspector-stat";
+    const label = document.createElement("span");
+    label.className = "inspector-stat-label";
+    label.textContent = t(key);
+    const shown = document.createElement("span");
+    shown.textContent = value;
+    part.appendChild(label);
+    part.appendChild(shown);
+    return part;
+  }
+
+  /** Min, max and mean over the whole dataset, not just the rows below. */
+  function buildStats(stats) {
+    if (!stats || stats.min === null || stats.min === undefined) return null;
+    const line = document.createElement("div");
+    line.className = "inspector-stats";
+    line.appendChild(statPart("inspector.stats.min", formatStat(stats.min)));
+    line.appendChild(statPart("inspector.stats.max", formatStat(stats.max)));
+    line.appendChild(statPart("inspector.stats.mean", formatStat(stats.mean)));
+    if (stats.non_finite) {
+      const extra = document.createElement("span");
+      extra.className = "inspector-stat inspector-stat-warning";
+      extra.textContent = t("inspector.stats.non_finite", { count: stats.non_finite.toLocaleString() });
+      line.appendChild(extra);
+    }
+    return line;
+  }
+
+  function hoverText(point) {
+    if (!point) return t("inspector.chart.hint");
+    const low = formatStat(point.low);
+    const high = formatStat(point.high);
+    if (point.from === point.to) return t("inspector.chart.point", { index: point.from, value: high });
+    return t("inspector.chart.range", { from: point.from, to: point.to, low, high });
+  }
+
+  /**
+   * A line chart of a 1D array, for what a table of its first rows hides: a
+   * jump in a series of start times, a counter that resets, a single spike.
+   * One series, so no legend; the exact values stay in the table below.
+   */
+  function buildChart(outline, stats) {
+    const geometry = outline && outlineGeometry(outline, { width: CHART_W, height: CHART_H });
+    if (!geometry) return null;
+    const count = Number(stats?.count) || outline.high.length;
+    const figure = document.createElement("figure");
+    figure.className = "inspector-chart";
+    const plot = document.createElement("div");
+    plot.className = "inspector-chart-plot";
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", `0 0 ${CHART_W} ${CHART_H}`);
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.setAttribute("role", "img");
+    svg.setAttribute(
+      "aria-label",
+      t("inspector.chart.label", {
+        count: count.toLocaleString(),
+        min: formatStat(geometry.yMin),
+        max: formatStat(geometry.yMax),
+      }),
+    );
+    const shape = document.createElementNS(SVG_NS, "path");
+    shape.setAttribute("class", geometry.band ? "inspector-chart-band" : "inspector-chart-line");
+    shape.setAttribute("d", geometry.band || geometry.line);
+    shape.setAttribute("vector-effect", "non-scaling-stroke");
+    const cursor = document.createElementNS(SVG_NS, "line");
+    cursor.setAttribute("class", "inspector-chart-cursor");
+    cursor.setAttribute("y1", "0");
+    cursor.setAttribute("y2", String(CHART_H));
+    cursor.setAttribute("vector-effect", "non-scaling-stroke");
+    svg.appendChild(shape);
+    svg.appendChild(cursor);
+    const yAxis = document.createElement("div");
+    yAxis.className = "inspector-chart-y";
+    yAxis.setAttribute("aria-hidden", "true");
+    [geometry.yMax, geometry.yMin].forEach((value) => {
+      const tick = document.createElement("span");
+      tick.textContent = formatStat(value);
+      yAxis.appendChild(tick);
+    });
+    plot.appendChild(yAxis);
+    plot.appendChild(svg);
+    const axis = document.createElement("div");
+    axis.className = "inspector-chart-x";
+    axis.setAttribute("aria-hidden", "true");
+    axis.innerHTML = "<span>0</span><span></span>";
+    axis.lastChild.textContent = String(count - 1);
+    const caption = document.createElement("figcaption");
+    caption.textContent = hoverText(null);
+    plot.appendChild(document.createElement("span"));
+    plot.appendChild(axis);
+    figure.appendChild(plot);
+    figure.appendChild(caption);
+    // The hit target is the whole plot, not the 2px line.
+    plot.addEventListener("pointermove", (event) => {
+      const box = svg.getBoundingClientRect();
+      if (!box.width) return;
+      const fraction = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+      const point = outlinePointAt(outline, fraction, count);
+      const n = outline.high.length;
+      const x = n === 1 ? CHART_W / 2 : 2 + (point.index * (CHART_W - 4)) / (n - 1);
+      cursor.setAttribute("x1", String(x));
+      cursor.setAttribute("x2", String(x));
+      figure.classList.add("is-hovering");
+      caption.textContent = hoverText(point);
+    });
+    plot.addEventListener("pointerleave", () => {
+      figure.classList.remove("is-hovering");
+      caption.textContent = hoverText(null);
+    });
+    return figure;
+  }
+
   function renderInspectorPreview(data) {
     if (!inspectorPreview) return;
     inspectorPreview.innerHTML = "";
@@ -153,16 +275,24 @@ export function createInspectorPreviewRenderer({ apiBase, state, elements, callb
     const viewerAction = buildViewerAction(data.path || "");
     if (viewerAction) actions.prepend(viewerAction);
     inspectorPreview.appendChild(actions);
+    const stats = buildStats(data.stats);
+    if (stats) inspectorPreview.appendChild(stats);
+    const chart = buildChart(data.outline, data.stats);
+    if (chart) inspectorPreview.appendChild(chart);
 
+    // Only the values scroll; the actions, statistics and chart above stay put.
+    const body = document.createElement("div");
+    body.className = "inspector-preview-body";
     const preview = data.preview;
     if (Array.isArray(preview)) {
       const table = Array.isArray(preview[0]) ? buildInspectorTable2D(preview) : buildInspectorTable1D(preview);
-      inspectorPreview.appendChild(table);
+      body.appendChild(table);
     } else {
       const text = document.createElement("div");
       text.textContent = formatInspectorValue(preview);
-      inspectorPreview.appendChild(text);
+      body.appendChild(text);
     }
+    inspectorPreview.appendChild(body);
 
     if (data.preview_shape) {
       const note = document.createElement("div");

@@ -153,6 +153,13 @@ storage confinement. `dtype` in these rows, and in `GET /api/hdf5/node` and
 `GET /api/hdf5/value`, is `string` for HDF5 text, which h5py reports as
 `object`.
 
+`GET /api/hdf5/value` adds `stats` (`count`, `non_finite`, and `min`, `max`
+and `mean` over the finite values) for a numeric dataset of at most 2,000,000
+values, and for a 1D one `outline`: `low` and `high`, the lowest and highest
+value of each run of `step` consecutive values, at most 400 points. Both are
+`null` for text, compounds, scalars, larger datasets, and when the read
+fails; the rest of the response does not depend on them.
+
 ## Error Details
 
 `detail` on an error response is usually a sentence, but some endpoints answer

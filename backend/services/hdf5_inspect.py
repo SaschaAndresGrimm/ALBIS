@@ -7,8 +7,12 @@ kinds of row and used to build them twice.
 from __future__ import annotations
 
 import contextlib
+import math
+import warnings
 from collections.abc import Callable
 from typing import Any
+
+import numpy as np
 
 # A scalar's value goes into the listing so the reader sees `NXmx` or `12.4 keV`
 # without opening each node. Long strings (a NeXus `notes` field, a JSON blob
@@ -128,3 +132,67 @@ def describe_object(
                 row["units"] = units
         return row
     return None
+
+
+# Statistics and the chart outline read the whole dataset, so they stop at a
+# size a click can afford: 2,000,000 values is 16 MB of float64, and covers the
+# per-frame arrays of a 40,000-frame series (start times, image ids) many
+# times over. Larger datasets are images; the viewer has their statistics.
+STATS_CELL_LIMIT = 2_000_000
+# Enough points for a chart a panel wide; each holds the lowest and highest
+# value of its stretch of the array, so a single spike still shows.
+OUTLINE_BUCKETS = 400
+
+
+def _number(value: Any) -> int | float | None:
+    if isinstance(value, np.integer):
+        return int(value)
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def array_summary(dset: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Statistics over a numeric dataset and, for 1D, a min/max outline.
+
+    `(None, None)` for text, compounds, scalars and anything past
+    STATS_CELL_LIMIT, and when the read fails: the summary is extra, and the
+    preview it sits beside must not fail with it. NaN and infinities are
+    counted, not averaged in; integers keep their exact min and max.
+    """
+    try:
+        if dset.ndim < 1 or not 0 < dset.size <= STATS_CELL_LIMIT:
+            return None, None
+        if dset.dtype.kind not in "biuf":
+            return None, None
+        data = np.asarray(dset[()])
+    except Exception:
+        return None, None
+    flat = data.reshape(-1)
+    if flat.dtype.kind == "b":
+        flat = flat.astype(np.uint8)
+    finite = np.isfinite(flat) if flat.dtype.kind == "f" else np.ones(flat.shape, dtype=bool)
+    values = flat[finite]
+    stats: dict[str, Any] = {
+        "count": int(flat.size),
+        "non_finite": int(flat.size - values.size),
+        "min": _number(values.min()) if values.size else None,
+        "max": _number(values.max()) if values.size else None,
+        "mean": _number(values.mean(dtype=np.float64)) if values.size else None,
+    }
+    outline = None
+    if data.ndim == 1 and flat.size >= 2:
+        step = math.ceil(flat.size / OUTLINE_BUCKETS)
+        padded = np.full(math.ceil(flat.size / step) * step, np.nan)
+        padded[: flat.size] = np.where(finite, flat, np.nan)
+        buckets = padded.reshape(-1, step)
+        with warnings.catch_warnings():
+            # A bucket of nothing but NaN is "no value", not a warning.
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            low = np.nanmin(buckets, axis=1)
+            high = np.nanmax(buckets, axis=1)
+        outline = {
+            "step": int(step),
+            "low": [_number(v) for v in low],
+            "high": [_number(v) for v in high],
+        }
+    return stats, outline

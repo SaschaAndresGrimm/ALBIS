@@ -9,6 +9,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- **The File Inspector shows statistics and a chart for arrays of numbers.** Above the values, a numeric dataset of up to 2,000,000 values shows its minimum, maximum and mean, worked out over the whole dataset rather than the rows shown, and how many values are NaN or infinite. A one-dimensional array, such as the start time or image number of every frame, is also drawn as a line chart; point at it to read the index and value. A jump in the start times, a counter that resets or a single spike shows at a glance, where the table showed only the first rows.
 - **Show in viewer, from the File Inspector.** A dataset that the **Dataset** list offers, such as a flat field or a second image stack found while browsing the file, has a **Show in viewer** button above its values; it opens the dataset exactly as picking it in the list does. The dataset already on show says **Shown in viewer**. Until now the inspector and the viewer did not talk to each other: a dataset found in the tree had to be looked up again in the list.
 
 ### Changed

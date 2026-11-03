@@ -143,6 +143,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The Image Header section (TIFF, CBF, EDF text headers); created by the inspector controller, which decides whether it or the HDF5 inspector shows.
 - `frontend/modules/inspector_preview_renderer.js`:
   - The inspector's value preview: table or text, the JSON and CSV links, and Show in viewer.
+- `frontend/modules/inspector_chart_utils.js`:
+  - Pure: SVG path data for the inspector's line chart of a 1D array (a line, or a min/max band when points cover stretches), and which values the pointer is over.
 - `frontend/modules/inspector_format_utils.js`:
   - Pure: what an inspector row shows beside its name (value and units, shape and dtype, link target) and its tooltip.
 
@@ -220,6 +222,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - `WalkReport`: what a dataset walk skipped (missing or unreadable link targets, truncated and dead groups), logged once per walk.
 - `backend/services/hdf5_inspect.py`:
   - One row of the inspector's tree and search listings: links, groups, datasets with a one-element value and its units, `string` for HDF5 text.
+  - `array_summary`: statistics and the min/max outline `GET /api/hdf5/value` adds for numeric arrays.
 - `backend/services/hdf5_units.py`:
   - Pure scalar coercion/unit conversion helpers for detector metadata extraction.
 - `backend/services/series_summing.py`:
