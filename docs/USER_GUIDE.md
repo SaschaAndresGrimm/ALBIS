@@ -1222,6 +1222,14 @@ update it could not verify, and it will not install one while a live watch,
 series sum or export is running — the dialog says so and offers the folder
 instead.
 
+On Windows, the installer you download can make SmartScreen show a blue
+"Windows protected your PC" screen, even when it is signed. A signature gives
+the publisher's name and shows the file was not changed after it was built, but
+SmartScreen also wants the file to be one it has seen often, and a new release
+is not. If you got the file from ALBIS's GitHub releases page, or from
+**Download Update**, which checks it against the published checksum, choose
+**More info**, then **Run anyway**.
+
 To stop it, uncheck **Settings → Connection → Check for updates on startup**.
 ALBIS then makes no outbound request of its own accord at all.
 
