@@ -503,6 +503,22 @@ class HDF5NodeResponse(_StrictModel):
     preview: Any | None = None
 
 
+class HDF5ArrayStats(_StrictModel):
+    count: int
+    # NaN and infinities: counted here, left out of min, max and mean.
+    non_finite: int
+    min: int | float | None = None
+    max: int | float | None = None
+    mean: float | None = None
+
+
+class HDF5ArrayOutline(_StrictModel):
+    # Each point covers `step` consecutive values: their lowest and highest.
+    step: int
+    low: list[int | float | None]
+    high: list[int | float | None]
+
+
 class HDF5ValueResponse(_StrictModel):
     path: str
     type: str
@@ -512,6 +528,9 @@ class HDF5ValueResponse(_StrictModel):
     preview_shape: list[int] | None = None
     truncated: bool
     slice: dict[str, Any] | None = None
+    # Numeric datasets up to 2,000,000 values; `outline` for 1D ones only.
+    stats: HDF5ArrayStats | None = None
+    outline: HDF5ArrayOutline | None = None
 
 
 class HDF5SearchResponse(_StrictModel):

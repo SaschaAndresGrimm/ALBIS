@@ -590,3 +590,47 @@ describe("search mode", () => {
     expect(second.defaultPrevented).toBe(false);
   });
 });
+
+describe("array statistics and chart", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("shows min, max, mean and a line chart above the table for a 1D array", async () => {
+    const { controller, byId } = await setup({
+      "/hdf5/node": { path: "/entry/data/start_time", type: "dataset", shape: [3], dtype: "float64", attrs: [] },
+      "/hdf5/value": {
+        path: "/entry/data/start_time",
+        type: "dataset",
+        shape: [3],
+        dtype: "float64",
+        preview: [0, 2, 1],
+        truncated: false,
+        stats: { count: 4, non_finite: 1, min: 0, max: 2, mean: 1 },
+        outline: { step: 1, low: [0, 2, 1], high: [0, 2, 1] },
+      },
+    });
+    await controller.showInspectorNode("/entry/data/start_time");
+
+    const stats = byId("preview").querySelector(".inspector-stats").textContent;
+    expect(stats).toContain("min0");
+    expect(stats).toContain("max2");
+    expect(stats).toContain("1 not finite");
+    const svg = byId("preview").querySelector(".inspector-chart svg");
+    expect(svg.getAttribute("aria-label")).toBe("Line chart of 4 values, from 0 to 2");
+    expect(svg.querySelector(".inspector-chart-line").getAttribute("d")).toMatch(/^M/);
+    // The table keeps the exact values, in its own scroll area under the chart.
+    expect(byId("preview").querySelector(".inspector-preview-body table")).not.toBeNull();
+  });
+
+  it("adds neither when the backend sends no statistics", async () => {
+    const { controller, byId } = await setup({
+      "/hdf5/node": { path: "/entry/definition", type: "dataset", shape: [], dtype: "string", attrs: [] },
+      "/hdf5/value": { path: "/entry/definition", type: "dataset", shape: [], dtype: "string", preview: "NXmx", truncated: false, stats: null, outline: null },
+    });
+    await controller.showInspectorNode("/entry/definition");
+
+    expect(byId("preview").querySelector(".inspector-stats")).toBeNull();
+    expect(byId("preview").querySelector(".inspector-chart")).toBeNull();
+  });
+});

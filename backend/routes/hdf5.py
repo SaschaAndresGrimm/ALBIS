@@ -22,7 +22,7 @@ from ..api_models import (
 )
 from ..services.content_disposition import attachment_disposition
 from ..services.export_header import producer_string
-from ..services.hdf5_inspect import describe_link, describe_object, dtype_label
+from ..services.hdf5_inspect import array_summary, describe_link, describe_object, dtype_label
 from ..services.hdf5_open import open_hdf5_for_read
 from ..services.hdf5_walk_report import WalkReport
 from ..services.log_safety import sanitize_log_value
@@ -275,6 +275,7 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
             preview, preview_shape, truncated, slice_info = deps.dataset_value_preview(
                 obj, max_cells=max_cells
             )
+            stats, outline = array_summary(obj)
             return HDF5ValueResponse(
                 path=path,
                 type="dataset",
@@ -284,6 +285,8 @@ def register_hdf5_routes(app: FastAPI, deps: HDF5RouteDeps) -> None:
                 preview_shape=[int(x) for x in preview_shape] if preview_shape else None,
                 truncated=truncated,
                 slice=slice_info,
+                stats=stats,
+                outline=outline,
             )
 
     @app.get("/api/hdf5/search", response_model=HDF5SearchResponse)
