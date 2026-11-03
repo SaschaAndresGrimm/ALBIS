@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { formatInspectorShape, inspectorRowMeta } from "./inspector_format_utils.js";
 
 export function createInspectorPanelController({
   apiBase,
@@ -54,6 +55,13 @@ export function createInspectorPanelController({
     if (normalized === "link") return t("inspector.type.link");
     if (!normalized) return t("inspector.node.default_type");
     return String(type);
+  }
+
+  function rowMeta(node) {
+    return inspectorRowMeta(node, {
+      typeLabel: localizeInspectorType(node.type),
+      scalarLabel: t("inspector.shape.scalar"),
+    });
   }
 
   function setImageHeaderSectionState(tone, message) {
@@ -215,15 +223,9 @@ export function createInspectorPanelController({
       name.textContent = item.path || item.name || "";
       const meta = document.createElement("span");
       meta.className = "inspector-result-meta";
-      let metaText = "";
-      if (itemType === "dataset" && item.shape && item.dtype) {
-        metaText = `${item.shape.join("×")} ${item.dtype}`;
-      } else if (itemType === "link" && item.target) {
-        metaText = item.target;
-      } else {
-        metaText = localizeInspectorType(item.type);
-      }
+      const { text: metaText, title: metaTitle } = rowMeta(item);
       meta.textContent = metaText;
+      if (metaTitle) row.title = metaTitle;
       const resultName = String(name.textContent || "").trim();
       row.setAttribute("aria-label", metaText ? `${resultName}, ${metaText}` : resultName);
       row.appendChild(name);
@@ -433,8 +435,10 @@ export function createInspectorPanelController({
       toggle.setAttribute("aria-expanded", "false");
       toggle.setAttribute("aria-label", t("inspector.toggle_group"));
     } else {
+      // A placeholder that keeps its width, not `.is-hidden`: that is
+      // `display: none`, which pulled every leaf's name left of its siblings'.
       toggle.textContent = "";
-      toggle.classList.add("is-hidden");
+      toggle.classList.add("is-placeholder");
       toggle.setAttribute("aria-hidden", "true");
       toggle.tabIndex = -1;
     }
@@ -444,13 +448,9 @@ export function createInspectorPanelController({
 
     const meta = document.createElement("span");
     meta.className = "inspector-meta";
-    if (nodeType === "dataset" && node.shape && node.dtype) {
-      meta.textContent = `${node.shape.join("×")} ${node.dtype}`;
-    } else if (nodeType === "link" && node.target) {
-      meta.textContent = node.target;
-    } else {
-      meta.textContent = localizeInspectorType(node.type);
-    }
+    const { text: metaText, title: metaTitle } = rowMeta(node);
+    meta.textContent = metaText;
+    if (metaTitle) row.title = metaTitle;
 
     row.appendChild(toggle);
     row.appendChild(name);
@@ -547,7 +547,8 @@ export function createInspectorPanelController({
       );
       if (inspectorPath) inspectorPath.textContent = data.path || path;
       if (inspectorType) inspectorType.textContent = localizeInspectorType(data.type);
-      if (inspectorShape) inspectorShape.textContent = data.shape ? data.shape.join("×") : "-";
+      if (inspectorShape) inspectorShape.textContent =
+          formatInspectorShape(data.shape, t("inspector.shape.scalar")) || "-";
       if (inspectorDtype) inspectorDtype.textContent = data.dtype || "-";
       if (inspectorAttrs) {
         inspectorAttrs.innerHTML = "";

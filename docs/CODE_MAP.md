@@ -135,6 +135,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The SIMPLON Test connection button, normalising the base URL, and wording for the backend's failure codes.
 - `frontend/modules/inspector_panel_controller.js`, `frontend/modules/inspector_bindings.js`:
   - The HDF5 inspector tree, search and image header panel, and their listeners.
+- `frontend/modules/inspector_format_utils.js`:
+  - Pure: what an inspector row shows beside its name (value and units, shape and dtype, link target) and its tooltip.
 
 ### Viewing, overlays and analysis
 
@@ -208,6 +210,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Opening HDF5 files for reading (plain, SWMR, unlocked) and reporting a lock failure or an undecodable file as a 422.
 - `backend/services/hdf5_walk_report.py`:
   - `WalkReport`: what a dataset walk skipped (missing or unreadable link targets, truncated and dead groups), logged once per walk.
+- `backend/services/hdf5_inspect.py`:
+  - One row of the inspector's tree and search listings: links, groups, datasets with a one-element value and its units, `string` for HDF5 text.
 - `backend/services/hdf5_units.py`:
   - Pure scalar coercion/unit conversion helpers for detector metadata extraction.
 - `backend/services/series_summing.py`:

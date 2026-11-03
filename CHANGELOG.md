@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The File Inspector shows a single value right in the tree, and names text as `string`.** A NeXus master keeps most of its metadata in fields that hold one value, such as `definition`, `program_name` or a detector's `count_time`. The tree showed only `object` beside them, which says nothing; it now shows the value itself, with its unit (`NXmx`, `0.001 s`, `12.4 keV`), and the whole value as a tooltip. The details call such a field's shape `scalar` instead of leaving it blank, and its type `string` instead of `object`.
+
+### Fixed
+
+- **In the File Inspector, entries without children line up with the groups beside them.** Datasets and links sat one column to the left of their sibling groups, so they looked as if they belonged to the level above. A long link target no longer squeezes the name; it is shortened, and shown in full as a tooltip.
+
 ## [0.39.1] - 2026-11-01
 
 ### Fixed

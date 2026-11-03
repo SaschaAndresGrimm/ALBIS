@@ -855,6 +855,7 @@
   "inspector.search.no_matches_for": "Aucun résultat pour \"{{query}}\"",
   "inspector.search.placeholder": "Chemins de recherche...",
   "inspector.select_hdf5": "Sélectionnez un fichier HDF5 pour parcourir les ensembles de données.",
+  "inspector.shape.scalar": "scalaire",
   "inspector.table.index": "Indice",
   "inspector.table.value": "Valeur",
   "inspector.target": "Cible",

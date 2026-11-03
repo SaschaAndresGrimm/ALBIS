@@ -855,6 +855,7 @@
   "inspector.search.no_matches_for": "Nenhuma correspondência para \"{{query}}\"",
   "inspector.search.placeholder": "Pesquisar caminhos...",
   "inspector.select_hdf5": "Selecione um arquivo HDF5 para navegar pelos conjuntos de dados.",
+  "inspector.shape.scalar": "escalar",
   "inspector.table.index": "Índice",
   "inspector.table.value": "Valor",
   "inspector.target": "Alvo",

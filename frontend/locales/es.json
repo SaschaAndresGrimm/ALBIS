@@ -855,6 +855,7 @@
   "inspector.search.no_matches_for": "No hay coincidencias para \"{{query}}\"",
   "inspector.search.placeholder": "Buscar rutas...",
   "inspector.select_hdf5": "Seleccione un archivo HDF5 para explorar conjuntos de datos.",
+  "inspector.shape.scalar": "escalar",
   "inspector.table.index": "Índice",
   "inspector.table.value": "Valor",
   "inspector.target": "Objetivo",

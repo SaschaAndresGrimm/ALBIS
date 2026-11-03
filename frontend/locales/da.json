@@ -855,6 +855,7 @@
   "inspector.search.no_matches_for": "Ingen resultater for \"{{query}}\"",
   "inspector.search.placeholder": "Søg stier...",
   "inspector.select_hdf5": "Vælg en HDF5-fil for at gennemse datasæt.",
+  "inspector.shape.scalar": "skalar",
   "inspector.table.index": "Indeks",
   "inspector.table.value": "Værdi",
   "inspector.target": "Mål",
