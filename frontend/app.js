@@ -690,7 +690,6 @@ const analysisOverlayController = createAnalysisOverlayController({
   analysisState,
   elements: {
     ...appElements,
-
   },
   constants: {
     peakBadMaskBits: PEAK_BAD_MASK_BITS,
@@ -848,7 +847,6 @@ const seriesSumController = createSeriesSumController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     isHdfFile,
@@ -870,7 +868,6 @@ const dataExportController = createDataExportController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     isHdfFile,
@@ -1357,7 +1354,6 @@ const fileOpenController = createFileOpenController({
   getBackendIsLocal: () => backendIsLocal,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     dirnameFromPath,
@@ -1398,7 +1394,6 @@ const uploadFlowController = createUploadFlowController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     setLoading,
@@ -1494,7 +1489,6 @@ autoloadStatusController = createAutoloadStatusController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     setStatus,
@@ -1552,7 +1546,6 @@ sourceMetadataController = createSourceMetadataController({
   analysisState,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     geometryParams: geometryParamsController,
@@ -1613,7 +1606,6 @@ chromeToolbarController = createChromeToolbarController({
   },
   elements: {
     ...appElements,
-
   },
   callbacks: {
     middleTruncate,
@@ -1658,7 +1650,6 @@ thresholdPlaybackController = createThresholdPlaybackController({
   },
   elements: {
     ...appElements,
-
   },
   callbacks: {
     formatEnergy,
@@ -1708,7 +1699,6 @@ fileSessionController = createFileSessionController({
   analysisState,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     clearGeometrySource: () => geometryParamsController?.clearSource(),
@@ -1767,7 +1757,6 @@ const backendStatusController = createBackendStatusController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     updateFooterVersions,
@@ -1830,7 +1819,6 @@ const autoloadSettingsController = createAutoloadSettingsController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     closeToolbarPlaybackPopover,
@@ -1858,7 +1846,6 @@ const autoloadOrchestrationController = createAutoloadOrchestrationController({
   analysisState,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     updateAutoloadUI,
@@ -1944,7 +1931,6 @@ frameMetadataController = createFrameMetadataController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     fetchJSON,
@@ -1987,7 +1973,6 @@ fileDataPipelineController = createFileDataPipelineController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     fetchJSON,
@@ -2289,7 +2274,6 @@ updateCheckController = createUpdateCheckController({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     openModal: (...args) => openModal(...args),
@@ -2377,7 +2361,6 @@ function getCommandPaletteCommands() {
 const commandPaletteController = createCommandPaletteController({
   elements: {
     ...appElements,
-
   },
   callbacks: {
     getCommands: getCommandPaletteCommands,
@@ -2423,7 +2406,6 @@ const { handleShortcut, handleNavShortcut } = createShortcutHandlers({
   state,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     handleMenuAction,
@@ -3070,7 +3052,6 @@ const fileBrowserControllerContext = createFileBrowserControllerContext({
   apiBase: API,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     openModal,
@@ -3097,7 +3078,6 @@ backendLogViewerController = createBackendLogViewerController({
   backendIsLocal,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     openModal: (...args) => openModal(...args),
@@ -3284,7 +3264,6 @@ initializeUiDefaults({
   backendIsLocal,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     restoreFilesystemMode,
@@ -3430,7 +3409,6 @@ bindAnalysisControlInteractions({
   backendIsLocal,
   elements: {
     ...appElements,
-
   },
   callbacks: {
     setFieldHint,
