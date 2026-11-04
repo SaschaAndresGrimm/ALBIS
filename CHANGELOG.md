@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-04
+
 ### Added
 
 - **The update notice can switch itself off.** When ALBIS tells you at startup that a newer version is out, the notice now has a **Don't check for updates at startup** box. Tick it and close the notice, and ALBIS stops checking, exactly as unticking **Settings → Connection → Check for updates on startup** does; a message says where to turn it back on. Until now the notice gave no hint that it could be switched off at all. The box only appears in the notice ALBIS opens by itself, not when you choose **Help → Check for Updates**, and not where the environment sets the option.
@@ -1850,7 +1852,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.40.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.41.0...HEAD
+[0.41.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.39.1...v0.40.0
 [0.39.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.39.0...v0.39.1
 [0.39.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.38.1...v0.39.0
