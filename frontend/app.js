@@ -99,6 +99,7 @@ import { createFramePlaybackController } from "./modules/frame_playback_controll
 import { createFrameMetadataController } from "./modules/frame_metadata_controller.js";
 import { createInspectorPanelController } from "./modules/inspector_panel_controller.js";
 import { createAnalysisOverlayController } from "./modules/analysis_overlay_controller.js";
+import { createHottestPixelsController } from "./modules/hottest_pixels_controller.js";
 import { createMaskCursorController } from "./modules/mask_cursor_controller.js";
 import { createRoiInteractionController } from "./modules/roi_interaction_controller.js";
 import { createResolutionRingInteractionController } from "./modules/resolution_ring_interaction_controller.js";
@@ -713,6 +714,17 @@ const {
   schedulePeakFinder,
   updateRingsSectionState,
 } = analysisOverlayController;
+
+// Beta: Analysis -> Hottest Pixels, shown while ui.hottest_pixels is on. It
+// runs whenever the Peak Finder is scheduled.
+core.hottestPixels = createHottestPixelsController({
+  core,
+  state,
+  analysisState,
+  elements: appElements,
+  constants: { badMaskBits: PEAK_BAD_MASK_BITS },
+  callbacks: { setSectionBadgeState, setSummaryChip, formatStat, getActiveSaturationMax, isSaturatedValue, setStatus },
+});
 
 // The ring d-spacings: as many as wanted, the one list everything reads.
 const ringListController = createRingListController({

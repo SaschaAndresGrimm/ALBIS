@@ -215,6 +215,11 @@
           "default": false,
           "description": "Beta: show Data -> Pixel Mask, to load, save and (with detector_control) send a detector's pixel mask."
         },
+        "hottest_pixels": {
+          "type": "boolean",
+          "default": false,
+          "description": "Beta: show Analysis -> Hottest Pixels, which lists the brightest pixels of the frame on screen."
+        },
         "hidden_tools": {
           "type": "array",
           "items": { "type": "string", "enum": ["rings", "peaks", "flatfield", "inpainting", "combine"] },
@@ -287,6 +292,7 @@
       "language": "en",
       "detector_control": false,
       "pixel_mask": false,
+      "hottest_pixels": false,
       "hidden_tools": [],
       "known_detectors_file": ""
     }

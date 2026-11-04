@@ -1480,6 +1480,41 @@
                 </div>
               </div>
             </section>
+            <section class="panel-section is-collapsed" data-section="hottest-pixels" id="hottest-pixels-section" hidden>
+              <button class="section-title" type="button" data-section-toggle>
+                <span class="section-title-main">
+                  <label class="section-switch">
+                    <input id="hottest-enable" type="checkbox" data-i18n-aria-label="hottest.toggle_label" aria-label="Enable Hottest Pixels" />
+                    <span class="section-switch-track" aria-hidden="true"></span>
+                  </label>
+                  <span data-i18n="hottest.section_title">Hottest Pixels</span>
+                  <span class="section-summary" id="summary-hottest" data-i18n="summary.off">Off</span>
+                </span>
+                <span class="section-chevron">▾</span>
+              </button>
+              <div class="section-state is-empty" id="hottest-state" role="status" aria-live="polite" data-i18n="hottest.state.enable_hint">
+                Switch on to list the brightest pixels of this frame.
+              </div>
+              <div class="peaks-controls">
+                <label class="field peaks-count-field">
+                  <span data-i18n="hottest.count_label">Pixels to find</span>
+                  <input id="hottest-count" type="number" min="1" max="1000" step="1" value="20" />
+                </label>
+                <label class="checkbox hottest-include-masked">
+                  <input id="hottest-include-masked" type="checkbox" />
+                  <span data-i18n="hottest.include_masked">Include masked pixels</span>
+                </label>
+                <button id="hottest-export" class="btn btn-secondary" type="button" data-i18n="analysis.peaks.export_csv">Export CSV</button>
+              </div>
+              <div class="peaks-list hottest-list" id="hottest-list">
+                <div class="peaks-head">
+                  <span>#</span><span>X</span><span>Y</span>
+                  <span data-i18n="hottest.column.value">Value</span>
+                  <span data-i18n="hottest.column.mask">Mask</span>
+                </div>
+                <div class="peaks-body" id="hottest-body"></div>
+              </div>
+            </section>
 
             <section class="panel-section is-collapsed" data-section="flatfield">
               <button class="section-title" type="button" data-section-toggle>
@@ -2336,6 +2371,10 @@
               <label class="checkbox settings-check">
                 <input id="settings-pixel-mask" type="checkbox" />
                 <span data-i18n="settings.tools.pixel_mask">Beta: pixel masks, to load, save and send to a detector (shows Data → Pixel Mask)</span>
+              </label>
+              <label class="checkbox settings-check">
+                <input id="settings-hottest-pixels" type="checkbox" />
+                <span data-i18n="settings.tools.hottest_pixels">Beta: hottest pixels, to list the brightest pixels of a frame (shows Analysis → Hottest Pixels)</span>
               </label>
             </div>
           </div>

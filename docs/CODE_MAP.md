@@ -160,6 +160,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Overlay drawing shared by the on-screen canvases and the GIF export.
 - `frontend/modules/analysis_overlay_controller.js`, `frontend/modules/analysis_controls_bindings.js`:
   - Rings and peak analysis, and the Analysis tab's listeners.
+- `frontend/modules/hottest_pixels_utils.js`, `frontend/modules/hottest_pixels_controller.js`, `frontend/modules/hottest_pixels_painter.js`:
+  - Beta Analysis → Hottest Pixels: the N highest pixels of the frame in one pass (pure, no spot tests), the section with its list and CSV export, and the square markers drawn on the peak overlay.
 - `frontend/modules/ring_geometry_utils.js`, `frontend/modules/ring_list_controller.js`, `frontend/modules/resolution_ring_interaction_controller.js`:
   - Resolution ring geometry (including tilted and multi-panel detectors), the list of d-spacings with presets, and dragging the beam centre and rings on the canvas.
 - `frontend/modules/geometry_params.js`, `frontend/modules/geometry_params_controller.js`, `frontend/modules/geometry_override_utils.js`:

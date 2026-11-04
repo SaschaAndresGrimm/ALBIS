@@ -68,6 +68,12 @@ export function createAnalysisState() {
     externalPeakSets: [],
     selectedPeaks: [],
     peakSelectionAnchor: null,
+    // Beta: Hottest Pixels (hottest_pixels_controller.js).
+    hottestEnabled: false,
+    hottestCount: 20,
+    hottestIncludeMasked: false,
+    hottestFound: [],
+    hottestSelected: null,
   };
 }
 
@@ -110,6 +116,7 @@ function createUiPreferencesState() {
     autoCheckUpdates: true,
     detectorControl: false,
     pixelMask: false,
+    hottestPixels: false,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,
     frameCacheMb: 256,

@@ -38,6 +38,7 @@ reference of the same material.
 - [Combine frames](#combine-frames)
 - [Follow a running experiment](#follow-a-running-experiment)
 - [Pixel masks (beta)](#pixel-masks-beta)
+- [Hottest pixels (beta)](#hottest-pixels-beta)
 - [Test a detector (beta)](#test-a-detector-beta)
 - [Show only the tools you use](#show-only-the-tools-you-use)
 - [Work from another machine](#work-from-another-machine)
@@ -968,6 +969,32 @@ dropped after Clear or Restore, after asking.
 
 ---
 
+## Hottest pixels (beta)
+
+Switch on **Settings → Tools → Beta: hottest pixels** to add **Hottest Pixels**
+to the Analysis tab, under **Peak Finder**. Switched on, it lists the brightest
+pixels of the frame on screen, brightest first, and draws a square around each
+on the image.
+
+Unlike the Peak Finder, it does not look for diffraction spots: a lone spike, a
+pixel next to another hot one, or a pixel on a bright background all count. Only
+pixels above zero are listed.
+
+- **Pixels to find** sets how many, from 1 to 1000 (20 to start with).
+- Masked pixels are left out, as the Peak Finder leaves them out, and so are
+  saturated pixels while **Mask saturated** is on. Tick **Include masked
+  pixels** to list them too.
+- The list shows each pixel's position and value, and, once the data has a
+  pixel mask, its mask value (`—` for an unmasked pixel). Click a row to
+  highlight that pixel in green; click it again to clear it.
+- **Export CSV** saves the list, with the file, frame and threshold it came
+  from.
+
+The list follows the frame: it updates on every new frame, during playback and
+live viewing too, and when the mask changes.
+
+---
+
 ## Test a detector (beta)
 
 The **Detector** tab is a quick way to check a DECTRIS detector: connect, take a
@@ -1082,7 +1109,7 @@ Rings** and **Peak Finder** for diffraction, **Flatfield** and **Inpainting**
 for imaging, **Combine Frames** for processing. **Settings → Tools** chooses
 which of them the tab shows; **Statistics and ROI** is always there.
 
-![Settings, Tools tab: a box for each tool, the Diffraction, Imaging and Everything buttons, and the two beta switches](images/user-guide/settings-tools.webp)
+![Settings, Tools tab: a box for each tool, the Diffraction, Imaging and Everything buttons, and the three beta switches](images/user-guide/settings-tools.webp)
 
 - **Diffraction**, **Imaging** and **Everything** set the boxes in one click;
   each box can still be changed on its own. Inpainting and Combine Frames stay
@@ -1093,8 +1120,9 @@ which of them the tab shows; **Statistics and ROI** is always there.
   **Customise…** to bring them back. The command palette has it too
   (**Analysis: Customise…**), and a hidden tool's commands leave the palette
   with it.
-- The same page switches the **Detector** tab (beta) and
-  [pixel masks](#pixel-masks-beta) (beta) on and off.
+- The same page switches the **Detector** tab (beta),
+  [pixel masks](#pixel-masks-beta) (beta) and
+  [hottest pixels](#hottest-pixels-beta) (beta) on and off.
 
 The choice is stored in the config file as `ui.hidden_tools`, so a facility can
 ship ALBIS set up for one kind of station (see the

@@ -720,6 +720,9 @@ export function createAnalysisOverlayController({
   }
 
   function schedulePeakFinder() {
+    // Everything that asks for a new peak search -- a new frame, a mask
+    // change -- also changes which pixels are hottest.
+    core.hottestPixels?.schedule();
     if (peakFinderScheduled) return;
     peakFinderScheduled = true;
     updatePeaksSectionState();

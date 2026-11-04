@@ -744,7 +744,8 @@ button.browse-details-header-cell[aria-sort="descending"] {
   align-items: center;
 }
 
-.panel-section[data-section="peak-finder"] .field {
+.panel-section[data-section="peak-finder"] .field,
+.panel-section[data-section="hottest-pixels"] .field {
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr);
   gap: 4px 10px;
@@ -752,7 +753,8 @@ button.browse-details-header-cell[aria-sort="descending"] {
 }
 
 .panel-section[data-section="data-source"] .field > span,
-.panel-section[data-section="peak-finder"] .field > span {
+.panel-section[data-section="peak-finder"] .field > span,
+.panel-section[data-section="hottest-pixels"] .field > span {
   margin: 0;
 }
 
@@ -760,7 +762,8 @@ button.browse-details-header-cell[aria-sort="descending"] {
 .panel-section[data-section="data-source"] .field > select,
 .panel-section[data-section="data-source"] .field > .inline,
 .panel-section[data-section="peak-finder"] .field > input,
-.panel-section[data-section="peak-finder"] .field > select {
+.panel-section[data-section="peak-finder"] .field > select,
+.panel-section[data-section="hottest-pixels"] .field > input {
   grid-column: 2;
 }
 
@@ -776,7 +779,8 @@ button.browse-details-header-cell[aria-sort="descending"] {
 
 @media (max-width: 900px) {
   .panel-section[data-section="data-source"] .field,
-  .panel-section[data-section="peak-finder"] .field {
+  .panel-section[data-section="peak-finder"] .field,
+  .panel-section[data-section="hottest-pixels"] .field {
     grid-template-columns: 1fr;
     gap: 6px 0;
     align-items: stretch;
@@ -787,6 +791,7 @@ button.browse-details-header-cell[aria-sort="descending"] {
   .panel-section[data-section="data-source"] .field > .inline,
   .panel-section[data-section="peak-finder"] .field > input,
   .panel-section[data-section="peak-finder"] .field > select,
+  .panel-section[data-section="hottest-pixels"] .field > input,
   .panel-section[data-section="data-source"] .field > .field-hint,
   .panel-section[data-section="peak-finder"] .field > .field-hint {
     grid-column: 1;

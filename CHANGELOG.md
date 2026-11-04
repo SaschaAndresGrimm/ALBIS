@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Hottest Pixels (beta): list the brightest pixels of a frame.** Switch on **Settings → Tools → Beta: hottest pixels**, and the Analysis tab gets a **Hottest Pixels** section under Peak Finder. It lists the 1 to 1000 brightest pixels of the frame on screen, with position, value and, when the data has a pixel mask, the pixel's mask value, marks each with a square on the image, and exports the list as CSV. The Peak Finder cannot do this: it looks for diffraction spots and drops lone spikes and neighbouring pixels on purpose, which are exactly what a hot pixel looks like. Masked and saturated pixels are left out unless **Include masked pixels** is ticked.
+
 ### Changed
 
 - **The example data for the Getting started walk-through is one zip file.** Download `albis-example-data.zip`, unzip it and open the first image, instead of saving ten files one by one from GitHub or typing a command in a terminal.
