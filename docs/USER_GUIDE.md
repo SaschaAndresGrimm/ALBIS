@@ -27,6 +27,7 @@ reference of the same material.
 - [Make the image readable](#make-the-image-readable)
 - [Measure a region](#measure-a-region)
 - [Resolution rings and reflections](#resolution-rings-and-reflections)
+- [Min/Max Finder](#minmax-finder)
 - [Get data back out](#get-data-back-out)
 - [Compare two views](#compare-two-views)
 
@@ -38,7 +39,6 @@ reference of the same material.
 - [Combine frames](#combine-frames)
 - [Follow a running experiment](#follow-a-running-experiment)
 - [Pixel masks (beta)](#pixel-masks-beta)
-- [Min/Max Finder (beta)](#minmax-finder-beta)
 - [Test a detector (beta)](#test-a-detector-beta)
 - [Show only the tools you use](#show-only-the-tools-you-use)
 - [Work from another machine](#work-from-another-machine)
@@ -447,6 +447,47 @@ value, so pointing at a feature tells you its resolution.
 for and a minimum signal-to-noise ratio; found peaks are listed with position,
 intensity, SNR and resolution, and are drawn over the image. Selecting a row
 highlights that peak.
+
+---
+
+## Min/Max Finder
+
+**Min/Max Finder**, in the Analysis tab under **Peak Finder**, lists the
+highest or lowest pixels of the frame on screen and draws a square around each
+on the image: magenta for the highest, cyan for the lowest.
+
+Unlike the Peak Finder, it does not look for diffraction spots: a lone spike, a
+pixel next to another hot one, or a pixel on a bright background all count.
+
+- **Find** chooses the list: **Max** (highest first, pixels above zero only),
+  **Min** (lowest first, zero and negative values included, since a dead pixel
+  reads 0) or **Both**. Both shows the two lists in one table, the highest
+  numbered ▲1, ▲2 … and the lowest ▼1, ▼2 ….
+- **Pixels to find** sets how many per list, from 1 to 1000 (20 to start with).
+- Masked pixels are left out, as the Peak Finder leaves them out, and so are
+  saturated pixels while **Mask saturated** is on. Tick **Include masked
+  pixels** to list them too; left in, the gaps between modules fill the
+  **Min** list.
+- The list shows each pixel's position and value, and, once the data has a
+  pixel mask, its mask value (`—` for an unmasked pixel).
+- The line above the list names the highest or lowest pixel and where it is.
+  When several pixels share that value it says how many instead: on a frame
+  with little signal, the lowest value is 0 in most of the detector, and the
+  pixels listed are just the first of them.
+- Click a row to highlight that pixel in green, as in the Peak Finder:
+  Shift-click adds the rows in between, ⌘-click (Ctrl-click) adds or removes
+  one, and clicking the only highlighted row clears it. A highlighted pixel
+  stays highlighted on the next frame while it is still in the list.
+- **Export CSV** saves the list, with a `kind` column (`max` or `min`) and the
+  file, frame and threshold it came from.
+
+The list follows the frame: it updates on every new frame, during playback and
+live viewing too, and when the mask changes.
+
+To find dead, cold or hot pixels *compared with their surroundings* on a
+uniform exposure, and mask them, use **Find bad pixels** in
+[Pixel masks](#pixel-masks-beta) instead. The Min/Max Finder lists the
+absolute extremes of one frame.
 
 ---
 
@@ -983,48 +1024,6 @@ dropped after Clear or Restore, after asking.
 
 ---
 
-## Min/Max Finder (beta)
-
-Switch on **Settings → Tools → Beta: min/max finder** to add **Min/Max
-Finder** to the Analysis tab, under **Peak Finder**. Switched on, it lists the
-highest or lowest pixels of the frame on screen and draws a square around each
-on the image: magenta for the highest, cyan for the lowest.
-
-Unlike the Peak Finder, it does not look for diffraction spots: a lone spike, a
-pixel next to another hot one, or a pixel on a bright background all count.
-
-- **Find** chooses the list: **Max** (highest first, pixels above zero only),
-  **Min** (lowest first, zero and negative values included, since a dead pixel
-  reads 0) or **Both**. Both shows the two lists in one table, the highest
-  numbered ▲1, ▲2 … and the lowest ▼1, ▼2 ….
-- **Pixels to find** sets how many per list, from 1 to 1000 (20 to start with).
-- Masked pixels are left out, as the Peak Finder leaves them out, and so are
-  saturated pixels while **Mask saturated** is on. Tick **Include masked
-  pixels** to list them too; left in, the gaps between modules fill the
-  **Min** list.
-- The list shows each pixel's position and value, and, once the data has a
-  pixel mask, its mask value (`—` for an unmasked pixel).
-- The line above the list names the highest or lowest pixel and where it is.
-  When several pixels share that value it says how many instead: on a frame
-  with little signal, the lowest value is 0 in most of the detector, and the
-  pixels listed are just the first of them.
-- Click a row to highlight that pixel in green, as in the Peak Finder:
-  Shift-click adds the rows in between, ⌘-click (Ctrl-click) adds or removes
-  one, and clicking the only highlighted row clears it. A highlighted pixel
-  stays highlighted on the next frame while it is still in the list.
-- **Export CSV** saves the list, with a `kind` column (`max` or `min`) and the
-  file, frame and threshold it came from.
-
-The list follows the frame: it updates on every new frame, during playback and
-live viewing too, and when the mask changes.
-
-To find dead, cold or hot pixels *compared with their surroundings* on a
-uniform exposure, and mask them, use **Find bad pixels** in
-[Pixel masks](#pixel-masks-beta) instead. The Min/Max Finder lists the
-absolute extremes of one frame.
-
----
-
 ## Test a detector (beta)
 
 The **Detector** tab is a quick way to check a DECTRIS detector: connect, take a
@@ -1136,10 +1135,12 @@ browser by earlier versions are taken over the first time.
 
 The **Analysis** tab holds tools for different kinds of work: **Resolution
 Rings** and **Peak Finder** for diffraction, **Flatfield** and **Inpainting**
-for imaging, **Combine Frames** for processing. **Settings → Tools** chooses
+for imaging, **Combine Frames** for processing, and the
+[Min/Max Finder](#minmax-finder) for any kind of work (**General**).
+**Settings → Tools** chooses
 which of them the tab shows; **Statistics and ROI** is always there.
 
-![Settings, Tools tab: a box for each tool, the Diffraction, Imaging and Everything buttons, and the three beta switches](images/user-guide/settings-tools.webp)
+![Settings, Tools tab: a box for each tool, the Diffraction, Imaging and Everything buttons, and the two beta switches](images/user-guide/settings-tools.webp)
 
 - **Diffraction**, **Imaging** and **Everything** set the boxes in one click;
   each box can still be changed on its own. Inpainting and Combine Frames stay
@@ -1150,9 +1151,8 @@ which of them the tab shows; **Statistics and ROI** is always there.
   **Customise…** to bring them back. The command palette has it too
   (**Analysis: Customise…**), and a hidden tool's commands leave the palette
   with it.
-- The same page switches the **Detector** tab (beta),
-  [pixel masks](#pixel-masks-beta) (beta) and
-  the [Min/Max Finder](#minmax-finder-beta) (beta) on and off.
+- The same page switches the **Detector** tab (beta) and
+  [pixel masks](#pixel-masks-beta) (beta) on and off.
 
 The choice is stored in the config file as `ui.hidden_tools`, so a facility can
 ship ALBIS set up for one kind of station (see the

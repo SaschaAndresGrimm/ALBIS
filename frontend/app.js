@@ -710,8 +710,7 @@ const {
   updateRingsSectionState,
 } = analysisOverlayController;
 
-// Beta: Analysis -> Min/Max Finder, shown while ui.minmax_finder is on. It
-// runs whenever the Peak Finder is scheduled.
+// Analysis -> Min/Max Finder. It runs whenever the Peak Finder is scheduled.
 core.minmaxFinder = createMinMaxFinderController({
   core,
   state,

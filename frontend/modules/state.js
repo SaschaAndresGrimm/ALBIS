@@ -118,7 +118,6 @@ function createUiPreferencesState() {
     autoCheckUpdates: true,
     detectorControl: false,
     pixelMask: false,
-    minmaxFinder: false,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,
     frameCacheMb: 256,

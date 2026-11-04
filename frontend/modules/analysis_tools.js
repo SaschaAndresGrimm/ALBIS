@@ -2,7 +2,8 @@
  * The Analysis tab's optional tools, and which of them a user hides.
  *
  * Statistics and ROI is not listed: everyone uses it, so it is always shown.
- * The rest serve different work -- diffraction, imaging, processing -- and a
+ * The rest serve different work -- diffraction, imaging, processing -- or,
+ * under general, any kind (the Min/Max Finder), and a
  * tab holding all of them is crowded for anyone doing only one. Settings ->
  * Tools hides them, stored as `ui.hidden_tools` (a hidden rather than a shown
  * list, so a tool added later appears unless someone hid it on purpose).
@@ -20,13 +21,15 @@ export const ANALYSIS_TOOLS = [
   { id: "flatfield", section: "flatfield", group: "imaging", label: "flatfield.section_title", toggleId: "flat-toggle" },
   { id: "inpainting", section: "inpainting", group: "imaging", label: "inpaint.section_title", toggleId: "inpaint-toggle" },
   { id: "combine", section: "series-summing", group: "processing", label: "series.ui.section_title" },
+  { id: "minmax", section: "minmax-finder", group: "general", label: "minmax.section_title", toggleId: "minmax-enable" },
 ];
 
 const TOOL_IDS = ANALYSIS_TOOLS.map((tool) => tool.id);
 
 /**
  * What the quick choices hide. Inpainting and Combine Frames stay in both:
- * diffraction fills module gaps too, and both kinds of work sum frames.
+ * diffraction fills module gaps too, and both kinds of work sum frames. The
+ * general tools stay in every one.
  */
 export const TOOL_PRESETS = {
   diffraction: ["flatfield"],

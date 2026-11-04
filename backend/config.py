@@ -77,9 +77,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # Beta: Data -> Pixel Mask, to load, save and (with detector control)
         # send a detector's pixel mask. Off unless switched on.
         "pixel_mask": False,
-        # Beta: Analysis -> Min/Max Finder, the highest and lowest pixels of a frame.
-        # Off unless switched on; it needs nothing from the backend.
-        "minmax_finder": False,
         "hidden_tools": [],
         # The shared list of known detectors; empty means
         # ~/.config/albis/known_detectors.json. A relative path is taken from
@@ -129,7 +126,6 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("ui", "language"): (str,),
     ("ui", "detector_control"): (bool, int, float, str),
     ("ui", "pixel_mask"): (bool, int, float, str),
-    ("ui", "minmax_finder"): (bool, int, float, str),
     ("ui", "hidden_tools"): (list, str),
     ("ui", "known_detectors_file"): (str,),
 }
@@ -187,7 +183,7 @@ def _normalize_allowed_hosts(value: Any) -> list[str]:
 # ROI is not among them: everyone uses it. A name not listed here is dropped,
 # so a key written by a newer ALBIS, or a typo, hides nothing. Hidden rather
 # than shown, so a tool added later appears unless someone hid it on purpose.
-HIDEABLE_TOOLS: tuple[str, ...] = ("rings", "peaks", "flatfield", "inpainting", "combine")
+HIDEABLE_TOOLS: tuple[str, ...] = ("rings", "peaks", "flatfield", "inpainting", "combine", "minmax")
 
 
 def _normalize_hidden_tools(value: Any) -> list[str]:
@@ -469,7 +465,6 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "language": ui_language,
             "detector_control": get_bool(merged, ("ui", "detector_control"), False),
             "pixel_mask": get_bool(merged, ("ui", "pixel_mask"), False),
-            "minmax_finder": get_bool(merged, ("ui", "minmax_finder"), False),
             "hidden_tools": _normalize_hidden_tools(get_nested(merged, ("ui", "hidden_tools"), [])),
             "known_detectors_file": get_str(merged, ("ui", "known_detectors_file"), "").strip(),
         },

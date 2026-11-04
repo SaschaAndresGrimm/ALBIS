@@ -1,11 +1,11 @@
 /**
- * Beta: Analysis -> Min/Max Finder, the highest and lowest pixels of the
- * frame on screen, listed and marked on the image.
+ * Analysis -> Min/Max Finder, the highest and lowest pixels of the frame on
+ * screen, listed and marked on the image.
  *
- * Shown only while `ui.minmax_finder` is on (Settings -> Tools). It answers a
- * detector question rather than a diffraction one -- which pixels read the
- * most, or the least -- so it takes none of the Peak Finder's tests for a
- * spot (see minmax_finder_utils.js). Masked pixels, and saturated ones while
+ * One of the Analysis tools (analysis_tools.js), in the general group: it
+ * answers a question about any frame rather than one kind of work -- which
+ * pixels read the most, or the least -- so it takes none of the Peak
+ * Finder's tests for a spot (see minmax_finder_utils.js). Masked pixels, and saturated ones while
  * Mask saturated is on, are left out as the Peak Finder leaves them out,
  * unless "Include masked pixels" is ticked: a hot pixel that is masked
  * already is a fair thing to look for. Left in, the gaps would fill the low
@@ -33,7 +33,6 @@ const pixelKey = (pixel) => `${pixel.kind}:${pixel.index}`;
 
 export function createMinMaxFinderController({ core, state, analysisState, elements, constants, callbacks }) {
   const {
-    minmaxSection,
     minmaxToggle,
     minmaxStateEl,
     minmaxSummaryEl,
@@ -231,14 +230,6 @@ export function createMinMaxFinderController({ core, state, analysisState, eleme
     window.setTimeout(run, 0);
   }
 
-  /** Show or hide the section; hiding it switches the tool off. */
-  function setEnabled(enabled) {
-    if (minmaxSection) minmaxSection.hidden = !enabled;
-    if (enabled || !minmaxToggle?.checked) return;
-    minmaxToggle.checked = false;
-    minmaxToggle.dispatchEvent(new window.Event("change", { bubbles: true }));
-  }
-
   function exportCsv() {
     const unavailable = unavailableReason();
     if (unavailable) {
@@ -300,8 +291,7 @@ export function createMinMaxFinderController({ core, state, analysisState, eleme
 
   if (minmaxModeSelect) minmaxModeSelect.value = analysisState.minmaxMode;
   if (minmaxCountInput) minmaxCountInput.value = String(analysisState.minmaxCount);
-  setEnabled(Boolean(state.minmaxFinder));
   render();
 
-  return { schedule, setEnabled, render, exportCsv };
+  return { schedule, render, exportCsv };
 }

@@ -65,6 +65,7 @@ function renderSettingsShell() {
         <input type="checkbox" data-tool-visible="flatfield" />
         <input type="checkbox" data-tool-visible="inpainting" />
         <input type="checkbox" data-tool-visible="combine" />
+        <input type="checkbox" data-tool-visible="minmax" />
       </fieldset>
       <button type="button" data-tool-preset="imaging">Imaging</button>
       <button type="button" data-tool-preset="everything">Everything</button>
@@ -747,7 +748,7 @@ describe("settings controller: Tools", () => {
       initialConfig: { ui: { hidden_tools: ["rings", "combine"] } },
     });
     await controller.openSettingsModal();
-    expect(shown()).toEqual({ rings: false, peaks: true, flatfield: true, inpainting: true, combine: false });
+    expect(shown()).toEqual({ rings: false, peaks: true, flatfield: true, inpainting: true, combine: false, minmax: true });
 
     document.querySelector('[data-tool-visible="peaks"]').checked = false;
     document.querySelector('[data-tool-visible="combine"]').checked = true;
@@ -762,7 +763,7 @@ describe("settings controller: Tools", () => {
     await controller.openSettingsModal();
 
     document.querySelector('[data-tool-preset="imaging"]').click();
-    expect(shown()).toEqual({ rings: false, peaks: false, flatfield: true, inpainting: true, combine: true });
+    expect(shown()).toEqual({ rings: false, peaks: false, flatfield: true, inpainting: true, combine: true, minmax: true });
     document.querySelector('[data-tool-preset="everything"]').click();
     expect(Object.values(shown()).every(Boolean)).toBe(true);
     expect(savedConfigs).toHaveLength(0);

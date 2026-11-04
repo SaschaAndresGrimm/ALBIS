@@ -215,16 +215,11 @@
           "default": false,
           "description": "Beta: show Data -> Pixel Mask, to load, save and (with detector_control) send a detector's pixel mask."
         },
-        "minmax_finder": {
-          "type": "boolean",
-          "default": false,
-          "description": "Beta: show Analysis -> Min/Max Finder, which lists the highest and lowest pixels of the frame on screen."
-        },
         "hidden_tools": {
           "type": "array",
-          "items": { "type": "string", "enum": ["rings", "peaks", "flatfield", "inpainting", "combine"] },
+          "items": { "type": "string", "enum": ["rings", "peaks", "flatfield", "inpainting", "combine", "minmax"] },
           "default": [],
-          "description": "Analysis tools to leave out of the Analysis tab: rings (Resolution Rings), peaks (Peak Finder), flatfield, inpainting, combine (Combine Frames). A hidden tool is switched off. Statistics and ROI is always shown. Also set in Settings -> Tools."
+          "description": "Analysis tools to leave out of the Analysis tab: rings (Resolution Rings), peaks (Peak Finder), flatfield, inpainting, combine (Combine Frames), minmax (Min/Max Finder). A hidden tool is switched off. Statistics and ROI is always shown. Also set in Settings -> Tools."
         },
         "known_detectors_file": {
           "type": "string",
@@ -292,7 +287,6 @@
       "language": "en",
       "detector_control": false,
       "pixel_mask": false,
-      "minmax_finder": false,
       "hidden_tools": [],
       "known_detectors_file": ""
     }

@@ -39,6 +39,7 @@ def test_nothing_is_hidden_by_default() -> None:
 
 def test_known_tools_are_kept_in_a_stable_order_once_each() -> None:
     assert _hidden(["combine", "Rings", "rings", " peaks "]) == ["rings", "peaks", "combine"]
+    assert _hidden(["minmax", "flatfield"]) == ["flatfield", "minmax"]
 
 
 def test_unknown_names_hide_nothing() -> None:

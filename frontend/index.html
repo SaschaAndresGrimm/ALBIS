@@ -1483,7 +1483,7 @@
                 </div>
               </div>
             </section>
-            <section class="panel-section is-collapsed" data-section="minmax-finder" id="minmax-finder-section" hidden>
+            <section class="panel-section is-collapsed" data-section="minmax-finder">
               <button class="section-title" type="button" data-section-toggle>
                 <span class="section-title-main">
                   <label class="section-switch">
@@ -2364,6 +2364,10 @@
                 <span class="settings-tools-group-title" data-i18n="tools.group.processing">Processing</span>
                 <label class="checkbox settings-check"><input type="checkbox" data-tool-visible="combine" /><span data-i18n="series.ui.section_title">Combine Frames</span></label>
               </div>
+              <div class="settings-tools-group">
+                <span class="settings-tools-group-title" data-i18n="tools.group.general">General</span>
+                <label class="checkbox settings-check"><input type="checkbox" data-tool-visible="minmax" /><span data-i18n="minmax.section_title">Min/Max Finder</span></label>
+              </div>
             </fieldset>
             <div class="settings-tools-presets">
               <span data-i18n="tools.presets">Quick choice</span>
@@ -2380,10 +2384,6 @@
               <label class="checkbox settings-check">
                 <input id="settings-pixel-mask" type="checkbox" />
                 <span data-i18n="settings.tools.pixel_mask">Beta: pixel masks, to load, save and send to a detector (shows Data → Pixel Mask)</span>
-              </label>
-              <label class="checkbox settings-check">
-                <input id="settings-minmax-finder" type="checkbox" />
-                <span data-i18n="settings.tools.minmax_finder">Beta: min/max finder, to list the highest and lowest pixels of a frame (shows Analysis → Min/Max Finder)</span>
               </label>
             </div>
           </div>

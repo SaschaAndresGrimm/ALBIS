@@ -49,7 +49,6 @@ export function createSettingsController({
     settingsToolHints,
     settingsDetectorControl,
     settingsPixelMask,
-    settingsMinmaxFinder,
     settingsHiddenTools,
     settingsLanguage,
     settingsPixelLabelMin,
@@ -241,7 +240,6 @@ export function createSettingsController({
       "ui.tool_hints": settingsToolHints,
       "ui.detector_control": settingsDetectorControl,
       "ui.pixel_mask": settingsPixelMask,
-      "ui.minmax_finder": settingsMinmaxFinder,
       "ui.hidden_tools": settingsHiddenTools,
       "ui.auto_check_updates": settingsAutoCheckUpdates,
       "ui.allow_update_download": settingsAllowUpdateDownload,
@@ -404,9 +402,6 @@ export function createSettingsController({
     if (settingsPixelMask) {
       settingsPixelMask.checked = Boolean(config?.ui?.pixel_mask ?? state.pixelMask ?? false);
     }
-    if (settingsMinmaxFinder) {
-      settingsMinmaxFinder.checked = Boolean(config?.ui?.minmax_finder ?? state.minmaxFinder ?? false);
-    }
     fillHiddenTools(config?.ui?.hidden_tools ?? state.hiddenTools ?? []);
     if (settingsLanguage) {
       settingsLanguage.value = String(config?.ui?.language ?? state.language ?? "en");
@@ -506,7 +501,6 @@ export function createSettingsController({
         tool_hints: Boolean(settingsToolHints?.checked),
         detector_control: Boolean(settingsDetectorControl?.checked),
         ...(settingsPixelMask ? { pixel_mask: Boolean(settingsPixelMask.checked) } : {}),
-        ...(settingsMinmaxFinder ? { minmax_finder: Boolean(settingsMinmaxFinder.checked) } : {}),
         ...(settingsHiddenTools ? { hidden_tools: collectHiddenTools() } : {}),
         auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
         allow_update_download: Boolean(settingsAllowUpdateDownload?.checked),
@@ -549,10 +543,6 @@ export function createSettingsController({
     if (typeof cfg.pixel_mask !== "undefined") {
       state.pixelMask = Boolean(cfg.pixel_mask);
       setPixelMaskEnabled?.(state.pixelMask);
-    }
-    if (typeof cfg.minmax_finder !== "undefined") {
-      state.minmaxFinder = Boolean(cfg.minmax_finder);
-      core.minmaxFinder?.setEnabled(state.minmaxFinder);
     }
     if (typeof cfg.hidden_tools !== "undefined") {
       setHiddenTools?.(normalizeHiddenTools(cfg.hidden_tools));

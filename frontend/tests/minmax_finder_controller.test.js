@@ -12,10 +12,10 @@ beforeAll(async () => {
 });
 
 // A 3 x 3 frame whose highest pixel (index 4) is a gap in the mask.
-function setup({ enabled = true, maskEnabled = true } = {}) {
+function setup({ maskEnabled = true } = {}) {
   vi.useFakeTimers();
   document.body.innerHTML = `
-    <section id="section" hidden>
+    <section id="section">
       <input id="toggle" type="checkbox" />
       <div id="state"></div><span id="summary"></span>
       <select id="mode"><option value="max"></option><option value="min"></option><option value="both"></option></select>
@@ -26,7 +26,6 @@ function setup({ enabled = true, maskEnabled = true } = {}) {
     </section>`;
   const byId = (id) => document.getElementById(id);
   const state = {
-    minmaxFinder: enabled,
     hasFrame: true,
     width: 3,
     height: 3,
@@ -53,7 +52,6 @@ function setup({ enabled = true, maskEnabled = true } = {}) {
     state,
     analysisState,
     elements: {
-      minmaxSection: byId("section"),
       minmaxToggle: byId("toggle"),
       minmaxStateEl: byId("state"),
       minmaxSummaryEl: byId("summary"),
@@ -93,11 +91,6 @@ function setup({ enabled = true, maskEnabled = true } = {}) {
 }
 
 describe("Min/Max Finder", () => {
-  it("is hidden until the beta setting is on", () => {
-    expect(setup({ enabled: false }).byId("section").hidden).toBe(true);
-    expect(setup({ enabled: true }).byId("section").hidden).toBe(false);
-  });
-
   it("lists the highest pixels, leaving out masked ones, and marks them", () => {
     const { switchOn, rows, core, byId } = setup();
     switchOn();
@@ -184,12 +177,11 @@ describe("Min/Max Finder", () => {
     expect(analysisState.minmaxSelected).toEqual([0, 1]);
   });
 
-  it("switches off when the setting is turned off", () => {
-    const { switchOn, controller, analysisState, byId, rows } = setup();
+  it("switches off and clears with its switch, as hiding the tool does", () => {
+    const { switchOn, analysisState, byId, rows } = setup();
     switchOn();
-    controller.setEnabled(false);
-    expect(byId("section").hidden).toBe(true);
-    expect(byId("toggle").checked).toBe(false);
+    byId("toggle").checked = false;
+    byId("toggle").dispatchEvent(new Event("change"));
     expect(analysisState.minmaxEnabled).toBe(false);
     expect(rows()).toEqual([]);
   });
