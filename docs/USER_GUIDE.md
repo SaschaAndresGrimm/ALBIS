@@ -376,6 +376,17 @@ gap is not a mean of anything, and the counts tell you when that is happening.
 
 With no ROI drawn, the same statistics describe the whole image.
 
+**Below BG**, **BG to FG** and **Above FG** split the same pixels by the
+levels set in **View → Histogram**: how many lie below BG, from BG to FG (both
+included), and above FG, each with its share. They follow BG and FG as you
+change them, and count only the ROI's pixels while one is drawn. On a frame
+of more than two million pixels with fractional values (a float image, or any
+image with flatfield correction on) they update once the levels stop moving,
+and show **…** while a new frame is still being counted. With the **ALBULA
+HDR** colour map, Above FG counts the pixels above FG, but the image does not
+draw them all in one colour: that map compresses the values above FG instead
+of clipping them.
+
 ![A line ROI drawn from the beam outwards, with its statistics and the line profile with d-spacings in the Analysis tab](images/user-guide/roi.webp)
 
 Three plots accompany the region:
@@ -395,7 +406,9 @@ to reset.
 plot gets its own pair of columns side by side — a line profile its distance
 and intensity, a histogram its intensity and count — because they do not share
 an x axis and stacking them would stop the file being one table. Shorter series
-simply end early. The file opens as a single table in Excel, Numbers and Origin,
+simply end early. The comment lines above the table name the file, the frame,
+the ROI, and the Below BG / BG to FG / Above FG counts with the levels they
+were counted against. The file opens as a single table in Excel, Numbers and Origin,
 and `pandas.read_csv(path, comment="#")` gives you a DataFrame directly.
 
 The leading `#` lines name the ALBIS build, the file and frame, and the ROI the

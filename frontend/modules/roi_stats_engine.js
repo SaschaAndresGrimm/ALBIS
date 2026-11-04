@@ -2,6 +2,8 @@
  * Pure ROI statistics helpers for histogram and mask-aware aggregation.
  */
 
+import { buildLevelSample, COUNT_TABLE_MAX_SPAN, levelSampleFromCounts } from "./level_bands_utils.js";
+
 export const ROI_HISTOGRAM_MIN_FIXED_BINS = 2;
 export const ROI_HISTOGRAM_MAX_FIXED_BINS = 512;
 export const ROI_HISTOGRAM_DEFAULT_FIXED_BINS = 128;
@@ -443,15 +445,87 @@ export function isIntegralData(data) {
   return hasIntegralValues(data);
 }
 
+/**
+ * Which pixels of the whole frame the statistics count, as one definition:
+ * the statistics' own pass, their median pass and the BG/FG counts all ask
+ * this, so none of them can disagree about which pixels are in the sample.
+ */
+function globalPixelAcceptor(params) {
+  const { dataRaw, width, height, maskAvailable, maskRaw, maskShape, maskEnabled, maskSaturatedEnabled } = params;
+  const { satMax, isSaturatedValue, fill = null } = params;
+  const fillData = fill?.data || null;
+  const fillHoles = fillData ? fill.holes || null : null;
+  const hasMask = maskAvailable && maskRaw && maskShape && maskShape[0] === height && maskShape[1] === width;
+  // Resolved once: the check is a handful of instanceof tests and this loop
+  // runs per pixel per frame. Only consulted where there is no mask to trust.
+  const inDataFlags = !hasMask && usesInDataPixelFlags(dataRaw);
+  // `inDataFlags` switches masking on by itself. For a frame with a mask array
+  // the mask enables itself when found, so excluding flagged pixels is already
+  // the default there; a PILATUS frame carries the same information in its
+  // values and was the only kind left counting gaps as data.
+  const useMasking = (maskEnabled && hasMask) || maskSaturatedEnabled || inDataFlags;
+  // applyMaskToValue inlined, as in computeGlobalStats' own loop: this runs
+  // per pixel, and a fresh object per pixel was millions of allocations a
+  // frame. The parity tests hold it to that helper.
+  const isAccepted = (i) => {
+    if (fillHoles !== null && fillHoles[i]) return true;
+    const value = dataRaw[i];
+    if (!Number.isFinite(value)) return false;
+    if (useMasking) {
+      if (hasMask && (maskRaw[i] & MASK_SKIP_BITS) !== 0) return false;
+      if (inDataFlags && (value === DATA_GAP_VALUE || value === DATA_DEFECTIVE_VALUE)) return false;
+      if (maskSaturatedEnabled && isSaturatedValue(value, satMax)) return false;
+    }
+    return fillData === null || Number.isFinite(fillData[i]);
+  };
+  return { hasMask, inDataFlags, useMasking, isAccepted, fillData };
+}
+
+/**
+ * The whole frame's counted pixels as a level sample (level_bands_utils.js),
+ * for the BG/FG counts. Integer data within the table's span is counted into
+ * running totals without copying a pixel; the rest is copied once into a
+ * Float32Array, the size of the frame.
+ */
+export function collectGlobalLevelSample(params) {
+  const { dataRaw } = params;
+  if (!dataRaw) return null;
+  const { isAccepted, fillData } = globalPixelAcceptor(params);
+  if (!fillData && hasIntegralValues(dataRaw)) {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < dataRaw.length; i += 1) {
+      if (!isAccepted(i)) continue;
+      const v = dataRaw[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    if (!(max >= min)) return buildLevelSample([]);
+    const span = max - min + 1;
+    if (span <= COUNT_TABLE_MAX_SPAN) {
+      const counts = new Uint32Array(span);
+      for (let i = 0; i < dataRaw.length; i += 1) {
+        if (isAccepted(i)) counts[dataRaw[i] - min] += 1;
+      }
+      return levelSampleFromCounts(counts, min);
+    }
+  }
+  const values = new Float32Array(dataRaw.length);
+  let written = 0;
+  for (let i = 0; i < dataRaw.length; i += 1) {
+    if (!isAccepted(i)) continue;
+    values[written] = fillData !== null ? fillData[i] : dataRaw[i];
+    written += 1;
+  }
+  return buildLevelSample(values.subarray(0, written), { integral: false });
+}
+
 export function computeGlobalStats(params) {
+  // Also width, height, maskAvailable, maskShape and maskEnabled, which
+  // globalPixelAcceptor reads.
   const {
     dataRaw,
-    width,
-    height,
-    maskAvailable,
     maskRaw,
-    maskShape,
-    maskEnabled,
     maskSaturatedEnabled,
     satMax,
     isSaturatedValue,
@@ -472,31 +546,7 @@ export function computeGlobalStats(params) {
   let gapPixels = 0;
   let defectivePixels = 0;
   let saturatedPixels = 0;
-  const hasMask = maskAvailable && maskRaw && maskShape && maskShape[0] === height && maskShape[1] === width;
-  // Resolved once: the check is a handful of instanceof tests and this loop
-  // runs per pixel per frame. Only consulted where there is no mask to trust.
-  const inDataFlags = !hasMask && usesInDataPixelFlags(dataRaw);
-  // `inDataFlags` switches masking on by itself. For a frame with a mask array
-  // the mask enables itself when found, so excluding flagged pixels is already
-  // the default there; a PILATUS frame carries the same information in its
-  // values and was the only kind left counting gaps as data.
-  const useMasking = (maskEnabled && hasMask) || maskSaturatedEnabled || inDataFlags;
-
-  // Whether pixel `i` contributes. Shared by this pass and the median pass so
-  // the two can never disagree about which pixels are in the sample.
-  const isAccepted = (i) => {
-    if (fillHoles !== null && fillHoles[i]) return true;
-    const value = dataRaw[i];
-    if (!Number.isFinite(value)) return false;
-    if (fillData !== null && !Number.isFinite(fillData[i])) return false;
-    if (!useMasking) return true;
-    return !applyMaskToValue(value, hasMask ? maskRaw[i] : null, {
-      satMax,
-      maskSaturatedEnabled,
-      isSaturatedValue,
-      inDataFlags,
-    }).skip;
-  };
+  const { hasMask, inDataFlags, useMasking, isAccepted } = globalPixelAcceptor(params);
 
   // getMaskFlags and applyMaskToValue both return a fresh object, and this loop
   // visits every pixel of every frame -- on a 16M detector that was 36 million

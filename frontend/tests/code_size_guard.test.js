@@ -32,11 +32,13 @@ const MAX_LINES = 1000;
 
 // Files over MAX_LINES, at the length they may not exceed.
 const LINE_BASELINE = {
-  // +12 for the Min/Max Finder's wiring, after the 22 blank lines it was cut by.
-  "frontend/app.js": 3522,
+  // +12 for the Min/Max Finder's wiring, after the 22 blank lines it was cut by;
+  // +1 to hand the BG/FG count rows to the statistics.
+  "frontend/app.js": 3523,
   // +17 in the stylesheet split: one <link> per part in frontend/styles/.
   // +45 for the Min/Max Finder section and its opt-in: markup lives here.
-  "frontend/index.html": 2644,
+  // +3 for the Below BG / BG to FG / Above FG rows of the statistics.
+  "frontend/index.html": 2647,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

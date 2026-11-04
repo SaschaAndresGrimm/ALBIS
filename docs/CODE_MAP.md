@@ -47,6 +47,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The ROI plots (axis limits, log scale, histogram bins, hover tooltip, drawing), and the readouts' millimetre formatting, calibration check and profile peak finder.
 - `frontend/modules/roi_stats_engine.js` + `frontend/modules/roi_plot_renderer.js` + `frontend/modules/roi_csv_export.js`:
   - Pure ROI compute helpers, ROI plot rendering, and CSV payload generation.
+- `frontend/modules/level_bands_utils.js` + `frontend/modules/level_bands_controller.js`:
+  - The statistics' Below BG / BG to FG / Above FG rows: the counted pixels prepared once per frame or ROI (running totals for integer data, the values for float), counted against each BG/FG, and deferred on large frames until the levels or the frame settle.
 - `frontend/modules/file_type_utils.js`:
   - Shared HDF5/header/series capability checks used across controllers.
 - `frontend/modules/overlay_render_controller.js` + `frontend/modules/histogram_render_controller.js`:

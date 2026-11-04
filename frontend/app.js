@@ -2941,6 +2941,7 @@ const roiStatsController = createRoiStatsController({
   roiMedianEl,
   roiMeanEl,
   roiStdEl,
+  roiBelowBgEl: appElements.roiBelowBgEl, roiBgToFgEl: appElements.roiBgToFgEl, roiAboveFgEl: appElements.roiAboveFgEl,
   roiLineCanvas,
   roiLineCtx,
   roiXCanvas,

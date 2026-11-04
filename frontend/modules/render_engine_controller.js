@@ -556,6 +556,9 @@ export function createRenderEngineController({
     core.overviewViewport?.scheduleOverview();
     core.overlayRender.schedulePixelOverlay();
     core.overlayRender.schedulePeakOverlay();
+    // Every BG/FG change ends in a redraw; the counts return at once when the
+    // levels did not move.
+    core.roiStats?.refreshLevelBands?.();
   }
 
   return {

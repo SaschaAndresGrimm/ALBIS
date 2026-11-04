@@ -25,6 +25,23 @@ function roiGeometryNote(roiState) {
 }
 
 /**
+ * The Below BG / BG to FG / Above FG counts, with the levels they were
+ * counted against: they change with BG and FG, so the levels belong next to
+ * them. In English, like the rest of the provenance block.
+ */
+export function levelBandNotes(levelBands) {
+  const total = levelBands?.total;
+  if (!total) return [];
+  const { bg, fg } = levelBands;
+  const share = (count) => `${count} of ${total} (${((count / total) * 100).toFixed(2)} %)`;
+  return [
+    `Below BG ${bg}: ${share(levelBands.below)}`,
+    `BG ${bg} to FG ${fg}: ${share(levelBands.between)}`,
+    `Above FG ${fg}: ${share(levelBands.above)}`,
+  ];
+}
+
+/**
  * Why the ROI CSV export cannot run, or "" when it can.
  *
  * Shared by the Export CSV button, which greys out with this as its tooltip,
@@ -87,7 +104,8 @@ export function buildRoiCsvExportPayload({
   if (!table.length) {
     return null;
   }
-  const lines = [...csvProvenanceLines(state, [roiGeometryNote(roiState)]), ...table];
+  const notes = [roiGeometryNote(roiState), ...levelBandNotes(roiState.levelBands)];
+  const lines = [...csvProvenanceLines(state, notes), ...table];
 
   const base = (state.file || "roi").split("/").pop().replace(/\.[^.]+$/, "");
   const thresholdSuffix = state.thresholdCount > 1 ? `_thr${state.thresholdIndex + 1}` : "";

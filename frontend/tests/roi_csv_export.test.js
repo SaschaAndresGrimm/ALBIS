@@ -17,6 +17,7 @@ vi.mock("../modules/i18n.js", () => ({
 
 import {
   buildRoiCsvExportPayload,
+  levelBandNotes,
   roiCsvExportUnavailableReason,
 } from "../modules/roi_csv_export.js";
 
@@ -185,5 +186,43 @@ describe("roi_csv_export", () => {
 
     const table = payload.content.split("\n").filter((line) => !line.startsWith("#"));
     expect(table[0]).toBe("Line Profile: Index,Line Profile: Value");
+  });
+});
+
+describe("levelBandNotes", () => {
+  it("writes the three counts with the levels they were counted against", () => {
+    expect(levelBandNotes({ below: 1, between: 6, above: 1, total: 8, bg: 2, fg: 9.5 })).toEqual([
+      "Below BG 2: 1 of 8 (12.50 %)",
+      "BG 2 to FG 9.5: 6 of 8 (75.00 %)",
+      "Above FG 9.5: 1 of 8 (12.50 %)",
+    ]);
+  });
+
+  it("writes nothing when nothing was counted", () => {
+    expect(levelBandNotes(null)).toEqual([]);
+    expect(levelBandNotes({ below: 0, between: 0, above: 0, total: 0, bg: 1, fg: 2 })).toEqual([]);
+  });
+
+  it("puts them in the export's provenance block, after the ROI", () => {
+    const payload = buildRoiCsvExportPayload({
+      state: { file: "a.h5", frameIndex: 0, frameCount: 1, thresholdCount: 1 },
+      roiState: {
+        enabled: true,
+        active: true,
+        mode: "box",
+        start: { x: 0, y: 0 },
+        end: { x: 2, y: 2 },
+        xProjection: [1, 2, 3],
+        levelBands: { below: 2, between: 5, above: 2, total: 9, bg: 1, fg: 3 },
+      },
+      xMeta: { xLabel: "X", yLabel: "Mean", xStart: 0, xStep: 1 },
+    });
+    const comments = payload.content.split("\n").filter((line) => line.startsWith("#"));
+    const roiAt = comments.findIndex((line) => line.startsWith("# ROI:"));
+    expect(comments.slice(roiAt + 1, roiAt + 4)).toEqual([
+      "# Below BG 1: 2 of 9 (22.22 %)",
+      "# BG 1 to FG 3: 5 of 9 (55.56 %)",
+      "# Above FG 3: 2 of 9 (22.22 %)",
+    ]);
   });
 });

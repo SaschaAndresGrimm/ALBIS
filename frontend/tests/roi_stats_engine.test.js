@@ -2,6 +2,7 @@ import {
   accumulateRoiPixelCounters,
   applyMaskToValue,
   buildRoiHistogram,
+  collectGlobalLevelSample,
   computeGlobalStats,
   createRoiAccumulator,
   createRoiPixelCounters,
@@ -9,6 +10,7 @@ import {
   medianOfAccumulated,
   normalizeRoiHistogramBinCount,
 } from "../modules/roi_stats_engine.js";
+import { countLevelBands } from "../modules/level_bands_utils.js";
 
 describe("roi_stats_engine", () => {
   it("extracts mask flags", () => {
@@ -337,5 +339,66 @@ describe("createRoiAccumulator", () => {
       return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
     };
     expect(medianOfAccumulated(acc, !opts.float, select)).toBe(median);
+  });
+});
+
+// The Below BG / BG to FG / Above FG rows have to count the pixels the
+// statistics count, or the three would not add up to the frame the panel
+// describes.
+describe("collectGlobalLevelSample", () => {
+  const median = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
+  const base = (dataRaw, overrides = {}) => ({
+    dataRaw,
+    width: dataRaw.length,
+    height: 1,
+    maskAvailable: false,
+    maskRaw: null,
+    maskShape: null,
+    maskEnabled: false,
+    maskSaturatedEnabled: false,
+    satMax: null,
+    isSaturatedValue: (value, max) => Number.isFinite(max) && value === max,
+    computeMedian: median,
+    ...overrides,
+  });
+
+  const cases = {
+    "integer data with a mask": base(Uint32Array.from([1, 2, 3, 4, 50, 6]), {
+      maskAvailable: true,
+      maskRaw: Uint32Array.from([0, 1, 0, 4, 0, 0]),
+      maskShape: [1, 6],
+      maskEnabled: true,
+    }),
+    "integer data with saturated pixels masked": base(Uint32Array.from([1, 9, 3, 9, 5]), {
+      maskSaturatedEnabled: true,
+      satMax: 9,
+    }),
+    "PILATUS values carrying their own flags": base(Int32Array.from([5, -1, 7, -2, 3])),
+    "float data with NaN": base(Float32Array.from([0.5, NaN, 1.5, 2.5, Infinity])),
+    "a flatfield-corrected frame": base(Uint16Array.from([10, 20, 30, 40]), {
+      fill: { data: Float32Array.from([1.1, NaN, 0.9, 1.0]), holes: null },
+    }),
+  };
+
+  for (const [name, params] of Object.entries(cases)) {
+    it(`counts the pixels the statistics count: ${name}`, () => {
+      const sample = collectGlobalLevelSample(params);
+      expect(sample.total).toBe(computeGlobalStats(params).count);
+      const bands = countLevelBands(sample, -1e9, 1e9);
+      expect(bands.between).toBe(sample.total);
+    });
+  }
+
+  it("counts integer data as a table and float data by value", () => {
+    expect(collectGlobalLevelSample(cases["integer data with a mask"]).kind).toBe("table");
+    expect(collectGlobalLevelSample(cases["float data with NaN"]).kind).toBe("values");
+    expect(collectGlobalLevelSample(cases["a flatfield-corrected frame"]).kind).toBe("values");
+  });
+
+  it("splits by the shown values: masked pixels out, the rest by BG and FG", () => {
+    const sample = collectGlobalLevelSample(cases["integer data with a mask"]); // counted: 1, 3, 50, 6
+    expect(countLevelBands(sample, 2, 10)).toEqual({ below: 1, between: 2, above: 1, total: 4 });
+    const flat = collectGlobalLevelSample(cases["a flatfield-corrected frame"]); // shown: 1.1, 0.9, 1.0
+    expect(countLevelBands(flat, 1, 1.05)).toEqual({ below: 1, between: 1, above: 1, total: 3 });
   });
 });

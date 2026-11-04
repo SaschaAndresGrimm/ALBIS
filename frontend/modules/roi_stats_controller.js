@@ -5,6 +5,7 @@
 import {
   applyMaskToValue as applyMaskToValueEngine,
   accumulateRoiPixelCounters as accumulateRoiPixelCountersEngine,
+  collectGlobalLevelSample,
   computeGlobalStats as computeGlobalStatsEngine,
   createRoiPixelCounters as createRoiPixelCountersEngine,
   usesInDataPixelFlags,
@@ -14,6 +15,8 @@ import {
   isIntegralData,
 } from "./roi_stats_engine.js";
 import { createRoiPlotController } from "./roi_plot_controller.js";
+import { createLevelBandsController } from "./level_bands_controller.js";
+import { buildLevelSample } from "./level_bands_utils.js";
 import {
   BEAM_CENTER_TOLERANCE_PX,
   detectProfilePeaks,
@@ -69,6 +72,9 @@ export function createRoiStatsController(ctx) {
     roiMedianEl,
     roiMeanEl,
     roiStdEl,
+    roiBelowBgEl,
+    roiBgToFgEl,
+    roiAboveFgEl,
     roiLineCanvas,
     roiLineCtx,
     roiXCanvas,
@@ -107,6 +113,20 @@ export function createRoiStatsController(ctx) {
     syncRoiHistogramBinsUi,
     updateRoiHistogramPlot,
   } = createRoiPlotController(ctx);
+
+  // Below BG / BG to FG / Above FG, over the same pixels as the statistics.
+  const levelBands = createLevelBandsController({
+    state,
+    roiState,
+    elements: { below: roiBelowBgEl, between: roiBgToFgEl, above: roiAboveFgEl },
+    callbacks: {
+      getWholeFrameSample: () => collectGlobalLevelSample(globalStatsParams()),
+      wholeFrameKey: () => {
+        const { dataRaw, maskRaw, maskAvailable, maskEnabled, maskSaturatedEnabled } = state;
+        return [dataRaw, maskRaw, maskAvailable, maskEnabled, maskSaturatedEnabled, getActiveSaturationMax(), currentFill()?.data];
+      },
+    },
+  });
 
 function setRoiText(el, value) {
   if (!el) return;
@@ -256,6 +276,7 @@ function clearRoi() {
   setRoiText(roiMedianEl, "-");
   setRoiText(roiMeanEl, "-");
   setRoiText(roiStdEl, "-");
+  levelBands.clear();
   drawRoiPlot(roiLineCanvas, roiLineCtx, null);
   drawRoiPlot(roiXCanvas, roiXCtx, null);
   drawRoiPlot(roiYCanvas, roiYCtx, null);
@@ -333,8 +354,8 @@ function isGapMaskedSample(sampled) {
   return getPixelFlags(sampled.raw, sampled.maskValue, usesValueFlags()).gap;
 }
 
-function computeGlobalStats() {
-  return computeGlobalStatsEngine({
+function globalStatsParams() {
+  return {
     dataRaw: state.dataRaw,
     width: state.width,
     height: state.height,
@@ -347,7 +368,11 @@ function computeGlobalStats() {
     isSaturatedValue,
     computeMedian,
     fill: currentFill(),
-  });
+  };
+}
+
+function computeGlobalStats() {
+  return computeGlobalStatsEngine(globalStatsParams());
 }
 
 function updateGlobalStats() {
@@ -428,6 +453,7 @@ function showWholeImageStats(stats) {
   setRoiText(roiMedianEl, stats && Number.isFinite(stats.median) ? formatStat(stats.median) : "-");
   setRoiText(roiMeanEl, stats ? formatStat(stats.mean) : "-");
   setRoiText(roiStdEl, stats ? formatStat(stats.std) : "-");
+  levelBands.showWholeFrame();
 }
 
 function updateRoiStats() {
@@ -860,6 +886,7 @@ function updateRoiStats() {
     drawRoiPlot(roiXCanvas, roiXCtx, null);
     drawRoiPlot(roiYCanvas, roiYCtx, null);
   }
+  levelBands.showRoi(buildLevelSample(statsValues, { integral: !currentFill() && isIntegralData(state.dataRaw) }));
   updateRoiHistogramPlot(statsValues);
   drawRoiOverlay();
   updateRoiSectionState();
@@ -919,5 +946,6 @@ function exportRoiCsv() {
     drawRoiPlot,
     exportRoiCsv,
     roiCsvExportUnavailableReason: () => roiCsvExportUnavailableReason(state, roiState),
+    refreshLevelBands: levelBands.refresh,
   };
 }
