@@ -20,11 +20,21 @@
  * refused over live work -- a viewer that replaces itself mid-experiment is a
  * hazard, not a feature. Where it is not offered, the last step stays showing
  * the user the folder the file landed in.
+ *
+ * When the dialog opened by itself at startup, its last line offers "Don't check
+ * for updates at startup": the moment the notice is unwelcome is the moment
+ * to switch it off, not after a search through Settings. It is the existing
+ * setting (`ui.auto_check_updates`), saved by the settings controller when
+ * the dialog closes -- so a mis-click can still be unticked -- and it is not
+ * offered when the environment sets that key, since the next start would
+ * ignore the change. Opened from Help, the dialog was asked for, and the box
+ * stays hidden.
  */
 
 import { fetchJSONWithInit } from "./http.js";
 import { copyText } from "./clipboard_copy.js";
 import { t } from "./i18n.js";
+import { notifyError, notifySuccess } from "./toast.js";
 
 const FALLBACK_RELEASES_URL = "https://github.com/SaschaAndresGrimm/ALBIS/releases";
 
@@ -66,6 +76,7 @@ export function createUpdateCheckController({
   state,
   elements,
   callbacks,
+  core = {},
 }) {
   const {
     updateCheckModal,
@@ -91,6 +102,8 @@ export function createUpdateCheckController({
     updateCheckReleaseNotes,
     updateCheckAction,
     updateCheckClose,
+    updateCheckSkipStartupRow,
+    updateCheckSkipStartup,
   } = elements;
 
   const {
@@ -119,6 +132,8 @@ export function createUpdateCheckController({
   // The backend's view of applying: its own refusal reasons plus, once
   // started, how far it got. Null until asked.
   let applyStatus = null;
+  // Whether the dialog on screen opened by itself at startup.
+  let openedOnStartup = false;
 
   function emptyPayload() {
     return {
@@ -519,7 +534,16 @@ export function createUpdateCheckController({
     }
   }
 
+  function canOfferStartupOptOut() {
+    return openedOnStartup && !core.settings?.isEnvOverridden?.("ui.auto_check_updates");
+  }
+
+  function renderStartupOptOut() {
+    if (updateCheckSkipStartupRow) updateCheckSkipStartupRow.hidden = !canOfferStartupOptOut();
+  }
+
   function render() {
+    renderStartupOptOut();
     if (updateCheckCurrentVersionValue) {
       updateCheckCurrentVersionValue.textContent = getCurrentVersion();
     }
@@ -738,16 +762,34 @@ export function createUpdateCheckController({
     }
   }
 
+  // Applied on close rather than on the tick, so the box can be unticked
+  // again before it means anything.
+  async function switchOffStartupCheck() {
+    try {
+      const result = await core.settings.disableStartupUpdateCheck();
+      if (result === "saved") notifySuccess(t("update_check.skip_startup.done"));
+    } catch (err) {
+      const reason = String(err?.detail || err?.message || "").trim();
+      notifyError(t("update_check.skip_startup.failed", { reason }));
+    }
+  }
+
   function close({ restoreFocus = true } = {}) {
     setModalBusy(false);
     resetCopyFeedback();
     // The transfer is the backend's, and closing the dialog is not a decision
     // to abandon it -- only the polling stops.
     stopPolling();
+    const switchOff = canOfferStartupOptOut() && Boolean(updateCheckSkipStartup?.checked);
+    openedOnStartup = false;
+    if (updateCheckSkipStartup) updateCheckSkipStartup.checked = false;
+    renderStartupOptOut();
+    if (switchOff) void switchOffStartupCheck();
     return closeModal(updateCheckModal, { restoreFocus });
   }
 
   async function openAndCheck() {
+    openedOnStartup = false;
     requestSerial += 1;
     const activeRequest = requestSerial;
     modalState = "loading";
@@ -795,6 +837,7 @@ export function createUpdateCheckController({
       }
       latestPayload = normalized;
       modalState = "update_available";
+      openedOnStartup = true;
       render();
       openModal(updateCheckModal, { focusTarget: updateCheckCloseIcon || updateCheckClose || updateCheckAction });
       return normalized;

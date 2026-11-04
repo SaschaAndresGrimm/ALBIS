@@ -793,3 +793,32 @@ describe("settings controller: Tools", () => {
     expect(toolsTab.hidden).toBe(false);
   });
 });
+
+// The update dialog's opt-out saves through here: one key changes, the rest of
+// the config is written back as it was, and a key the environment sets is
+// left alone, since the next start would undo the change.
+describe("settings controller: switching the startup update check off", () => {
+  it("saves auto_check_updates as false and nothing else", async () => {
+    const initialConfig = { ui: { auto_check_updates: true, language: "de", hidden_tools: ["rings"] }, server: { port: 8000 } };
+    const { controller, savedConfigs, state } = await initializeController({ initialConfig });
+    expect(await controller.disableStartupUpdateCheck()).toBe("saved");
+    expect(savedConfigs).toEqual([{ ...initialConfig, ui: { ...initialConfig.ui, auto_check_updates: false } }]);
+    expect(state.autoCheckUpdates).toBe(false);
+  });
+
+  it("does not save when the environment sets the key", async () => {
+    const { controller, savedConfigs } = await initializeController({
+      initialConfig: { ui: { auto_check_updates: true } },
+      envOverrides: ["ui.auto_check_updates"],
+    });
+    expect(await controller.disableStartupUpdateCheck()).toBe("locked");
+    expect(savedConfigs).toEqual([]);
+  });
+
+  it("knows which keys the environment sets from the settings read at startup", async () => {
+    const { controller } = await initializeController({ initialConfig: { ui: {} } });
+    expect(controller.isEnvOverridden("ui.auto_check_updates")).toBe(false);
+    controller.applyLoadedSettings({ config: { ui: {} }, env_overrides: ["ui.auto_check_updates"] });
+    expect(controller.isEnvOverridden("ui.auto_check_updates")).toBe(true);
+  });
+});

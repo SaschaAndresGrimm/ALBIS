@@ -424,6 +424,12 @@
 
 /* What applying will do, or why it will not. Sits below the verification
    lines, since it is about the step the user is being offered next. */
+/* The startup opt-out: the last line of the body rather than in the footer,
+   where three buttons of an available update leave it no room. */
+.update-check-skip-startup {
+  font-size: var(--font-size-sm);
+}
+
 .update-check-apply-note {
   font-size: var(--font-size-sm);
   line-height: 1.45;

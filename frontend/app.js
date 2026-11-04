@@ -1777,8 +1777,7 @@ core.backendStatus = backendStatusController;
 async function fetchSettingsConfig() {
   try {
     const payload = await fetchJSON(`${API}/settings`);
-    const config = payload?.config || {};
-    core.settings.applyUiSettings(config?.ui, { source: "config" });
+    core.settings.applyLoadedSettings(payload);
     core.overlayRender.schedulePixelOverlay();
   } catch (err) {
     console.warn("Settings fetch failed", err);
@@ -2276,6 +2275,7 @@ function collectUpdateApplyBlockers() {
 }
 
 updateCheckController = createUpdateCheckController({
+  core,
   apiBase: API,
   state,
   elements: {

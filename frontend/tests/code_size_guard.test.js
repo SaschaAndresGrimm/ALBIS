@@ -40,7 +40,8 @@ const LINE_BASELINE = {
   // +17 in the stylesheet split: one <link> per part in frontend/styles/.
   // +45 for the Min/Max Finder section and its opt-in: markup lives here.
   // +3 for the Below BG / BG to FG / Above FG rows of the statistics.
-  "frontend/index.html": 2647,
+  // +4 for the update dialog's "Don't check for updates at startup".
+  "frontend/index.html": 2651,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

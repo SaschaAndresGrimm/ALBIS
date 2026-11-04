@@ -354,6 +354,8 @@ export function queryAppElements(doc = document) {
     updateCheckReleaseNotes: byId("update-check-release-notes"),
     updateCheckAction: byId("update-check-action"),
     updateCheckClose: byId("update-check-close"),
+    updateCheckSkipStartupRow: byId("update-check-skip-startup-row"),
+    updateCheckSkipStartup: byId("update-check-skip-startup"),
     logViewerModal: byId("log-viewer-modal"),
     logViewerCloseIcon: byId("log-viewer-close-icon"),
     logViewerPathValue: byId("log-viewer-path-value"),

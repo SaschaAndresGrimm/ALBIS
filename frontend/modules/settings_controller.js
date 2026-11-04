@@ -656,6 +656,39 @@ export function createSettingsController({
     }
   }
 
+  /** The settings read at startup: the ui section applied, and which keys
+   * the environment decides kept, so a dialog can tell before offering to
+   * change one. */
+  function applyLoadedSettings(payload) {
+    applyEnvOverrides(payload?.env_overrides);
+    applyUiSettings(payload?.config?.ui, { source: "config" });
+  }
+
+  function isEnvOverridden(key) {
+    return envOverrides.includes(key);
+  }
+
+  /** Untick "Check for updates on startup" and save, changing nothing else:
+   * the update dialog's own opt-out. "locked" when the environment sets the
+   * key, where saving would be ignored at the next start; a failed save
+   * throws, with the server's reason as `detail`. */
+  async function disableStartupUpdateCheck() {
+    const payload = await fetchJSON(`${apiBase}/settings`);
+    applyEnvOverrides(payload?.env_overrides);
+    if (isEnvOverridden("ui.auto_check_updates")) return "locked";
+    const current = payload?.config || {};
+    const config = { ...current, ui: { ...(current.ui || {}), auto_check_updates: false } };
+    const data = await fetchJSONWithInit(`${apiBase}/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config }),
+    });
+    applyEnvOverrides(data?.env_overrides);
+    applyUiSettings(data?.config?.ui || config.ui, { source: "user" });
+    if (settingsAutoCheckUpdates) settingsAutoCheckUpdates.checked = false;
+    return "saved";
+  }
+
   settingsServerExternal?.addEventListener("change", handleExternalAccessToggle);
   settingsModal?.addEventListener("click", (event) => {
     const preset = event.target.closest?.("[data-tool-preset]");
@@ -704,8 +737,11 @@ export function createSettingsController({
   );
 
   return {
+    applyLoadedSettings,
     applyUiSettings,
     closeSettingsModal,
+    disableStartupUpdateCheck,
+    isEnvOverridden,
     openSettingsModal,
     saveSettingsFromModal,
     showSettingsTab,

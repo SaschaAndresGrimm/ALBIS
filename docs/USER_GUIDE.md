@@ -1279,8 +1279,13 @@ is not. If you got the file from ALBIS's GitHub releases page, or from
 **Download Update**, which checks it against the published checksum, choose
 **More info**, then **Run anyway**.
 
-To stop it, uncheck **Settings → Connection → Check for updates on startup**.
-ALBIS then makes no outbound request of its own accord at all.
+To stop it, uncheck **Settings → Connection → Check for updates on startup**,
+or tick **Don't check for updates at startup** in the notice itself when it
+appears; it takes effect when you close the notice. ALBIS then makes no
+outbound request of its own accord at all. Both change the server's config
+file, so on a server several people use, the check stops for all of them.
+Where the setting comes from the environment (`ALBIS_UI_AUTO_CHECK_UPDATES`),
+the notice does not offer the box.
 
 Live sources are the other network traffic, and they only ever go to the address
 you typed — the SIMPLON monitor or JUNGFRAUJOCH endpoint you connected to. ALBIS
