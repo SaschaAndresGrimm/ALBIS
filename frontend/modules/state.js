@@ -73,7 +73,8 @@ export function createAnalysisState() {
     hottestCount: 20,
     hottestIncludeMasked: false,
     hottestFound: [],
-    hottestSelected: null,
+    hottestSelected: [],
+    hottestSelectionAnchor: null,
   };
 }
 

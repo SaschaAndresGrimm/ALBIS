@@ -249,7 +249,7 @@ export function createOverlayRenderController({
     });
     paintHottestPixelMarkers(peakCtx, {
       pixels: hottest,
-      selected: analysisState.hottestSelected,
+      selected: analysisState.hottestSelected || [],
       view,
       width,
       height,

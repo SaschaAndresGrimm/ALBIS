@@ -985,8 +985,12 @@ pixels above zero are listed.
   saturated pixels while **Mask saturated** is on. Tick **Include masked
   pixels** to list them too.
 - The list shows each pixel's position and value, and, once the data has a
-  pixel mask, its mask value (`—` for an unmasked pixel). Click a row to
-  highlight that pixel in green; click it again to clear it.
+  pixel mask, its mask value (`—` for an unmasked pixel). The line above the
+  list names the brightest pixel and where it is.
+- Click a row to highlight that pixel in green, as in the Peak Finder:
+  Shift-click adds the rows in between, ⌘-click (Ctrl-click) adds or removes
+  one, and clicking the only highlighted row clears it. A highlighted pixel
+  stays highlighted on the next frame while it is still among the hottest.
 - **Export CSV** saves the list, with the file, frame and threshold it came
   from.
 

@@ -1,6 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
 
 import { createHottestPixelsController } from "../modules/hottest_pixels_controller.js";
+import { initializeI18n } from "../modules/i18n.js";
+
+// The real English catalogue, so a renamed key fails here.
+beforeAll(async () => {
+  const catalogue = JSON.parse(fs.readFileSync("frontend/locales/en.json", "utf8"));
+  globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => catalogue }));
+  await initializeI18n({ backendLanguage: "en" });
+});
 
 // A 3 x 3 frame whose hottest pixel (index 4) is a gap in the mask.
 function setup({ enabled = true, maskEnabled = true } = {}) {
@@ -32,7 +41,8 @@ function setup({ enabled = true, maskEnabled = true } = {}) {
     hottestCount: 3,
     hottestIncludeMasked: false,
     hottestFound: [],
-    hottestSelected: null,
+    hottestSelected: [],
+    hottestSelectionAnchor: null,
   };
   const core = { overlayRender: { schedulePeakOverlay: vi.fn() } };
   const setStatus = vi.fn();
@@ -105,15 +115,43 @@ describe("Hottest Pixels", () => {
     expect(rows()[0][3]).toBe("99");
   });
 
-  it("re-runs on schedule and keeps the selection on the same pixel", () => {
+  it("names the brightest pixel in the badge", () => {
+    const { switchOn, byId } = setup();
+    switchOn();
+    expect(byId("state").textContent).toBe("Brightest pixel: 8 at X 1, Y 0");
+  });
+
+  it("selects like the Peak Finder: click, Shift for a range, Cmd/Ctrl to toggle", () => {
+    const { switchOn, analysisState, byId } = setup();
+    switchOn();
+    const click = (row, init = {}) =>
+      byId("body").querySelectorAll(".peaks-row")[row].dispatchEvent(new MouseEvent("click", { bubbles: true, ...init }));
+    click(0);
+    expect(analysisState.hottestSelected).toEqual([0]);
+    click(2, { shiftKey: true });
+    expect(analysisState.hottestSelected).toEqual([0, 1, 2]);
+    click(1, { metaKey: true });
+    expect(analysisState.hottestSelected).toEqual([0, 2]);
+    click(1, { ctrlKey: true });
+    expect(analysisState.hottestSelected).toEqual([0, 1, 2]);
+    expect(byId("body").querySelectorAll(".peaks-row.is-selected")).toHaveLength(3);
+    click(1);
+    expect(analysisState.hottestSelected).toEqual([1]);
+    click(1);
+    expect(analysisState.hottestSelected).toEqual([]);
+  });
+
+  it("re-runs on schedule and keeps the selection on the same pixels", () => {
     const { switchOn, state, analysisState, controller, byId } = setup();
     switchOn();
-    byId("body").querySelectorAll(".peaks-row")[1].click(); // the 7 at (1, 2)
+    const rows = byId("body").querySelectorAll(".peaks-row");
+    rows[1].click(); // the 7 at (1, 2)
+    rows[2].dispatchEvent(new MouseEvent("click", { bubbles: true, metaKey: true })); // the 5 at (2, 1)
     state.dataRaw = Uint32Array.from([1, 2, 0, 3, 99, 5, 0, 7, 2]); // the 8 cools to 2
     controller.schedule();
     vi.runAllTimers();
-    expect(analysisState.hottestSelected).toBe(0);
-    expect(analysisState.hottestFound[0].value).toBe(7);
+    expect(analysisState.hottestFound.map((p) => p.value)).toEqual([7, 5, 3]);
+    expect(analysisState.hottestSelected).toEqual([0, 1]);
   });
 
   it("switches off when the setting is turned off", () => {

@@ -21,18 +21,19 @@ const SELECTED_EXTRA_PX = 3;
 
 export function paintHottestPixelMarkers(
   ctx,
-  { pixels = [], selected = null, view, width, height, uiScale = 1, colors = HOTTEST_MARKER_COLORS } = {},
+  { pixels = [], selected = [], view, width, height, uiScale = 1, colors = HOTTEST_MARKER_COLORS } = {},
 ) {
   if (!ctx || !Array.isArray(pixels) || !pixels.length) return;
   const ink = markerInkScale(pixels.length);
   ctx.setLineDash([]);
-  // The selected one last, so no neighbour's square crosses it.
-  const order = pixels.map((_, idx) => idx).filter((idx) => idx !== selected);
-  if (Number.isInteger(selected) && pixels[selected]) order.push(selected);
+  // The selected ones last, so no other square crosses them.
+  const picked = new Set(Array.isArray(selected) ? selected : []);
+  const order = pixels.map((_, idx) => idx).filter((idx) => !picked.has(idx));
+  picked.forEach((idx) => pixels[idx] && order.push(idx));
 
   order.forEach((idx) => {
     const pixel = pixels[idx];
-    const isSelected = idx === selected;
+    const isSelected = picked.has(idx);
     const extra = (PAD_PX + (isSelected ? SELECTED_EXTRA_PX : 0)) * uiScale;
     const halfX = Math.max(MIN_HALF_PX * uiScale, view.scaleX / 2) + extra;
     const halfY = Math.max(MIN_HALF_PX * uiScale, view.scaleY / 2) + extra;

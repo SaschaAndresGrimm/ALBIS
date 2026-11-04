@@ -89,7 +89,13 @@ export function createHottestPixelsController({ core, state, analysisState, elem
       setSectionBadgeState(hottestStateEl, "empty", t("hottest.state.none_on_frame"));
       setSummaryChip(hottestSummaryEl, t("hottest.summary.none"));
     } else {
-      setSectionBadgeState(hottestStateEl, "active", t("hottest.state.found_count", { count }));
+      // The chip already says how many; the line names the brightest one.
+      const [top] = analysisState.hottestFound;
+      setSectionBadgeState(
+        hottestStateEl,
+        "active",
+        t("hottest.state.brightest", { value: formatStat(top.value), x: top.x, y: top.y }),
+      );
       setSummaryChip(hottestSummaryEl, t("hottest.summary.count", { count }), "active");
     }
   }
@@ -101,8 +107,27 @@ export function createHottestPixelsController({ core, state, analysisState, elem
     return empty;
   }
 
-  function select(index) {
-    analysisState.hottestSelected = analysisState.hottestSelected === index ? null : index;
+  // The Peak Finder's selection: click picks one (or clears it when it is the
+  // only one picked), Shift adds the range from the last click, Cmd/Ctrl
+  // toggles one.
+  function select(idx, event) {
+    const selected = analysisState.hottestSelected;
+    const anchor = analysisState.hottestSelectionAnchor;
+    if (event.shiftKey && Number.isInteger(anchor) && anchor < analysisState.hottestFound.length) {
+      const start = Math.min(anchor, idx);
+      analysisState.hottestSelected = Array.from({ length: Math.abs(anchor - idx) + 1 }, (_, i) => start + i);
+    } else if (event.metaKey || event.ctrlKey) {
+      analysisState.hottestSelected = selected.includes(idx)
+        ? selected.filter((value) => value !== idx)
+        : [...selected, idx].sort((a, b) => a - b);
+      analysisState.hottestSelectionAnchor = idx;
+    } else if (selected.length === 1 && selected[0] === idx) {
+      analysisState.hottestSelected = [];
+      analysisState.hottestSelectionAnchor = null;
+    } else {
+      analysisState.hottestSelected = [idx];
+      analysisState.hottestSelectionAnchor = idx;
+    }
     render();
     core.overlayRender.schedulePeakOverlay();
   }
@@ -122,7 +147,7 @@ export function createHottestPixelsController({ core, state, analysisState, elem
       const row = document.createElement("button");
       row.type = "button";
       row.className = "peaks-row";
-      const selected = analysisState.hottestSelected === idx;
+      const selected = analysisState.hottestSelected.includes(idx);
       row.classList.toggle("is-selected", selected);
       row.setAttribute("aria-pressed", String(selected));
       const maskText = pixel.mask ? String(pixel.mask) : "—";
@@ -133,18 +158,26 @@ export function createHottestPixelsController({ core, state, analysisState, elem
           (hasMask ? `, ${t("hottest.column.mask")} ${maskText}` : ""),
       );
       row.innerHTML = `<span>${idx + 1}</span><span>${pixel.x}</span><span>${pixel.y}</span><span>${value}</span><span>${maskText}</span>`;
-      row.addEventListener("click", () => select(idx));
+      row.addEventListener("click", (event) => select(idx, event));
       hottestBody.appendChild(row);
     });
   }
 
   function run() {
     scheduled = false;
-    const before = analysisState.hottestFound[analysisState.hottestSelected];
+    // Keep the selection on the same pixels while they are still among the
+    // hottest: a new frame reorders the list.
+    const rowOf = (found, row) => found[row]?.index;
+    const before = analysisState.hottestFound;
+    const picked = new Set(analysisState.hottestSelected.map((row) => rowOf(before, row)));
+    const anchorPixel = rowOf(before, analysisState.hottestSelectionAnchor);
     analysisState.hottestFound = find();
-    // Keep the selection on the same pixel when it is still among the hottest.
-    const kept = before ? analysisState.hottestFound.findIndex((pixel) => pixel.index === before.index) : -1;
-    analysisState.hottestSelected = kept >= 0 ? kept : null;
+    analysisState.hottestSelected = [];
+    analysisState.hottestSelectionAnchor = null;
+    analysisState.hottestFound.forEach((pixel, row) => {
+      if (picked.has(pixel.index)) analysisState.hottestSelected.push(row);
+      if (pixel.index === anchorPixel) analysisState.hottestSelectionAnchor = row;
+    });
     render();
     core.overlayRender.schedulePeakOverlay();
   }
@@ -195,7 +228,8 @@ export function createHottestPixelsController({ core, state, analysisState, elem
 
   hottestToggle?.addEventListener("change", () => {
     analysisState.hottestEnabled = hottestToggle.checked;
-    analysisState.hottestSelected = null;
+    analysisState.hottestSelected = [];
+    analysisState.hottestSelectionAnchor = null;
     if (!analysisState.hottestEnabled) analysisState.hottestFound = [];
     run();
   });
