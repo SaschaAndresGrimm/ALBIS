@@ -13,6 +13,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **A new session starts with a Box ROI.** The ROI mode used to start on **Line ROI**; a box, with its statistics and profiles along X and Y, is what most sessions reach for first. **Line ROI**, **Circle ROI** and **Annulus ROI** are still one pick away in the same list.
 - **The example data for the Getting started walk-through is one zip file.** Download `albis-example-data.zip`, unzip it and open the first image, instead of saving ten files one by one from GitHub or typing a command in a terminal.
 
 ## [0.40.0] - 2026-11-03

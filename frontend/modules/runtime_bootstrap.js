@@ -52,7 +52,7 @@ export function initializeUiDefaults({
     roiState.enabled = roiEnableToggle.checked;
   }
   if (roiModeSelect) {
-    roiState.mode = roiModeSelect.value || "line";
+    roiState.mode = roiModeSelect.value || "box";
     roiState.active = false;
   }
   if (roiHistogramToggle) {

@@ -144,7 +144,7 @@ function applyRoiCenterFromInputs() {
 }
 
 function updateRoiModeUI() {
-  const mode = roiState.mode || "line";
+  const mode = roiState.mode || "box";
   const enabled = Boolean(roiState.enabled);
   const showPlots = enabled;
   if (roiParams) {

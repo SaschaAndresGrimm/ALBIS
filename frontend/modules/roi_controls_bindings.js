@@ -73,7 +73,7 @@ export function bindRoiControlInteractions({
   });
 
   roiModeSelect?.addEventListener("change", () => {
-    roiState.mode = roiModeSelect.value || "line";
+    roiState.mode = roiModeSelect.value || "box";
     updateRoiModeUI();
     if (roiState.mode === "circle") {
       roiState.innerRadius = 0;
