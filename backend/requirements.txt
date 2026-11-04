@@ -9,7 +9,7 @@ starlette==1.10.0
 # unrelated upstream release into a red build -- it passed on a developer venv
 # holding 4.14.2 and failed on all three CI runners the same afternoon.
 # Pinning it is also what makes a local run and a CI run agree.
-anyio==4.15.1
+anyio==4.16.0
 uvicorn[standard]==0.54.0
 python-multipart==0.0.33
 hdf5plugin==7.1.0
@@ -17,7 +17,7 @@ h5py==3.16.0
 numpy==2.5.4
 tifffile==2026.10.15
 fabio==2026.6.0
-cbor2==6.1.5
+cbor2==6.2.0.post1
 pyzmq==27.2.0
 dectris-compression==0.4.0
 zstandard==0.25.0
