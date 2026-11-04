@@ -20,7 +20,7 @@ here.
 | Uvicorn | 0.54.0 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
 | Starlette | 1.10.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
 | AnyIO | 4.15.1 | MIT | © 2018 Alex Grönholm |
-| python-multipart | 0.0.32 | Apache-2.0 | © Andrew Dunham |
+| python-multipart | 0.0.33 | Apache-2.0 | © Andrew Dunham |
 | hdf5plugin | 7.1.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
 | h5py | 3.16.0 | BSD-3-Clause | © 2008 Andrew Collette and contributors |
 | NumPy | 2.5.4 | BSD-3-Clause | © 2005-2023 NumPy Developers |
@@ -31,7 +31,7 @@ here.
 | dectris-compression | 0.4.0 | MIT | © 2020 DECTRIS Ltd. |
 | zstandard | 0.25.0 | BSD-3-Clause | © 2016 Gregory Szorc (bundles libzstd, © Meta Platforms, Inc., dual BSD-3-Clause/GPL-2.0 — used under BSD-3-Clause) |
 | certifi | 2026.10.23 | MPL-2.0 | © Kenneth Reitz (bundles Mozilla CA certificates) |
-| pyobjc (macOS only) | 12.2.2 | MIT | © 2002-2025 Ronald Oussoren et al. |
+| pyobjc (macOS only) | 13.0 | MIT | © 2002-2025 Ronald Oussoren et al. |
 | html2canvas | 1.4.1 | MIT | © 2022 Niklas von Hertzen |
 | Inter | 4.1 | OFL-1.1 | © 2016 The Inter Project Authors |
 | Michroma | 1.100 | OFL-1.1 | © 2011 The Michroma Project Authors |
