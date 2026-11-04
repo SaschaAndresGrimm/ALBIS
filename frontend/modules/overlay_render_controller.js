@@ -10,7 +10,7 @@ import {
   paintResolutionRings,
   screenView,
 } from "./overlay_painters.js";
-import { paintHottestPixelMarkers } from "./hottest_pixels_painter.js";
+import { paintMinMaxMarkers } from "./minmax_finder_painter.js";
 
 export function createOverlayRenderController({
   state,
@@ -235,8 +235,8 @@ export function createOverlayRenderController({
       : [];
     const peaks =
       analysisState.peaksEnabled && Array.isArray(analysisState.peaks) ? analysisState.peaks : [];
-    const hottest = analysisState.hottestEnabled ? analysisState.hottestFound || [] : [];
-    if (!peaks.length && !externalPeakSets.length && !hottest.length) return;
+    const extremes = analysisState.minmaxEnabled ? analysisState.minmaxFound || [] : [];
+    if (!peaks.length && !externalPeakSets.length && !extremes.length) return;
 
     const view = currentView();
     paintPeakMarkers(peakCtx, {
@@ -247,9 +247,9 @@ export function createOverlayRenderController({
       width,
       height,
     });
-    paintHottestPixelMarkers(peakCtx, {
-      pixels: hottest,
-      selected: analysisState.hottestSelected || [],
+    paintMinMaxMarkers(peakCtx, {
+      pixels: extremes,
+      selected: analysisState.minmaxSelected || [],
       view,
       width,
       height,

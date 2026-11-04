@@ -49,7 +49,7 @@ export function createSettingsController({
     settingsToolHints,
     settingsDetectorControl,
     settingsPixelMask,
-    settingsHottestPixels,
+    settingsMinmaxFinder,
     settingsHiddenTools,
     settingsLanguage,
     settingsPixelLabelMin,
@@ -241,7 +241,7 @@ export function createSettingsController({
       "ui.tool_hints": settingsToolHints,
       "ui.detector_control": settingsDetectorControl,
       "ui.pixel_mask": settingsPixelMask,
-      "ui.hottest_pixels": settingsHottestPixels,
+      "ui.minmax_finder": settingsMinmaxFinder,
       "ui.hidden_tools": settingsHiddenTools,
       "ui.auto_check_updates": settingsAutoCheckUpdates,
       "ui.allow_update_download": settingsAllowUpdateDownload,
@@ -404,8 +404,8 @@ export function createSettingsController({
     if (settingsPixelMask) {
       settingsPixelMask.checked = Boolean(config?.ui?.pixel_mask ?? state.pixelMask ?? false);
     }
-    if (settingsHottestPixels) {
-      settingsHottestPixels.checked = Boolean(config?.ui?.hottest_pixels ?? state.hottestPixels ?? false);
+    if (settingsMinmaxFinder) {
+      settingsMinmaxFinder.checked = Boolean(config?.ui?.minmax_finder ?? state.minmaxFinder ?? false);
     }
     fillHiddenTools(config?.ui?.hidden_tools ?? state.hiddenTools ?? []);
     if (settingsLanguage) {
@@ -506,7 +506,7 @@ export function createSettingsController({
         tool_hints: Boolean(settingsToolHints?.checked),
         detector_control: Boolean(settingsDetectorControl?.checked),
         ...(settingsPixelMask ? { pixel_mask: Boolean(settingsPixelMask.checked) } : {}),
-        ...(settingsHottestPixels ? { hottest_pixels: Boolean(settingsHottestPixels.checked) } : {}),
+        ...(settingsMinmaxFinder ? { minmax_finder: Boolean(settingsMinmaxFinder.checked) } : {}),
         ...(settingsHiddenTools ? { hidden_tools: collectHiddenTools() } : {}),
         auto_check_updates: Boolean(settingsAutoCheckUpdates?.checked),
         allow_update_download: Boolean(settingsAllowUpdateDownload?.checked),
@@ -550,9 +550,9 @@ export function createSettingsController({
       state.pixelMask = Boolean(cfg.pixel_mask);
       setPixelMaskEnabled?.(state.pixelMask);
     }
-    if (typeof cfg.hottest_pixels !== "undefined") {
-      state.hottestPixels = Boolean(cfg.hottest_pixels);
-      core.hottestPixels?.setEnabled(state.hottestPixels);
+    if (typeof cfg.minmax_finder !== "undefined") {
+      state.minmaxFinder = Boolean(cfg.minmax_finder);
+      core.minmaxFinder?.setEnabled(state.minmaxFinder);
     }
     if (typeof cfg.hidden_tools !== "undefined") {
       setHiddenTools?.(normalizeHiddenTools(cfg.hidden_tools));

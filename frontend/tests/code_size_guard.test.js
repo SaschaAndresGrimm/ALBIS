@@ -32,11 +32,11 @@ const MAX_LINES = 1000;
 
 // Files over MAX_LINES, at the length they may not exceed.
 const LINE_BASELINE = {
-  // +12 for Hottest Pixels' wiring, after the 22 blank lines it was cut by.
+  // +12 for the Min/Max Finder's wiring, after the 22 blank lines it was cut by.
   "frontend/app.js": 3522,
   // +17 in the stylesheet split: one <link> per part in frontend/styles/.
-  // +39 for the Hottest Pixels section and its opt-in: markup lives here.
-  "frontend/index.html": 2638,
+  // +45 for the Min/Max Finder section and its opt-in: markup lives here.
+  "frontend/index.html": 2644,
 };
 
 // The only modules that call fetch() themselves: http.js, which every other

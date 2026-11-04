@@ -77,9 +77,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # Beta: Data -> Pixel Mask, to load, save and (with detector control)
         # send a detector's pixel mask. Off unless switched on.
         "pixel_mask": False,
-        # Beta: Analysis -> Hottest Pixels, the brightest pixels of a frame.
+        # Beta: Analysis -> Min/Max Finder, the highest and lowest pixels of a frame.
         # Off unless switched on; it needs nothing from the backend.
-        "hottest_pixels": False,
+        "minmax_finder": False,
         "hidden_tools": [],
         # The shared list of known detectors; empty means
         # ~/.config/albis/known_detectors.json. A relative path is taken from
@@ -129,7 +129,7 @@ _CONFIG_VALUE_TYPES: dict[tuple[str, str], tuple[type, ...]] = {
     ("ui", "language"): (str,),
     ("ui", "detector_control"): (bool, int, float, str),
     ("ui", "pixel_mask"): (bool, int, float, str),
-    ("ui", "hottest_pixels"): (bool, int, float, str),
+    ("ui", "minmax_finder"): (bool, int, float, str),
     ("ui", "hidden_tools"): (list, str),
     ("ui", "known_detectors_file"): (str,),
 }
@@ -469,7 +469,7 @@ def normalize_config(raw: dict[str, Any] | None) -> dict[str, Any]:
             "language": ui_language,
             "detector_control": get_bool(merged, ("ui", "detector_control"), False),
             "pixel_mask": get_bool(merged, ("ui", "pixel_mask"), False),
-            "hottest_pixels": get_bool(merged, ("ui", "hottest_pixels"), False),
+            "minmax_finder": get_bool(merged, ("ui", "minmax_finder"), False),
             "hidden_tools": _normalize_hidden_tools(get_nested(merged, ("ui", "hidden_tools"), [])),
             "known_detectors_file": get_str(merged, ("ui", "known_detectors_file"), "").strip(),
         },

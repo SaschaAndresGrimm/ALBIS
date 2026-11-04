@@ -1,4 +1,4 @@
-"""`ui.hottest_pixels`: the beta switch for Analysis -> Hottest Pixels.
+"""`ui.minmax_finder`: the beta switch for Analysis -> Min/Max Finder.
 
 The tool runs in the browser and needs no endpoint; the backend only keeps the
 switch, off unless someone turns it on.
@@ -28,14 +28,14 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_the_setting_is_off_unless_switched_on() -> None:
-    assert DEFAULT_CONFIG["ui"]["hottest_pixels"] is False
-    assert normalize_config({})["ui"]["hottest_pixels"] is False
-    assert normalize_config({"ui": {"hottest_pixels": "true"}})["ui"]["hottest_pixels"] is True
-    assert normalize_config({"ui": {"hottest_pixels": 0}})["ui"]["hottest_pixels"] is False
+    assert DEFAULT_CONFIG["ui"]["minmax_finder"] is False
+    assert normalize_config({})["ui"]["minmax_finder"] is False
+    assert normalize_config({"ui": {"minmax_finder": "true"}})["ui"]["minmax_finder"] is True
+    assert normalize_config({"ui": {"minmax_finder": 0}})["ui"]["minmax_finder"] is False
 
 
 def test_the_environment_can_switch_it_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("ALBIS_UI_HOTTEST_PIXELS", "1")
+    monkeypatch.setenv("ALBIS_UI_MINMAX_FINDER", "1")
     config, _path = load_config()
-    assert config["ui"]["hottest_pixels"] is True
+    assert config["ui"]["minmax_finder"] is True

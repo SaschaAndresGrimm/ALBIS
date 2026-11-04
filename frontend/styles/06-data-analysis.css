@@ -533,35 +533,41 @@
   font-size: var(--font-size-sm);
 }
 
-/* Hottest Pixels reuses the peak list. Its columns are #, X, Y, Value and,
-   once a mask is loaded, the pixel's mask value. */
-.hottest-list .peaks-head,
-.hottest-list .peaks-row {
+/* The Min/Max Finder reuses the peak list. Its columns are # (with ▲ or ▼
+   when it lists both ends), X, Y, Value and, once a mask is loaded, the
+   pixel's mask value. */
+.minmax-list .peaks-head,
+.minmax-list .peaks-row {
   grid-template-columns: 30px 48px 48px 1fr;
 }
 
-.hottest-list .peaks-head span:nth-child(5),
-.hottest-list .peaks-row span:nth-child(5) {
+.minmax-list .peaks-head span:nth-child(5),
+.minmax-list .peaks-row span:nth-child(5) {
   display: none;
 }
 
-.hottest-list.has-mask .peaks-head,
-.hottest-list.has-mask .peaks-row {
+.minmax-list.has-mask .peaks-head,
+.minmax-list.has-mask .peaks-row {
   grid-template-columns: 30px 48px 48px 1fr 72px;
 }
 
-.hottest-list.has-mask .peaks-head span:nth-child(5),
-.hottest-list.has-mask .peaks-row span:nth-child(5) {
+.minmax-list.has-mask .peaks-head span:nth-child(5),
+.minmax-list.has-mask .peaks-row span:nth-child(5) {
   display: block;
 }
 
-.peaks-controls .hottest-include-masked {
+.peaks-controls .minmax-mode-field {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.peaks-controls .minmax-include-masked {
   flex: 0 0 auto;
   align-self: center;
 }
 
 .panel-section[data-section="peak-finder"] .section-state,
-.panel-section[data-section="hottest-pixels"] .section-state {
+.panel-section[data-section="minmax-finder"] .section-state {
   min-height: 30px;
   white-space: nowrap;
   overflow: hidden;

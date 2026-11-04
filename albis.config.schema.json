@@ -215,10 +215,10 @@
           "default": false,
           "description": "Beta: show Data -> Pixel Mask, to load, save and (with detector_control) send a detector's pixel mask."
         },
-        "hottest_pixels": {
+        "minmax_finder": {
           "type": "boolean",
           "default": false,
-          "description": "Beta: show Analysis -> Hottest Pixels, which lists the brightest pixels of the frame on screen."
+          "description": "Beta: show Analysis -> Min/Max Finder, which lists the highest and lowest pixels of the frame on screen."
         },
         "hidden_tools": {
           "type": "array",
@@ -292,7 +292,7 @@
       "language": "en",
       "detector_control": false,
       "pixel_mask": false,
-      "hottest_pixels": false,
+      "minmax_finder": false,
       "hidden_tools": [],
       "known_detectors_file": ""
     }

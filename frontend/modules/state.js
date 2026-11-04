@@ -68,13 +68,14 @@ export function createAnalysisState() {
     externalPeakSets: [],
     selectedPeaks: [],
     peakSelectionAnchor: null,
-    // Beta: Hottest Pixels (hottest_pixels_controller.js).
-    hottestEnabled: false,
-    hottestCount: 20,
-    hottestIncludeMasked: false,
-    hottestFound: [],
-    hottestSelected: [],
-    hottestSelectionAnchor: null,
+    // Beta: Min/Max Finder (minmax_finder_controller.js).
+    minmaxEnabled: false,
+    minmaxMode: "max",
+    minmaxCount: 20,
+    minmaxIncludeMasked: false,
+    minmaxFound: [],
+    minmaxSelected: [],
+    minmaxSelectionAnchor: null,
   };
 }
 
@@ -117,7 +118,7 @@ function createUiPreferencesState() {
     autoCheckUpdates: true,
     detectorControl: false,
     pixelMask: false,
-    hottestPixels: false,
+    minmaxFinder: false,
     pixelLabelMinCellPx: 18,
     pixelLabelMaxLabels: 4000,
     frameCacheMb: 256,

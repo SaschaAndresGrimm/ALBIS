@@ -99,7 +99,7 @@ import { createFramePlaybackController } from "./modules/frame_playback_controll
 import { createFrameMetadataController } from "./modules/frame_metadata_controller.js";
 import { createInspectorPanelController } from "./modules/inspector_panel_controller.js";
 import { createAnalysisOverlayController } from "./modules/analysis_overlay_controller.js";
-import { createHottestPixelsController } from "./modules/hottest_pixels_controller.js";
+import { createMinMaxFinderController } from "./modules/minmax_finder_controller.js";
 import { createMaskCursorController } from "./modules/mask_cursor_controller.js";
 import { createRoiInteractionController } from "./modules/roi_interaction_controller.js";
 import { createResolutionRingInteractionController } from "./modules/resolution_ring_interaction_controller.js";
@@ -715,9 +715,9 @@ const {
   updateRingsSectionState,
 } = analysisOverlayController;
 
-// Beta: Analysis -> Hottest Pixels, shown while ui.hottest_pixels is on. It
+// Beta: Analysis -> Min/Max Finder, shown while ui.minmax_finder is on. It
 // runs whenever the Peak Finder is scheduled.
-core.hottestPixels = createHottestPixelsController({
+core.minmaxFinder = createMinMaxFinderController({
   core,
   state,
   analysisState,
