@@ -26,6 +26,17 @@ export function formatStat(value) {
   return value.toFixed(3);
 }
 
+/**
+ * A BG or FG level as the histogram labels and the level fields show it: three
+ * decimals for float data, a whole number otherwise. `dtype` is the frame's,
+ * as in state.dtype ("<f4", "uint32", ...). Empty for no value.
+ */
+export function formatLevelValue(value, dtype) {
+  if (!Number.isFinite(value)) return "";
+  if (String(dtype || "").includes("f")) return value.toFixed(3);
+  return Math.round(value).toString();
+}
+
 export function formatRoiTick(value) {
   if (!Number.isFinite(value)) return "-";
   const abs = Math.abs(value);

@@ -1,12 +1,25 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+
+import { initializeI18n } from "../modules/i18n.js";
 
 import { LARGE_PIXELS, SETTLE_MS, createLevelBandsController } from "../modules/level_bands_controller.js";
 import { buildLevelSample } from "../modules/level_bands_utils.js";
 
+// The real English catalogue, so the labels' keys and placeholders are checked.
+beforeAll(async () => {
+  const catalogue = JSON.parse(fs.readFileSync("frontend/locales/en.json", "utf8"));
+  globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => catalogue }));
+  await initializeI18n({ backendLanguage: "en" });
+});
+
 function setup({ frameValues = Uint16Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), pixels } = {}) {
   vi.useFakeTimers();
-  document.body.innerHTML = `<strong id="below"></strong><strong id="between"></strong><strong id="above"></strong>`;
-  const state = { hasFrame: true, min: 3, max: 8, dataRaw: { length: pixels ?? frameValues.length } };
+  document.body.innerHTML = `
+    <div class="meta-row"><span>Below BG</span><strong id="below"></strong></div>
+    <div class="meta-row"><span>BG to FG</span><strong id="between"></strong></div>
+    <div class="meta-row"><span>Above FG</span><strong id="above"></strong></div>`;
+  const state = { hasFrame: true, min: 3, max: 8, dtype: "uint16", dataRaw: { length: pixels ?? frameValues.length } };
   const roiState = {};
   let frameId = 1;
   const getWholeFrameSample = vi.fn(() => buildLevelSample(frameValues));
@@ -21,7 +34,8 @@ function setup({ frameValues = Uint16Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     callbacks: { getWholeFrameSample, wholeFrameKey: () => [frameId] },
   });
   const rows = () => ["below", "between", "above"].map((id) => document.getElementById(id).textContent);
-  return { state, roiState, controller, getWholeFrameSample, rows, nextFrame: () => (frameId += 1) };
+  const labels = () => Array.from(document.querySelectorAll(".meta-row span"), (span) => span.textContent);
+  return { state, roiState, controller, getWholeFrameSample, rows, labels, nextFrame: () => (frameId += 1) };
 }
 
 afterEach(() => vi.useRealTimers());
@@ -79,6 +93,19 @@ describe("level bands", () => {
     vi.advanceTimersByTime(SETTLE_MS);
     expect(getWholeFrameSample).toHaveBeenCalledTimes(1);
     expect(rows()).toEqual(["2 (20.0 %)", "6 (60.0 %)", "2 (20.0 %)"]);
+  });
+
+  it("names the levels in the labels, as the histogram writes them", () => {
+    const { controller, labels, state } = setup();
+    controller.showWholeFrame();
+    expect(labels()).toEqual(["Below BG 3", "BG 3 to FG 8", "Above FG 8"]);
+    state.dtype = "<f4";
+    state.min = 0.25;
+    state.max = 1.5;
+    controller.refresh();
+    expect(labels()).toEqual(["Below BG 0.250", "BG 0.250 to FG 1.500", "Above FG 1.500"]);
+    controller.clear();
+    expect(labels()).toEqual(["Below BG", "BG to FG", "Above FG"]);
   });
 
   it("clears to dashes", () => {

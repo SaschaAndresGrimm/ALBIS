@@ -19,13 +19,25 @@
  * - building the whole frame's sample when the frame has more than
  *   LARGE_PIXELS pixels. Until it is built the rows show "…", not the
  *   previous frame's numbers.
+ *
+ * The labels carry the levels the numbers were counted against ("Below BG
+ * 12", "BG 12 to FG 340", "Above FG 340"), formatted as the histogram shows
+ * them, so the counts never have to be read against another tab.
  */
 
+import { formatLevelValue } from "./format_utils.js";
+import { onLanguageChange, t } from "./i18n.js";
 import { countLevelBands, formatLevelBand } from "./level_bands_utils.js";
 
 export const LARGE_PIXELS = 2_000_000;
 export const SETTLE_MS = 150;
 const PENDING = "…";
+
+const LABEL_KEYS = {
+  below: "analysis.roi.stats.below_bg",
+  between: "analysis.roi.stats.bg_to_fg",
+  above: "analysis.roi.stats.above_fg",
+};
 
 const sameParts = (a, b) => Boolean(a && b) && a.length === b.length && a.every((part, i) => part === b[i]);
 
@@ -34,6 +46,9 @@ export function createLevelBandsController({ state, roiState, elements, callback
   // wholeFrameKey(): what the whole frame's sample depends on, as a list
   // compared part by part.
   const { getWholeFrameSample, wholeFrameKey } = callbacks;
+  // Each value's label: the span beside it in its row.
+  const labelOf = (el) => el?.closest(".meta-row")?.querySelector("span") || null;
+  const labels = { below: labelOf(belowEl), between: labelOf(betweenEl), above: labelOf(aboveEl) };
   let source = null; // { sample } for an ROI, or "frame"
   let frameSample = null;
   let frameKey = null;
@@ -46,15 +61,26 @@ export function createLevelBandsController({ state, roiState, elements, callback
     if (aboveEl) aboveEl.textContent = text("above");
   }
 
+  // With the levels when there are counts to go with them, plain otherwise.
+  function setLabels(counts) {
+    const bg = counts ? formatLevelValue(counts.bg, state.dtype) : "";
+    const fg = counts ? formatLevelValue(counts.fg, state.dtype) : "";
+    for (const [band, label] of Object.entries(labels)) {
+      if (label) label.textContent = counts ? t(`${LABEL_KEYS[band]}_at`, { bg, fg }) : t(LABEL_KEYS[band]);
+    }
+  }
+
   function show(counts) {
     roiState.levelBands = counts;
     setText((band) => (counts ? formatLevelBand(counts[band], counts.total) : "-"));
+    setLabels(counts);
   }
 
   function showPending() {
     roiState.levelBands = null;
     counted = null;
     setText(() => PENDING);
+    setLabels(null);
   }
 
   function later(run) {
@@ -106,6 +132,9 @@ export function createLevelBandsController({ state, roiState, elements, callback
       later(() => refresh(true));
     }
   }
+
+  // A language change rewrites the labels from their data-i18n keys first.
+  onLanguageChange(() => setLabels(roiState.levelBands));
 
   return {
     /** The ROI's counted values, as a level sample (buildLevelSample). */

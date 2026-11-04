@@ -4,6 +4,7 @@ import {
   dirnameFromPath,
   formatEnergy,
   formatInspectorValue,
+  formatLevelValue,
   formatRoiTick,
   formatStat,
   middleTruncate,
@@ -60,5 +61,12 @@ describe("format_utils", () => {
     expect(dirnameFromPath("/img.cbf")).toBe("/");
     expect(dirnameFromPath("img.cbf")).toBe("");
     expect(dirnameFromPath("")).toBe("");
+  });
+
+  it("formats a BG or FG level by the frame's data type", () => {
+    expect(formatLevelValue(12.6, "uint32")).toBe("13");
+    expect(formatLevelValue(1.2167, "<f4")).toBe("1.217");
+    expect(formatLevelValue(Number.NaN, "<f4")).toBe("");
+    expect(formatLevelValue(5, "")).toBe("5");
   });
 });

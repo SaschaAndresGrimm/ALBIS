@@ -15,7 +15,7 @@ import { PIXEL_LABEL_MIN_CELL_PX, pixelLabelResolver, pixelLabelsAreFloat } from
 import { createAnalysisState, createAppState, createRoiState } from "./modules/state.js";
 import { queryAppElements } from "./modules/app_elements.js";
 import { computeMedian, parseShape, toFloat32, typedArrayFrom } from "./modules/typed_array_utils.js";
-import { dirnameFromPath, formatEnergy, formatInspectorValue, formatRoiTick, formatStat, formatTimeStamp, middleTruncate } from "./modules/format_utils.js";
+import { dirnameFromPath, formatEnergy, formatInspectorValue, formatLevelValue, formatRoiTick, formatStat, formatTimeStamp, middleTruncate } from "./modules/format_utils.js";
 import {
   applyI18nToDom,
   getLanguage,
@@ -509,12 +509,7 @@ function estimateToolbarChars() {
 }
 
 function formatValue(value) {
-  if (!Number.isFinite(value)) return "";
-  const dtype = state.dtype || "";
-  if (dtype.includes("f")) {
-    return value.toFixed(3);
-  }
-  return Math.round(value).toString();
+  return formatLevelValue(value, state.dtype);
 }
 
 function formatPixelLabelValue(value, cellPx, mode = "auto") {

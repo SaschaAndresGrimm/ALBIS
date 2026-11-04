@@ -378,7 +378,8 @@ With no ROI drawn, the same statistics describe the whole image.
 
 **Below BG**, **BG to FG** and **Above FG** split the same pixels by the
 levels set in **View → Histogram**: how many lie below BG, from BG to FG (both
-included), and above FG, each with its share. They follow BG and FG as you
+included), and above FG, each with its share; the labels name the levels
+("BG 12 to FG 340"). They follow BG and FG as you
 change them, and count only the ROI's pixels while one is drawn. On a frame
 of more than two million pixels with fractional values (a float image, or any
 image with flatfield correction on) they update once the levels stop moving,
