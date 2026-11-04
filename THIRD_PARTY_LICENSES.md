@@ -19,14 +19,14 @@ here.
 | FastAPI | 0.162.0 | MIT | © 2018 Sebastián Ramírez |
 | Uvicorn | 0.54.0 | BSD-3-Clause | © 2017-present Encode OSS Ltd |
 | Starlette | 1.10.0 | BSD-3-Clause | © 2018 Encode OSS Ltd |
-| AnyIO | 4.15.1 | MIT | © 2018 Alex Grönholm |
+| AnyIO | 4.16.0 | MIT | © 2018 Alex Grönholm |
 | python-multipart | 0.0.33 | Apache-2.0 | © Andrew Dunham |
 | hdf5plugin | 7.1.0 | MIT (+ bundled filter plugins, see below) | © European Synchrotron Radiation Facility (ESRF) |
 | h5py | 3.16.0 | BSD-3-Clause | © 2008 Andrew Collette and contributors |
 | NumPy | 2.5.4 | BSD-3-Clause | © 2005-2023 NumPy Developers |
 | tifffile | 2026.10.15 | BSD-3-Clause | © 2008-2025 Christoph Gohlke |
 | FabIO | 2026.6.0 | MIT | © European Synchrotron Radiation Facility and FabIO contributors |
-| cbor2 | 6.1.5 | MIT | © 2016 Alex Grönholm |
+| cbor2 | 6.2.0.post1 | MIT | © 2016 Alex Grönholm |
 | PyZMQ | 27.2.0 | BSD-3-Clause | © 2009-2012 Brian Granger, Min Ragan-Kelley (bundles libzmq, MPL-2.0) |
 | dectris-compression | 0.4.0 | MIT | © 2020 DECTRIS Ltd. |
 | zstandard | 0.25.0 | BSD-3-Clause | © 2016 Gregory Szorc (bundles libzstd, © Meta Platforms, Inc., dual BSD-3-Clause/GPL-2.0 — used under BSD-3-Clause) |
