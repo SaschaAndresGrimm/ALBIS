@@ -17,6 +17,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **A new session starts with a Box ROI.** The ROI mode used to start on **Line ROI**; a box, with its statistics and profiles along X and Y, is what most sessions reach for first. **Line ROI**, **Circle ROI** and **Annulus ROI** are still one pick away in the same list.
 - **The example data for the Getting started walk-through is one zip file.** Download `albis-example-data.zip`, unzip it and open the first image, instead of saving ten files one by one from GitHub or typing a command in a terminal.
 
+### Fixed
+
+- **A box ROI's profile no longer goes blank after the box is moved.** Panning or zooming a profile pins its axes (**Manual axes**), and the profiles along X and Y are plotted against the image's own pixel columns and rows. Moving the box to columns outside the pinned range left nothing to draw, and the plot showed an empty frame with no line, no axes and no hint, for every box on that side of the image. A pinned range that misses the profile entirely now gives way to the profile's own range; one that overlaps it still zooms as before.
+
 ## [0.40.0] - 2026-11-03
 
 ### Added

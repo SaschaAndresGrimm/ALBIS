@@ -87,8 +87,12 @@ export function renderRoiPlot({
   if (!autoscale && data.length > 0) {
     const lo = Number.isFinite(limits.xMin) ? Math.max(totalMinX, limits.xMin) : totalMinX;
     const hi = Number.isFinite(limits.xMax) ? Math.min(totalMaxX, limits.xMax) : totalMaxX;
+    // A pinned x-range that misses the data entirely belongs to another ROI:
+    // box profiles are plotted against the image's columns, so moving the box
+    // leaves the pin behind. Show this profile's own range rather than a blank
+    // plot; a pin that overlaps the data still zooms as before.
     if (hi < lo) {
-      visibleData = [];
+      visibleData = data;
     } else {
       const firstIdx = Math.max(0, Math.ceil((lo - xStart) / xStep));
       const lastIdx = Math.min(data.length - 1, Math.floor((hi - xStart) / xStep));

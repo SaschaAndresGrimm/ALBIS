@@ -58,6 +58,32 @@ describe("roi_plot_renderer", () => {
     expect(canvasEl._roiPlot.xMax).toBe(3);
   });
 
+  // Box profiles are plotted against the image's own columns. With the X axis
+  // pinned on one ROI and the box then moved to columns outside that window,
+  // nothing was left to draw, and the plot went blank -- no line, no axes, no
+  // hint -- for every box on that side of the image.
+  it("draws the whole profile when the pinned x-range misses the data entirely", () => {
+    const canvasEl = { clientWidth: 300, clientHeight: 120, _roiPlotMeta: { xStart: 453, xStep: 1 } };
+    const ctx = createMockContext();
+    const limits = { xMin: 100, xMax: 300, yMin: 0.9, yMax: 1.1 };
+    renderRoiPlot({
+      canvasEl,
+      ctx,
+      data: [0.87, 0.88, 0.86],
+      logScale: false,
+      plotTheme: PLOT_THEME,
+      getRoiPlotKey: () => "x",
+      getRoiPlotLimits: () => limits,
+      autoscale: false,
+      formatRoiTick: (value) => value.toFixed(2),
+    });
+    expect(canvasEl._roiPlot).not.toBeNull();
+    expect(canvasEl._roiPlot.data).toEqual([0.87, 0.88, 0.86]);
+    expect(canvasEl._roiPlot.xMin).toBe(453);
+    expect(canvasEl._roiPlot.xMax).toBe(455);
+    expect(ctx.lineTo).toHaveBeenCalled();
+  });
+
   it("applies manual x-range limits when autoscale is disabled", () => {
     const canvasEl = { clientWidth: 300, clientHeight: 120, _roiPlotMeta: { xStart: 0, xStep: 1 } };
     const ctx = createMockContext();
