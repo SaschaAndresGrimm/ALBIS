@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   HC_EV_ANGSTROM,
   applyGeometryOverrides,
+  buildGeometryRingSegments,
   getGeometryBeamPosition,
   getGeometryResolutionAtPixel,
   prepareRingGeometry,
@@ -69,6 +70,19 @@ describe("a detector on a 2θ arm (DLS I19-2, 20°)", () => {
     const shifted = geometryWith({ ...FILE_FIELDS, centerX: FILE_FIELDS.centerX + 10 });
     const original = getGeometryResolutionAtPixel(1500, 700, geometryWith(), ENERGY_EV);
     expect(getGeometryResolutionAtPixel(1510, 700, shifted, ENERGY_EV)).toBeCloseTo(original, 12);
+  });
+
+  it("keeps the whole image when the beam centre is dragged", () => {
+    // Shifting the image under the rings left the panel claiming only the
+    // columns it was shifted onto: drag the centre 240 px right and every
+    // ring stopped at column 240. The detector moves instead, in its plane.
+    const shifted = geometryWith({ ...FILE_FIELDS, centerX: FILE_FIELDS.centerX + 240 });
+    expect(getGeometryResolutionAtPixel(10, 1419, shifted, ENERGY_EV)).toBeGreaterThan(0);
+    expect(getGeometryResolutionAtPixel(2060, 1419, shifted, ENERGY_EV)).toBeGreaterThan(0);
+    expect(shifted.panels[0].raw_offset_px).toEqual([0, 0]);
+    const segments = buildGeometryRingSegments({ geometry: shifted, energyEv: ENERGY_EV, dSpacing: 0.95 });
+    const xs = segments.flat().map((point) => point.x);
+    expect(Math.min(...xs)).toBeLessThan(240);
   });
 
   it("keeps its reference and arm when serialized, as a sum embeds it", () => {

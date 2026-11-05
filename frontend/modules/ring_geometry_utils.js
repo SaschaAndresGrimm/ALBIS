@@ -315,6 +315,22 @@ export function getGeometryBeamPosition(geometry) {
   return hit ? { x: hit.imageX, y: hit.imageY } : null;
 }
 
+/** Whether every panel lies in one plane with the same pixel directions. */
+function sharesOnePlane(panels) {
+  const first = panels[0];
+  const fast = normalize(first.fast_axis);
+  const slow = normalize(first.slow_axis);
+  if (!fast || !slow) return false;
+  const normal = normalize(cross(fast, slow));
+  return panels.every((panel) => {
+    const f = normalize(panel.fast_axis);
+    const sl = normalize(panel.slow_axis);
+    if (!f || !sl) return false;
+    const offPlane = Math.abs(dot(sub(panel.origin_mm, first.origin_mm), normal));
+    return dot(f, fast) > 1 - 1e-9 && dot(sl, slow) > 1 - 1e-9 && offPlane < 1e-6;
+  });
+}
+
 export function applyGeometryOverrides(geometry, overrides = {}) {
   if (!geometry || !Array.isArray(geometry.panels) || !geometry.panels.length) return geometry;
   const reference = getGeometryReferencePose(geometry);
@@ -339,16 +355,31 @@ export function applyGeometryOverrides(geometry, overrides = {}) {
 
   // Along the beam, unless the geometry says the detector moves along an arm.
   const axis = statedDistanceAxis(geometry) || INCIDENT_BEAM;
+  // A new beam centre moves the detector under the beam, the opposite way, in
+  // its own plane, so the image keeps its pixels. Shifting the image instead
+  // (raw_offset_px) left the panel claiming only the columns it was shifted
+  // onto, and every ring stopped short at that edge: drag the centre 240 px
+  // right and nothing was drawn left of column 240. Detectors whose panels do
+  // not share one plane and orientation, like the I23 cylinder, cannot move
+  // as one in a plane, and keep shifting the image.
+  const inPlane = sharesOnePlane(geometry.panels);
   return {
     ...geometry,
-    panels: geometry.panels.map((panel) => ({
-      ...panel,
-      origin_mm: add(panel.origin_mm, scale(axis, shiftDistanceMm)),
-      raw_offset_px: [
-        panel.raw_offset_px[0] + shiftX,
-        panel.raw_offset_px[1] + shiftY,
-      ],
-    })),
+    panels: geometry.panels.map((panel) => {
+      const lifted = add(panel.origin_mm, scale(axis, shiftDistanceMm));
+      if (inPlane) {
+        const move = add(
+          scale(panel.fast_axis, -shiftX * panel.pixel_size_mm[0]),
+          scale(panel.slow_axis, -shiftY * panel.pixel_size_mm[1]),
+        );
+        return { ...panel, origin_mm: add(lifted, move) };
+      }
+      return {
+        ...panel,
+        origin_mm: lifted,
+        raw_offset_px: [panel.raw_offset_px[0] + shiftX, panel.raw_offset_px[1] + shiftY],
+      };
+    }),
     reference_center_x_px: Number.isFinite(targetCenterX) ? targetCenterX : reference.centerX,
     reference_center_y_px: Number.isFinite(targetCenterY) ? targetCenterY : reference.centerY,
     reference_distance_mm: Number.isFinite(targetDistanceMm) && targetDistanceMm > 0
