@@ -454,6 +454,10 @@ def _resolve_dir(name: str | None) -> Path:
     return path_policy.resolve_dir(name)
 
 
+def _companion_files(path: Path) -> list[Path]:
+    return companion_metadata_files(path, path_policy.accept_found_hdf5_file)
+
+
 def _resolve_optional_path(name: str) -> Path:
     """Resolve a relative data-root path or approved absolute path without requiring it to exist."""
     raw = Path(name)
@@ -901,9 +905,7 @@ register_analysis_routes(
         start_series_sum_job=series_summing.start_job,
         get_series_sum_job=series_summing.get_job,
         cancel_series_sum_job=series_summing.cancel_job,
-        companion_files=lambda path: companion_metadata_files(
-            path, path_policy.accept_found_hdf5_file
-        ),
+        companion_files=_companion_files,
     ),
 )
 
@@ -929,6 +931,7 @@ register_frame_routes(
         extract_frame=_extract_frame,
         find_pixel_mask=_find_pixel_mask,
         read_threshold_energies=_read_threshold_energies,
+        companion_files=_companion_files,
     ),
 )
 

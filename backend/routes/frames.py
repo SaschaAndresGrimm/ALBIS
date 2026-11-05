@@ -36,7 +36,10 @@ MASK_RESPONSE_DOCS = octet_stream_responses(
     {
         "X-Dtype": "NumPy dtype string for decoding the payload.",
         "X-Shape": "Comma-separated mask dimensions (rows,cols).",
-        "X-Mask-Path": "Resolved HDF5 dataset path of the pixel mask.",
+        "X-Mask-Path": (
+            "Resolved HDF5 dataset path of the pixel mask; `file:path` when it came "
+            "from another file of the same collection."
+        ),
     },
 )
 
@@ -50,6 +53,9 @@ class FrameRouteDeps:
     extract_frame: Callable[[dict[str, Any], int, int], np.ndarray]
     find_pixel_mask: Callable[[Any, int | None], Any | None]
     read_threshold_energies: Callable[[Any, int], list[float | None]]
+    # The metadata files next to a data file, already vetted against the data
+    # root, best first. See services/companion_files.py.
+    companion_files: Callable[[Path], list[Path]] = lambda _path: []
 
 
 def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
@@ -130,12 +136,43 @@ def register_frame_routes(app: FastAPI, deps: FrameRouteDeps) -> None:
         path = deps.resolve_file(file)
         with open_hdf5_for_read(h5py, path) as h5:
             dset = deps.find_pixel_mask(h5, threshold=threshold)
-            if not dset:
-                raise HTTPException(status_code=404, detail="Pixel mask not found")
-            if dset.ndim != 2:
-                raise HTTPException(status_code=400, detail="Pixel mask has invalid shape")
-            arr = _to_little_endian(read_hdf5_array(path, lambda: np.asarray(dset)))
-            data = arr.tobytes(order="C")
-            headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape)
-            add_optional_header(headers, "X-Mask-Path", dset.name)
-            return Response(content=data, media_type="application/octet-stream", headers=headers)
+            if dset:
+                if dset.ndim != 2:
+                    raise HTTPException(status_code=400, detail="Pixel mask has invalid shape")
+                arr = read_hdf5_array(path, lambda: np.asarray(dset))
+                return _mask_response(arr, dset.name)
+        # A data file opened on its own -- Odin's `_000001.h5` -- holds frames
+        # only; its collection's master links the mask and its meta file has it.
+        for companion in deps.companion_files(path):
+            found = _companion_mask(h5py, companion, threshold)
+            if found is not None:
+                arr, name = found
+                return _mask_response(arr, f"{companion.name}:{name}")
+        raise HTTPException(status_code=404, detail="Pixel mask not found")
+
+    def _companion_mask(h5py: Any, companion: Path, threshold: int | None) -> Any:
+        """The 2D mask a collection's other file holds, as (array, path), or None.
+
+        Odin's meta file keeps it at a bare `/mask`, which no other file is
+        searched for: only a file found as the collection's metadata is.
+        """
+        try:
+            with open_hdf5_for_read(h5py, companion) as companion_h5:
+                dset = deps.find_pixel_mask(companion_h5, threshold=threshold)
+                if dset is None and isinstance(companion_h5.get("mask"), h5py.Dataset):
+                    dset = companion_h5["mask"]
+                if dset is None or dset.ndim != 2:
+                    return None
+                return read_hdf5_array(companion, lambda: np.asarray(dset)), dset.name
+        except Exception:  # noqa: BLE001 - a companion that will not read is skipped
+            return None
+
+    def _mask_response(arr: Any, mask_path: str) -> Response:
+        arr = _to_little_endian(np.asarray(arr))
+        headers = build_binary_headers(dtype=arr.dtype.str, shape=arr.shape)
+        add_optional_header(headers, "X-Mask-Path", mask_path)
+        return Response(
+            content=arr.tobytes(order="C"),
+            media_type="application/octet-stream",
+            headers=headers,
+        )

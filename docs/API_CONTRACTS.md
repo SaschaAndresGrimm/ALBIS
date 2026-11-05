@@ -47,7 +47,9 @@ Common headers:
 
 Endpoint-specific headers are documented in OpenAPI for each route:
 
-- `X-Mask-Path` for HDF5 pixel-mask source.
+- `X-Mask-Path` for HDF5 pixel-mask source: the dataset path, or `file:path` when
+  `GET /api/mask` took the mask from another file of the same collection (a data file
+  opened on its own, whose `.nxs`, `_master.h5` or `_meta.h5` holds it).
 - `X-Simplon-*` for SIMPLON metadata.
 - `X-Remote-*` for remote stream metadata and sequence control.
 - `X-Scan-Truncated` for a directory scan that stopped at its budget (see Directory Scans).
