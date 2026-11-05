@@ -214,6 +214,11 @@ export function createViewerSyncController({
 
   function readViewport() {
     if (!state.hasFrame || !state.width || !state.height) return null;
+    // The view controller holds the view as exactly this: a centre and a zoom.
+    const own = core?.overviewViewport?.getViewCenter?.();
+    if (own && Number.isFinite(own.centerX) && Number.isFinite(own.centerY)) {
+      return { ...own, imageWidth: state.width, imageHeight: state.height };
+    }
     const zoom = Number.isFinite(state.zoom) && state.zoom > 0 ? state.zoom : 1;
     const viewWidth = Number(canvasWrap?.clientWidth) || 0;
     const viewHeight = Number(canvasWrap?.clientHeight) || 0;
@@ -427,6 +432,10 @@ export function createViewerSyncController({
     cancelQueuedPublish("viewport");
     applyingRemote = true;
     try {
+      if (core?.overviewViewport?.setViewCenter) {
+        core.overviewViewport.setViewCenter(centerX, centerY, viewport.zoom);
+        return true;
+      }
       core.overviewViewport?.setZoom(viewport.zoom);
       const zoom = Number.isFinite(state.zoom) ? state.zoom : viewport.zoom;
       const zoomY = zoom * (state.pixelAspect || 1);

@@ -80,8 +80,8 @@ export function createFileSessionController({
     state.histogram = null;
     state.stats = null;
     state.hasFrame = false;
-    state.panOffsetX = 0;
-    state.panOffsetY = 0;
+    state.viewCenterX = null;
+    state.viewCenterY = null;
     state.renderOffsetX = 0;
     state.renderOffsetY = 0;
     state.pixelAspect = 1;

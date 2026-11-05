@@ -5,6 +5,14 @@
 import { canvasFont } from "./canvas_fonts.js";
 import { syncRangeFill } from "./range_fill.js";
 import { zoomToSlider } from "./zoom_slider.js";
+import {
+  axisScroll,
+  centerFromScroll,
+  clampAxisCenter,
+  fitZoom,
+  visibleAxisSpan,
+  zoomAxisAbout,
+} from "./viewport_math.js";
 
 export function createOverviewViewportController({
   state,
@@ -95,22 +103,87 @@ export function createOverviewViewportController({
     return Math.max(MIN_ZOOM, Math.min(1, fitScale * 0.1));
   }
 
+  /**
+   * The part of the canvas the image is laid out in, per axis, in canvas
+   * pixels. Horizontally it leaves out a side panel floating over the canvas;
+   * vertically the image is centred in the full height, but its bottom edge
+   * may stop above the footer that floats over it. Measured whenever the zoom
+   * is set (which a resize and a panel change both do) and kept, because the
+   * overlays ask for the scroll position many times a frame.
+   */
+  let viewArea = null;
+
+  function measureViewArea() {
+    if (!canvasWrap) return null;
+    const width = canvasWrap.clientWidth || 0;
+    const height = canvasWrap.clientHeight || 0;
+    const insets = panelInsets();
+    const footerHeight = viewerFooterEl
+      ? Math.round(viewerFooterEl.getBoundingClientRect().height)
+      : 0;
+    const footerInset = footerHeight > 0 ? footerHeight + 8 : 0;
+    viewArea = {
+      x: { start: insets.left, end: Math.max(insets.left, width - insets.right) },
+      y: { start: 0, end: height, edgeEnd: Math.max(0, height - footerInset) },
+    };
+    return viewArea;
+  }
+
+  function getViewArea() {
+    return viewArea || measureViewArea();
+  }
+
+  function viewScales() {
+    const zoom = Number.isFinite(state.zoom) && state.zoom > 0 ? state.zoom : 1;
+    return { x: zoom, y: zoom * (state.pixelAspect || 1) };
+  }
+
+  /** The image point at the middle of the visible area; the image centre by default. */
+  function currentCenter() {
+    return {
+      x: Number.isFinite(state.viewCenterX) ? state.viewCenterX : (state.width || 0) / 2,
+      y: Number.isFinite(state.viewCenterY) ? state.viewCenterY : (state.height || 0) / 2,
+    };
+  }
+
+  function clampCenter(center, area = getViewArea()) {
+    const scales = viewScales();
+    return {
+      x: clampAxisCenter(center.x, { size: state.width, scale: scales.x, axis: area.x }),
+      y: clampAxisCenter(center.y, { size: state.height, scale: scales.y, axis: area.y }),
+    };
+  }
+
+  /**
+   * Screen pixels between the canvas origin and image pixel 0, negated -- the
+   * "effective scroll" the overlays map with. The canvas no longer scrolls;
+   * the image is placed by a transform alone, and this is derived from the
+   * view centre.
+   */
   function getEffectiveScrollLeft() {
-    if (!canvasWrap) return 0;
-    return (canvasWrap.scrollLeft || 0) - (state.panOffsetX || 0);
+    const area = getViewArea();
+    if (!area || !state.width) return 0;
+    return axisScroll(currentCenter().x, { scale: viewScales().x, axis: area.x });
   }
 
   function getEffectiveScrollTop() {
-    if (!canvasWrap) return 0;
-    return (canvasWrap.scrollTop || 0) - (state.panOffsetY || 0);
+    const area = getViewArea();
+    if (!area || !state.height) return 0;
+    return axisScroll(currentCenter().y, { scale: viewScales().y, axis: area.y });
   }
 
   function applyCanvasTransform() {
     if (!canvas) return;
     const zoom = Number.isFinite(state.zoom) ? state.zoom : 1;
     const aspect = state.pixelAspect || 1;
-    const tx = (state.renderOffsetX || 0) + (state.panOffsetX || 0);
-    const ty = (state.renderOffsetY || 0) + (state.panOffsetY || 0);
+    // Something (a focus, the browser restoring a position) may scroll the
+    // container; the transform alone places the image, so undo it.
+    if (canvasWrap && (canvasWrap.scrollLeft || canvasWrap.scrollTop)) {
+      canvasWrap.scrollLeft = 0;
+      canvasWrap.scrollTop = 0;
+    }
+    const tx = -getEffectiveScrollLeft();
+    const ty = -getEffectiveScrollTop();
     // Non-uniform scale stretches each data pixel to its physical aspect ratio
     // (X is the reference axis; Y is scaled by pixelAspect).
     canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom}, ${zoom * aspect})`;
@@ -131,101 +204,23 @@ export function createOverviewViewportController({
     }
   }
 
-  function clampToRange(value, min, max) {
-    if (!Number.isFinite(value)) return min;
-    if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
-      return value;
-    }
-    return Math.max(min, Math.min(max, value));
-  }
-
-  function getEffectiveScrollBounds() {
-    if (!canvasWrap || !state.width || !state.height) {
-      return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
-    }
-    const zoom = state.zoom || 1;
-    const aspect = state.pixelAspect || 1;
-    const scaledW = state.width * zoom;
-    const scaledH = state.height * zoom * aspect;
-    const viewW = canvasWrap.clientWidth || 0;
-    const viewH = canvasWrap.clientHeight || 0;
-    const baseX = state.renderOffsetX || 0;
-    const baseY = state.renderOffsetY || 0;
-
-    const computeBounds = (scaled, view, base, leadInset = 0, trailInset = 0) => {
-      if (!(scaled > 0) || !(view > 0)) {
-        return { min: 0, max: 0 };
-      }
-      const insetLead = Math.max(0, Number(leadInset) || 0);
-      const insetTrail = Math.max(0, Number(trailInset) || 0);
-      const availableView = Math.max(1, view - insetLead - insetTrail);
-      // Keep a small sliver visible so the image cannot be dragged away entirely,
-      // but do not scale that guard with zoom or large images will "snap" to an edge.
-      const minVisible = Math.min(scaled, Math.max(1, Math.min(48, availableView * 0.5)));
-      const min = base + minVisible + insetTrail - view;
-      const max = base + scaled - insetLead - minVisible;
-      if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
-        return { min: 0, max: 0 };
-      }
-      return { min, max };
-    };
-
-    const footerInset = viewerFooterEl
-      ? Math.max(0, Math.round(viewerFooterEl.getBoundingClientRect().height) + 8)
-      : 0;
-    const bx = computeBounds(scaledW, viewW, baseX, 0, 0);
-    const by = computeBounds(scaledH, viewH, baseY, 0, footerInset);
-    return { minX: bx.min, maxX: bx.max, minY: by.min, maxY: by.max };
-  }
-
-  function clampEffectiveScroll(targetX, targetY) {
-    const bounds = getEffectiveScrollBounds();
-    const desiredX = Number.isFinite(targetX) ? targetX : 0;
-    const desiredY = Number.isFinite(targetY) ? targetY : 0;
-    return {
-      x: clampToRange(desiredX, bounds.minX, bounds.maxX),
-      y: clampToRange(desiredY, bounds.minY, bounds.maxY),
-    };
-  }
-
-  function applyEffectiveScroll(targetX, targetY, schedule = true, clamp = true) {
-    if (!canvasWrap) {
-      return { x: 0, y: 0 };
-    }
-    let desiredX = Number.isFinite(targetX) ? targetX : 0;
-    let desiredY = Number.isFinite(targetY) ? targetY : 0;
-    if (clamp) {
-      const clamped = clampEffectiveScroll(desiredX, desiredY);
-      desiredX = clamped.x;
-      desiredY = clamped.y;
-    }
-    const maxScrollLeft = Math.max(0, (canvasWrap.scrollWidth || 0) - (canvasWrap.clientWidth || 0));
-    const maxScrollTop = Math.max(0, (canvasWrap.scrollHeight || 0) - (canvasWrap.clientHeight || 0));
-    const nextScrollLeft = clampToRange(desiredX, 0, maxScrollLeft);
-    const nextScrollTop = clampToRange(desiredY, 0, maxScrollTop);
-    canvasWrap.scrollLeft = nextScrollLeft;
-    canvasWrap.scrollTop = nextScrollTop;
-    const appliedScrollLeft = canvasWrap.scrollLeft || 0;
-    const appliedScrollTop = canvasWrap.scrollTop || 0;
-    state.panOffsetX = appliedScrollLeft - desiredX;
-    state.panOffsetY = appliedScrollTop - desiredY;
+  /**
+   * Put an image point at the middle of the view, as near as the pan limits
+   * allow. Every change of position ends here.
+   */
+  function applyViewCenter(center, { schedule = true, reason = "pan" } = {}) {
+    if (!state.width || !state.height || !getViewArea()) return;
+    const clamped = clampCenter(center);
+    state.viewCenterX = clamped.x;
+    state.viewCenterY = clamped.y;
+    state.renderOffsetX = 0;
+    state.renderOffsetY = 0;
     applyCanvasTransform();
     if (schedule) {
       core.overlayRender.deferPixelOverlayRedraw();
       syncViewportOverlays();
     }
-    notifyViewportChanged("pan");
-    return { x: desiredX, y: desiredY };
-  }
-
-  function clampPanOffsetsToBounds() {
-    if (!canvasWrap) return false;
-    const currentX = getEffectiveScrollLeft();
-    const currentY = getEffectiveScrollTop();
-    const clamped = clampEffectiveScroll(currentX, currentY);
-    const changed = clamped.x !== currentX || clamped.y !== currentY;
-    applyEffectiveScroll(clamped.x, clamped.y, false, false);
-    return changed;
+    notifyViewportChanged(reason);
   }
 
   function scheduleOverview() {
@@ -273,8 +268,17 @@ export function createOverviewViewportController({
     }, delay + 12);
   }
 
-  function setEffectiveScroll(targetX, targetY, schedule = true, clamp = true) {
-    applyEffectiveScroll(targetX, targetY, schedule, clamp);
+  function setEffectiveScroll(targetX, targetY, schedule = true) {
+    const area = getViewArea();
+    if (!area) return;
+    const scales = viewScales();
+    applyViewCenter(
+      {
+        x: centerFromScroll(Number(targetX) || 0, { scale: scales.x, axis: area.x }),
+        y: centerFromScroll(Number(targetY) || 0, { scale: scales.y, axis: area.y }),
+      },
+      { schedule },
+    );
   }
 
   function updatePanCapability() {
@@ -302,23 +306,24 @@ export function createOverviewViewportController({
     return { width, height, imgW, imgH, scale, scaleY, offsetX, offsetY };
   }
 
+  /** The part of the image in view, in image pixels: what the minimap outlines. */
   function getViewRect() {
     const imgW = state.width;
     const imgH = state.height;
-    if (!imgW || !imgH) return null;
-    const zoom = state.zoom || 1;
-    const aspect = state.pixelAspect || 1;
-    const scaleX = zoom;
-    const scaleY = zoom * aspect;
-    const viewW = canvasWrap.clientWidth / scaleX;
-    const viewH = canvasWrap.clientHeight / scaleY;
-    const viewWClamped = Math.min(viewW, imgW);
-    const viewHClamped = Math.min(viewH, imgH);
-    let viewX = getEffectiveScrollLeft() / scaleX;
-    let viewY = getEffectiveScrollTop() / scaleY;
-    viewX = Math.max(0, Math.min(imgW - viewWClamped, viewX));
-    viewY = Math.max(0, Math.min(imgH - viewHClamped, viewY));
-    return { viewX, viewY, viewW: viewWClamped, viewH: viewHClamped, scaleX, scaleY };
+    const area = getViewArea();
+    if (!imgW || !imgH || !area) return null;
+    const scales = viewScales();
+    const center = currentCenter();
+    const x = visibleAxisSpan(center.x, { size: imgW, scale: scales.x, axis: area.x });
+    const y = visibleAxisSpan(center.y, { size: imgH, scale: scales.y, axis: area.y });
+    return {
+      viewX: x.from,
+      viewY: y.from,
+      viewW: x.length,
+      viewH: y.length,
+      scaleX: scales.x,
+      scaleY: scales.y,
+    };
   }
 
   function overviewEventToImage(event) {
@@ -347,20 +352,7 @@ export function createOverviewViewportController({
   }
 
   function panToImageCenter(x, y) {
-    const view = getViewRect();
-    if (!view) return;
-    const maxX = Math.max(0, state.width - view.viewW);
-    const maxY = Math.max(0, state.height - view.viewH);
-    const targetX = Math.max(0, Math.min(maxX, x - view.viewW / 2));
-    const targetY = Math.max(0, Math.min(maxY, y - view.viewH / 2));
-    setEffectiveScroll(targetX * view.scaleX, targetY * view.scaleY);
-  }
-
-  function scrollToView(viewX, viewY) {
-    if (!state.width || !state.height) return;
-    const zoom = state.zoom || 1;
-    const aspect = state.pixelAspect || 1;
-    setEffectiveScroll(viewX * zoom, viewY * zoom * aspect);
+    applyViewCenter({ x, y });
   }
 
   function getOverviewHandleAt(point) {
@@ -406,9 +398,13 @@ export function createOverviewViewportController({
     if (!overviewState.anchor || !state.width || !state.height) return;
     const anchor = overviewState.anchor;
     const pixelAspect = state.pixelAspect || 1;
+    const area = measureViewArea();
+    if (!area) return;
+    const areaWidth = area.x.end - area.x.start;
+    const areaHeight = area.y.end - area.y.start;
     // anchor/point are in data-pixel space; the view rectangle should keep the
-    // viewport's on-screen shape, so the data-space aspect folds in pixelAspect.
-    const aspect = (canvasWrap.clientWidth / canvasWrap.clientHeight || 1) * pixelAspect;
+    // visible area's on-screen shape, so the data-space aspect folds in pixelAspect.
+    const aspect = (areaWidth / areaHeight || 1) * pixelAspect;
     let width;
     let height;
 
@@ -502,14 +498,10 @@ export function createOverviewViewportController({
     viewX = Math.max(0, Math.min(state.width - width, viewX));
     viewY = Math.max(0, Math.min(state.height - height, viewY));
 
-    const zoomX = canvasWrap.clientWidth / width;
-    const zoomY = canvasWrap.clientHeight / (height * pixelAspect);
-    const zoom = Math.min(6, Math.max(0.5, Math.min(zoomX, zoomY)));
-    setZoom(zoom);
-    window.requestAnimationFrame(() => {
-      scrollToView(viewX, viewY);
-      scheduleOverview();
-    });
+    // The same zoom range as every other control, and zoom and position in
+    // one step, so the rectangle follows the handle without a jump.
+    const zoom = Math.min(areaWidth / width, areaHeight / (height * pixelAspect));
+    setZoom(zoom, { center: { x: viewX + width / 2, y: viewY + height / 2 } });
   }
 
   function drawOverview() {
@@ -630,35 +622,26 @@ export function createOverviewViewportController({
       : { left: conceded, right: 0 };
   }
 
-  function setZoom(value, options = {}) {
-    const { clampPan = true } = options;
+  function clampZoom(value) {
+    const zoom = Number(value);
+    const safe = Number.isFinite(zoom) && zoom > 0 ? zoom : state.zoom || 1;
+    return Math.max(getMinZoom(), Math.min(MAX_ZOOM, safe));
+  }
+
+  /**
+   * Set the zoom about the middle of the visible area -- or about `center`, an
+   * image point to put there -- and re-measure the area, so a resize or a
+   * panel change keeps the same image point in the middle.
+   */
+  function setZoom(value, { center = null } = {}) {
     const minZoom = getMinZoom();
-    const clamped = Math.max(minZoom, Math.min(MAX_ZOOM, Number(value)));
+    const clamped = clampZoom(value);
+    const target = center || currentCenter();
     state.zoom = clamped;
-    const aspect = state.pixelAspect || 1;
-    const insets = panelInsets();
-    const usableWidth = canvasWrap
-      ? Math.max(0, canvasWrap.clientWidth - insets.left - insets.right)
-      : 0;
-    const scaledWidth = state.width * clamped;
-    // Centre in what is actually visible when the frame fits; when it does not,
-    // pin it to the canvas origin and let panning reach the rest, which is what
-    // the old Math.max(0, ...) did for every case.
-    const offsetX =
-      canvasWrap && state.width && scaledWidth <= usableWidth
-        ? insets.left + (usableWidth - scaledWidth) / 2
-        : 0;
-    const offsetY =
-      canvasWrap && state.height
-        ? Math.max(0, (canvasWrap.clientHeight - state.height * clamped * aspect) / 2)
-        : 0;
-    state.renderOffsetX = Number.isFinite(offsetX) ? offsetX : 0;
-    state.renderOffsetY = Number.isFinite(offsetY) ? offsetY : 0;
-    if (clampPan) {
-      withViewportChangeSuppressed(() => {
-        clampPanOffsetsToBounds();
-      });
-    }
+    measureViewArea();
+    withViewportChangeSuppressed(() => {
+      applyViewCenter(target, { schedule: false });
+    });
     applyCanvasTransform();
     updatePanCapability();
     if (zoomRange) {
@@ -676,13 +659,14 @@ export function createOverviewViewportController({
       }
     }
     updateViewerFooter();
-    core.overlayRender.schedulePixelOverlay();
-    scheduleRoiOverlay();
-    core.overlayRender.scheduleResolutionOverlay();
-    core.overlayRender.schedulePeakOverlay();
+    syncViewportOverlays();
     notifyViewportChanged("zoom");
   }
 
+  /**
+   * Zoom keeping the image point under (clientX, clientY) where it is, also
+   * when that point is off the image; only the pan limits can move it.
+   */
   function zoomAt(clientX, clientY, nextZoom) {
     if (!canvasWrap) {
       setZoom(nextZoom);
@@ -691,35 +675,17 @@ export function createOverviewViewportController({
     const rect = canvasWrap.getBoundingClientRect();
     const x = Math.max(0, Math.min(rect.width || 0, clientX - rect.left));
     const y = Math.max(0, Math.min(rect.height || 0, clientY - rect.top));
-    const prevZoom = state.zoom || 1;
-    const aspect = state.pixelAspect || 1;
-    const prevZoomY = prevZoom * aspect;
-    const prevOffsetX = state.renderOffsetX || 0;
-    const prevOffsetY = state.renderOffsetY || 0;
-    const prevEffectiveLeft = getEffectiveScrollLeft();
-    const prevEffectiveTop = getEffectiveScrollTop();
-    const focusX = x;
-    const focusY = y;
-    const rawWorldX = (prevEffectiveLeft + focusX - prevOffsetX) / prevZoom;
-    const rawWorldY = (prevEffectiveTop + focusY - prevOffsetY) / prevZoomY;
-    const worldX = Number.isFinite(state.width)
-      ? Math.max(0, Math.min(state.width, rawWorldX))
-      : rawWorldX;
-    const worldY = Number.isFinite(state.height)
-      ? Math.max(0, Math.min(state.height, rawWorldY))
-      : rawWorldY;
-
-    withViewportChangeSuppressed(() => {
-      setZoom(nextZoom, { clampPan: false });
-
-      const newOffsetX = state.renderOffsetX || 0;
-      const newOffsetY = state.renderOffsetY || 0;
-      const targetEffectiveX = worldX * state.zoom - focusX + newOffsetX;
-      const targetEffectiveY = worldY * state.zoom * aspect - focusY + newOffsetY;
-      setEffectiveScroll(targetEffectiveX, targetEffectiveY, false, false);
+    const area = measureViewArea();
+    const from = viewScales();
+    const center = currentCenter();
+    const zoom = clampZoom(nextZoom);
+    const toY = zoom * (state.pixelAspect || 1);
+    setZoom(zoom, {
+      center: {
+        x: zoomAxisAbout(center.x, { point: x, fromScale: from.x, toScale: zoom, axis: area.x }),
+        y: zoomAxisAbout(center.y, { point: y, fromScale: from.y, toScale: toY, axis: area.y }),
+      },
     });
-    syncViewportOverlays();
-    notifyViewportChanged("zoom");
   }
 
   function normalizeWheelDelta(event) {
@@ -792,7 +758,7 @@ export function createOverviewViewportController({
     if (dx || dy) {
       const nextEffectiveX = getEffectiveScrollLeft() - dx;
       const nextEffectiveY = getEffectiveScrollTop() - dy;
-      setEffectiveScroll(nextEffectiveX, nextEffectiveY, true, false);
+      setEffectiveScroll(nextEffectiveX, nextEffectiveY, true);
     }
 
     touchGestureDistance = nextDistance;
@@ -805,25 +771,40 @@ export function createOverviewViewportController({
     const factor = Math.exp(-delta * 0.002);
     const minZoom = getMinZoom();
     const nextZoom = Math.max(minZoom, Math.min(MAX_ZOOM, zoomBase * factor));
-    zoomAt(clientX, clientY, nextZoom);
+    // Without a pointer (the minimap), about the middle of the view.
+    if (Number.isFinite(clientX) && Number.isFinite(clientY)) {
+      zoomAt(clientX, clientY, nextZoom);
+    } else {
+      setZoom(nextZoom);
+    }
   }
 
+  /** The whole image in the visible area, centred. */
   function fitImageToView() {
     if (!canvasWrap || !state.width || !state.height) return;
-    const aspect = state.pixelAspect || 1;
-    const scale = Math.min(
-      canvasWrap.clientWidth / state.width,
-      canvasWrap.clientHeight / (state.height * aspect),
-    );
-    if (!Number.isFinite(scale) || scale <= 0) return;
-    withViewportChangeSuppressed(() => {
-      setZoom(scale);
-      state.panOffsetX = 0;
-      state.panOffsetY = 0;
-      setEffectiveScroll(0, 0, false);
+    const area = measureViewArea();
+    const zoom = fitZoom({
+      imageWidth: state.width,
+      imageHeight: state.height,
+      pixelAspect: state.pixelAspect || 1,
+      width: area.x.end - area.x.start,
+      height: area.y.end - area.y.start,
     });
-    syncViewportOverlays();
+    if (!zoom) return;
+    withViewportChangeSuppressed(() => {
+      setZoom(zoom, { center: { x: state.width / 2, y: state.height / 2 } });
+    });
     notifyViewportChanged("fit");
+  }
+
+  function getViewCenter() {
+    if (!state.width || !state.height) return null;
+    const center = currentCenter();
+    return { centerX: center.x, centerY: center.y, zoom: state.zoom || 1 };
+  }
+
+  function setViewCenter(centerX, centerY, zoom = state.zoom) {
+    setZoom(zoom, { center: { x: centerX, y: centerY } });
   }
 
   function isTouchGestureActive() {
@@ -848,6 +829,8 @@ export function createOverviewViewportController({
     stopTouchGesture,
     isTouchGestureActive,
     fitImageToView,
+    getViewCenter,
+    setViewCenter,
     scheduleOverview,
     drawOverview,
     getViewRect,

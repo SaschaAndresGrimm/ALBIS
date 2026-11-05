@@ -39,8 +39,10 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Autoload folders/files/metadata fetch orchestration.
 - `frontend/modules/render_engine_controller.js` + `frontend/modules/intensity_scale_utils.js`:
   - WebGL/CPU renderer setup and intensity/statistics utility stack.
-- `frontend/modules/overview_viewport_controller.js`:
-  - Pan/zoom/touch/overview interaction model and viewport transforms.
+- `frontend/modules/overview_viewport_controller.js` + `frontend/modules/viewport_math.js`:
+  - Pan/zoom/touch/overview interaction model and viewport transforms. The view
+    is an image-space centre plus a zoom; `viewport_math.js` holds the pure
+    per-axis arithmetic (pan limits, zoom about a point, fit).
 - `frontend/modules/roi_stats_controller.js` + `frontend/modules/roi_interaction_controller.js`:
   - ROI wiring/orchestration and ROI interaction overlay editing.
 - `frontend/modules/roi_plot_controller.js` + `frontend/modules/roi_profile_utils.js`:

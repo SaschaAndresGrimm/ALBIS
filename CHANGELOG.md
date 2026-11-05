@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+- **Zooming and panning no longer make the image jump.** Wheel zoom keeps the pixel under the cursor in place, the zoom slider and a typed zoom zoom about the middle of what you can see, and resizing the window or opening the side panel keeps the same spot in the middle (it used to keep the top-left corner). Panning now stops at the image's edges, and an image smaller than the window stays centred, so zooming out always returns to the same centred picture instead of wherever an earlier pan left it. The overview in the View tab now outlines exactly what is in view: grabbing the outline after panning to an edge used to snap the view somewhere else, clicking it centres that spot, its corners zoom over the full zoom range (they stopped at 6×) in one step, and scrolling over it zooms. Behind this, the view is now one image point plus a zoom that every control reads and changes, where the minimap, the main view and window resizes each kept their own idea of it.
+
 ## [0.41.0] - 2026-11-04
 
 ### Added

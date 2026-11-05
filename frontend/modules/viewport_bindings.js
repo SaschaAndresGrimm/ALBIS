@@ -265,13 +265,10 @@ export function bindViewportInteractions({
     { passive: false }
   );
 
+  // The container does not scroll (the transform places the image), but a
+  // focus can still scroll it; put it back so the overlays stay aligned.
   canvasWrap.addEventListener("scroll", () => {
-    core.overviewViewport?.deferViewportInteraction();
-    core.overviewViewport?.scheduleOverview();
-    core.overlayRender.schedulePixelOverlay();
-    scheduleRoiOverlay();
-    core.overlayRender.scheduleResolutionOverlay();
-    core.overlayRender.schedulePeakOverlay();
+    core.overviewViewport?.applyCanvasTransform();
   });
 
   canvasWrap.addEventListener("contextmenu", (event) => {

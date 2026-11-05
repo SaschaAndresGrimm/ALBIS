@@ -459,6 +459,7 @@ export function initializePostFilePickerBindings({
   bindOverviewInteractions({
     state,
     overviewState,
+    core,
     elements: {
       overviewCanvas,
     },

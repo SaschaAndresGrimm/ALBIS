@@ -16,6 +16,7 @@ const OVERVIEW_HANDLE_CURSORS = {
 export function bindOverviewInteractions({
   state,
   overviewState,
+  core,
   elements,
   callbacks,
 }) {
@@ -106,6 +107,20 @@ export function bindOverviewInteractions({
       panToImageCenter(point.x - overviewState.dragOffset.x, point.y - overviewState.dragOffset.y);
     }
   });
+
+  // Scrolling over the minimap zooms about the middle of the view, the
+  // rectangle's centre, the same as the zoom slider.
+  overviewCanvas.addEventListener(
+    "wheel",
+    (event) => {
+      const viewport = core?.overviewViewport;
+      if (!state.hasFrame || !viewport) return;
+      event.preventDefault();
+      viewport.deferViewportInteraction();
+      viewport.queueWheelZoom(viewport.normalizeWheelDelta(event));
+    },
+    { passive: false }
+  );
 
   overviewCanvas.addEventListener("pointerup", (event) => {
     stopOverviewDrag(event);

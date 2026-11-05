@@ -112,7 +112,9 @@
 .canvas-wrap {
   position: absolute;
   inset: 0;
-  overflow: auto;
+  /* The image is placed by a transform alone (overview_viewport_controller.js);
+     a scrolling container would be a second, competing pan. */
+  overflow: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
   background: linear-gradient(to bottom, rgba(13, 19, 28, 0.96), rgba(10, 15, 24, 0.96));

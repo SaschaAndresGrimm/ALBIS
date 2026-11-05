@@ -49,7 +49,6 @@ export function bindViewerControls({
     panelFab,
     panelCollapseBtn,
     panelSheetHandle,
-    canvasWrap,
   } = elements;
 
   const {
@@ -60,7 +59,6 @@ export function bindViewerControls({
     formatValue,
     schedulePeakFinder,
     snapHistogramValue,
-    zoomAt,
     requestFrame,
     startPlayback,
     toggleToolbarPlaybackPopover,
@@ -160,14 +158,8 @@ export function bindViewerControls({
 
   zoomRange.addEventListener("input", () => {
     core.overviewViewport?.deferViewportInteraction();
-    const zoom = sliderToZoom(zoomRange.value);
-    if (!canvasWrap) {
-      core.overviewViewport?.setZoom(zoom);
-      core.overviewViewport?.scheduleOverview();
-      return;
-    }
-    const rect = canvasWrap.getBoundingClientRect();
-    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, zoom);
+    // About the middle of the visible area, which setZoom keeps in place.
+    core.overviewViewport?.setZoom(sliderToZoom(zoomRange.value));
   });
 
   // The slider has no step, so a drag zooms smoothly; the keys get steps of
@@ -208,13 +200,7 @@ export function bindViewerControls({
       return;
     }
     core.overviewViewport?.deferViewportInteraction();
-    if (!canvasWrap) {
-      core.overviewViewport?.setZoom(parsedZoom);
-      core.overviewViewport?.scheduleOverview();
-      return;
-    }
-    const rect = canvasWrap.getBoundingClientRect();
-    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, parsedZoom);
+    core.overviewViewport?.setZoom(parsedZoom);
   };
 
   zoomValue?.addEventListener("change", applyManualZoom);

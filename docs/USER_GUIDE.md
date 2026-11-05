@@ -300,14 +300,21 @@ familiar from ALBULA. **Invert Color** flips any of them.
 
 **Zoom and pan**
 
-- Mouse wheel zooms at the cursor.
-- Left-drag pans, including while zoomed out.
+- Mouse wheel zooms at the cursor: the pixel under it stays put.
+- Left-drag pans. Panning stops at the image's edges, and an image narrower or
+  shorter than the window stays centred that way, so zooming out always comes
+  back to the same centred picture.
 - Double-click zooms in a step.
 - **Fit to Window** in the View tab returns to the whole frame.
 - The zoom slider beside it gives each doubling of the zoom the same length,
   so the zooms around 1x have room. Clicked, its arrow keys zoom by about a
   fifth per press — four presses double — and `Page Up` / `Page Down` double
-  or halve.
+  or halve. The slider and a typed zoom zoom about the middle of the view.
+- The small image at the top of the View tab outlines what is in view. Click
+  it to centre that spot, drag the outline to move, drag its corners or sides
+  to zoom, and scroll over it to zoom about the middle.
+- Resizing the window or opening and closing the side panel keeps the same
+  spot in the middle.
 
 **Magnifier.** Hold **Z** and a round lens at the mouse shows the pixels under it
 enlarged — drawn from the data, so with the whole detector on screen you still

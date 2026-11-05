@@ -157,8 +157,10 @@ function createViewportState() {
     pixelAspect: 1,
     renderOffsetX: 0,
     renderOffsetY: 0,
-    panOffsetX: 0,
-    panOffsetY: 0,
+    // The image point at the middle of the visible area (null: the image's
+    // centre). With the zoom, this is the whole view; see viewport_math.js.
+    viewCenterX: null,
+    viewCenterY: null,
   };
 }
 
