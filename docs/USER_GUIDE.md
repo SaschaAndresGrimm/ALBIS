@@ -180,17 +180,19 @@ file you opened, until ALBIS is restarted. ALBIS reads:
 | A MYTHEN(2) acquisition | the acquisition's `.cfg` file |
 
 A data file opened on its own — a DECTRIS `_data_000001.h5`, or Odin's
-`_000001.h5` — holds frames but no energy, distance, pixel size or beam centre.
-ALBIS takes those from the collection's other files in the same folder: the `.nxs`
-(also one named like `_w00001.nxs`), then `_master.h5`, then `_meta.h5`. The
-resolution rings then work without entering the geometry by hand. Opening the
+`_000001.h5` — holds frames but no energy, distance, pixel size, beam centre or
+pixel mask. ALBIS takes those from the collection's other files in the same folder:
+the `.nxs` (also one named like `_w00001.nxs`), then `_master.h5`, then `_meta.h5`.
+The resolution rings then work without entering the geometry by hand, and the
+detector's gaps are masked. Opening the
 `.nxs` or `_master.h5` itself shows every frame of the collection rather than one
 file's share of them.
 
 A numbered series such as `scan_00001.cbf … scan_00500.cbf` is recognised from
 one member: open any of them and the frame slider covers the whole series. In
 the file browser, a series is collapsed to a single entry so a folder of
-thousands of frames stays readable.
+thousands of frames stays readable. A NeXus collection is shown as its `.nxs`, with its
+data and meta files under it, since that is the file that opens all of its frames.
 
 A **MYTHEN(2)** acquisition is a folder holding one `.cfg` descriptor and one
 `FrameNNNN.dat` per exposure. Open the `.cfg` and the whole run is assembled

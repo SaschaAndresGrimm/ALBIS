@@ -20,6 +20,7 @@ and deciding whether a found file may be read at all, is the caller's.
 
 from __future__ import annotations
 
+import bisect
 import os
 import re
 from collections.abc import Callable
@@ -98,3 +99,36 @@ def companion_metadata_files(
         if accepted is not None:
             found.append(accepted)
     return found
+
+
+def nexus_collection_leads(names: list[str]) -> dict[str, str]:
+    """For each data or meta file whose collection has a NeXus master: that master.
+
+    The file browser's series view shows such a collection as its `.nxs`
+    alone, the way it shows a DECTRIS master over its data files: opening a
+    data file gives one file's share of the frames, the master gives them all.
+    A collection with no `.nxs` is not touched. The `.nxs` chosen is the one
+    `companion_names` would pick first. Sorted lookups rather than a scan per
+    file, since a visit's folder can hold thousands of collections.
+    """
+    nexus = sorted((name.casefold(), name) for name in names if name.casefold().endswith(".nxs"))
+    folded = [item[0] for item in nexus]
+    by_folded = dict(nexus)
+    lead_of_prefix: dict[str, str | None] = {}
+    leads: dict[str, str] = {}
+    for name in names:
+        prefix = collection_prefix(name)
+        if prefix is None:
+            continue
+        key = prefix.casefold()
+        if key not in lead_of_prefix:
+            lead = by_folded.get(f"{key}.nxs")
+            if lead is None:
+                start = bisect.bisect_left(folded, f"{key}_")
+                if start < len(folded) and folded[start].startswith(f"{key}_"):
+                    lead = nexus[start][1]
+            lead_of_prefix[key] = lead
+        lead = lead_of_prefix[key]
+        if lead is not None:
+            leads[name] = lead
+    return leads

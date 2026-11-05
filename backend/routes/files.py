@@ -25,6 +25,7 @@ from ..api_models import (
     UploadResponse,
 )
 from ..config import UI_LANGUAGES, normalize_ui_language
+from ..services.companion_files import nexus_collection_leads
 from ..services.directory_scan import LatestFileResult, ScanResult, is_utf8_name
 from ..services.hdf5_open import HDF5_EXTS
 from ..services.log_safety import sanitize_log_value
@@ -364,10 +365,29 @@ def _aggregate_browse_series(
     singles: list[dict[str, Any]] = []
     groups: dict[tuple[str, str, str], dict[str, Any]] = {}
     hdf_groups: dict[str, dict[str, Any]] = {}
+    # Odin/nexgen collections: data and meta files under their `.nxs`.
+    nexus_leads = nexus_collection_leads(
+        [
+            str(item.get("name") or "")
+            for item in files
+            if str(item.get("ext") or "").lower() in _HDF_SERIES_EXTS
+            and _split_hdf_series(str(item.get("name") or "")) is None
+        ]
+    )
+    nexus_groups: dict[str, dict[str, Any]] = {
+        lead: {"lead": None, "members": []} for lead in set(nexus_leads.values())
+    }
     for item in files:
         ext = str(item.get("ext") or "").lower()
         if ext in _HDF_SERIES_EXTS:
-            parsed = _split_hdf_series(str(item.get("name") or ""))
+            name = str(item.get("name") or "")
+            parsed = _split_hdf_series(name)
+            if parsed is None and name in nexus_leads:
+                nexus_groups[nexus_leads[name]]["members"].append(item)
+                continue
+            if parsed is None and name in nexus_groups:
+                nexus_groups[name]["lead"] = item
+                continue
             if parsed is None:
                 singles.append(item)
                 continue
@@ -425,6 +445,19 @@ def _aggregate_browse_series(
                 **lead,
                 "mtime": max(float(member.get("mtime", 0.0)) for member in members),
                 "seriesCount": max(1, len(data_items)),
+            }
+        )
+    for group in nexus_groups.values():
+        lead, members = group["lead"], group["members"]
+        if lead is None:  # the master fell outside a truncated listing
+            singles.extend(members)
+            continue
+        data_files = [m for m in members if not str(m.get("name", "")).lower().endswith("_meta.h5")]
+        singles.append(
+            {
+                **lead,
+                "mtime": max(float(m.get("mtime", 0.0)) for m in [lead, *members]),
+                "seriesCount": max(1, len(data_files)),
             }
         )
     merged = singles + list(groups.values())
