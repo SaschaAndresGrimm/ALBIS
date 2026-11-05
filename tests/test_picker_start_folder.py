@@ -31,9 +31,9 @@ AWKWARD = 'cm44169-2 Mark\'s "run" \u2019final\u2018'
 
 @pytest.fixture
 def start_dir(tmp_path: Path) -> Path:
-    folder = tmp_path / AWKWARD
-    folder.mkdir()
-    return folder
+    # Not created: the command-line tests never touch the disk, and Windows
+    # refuses `"` in a folder name, which the tests here still need to carry.
+    return tmp_path / AWKWARD
 
 
 # --------------------------------------------------------------------------
