@@ -70,8 +70,11 @@ export function bindOverviewInteractions({
         point.y >= view.viewY &&
         point.y <= view.viewY + view.viewH;
       if (inView) {
-        const centerX = view.viewX + view.viewW / 2;
-        const centerY = view.viewY + view.viewH / 2;
+        // Offset from the real view centre, not the outline's: an image smaller
+        // than the view may sit anywhere in it, and grabbing must not move it.
+        const own = core?.overviewViewport?.getViewCenter?.();
+        const centerX = own ? own.centerX : view.viewX + view.viewW / 2;
+        const centerY = own ? own.centerY : view.viewY + view.viewH / 2;
         overviewState.dragOffset = { x: point.x - centerX, y: point.y - centerY };
       } else {
         overviewState.dragOffset = { x: 0, y: 0 };

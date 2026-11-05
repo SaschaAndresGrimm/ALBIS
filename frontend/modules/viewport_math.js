@@ -21,20 +21,22 @@ export function axisMid(axis) {
 }
 
 /**
- * The nearest allowed centre. An image that fits the visible span is centred
- * in it; a larger one cannot be panned past its edges, so no empty band opens
- * between an image edge and the side of the view.
+ * The nearest allowed centre. On each axis the image either covers the
+ * visible span or lies wholly inside it: a larger image cannot be panned past
+ * its edges (no empty band opens beside it), a smaller one moves freely but
+ * cannot leave the view. The two limits are the centres that put the image's
+ * near edge at the span's start and its far edge at `edgeEnd`; which of them
+ * is the lower one is what flips when the image grows past the span, and at
+ * that size they coincide, so nothing jumps.
  */
 export function clampAxisCenter(center, { size, scale, axis }) {
   if (!(size > 0) || !(scale > 0)) return finiteOr(center, 0);
-  const span = size * scale;
-  const visible = axis.end - axis.start;
-  if (!(span > visible)) return size / 2;
   const mid = axisMid(axis);
   const edgeEnd = Math.min(axis.end, finiteOr(axis.edgeEnd, axis.end));
-  const min = (mid - axis.start) / scale;
-  const max = size - (edgeEnd - mid) / scale;
-  if (!(min <= max)) return size / 2;
+  const nearAtStart = (mid - axis.start) / scale;
+  const farAtEnd = size - (edgeEnd - mid) / scale;
+  const min = Math.min(nearAtStart, farAtEnd);
+  const max = Math.max(nearAtStart, farAtEnd);
   return Math.max(min, Math.min(max, finiteOr(center, size / 2)));
 }
 
