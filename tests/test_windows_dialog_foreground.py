@@ -26,7 +26,9 @@ def folder_script(monkeypatch: pytest.MonkeyPatch) -> str:
     """The script `_windows_choose_folder` would hand to PowerShell."""
     captured: list[str] = []
     monkeypatch.setattr(
-        os_actions, "_windows_dialog_runner", lambda script: captured.append(script) or None
+        os_actions,
+        "_windows_dialog_runner",
+        lambda script, start_dir=None: captured.append(script) or None,
     )
     os_actions._windows_choose_folder("Select the log folder")
     return captured[0]
@@ -37,7 +39,9 @@ def file_script(monkeypatch: pytest.MonkeyPatch) -> str:
     """The script `_windows_choose_file` would hand to PowerShell."""
     captured: list[str] = []
     monkeypatch.setattr(
-        os_actions, "_windows_dialog_runner", lambda script: captured.append(script) or None
+        os_actions,
+        "_windows_dialog_runner",
+        lambda script, start_dir=None: captured.append(script) or None,
     )
     os_actions._windows_choose_file((".h5", ".cbf"), "Select an image")
     return captured[0]

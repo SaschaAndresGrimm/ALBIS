@@ -36,6 +36,7 @@ from ..services.os_actions import (
 from ..services.os_actions import (
     is_applescript_cancel as _is_applescript_cancel,
 )
+from ..services.picker_start import PickerStartFolders
 from ..services.ui_prompts import resolve_prompt
 
 
@@ -82,6 +83,8 @@ class FileRouteDeps:
     image_ext_name: Callable[[str], str]
     split_series_name: Callable[[str], tuple[str, int, str] | None]
     strip_image_ext: Callable[[str, str], str]
+    # Where the native choosers open: the data root, then where they left off.
+    picker_start: PickerStartFolders
 
 
 def _is_readonly_upload_error(exc: OSError) -> bool:
@@ -543,8 +546,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             _picker_language(lang, deps.get_ui_language),
             "Select folder",
         )
+        start_dir = deps.picker_start.start_for("folder", deps.data_dir)
         try:
-            path = _choose_folder(prompt=prompt)
+            path = _choose_folder(prompt=prompt, start_dir=start_dir)
         except subprocess.CalledProcessError as exc:
             if _is_applescript_cancel(exc.stderr):
                 return Response(status_code=204)
@@ -559,6 +563,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         if not path:
             return Response(status_code=204)
         deps.logger.info("Folder picker selected: %s", path)
+        deps.picker_start.remember("folder", Path(path).expanduser())
         return PathSelectionResponse(path=path)
 
     @app.get("/api/choose-file", response_model=PathSelectionResponse)
@@ -582,8 +587,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             _picker_language(lang, deps.get_ui_language),
             "Select geometry file" if geometry_only else "Select image file",
         )
+        start_dir = deps.picker_start.start_for("file", deps.data_dir)
         try:
-            path = _choose_file(exts=picker_exts, prompt=prompt)
+            path = _choose_file(exts=picker_exts, prompt=prompt, start_dir=start_dir)
         except subprocess.CalledProcessError as exc:
             if _is_applescript_cancel(exc.stderr):
                 return Response(status_code=204)
@@ -604,6 +610,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         if not picked.exists():
             raise HTTPException(status_code=404, detail="File not found")
         deps.logger.info("File picker selected: %s", picked)
+        deps.picker_start.remember("file", picked)
         return PathSelectionResponse(path=str(picked))
 
     @app.get("/api/browse", response_model=BrowseResponse)
