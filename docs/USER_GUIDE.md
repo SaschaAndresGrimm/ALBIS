@@ -457,7 +457,7 @@ to 16): **+ Add ring** adds a field, **×** removes one, and the list is sorted
 by d when you leave it. **Ice rings** adds the ten rings of hexagonal ice, the
 quickest way to see whether ice is on an image, and **Clear** removes them all.
 The rings are remembered for the next session. On the image, a ring can also be
-dragged to a new radius. Once rings are on, the cursor readout gains a **d**
+dragged to a new radius, on a multi-panel or tilted detector as on a flat one. Once rings are on, the cursor readout gains a **d**
 value, so pointing at a feature tells you its resolution.
 
 ![Resolution rings at 10, 5, 3.3 and 2.5 Å and 30 found peaks circled on the image, with the peak table in the Analysis tab](images/user-guide/rings-peaks.webp)

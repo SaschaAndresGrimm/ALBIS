@@ -77,10 +77,33 @@ describe("resolution_ring_interaction_controller", () => {
     expect(handle?.d).toBeCloseTo(3.67, 2);
   });
 
-  it("does not expose ring handles in geometry mode", () => {
-    const { controller } = setup({ params: { mode: "geometry" }, ringValues: ["3.67"] });
+  it("finds a ring in geometry mode by the scattering angle under the pointer", () => {
+    // Rings on panels or a tilted detector are not circles; the handle is found
+    // from the d-spacing at the pointer instead. Here the same flat geometry
+    // as above, given as a function, so the ring is again ~190 px out.
+    const flatD = (x, y) => {
+      const twoTheta = Math.atan((Math.hypot(x - 200, y - 200) * 0.075) / 50);
+      return 12398.4193 / 12222 / (2 * Math.sin(twoTheta / 2));
+    };
+    const { controller } = setup({
+      params: { mode: "geometry", geometry: { panels: [{}] } },
+      ringValues: ["3.67"],
+      getResolutionAtPixel: flatD,
+    });
+
     const handle = controller.getRingHandleAt({ clientX: 200 + 190, clientY: 200 });
-    expect(handle).toBeNull();
+    expect(handle?.type).toBe("ring");
+    expect(handle?.index).toBe(0);
+    expect(controller.getRingHandleAt({ clientX: 200 + 150, clientY: 200 })).toBeNull();
+  });
+
+  it("finds no ring in a gap between panels, where there is no angle", () => {
+    const { controller } = setup({
+      params: { mode: "geometry", geometry: { panels: [{}] } },
+      ringValues: ["3.67"],
+      getResolutionAtPixel: () => null,
+    });
+    expect(controller.getRingHandleAt({ clientX: 200 + 190, clientY: 200 })).toBeNull();
   });
 
   it("sets the beam centre as a manual override, in whole pixels, on drag", () => {
