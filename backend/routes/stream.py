@@ -117,7 +117,7 @@ class StreamRouteDeps:
     pilatus_meta_from_tiff: Callable[[Path], dict[str, Any]]
     pilatus_meta_from_fabio: Callable[[Path], dict[str, Any]]
     pilatus_header_text: Callable[[Path], str]
-    pilatus_image_geometry: Callable[[Path, Path | None], dict[str, Any]]
+    pilatus_image_geometry: Callable[..., dict[str, Any]]
     simplon_base: Callable[[str, str], str]
     simplon_set_mode: Callable[[str, str], None]
     simplon_fetch_monitor: Callable[[str, int], bytes | None]
@@ -134,6 +134,9 @@ class StreamRouteDeps:
     jfjoch_preview_stop: Callable[[], dict[str, Any]]
     jfjoch_preview_status: Callable[[], dict[str, Any]]
     jfjoch_probe_endpoint: Callable[[str], dict[str, Any]]
+    # The metadata files next to a data file, vetted against the data root, best
+    # first: a data file's detector geometry may be in its collection's master.
+    companion_files: Callable[[Path], list[Path]] = lambda _path: []
 
 
 def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
@@ -203,7 +206,13 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         deps.logger.debug("Image header (%s): %d chars", path.name, len(header_text))
         return ImageHeaderResponse(header=header_text or "")
 
-    @app.get("/api/image/geometry", response_model=ImageGeometryResponse)
+    # Unset fields are left out, not sent as null: the reference pose exists
+    # only for a tilted detector, and every other answer stays as it was.
+    @app.get(
+        "/api/image/geometry",
+        response_model=ImageGeometryResponse,
+        response_model_exclude_none=True,
+    )
     def image_geometry(
         file: str = Query(..., min_length=1),
         geometry_file: str | None = Query(None),
@@ -224,7 +233,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
                 raise HTTPException(
                     status_code=400, detail="Geometry override must be a DIALS .expt file"
                 )
-        payload = deps.pilatus_image_geometry(path, geometry_path)
+        payload = deps.pilatus_image_geometry(path, geometry_path, deps.companion_files)
         deps.logger.debug("Image geometry (%s): %s", path.name, payload.get("mode"))
         return ImageGeometryResponse(**payload)
 

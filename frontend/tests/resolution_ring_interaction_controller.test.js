@@ -96,6 +96,27 @@ describe("resolution_ring_interaction_controller", () => {
     expect(setBeamCenter).toHaveBeenCalledWith(123, 57);
   });
 
+  it("grabs the marker where the beam meets a tilted detector, not at the 2θ = 0 field", () => {
+    // I19-2's 2θ arm: the field holds (985, 1419), the beam meets the detector
+    // 413 px away. The marker is drawn there, so that is where it is grabbed.
+    const params = { mode: "geometry", centerX: 300, centerY: 200, markerX: 100, markerY: 200 };
+    const { controller } = setup({ params });
+
+    expect(controller.getRingHandleAt({ clientX: 101, clientY: 199 })).toEqual({ type: "center" });
+    expect(controller.getRingHandleAt({ clientX: 300, clientY: 200 })).toBeNull();
+  });
+
+  it("drags a tilted detector's marker by keeping the field's offset from it", () => {
+    const params = { mode: "geometry", centerX: 300, centerY: 200, markerX: 100, markerY: 200 };
+    const { controller, setBeamCenter } = setup({ params });
+
+    controller.startRingEdit({ type: "center" });
+    controller.applyRingEdit({ x: 110, y: 205 });
+
+    // The marker went 10 right and 5 down; the 2θ = 0 field goes the same way.
+    expect(setBeamCenter).toHaveBeenCalledWith(310, 205);
+  });
+
   it("sets the dragged ring's d-spacing by its index, and re-sorts when the drag ends", () => {
     const { controller, setRingValue, commitRings } = setup({
       ringValues: ["3.67", "11.01"],

@@ -222,6 +222,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 
 - `backend/services/hdf5_stack.py`:
   - HDF5 dataset discovery, metadata extraction, path resolution, frame extraction.
+- `backend/services/nxmx_geometry.py`:
+  - A tilted detector's panels from an NXmx file's transformation chain (a 2θ arm), with the pose the Detector Geometry fields are measured against.
 - `backend/services/vds_dtype.py`:
   - The type a virtual dataset's frames are served as: its sources' integer type when that loses nothing (nexgen's int64 over uint32).
 - `backend/services/hdf5_open.py`:
@@ -320,7 +322,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Series detection and job-level behavior tests.
 - `tests/test_remote_stream_helpers.py`:
   - Remote stream metadata and decode helper tests.
-- `tests/test_path_policy.py`, `tests/test_binary_response_utils.py`, `tests/test_hdf5_units.py`, `tests/test_os_actions_helpers.py`, `tests/test_picker_start_folder.py`, `tests/test_companion_metadata.py`, `tests/test_vds_dtype.py`:
+- `tests/test_path_policy.py`, `tests/test_binary_response_utils.py`, `tests/test_hdf5_units.py`, `tests/test_os_actions_helpers.py`, `tests/test_picker_start_folder.py`, `tests/test_companion_metadata.py`, `tests/test_vds_dtype.py`, `tests/test_nxmx_geometry.py`:
   - Focused utility-level regression coverage for extracted shared modules.
 - `tests/test_detector_control.py`, `tests/fake_simplon.py`:
   - Detector tab endpoints against a simulated SIMPLON detector control unit; `test_scripts/fake_simplon_dcu.py` runs the same simulation by hand (`--thresholds 1-4`, `--api-version 1.6.0`).

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,11 @@ from ..detector_profiles import DLS_I23_P12M_DETECTOR, dls_i23_pilatus_12m_geome
 from ..image_formats import _image_ext_name, _pilatus_header_text
 from .hdf5_open import HDF5_EXTS
 from .image_values import _as_int, _first_number
+from .nxmx_geometry import read_nxmx_geometry
+
+# The metadata files next to a data file, vetted against the data root, best
+# first: services/companion_files.py, through PathPolicy.
+CompanionFiles = Callable[[Path], list[Path]]
 
 
 def _pilatus_is_12m_header_text(text: str) -> bool:
@@ -282,12 +288,28 @@ def _read_hdf5_embedded_geometry(path: Path) -> dict[str, Any] | None:
         source_label = f"embedded HDF5 geometry (from {Path(source).name})"
     else:
         source_label = "embedded HDF5 geometry"
-    return {
+    embedded = {
         "mode": "geometry",
         "detector": str(payload.get("detector") or ""),
         "source": source_label,
         "panels": panels,
     }
+    # A sum of tilted-detector data keeps the pose its fields are measured
+    # against; without it the sum's own beam centre would shift its detector.
+    embedded.update(_reference_pose(payload))
+    return embedded
+
+
+def _reference_pose(payload: dict[str, Any]) -> dict[str, Any]:
+    pose: dict[str, Any] = {}
+    for key in ("reference_center_x_px", "reference_center_y_px", "reference_distance_mm"):
+        value = _first_number(payload.get(key))
+        if value is not None and math.isfinite(value):
+            pose[key] = float(value)
+    axis = _coerce_float_vector(payload.get("distance_axis"), 3)
+    if axis is not None and math.hypot(*axis) > 1e-9:
+        pose["distance_axis"] = axis
+    return pose
 
 
 def _resolve_hdf5_source_file(path: Path) -> Path | None:
@@ -320,10 +342,22 @@ def _resolve_hdf5_source_file(path: Path) -> Path | None:
     return source_path
 
 
+def _read_nxmx_file_geometry(path: Path) -> dict[str, Any] | None:
+    """A tilted detector's panels from an NXmx file's transformations. See nxmx_geometry.py."""
+    try:
+        import h5py  # type: ignore[import-not-found]
+
+        with h5py.File(path, "r") as h5:
+            return read_nxmx_geometry(h5)
+    except Exception:  # noqa: BLE001 - an unreadable chain means the flat model
+        return None
+
+
 def _pilatus_image_geometry_internal(
     path: Path,
     geometry_path: Path | None,
     visited: set[Path],
+    companion_files: CompanionFiles | None = None,
 ) -> dict[str, Any]:
     geometry = {"mode": "planar", "detector": "", "source": "", "panels": []}
     if geometry_path is not None:
@@ -348,9 +382,17 @@ def _pilatus_image_geometry_internal(
         embedded = _read_hdf5_embedded_geometry(path)
         if embedded:
             return embedded
+        nxmx = _read_nxmx_file_geometry(path)
+        if nxmx:
+            return nxmx
         source_path = _resolve_hdf5_source_file(path)
         if source_path and source_path.exists():
-            return _pilatus_image_geometry_internal(source_path, None, visited)
+            return _pilatus_image_geometry_internal(source_path, None, visited, companion_files)
+        # A data file opened on its own: its collection's master holds the chain.
+        for companion in companion_files(path) if companion_files else []:
+            nxmx = _read_nxmx_file_geometry(companion)
+            if nxmx:
+                return nxmx
         return geometry
     # The DECTRIS TIFF carries the same text header as the miniCBF, in its
     # ImageDescription tag.
@@ -373,5 +415,9 @@ def _pilatus_image_geometry_internal(
     }
 
 
-def _pilatus_image_geometry(path: Path, geometry_path: Path | None = None) -> dict[str, Any]:
-    return _pilatus_image_geometry_internal(path, geometry_path, set())
+def _pilatus_image_geometry(
+    path: Path,
+    geometry_path: Path | None = None,
+    companion_files: CompanionFiles | None = None,
+) -> dict[str, Any]:
+    return _pilatus_image_geometry_internal(path, geometry_path, set(), companion_files)

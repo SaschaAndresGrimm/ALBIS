@@ -741,6 +741,17 @@ sample-to-detector distance along the beam, about 260 mm: the header's
 position, and ALBIS reads it the way DIALS does. An `imported.expt` next to the
 data, or one chosen as the geometry file, still takes precedence.
 
+A detector on a **2θ arm**, such as the Eiger at Diamond beamline I19-2, is
+placed where its NeXus file says: ALBIS follows the file's chain of detector
+transformations (arm angle, distance, module position), as DIALS does. The
+resolution rings then follow the tilted detector, the cursor's **d** is right
+across the whole image, and the red cross marks where the beam actually meets the
+detector. The **Beam centre** and **Distance** fields keep the meaning the file
+gives them: the beam centre the detector would have at 2θ = 0, and the distance
+along the arm, so changing either moves the tilted detector as a whole. A data
+file opened on its own takes this from its collection's `.nxs`. A detector square
+to the beam is drawn as before.
+
 ---
 
 ## Flatfield correction

@@ -84,7 +84,7 @@ export function createResolutionRingInteractionController({
     const params = getRingParams();
     if (!params.energyEv) return null;
 
-    const center = imageToScreen(params.centerX, params.centerY);
+    const center = imageToScreen(params.markerX ?? params.centerX, params.markerY ?? params.centerY);
     const distToCenter = Math.hypot(pointer.x - center.x, pointer.y - center.y);
     if (params.centerKnown && distToCenter <= CENTER_HIT_PX) {
       return { type: "center" };
@@ -116,7 +116,12 @@ export function createResolutionRingInteractionController({
   function applyRingEdit(point) {
     if (!ringEditing || !activeHandle || !point) return;
     if (activeHandle.type === "center") {
-      setBeamCenter?.(Math.round(point.x), Math.round(point.y));
+      // The marker sits where the beam meets the detector; the field holds the
+      // 2θ = 0 centre, a fixed offset from it whatever the centre is moved to.
+      const params = getRingParams();
+      const offsetX = Number.isFinite(params.markerX) ? params.markerX - params.centerX : 0;
+      const offsetY = Number.isFinite(params.markerY) ? params.markerY - params.centerY : 0;
+      setBeamCenter?.(Math.round(point.x - offsetX), Math.round(point.y - offsetY));
       return;
     }
     if (activeHandle.type === "ring") {
