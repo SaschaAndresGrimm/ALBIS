@@ -11,39 +11,43 @@ import {
 const axis = { start: 0, end: 400 };
 
 describe("viewport_math", () => {
-  it("lets an image that fits the span move, but not out of it", () => {
-    // 200 px image in 400 px: centres from 0 (left edge at 0) to 200 (right edge at 400).
-    expect(clampAxisCenter(30, { size: 200, scale: 1, axis })).toBe(30);
-    expect(clampAxisCenter(-80, { size: 200, scale: 1, axis })).toBe(0);
-    expect(clampAxisCenter(500, { size: 200, scale: 1, axis })).toBe(200);
-    // Exactly as large as the span: one position, from either rule.
-    expect(clampAxisCenter(30, { size: 200, scale: 2, axis })).toBe(100);
-  });
-
-  it("changes the limits without a jump as the image grows past the span", () => {
-    const at = (scale) => clampAxisCenter(-1e9, { size: 200, scale, axis });
-    expect(at(1.99999)).toBeCloseTo(at(2), 2);
-    expect(at(2.00001)).toBeCloseTo(at(2), 2);
-  });
-
-  it("keeps a larger image's edges at the sides of the span", () => {
-    // 1000 px image at 1x in 400 px: centres from 200 to 800.
-    expect(clampAxisCenter(50, { size: 1000, scale: 1, axis })).toBe(200);
-    expect(clampAxisCenter(950, { size: 1000, scale: 1, axis })).toBe(800);
+  it("lets the image move until only a strip of it is left in view", () => {
+    // 1000 px image at 1x in 400 px, 48 px kept: centres from 48 - 200 to 1000 + 200 - 48.
     expect(clampAxisCenter(500, { size: 1000, scale: 1, axis })).toBe(500);
+    expect(clampAxisCenter(-9999, { size: 1000, scale: 1, axis })).toBe(-152);
+    expect(clampAxisCenter(9999, { size: 1000, scale: 1, axis })).toBe(1152);
   });
 
-  it("lets the far edge stop before a control floating over the image", () => {
+  it("keeps the whole of an image smaller than the strip in view", () => {
+    // 20 px image: its far edge no further left than 20, near edge no further right than 380.
+    expect(clampAxisCenter(-9999, { size: 20, scale: 1, axis })).toBe(-180);
+    expect(clampAxisCenter(9999, { size: 20, scale: 1, axis })).toBe(200);
+  });
+
+  it("changes the limits smoothly as the image grows", () => {
+    const at = (scale) => clampAxisCenter(-1e9, { size: 200, scale, axis });
+    for (const scale of [0.24, 0.5, 1.99, 2, 2.01, 5]) {
+      expect(at(scale * 1.00001)).toBeCloseTo(at(scale), 1);
+    }
+  });
+
+  it("never moves an image that is in view", () => {
+    for (const center of [-100, 0, 250, 700, 1100]) {
+      expect(clampAxisCenter(center, { size: 1000, scale: 1, axis })).toBe(center);
+    }
+  });
+
+  it("keeps the strip above a control floating over the image", () => {
     const withFooter = { start: 0, end: 300, edgeEnd: 252 };
-    const center = clampAxisCenter(99999, { size: 1000, scale: 1, axis: withFooter });
-    // Far edge on screen: mid + (size - center) * scale.
-    expect(150 + (1000 - center)).toBe(252);
+    const center = clampAxisCenter(-99999, { size: 1000, scale: 1, axis: withFooter });
+    // Near edge on screen: mid - center * scale.
+    expect(150 - center).toBe(252 - 48);
   });
 
   it("uses only the part of the canvas a floating panel leaves visible", () => {
     const besidePanel = { start: 0, end: 300 };
-    // Right edge at most at 300: centre at least 200 - (300 - 150).
-    expect(clampAxisCenter(0, { size: 200, scale: 1, axis: besidePanel })).toBe(50);
+    // Near edge at most 300 - 48 = 252 on screen: centre at least (150 - 252) / 1.
+    expect(clampAxisCenter(-9999, { size: 200, scale: 1, axis: besidePanel })).toBe(-102);
     expect(axisScroll(100, { scale: 1, axis: besidePanel })).toBe(-50);
   });
 

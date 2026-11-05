@@ -301,8 +301,8 @@ familiar from ALBULA. **Invert Color** flips any of them.
 **Zoom and pan**
 
 - Mouse wheel zooms at the cursor: the pixel under it stays put.
-- Left-drag pans. A zoomed-in image stops at its edges, so no empty band opens
-  beside it; a zoomed-out image moves freely but stays in the window.
+- Left-drag pans, zoomed in or out, until only a narrow strip of the image is
+  left in the window, so it cannot get lost.
 - Double-click zooms in a step.
 - **Fit to Window** in the View tab returns to the whole frame.
 - The zoom slider beside it gives each doubling of the zoom the same length,

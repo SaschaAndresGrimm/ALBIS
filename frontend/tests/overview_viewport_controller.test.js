@@ -225,18 +225,18 @@ describe("overview_viewport_controller", () => {
     expect(controller.getEffectiveScrollTop()).toBeCloseTo(before.y, 6);
   });
 
-  it("stops panning at the image's edges", async () => {
+  it("pans until only a strip of the image is left in view", async () => {
     const { controller, state } = await createController({ imageWidth: 2000, imageHeight: 2000 });
 
     controller.setZoom(1);
-    controller.setEffectiveScroll(-500, -500);
-    expect(imageEdges(controller, state)).toMatchObject({ left: 0, top: 0 });
+    controller.setEffectiveScroll(-99999, -99999);
+    expect(imageEdges(controller, state)).toMatchObject({ left: 400 - 48, top: 300 - 48 });
 
     controller.setEffectiveScroll(99999, 99999);
-    expect(imageEdges(controller, state)).toMatchObject({ right: 400, bottom: 300 });
+    expect(imageEdges(controller, state)).toMatchObject({ right: 48, bottom: 48 });
   });
 
-  it("lets the bottom edge stop above the footer floating over the image", async () => {
+  it("keeps the strip of image above the footer floating over it", async () => {
     const { controller, state } = await createController({
       imageWidth: 2000,
       imageHeight: 2000,
@@ -244,12 +244,12 @@ describe("overview_viewport_controller", () => {
     });
 
     controller.setZoom(1);
-    controller.setEffectiveScroll(0, 99999);
+    controller.setEffectiveScroll(0, -99999);
 
-    expect(imageEdges(controller, state).bottom).toBe(300 - 48);
+    expect(imageEdges(controller, state).top).toBe(300 - 48 - 48);
   });
 
-  it("moves an image smaller than the view on that axis, keeping it in view", async () => {
+  it("moves a zoomed-out image freely, short of losing it", async () => {
     const { controller, state } = await createController({ imageWidth: 200, imageHeight: 1000 });
 
     controller.setZoom(1);
@@ -257,10 +257,10 @@ describe("overview_viewport_controller", () => {
     expect(imageEdges(controller, state)).toMatchObject({ left: 30, right: 230, top: -400 });
 
     controller.setEffectiveScroll(-9999, 400);
-    expect(imageEdges(controller, state)).toMatchObject({ left: 200, right: 400 });
+    expect(imageEdges(controller, state)).toMatchObject({ left: 400 - 48 });
 
     controller.setEffectiveScroll(9999, 400);
-    expect(imageEdges(controller, state)).toMatchObject({ left: 0, right: 200 });
+    expect(imageEdges(controller, state)).toMatchObject({ right: 48 });
   });
 
   it("does not move a small, moved image when its minimap outline is grabbed", async () => {
@@ -290,7 +290,27 @@ describe("overview_viewport_controller", () => {
     expect(fitted.top).toBe(0);
   });
 
-  it("keeps a pixel near the edge in view when zooming in on it, with the edge at the side", async () => {
+  it("keeps the image's corner under the cursor while zooming in from zoomed out", async () => {
+    const { controller, state } = await createController({
+      imageWidth: 487,
+      imageHeight: 619,
+      viewWidth: 1900,
+      viewHeight: 1100,
+      footerHeight: 40,
+    });
+
+    controller.fitImageToView();
+    controller.setZoom(0.8);
+    const corner = getScreenPoint(controller, state, 487, 619);
+    for (let step = 0; step < 12; step += 1) {
+      controller.zoomAt(corner.x, corner.y, state.zoom * 1.22);
+      const after = getScreenPoint(controller, state, 487, 619);
+      expect(after.x).toBeCloseTo(corner.x, 6);
+      expect(after.y).toBeCloseTo(corner.y, 6);
+    }
+  });
+
+  it("keeps a pixel near the edge under the cursor when zooming in on it", async () => {
     const { controller, state } = await createController({
       imageWidth: 2048,
       imageHeight: 2048,
@@ -299,18 +319,12 @@ describe("overview_viewport_controller", () => {
     });
 
     controller.setZoom(0.3);
-    const worldX = 1979;
-    const worldY = 1424;
-    const before = getScreenPoint(controller, state, worldX, worldY);
-
+    const before = getScreenPoint(controller, state, 1979, 1424);
     controller.zoomAt(before.x, before.y, 3.3);
+    const after = getScreenPoint(controller, state, 1979, 1424);
 
-    const after = getScreenPoint(controller, state, worldX, worldY);
-    expect(imageEdges(controller, state).right).toBeCloseTo(1900, 6);
-    expect(after.x).toBeGreaterThan(0);
-    expect(after.x).toBeLessThan(1900);
-    expect(after.y).toBeGreaterThan(0);
-    expect(after.y).toBeLessThan(1200);
+    expect(after.x).toBeCloseTo(before.x, 6);
+    expect(after.y).toBeCloseTo(before.y, 6);
   });
 
   it("keeps the pixel under the cursor while zooming a small image inside the view", async () => {
@@ -325,7 +339,7 @@ describe("overview_viewport_controller", () => {
     expect(after.y).toBeCloseTo(before.y, 6);
   });
 
-  it("keeps a small image in view when zooming over the background beside it", async () => {
+  it("keeps a strip of the image in view when zooming over the background beside it", async () => {
     const { controller, state } = await createController({
       imageWidth: 2000,
       imageHeight: 2000,
@@ -334,11 +348,9 @@ describe("overview_viewport_controller", () => {
     });
 
     controller.setZoom(1);
-    controller.zoomAt(2350, 1000, 1.1);
+    for (let step = 0; step < 10; step += 1) controller.zoomAt(2390, 1000, state.zoom * 1.5);
 
-    const edges = imageEdges(controller, state);
-    expect(edges.left).toBeGreaterThanOrEqual(0);
-    expect(edges.right).toBeLessThanOrEqual(2400);
+    expect(imageEdges(controller, state).right).toBeGreaterThanOrEqual(48 - 1e-6);
   });
 
   it("keeps the image point in the middle when the view is resized", async () => {
@@ -376,19 +388,9 @@ describe("overview_viewport_controller", () => {
     expect(rect.viewH).toBeCloseTo(150, 6);
   });
 
-  it("does not move the view when the minimap rectangle is grabbed after panning to an edge", async () => {
-    const { controller } = await createController({ imageWidth: 2000, imageHeight: 2000 });
 
-    controller.setZoom(2);
-    controller.setEffectiveScroll(99999, 0);
-    const before = controller.getViewCenter();
-    const rect = controller.getViewRect();
-    controller.panToImageCenter(rect.viewX + rect.viewW / 2, rect.viewY + rect.viewH / 2);
 
-    expect(controller.getViewCenter()).toEqual(before);
-  });
-
-  it("centres a clicked minimap point, as near as the edges allow", async () => {
+  it("centres a clicked minimap point, also near the image's edges", async () => {
     const { controller } = await createController({ imageWidth: 2000, imageHeight: 2000 });
 
     controller.setZoom(2);
@@ -396,7 +398,7 @@ describe("overview_viewport_controller", () => {
     expect(controller.getViewCenter()).toMatchObject({ centerX: 700, centerY: 1200 });
 
     controller.panToImageCenter(10, 1990);
-    expect(controller.getViewCenter()).toMatchObject({ centerX: 100, centerY: 2000 - 75 });
+    expect(controller.getViewCenter()).toMatchObject({ centerX: 10, centerY: 1990 });
   });
 
   it("resizes from a minimap handle with the full zoom range, in one step", async () => {

@@ -106,10 +106,10 @@ export function createOverviewViewportController({
   /**
    * The part of the canvas the image is laid out in, per axis, in canvas
    * pixels. Horizontally it leaves out a side panel floating over the canvas;
-   * vertically the image is centred in the full height, but its bottom edge
-   * may stop above the footer that floats over it. Measured whenever the zoom
-   * is set (which a resize and a panel change both do) and kept, because the
-   * overlays ask for the scroll position many times a frame.
+   * vertically Fit centres in the full height, but the strip of image the pan
+   * limit keeps in view must be above the footer floating over it. Measured
+   * whenever the zoom is set (which a resize and a panel change both do) and
+   * kept, because the overlays ask for the scroll position many times a frame.
    */
   let viewArea = null;
 

@@ -20,23 +20,32 @@ export function axisMid(axis) {
   return (axis.start + axis.end) / 2;
 }
 
+/** Screen pixels of image that must stay in view: enough to grab it back. */
+export const MIN_VISIBLE_PX = 48;
+
 /**
- * The nearest allowed centre. On each axis the image either covers the
- * visible span or lies wholly inside it: a larger image cannot be panned past
- * its edges (no empty band opens beside it), a smaller one moves freely but
- * cannot leave the view. The two limits are the centres that put the image's
- * near edge at the span's start and its far edge at `edgeEnd`; which of them
- * is the lower one is what flips when the image grows past the span, and at
- * that size they coincide, so nothing jumps.
+ * The nearest allowed centre. The image may be moved anywhere, as long as a
+ * strip of it (MIN_VISIBLE_PX, or all of it when it is smaller) stays inside
+ * the visible span, between `start` and `edgeEnd`.
+ *
+ * The limit is deliberately loose. Anything that pins image edges to the
+ * sides of the view -- "a large image fills it", "a small one stays inside"
+ * -- fights zooming about the pointer: with the pointer on an image corner in
+ * the middle of the screen, the corner has to leave the pointer for the edges
+ * to meet the sides, and it does so in a jump as the image crosses the size
+ * of the view. With this limit, zooming about a pixel on the image never
+ * moves that pixel.
  */
 export function clampAxisCenter(center, { size, scale, axis }) {
   if (!(size > 0) || !(scale > 0)) return finiteOr(center, 0);
   const mid = axisMid(axis);
   const edgeEnd = Math.min(axis.end, finiteOr(axis.edgeEnd, axis.end));
-  const nearAtStart = (mid - axis.start) / scale;
-  const farAtEnd = size - (edgeEnd - mid) / scale;
-  const min = Math.min(nearAtStart, farAtEnd);
-  const max = Math.max(nearAtStart, farAtEnd);
+  const span = size * scale;
+  const keep = Math.max(0, Math.min(span, MIN_VISIBLE_PX, edgeEnd - axis.start));
+  // Near edge no further in than `edgeEnd - keep`, far edge no further out than `start + keep`.
+  const min = (mid - edgeEnd + keep) / scale;
+  const max = size - (axis.start + keep - mid) / scale;
+  if (!(min <= max)) return size / 2;
   return Math.max(min, Math.min(max, finiteOr(center, size / 2)));
 }
 
