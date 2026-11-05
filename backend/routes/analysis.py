@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,6 +54,7 @@ _GEOMETRY_KEYS = (
     "energy_ev",
     "center_x_px",
     "center_y_px",
+    "two_theta_deg",
 )
 
 
@@ -156,6 +158,22 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             ],
         )
 
+        # The detector's 2θ setting, as the DECTRIS file writer records it (and
+        # Odin's meta file): the angle alone. No file says which way the arm
+        # swings, so the interface applies it only once the user has said.
+        two_theta_val, two_theta_unit = deps.read_scalar(
+            h5,
+            [
+                "/entry/instrument/detector/goniometer/two_theta",
+                "/entry/instrument/detector/goniometer/two_theta_start",
+                "/_dectris/two_theta_start",
+            ],
+        )
+        two_theta_deg = None
+        if two_theta_val is not None:
+            rad = deps.norm_unit(two_theta_unit) in {"rad", "radian", "radians"}
+            two_theta_deg = math.degrees(two_theta_val) if rad else float(two_theta_val)
+
         distance_mm = deps.to_mm(distance_val, distance_unit) if distance_val is not None else None
 
         # Keep the X and Y pixel sizes distinct so anisotropic ("strixel")
@@ -204,6 +222,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
             "energy_ev": energy_ev,
             "center_x_px": center_x_px,
             "center_y_px": center_y_px,
+            "two_theta_deg": two_theta_deg,
             "shape": [int(v) for v in shape] if shape else None,
         }
 

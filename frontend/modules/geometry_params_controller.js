@@ -21,11 +21,13 @@ import {
   emptyGeometryValues,
   geometryValueOrNull,
   loadGeometryOverride,
+  normalizeTwoThetaDirection,
   pixelAspectFrom,
   resolveGeometryParams,
   sanitizeGeometryValues,
   saveGeometryOverride,
 } from "./geometry_params.js";
+import { createDetectorTiltControls } from "./detector_tilt_controls.js";
 import { isExptPath } from "./geometry_override_utils.js";
 import { chooseNativePath } from "./native_picker.js";
 
@@ -34,8 +36,23 @@ const VALIDATION_KEYS = {
   pixelSizeXUm: "validation.rings.pixel_size_positive",
   pixelSizeYUm: "validation.rings.pixel_size_positive",
   energyEv: "validation.rings.photon_energy_positive",
+  twoThetaDeg: "validation.rings.two_theta_range",
 };
-const DIGITS = { distanceMm: 2, pixelSizeXUm: 2, pixelSizeYUm: 2, energyEv: 0, centerX: 2, centerY: 2 };
+const DIGITS = {
+  distanceMm: 2,
+  pixelSizeXUm: 2,
+  pixelSizeYUm: 2,
+  energyEv: 0,
+  centerX: 2,
+  centerY: 2,
+  twoThetaDeg: 2,
+};
+const DIRECTION_LABELS = {
+  "+x": "geometry.two_theta.direction.px",
+  "-x": "geometry.two_theta.direction.nx",
+  "+y": "geometry.two_theta.direction.py",
+  "-y": "geometry.two_theta.direction.ny",
+};
 
 export function formatGeometryNumber(value, digits = 2) {
   if (!Number.isFinite(value)) return "";
@@ -85,6 +102,15 @@ export function createGeometryParamsController({
     openFileDialog,
   } = callbacks;
 
+  // The Detector 2θ row is made here, after the beam-centre field: see
+  // detector_tilt_controls.js. It is then one more field of this section.
+  const tilt = createDetectorTiltControls(inputs.centerX?.closest(".field"));
+  if (tilt) {
+    inputs.twoThetaDeg = tilt.input;
+    hints.twoTheta = tilt.hint;
+  }
+  const directionSelect = tilt?.select || null;
+
   const invalid = new Set();
   let resolved = resolveGeometryParams({});
 
@@ -100,7 +126,11 @@ export function createGeometryParamsController({
   function overrideInEffect() {
     const current = override();
     if (!current.enabled) return false;
-    return Boolean(current.geometryFile) || GEOMETRY_KEYS.some((key) => current.values[key] !== null);
+    return (
+      Boolean(current.geometryFile) ||
+      Boolean(current.twoThetaDirection) ||
+      GEOMETRY_KEYS.some((key) => current.values[key] !== null)
+    );
   }
 
   /** The geometry file to request, or "" -- only while the override is on. */
@@ -129,6 +159,9 @@ export function createGeometryParamsController({
     analysisState.energyEv = values.energyEv;
     analysisState.centerX = values.centerX;
     analysisState.centerY = values.centerY;
+    // A 2θ is applied with a direction only, which only the user can give.
+    analysisState.twoThetaDeg = values.twoThetaDeg;
+    analysisState.twoThetaDirection = override().enabled ? override().twoThetaDirection : "";
     state.pixelAspect = pixelAspectFrom(values);
     render();
     if (!notify) return;
@@ -197,6 +230,15 @@ export function createGeometryParamsController({
     persist();
     recompute();
     if (!wasEnabled && current.geometryFile) reloadGeometry?.();
+  }
+
+  /** Which way the 2θ arm swings on the image: a manual edit like any other. */
+  function setTwoThetaDirection(value) {
+    const current = override();
+    current.twoThetaDirection = normalizeTwoThetaDirection(value);
+    if (current.twoThetaDirection) current.enabled = true;
+    persist();
+    recompute();
   }
 
   /** Dragging the beam centre on the image is a manual edit like typing it. */
@@ -289,6 +331,29 @@ export function createGeometryParamsController({
     renderFieldHint("pixelSize", ["pixelSizeXUm", "pixelSizeYUm"]);
     renderFieldHint("energyEv", ["energyEv"]);
     renderFieldHint("center", ["centerX", "centerY"]);
+    renderTwoTheta(editable, geometryActive);
+  }
+
+  // A detector geometry from the file already places a tilted detector; the
+  // row would do nothing there. Elsewhere an angle without a direction is not
+  // applied, and says so: no file states which way its arm swings.
+  function renderTwoTheta(editable, geometryActive) {
+    if (!inputs.twoThetaDeg) return;
+    inputs.twoThetaDeg.disabled = geometryActive;
+    if (directionSelect) {
+      directionSelect.disabled = geometryActive || !editable;
+      if (directionSelect !== document.activeElement) {
+        directionSelect.value = override().twoThetaDirection;
+      }
+    }
+    const angle = resolved.values.twoThetaDeg;
+    const awaitingDirection =
+      !geometryActive && angle !== null && angle >= 0.1 && !analysisState.twoThetaDirection;
+    if (!invalid.has("twoThetaDeg") && awaitingDirection) {
+      showHint(hints.twoTheta, [inputs.twoThetaDeg], t("geometry.two_theta.direction_needed"));
+      return;
+    }
+    renderFieldHint("twoTheta", ["twoThetaDeg"]);
   }
 
   function renderGeometryFile() {
@@ -358,12 +423,18 @@ export function createGeometryParamsController({
       v.pixelSizeXUm !== null && v.pixelSizeYUm !== null && v.pixelSizeXUm !== v.pixelSizeYUm
         ? `${show("pixelSizeXUm")} × ${show("pixelSizeYUm")}`
         : show("pixelSizeXUm");
-    return t("geometry.inline.values", {
+    const text = t("geometry.inline.values", {
       distance: show("distanceMm"),
       pixel,
       energy: show("energyEv"),
       center: v.centerX === null && v.centerY === null ? "—" : `${show("centerX")}, ${show("centerY")}`,
     });
+    const direction = analysisState.twoThetaDirection;
+    if (v.twoThetaDeg === null || v.twoThetaDeg < 0.1 || !direction) return text;
+    return `${text} · ${t("geometry.inline.two_theta", {
+      angle: show("twoThetaDeg"),
+      direction: t(DIRECTION_LABELS[direction]),
+    })}`;
   }
 
   function renderInlineSummaries() {
@@ -415,6 +486,7 @@ export function createGeometryParamsController({
     });
   }
 
+  directionSelect?.addEventListener("change", () => setTwoThetaDirection(directionSelect.value));
   overrideToggle?.addEventListener("change", () => setOverrideEnabled(overrideToggle.checked));
   resetButton?.addEventListener("click", () => resetOverride());
 
@@ -493,6 +565,7 @@ export function createGeometryParamsController({
     setOverrideEnabled,
     setOverrideValues,
     setBeamCenter,
+    setTwoThetaDirection,
     resetOverride,
     setGeometryFile,
     clearGeometryFile,

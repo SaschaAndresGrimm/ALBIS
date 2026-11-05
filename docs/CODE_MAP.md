@@ -166,6 +166,10 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Rings and peak analysis, and the Analysis tab's listeners.
 - `frontend/modules/minmax_finder_utils.js`, `frontend/modules/minmax_finder_controller.js`, `frontend/modules/minmax_finder_painter.js`:
   - Analysis → Min/Max Finder: the N highest or lowest pixels of the frame in one pass, with how many share the extreme value (pure, no spot tests), the section with its Max/Min/Both list, selection and CSV export, and the square markers drawn on the peak overlay.
+- `frontend/modules/detector_tilt_utils.js`:
+  - A detector on a 2θ arm built from the flat geometry fields plus the arm's angle and direction (pure).
+- `frontend/modules/detector_tilt_controls.js`:
+  - The Detector 2θ row of Data → Detector Geometry, made after the beam-centre field.
 - `frontend/modules/ring_geometry_utils.js`, `frontend/modules/ring_list_controller.js`, `frontend/modules/resolution_ring_interaction_controller.js`:
   - Resolution ring geometry (including tilted and multi-panel detectors), the list of d-spacings with presets, and dragging the beam centre and rings on the canvas.
 - `frontend/modules/geometry_params.js`, `frontend/modules/geometry_params_controller.js`, `frontend/modules/geometry_override_utils.js`:

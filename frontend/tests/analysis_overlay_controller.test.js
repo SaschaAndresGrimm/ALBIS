@@ -470,4 +470,54 @@ describe("planar resolution: the numbers themselves", () => {
 
     expect(analysisState.peaks[0].resolution).toBeCloseTo(13.359712, 5);
   });
+
+  it("draws a hand-entered 2θ on a flat detector as a tilted panel", async () => {
+    // I19-2's arm by hand: 20° toward +X at 85 mm. The beam meets the tilted
+    // detector 413 px to the -X side of the 2θ = 0 centre, so the marker
+    // goes there and the cursor's d follows the tilt.
+    const create = await loadOverlayModule();
+    const { controller } = buildController(
+      create,
+      { width: 2068, height: 2162 },
+      {
+        ringsEnabled: true,
+        distanceMm: 85,
+        pixelSizeUm: 75,
+        pixelSizeYUm: 75,
+        energyEv: 25516.4,
+        centerX: 984.57,
+        centerY: 1418.97,
+        twoThetaDeg: 20,
+        twoThetaDirection: "+x",
+        rings: [1.4],
+      },
+    );
+
+    const params = controller.getRingParams();
+
+    expect(params.mode).toBe("geometry");
+    expect(params.geometry.panels).toHaveLength(1);
+    expect(params.markerX).toBeCloseTo(572.07, 1);
+    expect(controller.getResolutionAtPixel(985, 1419)).toBeCloseTo(1.3976, 3);
+  });
+
+  it("does not tilt without a direction, which no file states", async () => {
+    const create = await loadOverlayModule();
+    const { controller } = buildController(
+      create,
+      { width: 2068, height: 2162 },
+      {
+        distanceMm: 85,
+        pixelSizeUm: 75,
+        pixelSizeYUm: 75,
+        energyEv: 25516.4,
+        centerX: 984.57,
+        centerY: 1418.97,
+        twoThetaDeg: 20,
+        twoThetaDirection: "",
+      },
+    );
+
+    expect(controller.getRingParams().mode).toBe("planar");
+  });
 });

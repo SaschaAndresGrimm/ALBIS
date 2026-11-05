@@ -11,6 +11,8 @@ const EXACT_KEY_ALLOWLIST = new Set([
   // translation.
   "command.label.export_animation",
   "cursor.resolution",
+  // "Direction" is the French word as well as the English one: a cognate.
+  "geometry.two_theta.direction.none",
   "roi.mode.default",
   "series.ui.output_placeholder",
   "settings.language.mi",

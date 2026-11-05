@@ -263,6 +263,7 @@ export function createFrameMetadataController({
           energyEv: data.energy_ev,
           centerX: data.center_x_px,
           centerY: data.center_y_px,
+          twoThetaDeg: data.two_theta_deg,
         },
         "hdf5",
       );

@@ -2,7 +2,8 @@
  * The detector geometry ALBIS calculates with: what the data says, and what
  * the user says instead.
  *
- * Distance, pixel size, photon energy and beam centre drive the resolution
+ * Distance, pixel size, photon energy, beam centre and the detector's 2θ
+ * drive the resolution
  * rings, the cursor's d readout, the d column of the peak table and the
  * geometry a series sum embeds. They come from three places, combined here and
  * nowhere else:
@@ -30,12 +31,24 @@ export const GEOMETRY_KEYS = Object.freeze([
   "energyEv",
   "centerX",
   "centerY",
+  // The angle of the arm a detector is mounted on. Applied only with a
+  // direction (`twoThetaDirection` on the override), which no file states:
+  // detector_tilt_utils.js builds the tilted detector from the two.
+  "twoThetaDeg",
 ]);
 
 /** Must be > 0 to mean anything; a beam centre may be anywhere, even negative. */
 const POSITIVE_KEYS = new Set(["distanceMm", "pixelSizeXUm", "pixelSizeYUm", "energyEv"]);
 /** What a detector geometry's reference pose supplies. */
 const POSE_KEYS = new Set(["distanceMm", "centerX", "centerY"]);
+
+/** Which way a 2θ arm swings, as seen on the image: toward +X, −X, +Y or −Y. */
+export const TWO_THETA_DIRECTIONS = Object.freeze(["+x", "-x", "+y", "-y"]);
+
+export function normalizeTwoThetaDirection(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return TWO_THETA_DIRECTIONS.includes(text) ? text : "";
+}
 
 export const GEOMETRY_OVERRIDE_STORAGE_KEY = "albis.geometryOverride";
 const STORAGE_VERSION = 1;
@@ -45,7 +58,7 @@ export function emptyGeometryValues() {
 }
 
 export function createGeometryOverride() {
-  return { enabled: false, values: emptyGeometryValues(), geometryFile: "" };
+  return { enabled: false, values: emptyGeometryValues(), geometryFile: "", twoThetaDirection: "" };
 }
 
 /** A usable value for `key`, or null. null and "" stay null rather than becoming 0. */
@@ -54,6 +67,8 @@ export function geometryValueOrNull(key, value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
   if (POSITIVE_KEYS.has(key) && number <= 0) return null;
+  // An arm swung to 90° puts the detector edge-on to the sample.
+  if (key === "twoThetaDeg" && (number < 0 || number >= 90)) return null;
   return number;
 }
 
@@ -68,6 +83,7 @@ export function sanitizeGeometryOverride(raw) {
     enabled: Boolean(source.enabled),
     values: sanitizeGeometryValues(source.values),
     geometryFile: typeof source.geometryFile === "string" ? source.geometryFile.trim() : "",
+    twoThetaDirection: normalizeTwoThetaDirection(source.twoThetaDirection),
   };
 }
 
