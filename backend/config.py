@@ -496,6 +496,10 @@ def save_config(config: dict[str, Any], path: Path) -> None:
         with contextlib.suppress(OSError):
             tmp_path.unlink()
         raise
+    # The file on disk is now one ALBIS wrote, so whatever made the last load
+    # fail is gone with it; the interface should stop saying so.
+    global CONFIG_LOAD_ERROR
+    CONFIG_LOAD_ERROR = ""
 
 
 def load_config() -> tuple[dict[str, Any], Path]:

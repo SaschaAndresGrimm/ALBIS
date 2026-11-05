@@ -56,6 +56,13 @@ replaces the search rather than joining it, so a named file that does not exist 
 created where you asked for it — ALBIS never quietly reads a different file than the one
 you named.
 
+A config file ALBIS cannot read — invalid JSON such as a trailing comma, a file cut short
+by a crash while saving, or a key from a newer version — does not stop it from starting.
+ALBIS starts on its defaults, leaves the file untouched, and says so: a warning at
+startup, a note in **Settings** under the file's path giving the reason, and a line in
+the backend log. Fix the file by hand and restart, or press **Save** in **Settings**,
+which replaces the file with the settings shown.
+
 ### Environment variables
 
 Every key in the Settings Reference below has a matching variable, named

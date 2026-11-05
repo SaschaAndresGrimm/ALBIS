@@ -2,7 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const { showConfirmDialogMock } = vi.hoisted(() => ({ showConfirmDialogMock: vi.fn() }));
+const { showConfirmDialogMock, notifyWarningMock } = vi.hoisted(() => ({
+  showConfirmDialogMock: vi.fn(),
+  notifyWarningMock: vi.fn(),
+}));
+vi.mock("../modules/toast.js", () => ({
+  notifyInfo: vi.fn(),
+  notifySuccess: vi.fn(),
+  notifyWarning: notifyWarningMock,
+  notifyError: vi.fn(),
+}));
 vi.mock("../modules/dialogs.js", () => ({
   showConfirmDialog: showConfirmDialogMock,
   showPromptDialog: vi.fn(),
@@ -27,6 +36,7 @@ function renderSettingsShell() {
       <div class="settings-tabpage" data-settings-tab="connection" hidden></div>
       <div id="settings-restart-note" class="is-hidden" aria-hidden="true"></div>
       <div id="settings-env-note" class="is-hidden" aria-hidden="true"></div>
+      <div id="settings-config-error" class="is-hidden" aria-hidden="true"></div>
       <div id="settings-message"></div>
       <label>
         <input id="settings-server-external" type="checkbox" />
@@ -73,7 +83,7 @@ function renderSettingsShell() {
   `;
 }
 
-function buildFetchMock({ initialConfig, savedConfigs, envOverrides = [] }) {
+function buildFetchMock({ initialConfig, savedConfigs, envOverrides = [], loadError = "" }) {
   return vi.fn(async (url, init) => {
     const requestUrl = String(url);
     if (requestUrl.includes("locales/")) {
@@ -91,6 +101,7 @@ function buildFetchMock({ initialConfig, savedConfigs, envOverrides = [] }) {
           config: initialConfig,
           path: "/tmp/albis.config.json",
           env_overrides: envOverrides,
+          load_error: loadError,
         }),
       };
     }
@@ -103,6 +114,7 @@ function buildFetchMock({ initialConfig, savedConfigs, envOverrides = [] }) {
           config: payload.config,
           path: "/tmp/albis.config.json",
           env_overrides: envOverrides,
+          load_error: "",
         }),
       };
     }
@@ -110,13 +122,19 @@ function buildFetchMock({ initialConfig, savedConfigs, envOverrides = [] }) {
   });
 }
 
-async function initializeController({ initialConfig, envOverrides = [] }) {
+async function initializeController({
+  initialConfig,
+  envOverrides = [],
+  loadError = "",
+  withoutConfigErrorNote = false,
+}) {
   vi.resetModules();
   renderSettingsShell();
+  if (withoutConfigErrorNote) document.getElementById("settings-config-error").remove();
   localStorage.clear();
 
   const savedConfigs = [];
-  global.fetch = buildFetchMock({ initialConfig, savedConfigs, envOverrides });
+  global.fetch = buildFetchMock({ initialConfig, savedConfigs, envOverrides, loadError });
 
   const i18n = await import("../modules/i18n.js");
   await i18n.initializeI18n({ backendLanguage: "en" });
@@ -146,6 +164,7 @@ async function initializeController({ initialConfig, envOverrides = [] }) {
       settingsTabs: document.querySelector(".settings-tabs"),
       settingsRestartNote: document.getElementById("settings-restart-note"),
       settingsEnvNote: document.getElementById("settings-env-note"),
+      settingsConfigError: document.getElementById("settings-config-error"),
       settingsConfigPath: document.getElementById("settings-config-path"),
       settingsMessage: document.getElementById("settings-message"),
       settingsServerExternal: document.getElementById("settings-server-external"),
@@ -729,6 +748,99 @@ describe("settings controller environment overrides", () => {
 
     expect(document.getElementById("settings-data-root").disabled).toBe(true);
     expect(document.getElementById("settings-env-note").classList.contains("is-hidden")).toBe(false);
+  });
+});
+
+describe("settings controller: a config file that could not be read", () => {
+  const REASON = "/home/u/.config/albis/config.json: Expecting ',' delimiter: line 4 column 3";
+
+  beforeEach(() => {
+    notifyWarningMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it("says so under the file's path, with the reason", async () => {
+    const { controller } = await initializeController({ initialConfig: {}, loadError: REASON });
+
+    await controller.openSettingsModal();
+
+    const note = document.getElementById("settings-config-error");
+    expect(note.classList.contains("is-hidden")).toBe(false);
+    expect(note.getAttribute("aria-hidden")).toBe("false");
+    expect(note.textContent).toContain("Expecting ',' delimiter: line 4 column 3");
+    expect(note.textContent).toContain("default settings");
+  });
+
+  it("does not repeat the path printed just above it", async () => {
+    const { controller } = await initializeController({
+      initialConfig: {},
+      loadError: "/tmp/albis.config.json: Illegal trailing comma before end of object",
+    });
+
+    await controller.openSettingsModal();
+
+    const note = document.getElementById("settings-config-error").textContent;
+    expect(note).toContain("Reason: Illegal trailing comma before end of object");
+    expect(note).not.toContain("/tmp/albis.config.json");
+  });
+
+  it("places its own note right after the file's path when the page has none", async () => {
+    // index.html is past its line budget, so the app's page has no such element.
+    const { controller } = await initializeController({
+      initialConfig: {},
+      loadError: REASON,
+      withoutConfigErrorNote: true,
+    });
+
+    await controller.openSettingsModal();
+
+    const note = document.getElementById("settings-config-error");
+    expect(note).not.toBeNull();
+    expect(note.previousElementSibling).toBe(
+      document.getElementById("settings-config-path").parentElement,
+    );
+    expect(note.classList.contains("is-hidden")).toBe(false);
+  });
+
+  it("says nothing when the file loaded", async () => {
+    const { controller } = await initializeController({ initialConfig: {} });
+
+    await controller.openSettingsModal();
+
+    const note = document.getElementById("settings-config-error");
+    expect(note.classList.contains("is-hidden")).toBe(true);
+    expect(note.textContent).toBe("");
+  });
+
+  it("stops saying so once Settings has saved over the file", async () => {
+    const { controller } = await initializeController({ initialConfig: {}, loadError: REASON });
+
+    await controller.openSettingsModal();
+    await controller.saveSettingsFromModal();
+
+    expect(document.getElementById("settings-config-error").classList.contains("is-hidden")).toBe(true);
+  });
+
+  it("warns once at startup, since few people open Settings to look", async () => {
+    const { controller, locale } = await initializeController({ initialConfig: {}, loadError: REASON });
+
+    controller.applyLoadedSettings({ config: { ui: {} }, load_error: REASON });
+    controller.applyLoadedSettings({ config: { ui: {} }, load_error: REASON });
+
+    expect(notifyWarningMock).toHaveBeenCalledTimes(1);
+    expect(notifyWarningMock).toHaveBeenCalledWith(locale["status.config_load_error"]);
+  });
+
+  it("does not warn at startup when the file loaded", async () => {
+    const { controller } = await initializeController({ initialConfig: {} });
+
+    controller.applyLoadedSettings({ config: { ui: {} }, load_error: "" });
+
+    expect(notifyWarningMock).not.toHaveBeenCalled();
   });
 });
 
