@@ -457,7 +457,7 @@ to 16): **+ Add ring** adds a field, **×** removes one, and the list is sorted
 by d when you leave it. **Ice rings** adds the ten rings of hexagonal ice, the
 quickest way to see whether ice is on an image, and **Clear** removes them all.
 The rings are remembered for the next session. On the image, a ring can also be
-dragged to a new radius. Once rings are on, the cursor readout gains a **d**
+dragged to a new radius, on a multi-panel or tilted detector as on a flat one. Once rings are on, the cursor readout gains a **d**
 value, so pointing at a feature tells you its resolution.
 
 ![Resolution rings at 10, 5, 3.3 and 2.5 Å and 30 found peaks circled on the image, with the peak table in the Analysis tab](images/user-guide/rings-peaks.webp)
@@ -740,6 +740,17 @@ sample-to-detector distance along the beam, about 260 mm: the header's
 `Detector_distance` (0.010 m at I23) is an offset from the detector's fixed
 position, and ALBIS reads it the way DIALS does. An `imported.expt` next to the
 data, or one chosen as the geometry file, still takes precedence.
+
+A detector on a **2θ arm**, such as the Eiger at Diamond beamline I19-2, is
+placed where its NeXus file says: ALBIS follows the file's chain of detector
+transformations (arm angle, distance, module position), as DIALS does. The
+resolution rings then follow the tilted detector, the cursor's **d** is right
+across the whole image, and the red cross marks where the beam actually meets the
+detector. The **Beam centre** and **Distance** fields keep the meaning the file
+gives them: the beam centre the detector would have at 2θ = 0, and the distance
+along the arm, so changing either moves the tilted detector as a whole. A data
+file opened on its own takes this from its collection's `.nxs`. A detector square
+to the beam is drawn as before.
 
 ---
 

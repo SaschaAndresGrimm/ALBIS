@@ -77,10 +77,33 @@ describe("resolution_ring_interaction_controller", () => {
     expect(handle?.d).toBeCloseTo(3.67, 2);
   });
 
-  it("does not expose ring handles in geometry mode", () => {
-    const { controller } = setup({ params: { mode: "geometry" }, ringValues: ["3.67"] });
+  it("finds a ring in geometry mode by the scattering angle under the pointer", () => {
+    // Rings on panels or a tilted detector are not circles; the handle is found
+    // from the d-spacing at the pointer instead. Here the same flat geometry
+    // as above, given as a function, so the ring is again ~190 px out.
+    const flatD = (x, y) => {
+      const twoTheta = Math.atan((Math.hypot(x - 200, y - 200) * 0.075) / 50);
+      return 12398.4193 / 12222 / (2 * Math.sin(twoTheta / 2));
+    };
+    const { controller } = setup({
+      params: { mode: "geometry", geometry: { panels: [{}] } },
+      ringValues: ["3.67"],
+      getResolutionAtPixel: flatD,
+    });
+
     const handle = controller.getRingHandleAt({ clientX: 200 + 190, clientY: 200 });
-    expect(handle).toBeNull();
+    expect(handle?.type).toBe("ring");
+    expect(handle?.index).toBe(0);
+    expect(controller.getRingHandleAt({ clientX: 200 + 150, clientY: 200 })).toBeNull();
+  });
+
+  it("finds no ring in a gap between panels, where there is no angle", () => {
+    const { controller } = setup({
+      params: { mode: "geometry", geometry: { panels: [{}] } },
+      ringValues: ["3.67"],
+      getResolutionAtPixel: () => null,
+    });
+    expect(controller.getRingHandleAt({ clientX: 200 + 190, clientY: 200 })).toBeNull();
   });
 
   it("sets the beam centre as a manual override, in whole pixels, on drag", () => {
@@ -94,6 +117,27 @@ describe("resolution_ring_interaction_controller", () => {
 
     expect(setBeamCenter).toHaveBeenCalledTimes(1);
     expect(setBeamCenter).toHaveBeenCalledWith(123, 57);
+  });
+
+  it("grabs the marker where the beam meets a tilted detector, not at the 2θ = 0 field", () => {
+    // I19-2's 2θ arm: the field holds (985, 1419), the beam meets the detector
+    // 413 px away. The marker is drawn there, so that is where it is grabbed.
+    const params = { mode: "geometry", centerX: 300, centerY: 200, markerX: 100, markerY: 200 };
+    const { controller } = setup({ params });
+
+    expect(controller.getRingHandleAt({ clientX: 101, clientY: 199 })).toEqual({ type: "center" });
+    expect(controller.getRingHandleAt({ clientX: 300, clientY: 200 })).toBeNull();
+  });
+
+  it("drags a tilted detector's marker by keeping the field's offset from it", () => {
+    const params = { mode: "geometry", centerX: 300, centerY: 200, markerX: 100, markerY: 200 };
+    const { controller, setBeamCenter } = setup({ params });
+
+    controller.startRingEdit({ type: "center" });
+    controller.applyRingEdit({ x: 110, y: 205 });
+
+    // The marker went 10 right and 5 down; the 2θ = 0 field goes the same way.
+    expect(setBeamCenter).toHaveBeenCalledWith(310, 205);
   });
 
   it("sets the dragged ring's d-spacing by its index, and re-sorts when the drag ends", () => {

@@ -6,6 +6,7 @@ import { t } from "./i18n.js";
 import {
   applyGeometryOverrides,
   braggDSpacing,
+  getGeometryBeamPosition,
   getGeometryResolutionAtPixel,
 } from "./ring_geometry_utils.js";
 import { setControlAvailability } from "./control_availability.js";
@@ -89,6 +90,20 @@ export function createAnalysisOverlayController({
     const rings = (Array.isArray(analysisState.rings) ? analysisState.rings : [])
       .map(Number)
       .filter((value) => Number.isFinite(value) && value > 0);
+    // The beam-centre marker: the centre itself for a flat detector; for
+    // panels, where the beam meets them, which for a detector on a 2θ arm is
+    // not the centre field (that holds the 2θ = 0 value, 413 px off at I19-2).
+    let marker = center;
+    if (geometryActive) {
+      const beam = getGeometryBeamPosition(
+        applyGeometryOverrides(analysisState.ringGeometry, {
+          centerX: center.x,
+          centerY: center.y,
+          distanceMm,
+        }),
+      );
+      if (beam && Number.isFinite(beam.x) && Number.isFinite(beam.y)) marker = beam;
+    }
     return {
       mode: geometryActive ? "geometry" : "planar",
       geometry: geometryActive ? analysisState.ringGeometry : null,
@@ -98,6 +113,8 @@ export function createAnalysisOverlayController({
       energyEv: Number.isFinite(energyEv) && energyEv > 0 ? energyEv : null,
       centerX: center.x,
       centerY: center.y,
+      markerX: marker.x,
+      markerY: marker.y,
       centerKnown,
       rings,
     };

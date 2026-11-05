@@ -53,9 +53,54 @@ export function createResolutionRingInteractionController({
     return { x: (ix - viewX) * zoom + offsetX, y: (iy - viewY) * zoomY + offsetY };
   }
 
+  function screenToImage(px, py) {
+    const zoom = state.zoom || 1;
+    const zoomY = zoom * (state.pixelAspect || 1);
+    const viewX = getEffectiveScrollLeft() / zoom;
+    const viewY = getEffectiveScrollTop() / zoomY;
+    return {
+      x: (px - (state.renderOffsetX || 0)) / zoom + viewX,
+      y: (py - (state.renderOffsetY || 0)) / zoomY + viewY,
+    };
+  }
+
+  // The ring under the pointer when the rings are not circles -- panels, a
+  // detector on a 2θ arm: how far, in screen pixels, the pointer's scattering
+  // angle is from each ring's, by the angle's local rate of change. Works on
+  // any geometry; a pointer in a gap between panels has no angle and finds none.
+  function getGeometryRingAt(params, pointer) {
+    const at = screenToImage(pointer.x, pointer.y);
+    const angle = (ix, iy) => {
+      const d = getResolutionAtPixel(ix, iy, params);
+      return Number.isFinite(d) && d > 0 ? braggTwoTheta(d, params.energyEv) : null;
+    };
+    const here = angle(at.x, at.y);
+    const samples = [
+      angle(at.x + 1, at.y),
+      angle(at.x - 1, at.y),
+      angle(at.x, at.y + 1),
+      angle(at.x, at.y - 1),
+    ];
+    if (here === null || samples.some((value) => value === null)) return null;
+    const gradient = Math.hypot((samples[0] - samples[1]) / 2, (samples[2] - samples[3]) / 2);
+    if (!(gradient > 0)) return null;
+    const zoom = state.zoom || 1;
+    let best = null;
+    params.rings.forEach((value, index) => {
+      const d = Number(value);
+      const ringAngle = braggTwoTheta(d, params.energyEv);
+      if (ringAngle === null) return;
+      const delta = (Math.abs(here - ringAngle) / gradient) * zoom;
+      if (delta <= RING_HIT_PX && (!best || delta < best.delta)) {
+        best = { type: "ring", index, d, delta };
+      }
+    });
+    return best ? { type: "ring", index: best.index, d: best.d } : null;
+  }
+
   // Screen-space radius (px) of every ring that resolves to a valid
-  // d-spacing. Planar mode only — geometry-mode rings are panel-clipped
-  // polylines, not concentric circles, so only the center is draggable there.
+  // d-spacing. Planar mode only -- geometry-mode rings are not concentric
+  // circles, and getGeometryRingAt finds those.
   function getScreenRings(params) {
     if (params.mode === "geometry") return [];
     if (!params.energyEv || !params.distanceMm || !params.pixelSizeUm) return [];
@@ -84,10 +129,14 @@ export function createResolutionRingInteractionController({
     const params = getRingParams();
     if (!params.energyEv) return null;
 
-    const center = imageToScreen(params.centerX, params.centerY);
+    const center = imageToScreen(params.markerX ?? params.centerX, params.markerY ?? params.centerY);
     const distToCenter = Math.hypot(pointer.x - center.x, pointer.y - center.y);
     if (params.centerKnown && distToCenter <= CENTER_HIT_PX) {
       return { type: "center" };
+    }
+
+    if (params.mode === "geometry") {
+      return params.geometry ? getGeometryRingAt(params, pointer) : null;
     }
 
     let best = null;
@@ -116,7 +165,12 @@ export function createResolutionRingInteractionController({
   function applyRingEdit(point) {
     if (!ringEditing || !activeHandle || !point) return;
     if (activeHandle.type === "center") {
-      setBeamCenter?.(Math.round(point.x), Math.round(point.y));
+      // The marker sits where the beam meets the detector; the field holds the
+      // 2θ = 0 centre, a fixed offset from it whatever the centre is moved to.
+      const params = getRingParams();
+      const offsetX = Number.isFinite(params.markerX) ? params.markerX - params.centerX : 0;
+      const offsetY = Number.isFinite(params.markerY) ? params.markerY - params.centerY : 0;
+      setBeamCenter?.(Math.round(point.x - offsetX), Math.round(point.y - offsetY));
       return;
     }
     if (activeHandle.type === "ring") {

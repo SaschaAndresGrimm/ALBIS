@@ -626,8 +626,10 @@ export function paintResolutionRings(
   // is how the viewer behaves when every ring field has been cleared.
   const rings = Array.isArray(params.rings) ? params.rings : [];
   const aspect = Number.isFinite(pixelAspect) && pixelAspect > 0 ? pixelAspect : 1;
-  const centerX = viewX(view, params.centerX);
-  const centerY = viewY(view, params.centerY);
+  // The marker is the centre itself for a flat detector; for panels, where the
+  // beam meets them (see analysis_overlay_controller's getRingParams).
+  const centerX = viewX(view, params.markerX ?? params.centerX);
+  const centerY = viewY(view, params.markerY ?? params.centerY);
   const centerActive = activeHandle?.type === "center";
   const isRingActive = (d) =>
     activeHandle?.type === "ring" &&

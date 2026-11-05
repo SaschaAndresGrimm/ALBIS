@@ -850,6 +850,7 @@ register_stream_routes(
         pilatus_meta_from_fabio=_pilatus_meta_from_fabio,
         pilatus_header_text=_pilatus_header_text,
         pilatus_image_geometry=_pilatus_image_geometry,
+        companion_files=_companion_files,
         simplon_base=_simplon_base,
         simplon_set_mode=_simplon_set_mode,
         simplon_fetch_monitor=_simplon_fetch_monitor,

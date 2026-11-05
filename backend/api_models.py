@@ -300,6 +300,16 @@ class ImageGeometryResponse(_StrictModel):
     detector: str = ""
     source: str = ""
     panels: list[ImageGeometryPanelResponse] = Field(default_factory=list)
+    # The pose the Detector Geometry fields are measured against, when the
+    # panels say it: for a detector on a 2θ arm, the file's own beam centre and
+    # distance are its 2θ = 0 values, not where the beam meets it. Without
+    # these the interface takes the beam's hit as the reference, and the file's
+    # own values would then shift the detector by the arm's offset.
+    reference_center_x_px: float | None = None
+    reference_center_y_px: float | None = None
+    reference_distance_mm: float | None = None
+    # The direction a change of distance moves the detector: along the arm.
+    distance_axis: list[float] | None = None
 
 
 class SimplonModeResponse(StatusResponse):

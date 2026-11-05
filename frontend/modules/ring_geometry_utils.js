@@ -91,13 +91,39 @@ export function prepareRingGeometry(payload) {
     source: String(payload.source || ""),
     panels,
   };
-  const reference = getGeometryReferencePose(prepared);
+  const distanceAxis = statedDistanceAxis(payload);
+  if (distanceAxis) prepared.distance_axis = distanceAxis;
+  // Where the beam meets the panels, unless the file says what its beam centre
+  // and distance fields mean. For a detector on a 2θ arm they are its 2θ = 0
+  // values, and taking the beam's hit instead would make the file's own
+  // values shift the detector by the arm's offset (413 px at I19-2).
+  const computed = getGeometryReferencePose(prepared);
+  const stated = statedReferencePose(payload);
   return {
     ...prepared,
-    reference_center_x_px: reference?.centerX ?? null,
-    reference_center_y_px: reference?.centerY ?? null,
-    reference_distance_mm: reference?.distanceMm ?? null,
+    reference_center_x_px: stated?.centerX ?? computed?.centerX ?? null,
+    reference_center_y_px: stated?.centerY ?? computed?.centerY ?? null,
+    reference_distance_mm: stated?.distanceMm ?? computed?.distanceMm ?? null,
   };
+}
+
+function statedReferencePose(payload) {
+  const centerX = Number(payload?.reference_center_x_px);
+  const centerY = Number(payload?.reference_center_y_px);
+  const distanceMm = Number(payload?.reference_distance_mm);
+  if (payload?.reference_center_x_px == null || payload?.reference_center_y_px == null) return null;
+  if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return null;
+  return {
+    centerX,
+    centerY,
+    distanceMm: payload?.reference_distance_mm != null && Number.isFinite(distanceMm) && distanceMm > 0
+      ? distanceMm
+      : null,
+  };
+}
+
+function statedDistanceAxis(payload) {
+  return normalize(toFiniteVector(payload?.distance_axis, 3) || []);
 }
 
 export function serializeGeometryPayload(geometry) {
@@ -140,12 +166,22 @@ export function serializeGeometryPayload(geometry) {
       );
     });
   if (!panels.length) return null;
-  return {
+  const serialized = {
     mode: "geometry",
     detector: String(geometry.detector || ""),
     source: String(geometry.source || ""),
     panels,
   };
+  // Kept with the panels, so a sum embedding them reads back the same pose.
+  const stated = statedReferencePose(geometry);
+  if (stated) {
+    serialized.reference_center_x_px = stated.centerX;
+    serialized.reference_center_y_px = stated.centerY;
+    if (stated.distanceMm != null) serialized.reference_distance_mm = stated.distanceMm;
+  }
+  const distanceAxis = statedDistanceAxis(geometry);
+  if (distanceAxis) serialized.distance_axis = distanceAxis;
+  return serialized;
 }
 
 // hc in eV*Angstrom. Every resolution ALBIS reports descends from this one
@@ -271,6 +307,30 @@ export function getGeometryReferencePose(geometry) {
   };
 }
 
+/** Where the beam meets the panels, in image pixels, or null. For a detector
+ * on a 2θ arm this is not the beam-centre field, which holds its 2θ = 0 value. */
+export function getGeometryBeamPosition(geometry) {
+  const hit = findPanelRayHit(INCIDENT_BEAM, geometry)
+    || findPanelRayHit(INCIDENT_BEAM, geometry, { allowOutside: true });
+  return hit ? { x: hit.imageX, y: hit.imageY } : null;
+}
+
+/** Whether every panel lies in one plane with the same pixel directions. */
+function sharesOnePlane(panels) {
+  const first = panels[0];
+  const fast = normalize(first.fast_axis);
+  const slow = normalize(first.slow_axis);
+  if (!fast || !slow) return false;
+  const normal = normalize(cross(fast, slow));
+  return panels.every((panel) => {
+    const f = normalize(panel.fast_axis);
+    const sl = normalize(panel.slow_axis);
+    if (!f || !sl) return false;
+    const offPlane = Math.abs(dot(sub(panel.origin_mm, first.origin_mm), normal));
+    return dot(f, fast) > 1 - 1e-9 && dot(sl, slow) > 1 - 1e-9 && offPlane < 1e-6;
+  });
+}
+
 export function applyGeometryOverrides(geometry, overrides = {}) {
   if (!geometry || !Array.isArray(geometry.panels) || !geometry.panels.length) return geometry;
   const reference = getGeometryReferencePose(geometry);
@@ -293,20 +353,33 @@ export function applyGeometryOverrides(geometry, overrides = {}) {
     return geometry;
   }
 
+  // Along the beam, unless the geometry says the detector moves along an arm.
+  const axis = statedDistanceAxis(geometry) || INCIDENT_BEAM;
+  // A new beam centre moves the detector under the beam, the opposite way, in
+  // its own plane, so the image keeps its pixels. Shifting the image instead
+  // (raw_offset_px) left the panel claiming only the columns it was shifted
+  // onto, and every ring stopped short at that edge: drag the centre 240 px
+  // right and nothing was drawn left of column 240. Detectors whose panels do
+  // not share one plane and orientation, like the I23 cylinder, cannot move
+  // as one in a plane, and keep shifting the image.
+  const inPlane = sharesOnePlane(geometry.panels);
   return {
     ...geometry,
-    panels: geometry.panels.map((panel) => ({
-      ...panel,
-      origin_mm: [
-        panel.origin_mm[0],
-        panel.origin_mm[1],
-        panel.origin_mm[2] + shiftDistanceMm,
-      ],
-      raw_offset_px: [
-        panel.raw_offset_px[0] + shiftX,
-        panel.raw_offset_px[1] + shiftY,
-      ],
-    })),
+    panels: geometry.panels.map((panel) => {
+      const lifted = add(panel.origin_mm, scale(axis, shiftDistanceMm));
+      if (inPlane) {
+        const move = add(
+          scale(panel.fast_axis, -shiftX * panel.pixel_size_mm[0]),
+          scale(panel.slow_axis, -shiftY * panel.pixel_size_mm[1]),
+        );
+        return { ...panel, origin_mm: add(lifted, move) };
+      }
+      return {
+        ...panel,
+        origin_mm: lifted,
+        raw_offset_px: [panel.raw_offset_px[0] + shiftX, panel.raw_offset_px[1] + shiftY],
+      };
+    }),
     reference_center_x_px: Number.isFinite(targetCenterX) ? targetCenterX : reference.centerX,
     reference_center_y_px: Number.isFinite(targetCenterY) ? targetCenterY : reference.centerY,
     reference_distance_mm: Number.isFinite(targetDistanceMm) && targetDistanceMm > 0
