@@ -120,8 +120,8 @@ python albis_launcher.py --port 9000 --data-root /data/experiments --no-browser
 
 ## Opening Files from the Desktop
 
-ALBIS registers itself as a handler for `.h5`, `.hdf5`, `.cbf`, `.edf`, `.tif` and
-`.tiff`, so a detector image can be opened by double-clicking it in the file manager.
+ALBIS registers itself as a handler for `.h5`, `.hdf5`, `.nxs`, `.cbf`, `.edf`, `.tif`
+and `.tiff`, so a detector image can be opened by double-clicking it in the file manager.
 If ALBIS is already running, the file opens in the instance that is running rather than
 starting a second server.
 
@@ -150,10 +150,13 @@ handler list and leaves the other applications in it alone.
 
 The AppImage ships a desktop entry declaring the MIME types, and
 `scripts/install_linux_appimage.sh` installs it along with the media types for CBF and
-EDF, which have none registered anywhere. Set ALBIS as the default for a type with:
+EDF, which have none registered anywhere. HDF5 is `application/x-hdf`, the type
+shared-mime-info gives `.h5` and `.hdf5`, and a NeXus `.nxs` gets it too, from its
+contents; a phylogenetics NEXUS file of the same extension stays a text file. Set ALBIS
+as the default for a type with:
 
 ```bash
-xdg-mime default ALBIS.desktop application/x-hdf5
+xdg-mime default ALBIS.desktop application/x-hdf
 ```
 
 Running the AppImage without installing it does not register anything — a desktop entry
@@ -165,7 +168,7 @@ The application bundle declares the types, so ALBIS appears under *Open With* in
 Finder once it has been moved to `/Applications` and launched once. Use *Get Info → Open
 with → Change All…* to make it the default for a type.
 
-It claims `.h5`, `.hdf5`, `.cbf` and `.edf` by extension as well as by type: another
+It claims `.h5`, `.hdf5`, `.nxs`, `.cbf` and `.edf` by extension as well as by type: another
 viewer installed on the same Mac, ALBULA for one, may declare its own type for those
 files, and should macOS give them that type, ALBIS stays offered. It never takes the
 default by itself; if another viewer has it, choose ALBIS once with *Change All…*.

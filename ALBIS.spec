@@ -274,6 +274,14 @@ if sys.platform == "darwin":
                     "LSHandlerRank": "Alternate",
                     "LSItemContentTypes": ["org.hdfgroup.hdf5"],
                 },
+                # Alternate, not Owner: `.nxs` is also the phylogenetics NEXUS
+                # format, and ALBIS has no business becoming its default.
+                {
+                    "CFBundleTypeName": "NeXus data file",
+                    "CFBundleTypeRole": "Viewer",
+                    "LSHandlerRank": "Alternate",
+                    "LSItemContentTypes": ["com.saschaandresgrimm.albis.nxs"],
+                },
                 {
                     "CFBundleTypeName": "Crystallographic Binary Format image",
                     "CFBundleTypeRole": "Viewer",
@@ -305,7 +313,7 @@ if sys.platform == "darwin":
                     "CFBundleTypeName": "Detector data",
                     "CFBundleTypeRole": "Viewer",
                     "LSHandlerRank": "Alternate",
-                    "CFBundleTypeExtensions": ["h5", "hdf5", "cbf", "edf"],
+                    "CFBundleTypeExtensions": ["h5", "hdf5", "nxs", "cbf", "edf"],
                 },
             ],
             # `public.tiff` is Apple's own and `org.hdfgroup.hdf5` is declared
@@ -322,11 +330,19 @@ if sys.platform == "darwin":
                     "UTTypeTagSpecification": {"public.filename-extension": ["h5", "hdf5"]},
                 },
             ],
-            # CBF and EDF have no owner anywhere, so ALBIS declares them.
+            # NeXus, CBF and EDF have no owner anywhere, so ALBIS declares them.
+            # NeXus conforms to public.data only, not to org.hdfgroup.hdf5:
+            # the tag is the extension, and a phylogenetics `.nxs` is text.
             # Extension-only tags: a CBF opens with a comment block whose first
             # bytes vary by writer, and an EDF with an ASCII header too plain
             # to match on without also claiming unrelated text files.
             "UTExportedTypeDeclarations": [
+                {
+                    "UTTypeIdentifier": "com.saschaandresgrimm.albis.nxs",
+                    "UTTypeDescription": "NeXus data file",
+                    "UTTypeConformsTo": ["public.data"],
+                    "UTTypeTagSpecification": {"public.filename-extension": ["nxs"]},
+                },
                 {
                     "UTTypeIdentifier": "com.saschaandresgrimm.albis.cbf",
                     "UTTypeDescription": "Crystallographic Binary Format image",

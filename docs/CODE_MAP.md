@@ -254,6 +254,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - TTL cache for scan results with single-flight loading, so concurrent pollers share one walk.
 - `backend/services/os_actions.py`:
   - Shared desktop open actions and native picker integrations.
+- `backend/services/companion_files.py`:
+  - The metadata files next to an HDF5 data file (`.nxs`, `_master.h5`, Odin's `_meta.h5`), found by name.
 - `backend/services/picker_start.py`:
   - Where the native file and folder choosers open: the data root, then the last folder picked.
 
@@ -316,7 +318,7 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - Series detection and job-level behavior tests.
 - `tests/test_remote_stream_helpers.py`:
   - Remote stream metadata and decode helper tests.
-- `tests/test_path_policy.py`, `tests/test_binary_response_utils.py`, `tests/test_hdf5_units.py`, `tests/test_os_actions_helpers.py`, `tests/test_picker_start_folder.py`:
+- `tests/test_path_policy.py`, `tests/test_binary_response_utils.py`, `tests/test_hdf5_units.py`, `tests/test_os_actions_helpers.py`, `tests/test_picker_start_folder.py`, `tests/test_companion_metadata.py`:
   - Focused utility-level regression coverage for extracted shared modules.
 - `tests/test_detector_control.py`, `tests/fake_simplon.py`:
   - Detector tab endpoints against a simulated SIMPLON detector control unit; `test_scripts/fake_simplon_dcu.py` runs the same simulation by hand (`--thresholds 1-4`, `--api-version 1.6.0`).

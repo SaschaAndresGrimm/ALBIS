@@ -16,6 +16,7 @@ from ..api_models import (
     DataExportStartRequest,
     DataExportStartResponse,
 )
+from ..services.hdf5_open import HDF5_EXTS
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ def register_data_export_routes(app: FastAPI, deps: DataExportRouteDeps) -> None
 
         if not file:
             raise HTTPException(status_code=400, detail="Missing file")
-        if Path(file).suffix.lower() in {".h5", ".hdf5"} and not dataset:
+        if Path(file).suffix.lower() in HDF5_EXTS and not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
         if output_format not in {"tiff", "tif", "cbf"}:
             raise HTTPException(status_code=400, detail="Invalid format")

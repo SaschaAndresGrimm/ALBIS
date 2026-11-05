@@ -12,6 +12,7 @@ import numpy as np
 
 from ..detector_profiles import DLS_I23_P12M_DETECTOR, dls_i23_pilatus_12m_geometry
 from ..image_formats import _image_ext_name, _pilatus_header_text
+from .hdf5_open import HDF5_EXTS
 from .image_values import _as_int, _first_number
 
 
@@ -343,7 +344,7 @@ def _pilatus_image_geometry_internal(
         return geometry
     visited.add(resolved)
     ext = _image_ext_name(path.name)
-    if ext in {".h5", ".hdf5"}:
+    if ext in HDF5_EXTS:
         embedded = _read_hdf5_embedded_geometry(path)
         if embedded:
             return embedded

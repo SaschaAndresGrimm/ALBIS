@@ -13,7 +13,7 @@ It targets modern and not so modern **DECTRIS** detectors (SELUN, EIGER(2), PILA
 
 Image sources can be:
 
-- Files on disk (`.h5/.hdf5` stacks and common detector image formats `.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
+- Files on disk (`.h5/.hdf5` stacks, NeXus `.nxs` master files, and common detector image formats `.tif/.tiff`, `.cbf/.cbf.gz`, `.edf`).
 - **MYTHEN(2)** strip-detector acquisitions - open the acquisition's `.cfg` and the whole run is assembled into one image (channel across, frame down, counts as intensity).
 - The detector **SIMPLON monitor** stream for live viewing.
 - **JUNGFRAUJOCH Preview** ZeroMQ PUB stream (CBOR image messages + reflection spots).

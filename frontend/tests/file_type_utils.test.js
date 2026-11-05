@@ -12,6 +12,14 @@ describe("file_type_utils", () => {
     expect(isHdfFile("sample.tiff")).toBe(false);
   });
 
+  it("treats a NeXus .nxs master as HDF5, never as a numbered series", () => {
+    // Diamond's nexgen writes `PREFIX_w00001.nxs`; the trailing digits must not
+    // make it look like one member of an image series.
+    expect(isHdfFile("CuHF2PYZ2PF6_00001_w00001.nxs")).toBe(true);
+    expect(isHdfFile("RUN.NXS")).toBe(true);
+    expect(isSeriesCapableFile("CuHF2PYZ2PF6_00001_w00001.nxs")).toBe(false);
+  });
+
   it("detects header-capable detector image formats", () => {
     expect(isHeaderCapableFile("frame_0001.cbf")).toBe(true);
     expect(isHeaderCapableFile("frame_0001.cbf.gz")).toBe(true);

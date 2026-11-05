@@ -205,7 +205,7 @@ def _linux_choose_folder(prompt: str, start_dir: Path | None = None) -> str | No
 
 def _normalize_picker_exts(exts: tuple[str, ...] | list[str] | None) -> tuple[str, ...]:
     if not exts:
-        return (".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf")
+        return (".h5", ".hdf5", ".nxs", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf")
     normalized: list[str] = []
     for raw in exts:
         token = str(raw or "").strip().lower()

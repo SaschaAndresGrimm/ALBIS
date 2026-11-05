@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 from fastapi import HTTPException
 
-from .hdf5_open import _text, open_hdf5_read_only
+from .hdf5_open import HDF5_EXTS, _text, open_hdf5_read_only
 from .hdf5_units import (
     coerce_scalar as _coerce_scalar,
 )
@@ -72,7 +72,7 @@ class HDF5StackService:
             allowed_root = self.data_dir.resolve() if self.data_dir else base_file.parent.resolve()
             if allowed_root and not self.is_within(target, allowed_root):
                 return None
-        if not target.exists() or target.suffix.lower() not in {".h5", ".hdf5"}:
+        if not target.exists() or target.suffix.lower() not in HDF5_EXTS:
             return None
         return target
 

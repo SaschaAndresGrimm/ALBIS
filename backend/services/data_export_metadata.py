@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from .hdf5_open import HDF5_EXTS
+
 if TYPE_CHECKING:
     from .data_export import DataExportDeps
 
@@ -46,7 +48,7 @@ class DataExportMetadataMixin:
         """
         h5py = None
         ext = self._deps.image_ext_name(path.name)
-        if ext in {".h5", ".hdf5"} and dataset:
+        if ext in HDF5_EXTS and dataset:
             with contextlib.suppress(Exception):
                 h5py = self._deps.get_h5py()
             if h5py is not None:

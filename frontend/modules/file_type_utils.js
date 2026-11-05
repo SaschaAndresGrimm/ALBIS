@@ -2,7 +2,8 @@
  * Shared file-type classification helpers used across frontend controllers.
  */
 
-export const HDF_EXTS = [".h5", ".hdf5"];
+// `.nxs` is NeXus, which is HDF5: Diamond's nexgen writes its NXmx master files as `.nxs`.
+export const HDF_EXTS = [".h5", ".hdf5", ".nxs"];
 export const TIFF_EXTS = [".tif", ".tiff"];
 export const CBF_EXTS = [".cbf", ".cbf.gz"];
 export const EDF_EXTS = [".edf"];

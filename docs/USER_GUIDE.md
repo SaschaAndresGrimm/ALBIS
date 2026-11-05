@@ -174,9 +174,18 @@ file you opened, until ALBIS is restarted. ALBIS reads:
 | What you have | What to open |
 | --- | --- |
 | An HDF5 stack (filewriter1 or filewriter2) | the `_master.h5`, or a `_data_*.h5` directly |
+| A NeXus collection (Diamond's Eiger beamlines) | the `.nxs`, or a `_000001.h5` directly |
 | Single images | `.tif` / `.tiff`, `.cbf`, `.cbf.gz`, `.edf` |
 | A numbered image series | any one file — ALBIS finds its siblings |
 | A MYTHEN(2) acquisition | the acquisition's `.cfg` file |
+
+A data file opened on its own — a DECTRIS `_data_000001.h5`, or Odin's
+`_000001.h5` — holds frames but no energy, distance, pixel size or beam centre.
+ALBIS takes those from the collection's other files in the same folder: the `.nxs`
+(also one named like `_w00001.nxs`), then `_master.h5`, then `_meta.h5`. The
+resolution rings then work without entering the geometry by hand. Opening the
+`.nxs` or `_master.h5` itself shows every frame of the collection rather than one
+file's share of them.
 
 A numbered series such as `scan_00001.cbf … scan_00500.cbf` is recognised from
 one member: open any of them and the frame slider covers the whole series. In

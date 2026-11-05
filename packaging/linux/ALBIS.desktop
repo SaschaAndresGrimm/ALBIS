@@ -10,7 +10,8 @@ Categories=Graphics;Science;
 Keywords=diffraction;detector;image;viewer;HDF5;DECTRIS;
 # Kept in step with backend/file_associations.py by
 # tests/test_file_associations.py. image/x-cbf and image/x-edf are declared by
-# ALBIS-mime.xml, since neither format has a registered media type.
-MimeType=application/x-hdf5;image/x-cbf;image/x-edf;image/tiff;
+# ALBIS-mime.xml, since neither format has a registered media type. A NeXus
+# .nxs is application/x-hdf, found from its contents.
+MimeType=application/x-hdf;image/x-cbf;image/x-edf;image/tiff;
 Terminal=false
 StartupNotify=false

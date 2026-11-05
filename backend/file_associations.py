@@ -46,8 +46,28 @@ class FileAssociation:
 
 
 FILE_ASSOCIATIONS: tuple[FileAssociation, ...] = (
-    FileAssociation(".h5", "application/x-hdf5", "HDF5 data file", "org.hdfgroup.hdf5"),
-    FileAssociation(".hdf5", "application/x-hdf5", "HDF5 data file", "org.hdfgroup.hdf5"),
+    # `application/x-hdf` is the type shared-mime-info gives `.h5` and `.hdf5`
+    # (and HDF4). This used to say `application/x-hdf5`, which no stock
+    # distribution defines -- Rocky 9 and Ubuntu 24.04 report `.h5` as
+    # `application/x-hdf` -- so the desktop entry claimed a type no file has and
+    # ALBIS was never offered for `.h5` on Linux.
+    FileAssociation(".h5", "application/x-hdf", "HDF5 data file", "org.hdfgroup.hdf5"),
+    FileAssociation(".hdf5", "application/x-hdf", "HDF5 data file", "org.hdfgroup.hdf5"),
+    # NeXus, as Diamond's nexgen writes NXmx master files. `.nxs` is also the
+    # extension of the unrelated NEXUS text format used in phylogenetics, so
+    # ALBIS only ever offers itself for it (Alternate on macOS, "Open with" on
+    # Windows) and never takes the default. On Linux it claims no type of its
+    # own: shared-mime-info has no glob for `*.nxs`, so a file manager looks
+    # inside, finds the HDF5 signature and calls a NeXus file
+    # `application/x-hdf`, while a phylogenetics file stays `text/plain`.
+    # Declaring `application/x-nexus` by glob would retype those text files and
+    # take their editors away -- checked on Rocky 9 and Ubuntu 24.04.
+    FileAssociation(
+        ".nxs",
+        "application/x-hdf",
+        "NeXus data file",
+        "com.saschaandresgrimm.albis.nxs",
+    ),
     FileAssociation(
         ".cbf",
         "image/x-cbf",
