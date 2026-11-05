@@ -157,18 +157,48 @@ def _run_linux_dialog(cmd: list[str]) -> str | None:
     raise RuntimeError(stderr)
 
 
-def _linux_choose_folder(prompt: str) -> str | None:
+# Where a chooser opens. Every chooser used to be shown without one, so each
+# opened wherever its toolkit liked -- the home folder, "Recent", the folder
+# ALBIS was started from -- whatever `data.root` said. A beamline scientist
+# with the root set to the experiment's folder still landed in their home
+# folder on every File -> Open.
+#
+# The folder never goes into script text. zenity, kdialog and Tk take it as an
+# argument of its own; AppleScript reads it from `argv` and PowerShell from the
+# environment (see `_PICKER_START_ENV`). A folder name may hold any character,
+# including the curly quotes PowerShell also ends a string on, and nothing
+# needs escaping when nothing is spliced in.
+_PICKER_START_ENV = "ALBIS_PICKER_START"
+
+
+# zenity is told a name *inside* the start folder that is not expected to
+# exist. Naming the folder itself works on zenity 3 (GTK 3, RHEL 8 and 9) only
+# with a trailing separator, and not at all on zenity 4 (GTK 4, Ubuntu 24.04,
+# Fedora): there it opens the parent with the folder highlighted, whatever the
+# spelling. A missing name inside opens the folder itself on both, with nothing
+# selected or typed in; OK in a folder chooser still returns the folder.
+_ZENITY_START_NAME = ".albis-start"
+
+
+def _zenity_start_args(start_dir: Path | None) -> list[str]:
+    return [f"--filename={start_dir / _ZENITY_START_NAME}"] if start_dir else []
+
+
+def _linux_choose_folder(prompt: str, start_dir: Path | None = None) -> str | None:
     if not _display_available():
         raise RuntimeError("No graphical display available")
     # Passed as argv elements, never through a shell, so the title needs no
     # escaping on this platform.
     zenity = shutil.which("zenity")
     if zenity:
-        return _run_linux_dialog([zenity, "--file-selection", "--directory", f"--title={prompt}"])
+        return _run_linux_dialog(
+            [zenity, "--file-selection", "--directory", f"--title={prompt}"]
+            + _zenity_start_args(start_dir)
+        )
     kdialog = shutil.which("kdialog")
     if kdialog:
         return _run_linux_dialog(
-            [kdialog, "--getexistingdirectory", str(Path.home()), "--title", prompt]
+            [kdialog, "--getexistingdirectory", str(start_dir or Path.home()), "--title", prompt]
         )
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
 
@@ -259,10 +289,17 @@ $owner.Dispose()
 """.strip()
 
 
-def _windows_dialog_runner(script: str) -> str | None:
+def _windows_dialog_runner(script: str, start_dir: Path | None = None) -> str | None:
     shell = shutil.which("powershell") or shutil.which("pwsh")
     if not shell:
         raise RuntimeError("No supported Windows file dialog found (PowerShell unavailable)")
+    # The start folder travels in the environment, not in the script: see
+    # `_PICKER_START_ENV`. Removed when there is none, so a value inherited
+    # from whoever started ALBIS cannot pick the folder instead.
+    env = dict(os.environ)
+    env.pop(_PICKER_START_ENV, None)
+    if start_dir:
+        env[_PICKER_START_ENV] = str(start_dir)
     # Bytes, decoded here: the script switches PowerShell's output to UTF-8,
     # while `text=True` would decode it with the ANSI code page (cp1252 on a
     # German Windows). Every non-ASCII path then came back mangled --
@@ -272,6 +309,7 @@ def _windows_dialog_runner(script: str) -> str | None:
         [shell, "-NoProfile", "-NonInteractive", "-STA", "-Command", script],
         capture_output=True,
         check=False,
+        env=env,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     stdout = (result.stdout or b"").decode("utf-8-sig", errors="replace").strip()
@@ -295,7 +333,7 @@ def _windows_picker_filter(exts: tuple[str, ...]) -> str:
     return f"{label_text} ({pattern_text})|{pattern_text}|All files (*.*)|*.*"
 
 
-def _windows_choose_folder(prompt: str) -> str | None:
+def _windows_choose_folder(prompt: str, start_dir: Path | None = None) -> str | None:
     escaped_prompt = _powershell_single_quote(prompt)
     script = f"""
 Add-Type -AssemblyName System.Windows.Forms
@@ -304,6 +342,7 @@ Add-Type -AssemblyName System.Windows.Forms
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
 $dialog.Description = '{escaped_prompt}'
 $dialog.ShowNewFolderButton = $false
+if ($env:{_PICKER_START_ENV}) {{ $dialog.SelectedPath = $env:{_PICKER_START_ENV} }}
 $result = $dialog.ShowDialog($owner)
 {_WINDOWS_DIALOG_OWNER_CLEANUP}
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
@@ -311,10 +350,12 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
   [Console]::Write($dialog.SelectedPath)
 }}
 """.strip()
-    return _windows_dialog_runner(script)
+    return _windows_dialog_runner(script, start_dir)
 
 
-def _windows_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
+def _windows_choose_file(
+    exts: tuple[str, ...], prompt: str, start_dir: Path | None = None
+) -> str | None:
     escaped_prompt = _powershell_single_quote(prompt)
     escaped_filter = _powershell_single_quote(_windows_picker_filter(exts))
     script = f"""
@@ -328,6 +369,7 @@ $dialog.FilterIndex = 1
 $dialog.Multiselect = $false
 $dialog.CheckFileExists = $true
 $dialog.RestoreDirectory = $true
+if ($env:{_PICKER_START_ENV}) {{ $dialog.InitialDirectory = $env:{_PICKER_START_ENV} }}
 $result = $dialog.ShowDialog($owner)
 {_WINDOWS_DIALOG_OWNER_CLEANUP}
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
@@ -335,10 +377,12 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
   [Console]::Write($dialog.FileName)
 }}
 """.strip()
-    return _windows_dialog_runner(script)
+    return _windows_dialog_runner(script, start_dir)
 
 
-def _linux_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
+def _linux_choose_file(
+    exts: tuple[str, ...], prompt: str, start_dir: Path | None = None
+) -> str | None:
     if not _display_available():
         raise RuntimeError("No graphical display available")
     pattern_text, label_text = _picker_patterns(exts)
@@ -351,6 +395,7 @@ def _linux_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
                 f"--title={prompt}",
                 f"--file-filter={label_text} | {pattern_text}",
             ]
+            + _zenity_start_args(start_dir)
         )
     kdialog = shutil.which("kdialog")
     if kdialog:
@@ -358,14 +403,18 @@ def _linux_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
             [
                 kdialog,
                 "--getopenfilename",
-                str(Path.home()),
+                str(start_dir or Path.home()),
                 f"{label_text} ({pattern_text})",
             ]
         )
     raise RuntimeError("No supported Linux file dialog found (install zenity or kdialog)")
 
 
-def _tk_choose_folder(prompt: str) -> str | None:
+def _tk_start_kwargs(start_dir: Path | None) -> dict[str, str]:
+    return {"initialdir": str(start_dir)} if start_dir else {}
+
+
+def _tk_choose_folder(prompt: str, start_dir: Path | None = None) -> str | None:
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -377,12 +426,14 @@ def _tk_choose_folder(prompt: str) -> str | None:
     with contextlib.suppress(Exception):
         root.attributes("-topmost", True)
     try:
-        return filedialog.askdirectory(title=prompt) or None
+        return filedialog.askdirectory(title=prompt, **_tk_start_kwargs(start_dir)) or None
     finally:
         root.destroy()
 
 
-def _tk_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
+def _tk_choose_file(
+    exts: tuple[str, ...], prompt: str, start_dir: Path | None = None
+) -> str | None:
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -399,6 +450,7 @@ def _tk_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
             filedialog.askopenfilename(
                 title=prompt,
                 filetypes=[(label_text, pattern_text)],
+                **_tk_start_kwargs(start_dir),
             )
             or None
         )
@@ -406,62 +458,75 @@ def _tk_choose_file(exts: tuple[str, ...], prompt: str) -> str | None:
         root.destroy()
 
 
-def choose_folder(prompt: str = "Select folder") -> str | None:
+def _darwin_choose(command: str, start_dir: Path | None) -> str | None:
+    """Run an AppleScript `choose file` or `choose folder` command.
+
+    The start folder is the script's first argument (`item 1 of argv`), not
+    part of its text: see `_PICKER_START_ENV`.
+    """
+    if start_dir:
+        cmd = [
+            "osascript",
+            "-e",
+            "on run argv",
+            "-e",
+            f"return POSIX path of ({command} default location (POSIX file (item 1 of argv)))",
+            "-e",
+            "end run",
+            str(start_dir),
+        ]
+    else:
+        cmd = ["osascript", "-e", f"POSIX path of ({command})"]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    picked = result.stdout.strip()
+    return picked or None
+
+
+def choose_folder(prompt: str = "Select folder", start_dir: Path | None = None) -> str | None:
     """Show the platform's folder chooser under the given title.
 
     The title used to be the literal "Select Auto Load folder" on every
     platform, shared by five call sites -- so choosing a log directory, an
     export folder or the data root all announced themselves as autoload.
+    `start_dir` is where it opens; without one the toolkit decides.
     """
     system = platform.system()
     if system == "Windows":
-        return _windows_choose_folder(prompt)
+        return _windows_choose_folder(prompt, start_dir)
     if system == "Darwin":
         escaped_prompt = _applescript_double_quote(prompt)
-        script = f'POSIX path of (choose folder with prompt "{escaped_prompt}")'
-        result = subprocess.run(
-            ["osascript", "-e", script], capture_output=True, text=True, check=True
-        )
-        picked = result.stdout.strip()
-        return picked or None
+        return _darwin_choose(f'choose folder with prompt "{escaped_prompt}"', start_dir)
     if system == "Linux":
         try:
-            return _linux_choose_folder(prompt)
+            return _linux_choose_folder(prompt, start_dir)
         except RuntimeError:
             if not _display_available():
                 raise
-            return _tk_choose_folder(prompt)
-    return _tk_choose_folder(prompt)
+            return _tk_choose_folder(prompt, start_dir)
+    return _tk_choose_folder(prompt, start_dir)
 
 
 def choose_file(
     exts: tuple[str, ...] | list[str] | None = None,
     prompt: str = "Select image file",
+    start_dir: Path | None = None,
 ) -> str | None:
     normalized_exts = _normalize_picker_exts(exts)
     system = platform.system()
     if system == "Windows":
-        return _windows_choose_file(normalized_exts, prompt)
+        return _windows_choose_file(normalized_exts, prompt, start_dir)
     if system == "Darwin":
         escaped_prompt = _applescript_double_quote(prompt)
-        if normalized_exts == (".expt",):
-            script = f'POSIX path of (choose file with prompt "{escaped_prompt}")'
-        else:
+        command = f'choose file with prompt "{escaped_prompt}"'
+        if normalized_exts != (".expt",):
             apple_types = ", ".join(f'"{token}"' for token in _darwin_picker_types(normalized_exts))
-            script = (
-                f'POSIX path of (choose file with prompt "{escaped_prompt}" '
-                f"of type {{{apple_types}}})"
-            )
-        result = subprocess.run(
-            ["osascript", "-e", script], capture_output=True, text=True, check=True
-        )
-        picked = result.stdout.strip()
-        return picked or None
+            command += f" of type {{{apple_types}}}"
+        return _darwin_choose(command, start_dir)
     if system == "Linux":
         try:
-            return _linux_choose_file(normalized_exts, prompt)
+            return _linux_choose_file(normalized_exts, prompt, start_dir)
         except RuntimeError:
             if not _display_available():
                 raise
-            return _tk_choose_file(normalized_exts, prompt)
-    return _tk_choose_file(normalized_exts, prompt)
+            return _tk_choose_file(normalized_exts, prompt, start_dir)
+    return _tk_choose_file(normalized_exts, prompt, start_dir)

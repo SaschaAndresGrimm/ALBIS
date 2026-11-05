@@ -109,6 +109,7 @@ from .services.known_detectors import KnownDetectorStore
 from .services.known_detectors import resolve_path as resolve_known_detectors_path
 from .services.mythen import _mythen_header_text, _read_mythen_acquisition
 from .services.path_policy import PathPolicy
+from .services.picker_start import PickerStartFolders
 from .services.remote_stream import (
     remote_extract_metadata as _remote_extract_metadata,
 )
@@ -750,6 +751,8 @@ register_handoff_routes(
 )
 
 
+# Where the native choosers open; module-level so tests can start it afresh.
+picker_start = PickerStartFolders()
 register_file_routes(
     app,
     FileRouteDeps(
@@ -777,6 +780,7 @@ register_file_routes(
         image_ext_name=_image_ext_name,
         split_series_name=_split_series_name,
         strip_image_ext=_strip_image_ext,
+        picker_start=picker_start,
     ),
 )
 

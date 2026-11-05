@@ -222,7 +222,7 @@ def test_the_route_titles_the_chooser_from_the_query(monkeypatch: pytest.MonkeyP
 
     seen: list[str] = []
 
-    def fake_choose_folder(prompt: str = "") -> str:
+    def fake_choose_folder(prompt: str = "", **_kwargs) -> str:
         seen.append(prompt)
         return "/tmp/picked"
 
@@ -249,7 +249,7 @@ def test_the_route_honours_every_purpose(
 
     seen: list[str] = []
     monkeypatch.setattr(
-        files_route, "_choose_folder", lambda prompt="": seen.append(prompt) or "/tmp/x"
+        files_route, "_choose_folder", lambda prompt="", **_kw: seen.append(prompt) or "/tmp/x"
     )
 
     TestClient(app).get("/api/choose-folder", params={"purpose": purpose, "lang": language})
@@ -266,7 +266,7 @@ def test_the_route_ignores_a_hostile_language(monkeypatch: pytest.MonkeyPatch) -
 
     seen: list[str] = []
     monkeypatch.setattr(
-        files_route, "_choose_folder", lambda prompt="": seen.append(prompt) or "/tmp/x"
+        files_route, "_choose_folder", lambda prompt="", **_kw: seen.append(prompt) or "/tmp/x"
     )
 
     TestClient(app).get(
@@ -286,7 +286,7 @@ def test_the_file_chooser_is_titled_too(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(
         files_route,
         "_choose_file",
-        lambda exts=None, prompt="": seen.append(prompt) or "/tmp/frame.h5",
+        lambda exts=None, prompt="", **_kw: seen.append(prompt) or "/tmp/frame.h5",
     )
 
     TestClient(app).get("/api/choose-file", params={"lang": "de"})

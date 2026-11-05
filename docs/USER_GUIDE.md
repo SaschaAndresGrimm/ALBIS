@@ -167,7 +167,9 @@ detector pixel stays a sharp square, ready for a slide. Choose **Export PNG**.
 ## Open your data
 
 **File → Open…** (`⌘O` / `Ctrl+O`), or **Open file** in the middle of an
-empty window, opens a file dialog. ALBIS reads:
+empty window, opens a file dialog. It opens in the data root
+(**Settings → Data → Data root**), and after that in the folder of the last
+file you opened, until ALBIS is restarted. ALBIS reads:
 
 | What you have | What to open |
 | --- | --- |
