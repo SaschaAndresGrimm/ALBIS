@@ -7,6 +7,7 @@ import { showConfirmDialog } from "./dialogs.js";
 import { ANALYSIS_TOOLS, TOOL_PRESETS, normalizeHiddenTools } from "./analysis_tools.js";
 import { chooseNativePath } from "./native_picker.js";
 import { fetchJSON, fetchJSONWithInit } from "./http.js";
+import { notifyWarning } from "./toast.js";
 
 export function createSettingsController({
   apiBase,
@@ -106,6 +107,22 @@ export function createSettingsController({
   let settingsModalBusy = false;
   let settingsRequestId = 0;
   let envOverrides = [];
+  let configLoadErrorAnnounced = false;
+  // Made here rather than in index.html, which is past its line budget: the
+  // note belongs right under the file's path, so it is placed after it.
+  const settingsConfigError = elements.settingsConfigError || createConfigErrorNote();
+
+  function createConfigErrorNote() {
+    const row = settingsConfigPath?.parentElement;
+    if (!row) return null;
+    const note = document.createElement("div");
+    note.id = "settings-config-error";
+    note.className = "settings-env-note is-hidden";
+    note.setAttribute("role", "alert");
+    note.setAttribute("aria-hidden", "true");
+    row.after(note);
+    return note;
+  }
   let syncingExternalAccessUi = false;
 
   function setSettingsMessage(text, isError = false, isBusy = false) {
@@ -269,6 +286,23 @@ export function createSettingsController({
       }
     });
     updateEnvOverrideNote();
+  }
+
+  /** Say, under the file's path, that the config could not be read and why.
+   * ALBIS then runs on defaults, which otherwise looks exactly like settings
+   * it forgot. Returns the reason, "" when the file loaded. The backend
+   * starts the reason with the file's path, which is printed just above. */
+  function applyConfigLoadError(reason, configPath = "") {
+    let text = String(reason || "").trim();
+    const prefix = configPath ? `${configPath}: ` : "";
+    if (prefix && text.startsWith(prefix)) text = text.slice(prefix.length).trim();
+    if (!settingsConfigError) return text;
+    settingsConfigError.textContent = text
+      ? t("settings.config_load_error_note", { reason: text })
+      : "";
+    settingsConfigError.classList.toggle("is-hidden", !text);
+    settingsConfigError.setAttribute("aria-hidden", text ? "false" : "true");
+    return text;
   }
 
   function updateEnvOverrideNote() {
@@ -608,6 +642,7 @@ export function createSettingsController({
       const config = payload?.config || {};
       fillSettingsForm(config, payload?.path || "", payload?.effective || null);
       applyEnvOverrides(payload?.env_overrides);
+      applyConfigLoadError(payload?.load_error, payload?.path);
       applyUiSettings(config?.ui, { source: "config" });
       if (settingsToolHints) {
         settingsToolHints.checked = Boolean(config?.ui?.tool_hints ?? state.toolHintsEnabled);
@@ -638,6 +673,7 @@ export function createSettingsController({
       });
       fillSettingsForm(data?.config || config, data?.path || "", data?.effective || null);
       applyEnvOverrides(data?.env_overrides);
+      applyConfigLoadError(data?.load_error, data?.path);
       applyUiSettings(data?.config?.ui || config?.ui, { source: "user" });
       core.overlayRender.schedulePixelOverlay();
       updateExternalAccessUi();
@@ -661,6 +697,11 @@ export function createSettingsController({
    * change one. */
   function applyLoadedSettings(payload) {
     applyEnvOverrides(payload?.env_overrides);
+    // Once a session: a user with a broken file rarely opens Settings to look.
+    if (applyConfigLoadError(payload?.load_error, payload?.path) && !configLoadErrorAnnounced) {
+      configLoadErrorAnnounced = true;
+      notifyWarning(t("status.config_load_error"));
+    }
     applyUiSettings(payload?.config?.ui, { source: "config" });
   }
 
@@ -675,6 +716,7 @@ export function createSettingsController({
   async function disableStartupUpdateCheck() {
     const payload = await fetchJSON(`${apiBase}/settings`);
     applyEnvOverrides(payload?.env_overrides);
+    applyConfigLoadError(payload?.load_error, payload?.path);
     if (isEnvOverridden("ui.auto_check_updates")) return "locked";
     const current = payload?.config || {};
     const config = { ...current, ui: { ...(current.ui || {}), auto_check_updates: false } };
@@ -684,6 +726,7 @@ export function createSettingsController({
       body: JSON.stringify({ config }),
     });
     applyEnvOverrides(data?.env_overrides);
+    applyConfigLoadError(data?.load_error, data?.path);
     applyUiSettings(data?.config?.ui || config.ui, { source: "user" });
     if (settingsAutoCheckUpdates) settingsAutoCheckUpdates.checked = false;
     return "saved";

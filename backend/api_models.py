@@ -109,6 +109,10 @@ class SettingsPayloadResponse(_StrictModel):
     # interface had nothing to show and showed nothing.
     effective: dict[str, Any] = Field(default_factory=dict)
     path: str
+    # Why the config file could not be read, when it could not: ALBIS then
+    # started on defaults, which looks exactly like settings it forgot. Empty
+    # when the file loaded, and again once Settings has saved over it.
+    load_error: str = ""
     restart_required: bool
     # `section.key` names the environment is deciding. Saving the file cannot
     # change these, so the interface shows them as not editable instead of
