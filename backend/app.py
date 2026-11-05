@@ -640,6 +640,7 @@ def _settings_payload() -> dict[str, Any]:
         "path": str(runtime_state.config_path),
         "restart_required": True,
         "env_overrides": env_override_keys(),
+        "load_error": config_load_error(),
     }
 
 
