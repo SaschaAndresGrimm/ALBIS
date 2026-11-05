@@ -8,7 +8,7 @@ import logging
 import math
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +38,7 @@ from .hdf5_units import (
     wavelength_to_ev as _wavelength_to_ev,
 )
 from .hdf5_walk_report import GROUP_CHILD_LIMIT, WalkReport
+from .vds_dtype import VirtualDtypeCache
 
 _log = logging.getLogger("albis.hdf5_stack")
 
@@ -60,6 +61,7 @@ class HDF5StackService:
     get_allow_abs_paths: Callable[[], bool]
     is_within: Callable[[Path, Path], bool]
     get_h5py: Callable[[], Any]
+    _vds_dtypes: VirtualDtypeCache = field(default_factory=VirtualDtypeCache, repr=False)
 
     def resolve_external_path(self, base_file: Path, filename: str | None) -> Path | None:
         if not filename:
@@ -850,18 +852,49 @@ class HDF5StackService:
             raise KeyError("Dataset not found")
         return node, opened
 
+    def _open_virtual_source(
+        self, dset: Any, current_file: Path, file_name: str, dset_name: str
+    ) -> tuple[Any, list[Any]]:
+        """One VDS source, reached the way any link is: confined to the data root."""
+        if file_name in ("", "."):
+            node, _file, opened = self._resolve_path_node(dset.file, current_file, dset_name)
+            return node, opened
+        target = self.resolve_external_path(current_file, file_name)
+        if target is None:
+            raise KeyError("Virtual dataset source not permitted")
+        handle = open_hdf5_read_only(self.get_h5py(), target)
+        try:
+            node, _file, opened = self._resolve_path_node(handle, target, dset_name)
+        except Exception:
+            handle.close()
+            raise
+        return node, [*opened, handle]
+
+    def _read_dtype(self, dset: Any, current_file: Path) -> np.dtype | None:
+        """The narrower type a VDS's frames are served as, if any. See vds_dtype.py."""
+        try:
+            stat = current_file.stat()
+            key = (str(current_file), stat.st_size, stat.st_mtime_ns, dset.name)
+        except OSError:
+            return None
+        return self._vds_dtypes.read_dtype(
+            dset, key, lambda name, path: self._open_virtual_source(dset, current_file, name, path)
+        )
+
     def resolve_dataset_view(
         self, h5: Any, base_file: Path, dataset: str
     ) -> tuple[dict[str, Any], list[Any]]:
         h5py = self.get_h5py()
         node, current_file, opened = self.resolve_node(h5, base_file, dataset)
         if isinstance(node, h5py.Dataset):
+            read_dtype = self._read_dtype(node, current_file)
             return (
                 {
                     "kind": "dataset",
                     "path": dataset,
                     "shape": tuple(int(x) for x in node.shape),
-                    "dtype": str(node.dtype),
+                    "dtype": str(read_dtype if read_dtype is not None else node.dtype),
+                    "read_dtype": read_dtype,
                     "ndim": int(node.ndim),
                     "dataset": node,
                 },
@@ -877,8 +910,14 @@ class HDF5StackService:
 
         raise KeyError("Dataset not found")
 
+    @classmethod
+    def extract_frame(cls, view: dict[str, Any], index: int, threshold: int) -> np.ndarray:
+        frame = cls._extract_frame(view, index, threshold)
+        read_dtype = view.get("read_dtype")
+        return frame if read_dtype is None else frame.astype(read_dtype, copy=False)
+
     @staticmethod
-    def extract_frame(view: dict[str, Any], index: int, threshold: int) -> np.ndarray:
+    def _extract_frame(view: dict[str, Any], index: int, threshold: int) -> np.ndarray:
         if view["kind"] == "dataset":
             dset = view["dataset"]
             if dset.ndim == 4:
