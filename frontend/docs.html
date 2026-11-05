@@ -440,12 +440,15 @@
         <section id="quick-start">
           <h2>Quick start</h2>
           <ul>
-            <li>Open data: <code>File → Open</code> to load HDF5, TIFF, CBF(.gz) or EDF files, or a MYTHEN
-                acquisition by picking its <code>.cfg</code> file.</li>
+            <li>Open data: <code>File → Open</code> to load HDF5 (including NeXus <code>.nxs</code>), TIFF,
+                CBF(.gz) or EDF files, or a MYTHEN acquisition by picking its <code>.cfg</code> file.
+                A data file opened on its own, such as <code>…_000001.h5</code>, takes its energy, distance,
+                pixel size and beam centre from its collection's <code>.nxs</code>, <code>_master.h5</code>
+                or <code>_meta.h5</code> in the same folder.</li>
             <li>Reopen data: <code>File → Open Recent</code> lists the last ten files you opened,
                 newest first. Watched folders and live streams are not listed.</li>
             <li>Open from the file manager: double-click an <code>.h5</code>, <code>.hdf5</code>,
-                <code>.cbf</code>, <code>.edf</code>, <code>.tif</code> or <code>.tiff</code> file.
+                <code>.nxs</code>, <code>.cbf</code>, <code>.edf</code>, <code>.tif</code> or <code>.tiff</code> file.
                 On Windows, pick ALBIS once under <em>Open with</em> to make it the default; on macOS
                 use <em>Get Info → Open with</em>. If ALBIS is already running, the file opens
                 there instead of starting a second copy.</li>

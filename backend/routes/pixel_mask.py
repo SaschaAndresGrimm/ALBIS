@@ -21,7 +21,7 @@ from fastapi.responses import Response
 from ..api_models import PixelMaskDetectorCopyResponse, PixelMaskDetectorWriteResponse
 from ..services import pixel_mask, simplon_control
 from ..services.content_disposition import attachment_disposition
-from ..services.hdf5_open import open_hdf5_for_read, read_hdf5_array
+from ..services.hdf5_open import HDF5_EXTS, open_hdf5_for_read, read_hdf5_array
 from .binary_response_utils import (
     add_optional_header,
     build_binary_headers,
@@ -111,7 +111,7 @@ def register_pixel_mask_routes(app: FastAPI, deps: PixelMaskRouteDeps) -> None:
         suffix = path.suffix.lower()
         if suffix in {".tif", ".tiff"}:
             return _mask_response(pixel_mask.read_tiff_mask(path), "")
-        if suffix not in {".h5", ".hdf5"}:
+        if suffix not in HDF5_EXTS:
             raise HTTPException(status_code=400, detail="A pixel mask is an HDF5 or TIFF file.")
         h5py = deps.get_h5py()
         with open_hdf5_for_read(h5py, path) as h5:

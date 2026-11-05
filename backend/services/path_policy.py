@@ -8,6 +8,8 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
+from .hdf5_open import HDF5_EXTS
+
 
 @dataclass(frozen=True)
 class PathPolicy:
@@ -43,7 +45,7 @@ class PathPolicy:
             if not self.allow_abs_paths():
                 raise HTTPException(status_code=400, detail="Absolute paths are disabled")
             path = raw.expanduser().resolve()
-            if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
+            if not path.exists() or path.suffix.lower() not in HDF5_EXTS:
                 raise HTTPException(status_code=404, detail="File not found")
             return path
         safe = self.safe_rel_path(name)
@@ -51,7 +53,7 @@ class PathPolicy:
         path = (self.data_dir / safe).resolve()
         if not self.is_within(path, root):
             raise HTTPException(status_code=400, detail="Invalid file name")
-        if not path.exists() or path.suffix.lower() not in {".h5", ".hdf5"}:
+        if not path.exists() or path.suffix.lower() not in HDF5_EXTS:
             raise HTTPException(status_code=404, detail="File not found")
         return path
 
@@ -95,6 +97,24 @@ class PathPolicy:
         if not path.exists() or self.image_ext_name(path.name) not in self.autoload_exts:
             raise HTTPException(status_code=404, detail="File not found")
         return path
+
+    def accept_found_hdf5_file(self, path: Path) -> Path | None:
+        """Vet an HDF5 file ALBIS found itself, next to one it was asked for.
+
+        Not from the request, but under the same rules: a neighbour can be a
+        symlink to anywhere, so it is resolved and then held to the data root
+        unless absolute paths are allowed, exactly as `resolve_hdf5_file` holds
+        a requested one. None for anything that may not be read.
+        """
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError:
+            return None
+        if not resolved.is_file() or resolved.suffix.lower() not in HDF5_EXTS:
+            return None
+        if self.allow_abs_paths() or self.is_within(resolved, self.data_dir.resolve()):
+            return resolved
+        return None
 
     def resolve_manifest_file(self, name: str) -> Path:
         """Resolve a handoff manifest path under the same rules as the rest.

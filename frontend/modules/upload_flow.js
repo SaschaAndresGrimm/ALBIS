@@ -9,6 +9,7 @@ function isSupportedUploadFile(fileName) {
   return (
     name.endsWith(".h5") ||
     name.endsWith(".hdf5") ||
+    name.endsWith(".nxs") ||
     name.endsWith(".tif") ||
     name.endsWith(".tiff") ||
     name.endsWith(".cbf") ||

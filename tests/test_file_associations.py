@@ -70,7 +70,15 @@ def test_the_two_exclusions_are_the_intended_ones() -> None:
 
 @pytest.mark.parametrize(
     "name",
-    ["frame.h5", "master.HDF5", "image.cbf", "scan.edf", "pic.tif", "pic.TIFF"],
+    [
+        "frame.h5",
+        "master.HDF5",
+        "CuHF2PYZ2PF6_00001_w00001.nxs",
+        "image.cbf",
+        "scan.edf",
+        "pic.tif",
+        "pic.TIFF",
+    ],
 )
 def test_associated_paths_are_recognized(name: str) -> None:
     assert is_associated_path(name)
@@ -209,7 +217,7 @@ def test_the_installed_desktop_entry_matches_the_bundled_one() -> None:
 def test_mime_xml_declares_the_types_nothing_else_owns() -> None:
     """CBF and EDF only -- and deliberately not HDF5 or TIFF.
 
-    `application/x-hdf5` and `image/tiff` are already in shared-mime-info.
+    `application/x-hdf` and `image/tiff` are already in shared-mime-info.
     Redeclaring a type the system already defines risks contradicting it, and
     gains nothing: the desktop entry can claim them as they stand.
     """
@@ -224,13 +232,16 @@ def test_mime_xml_declares_the_types_nothing_else_owns() -> None:
     }
     assert globs["image/x-cbf"] == {"*.cbf"}
     assert globs["image/x-edf"] == {"*.edf"}
+    # No glob for *.nxs: a NeXus file is typed by its HDF5 signature, and a
+    # phylogenetics NEXUS file, which is text, keeps text/plain.
+    assert not any("*.nxs" in patterns for patterns in globs.values())
 
 
 def test_every_declared_mime_type_is_either_standard_or_declared_here() -> None:
     ns = {"m": "http://www.freedesktop.org/standards/shared-mime-info"}
     root = ET.parse(MIME_XML).getroot()
     ours = {node.attrib["type"] for node in root.findall("m:mime-type", ns)}
-    standard = {"application/x-hdf5", "image/tiff"}
+    standard = {"application/x-hdf", "image/tiff"}
     for mime in ASSOCIATED_MIME_TYPES:
         assert mime in ours or mime in standard, f"{mime} is claimed but never defined"
 
@@ -245,6 +256,31 @@ def test_the_installer_registers_and_the_uninstaller_removes_the_mime_file() -> 
     uninstall = UNINSTALL_SH.read_text(encoding="utf-8")
     assert 'rm -f "$PREFIX/share/mime/packages/ALBIS.xml"' in uninstall
     assert "update-mime-database" in uninstall
+
+
+def test_hdf5_is_claimed_under_the_type_linux_actually_gives_it() -> None:
+    """`.h5` is `application/x-hdf` in shared-mime-info; nothing defines x-hdf5.
+
+    The desktop entry used to claim only `application/x-hdf5`. Rocky 9 and
+    Ubuntu 24.04 report an `.h5` file as `application/x-hdf`, so ALBIS was never
+    offered for one: the association matched no file on the system.
+    """
+    by_ext = {item.extension: item.mime_type for item in FILE_ASSOCIATIONS}
+    assert by_ext[".h5"] == by_ext[".hdf5"] == "application/x-hdf"
+    assert "application/x-hdf5" not in ASSOCIATED_MIME_TYPES
+
+
+def test_nexus_is_offered_but_never_takes_the_default() -> None:
+    """`.nxs` is also the phylogenetics NEXUS format, so ALBIS is an alternative."""
+    entries = _spec_info_plist()["CFBundleDocumentTypes"]
+    nexus = [
+        e for e in entries if "com.saschaandresgrimm.albis.nxs" in e.get("LSItemContentTypes", [])
+    ]
+    assert len(nexus) == 1 and nexus[0]["LSHandlerRank"] == "Alternate"
+    exported = {
+        item["UTTypeIdentifier"]: item for item in _spec_info_plist()["UTExportedTypeDeclarations"]
+    }
+    assert exported["com.saschaandresgrimm.albis.nxs"]["UTTypeConformsTo"] == ["public.data"]
 
 
 # --------------------------------------------------------------------------
@@ -324,6 +360,7 @@ def test_macos_declares_only_the_types_nobody_else_owns() -> None:
     exported = {item["UTTypeIdentifier"] for item in plist["UTExportedTypeDeclarations"]}
     imported = {item["UTTypeIdentifier"] for item in plist["UTImportedTypeDeclarations"]}
     assert exported == {
+        "com.saschaandresgrimm.albis.nxs",
         "com.saschaandresgrimm.albis.cbf",
         "com.saschaandresgrimm.albis.edf",
     }

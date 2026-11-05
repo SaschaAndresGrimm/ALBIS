@@ -3114,7 +3114,7 @@ whenCanvasFontReady().then(() => {
 });
 
 async function handleLocalFileSelection(mode) {
-  fileInput.accept = ".h5,.hdf5,.tif,.tiff,.cbf,.cbf.gz,.edf,.cfg";
+  fileInput.accept = ".h5,.hdf5,.nxs,.tif,.tiff,.cbf,.cbf.gz,.edf,.cfg";
   fileInput.onchange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;

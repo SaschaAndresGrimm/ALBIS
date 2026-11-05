@@ -66,7 +66,7 @@ Comment=ALBULA-style viewer for DECTRIS detector data
 Exec=$LAUNCHER_PATH %f
 Icon=albis
 Categories=Science;
-MimeType=application/x-hdf5;image/x-cbf;image/x-edf;image/tiff;
+MimeType=application/x-hdf;image/x-cbf;image/x-edf;image/tiff;
 Terminal=false
 StartupNotify=true
 EOF

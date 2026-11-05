@@ -75,7 +75,7 @@ Name: "{autodesktop}\ALBIS"; Filename: "{app}\ALBIS.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"
-Name: "associate"; Description: "Add ALBIS to the ""Open with"" list for detector image files (.h5, .hdf5, .cbf, .edf, .tif, .tiff)"; GroupDescription: "File associations:"
+Name: "associate"; Description: "Add ALBIS to the ""Open with"" list for detector image files (.h5, .hdf5, .nxs, .cbf, .edf, .tif, .tiff)"; GroupDescription: "File associations:"
 
 ; Registered additively, under OpenWithProgids rather than by overwriting each
 ; extension's default handler. Two reasons. Since Windows 10 an installer
@@ -97,7 +97,7 @@ Root: HKCU; Subkey: "Software\Classes\ALBIS.Image\shell\open"; ValueType: string
 Root: HKCU; Subkey: "Software\Classes\ALBIS.Image\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\ALBIS.exe"" ""%1"""; Flags: uninsdeletekey; Tasks: associate
 
 ; Registered under Applications too, so ALBIS shows up in "Open with" for any
-; file type the user points at it, not only the six below.
+; file type the user points at it, not only the seven below.
 Root: HKCU; Subkey: "Software\Classes\Applications\ALBIS.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "ALBIS"; Flags: uninsdeletekey; Tasks: associate
 Root: HKCU; Subkey: "Software\Classes\Applications\ALBIS.exe\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\ALBIS.exe"" ""%1"""; Flags: uninsdeletekey; Tasks: associate
 
@@ -107,6 +107,7 @@ Root: HKCU; Subkey: "Software\Classes\Applications\ALBIS.exe\shell\open\command"
 ; .cfg and .cbf.gz are deliberately absent -- see backend/file_associations.py.
 Root: HKCU; Subkey: "Software\Classes\.h5\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
 Root: HKCU; Subkey: "Software\Classes\.hdf5\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\.nxs\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
 Root: HKCU; Subkey: "Software\Classes\.cbf\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
 Root: HKCU; Subkey: "Software\Classes\.edf\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
 Root: HKCU; Subkey: "Software\Classes\.tif\OpenWithProgids"; ValueType: string; ValueName: "ALBIS.Image"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate

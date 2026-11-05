@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 from fastapi import HTTPException
 
+from .hdf5_open import HDF5_EXTS
 from .series_output_files import SeriesOutputFilesMixin
 from .series_reduction import SeriesReductionMixin, _ordinal
 
@@ -326,7 +327,7 @@ class SeriesSummingService(SeriesOutputFilesMixin, SeriesReductionMixin):
             has_fractional_values = False
             max_group_count = 1
 
-            if ext in {".h5", ".hdf5"}:
+            if ext in HDF5_EXTS:
                 self._deps.ensure_hdf5_stack()
                 h5py = self._deps.get_h5py()
                 with h5py.File(source_path, "r") as h5:
@@ -695,7 +696,7 @@ class SeriesSummingService(SeriesOutputFilesMixin, SeriesReductionMixin):
             if output_format in {"hdf5", "h5"}:
                 self._deps.ensure_hdf5_stack()
                 h5py = self._deps.get_h5py()
-                if base_target.suffix.lower() in {".h5", ".hdf5"}:
+                if base_target.suffix.lower() in HDF5_EXTS:
                     out_file = base_target
                 else:
                     out_file = base_target.parent / f"{operation_base_name}_{timestamp}.h5"
@@ -746,7 +747,7 @@ class SeriesSummingService(SeriesOutputFilesMixin, SeriesReductionMixin):
                         entry_group = out_h5.require_group("/entry")
                         data_group = entry_group.require_group("data")
 
-                        if ext in {".h5", ".hdf5"}:
+                        if ext in HDF5_EXTS:
                             try:
                                 with h5py.File(source_path, "r") as src_h5:
                                     self._copy_h5_metadata(src_h5, out_h5, threshold_count)

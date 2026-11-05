@@ -16,7 +16,7 @@ from ..api_models import (
     SeriesSumStartResponse,
 )
 from ..detector_profiles import ring_meta
-from ..services.hdf5_open import open_hdf5_for_read
+from ..services.hdf5_open import HDF5_EXTS, open_hdf5_for_read
 
 
 @dataclass(frozen=True)
@@ -38,6 +38,28 @@ class AnalysisRouteDeps:
     start_series_sum_job: Callable[..., str]
     get_series_sum_job: Callable[[str], dict[str, Any] | None]
     cancel_series_sum_job: Callable[[str], bool]
+    # The metadata files next to a data file, already vetted against the data
+    # root, best first. See services/companion_files.py.
+    companion_files: Callable[[Path], list[Path]] = lambda _path: []
+
+
+# What the geometry is made of; a field any one source leaves empty may come
+# from the next.
+_GEOMETRY_KEYS = (
+    "distance_mm",
+    "pixel_size_um",
+    "pixel_size_x_um",
+    "pixel_size_y_um",
+    "energy_ev",
+    "center_x_px",
+    "center_y_px",
+)
+
+
+def _fill_missing(payload: dict[str, Any], source: dict[str, Any]) -> None:
+    for key in _GEOMETRY_KEYS:
+        if payload.get(key) is None and source.get(key) is not None:
+            payload[key] = source[key]
 
 
 def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
@@ -76,6 +98,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 "/entry/instrument/detector/detector_distance",
                 "/entry/instrument/detector/distance",
                 "/entry/instrument/detector/detectorSpecific/detector_distance",
+                "/_dectris/detector_distance",
             ],
         )
         pixel_x_val, pixel_x_unit = deps.read_scalar(
@@ -84,6 +107,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 "/entry/instrument/detector/x_pixel_size",
                 "/entry/instrument/detector/detectorSpecific/x_pixel_size",
                 "/entry/instrument/detector/pixel_size",
+                "/_dectris/x_pixel_size",
             ],
         )
         pixel_y_val, pixel_y_unit = deps.read_scalar(
@@ -92,6 +116,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 "/entry/instrument/detector/y_pixel_size",
                 "/entry/instrument/detector/detectorSpecific/y_pixel_size",
                 "/entry/instrument/detector/pixel_size",
+                "/_dectris/y_pixel_size",
             ],
         )
         energy_val, energy_unit = deps.read_scalar(
@@ -101,6 +126,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 "/entry/instrument/beam/energy",
                 "/entry/instrument/beam/photon_energy",
                 "/entry/instrument/source/energy",
+                "/_dectris/photon_energy",
             ],
         )
         wavelength_val, wavelength_unit = deps.read_scalar(
@@ -117,6 +143,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 "/entry/instrument/detector/beam_center_x",
                 "/entry/instrument/detector/beam_center_x_mm",
                 "/entry/instrument/detector/detectorSpecific/beam_center_x",
+                "/_dectris/beam_center_x",
             ],
         )
         center_y_val, center_y_unit = deps.read_scalar(
@@ -125,6 +152,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 "/entry/instrument/detector/beam_center_y",
                 "/entry/instrument/detector/beam_center_y_mm",
                 "/entry/instrument/detector/detectorSpecific/beam_center_y",
+                "/_dectris/beam_center_y",
             ],
         )
 
@@ -238,7 +266,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                 ext = deps.image_ext_name(source_path.name)
                 source_payload: dict[str, Any] = {}
                 try:
-                    if ext in {".h5", ".hdf5"} and source_path.resolve() != file_path.resolve():
+                    if ext in HDF5_EXTS and source_path.resolve() != file_path.resolve():
                         with open_hdf5_for_read(h5py, source_path) as source_h5:
                             source_payload = _analysis_payload_from_h5(
                                 source_h5,
@@ -249,17 +277,22 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
                         source_payload = _analysis_payload_from_source_image(source_path)
                 except Exception:
                     source_payload = {}
-                for key in (
-                    "distance_mm",
-                    "pixel_size_um",
-                    "pixel_size_x_um",
-                    "pixel_size_y_um",
-                    "energy_ev",
-                    "center_x_px",
-                    "center_y_px",
-                ):
-                    if payload.get(key) is None and source_payload.get(key) is not None:
-                        payload[key] = source_payload[key]
+                _fill_missing(payload, source_payload)
+
+        # A data file opened on its own -- `_000001.h5` from Odin or the DECTRIS
+        # writer -- has frames but no metadata; its collection's master or meta
+        # file, one name away, has it. Read only for what is still missing.
+        if any(payload.get(key) is None for key in _GEOMETRY_KEYS):
+            for companion in deps.companion_files(file_path):
+                try:
+                    with open_hdf5_for_read(h5py, companion) as companion_h5:
+                        _fill_missing(
+                            payload, _analysis_payload_from_h5(companion_h5, companion, None)
+                        )
+                except Exception:
+                    continue
+                if all(payload.get(key) is not None for key in _GEOMETRY_KEYS):
+                    break
 
         return AnalysisParamsResponse(**payload)
 
@@ -294,7 +327,7 @@ def register_analysis_routes(app: FastAPI, deps: AnalysisRouteDeps) -> None:
         if not file:
             raise HTTPException(status_code=400, detail="Missing file")
         ext = Path(file).suffix.lower()
-        if ext in {".h5", ".hdf5"} and not dataset:
+        if ext in HDF5_EXTS and not dataset:
             raise HTTPException(status_code=400, detail="Missing dataset")
         if mode not in {"all", "chunks", "nth", "range", "frames"}:
             raise HTTPException(status_code=400, detail="Invalid mode")

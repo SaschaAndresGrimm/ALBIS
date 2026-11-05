@@ -25,6 +25,7 @@ from .data_export_live import DataExportLiveMixin
 from .data_export_metadata import DataExportMetadataMixin
 from .data_export_names import DataExportNamesMixin
 from .flatfield import Flat, prepare_flat
+from .hdf5_open import HDF5_EXTS
 
 
 class _DataExportCancelledError(Exception):
@@ -837,7 +838,7 @@ class DataExportService(
                 ", ".join(options),
             )
             self._update_job(job_id, progress=0.0, message="Starting export")
-            if ext in {".h5", ".hdf5"}:
+            if ext in HDF5_EXTS:
                 outputs = self._run_hdf5_export(
                     job_id=job_id,
                     source_path=source_path,

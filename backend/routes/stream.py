@@ -22,6 +22,7 @@ from ..api_models import (
     SimplonProbeResponse,
 )
 from ..detector_profiles import ring_meta
+from ..services.hdf5_open import HDF5_EXTS
 from .binary_response_utils import (
     add_optional_header,
     build_binary_headers,
@@ -145,7 +146,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         path = deps.resolve_image_file(file)
         ext = deps.image_ext_name(path.name)
         meta: dict[str, Any] = {}
-        if ext in {".h5", ".hdf5"}:
+        if ext in HDF5_EXTS:
             raise HTTPException(status_code=400, detail="Use /api/frame for HDF5 datasets")
         if ext in {".cfg", ".dat"}:
             arr, meta = deps.read_mythen_acquisition(path)
@@ -191,7 +192,7 @@ def register_stream_routes(app: FastAPI, deps: StreamRouteDeps) -> None:
         """Return decoded Pilatus textual header for non-HDF image formats."""
         path = deps.resolve_image_file(file)
         ext = deps.image_ext_name(path.name)
-        if ext in {".h5", ".hdf5"}:
+        if ext in HDF5_EXTS:
             raise HTTPException(
                 status_code=400, detail="Header is only available for non-HDF images"
             )

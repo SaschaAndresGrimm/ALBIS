@@ -89,6 +89,7 @@ from .routes.stream import StreamRouteDeps, register_stream_routes
 from .routes.system import SystemRouteDeps, register_system_routes
 from .server_logging import _log_network_exposure, log_requests
 from .services import simplon_control
+from .services.companion_files import companion_metadata_files
 from .services.data_export import DataExportDeps, DataExportService
 from .services.detector_geometry import _pilatus_image_geometry
 from .services.directory_scan import (
@@ -250,7 +251,7 @@ app.add_middleware(
     logger=logging.getLogger("albis"),
 )
 
-AUTOLOAD_EXTS = {".h5", ".hdf5", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf", ".cfg"}
+AUTOLOAD_EXTS = {".h5", ".hdf5", ".nxs", ".tif", ".tiff", ".cbf", ".cbf.gz", ".edf", ".cfg"}
 LOG_DIR: Path | None = None
 LOG_PATH: Path | None = None
 h5py = None
@@ -900,6 +901,9 @@ register_analysis_routes(
         start_series_sum_job=series_summing.start_job,
         get_series_sum_job=series_summing.get_job,
         cancel_series_sum_job=series_summing.cancel_job,
+        companion_files=lambda path: companion_metadata_files(
+            path, path_policy.accept_found_hdf5_file
+        ),
     ),
 )
 

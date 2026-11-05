@@ -17,6 +17,13 @@ from fastapi import HTTPException
 
 _log = logging.getLogger("albis.hdf5_stack")
 
+# The extensions an HDF5 file goes by. `.nxs` is NeXus, which these days is
+# HDF5 with an agreed layout: Diamond's nexgen writes its NXmx master files as
+# `<prefix>.nxs`, next to the Odin `_meta.h5` and `_000001.h5` files. It was
+# spelled out as a literal pair (`.h5`, `.hdf5`) in seventeen places, so a
+# third spelling meant finding all of them; every "is this HDF5" check reads this.
+HDF5_EXTS: frozenset[str] = frozenset({".h5", ".hdf5", ".nxs"})
+
 
 def _text(value: Any) -> str:
     """Decode a name libhdf5 handed back, which may be bytes or str."""

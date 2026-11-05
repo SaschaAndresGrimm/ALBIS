@@ -26,6 +26,7 @@ from ..api_models import (
 )
 from ..config import UI_LANGUAGES, normalize_ui_language
 from ..services.directory_scan import LatestFileResult, ScanResult, is_utf8_name
+from ..services.hdf5_open import HDF5_EXTS
 from ..services.log_safety import sanitize_log_value
 from ..services.os_actions import (
     choose_file as _choose_file,
@@ -227,7 +228,7 @@ def _parse_requested_picker_exts(
 
 
 _BROWSE_SERIES_EXTS = {".tif", ".tiff", ".cbf", ".cbf.gz", ".edf"}
-_HDF_SERIES_EXTS = {".h5", ".hdf5"}
+_HDF_SERIES_EXTS = HDF5_EXTS
 _NATURAL_SPLIT_RE = re.compile(r"(\d+)")
 _HDF_MASTER_RE = re.compile(r"^(?P<prefix>.+?)_master\.(?:h5|hdf5)$", re.IGNORECASE)
 _HDF_DATA_RE = re.compile(r"^(?P<prefix>.+?)_data_(?P<index>\d+)\.(?:h5|hdf5)$", re.IGNORECASE)
@@ -459,7 +460,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         """Resolve neighboring image files that belong to the same numbered series."""
         path = deps.resolve_image_file(file)
         ext = deps.image_ext_name(path.name)
-        if ext in {".h5", ".hdf5"}:
+        if ext in HDF5_EXTS:
             return SeriesInfoResponse(files=[file], index=0, series=False)
         parts = deps.split_series_name(path.name)
         if not parts:
