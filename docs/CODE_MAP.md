@@ -234,6 +234,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The type a virtual dataset's frames are served as: its sources' integer type when that loses nothing (nexgen's int64 over uint32).
 - `backend/services/hdf5_open.py`:
   - Opening HDF5 files for reading (plain, SWMR, unlocked) and reporting a lock failure or an undecodable file as a 422.
+- `backend/services/library_warmup.py`:
+  - Imports h5py, hdf5plugin, fabio and tifffile on a background thread at startup, so the first file opened does not wait for them.
 - `backend/services/hdf5_walk_report.py`:
   - `WalkReport`: what a dataset walk skipped (missing or unreadable link targets, truncated and dead groups), logged once per walk.
 - `backend/services/hdf5_inspect.py`:

@@ -1371,6 +1371,7 @@
   "splash.hint.shortcut": "or press {{key}}",
   "splash.status.dataset_scan_failed": "Dataset scan failed",
   "splash.status.initialization_failed": "Initialization failed",
+  "splash.status.loading_file": "Loading file…",
   "splash.status.loading_file_list": "Loading file list...",
   "splash.status.loading_settings": "Loading settings...",
   "splash.status.no_image_datasets": "No image datasets found",

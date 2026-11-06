@@ -1371,6 +1371,7 @@
   "splash.hint.shortcut": "eller tryck på {{key}}",
   "splash.status.dataset_scan_failed": "Datasetgenomsökning misslyckades",
   "splash.status.initialization_failed": "Initieringen misslyckades",
+  "splash.status.loading_file": "Laddar fil…",
   "splash.status.loading_file_list": "Laddar fillista...",
   "splash.status.loading_settings": "Laddar inställningar...",
   "splash.status.no_image_datasets": "Inga bilddatauppsättningar hittades",

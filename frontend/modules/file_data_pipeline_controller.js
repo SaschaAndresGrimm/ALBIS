@@ -69,6 +69,39 @@ export function createFileDataPipelineController({
   const transientFrameLoadState = createTransientFrameLoadState(state);
   let activeFrameLoadController = null;
 
+  // Before the first image the splash covers the viewer, and the "Loading
+  // frame…" pill with it, so a first file used to load for seconds behind a
+  // splash that looked idle. The splash says it is loading instead. The
+  // splash lines this controller writes go through setSplash, so splashKey
+  // tells whether a failure path has already said what went wrong.
+  const LOADING_SPLASH = "splash.status.loading_file";
+  let splashKey = "";
+  let firstLoadGeneration = 0;
+
+  function setSplash(key, vars, options) {
+    splashKey = key;
+    setSplashStatus(key, vars, options);
+  }
+
+  async function withFirstLoadSplash(hasTarget, load) {
+    if (!hasTarget || state.hasFrame) return load();
+    const generation = ++firstLoadGeneration;
+    setSplash(LOADING_SPLASH);
+    let loaded = false;
+    try {
+      loaded = await load();
+      return loaded;
+    } finally {
+      // A load that ends without an image gives the splash back its Open file
+      // line -- unless a failure path has put its own words there, or a newer
+      // load has taken over the splash in the meantime.
+      const stillOurs = generation === firstLoadGeneration && splashKey === LOADING_SPLASH;
+      if (!loaded && !state.hasFrame && stillOurs) {
+        setSplash("splash.status.ready_open_file");
+      }
+    }
+  }
+
   const frameCache = createFrameCache({
     getMaxBytes: () => Math.max(0, Number(state.frameCacheMb) || 0) * 1024 * 1024,
   });
@@ -307,7 +340,7 @@ export function createFileDataPipelineController({
       } else {
         setStatus(t("status.data.no_image_datasets"));
         showSplash();
-        setSplashStatus("splash.status.no_image_datasets");
+        setSplash("splash.status.no_image_datasets");
         setLoading(false);
         setDataSourceSectionState("warning", t("status.data.no_image_datasets"));
         return false;
@@ -320,7 +353,7 @@ export function createFileDataPipelineController({
       const detail = datasetScanFailureText(err);
       setStatus(detail || t("status.data.failed_scan_datasets"), { tone: "error" });
       showSplash();
-      setSplashStatus(detail || "splash.status.dataset_scan_failed", {}, { busy: false });
+      setSplash(detail || "splash.status.dataset_scan_failed", {}, { busy: false });
       setLoading(false);
       setDataSourceSectionState("warning", t("status.data.failed_scan_datasets"));
       return false;
@@ -483,10 +516,13 @@ export function createFileDataPipelineController({
     hasPendingFrameRequest: transientFrameLoadState.hasPendingFrameRequest,
     consumePendingFrameRequest: transientFrameLoadState.consumePendingFrameRequest,
     isFrameLoading: transientFrameLoadState.isFrameLoading,
-    loadAutoloadFile,
-    loadImageSeries,
-    loadImageFile,
-    loadDatasets,
+    // Wrapped here, at the edge, so the calls between them do not stack.
+    loadAutoloadFile: (file) => withFirstLoadSplash(Boolean(file), () => loadAutoloadFile(file)),
+    loadImageSeries: (file, options) =>
+      withFirstLoadSplash(Boolean(file), () => loadImageSeries(file, options)),
+    loadImageFile: (file, options) =>
+      withFirstLoadSplash(Boolean(file), () => loadImageFile(file, options)),
+    loadDatasets: () => withFirstLoadSplash(Boolean(state.file), () => loadDatasets()),
     loadSeriesFrame,
     loadFrame,
   };

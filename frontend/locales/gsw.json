@@ -1371,6 +1371,7 @@
   "splash.hint.shortcut": "oder {{key}} drucke",
   "splash.status.dataset_scan_failed": "Dataset-Scan het nit glunge",
   "splash.status.initialization_failed": "Initialisierig het nit glunge",
+  "splash.status.loading_file": "Datei wird glade…",
   "splash.status.loading_file_list": "Dateilischt wird glade...",
   "splash.status.loading_settings": "Iistellige wärde glade...",
   "splash.status.no_image_datasets": "Kei Bild-Datasets gfunde",

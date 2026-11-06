@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The first file you open shows that it is loading, and opens sooner.** The start screen now says "Loading file…" with a spinner from the moment a file is chosen until its image appears. Until now the start screen sat unchanged for several seconds, as if nothing had happened: the "Loading frame…" notice was hidden behind it, and only a word in the status bar showed that ALBIS was working. Some of that wait is gone too. ALBIS used to load its HDF5 and CBF/TIFF readers only when the first file needed them, which added a second or two to that file alone. It now loads them in the background as it starts, while you are still choosing a file. If a file fails to open, the start screen offers **Open file** again.
+
 ## [0.42.2] - 2026-11-06
 
 ### Fixed
