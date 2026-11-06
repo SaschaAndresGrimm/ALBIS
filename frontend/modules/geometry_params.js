@@ -110,7 +110,12 @@ export function resolveGeometryParams({
     let origin = value !== null ? sourceOrigin || "source" : "missing";
     if (POSE_KEYS.has(key) && reference) {
       const pose = geometryValueOrNull(key, reference[key]);
-      if (pose !== null && (poseFromGeometry || value === null)) {
+      // The arm's angle from the file's own transformation chain beats the
+      // detector's 2θ setting. Odin's meta file says 0 at I19-2 -- the
+      // detector does not know it sits on an arm -- and taking that over the
+      // chain's 20° turned a data file's detector back to flat.
+      const chainWins = key === "twoThetaDeg";
+      if (pose !== null && (poseFromGeometry || value === null || chainWins)) {
         value = pose;
         origin = "geometry";
       }
