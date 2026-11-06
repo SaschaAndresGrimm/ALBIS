@@ -103,5 +103,9 @@ export function buildTiltedPanelGeometry({
     reference_center_y_px: cy,
     reference_distance_mm: distance,
     distance_axis: rotate([0, 0, 1], axis, radians),
+    // Its own arm, at the angle it was built with: the field's value turns it
+    // by nothing more.
+    two_theta_deg: angle,
+    two_theta_axis: axis,
   };
 }

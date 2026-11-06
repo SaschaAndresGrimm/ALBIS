@@ -39,8 +39,8 @@ export const GEOMETRY_KEYS = Object.freeze([
 
 /** Must be > 0 to mean anything; a beam centre may be anywhere, even negative. */
 const POSITIVE_KEYS = new Set(["distanceMm", "pixelSizeXUm", "pixelSizeYUm", "energyEv"]);
-/** What a detector geometry's reference pose supplies. */
-const POSE_KEYS = new Set(["distanceMm", "centerX", "centerY"]);
+/** What a detector geometry's reference pose supplies, the arm's angle included. */
+const POSE_KEYS = new Set(["distanceMm", "centerX", "centerY", "twoThetaDeg"]);
 
 /** Which way a 2θ arm swings, as seen on the image: toward +X, −X, +Y or −Y. */
 export const TWO_THETA_DIRECTIONS = Object.freeze(["+x", "-x", "+y", "-y"]);

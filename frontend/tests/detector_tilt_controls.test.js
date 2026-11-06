@@ -135,7 +135,7 @@ describe("the Detector 2θ row", () => {
     expect(hint.textContent).toBe(EN["validation.rings.two_theta_range"]);
   });
 
-  it("stands aside when the file's own detector geometry places a tilted detector", async () => {
+  it("stands aside for a file geometry that states no arm", async () => {
     const { controller, analysisState, angle, direction } = await setup();
     analysisState.ringMode = "geometry";
     analysisState.ringGeometry = { panels: [{}] };
@@ -143,5 +143,37 @@ describe("the Detector 2θ row", () => {
 
     expect(angle.disabled).toBe(true);
     expect(direction.disabled).toBe(true);
+  });
+
+  it("lets the angle of a file's own arm be corrected, about the file's axis", async () => {
+    // A NeXus file that places its detector on a 2θ arm states the angle and
+    // the axis. The angle shows as the file's, and the override may change it
+    // when the metadata is wrong; the direction is the file's.
+    const { controller, analysisState, angle, direction, inline } = await setup();
+    analysisState.ringMode = "geometry";
+    analysisState.ringGeometry = { panels: [{}], two_theta_deg: 20, two_theta_axis: [-1, 0, 0] };
+    controller.setSource({ ...MASTER }, "hdf5");
+    controller.setGeometryReference({ centerX: 985, centerY: 1419, distanceMm: 85, twoThetaDeg: 20 });
+
+    expect(angle.disabled).toBe(false);
+    expect(angle.value).toBe("20");
+    expect(analysisState.twoThetaDeg).toBe(20);
+    expect(direction.disabled).toBe(true);
+    expect(direction.options[0].textContent).toBe(EN["geometry.two_theta.direction.from_file"]);
+
+    controller.setOverrideEnabled(true);
+    angle.value = "25";
+    angle.dispatchEvent(new Event("input"));
+
+    expect(analysisState.twoThetaDeg).toBe(25);
+    expect(inline.textContent).toContain("2θ 25°");
+  });
+
+  it("has nothing to change for a geometry with no arm", async () => {
+    const { controller, analysisState, angle } = await setup();
+    analysisState.ringMode = "geometry";
+    analysisState.ringGeometry = { panels: [{}, {}] };
+    controller.render();
+    expect(angle.disabled).toBe(true);
   });
 });

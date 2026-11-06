@@ -763,6 +763,12 @@ not the direction; until you choose one the angle is not applied, and the hint
 under the field says so. The rings line up as they would for a NeXus file that
 describes the same arm.
 
+For a NeXus file that describes its arm, the field shows the file's angle and
+the list says **From file**: the file states which way its arm turns. If the
+file's angle is wrong, switch on **Override manually** and type the right one;
+ALBIS turns the detector about the file's own axis by the difference, and the
+hint below the field keeps the file's value.
+
 ---
 
 ## Flatfield correction

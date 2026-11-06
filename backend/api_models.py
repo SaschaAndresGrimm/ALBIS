@@ -313,6 +313,11 @@ class ImageGeometryResponse(_StrictModel):
     reference_distance_mm: float | None = None
     # The direction a change of distance moves the detector: along the arm.
     distance_axis: list[float] | None = None
+    # The detector's 2θ arm as the file's chain states it: the angle (degrees)
+    # and the axis it turns about, through the sample. A manual 2θ turns the
+    # detector about this axis by the difference.
+    two_theta_deg: float | None = None
+    two_theta_axis: list[float] | None = None
 
 
 class SimplonModeResponse(StatusResponse):

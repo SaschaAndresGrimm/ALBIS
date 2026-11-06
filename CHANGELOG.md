@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **A NeXus file's 2θ can be corrected.** For a file that places its detector on a 2θ arm, the **Detector 2θ (°)** field in **Data → Detector Geometry** now shows the file's angle, and with **Override manually** on it can be changed: ALBIS turns the detector about the file's own arm axis by the difference, as it already lets the file's beam centre and distance be corrected. Until now the field stayed empty and could not be edited for such files, with no word of why, although a wrong angle in the metadata is exactly what the override is for.
+
 ## [0.42.0] - 2026-11-06
 
 ### Added
