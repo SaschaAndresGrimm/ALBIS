@@ -7,7 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-### Changed
+## [0.42.2] - 2026-11-06
+
+### Fixed
 
 - **Messages no longer cover the status bar, and each one says why.** A notification now appears above the status bar at the bottom of the image instead of on top of it, where it hid the **SERVER** badge, **Versions** and **GitHub**, and it moves up while the **Versions** popover is open rather than covering it; it is opaque, so the status bar no longer shows through a red error. A failure now gives its cause on a second line ("Frame 3: Cannot reach the server…"), and a failed frame or file load has a **Retry** button. The same failure repeating, as during playback, stays one notification with a count (×12) instead of disappearing and coming back.
 - **A failure is reported once, as a notification.** It used to appear in the notification and again in the status bar at the bottom left, where it stayed long after the notification had gone, until some other message replaced it. The status bar now says what ALBIS is doing (loading, exporting, **Ready**), and goes back to **Ready** after a failure.
@@ -1884,7 +1886,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.1...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.2...HEAD
+[0.42.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.1...v0.42.2
 [0.42.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.0...v0.42.1
 [0.42.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.40.0...v0.41.0
