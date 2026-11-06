@@ -174,7 +174,7 @@ There are exactly two ways a module gets what it needs. Pick by whether the depe
 
 2. **Directly-imported singletons.** A few cross-cutting concerns are stateless and needed from many places, so they are plain module singletons you `import` directly instead of threading through every callback bag:
    - `i18n.js` → `t(key, vars)` for translated strings.
-   - `toast.js` → `notifyError/notifySuccess/notifyWarning/notifyInfo` for transient notifications.
+   - `toast.js` → `notifyError/notifySuccess/notifyWarning/notifyInfo` for transient notifications. Options: `detail` (the cause, a smaller second line), `action: { label, onClick }` (one button, e.g. Retry). The same message again while it shows counts up on the first toast instead of stacking. While the server does not answer, `backend_status_controller.js` holds error toasts back behind one "not responding" notice.
    - `dialogs.js` → `showPromptDialog/showConfirmDialog` for promise-based modal prompts.
 
    Use a singleton only when the module is self-contained (no `state`, no per-instance config) and broadly used. If it needs app state or specific elements, use callback injection instead.
@@ -187,7 +187,7 @@ To add, say, a "Reset view" button:
 2. **Behavior** — implement it on the relevant controller (here `overview_viewport_controller.js`), exposing a `resetView()` method.
 3. **Wiring** — in `app.js`, grab the element (`const resetViewBtn = document.getElementById("reset-view")`), and if other modules need to trigger it, add a stable wrapper (`function resetView() { overviewViewportController?.resetView(); }`).
 4. **Event** — bind the click in the appropriate `*_bindings.js` (or its context map), calling the controller method / wrapper.
-5. **Strings** — add the i18n key to **all** locales in `frontend/locales/` (keep key parity — see `frontend/tests/locale_integrity.test.js`) and surface user feedback with `setStatus(..., { tone })` and/or `notify*`.
+5. **Strings** — add the i18n key to **all** locales in `frontend/locales/` (keep key parity — see `frontend/tests/locale_integrity.test.js`) and surface user feedback with `setStatus(..., { tone, detail })` and/or `notify*`. A toned status is a toast only; the footer pill is for what ALBIS is doing now.
 6. **Tests** — add a `frontend/tests/*.test.js` spec (Vitest + jsdom); keep pure logic in a helper so it can be tested without the DOM.
 
 ### Refactor Boundaries (SOLID/DRY)

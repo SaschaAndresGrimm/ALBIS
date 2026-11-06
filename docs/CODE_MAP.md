@@ -92,7 +92,9 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
 - `frontend/modules/i18n.js`:
   - `t()`, the language preference, and applying `data-i18n*` attributes.
 - `frontend/modules/toast.js`, `frontend/modules/dialogs.js`, `frontend/modules/modal_manager.js`:
-  - Toasts (`notify*`), promise-based prompt and confirm dialogs in place of `window.prompt`/`confirm`, and the modal stack with its focus handling.
+  - Toasts (`notify*`, with an optional detail line, one action button and a repeat count; placed above the viewer's footer), promise-based prompt and confirm dialogs in place of `window.prompt`/`confirm`, and the modal stack with its focus handling.
+- `frontend/modules/status_line.js`:
+  - Pure helper: what the footer status pill shows for a message. A toned message goes to a toast only; the pill says Ready or Idle.
 - `frontend/modules/frame_cache.js`, `frontend/modules/buffer_hash.js`, `frontend/modules/transient_frame_load_state.js`:
   - The bounded LRU cache of decoded frames, a hash for telling live frames apart, and the shared in-flight frame-load state.
 - `frontend/modules/canvas_fonts.js`, `frontend/modules/range_fill.js`, `frontend/modules/number_stepper.js`, `frontend/modules/zoom_slider.js`, `frontend/modules/control_availability.js`:
