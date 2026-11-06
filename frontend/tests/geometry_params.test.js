@@ -36,6 +36,30 @@ describe("resolveGeometryParams", () => {
     expect(origins.distanceMm).toBe("image");
   });
 
+  it("takes the arm's angle from the file's chain over the detector's own setting", () => {
+    // A data file opened on its own reads Odin's meta file, whose
+    // two_theta_start is 0 at I19-2: the detector does not know about the arm.
+    // The chain's 20° must win, or the detector is turned back to flat.
+    const { values, origins } = resolveGeometryParams({
+      source: { ...HEADER, twoThetaDeg: 0 },
+      sourceOrigin: "hdf5",
+      reference: { distanceMm: 85, centerX: 985, centerY: 1419, twoThetaDeg: 20 },
+    });
+
+    expect(values.twoThetaDeg).toBe(20);
+    expect(origins.twoThetaDeg).toBe("geometry");
+    expect(values.distanceMm).toBe(HEADER.distanceMm); // the file's own fields still win
+  });
+
+  it("keeps a user's 2θ over the chain's", () => {
+    const { values } = resolveGeometryParams({
+      source: { ...HEADER, twoThetaDeg: 0 },
+      reference: { twoThetaDeg: 20 },
+      override: { enabled: true, values: { twoThetaDeg: 25 } },
+    });
+    expect(values.twoThetaDeg).toBe(25);
+  });
+
   it("reports what the source does not state as missing, never as zero", () => {
     const { values, origins } = resolveGeometryParams({ source: { energyEv: 8048 }, sourceOrigin: "image" });
 
