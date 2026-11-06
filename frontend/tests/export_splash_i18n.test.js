@@ -157,5 +157,25 @@ describe("splash status i18n", () => {
     controller.setSplashStatus("Export complete");
     expect(splash.classList.contains("is-busy")).toBe(false);
   });
+
+  it("hides Open file while the splash says a file is loading", async () => {
+    // An HDF5 file's dataset scan runs before the frame load raises
+    // isLoading, so the button stayed under "Loading file…" and the splash
+    // looked ready for a file while it was still opening one.
+    vi.resetModules();
+    global.fetch = buildFetchMock({ en: {} });
+    const i18n = await import("../modules/i18n.js");
+    await i18n.initializeI18n({ backendLanguage: "en" });
+    const controller = await splashController();
+    const button = document.getElementById("splash-open-file");
+
+    controller.setSplashStatus("splash.status.loading_file");
+    expect(button.classList.contains("is-hidden")).toBe(true);
+    expect(button.disabled).toBe(true);
+
+    controller.setSplashStatus("splash.status.ready_open_file");
+    expect(button.classList.contains("is-hidden")).toBe(false);
+    expect(button.disabled).toBe(false);
+  });
 });
 

@@ -1371,6 +1371,7 @@
   "splash.hint.shortcut": "ou prima {{key}}",
   "splash.status.dataset_scan_failed": "Falha na verificação do conjunto de dados",
   "splash.status.initialization_failed": "Falha na inicialização",
+  "splash.status.loading_file": "Carregando arquivo…",
   "splash.status.loading_file_list": "Carregando lista de arquivos...",
   "splash.status.loading_settings": "Carregando configurações...",
   "splash.status.no_image_datasets": "Nenhum conjunto de dados de imagem encontrado",

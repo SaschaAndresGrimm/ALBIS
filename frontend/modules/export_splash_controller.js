@@ -623,7 +623,10 @@ export function createExportSplashController({
   function updateSplashCallToAction() {
     if (!splashOpenFileBtn || !splash) return;
     const splashVisible = !splash.classList.contains("is-hidden");
-    const ready = Boolean(state.backendAlive) && !state.isLoading;
+    // Busy covers a file still being opened: a dataset scan runs before
+    // isLoading goes up, and Open file under "Loading file…" read as idle.
+    const busy = state.isLoading || splash.classList.contains("is-busy");
+    const ready = Boolean(state.backendAlive) && !busy;
     const show = splashVisible && ready && !state.hasFrame;
     if (splashActions) {
       splashActions.classList.toggle("is-hidden", !show);

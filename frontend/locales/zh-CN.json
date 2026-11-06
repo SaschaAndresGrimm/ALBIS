@@ -1371,6 +1371,7 @@
   "splash.hint.shortcut": "或按 {{key}}",
   "splash.status.dataset_scan_failed": "数据集扫描失败",
   "splash.status.initialization_failed": "初始化失败",
+  "splash.status.loading_file": "正在加载文件…",
   "splash.status.loading_file_list": "正在加载文件列表...",
   "splash.status.loading_settings": "正在加载设置...",
   "splash.status.no_image_datasets": "未找到图像数据集",

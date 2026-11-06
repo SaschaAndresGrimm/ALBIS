@@ -1371,6 +1371,7 @@
   "splash.hint.shortcut": "o pulse {{key}}",
   "splash.status.dataset_scan_failed": "Error en el análisis del conjunto de datos",
   "splash.status.initialization_failed": "La inicialización falló",
+  "splash.status.loading_file": "Cargando archivo…",
   "splash.status.loading_file_list": "Cargando lista de archivos...",
   "splash.status.loading_settings": "Cargando configuración...",
   "splash.status.no_image_datasets": "No se encontraron conjuntos de datos de imágenes",

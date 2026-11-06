@@ -1371,6 +1371,7 @@
   "splash.hint.shortcut": "pēhia rānei te {{key}}",
   "splash.status.dataset_scan_failed": "I rahua te matawai huingararaunga",
   "splash.status.initialization_failed": "I rahua te whakarite tīmatanga",
+  "splash.status.loading_file": "Uta ana te kōnae…",
   "splash.status.loading_file_list": "Uta ana i te rarangi kōnae...",
   "splash.status.loading_settings": "Uta ana i ngā tautuhinga...",
   "splash.status.no_image_datasets": "Karekau he huingararaunga atahanga i kitea",

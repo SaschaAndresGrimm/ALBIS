@@ -1371,6 +1371,7 @@
   "splash.hint.shortcut": "eller tryk på {{key}}",
   "splash.status.dataset_scan_failed": "Datasætscanning mislykkedes",
   "splash.status.initialization_failed": "Initialisering mislykkedes",
+  "splash.status.loading_file": "Indlæser fil…",
   "splash.status.loading_file_list": "Indlæser filliste...",
   "splash.status.loading_settings": "Indlæser indstillinger...",
   "splash.status.no_image_datasets": "Ingen billeddatasæt fundet",
