@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-11-06
+
 ### Added
 
 - **A NeXus file's 2θ can be corrected.** For a file that places its detector on a 2θ arm, the **Detector 2θ (°)** field in **Data → Detector Geometry** now shows the file's angle, and with **Override manually** on it can be changed: ALBIS turns the detector about the file's own arm axis by the difference, as it already lets the file's beam centre and distance be corrected. Until now the field stayed empty and could not be edited for such files, with no word of why, although a wrong angle in the metadata is exactly what the override is for.
@@ -1876,7 +1878,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.0...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.1...HEAD
+[0.42.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.0...v0.42.1
 [0.42.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.39.1...v0.40.0
