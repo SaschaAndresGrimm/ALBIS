@@ -206,6 +206,7 @@ def run_smoke(
     startup_timeout_sec: float,
     stop_timeout_sec: float,
     expected_version: str | None = None,
+    decode_timeout_sec: float = 20.0,
 ) -> None:
     if not binary_path.exists():
         raise FileNotFoundError(f"Binary not found: {binary_path}")
@@ -273,9 +274,9 @@ def run_smoke(
             base_url = f"http://127.0.0.1:{port}"
             for name in staged_fixtures:
                 if name.endswith((".h5", ".hdf5")):
-                    _assert_decodes_compressed_hdf5(base_url, name, timeout_sec=20.0)
+                    _assert_decodes_compressed_hdf5(base_url, name, timeout_sec=decode_timeout_sec)
                 else:
-                    _assert_decodes_image(base_url, name, timeout_sec=20.0)
+                    _assert_decodes_image(base_url, name, timeout_sec=decode_timeout_sec)
             missing = sorted(set(DECODE_FIXTURES) - set(staged_fixtures))
             if missing:
                 # Never let absent fixtures read as a pass: the decode path would
@@ -292,6 +293,11 @@ def main() -> int:
     parser.add_argument("--binary", required=True, help="Path to packaged ALBIS executable")
     parser.add_argument("--startup-timeout", type=float, default=30.0)
     parser.add_argument("--stop-timeout", type=float, default=10.0)
+    # Per image request. An x86_64 app under Rosetta translates its native
+    # libraries on first use: on GitHub's macos-15 runner the first decode of
+    # the Intel build took longer than 20 s, after the same app had decoded
+    # every fixture natively on the Intel runner. That check passes a longer one.
+    parser.add_argument("--decode-timeout", type=float, default=20.0)
     parser.add_argument(
         "--expected-version",
         default=None,
@@ -313,6 +319,7 @@ def main() -> int:
         startup_timeout_sec=args.startup_timeout,
         stop_timeout_sec=args.stop_timeout,
         expected_version=expected_version,
+        decode_timeout_sec=args.decode_timeout,
     )
     print(f"Smoke test passed for {binary_path}")
     return 0

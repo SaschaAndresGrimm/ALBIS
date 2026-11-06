@@ -729,14 +729,16 @@ jobs:
           rm -f "$app_zip"
           ./scripts/sign_macos.sh dist/ALBIS.app
 
-      # The app is x86_64: it runs here only under Rosetta. It was launched
-      # on the Intel runner already; this checks the copy inside the DMG.
+      # The app is x86_64: it runs here only under Rosetta. It was launched,
+      # and decoded every fixture, on the Intel runner already; this checks the
+      # copy inside the DMG. Rosetta translates the native libraries on first
+      # use, which on macos-15 made the first image request outlast 20 s.
       - name: Smoke test mounted DMG app
         run: |
           dmg_file="$(ls dist/ALBIS-macos-x64-*.dmg | head -n1 || true)"
           [ -n "$dmg_file" ] || { echo "Missing macOS dmg"; exit 1; }
           if /usr/bin/arch -x86_64 /usr/bin/true 2>/dev/null; then
-            ./scripts/smoke_macos_dmg.sh "$dmg_file" 90
+            ./scripts/smoke_macos_dmg.sh "$dmg_file" 90 120
           else
             echo "Rosetta is not available on this runner; the app was launched on the Intel runner."
           fi

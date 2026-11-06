@@ -6,9 +6,11 @@ cd "$ROOT"
 
 DMG_PATH="${1:-}"
 STARTUP_TIMEOUT="${2:-60}"
+# Per image request; see --decode-timeout in smoke_packaged_binary.py.
+DECODE_TIMEOUT="${3:-20}"
 
 if [ -z "$DMG_PATH" ] || [ ! -f "$DMG_PATH" ]; then
-  echo "Usage: ./scripts/smoke_macos_dmg.sh <path-to-dmg> [startup-timeout]"
+  echo "Usage: ./scripts/smoke_macos_dmg.sh <path-to-dmg> [startup-timeout] [decode-timeout]"
   exit 1
 fi
 
@@ -39,4 +41,4 @@ if [ ! -x "$BINARY_PATH" ]; then
   exit 1
 fi
 
-python3 ./scripts/smoke_packaged_binary.py --binary "$BINARY_PATH" --startup-timeout "$STARTUP_TIMEOUT"
+python3 ./scripts/smoke_packaged_binary.py --binary "$BINARY_PATH" --startup-timeout "$STARTUP_TIMEOUT" --decode-timeout "$DECODE_TIMEOUT"
