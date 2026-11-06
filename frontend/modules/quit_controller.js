@@ -13,7 +13,7 @@
 
 import { showConfirmDialog as defaultConfirm } from "./dialogs.js";
 import { t } from "./i18n.js";
-import { fetchResponse } from "./http.js";
+import { failureDetail, fetchResponse } from "./http.js";
 
 export function createQuitController({ apiBase, state, elements, callbacks }) {
   const { menuItem } = elements;
@@ -77,11 +77,13 @@ export function createQuitController({ apiBase, state, elements, callbacks }) {
         await send(true);
       }
       stopping = true;
+      // So the lost-connection notice stays away: this stop was asked for.
+      state.serverStopped = true;
       showStopped();
       return true;
     } catch (err) {
       console.error(err);
-      setStatus(t("quit.failed"), { tone: "error" });
+      setStatus(t("quit.failed"), { tone: "error", detail: failureDetail(err) });
       return false;
     }
   }

@@ -35,7 +35,7 @@ everywhere.
 | **A dialog** | The `.modal` structure and layout in the UI guide; open and close it through the existing modal handling, so Esc and the backdrop work. |
 | **A call to the backend** | `fetchJSON` / `fetchJSONWithInit` from `modules/http.js`, or `fetchResponse` when the answer is bytes, headers or a 204; all turn a failure into a translated message, with `status` and the server's `detail` on the error. `native_picker.js` for the system's file and folder dialogs. |
 | **A setting** | Backend first (see [backend/AGENTS.md](../backend/AGENTS.md)), then the Settings dialog's tab, its keys, the user guide. |
-| **A user-visible message** | `setStatus(…, { tone })` for the status line, `notify*` for a toast, `dialogs.js` to ask. Never `alert()`. |
+| **A user-visible message** | `setStatus(text)` for what ALBIS is doing now (the footer pill); `setStatus(text, { tone, detail, action })` for something that happened, which becomes a toast only: `detail` is the cause (`failureDetail(err)` from `http.js`), `action` one button such as Retry. `notify*` for a toast directly, `dialogs.js` to ask. Never `alert()`. |
 
 ## Rules
 

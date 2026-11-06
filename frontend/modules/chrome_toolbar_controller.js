@@ -4,6 +4,7 @@
 
 import { t } from "./i18n.js";
 import { copyText } from "./clipboard_copy.js";
+import { anchorToastsAbove, refreshToastPlacement } from "./toast.js";
 
 export function createChromeToolbarController({
   state,
@@ -47,6 +48,11 @@ export function createChromeToolbarController({
     toolbarPath,
     dataSourceSummaryEl,
   } = elements;
+
+  // Toasts stand above the footer rather than over its badges and buttons,
+  // and above the Versions popover while it is open, which the user asked for.
+  const viewerFooterEl = footerFileEl?.closest?.(".viewer-footer");
+  if (viewerFooterEl) anchorToastsAbove(viewerFooterEl, footerVersionPopoverEl);
 
   const {
     middleTruncate,
@@ -260,6 +266,7 @@ export function createChromeToolbarController({
       footerVersionPopoverEl.classList.toggle("is-open", footerVersionPopoverOpen);
       footerVersionPopoverEl.setAttribute("aria-hidden", footerVersionPopoverOpen ? "false" : "true");
     }
+    refreshToastPlacement();
   }
 
   function closeFooterVersionPopover() {

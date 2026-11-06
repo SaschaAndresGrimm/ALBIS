@@ -3,7 +3,11 @@
  */
 
 import { t } from "./i18n.js";
-import { fetchResponse } from "./http.js";
+import { fetchResponse, onNetworkFailure } from "./http.js";
+import { dismissToasts, notifySuccess, notifyWarning, setToastGate } from "./toast.js";
+
+// The soonest a failed request triggers another health check, in ms.
+const RECHECK_MIN_INTERVAL_MS = 1000;
 
 export function createBackendStatusController({
   apiBase,
@@ -25,6 +29,29 @@ export function createBackendStatusController({
   } = callbacks;
 
   let backendTimer = null;
+  let checking = false;
+  let lastCheckAt = 0;
+  // The notice shown while the server does not answer; null when it does.
+  let connectionNotice = null;
+
+  // While the server is gone, every request fails, and each failure used to
+  // raise its own toast blaming the request ("Failed to load frame"). One
+  // notice that names the cause replaces them, until the server is back.
+  setToastGate((type) => !(connectionNotice && type === "error"));
+
+  function onConnectionLost() {
+    // Quit stopped the server on purpose; the page already says so.
+    if (state.serverStopped || connectionNotice) return;
+    dismissToasts("error");
+    connectionNotice = notifyWarning(t("backend.connection.lost"), { duration: 0, dismissible: false });
+  }
+
+  function onConnectionRestored() {
+    if (!connectionNotice) return;
+    connectionNotice.dismiss();
+    connectionNotice = null;
+    notifySuccess(t("backend.connection.restored"));
+  }
 
   function updateLiveBadge() {
     if (!liveBadge) return;
@@ -121,6 +148,8 @@ export function createBackendStatusController({
   }
 
   async function checkBackendHealth() {
+    checking = true;
+    lastCheckAt = Date.now();
     let alive = false;
     let version = state.backendVersion || "";
     let commit = state.backendCommit || "";
@@ -150,10 +179,14 @@ export function createBackendStatusController({
       alive = false;
     } finally {
       window.clearTimeout(timer);
+      checking = false;
     }
     if (state.backendAlive !== alive) {
+      // Lost only after it was up: while ALBIS starts, the splash says so.
+      if (state.backendAlive && !alive) onConnectionLost();
       state.backendAlive = alive;
     }
+    if (alive) onConnectionRestored();
     trackServerBuild(alive, version, commit);
     if (state.backendCommit !== commit) {
       state.backendCommit = commit;
@@ -165,6 +198,13 @@ export function createBackendStatusController({
     updateBackendBadge();
     return alive;
   }
+
+  // A request that could not reach the server: check now, not at the next
+  // heartbeat, so the notice replaces the request's own failure at once.
+  onNetworkFailure(() => {
+    if (checking || Date.now() - lastCheckAt < RECHECK_MIN_INTERVAL_MS) return;
+    void checkBackendHealth();
+  });
 
   function startBackendHeartbeat() {
     if (backendTimer) {

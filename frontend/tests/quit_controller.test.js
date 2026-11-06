@@ -67,7 +67,8 @@ describe("File -> Quit ALBIS", () => {
   it("says so when the server could not stop", async () => {
     const { controller, setStatus } = setup({ responses: [{ status: 503 }] });
     expect(await controller.quit()).toBe(false);
-    expect(setStatus).toHaveBeenCalledWith("quit.failed", { tone: "error" });
+    // With the cause under it: the server answered 503.
+    expect(setStatus).toHaveBeenCalledWith("quit.failed", { tone: "error", detail: "http.error.server" });
     expect(document.querySelector(".albis-stopped")).toBeNull();
   });
 });

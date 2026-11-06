@@ -125,6 +125,7 @@ describe("settings path Browse buttons", () => {
     expect(dataRoot.value).toBe("/old/data");
     expect(setStatus).toHaveBeenCalledWith(catalogue["status.settings.browse_failed"], {
       tone: "error",
+      detail: catalogue["http.error.server"],
     });
   });
 

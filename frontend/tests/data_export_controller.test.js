@@ -168,7 +168,10 @@ describe("data_export_controller, Browse for the output folder", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { out, setStatus } = await mountBrowse(() => ({ ok: false, status: 500, json: async () => ({}) }));
     expect(out.value).toBe("/old");
-    expect(setStatus).toHaveBeenCalledWith(EN["status.data_export.browse_failed"], { tone: "error" });
+    expect(setStatus).toHaveBeenCalledWith(EN["status.data_export.browse_failed"], {
+      tone: "error",
+      detail: EN["http.error.server"],
+    });
   });
 });
 

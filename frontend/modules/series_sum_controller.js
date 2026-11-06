@@ -11,6 +11,7 @@
 import { t } from "./i18n.js";
 import { canConvertFile, canStartSeriesOperation } from "./command_availability.js";
 import { showConfirmDialog } from "./dialogs.js";
+import { failureDetail } from "./http.js";
 
 export function createSeriesSumController({
   apiBase,
@@ -382,7 +383,7 @@ export function createSeriesSumController({
       console.error(err);
       state.seriesSum.cancelling = false;
       updateSeriesSumUi();
-      setStatus(t("status.series.cancel_failed"), { tone: "error" });
+      setStatus(t("status.series.cancel_failed"), { tone: "error", detail: failureDetail(err) });
     }
   }
 
@@ -470,7 +471,7 @@ export function createSeriesSumController({
       state.seriesSum.cancelling = false;
       setSeriesSumProgress(0, t("series.progress.start_failed"));
       updateSeriesSumUi();
-      setStatus(t("status.series.start_failed"), { tone: "error" });
+      setStatus(t("status.series.start_failed"), { tone: "error", detail: failureDetail(err) });
     }
   }
 
@@ -486,7 +487,7 @@ export function createSeriesSumController({
       setStatus(t("status.series.output_opened"));
     } catch (err) {
       console.error(err);
-      setStatus(t("status.series.output_open_failed"), { tone: "error" });
+      setStatus(t("status.series.output_open_failed"), { tone: "error", detail: failureDetail(err) });
     }
   }
 

@@ -4,20 +4,27 @@
    their numbers (index.html), and that order is the cascade. */
 
 /* Toast / notification system ------------------------------------------------ */
+/* Bottom-right, standing above the viewer's footer: toast.js sets
+   --toast-bottom from where the footer is, so a toast never covers its server
+   badge, Versions or GitHub, nor the Versions popover while it is open. */
 .toast-region {
   position: fixed;
-  bottom: 16px;
+  bottom: var(--toast-bottom, 16px);
   right: 16px;
   z-index: 2000;
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: min(380px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
+  max-height: calc(100vh - var(--toast-bottom, 16px) - 16px);
   overflow: hidden;
   pointer-events: none;
+  /* Steps up when the Versions popover opens, and back down. */
+  transition: bottom var(--motion-fast) var(--motion-ease-standard);
 }
 
+/* A floating surface: nearly opaque and frosted, so neither the image nor the
+   footer reads through it. */
 .toast {
   pointer-events: auto;
   display: flex;
@@ -27,7 +34,9 @@
   border: 1px solid var(--border);
   border-left-width: 3px;
   border-radius: var(--radius-md);
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--surface-2) 95%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   color: var(--text);
   box-shadow: var(--shadow-soft);
   font-size: var(--font-size-lg);
@@ -47,10 +56,49 @@
   transform: translateY(8px);
 }
 
-.toast-message {
+.toast-body {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toast-message {
   overflow-wrap: anywhere;
+}
+
+/* The cause, under the message: the server's reason, the frame it was. */
+.toast-detail {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-md);
+  opacity: 0.85;
+}
+
+/* How often the same message came again, while it was showing. */
+.toast-count {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.toast-actions {
+  display: flex;
+  gap: var(--space-tight);
+  margin-top: 4px;
+}
+
+.toast-action {
+  min-height: var(--toolbar-control-h);
+  padding: 2px 10px;
 }
 
 .toast-close {
@@ -81,24 +129,24 @@
 }
 
 .toast-success {
-  border-left-color: #4fb477;
+  border-left-color: var(--tone-success);
 }
 
 .toast-warning {
-  border-left-color: #e0a24e;
+  border-left-color: var(--tone-warning);
 }
 
+/* Tinted, but opaque: the old 55% red let the footer show through. */
 .toast-error {
-  border-left-color: rgba(224, 93, 93, 0.9);
-  background: rgba(67, 24, 24, 0.55);
-  color: #f7cccc;
+  border-left-color: var(--tone-error);
+  background: color-mix(in srgb, var(--tone-error) 14%, var(--surface-2));
+  color: var(--tone-error-text);
 }
 
 @media (max-width: 640px) {
   .toast-region {
     left: 16px;
     right: 16px;
-    bottom: 16px;
     width: auto;
   }
 }

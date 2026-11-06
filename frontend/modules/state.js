@@ -100,6 +100,8 @@ function createSourceState() {
 function createUiPreferencesState() {
   return {
     backendAlive: false,
+    // Set once File -> Quit ALBIS has stopped the server.
+    serverStopped: false,
     backendVersion: "",
     // The build behind backendVersion, empty when the server is unstamped.
     backendCommit: "",

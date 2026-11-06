@@ -2,6 +2,14 @@ import { t } from "./i18n.js";
 
 export const API = "/api";
 
+// Told when a request could not reach the server at all, so the server's
+// status can be checked now rather than at the next heartbeat.
+let networkFailureListener = null;
+
+export function onNetworkFailure(listener) {
+  networkFailureListener = typeof listener === "function" ? listener : null;
+}
+
 // Map an HTTP status (or 0 for a network-level failure) to a friendly,
 // localized message. The server-provided `detail`, when present, is appended
 // so support and power users still see the underlying cause.
@@ -103,6 +111,7 @@ async function request(url, init = {}, readBody = readJson) {
     // fetch() rejects on network-level failures (server down, DNS, offline).
     const err = httpError(0, "");
     err.cause = cause;
+    networkFailureListener?.();
     throw err;
   }
   if (!res.ok) {
@@ -133,6 +142,15 @@ function readJson(res) {
 
 function keepResponse(res) {
   return res;
+}
+
+// The cause of a failed request, for the detail line under a toast: the
+// translated message built above (with the server's own reason, if it gave
+// one). "" for a cancel, which is not a failure, and for errors that did not
+// come from a request, whose messages are written for developers.
+export function failureDetail(err) {
+  if (!err || err.name === "AbortError" || typeof err.status !== "number") return "";
+  return String(err.message || "").trim();
 }
 
 // Plain pass-throughs (not async) so they add no extra microtask hop over the

@@ -56,8 +56,10 @@ a single file would. So:
 | `--muted` | Hints, captions, summaries, secondary information. |
 | `--accent` | Links, the lit state of a toggle, the focus ring. Not body text. |
 
-Warning (amber), error (red) and OK (green) colours are per-state and stay
-literal for now. Text keeps at least 4.5:1 contrast on its surface; `--muted`
+Message tones have tokens: `--tone-error` (with `--tone-error-text` for
+text on its tint), `--tone-warning`, `--tone-success`. The toasts use them;
+older warning and error styles elsewhere still carry literals, to move onto
+these as they are touched. Text keeps at least 4.5:1 contrast on its surface; `--muted`
 is 8.3:1 on the panel.
 
 ### Text sizes

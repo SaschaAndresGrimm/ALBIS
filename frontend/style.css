@@ -25,6 +25,12 @@
   --accent: #4ea1ff;
   --accent-strong: #79bbff;
   --accent-soft: rgba(78, 161, 255, 0.18);
+  /* Message tones: the edge and tint of a toast, and anything else that says
+     "failed", "careful" or "done". */
+  --tone-error: #e05d5d;
+  --tone-error-text: #f7cccc;
+  --tone-warning: #e0a24e;
+  --tone-success: #4fb477;
   /* Two rings, not one. The old value was a 34%-alpha accent, which
      composited to 1.83:1 against --panel-mid and 1.39:1 against the toolbar --
      both under the 3:1 that WCAG 1.4.11 asks of a focus indicator, and it is
