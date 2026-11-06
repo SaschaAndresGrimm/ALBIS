@@ -39,8 +39,10 @@ const ANCHOR_GAP_PX = 8;
 // Decides whether a toast of a tone may show now (setToastGate).
 let toastGate = null;
 
-// The element toasts stand above (the viewer's footer), if any.
-let anchorEl = null;
+// What toasts stand above: the viewer's footer, and what opens up from it
+// (the Versions popover).
+let anchorEls = [];
+let listeningForResize = false;
 
 /**
  * How far above the window's bottom edge the toasts start: clear of the
@@ -53,23 +55,48 @@ export function toastBottomOffset(viewportHeight, anchorRect) {
   return Math.max(EDGE_GAP_PX, Math.round(clearance));
 }
 
+// A closed popover keeps its box (it fades out with visibility, which lags
+// the class by the transition), so it says it is closed with aria-hidden.
+function isShown(el) {
+  return Boolean(el?.isConnected) && !el.hidden && el.getAttribute("aria-hidden") !== "true";
+}
+
+// The highest of the shown anchors, which is the one toasts must clear.
+function topmostAnchorRect() {
+  let best = null;
+  for (const el of anchorEls) {
+    if (!isShown(el)) continue;
+    const rect = el.getBoundingClientRect();
+    if (!(rect.height > 0)) continue;
+    if (!best || rect.top < best.top) best = rect;
+  }
+  return best;
+}
+
 function placeRegion(region) {
   if (!region || typeof window === "undefined") return;
-  const rect = anchorEl?.isConnected ? anchorEl.getBoundingClientRect() : null;
-  region.style.setProperty("--toast-bottom", `${toastBottomOffset(window.innerHeight, rect)}px`);
+  region.style.setProperty("--toast-bottom", `${toastBottomOffset(window.innerHeight, topmostAnchorRect())}px`);
 }
 
 /**
- * Keep toasts above `el` (the viewer's footer) instead of over it, where they
- * used to hide the server badge, Versions and GitHub. Measured when a toast
- * is shown and when the window is resized, since the footer can wrap.
+ * Keep toasts above the given elements instead of over them: the viewer's
+ * footer, where they used to hide the server badge, Versions and GitHub, and
+ * the Versions popover, which opens upward from it and was drawn under them.
+ * Measured when a toast is shown, when the window is resized (the footer can
+ * wrap), and on refreshToastPlacement().
  */
-export function anchorToastsAbove(el) {
-  const first = anchorEl === null;
-  anchorEl = el || null;
-  if (first && typeof window !== "undefined") {
-    window.addEventListener("resize", () => placeRegion(document.getElementById(REGION_ID)));
+export function anchorToastsAbove(...elements) {
+  anchorEls = elements.filter(Boolean);
+  if (!listeningForResize && typeof window !== "undefined") {
+    listeningForResize = true;
+    window.addEventListener("resize", refreshToastPlacement);
   }
+  refreshToastPlacement();
+}
+
+/** Measure the anchors again: call after one opens or closes. */
+export function refreshToastPlacement() {
+  if (typeof document === "undefined") return;
   placeRegion(document.getElementById(REGION_ID));
 }
 

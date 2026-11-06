@@ -6,7 +6,7 @@
 /* Toast / notification system ------------------------------------------------ */
 /* Bottom-right, standing above the viewer's footer: toast.js sets
    --toast-bottom from where the footer is, so a toast never covers its server
-   badge, Versions or GitHub. */
+   badge, Versions or GitHub, nor the Versions popover while it is open. */
 .toast-region {
   position: fixed;
   bottom: var(--toast-bottom, 16px);
@@ -19,6 +19,8 @@
   max-height: calc(100vh - var(--toast-bottom, 16px) - 16px);
   overflow: hidden;
   pointer-events: none;
+  /* Steps up when the Versions popover opens, and back down. */
+  transition: bottom var(--motion-fast) var(--motion-ease-standard);
 }
 
 /* A floating surface: nearly opaque and frosted, so neither the image nor the

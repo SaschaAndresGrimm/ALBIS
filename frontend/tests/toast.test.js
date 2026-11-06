@@ -169,4 +169,26 @@ describe("toast placement", () => {
     notifyInfo("hello");
     expect(document.getElementById("toast-region").style.getPropertyValue("--toast-bottom")).toBe("68px");
   });
+
+  it("stands above the Versions popover while it is open, and drops back when it closes", async () => {
+    const { anchorToastsAbove, refreshToastPlacement, notifyError } = await loadToast();
+    const footer = document.createElement("div");
+    const popover = document.createElement("div");
+    document.body.append(footer, popover);
+    footer.getBoundingClientRect = () => ({ top: window.innerHeight - 60, height: 48 });
+    popover.getBoundingClientRect = () => ({ top: window.innerHeight - 160, height: 92 });
+    popover.setAttribute("aria-hidden", "true");
+    anchorToastsAbove(footer, popover);
+    notifyError("Failed to load frame");
+    const region = document.getElementById("toast-region");
+    expect(region.style.getPropertyValue("--toast-bottom")).toBe("68px");
+
+    popover.setAttribute("aria-hidden", "false");
+    refreshToastPlacement();
+    expect(region.style.getPropertyValue("--toast-bottom")).toBe("168px");
+
+    popover.setAttribute("aria-hidden", "true");
+    refreshToastPlacement();
+    expect(region.style.getPropertyValue("--toast-bottom")).toBe("68px");
+  });
 });
