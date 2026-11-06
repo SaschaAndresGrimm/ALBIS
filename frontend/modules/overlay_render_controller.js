@@ -273,6 +273,7 @@ export function createOverlayRenderController({
       String(params.energyEv || ""),
       // A hand-entered 2θ builds its panel from the pixel size too.
       String(params.pixelSizeUm || ""),
+      String(params.twoThetaDeg ?? ""),
       Number.isFinite(params.distanceMm) ? Number(params.distanceMm).toFixed(4) : "",
       Number.isFinite(params.centerX) ? Number(params.centerX).toFixed(4) : "",
       Number.isFinite(params.centerY) ? Number(params.centerY).toFixed(4) : "",

@@ -48,6 +48,7 @@ def _i19_2_file(path: Path, two_theta_deg: float = 20.0, **overrides) -> Path:
     with h5py.File(path, "w") as h5:
         det = h5.create_group("entry/instrument/detector")
         det["description"] = b"Eiger 2X 4M"
+        det["depends_on"] = b"/entry/instrument/transformations/det_z"
         det["beam_center_x"] = 985.0666666666667
         det["beam_center_y"] = 1419.4666666666665
         det["detector_distance"] = np.array([0.085])
@@ -168,6 +169,25 @@ def test_the_stated_beam_centre_is_kept_as_the_reference(tmp_path: Path) -> None
     )
 
 
+def test_the_arm_is_read_so_a_wrong_angle_can_be_corrected(tmp_path: Path) -> None:
+    """The angle and the axis it turns about, in the lab frame, through the sample."""
+    geometry = _read(_i19_2_file(tmp_path / "run.nxs"))
+    assert geometry["two_theta_deg"] == pytest.approx(20.0)
+    np.testing.assert_allclose(geometry["two_theta_axis"], [-1.0, 0.0, 0.0])
+
+
+def test_an_arm_that_something_moves_is_not_offered_for_correction(tmp_path: Path) -> None:
+    """Hung from a translation, two_theta no longer pivots about the sample."""
+    path = _i19_2_file(tmp_path / "run.nxs")
+    with h5py.File(path, "a") as h5:
+        tr = h5["entry/instrument/transformations"]
+        _transformation(tr, "table_y", [5.0], "translation", [0, 1, 0], "mm", ".")
+        tr["two_theta"].attrs["depends_on"] = "/entry/instrument/transformations/table_y"
+    geometry = _read(path)
+    assert geometry is not None, "the detector is still placed"
+    assert "two_theta_deg" not in geometry
+
+
 # --------------------------------------------------------------------------
 # When the flat model stays
 # --------------------------------------------------------------------------
@@ -219,6 +239,7 @@ def test_the_endpoint_serves_the_tilted_panel_with_its_reference(tmp_path: Path)
     assert payload["source"] == "NXmx transformations"
     assert payload["reference_center_x_px"] == pytest.approx(985.0666666666667)
     assert len(payload["distance_axis"]) == 3
+    assert payload["two_theta_deg"] == pytest.approx(20.0)
 
 
 def test_a_data_file_on_its_own_takes_the_chain_from_its_master(tmp_path: Path) -> None:
@@ -247,3 +268,5 @@ def test_a_sum_keeps_the_reference_its_fields_are_measured_against(tmp_path: Pat
     assert embedded["reference_center_x_px"] == pytest.approx(payload["reference_center_x_px"])
     assert embedded["reference_distance_mm"] == pytest.approx(85.0)
     np.testing.assert_allclose(embedded["distance_axis"], payload["distance_axis"])
+    assert embedded["two_theta_deg"] == pytest.approx(20.0)
+    np.testing.assert_allclose(embedded["two_theta_axis"], [-1.0, 0.0, 0.0])

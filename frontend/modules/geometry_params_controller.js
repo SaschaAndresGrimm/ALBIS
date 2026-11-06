@@ -203,6 +203,7 @@ export function createGeometryParamsController({
           distanceMm: geometryValueOrNull("distanceMm", reference.distanceMm),
           centerX: geometryValueOrNull("centerX", reference.centerX),
           centerY: geometryValueOrNull("centerY", reference.centerY),
+          twoThetaDeg: geometryValueOrNull("twoThetaDeg", reference.twoThetaDeg),
         }
       : null;
     analysisState.geometryPoseFromFile = Boolean(reference && poseFromGeometry);
@@ -334,16 +335,26 @@ export function createGeometryParamsController({
     renderTwoTheta(editable, geometryActive);
   }
 
-  // A detector geometry from the file already places a tilted detector; the
-  // row would do nothing there. Elsewhere an angle without a direction is not
-  // applied, and says so: no file states which way its arm swings.
+  // A file whose own geometry places a tilted detector states its arm's axis:
+  // the angle can still be corrected (its metadata may be wrong), and turns
+  // the detector about that axis, but the direction is the file's. A geometry
+  // with no arm (a multi-panel blueprint) leaves the row nothing to do.
+  // Elsewhere an angle without a direction is not applied, and says so: no
+  // file states which way its arm swings.
   function renderTwoTheta(editable, geometryActive) {
     if (!inputs.twoThetaDeg) return;
-    inputs.twoThetaDeg.disabled = geometryActive;
+    const fileArm = geometryActive && Number.isFinite(analysisState.ringGeometry?.two_theta_deg);
+    inputs.twoThetaDeg.disabled = geometryActive && !fileArm;
     if (directionSelect) {
       directionSelect.disabled = geometryActive || !editable;
       if (directionSelect !== document.activeElement) {
-        directionSelect.value = override().twoThetaDirection;
+        directionSelect.value = fileArm ? "" : override().twoThetaDirection;
+      }
+      const placeholder = directionSelect.options[0];
+      const key = fileArm ? "geometry.two_theta.direction.from_file" : "geometry.two_theta.direction.none";
+      if (placeholder && placeholder.dataset.i18n !== key) {
+        placeholder.dataset.i18n = key;
+        placeholder.textContent = t(key);
       }
     }
     const angle = resolved.values.twoThetaDeg;
@@ -430,6 +441,11 @@ export function createGeometryParamsController({
       center: v.centerX === null && v.centerY === null ? "—" : `${show("centerX")}, ${show("centerY")}`,
     });
     const direction = analysisState.twoThetaDirection;
+    const fileArm =
+      analysisState.ringMode === "geometry" && Number.isFinite(analysisState.ringGeometry?.two_theta_deg);
+    if (fileArm && v.twoThetaDeg !== null) {
+      return `${text} · ${t("geometry.inline.two_theta_file", { angle: show("twoThetaDeg") })}`;
+    }
     if (v.twoThetaDeg === null || v.twoThetaDeg < 0.1 || !direction) return text;
     return `${text} · ${t("geometry.inline.two_theta", {
       angle: show("twoThetaDeg"),

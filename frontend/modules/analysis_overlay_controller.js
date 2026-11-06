@@ -137,6 +137,7 @@ export function createAnalysisOverlayController({
           centerX: center.x,
           centerY: center.y,
           distanceMm,
+          twoThetaDeg: analysisState.twoThetaDeg,
         }),
       );
       if (beam && Number.isFinite(beam.x) && Number.isFinite(beam.y)) marker = beam;
@@ -154,6 +155,7 @@ export function createAnalysisOverlayController({
       centerY: center.y,
       markerX: marker.x,
       markerY: marker.y,
+      twoThetaDeg: analysisState.twoThetaDeg,
       centerKnown,
       rings,
     };
@@ -167,6 +169,7 @@ export function createAnalysisOverlayController({
         centerX: params.centerX,
         centerY: params.centerY,
         distanceMm: params.distanceMm,
+        twoThetaDeg: params.twoThetaDeg,
       });
       return getGeometryResolutionAtPixel(ix, iy, geometry, params.energyEv);
     }

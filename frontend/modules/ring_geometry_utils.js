@@ -93,6 +93,11 @@ export function prepareRingGeometry(payload) {
   };
   const distanceAxis = statedDistanceAxis(payload);
   if (distanceAxis) prepared.distance_axis = distanceAxis;
+  const arm = statedArm(payload);
+  if (arm) {
+    prepared.two_theta_deg = arm.angle;
+    prepared.two_theta_axis = arm.axis;
+  }
   // Where the beam meets the panels, unless the file says what its beam centre
   // and distance fields mean. For a detector on a 2θ arm they are its 2θ = 0
   // values, and taking the beam's hit instead would make the file's own
@@ -181,6 +186,11 @@ export function serializeGeometryPayload(geometry) {
   }
   const distanceAxis = statedDistanceAxis(geometry);
   if (distanceAxis) serialized.distance_axis = distanceAxis;
+  const arm = statedArm(geometry);
+  if (arm) {
+    serialized.two_theta_deg = arm.angle;
+    serialized.two_theta_axis = arm.axis;
+  }
   return serialized;
 }
 
@@ -295,6 +305,7 @@ export function getGeometryReferencePose(geometry) {
       centerX: geometry.reference_center_x_px,
       centerY: geometry.reference_center_y_px,
       distanceMm: geometry.reference_distance_mm,
+      twoThetaDeg: armAngle(geometry),
     };
   }
   const hit = findPanelRayHit(INCIDENT_BEAM, geometry);
@@ -304,7 +315,27 @@ export function getGeometryReferencePose(geometry) {
     centerX: fallbackHit.imageX,
     centerY: fallbackHit.imageY,
     distanceMm: fallbackHit.distance,
+    twoThetaDeg: armAngle(geometry),
   };
+}
+
+/** The 2θ arm the geometry states, or null: an angle and the axis it turns about. */
+function statedArm(payload) {
+  const angle = Number(payload?.two_theta_deg);
+  const axis = normalize(toFiniteVector(payload?.two_theta_axis, 3) || []);
+  if (payload?.two_theta_deg == null || !Number.isFinite(angle) || !axis) return null;
+  return { angle, axis };
+}
+
+function armAngle(geometry) {
+  return statedArm(geometry)?.angle ?? null;
+}
+
+function rotateAbout(vector, axis, radians) {
+  // Rodrigues: v cos + (k × v) sin + k (k · v)(1 − cos).
+  const c = Math.cos(radians);
+  const s = Math.sin(radians);
+  return add(add(scale(vector, c), scale(cross(axis, vector), s)), scale(axis, dot(axis, vector) * (1 - c)));
 }
 
 /** Where the beam meets the panels, in image pixels, or null. For a detector
@@ -344,11 +375,19 @@ export function applyGeometryOverrides(geometry, overrides = {}) {
   const shiftDistanceMm = Number.isFinite(targetDistanceMm) && targetDistanceMm > 0
     ? targetDistanceMm - reference.distanceMm
     : 0;
+  // A different 2θ turns the whole detector about the file's own arm axis,
+  // through the sample, by the difference: the file's metadata may be wrong.
+  const arm = statedArm(geometry);
+  const targetTwoTheta = Number(overrides.twoThetaDeg);
+  const turnDeg = arm && overrides.twoThetaDeg != null && Number.isFinite(targetTwoTheta)
+    ? targetTwoTheta - arm.angle
+    : 0;
 
   if (
     Math.abs(shiftX) <= EPSILON &&
     Math.abs(shiftY) <= EPSILON &&
-    Math.abs(shiftDistanceMm) <= EPSILON
+    Math.abs(shiftDistanceMm) <= EPSILON &&
+    Math.abs(turnDeg) <= EPSILON
   ) {
     return geometry;
   }
@@ -363,7 +402,7 @@ export function applyGeometryOverrides(geometry, overrides = {}) {
   // not share one plane and orientation, like the I23 cylinder, cannot move
   // as one in a plane, and keep shifting the image.
   const inPlane = sharesOnePlane(geometry.panels);
-  return {
+  const shifted = {
     ...geometry,
     panels: geometry.panels.map((panel) => {
       const lifted = add(panel.origin_mm, scale(axis, shiftDistanceMm));
@@ -386,6 +425,25 @@ export function applyGeometryOverrides(geometry, overrides = {}) {
       ? targetDistanceMm
       : reference.distanceMm,
   };
+  return Math.abs(turnDeg) <= EPSILON ? shifted : turnAboutArm(shifted, arm.axis, turnDeg);
+}
+
+function turnAboutArm(geometry, axis, degrees) {
+  const radians = (degrees * Math.PI) / 180;
+  const turned = {
+    ...geometry,
+    panels: geometry.panels.map((panel) => ({
+      ...panel,
+      origin_mm: rotateAbout(panel.origin_mm, axis, radians),
+      fast_axis: rotateAbout(panel.fast_axis, axis, radians),
+      slow_axis: rotateAbout(panel.slow_axis, axis, radians),
+      ...(panel.normal ? { normal: rotateAbout(panel.normal, axis, radians) } : {}),
+    })),
+    two_theta_deg: geometry.two_theta_deg + degrees,
+  };
+  const distanceAxis = statedDistanceAxis(geometry);
+  if (distanceAxis) turned.distance_axis = rotateAbout(distanceAxis, axis, radians);
+  return turned;
 }
 
 function flushSegment(target, points) {

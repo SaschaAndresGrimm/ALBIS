@@ -13,6 +13,8 @@ const EXACT_KEY_ALLOWLIST = new Set([
   "cursor.resolution",
   // "Direction" is the French word as well as the English one: a cognate.
   "geometry.two_theta.direction.none",
+  // A symbol, a number and a unit: the same in every language.
+  "geometry.inline.two_theta_file",
   "roi.mode.default",
   "series.ui.output_placeholder",
   "settings.language.mi",

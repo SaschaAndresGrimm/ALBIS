@@ -236,6 +236,50 @@ def _scalar(h5: Any, path: str) -> float | None:
     return _first(dset[()]) if dset is not None else None
 
 
+def _arm(h5: Any, detector: Any) -> tuple[float, list[float]] | None:
+    """The detector's 2θ arm: its angle (degrees) and its axis in the lab frame.
+
+    The rotation named `two_theta` in the detector's own chain, provided what
+    it hangs from only turns -- so it pivots about the sample, as an arm does.
+    Its axis is the file's `vector` turned by those parent rotations. None when
+    the chain has no such rotation, so the angle can only be read, not changed.
+    """
+    start = detector.get("depends_on")
+    if start is None:
+        return None
+    target = _text(start[()])
+    node = _resolve(h5, target, start) if target not in ("", ".") else None
+    steps: list[tuple[str, Any]] = []
+    for _ in range(_MAX_CHAIN):
+        if node is None:
+            return None
+        steps.append((node.name.rsplit("/", 1)[-1].lower(), node))
+        target = _text(node.attrs.get("depends_on"))
+        if target in ("", "."):
+            break
+        node = _resolve(h5, target, node)
+    else:
+        return None
+    for index, (name, dset) in enumerate(steps):
+        if "two_theta" not in name and "2theta" not in name:
+            continue
+        if _text(dset.attrs.get("transformation_type")).lower() != "rotation":
+            return None
+        vector = _vector(dset.attrs.get("vector"))
+        value = _first(dset[()])
+        factor = _ANGLE_TO_RAD.get(_text(dset.attrs.get("units")).lower())
+        if vector is None or value is None or factor is None:
+            return None
+        parents = np.eye(3)
+        for _name, parent in steps[index + 1 :]:
+            step = _transformation(parent)
+            if step is None or np.linalg.norm(step[1]) > 1e-9:
+                return None  # a parent that moves it: no longer a pivot at the sample
+            parents = step[0] @ parents
+        return math.degrees(value * factor), [float(v) for v in parents @ vector]
+    return None
+
+
 def read_nxmx_geometry(h5: Any) -> dict[str, Any] | None:
     """The detector's panels when the file places it tilted to the beam, else None.
 
@@ -266,7 +310,7 @@ def read_nxmx_geometry(h5: Any) -> dict[str, Any] | None:
     normal = normal / np.linalg.norm(normal)
     if float(np.dot(normal, first["origin_mm"])) < 0:
         normal = -normal
-    return {
+    geometry: dict[str, Any] = {
         "mode": "geometry",
         "detector": (
             _text(detector.get("description", b"")[()]) if "description" in detector else ""
@@ -278,3 +322,9 @@ def read_nxmx_geometry(h5: Any) -> dict[str, Any] | None:
         "reference_distance_mm": _scalar_mm(h5, "/entry/instrument/detector/detector_distance"),
         "distance_axis": [float(v) for v in normal],
     }
+    # The arm, so the interface can show its angle and a manual override can
+    # turn the detector about the file's own axis.
+    arm = _arm(h5, detector)
+    if arm is not None:
+        geometry["two_theta_deg"], geometry["two_theta_axis"] = arm
+    return geometry

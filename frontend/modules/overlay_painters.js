@@ -452,6 +452,7 @@ export function buildGeometryRingCache(params) {
     centerX: params.centerX,
     centerY: params.centerY,
     distanceMm: params.distanceMm,
+    twoThetaDeg: params.twoThetaDeg,
   });
   params.rings.forEach((dSpacing) => {
     const segments = buildGeometryRingSegments({

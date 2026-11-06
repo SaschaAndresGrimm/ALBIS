@@ -11,6 +11,7 @@ import {
   prepareRingGeometry,
   serializeGeometryPayload,
 } from "../modules/ring_geometry_utils.js";
+import { buildTiltedPanelGeometry } from "../modules/detector_tilt_utils.js";
 
 // Diamond I19-2's Eiger2 4M on its 2θ arm at 20°: the panel the backend reads
 // from the NXmx file, and dxtbx's d-spacings for the same file, without
@@ -92,5 +93,44 @@ describe("a detector on a 2θ arm (DLS I19-2, 20°)", () => {
     const roundTrip = prepareRingGeometry(serialized);
     const d = getGeometryResolutionAtPixel(250, 700, roundTrip, ENERGY_EV);
     expect(d).toBeCloseTo(getGeometryResolutionAtPixel(250, 700, geometryWith(), ENERGY_EV), 12);
+  });
+
+  describe("a corrected 2θ, when the file's angle is wrong", () => {
+    it("reads the file's arm: 20°, which its fields are measured at", () => {
+      const geometry = prepareRingGeometry(FIXTURE.albis_geometry);
+      expect(geometry.reference_center_x_px).toBeCloseTo(985.0667, 4);
+      expect(applyGeometryOverrides(geometry, { ...FILE_FIELDS, twoThetaDeg: 20 })).toBe(geometry);
+    });
+
+    it.each(FIXTURE.dxtbx_d_spacings.filter(([, , d]) => d < 100))(
+      "turns the detector about the file's axis: 25° equals an arm built at 25°, pixel (%i, %i)",
+      (x, y) => {
+        const corrected = geometryWith({ ...FILE_FIELDS, twoThetaDeg: 25 });
+        const byHand = prepareRingGeometry(
+          buildTiltedPanelGeometry({
+            widthPx: 2068,
+            heightPx: 2162,
+            pixelSizeXUm: 75,
+            pixelSizeYUm: 75,
+            distanceMm: 85,
+            centerX: FILE_FIELDS.centerX - 0.5,
+            centerY: FILE_FIELDS.centerY - 0.5,
+            twoThetaDeg: 25,
+            direction: "+x",
+          }),
+        );
+        const d = getGeometryResolutionAtPixel(x, y, corrected, ENERGY_EV);
+        const expected = getGeometryResolutionAtPixel(x, y, byHand, ENERGY_EV);
+        expect(Math.abs(d - expected) / expected).toBeLessThan(1e-9);
+      },
+    );
+
+    it("moves the beam the way a wider arm does, and keeps the new angle with the panels", () => {
+      const at20 = getGeometryBeamPosition(geometryWith());
+      const corrected = geometryWith({ ...FILE_FIELDS, twoThetaDeg: 25 });
+      expect(getGeometryBeamPosition(corrected).x).toBeLessThan(at20.x - 50);
+      expect(corrected.two_theta_deg).toBe(25);
+      expect(serializeGeometryPayload(corrected).two_theta_deg).toBe(25);
+    });
   });
 });

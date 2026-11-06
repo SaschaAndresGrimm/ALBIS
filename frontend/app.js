@@ -827,11 +827,8 @@ function updatePeaksSectionState() {
 function getSeriesSumGeometryContext() {
   const ringGeometry = getRingParams().geometry; // a file's panels, or a hand-entered 2θ
   if (!ringGeometry) return null;
-  const effectiveGeometry = applyGeometryOverrides(ringGeometry, {
-    centerX: analysisState.centerX,
-    centerY: analysisState.centerY,
-    distanceMm: analysisState.distanceMm,
-  });
+  // centerX, centerY, distanceMm and twoThetaDeg in effect, as the rings use them.
+  const effectiveGeometry = applyGeometryOverrides(ringGeometry, analysisState);
   const geometry = serializeGeometryPayload(effectiveGeometry);
   if (!geometry) {
     return null;

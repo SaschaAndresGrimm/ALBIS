@@ -309,6 +309,11 @@ def _reference_pose(payload: dict[str, Any]) -> dict[str, Any]:
     axis = _coerce_float_vector(payload.get("distance_axis"), 3)
     if axis is not None and math.hypot(*axis) > 1e-9:
         pose["distance_axis"] = axis
+    arm_angle = _first_number(payload.get("two_theta_deg"))
+    arm_axis = _coerce_float_vector(payload.get("two_theta_axis"), 3)
+    if arm_angle is not None and arm_axis is not None and math.hypot(*arm_axis) > 1e-9:
+        pose["two_theta_deg"] = float(arm_angle)
+        pose["two_theta_axis"] = arm_axis
     return pose
 
 
