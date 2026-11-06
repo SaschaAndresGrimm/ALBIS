@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchJSON, fetchJSONWithInit, fetchResponse, readHeaderText } from "../modules/http.js";
+import {
+  failureDetail,
+  fetchJSON,
+  fetchJSONWithInit,
+  fetchResponse,
+  onNetworkFailure,
+  readHeaderText,
+} from "../modules/http.js";
 
 // Reject like a real fetch() does when its AbortSignal fires.
 function abortableFetch() {
@@ -260,3 +267,32 @@ describe("readHeaderText", () => {
   });
 });
 
+describe("failureDetail", () => {
+  it("gives a request's translated failure, and nothing for a cancel or a code error", () => {
+    const failed = Object.assign(new Error("The server ran into a problem."), { status: 500 });
+    expect(failureDetail(failed)).toBe("The server ran into a problem.");
+    expect(failureDetail(Object.assign(new Error("aborted"), { name: "AbortError" }))).toBe("");
+    expect(failureDetail(new TypeError("x is undefined"))).toBe("");
+    expect(failureDetail(null)).toBe("");
+  });
+});
+
+describe("onNetworkFailure", () => {
+  afterEach(() => {
+    onNetworkFailure(null);
+    delete global.fetch;
+  });
+
+  it("is told when a request cannot reach the server, not when the server answers", async () => {
+    const listener = vi.fn();
+    onNetworkFailure(listener);
+    global.fetch = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+    await expect(fetchJSON("/api/x")).rejects.toMatchObject({ status: 500 });
+    expect(listener).not.toHaveBeenCalled();
+    global.fetch = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await expect(fetchJSON("/api/x")).rejects.toMatchObject({ status: 0 });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+});

@@ -6,7 +6,7 @@ import { t } from "./i18n.js";
 import { getGeometryScopeKey } from "./geometry_override_utils.js";
 import { createFrameCache } from "./frame_cache.js";
 import { createTransientFrameLoadState } from "./transient_frame_load_state.js";
-import { fetchResponse } from "./http.js";
+import { failureDetail, fetchResponse } from "./http.js";
 
 // Generous ceiling for a single binary frame/image transfer. Long enough not to
 // trip on large frames over a slow link, short enough that a hung connection no
@@ -235,7 +235,7 @@ export function createFileDataPipelineController({
       setStatus(t("status.frame.position", { current: 1, total: 1 }), { frameStatus: true });
     } catch (err) {
       console.error(err);
-      setStatus(t("status.data.failed_load_image"), { tone: "error" });
+      setStatus(t("status.data.failed_load_image"), { tone: "error", detail: failureDetail(err) });
     } finally {
       setLoading(false);
     }
@@ -385,7 +385,10 @@ export function createFileDataPipelineController({
       // rather than the silent navigation-cancel case below.
       if (timedOut || err?.name !== "AbortError") {
         console.error(err);
-        setStatus(t("status.data.failed_load_image"), { tone: "error" });
+        setStatus(t("status.data.failed_load_image"), {
+          tone: "error",
+          detail: timedOut ? t("http.error.timeout") : failureDetail(err),
+        });
         if (!state.hasFrame) {
           showSplash();
         }
@@ -453,7 +456,14 @@ export function createFileDataPipelineController({
       // rather than the silent navigation-cancel case below.
       if (timedOut || err?.name !== "AbortError") {
         console.error(err);
-        setStatus(t("status.data.failed_load_frame"), { tone: "error" });
+        // Which frame, and why; Retry asks for the frame shown now, which is
+        // the one that failed unless the user has moved on.
+        const reason = timedOut ? t("http.error.timeout") : failureDetail(err) || t("http.error.generic");
+        setStatus(t("status.data.failed_load_frame"), {
+          tone: "error",
+          detail: t("status.data.failed_frame_detail", { frame: state.frameIndex + 1, reason }),
+          action: { label: t("common.retry"), onClick: () => void loadFrame() },
+        });
         if (!state.hasFrame) {
           showSplash();
         }

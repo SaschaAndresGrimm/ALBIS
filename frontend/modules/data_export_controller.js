@@ -8,6 +8,7 @@ import { normalizeFlatScale } from "./flatfield.js";
 import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue } from "./inpainting.js";
 import { formatBytes } from "./detector_control_utils.js";
 import { chooseNativePath } from "./native_picker.js";
+import { failureDetail } from "./http.js";
 
 function fileStem(path) {
   const normalized = String(path || "").replace(/\\/g, "/");
@@ -528,7 +529,7 @@ export function createDataExportController({
       state.dataExport.cancelling = false;
       setProgress(0, t("data_export.progress.start_failed"));
       updateUi();
-      setStatus(t("status.data_export.start_failed"), { tone: "error" });
+      setStatus(t("status.data_export.start_failed"), { tone: "error", detail: failureDetail(err) });
     }
   }
 
@@ -819,7 +820,7 @@ export function createDataExportController({
       console.error(err);
       state.dataExport.cancelling = false;
       updateUi();
-      setStatus(t("status.data_export.cancel_failed"), { tone: "error" });
+      setStatus(t("status.data_export.cancel_failed"), { tone: "error", detail: failureDetail(err) });
     }
   }
 
@@ -842,7 +843,7 @@ export function createDataExportController({
       closeDialog();
     } catch (err) {
       console.error(err);
-      setStatus(t("status.data_export.output_open_failed"), { tone: "error" });
+      setStatus(t("status.data_export.output_open_failed"), { tone: "error", detail: failureDetail(err) });
     }
   }
 
@@ -855,7 +856,7 @@ export function createDataExportController({
       }
     } catch (err) {
       console.error(err);
-      setStatus(t("status.data_export.browse_failed"), { tone: "error" });
+      setStatus(t("status.data_export.browse_failed"), { tone: "error", detail: failureDetail(err) });
     }
   }
 

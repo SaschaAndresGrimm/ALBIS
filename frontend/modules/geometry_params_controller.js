@@ -30,6 +30,7 @@ import {
 import { createDetectorTiltControls } from "./detector_tilt_controls.js";
 import { isExptPath } from "./geometry_override_utils.js";
 import { chooseNativePath } from "./native_picker.js";
+import { failureDetail } from "./http.js";
 
 const VALIDATION_KEYS = {
   distanceMm: "validation.rings.distance_positive",
@@ -540,7 +541,7 @@ export function createGeometryParamsController({
       // 409: this machine has no native dialog, which is not a failure of
       // the geometry file.
       if (err?.status === 409) setStatus?.(t("status.file_picker.unavailable"));
-      else setStatus?.(t("status.analysis.geometry_picker_failed"), { tone: "error" });
+      else setStatus?.(t("status.analysis.geometry_picker_failed"), { tone: "error", detail: failureDetail(err) });
     }
   });
 

@@ -4,6 +4,7 @@
 
 import { t } from "./i18n.js";
 import { copyText } from "./clipboard_copy.js";
+import { anchorToastsAbove } from "./toast.js";
 
 export function createChromeToolbarController({
   state,
@@ -47,6 +48,10 @@ export function createChromeToolbarController({
     toolbarPath,
     dataSourceSummaryEl,
   } = elements;
+
+  // Toasts stand above the footer rather than over its badges and buttons.
+  const viewerFooterEl = footerFileEl?.closest?.(".viewer-footer");
+  if (viewerFooterEl) anchorToastsAbove(viewerFooterEl);
 
   const {
     middleTruncate,

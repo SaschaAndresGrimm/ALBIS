@@ -25,7 +25,7 @@ import { readAllCss } from "./stylesheets.js";
 
 // Literals outside :root and @font-face. Lower these as they are removed.
 const BASELINE = {
-  colours: 616,
+  colours: 611,
   fontSizes: 14,
   radii: 8,
 };

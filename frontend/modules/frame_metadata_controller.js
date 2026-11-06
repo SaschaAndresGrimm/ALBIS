@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { failureDetail } from "./http.js";
 import { getGeometryScopeKey } from "./geometry_override_utils.js";
 
 // A folder's listing takes well under a second, even for thousands of files;
@@ -125,7 +126,7 @@ export function createFrameMetadataController({
     } catch (err) {
       console.error(err);
       if (generation !== filesGeneration) return;
-      setStatus(t("status.frame.load_files_failed"), { tone: "error" });
+      setStatus(t("status.frame.load_files_failed"), { tone: "error", detail: failureDetail(err) });
       setDataSourceSectionState("warning", t("status.files.load_failed"));
     }
   }
@@ -184,7 +185,11 @@ export function createFrameMetadataController({
       setDataSourceSectionState("warning", t("status.data.failed_load_metadata"));
       // Toned, so the failure is raised as a toast rather than only written
       // into the footer pill, where the next ambient update overwrites it.
-      setStatus(t("status.data.failed_load_metadata"), { tone: "error" });
+      setStatus(t("status.data.failed_load_metadata"), {
+        tone: "error",
+        detail: failureDetail(err),
+        action: { label: t("common.retry"), onClick: () => void loadMetadata() },
+      });
       // Returning rather than rethrowing: `loadMetadata` already reports
       // failure by returning false on the no-frame path, and one of its two
       // call sites (the dataset dropdown) has no try/catch, so a throw here

@@ -6,7 +6,7 @@ import { onLanguageChange, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
 import { ANALYSIS_TOOLS, TOOL_PRESETS, normalizeHiddenTools } from "./analysis_tools.js";
 import { chooseNativePath } from "./native_picker.js";
-import { fetchJSON, fetchJSONWithInit } from "./http.js";
+import { failureDetail, fetchJSON, fetchJSONWithInit } from "./http.js";
 import { notifyWarning } from "./toast.js";
 
 export function createSettingsController({
@@ -768,7 +768,7 @@ export function createSettingsController({
       input.dispatchEvent(new window.Event("change", { bubbles: true }));
     } catch (err) {
       console.error(err);
-      setStatus(t("status.settings.browse_failed"), { tone: "error" });
+      setStatus(t("status.settings.browse_failed"), { tone: "error", detail: failureDetail(err) });
     }
   }
 

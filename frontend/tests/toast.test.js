@@ -90,4 +90,83 @@ describe("toast notifications", () => {
     vi.advanceTimersByTime(500);
     expect(document.getElementById("toast-region").querySelectorAll(".toast").length).toBe(0);
   });
+
+  it("shows the cause under the message", async () => {
+    const { notifyError } = await loadToast();
+    notifyError("Failed to load frame", { detail: "Frame 3: Cannot reach the server." });
+    const detail = document.querySelector(".toast .toast-detail");
+    expect(detail.textContent).toBe("Frame 3: Cannot reach the server.");
+    expect(detail.title).toBe("Frame 3: Cannot reach the server.");
+  });
+
+  it("counts a repeated message on one toast and keeps its newest detail", async () => {
+    const { notifyError } = await loadToast();
+    notifyError("Failed to load frame", { detail: "Frame 3" });
+    expect(document.querySelector(".toast-count")).toBeNull();
+    notifyError("Failed to load frame", { detail: "Frame 4" });
+    notifyError("Failed to load frame", { detail: "Frame 5" });
+    const toasts = document.querySelectorAll(".toast");
+    expect(toasts.length).toBe(1);
+    expect(toasts[0].querySelector(".toast-count").textContent).toBe("×3");
+    expect(toasts[0].querySelector(".toast-count").getAttribute("aria-label")).toContain("toast.repeated");
+    expect(toasts[0].querySelector(".toast-detail").textContent).toBe("Frame 5");
+  });
+
+  it("runs its action with the newest handler and closes", async () => {
+    vi.useFakeTimers();
+    const { notifyError } = await loadToast();
+    const first = vi.fn();
+    const second = vi.fn();
+    notifyError("Failed to load frame", { action: { label: "Retry", onClick: first } });
+    notifyError("Failed to load frame", { action: { label: "Retry", onClick: second } });
+    const button = document.querySelector(".toast .toast-action");
+    expect(button.textContent).toBe("Retry");
+    button.click();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(500);
+    expect(document.querySelectorAll(".toast").length).toBe(0);
+  });
+
+  it("holds back what the gate refuses, and closes toasts of one tone", async () => {
+    vi.useFakeTimers();
+    const { notifyError, notifyInfo, setToastGate, dismissToasts } = await loadToast();
+    notifyError("before");
+    notifyInfo("info");
+    setToastGate((type) => type !== "error");
+    notifyError("held back");
+    expect(document.body.textContent).not.toContain("held back");
+    dismissToasts("error");
+    vi.advanceTimersByTime(500);
+    expect(document.querySelectorAll(".toast-error").length).toBe(0);
+    expect(document.querySelectorAll(".toast-info").length).toBe(1);
+    setToastGate(null);
+    notifyError("after");
+    expect(document.body.textContent).toContain("after");
+  });
+});
+
+describe("toast placement", () => {
+  it("stands clear of the anchor's top edge", async () => {
+    const { toastBottomOffset } = await loadToast();
+    // Footer from 1330 to 1380 in a 1397px window: 67px to its top, plus the gap.
+    expect(toastBottomOffset(1397, { top: 1330, height: 50 })).toBe(75);
+  });
+
+  it("keeps the edge gap when there is no anchor, or it is hidden or above the bottom", async () => {
+    const { toastBottomOffset } = await loadToast();
+    expect(toastBottomOffset(900, null)).toBe(16);
+    expect(toastBottomOffset(900, { top: 0, height: 0 })).toBe(16);
+    expect(toastBottomOffset(900, { top: 950, height: 40 })).toBe(16);
+  });
+
+  it("places the region above the anchor when a toast is shown", async () => {
+    const { anchorToastsAbove, notifyInfo } = await loadToast();
+    const footer = document.createElement("div");
+    document.body.appendChild(footer);
+    footer.getBoundingClientRect = () => ({ top: window.innerHeight - 60, height: 48 });
+    anchorToastsAbove(footer);
+    notifyInfo("hello");
+    expect(document.getElementById("toast-region").style.getPropertyValue("--toast-bottom")).toBe("68px");
+  });
 });

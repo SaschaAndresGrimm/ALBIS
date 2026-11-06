@@ -31,7 +31,7 @@ import { getLanguage, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
 import { countEdits } from "./pixel_mask_edit.js";
 import { addFound, findBadPixels } from "./pixel_mask_find.js";
-import { fetchJSONWithInit, fetchResponse } from "./http.js";
+import { failureDetail, fetchJSONWithInit, fetchResponse } from "./http.js";
 import {
   GAP_BIT,
   diffMasks,
@@ -568,7 +568,7 @@ export function createPixelMaskController({
         setStatus?.(t("pixel_mask.status.saved", { name }), { tone: "success" });
       } catch (err) {
         console.error(err);
-        setStatus?.(t("pixel_mask.status.save_failed"), { tone: "error" });
+        setStatus?.(t("pixel_mask.status.save_failed"), { tone: "error", detail: failureDetail(err) });
       }
     });
   }
@@ -792,7 +792,7 @@ export function createPixelMaskController({
         mask = await readFileMask(backup.path);
       } catch (err) {
         console.error(err);
-        setStatus?.(t("pixel_mask.status.load_failed"), { tone: "error" });
+        setStatus?.(t("pixel_mask.status.load_failed"), { tone: "error", detail: failureDetail(err) });
         return;
       }
       await sendMask(mask, { restoring: backup });

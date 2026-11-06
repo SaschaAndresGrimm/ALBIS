@@ -8,6 +8,7 @@ import { showPromptDialog } from "./dialogs.js";
 import { exportSize, withinExportLimits } from "./image_export.js";
 import { screenView } from "./overlay_painters.js";
 import { currentMaskColors } from "./mask_colors.js";
+import { failureDetail } from "./http.js";
 
 const SAVE_FILE_TYPES = [{ accept: { "image/png": [".png"] } }];
 
@@ -128,7 +129,7 @@ export function createExportSplashController({
           setStatus(t("status.export.saved", { filename: handle.name }), { tone: "success" });
         } catch (err) {
           console.error(err);
-          setStatus(t("status.export.save_failed"), { tone: "error" });
+          setStatus(t("status.export.save_failed"), { tone: "error", detail: failureDetail(err) });
         }
         return;
       }
@@ -376,7 +377,7 @@ export function createExportSplashController({
       html2canvasFn = await ensureHtml2Canvas();
     } catch (err) {
       console.error(err);
-      setStatus(t("status.export.viewer_unavailable"), { tone: "error" });
+      setStatus(t("status.export.viewer_unavailable"), { tone: "error", detail: failureDetail(err) });
       return;
     }
     const target = document.querySelector(".page");
@@ -393,7 +394,7 @@ export function createExportSplashController({
         });
       } catch (err) {
         console.error(err);
-        setStatus(t("status.export.viewer_failed"), { tone: "error" });
+        setStatus(t("status.export.viewer_failed"), { tone: "error", detail: failureDetail(err) });
         return null;
       }
     };
