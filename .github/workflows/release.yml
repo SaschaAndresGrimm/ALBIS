@@ -545,7 +545,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             target_os: macos
             target_arch: arm64
             target: macos-arm64
@@ -692,7 +692,7 @@ jobs:
   # Same script, same names, same checks as the one-runner path.
   finish_macos:
     name: Finish macOS Artifact (macos-x64)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: build_macos
     env:
       ALBIS_TARGET_OS: macos

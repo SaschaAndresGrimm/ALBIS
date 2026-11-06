@@ -15,7 +15,10 @@ tested is the order of the steps, which is what went wrong.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SIGN_SCRIPT = REPO_ROOT / "scripts" / "sign_macos.sh"
@@ -137,7 +140,8 @@ def test_the_release_check_retries_validating_the_ticket() -> None:
 # From 2026-10-12 the macos-15-intel runner could not fetch notarization
 # tickets from Apple (five tries of five failed, for three releases running),
 # while notarizing worked and the Apple-silicon runner fetched fine. So the
-# Intel app is signed and notarized there and stapled and packaged on macos-14.
+# Intel app is signed and notarized there and stapled and packaged on Apple
+# silicon (macos-15; macos-14 until GitHub retired it in November 2026).
 
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 
@@ -159,7 +163,7 @@ def test_the_intel_build_only_notarizes_and_is_finished_on_apple_silicon() -> No
 
     finish = jobs["finish_macos"]
     assert (
-        finish["runs-on"] == "macos-14"
+        finish["runs-on"] == "macos-15"
     ), "stapling has to run where Apple's ticket service answers"
     assert finish["needs"] == "build_macos"
     assert finish["env"]["ALBIS_MACOS_PHASE"] == "finish"
@@ -194,3 +198,17 @@ def test_the_notarize_phase_stops_before_stapling_and_finish_does_not_sign_again
     signing = text.split('if [ "$PHASE" = "finish" ]; then', 1)[1].split("fi\n", 1)[0]
     assert "codesign --force --deep" in signing.split("else", 1)[1]
     assert "codesign --force --deep" not in signing.split("else", 1)[0]
+
+
+# GitHub retired the macos-14 image in November 2026. A job asking for it is
+# cancelled before it starts ("The configuration 'macos-14-arm64-us-default'
+# is not supported"), which stopped the 0.42.0 release build with nothing
+# published -- and only showed at release time, since CI runs on macos-latest.
+RETIRED_RUNNERS = {"macos-12", "macos-13", "macos-14"}
+
+
+@pytest.mark.parametrize("workflow", ["release.yml", "artifacts.yml", "ci.yml"])
+def test_no_workflow_asks_for_a_retired_runner(workflow: str) -> None:
+    text = (REPO_ROOT / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
+    used = {token for token in RETIRED_RUNNERS if re.search(rf"\b{token}\b", text)}
+    assert not used, f"{workflow} asks for retired runner(s): {sorted(used)}"
