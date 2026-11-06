@@ -212,3 +212,20 @@ def test_no_workflow_asks_for_a_retired_runner(workflow: str) -> None:
     text = (REPO_ROOT / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
     used = {token for token in RETIRED_RUNNERS if re.search(rf"\b{token}\b", text)}
     assert not used, f"{workflow} asks for retired runner(s): {sorted(used)}"
+
+
+def test_the_rosetta_check_gives_each_image_time_to_translate() -> None:
+    """The Intel app under Rosetta translates its libraries on first use.
+
+    On GitHub's macos-15 runner the first image request of the stapled Intel
+    DMG outlasted the 20 s every other smoke check allows, though the same app
+    had decoded every fixture natively on the Intel runner minutes before. The
+    longer limit is for that one check; the native ones keep 20 s.
+    """
+    steps = _release_jobs()["finish_macos"]["steps"]
+    (smoke,) = [step for step in steps if step.get("name") == "Smoke test mounted DMG app"]
+    match = re.search(r"smoke_macos_dmg\.sh \"\$dmg_file\" (\d+) (\d+)", smoke["run"])
+    assert match, "the Rosetta check passes a startup and a decode timeout"
+    assert int(match.group(2)) >= 60
+    native = _release_jobs()["build_macos"]["steps"]
+    assert not any("--decode-timeout" in str(step.get("run", "")) for step in native)
