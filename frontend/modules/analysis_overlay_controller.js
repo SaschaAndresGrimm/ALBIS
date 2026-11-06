@@ -8,7 +8,9 @@ import {
   braggDSpacing,
   getGeometryBeamPosition,
   getGeometryResolutionAtPixel,
+  prepareRingGeometry,
 } from "./ring_geometry_utils.js";
+import { buildTiltedPanelGeometry } from "./detector_tilt_utils.js";
 import { setControlAvailability } from "./control_availability.js";
 import { buildCsvTable, csvProvenanceLines } from "./csv_export_utils.js";
 
@@ -55,6 +57,9 @@ export function createAnalysisOverlayController({
   const formatResolution = (v) => (Number.isFinite(v) ? v.toFixed(2) : "—");
 
   let peakFinderScheduled = false;
+  // The tilted panel for a hand-entered 2θ, rebuilt only when its fields change.
+  let manualTiltKey = "";
+  let manualTiltGeometry = null;
 
   function getDefaultCenter() {
     if (Array.isArray(state.shape) && state.shape.length >= 2) {
@@ -70,8 +75,40 @@ export function createAnalysisOverlayController({
     return { x: 0, y: 0 };
   }
 
+  // A flat detector the user put on a 2θ arm (Data → Detector Geometry): the
+  // tilted panel built from the fields in effect, or null. A file's own panels
+  // win -- they already place a tilted detector.
+  function getManualTiltGeometry(centerKnown) {
+    if (analysisState.ringMode === "geometry" && analysisState.ringGeometry) return null;
+    if (!centerKnown) return null;
+    const payload = buildTiltedPanelGeometry({
+      widthPx: state.width,
+      heightPx: state.height,
+      pixelSizeXUm: analysisState.pixelSizeUm,
+      pixelSizeYUm: analysisState.pixelSizeYUm,
+      distanceMm: analysisState.distanceMm,
+      centerX: analysisState.centerX,
+      centerY: analysisState.centerY,
+      twoThetaDeg: analysisState.twoThetaDeg,
+      direction: analysisState.twoThetaDirection,
+    });
+    if (!payload) return null;
+    const key = payload.source + JSON.stringify(payload.panels[0]);
+    if (key !== manualTiltKey) {
+      manualTiltKey = key;
+      manualTiltGeometry = prepareRingGeometry(payload);
+    }
+    return manualTiltGeometry;
+  }
+
   function getRingParams() {
-    const geometryActive = analysisState.ringMode === "geometry" && analysisState.ringGeometry;
+    const centerKnownForTilt =
+      Number.isFinite(analysisState.centerX) && Number.isFinite(analysisState.centerY);
+    const manualTilt = getManualTiltGeometry(centerKnownForTilt);
+    const fileGeometry =
+      analysisState.ringMode === "geometry" && analysisState.ringGeometry ? analysisState.ringGeometry : null;
+    const ringGeometry = fileGeometry || manualTilt;
+    const geometryActive = Boolean(ringGeometry);
     // The values in effect, from geometry_params_controller: the source's,
     // or the user's override. Nothing here reads a form field any more.
     const distanceMm = analysisState.distanceMm;
@@ -96,7 +133,7 @@ export function createAnalysisOverlayController({
     let marker = center;
     if (geometryActive) {
       const beam = getGeometryBeamPosition(
-        applyGeometryOverrides(analysisState.ringGeometry, {
+        applyGeometryOverrides(ringGeometry, {
           centerX: center.x,
           centerY: center.y,
           distanceMm,
@@ -106,8 +143,10 @@ export function createAnalysisOverlayController({
     }
     return {
       mode: geometryActive ? "geometry" : "planar",
-      geometry: geometryActive ? analysisState.ringGeometry : null,
-      geometrySource: geometryActive ? String(analysisState.ringGeometrySource || "") : "",
+      geometry: geometryActive ? ringGeometry : null,
+      geometrySource: fileGeometry
+        ? String(analysisState.ringGeometrySource || "")
+        : manualTilt?.source || "",
       distanceMm: Number.isFinite(distanceMm) && distanceMm > 0 ? distanceMm : null,
       pixelSizeUm: Number.isFinite(pixelSizeUm) && pixelSizeUm > 0 ? pixelSizeUm : null,
       energyEv: Number.isFinite(energyEv) && energyEv > 0 ? energyEv : null,

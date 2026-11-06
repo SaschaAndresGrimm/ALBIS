@@ -175,6 +175,9 @@ class AnalysisParamsResponse(_StrictModel):
     energy_ev: float | None = None
     center_x_px: float | None = None
     center_y_px: float | None = None
+    # The detector's 2θ setting (degrees) as the file records it, without the
+    # direction its arm swings, which no file states.
+    two_theta_deg: float | None = None
     shape: list[int] | None = None
 
 

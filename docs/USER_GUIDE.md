@@ -752,6 +752,17 @@ along the arm, so changing either moves the tilted detector as a whole. A data
 file opened on its own takes this from its collection's `.nxs`. A detector square
 to the beam is drawn as before.
 
+For a file that does not describe its detector's arm — a CBF, a TIFF, an older
+DECTRIS master — enter the arm under **Detector 2θ (°)**, with **Override
+manually** on: the angle, and in the list beside it which way the arm swings on
+the image (**+X (right)**, **−X (left)**, **+Y (down)** or **−Y (up)**: the side
+where the scattering angles grow). The beam centre and distance then mean the
+same as for a NeXus file: the centre at 2θ = 0 and the distance along the arm.
+An older DECTRIS master records the angle, which ALBIS shows in the field, but
+not the direction; until you choose one the angle is not applied, and the hint
+under the field says so. The rings line up as they would for a NeXus file that
+describes the same arm.
+
 ---
 
 ## Flatfield correction

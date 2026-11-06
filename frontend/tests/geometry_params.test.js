@@ -31,7 +31,8 @@ describe("resolveGeometryParams", () => {
   it("uses the source as it is when nothing overrides it", () => {
     const { values, origins } = resolveGeometryParams({ source: HEADER, sourceOrigin: "image" });
 
-    expect(values).toEqual(HEADER);
+    // A header with no 2θ has none: the key is there, unset.
+    expect(values).toEqual({ ...HEADER, twoThetaDeg: null });
     expect(origins.distanceMm).toBe("image");
   });
 

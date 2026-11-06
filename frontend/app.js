@@ -825,10 +825,9 @@ function updatePeaksSectionState() {
 }
 
 function getSeriesSumGeometryContext() {
-  if (analysisState.ringMode !== "geometry" || !analysisState.ringGeometry) {
-    return null;
-  }
-  const effectiveGeometry = applyGeometryOverrides(analysisState.ringGeometry, {
+  const ringGeometry = getRingParams().geometry; // a file's panels, or a hand-entered 2θ
+  if (!ringGeometry) return null;
+  const effectiveGeometry = applyGeometryOverrides(ringGeometry, {
     centerX: analysisState.centerX,
     centerY: analysisState.centerY,
     distanceMm: analysisState.distanceMm,
