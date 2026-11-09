@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **The Min/Max Finder can ignore pixels below or above a value you choose.** Two new optional boxes, **Ignore below** and **Ignore above**, leave out pixels outside that range. Until now the Min list on a frame with many zeros was just the first of those zeros, so it could not tell you the lowest pixel that read anything. Enter 1 under **Ignore below** and it does. Left empty, nothing changes. The CSV export records the cutoffs it used.
+
 ## [0.42.4] - 2026-11-09
 
 ### Fixed

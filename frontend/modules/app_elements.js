@@ -297,6 +297,8 @@ export function queryAppElements(doc = document) {
     minmaxSummaryEl: byId("summary-minmax"),
     minmaxCountInput: byId("minmax-count"),
     minmaxIncludeMasked: byId("minmax-include-masked"),
+    minmaxLowCutoff: byId("minmax-low-cutoff"),
+    minmaxHighCutoff: byId("minmax-high-cutoff"),
     minmaxExportBtn: byId("minmax-export"),
     minmaxList: byId("minmax-list"),
     minmaxBody: byId("minmax-body"),

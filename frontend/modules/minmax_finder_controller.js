@@ -23,7 +23,7 @@
 import { onLanguageChange, t } from "./i18n.js";
 import { setControlAvailability } from "./control_availability.js";
 import { buildCsvTable, csvProvenanceLines } from "./csv_export_utils.js";
-import { clampMinMaxCount, findExtremePixels, normalizeMinMaxMode } from "./minmax_finder_utils.js";
+import { clampMinMaxCount, findExtremePixels, normalizeMinMaxMode, parseMinMaxCutoff } from "./minmax_finder_utils.js";
 
 const KIND_GLYPH = { max: "▲", min: "▼" };
 
@@ -39,6 +39,8 @@ export function createMinMaxFinderController({ core, state, analysisState, eleme
     minmaxModeSelect,
     minmaxCountInput,
     minmaxIncludeMasked,
+    minmaxLowCutoff,
+    minmaxHighCutoff,
     minmaxExportBtn,
     minmaxList,
     minmaxBody,
@@ -83,6 +85,8 @@ export function createMinMaxFinderController({ core, state, analysisState, eleme
         count: analysisState.minmaxCount,
         ignore,
         lowest: kind === "min",
+        lowCutoff: analysisState.minmaxLowCutoff,
+        highCutoff: analysisState.minmaxHighCutoff,
       });
       shared[kind] = extremeCount;
       return pixels.map((pixel, rank) => ({ ...pixel, kind, rank: rank + 1, mask: mask ? mask[pixel.index] : null }));
@@ -95,6 +99,9 @@ export function createMinMaxFinderController({ core, state, analysisState, eleme
     if (!analysisState.minmaxEnabled) return t("minmax.state.enable_hint");
     if (!state.hasFrame) return t("minmax.state.load_frame");
     if (!analysisState.minmaxFound.length) {
+      if (analysisState.minmaxLowCutoff !== null || analysisState.minmaxHighCutoff !== null) {
+        return t("minmax.state.none_in_range");
+      }
       return t(analysisState.minmaxMode === "max" ? "minmax.state.none_above_zero" : "minmax.state.none_on_frame");
     }
     return "";
@@ -249,6 +256,8 @@ export function createMinMaxFinderController({ core, state, analysisState, eleme
     ];
     if (hasMask) columns.push({ label: "mask", values: found.map((pixel) => pixel.mask ?? "") });
     const provenance = [`Min/max pixels: ${mode}, ${found.length}`];
+    if (analysisState.minmaxLowCutoff !== null) provenance.push(`Low cutoff: ${analysisState.minmaxLowCutoff}`);
+    if (analysisState.minmaxHighCutoff !== null) provenance.push(`High cutoff: ${analysisState.minmaxHighCutoff}`);
     if (shared.max > 1) provenance.push(`Highest value shared by: ${shared.max}`);
     if (shared.min > 1) provenance.push(`Lowest value shared by: ${shared.min}`);
     const lines = [...csvProvenanceLines(state, provenance), ...buildCsvTable(columns)];
@@ -286,6 +295,17 @@ export function createMinMaxFinderController({ core, state, analysisState, eleme
     analysisState.minmaxIncludeMasked = minmaxIncludeMasked.checked;
     schedule();
   });
+  // An empty box means no cutoff; text that is not a number clears the box.
+  for (const [input, key] of [
+    [minmaxLowCutoff, "minmaxLowCutoff"],
+    [minmaxHighCutoff, "minmaxHighCutoff"],
+  ]) {
+    input?.addEventListener("change", () => {
+      analysisState[key] = parseMinMaxCutoff(input.value);
+      input.value = analysisState[key] === null ? "" : String(analysisState[key]);
+      schedule();
+    });
+  }
   minmaxExportBtn?.addEventListener("click", exportCsv);
   onLanguageChange(render);
 
