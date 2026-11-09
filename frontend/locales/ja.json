@@ -1170,6 +1170,8 @@
   "roi.axis.auto": "軸を自動",
   "roi.axis.auto_chip": "自動軸",
   "roi.axis.auto_placeholder": "自動",
+  "roi.axis.chip_hint.auto": "前の軸に戻します",
+  "roi.axis.chip_hint.manual": "自動軸に戻します。もう一度クリックすると、この軸に戻ります",
   "roi.axis.manual_chip": "手動軸",
   "roi.axis.reset": "リセット",
   "roi.axis.resolution_unit": "分解能軸",

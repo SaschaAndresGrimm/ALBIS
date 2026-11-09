@@ -1170,6 +1170,8 @@
   "roi.axis.auto": "Eixos auto",
   "roi.axis.auto_chip": "Eixos automáticos",
   "roi.axis.auto_placeholder": "Auto",
+  "roi.axis.chip_hint.auto": "Voltar aos eixos anteriores",
+  "roi.axis.chip_hint.manual": "Voltar aos eixos automáticos; clique de novo para recuperar estes eixos",
   "roi.axis.manual_chip": "Eixos manuais",
   "roi.axis.reset": "Redefinir",
   "roi.axis.resolution_unit": "Eixo de resolução",

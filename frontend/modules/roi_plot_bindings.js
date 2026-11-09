@@ -207,7 +207,13 @@ export function bindRoiPlotInteractions({
       if (hasManual) entry.stash = null; // a fresh manual state replaces the remembered one
       if (entry.chip) {
         const state = axisChipState(limits, entry.stash);
-        entry.chip.textContent = t(state === "auto" ? "roi.axis.auto_chip" : "roi.axis.manual_chip");
+        const auto = state === "auto";
+        // The keys go on the element as well, so a language switch retranslates
+        // the tag in place (applyI18nToDom) rather than waiting for the next zoom.
+        entry.chip.dataset.i18n = auto ? "roi.axis.auto_chip" : "roi.axis.manual_chip";
+        entry.chip.dataset.i18nTitle = auto ? "roi.axis.chip_hint.auto" : "roi.axis.chip_hint.manual";
+        entry.chip.textContent = t(entry.chip.dataset.i18n);
+        entry.chip.title = t(entry.chip.dataset.i18nTitle);
         entry.chip.classList.toggle("is-hidden", state === "none");
       }
       if (entry.autoToggle) {

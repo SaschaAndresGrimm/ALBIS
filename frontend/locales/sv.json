@@ -1170,6 +1170,8 @@
   "roi.axis.auto": "Autoaxlar",
   "roi.axis.auto_chip": "Automatiska axlar",
   "roi.axis.auto_placeholder": "Auto",
+  "roi.axis.chip_hint.auto": "Tillbaka till de tidigare axlarna",
+  "roi.axis.chip_hint.manual": "Tillbaka till automatiska axlar; klicka igen för att få tillbaka de här axlarna",
   "roi.axis.manual_chip": "Manuella axlar",
   "roi.axis.reset": "Återställ",
   "roi.axis.resolution_unit": "Upplösningsaxel",

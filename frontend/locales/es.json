@@ -1170,6 +1170,8 @@
   "roi.axis.auto": "Ejes auto",
   "roi.axis.auto_chip": "Ejes automáticos",
   "roi.axis.auto_placeholder": "Auto",
+  "roi.axis.chip_hint.auto": "Volver a los ejes anteriores",
+  "roi.axis.chip_hint.manual": "Volver a los ejes automáticos; haga clic de nuevo para recuperar estos ejes",
   "roi.axis.manual_chip": "Ejes manuales",
   "roi.axis.reset": "Restablecer",
   "roi.axis.resolution_unit": "Eje de resolución",

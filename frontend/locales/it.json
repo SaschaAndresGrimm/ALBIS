@@ -1170,6 +1170,8 @@
   "roi.axis.auto": "Assi auto",
   "roi.axis.auto_chip": "Assi automatici",
   "roi.axis.auto_placeholder": "Auto",
+  "roi.axis.chip_hint.auto": "Torna agli assi precedenti",
+  "roi.axis.chip_hint.manual": "Torna agli assi automatici; fai clic di nuovo per riavere questi assi",
   "roi.axis.manual_chip": "Assi manuali",
   "roi.axis.reset": "Ripristina",
   "roi.axis.resolution_unit": "Asse di risoluzione",

@@ -269,8 +269,14 @@ describe("roi_plot_bindings", () => {
     chip.click();
     expect(limits).toEqual({ xMin: null, xMax: null, yMin: null, yMax: null });
     expect(chip.classList.contains("is-hidden")).toBe(false);
+    // The tag carries the key of its state, so a language switch
+    // (applyI18nToDom) retranslates it in place, and says what a click does.
+    expect(chip.dataset.i18n).toBe("roi.axis.auto_chip");
+    expect(chip.dataset.i18nTitle).toBe("roi.axis.chip_hint.auto");
     chip.click();
     expect(limits).toEqual({ xMin: 0, xMax: 9, yMin: 1, yMax: 5 });
+    expect(chip.dataset.i18n).toBe("roi.axis.manual_chip");
+    expect(chip.dataset.i18nTitle).toBe("roi.axis.chip_hint.manual");
 
     resetBtn.click();
     expect(limits).toEqual({ xMin: null, xMax: null, yMin: null, yMax: null });

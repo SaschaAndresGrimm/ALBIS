@@ -1170,6 +1170,8 @@
   "roi.axis.auto": "Auto axes",
   "roi.axis.auto_chip": "Auto axes",
   "roi.axis.auto_placeholder": "Auto",
+  "roi.axis.chip_hint.auto": "Back to the axes you had before",
+  "roi.axis.chip_hint.manual": "Back to automatic axes; click again to get these axes back",
   "roi.axis.manual_chip": "Manual axes",
   "roi.axis.reset": "Reset",
   "roi.axis.resolution_unit": "Resolution axis",
