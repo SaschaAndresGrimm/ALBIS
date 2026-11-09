@@ -16,6 +16,15 @@ npm run review:i18n
 - untranslated or suspect strings where a locale still matches English and is not allowlisted
 - hardcoded user-facing text in `frontend/index.html`, `frontend/app.js`, and `frontend/modules/**/*.js`
 - a technical review matrix grouped by ALBIS domain buckets
+- glossary terms not used: a string whose English uses a term from
+  `I18N_GLOSSARY.csv` but whose translation leaves out that term's listed
+  translation (in #202, "Bild" where the glossary says "Frame"). By default only
+  the strings changed since `origin/main` are listed, so a pull request sees its
+  own; `--since <ref>` compares with another revision, `--glossary-all` lists
+  every string. A plural or case ending can be a false alarm, so read each one.
+
+The older strings do not all follow the glossary yet (about 350 findings, most
+of them for "frame"), which is why the default shows only changed ones.
 
 Future tightening is available through:
 
