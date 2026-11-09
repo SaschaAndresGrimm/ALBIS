@@ -11,6 +11,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The first file you open shows that it is loading, and opens sooner.** The start screen now says "Loading file…" with a spinner from the moment a file is chosen until its image appears. Until now the start screen sat unchanged for several seconds, as if nothing had happened: the "Loading frame…" notice was hidden behind it, and only a word in the status bar showed that ALBIS was working. Some of that wait is gone too. ALBIS used to load its HDF5 and CBF/TIFF readers only when the first file needed them, which added a second or two to that file alone. It now loads them in the background as it starts, while you are still choosing a file. If a file fails to open, the start screen offers **Open file** again.
 
+### Fixed
+
+- **An image in a folder of thousands of files opens without a pause.** Opening a CBF, TIFF or EDF image took 0.75 s longer in a folder of 20,000 frames, on a local disk, before anything else happened, and the same again for every file auto-load picked up. ALBIS looks for the rest of the numbered series in that folder, and it looked up every file's full location on disk three times over; on the network storage beamlines keep their data on, each of those lookups is a round trip to the server. It now looks up the folder once, and the same folder takes 0.13 s.
+
 ## [0.42.2] - 2026-11-06
 
 ### Fixed
