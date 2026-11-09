@@ -39,6 +39,7 @@ from ..services.os_actions import (
     is_applescript_cancel as _is_applescript_cancel,
 )
 from ..services.picker_start import PickerStartFolders
+from ..services.series_paths import names_under_root
 from ..services.ui_prompts import resolve_prompt
 
 
@@ -499,6 +500,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
         if not parts:
             return SeriesInfoResponse(files=[file], index=0, series=False)
         prefix, _digits, suffix = parts
+        member = re.compile(rf"{re.escape(prefix)}(\d+){re.escape(suffix)}$")
         entries: list[tuple[int, Path]] = []
         try:
             with os.scandir(path.parent) as it:
@@ -509,7 +511,7 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
                     if deps.image_ext_name(name) != ext:
                         continue
                     stem = deps.strip_image_ext(name, ext)
-                    match = re.match(rf"{re.escape(prefix)}(\d+){re.escape(suffix)}$", stem)
+                    match = member.match(stem)
                     if not match:
                         continue
                     try:
@@ -528,20 +530,11 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
             files = [str(p) for p in paths]
             target = str(path)
         else:
-            root = deps.data_dir.resolve()
-            files = []
-            target = None
-            for p in paths:
-                try:
-                    rel = p.resolve().relative_to(root)
-                except ValueError:
-                    continue
-                rel_str = str(rel).replace(os.sep, "/")
-                files.append(rel_str)
-                if p.resolve() == path.resolve():
-                    target = rel_str
-            if target is None:
-                target = file
+            # One resolve for the folder, not three per file (see the service).
+            files, named = names_under_root(
+                path.parent, [p.name for p in paths], path.name, deps.data_dir
+            )
+            target = named or file
         try:
             index = files.index(target)
         except ValueError:

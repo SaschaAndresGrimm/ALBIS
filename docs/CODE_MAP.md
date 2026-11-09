@@ -243,6 +243,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - `array_summary`: statistics and the min/max outline `GET /api/hdf5/value` adds for numeric arrays.
 - `backend/services/hdf5_units.py`:
   - Pure scalar coercion/unit conversion helpers for detector metadata extraction.
+- `backend/services/series_paths.py`:
+  - The data-root-relative names `/api/series` returns, resolving the folder once rather than every file.
 - `backend/services/series_summing.py`:
   - Background job manager for series aggregation operations.
 - `backend/services/series_output_files.py`, `backend/services/series_reduction.py`:
