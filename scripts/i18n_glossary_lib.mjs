@@ -89,17 +89,34 @@ function englishPattern(term) {
  * bildrutor, pic finds pics. Short words must match whole.
  */
 function stem(word) {
-  return word.length > 4 ? word.slice(0, word.length - 2) : word;
+  if (word.length > 4) return word.slice(0, word.length - 2);
+  // anel → anéis, ring → ringar: a four-letter word may lose its last letter.
+  return word.length === 4 ? word.slice(0, 3) : word;
 }
 
-/** Whether `text` uses the glossary translation `term`, allowing for endings. */
+/**
+ * Placeholders out, so {{frames}} does not count as the word frame: in
+ * "{{frames}} frames" the German "{{frames}} Bilder" looked as if it used it.
+ */
+function withoutPlaceholders(text) {
+  return text.replace(/\{\{[^}]*\}\}/g, " ");
+}
+
+/** Lower case without accents, so píxeis matches pixel and fotões fotão. */
+function fold(text) {
+  return withoutPlaceholders(text).normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase();
+}
+
+/**
+ * Whether `text` uses the glossary translation `term`, allowing for endings.
+ * Short linking words (de, del, do, dal, des) are left out of the comparison
+ * when the term has longer ones: "energía de fotón" uses "energía del fotón".
+ */
 export function usesTerm(text, term) {
-  const haystack = text.toLocaleLowerCase();
-  return term
-    .toLocaleLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((word) => haystack.includes(stem(word)));
+  const haystack = fold(text);
+  const words = fold(term).split(/\s+/).filter(Boolean);
+  const significant = words.filter((word) => [...word].length > 3);
+  return (significant.length ? significant : words).every((word) => haystack.includes(stem(word)));
 }
 
 /**
@@ -107,21 +124,21 @@ export function usesTerm(text, term) {
  * use that term's glossary translation. A missing or untranslated string is
  * left to the other checks.
  */
-export function collectGlossaryFindings(glossary, baseLocale, localeEntries) {
+export function collectGlossaryFindings(glossary, baseLocale, localeEntries, { isException = () => false } = {}) {
   const findings = [];
   const terms = glossary
     .filter((entry) => entry.english && !entry.doNotTranslate)
     .map((entry) => ({ ...entry, pattern: englishPattern(entry.english) }));
   for (const [key, english] of Object.entries(baseLocale)) {
     if (typeof english !== "string") continue;
-    const matching = terms.filter((entry) => entry.pattern.test(english));
+    const matching = terms.filter((entry) => entry.pattern.test(withoutPlaceholders(english)));
     if (!matching.length) continue;
     for (const [locale, entries] of localeEntries) {
       const value = entries[key];
       if (typeof value !== "string" || value === english) continue;
       for (const entry of matching) {
         const expected = entry.translations[locale];
-        if (expected && !usesTerm(value, expected)) {
+        if (expected && !usesTerm(value, expected) && !isException(locale, key, entry.id)) {
           findings.push({ key, locale, termId: entry.id, expected, value });
         }
       }
