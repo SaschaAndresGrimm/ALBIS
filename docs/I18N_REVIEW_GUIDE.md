@@ -23,8 +23,19 @@ npm run review:i18n
   own; `--since <ref>` compares with another revision, `--glossary-all` lists
   every string. A plural or case ending can be a false alarm, so read each one.
 
-The older strings do not all follow the glossary yet (about 350 findings, most
-of them for "frame"), which is why the default shows only changed ones.
+`frontend/tests/i18n_glossary_lib.test.js` holds the whole set to a baseline
+that may only go down (5: the Māori photon energy strings, which need a Māori
+speaker). A new finding fails `npm run test:js`. Fix the translation, or, when
+it is correct as written (a verb where the glossary has the noun, an adjective,
+a short label), add an entry with its reason to `GLOSSARY_EXCEPTIONS` in
+`scripts/i18n_review_allowlist.mjs`. The same test fails on an exception that is
+no longer needed.
+
+When most of a locale uses another word than the glossary, and that word is
+right, change the glossary rather than the locale: count first. In November
+2026 the German, Swedish and Danish "reflection" became the crystallographic
+Reflex / reflex / refleks, Māori "series" became raupapa (47 of 57 strings),
+and Italian "detector" became rivelatore (82 of 104).
 
 Future tightening is available through:
 

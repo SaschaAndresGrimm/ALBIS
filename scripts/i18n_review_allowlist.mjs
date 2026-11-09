@@ -67,3 +67,77 @@ export function isApprovedEnglishCarryover(key, value) {
 export function getAllowlistedKeys() {
   return [...EXACT_KEY_ALLOWLIST].sort();
 }
+
+// Glossary findings (npm run review:i18n, "Glossary") that are correct as
+// written: the English word is used in another sense, or the term is there in
+// a form the stem matching cannot see. Each entry names the term, the key, the
+// locales ("*" for all) and why, so the list stays short and checkable.
+const GLOSSARY_EXCEPTIONS = [
+  {
+    term: "mean",
+    key: "settings.data.max_upload_hint",
+    locales: "*",
+    reason: '"0 means no limit": the verb, not the statistical mean.',
+  },
+  {
+    term: "annulus",
+    key: "roi.mode.annulus",
+    locales: ["fr", "it", "pt"],
+    reason: "ROI annulaire / anulare / anular: the adjective of the glossary noun.",
+  },
+  {
+    term: "annulus",
+    key: "hint.roi.mode",
+    locales: ["ja", "zh-CN"],
+    reason: "A list of shape names (line, box, circle, annulus) where the short 環 / 环 sits next to 円 / 圆.",
+  },
+  {
+    term: "detector_geometry",
+    key: "detector.help.adv.geometry",
+    locales: ["pt"],
+    reason: 'European Portuguese spells it "detetor"; the locale has both varieties, and this is not the place to choose.',
+  },
+  {
+    term: "mask",
+    key: "pixel_mask.edit.mode.mask",
+    locales: ["rm", "zh-CN"],
+    reason: "The edit mode is the verb (mascrar, 掩蔽), paired with Unmask; the noun does not fit.",
+  },
+  {
+    term: "mask",
+    key: "pixel_mask.edit.mode_title.mask",
+    locales: ["rm", "zh-CN"],
+    reason: "The edit mode is the verb (mascrar, 掩蔽), paired with Unmask; the noun does not fit.",
+  },
+  {
+    term: "mask",
+    key: "view.mask_saturated",
+    locales: ["rm", "zh-CN"],
+    reason: "Mask saturated is an action (mascrar, 屏蔽), not the mask noun.",
+  },
+  {
+    term: "sum",
+    key: "analysis.roi.stats.sum",
+    locales: ["zh-CN"],
+    reason: "A statistics column label: the noun 总和; the glossary's 求和 is the summing operation.",
+  },
+  {
+    term: "mean",
+    key: "inspector.stats.mean",
+    locales: ["zh-CN"],
+    reason: "A short statistics label next to min and max, where 平均 alone reads naturally.",
+  },
+];
+
+export function isGlossaryException(locale, key, termId) {
+  return GLOSSARY_EXCEPTIONS.some(
+    (entry) =>
+      entry.term === termId &&
+      entry.key === key &&
+      (entry.locales === "*" || entry.locales.includes(locale)),
+  );
+}
+
+export function getGlossaryExceptions() {
+  return GLOSSARY_EXCEPTIONS.map((entry) => ({ ...entry }));
+}

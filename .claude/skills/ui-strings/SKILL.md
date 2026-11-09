@@ -85,5 +85,7 @@ npm run review:i18n    # report: carryovers, hardcoded text in markup and JS
 up as a suspect carryover, your markup must not show up as hardcoded text,
 and the **Glossary** section (strings changed since `origin/main`) should be
 empty: each line there is a translation that left out the glossary's term.
-Fix it, or say in the pull request why the term does not fit there. Then look at the string in place with the `ui-check` skill, in English
+`npm run test:js` fails on it too. Fix the translation, or, if it is right as
+written, add the exception with its reason to `GLOSSARY_EXCEPTIONS` in
+`scripts/i18n_review_allowlist.mjs`. Then look at the string in place with the `ui-check` skill, in English
 and in one long-worded language (`de` or `rm`), to see that it fits.
