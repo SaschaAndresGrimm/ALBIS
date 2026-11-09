@@ -28,6 +28,7 @@ from ..config import UI_LANGUAGES, normalize_ui_language
 from ..services.companion_files import nexus_collection_leads
 from ..services.directory_scan import LatestFileResult, ScanResult, is_utf8_name
 from ..services.hdf5_open import HDF5_EXTS
+from ..services.library_warmup import start_warm_up_once
 from ..services.log_safety import sanitize_log_value
 from ..services.os_actions import (
     choose_file as _choose_file,
@@ -472,6 +473,9 @@ def register_file_routes(app: FastAPI, deps: FileRouteDeps) -> None:
     @app.get("/api/files", response_model=FilesListResponse)
     def files(folder: str | None = Query(None)) -> FilesListResponse:
         """List discoverable image files from data root or a selected subfolder."""
+        # The interface's last request before it waits for a file: the moment
+        # to import the readers without holding up the page (library_warmup).
+        start_warm_up_once()
         trimmed = (folder or "").strip()
         cache_sec = deps.get_scan_cache_sec()
         if trimmed in ("", ".", "./"):
