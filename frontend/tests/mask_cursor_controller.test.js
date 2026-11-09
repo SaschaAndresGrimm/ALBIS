@@ -355,6 +355,47 @@ describe("mask_cursor_controller mask request races", () => {
     expect(logged).toHaveBeenCalled();
   });
 
+  it("drops another file's mask on open without asking for the new one", () => {
+    // The new file's mask is asked for once its metadata is in; asking here as
+    // well meant two requests per HDF5 open, the first with the old file's shape.
+    const { state, controller, fetchMock } = setup();
+    state.maskFile = "A.h5";
+    state.maskRaw = new Uint32Array(64 * 64);
+    state.maskAvailable = true;
+
+    controller.releaseMaskOfOtherFile("B.h5");
+
+    expect(state.maskRaw).toBeNull();
+    expect(state.maskFile).toBe("");
+    expect(state.maskAvailable).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the mask of the file being reopened, for each threshold", () => {
+    // Auto-load reopens a growing file; its mask has not changed.
+    const { state, controller } = setup();
+    const mask = new Uint32Array(64 * 64);
+    for (const key of ["A.h5", "A.h5#1"]) {
+      state.maskFile = key;
+      state.maskRaw = mask;
+
+      controller.releaseMaskOfOtherFile("A.h5");
+
+      expect(state.maskFile).toBe(key);
+      expect(state.maskRaw).toBe(mask);
+    }
+  });
+
+  it("does not count a file whose name only starts the same as the mask's", () => {
+    const { state, controller } = setup();
+    state.maskFile = "A.h5";
+    state.maskRaw = new Uint32Array(64 * 64);
+
+    controller.releaseMaskOfOtherFile("A.h");
+
+    expect(state.maskRaw).toBeNull();
+  });
+
   it("ignores a mask that arrives after the file has changed", async () => {
     const { state, controller, release } = setup();
 
@@ -453,6 +494,19 @@ describe("mask_cursor_controller with a pinned mask (Data -> Pixel Mask)", () =>
     expect(controller.isPinnedMaskInUse()).toBe(true);
     expect(callbacks.onMaskChanged).toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("keeps a pinned mask when another file opens", () => {
+    const pinned = { current: { data: new Uint32Array([1, 0, 0, 0]), shape: [2, 2], name: "m" } };
+    const state = { file: "a.h5", width: 2, height: 2, hasFrame: true, maskAuto: true };
+    const { controller } = build(state, pinned);
+    controller.alignMaskToFrame();
+    expect(controller.isPinnedMaskInUse()).toBe(true);
+
+    controller.releaseMaskOfOtherFile("b.h5");
+
+    expect(controller.isPinnedMaskInUse()).toBe(true);
+    expect(Array.from(state.maskRaw)).toEqual([1, 0, 0, 0]);
   });
 
   it("puts the pinned mask back when a new file or live frame cleared it", () => {

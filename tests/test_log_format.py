@@ -54,6 +54,34 @@ def test_routine_polls_stay_out_of_the_log_but_failures_do_not(caplog) -> None:
     assert any(line.startswith("GET /api/files -> ") for line in logged), logged
 
 
+def test_a_file_without_a_pixel_mask_is_not_a_warning(caplog) -> None:
+    """Every HDF5 file without a mask put a warning in the log users send in.
+
+    Only that answer is routine: another 404, or a failing mask request, is
+    still a warning or an error.
+    """
+    import asyncio
+    from types import SimpleNamespace
+
+    from backend import server_logging
+
+    def answer(path: str, status: int) -> None:
+        request = SimpleNamespace(method="GET", url=SimpleNamespace(path=path, query=""))
+
+        async def call_next(_request):
+            return SimpleNamespace(status_code=status)
+
+        asyncio.run(server_logging.log_requests(request, call_next))
+
+    with caplog.at_level(logging.DEBUG, logger="albis"):
+        answer("/api/mask", 404)
+        answer("/api/frame", 404)
+        answer("/api/mask", 500)
+    by_level = [(record.levelname, record.getMessage()) for record in caplog.records]
+    assert [level for level, _ in by_level] == ["DEBUG", "WARNING", "ERROR"], by_level
+    assert by_level[0][1].startswith("GET /api/mask -> 404")
+
+
 def test_a_poll_that_keeps_failing_is_logged_once_and_its_recovery_once(caplog) -> None:
     from types import SimpleNamespace
 

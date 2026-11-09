@@ -241,6 +241,18 @@ export function createMaskCursorController({
     updateMaskUI();
   }
 
+  // Opening a file drops the previous file's mask without asking for the new
+  // one: that waits for the file's metadata, which says whether it has
+  // thresholds and so which mask to ask for. Opening an HDF5 file used to ask
+  // twice, once before the metadata -- with the previous file's shape -- and
+  // once after. A pinned mask, or this file's own, stays.
+  function releaseMaskOfOtherFile(file) {
+    const key = String(state.maskFile || "");
+    if (!key || key === PINNED_MASK_KEY) return;
+    if (key === file || key.startsWith(`${file}#`)) return;
+    clearMaskState();
+  }
+
   function redrawWithMask() {
     if (!state.hasFrame) return;
     core.roiStats.updateGlobalStats();
@@ -511,6 +523,7 @@ export function createMaskCursorController({
     updateMaskUI,
     syncMaskAvailability,
     clearMaskState,
+    releaseMaskOfOtherFile,
     loadMask,
     refreshPinnedMask,
     isPinnedMaskInUse: () => state.maskFile === PINNED_MASK_KEY,

@@ -14,6 +14,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Fixed
 
 - **An image in a folder of thousands of files opens without a pause.** Opening a CBF, TIFF or EDF image took 0.75 s longer in a folder of 20,000 frames, on a local disk, before anything else happened, and the same again for every file auto-load picked up. ALBIS looks for the rest of the numbered series in that folder, and it looked up every file's full location on disk three times over; on the network storage beamlines keep their data on, each of those lookups is a round trip to the server. It now looks up the folder once, and the same folder takes 0.13 s.
+- **An HDF5 file's pixel mask is read once when the file opens, not twice, and a file without one no longer puts a warning in the log.** ALBIS asked for the mask before it knew the file's shape, then again once it did. For a file with no mask, and for a file with several thresholds, it read twice. Each file without a mask also wrote a warning to the log users send with a bug report, though a file without a mask is normal. It is now logged at the debug level, like other routine answers.
 
 ## [0.42.2] - 2026-11-06
 

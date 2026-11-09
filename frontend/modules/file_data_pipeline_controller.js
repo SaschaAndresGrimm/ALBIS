@@ -311,7 +311,8 @@ export function createFileDataPipelineController({
     state.hasFrame = false;
     resetSeriesState();
     setDataControlsForHdf5();
-    await core.maskCursor.loadMask(true);
+    // The mask itself is asked for once the metadata is in (loadMetadata).
+    core.maskCursor.releaseMaskOfOtherFile(state.file);
     showProcessingProgress(t("status.data.scanning_datasets"));
     setLoading(true);
     setStatus(t("status.data.scanning_datasets"));

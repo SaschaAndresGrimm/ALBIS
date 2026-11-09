@@ -76,6 +76,13 @@ def _is_poll(path: str) -> bool:
     return path in _POLLED_PATHS or path.endswith(("/status", "/latest"))
 
 
+# Answers that mean "this file has none", not that something failed. The viewer
+# asks for the pixel mask of every HDF5 file it opens, and each file without one
+# put a warning in the log users attach to bug reports. A file that is missing
+# altogether still shows: the same open asks for its metadata and frames too.
+_ROUTINE_ABSENCES = frozenset({("/api/mask", 404)})
+
+
 # A polled endpoint that keeps failing -- a detector switched off, a monitor
 # out of reach -- failed once a second, and logged a warning each time. The
 # first failure is logged as before, the rest at DEBUG, and the recovery once:
@@ -127,7 +134,7 @@ async def log_requests(request, call_next):
         return response
     if status >= 500:
         logger.error("%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms)
-    elif status >= 400:
+    elif status >= 400 and (request.url.path, status) not in _ROUTINE_ABSENCES:
         logger.warning(
             "%s %s -> %s (%.1fms)", request.method, request.url.path, status, duration_ms
         )
