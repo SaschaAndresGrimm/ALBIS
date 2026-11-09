@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { JSDOM } from "jsdom";
 
-import { isApprovedEnglishCarryover } from "./i18n_review_allowlist.mjs";
+import { isApprovedEnglishCarryover, isGlossaryException } from "./i18n_review_allowlist.mjs";
 import { changedLocaleStrings, collectGlossaryFindings, readGlossary } from "./i18n_glossary_lib.mjs";
 
 const TOKEN_PATTERN = /\{\{[^}]+\}\}/g;
@@ -308,7 +308,9 @@ export function buildI18nReviewReport(rootDir, { glossarySince = ["origin/main",
 
   // Glossary findings for the strings a change wrote, against the first ref
   // git knows; all of them with glossaryAll or when git cannot tell.
-  const allGlossaryFindings = collectGlossaryFindings(readGlossary(rootDir), baseLocale, localeEntries);
+  const allGlossaryFindings = collectGlossaryFindings(readGlossary(rootDir), baseLocale, localeEntries, {
+    isException: isGlossaryException,
+  });
   let glossaryRef = null;
   let changed = null;
   if (!glossaryAll) {
