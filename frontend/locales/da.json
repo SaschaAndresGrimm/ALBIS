@@ -1168,6 +1168,7 @@
   "rings.summary.missing_geometry": "Manglende geometri",
   "rings.summary.no_rings": "Ingen ringe",
   "roi.axis.auto": "Autoakser",
+  "roi.axis.auto_chip": "Automatiske akser",
   "roi.axis.auto_placeholder": "Auto",
   "roi.axis.manual_chip": "Manuelle akser",
   "roi.axis.reset": "Nulstil",

@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Click the "Manual axes" tag on an ROI plot to go back to automatic axes, and click again to return to the axes you had.** Scrolling on a plot pins its axes at once, and the only way back was the plot's settings. The tag now does it in one click and, while the axes are automatic, reads "Auto axes" so you can undo it. Double-click or the settings forget the remembered axes.
+
 ### Added
 
 - **The Min/Max Finder can ignore pixels below or above a value you choose.** Two new optional boxes, **Ignore below** and **Ignore above**, leave out pixels outside that range. Until now the Min list on a frame with many zeros was just the first of those zeros, so it could not tell you the lowest pixel that read anything. Enter 1 under **Ignore below** and it does. Left empty, nothing changes. The CSV export records the cutoffs it used.

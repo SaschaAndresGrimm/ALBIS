@@ -1168,6 +1168,7 @@
   "rings.summary.missing_geometry": "Kua ngaro te āhuahanga",
   "rings.summary.no_rings": "Kāore he mōwhiti",
   "roi.axis.auto": "Tuaka aunoa",
+  "roi.axis.auto_chip": "Tuaka aunoa",
   "roi.axis.auto_placeholder": "Aunoa",
   "roi.axis.manual_chip": "Tuaka ā-ringa",
   "roi.axis.reset": "Tautuhi anō",

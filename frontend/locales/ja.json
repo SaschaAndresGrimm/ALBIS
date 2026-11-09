@@ -1168,6 +1168,7 @@
   "rings.summary.missing_geometry": "ジオメトリ不足",
   "rings.summary.no_rings": "リングなし",
   "roi.axis.auto": "軸を自動",
+  "roi.axis.auto_chip": "自動軸",
   "roi.axis.auto_placeholder": "自動",
   "roi.axis.manual_chip": "手動軸",
   "roi.axis.reset": "リセット",

@@ -3,6 +3,7 @@
  */
 
 import { t } from "./i18n.js";
+import { axisChipState, toggleAxisChip } from "./roi_axis_chip_utils.js";
 
 function isInsideRoiPlotViewport(plot, x, y) {
   if (!plot) return false;
@@ -203,9 +204,11 @@ export function bindRoiPlotInteractions({
       if (plotKey && entry.key !== plotKey) return;
       const limits = getRoiPlotLimits(entry.key);
       const hasManual = Boolean(hasManualRoiPlotLimits?.(entry.key));
+      if (hasManual) entry.stash = null; // a fresh manual state replaces the remembered one
       if (entry.chip) {
-        entry.chip.textContent = t("roi.axis.manual_chip");
-        entry.chip.classList.toggle("is-hidden", !hasManual);
+        const state = axisChipState(limits, entry.stash);
+        entry.chip.textContent = t(state === "auto" ? "roi.axis.auto_chip" : "roi.axis.manual_chip");
+        entry.chip.classList.toggle("is-hidden", state === "none");
       }
       if (entry.autoToggle) {
         entry.autoToggle.checked = !hasManual;
@@ -240,8 +243,20 @@ export function bindRoiPlotInteractions({
     return true;
   }
 
+  function toggleRoiAxisChip(entry) {
+    const next = toggleAxisChip(getRoiPlotLimits(entry.key), entry.stash);
+    if (!next) return;
+    entry.stash = next.stash;
+    setRoiPlotAxisLimits(entry.key, "x", next.limits.xMin, next.limits.xMax);
+    setRoiPlotAxisLimits(entry.key, "y", next.limits.yMin, next.limits.yMax);
+    updateGlobalAutoscaleFromManualLimits();
+    syncRoiAxisLimitControls(entry.key);
+    scheduleRoiPlotRedraw();
+  }
+
   function clearRoiAxisLimitsForEntry(entry) {
     if (!entry) return;
+    entry.stash = null;
     clearRoiPlotLimitsForKey(entry.key);
     updateGlobalAutoscaleFromManualLimits();
     syncRoiAxisLimitControls(entry.key);
@@ -473,6 +488,8 @@ export function bindRoiPlotInteractions({
     canvasEl.addEventListener("dblclick", (event) => {
       event.preventDefault();
       const plotKey = getRoiPlotKey(canvasEl);
+      const dblEntry = roiAxisLimitControls.find((e) => e.key === plotKey);
+      if (dblEntry) dblEntry.stash = null;
       clearRoiPlotLimitsForKey(plotKey);
       if (!hasAnyManualRoiPlotLimits()) {
         roiState.plotLimits.autoscale = true;
@@ -556,6 +573,8 @@ export function bindRoiPlotInteractions({
       event.stopPropagation();
       setRoiAxisLimitsPopoverOpen(entry, !isAxisLimitsPopoverOpen(entry));
     });
+
+    entry.chip?.addEventListener("click", () => toggleRoiAxisChip(entry));
 
     entry.popover?.addEventListener("pointerdown", (event) => {
       event.stopPropagation();

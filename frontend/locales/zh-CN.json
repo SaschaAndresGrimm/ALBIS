@@ -1168,6 +1168,7 @@
   "rings.summary.missing_geometry": "缺少几何参数",
   "rings.summary.no_rings": "无环",
   "roi.axis.auto": "自动坐标轴",
+  "roi.axis.auto_chip": "自动坐标轴",
   "roi.axis.auto_placeholder": "自动",
   "roi.axis.manual_chip": "手动坐标轴",
   "roi.axis.reset": "重置",

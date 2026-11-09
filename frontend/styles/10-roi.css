@@ -131,6 +131,17 @@
 .roi-axis-limit-chip {
   border-color: rgba(143, 196, 255, 0.32);
   background: rgba(34, 52, 76, 0.62);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.roi-axis-limit-chip:hover {
+  filter: brightness(1.25);
+}
+
+.roi-axis-limit-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .roi-axis-limit-chip.is-hidden,

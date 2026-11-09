@@ -1168,6 +1168,7 @@
   "rings.summary.missing_geometry": "Geometrie fählt",
   "rings.summary.no_rings": "Kei Ringe",
   "roi.axis.auto": "Achse automatisch",
+  "roi.axis.auto_chip": "Automatischi Achse",
   "roi.axis.auto_placeholder": "Auto",
   "roi.axis.manual_chip": "Manuelli Achse",
   "roi.axis.reset": "Zruggsetze",

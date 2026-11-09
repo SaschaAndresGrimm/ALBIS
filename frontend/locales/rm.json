@@ -1168,6 +1168,7 @@
   "rings.summary.missing_geometry": "Geometria manca",
   "rings.summary.no_rings": "Nagins anels",
   "roi.axis.auto": "Axas automaticas",
+  "roi.axis.auto_chip": "Axas automaticas",
   "roi.axis.auto_placeholder": "Auto",
   "roi.axis.manual_chip": "Axas manualas",
   "roi.axis.reset": "Redefinir",

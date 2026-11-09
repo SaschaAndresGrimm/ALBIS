@@ -1168,6 +1168,7 @@
   "rings.summary.missing_geometry": "Geometria mancante",
   "rings.summary.no_rings": "Niente anelli",
   "roi.axis.auto": "Assi auto",
+  "roi.axis.auto_chip": "Assi automatici",
   "roi.axis.auto_placeholder": "Auto",
   "roi.axis.manual_chip": "Assi manuali",
   "roi.axis.reset": "Ripristina",
