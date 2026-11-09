@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.42.4] - 2026-11-09
+
 ### Fixed
 
 - **The background loading of ALBIS's file readers no longer holds up the window itself.** It began when the server started, while the browser was still loading the window. For as long as Python loads a reader's native code it can do nothing else, so on a slow machine the window waited for it. That happened on an Apple silicon Mac running the Intel build, whose first launch translates that code through Rosetta: 0.42.3's own release check timed out there, and 0.42.3 was not published. The readers now load once the window has its file list, while it waits for you to choose a file; the first file still opens without waiting for them.
@@ -1900,7 +1902,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.3...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.4...HEAD
+[0.42.4]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.3...v0.42.4
 [0.42.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.2...v0.42.3
 [0.42.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.1...v0.42.2
 [0.42.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.0...v0.42.1
