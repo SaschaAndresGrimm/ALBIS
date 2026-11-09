@@ -10,7 +10,7 @@
  * `state`, and handed to inpainting.js's frame pipeline through `getFlat`.
  */
 
-import { t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
 import { flatFits, normalizeFlatScale, prepareFlat } from "./flatfield.js";
 import { DATA_DEFECTIVE_VALUE, DATA_GAP_VALUE, usesInDataPixelFlags } from "./roi_stats_engine.js";
 import { chooseNativePath } from "./native_picker.js";
@@ -78,7 +78,7 @@ export function createFlatfieldController({ apiBase, state, elements, callbacks,
     setSectionBadgeState(
       stateEl,
       "active",
-      t("flatfield.state.dividing", { name, mean: Math.round(flat.mean).toLocaleString() }),
+      t("flatfield.state.dividing", { name, mean: formatNumber(Math.round(flat.mean)) }),
     );
     setSummaryChip(summaryEl, name, "active");
   }

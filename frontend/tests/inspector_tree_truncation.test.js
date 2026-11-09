@@ -53,7 +53,8 @@ async function controllerWith(response) {
   return { controller, inspectorTree };
 }
 
-const BIG = (5000000).toLocaleString();
+// The test runs in English, whatever the computer's region.
+const BIG = "5,000,000";
 
 describe("inspector tree truncation", () => {
   beforeEach(() => {

@@ -2,7 +2,7 @@
  * Data-format export workflow and UI state.
  */
 
-import { t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
 import { canExportData, isLiveExportSource, liveExportEntries } from "./command_availability.js";
 import { normalizeFlatScale } from "./flatfield.js";
 import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue } from "./inpainting.js";
@@ -567,7 +567,7 @@ export function createDataExportController({
     } else {
       const type = dataTypeChoice();
       const marker = UNSIGNED_MARKER[type];
-      const values = marker ? { marker: marker.toLocaleString(), top: (marker - 1).toLocaleString() } : {};
+      const values = marker ? { marker: formatNumber(marker), top: formatNumber(marker - 1) } : {};
       const bits = dtypeBits(sourceDtype());
       warn = type === "uint16" && bits !== null && bits > 16;
       // What the values become, then what happens to the pixels without one:
@@ -915,7 +915,7 @@ export function createDataExportController({
         t(state.inpaintSaturated ? "data_export.inpaint_saturated" : "data_export.inpaint") +
         (margin ? t("data_export.inpaint_margin", { margin }) : "") +
         ({
-          fixed: t("data_export.inpaint_fixed", { value: normalizeInpaintValue(state.inpaintValue).toLocaleString() }),
+          fixed: t("data_export.inpaint_fixed", { value: formatNumber(normalizeInpaintValue(state.inpaintValue)) }),
           edges: t("data_export.inpaint_edges"),
           nearest: t("data_export.inpaint_nearest"),
         }[normalizeInpaintMethod(state.inpaintMethod)] || "") +

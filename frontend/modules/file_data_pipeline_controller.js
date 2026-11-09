@@ -2,7 +2,7 @@
  * File and frame loading pipeline.
  */
 
-import { t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
 import { getGeometryScopeKey } from "./geometry_override_utils.js";
 import { createFrameCache } from "./frame_cache.js";
 import { createTransientFrameLoadState } from "./transient_frame_load_state.js";
@@ -289,10 +289,9 @@ export function createFileDataPipelineController({
     const data = err?.detailData;
     const key = DATASET_SCAN_ERROR_KEYS[String(data?.code || "")];
     if (key) {
-      const count = Number(data.count);
       const name = String(data.example || "");
       return t(key, {
-        count: Number.isFinite(count) ? count.toLocaleString() : String(data.count ?? ""),
+        count: formatNumber(data.count),
         // A translated fragment, appended only when there is a name to give:
         // a group of broken soft links reaches here with no filename at all.
         example: name ? t("error.master_data_example_suffix", { name }) : "",

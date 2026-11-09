@@ -26,7 +26,7 @@ function formatModifiedAt(raw) {
       timeStyle: "medium",
     }).format(date);
   } catch {
-    return date.toLocaleString();
+    return date.toLocaleString(undefined); // the computer's own date format, as above
   }
 }
 

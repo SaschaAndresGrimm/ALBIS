@@ -46,6 +46,29 @@ describe("i18n runtime", () => {
     expect(mod.t("count.items", { count: 3 })).toBe("3 items");
   });
 
+  it("groups numbers the way the interface language writes them, not the computer's region", async () => {
+    // A bare toLocaleString() followed the computer's region: on a PC set to
+    // English (Switzerland) an English interface showed 5'000'000, and a
+    // German one on an English PC showed 5,000,000.
+    const mod = await loadI18nModule({ en: {}, de: {} });
+    await mod.initializeI18n({ backendLanguage: "en" });
+    expect(mod.formatNumber(5000000)).toBe("5,000,000");
+    expect(mod.formatNumber(1234.5)).toBe("1,234.5");
+
+    mod.setLanguage("de", { persist: false, applyDom: false });
+    expect(mod.formatNumber(5000000)).toBe("5.000.000");
+    expect(mod.formatNumber("65535")).toBe("65.535");
+  });
+
+  it("passes through what is not a finite number", async () => {
+    const mod = await loadI18nModule({ en: {} });
+    await mod.initializeI18n({ backendLanguage: "en" });
+    expect(mod.formatNumber(null)).toBe("");
+    expect(mod.formatNumber(undefined)).toBe("");
+    expect(mod.formatNumber("many")).toBe("many");
+    expect(mod.formatNumber(Number.NaN)).toBe("NaN");
+  });
+
   it("normalizes supported language aliases to canonical codes", async () => {
     const mod = await loadI18nModule({
       en: {},

@@ -7,7 +7,7 @@
 
 import { copyText } from "./clipboard_copy.js";
 import { formatStat } from "./format_utils.js";
-import { t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
 import { outlineGeometry, outlinePointAt } from "./inspector_chart_utils.js";
 import { inspectorValueText } from "./inspector_format_utils.js";
 
@@ -156,7 +156,7 @@ export function createInspectorPreviewRenderer({ apiBase, state, elements, callb
     if (stats.non_finite) {
       const extra = document.createElement("span");
       extra.className = "inspector-stat inspector-stat-warning";
-      extra.textContent = t("inspector.stats.non_finite", { count: stats.non_finite.toLocaleString() });
+      extra.textContent = t("inspector.stats.non_finite", { count: formatNumber(stats.non_finite) });
       line.appendChild(extra);
     }
     return line;
@@ -190,7 +190,7 @@ export function createInspectorPreviewRenderer({ apiBase, state, elements, callb
     svg.setAttribute(
       "aria-label",
       t("inspector.chart.label", {
-        count: count.toLocaleString(),
+        count: formatNumber(count),
         min: formatStat(geometry.yMin),
         max: formatStat(geometry.yMax),
       }),

@@ -47,7 +47,18 @@ module.exports = [
       // reaches controller methods through consts set as it goes, where the
       // hoisted wrappers used to do nothing until the controller existed.
       // `variables: false` leaves alone uses inside functions that run later.
-      "no-use-before-define": ["error", { "functions": false, "classes": true, "variables": false }]
+      "no-use-before-define": ["error", { "functions": false, "classes": true, "variables": false }],
+      // A bare toLocaleString() follows the computer's region, not the
+      // language chosen in ALBIS, so a German interface on an English PC
+      // showed 5,000,000. Numbers go through formatNumber() from i18n.js; a
+      // date that should follow the computer passes `undefined` to say so.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='toLocaleString'][arguments.length=0]",
+          message: "Use formatNumber() from i18n.js for a number; for a date, pass the locale (undefined: the computer's)."
+        }
+      ]
     }
   },
   {

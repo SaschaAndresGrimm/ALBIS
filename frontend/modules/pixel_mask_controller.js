@@ -27,7 +27,7 @@
  * section also needs a connected detector.
  */
 
-import { getLanguage, t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
 import { showConfirmDialog } from "./dialogs.js";
 import { countEdits } from "./pixel_mask_edit.js";
 import { addFound, findBadPixels } from "./pixel_mask_find.js";
@@ -50,11 +50,7 @@ export { hostOf };
 const BACKUPS_STORAGE_KEY = "albis.pixelMask.backups.v1";
 
 function formatCount(value) {
-  try {
-    return Number(value || 0).toLocaleString(getLanguage());
-  } catch {
-    return String(value || 0);
-  }
+  return formatNumber(value || 0);
 }
 
 function formatTime(timestamp) {

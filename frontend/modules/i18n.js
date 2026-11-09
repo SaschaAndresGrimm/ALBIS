@@ -214,6 +214,31 @@ export function getLanguage() {
   return currentLanguage;
 }
 
+const numberFormats = new Map();
+
+/**
+ * A count or value grouped the way the interface's language writes it
+ * (5,000,000 in English, 5.000.000 in German, 5'000'000 in Swiss German).
+ * A bare toLocaleString() would follow the computer's region instead, so a
+ * German interface could show English grouping. Only for numbers a person
+ * reads as amounts: a port, a coordinate or an index is passed as it is.
+ */
+export function formatNumber(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  let format = numberFormats.get(currentLanguage);
+  if (!format) {
+    try {
+      format = new Intl.NumberFormat(currentLanguage);
+    } catch {
+      format = new Intl.NumberFormat(FALLBACK_LANGUAGE);
+    }
+    numberFormats.set(currentLanguage, format);
+  }
+  return format.format(number);
+}
+
 export function setLanguage(language, options = {}) {
   const { persist = true, applyDom = true, notify = true } = options;
   const normalized = normalizeLanguage(language);

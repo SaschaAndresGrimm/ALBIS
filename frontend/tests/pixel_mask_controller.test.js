@@ -6,7 +6,7 @@ vi.mock("../modules/dialogs.js", () => ({
   showPromptDialog: vi.fn(),
 }));
 vi.mock("../modules/i18n.js", () => ({
-  getLanguage: () => "en",
+  formatNumber: (value) => Number(value).toLocaleString("en"),
   t: (key, vars = {}) => (Object.keys(vars).length ? `${key} ${JSON.stringify(vars)}` : key),
 }));
 

@@ -3,7 +3,7 @@
  */
 
 import { copyText } from "./clipboard_copy.js";
-import { t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
 import {
   formatInspectorShape,
   inspectorRowMeta,
@@ -694,8 +694,8 @@ export function createInspectorPanelController({
     // so the count the user sees is the group's real size, not what arrived.
     return children.concat({
       name: t("inspector.tree.truncated", {
-        shown: children.length.toLocaleString(),
-        total: Number(res.childCount || 0).toLocaleString(),
+        shown: formatNumber(children.length),
+        total: formatNumber(res.childCount || 0),
       }),
       path,
       type: "truncated",

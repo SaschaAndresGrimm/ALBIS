@@ -8,7 +8,7 @@
  * filled frame itself is worked out once per frame by inpainting.js.
  */
 
-import { t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
 import { normalizeInpaintMargin, normalizeInpaintMethod, normalizeInpaintValue } from "./inpainting.js";
 
 // A contrast level as a fill value. Auto-contrast levels are percentiles, so
@@ -60,13 +60,13 @@ export function createInpaintingController({ state, elements, callbacks, core })
     }
     const filled = getInpaintedFrame()?.filled || 0;
     if (filled) {
-      const count = filled.toLocaleString();
+      const count = formatNumber(filled);
       const message =
         state.inpaintMethod === "fixed"
-          ? t("inpaint.state.set", { count, value: normalizeInpaintValue(state.inpaintValue).toLocaleString() })
+          ? t("inpaint.state.set", { count, value: formatNumber(normalizeInpaintValue(state.inpaintValue)) })
           : t("inpaint.state.filled", { count });
       setSectionBadgeState(stateEl, "active", message);
-      setSummaryChip(summaryEl, t("inpaint.summary.filled", { count: filled.toLocaleString() }), "active");
+      setSummaryChip(summaryEl, t("inpaint.summary.filled", { count: formatNumber(filled) }), "active");
     } else {
       setSectionBadgeState(stateEl, "active", t("inpaint.state.nothing"));
       setSummaryChip(summaryEl, t("inpaint.summary.nothing"), "active");
@@ -104,7 +104,7 @@ export function createInpaintingController({ state, elements, callbacks, core })
   const pick = (button, level, key) => {
     if (!button) return;
     const label = () => {
-      button.title = t(key, { value: levelValue(level(), integralData(state)).toLocaleString() });
+      button.title = t(key, { value: formatNumber(levelValue(level(), integralData(state))) });
     };
     button.addEventListener("pointerenter", label);
     button.addEventListener("focus", label);

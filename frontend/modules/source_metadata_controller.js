@@ -99,7 +99,9 @@ export function createSourceMetadataController({
   function formatSimplonTimestamp(raw) {
     const parsed = parseSimplonTimestamp(raw);
     if (parsed) {
-      return parsed.toLocaleString();
+      // Dates and times keep the computer's own format (undefined), not the
+      // interface language's; numbers go through formatNumber() in i18n.js.
+      return parsed.toLocaleString(undefined);
     }
     return raw ? String(raw) : "";
   }
