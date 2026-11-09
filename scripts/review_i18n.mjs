@@ -9,8 +9,11 @@ import {
 } from "./i18n_review_lib.mjs";
 
 const strictUntranslated = process.argv.includes("--strict-untranslated");
+const glossaryAll = process.argv.includes("--glossary-all");
+const sinceIndex = process.argv.indexOf("--since");
+const since = sinceIndex > 0 ? process.argv[sinceIndex + 1] : undefined;
 const rootDir = process.cwd();
-const report = buildI18nReviewReport(rootDir);
+const report = buildI18nReviewReport(rootDir, { glossaryAll, ...(since ? { glossarySince: since } : {}) });
 
 process.stdout.write(formatI18nReviewReport(report, { strictUntranslated }));
 

@@ -3,6 +3,7 @@ import path from "node:path";
 import { JSDOM } from "jsdom";
 
 import { isApprovedEnglishCarryover } from "./i18n_review_allowlist.mjs";
+import { changedLocaleStrings, collectGlossaryFindings, readGlossary } from "./i18n_glossary_lib.mjs";
 
 const TOKEN_PATTERN = /\{\{[^}]+\}\}/g;
 const WHITESPACE_PATTERN = /\s+/g;
@@ -295,7 +296,7 @@ export function scanJavaScriptForHardcodedText({ filePath, source }) {
   return findings.sort((left, right) => left.line - right.line || left.text.localeCompare(right.text));
 }
 
-export function buildI18nReviewReport(rootDir) {
+export function buildI18nReviewReport(rootDir, { glossarySince = ["origin/main", "main"], glossaryAll = false } = {}) {
   const localeDir = path.join(rootDir, "frontend", "locales");
   const baseLocale = readLocale(path.join(localeDir, "en.json"));
   const localeEntries = collectLocaleFileNames(localeDir)
@@ -304,6 +305,24 @@ export function buildI18nReviewReport(rootDir) {
 
   const untranslatedFindings = collectUntranslatedFindings(baseLocale, localeEntries);
   const technicalGroups = collectTechnicalReviewRows(baseLocale, localeEntries);
+
+  // Glossary findings for the strings a change wrote, against the first ref
+  // git knows; all of them with glossaryAll or when git cannot tell.
+  const allGlossaryFindings = collectGlossaryFindings(readGlossary(rootDir), baseLocale, localeEntries);
+  let glossaryRef = null;
+  let changed = null;
+  if (!glossaryAll) {
+    for (const ref of [glossarySince].flat()) {
+      changed = changedLocaleStrings(rootDir, ref, [["en", baseLocale], ...localeEntries]);
+      if (changed) {
+        glossaryRef = ref;
+        break;
+      }
+    }
+  }
+  const glossaryFindings = changed
+    ? allGlossaryFindings.filter((finding) => changed.has(`${finding.locale}\t${finding.key}`) || changed.has(`en\t${finding.key}`))
+    : allGlossaryFindings;
 
   const htmlFilePath = path.join(rootDir, "frontend", "index.html");
   const jsFilePaths = [
@@ -335,6 +354,9 @@ export function buildI18nReviewReport(rootDir) {
     untranslatedFindings,
     hardcodedFindings,
     technicalGroups,
+    glossaryFindings,
+    glossaryRef,
+    glossaryTotal: allGlossaryFindings.length,
   };
 }
 
@@ -354,6 +376,11 @@ export function formatI18nReviewReport(report, { strictUntranslated = false } = 
   lines.push(`Potential untranslated/suspect strings: ${report.untranslatedFindings.length}`);
   lines.push(`Hardcoded user-facing literals: ${report.hardcodedFindings.length}`);
   lines.push(`Technical review rows: ${technicalRowCount}`);
+  lines.push(
+    report.glossaryRef
+      ? `Glossary terms not used, in strings changed since ${report.glossaryRef}: ${report.glossaryFindings.length} (${report.glossaryTotal} in all strings; --glossary-all lists them)`
+      : `Glossary terms not used, in all strings: ${report.glossaryFindings.length}`,
+  );
   lines.push(`Strict untranslated mode: ${strictUntranslated ? "on" : "off"}`);
   lines.push("");
 
@@ -367,6 +394,18 @@ export function formatI18nReviewReport(report, { strictUntranslated = false } = 
       localeFindings.forEach((finding) => {
         lines.push(`  ${finding.key}\t${escapeReportCell(finding.value)}`);
       });
+    });
+  }
+  lines.push("");
+
+  lines.push(report.glossaryRef ? `=== Glossary (strings changed since ${report.glossaryRef}) ===` : "=== Glossary (all strings) ===");
+  if (!report.glossaryFindings?.length) {
+    lines.push("none");
+  } else {
+    lines.push("A string whose English uses a glossary term, without the term's translation. Check");
+    lines.push("it against docs/I18N_GLOSSARY.csv; a plural or case ending can be a false alarm.");
+    report.glossaryFindings.forEach((finding) => {
+      lines.push(`${finding.locale}\t${finding.key}\t${finding.termId} = ${escapeReportCell(finding.expected)}\t${escapeReportCell(finding.value)}`);
     });
   }
   lines.push("");
