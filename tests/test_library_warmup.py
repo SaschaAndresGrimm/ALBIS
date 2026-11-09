@@ -7,6 +7,7 @@ hdf5plugin and fabio to import, with nothing else going on.
 from __future__ import annotations
 
 import sys
+import threading
 
 from fastapi.testclient import TestClient
 
@@ -38,15 +39,34 @@ def test_the_warm_up_runs_on_a_daemon_thread() -> None:
     assert not thread.is_alive()
 
 
-def test_startup_starts_the_warm_up_once(monkeypatch) -> None:
-    """The server starts the warm-up itself; nothing else would."""
-    calls = []
-    monkeypatch.setattr(app_module, "start_warm_up", lambda: calls.append(1))
+def test_starting_the_server_does_not_start_the_warm_up(monkeypatch) -> None:
+    """Started with the server, the imports stalled the page itself.
+
+    Under Rosetta, 0.42.3's release check timed out fetching the start page
+    while h5py's libraries loaded.
+    """
+    ran = threading.Event()
+    # The thread's target, so a start by any route -- an import of
+    # start_warm_up by name included -- is seen.
+    monkeypatch.setattr(library_warmup, "warm_up", lambda *_args: ran.set())
+    monkeypatch.setattr(library_warmup, "_started", False)
     monkeypatch.setattr(app_module, "_startup_banner_logged", False)
 
-    with TestClient(app_module.app, base_url="http://127.0.0.1"):
-        pass
-    with TestClient(app_module.app, base_url="http://127.0.0.1"):
-        pass
+    with TestClient(app_module.app, base_url="http://127.0.0.1") as client:
+        client.get("/api/health")
+        client.get("/")
+
+    assert not ran.wait(timeout=0.5)
+
+
+def test_the_file_list_starts_the_warm_up_once(monkeypatch) -> None:
+    """The interface's last request before it waits for a file starts it."""
+    calls = []
+    monkeypatch.setattr(library_warmup, "start_warm_up", lambda: calls.append(1))
+    monkeypatch.setattr(library_warmup, "_started", False)
+
+    client = TestClient(app_module.app, base_url="http://127.0.0.1")
+    assert client.get("/api/files").status_code == 200
+    client.get("/api/files")
 
     assert calls == [1]

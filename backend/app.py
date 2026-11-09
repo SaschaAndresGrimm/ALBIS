@@ -108,7 +108,6 @@ from .services.jungfraujoch_preview import (
 )
 from .services.known_detectors import KnownDetectorStore
 from .services.known_detectors import resolve_path as resolve_known_detectors_path
-from .services.library_warmup import start_warm_up
 from .services.mythen import _mythen_header_text, _read_mythen_acquisition
 from .services.path_policy import PathPolicy
 from .services.picker_start import PickerStartFolders
@@ -389,7 +388,6 @@ async def _lifespan(_app: FastAPI):
             (STATIC_DIR / "app.js").exists(),
             mimetypes.guess_type("app.js")[0],
         )
-        start_warm_up()  # the first file opened would otherwise wait for the imports
     try:
         yield
     finally:

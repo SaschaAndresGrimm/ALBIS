@@ -3,10 +3,18 @@
 h5py with its compression plugins, and fabio, take a second or two to import.
 ALBIS imports them only when a file first needs them, so the first file a user
 opened waited for them on top of its own reading, and the next one did not.
-Importing them on a background thread at startup does that work while the user
-is still choosing a file. A request that needs a library before the thread has
-got to it is no worse off: Python's import lock makes it wait for the import
-already under way rather than start another.
+Importing them on a background thread does that work while the user is still
+choosing a file. A request that needs a library before the thread has got to
+it is no worse off: Python's import lock makes it wait for the import already
+under way rather than start another.
+
+The thread starts when the interface first asks for the file list, the last
+thing it loads before it waits for a file, and not when the server starts.
+Python holds its interpreter lock while it loads a native library, so the
+imports stall every request meanwhile. That is unnoticeable on a native build,
+but the Intel build on Apple Silicon translates h5py's libraries under Rosetta
+on first launch, and starting at server start left the interface itself
+waiting: 0.42.3's release check timed out fetching the start page.
 """
 
 from __future__ import annotations
@@ -18,6 +26,8 @@ import time
 from collections.abc import Iterable
 
 _log = logging.getLogger("albis.warmup")
+_started = False
+_start_lock = threading.Lock()
 
 # hdf5plugin first: it registers the compression filters that h5py needs for
 # detector data. The fabio readers and tifffile are the ones image_formats
@@ -62,3 +72,13 @@ def start_warm_up(modules: Iterable[str] = LIBRARIES) -> threading.Thread:
     )
     thread.start()
     return thread
+
+
+def start_warm_up_once() -> threading.Thread | None:
+    """Start the warm-up the first time this is called; later calls do nothing."""
+    global _started
+    with _start_lock:
+        if _started:
+            return None
+        _started = True
+    return start_warm_up()
