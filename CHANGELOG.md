@@ -7,12 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-### Changed
-
-- **The first file you open shows that it is loading, and opens sooner.** The start screen now says "Loading file…" with a spinner from the moment a file is chosen until its image appears. Until now the start screen sat unchanged for several seconds, as if nothing had happened: the "Loading frame…" notice was hidden behind it, and only a word in the status bar showed that ALBIS was working. Some of that wait is gone too. ALBIS used to load its HDF5 and CBF/TIFF readers only when the first file needed them, which added a second or two to that file alone. It now loads them in the background as it starts, while you are still choosing a file. If a file fails to open, the start screen offers **Open file** again.
+## [0.42.3] - 2026-11-09
 
 ### Fixed
 
+- **The first file you open shows that it is loading, and opens sooner.** The start screen now says "Loading file…" with a spinner from the moment a file is chosen until its image appears. Until now the start screen sat unchanged for several seconds, as if nothing had happened: the "Loading frame…" notice was hidden behind it, and only a word in the status bar showed that ALBIS was working. Some of that wait is gone too. ALBIS used to load its HDF5 and CBF/TIFF readers only when the first file needed them, which added a second or two to that file alone. It now loads them in the background as it starts, while you are still choosing a file. If a file fails to open, the start screen offers **Open file** again.
 - **An image in a folder of thousands of files opens without a pause.** Opening a CBF, TIFF or EDF image took 0.75 s longer in a folder of 20,000 frames, on a local disk, before anything else happened, and the same again for every file auto-load picked up. ALBIS looks for the rest of the numbered series in that folder, and it looked up every file's full location on disk three times over; on the network storage beamlines keep their data on, each of those lookups is a round trip to the server. It now looks up the folder once, and the same folder takes 0.13 s.
 - **An HDF5 file's pixel mask is read once when the file opens, not twice, and a file without one no longer puts a warning in the log.** ALBIS asked for the mask before it knew the file's shape, then again once it did. For a file with no mask, and for a file with several thresholds, it read twice. Each file without a mask also wrote a warning to the log users send with a bug report, though a file without a mask is normal. It is now logged at the debug level, like other routine answers.
 
@@ -1895,7 +1894,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.2...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.3...HEAD
+[0.42.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.2...v0.42.3
 [0.42.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.1...v0.42.2
 [0.42.1]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.0...v0.42.1
 [0.42.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.41.0...v0.42.0
