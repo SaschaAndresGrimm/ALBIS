@@ -178,6 +178,8 @@ Related docs: [Developer Guide](DEVELOPER_GUIDE.md) · [Architecture](ARCHITECTU
   - The detector geometry ALBIS calculates with (the data's values and the user's override), Data → Detector Geometry, and geometry-file scoping per file or series.
 - `frontend/modules/roi_geometry_utils.js`, `frontend/modules/roi_controls_bindings.js`, `frontend/modules/roi_plot_bindings.js`:
   - ROI geometry in physical units (non-square pixels), the ROI controls' listeners, and the ROI plot's pan, zoom and resize.
+- `frontend/modules/roi_axis_chip_utils.js`:
+  - What a click on an ROI plot's Manual axes tag does: back to auto axes, remembering the manual limits, and back again.
 - `frontend/modules/series_sum_controller.js`:
   - Analysis → Combine Frames, run as a background job.
 - `frontend/modules/viewer_sync_controller.js`, `frontend/modules/window_clone_state.js`:

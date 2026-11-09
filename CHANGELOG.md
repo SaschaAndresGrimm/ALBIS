@@ -11,6 +11,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The Min/Max Finder can ignore pixels below or above a value you choose.** Two new optional boxes, **Ignore below** and **Ignore above**, leave out pixels outside that range. Until now the Min list on a frame with many zeros was just the first of those zeros, so it could not tell you the lowest pixel that read anything. Enter 1 under **Ignore below** and it does. Left empty, nothing changes. The CSV export records the cutoffs it used.
 
+### Changed
+
+- **Click the "Manual axes" tag on an ROI plot to go back to automatic axes, and click again to return to the axes you had.** Scrolling on a plot pins its axes at once, and the only way back was the plot's settings. The tag now does it in one click and, while the axes are automatic, reads "Auto axes" so you can undo it; hovering over it says what a click does. Double-click or the settings forget the remembered axes.
+
 ### Fixed
 
 - **Numbers in messages are grouped the way the interface language writes them.** A count like 5,000,000 followed the computer's region rather than the language chosen in ALBIS, so a German interface on an English PC showed 5,000,000 instead of 5.000.000, and an English one on a Swiss PC showed 5'000'000. Counts and values in messages, tooltips and the inspector now follow the interface language. Dates and times still follow the computer.
