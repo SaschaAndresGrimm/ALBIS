@@ -15,6 +15,12 @@
  * nothing; `extremeCount` reports how many pixels share the extreme value, so
  * the interface can say so.
  *
+ * An optional low and high cutoff narrow the pixels that count: a pixel below
+ * the low cutoff or above the high one is left out. Setting the low cutoff
+ * just above the floor (1 on a frame full of zeros) lets the Min end find the
+ * lowest pixel that read something. A cutoff applies to the value, whatever
+ * the pixel, so it is not a mask.
+ *
  * One pass over the frame keeps the best N in a heap; a pixel is compared
  * with the weakest kept one and only a better one touches the heap, so the
  * cost stays linear in the number of pixels.
@@ -32,13 +38,22 @@ export function clampMinMaxCount(value, fallback = MINMAX_DEFAULT_COUNT) {
   return Math.max(MINMAX_MIN_COUNT, Math.min(MINMAX_MAX_COUNT, number));
 }
 
+/** A cutoff typed by the user: a finite number, or null for "no cutoff". */
+export function parseMinMaxCutoff(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 export function normalizeMinMaxMode(value) {
   return MINMAX_MODES.includes(value) ? value : "max";
 }
 
 /**
  * `data` is the frame, row by row, `width` pixels wide. `ignore(index)` leaves
- * a pixel out (masked, saturated). `lowest` picks the low end.
+ * a pixel out (masked, saturated). `lowest` picks the low end. `lowCutoff` and
+ * `highCutoff` (a number, or null for none) leave out pixels below or above
+ * that value; a pixel equal to a cutoff stays.
  *
  * Returns `{ pixels, extremeCount }`: `pixels` as `{ x, y, index, value }`,
  * best first, equal values in reading order; `extremeCount` the number of
@@ -48,7 +63,7 @@ export function findExtremePixels(
   data,
   width,
   height,
-  { count = MINMAX_DEFAULT_COUNT, ignore = null, lowest = false } = {},
+  { count = MINMAX_DEFAULT_COUNT, ignore = null, lowest = false, lowCutoff = null, highCutoff = null } = {},
 ) {
   const total = Math.min(data?.length || 0, width * height);
   const limit = clampMinMaxCount(count);
@@ -103,6 +118,7 @@ export function findExtremePixels(
     const value = data[index];
     // NaN fails both tests; an infinite value is no reading either.
     if (lowest ? !Number.isFinite(value) : !(value > 0) || value === Number.POSITIVE_INFINITY) continue;
+    if ((lowCutoff !== null && value < lowCutoff) || (highCutoff !== null && value > highCutoff)) continue;
     const key = sign * value;
     // Below both the heap's weakest and the best value: nothing to update.
     if (size === limit && key <= keys[0] && key < bestKey) continue;

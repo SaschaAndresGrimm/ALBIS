@@ -21,6 +21,7 @@ function setup({ maskEnabled = true } = {}) {
       <select id="mode"><option value="max"></option><option value="min"></option><option value="both"></option></select>
       <input id="count" type="number" />
       <input id="masked" type="checkbox" />
+      <input id="low" type="number" /><input id="high" type="number" />
       <button id="export"></button>
       <div id="list"><div id="body"></div></div>
     </section>`;
@@ -41,6 +42,8 @@ function setup({ maskEnabled = true } = {}) {
     minmaxMode: "max",
     minmaxCount: 3,
     minmaxIncludeMasked: false,
+    minmaxLowCutoff: null,
+    minmaxHighCutoff: null,
     minmaxFound: [],
     minmaxSelected: [],
     minmaxSelectionAnchor: null,
@@ -58,6 +61,8 @@ function setup({ maskEnabled = true } = {}) {
       minmaxModeSelect: byId("mode"),
       minmaxCountInput: byId("count"),
       minmaxIncludeMasked: byId("masked"),
+      minmaxLowCutoff: byId("low"),
+      minmaxHighCutoff: byId("high"),
       minmaxExportBtn: byId("export"),
       minmaxList: byId("list"),
       minmaxBody: byId("body"),
@@ -190,6 +195,35 @@ describe("Min/Max Finder", () => {
     const { controller, setStatus } = setup();
     controller.exportCsv();
     expect(setStatus).toHaveBeenCalledWith(expect.any(String), { tone: "warning" });
+  });
+
+  it("leaves out pixels below the low cutoff, so Min skips the zeros", () => {
+    const { switchOn, change, rows, byId } = setup();
+    switchOn();
+    change("mode", "min");
+    change("low", "1");
+    expect(rows().map((row) => row[3])).toEqual(["1", "2", "3"]);
+    expect(byId("state").textContent).toBe("Lowest pixel: 1 at X 0, Y 0");
+  });
+
+  it("leaves out pixels above the high cutoff, and says when nothing is left", () => {
+    const { switchOn, change, rows, byId } = setup();
+    switchOn();
+    change("high", "6");
+    expect(rows().map((row) => row[3])).toEqual(["5", "3", "2"]);
+    change("low", "50");
+    expect(rows()).toEqual([]);
+    expect(byId("body").textContent).toBe("No pixel within the cutoffs on this frame.");
+  });
+
+  it("clears a cutoff that is empty or not a number", () => {
+    const { switchOn, change, byId, analysisState } = setup();
+    switchOn();
+    change("low", "2");
+    expect(analysisState.minmaxLowCutoff).toBe(2);
+    change("low", "");
+    expect(analysisState.minmaxLowCutoff).toBeNull();
+    expect(byId("low").value).toBe("");
   });
 
   it("clamps the count typed", () => {

@@ -566,6 +566,22 @@
   align-self: center;
 }
 
+/* Both cutoffs on one line, below Pixels to find and its checkbox. */
+.peaks-controls .minmax-cutoffs {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 10px;
+}
+
+.minmax-cutoffs .peaks-count-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.minmax-cutoffs .peaks-count-field input {
+  max-width: none;
+}
+
 .panel-section[data-section="peak-finder"] .section-state,
 .panel-section[data-section="minmax-finder"] .section-state {
   min-height: 30px;

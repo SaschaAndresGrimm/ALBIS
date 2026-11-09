@@ -73,6 +73,8 @@ export function createAnalysisState() {
     minmaxMode: "max",
     minmaxCount: 20,
     minmaxIncludeMasked: false,
+    minmaxLowCutoff: null,
+    minmaxHighCutoff: null,
     minmaxFound: [],
     minmaxSelected: [],
     minmaxSelectionAnchor: null,

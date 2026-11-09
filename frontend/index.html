@@ -1513,6 +1513,16 @@
                   <input id="minmax-include-masked" type="checkbox" />
                   <span data-i18n="minmax.include_masked">Include masked pixels</span>
                 </label>
+                <div class="minmax-cutoffs">
+                  <label class="field peaks-count-field">
+                    <span data-i18n="minmax.low_cutoff_label">Ignore below</span>
+                    <input id="minmax-low-cutoff" type="number" step="any" data-i18n-placeholder="minmax.cutoff_placeholder" placeholder="none" />
+                  </label>
+                  <label class="field peaks-count-field">
+                    <span data-i18n="minmax.high_cutoff_label">Ignore above</span>
+                    <input id="minmax-high-cutoff" type="number" step="any" data-i18n-placeholder="minmax.cutoff_placeholder" placeholder="none" />
+                  </label>
+                </div>
                 <button id="minmax-export" class="btn btn-secondary" type="button" data-i18n="analysis.peaks.export_csv">Export CSV</button>
               </div>
               <div class="peaks-list minmax-list" id="minmax-list">

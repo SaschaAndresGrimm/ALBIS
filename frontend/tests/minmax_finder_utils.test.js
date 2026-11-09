@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { clampMinMaxCount, findExtremePixels, normalizeMinMaxMode } from "../modules/minmax_finder_utils.js";
+import { clampMinMaxCount, findExtremePixels, normalizeMinMaxMode, parseMinMaxCutoff } from "../modules/minmax_finder_utils.js";
 
 // A 4 x 3 frame, row by row.
 const FRAME = Float32Array.from([
@@ -100,6 +100,33 @@ describe("findExtremePixels against a full sort", () => {
     const { pixels, extremeCount } = lowest(data, 64, 64, { count: 50 });
     expect(pixels.map((p) => p.index)).toEqual(sorted.slice(0, 50).map((p) => p.index));
     expect(extremeCount).toBe(all.filter((p) => p.value === sorted[0].value).length);
+  });
+});
+
+describe("cutoffs", () => {
+  it("skips pixels below the low cutoff at the low end, keeping a pixel equal to it", () => {
+    expect(lowest(FRAME, 4, 3, { count: 3, lowCutoff: 1 }).pixels.map((p) => p.value)).toEqual([1, 2, 3]);
+  });
+
+  it("counts the pixels sharing the lowest value that survives the cutoff", () => {
+    expect(lowest(FRAME, 4, 3, { count: 1, lowCutoff: 1 }).extremeCount).toBe(1);
+  });
+
+  it("skips pixels above the high cutoff at the high end", () => {
+    expect(highest(FRAME, 4, 3, { count: 2, highCutoff: 7 }).pixels.map((p) => p.value)).toEqual([7, 5]);
+  });
+
+  it("applies both cutoffs together, and finds nothing outside them", () => {
+    expect(highest(FRAME, 4, 3, { lowCutoff: 2, highCutoff: 3 }).pixels.map((p) => p.value)).toEqual([3, 2]);
+    expect(lowest(FRAME, 4, 3, { lowCutoff: 20 })).toEqual({ pixels: [], extremeCount: 0 });
+  });
+
+  it("reads a typed cutoff as a number, or none", () => {
+    expect(parseMinMaxCutoff("1.5")).toBe(1.5);
+    expect(parseMinMaxCutoff("0")).toBe(0);
+    expect(parseMinMaxCutoff("")).toBeNull();
+    expect(parseMinMaxCutoff("abc")).toBeNull();
+    expect(parseMinMaxCutoff(null)).toBeNull();
   });
 });
 

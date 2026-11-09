@@ -487,6 +487,11 @@ pixel next to another hot one, or a pixel on a bright background all count.
   saturated pixels while **Mask saturated** is on. Tick **Include masked
   pixels** to list them too; left in, the gaps between modules fill the
   **Min** list.
+- **Ignore below** and **Ignore above** are optional cutoffs on the pixel
+  value: a pixel below the first or above the second is left out, and one equal
+  to a cutoff stays. Leave a box empty for no cutoff. On a frame with many
+  zeros, enter 1 under **Ignore below** and **Min** lists the lowest pixels that
+  read something.
 - The list shows each pixel's position and value, and, once the data has a
   pixel mask, its mask value (`—` for an unmasked pixel).
 - The line above the list names the highest or lowest pixel and where it is.

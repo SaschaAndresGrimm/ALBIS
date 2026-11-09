@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **The Min/Max Finder can ignore pixels below or above a value you choose.** Two new optional boxes, **Ignore below** and **Ignore above**, leave out pixels outside that range. Until now the Min list on a frame with many zeros was just the first of those zeros, so it could not tell you the lowest pixel that read anything. Enter 1 under **Ignore below** and it does. Left empty, nothing changes. The CSV export records the cutoffs it used.
+
 ### Fixed
 
 - **A sum of data from a detector on a 2θ arm, such as Diamond's I19-2, opens with its beam centre and rings in the right place.** Until now the sum showed the beam centre about 413 px off, no 2θ angle, and wrong resolution rings. The sum saved the detector's tilted panels but not the reference the file's beam centre and distance are measured against (the values at 2θ = 0), so ALBIS measured them against the tilted panels instead. The sum now keeps that reference and the 2θ arm with the panels. Sums made with earlier versions still open off-centre; make them again.
