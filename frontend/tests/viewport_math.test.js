@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   axisScroll,
   centerFromScroll,
+  centerInBox,
   clampAxisCenter,
   fitZoom,
   visibleAxisSpan,
@@ -72,5 +73,13 @@ describe("viewport_math", () => {
     expect(fitZoom({ imageWidth: 400, imageHeight: 200, width: 800, height: 800 })).toBe(2);
     expect(fitZoom({ imageWidth: 400, imageHeight: 200, pixelAspect: 4, width: 800, height: 800 })).toBe(1);
     expect(fitZoom({ imageWidth: 0, imageHeight: 0, width: 800, height: 800 })).toBeNull();
+  });
+
+  it("centres the image in the clear part of the view", () => {
+    // 200 px image at 1x; the clear box 100..300 of a 0..300 axis has its middle at 200.
+    const center = centerInBox({ size: 200, scale: 1, axis: { start: 0, end: 300 }, box: { start: 100, end: 300 } });
+    // The image middle (100) lands on screen at mid + (100 - center) * scale.
+    expect(150 + (100 - center)).toBe(200);
+    expect(centerInBox({ size: 200, scale: 2, axis, box: axis })).toBe(100);
   });
 });

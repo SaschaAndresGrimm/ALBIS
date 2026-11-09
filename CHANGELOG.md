@@ -10,6 +10,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Fixed
 
 - **A sum of data from a detector on a 2θ arm, such as Diamond's I19-2, opens with its beam centre and rings in the right place.** Until now the sum showed the beam centre about 413 px off, no 2θ angle, and wrong resolution rings. The sum saved the detector's tilted panels but not the reference the file's beam centre and distance are measured against (the values at 2θ = 0), so ALBIS measured them against the tilted panels instead. The sum now keeps that reference and the 2θ arm with the panels. Sums made with earlier versions still open off-centre; make them again.
+- **Fit to Window keeps the whole image clear of the menu bar, the toolbar, the footer and the side panel.** The bars and the panel float over the image, but Fit sized the image to the full window and centred it there, so a tall image ran under the menu bar and toolbar at the top and under the footer at the bottom. The image also ended a few pixels under the side panel, because Fit left out the gap between the panel and the window's edge. Fit now sizes and centres the image in the part of the window nothing covers, with a small margin to each bar and the panel. An opened file starts out fitted the same way.
 
 ## [0.42.4] - 2026-11-09
 

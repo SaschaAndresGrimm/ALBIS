@@ -83,3 +83,13 @@ export function fitZoom({ imageWidth, imageHeight, pixelAspect = 1, width, heigh
   const zoom = Math.min(width / imageWidth, height / (imageHeight * (pixelAspect || 1)));
   return Number.isFinite(zoom) && zoom > 0 ? zoom : null;
 }
+
+/**
+ * The centre that puts the middle of the image at the middle of `box`, a
+ * span inside `axis` (the part of it nothing floats over). Fit uses it to
+ * centre the image in the clear part of the view rather than in the whole.
+ */
+export function centerInBox({ size, scale, axis, box }) {
+  if (!(scale > 0)) return size / 2;
+  return size / 2 - (axisMid(box) - axisMid(axis)) / scale;
+}

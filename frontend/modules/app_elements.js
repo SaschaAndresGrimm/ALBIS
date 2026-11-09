@@ -79,6 +79,7 @@ export function queryAppElements(doc = document) {
     nextBtn: byId("btn-next"),
     playBtn: byId("btn-play"),
     toolsPanel: byId("side-panel"),
+    appChrome: byId("app-chrome"),
     panelSheetHandle: byId("panel-sheet-handle"),
     panelResizer: byId("panel-resizer"),
     panelFab: byId("panel-fab"),
