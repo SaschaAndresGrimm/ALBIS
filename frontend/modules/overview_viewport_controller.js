@@ -8,6 +8,7 @@ import { zoomToSlider } from "./zoom_slider.js";
 import {
   axisScroll,
   centerFromScroll,
+  centerInBox,
   clampAxisCenter,
   fitZoom,
   visibleAxisSpan,
@@ -32,6 +33,7 @@ export function createOverviewViewportController({
     zoomValue,
     viewerFooterEl,
     toolsPanel,
+    appChrome,
   } = elements;
 
   const {
@@ -113,20 +115,36 @@ export function createOverviewViewportController({
    */
   let viewArea = null;
 
+  /** Room left between the image and a control floating over the canvas. */
+  const FIT_GAP_PX = 8;
+
   function measureViewArea() {
     if (!canvasWrap) return null;
     const width = canvasWrap.clientWidth || 0;
     const height = canvasWrap.clientHeight || 0;
     const insets = panelInsets();
-    const footerHeight = viewerFooterEl
-      ? Math.round(viewerFooterEl.getBoundingClientRect().height)
-      : 0;
-    const footerInset = footerHeight > 0 ? footerHeight + 8 : 0;
+    const footerInset = footerTopInset();
     viewArea = {
       x: { start: insets.left, end: Math.max(insets.left, width - insets.right) },
       y: { start: 0, end: height, edgeEnd: Math.max(0, height - footerInset) },
     };
     return viewArea;
+  }
+
+  /**
+   * Canvas pixels from the top of the footer to the bottom of the canvas, plus
+   * a gap; the footer floats a little above the bottom edge, so its height
+   * alone falls short of what it covers.
+   */
+  function footerTopInset() {
+    if (!viewerFooterEl) return 0;
+    const footer = viewerFooterEl.getBoundingClientRect();
+    if (!(footer.height > 0)) return 0;
+    const wrap = canvasWrap.getBoundingClientRect();
+    const covered = Number.isFinite(footer.top) && wrap.height > 0
+      ? Math.round(wrap.bottom - footer.top)
+      : Math.round(footer.height);
+    return covered > 0 ? covered + FIT_GAP_PX : 0;
   }
 
   function getViewArea() {
@@ -613,13 +631,30 @@ export function createOverviewViewportController({
     if (!(panel.width > 0) || !(wrap.width > 0)) return none;
     const overlap = Math.min(wrap.right, panel.right) - Math.max(wrap.left, panel.left);
     if (!(overlap > 0)) return none;
+    // Charge the overlap to whichever edge the panel is anchored nearer, and
+    // concede everything from the panel to that edge: the gutter between them
+    // is no use to the image either, and leaving it out let Fit run the image
+    // under the panel by the gutter's width.
+    const anchoredRight = panel.left - wrap.left >= wrap.right - panel.right;
+    const reach = anchoredRight ? wrap.right - panel.left : panel.right - wrap.left;
     // Never concede more than half the canvas. Past that the correction costs
     // more room than the occlusion it is compensating for.
-    const conceded = Math.min(overlap, wrap.width / 2);
-    // Charge the overlap to whichever edge the panel is anchored nearer.
-    return panel.left - wrap.left >= wrap.right - panel.right
-      ? { left: 0, right: conceded }
-      : { left: conceded, right: 0 };
+    const conceded = Math.min(reach, wrap.width / 2);
+    return anchoredRight ? { left: 0, right: conceded } : { left: conceded, right: 0 };
+  }
+
+  /**
+   * Canvas pixels the menu bar and toolbar cover at the top of the canvas
+   * when they float over it (the canvas-first layout); 0 when they sit above.
+   */
+  function chromeTopInset() {
+    if (!appChrome || !canvasWrap) return 0;
+    const bar = appChrome.getBoundingClientRect();
+    const wrap = canvasWrap.getBoundingClientRect();
+    if (!(bar.height > 0) || !(wrap.height > 0)) return 0;
+    if (!(Math.min(wrap.right, bar.right) > Math.max(wrap.left, bar.left))) return 0;
+    const covered = bar.bottom - wrap.top;
+    return covered > 0 ? Math.min(covered, wrap.height / 2) : 0;
   }
 
   function clampZoom(value) {
@@ -779,20 +814,48 @@ export function createOverviewViewportController({
     }
   }
 
-  /** The whole image in the visible area, centred. */
+  /**
+   * The part of the view area nothing floats over: below the menu bar and
+   * toolbar, above the footer, beside the panel. A side with a control on it
+   * keeps FIT_GAP_PX from that control; a bare canvas edge keeps none.
+   */
+  function measureFitBox(area) {
+    const width = canvasWrap.clientWidth || 0;
+    const top = chromeTopInset();
+    const gap = (covered) => (covered ? FIT_GAP_PX : 0);
+    const x = {
+      start: area.x.start + gap(area.x.start > 0),
+      end: area.x.end - gap(area.x.end < width),
+    };
+    // edgeEnd already stops short of the footer by its own gap.
+    const y = { start: top > 0 ? top + FIT_GAP_PX : 0, end: area.y.edgeEnd ?? area.y.end };
+    // A box squeezed to nothing would fit nothing; fall back to the whole area.
+    return {
+      x: x.end - x.start > 0 ? x : area.x,
+      y: y.end - y.start > 0 ? y : area.y,
+    };
+  }
+
+  /** The whole image, centred in the part of the view nothing floats over. */
   function fitImageToView() {
     if (!canvasWrap || !state.width || !state.height) return;
     const area = measureViewArea();
+    const box = measureFitBox(area);
+    const aspect = state.pixelAspect || 1;
     const zoom = fitZoom({
       imageWidth: state.width,
       imageHeight: state.height,
-      pixelAspect: state.pixelAspect || 1,
-      width: area.x.end - area.x.start,
-      height: area.y.end - area.y.start,
+      pixelAspect: aspect,
+      width: box.x.end - box.x.start,
+      height: box.y.end - box.y.start,
     });
     if (!zoom) return;
+    const center = {
+      x: centerInBox({ size: state.width, scale: zoom, axis: area.x, box: box.x }),
+      y: centerInBox({ size: state.height, scale: zoom * aspect, axis: area.y, box: box.y }),
+    };
     withViewportChangeSuppressed(() => {
-      setZoom(zoom, { center: { x: state.width / 2, y: state.height / 2 } });
+      setZoom(zoom, { center });
     });
     notifyViewportChanged("fit");
   }

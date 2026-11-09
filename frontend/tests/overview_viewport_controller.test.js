@@ -49,6 +49,9 @@ async function createController({
   viewWidth = 400,
   viewHeight = 300,
   footerHeight = 0,
+  footerTop = null,
+  panelRect = null,
+  chromeBottom = 0,
   onViewportChanged = vi.fn(),
 } = {}) {
   const { createOverviewViewportController } = await import("../modules/overview_viewport_controller.js");
@@ -67,7 +70,23 @@ async function createController({
   let viewerFooterEl = null;
   if (footerHeight) {
     viewerFooterEl = document.createElement("div");
-    viewerFooterEl.getBoundingClientRect = () => ({ height: footerHeight });
+    viewerFooterEl.getBoundingClientRect = () =>
+      footerTop === null ? { height: footerHeight } : { top: footerTop, height: footerHeight };
+  }
+  // A side panel floating over the canvas, and the menu bar and toolbar
+  // floating over its top (the canvas-first layout).
+  let toolsPanel = null;
+  if (panelRect) {
+    toolsPanel = document.createElement("div");
+    toolsPanel.style.position = "absolute";
+    toolsPanel.getBoundingClientRect = () => ({ ...panelRect, width: panelRect.right - panelRect.left });
+  }
+  let appChrome = null;
+  if (chromeBottom) {
+    appChrome = document.createElement("div");
+    appChrome.getBoundingClientRect = () => ({
+      left: 0, top: 0, right: viewWidth, bottom: chromeBottom, width: viewWidth, height: chromeBottom,
+    });
   }
   const overviewState = {};
 
@@ -82,6 +101,8 @@ async function createController({
       zoomRange: null,
       zoomValue: null,
       viewerFooterEl,
+      toolsPanel,
+      appChrome,
     },
     constants: {
       MIN_ZOOM: 0.1,
@@ -288,6 +309,54 @@ describe("overview_viewport_controller", () => {
     expect(imageEdges(controller, state)).toEqual(fitted);
     expect(fitted.left).toBe(50);
     expect(fitted.top).toBe(0);
+  });
+
+  it("fits the image clear of a floating panel, the gutter beside it included", async () => {
+    // The panel stands 10 px in from the right edge; the image may not reach
+    // under it, and stops FIT_GAP_PX (8) short of it.
+    const { controller, state } = await createController({
+      imageWidth: 200,
+      imageHeight: 100,
+      viewWidth: 600,
+      viewHeight: 400,
+      panelRect: { left: 300, right: 590, top: 0, bottom: 400 },
+    });
+
+    controller.fitImageToView();
+
+    expect(imageEdges(controller, state)).toMatchObject({ left: 0, right: 292 });
+  });
+
+  it("fits the image below the menu bar and toolbar floating over the canvas", async () => {
+    const { controller, state } = await createController({
+      imageWidth: 200,
+      imageHeight: 200,
+      viewWidth: 400,
+      viewHeight: 300,
+      chromeBottom: 60,
+    });
+
+    controller.fitImageToView();
+
+    // 300 - (60 + 8) = 232 px tall, centred across the 400 px width.
+    const edges = imageEdges(controller, state);
+    for (const [side, at] of Object.entries({ left: 84, top: 68, right: 316, bottom: 300 })) {
+      expect(edges[side]).toBeCloseTo(at, 9);
+    }
+  });
+
+  it("fits the image above a footer floating short of the canvas's bottom edge", async () => {
+    // Footer 250..290 in a 300 px canvas: it covers 50 px, not its 40 px height.
+    const { controller, state } = await createController({
+      imageWidth: 200,
+      imageHeight: 200,
+      footerHeight: 40,
+      footerTop: 250,
+    });
+
+    controller.fitImageToView();
+
+    expect(imageEdges(controller, state).bottom).toBeCloseTo(300 - 50 - 8, 9);
   });
 
   it("keeps the image's corner under the cursor while zooming in from zoomed out", async () => {

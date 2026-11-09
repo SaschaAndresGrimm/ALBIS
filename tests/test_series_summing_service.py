@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 from fastapi import HTTPException
 
+from backend.services.detector_geometry import _read_hdf5_embedded_geometry
 from backend.services.series_ops import iter_sum_groups, mask_flag_value, mask_slices
 from backend.services.series_summing import SeriesSummingDeps, SeriesSummingService
 
@@ -751,6 +752,92 @@ def test_series_summing_service_embeds_effective_geometry_in_hdf5_output(tmp_pat
         assert h5["/entry/instrument/detector/beam_center_x"][()] == pytest.approx(1083.9)
         assert h5["/entry/instrument/detector/beam_center_y"][()] == pytest.approx(2593.48)
         assert h5["/entry/instrument/beam/incident_energy"][()] == pytest.approx(7118.0)
+
+
+def test_the_embedded_geometry_keeps_the_2theta_arm_pose(tmp_path: Path) -> None:
+    """A sum of I19-2 data was read back 413 px off with no 2θ shown.
+
+    `_normalize_geometry_payload` rebuilt the payload from the panels alone and
+    dropped the pose the file's beam centre and distance are measured against
+    (the 2θ = 0 values), so the reader took the tilted panels' own hit instead.
+    """
+    geometry = {
+        "mode": "geometry",
+        "detector": "eiger",
+        "source": "NXmx transformations",
+        "panels": [
+            {
+                "name": "module",
+                "origin_mm": [-60.0, -100.0, 80.0],
+                "fast_axis": [1.0, 0.0, 0.0],
+                "slow_axis": [0.0, 1.0, 0.0],
+                "pixel_size_mm": [0.075, 0.075],
+                "image_size_px": [2068, 2162],
+                "raw_offset_px": [0.0, 0.0],
+            }
+        ],
+        "reference_center_x_px": 985.07,
+        "reference_center_y_px": 1419.47,
+        "reference_distance_mm": 85.0,
+        "distance_axis": [0.0, 0.0, 1.0],
+        "two_theta_deg": 20.0,
+        "two_theta_axis": [-1.0, 0.0, 0.0],
+    }
+    service = SeriesSummingService(
+        _make_deps(
+            tmp_path,
+            resolve_image_file=lambda name: Path(name),
+            resolve_series_files=lambda _source: ([], 0),
+            read_tiff=lambda _path, index: np.zeros((2, 2)),
+            write_tiff=lambda _path, _arr, _metadata=None: None,
+            get_h5py=lambda: h5py,
+        )
+    )
+    out = tmp_path / "sum.h5"
+    with h5py.File(out, "w") as h5:
+        assert service._write_embedded_geometry(h5, geometry) is True
+
+    embedded = _read_hdf5_embedded_geometry(out)
+
+    assert embedded["reference_center_x_px"] == pytest.approx(985.07)
+    assert embedded["reference_center_y_px"] == pytest.approx(1419.47)
+    assert embedded["reference_distance_mm"] == pytest.approx(85.0)
+    assert embedded["distance_axis"] == pytest.approx([0.0, 0.0, 1.0])
+    assert embedded["two_theta_deg"] == pytest.approx(20.0)
+    assert embedded["two_theta_axis"] == pytest.approx([-1.0, 0.0, 0.0])
+
+
+def test_an_invalid_reference_pose_is_dropped_not_embedded(tmp_path: Path) -> None:
+    geometry = {
+        "mode": "geometry",
+        "panels": [
+            {
+                "name": "m",
+                "origin_mm": [0.0, 0.0, 80.0],
+                "fast_axis": [1.0, 0.0, 0.0],
+                "slow_axis": [0.0, 1.0, 0.0],
+                "pixel_size_mm": [0.075, 0.075],
+                "image_size_px": [10, 10],
+                "raw_offset_px": [0.0, 0.0],
+            }
+        ],
+        "reference_center_x_px": float("nan"),
+        "reference_distance_mm": -5.0,
+        "distance_axis": [0.0, 0.0],
+        "two_theta_deg": 20.0,
+        "two_theta_axis": [0.0, 0.0, 0.0],
+    }
+
+    normalized = SeriesSummingService._normalize_geometry_payload(geometry)
+
+    for key in (
+        "reference_center_x_px",
+        "reference_distance_mm",
+        "distance_axis",
+        "two_theta_deg",
+        "two_theta_axis",
+    ):
+        assert key not in normalized
 
 
 def test_a_failed_hdf5_job_leaves_no_partial_output(tmp_path: Path) -> None:
