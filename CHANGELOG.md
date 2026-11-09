@@ -11,6 +11,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - **The Min/Max Finder can ignore pixels below or above a value you choose.** Two new optional boxes, **Ignore below** and **Ignore above**, leave out pixels outside that range. Until now the Min list on a frame with many zeros was just the first of those zeros, so it could not tell you the lowest pixel that read anything. Enter 1 under **Ignore below** and it does. Left empty, nothing changes. The CSV export records the cutoffs it used.
 
+### Changed
+
+- **Click the "Manual axes" tag on an ROI plot to go back to automatic axes, and click again to return to the axes you had.** Scrolling on a plot pins its axes at once, and the only way back was the plot's settings. The tag now does it in one click and, while the axes are automatic, reads "Auto axes" so you can undo it; hovering over it says what a click does. Double-click or the settings forget the remembered axes.
+
 ### Fixed
 
 - **The translations use one word for each technical term.** A detector frame was a "Frame" in one German message and a "Bild" (picture) in the next, and the same in Spanish, Italian, Portuguese, Swedish, Danish and Māori, so it was not clear when a message meant one frame of a stack and when the picture on screen. About 250 strings in twelve languages now follow the translation glossary, among them "frame", "series", "mask" and "mean". In German, Swedish and Danish a diffraction spot is now a Reflex / reflex / refleks, the crystallographers' word, rather than an optical reflection; Italian says "rivelatore" for detector throughout, and Māori uses "kopare" for mask where two labels said "folder".

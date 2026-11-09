@@ -422,6 +422,10 @@ stepping through frames, so the shape you are watching does not rescale
 underneath you. Drag on a plot to pan, wheel over an axis to zoom, double-click
 to reset.
 
+The **Manual axes** tag on a plot is a button: click it to return that plot to
+automatic axes (it then reads **Auto axes**), and click again to get back the
+axes you had. Double-click or the plot's settings forget them instead.
+
 **Export CSV** writes the plots you are looking at, for use elsewhere. Every
 plot gets its own pair of columns side by side — a line profile its distance
 and intensity, a histogram its intensity and count — because they do not share

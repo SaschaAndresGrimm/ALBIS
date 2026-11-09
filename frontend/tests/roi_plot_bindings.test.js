@@ -167,7 +167,7 @@ describe("roi_plot_bindings", () => {
     document.body.innerHTML = `
       <div class="roi-plot" id="roi-line-plot">
         <button class="roi-axis-limits-toggle" aria-expanded="false" aria-controls="roi-line-axis-popover"></button>
-        <span data-roi-axis-chip class="roi-axis-limit-chip is-hidden"></span>
+        <button type="button" data-roi-axis-chip class="roi-axis-limit-chip is-hidden"></button>
         <div class="roi-axis-limits-popover" id="roi-line-axis-popover" aria-hidden="true">
           <input type="checkbox" data-roi-plot-log />
           <input type="checkbox" data-roi-axis-auto checked />
@@ -265,6 +265,18 @@ describe("roi_plot_bindings", () => {
     autoToggle.checked = false;
     autoToggle.dispatchEvent(new Event("change", { bubbles: true }));
     expect(limits).toEqual({ xMin: 0, xMax: 9, yMin: 1, yMax: 5 });
+
+    chip.click();
+    expect(limits).toEqual({ xMin: null, xMax: null, yMin: null, yMax: null });
+    expect(chip.classList.contains("is-hidden")).toBe(false);
+    // The tag carries the key of its state, so a language switch
+    // (applyI18nToDom) retranslates it in place, and says what a click does.
+    expect(chip.dataset.i18n).toBe("roi.axis.auto_chip");
+    expect(chip.dataset.i18nTitle).toBe("roi.axis.chip_hint.auto");
+    chip.click();
+    expect(limits).toEqual({ xMin: 0, xMax: 9, yMin: 1, yMax: 5 });
+    expect(chip.dataset.i18n).toBe("roi.axis.manual_chip");
+    expect(chip.dataset.i18nTitle).toBe("roi.axis.chip_hint.manual");
 
     resetBtn.click();
     expect(limits).toEqual({ xMin: null, xMax: null, yMin: null, yMax: null });
