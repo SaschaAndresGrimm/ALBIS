@@ -247,12 +247,45 @@ class SeriesOutputFilesMixin:
             ):
                 return None
             normalized_panels.append(normalized_panel)
-        return {
+        normalized: dict[str, Any] = {
             "mode": "geometry",
             "detector": str(payload.get("detector") or ""),
             "source": str(payload.get("source") or ""),
             "panels": normalized_panels,
         }
+        normalized.update(cls._normalize_reference_pose(payload))
+        return normalized
+
+    @classmethod
+    def _normalize_reference_pose(cls, payload: dict[str, Any]) -> dict[str, Any]:
+        """The pose the Detector Geometry fields are measured against, if stated.
+
+        For a detector on a 2θ arm the file's beam centre and distance are its
+        2θ = 0 values. A sum that embedded the panels without them would be read
+        back with the pose computed from the (tilted) panels instead, shifting
+        the detector by the arm's offset. Each key is kept only when valid.
+        """
+        pose: dict[str, Any] = {}
+        for key in ("reference_center_x_px", "reference_center_y_px"):
+            number = cls._finite_float(payload.get(key))
+            if number is not None:
+                pose[key] = number
+        distance = cls._finite_float(payload.get("reference_distance_mm"))
+        if distance is not None and distance > 0:
+            pose["reference_distance_mm"] = distance
+        for key in ("distance_axis", "two_theta_axis"):
+            axis = payload.get(key)
+            if not isinstance(axis, list) or len(axis) != 3:
+                continue
+            values = [cls._finite_float(item) for item in axis]
+            if any(item is None for item in values):
+                continue
+            if sum(item * item for item in values) > 1e-18:
+                pose[key] = values
+        angle = cls._finite_float(payload.get("two_theta_deg"))
+        if angle is not None and "two_theta_axis" in pose:
+            pose["two_theta_deg"] = angle
+        return pose
 
     @classmethod
     def _geometry_pixel_size_um(cls, geometry: dict[str, Any] | None) -> float | None:

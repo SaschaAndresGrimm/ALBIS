@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **A sum of data from a detector on a 2θ arm, such as Diamond's I19-2, opens with its beam centre and rings in the right place.** Until now the sum showed the beam centre about 413 px off, no 2θ angle, and wrong resolution rings. The sum saved the detector's tilted panels but not the reference the file's beam centre and distance are measured against (the values at 2θ = 0), so ALBIS measured them against the tilted panels instead. The sum now keeps that reference and the 2θ arm with the panels. Sums made with earlier versions still open off-centre; make them again.
+
 ## [0.42.4] - 2026-11-09
 
 ### Fixed
