@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-11-09
+
+The first release with an outside contributor: Lucas Wagner wrote the Min/Max Finder cutoffs and the clickable **Manual axes** tag. He worked with an AI coding agent that followed ALBIS's contributor guides, checks and review steps. Both pull requests arrived complete, with tests, translations and documentation, and needed only small fixes before merging.
+
 ### Added
 
 - **The Min/Max Finder can ignore pixels below or above a value you choose.** Two new optional boxes, **Ignore below** and **Ignore above**, leave out pixels outside that range. Until now the Min list on a frame with many zeros was just the first of those zeros, so it could not tell you the lowest pixel that read anything. Enter 1 under **Ignore below** and it does. Left empty, nothing changes. The CSV export records the cutoffs it used.
@@ -1917,7 +1921,8 @@ Tagged but not published: the macOS x64 build failed to staple its notarization 
 
 - Backend/frontend architecture and tests expanded as part of the `0.7` to `0.8` refactoring track.
 
-[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.4...HEAD
+[Unreleased]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.43.0...HEAD
+[0.43.0]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.4...v0.43.0
 [0.42.4]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.3...v0.42.4
 [0.42.3]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.2...v0.42.3
 [0.42.2]: https://github.com/SaschaAndresGrimm/ALBIS/compare/v0.42.1...v0.42.2
