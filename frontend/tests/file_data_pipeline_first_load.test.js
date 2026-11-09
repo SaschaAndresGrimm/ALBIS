@@ -41,6 +41,7 @@ function makeController({ hasFrame = false, file = "", fetchJSON = vi.fn() } = {
     maskFile: "",
   };
   const setSplashStatus = vi.fn();
+  let core;
   const controller = createFileDataPipelineController({
     apiBase: "/api",
     state,
@@ -80,11 +81,11 @@ function makeController({ hasFrame = false, file = "", fetchJSON = vi.fn() } = {
       showProcessingProgress: vi.fn(),
       hideProcessingProgress: vi.fn(),
     },
-    core: {
+    core: (core = {
       inspectorPanel: { loadInspectorRoot: vi.fn(async () => {}) },
       chromeToolbar: { updateToolbar: vi.fn() },
       frameMetadata: { loadMetadata: vi.fn(async () => false) },
-      maskCursor: { loadMask: vi.fn(async () => {}) },
+      maskCursor: { loadMask: vi.fn(async () => {}), releaseMaskOfOtherFile: vi.fn() },
       // The real one sets hasFrame and hides the splash.
       fileSession: {
         applyExternalFrame: vi.fn(() => {
@@ -92,10 +93,10 @@ function makeController({ hasFrame = false, file = "", fetchJSON = vi.fn() } = {
         }),
       },
       framePlayback: { stopPlayback: vi.fn() },
-    },
+    }),
   });
   const splashKeys = () => setSplashStatus.mock.calls.map(([key]) => key);
-  return { controller, state, setSplashStatus, splashKeys };
+  return { controller, state, core, setSplashStatus, splashKeys };
 }
 
 describe("file_data_pipeline_controller first load splash", () => {
@@ -173,5 +174,19 @@ describe("file_data_pipeline_controller first load splash", () => {
     await controller.loadDatasets();
 
     expect(setSplashStatus).not.toHaveBeenCalled();
+  });
+
+  it("asks for an HDF5 file's mask once, after its metadata, not before the scan too", async () => {
+    // loadMetadata asks for the mask once it knows the file's shape; asking
+    // before the scan as well meant two requests per open, the first with the
+    // previous file's shape.
+    const fetchJSON = vi.fn(async () => ({ datasets: [{ path: "/entry/data/data", image: true, size: 1, shape: [1, 1, 1] }] }));
+    const { controller, core } = makeController({ file: "master.h5", fetchJSON });
+
+    await controller.loadDatasets();
+
+    expect(core.maskCursor.releaseMaskOfOtherFile).toHaveBeenCalledWith("master.h5");
+    expect(core.maskCursor.loadMask).not.toHaveBeenCalled();
+    expect(core.frameMetadata.loadMetadata).toHaveBeenCalledTimes(1);
   });
 });
