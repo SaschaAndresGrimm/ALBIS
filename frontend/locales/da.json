@@ -1012,7 +1012,7 @@
   "minmax.state.min_one": "Laveste pixel: {{value}} ved X {{x}}, Y {{y}}",
   "minmax.state.min_shared": "Laveste værdi {{value}}, delt af {{count}} pixels",
   "minmax.state.none_above_zero": "Ingen pixel over nul i denne ramme.",
-  "minmax.state.none_in_range": "Ingen pixel inden for grænserne på dette billede.",
+  "minmax.state.none_in_range": "Ingen pixel inden for grænserne i denne ramme.",
   "minmax.state.none_on_frame": "Ingen pixel med en værdi i denne ramme.",
   "minmax.summary.count": "{{count}} pixel{{plural:count||s}}",
   "minmax.summary.none": "Ingen",

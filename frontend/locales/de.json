@@ -1012,7 +1012,7 @@
   "minmax.state.min_one": "Tiefstes Pixel: {{value}} bei X {{x}}, Y {{y}}",
   "minmax.state.min_shared": "Tiefster Wert {{value}}, bei {{count}} Pixeln",
   "minmax.state.none_above_zero": "Kein Pixel über null in diesem Frame.",
-  "minmax.state.none_in_range": "Kein Pixel innerhalb der Grenzen in diesem Bild.",
+  "minmax.state.none_in_range": "Kein Pixel innerhalb der Grenzen in diesem Frame.",
   "minmax.state.none_on_frame": "Kein Pixel mit einem Wert in diesem Frame.",
   "minmax.summary.count": "{{count}} Pixel{{plural:count||}}",
   "minmax.summary.none": "Keine",

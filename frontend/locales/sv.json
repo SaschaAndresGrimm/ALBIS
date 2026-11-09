@@ -1012,7 +1012,7 @@
   "minmax.state.min_one": "Lägsta pixel: {{value}} vid X {{x}}, Y {{y}}",
   "minmax.state.min_shared": "Lägsta värde {{value}}, hos {{count}} pixlar",
   "minmax.state.none_above_zero": "Ingen pixel över noll i den här bildrutan.",
-  "minmax.state.none_in_range": "Ingen pixel inom gränserna i den här bilden.",
+  "minmax.state.none_in_range": "Ingen pixel inom gränserna i den här bildrutan.",
   "minmax.state.none_on_frame": "Ingen pixel med ett värde i den här bildrutan.",
   "minmax.summary.count": "{{count}} pixl{{plural:count|a|ar}}",
   "minmax.summary.none": "Inga",
