@@ -164,7 +164,11 @@ def test_a_companion_symlinked_out_of_the_root_is_not_read(tmp_path: Path) -> No
     outside.mkdir()
     _data_file(root / f"{PREFIX}_000001.h5")
     _meta_file(outside / "elsewhere.h5")
-    (root / f"{PREFIX}_meta.h5").symlink_to(outside / "elsewhere.h5")
+    try:
+        (root / f"{PREFIX}_meta.h5").symlink_to(outside / "elsewhere.h5")
+    except (OSError, NotImplementedError):  # pragma: no cover - platform dependent
+        # Windows refuses a symlink to an account without Developer Mode.
+        pytest.skip("this system does not allow creating symlinks")
 
     confined = _policy(root, allow_abs_paths=False).accept_found_hdf5_file
     assert companion_metadata_files(root / f"{PREFIX}_000001.h5", confined) == []
