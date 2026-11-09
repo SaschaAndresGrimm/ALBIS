@@ -1,0 +1,4 @@
+# Shell scripts keep LF line endings in every checkout. Git for Windows
+# converts to CRLF by default, and bash in WSL or the dev container then fails
+# on the first line ("bash\r: No such file or directory").
+*.sh text eol=lf

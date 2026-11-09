@@ -29,6 +29,24 @@ and open the URL Uvicorn prints.
 
 Before opening a pull request, `npm run check` runs every gate CI runs.
 
+### On Windows
+
+ALBIS itself runs on Windows, but the setup script and `npm run check` are
+bash scripts that expect `.venv/bin/`, so develop in Linux on the same
+machine. Either way the gates then run as they do in CI, and CI also runs the
+tests on Windows for every pull request.
+
+- **Dev container** (simplest): with Docker Desktop and VS Code's Dev
+  Containers extension, open the folder and choose *Reopen in Container*.
+  `.devcontainer/` brings Python 3.13 and Node 24 and runs the setup script.
+- **WSL2**: in an Ubuntu shell, clone into the Linux home folder (not under
+  `/mnt/c`, which is slow), install Python 3.13 (for example from the
+  deadsnakes PPA, with `python3.13-venv`) and Node 24, and run
+  `scripts/dev_setup.sh`.
+
+Neither has Chrome, so `npm run ui:snapshots` does not run there; take the
+screenshots for a visible change in your browser on Windows.
+
 ## Contributor docs
 
 - Developer Guide: `docs/DEVELOPER_GUIDE.md`

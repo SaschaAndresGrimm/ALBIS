@@ -128,6 +128,10 @@ and the glossary.
 
 - **Python**: 3.13 exactly. A `python` or `pytest` on PATH may be another
   version (Anaconda shadows it); use `.venv/bin/…` or `npm run check`.
+- **Windows**: `scripts/dev_setup.sh` and `npm run check` are bash and expect
+  `.venv/bin/`; they do not run natively. Work in WSL2 or the dev container
+  ([CONTRIBUTING.md › On Windows](CONTRIBUTING.md#on-windows)), and say in
+  the pull request if a gate could not run.
 - **Formatting**: CI checks with **black**. Do not run `ruff format`; the two
   disagree.
 - **Node**: the npm scripts pin `node@24`; `npm ci` itself needs Node 22.22+.
